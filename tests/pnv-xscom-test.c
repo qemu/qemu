@@ -84,7 +84,7 @@ static void test_cfam_id(const void *data)
         machine = "powernv9";
     }
 
-    qts = qtest_initf("-M %s,accel=tcg -cpu %s",
+    qts = qtest_initf("-M %s -accel tcg -cpu %s",
                       machine, chip->cpu_model);
     test_xscom_cfam_id(qts, chip);
     qtest_quit(qts);
@@ -125,7 +125,7 @@ static void test_core(const void *data)
         machine = "powernv9";
     }
 
-    qts = qtest_initf("-M %s,accel=tcg -cpu %s",
+    qts = qtest_initf("-M %s -accel tcg -cpu %s",
                       machine, chip->cpu_model);
     test_xscom_core(qts, chip);
     qtest_quit(qts);

@@ -577,8 +577,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     char *shmem_opts;
     char *shmem_path;
     const char *arch = qtest_get_arch();
-    const char *machine_type;
-    const char *machine_args;
+    const char *machine_opts = NULL;
     const char *memory_size;
 
     if (args->use_shmem) {
@@ -594,8 +593,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         /* the assembled x86 boot sector should be exactly one sector large */
         assert(sizeof(x86_bootsect) == 512);
         init_bootfile(bootpath, x86_bootsect, sizeof(x86_bootsect));
-        machine_type = "";
-        machine_args = "";
         memory_size = "150M";
         arch_source = g_strdup_printf("-drive file=%s,format=raw", bootpath);
         arch_target = g_strdup(arch_source);
@@ -603,16 +600,13 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
         init_bootfile(bootpath, s390x_elf, sizeof(s390x_elf));
-        machine_type = "";
-        machine_args = "";
         memory_size = "128M";
         arch_source = g_strdup_printf("-bios %s", bootpath);
         arch_target = g_strdup(arch_source);
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
-        machine_type = "";
-        machine_args = ",vsmt=8";
+        machine_opts = "vsmt=8";
         memory_size = "256M";
         arch_source = g_strdup_printf("-nodefaults "
                                       "-prom-env 'use-nvramrc?=true' -prom-env "
@@ -624,8 +618,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
         init_bootfile(bootpath, aarch64_kernel, sizeof(aarch64_kernel));
-        machine_type = "virt,";
-        machine_args = "gic-version=max";
+        machine_opts = "virt,gic-version=max";
         memory_size = "150M";
         arch_source = g_strdup_printf("-cpu max "
                                       "-kernel %s",
@@ -658,12 +651,13 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         shmem_opts = g_strdup("");
     }
 
-    cmd_source = g_strdup_printf("-machine %saccel=kvm:tcg%s "
+    cmd_source = g_strdup_printf("-accel kvm -accel tcg%s%s "
                                  "-name source,debug-threads=on "
                                  "-m %s "
                                  "-serial file:%s/src_serial "
                                  "%s %s %s %s",
-                                 machine_type, machine_args,
+                                 machine_opts ? " -machine " : "",
+                                 machine_opts ? machine_opts : "",
                                  memory_size, tmpfs,
                                  arch_source, shmem_opts, args->opts_source,
                                  ignore_stderr);
@@ -671,13 +665,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     *from = qtest_init(cmd_source);
     g_free(cmd_source);
 
-    cmd_target = g_strdup_printf("-machine %saccel=kvm:tcg%s "
+    cmd_target = g_strdup_printf("-accel kvm -accel tcg%s%s "
                                  "-name target,debug-threads=on "
                                  "-m %s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
                                  "%s %s %s %s",
-                                 machine_type, machine_args,
+                                 machine_opts ? " -machine " : "",
+                                 machine_opts ? machine_opts : "",
                                  memory_size, tmpfs, uri,
                                  arch_target, shmem_opts,
                                  args->opts_target, ignore_stderr);

@@ -292,7 +292,6 @@ static QemuOptsList qemu_accel_opts = {
     .name = "accel",
     .implied_opt_name = "accel",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_accel_opts.head),
-    .merge_lists = true,
     .desc = {
         {
             .name = "accel",
@@ -2523,6 +2522,11 @@ static int machine_set_property(void *opaque,
         }
     }
 
+    /* Legacy options do not correspond to MachineState properties.  */
+    if (g_str_equal(qom_name, "accel")) {
+        return 0;
+    }
+
     return object_parse_property_opt(opaque, name, value, "type", errp);
 }
 
@@ -2713,73 +2717,87 @@ static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
 
 static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
 {
+    bool *p_init_failed = opaque;
+    const char *acc = qemu_opt_get(opts, "accel");
+    AccelClass *ac = accel_find(acc);
+    int ret;
+
+    if (!ac) {
+        return 0;
+    }
+    ret = accel_init_machine(ac, current_machine);
+    if (ret < 0) {
+        *p_init_failed = true;
+        error_report("failed to initialize %s: %s",
+                     acc, strerror(-ret));
+        return 0;
+    }
+
     if (tcg_enabled()) {
         qemu_tcg_configure(opts, &error_fatal);
     }
-    return 0;
+    return 1;
 }
 
 static void configure_accelerators(const char *progname)
 {
     const char *accel;
     char **accel_list, **tmp;
-    int ret;
     bool accel_initialised = false;
     bool init_failed = false;
-    AccelClass *acc = NULL;
 
     qemu_opts_foreach(qemu_find_opts("icount"),
                       do_configure_icount, NULL, &error_fatal);
 
     accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
-    if (accel == NULL) {
-        /* Select the default accelerator */
-        if (!accel_find("tcg") && !accel_find("kvm")) {
-            error_report("No accelerator selected and"
-                         " no default accelerator available");
-            exit(1);
-        } else {
-            int pnlen = strlen(progname);
-            if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
-                /* If the program name ends with "kvm", we prefer KVM */
-                accel = "kvm:tcg";
+    if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
+        if (accel == NULL) {
+            /* Select the default accelerator */
+            if (!accel_find("tcg") && !accel_find("kvm")) {
+                error_report("No accelerator selected and"
+                             " no default accelerator available");
+                exit(1);
             } else {
-                accel = "tcg:kvm";
+                int pnlen = strlen(progname);
+                if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
+                    /* If the program name ends with "kvm", we prefer KVM */
+                    accel = "kvm:tcg";
+                } else {
+                    accel = "tcg:kvm";
+                }
             }
         }
+
+        accel_list = g_strsplit(accel, ":", 0);
+
+        for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
+            /*
+             * Filter invalid accelerators here, to prevent obscenities
+             * such as "-machine accel=tcg,,thread=single".
+             */
+            if (accel_find(*tmp)) {
+                qemu_opts_parse_noisily(qemu_find_opts("accel"), *tmp, true);
+            }
+        }
+    } else {
+        if (accel != NULL) {
+            error_report("The -accel and \"-machine accel=\" options are incompatible");
+            exit(1);
+        }
     }
 
-    accel_list = g_strsplit(accel, ":", 0);
-
-    for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
-        acc = accel_find(*tmp);
-        if (!acc) {
-            continue;
-        }
-        ret = accel_init_machine(acc, current_machine);
-        if (ret < 0) {
-            init_failed = true;
-            error_report("failed to initialize %s: %s",
-                         acc->name, strerror(-ret));
-        } else {
-            accel_initialised = true;
-        }
-    }
-    g_strfreev(accel_list);
-
-    if (!accel_initialised) {
+    if (!qemu_opts_foreach(qemu_find_opts("accel"),
+                           do_configure_accelerator, &init_failed, &error_fatal)) {
         if (!init_failed) {
-            error_report("-machine accel=%s: No accelerator found", accel);
+            error_report("no accelerator found");
         }
         exit(1);
     }
 
     if (init_failed) {
-        error_report("Back to %s accelerator", acc->name);
+        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
+        error_report("Back to %s accelerator", ac->name);
     }
-
-    qemu_opts_foreach(qemu_find_opts("accel"),
-                      do_configure_accelerator, NULL, &error_fatal);
 
     if (use_icount && !(tcg_enabled() || qtest_enabled())) {
         error_report("-icount is not allowed with hardware virtualization");
@@ -3461,9 +3479,6 @@ int main(int argc, char **argv, char **envp)
                                  "use -M accel=... for now instead");
                     exit(1);
                 }
-                opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
-                                        false, &error_abort);
-                qemu_opt_set(opts, "accel", optarg, &error_abort);
                 break;
             case QEMU_OPTION_usb:
                 olist = qemu_find_opts("machine");

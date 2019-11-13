@@ -260,7 +260,7 @@ static void test_geometry(const void *opaque)
 {
     const FlashConfig *config = opaque;
     QTestState *qtest;
-    qtest = qtest_initf("-M musicpal,accel=qtest"
+    qtest = qtest_initf("-M musicpal"
                         " -drive if=pflash,file=%s,format=raw,copy-on-read"
                         /* Device geometry properties. */
                         " -global driver=cfi.pflash02,"
@@ -580,7 +580,7 @@ static void test_cfi_in_autoselect(const void *opaque)
 {
     const FlashConfig *config = opaque;
     QTestState *qtest;
-    qtest = qtest_initf("-M musicpal,accel=qtest"
+    qtest = qtest_initf("-M musicpal"
                         " -drive if=pflash,file=%s,format=raw,copy-on-read",
                         image_path);
     FlashConfig explicit_config = expand_config_defaults(config);

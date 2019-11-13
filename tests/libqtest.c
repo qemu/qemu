@@ -241,9 +241,9 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
                               "-qtest-log %s "
                               "-chardev socket,path=%s,id=char0 "
                               "-mon chardev=char0,mode=control "
-                              "-accel qtest "
                               "-display none "
-                              "%s", qemu_binary, socket_path,
+                              "%s"
+                              " -accel qtest", qemu_binary, socket_path,
                               getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
                               qmp_socket_path,
                               extra_args ?: "");

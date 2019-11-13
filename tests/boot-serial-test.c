@@ -215,9 +215,9 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    qts = qtest_initf("%s %s -M %s,accel=tcg:kvm -no-shutdown "
+    qts = qtest_initf("%s %s -M %s -no-shutdown "
                       "-chardev file,id=serial0,path=%s "
-                      "-serial chardev:serial0 %s",
+                      "-serial chardev:serial0 -accel tcg -accel kvm %s",
                       codeparam, code ? codetmp : "", test->machine,
                       serialtmp, test->extra);
     if (code) {
