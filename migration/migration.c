@@ -1784,6 +1784,7 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     }
     if (!once) {
         error_setg(errp, "The incoming migration has already been started");
+        return;
     }
 
     qemu_start_incoming_migration(uri, &local_err);
