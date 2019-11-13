@@ -2714,8 +2714,65 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
-static void configure_accelerators(void)
+static void configure_accelerators(const char *progname)
 {
+    const char *accel;
+    char **accel_list, **tmp;
+    int ret;
+    bool accel_initialised = false;
+    bool init_failed = false;
+    AccelClass *acc = NULL;
+
+    qemu_opts_foreach(qemu_find_opts("icount"),
+                      do_configure_icount, NULL, &error_fatal);
+
+    accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
+    if (accel == NULL) {
+        /* Select the default accelerator */
+        if (!accel_find("tcg") && !accel_find("kvm")) {
+            error_report("No accelerator selected and"
+                         " no default accelerator available");
+            exit(1);
+        } else {
+            int pnlen = strlen(progname);
+            if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
+                /* If the program name ends with "kvm", we prefer KVM */
+                accel = "kvm:tcg";
+            } else {
+                accel = "tcg:kvm";
+            }
+        }
+    }
+
+    accel_list = g_strsplit(accel, ":", 0);
+
+    for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
+        acc = accel_find(*tmp);
+        if (!acc) {
+            continue;
+        }
+        ret = accel_init_machine(acc, current_machine);
+        if (ret < 0) {
+            init_failed = true;
+            error_report("failed to initialize %s: %s",
+                         acc->name, strerror(-ret));
+        } else {
+            accel_initialised = true;
+        }
+    }
+    g_strfreev(accel_list);
+
+    if (!accel_initialised) {
+        if (!init_failed) {
+            error_report("-machine accel=%s: No accelerator found", accel);
+        }
+        exit(1);
+    }
+
+    if (init_failed) {
+        error_report("Back to %s accelerator", acc->name);
+    }
+
     qemu_opts_foreach(qemu_find_opts("accel"),
                       do_configure_accelerator, NULL, &error_fatal);
 
@@ -4035,9 +4092,7 @@ int main(int argc, char **argv, char **envp)
      * Note: uses machine properties such as kernel-irqchip, must run
      * after machine_set_property().
      */
-    qemu_opts_foreach(qemu_find_opts("icount"),
-                      do_configure_icount, NULL, &error_fatal);
-    configure_accelerator(current_machine, argv[0]);
+    configure_accelerators(argv[0]);
 
     /*
      * Beware, QOM objects created before this point miss global and
@@ -4122,7 +4177,6 @@ int main(int argc, char **argv, char **envp)
     qemu_spice_init();
 
     cpu_ticks_init();
-    configure_accelerators();
 
     if (default_net) {
         QemuOptsList *net = qemu_find_opts("net");
