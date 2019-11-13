@@ -2716,6 +2716,7 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     bool *p_init_failed = opaque;
     const char *acc = qemu_opt_get(opts, "accel");
     AccelClass *ac = accel_find(acc);
+    AccelState *accel;
     int ret;
 
     if (!ac) {
@@ -2723,7 +2724,8 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         error_report("invalid accelerator %s", acc);
         return 0;
     }
-    ret = accel_init_machine(ac, current_machine);
+    accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
+    ret = accel_init_machine(accel, current_machine);
     if (ret < 0) {
         *p_init_failed = true;
         error_report("failed to initialize %s: %s",
