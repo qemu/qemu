@@ -289,8 +289,8 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
         return -1;
     }
     len -= sizeof(namelen);
-    if (len < namelen) {
-        error_setg(errp, "incorrect option name length");
+    if (len < namelen || namelen > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "incorrect name length in server's list response");
         nbd_send_opt_abort(ioc);
         return -1;
     }
@@ -303,6 +303,12 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
     local_name[namelen] = '\0';
     len -= namelen;
     if (len) {
+        if (len > NBD_MAX_STRING_SIZE) {
+            error_setg(errp, "incorrect description length in server's "
+                       "list response");
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
         local_desc = g_malloc(len + 1);
         if (nbd_read(ioc, local_desc, len, "export description", errp) < 0) {
             nbd_send_opt_abort(ioc);
@@ -479,6 +485,10 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
             break;
 
         default:
+            /*
+             * Not worth the bother to check if NBD_INFO_NAME or
+             * NBD_INFO_DESCRIPTION exceed NBD_MAX_STRING_SIZE.
+             */
             trace_nbd_opt_info_unknown(type, nbd_info_lookup(type));
             if (nbd_drop(ioc, len, errp) < 0) {
                 error_prepend(errp, "Failed to read info payload: ");
@@ -645,9 +655,11 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
     char *p;
 
     data_len = sizeof(export_len) + export_len + sizeof(queries);
+    assert(export_len <= NBD_MAX_STRING_SIZE);
     if (query) {
         query_len = strlen(query);
         data_len += sizeof(query_len) + query_len;
+        assert(query_len <= NBD_MAX_STRING_SIZE);
     } else {
         assert(opt == NBD_OPT_LIST_META_CONTEXT);
     }
@@ -1009,7 +1021,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     bool zeroes;
     bool base_allocation = info->base_allocation;
 
-    assert(info->name);
+    assert(info->name && strlen(info->name) <= NBD_MAX_STRING_SIZE);
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,

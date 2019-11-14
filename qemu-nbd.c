@@ -833,9 +833,18 @@ int main(int argc, char **argv)
             break;
         case 'x':
             export_name = optarg;
+            if (strlen(export_name) > NBD_MAX_STRING_SIZE) {
+                error_report("export name '%s' too long", export_name);
+                exit(EXIT_FAILURE);
+            }
             break;
         case 'D':
             export_description = optarg;
+            if (strlen(export_description) > NBD_MAX_STRING_SIZE) {
+                error_report("export description '%s' too long",
+                             export_description);
+                exit(EXIT_FAILURE);
+            }
             break;
         case 'v':
             verbose = 1;
