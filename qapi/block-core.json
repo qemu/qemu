@@ -2042,7 +2042,7 @@
 #
 # @node: name of device/node which the bitmap is tracking
 #
-# @name: name of the dirty bitmap
+# @name: name of the dirty bitmap (must be less than 1024 bytes)
 #
 # @granularity: the bitmap granularity, default is 64k for
 #               block-dirty-bitmap-add

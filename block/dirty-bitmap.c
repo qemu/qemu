@@ -104,9 +104,15 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
 
     assert(is_power_of_2(granularity) && granularity >= BDRV_SECTOR_SIZE);
 
-    if (name && bdrv_find_dirty_bitmap(bs, name)) {
-        error_setg(errp, "Bitmap already exists: %s", name);
-        return NULL;
+    if (name) {
+        if (bdrv_find_dirty_bitmap(bs, name)) {
+            error_setg(errp, "Bitmap already exists: %s", name);
+            return NULL;
+        }
+        if (strlen(name) > BDRV_BITMAP_MAX_NAME_SIZE) {
+            error_setg(errp, "Bitmap name too long: %s", name);
+            return NULL;
+        }
     }
     bitmap_size = bdrv_getlength(bs);
     if (bitmap_size < 0) {

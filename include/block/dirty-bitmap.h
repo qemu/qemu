@@ -14,6 +14,8 @@ typedef enum BitmapCheckFlags {
                              BDRV_BITMAP_INCONSISTENT)
 #define BDRV_BITMAP_ALLOW_RO (BDRV_BITMAP_BUSY | BDRV_BITMAP_INCONSISTENT)
 
+#define BDRV_BITMAP_MAX_NAME_SIZE 1023
+
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
                                           uint32_t granularity,
                                           const char *name,
