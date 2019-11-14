@@ -28,9 +28,90 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"execute":"blockdev-add", "arguments":{"driver":"IMGFMT", "node-name":"n", "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT"}}}
 {"return": {}}
-{"execute":"x-blockdev-set-iothread", "arguments":{"node-name":"n", "iothread":"io0"}}
-{"return": {}}
 {"execute":"block-dirty-bitmap-disable", "arguments":{"node":"n", "name":"b"}}
+{"return": {}}
+
+=== Set up NBD with normal access ===
+
+{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
+{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd"}}}}
+{"return": {}}
+{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd1"}}}}
+{"error": {"class": "GenericError", "desc": "NBD server already running"}}
+exports available: 0
+{"execute":"nbd-server-add", "arguments":{"device":"n", "bitmap":"b"}}
+{"return": {}}
+{"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
+{"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "bitmap":"b2"}}
+{"return": {}}
+exports available: 2
+ export: 'n'
+  size:  4194304
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 2
+   base:allocation
+   qemu:dirty-bitmap:b
+ export: 'n2'
+  size:  4194304
+  flags: 0xced ( flush fua trim zeroes df cache fast-zero )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 2
+   base:allocation
+   qemu:dirty-bitmap:b2
+
+=== Contrast normal status to large granularity dirty-bitmap ===
+
+read 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 4096, "length": 1044480, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 1048576, "length": 3145728, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
+
+=== Contrast to small granularity dirty-bitmap ===
+
+[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
+{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
+
+=== End qemu NBD server ===
+
+{"execute":"nbd-server-remove", "arguments":{"name":"n"}}
+{"return": {}}
+{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"return": {}}
+{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
+{"execute":"nbd-server-stop"}
+{"return": {}}
+{"execute":"nbd-server-stop"}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
+
+=== Set up NBD with iothread access ===
+
+{"execute":"x-blockdev-set-iothread", "arguments":{"node-name":"n", "iothread":"io0"}}
 {"return": {}}
 {"execute":"nbd-server-add", "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
