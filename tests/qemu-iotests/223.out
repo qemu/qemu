@@ -24,19 +24,32 @@ wrote 2097152/2097152 bytes at offset 2097152
 
 === End dirty bitmaps, and start serving image over NBD ===
 
+{"execute":"qmp_capabilities"}
 {"return": {}}
+{"execute":"blockdev-add", "arguments":{"driver":"IMGFMT", "node-name":"n", "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT"}}}
 {"return": {}}
+{"execute":"x-blockdev-set-iothread", "arguments":{"node-name":"n", "iothread":"io0"}}
 {"return": {}}
+{"execute":"block-dirty-bitmap-disable", "arguments":{"node":"n", "name":"b"}}
 {"return": {}}
+{"execute":"nbd-server-add", "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
+{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd"}}}}
 {"return": {}}
+{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd1"}}}}
 {"error": {"class": "GenericError", "desc": "NBD server already running"}}
 exports available: 0
+{"execute":"nbd-server-add", "arguments":{"device":"n", "bitmap":"b"}}
 {"return": {}}
+{"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
 {"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "bitmap":"b2"}}
 {"return": {}}
 exports available: 2
  export: 'n'
@@ -84,11 +97,17 @@ read 2097152/2097152 bytes at offset 2097152
 
 === End qemu NBD server ===
 
+{"execute":"nbd-server-remove", "arguments":{"name":"n"}}
 {"return": {}}
+{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
 {"return": {}}
+{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
+{"execute":"nbd-server-stop"}
 {"return": {}}
+{"execute":"nbd-server-stop"}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
+{"execute":"quit"}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
 

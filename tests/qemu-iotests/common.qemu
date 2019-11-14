@@ -123,6 +123,9 @@ _timed_wait_for()
 # until either timeout, or a response.  If it is not set, or <=0,
 # then the command is only sent once.
 #
+# If neither $silent nor $mismatch_only is set, and $cmd begins with '{',
+# echo the command before sending it the first time.
+#
 # If $qemu_error_no_exit is set, then even if the expected response
 # is not seen, we will not exit.  $QEMU_STATUS[$1] will be set it -1 in
 # that case.
@@ -152,6 +155,12 @@ _send_qemu_cmd()
         shift $(($# - 2))
     fi
 
+    # Display QMP being sent, but not HMP (since HMP already echoes its
+    # input back to output); decide based on leading '{'
+    if [ -z "$silent" ] && [ -z "$mismatch_only" ] &&
+            [ "$cmd" != "${cmd#\{}" ]; then
+        echo "${cmd}" | _filter_testdir | _filter_imgfmt
+    fi
     while [ ${count} -gt 0 ]
     do
         echo "${cmd}" >&${QEMU_IN[${h}]}
