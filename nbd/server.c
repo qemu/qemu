@@ -324,18 +324,20 @@ static int nbd_opt_skip(NBDClient *client, size_t size, Error **errp)
  *   uint32_t len     (<= NBD_MAX_NAME_SIZE)
  *   len bytes string (not 0-terminated)
  *
- * @name should be enough to store NBD_MAX_NAME_SIZE+1.
+ * On success, @name will be allocated.
  * If @length is non-null, it will be set to the actual string length.
  *
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success.
  */
-static int nbd_opt_read_name(NBDClient *client, char *name, uint32_t *length,
+static int nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
                              Error **errp)
 {
     int ret;
     uint32_t len;
+    g_autofree char *local_name = NULL;
 
+    *name = NULL;
     ret = nbd_opt_read(client, &len, sizeof(len), errp);
     if (ret <= 0) {
         return ret;
@@ -347,15 +349,17 @@ static int nbd_opt_read_name(NBDClient *client, char *name, uint32_t *length,
                                "Invalid name length: %" PRIu32, len);
     }
 
-    ret = nbd_opt_read(client, name, len, errp);
+    local_name = g_malloc(len + 1);
+    ret = nbd_opt_read(client, local_name, len, errp);
     if (ret <= 0) {
         return ret;
     }
-    name[len] = '\0';
+    local_name[len] = '\0';
 
     if (length) {
         *length = len;
     }
+    *name = g_steal_pointer(&local_name);
 
     return 1;
 }
@@ -427,7 +431,7 @@ static void nbd_check_meta_export(NBDClient *client)
 static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
                                             Error **errp)
 {
-    char name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *name = NULL;
     char buf[NBD_REPLY_EXPORT_NAME_SIZE] = "";
     size_t len;
     int ret;
@@ -441,10 +445,11 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         [10 .. 133]   reserved     (0) [unless no_zeroes]
      */
     trace_nbd_negotiate_handle_export_name();
-    if (client->optlen >= sizeof(name)) {
+    if (client->optlen > NBD_MAX_NAME_SIZE) {
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
+    name = g_malloc(client->optlen + 1);
     if (nbd_read(client->ioc, name, client->optlen, "export name", errp) < 0) {
         return -EIO;
     }
@@ -533,7 +538,7 @@ static int nbd_reject_length(NBDClient *client, bool fatal, Error **errp)
 static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
 {
     int rc;
-    char name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *name = NULL;
     NBDExport *exp;
     uint16_t requests;
     uint16_t request;
@@ -551,7 +556,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         2 bytes: N, number of requests (can be 0)
         N * 2 bytes: N requests
     */
-    rc = nbd_opt_read_name(client, name, &namelen, errp);
+    rc = nbd_opt_read_name(client, &name, &namelen, errp);
     if (rc <= 0) {
         return rc;
     }
@@ -957,7 +962,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
                                       NBDExportMetaContexts *meta, Error **errp)
 {
     int ret;
-    char export_name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *export_name = NULL;
     NBDExportMetaContexts local_meta;
     uint32_t nb_queries;
     int i;
@@ -976,7 +981,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
 
     memset(meta, 0, sizeof(*meta));
 
-    ret = nbd_opt_read_name(client, export_name, NULL, errp);
+    ret = nbd_opt_read_name(client, &export_name, NULL, errp);
     if (ret <= 0) {
         return ret;
     }
