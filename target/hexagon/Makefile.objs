@@ -18,14 +18,17 @@ obj-y += \
 
 CFLAGS += -I$(SRC_PATH)/target/hexagon/imported
 
-####target/hexagon/qemu.odef target/hexagon/qemu_wrap.h: \
-####    $(SRC_PATH)/target/hexagon/do_qemu.py \
-####    $(SRC_PATH)/target/hexagon/semantics.pyinc \
-####    $(SRC_PATH)/target/hexagon/attribs.def
-####	$(SRC_PATH)target/hexagon/do_qemu.py
-####
-####target/hexagon/genptr.o: target/hexagon/qemu.odef
-####target/hexagon/genptr.o: target/hexagon/qemu_wrap.h
-####target/hexagon/op_helper.o: target/hexagon/qemu.odef
-####target/hexagon/opcodes.o: target/hexagon/qemu.odef
-####target/hexagon/helper.h: target/hexagon/qemu.odef
+target/hexagon/qemu.odef target/hexagon/qemu_wrap.h: \
+    $(SRC_PATH)/target/hexagon/do_qemu.py \
+    $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
+    $(SRC_PATH)/target/hexagon/imported/attribs.def
+	$(SRC_PATH)/target/hexagon/do_qemu.py \
+            $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
+            $(SRC_PATH)/target/hexagon/imported/attribs.def
+
+target/hexagon/genptr.o: target/hexagon/qemu.odef
+target/hexagon/genptr.o: target/hexagon/qemu_wrap.h
+target/hexagon/op_helper.o: target/hexagon/qemu.odef
+target/hexagon/opcodes.o: target/hexagon/qemu.odef
+target/hexagon/helper.h: target/hexagon/qemu.odef
+tcg/tcg.o: target/hexagon/qemu.odef
