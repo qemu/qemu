@@ -129,7 +129,7 @@ def MACROATTRIB(macname,beh,attribstring,ext=""):
 
 # read in file.  Evaluate each line: each line calls a function above
 
-for line in open("semantics.pyinc").readlines():
+for line in open(sys.argv[1]).readlines():
 	eval(line.strip())
 
 
@@ -138,7 +138,7 @@ calculate_attribs()
 
 attribre = re.compile(r'DEF_ATTRIB\(([A-Za-z0-9_]+),([^,]*),' + 
 		r'"([A-Za-z0-9_\.]*)","([A-Za-z0-9_\.]*)"\)')
-for line in open("attribs.def").readlines():
+for line in open(sys.argv[2]).readlines():
 	if not attribre.match(line):
 		#print "blah: %s" % line.strip()
 		continue
@@ -1984,4 +1984,3 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
-print "done"
