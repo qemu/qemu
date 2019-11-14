@@ -1,5 +1,5 @@
 
-vgabios_variants := stdvga cirrus vmware qxl isavga virtio bochs-display ramfb
+vgabios_variants := stdvga cirrus vmware qxl isavga virtio bochs-display ramfb ati
 vgabios_targets  := $(subst -isavga,,$(patsubst %,vgabios-%.bin,$(vgabios_variants)))
 pxerom_variants  := e1000 e1000e eepro100 ne2k_pci pcnet rtl8139 virtio vmxnet3
 pxerom_targets   := 8086100e 808610d3 80861209 10500940 10222000 10ec8139 1af41000 15ad07b0
