@@ -152,6 +152,11 @@ class BaseVM(object):
     def build_image(self, img):
         raise NotImplementedError
 
+    def exec_qemu_img(self, *args):
+        cmd = [os.environ.get("QEMU_IMG", "qemu-img")]
+        cmd.extend(list(args))
+        subprocess.check_call(cmd)
+
     def add_source_dir(self, src_dir):
         name = "data-" + hashlib.sha1(src_dir.encode("utf-8")).hexdigest()[:5]
         tarfile = os.path.join(self._tmpdir, name + ".tar")

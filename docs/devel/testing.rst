@@ -418,12 +418,14 @@ access, so they SHOULD NOT be exposed to external interfaces if you are
 concerned about attackers taking control of the guest and potentially
 exploiting a QEMU security bug to compromise the host.
 
-QEMU binary
------------
+QEMU binaries
+-------------
 
 By default, qemu-system-x86_64 is searched in $PATH to run the guest. If there
 isn't one, or if it is older than 2.10, the test won't work. In this case,
 provide the QEMU binary in env var: ``QEMU=/path/to/qemu-2.10+``.
+
+Likewise the path to qemu-img can be set in QEMU_IMG environment variable.
 
 Make jobs
 ---------
