@@ -153,7 +153,7 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "bitmap":"b3"}}' "error" # Missing bitmap
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "name":"n2", "writable":true,
-  "bitmap":"b2"}}' "return"
+  "description":"some text", "bitmap":"b2"}}' "return"
 $QEMU_NBD_PROG -L -k "$SOCK_DIR/nbd"
 
 echo

@@ -250,9 +250,12 @@
 # @name: Export name. If unspecified, the @device parameter is used as the
 #        export name. (Since 2.12)
 #
+# @description: Free-form description of the export, up to 4096 bytes.
+#               (Since 5.0)
+#
 # @writable: Whether clients should be able to write to the device via the
 #     NBD connection (default false).
-
+#
 # @bitmap: Also export the dirty bitmap reachable from @device, so the
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
 #          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
@@ -263,8 +266,8 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-add',
-  'data': {'device': 'str', '*name': 'str', '*writable': 'bool',
-           '*bitmap': 'str' } }
+  'data': {'device': 'str', '*name': 'str', '*description': 'str',
+           '*writable': 'bool', '*bitmap': 'str' } }
 
 ##
 # @NbdServerRemoveMode:
