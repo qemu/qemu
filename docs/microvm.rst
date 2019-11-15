@@ -33,9 +33,9 @@ Limitations
 
 Currently, microvm does *not* support the following features:
 
- - PCI-only devices.
- - Hotplug of any kind.
- - Live migration across QEMU versions.
+- PCI-only devices.
+- Hotplug of any kind.
+- Live migration across QEMU versions.
 
 
 Using the microvm machine type
