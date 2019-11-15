@@ -580,19 +580,11 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     XiveTCTX *tctx = XIVE_TCTX(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    Object *obj;
     Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "cpu", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'cpu' not found: ");
-        return;
-    }
+    assert(tctx->cs);
 
-    cpu = POWERPC_CPU(obj);
-    tctx->cs = CPU(obj);
-
+    cpu = POWERPC_CPU(tctx->cs);
     env = &cpu->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER9:
@@ -662,6 +654,11 @@ static const VMStateDescription vmstate_xive_tctx = {
     },
 };
 
+static Property xive_tctx_properties[] = {
+    DEFINE_PROP_LINK("cpu", XiveTCTX, cs, TYPE_CPU, CPUState *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xive_tctx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -669,6 +666,7 @@ static void xive_tctx_class_init(ObjectClass *klass, void *data)
     dc->desc = "XIVE Interrupt Thread Context";
     dc->realize = xive_tctx_realize;
     dc->vmsd = &vmstate_xive_tctx;
+    dc->props = xive_tctx_properties;
     /*
      * Reason: part of XIVE interrupt controller, needs to be wired up
      * by xive_tctx_create().
@@ -691,8 +689,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     obj = object_new(TYPE_XIVE_TCTX);
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
-    object_ref(cpu);
-    object_property_add_const_link(obj, "cpu", cpu, &error_abort);
+    object_property_set_link(obj, cpu, "cpu", &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         goto error;
@@ -710,7 +707,6 @@ void xive_tctx_destroy(XiveTCTX *tctx)
 {
     Object *obj = OBJECT(tctx);
 
-    object_unref(object_property_get_link(obj, "cpu", &error_abort));
     object_unparent(obj);
 }
 
