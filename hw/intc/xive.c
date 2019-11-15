@@ -337,14 +337,49 @@ static void xive_tm_set_os_pending(XiveTCTX *tctx, hwaddr offset,
     xive_tctx_notify(tctx, TM_QW1_OS);
 }
 
+static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
+                               uint32_t *nvt_idx, bool *vo)
+{
+    if (nvt_blk) {
+        *nvt_blk = xive_nvt_blk(cam);
+    }
+    if (nvt_idx) {
+        *nvt_idx = xive_nvt_idx(cam);
+    }
+    if (vo) {
+        *vo = !!(cam & TM_QW1W2_VO);
+    }
+}
+
+static uint32_t xive_tctx_get_os_cam(XiveTCTX *tctx, uint8_t *nvt_blk,
+                                     uint32_t *nvt_idx, bool *vo)
+{
+    uint32_t qw1w2 = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
+    uint32_t cam = be32_to_cpu(qw1w2);
+
+    xive_os_cam_decode(cam, nvt_blk, nvt_idx, vo);
+    return qw1w2;
+}
+
+static void xive_tctx_set_os_cam(XiveTCTX *tctx, uint32_t qw1w2)
+{
+    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+}
+
 static uint64_t xive_tm_pull_os_ctx(XiveTCTX *tctx, hwaddr offset,
                                     unsigned size)
 {
-    uint32_t qw1w2_prev = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
     uint32_t qw1w2;
+    uint32_t qw1w2_new;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    bool vo;
 
-    qw1w2 = xive_set_field32(TM_QW1W2_VO, qw1w2_prev, 0);
-    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+    qw1w2 = xive_tctx_get_os_cam(tctx, &nvt_blk, &nvt_idx, &vo);
+
+    /* Invalidate CAM line */
+    qw1w2_new = xive_set_field32(TM_QW1W2_VO, qw1w2, 0);
+    xive_tctx_set_os_cam(tctx, qw1w2_new);
     return qw1w2;
 }
 
