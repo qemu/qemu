@@ -1091,8 +1091,6 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "xive", &chip9->xive, sizeof(chip9->xive),
                             TYPE_PNV_XIVE, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip9->xive), "chip", obj,
-                                   &error_abort);
 
     object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
                             TYPE_PNV9_PSI, &error_abort, NULL);
@@ -1172,6 +1170,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             "pc-bar", &error_fatal);
     object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_TM_BASE(chip),
                             "tm-bar", &error_fatal);
+    object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip), "chip",
+                             &error_abort);
     object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
                              &local_err);
     if (local_err) {

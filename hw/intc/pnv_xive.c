@@ -1675,17 +1675,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
-    Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "chip", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'chip' not found: ");
-        return;
-    }
-
-    /* The PnvChip id identifies the XIVE interrupt controller. */
-    xive->chip = PNV_CHIP(obj);
+    assert(xive->chip);
 
     /*
      * The XiveSource and XiveENDSource objects are realized with the
@@ -1800,6 +1791,8 @@ static Property pnv_xive_properties[] = {
     DEFINE_PROP_UINT64("vc-bar", PnvXive, vc_base, 0),
     DEFINE_PROP_UINT64("pc-bar", PnvXive, pc_base, 0),
     DEFINE_PROP_UINT64("tm-bar", PnvXive, tm_base, 0),
+    /* The PnvChip id identifies the XIVE interrupt controller. */
+    DEFINE_PROP_LINK("chip", PnvXive, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
