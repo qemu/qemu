@@ -64,12 +64,10 @@ static const int tcg_memop_lookup[8] = {
     [0] = MO_SB,
     [1] = MO_TESW,
     [2] = MO_TESL,
+    [3] = MO_TEQ,
     [4] = MO_UB,
     [5] = MO_TEUW,
-#ifdef TARGET_RISCV64
-    [3] = MO_TEQ,
     [6] = MO_TEUL,
-#endif
 };
 #endif
 

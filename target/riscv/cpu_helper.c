@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
@@ -38,7 +39,7 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
     target_ulong mstatus_mie = get_field(env->mstatus, MSTATUS_MIE);
     target_ulong mstatus_sie = get_field(env->mstatus, MSTATUS_SIE);
-    target_ulong pending = atomic_read(&env->mip) & env->mie;
+    target_ulong pending = env->mip & env->mie;
     target_ulong mie = env->priv < PRV_M || (env->priv == PRV_M && mstatus_mie);
     target_ulong sie = env->priv < PRV_S || (env->priv == PRV_S && mstatus_sie);
     target_ulong irqs = (pending & ~env->mideleg & -mie) |
@@ -92,42 +93,29 @@ int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint32_t interrupts)
     }
 }
 
-struct CpuAsyncInfo {
-    uint32_t new_mip;
-};
-
-static void riscv_cpu_update_mip_irqs_async(CPUState *target_cpu_state,
-                                            run_on_cpu_data data)
-{
-    struct CpuAsyncInfo *info = (struct CpuAsyncInfo *) data.host_ptr;
-
-    if (info->new_mip) {
-        cpu_interrupt(target_cpu_state, CPU_INTERRUPT_HARD);
-    } else {
-        cpu_reset_interrupt(target_cpu_state, CPU_INTERRUPT_HARD);
-    }
-
-    g_free(info);
-}
-
 uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
 {
     CPURISCVState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    struct CpuAsyncInfo *info;
-    uint32_t old, new, cmp = atomic_read(&env->mip);
+    uint32_t old = env->mip;
+    bool locked = false;
 
-    do {
-        old = cmp;
-        new = (old & ~mask) | (value & mask);
-        cmp = atomic_cmpxchg(&env->mip, old, new);
-    } while (old != cmp);
+    if (!qemu_mutex_iothread_locked()) {
+        locked = true;
+        qemu_mutex_lock_iothread();
+    }
 
-    info = g_new(struct CpuAsyncInfo, 1);
-    info->new_mip = new;
+    env->mip = (env->mip & ~mask) | (value & mask);
 
-    async_run_on_cpu(cs, riscv_cpu_update_mip_irqs_async,
-                     RUN_ON_CPU_HOST_PTR(info));
+    if (env->mip) {
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
 
     return old;
 }

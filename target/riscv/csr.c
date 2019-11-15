@@ -579,7 +579,7 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     if (mask) {
         old_mip = riscv_cpu_update_mip(cpu, mask, (new_value & mask));
     } else {
-        old_mip = atomic_read(&env->mip);
+        old_mip = env->mip;
     }
 
     if (ret_value) {
