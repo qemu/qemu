@@ -29,7 +29,7 @@
 
 #include "pnv_xive_regs.h"
 
-#define XIVE_DEBUG
+#undef XIVE_DEBUG
 
 /*
  * Virtual structures table (VST)
@@ -157,7 +157,9 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
     vsd = ldq_be_dma(&address_space_memory, vsd_addr);
 
     if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
         xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
         return 0;
     }
 
@@ -178,7 +180,9 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
         vsd = ldq_be_dma(&address_space_memory, vsd_addr);
 
         if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
             xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
             return 0;
         }
 
