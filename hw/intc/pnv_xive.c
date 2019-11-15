@@ -1705,8 +1705,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
 
     object_property_set_int(OBJECT(end_xsrc), PNV_XIVE_NR_ENDS, "nr-ends",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(end_xsrc), OBJECT(xive), "xive",
+                             &error_abort);
     object_property_set_bool(OBJECT(end_xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

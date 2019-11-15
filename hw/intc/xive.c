@@ -1814,17 +1814,8 @@ static const MemoryRegionOps xive_end_source_ops = {
 static void xive_end_source_realize(DeviceState *dev, Error **errp)
 {
     XiveENDSource *xsrc = XIVE_END_SOURCE(dev);
-    Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'xive' not found: ");
-        return;
-    }
-
-    xsrc->xrtr = XIVE_ROUTER(obj);
+    assert(xsrc->xrtr);
 
     if (!xsrc->nr_ends) {
         error_setg(errp, "Number of interrupt needs to be greater than 0");
@@ -1850,6 +1841,8 @@ static Property xive_end_source_properties[] = {
     DEFINE_PROP_UINT8("block-id", XiveENDSource, block_id, 0),
     DEFINE_PROP_UINT32("nr-ends", XiveENDSource, nr_ends, 0),
     DEFINE_PROP_UINT32("shift", XiveENDSource, esb_shift, XIVE_ESB_64K),
+    DEFINE_PROP_LINK("xive", XiveENDSource, xrtr, TYPE_XIVE_ROUTER,
+                     XiveRouter *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
