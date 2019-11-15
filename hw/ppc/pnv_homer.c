@@ -22,6 +22,7 @@
 #include "exec/memory.h"
 #include "sysemu/cpus.h"
 #include "hw/qdev-core.h"
+#include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_homer.h"
 
@@ -229,21 +230,19 @@ static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
     PnvHomer *homer = PNV_HOMER(dev);
     PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
-    Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "chip", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'chip' not found: ");
-        return;
-    }
-    homer->chip = PNV_CHIP(obj);
+    assert(homer->chip);
+
     /* homer region */
     memory_region_init_io(&homer->regs, OBJECT(dev),
                           hmrc->homer_ops, homer, "homer-main-memory",
                           hmrc->homer_size);
 }
+
+static Property pnv_homer_properties[] = {
+    DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pnv_homer_class_init(ObjectClass *klass, void *data)
 {
@@ -251,6 +250,7 @@ static void pnv_homer_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_homer_realize;
     dc->desc = "PowerNV HOMER Memory";
+    dc->props = pnv_homer_properties;
 }
 
 static const TypeInfo pnv_homer_type_info = {

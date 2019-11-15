@@ -907,8 +907,6 @@ static void pnv_chip_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer",  &chip8->homer, sizeof(chip8->homer),
                             TYPE_PNV8_HOMER, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip8->homer), "chip", obj,
-                                   &error_abort);
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -1012,6 +1010,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->occ.sram_regs);
 
     /* HOMER */
+    object_property_set_link(OBJECT(&chip8->homer), OBJECT(chip), "chip",
+                             &error_abort);
     object_property_set_bool(OBJECT(&chip8->homer), true, "realized",
                              &local_err);
     if (local_err) {
@@ -1105,8 +1105,6 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer",  &chip9->homer, sizeof(chip9->homer),
                             TYPE_PNV9_HOMER, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip9->homer), "chip", obj,
-                                   &error_abort);
 }
 
 static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
@@ -1223,6 +1221,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                 &chip9->occ.sram_regs);
 
     /* HOMER */
+    object_property_set_link(OBJECT(&chip9->homer), OBJECT(chip), "chip",
+                             &error_abort);
     object_property_set_bool(OBJECT(&chip9->homer), true, "realized",
                              &local_err);
     if (local_err) {
