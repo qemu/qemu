@@ -1096,8 +1096,6 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
                             TYPE_PNV9_PSI, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip9->psi), "chip", obj,
-                                   &error_abort);
 
     object_initialize_child(obj, "lpc",  &chip9->lpc, sizeof(chip9->lpc),
                             TYPE_PNV9_LPC, &error_abort, NULL);
