@@ -123,36 +123,22 @@ static uint64_t pnv_xive_vst_page_size_allowed(uint32_t page_shift)
          page_shift == 21 || page_shift == 24;
 }
 
-static uint64_t pnv_xive_vst_size(uint64_t vsd)
-{
-    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
-
-    /*
-     * Read the first descriptor to get the page size of the indirect
-     * table.
-     */
-    if (VSD_INDIRECT & vsd) {
-        uint32_t nr_pages = vst_tsize / XIVE_VSD_SIZE;
-        uint32_t page_shift;
-
-        vsd = ldq_be_dma(&address_space_memory, vsd & VSD_ADDRESS_MASK);
-        page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
-
-        if (!pnv_xive_vst_page_size_allowed(page_shift)) {
-            return 0;
-        }
-
-        return nr_pages * (1ull << page_shift);
-    }
-
-    return vst_tsize;
-}
-
 static uint64_t pnv_xive_vst_addr_direct(PnvXive *xive, uint32_t type,
                                          uint64_t vsd, uint32_t idx)
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
+    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
+    uint32_t idx_max;
+
+    idx_max = vst_tsize / info->size - 1;
+    if (idx > idx_max) {
+#ifdef XIVE_DEBUG
+        xive_error(xive, "VST: %s entry %x out of range [ 0 .. %x ] !?",
+                   info->name, idx, idx_max);
+#endif
+        return 0;
+    }
 
     return vst_addr + idx * info->size;
 }
@@ -215,7 +201,6 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t vsd;
-    uint32_t idx_max;
 
     if (blk >= info->max_blocks) {
         xive_error(xive, "VST: invalid block id %d for VST %s %d !?",
@@ -230,15 +215,6 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
         xive = pnv_xive_get_ic(blk);
 
         return xive ? pnv_xive_vst_addr(xive, type, blk, idx) : 0;
-    }
-
-    idx_max = pnv_xive_vst_size(vsd) / info->size - 1;
-    if (idx > idx_max) {
-#ifdef XIVE_DEBUG
-        xive_error(xive, "VST: %s entry %x/%x out of range [ 0 .. %x ] !?",
-                   info->name, blk, idx, idx_max);
-#endif
-        return 0;
     }
 
     if (VSD_INDIRECT & vsd) {
@@ -453,19 +429,12 @@ static uint64_t pnv_xive_pc_size(PnvXive *xive)
     return (~xive->regs[CQ_PC_BARM >> 3] + 1) & CQ_PC_BARM_MASK;
 }
 
-static uint32_t pnv_xive_nr_ipis(PnvXive *xive)
+static uint32_t pnv_xive_nr_ipis(PnvXive *xive, uint8_t blk)
 {
-    uint8_t blk = xive->chip->chip_id;
+    uint64_t vsd = xive->vsds[VST_TSEL_SBE][blk];
+    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
 
-    return pnv_xive_vst_size(xive->vsds[VST_TSEL_SBE][blk]) * SBE_PER_BYTE;
-}
-
-static uint32_t pnv_xive_nr_ends(PnvXive *xive)
-{
-    uint8_t blk = xive->chip->chip_id;
-
-    return pnv_xive_vst_size(xive->vsds[VST_TSEL_EQDT][blk])
-        / vst_infos[VST_TSEL_EQDT].size;
+    return VSD_INDIRECT & vsd ? 0 : vst_tsize * SBE_PER_BYTE;
 }
 
 /*
@@ -598,6 +567,7 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
     XiveSource *xsrc = &xive->ipi_source;
     const XiveVstInfo *info = &vst_infos[type];
     uint32_t page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+    uint64_t vst_tsize = 1ull << page_shift;
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
 
     /* Basic checks */
@@ -633,11 +603,16 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
 
     case VST_TSEL_EQDT:
         /*
-         * Backing store pages for the END. Compute the number of ENDs
-         * provisioned by FW and resize the END ESB window accordingly.
+         * Backing store pages for the END.
+         *
+         * If the table is direct, we can compute the number of PQ
+         * entries provisioned by FW (such as skiboot) and resize the
+         * END ESB window accordingly.
          */
-        memory_region_set_size(&end_xsrc->esb_mmio, pnv_xive_nr_ends(xive) *
-                               (1ull << (end_xsrc->esb_shift + 1)));
+        if (!(VSD_INDIRECT & vsd)) {
+            memory_region_set_size(&end_xsrc->esb_mmio, (vst_tsize / info->size)
+                                   * (1ull << xsrc->esb_shift));
+        }
         memory_region_add_subregion(&xive->end_edt_mmio, 0,
                                     &end_xsrc->esb_mmio);
         break;
@@ -646,11 +621,16 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
         /*
          * Backing store pages for the source PQ bits. The model does
          * not use these PQ bits backed in RAM because the XiveSource
-         * model has its own. Compute the number of IRQs provisioned
-         * by FW and resize the IPI ESB window accordingly.
+         * model has its own.
+         *
+         * If the table is direct, we can compute the number of PQ
+         * entries provisioned by FW (such as skiboot) and resize the
+         * ESB window accordingly.
          */
-        memory_region_set_size(&xsrc->esb_mmio, pnv_xive_nr_ipis(xive) *
-                               (1ull << xsrc->esb_shift));
+        if (!(VSD_INDIRECT & vsd)) {
+            memory_region_set_size(&xsrc->esb_mmio, vst_tsize * SBE_PER_BYTE
+                                   * (1ull << xsrc->esb_shift));
+        }
         memory_region_add_subregion(&xive->ipi_edt_mmio, 0, &xsrc->esb_mmio);
         break;
 
@@ -1579,8 +1559,7 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     XiveRouter *xrtr = XIVE_ROUTER(xive);
     uint8_t blk = xive->chip->chip_id;
     uint32_t srcno0 = XIVE_EAS(blk, 0);
-    uint32_t nr_ipis = pnv_xive_nr_ipis(xive);
-    uint32_t nr_ends = pnv_xive_nr_ends(xive);
+    uint32_t nr_ipis = pnv_xive_nr_ipis(xive, blk);
     XiveEAS eas;
     XiveEND end;
     int i;
@@ -1600,21 +1579,16 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "XIVE[%x] ENDT %08x .. %08x\n", blk, 0, nr_ends - 1);
-    for (i = 0; i < nr_ends; i++) {
-        if (xive_router_get_end(xrtr, blk, i, &end)) {
-            break;
-        }
-        xive_end_pic_print_info(&end, i, mon);
+    monitor_printf(mon, "XIVE[%x] ENDT\n", blk);
+    i = 0;
+    while (!xive_router_get_end(xrtr, blk, i, &end)) {
+        xive_end_pic_print_info(&end, i++, mon);
     }
 
-    monitor_printf(mon, "XIVE[%x] END Escalation %08x .. %08x\n", blk, 0,
-                   nr_ends - 1);
-    for (i = 0; i < nr_ends; i++) {
-        if (xive_router_get_end(xrtr, blk, i, &end)) {
-            break;
-        }
-        xive_end_eas_pic_print_info(&end, i, mon);
+    monitor_printf(mon, "XIVE[%x] END Escalation EAT\n", blk);
+    i = 0;
+    while (!xive_router_get_end(xrtr, blk, i, &end)) {
+        xive_end_eas_pic_print_info(&end, i++, mon);
     }
 }
 
