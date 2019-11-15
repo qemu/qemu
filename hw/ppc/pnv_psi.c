@@ -851,8 +851,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_int(OBJECT(xsrc), PSIHB9_NUM_IRQS, "nr-irqs",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(psi),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(xsrc), OBJECT(psi), "xive", &error_abort);
     object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
