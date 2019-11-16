@@ -53,6 +53,7 @@
 #include "monitor/monitor.h"
 #include "net/announce.h"
 #include "qemu/queue.h"
+#include <math.h>
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -2035,11 +2036,10 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     }
 
     value *= 1000; /* Convert to milliseconds */
-    value = MAX(0, MIN(INT64_MAX, value));
 
     MigrateSetParameters p = {
         .has_downtime_limit = true,
-        .downtime_limit = value,
+        .downtime_limit = (int64_t)fmin(value, nextafter(0x1p63, 0)),
     };
 
     qmp_migrate_set_parameters(&p, errp);
