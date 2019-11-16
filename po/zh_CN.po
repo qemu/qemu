@@ -66,7 +66,7 @@ msgid "Detach Tab"
 msgstr "分离标签页"
 
 msgid "Show Menubar"
-msgstr ""
+msgstr "显示菜单栏"
 
 msgid "_Machine"
 msgstr "虚拟机(_M)"
