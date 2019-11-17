@@ -609,17 +609,8 @@ static void ics_reset_handler(void *dev)
 static void ics_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS(dev);
-    Error *local_err = NULL;
-    Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &local_err);
-    if (!obj) {
-        error_propagate_prepend(errp, local_err,
-                                "required link '" ICS_PROP_XICS
-                                "' not found: ");
-        return;
-    }
-    ics->xics = XICS_FABRIC(obj);
+    assert(ics->xics);
 
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
@@ -699,6 +690,8 @@ static const VMStateDescription vmstate_ics = {
 
 static Property ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_LINK(ICS_PROP_XICS, ICSState, xics, TYPE_XICS_FABRIC,
+                     XICSFabric *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -319,13 +319,8 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
             return;
         }
 
-        object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                       &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
+        object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
+                                 &error_abort);
         object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
