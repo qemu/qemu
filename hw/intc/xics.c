@@ -310,15 +310,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
     Object *obj;
     Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_XICS, &err);
-    if (!obj) {
-        error_propagate_prepend(errp, err,
-                                "required link '" ICP_PROP_XICS
-                                "' not found: ");
-        return;
-    }
-
-    icp->xics = XICS_FABRIC(obj);
+    assert(icp->xics);
 
     obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, &err);
     if (!obj) {
@@ -368,12 +360,19 @@ static void icp_unrealize(DeviceState *dev, Error **errp)
     vmstate_unregister(NULL, &vmstate_icp_server, icp);
 }
 
+static Property icp_properties[] = {
+    DEFINE_PROP_LINK(ICP_PROP_XICS, ICPState, xics, TYPE_XICS_FABRIC,
+                     XICSFabric *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
+    dc->props = icp_properties;
     /*
      * Reason: part of XICS interrupt controller, needs to be wired up
      * by icp_create().
@@ -397,9 +396,7 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     obj = object_new(type);
     object_property_add_child(cpu, type, obj, &error_abort);
     object_unref(obj);
-    object_ref(OBJECT(xi));
-    object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
-                                   &error_abort);
+    object_property_set_link(obj, OBJECT(xi), ICP_PROP_XICS, &error_abort);
     object_ref(cpu);
     object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
@@ -417,7 +414,6 @@ void icp_destroy(ICPState *icp)
     Object *obj = OBJECT(icp);
 
     object_unref(object_property_get_link(obj, ICP_PROP_CPU, &error_abort));
-    object_unref(object_property_get_link(obj, ICP_PROP_XICS, &error_abort));
     object_unparent(obj);
 }
 
