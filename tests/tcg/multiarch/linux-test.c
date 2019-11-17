@@ -485,6 +485,10 @@ static void test_signal(void)
     act.sa_flags = SA_SIGINFO;
     chk_error(sigaction(SIGSEGV, &act, NULL));
     if (setjmp(jmp_env) == 0) {
+        /*
+         * clang requires volatile or it will turn this into a
+         * call to abort() instead of forcing a SIGSEGV.
+         */
         *(volatile uint8_t *)0 = 0;
     }
 
