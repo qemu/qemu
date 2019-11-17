@@ -174,7 +174,6 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
     int64_t cur_clock, next_irq_clock, lost_clock = 0;
 
     period = rtc_periodic_clock_ticks(s);
-
     if (!period) {
         s->irq_coalesced = 0;
         timer_del(s->periodic_timer);
@@ -197,42 +196,42 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
         last_periodic_clock = next_periodic_clock - old_period;
         lost_clock = cur_clock - last_periodic_clock;
         assert(lost_clock >= 0);
+    }
 
-        /*
-         * s->irq_coalesced can change for two reasons:
-         *
-         * a) if one or more periodic timer interrupts have been lost,
-         *    lost_clock will be more that a period.
-         *
-         * b) when the period may be reconfigured, we expect the OS to
-         *    treat delayed tick as the new period.  So, when switching
-         *    from a shorter to a longer period, scale down the missing,
-         *    because the OS will treat past delayed ticks as longer
-         *    (leftovers are put back into lost_clock).  When switching
-         *    to a shorter period, scale up the missing ticks since the
-         *    OS handler will treat past delayed ticks as shorter.
-         */
-        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
-            uint32_t old_irq_coalesced = s->irq_coalesced;
+    /*
+     * s->irq_coalesced can change for two reasons:
+     *
+     * a) if one or more periodic timer interrupts have been lost,
+     *    lost_clock will be more that a period.
+     *
+     * b) when the period may be reconfigured, we expect the OS to
+     *    treat delayed tick as the new period.  So, when switching
+     *    from a shorter to a longer period, scale down the missing,
+     *    because the OS will treat past delayed ticks as longer
+     *    (leftovers are put back into lost_clock).  When switching
+     *    to a shorter period, scale up the missing ticks since the
+     *    OS handler will treat past delayed ticks as shorter.
+     */
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+        uint32_t old_irq_coalesced = s->irq_coalesced;
 
-            s->period = period;
-            lost_clock += old_irq_coalesced * old_period;
-            s->irq_coalesced = lost_clock / s->period;
-            lost_clock %= s->period;
-            if (old_irq_coalesced != s->irq_coalesced ||
-                old_period != s->period) {
-                DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
-                          "period scaled from %d to %d\n", old_irq_coalesced,
-                          s->irq_coalesced, old_period, s->period);
-                rtc_coalesced_timer_update(s);
-            }
-        } else {
-            /*
-             * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
-             * is not used, we should make the time progress anyway.
-             */
-            lost_clock = MIN(lost_clock, period);
+        s->period = period;
+        lost_clock += old_irq_coalesced * old_period;
+        s->irq_coalesced = lost_clock / s->period;
+        lost_clock %= s->period;
+        if (old_irq_coalesced != s->irq_coalesced ||
+            old_period != s->period) {
+            DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
+                      "period scaled from %d to %d\n", old_irq_coalesced,
+                      s->irq_coalesced, old_period, s->period);
+            rtc_coalesced_timer_update(s);
         }
+    } else {
+        /*
+         * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
+         * is not used, we should make the time progress anyway.
+         */
+        lost_clock = MIN(lost_clock, period);
     }
 
     assert(lost_clock >= 0 && lost_clock <= period);
