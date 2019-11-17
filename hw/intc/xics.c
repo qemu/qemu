@@ -305,25 +305,13 @@ void icp_reset(ICPState *icp)
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
-    PowerPCCPU *cpu;
     CPUPPCState *env;
-    Object *obj;
     Error *err = NULL;
 
     assert(icp->xics);
+    assert(icp->cs);
 
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, &err);
-    if (!obj) {
-        error_propagate_prepend(errp, err,
-                                "required link '" ICP_PROP_CPU
-                                "' not found: ");
-        return;
-    }
-
-    cpu = POWERPC_CPU(obj);
-    icp->cs = CPU(obj);
-
-    env = &cpu->env;
+    env = &POWERPC_CPU(icp->cs)->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:
         icp->output = env->irq_inputs[POWER7_INPUT_INT];
@@ -363,6 +351,7 @@ static void icp_unrealize(DeviceState *dev, Error **errp)
 static Property icp_properties[] = {
     DEFINE_PROP_LINK(ICP_PROP_XICS, ICPState, xics, TYPE_XICS_FABRIC,
                      XICSFabric *),
+    DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -397,8 +386,7 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     object_property_add_child(cpu, type, obj, &error_abort);
     object_unref(obj);
     object_property_set_link(obj, OBJECT(xi), ICP_PROP_XICS, &error_abort);
-    object_ref(cpu);
-    object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    object_property_set_link(obj, cpu, ICP_PROP_CPU, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         object_unparent(obj);
@@ -413,7 +401,6 @@ void icp_destroy(ICPState *icp)
 {
     Object *obj = OBJECT(icp);
 
-    object_unref(object_property_get_link(obj, ICP_PROP_CPU, &error_abort));
     object_unparent(obj);
 }
 
