@@ -313,20 +313,11 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         Object *obj;
 
         obj = object_new(TYPE_ICS_SPAPR);
-        object_property_add_child(OBJECT(spapr), "ics", obj, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
 
+        object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
         object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
                                  &error_abort);
-        object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
+        object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &error_abort);
         object_property_set_bool(obj, true, "realized", &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
