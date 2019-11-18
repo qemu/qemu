@@ -2737,7 +2737,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         error_setg(&vdev->migration_blocker,
                 "VFIO device doesn't support migration");
         ret = migrate_add_blocker(vdev->migration_blocker, &err);
-        if (err) {
+        if (ret) {
             error_propagate(errp, err);
             error_free(vdev->migration_blocker);
             vdev->migration_blocker = NULL;
