@@ -53,14 +53,17 @@ static inline bool qemu_log_separate(void)
  * qemu_loglevel is never set when qemu_logfile is unset.
  */
 
-static inline void qemu_log_lock(void)
+static inline FILE *qemu_log_lock(void)
 {
     qemu_flockfile(qemu_logfile);
+    return logfile->fd;
 }
 
-static inline void qemu_log_unlock(void)
+static inline void qemu_log_unlock(FILE *fd)
 {
-    qemu_funlockfile(qemu_logfile);
+    if (fd) {
+        qemu_funlockfile(fd);
+    }
 }
 
 /* Logging functions: */

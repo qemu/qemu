@@ -2388,7 +2388,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     dc->zero = NULL;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
     }
     gen_tb_start(tb);
@@ -2417,11 +2416,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     gen_tb_end(tb, num_insns);
     tb->size = dc->pc - pc_start;
     tb->icount = num_insns;
-
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log("\n");
-        qemu_log_unlock();
-    }
 }
 
 void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb,
