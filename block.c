@@ -3019,6 +3019,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                         "use \"backing\": null instead");
         }
         flags |= BDRV_O_NO_BACKING;
+        qdict_del(bs->explicit_options, "backing");
+        qdict_del(bs->options, "backing");
         qdict_del(options, "backing");
     }
 

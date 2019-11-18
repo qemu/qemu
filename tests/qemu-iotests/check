@@ -887,7 +887,7 @@ do
             if [ ! -f "$reference" ]
             then
                 status="fail"
-                reason="no qualified output"
+                results="no qualified output"
                 err=true
             else
                 if diff -w "$reference" $tmp.out >/dev/null 2>&1
