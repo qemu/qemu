@@ -354,32 +354,20 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
-    SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
-    struct kvm_irq_level args;
-    int rc;
 
-    /* The KVM XIVE device should be in use */
-    assert(xive->fd != -1);
-
-    args.irq = srcno;
     if (!xive_source_irq_is_lsi(xsrc, srcno)) {
         if (!val) {
             return;
         }
-        args.level = KVM_INTERRUPT_SET;
     } else {
         if (val) {
             xsrc->status[srcno] |= XIVE_STATUS_ASSERTED;
-            args.level = KVM_INTERRUPT_SET_LEVEL;
         } else {
             xsrc->status[srcno] &= ~XIVE_STATUS_ASSERTED;
-            args.level = KVM_INTERRUPT_UNSET;
         }
     }
-    rc = kvm_vm_ioctl(kvm_state, KVM_IRQ_LINE, &args);
-    if (rc < 0) {
-        error_report("XIVE: kvm_irq_line() failed : %s", strerror(errno));
-    }
+
+    xive_esb_trigger(xsrc, srcno);
 }
 
 /*
