@@ -38,8 +38,10 @@
 
 /* XXX: implement all timer modes */
 
-static void mos6522_timer_update(MOS6522State *s, MOS6522Timer *ti,
-                                 int64_t current_time);
+static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
+                                  int64_t current_time);
+static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
+                                  int64_t current_time);
 
 static void mos6522_update_irq(MOS6522State *s)
 {
@@ -98,7 +100,11 @@ static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
     trace_mos6522_set_counter(1 + ti->index, val);
     ti->load_time = get_load_time(s, ti);
     ti->counter_value = val;
-    mos6522_timer_update(s, ti, ti->load_time);
+    if (ti->index == 0) {
+        mos6522_timer1_update(s, ti, ti->load_time);
+    } else {
+        mos6522_timer2_update(s, ti, ti->load_time);
+    }
 }
 
 static int64_t get_next_irq_time(MOS6522State *s, MOS6522Timer *ti,
@@ -130,19 +136,34 @@ static int64_t get_next_irq_time(MOS6522State *s, MOS6522Timer *ti,
     trace_mos6522_get_next_irq_time(ti->latch, d, next_time - d);
     next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, ti->frequency) +
                          ti->load_time;
+
     if (next_time <= current_time) {
         next_time = current_time + 1;
     }
     return next_time;
 }
 
-static void mos6522_timer_update(MOS6522State *s, MOS6522Timer *ti,
+static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
                                  int64_t current_time)
 {
     if (!ti->timer) {
         return;
     }
-    if (ti->index == 0 && (s->acr & T1MODE) != T1MODE_CONT) {
+    if ((s->ier & T1_INT) == 0 || (s->acr & T1MODE) != T1MODE_CONT) {
+        timer_del(ti->timer);
+    } else {
+        ti->next_irq_time = get_next_irq_time(s, ti, current_time);
+        timer_mod(ti->timer, ti->next_irq_time);
+    }
+}
+
+static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
+                                 int64_t current_time)
+{
+    if (!ti->timer) {
+        return;
+    }
+    if ((s->ier & T2_INT) == 0) {
         timer_del(ti->timer);
     } else {
         ti->next_irq_time = get_next_irq_time(s, ti, current_time);
@@ -155,7 +176,7 @@ static void mos6522_timer1(void *opaque)
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[0];
 
-    mos6522_timer_update(s, ti, ti->next_irq_time);
+    mos6522_timer1_update(s, ti, ti->next_irq_time);
     s->ifr |= T1_INT;
     mos6522_update_irq(s);
 }
@@ -165,7 +186,7 @@ static void mos6522_timer2(void *opaque)
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[1];
 
-    mos6522_timer_update(s, ti, ti->next_irq_time);
+    mos6522_timer2_update(s, ti, ti->next_irq_time);
     s->ifr |= T2_INT;
     mos6522_update_irq(s);
 }
@@ -204,7 +225,16 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522State *s = opaque;
     uint32_t val;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
+    if (now >= s->timers[0].next_irq_time) {
+        mos6522_timer1_update(s, &s->timers[0], now);
+        s->ifr |= T1_INT;
+    }
+    if (now >= s->timers[1].next_irq_time) {
+        mos6522_timer2_update(s, &s->timers[1], now);
+        s->ifr |= T2_INT;
+    }
     switch (addr) {
     case VIA_REG_B:
         val = s->b;
@@ -299,8 +329,8 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case VIA_REG_T1CL:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
-        mos6522_timer_update(s, &s->timers[0],
-                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        mos6522_timer1_update(s, &s->timers[0],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case VIA_REG_T1CH:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
@@ -309,14 +339,14 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case VIA_REG_T1LL:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
-        mos6522_timer_update(s, &s->timers[0],
-                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        mos6522_timer1_update(s, &s->timers[0],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case VIA_REG_T1LH:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
         s->ifr &= ~T1_INT;
-        mos6522_timer_update(s, &s->timers[0],
-                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        mos6522_timer1_update(s, &s->timers[0],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case VIA_REG_T2CL:
         s->timers[1].latch = (s->timers[1].latch & 0xff00) | val;
@@ -334,8 +364,8 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case VIA_REG_ACR:
         s->acr = val;
-        mos6522_timer_update(s, &s->timers[0],
-                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        mos6522_timer1_update(s, &s->timers[0],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case VIA_REG_PCR:
         s->pcr = val;
@@ -354,6 +384,11 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
             s->ier &= ~val;
         }
         mos6522_update_irq(s);
+        /* if IER is modified starts needed timers */
+        mos6522_timer1_update(s, &s->timers[0],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        mos6522_timer2_update(s, &s->timers[1],
+                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     default:
     case VIA_REG_ANH:
@@ -426,9 +461,11 @@ static void mos6522_reset(DeviceState *dev)
     s->timers[0].frequency = s->frequency;
     s->timers[0].latch = 0xffff;
     set_counter(s, &s->timers[0], 0xffff);
+    timer_del(s->timers[0].timer);
 
     s->timers[1].frequency = s->frequency;
     s->timers[1].latch = 0xffff;
+    timer_del(s->timers[1].timer);
 }
 
 static void mos6522_init(Object *obj)

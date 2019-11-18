@@ -917,7 +917,7 @@ static bool spapr_hotplugged_dev_before_cas(void)
     return false;
 }
 
-static void *spapr_build_fdt(SpaprMachineState *spapr);
+static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset);
 
 int spapr_h_cas_compose_response(SpaprMachineState *spapr,
                                  target_ulong addr, target_ulong size,
@@ -939,7 +939,7 @@ int spapr_h_cas_compose_response(SpaprMachineState *spapr,
 
     size -= sizeof(hdr);
 
-    fdt = spapr_build_fdt(spapr);
+    fdt = spapr_build_fdt(spapr, false);
     _FDT((fdt_pack(fdt)));
 
     if (fdt_totalsize(fdt) + sizeof(hdr) > size) {
@@ -1197,7 +1197,7 @@ static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
     }
 }
 
-static void *spapr_build_fdt(SpaprMachineState *spapr)
+static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1297,7 +1297,9 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     spapr_dt_rtas(spapr, fdt);
 
     /* /chosen */
-    spapr_dt_chosen(spapr, fdt);
+    if (reset) {
+        spapr_dt_chosen(spapr, fdt);
+    }
 
     /* /hypervisor */
     if (kvm_enabled()) {
@@ -1305,11 +1307,14 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     }
 
     /* Build memory reserve map */
-    if (spapr->kernel_size) {
-        _FDT((fdt_add_mem_rsv(fdt, KERNEL_LOAD_ADDR, spapr->kernel_size)));
-    }
-    if (spapr->initrd_size) {
-        _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base, spapr->initrd_size)));
+    if (reset) {
+        if (spapr->kernel_size) {
+            _FDT((fdt_add_mem_rsv(fdt, KERNEL_LOAD_ADDR, spapr->kernel_size)));
+        }
+        if (spapr->initrd_size) {
+            _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base,
+                                  spapr->initrd_size)));
+        }
     }
 
     /* ibm,client-architecture-support updates */
@@ -1718,7 +1723,7 @@ static void spapr_machine_reset(MachineState *machine)
      */
     fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
 
-    fdt = spapr_build_fdt(spapr);
+    fdt = spapr_build_fdt(spapr, true);
 
     rc = fdt_pack(fdt);
 

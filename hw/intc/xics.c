@@ -44,7 +44,16 @@
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
-    int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
+    int cpu_index;
+
+    /* Skip partially initialized vCPUs. This can happen on sPAPR when vCPUs
+     * are hot plugged or unplugged.
+     */
+    if (!icp) {
+        return;
+    }
+
+    cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
         return;
@@ -388,8 +397,10 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     obj = object_new(type);
     object_property_add_child(cpu, type, obj, &error_abort);
     object_unref(obj);
+    object_ref(OBJECT(xi));
     object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
                                    &error_abort);
+    object_ref(cpu);
     object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
@@ -399,6 +410,15 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     }
 
     return obj;
+}
+
+void icp_destroy(ICPState *icp)
+{
+    Object *obj = OBJECT(icp);
+
+    object_unref(object_property_get_link(obj, ICP_PROP_CPU, &error_abort));
+    object_unref(object_property_get_link(obj, ICP_PROP_XICS, &error_abort));
+    object_unparent(obj);
 }
 
 /*

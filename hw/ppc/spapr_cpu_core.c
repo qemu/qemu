@@ -195,12 +195,7 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     if (!sc->pre_3_0_migration) {
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
-    if (spapr_cpu_state(cpu)->icp) {
-        object_unparent(OBJECT(spapr_cpu_state(cpu)->icp));
-    }
-    if (spapr_cpu_state(cpu)->tctx) {
-        object_unparent(OBJECT(spapr_cpu_state(cpu)->tctx));
-    }
+    spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
     cpu_remove_sync(CPU(cpu));
     object_unparent(OBJECT(cpu));
 }

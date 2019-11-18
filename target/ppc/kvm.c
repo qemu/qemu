@@ -100,7 +100,7 @@ static bool kvmppc_is_pr(KVMState *ks)
     return kvm_vm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
 }
 
-static int kvm_ppc_register_host_cpu_type(MachineState *ms);
+static int kvm_ppc_register_host_cpu_type(void);
 static void kvmppc_get_cpu_characteristics(KVMState *s);
 static int kvmppc_get_dec_bits(void);
 
@@ -147,7 +147,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         exit(1);
     }
 
-    kvm_ppc_register_host_cpu_type(ms);
+    kvm_ppc_register_host_cpu_type();
 
     return 0;
 }
@@ -2534,13 +2534,19 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return pvr_pcc;
 }
 
-static int kvm_ppc_register_host_cpu_type(MachineState *ms)
+static void pseries_machine_class_fixup(ObjectClass *oc, void *opaque)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->default_cpu_type = TYPE_HOST_POWERPC_CPU;
+}
+
+static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
         .name = TYPE_HOST_POWERPC_CPU,
         .class_init = kvmppc_host_cpu_class_init,
     };
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
     PowerPCCPUClass *pvr_pcc;
     ObjectClass *oc;
     DeviceClass *dc;
@@ -2552,10 +2558,9 @@ static int kvm_ppc_register_host_cpu_type(MachineState *ms)
     }
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
     type_register(&type_info);
-    if (object_dynamic_cast(OBJECT(ms), TYPE_SPAPR_MACHINE)) {
-        /* override TCG default cpu type with 'host' cpu model */
-        mc->default_cpu_type = TYPE_HOST_POWERPC_CPU;
-    }
+    /* override TCG default cpu type with 'host' cpu model */
+    object_class_foreach(pseries_machine_class_fixup, TYPE_SPAPR_MACHINE,
+                         false, NULL);
 
     oc = object_class_by_name(type_info.name);
     g_assert(oc);

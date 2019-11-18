@@ -778,11 +778,20 @@ static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
     pnv_cpu->intc = obj;
 }
 
+
 static void pnv_chip_power8_intc_reset(PnvChip *chip, PowerPCCPU *cpu)
 {
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
     icp_reset(ICP(pnv_cpu->intc));
+}
+
+static void pnv_chip_power8_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    icp_destroy(ICP(pnv_cpu->intc));
+    pnv_cpu->intc = NULL;
 }
 
 /*
@@ -827,6 +836,14 @@ static void pnv_chip_power9_intc_reset(PnvChip *chip, PowerPCCPU *cpu)
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
     xive_tctx_reset(XIVE_TCTX(pnv_cpu->intc));
+}
+
+static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    xive_tctx_destroy(XIVE_TCTX(pnv_cpu->intc));
+    pnv_cpu->intc = NULL;
 }
 
 /*
@@ -999,6 +1016,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
+    k->intc_destroy = pnv_chip_power8_intc_destroy;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1019,6 +1037,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
+    k->intc_destroy = pnv_chip_power8_intc_destroy;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1039,6 +1058,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
+    k->intc_destroy = pnv_chip_power8_intc_destroy;
     k->isa_create = pnv_chip_power8nvl_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1209,6 +1229,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p9;
     k->intc_create = pnv_chip_power9_intc_create;
     k->intc_reset = pnv_chip_power9_intc_reset;
+    k->intc_destroy = pnv_chip_power9_intc_destroy;
     k->isa_create = pnv_chip_power9_isa_create;
     k->dt_populate = pnv_chip_power9_dt_populate;
     k->pic_print_info = pnv_chip_power9_pic_print_info;

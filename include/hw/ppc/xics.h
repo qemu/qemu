@@ -181,6 +181,7 @@ void icp_resend(ICPState *ss);
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
                    Error **errp);
+void icp_destroy(ICPState *icp);
 
 /* KVM */
 void icp_get_kvm_state(ICPState *icp);

@@ -523,8 +523,17 @@ static const char * const xive_tctx_ring_names[] = {
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 {
-    int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
+    int cpu_index;
     int i;
+
+    /* Skip partially initialized vCPUs. This can happen on sPAPR when vCPUs
+     * are hot plugged or unplugged.
+     */
+    if (!tctx) {
+        return;
+    }
+
+    cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
 
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
@@ -682,6 +691,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     obj = object_new(TYPE_XIVE_TCTX);
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
+    object_ref(cpu);
     object_property_add_const_link(obj, "cpu", cpu, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
@@ -694,6 +704,14 @@ error:
     object_unparent(obj);
     error_propagate(errp, local_err);
     return NULL;
+}
+
+void xive_tctx_destroy(XiveTCTX *tctx)
+{
+    Object *obj = OBJECT(tctx);
+
+    object_unref(object_property_get_link(obj, "cpu", &error_abort));
+    object_unparent(obj);
 }
 
 /*

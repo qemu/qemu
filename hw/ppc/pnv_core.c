@@ -269,11 +269,12 @@ err:
     error_propagate(errp, local_err);
 }
 
-static void pnv_core_cpu_unrealize(PowerPCCPU *cpu)
+static void pnv_core_cpu_unrealize(PowerPCCPU *cpu, PnvChip *chip)
 {
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
-    object_unparent(OBJECT(pnv_cpu_state(cpu)->intc));
+    pcc->intc_destroy(chip, cpu);
     cpu_remove_sync(CPU(cpu));
     cpu->machine_data = NULL;
     g_free(pnv_cpu);
@@ -289,7 +290,7 @@ static void pnv_core_unrealize(DeviceState *dev, Error **errp)
     qemu_unregister_reset(pnv_core_reset, pc);
 
     for (i = 0; i < cc->nr_threads; i++) {
-        pnv_core_cpu_unrealize(pc->threads[i]);
+        pnv_core_cpu_unrealize(pc->threads[i], pc->chip);
     }
     g_free(pc->threads);
 }

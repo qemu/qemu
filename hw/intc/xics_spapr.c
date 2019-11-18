@@ -352,6 +352,15 @@ static void xics_spapr_cpu_intc_reset(SpaprInterruptController *intc,
     icp_reset(spapr_cpu_state(cpu)->icp);
 }
 
+static void xics_spapr_cpu_intc_destroy(SpaprInterruptController *intc,
+                                        PowerPCCPU *cpu)
+{
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    icp_destroy(spapr_cpu->icp);
+    spapr_cpu->icp = NULL;
+}
+
 static int xics_spapr_claim_irq(SpaprInterruptController *intc, int irq,
                                 bool lsi, Error **errp)
 {
@@ -440,6 +449,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     sicc->deactivate = xics_spapr_deactivate;
     sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
     sicc->cpu_intc_reset = xics_spapr_cpu_intc_reset;
+    sicc->cpu_intc_destroy = xics_spapr_cpu_intc_destroy;
     sicc->claim_irq = xics_spapr_claim_irq;
     sicc->free_irq = xics_spapr_free_irq;
     sicc->set_irq = xics_spapr_set_irq;
