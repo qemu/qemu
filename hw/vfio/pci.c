@@ -2740,6 +2740,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         if (err) {
             error_propagate(errp, err);
             error_free(vdev->migration_blocker);
+            vdev->migration_blocker = NULL;
             return;
         }
     }
@@ -3023,6 +3024,7 @@ error:
     if (vdev->migration_blocker) {
         migrate_del_blocker(vdev->migration_blocker);
         error_free(vdev->migration_blocker);
+        vdev->migration_blocker = NULL;
     }
 }
 
