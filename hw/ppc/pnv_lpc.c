@@ -86,7 +86,7 @@ enum {
 #define ISA_FW_SIZE             0x10000000
 #define LPC_IO_OPB_ADDR         0xd0010000
 #define LPC_IO_OPB_SIZE         0x00010000
-#define LPC_MEM_OPB_ADDR        0xe0010000
+#define LPC_MEM_OPB_ADDR        0xe0000000
 #define LPC_MEM_OPB_SIZE        0x10000000
 #define LPC_FW_OPB_ADDR         0xf0000000
 #define LPC_FW_OPB_SIZE         0x10000000
@@ -142,6 +142,16 @@ int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset)
                             cpu_to_be32((uint32_t)lpcm_addr),
                             cpu_to_be32(PNV9_LPCM_SIZE >> 32),
                             cpu_to_be32((uint32_t)PNV9_LPCM_SIZE),
+    };
+    uint32_t lpc_ranges[12] = { 0, 0,
+                                cpu_to_be32(LPC_MEM_OPB_ADDR),
+                                cpu_to_be32(LPC_MEM_OPB_SIZE),
+                                cpu_to_be32(1), 0,
+                                cpu_to_be32(LPC_IO_OPB_ADDR),
+                                cpu_to_be32(LPC_IO_OPB_SIZE),
+                                cpu_to_be32(3), 0,
+                                cpu_to_be32(LPC_FW_OPB_ADDR),
+                                cpu_to_be32(LPC_FW_OPB_SIZE),
     };
     uint32_t reg[2];
 
@@ -211,6 +221,8 @@ int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset)
     _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, offset, "compatible", lpc_compat,
                       sizeof(lpc_compat))));
+    _FDT((fdt_setprop(fdt, offset, "ranges", lpc_ranges,
+                      sizeof(lpc_ranges))));
 
     return 0;
 }
