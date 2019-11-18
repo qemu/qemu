@@ -30,6 +30,8 @@ typedef struct {
 
     /*< public >*/
 
+    /* TSC rate migration: */
+    bool save_tsc_khz;
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
 } X86MachineClass;
