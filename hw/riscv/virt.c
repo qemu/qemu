@@ -479,7 +479,8 @@ static void riscv_virt_board_init(MachineState *machine)
                                  memmap[VIRT_DRAM].base);
 
     if (machine->kernel_filename) {
-        uint64_t kernel_entry = riscv_load_kernel(machine->kernel_filename);
+        uint64_t kernel_entry = riscv_load_kernel(machine->kernel_filename,
+                                                  NULL);
 
         if (machine->initrd_filename) {
             hwaddr start;
