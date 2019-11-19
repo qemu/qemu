@@ -13,19 +13,6 @@
 
 typedef struct AspeedBoardState AspeedBoardState;
 
-typedef struct AspeedBoardConfig {
-    const char *name;
-    const char *desc;
-    const char *soc_name;
-    uint32_t hw_strap1;
-    uint32_t hw_strap2;
-    const char *fmc_model;
-    const char *spi_model;
-    uint32_t num_cs;
-    void (*i2c_init)(AspeedBoardState *bmc);
-    uint32_t ram;
-} AspeedBoardConfig;
-
 #define TYPE_ASPEED_MACHINE       MACHINE_TYPE_NAME("aspeed")
 #define ASPEED_MACHINE(obj) \
     OBJECT_CHECK(AspeedMachine, (obj), TYPE_ASPEED_MACHINE)
@@ -41,7 +28,16 @@ typedef struct AspeedMachine {
 
 typedef struct AspeedMachineClass {
     MachineClass parent_obj;
-    const AspeedBoardConfig *board;
+
+    const char *name;
+    const char *desc;
+    const char *soc_name;
+    uint32_t hw_strap1;
+    uint32_t hw_strap2;
+    const char *fmc_model;
+    const char *spi_model;
+    uint32_t num_cs;
+    void (*i2c_init)(AspeedBoardState *bmc);
 } AspeedMachineClass;
 
 

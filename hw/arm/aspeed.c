@@ -167,10 +167,10 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
     }
 }
 
-static void aspeed_board_init(MachineState *machine,
-                              const AspeedBoardConfig *cfg)
+static void aspeed_machine_init(MachineState *machine)
 {
     AspeedBoardState *bmc;
+    AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(machine);
     AspeedSoCClass *sc;
     DriveInfo *drive0 = drive_get(IF_MTD, 0, 0);
     ram_addr_t max_ram_size;
@@ -182,18 +182,18 @@ static void aspeed_board_init(MachineState *machine,
                        UINT32_MAX);
 
     object_initialize_child(OBJECT(machine), "soc", &bmc->soc,
-                            (sizeof(bmc->soc)), cfg->soc_name, &error_abort,
+                            (sizeof(bmc->soc)), amc->soc_name, &error_abort,
                             NULL);
 
     sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
 
     object_property_set_uint(OBJECT(&bmc->soc), ram_size, "ram-size",
                              &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
+    object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap1, "hw-strap1",
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap2, "hw-strap2",
+    object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap2, "hw-strap2",
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
+    object_property_set_int(OBJECT(&bmc->soc), amc->num_cs, "num-cs",
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), machine->smp.cpus, "num-cpus",
                             &error_abort);
@@ -230,8 +230,8 @@ static void aspeed_board_init(MachineState *machine,
                           "max_ram", max_ram_size  - ram_size);
     memory_region_add_subregion(&bmc->ram_container, ram_size, &bmc->max_ram);
 
-    aspeed_board_init_flashes(&bmc->soc.fmc, cfg->fmc_model, &error_abort);
-    aspeed_board_init_flashes(&bmc->soc.spi[0], cfg->spi_model, &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.fmc, amc->fmc_model, &error_abort);
+    aspeed_board_init_flashes(&bmc->soc.spi[0], amc->spi_model, &error_abort);
 
     /* Install first FMC flash content as a boot rom. */
     if (drive0) {
@@ -255,8 +255,8 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.loader_start = sc->memmap[ASPEED_SDRAM];
     aspeed_board_binfo.nb_cpus = bmc->soc.num_cpus;
 
-    if (cfg->i2c_init) {
-        cfg->i2c_init(bmc);
+    if (amc->i2c_init) {
+        amc->i2c_init(bmc);
     }
 
     for (i = 0; i < ARRAY_SIZE(bmc->soc.sdhci.slots); i++) {
@@ -383,118 +383,141 @@ static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc)
                      0x60);
 }
 
-static void aspeed_machine_init(MachineState *machine)
-{
-    AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(machine);
-
-    aspeed_board_init(machine, amc->board);
-}
-
 static void aspeed_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
-    const AspeedBoardConfig *board = data;
 
-    mc->desc = board->desc;
     mc->init = aspeed_machine_init;
     mc->max_cpus = ASPEED_CPUS_NUM;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
-    if (board->ram) {
-        mc->default_ram_size = board->ram;
-    }
-    amc->board = board;
 }
 
-static const TypeInfo aspeed_machine_type = {
-    .name = TYPE_ASPEED_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(AspeedMachine),
-    .class_size = sizeof(AspeedMachineClass),
-    .abstract = true,
-};
-
-static const AspeedBoardConfig aspeed_boards[] = {
-    {
-        .name      = MACHINE_TYPE_NAME("palmetto-bmc"),
-        .desc      = "OpenPOWER Palmetto BMC (ARM926EJ-S)",
-        .soc_name  = "ast2400-a1",
-        .hw_strap1 = PALMETTO_BMC_HW_STRAP1,
-        .fmc_model = "n25q256a",
-        .spi_model = "mx25l25635e",
-        .num_cs    = 1,
-        .i2c_init  = palmetto_bmc_i2c_init,
-        .ram       = 256 * MiB,
-    }, {
-        .name      = MACHINE_TYPE_NAME("ast2500-evb"),
-        .desc      = "Aspeed AST2500 EVB (ARM1176)",
-        .soc_name  = "ast2500-a1",
-        .hw_strap1 = AST2500_EVB_HW_STRAP1,
-        .fmc_model = "w25q256",
-        .spi_model = "mx25l25635e",
-        .num_cs    = 1,
-        .i2c_init  = ast2500_evb_i2c_init,
-        .ram       = 512 * MiB,
-    }, {
-        .name      = MACHINE_TYPE_NAME("romulus-bmc"),
-        .desc      = "OpenPOWER Romulus BMC (ARM1176)",
-        .soc_name  = "ast2500-a1",
-        .hw_strap1 = ROMULUS_BMC_HW_STRAP1,
-        .fmc_model = "n25q256a",
-        .spi_model = "mx66l1g45g",
-        .num_cs    = 2,
-        .i2c_init  = romulus_bmc_i2c_init,
-        .ram       = 512 * MiB,
-    }, {
-        .name      = MACHINE_TYPE_NAME("swift-bmc"),
-        .desc      = "OpenPOWER Swift BMC (ARM1176)",
-        .soc_name  = "ast2500-a1",
-        .hw_strap1 = SWIFT_BMC_HW_STRAP1,
-        .fmc_model = "mx66l1g45g",
-        .spi_model = "mx66l1g45g",
-        .num_cs    = 2,
-        .i2c_init  = swift_bmc_i2c_init,
-        .ram       = 512 * MiB,
-    }, {
-        .name      = MACHINE_TYPE_NAME("witherspoon-bmc"),
-        .desc      = "OpenPOWER Witherspoon BMC (ARM1176)",
-        .soc_name  = "ast2500-a1",
-        .hw_strap1 = WITHERSPOON_BMC_HW_STRAP1,
-        .fmc_model = "mx25l25635e",
-        .spi_model = "mx66l1g45g",
-        .num_cs    = 2,
-        .i2c_init  = witherspoon_bmc_i2c_init,
-        .ram       = 512 * MiB,
-    }, {
-        .name      = MACHINE_TYPE_NAME("ast2600-evb"),
-        .desc      = "Aspeed AST2600 EVB (Cortex A7)",
-        .soc_name  = "ast2600-a0",
-        .hw_strap1 = AST2600_EVB_HW_STRAP1,
-        .hw_strap2 = AST2600_EVB_HW_STRAP2,
-        .fmc_model = "w25q512jv",
-        .spi_model = "mx66u51235f",
-        .num_cs    = 1,
-        .i2c_init  = ast2600_evb_i2c_init,
-        .ram       = 1 * GiB,
-    },
-};
-
-static void aspeed_machine_types(void)
+static void aspeed_machine_palmetto_class_init(ObjectClass *oc, void *data)
 {
-    int i;
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
-    type_register_static(&aspeed_machine_type);
-    for (i = 0; i < ARRAY_SIZE(aspeed_boards); ++i) {
-        TypeInfo ti = {
-            .name       = aspeed_boards[i].name,
-            .parent     = TYPE_ASPEED_MACHINE,
-            .class_init = aspeed_machine_class_init,
-            .class_data = (void *)&aspeed_boards[i],
-        };
-        type_register(&ti);
+    mc->desc       = "OpenPOWER Palmetto BMC (ARM926EJ-S)";
+    amc->soc_name  = "ast2400-a1";
+    amc->hw_strap1 = PALMETTO_BMC_HW_STRAP1;
+    amc->fmc_model = "n25q256a";
+    amc->spi_model = "mx25l25635e";
+    amc->num_cs    = 1;
+    amc->i2c_init  = palmetto_bmc_i2c_init;
+    mc->default_ram_size       = 256 * MiB;
+};
+
+static void aspeed_machine_ast2500_evb_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "Aspeed AST2500 EVB (ARM1176)";
+    amc->soc_name  = "ast2500-a1";
+    amc->hw_strap1 = AST2500_EVB_HW_STRAP1;
+    amc->fmc_model = "w25q256";
+    amc->spi_model = "mx25l25635e";
+    amc->num_cs    = 1;
+    amc->i2c_init  = ast2500_evb_i2c_init;
+    mc->default_ram_size       = 512 * MiB;
+};
+
+static void aspeed_machine_romulus_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "OpenPOWER Romulus BMC (ARM1176)";
+    amc->soc_name  = "ast2500-a1";
+    amc->hw_strap1 = ROMULUS_BMC_HW_STRAP1;
+    amc->fmc_model = "n25q256a";
+    amc->spi_model = "mx66l1g45g";
+    amc->num_cs    = 2;
+    amc->i2c_init  = romulus_bmc_i2c_init;
+    mc->default_ram_size       = 512 * MiB;
+};
+
+static void aspeed_machine_swift_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "OpenPOWER Swift BMC (ARM1176)";
+    amc->soc_name  = "ast2500-a1";
+    amc->hw_strap1 = SWIFT_BMC_HW_STRAP1;
+    amc->fmc_model = "mx66l1g45g";
+    amc->spi_model = "mx66l1g45g";
+    amc->num_cs    = 2;
+    amc->i2c_init  = swift_bmc_i2c_init;
+    mc->default_ram_size       = 512 * MiB;
+};
+
+static void aspeed_machine_witherspoon_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "OpenPOWER Witherspoon BMC (ARM1176)";
+    amc->soc_name  = "ast2500-a1";
+    amc->hw_strap1 = WITHERSPOON_BMC_HW_STRAP1;
+    amc->fmc_model = "mx25l25635e";
+    amc->spi_model = "mx66l1g45g";
+    amc->num_cs    = 2;
+    amc->i2c_init  = witherspoon_bmc_i2c_init;
+    mc->default_ram_size = 512 * MiB;
+};
+
+static void aspeed_machine_ast2600_evb_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "Aspeed AST2600 EVB (Cortex A7)";
+    amc->soc_name  = "ast2600-a0";
+    amc->hw_strap1 = AST2600_EVB_HW_STRAP1;
+    amc->hw_strap2 = AST2600_EVB_HW_STRAP2;
+    amc->fmc_model = "w25q512jv";
+    amc->spi_model = "mx66u51235f";
+    amc->num_cs    = 1;
+    amc->i2c_init  = ast2600_evb_i2c_init;
+    mc->default_ram_size = 1 * GiB;
+};
+
+static const TypeInfo aspeed_machine_types[] = {
+    {
+        .name          = MACHINE_TYPE_NAME("palmetto-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_palmetto_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("ast2500-evb"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_ast2500_evb_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("romulus-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_romulus_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("swift-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_swift_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("witherspoon-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_witherspoon_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("ast2600-evb"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_ast2600_evb_class_init,
+    }, {
+        .name          = TYPE_ASPEED_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .instance_size = sizeof(AspeedMachine),
+        .class_size    = sizeof(AspeedMachineClass),
+        .class_init    = aspeed_machine_class_init,
+        .abstract      = true,
     }
-}
+};
 
-type_init(aspeed_machine_types)
+DEFINE_TYPES(aspeed_machine_types)
