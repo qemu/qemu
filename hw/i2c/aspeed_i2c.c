@@ -35,8 +35,7 @@
 /* I2C Device (Bus) Register */
 
 #define I2CD_FUN_CTRL_REG       0x00       /* I2CD Function Control  */
-#define   I2CD_BUFF_SEL_MASK               (0x7 << 20)
-#define   I2CD_BUFF_SEL(x)                 (x << 20)
+#define   I2CD_POOL_PAGE_SEL(x)            (((x) >> 20) & 0x7)  /* AST2400 */
 #define   I2CD_M_SDA_LOCK_EN               (0x1 << 16)
 #define   I2CD_MULTI_MASTER_DIS            (0x1 << 15)
 #define   I2CD_M_SCL_DRIVE_EN              (0x1 << 14)
@@ -113,10 +112,12 @@
 #define   I2CD_SCL_O_OUT_DIR               (0x1 << 12)
 #define   I2CD_BUS_RECOVER_CMD_EN          (0x1 << 11)
 #define   I2CD_S_ALT_EN                    (0x1 << 10)
-#define   I2CD_RX_DMA_ENABLE               (0x1 << 9)
-#define   I2CD_TX_DMA_ENABLE               (0x1 << 8)
 
 /* Command Bit */
+#define   I2CD_RX_DMA_ENABLE               (0x1 << 9)
+#define   I2CD_TX_DMA_ENABLE               (0x1 << 8)
+#define   I2CD_RX_BUFF_ENABLE              (0x1 << 7)
+#define   I2CD_TX_BUFF_ENABLE              (0x1 << 6)
 #define   I2CD_M_STOP_CMD                  (0x1 << 5)
 #define   I2CD_M_S_RX_CMD_LAST             (0x1 << 4)
 #define   I2CD_M_RX_CMD                    (0x1 << 3)
@@ -125,7 +126,11 @@
 #define   I2CD_M_START_CMD                 (0x1)
 
 #define I2CD_DEV_ADDR_REG       0x18       /* Slave Device Address */
-#define I2CD_BUF_CTRL_REG       0x1c       /* Pool Buffer Control */
+#define I2CD_POOL_CTRL_REG      0x1c       /* Pool Buffer Control */
+#define   I2CD_POOL_RX_COUNT(x)            (((x) >> 24) & 0xff)
+#define   I2CD_POOL_RX_SIZE(x)             ((((x) >> 16) & 0xff) + 1)
+#define   I2CD_POOL_TX_COUNT(x)            ((((x) >> 8) & 0xff) + 1)
+#define   I2CD_POOL_OFFSET(x)              (((x) & 0x3f) << 2)  /* AST2400 */
 #define I2CD_BYTE_BUF_REG       0x20       /* Transmit/Receive Byte Buffer */
 #define   I2CD_BYTE_BUF_TX_SHIFT           0
 #define   I2CD_BYTE_BUF_TX_MASK            0xff
@@ -170,6 +175,8 @@ static uint64_t aspeed_i2c_bus_read(void *opaque, hwaddr offset,
         return bus->intr_ctrl;
     case I2CD_INTR_STS_REG:
         return bus->intr_status;
+    case I2CD_POOL_CTRL_REG:
+        return bus->pool_ctrl;
     case I2CD_BYTE_BUF_REG:
         return bus->buf;
     case I2CD_CMD_REG:
@@ -192,19 +199,76 @@ static uint8_t aspeed_i2c_get_state(AspeedI2CBus *bus)
     return (bus->cmd >> I2CD_TX_STATE_SHIFT) & I2CD_TX_STATE_MASK;
 }
 
+static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
+{
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+    int ret = -1;
+    int i;
+
+    if (bus->cmd & I2CD_TX_BUFF_ENABLE) {
+        for (i = pool_start; i < I2CD_POOL_TX_COUNT(bus->pool_ctrl); i++) {
+            uint8_t *pool_base = aic->bus_pool_base(bus);
+
+            ret = i2c_send(bus->bus, pool_base[i]);
+            if (ret) {
+                break;
+            }
+        }
+        bus->cmd &= ~I2CD_TX_BUFF_ENABLE;
+    } else {
+        ret = i2c_send(bus->bus, bus->buf);
+    }
+
+    return ret;
+}
+
+static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
+{
+    AspeedI2CState *s = bus->controller;
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
+    uint8_t data;
+    int i;
+
+    if (bus->cmd & I2CD_RX_BUFF_ENABLE) {
+        uint8_t *pool_base = aic->bus_pool_base(bus);
+
+        for (i = 0; i < I2CD_POOL_RX_SIZE(bus->pool_ctrl); i++) {
+            pool_base[i] = i2c_recv(bus->bus);
+        }
+
+        /* Update RX count */
+        bus->pool_ctrl &= ~(0xff << 24);
+        bus->pool_ctrl |= (i & 0xff) << 24;
+        bus->cmd &= ~I2CD_RX_BUFF_ENABLE;
+    } else {
+        data = i2c_recv(bus->bus);
+        bus->buf = (data & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
+    }
+}
+
 static void aspeed_i2c_handle_rx_cmd(AspeedI2CBus *bus)
 {
-    uint8_t ret;
-
     aspeed_i2c_set_state(bus, I2CD_MRXD);
-    ret = i2c_recv(bus->bus);
+    aspeed_i2c_bus_recv(bus);
     bus->intr_status |= I2CD_INTR_RX_DONE;
-    bus->buf = (ret & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
     if (bus->cmd & I2CD_M_S_RX_CMD_LAST) {
         i2c_nack(bus->bus);
     }
     bus->cmd &= ~(I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST);
     aspeed_i2c_set_state(bus, I2CD_MACTIVE);
+}
+
+static uint8_t aspeed_i2c_get_addr(AspeedI2CBus *bus)
+{
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+
+    if (bus->cmd & I2CD_TX_BUFF_ENABLE) {
+        uint8_t *pool_base = aic->bus_pool_base(bus);
+
+        return pool_base[0];
+    } else {
+        return bus->buf;
+    }
 }
 
 /*
@@ -213,25 +277,47 @@ static void aspeed_i2c_handle_rx_cmd(AspeedI2CBus *bus)
  */
 static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
 {
+    uint8_t pool_start = 0;
+
     bus->cmd &= ~0xFFFF;
     bus->cmd |= value & 0xFFFF;
 
     if (bus->cmd & I2CD_M_START_CMD) {
         uint8_t state = aspeed_i2c_get_state(bus) & I2CD_MACTIVE ?
             I2CD_MSTARTR : I2CD_MSTART;
+        uint8_t addr;
 
         aspeed_i2c_set_state(bus, state);
 
-        if (i2c_start_transfer(bus->bus, extract32(bus->buf, 1, 7),
-                               extract32(bus->buf, 0, 1))) {
+        addr = aspeed_i2c_get_addr(bus);
+
+        if (i2c_start_transfer(bus->bus, extract32(addr, 1, 7),
+                               extract32(addr, 0, 1))) {
             bus->intr_status |= I2CD_INTR_TX_NAK;
         } else {
             bus->intr_status |= I2CD_INTR_TX_ACK;
         }
 
-        /* START command is also a TX command, as the slave address is
-         * sent on the bus */
-        bus->cmd &= ~(I2CD_M_START_CMD | I2CD_M_TX_CMD);
+        bus->cmd &= ~I2CD_M_START_CMD;
+
+        /*
+         * The START command is also a TX command, as the slave
+         * address is sent on the bus. Drop the TX flag if nothing
+         * else needs to be sent in this sequence.
+         */
+        if (bus->cmd & I2CD_TX_BUFF_ENABLE) {
+            if (I2CD_POOL_TX_COUNT(bus->pool_ctrl) == 1) {
+                bus->cmd &= ~I2CD_M_TX_CMD;
+            } else {
+                /*
+                 * Increase the start index in the TX pool buffer to
+                 * skip the address byte.
+                 */
+                pool_start++;
+            }
+        } else {
+            bus->cmd &= ~I2CD_M_TX_CMD;
+        }
 
         /* No slave found */
         if (!i2c_bus_busy(bus->bus)) {
@@ -242,7 +328,7 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
 
     if (bus->cmd & I2CD_M_TX_CMD) {
         aspeed_i2c_set_state(bus, I2CD_MTXD);
-        if (i2c_send(bus->bus, bus->buf)) {
+        if (aspeed_i2c_bus_send(bus, pool_start)) {
             bus->intr_status |= (I2CD_INTR_TX_NAK);
             i2c_end_transfer(bus->bus);
         } else {
@@ -313,6 +399,11 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_UNIMP, "%s: slave mode not implemented\n",
                       __func__);
         break;
+    case I2CD_POOL_CTRL_REG:
+        bus->pool_ctrl &= ~0xffffff;
+        bus->pool_ctrl |= (value & 0xffffff);
+        break;
+
     case I2CD_BYTE_BUF_REG:
         bus->buf = (value & I2CD_BYTE_BUF_TX_MASK) << I2CD_BYTE_BUF_TX_SHIFT;
         break;
@@ -378,10 +469,45 @@ static const MemoryRegionOps aspeed_i2c_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t aspeed_i2c_pool_read(void *opaque, hwaddr offset,
+                                     unsigned size)
+{
+    AspeedI2CState *s = opaque;
+    uint64_t ret = 0;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        ret |= (uint64_t) s->pool[offset + i] << (8 * i);
+    }
+
+    return ret;
+}
+
+static void aspeed_i2c_pool_write(void *opaque, hwaddr offset,
+                                  uint64_t value, unsigned size)
+{
+    AspeedI2CState *s = opaque;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        s->pool[offset + i] = (value >> (8 * i)) & 0xFF;
+    }
+}
+
+static const MemoryRegionOps aspeed_i2c_pool_ops = {
+    .read = aspeed_i2c_pool_read,
+    .write = aspeed_i2c_pool_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
 static const VMStateDescription aspeed_i2c_bus_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(id, AspeedI2CBus),
         VMSTATE_UINT32(ctrl, AspeedI2CBus),
@@ -390,19 +516,21 @@ static const VMStateDescription aspeed_i2c_bus_vmstate = {
         VMSTATE_UINT32(intr_status, AspeedI2CBus),
         VMSTATE_UINT32(cmd, AspeedI2CBus),
         VMSTATE_UINT32(buf, AspeedI2CBus),
+        VMSTATE_UINT32(pool_ctrl, AspeedI2CBus),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const VMStateDescription aspeed_i2c_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(intr_status, AspeedI2CState),
         VMSTATE_STRUCT_ARRAY(busses, AspeedI2CState,
                              ASPEED_I2C_NR_BUSSES, 1, aspeed_i2c_bus_vmstate,
                              AspeedI2CBus),
+        VMSTATE_UINT8_ARRAY(pool, AspeedI2CState, ASPEED_I2C_MAX_POOL_SIZE),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -472,6 +600,10 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
         memory_region_add_subregion(&s->iomem, aic->reg_size * (i + offset),
                                     &s->busses[i].mr);
     }
+
+    memory_region_init_io(&s->pool_iomem, OBJECT(s), &aspeed_i2c_pool_ops, s,
+                          "aspeed.i2c-pool", aic->pool_size);
+    memory_region_add_subregion(&s->iomem, aic->pool_base, &s->pool_iomem);
 }
 
 static void aspeed_i2c_class_init(ObjectClass *klass, void *data)
@@ -498,6 +630,14 @@ static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
     return bus->controller->irq;
 }
 
+static uint8_t *aspeed_2400_i2c_bus_pool_base(AspeedI2CBus *bus)
+{
+    uint8_t *pool_page =
+        &bus->controller->pool[I2CD_POOL_PAGE_SEL(bus->ctrl) * 0x100];
+
+    return &pool_page[I2CD_POOL_OFFSET(bus->pool_ctrl)];
+}
+
 static void aspeed_2400_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -509,6 +649,9 @@ static void aspeed_2400_i2c_class_init(ObjectClass *klass, void *data)
     aic->reg_size = 0x40;
     aic->gap = 7;
     aic->bus_get_irq = aspeed_2400_i2c_bus_get_irq;
+    aic->pool_size = 0x800;
+    aic->pool_base = 0x800;
+    aic->bus_pool_base = aspeed_2400_i2c_bus_pool_base;
 }
 
 static const TypeInfo aspeed_2400_i2c_info = {
@@ -522,6 +665,11 @@ static qemu_irq aspeed_2500_i2c_bus_get_irq(AspeedI2CBus *bus)
     return bus->controller->irq;
 }
 
+static uint8_t *aspeed_2500_i2c_bus_pool_base(AspeedI2CBus *bus)
+{
+    return &bus->controller->pool[bus->id * 0x10];
+}
+
 static void aspeed_2500_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -533,6 +681,9 @@ static void aspeed_2500_i2c_class_init(ObjectClass *klass, void *data)
     aic->reg_size = 0x40;
     aic->gap = 7;
     aic->bus_get_irq = aspeed_2500_i2c_bus_get_irq;
+    aic->pool_size = 0x100;
+    aic->pool_base = 0x200;
+    aic->bus_pool_base = aspeed_2500_i2c_bus_pool_base;
 }
 
 static const TypeInfo aspeed_2500_i2c_info = {
@@ -546,6 +697,11 @@ static qemu_irq aspeed_2600_i2c_bus_get_irq(AspeedI2CBus *bus)
     return bus->irq;
 }
 
+static uint8_t *aspeed_2600_i2c_bus_pool_base(AspeedI2CBus *bus)
+{
+   return &bus->controller->pool[bus->id * 0x20];
+}
+
 static void aspeed_2600_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -557,6 +713,9 @@ static void aspeed_2600_i2c_class_init(ObjectClass *klass, void *data)
     aic->reg_size = 0x80;
     aic->gap = -1; /* no gap */
     aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
+    aic->pool_size = 0x200;
+    aic->pool_base = 0xC00;
+    aic->bus_pool_base = aspeed_2600_i2c_bus_pool_base;
 }
 
 static const TypeInfo aspeed_2600_i2c_info = {
