@@ -992,7 +992,7 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
     vq->shadow_avail_idx = vq->last_avail_idx = vq->inuse + vq->used_idx;
 
     if (vq->inuse) {
-        vq->resubmit_list = malloc(sizeof(VuVirtqInflightDesc) * vq->inuse);
+        vq->resubmit_list = calloc(vq->inuse, sizeof(VuVirtqInflightDesc));
         if (!vq->resubmit_list) {
             return -1;
         }
