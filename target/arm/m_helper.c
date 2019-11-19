@@ -33,22 +33,82 @@
 #include "exec/cpu_ldst.h"
 #endif
 
+static void v7m_msr_xpsr(CPUARMState *env, uint32_t mask,
+                         uint32_t reg, uint32_t val)
+{
+    /* Only APSR is actually writable */
+    if (!(reg & 4)) {
+        uint32_t apsrmask = 0;
+
+        if (mask & 8) {
+            apsrmask |= XPSR_NZCV | XPSR_Q;
+        }
+        if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+            apsrmask |= XPSR_GE;
+        }
+        xpsr_write(env, val, apsrmask);
+    }
+}
+
+static uint32_t v7m_mrs_xpsr(CPUARMState *env, uint32_t reg, unsigned el)
+{
+    uint32_t mask = 0;
+
+    if ((reg & 1) && el) {
+        mask |= XPSR_EXCP; /* IPSR (unpriv. reads as zero) */
+    }
+    if (!(reg & 4)) {
+        mask |= XPSR_NZCV | XPSR_Q; /* APSR */
+        if (arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+            mask |= XPSR_GE;
+        }
+    }
+    /* EPSR reads as zero */
+    return xpsr_read(env) & mask;
+}
+
+static uint32_t v7m_mrs_control(CPUARMState *env, uint32_t secure)
+{
+    uint32_t value = env->v7m.control[secure];
+
+    if (!secure) {
+        /* SFPA is RAZ/WI from NS; FPCA is stored in the M_REG_S bank */
+        value |= env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK;
+    }
+    return value;
+}
+
 #ifdef CONFIG_USER_ONLY
 
-/* These should probably raise undefined insn exceptions.  */
-void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 {
-    ARMCPU *cpu = env_archcpu(env);
+    uint32_t mask = extract32(maskreg, 8, 4);
+    uint32_t reg = extract32(maskreg, 0, 8);
 
-    cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
+    switch (reg) {
+    case 0 ... 7: /* xPSR sub-fields */
+        v7m_msr_xpsr(env, mask, reg, val);
+        break;
+    case 20: /* CONTROL */
+        /* There are no sub-fields that are actually writable from EL0. */
+        break;
+    default:
+        /* Unprivileged writes to other registers are ignored */
+        break;
+    }
 }
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    ARMCPU *cpu = env_archcpu(env);
-
-    cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
-    return 0;
+    switch (reg) {
+    case 0 ... 7: /* xPSR sub-fields */
+        return v7m_mrs_xpsr(env, reg, 0);
+    case 20: /* CONTROL */
+        return v7m_mrs_control(env, 0);
+    default:
+        /* Unprivileged reads others as zero.  */
+        return 0;
+    }
 }
 
 void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
@@ -2196,35 +2256,14 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    uint32_t mask;
     unsigned el = arm_current_el(env);
 
     /* First handle registers which unprivileged can read */
-
     switch (reg) {
     case 0 ... 7: /* xPSR sub-fields */
-        mask = 0;
-        if ((reg & 1) && el) {
-            mask |= XPSR_EXCP; /* IPSR (unpriv. reads as zero) */
-        }
-        if (!(reg & 4)) {
-            mask |= XPSR_NZCV | XPSR_Q; /* APSR */
-            if (arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
-                mask |= XPSR_GE;
-            }
-        }
-        /* EPSR reads as zero */
-        return xpsr_read(env) & mask;
-        break;
+        return v7m_mrs_xpsr(env, reg, el);
     case 20: /* CONTROL */
-    {
-        uint32_t value = env->v7m.control[env->v7m.secure];
-        if (!env->v7m.secure) {
-            /* SFPA is RAZ/WI from NS; FPCA is stored in the M_REG_S bank */
-            value |= env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK;
-        }
-        return value;
-    }
+        return v7m_mrs_control(env, env->v7m.secure);
     case 0x94: /* CONTROL_NS */
         /*
          * We have to handle this here because unprivileged Secure code
@@ -2454,18 +2493,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 
     switch (reg) {
     case 0 ... 7: /* xPSR sub-fields */
-        /* only APSR is actually writable */
-        if (!(reg & 4)) {
-            uint32_t apsrmask = 0;
-
-            if (mask & 8) {
-                apsrmask |= XPSR_NZCV | XPSR_Q;
-            }
-            if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
-                apsrmask |= XPSR_GE;
-            }
-            xpsr_write(env, val, apsrmask);
-        }
+        v7m_msr_xpsr(env, mask, reg, val);
         break;
     case 8: /* MSP */
         if (v7m_using_psp(env)) {

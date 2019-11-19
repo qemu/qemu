@@ -458,21 +458,6 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
     cpu->sve_max_vq = max_vq;
 }
 
-uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq)
-{
-    uint32_t bitnum;
-
-    /*
-     * We allow vq == ARM_MAX_VQ + 1 to be input because the caller may want
-     * to find the maximum vq enabled, which may be ARM_MAX_VQ, but this
-     * function always returns the next smaller than the input.
-     */
-    assert(vq && vq <= ARM_MAX_VQ + 1);
-
-    bitnum = find_last_bit(cpu->sve_vq_map, vq - 1);
-    return bitnum == vq - 1 ? 0 : bitnum + 1;
-}
-
 static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
