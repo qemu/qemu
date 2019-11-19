@@ -68,12 +68,6 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
 {
     abi_ulong sp = get_sp_from_cpustate(regs);
 
-    /* If we are on the alternate signal stack and would overflow it, don't.
-       Return an always-bogus address instead so we will die with SIGSEGV. */
-    if (on_sig_stack(sp) && !likely(on_sig_stack(sp - framesize))) {
-        return -1L;
-    }
-
     /* This is the X/Open sanctioned signal stack switching.  */
     sp = target_sigsp(sp, ka) - framesize;
 

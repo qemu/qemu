@@ -18,7 +18,10 @@ obj-y += \
 
 CFLAGS += -I$(SRC_PATH)/target/hexagon/imported
 
-target/hexagon/qemu.odef target/hexagon/qemu_wrap.h: \
+QEMU_ODEF = $(BUILD_DIR)/hexagon-linux-user/qemu.odef
+QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap.h
+
+$(QEMU_ODEF) $(QEMU_WRAP_H): \
     $(SRC_PATH)/target/hexagon/do_qemu.py \
     $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
     $(SRC_PATH)/target/hexagon/imported/attribs.def
@@ -26,9 +29,9 @@ target/hexagon/qemu.odef target/hexagon/qemu_wrap.h: \
             $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
             $(SRC_PATH)/target/hexagon/imported/attribs.def
 
-target/hexagon/genptr.o: target/hexagon/qemu.odef
-target/hexagon/genptr.o: target/hexagon/qemu_wrap.h
-target/hexagon/op_helper.o: target/hexagon/qemu.odef
-target/hexagon/opcodes.o: target/hexagon/qemu.odef
-target/hexagon/helper.h: target/hexagon/qemu.odef
-tcg/tcg.o: target/hexagon/qemu.odef
+target/hexagon/genptr.o: $(QEMU_ODEF)
+target/hexagon/genptr.o: $(QEMU_WRAP_H)
+target/hexagon/op_helper.o: $(QEMU_ODEF)
+target/hexagon/opcodes.o: $(QEMU_ODEF)
+target/hexagon/helper.h: $(QEMU_ODEF)
+tcg/tcg.o: $(QEMU_ODEF)
