@@ -444,8 +444,13 @@ static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
     uint32_t start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
     uint32_t end_offset = reg & AST2600_SEG_ADDR_MASK;
 
-    seg->addr = s->ctrl->flash_window_base + start_offset;
-    seg->size = end_offset + MiB - start_offset;
+    if (reg) {
+        seg->addr = s->ctrl->flash_window_base + start_offset;
+        seg->size = end_offset + MiB - start_offset;
+    } else {
+        seg->addr = s->ctrl->flash_window_base;
+        seg->size = 0;
+    }
 }
 
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
@@ -486,7 +491,7 @@ static void aspeed_smc_flash_set_segment_region(AspeedSMCState *s, int cs,
     memory_region_transaction_begin();
     memory_region_set_size(&fl->mmio, seg.size);
     memory_region_set_address(&fl->mmio, seg.addr - s->ctrl->flash_window_base);
-    memory_region_set_enabled(&fl->mmio, true);
+    memory_region_set_enabled(&fl->mmio, !!seg.size);
     memory_region_transaction_commit();
 
     s->regs[R_SEG_ADDR0 + cs] = regval;
@@ -526,8 +531,9 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
     }
 
     /* Keep the segment in the overall flash window */
-    if (seg.addr + seg.size <= s->ctrl->flash_window_base ||
-        seg.addr > s->ctrl->flash_window_base + s->ctrl->flash_window_size) {
+    if (seg.size &&
+        (seg.addr + seg.size <= s->ctrl->flash_window_base ||
+         seg.addr > s->ctrl->flash_window_base + s->ctrl->flash_window_size)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is invalid : "
                       "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
                       s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
