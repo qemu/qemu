@@ -1314,6 +1314,7 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     if (mask & XPSR_GE) {
         env->GE = (val & XPSR_GE) >> 16;
     }
+#ifndef CONFIG_USER_ONLY
     if (mask & XPSR_T) {
         env->thumb = ((val & XPSR_T) != 0);
     }
@@ -1329,6 +1330,7 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         /* Note that this only happens on exception exit */
         write_v7m_exception(env, val & XPSR_EXCP);
     }
+#endif
 }
 
 #define HCR_VM        (1ULL << 0)
