@@ -52,6 +52,8 @@ typedef struct AspeedI2CBus {
     uint32_t cmd;
     uint32_t buf;
     uint32_t pool_ctrl;
+    uint32_t dma_addr;
+    uint32_t dma_len;
 } AspeedI2CBus;
 
 typedef struct AspeedI2CState {
@@ -66,6 +68,8 @@ typedef struct AspeedI2CState {
     uint8_t pool[ASPEED_I2C_MAX_POOL_SIZE];
 
     AspeedI2CBus busses[ASPEED_I2C_NR_BUSSES];
+    MemoryRegion *dram_mr;
+    AddressSpace dram_as;
 } AspeedI2CState;
 
 #define ASPEED_I2C_CLASS(klass) \
@@ -85,6 +89,7 @@ typedef struct AspeedI2CClass {
     hwaddr pool_base;
     uint8_t *(*bus_pool_base)(AspeedI2CBus *);
     bool check_sram;
+    bool has_dma;
 
 } AspeedI2CClass;
 
