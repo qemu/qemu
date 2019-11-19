@@ -8934,7 +8934,7 @@ static bool op_strex(DisasContext *s, arg_STREX *a, MemOp mop, bool rel)
         || (s->thumb && (a->rd == 13 || a->rt == 13))
         || (mop == MO_64
             && (a->rt2 == 15
-                || a->rd == a->rt2 || a->rt == a->rt2
+                || a->rd == a->rt2
                 || (s->thumb && a->rt2 == 13)))) {
         unallocated_encoding(s);
         return true;
