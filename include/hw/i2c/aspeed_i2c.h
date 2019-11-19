@@ -61,6 +61,7 @@ typedef struct AspeedI2CState {
     qemu_irq irq;
 
     uint32_t intr_status;
+    uint32_t ctrl_global;
     MemoryRegion pool_iomem;
     uint8_t pool[ASPEED_I2C_MAX_POOL_SIZE];
 
@@ -83,6 +84,8 @@ typedef struct AspeedI2CClass {
     uint64_t pool_size;
     hwaddr pool_base;
     uint8_t *(*bus_pool_base)(AspeedI2CBus *);
+    bool check_sram;
+
 } AspeedI2CClass;
 
 I2CBus *aspeed_i2c_get_bus(DeviceState *dev, int busnr);
