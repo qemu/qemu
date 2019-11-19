@@ -137,7 +137,7 @@
 /* Checksum Calculation Result */
 #define R_DMA_CHECKSUM    (0x90 / 4)
 
-/* Misc Control Register #2 */
+/* Read Timing Compensation Register */
 #define R_TIMINGS         (0x94 / 4)
 
 /* SPI controller registers and bits (AST2400) */
@@ -256,6 +256,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 5,
         .segments          = aspeed_segments_legacy,
@@ -271,6 +272,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 5,
         .segments          = aspeed_segments_fmc,
@@ -288,6 +290,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = 0xff,
         .r_ctrl0           = R_SPI_CTRL0,
         .r_timings         = R_SPI_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = SPI_CONF_ENABLE_W0,
         .max_slaves        = 1,
         .segments          = aspeed_segments_spi,
@@ -303,6 +306,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 3,
         .segments          = aspeed_segments_ast2500_fmc,
@@ -320,6 +324,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 2,
         .segments          = aspeed_segments_ast2500_spi1,
@@ -335,6 +340,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 2,
         .segments          = aspeed_segments_ast2500_spi2,
@@ -350,6 +356,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 1,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 3,
         .segments          = aspeed_segments_ast2600_fmc,
@@ -365,6 +372,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 2,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 2,
         .segments          = aspeed_segments_ast2600_spi1,
@@ -380,6 +388,7 @@ static const AspeedSMCController controllers[] = {
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
         .r_timings         = R_TIMINGS,
+        .nregs_timings     = 3,
         .conf_enable_w0    = CONF_ENABLE_W0,
         .max_slaves        = 3,
         .segments          = aspeed_segments_ast2600_spi2,
@@ -951,7 +960,8 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
     addr >>= 2;
 
     if (addr == s->r_conf ||
-        addr == s->r_timings ||
+        (addr >= s->r_timings &&
+         addr < s->r_timings + s->ctrl->nregs_timings) ||
         addr == s->r_ce_ctrl ||
         addr == R_INTR_CTRL ||
         addr == R_DUMMY_DATA ||
@@ -1216,7 +1226,8 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     addr >>= 2;
 
     if (addr == s->r_conf ||
-        addr == s->r_timings ||
+        (addr >= s->r_timings &&
+         addr < s->r_timings + s->ctrl->nregs_timings) ||
         addr == s->r_ce_ctrl) {
         s->regs[addr] = value;
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
