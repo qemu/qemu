@@ -609,7 +609,7 @@ class VM(qtest.QEMUQtestMachine):
         ]
         error = None
         while True:
-            ev = filter_qmp_event(self.events_wait(events))
+            ev = filter_qmp_event(self.events_wait(events, timeout=wait))
             if ev['event'] != 'JOB_STATUS_CHANGE':
                 if use_log:
                     log(ev)
