@@ -144,6 +144,7 @@ _qemu_img_wrapper bench -U -c 1 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper bench -U -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': force-share=on can only be used with read-only images
+{ 'execute': 'quit' }
 
 Round done
 
@@ -266,6 +267,7 @@ _qemu_img_wrapper bench -U -c 1 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper bench -U -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': force-share=on can only be used with read-only images
+{ 'execute': 'quit' }
 
 Round done
 
@@ -367,6 +369,7 @@ _qemu_img_wrapper bench -U -c 1 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper bench -U -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': force-share=on can only be used with read-only images
+{ 'execute': 'quit' }
 
 Round done
 
@@ -412,11 +415,14 @@ QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Active commit to intermediate layer should work when base in use ==
+{ 'execute': 'qmp_capabilities' }
 {"return": {}}
 
 _qemu_img_wrapper commit -b TEST_DIR/t.qcow2.b TEST_DIR/t.qcow2.c
+{ 'execute': 'qmp_capabilities' }
 {"return": {}}
 Adding drive
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT' } }
 {"return": "OKrn"}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
@@ -426,20 +432,25 @@ Creating overlay with qemu-img when the guest is running should be allowed
 
 _qemu_img_wrapper create -f qcow2 -b TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.overlay
 == Closing an image should unlock it ==
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d0' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 Adding two and closing one
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT,readonly=on' } }
 {"return": "OKrn"}
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d1,file=TEST_DIR/t.IMGFMT,readonly=on' } }
 {"return": "OKrn"}
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d0' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 Closing the other
+{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d1' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512

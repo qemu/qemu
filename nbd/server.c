@@ -321,41 +321,45 @@ static int nbd_opt_skip(NBDClient *client, size_t size, Error **errp)
 /* nbd_opt_read_name
  *
  * Read a string with the format:
- *   uint32_t len     (<= NBD_MAX_NAME_SIZE)
+ *   uint32_t len     (<= NBD_MAX_STRING_SIZE)
  *   len bytes string (not 0-terminated)
  *
- * @name should be enough to store NBD_MAX_NAME_SIZE+1.
+ * On success, @name will be allocated.
  * If @length is non-null, it will be set to the actual string length.
  *
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success.
  */
-static int nbd_opt_read_name(NBDClient *client, char *name, uint32_t *length,
+static int nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
                              Error **errp)
 {
     int ret;
     uint32_t len;
+    g_autofree char *local_name = NULL;
 
+    *name = NULL;
     ret = nbd_opt_read(client, &len, sizeof(len), errp);
     if (ret <= 0) {
         return ret;
     }
     len = cpu_to_be32(len);
 
-    if (len > NBD_MAX_NAME_SIZE) {
+    if (len > NBD_MAX_STRING_SIZE) {
         return nbd_opt_invalid(client, errp,
                                "Invalid name length: %" PRIu32, len);
     }
 
-    ret = nbd_opt_read(client, name, len, errp);
+    local_name = g_malloc(len + 1);
+    ret = nbd_opt_read(client, local_name, len, errp);
     if (ret <= 0) {
         return ret;
     }
-    name[len] = '\0';
+    local_name[len] = '\0';
 
     if (length) {
         *length = len;
     }
+    *name = g_steal_pointer(&local_name);
 
     return 1;
 }
@@ -375,6 +379,7 @@ static int nbd_negotiate_send_rep_list(NBDClient *client, NBDExport *exp,
     trace_nbd_negotiate_send_rep_list(name, desc);
     name_len = strlen(name);
     desc_len = strlen(desc);
+    assert(name_len <= NBD_MAX_STRING_SIZE && desc_len <= NBD_MAX_STRING_SIZE);
     len = name_len + desc_len + sizeof(len);
     ret = nbd_negotiate_send_rep_len(client, NBD_REP_SERVER, len, errp);
     if (ret < 0) {
@@ -427,7 +432,7 @@ static void nbd_check_meta_export(NBDClient *client)
 static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
                                             Error **errp)
 {
-    char name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *name = NULL;
     char buf[NBD_REPLY_EXPORT_NAME_SIZE] = "";
     size_t len;
     int ret;
@@ -441,10 +446,11 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         [10 .. 133]   reserved     (0) [unless no_zeroes]
      */
     trace_nbd_negotiate_handle_export_name();
-    if (client->optlen >= sizeof(name)) {
+    if (client->optlen > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
+    name = g_malloc(client->optlen + 1);
     if (nbd_read(client->ioc, name, client->optlen, "export name", errp) < 0) {
         return -EIO;
     }
@@ -533,7 +539,7 @@ static int nbd_reject_length(NBDClient *client, bool fatal, Error **errp)
 static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
 {
     int rc;
-    char name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *name = NULL;
     NBDExport *exp;
     uint16_t requests;
     uint16_t request;
@@ -551,7 +557,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         2 bytes: N, number of requests (can be 0)
         N * 2 bytes: N requests
     */
-    rc = nbd_opt_read_name(client, name, &namelen, errp);
+    rc = nbd_opt_read_name(client, &name, &namelen, errp);
     if (rc <= 0) {
         return rc;
     }
@@ -608,6 +614,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     if (exp->description) {
         size_t len = strlen(exp->description);
 
+        assert(len <= NBD_MAX_STRING_SIZE);
         rc = nbd_negotiate_send_info(client, NBD_INFO_DESCRIPTION,
                                      len, exp->description, errp);
         if (rc < 0) {
@@ -752,6 +759,7 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
         {.iov_base = (void *)context, .iov_len = strlen(context)}
     };
 
+    assert(iov[1].iov_len <= NBD_MAX_STRING_SIZE);
     if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
         context_id = 0;
     }
@@ -900,7 +908,7 @@ static int nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
  * Parse namespace name and call corresponding function to parse body of the
  * query.
  *
- * The only supported namespace now is 'base'.
+ * The only supported namespaces are 'base' and 'qemu'.
  *
  * The function aims not wasting time and memory to read long unknown namespace
  * names.
@@ -926,6 +934,10 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     }
     len = cpu_to_be32(len);
 
+    if (len > NBD_MAX_STRING_SIZE) {
+        trace_nbd_negotiate_meta_query_skip("length too long");
+        return nbd_opt_skip(client, len, errp);
+    }
     if (len < ns_len) {
         trace_nbd_negotiate_meta_query_skip("length too short");
         return nbd_opt_skip(client, len, errp);
@@ -957,7 +969,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
                                       NBDExportMetaContexts *meta, Error **errp)
 {
     int ret;
-    char export_name[NBD_MAX_NAME_SIZE + 1];
+    g_autofree char *export_name = NULL;
     NBDExportMetaContexts local_meta;
     uint32_t nb_queries;
     int i;
@@ -976,7 +988,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
 
     memset(meta, 0, sizeof(*meta));
 
-    ret = nbd_opt_read_name(client, export_name, NULL, errp);
+    ret = nbd_opt_read_name(client, &export_name, NULL, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -1487,7 +1499,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
      * access since the export could be available before migration handover.
      * ctx was acquired in the caller.
      */
-    assert(name);
+    assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
     ctx = bdrv_get_aio_context(bs);
     bdrv_invalidate_cache(bs, NULL);
 
@@ -1513,6 +1525,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     assert(dev_offset <= INT64_MAX);
     exp->dev_offset = dev_offset;
     exp->name = g_strdup(name);
+    assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
     exp->description = g_strdup(desc);
     exp->nbdflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_FLUSH |
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
@@ -1559,8 +1572,10 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
 
         bdrv_dirty_bitmap_set_busy(bm, true);
         exp->export_bitmap = bm;
+        assert(strlen(bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
         exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
                                                      bitmap);
+        assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 
     exp->close = close;

@@ -217,7 +217,7 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
         TEST_IMG="$DRIVER,file.filename=$TEST_DIR/t.$IMGFMT"
     elif [ "$IMGPROTO" = "nbd" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-        TEST_IMG="$DRIVER,file.driver=nbd,file.host=127.0.0.1,file.port=10810"
+        TEST_IMG="$DRIVER,file.driver=nbd,file.type=unix,file.path=$SOCKDIR/nbd"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"
@@ -233,7 +233,7 @@ else
         TEST_IMG=$TEST_DIR/t.$IMGFMT
     elif [ "$IMGPROTO" = "nbd" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-        TEST_IMG="nbd:127.0.0.1:10810"
+        TEST_IMG="nbd+unix:///?socket=$SOCK_DIR/nbd"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         REMOTE_TEST_DIR="ssh://\\($USER@\\)\\?127.0.0.1\\(:[0-9]\\+\\)\\?$TEST_DIR"
@@ -293,7 +293,7 @@ _stop_nbd_server()
         local QEMU_NBD_PID
         read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
         kill ${QEMU_NBD_PID}
-        rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
+        rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid" "$SOCK_DIR/nbd"
     fi
 }
 
@@ -349,11 +349,14 @@ _make_test_img()
      fi
     ) | _filter_img_create
 
-    # Start an NBD server on the image file, which is what we'll be talking to
+    # Start an NBD server on the image file, which is what we'll be talking to.
+    # Once NBD gains resize support, we may also want to use -f raw at the
+    # server and interpret format over NBD, but for now, the format is
+    # interpreted at the server and raw data sent over NBD.
     if [ $IMGPROTO = "nbd" ]; then
         # Pass a sufficiently high number to -e that should be enough for all
         # tests
-        eval "$QEMU_NBD -v -t -b 127.0.0.1 -p 10810 -f $IMGFMT -e 42 -x '' $TEST_IMG_FILE >/dev/null &"
+        eval "$QEMU_NBD -v -t -k '$SOCK_DIR/nbd' -f $IMGFMT -e 42 -x '' $TEST_IMG_FILE >/dev/null &"
         sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
     fi
 

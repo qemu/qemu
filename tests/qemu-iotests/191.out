@@ -8,6 +8,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t
 Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{ 'execute': 'qmp_capabilities' }
 {
     "return": {
     }
@@ -15,6 +16,7 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Perform commit job ===
 
+{ 'execute': 'block-commit', 'arguments': { 'job-id': 'commit0', 'device': 'top', 'base':'TEST_DIR/t.IMGFMT.base', 'top': 'TEST_DIR/t.IMGFMT.mid' } }
 {
     "timestamp": {
         "seconds":  TIMESTAMP,
@@ -102,6 +104,7 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Check that both top and top2 point to base now ===
 
+{ 'execute': 'query-named-block-nodes' }
 {
     "return": [
         {
@@ -378,6 +381,7 @@ wrote 65536/65536 bytes at offset 1048576
         }
     ]
 }
+{ 'execute': 'quit' }
 {
     "return": {
     }
@@ -415,6 +419,7 @@ Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_
 Formatting 'TEST_DIR/t.IMGFMT.ovl3', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.ovl2
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{ 'execute': 'qmp_capabilities' }
 {
     "return": {
     }
@@ -422,6 +427,7 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Perform commit job ===
 
+{ 'execute': 'block-commit', 'arguments': { 'job-id': 'commit0', 'device': 'top', 'base':'TEST_DIR/t.IMGFMT.base', 'top': 'TEST_DIR/t.IMGFMT.mid' } }
 {
     "timestamp": {
         "seconds":  TIMESTAMP,
@@ -509,6 +515,7 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Check that both top and top2 point to base now ===
 
+{ 'execute': 'query-named-block-nodes' }
 {
     "return": [
         {
@@ -796,6 +803,7 @@ wrote 65536/65536 bytes at offset 1048576
         }
     ]
 }
+{ 'execute': 'quit' }
 {
     "return": {
     }

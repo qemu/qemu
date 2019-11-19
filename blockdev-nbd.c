@@ -162,6 +162,11 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         name = device;
     }
 
+    if (strlen(name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name '%s' too long", name);
+        return;
+    }
+
     if (nbd_export_find(name)) {
         error_setg(errp, "NBD server already has export named '%s'", name);
         return;

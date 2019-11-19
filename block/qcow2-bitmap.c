@@ -42,6 +42,8 @@
 #define BME_MIN_GRANULARITY_BITS 9
 #define BME_MAX_NAME_SIZE 1023
 
+QEMU_BUILD_BUG_ON(BME_MAX_NAME_SIZE != BDRV_BITMAP_MAX_NAME_SIZE);
+
 #if BME_MAX_TABLE_SIZE * 8ULL > INT_MAX
 #error In the code bitmap table physical size assumed to fit into int
 #endif

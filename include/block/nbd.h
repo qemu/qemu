@@ -226,12 +226,12 @@ enum {
 /* Maximum size of a single READ/WRITE data buffer */
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
 
-/* Maximum size of an export name. The NBD spec requires 256 and
- * suggests that servers support up to 4096, but we stick to only the
- * required size so that we can stack-allocate the names, and because
- * going larger would require an audit of more code to make sure we
- * aren't overflowing some other buffer. */
-#define NBD_MAX_NAME_SIZE 256
+/*
+ * Maximum size of a protocol string (export name, meta context name,
+ * etc.).  Use malloc rather than stack allocation for storage of a
+ * string.
+ */
+#define NBD_MAX_STRING_SIZE 4096
 
 /* Two types of reply structures */
 #define NBD_SIMPLE_REPLY_MAGIC      0x67446698

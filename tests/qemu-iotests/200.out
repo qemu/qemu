@@ -6,6 +6,7 @@ wrote 314572800/314572800 bytes at offset 512
 
 === Starting QEMU VM ===
 
+{ 'execute': 'qmp_capabilities' }
 {"return": {}}
 
 === Sending stream/cancel, checking for SIGSEGV only ===
