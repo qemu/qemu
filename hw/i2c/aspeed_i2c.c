@@ -28,6 +28,7 @@
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
 
 /* I2C Global Register */
 
@@ -158,6 +159,13 @@ static inline void aspeed_i2c_bus_raise_interrupt(AspeedI2CBus *bus)
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
 
+    trace_aspeed_i2c_bus_raise_interrupt(bus->intr_status,
+          bus->intr_status & I2CD_INTR_TX_NAK ? "nak|" : "",
+          bus->intr_status & I2CD_INTR_TX_ACK ? "ack|" : "",
+          bus->intr_status & I2CD_INTR_RX_DONE ? "done|" : "",
+          bus->intr_status & I2CD_INTR_NORMAL_STOP ? "normal|" : "",
+          bus->intr_status & I2CD_INTR_ABNORMAL ? "abnormal" : "");
+
     bus->intr_status &= bus->intr_ctrl;
     if (bus->intr_status) {
         bus->controller->intr_status |= 1 << bus->id;
@@ -170,41 +178,57 @@ static uint64_t aspeed_i2c_bus_read(void *opaque, hwaddr offset,
 {
     AspeedI2CBus *bus = opaque;
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+    uint64_t value = -1;
 
     switch (offset) {
     case I2CD_FUN_CTRL_REG:
-        return bus->ctrl;
+        value = bus->ctrl;
+        break;
     case I2CD_AC_TIMING_REG1:
-        return bus->timing[0];
+        value = bus->timing[0];
+        break;
     case I2CD_AC_TIMING_REG2:
-        return bus->timing[1];
+        value = bus->timing[1];
+        break;
     case I2CD_INTR_CTRL_REG:
-        return bus->intr_ctrl;
+        value = bus->intr_ctrl;
+        break;
     case I2CD_INTR_STS_REG:
-        return bus->intr_status;
+        value = bus->intr_status;
+        break;
     case I2CD_POOL_CTRL_REG:
-        return bus->pool_ctrl;
+        value = bus->pool_ctrl;
+        break;
     case I2CD_BYTE_BUF_REG:
-        return bus->buf;
+        value = bus->buf;
+        break;
     case I2CD_CMD_REG:
-        return bus->cmd | (i2c_bus_busy(bus->bus) << 16);
+        value = bus->cmd | (i2c_bus_busy(bus->bus) << 16);
+        break;
     case I2CD_DMA_ADDR:
         if (!aic->has_dma) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
-            return -1;
+            break;
         }
-        return bus->dma_addr;
+        value = bus->dma_addr;
+        break;
     case I2CD_DMA_LEN:
         if (!aic->has_dma) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
-            return -1;
+            break;
         }
-        return bus->dma_len;
+        value = bus->dma_len;
+        break;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
-        return -1;
+        value = -1;
+        break;
     }
+
+    trace_aspeed_i2c_bus_read(bus->id, offset, size, value);
+    return value;
 }
 
 static void aspeed_i2c_set_state(AspeedI2CBus *bus, uint8_t state)
@@ -246,6 +270,9 @@ static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
         for (i = pool_start; i < I2CD_POOL_TX_COUNT(bus->pool_ctrl); i++) {
             uint8_t *pool_base = aic->bus_pool_base(bus);
 
+            trace_aspeed_i2c_bus_send("BUF", i + 1,
+                                      I2CD_POOL_TX_COUNT(bus->pool_ctrl),
+                                      pool_base[i]);
             ret = i2c_send(bus->bus, pool_base[i]);
             if (ret) {
                 break;
@@ -256,6 +283,7 @@ static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
         while (bus->dma_len) {
             uint8_t data;
             aspeed_i2c_dma_read(bus, &data);
+            trace_aspeed_i2c_bus_send("DMA", bus->dma_len, bus->dma_len, data);
             ret = i2c_send(bus->bus, data);
             if (ret) {
                 break;
@@ -263,6 +291,7 @@ static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
         }
         bus->cmd &= ~I2CD_TX_DMA_ENABLE;
     } else {
+        trace_aspeed_i2c_bus_send("BYTE", pool_start, 1, bus->buf);
         ret = i2c_send(bus->bus, bus->buf);
     }
 
@@ -281,6 +310,9 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
 
         for (i = 0; i < I2CD_POOL_RX_SIZE(bus->pool_ctrl); i++) {
             pool_base[i] = i2c_recv(bus->bus);
+            trace_aspeed_i2c_bus_recv("BUF", i + 1,
+                                      I2CD_POOL_RX_SIZE(bus->pool_ctrl),
+                                      pool_base[i]);
         }
 
         /* Update RX count */
@@ -294,6 +326,7 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
             MemTxResult result;
 
             data = i2c_recv(bus->bus);
+            trace_aspeed_i2c_bus_recv("DMA", bus->dma_len, bus->dma_len, data);
             result = address_space_write(&s->dram_as, bus->dma_addr,
                                          MEMTXATTRS_UNSPECIFIED, &data, 1);
             if (result != MEMTX_OK) {
@@ -307,6 +340,7 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
         bus->cmd &= ~I2CD_RX_DMA_ENABLE;
     } else {
         data = i2c_recv(bus->bus);
+        trace_aspeed_i2c_bus_recv("BYTE", 1, 1, bus->buf);
         bus->buf = (data & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
     }
 }
@@ -364,6 +398,33 @@ static bool aspeed_i2c_check_sram(AspeedI2CBus *bus)
     return true;
 }
 
+static void aspeed_i2c_bus_cmd_dump(AspeedI2CBus *bus)
+{
+    g_autofree char *cmd_flags;
+    uint32_t count;
+
+    if (bus->cmd & (I2CD_RX_BUFF_ENABLE | I2CD_RX_BUFF_ENABLE)) {
+        count = I2CD_POOL_TX_COUNT(bus->pool_ctrl);
+    } else if (bus->cmd & (I2CD_RX_DMA_ENABLE | I2CD_RX_DMA_ENABLE)) {
+        count = bus->dma_len;
+    } else { /* BYTE mode */
+        count = 1;
+    }
+
+    cmd_flags = g_strdup_printf("%s%s%s%s%s%s%s%s%s",
+                                bus->cmd & I2CD_M_START_CMD ? "start|" : "",
+                                bus->cmd & I2CD_RX_DMA_ENABLE ? "rxdma|" : "",
+                                bus->cmd & I2CD_TX_DMA_ENABLE ? "txdma|" : "",
+                                bus->cmd & I2CD_RX_BUFF_ENABLE ? "rxbuf|" : "",
+                                bus->cmd & I2CD_TX_BUFF_ENABLE ? "txbuf|" : "",
+                                bus->cmd & I2CD_M_TX_CMD ? "tx|" : "",
+                                bus->cmd & I2CD_M_RX_CMD ? "rx|" : "",
+                                bus->cmd & I2CD_M_S_RX_CMD_LAST ? "last|" : "",
+                                bus->cmd & I2CD_M_STOP_CMD ? "stop" : "");
+
+    trace_aspeed_i2c_bus_cmd(bus->cmd, cmd_flags, count, bus->intr_status);
+}
+
 /*
  * The state machine needs some refinement. It is only used to track
  * invalid STOP commands for the moment.
@@ -377,6 +438,10 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
 
     if (!aspeed_i2c_check_sram(bus)) {
         return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_I2C_BUS_CMD)) {
+        aspeed_i2c_bus_cmd_dump(bus);
     }
 
     if (bus->cmd & I2CD_M_START_CMD) {
@@ -464,6 +529,8 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
     AspeedI2CBus *bus = opaque;
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
     bool handle_rx;
+
+    trace_aspeed_i2c_bus_write(bus->id, offset, size, value);
 
     switch (offset) {
     case I2CD_FUN_CTRL_REG:
