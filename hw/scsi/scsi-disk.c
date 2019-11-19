@@ -2481,6 +2481,9 @@ static void scsi_disk_realize(SCSIDevice *dev, Error **errp)
     DriveInfo *dinfo;
     Error *local_err = NULL;
 
+    warn_report("'scsi-disk' is deprecated, "
+                "please use 'scsi-hd' or 'scsi-cd' instead");
+
     if (!dev->conf.blk) {
         scsi_realize(dev, &local_err);
         assert(local_err);

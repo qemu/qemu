@@ -259,6 +259,11 @@ their usecases.
 The 'ide-drive' device is deprecated. Users should use 'ide-hd' or
 'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
 
+@subsection scsi-disk (since 4.2)
+
+The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
+'scsi-cd' as appropriate to get a SCSI hard disk or CD-ROM as needed.
+
 @section System emulator machines
 
 @subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)

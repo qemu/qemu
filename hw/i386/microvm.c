@@ -331,6 +331,8 @@ static void microvm_fix_kernel_cmdline(MachineState *machine)
 
     fw_cfg_modify_i32(x86ms->fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(cmdline) + 1);
     fw_cfg_modify_string(x86ms->fw_cfg, FW_CFG_CMDLINE_DATA, cmdline);
+
+    g_free(cmdline);
 }
 
 static void microvm_machine_state_init(MachineState *machine)

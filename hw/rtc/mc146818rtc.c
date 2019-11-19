@@ -168,12 +168,13 @@ static uint32_t rtc_periodic_clock_ticks(RTCState *s)
  * is just due to period adjustment.
  */
 static void
-periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
+periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period, bool period_change)
 {
     uint32_t period;
     int64_t cur_clock, next_irq_clock, lost_clock = 0;
 
     period = rtc_periodic_clock_ticks(s);
+    s->period = period;
 
     if (!period) {
         s->irq_coalesced = 0;
@@ -189,7 +190,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
      * if the periodic timer's update is due to period re-configuration,
      * we should count the clock since last interrupt.
      */
-    if (old_period) {
+    if (old_period && period_change) {
         int64_t last_periodic_clock, next_periodic_clock;
 
         next_periodic_clock = muldiv64(s->next_periodic_time,
@@ -197,42 +198,41 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
         last_periodic_clock = next_periodic_clock - old_period;
         lost_clock = cur_clock - last_periodic_clock;
         assert(lost_clock >= 0);
+    }
 
-        /*
-         * s->irq_coalesced can change for two reasons:
-         *
-         * a) if one or more periodic timer interrupts have been lost,
-         *    lost_clock will be more that a period.
-         *
-         * b) when the period may be reconfigured, we expect the OS to
-         *    treat delayed tick as the new period.  So, when switching
-         *    from a shorter to a longer period, scale down the missing,
-         *    because the OS will treat past delayed ticks as longer
-         *    (leftovers are put back into lost_clock).  When switching
-         *    to a shorter period, scale up the missing ticks since the
-         *    OS handler will treat past delayed ticks as shorter.
-         */
-        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
-            uint32_t old_irq_coalesced = s->irq_coalesced;
+    /*
+     * s->irq_coalesced can change for two reasons:
+     *
+     * a) if one or more periodic timer interrupts have been lost,
+     *    lost_clock will be more that a period.
+     *
+     * b) when the period may be reconfigured, we expect the OS to
+     *    treat delayed tick as the new period.  So, when switching
+     *    from a shorter to a longer period, scale down the missing,
+     *    because the OS will treat past delayed ticks as longer
+     *    (leftovers are put back into lost_clock).  When switching
+     *    to a shorter period, scale up the missing ticks since the
+     *    OS handler will treat past delayed ticks as shorter.
+     */
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+        uint32_t old_irq_coalesced = s->irq_coalesced;
 
-            s->period = period;
-            lost_clock += old_irq_coalesced * old_period;
-            s->irq_coalesced = lost_clock / s->period;
-            lost_clock %= s->period;
-            if (old_irq_coalesced != s->irq_coalesced ||
-                old_period != s->period) {
-                DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
-                          "period scaled from %d to %d\n", old_irq_coalesced,
-                          s->irq_coalesced, old_period, s->period);
-                rtc_coalesced_timer_update(s);
-            }
-        } else {
-            /*
-             * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
-             * is not used, we should make the time progress anyway.
-             */
-            lost_clock = MIN(lost_clock, period);
+        lost_clock += old_irq_coalesced * old_period;
+        s->irq_coalesced = lost_clock / s->period;
+        lost_clock %= s->period;
+        if (old_irq_coalesced != s->irq_coalesced ||
+            old_period != s->period) {
+            DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
+                      "period scaled from %d to %d\n", old_irq_coalesced,
+                      s->irq_coalesced, old_period, s->period);
+            rtc_coalesced_timer_update(s);
         }
+    } else {
+        /*
+         * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
+         * is not used, we should make the time progress anyway.
+         */
+        lost_clock = MIN(lost_clock, period);
     }
 
     assert(lost_clock >= 0 && lost_clock <= period);
@@ -246,7 +246,7 @@ static void rtc_periodic_timer(void *opaque)
 {
     RTCState *s = opaque;
 
-    periodic_timer_update(s, s->next_periodic_time, 0);
+    periodic_timer_update(s, s->next_periodic_time, s->period, false);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
@@ -512,7 +512,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
 
             if (update_periodic_timer) {
                 periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period);
+                                      old_period, true);
             }
 
             check_update_timer(s);
@@ -551,7 +551,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
 
             if (update_periodic_timer) {
                 periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period);
+                                      old_period, true);
             }
 
             check_update_timer(s);
@@ -795,6 +795,7 @@ static int rtc_post_load(void *opaque, int version_id)
         s->offset = 0;
         check_update_timer(s);
     }
+    s->period = rtc_periodic_clock_ticks(s);
 
     /* The periodic timer is deterministic in record/replay mode,
      * so there is no need to update it after loading the vmstate.
@@ -804,7 +805,7 @@ static int rtc_post_load(void *opaque, int version_id)
         uint64_t now = qemu_clock_get_ns(rtc_clock);
         if (now < s->next_periodic_time ||
             now > (s->next_periodic_time + get_max_clock_jump())) {
-            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), 0);
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), s->period, false);
         }
     }
 

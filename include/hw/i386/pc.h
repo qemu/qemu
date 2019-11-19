@@ -116,8 +116,6 @@ typedef struct PCMachineClass {
     bool enforce_aligned_dimm;
     bool broken_reserved_end;
 
-    /* TSC rate migration: */
-    bool save_tsc_khz;
     /* generate legacy CPU hotplug AML */
     bool legacy_cpu_hotplug;
 

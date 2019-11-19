@@ -33,9 +33,9 @@ Limitations
 
 Currently, microvm does *not* support the following features:
 
- - PCI-only devices.
- - Hotplug of any kind.
- - Live migration across QEMU versions.
+- PCI-only devices.
+- Hotplug of any kind.
+- Live migration across QEMU versions.
 
 
 Using the microvm machine type
@@ -106,3 +106,24 @@ disabled::
      -device virtio-blk-device,drive=test \
      -netdev tap,id=tap0,script=no,downscript=no \
      -device virtio-net-device,netdev=tap0
+
+
+Triggering a guest-initiated shut down
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As the microvm machine type includes just a small set of system
+devices, some x86 mechanisms for rebooting or shutting down the
+system, like sending a key sequence to the keyboard or writing to an
+ACPI register, doesn't have any effect in the VM.
+
+The recommended way to trigger a guest-initiated shut down is by
+generating a ``triple-fault``, which will cause the VM to initiate a
+reboot. Additionally, if the ``-no-reboot`` argument is present in the
+command line, QEMU will detect this event and terminate its own
+execution gracefully.
+
+Linux does support this mechanism, but by default will only be used
+after other options have been tried and failed, causing the reboot to
+be delayed by a small number of seconds. It's possible to instruct it
+to try the triple-fault mechanism first, by adding ``reboot=t`` to the
+kernel's command line.
