@@ -1390,6 +1390,7 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
         size_t read = hw->pcm_ops->read(hw, hw->buf_emul + hw->pos_emul,
                                         read_len);
         hw->pending_emul += read;
+        hw->pos_emul = (hw->pos_emul + read) % hw->size_emul;
         if (read < read_len) {
             break;
         }
