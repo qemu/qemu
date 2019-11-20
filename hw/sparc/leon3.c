@@ -230,8 +230,10 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate IRQ manager */
     dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
-    env->pil_irq = qemu_allocate_irq(leon3_set_pil_in, env, 0);
-    qdev_connect_gpio_out_named(dev, "grlib-irq", 0, env->pil_irq);
+    qdev_init_gpio_in_named_with_opaque(DEVICE(cpu), leon3_set_pil_in,
+                                        env, "pil", 1);
+    qdev_connect_gpio_out_named(dev, "grlib-irq", 0,
+                                qdev_get_gpio_in_named(DEVICE(cpu), "pil", 0));
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
     env->irq_manager = dev;
