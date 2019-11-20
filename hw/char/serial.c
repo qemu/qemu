@@ -998,6 +998,7 @@ static void serial_io_realize(DeviceState *dev, Error **errp)
     }
 
     memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
+    sysbus_init_mmio(SYS_BUS_DEVICE(sio), &s->io);
     sysbus_init_irq(SYS_BUS_DEVICE(sio), &s->irq);
 }
 
