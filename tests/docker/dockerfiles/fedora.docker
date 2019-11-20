@@ -2,7 +2,6 @@ FROM fedora:30
 ENV PACKAGES \
     bc \
     bison \
-    bluez-libs-devel \
     brlapi-devel \
     bzip2 \
     bzip2-devel \
