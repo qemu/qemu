@@ -37,12 +37,6 @@ static int do_store_exclusive(CPUHexagonState *env, bool single)
     start_exclusive();
     mmap_lock();
 
-#ifdef DEBUG_HEX
-    print_thread_prefix(env);
-    printf("Store exclusive: addr = 0x%x, reg = %d, init val = %d\n",
-           addr, reg, env->pred[reg]);
-#endif
-
     env->pred[reg] = 0;
     if (single) {
         segv = get_user_s32(val, addr);
@@ -70,10 +64,6 @@ static int do_store_exclusive(CPUHexagonState *env, bool single)
     if (!segv) {
         env->next_PC += 4;
     }
-
-#ifdef DEBUG_HEX
-    printf("\t final val = %d\n", env->pred[reg]);
-#endif
 
     mmap_unlock();
     end_exclusive();
@@ -106,16 +96,6 @@ void cpu_loop(CPUHexagonState *env)
         case HEX_EXCP_TRAP0:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;
-#ifdef DEBUG_HEX
-            printf("syscall %d (%d, %d, %d, %d, %d, %d)\n",
-                             syscallnum,
-                             env->gpr[0],
-                             env->gpr[1],
-                             env->gpr[2],
-                             env->gpr[3],
-                             env->gpr[4],
-                             env->gpr[5]);
-#endif
 #ifdef COUNT_HEX_HELPERS
             if (syscallnum == TARGET_NR_exit_group) {
                 print_helper_counts();
@@ -131,23 +111,10 @@ void cpu_loop(CPUHexagonState *env)
                              env->gpr[5],
                              0, 0);
             if (ret == -TARGET_ERESTARTSYS) {
-#ifdef DEBUG_HEX
-                printf("\tSyscall %d returned -TARGET_ERESTARTSYS\n",
-                    syscallnum);
-#endif
                 env->gpr[HEX_REG_PC] -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
-#ifdef DEBUG_HEX
-                printf("\tSyscall %d returned %d\n", syscallnum, ret);
-#endif
                 env->gpr[0] = ret;
             }
-#ifdef DEBUG_HEX
-            else {
-                printf("\tSyscall %d returned -TARGET_QEMU_ESIGRETURN\n",
-                       syscallnum);
-            }
-#endif
             break;
         case HEX_EXCP_TRAP1:
             EXCP_DUMP(env, "\nqemu: trap1 exception %#x - aborting\n",

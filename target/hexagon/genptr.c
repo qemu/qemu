@@ -2610,9 +2610,7 @@ static inline uint32_t new_temp_vreg_offset(DisasContext *ctx, int num)
     uint32_t offset =
         offsetof(CPUHexagonState, temp_vregs[ctx->ctx_temp_vregs_idx]);
 
-#ifdef DEBUG_HEX
-    printf("new_temp_vreg_offset: %d\n", ctx->ctx_temp_vregs_idx);
-#endif
+    HEX_DEBUG_LOG("new_temp_vreg_offset: %d\n", ctx->ctx_temp_vregs_idx);
     g_assert(ctx->ctx_temp_vregs_idx + num - 1 < TEMP_VECTORS_MAX);
     ctx->ctx_temp_vregs_idx += num;
     return offset;
@@ -2623,9 +2621,7 @@ static inline uint32_t new_temp_qreg_offset(DisasContext *ctx)
     uint32_t offset =
         offsetof(CPUHexagonState, temp_qregs[ctx->ctx_temp_qregs_idx]);
 
-#ifdef DEBUG_HEX
-    printf("new_temp_qreg_offset: %d\n", ctx->ctx_temp_qregs_idx);
-#endif
+    HEX_DEBUG_LOG("new_temp_qreg_offset: %d\n", ctx->ctx_temp_qregs_idx);
     g_assert(ctx->ctx_temp_qregs_idx < TEMP_VECTORS_MAX);
     ctx->ctx_temp_qregs_idx++;
     return offset;

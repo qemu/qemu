@@ -161,7 +161,7 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
     fprintf(f, "}\n");
 
 
-#if 1
+#if 0
     fprintf(f, "Vector Registers = {\n");
     for (i = 0; i < NUM_VREGS; i++) {
         print_vreg(f, env, i);

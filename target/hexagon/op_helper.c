@@ -76,16 +76,14 @@ void helper_raise_exception(CPUHexagonState *env, uint32_t exception)
 static inline void log_reg_write(CPUHexagonState *env, int rnum, int32_t val,
                                  uint32_t slot)
 {
-#ifdef DEBUG_HEX
-    printf("log_reg_write[%d] = %d (0x%x)", rnum, val, val);
+    HEX_DEBUG_LOG("log_reg_write[%d] = %d (0x%x)", rnum, val, val);
     if (env->slot_cancelled & (1 << slot)) {
-        printf(" CANCELLED");
+        HEX_DEBUG_LOG(" CANCELLED");
     }
     if (val == env->gpr[rnum]) {
-        printf(" NO CHANGE");
+        HEX_DEBUG_LOG(" NO CHANGE");
     }
-    printf("\n");
-#endif
+    HEX_DEBUG_LOG("\n");
     if (!(env->slot_cancelled & (1 << slot))) {
         env->new_value[rnum] = val;
     }
@@ -94,18 +92,14 @@ static inline void log_reg_write(CPUHexagonState *env, int rnum, int32_t val,
 static inline void log_reg_write_pair(CPUHexagonState *env, int rnum,
                                       int64_t val, uint32_t slot)
 {
-#ifdef DEBUG_HEX
-    printf("log_reg_write_pair[%d:%d] = %ld\n", rnum + 1, rnum, val);
-#endif
+    HEX_DEBUG_LOG("log_reg_write_pair[%d:%d] = %ld\n", rnum + 1, rnum, val);
     log_reg_write(env, rnum, val & 0xFFFFFFFF, slot);
     log_reg_write(env, rnum + 1, (val >> 32) & 0xFFFFFFFF, slot);
 }
 
 static inline void log_pred_write(CPUHexagonState *env, int pnum, int32_t val)
 {
-#ifdef DEBUG_HEX
-    printf("log_pred_write[%d] = %d (0x%x)\n", pnum, val, val);
-#endif
+    HEX_DEBUG_LOG("log_pred_write[%d] = %d (0x%x)\n", pnum, val, val);
 
     /* Multiple writes to the same preg are and'ed together */
     if (env->pred_written[pnum]) {
@@ -119,9 +113,7 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum, int32_t val)
 static inline void log_store32(CPUHexagonState *env, target_ulong addr,
                                int32_t val, int width, int slot)
 {
-#ifdef DEBUG_HEX
-    printf("log_store%d(0x%x, %d [0x%x])\n", width, addr, val, val);
-#endif
+    HEX_DEBUG_LOG("log_store%d(0x%x, %d [0x%x])\n", width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data32 = val;
@@ -130,9 +122,7 @@ static inline void log_store32(CPUHexagonState *env, target_ulong addr,
 static inline void log_store64(CPUHexagonState *env, target_ulong addr,
                                int64_t val, int width, int slot)
 {
-#ifdef DEBUG_HEX
-    printf("log_store%d(0x%x, %ld [0x%lx])\n", width, addr, val, val);
-#endif
+    HEX_DEBUG_LOG("log_store%d(0x%x, %ld [0x%lx])\n", width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
@@ -140,14 +130,10 @@ static inline void log_store64(CPUHexagonState *env, target_ulong addr,
 
 static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
-#ifdef DEBUG_HEX
-    printf("write_new_pc(0x%x)\n", addr);
-#endif
+    HEX_DEBUG_LOG("write_new_pc(0x%x)\n", addr);
     if (env->branch_taken) {
-#ifdef DEBUG_HEX
-        printf("INFO: multiple branches taken in same packet, "
-               "ignoring the second one\n");
-#endif
+        HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
+                      "ignoring the second one\n");
     } else {
         fCHECK_PCALIGN(addr);
         env->branch_taken = 1;
@@ -155,12 +141,10 @@ static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
     }
 }
 
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
-    print_thread_prefix(env);
-    printf("Start packet: pc = 0x%x\n", env->gpr[HEX_REG_PC]);
-    fflush(stdout);
+    HEX_DEBUG_LOG("Start packet: pc = 0x%x\n", env->gpr[HEX_REG_PC]);
 
     int i;
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
@@ -179,11 +163,12 @@ static inline int32_t new_pred_value(CPUHexagonState *env, int pnum)
     return env->new_pred_value[pnum];
 }
 
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 {
     if (env->mem_log_stores[slot].width != check) {
-        printf("ERROR: %d != %d\n", env->mem_log_stores[slot].width, check);
+        HEX_DEBUG_LOG("ERROR: %d != %d\n",
+                      env->mem_log_stores[slot].width, check);
         g_assert_not_reached();
     }
 }
@@ -231,52 +216,30 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
     }
 }
 
-#ifdef FIXME
-/*  This is a poor man's watch point  */
-static int32_t help_peek(target_ulong vaddr)
-{
-    int32_t peek;
-    get_user_u32(peek, vaddr);
-    return peek;
-}
-
-#define WATCH(vaddr) \
-{ \
-    static int last_peek; \
-    int32_t peek = help_peek(vaddr); \
-    if (peek != last_peek) { \
-        print_thread_prefix(env); \
-        printf("Packet committed: pc = 0x%x, watchpoint(0x%x) = %d (0x%x)\n", \
-               env->this_PC, vaddr, peek, peek); \
-        last_peek = peek; \
-    } \
-}
-#endif
-
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 static void print_store(CPUHexagonState *env, int slot)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
         if (width == 1) {
             size4u_t data = env->mem_log_stores[slot].data32 & 0xff;
-            printf("\tmemb[0x%x] = %d (0x%02x)\n",
-                   env->mem_log_stores[slot].va, data, data);
+            HEX_DEBUG_LOG("\tmemb[0x%x] = %d (0x%02x)\n",
+                          env->mem_log_stores[slot].va, data, data);
         } else if (width == 2) {
             size4u_t data = env->mem_log_stores[slot].data32 & 0xffff;
-            printf("\tmemh[0x%x] = %d (0x%04x)\n",
-                   env->mem_log_stores[slot].va, data, data);
+            HEX_DEBUG_LOG("\tmemh[0x%x] = %d (0x%04x)\n",
+                          env->mem_log_stores[slot].va, data, data);
         } else if (width == 4) {
             size4u_t data = env->mem_log_stores[slot].data32;
-            printf("\tmemw[0x%x] = %d (0x%08x)\n",
-                   env->mem_log_stores[slot].va, data, data);
+            HEX_DEBUG_LOG("\tmemw[0x%x] = %d (0x%08x)\n",
+                          env->mem_log_stores[slot].va, data, data);
         } else if (width == 8) {
-            printf("\tmemd[0x%x] = %lld (0x%016llx)\n",
-                   env->mem_log_stores[slot].va,
-                   env->mem_log_stores[slot].data64,
-                   env->mem_log_stores[slot].data64);
+            HEX_DEBUG_LOG("\tmemd[0x%x] = %lld (0x%016llx)\n",
+                          env->mem_log_stores[slot].va,
+                          env->mem_log_stores[slot].data64,
+                          env->mem_log_stores[slot].data64);
         } else {
-            printf("\tBad store width %d\n", width);
+            HEX_DEBUG_LOG("\tBad store width %d\n", width);
             g_assert_not_reached();
         }
     }
@@ -289,35 +252,31 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     bool pred_printed = false;
     int i;
 
-    print_thread_prefix(env);
-    printf("Packet committed: pc = 0x%x\n", env->this_PC);
+    HEX_DEBUG_LOG("Packet committed: pc = 0x%x\n", env->this_PC);
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         if (env->reg_written[i]) {
             if (!reg_printed) {
-                print_thread_prefix(env);
-                printf("Regs written\n");
+                HEX_DEBUG_LOG("Regs written\n");
                 reg_printed = true;
             }
-            printf("\tr%d = %d (0x%x)\n", i, env->new_value[i],
-                   env->new_value[i]);
+            HEX_DEBUG_LOG("\tr%d = %d (0x%x)\n", i, env->new_value[i],
+                          env->new_value[i]);
         }
     }
 
     for (i = 0; i < NUM_PREGS; i++) {
         if (env->pred_written[i]) {
             if (!pred_printed) {
-                print_thread_prefix(env);
-                printf("Predicates written\n");
+                HEX_DEBUG_LOG("Predicates written\n");
                 pred_printed = true;
             }
-            printf("\tp%d = 0x%x\n", i, env->new_pred_value[i]);
+            HEX_DEBUG_LOG("\tp%d = 0x%x\n", i, env->new_pred_value[i]);
         }
     }
 
     if (has_st0 || has_st1) {
-        print_thread_prefix(env);
-        printf("Stores\n");
+        HEX_DEBUG_LOG("Stores\n");
         if (has_st0) {
             print_store(env, 0);
         }
@@ -326,18 +285,12 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
         }
     }
 
-    print_thread_prefix(env);
-    printf("Next PC = 0x%x\n", env->next_PC);
-    print_thread_prefix(env);
-    printf("Exec counters: pkt = %d, insn = %d, hvx = %d\n",
-           env->gpr[HEX_REG_QEMU_PKT_CNT],
-           env->gpr[HEX_REG_QEMU_INSN_CNT],
-           env->gpr[HEX_REG_QEMU_HVX_CNT]);
-    fflush(stdout);
+    HEX_DEBUG_LOG("Next PC = 0x%x\n", env->next_PC);
+    HEX_DEBUG_LOG("Exec counters: pkt = %d, insn = %d, hvx = %d\n",
+                  env->gpr[HEX_REG_QEMU_PKT_CNT],
+                  env->gpr[HEX_REG_QEMU_INSN_CNT],
+                  env->gpr[HEX_REG_QEMU_HVX_CNT]);
 
-#ifdef FIXME /* Convert this to a command-line option */
-    WATCH(0x0783aa00)
-#endif
 }
 #endif
 
@@ -413,27 +366,27 @@ int32_t HELPER(sfinvsqrta_pred)(CPUHexagonState *env, int32_t RsV)
     return PeV;
 }
 
+#if HEX_DEBUG
 /* Helpful for printing intermediate values within instructions */
 void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
 {
-    printf("value = 0x%x\n", value);
+    HEX_DEBUG_LOG("value = 0x%x\n", value);
 }
 
 void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
 {
-    printf("value = 0x%lx\n", value);
+    HEX_DEBUG_LOG("value = 0x%lx\n", value);
 }
+#endif
 
 static inline void log_ext_vreg_write(CPUHexagonState *env, int num, void *var,
                                       int vnew, uint32_t slot)
 {
-#ifdef DEBUG_HEX
-    printf("log_ext_vreg_write[%d]", num);
+    HEX_DEBUG_LOG("log_ext_vreg_write[%d]", num);
     if (env->slot_cancelled & (1 << slot)) {
-        printf(" CANCELLED");
+        HEX_DEBUG_LOG(" CANCELLED");
     }
-    printf("\n");
-#endif
+    HEX_DEBUG_LOG("\n");
 
     if (!(env->slot_cancelled & (1 << slot))) {
         VRegMask regnum_mask = ((VRegMask)1) << num;
@@ -449,9 +402,7 @@ static inline void log_ext_vreg_write(CPUHexagonState *env, int num, void *var,
 
 static void cancel_slot(CPUHexagonState *env, uint32_t slot)
 {
-#ifdef DEBUG_HEX
-    printf("Slot %d cancelled\n", slot);
-#endif
+    HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
     env->slot_cancelled |= (1 << slot);
 }
 
