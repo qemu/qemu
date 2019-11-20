@@ -2880,9 +2880,12 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
             QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    bool match_found;
-    bool hide;
+    bool match_found = false;
+    bool hide = false;
 
+    if (!device_opts) {
+        return -1;
+    }
     n->primary_device_dict = qemu_opts_to_qdict(device_opts,
             n->primary_device_dict);
     if (n->primary_device_dict) {
@@ -2890,7 +2893,7 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
         n->standby_id = g_strdup(qdict_get_try_str(n->primary_device_dict,
                     "failover_pair_id"));
     }
-    if (device_opts && g_strcmp0(n->standby_id, n->netclient_name) == 0) {
+    if (g_strcmp0(n->standby_id, n->netclient_name) == 0) {
         match_found = true;
     } else {
         match_found = false;
