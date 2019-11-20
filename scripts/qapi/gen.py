@@ -201,10 +201,11 @@ class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
 
 class QAPISchemaModularCVisitor(QAPISchemaVisitor):
 
-    def __init__(self, prefix, what, blurb, pydoc):
+    def __init__(self, prefix, what, user_blurb, builtin_blurb, pydoc):
         self._prefix = prefix
         self._what = what
-        self._blurb = blurb
+        self._user_blurb = user_blurb
+        self._builtin_blurb = builtin_blurb
         self._pydoc = pydoc
         self._genc = None
         self._genh = None
@@ -245,7 +246,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
         self._module[name] = (genc, genh)
-        self._set_module(name)
+        self._genc, self._genh = self._module[name]
 
     def _add_user_module(self, name, blurb):
         assert self._is_user_module(name)
@@ -255,9 +256,6 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
 
     def _add_system_module(self, name, blurb):
         self._add_module(name and './' + name, blurb)
-
-    def _set_module(self, name):
-        self._genc, self._genh = self._module[name]
 
     def write(self, output_dir, opt_builtins=False):
         for name in self._module:
@@ -271,15 +269,17 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         pass
 
     def visit_module(self, name):
-        if name in self._module:
-            self._set_module(name)
-        elif self._is_builtin_module(name):
-            # The built-in module has not been created.  No code may
-            # be generated.
-            self._genc = None
-            self._genh = None
+        if name is None:
+            if self._builtin_blurb:
+                self._add_system_module(None, self._builtin_blurb)
+                self._begin_system_module(name)
+            else:
+                # The built-in module has not been created.  No code may
+                # be generated.
+                self._genc = None
+                self._genh = None
         else:
-            self._add_user_module(name, self._blurb)
+            self._add_user_module(name, self._user_blurb)
             self._begin_user_module(name)
 
     def visit_include(self, name, info):

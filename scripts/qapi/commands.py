@@ -239,7 +239,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
     def __init__(self, prefix):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-commands',
-            ' * Schema-defined QAPI/QMP commands', __doc__)
+            ' * Schema-defined QAPI/QMP commands', None, __doc__)
         self._regy = QAPIGenCCode(None)
         self._visited_ret_types = {}
 
