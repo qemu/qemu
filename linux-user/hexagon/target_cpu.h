@@ -5,9 +5,6 @@
 
 static inline void cpu_clone_regs(CPUHexagonState *env, target_ulong newsp)
 {
-#ifdef DEBUG_HEX
-    printf("cpu_clone_regs 0x%x\n", newsp);
-#endif
     if (newsp) {
         env->gpr[HEX_REG_SP] = newsp;
     }
@@ -16,9 +13,6 @@ static inline void cpu_clone_regs(CPUHexagonState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUHexagonState *env, target_ulong newtls)
 {
-#ifdef DEBUG_HEX
-    printf("cpu_set_tls 0x%x\n", newtls);
-#endif
     env->gpr[HEX_REG_UGP] = newtls;
 }
 

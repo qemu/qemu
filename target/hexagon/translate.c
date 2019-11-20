@@ -30,7 +30,7 @@ TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 #endif
 TCGv hex_new_pred_value[NUM_PREGS];
@@ -65,12 +65,12 @@ void gen_exception_debug(void)
     gen_exception(EXCP_DEBUG);
 }
 
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 static void print_pkt(packet_t *pkt)
 {
     char buf[1028];
     snprint_a_pkt(buf, 128, pkt);
-    puts(buf);
+    HEX_DEBUG_LOG("%s", buf);
 }
 #endif
 
@@ -89,7 +89,7 @@ static void gen_start_packet(packet_t *pkt, TCGv NPC)
 {
     int i;
 
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
     gen_helper_debug_start_packet(cpu_env);
 #endif
     tcg_gen_movi_tl(hex_slot_cancelled, 0);
@@ -137,7 +137,7 @@ static void gen_reg_writes(DisasContext *ctx)
         int reg_num = ctx->ctx_reg_log[i];
 
         tcg_gen_mov_tl(hex_gpr[reg_num], hex_new_value[reg_num]);
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
         /* Do this so HELPER(debug_commit_end) will know */
         tcg_gen_movi_tl(hex_reg_written[reg_num], 1);
 #endif
@@ -175,7 +175,7 @@ static void gen_pred_writes(DisasContext *ctx, packet_t *pkt)
         for (i = 0; i < ctx->ctx_preg_log_idx; i++) {
             int pred_num = ctx->ctx_preg_log[i];
             tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
             /* Do this so HELPER(debug_commit_end) will know */
             tcg_gen_movi_tl(hex_pred_written[pred_num], 1);
 #endif
@@ -189,7 +189,7 @@ static void gen_pred_writes(DisasContext *ctx, packet_t *pkt)
 
 static inline void gen_check_store_width(DisasContext *ctx, int slot_num)
 {
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
     TCGv slot = tcg_const_tl(slot_num);
     TCGv check = tcg_const_tl(ctx->ctx_store_width[slot_num]);
     gen_helper_debug_check_store_width(cpu_env, slot, check);
@@ -467,8 +467,8 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
         gen_commit_hvx(ctx);
     }
     gen_exec_counters(pkt);
-#ifdef DEBUG_HEX
-    {
+#if HEX_DEBUG
+    do {
         TCGv has_st0 =
             tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
@@ -476,7 +476,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
         gen_helper_debug_commit_end(cpu_env, has_st0, has_st1);
         tcg_temp_free(has_st0);
         tcg_temp_free(has_st1);
-    }
+    } while (0);
 #endif
 
     if (end_tb) {
@@ -484,28 +484,6 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
         ctx->base.is_jmp = DISAS_NORETURN;
     }
 }
-
-#ifdef DEBUG_HEX
-void print_thread_prefix(CPUHexagonState *env)
-{
-    static int num_threads;
-    static CPUHexagonState *thread_env[10];
-    int thread = -1;
-    int i;
-
-    for (i = 0; i < num_threads; i++) {
-        if (thread_env[i] == env) {
-            thread = i;
-            break;
-        }
-    }
-    if (thread == -1) {
-        thread = num_threads;
-        thread_env[num_threads++] = env;
-    }
-    printf("T%d> ", thread);
-}
-#endif
 
 static void decode_packet(CPUHexagonState *env, DisasContext *ctx)
 {
@@ -548,18 +526,14 @@ static void decode_packet(CPUHexagonState *env, DisasContext *ctx)
     for (i = 0; i < 4; i++) {
         words[i] = cpu_ldl_code(env, ctx->base.pc_next + i * sizeof(size4u_t));
     }
-#ifdef DEBUG_HEX
-    print_thread_prefix(env);
-    printf("decode_packet: pc = 0x%x\n", ctx->base.pc_next);
-    print_thread_prefix(env);
-    printf("    words = { 0x%x, 0x%x, 0x%x, 0x%x }\n",
-           words[0], words[1], words[2], words[3]);
-#endif
+    HEX_DEBUG_LOG("decode_packet: pc = 0x%x\n", ctx->base.pc_next);
+    HEX_DEBUG_LOG("    words = { 0x%x, 0x%x, 0x%x, 0x%x }\n",
+                  words[0], words[1], words[2], words[3]);
     if (decode_this(words, &pkt) != NULL) {
         target_ulong next_PC = ctx->base.pc_next + pkt.encod_pkt_size_in_bytes;
         TCGv NPC = tcg_const_tl(next_PC);
 
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
         print_pkt(&pkt);
 #endif
         gen_start_packet(&pkt, NPC);
@@ -629,11 +603,15 @@ static void hexagon_tr_translate_packet(DisasContextBase *dcbase, CPUState *cpu)
             ctx->base.is_jmp = DISAS_TOO_MANY;
         }
 
-#ifdef DEBUG_HEX
-        /* When debugging, force the end of the TB after each packet */
-        if (ctx->base.pc_next - ctx->base.pc_first >= 0x04) {
+        /*
+         * The CPU log is used to compare against LLDB single stepping,
+         * so end the TLB after every packet.
+         */
+        if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
         }
+#if HEX_DEBUG
+        ctx->base.is_jmp = DISAS_TOO_MANY;
 #endif
     }
 }
@@ -693,7 +671,7 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, gpr[i]), hexagon_regnames[i]);
         hex_new_value[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, new_value[i]), "new_value");
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
         hex_reg_written[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, reg_written[i]), "reg_written");
 #endif
@@ -749,3 +727,12 @@ void hexagon_translate_init(void)
     init_opcode_genptr();
 }
 
+int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)
+{
+    packet_t pkt;
+
+    decode_this(words, &pkt);
+    snprint_a_pkt(buf, bufsize, &pkt);
+
+    return pkt.encod_pkt_size_in_bytes;
+}

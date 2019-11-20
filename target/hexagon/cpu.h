@@ -8,10 +8,17 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
-/* FIXME - Change this to a command-line option */
-#ifdef FIXME
-#define DEBUG_HEX
-#endif
+#define HEX_DEBUG 0
+#define HEX_DEBUG_LOG(...) \
+    do { \
+        if (HEX_DEBUG) { \
+            if (qemu_logfile == NULL) { \
+                qemu_logfile = stderr; \
+            } \
+            qemu_log(__VA_ARGS__); \
+        } \
+    } while (0)
+
 #ifdef FIXME
 #define COUNT_HEX_HELPERS
 #endif
@@ -101,7 +108,7 @@ struct CPUHexagonState {
 
     size1u_t slot_cancelled;
     target_ulong new_value[TOTAL_PER_THREAD_REGS];
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 #endif
     target_ulong new_pred_value[NUM_PREGS];
