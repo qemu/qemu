@@ -68,6 +68,7 @@ class QAPISchemaEntity(object):
     def _set_module(self, schema, info):
         assert self._checked
         self._module = schema.module_by_fname(info and info.fname)
+        self._module.add_entity(self)
 
     def set_module(self, schema):
         self._set_module(schema, self.info)
@@ -76,11 +77,6 @@ class QAPISchemaEntity(object):
     def ifcond(self):
         assert self._checked
         return self._ifcond
-
-    @property
-    def module(self):
-        assert self._module or not self.info
-        return self._module
 
     def is_implicit(self):
         return not self.info
@@ -142,6 +138,16 @@ class QAPISchemaVisitor(object):
 class QAPISchemaModule(object):
     def __init__(self, name):
         self.name = name
+        self._entity_list = []
+
+    def add_entity(self, ent):
+        self._entity_list.append(ent)
+
+    def visit(self, visitor):
+        visitor.visit_module(self.name)
+        for entity in self._entity_list:
+            if visitor.visit_needed(entity):
+                entity.visit(visitor)
 
 
 class QAPISchemaInclude(QAPISchemaEntity):
@@ -1093,10 +1099,6 @@ class QAPISchema(object):
     def visit(self, visitor):
         visitor.visit_begin(self)
         module = None
-        for entity in self._entity_list:
-            if visitor.visit_needed(entity):
-                if entity.module != module:
-                    module = entity.module
-                    visitor.visit_module(module.name)
-                entity.visit(visitor)
+        for mod in self._module_dict.values():
+            mod.visit(visitor)
         visitor.visit_end()

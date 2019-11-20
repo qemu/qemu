@@ -11,15 +11,13 @@ enum QType
     member qbool
 module include-repetition.json
 include comments.json
+include include-repetition-sub.json
+include comments.json
 module comments.json
 enum Status
     member good
     member bad
     member ugly
-module include-repetition.json
-include include-repetition-sub.json
 module include-repetition-sub.json
 include comments.json
-include comments.json
-module include-repetition.json
 include comments.json

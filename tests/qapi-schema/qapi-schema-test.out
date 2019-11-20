@@ -153,9 +153,6 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
-module sub-sub-module.json
-array StatusList Status
-module qapi-schema-test.json
 object q_obj_StatusList-wrapper
     member data: StatusList optional=False
 enum UserDefListUnionKind
@@ -193,17 +190,6 @@ object UserDefListUnion
     case any: q_obj_anyList-wrapper
     case user: q_obj_StatusList-wrapper
 include include/sub-module.json
-module include/sub-module.json
-include sub-sub-module.json
-module sub-sub-module.json
-enum Status
-    member good
-    member bad
-    member ugly
-module include/sub-module.json
-object SecondArrayRef
-    member s: StatusList optional=False
-module qapi-schema-test.json
 command user_def_cmd None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd1-arg
@@ -435,3 +421,13 @@ command test-command-cond-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     feature feature1
         if ['defined(TEST_IF_COND_1)', 'defined(TEST_IF_COND_2)']
+module include/sub-module.json
+include sub-sub-module.json
+object SecondArrayRef
+    member s: StatusList optional=False
+module sub-sub-module.json
+array StatusList Status
+enum Status
+    member good
+    member bad
+    member ugly
