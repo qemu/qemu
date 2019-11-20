@@ -148,8 +148,8 @@ static const struct fuse_opt lo_opts[] = {
 };
 static bool use_syslog = false;
 static int current_log_level;
-
-static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n);
+static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
+                                 uint64_t n);
 
 static struct {
     pthread_mutex_t mutex;
@@ -586,7 +586,7 @@ retry:
     return 0;
 
 fail_unref:
-    unref_inode(lo, p, 1);
+    unref_inode_lolocked(lo, p, 1);
 fail:
     if (retries) {
         retries--;
@@ -624,7 +624,7 @@ fallback:
     res = lo_parent_and_name(lo, inode, path, &parent);
     if (res != -1) {
         res = utimensat(parent->fd, path, tv, AT_SYMLINK_NOFOLLOW);
-        unref_inode(lo, parent, 1);
+        unref_inode_lolocked(lo, parent, 1);
     }
 
     return res;
@@ -1027,7 +1027,7 @@ fallback:
     res = lo_parent_and_name(lo, inode, path, &parent);
     if (res != -1) {
         res = linkat(parent->fd, path, dfd, name, 0);
-        unref_inode(lo, parent, 1);
+        unref_inode_lolocked(lo, parent, 1);
     }
 
     return res;
@@ -1141,7 +1141,8 @@ static void lo_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
-static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
+static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
+                                 uint64_t n)
 {
     if (!inode) {
         return;
@@ -1181,7 +1182,7 @@ static void lo_forget_one(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup)
              (unsigned long long)ino, (unsigned long long)inode->refcount,
              (unsigned long long)nlookup);
 
-    unref_inode(lo, inode, nlookup);
+    unref_inode_lolocked(lo, inode, nlookup);
 }
 
 static void lo_forget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup)
