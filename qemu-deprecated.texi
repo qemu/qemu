@@ -242,13 +242,6 @@ via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
 @section System emulator devices
 
-@subsection bluetooth (since 3.1)
-
-The bluetooth subsystem is unmaintained since many years and likely bitrotten
-quite a bit. It will be removed without replacement unless some users speaks
-up at the @email{qemu-devel@@nongnu.org} mailing list with information about
-their usecases.
-
 @subsection ide-drive (since 4.2)
 
 The 'ide-drive' device is deprecated. Users should use 'ide-hd' or

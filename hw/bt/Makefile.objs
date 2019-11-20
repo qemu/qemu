@@ -1,3 +1,0 @@
-common-obj-y += core.o l2cap.o sdp.o hci.o hid.o
-common-obj-y += hci-csr.o
-

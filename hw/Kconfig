@@ -4,7 +4,6 @@ source acpi/Kconfig
 source adc/Kconfig
 source audio/Kconfig
 source block/Kconfig
-source bt/Kconfig
 source char/Kconfig
 source core/Kconfig
 source display/Kconfig
