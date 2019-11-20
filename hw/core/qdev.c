@@ -394,11 +394,8 @@ static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
     NamedGPIOList *ngl;
 
     QLIST_FOREACH(ngl, &dev->gpios, node) {
-        /* NULL is a valid and matchable name, otherwise do a normal
-         * strcmp match.
-         */
-        if ((!ngl->name && !name) ||
-                (name && ngl->name && strcmp(name, ngl->name) == 0)) {
+        /* NULL is a valid and matchable name. */
+        if (g_strcmp0(name, ngl->name) == 0) {
             return ngl;
         }
     }
