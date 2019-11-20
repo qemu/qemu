@@ -983,21 +983,6 @@ For instance, user-mode networking can be used with
 Smartcard reader device
 @item usb-audio
 USB audio device
-@item usb-bt-dongle
-Bluetooth dongle for the transport layer of HCI. It is connected to HCI
-scatternet 0 by default (corresponds to @code{-bt hci,vlan=0}).
-Note that the syntax for the @code{-device usb-bt-dongle} option is not as
-useful yet as it was with the legacy @code{-usbdevice} option. So to
-configure an USB bluetooth device, you might need to use
-"@code{-usbdevice bt}[:@var{hci-type}]" instead. This configures a
-bluetooth dongle whose type is specified in the same format as with
-the @option{-bt hci} option, @pxref{bt-hcis,,allowed HCI types}.  If
-no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
-This USB device implements the USB Transport Layer of HCI.  Example
-usage:
-@example
-@command{@value{qemu_system}} [...@var{OPTIONS}...] @option{-usbdevice} bt:hci,vlan=3 @option{-bt} device:keyboard,vlan=3
-@end example
 @end table
 
 @node host_usb_devices

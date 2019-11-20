@@ -25,7 +25,6 @@ common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o
 common-obj-$(CONFIG_USB_AUDIO)        += dev-audio.o
 common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
 common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
-common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 
 ifeq ($(CONFIG_USB_SMARTCARD),y)
 common-obj-y                          += dev-smartcard-reader.o
