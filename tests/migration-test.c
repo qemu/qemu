@@ -1349,7 +1349,8 @@ int main(int argc, char **argv)
      * some reason)
      */
     if (g_str_equal(qtest_get_arch(), "ppc64") &&
-        access("/sys/module/kvm_hv", F_OK)) {
+        (access("/sys/module/kvm_hv", F_OK) ||
+         access("/dev/kvm", R_OK | W_OK))) {
         g_test_message("Skipping test: kvm_hv not available");
         return g_test_run();
     }
