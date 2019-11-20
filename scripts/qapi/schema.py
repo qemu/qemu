@@ -50,9 +50,6 @@ class QAPISchemaEntity(object):
 
     def check(self, schema):
         assert not self._checked
-        if self.info:
-            self._module = os.path.relpath(self.info.fname,
-                                           os.path.dirname(schema.fname))
         seen = {}
         for f in self.features:
             f.check_clash(self.info, seen)
@@ -68,6 +65,13 @@ class QAPISchemaEntity(object):
         if self.doc:
             self.doc.check()
 
+    def _set_module(self, schema, info):
+        assert self._checked
+        self._module = schema.module_by_fname(info and info.fname)
+
+    def set_module(self, schema):
+        self._set_module(schema, self.info)
+
     @property
     def ifcond(self):
         assert self._checked
@@ -75,7 +79,7 @@ class QAPISchemaEntity(object):
 
     @property
     def module(self):
-        assert self._checked
+        assert self._module or not self.info
         return self._module
 
     def is_implicit(self):
@@ -135,15 +139,19 @@ class QAPISchemaVisitor(object):
         pass
 
 
-class QAPISchemaInclude(QAPISchemaEntity):
+class QAPISchemaModule(object):
+    def __init__(self, name):
+        self.name = name
 
-    def __init__(self, fname, info):
+
+class QAPISchemaInclude(QAPISchemaEntity):
+    def __init__(self, sub_module, info):
         QAPISchemaEntity.__init__(self, None, info, None)
-        self.fname = fname
+        self._sub_module = sub_module
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
-        visitor.visit_include(self.fname, self.info)
+        visitor.visit_include(self._sub_module.name, self.info)
 
 
 class QAPISchemaType(QAPISchemaEntity):
@@ -276,15 +284,13 @@ class QAPISchemaArrayType(QAPISchemaType):
             self.info and self.info.defn_meta)
         assert not isinstance(self.element_type, QAPISchemaArrayType)
 
+    def set_module(self, schema):
+        self._set_module(schema, self.element_type.info)
+
     @property
     def ifcond(self):
         assert self._checked
         return self.element_type.ifcond
-
-    @property
-    def module(self):
-        assert self._checked
-        return self.element_type.module
 
     def is_implicit(self):
         return True
@@ -783,6 +789,10 @@ class QAPISchema(object):
         self.docs = parser.docs
         self._entity_list = []
         self._entity_dict = {}
+        self._module_dict = {}
+        self._schema_dir = os.path.dirname(fname)
+        self._make_module(None) # built-ins
+        self._make_module(fname)
         self._predefining = True
         self._def_predefineds()
         self._predefining = False
@@ -826,14 +836,26 @@ class QAPISchema(object):
                 info, "%s uses unknown type '%s'" % (what, name))
         return typ
 
+    def _module_name(self, fname):
+        if fname is None:
+            return None
+        return os.path.relpath(fname, self._schema_dir)
+
+    def _make_module(self, fname):
+        name = self._module_name(fname)
+        if not name in self._module_dict:
+            self._module_dict[name] = QAPISchemaModule(name)
+        return self._module_dict[name]
+
+    def module_by_fname(self, fname):
+        name = self._module_name(fname)
+        assert name in self._module_dict
+        return self._module_dict[name]
+
     def _def_include(self, expr, info, doc):
         include = expr['include']
         assert doc is None
-        main_info = info
-        while main_info.parent:
-            main_info = main_info.parent
-        fname = os.path.relpath(include, os.path.dirname(main_info.fname))
-        self._def_entity(QAPISchemaInclude(fname, info))
+        self._def_entity(QAPISchemaInclude(self._make_module(include), info))
 
     def _def_builtin_type(self, name, json_type, c_type):
         self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
@@ -1065,15 +1087,16 @@ class QAPISchema(object):
             ent.check(self)
             ent.connect_doc()
             ent.check_doc()
+        for ent in self._entity_list:
+            ent.set_module(self)
 
     def visit(self, visitor):
         visitor.visit_begin(self)
         module = None
-        visitor.visit_module(module)
         for entity in self._entity_list:
             if visitor.visit_needed(entity):
                 if entity.module != module:
                     module = entity.module
-                    visitor.visit_module(module)
+                    visitor.visit_module(module.name)
                 entity.visit(visitor)
         visitor.visit_end()
