@@ -777,6 +777,15 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode, *dir = lo_inode(req, parent);
 
+    /*
+     * name_to_handle_at() and open_by_handle_at() can reach here with fuse
+     * mount point in guest, but we don't have its inode info in the
+     * ino_map.
+     */
+    if (!dir) {
+        return ENOENT;
+    }
+
     memset(e, 0, sizeof(*e));
     e->attr_timeout = lo->timeout;
     e->entry_timeout = lo->timeout;
@@ -786,7 +795,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         name = ".";
     }
 
-    newfd = openat(lo_fd(req, parent), name, O_PATH | O_NOFOLLOW);
+    newfd = openat(dir->fd, name, O_PATH | O_NOFOLLOW);
     if (newfd == -1) {
         goto out_err;
     }
@@ -796,7 +805,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out_err;
     }
 
-    inode = lo_find(lo_data(req), &e->attr);
+    inode = lo_find(lo, &e->attr);
     if (inode) {
         close(newfd);
         newfd = -1;
@@ -812,6 +821,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         inode->is_symlink = S_ISLNK(e->attr.st_mode);
         inode->refcount = 1;
         inode->fd = newfd;
+        newfd = -1;
         inode->ino = e->attr.st_ino;
         inode->dev = e->attr.st_dev;
 
