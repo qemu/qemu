@@ -1044,18 +1044,6 @@ static void serial_mm_write(void *opaque, hwaddr addr,
     serial_ioport_write(&s->serial, addr >> s->regshift, value, 1);
 }
 
-static void serial_mm_realize(DeviceState *dev, Error **errp)
-{
-    SerialMM *s = SERIAL_MM(dev);
-    Error *local_err = NULL;
-
-    object_property_set_bool(OBJECT(&s->serial), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-}
-
 static const MemoryRegionOps serial_mm_ops[3] = {
     [DEVICE_NATIVE_ENDIAN] = {
         .read = serial_mm_read,
@@ -1080,26 +1068,42 @@ static const MemoryRegionOps serial_mm_ops[3] = {
     },
 };
 
+static void serial_mm_realize(DeviceState *dev, Error **errp)
+{
+    SerialMM *smm = SERIAL_MM(dev);
+    SerialState *s = &smm->serial;
+    Error *local_err = NULL;
+
+    object_property_set_bool(OBJECT(s), true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    memory_region_init_io(&s->io, NULL, &serial_mm_ops[smm->endianness], smm,
+                          "serial", 8 << smm->regshift);
+    sysbus_init_mmio(SYS_BUS_DEVICE(smm), &s->io);
+    sysbus_init_irq(SYS_BUS_DEVICE(smm), &smm->serial.irq);
+}
+
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
                          Chardev *chr, enum device_endian end)
 {
     SerialMM *smm = SERIAL_MM(qdev_create(NULL, TYPE_SERIAL_MM));
-    SerialState *s = &smm->serial;
+    MemoryRegion *mr;
 
     qdev_prop_set_uint8(DEVICE(smm), "regshift", regshift);
-    s->irq = irq;
-    qdev_prop_set_uint32(DEVICE(s), "baudbase", baudbase);
-    qdev_prop_set_chr(DEVICE(s), "chardev", chr);
-    qdev_set_legacy_instance_id(DEVICE(s), base, 2);
-    qdev_prop_set_uint8(DEVICE(self), "endianness", end);
-
+    qdev_prop_set_uint32(DEVICE(smm), "baudbase", baudbase);
+    qdev_prop_set_chr(DEVICE(smm), "chardev", chr);
+    qdev_set_legacy_instance_id(DEVICE(smm), base, 2);
+    qdev_prop_set_uint8(DEVICE(smm), "endianness", end);
     qdev_init_nofail(DEVICE(smm));
 
-    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], smm,
-                          "serial", 8 << regshift);
-    memory_region_add_subregion(address_space, base, &s->io);
+    sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, irq);
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(smm), 0);
+    memory_region_add_subregion(address_space, base, mr);
 
     return smm;
 }
@@ -1110,6 +1114,8 @@ static void serial_mm_instance_init(Object *o)
 
     object_initialize_child(o, "serial", &smm->serial, sizeof(smm->serial),
                             TYPE_SERIAL, &error_abort, NULL);
+
+    qdev_alias_all_properties(DEVICE(&smm->serial), o);
 }
 
 static Property serial_mm_properties[] = {
