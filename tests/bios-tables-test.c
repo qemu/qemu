@@ -437,11 +437,11 @@ static void test_acpi_asl(test_data *data)
         g_assert(!err || exp_err);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
+            sdt->tmp_files_retain = true;
             if (exp_err) {
                 fprintf(stderr,
                         "Warning! iasl couldn't parse the expected aml\n");
             } else {
-                sdt->tmp_files_retain = true;
                 exp_sdt->tmp_files_retain = true;
                 fprintf(stderr,
                         "acpi-test: Warning! %.4s mismatch. "
