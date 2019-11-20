@@ -223,7 +223,6 @@ mips_mipssim_init(MachineState *machine)
     if (serial_hd(0)) {
         DeviceState *dev = qdev_create(NULL, TYPE_SERIAL_IO);
 
-        qdev_prop_set_uint32(dev, "baudbase", 115200);
         qdev_prop_set_chr(dev, "chardev", serial_hd(0));
         qdev_set_legacy_instance_id(dev, 0x3f8, 2);
         qdev_init_nofail(dev);
