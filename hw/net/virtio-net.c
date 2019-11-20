@@ -759,6 +759,10 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
 
+    if (n->primary_dev) {
+        return;
+    }
+
     n->primary_device_opts = qemu_opts_find(qemu_find_opts("device"),
             n->primary_device_id);
     if (n->primary_device_opts) {
