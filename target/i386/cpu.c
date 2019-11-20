@@ -2904,6 +2904,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             },
             {
                 .version = 3,
+                .alias = "Skylake-Client-noTSX-IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
@@ -3025,6 +3026,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             },
             {
                 .version = 3,
+                .alias = "Skylake-Server-noTSX-IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
@@ -3145,6 +3147,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
               },
             },
             { .version = 3,
+              .alias = "Cascadelake-Server-noTSX",
               .props = (PropValue[]) {
                   { "hle", "off" },
                   { "rtm", "off" },
@@ -3257,6 +3260,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .alias = "Icelake-Client-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
@@ -3373,6 +3377,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .alias = "Icelake-Server-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
