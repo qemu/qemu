@@ -30,3 +30,4 @@ obj-y += $(QAPI_TARGET_MODULES:%=qapi-events-%.o)
 obj-y += qapi-events.o
 obj-y += $(QAPI_TARGET_MODULES:%=qapi-commands-%.o)
 obj-y += qapi-commands.o
+obj-y += qapi-init-commands.o

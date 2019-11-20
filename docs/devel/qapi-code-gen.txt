@@ -1493,6 +1493,10 @@ $(prefix)qapi-commands.c: Command marshal/dispatch functions for each
 $(prefix)qapi-commands.h: Function prototypes for the QMP commands
                           specified in the schema
 
+$(prefix)qapi-init-commands.h - Command initialization prototype
+
+$(prefix)qapi-init-commands.c - Command initialization code
+
 Example:
 
     $ cat qapi-generated/example-qapi-commands.h
@@ -1502,11 +1506,9 @@ Example:
     #define EXAMPLE_QAPI_COMMANDS_H
 
     #include "example-qapi-types.h"
-    #include "qapi/qmp/dispatch.h"
 
     UserDefOne *qmp_my_command(UserDefOneList *arg1, Error **errp);
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp);
-    void example_qmp_init_marshal(QmpCommandList *cmds);
 
     #endif /* EXAMPLE_QAPI_COMMANDS_H */
     $ cat qapi-generated/example-qapi-commands.c
@@ -1566,7 +1568,19 @@ Example:
         visit_end_struct(v, NULL);
         visit_free(v);
     }
+[Uninteresting stuff omitted...]
+    $ cat qapi-generated/example-qapi-init-commands.h
+[Uninteresting stuff omitted...]
+    #ifndef EXAMPLE_QAPI_INIT_COMMANDS_H
+    #define EXAMPLE_QAPI_INIT_COMMANDS_H
 
+    #include "qapi/qmp/dispatch.h"
+
+    void example_qmp_init_marshal(QmpCommandList *cmds);
+
+    #endif /* EXAMPLE_QAPI_INIT_COMMANDS_H */
+    $ cat qapi-generated/example-qapi-init-commands.c
+[Uninteresting stuff omitted...]
     void example_qmp_init_marshal(QmpCommandList *cmds)
     {
         QTAILQ_INIT(cmds);
@@ -1574,7 +1588,6 @@ Example:
         qmp_register_command(cmds, "my-command",
                              qmp_marshal_my_command, QCO_NO_OPTIONS);
     }
-
 [Uninteresting stuff omitted...]
 
 For a modular QAPI schema (see section Include directives), code for
