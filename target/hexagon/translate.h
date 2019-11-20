@@ -33,7 +33,7 @@ extern TCGv hex_this_PC;
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_branch_taken;
 extern TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
-#ifdef DEBUG_HEX
+#if HEX_DEBUG
 extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 #endif
 extern TCGv hex_new_pred_value[NUM_PREGS];
@@ -56,10 +56,8 @@ extern TCGv hex_gather_issued;
 extern void gen_exception(int excp);
 extern void gen_exception_debug(void);
 
-#ifdef DEBUG_HEX
-void print_thread_prefix(CPUHexagonState *env);
-#endif
-
 extern void gen_memcpy(TCGv_ptr dest, TCGv_ptr src, size_t n);
+extern int disassemble_hexagon(uint32_t *words, int nwords,
+                               char *buf, int bufsize);
 
 #endif
