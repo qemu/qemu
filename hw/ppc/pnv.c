@@ -551,26 +551,9 @@ static void pnv_powerdown_notify(Notifier *n, void *opaque)
 
 static void pnv_reset(MachineState *machine)
 {
-    PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
-    Object *obj;
 
     qemu_devices_reset();
-
-    /*
-     * OpenPOWER systems have a BMC, which can be defined on the
-     * command line with:
-     *
-     *   -device ipmi-bmc-sim,id=bmc0
-     *
-     * This is the internal simulator but it could also be an external
-     * BMC.
-     */
-    obj = object_resolve_path_type("", "ipmi-bmc-sim", NULL);
-    if (obj) {
-        pnv->bmc = IPMI_BMC(obj);
-        pnv_bmc_hiomap(pnv->bmc);
-    }
 
     fdt = pnv_dt_create(machine);
 
@@ -627,6 +610,16 @@ static bool pnv_match_cpu(const char *default_type, const char *cpu_type)
         POWERPC_CPU_CLASS(object_class_by_name(cpu_type));
 
     return ppc_default->pvr_match(ppc_default, ppc->pvr);
+}
+
+static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
+{
+    Object *obj;
+
+    obj = OBJECT(isa_create(bus, "isa-ipmi-bt"));
+    object_property_set_link(obj, OBJECT(bmc), "bmc", &error_fatal);
+    object_property_set_int(obj, irq, "irq", &error_fatal);
+    object_property_set_bool(obj, true, "realized", &error_fatal);
 }
 
 static void pnv_init(MachineState *machine)
@@ -751,6 +744,9 @@ static void pnv_init(MachineState *machine)
     }
     g_free(chip_typename);
 
+    /* Create the machine BMC simulator */
+    pnv->bmc = pnv_bmc_create();
+
     /* Instantiate ISA bus on chip 0 */
     pnv->isa_bus = pnv_isa_create(pnv->chips[0], &error_fatal);
 
@@ -759,6 +755,9 @@ static void pnv_init(MachineState *machine)
 
     /* Create an RTC ISA device too */
     mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
+
+    /* Create the IPMI BT device for communication with the BMC */
+    pnv_ipmi_bt_init(pnv->isa_bus, pnv->bmc, 10);
 
     /*
      * OpenPOWER systems use a IPMI SEL Event message to notify the

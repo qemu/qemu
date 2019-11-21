@@ -17,6 +17,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "qapi/error.h"
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
 #include "hw/ipmi/ipmi.h"
@@ -211,8 +213,20 @@ static const IPMINetfn hiomap_netfn = {
     .cmd_handlers = hiomap_cmds
 };
 
-int pnv_bmc_hiomap(IPMIBmc *bmc)
+/*
+ * Instantiate the machine BMC. PowerNV uses the QEMU internal
+ * simulator but it could also be external.
+ */
+IPMIBmc *pnv_bmc_create(void)
 {
-    return ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(bmc),
-                                   IPMI_NETFN_OEM, &hiomap_netfn);
+    Object *obj;
+
+    obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
+    object_property_set_bool(obj, true, "realized", &error_fatal);
+
+    /* Install the HIOMAP protocol handlers to access the PNOR */
+    ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(obj), IPMI_NETFN_OEM,
+                            &hiomap_netfn);
+
+    return IPMI_BMC(obj);
 }
