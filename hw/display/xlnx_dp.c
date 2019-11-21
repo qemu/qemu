@@ -394,13 +394,18 @@ static void xlnx_dp_audio_callback(void *opaque, int avail)
             written = AUD_write(s->amixer_output_stream,
                                 &s->out_buffer[s->data_ptr], s->byte_left);
         } else {
+             int len_to_copy;
             /*
              * There is nothing to play.. We don't have any data! Fill the
              * buffer with zero's and send it.
              */
             written = 0;
-            memset(s->out_buffer, 0, 1024);
-            AUD_write(s->amixer_output_stream, s->out_buffer, 1024);
+            while (avail) {
+                len_to_copy = MIN(AUD_CHBUF_MAX_DEPTH, avail);
+                memset(s->out_buffer, 0, len_to_copy);
+                avail -= AUD_write(s->amixer_output_stream, s->out_buffer,
+                                   len_to_copy);
+            }
         }
     } else {
         written = AUD_write(s->amixer_output_stream,
