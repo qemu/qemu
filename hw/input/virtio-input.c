@@ -275,6 +275,7 @@ static void virtio_input_finalize(Object *obj)
 
     g_free(vinput->queue);
 }
+
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
@@ -288,6 +289,8 @@ static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    virtio_del_queue(vdev, 0);
+    virtio_del_queue(vdev, 1);
     virtio_cleanup(vdev);
 }
 
