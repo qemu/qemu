@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "internal.h"
 #include "translate.h"
 
 static int do_store_exclusive(CPUHexagonState *env, bool single)
@@ -96,7 +97,7 @@ void cpu_loop(CPUHexagonState *env)
         case HEX_EXCP_TRAP0:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;
-#ifdef COUNT_HEX_HELPERS
+#if COUNT_HEX_HELPERS
             if (syscallnum == TARGET_NR_exit_group) {
                 print_helper_counts();
             }

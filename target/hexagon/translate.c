@@ -8,16 +8,16 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "internal.h"
 #include "tcg-op.h"
 #include "disas/disas.h"
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "decode.h"
+#include "imported/decode.h"
 #include "translate.h"
-#include "regs.h"
-#include "printinsn.h"
+#include "imported/printinsn.h"
 #include "macros.h"
 
 #include "exec/translator.h"
@@ -50,6 +50,9 @@ TCGv hex_QRegs_updated;
 TCGv hex_is_gather_store_insn;
 TCGv hex_gather_issued;
 
+static const char * const hexagon_prednames[] = {
+  "p0", "p1", "p2", "p3"
+};
 
 #include "exec/gen-icount.h"
 
@@ -85,17 +88,32 @@ static inline bool pkt_has_hvx(packet_t *pkt)
     return false;
 }
 
-static void gen_start_packet(packet_t *pkt, TCGv NPC)
+static void gen_start_packet(DisasContext *ctx, packet_t *pkt)
 {
+    target_ulong next_PC = ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
     int i;
+
+    /* Clear out the disassembly context */
+    ctx->ctx_reg_log_idx = 0;
+    ctx->ctx_preg_log_idx = 0;
+    ctx->ctx_temp_vregs_idx = 0;
+    ctx->ctx_temp_qregs_idx = 0;
+    ctx->ctx_vreg_log_idx = 0;
+    ctx->ctx_qreg_log_idx = 0;
+    for (i = 0; i < STORES_MAX; i++) {
+        ctx->ctx_store_width[i] = 0;
+    }
 
 #if HEX_DEBUG
     gen_helper_debug_start_packet(cpu_env);
 #endif
+
+    /* Initialize the runtime state for packet semantics */
+    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
     tcg_gen_movi_tl(hex_slot_cancelled, 0);
     tcg_gen_movi_tl(hex_branch_taken, 0);
     tcg_gen_mov_tl(hex_this_PC, hex_gpr[HEX_REG_PC]);
-    tcg_gen_mov_tl(hex_next_PC, NPC);
+    tcg_gen_movi_tl(hex_next_PC, next_PC);
     for (i = 0; i < NUM_PREGS; i++) {
         tcg_gen_movi_tl(hex_pred_written[i], 0);
     }
@@ -491,62 +509,27 @@ static void decode_packet(CPUHexagonState *env, DisasContext *ctx)
     packet_t pkt;
     int i;
 
-    {
-        /*
-         * For comparing with LLDB on target
-         * - see hack_stack_ptrs function
-         */
-        static bool first = true;
-        if (first) {
-            env->stack_start = env->gpr[HEX_REG_SP];
-            /*
-             * Change the two numbers below to
-             *     1    qemu stack location
-             *     2    hardware stack location
-             * Or set to zero for normal mode (no stack adjustment)
-             */
-            env->stack_adjust = 0xfffeeb80 - 0xbf89f980;
-            tcg_gen_movi_tl(hex_gpr[HEX_REG_USR], 0x56000);
-            first = false;
-        }
-    }
-    /* Brute force way to make sure current PC is set */
-    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-
-    ctx->ctx_reg_log_idx = 0;
-    ctx->ctx_preg_log_idx = 0;
-    ctx->ctx_temp_vregs_idx = 0;
-    ctx->ctx_temp_qregs_idx = 0;
-    ctx->ctx_vreg_log_idx = 0;
-    ctx->ctx_qreg_log_idx = 0;
-    for (i = 0; i < STORES_MAX; i++) {
-        ctx->ctx_store_width[i] = 0;
-    }
-
     for (i = 0; i < 4; i++) {
         words[i] = cpu_ldl_code(env, ctx->base.pc_next + i * sizeof(size4u_t));
     }
     HEX_DEBUG_LOG("decode_packet: pc = 0x%x\n", ctx->base.pc_next);
     HEX_DEBUG_LOG("    words = { 0x%x, 0x%x, 0x%x, 0x%x }\n",
                   words[0], words[1], words[2], words[3]);
-    if (decode_this(words, &pkt) != NULL) {
-        target_ulong next_PC = ctx->base.pc_next + pkt.encod_pkt_size_in_bytes;
-        TCGv NPC = tcg_const_tl(next_PC);
 
+    if (decode_this(words, &pkt) != NULL) {
 #if HEX_DEBUG
         print_pkt(&pkt);
 #endif
-        gen_start_packet(&pkt, NPC);
+        gen_start_packet(ctx, &pkt);
         for (i = 0; i < pkt.num_insns; i++) {
             gen_insn(env, ctx, &pkt.insn[i]);
         }
         gen_commit_packet(ctx, &pkt);
-        tcg_temp_free(NPC);
-        ctx->base.pc_next = next_PC;
+        ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
     } else {
         /* FIXME Generate an invalid packet exception */
         printf("Skipping this one for now\n");
-        ctx->base.pc_next = ctx->base.pc_next + 4;
+        ctx->base.pc_next += 4;
     }
 }
 
@@ -555,7 +538,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    ctx->mem_idx = ctx->base.tb->flags & TB_FLAGS_MMU_MASK;
+    ctx->mem_idx = MMU_USER_IDX;
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)

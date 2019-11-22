@@ -12,21 +12,21 @@
 #include "qemu/log.h"
 #include "tcg-op.h"
 #include "cpu.h"
+#include "internal.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "global_types.h"
 #include "macros.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
-#include "utils.h"
-#include "fma_emu.h"
-#include "myfenv.h"
-#include "conv_emu.h"
+#include "imported/utils.h"
+#include "imported/fma_emu.h"
+#include "imported/myfenv.h"
+#include "imported/conv_emu.h"
 #include "translate.h"
 #include "qemu.h"
 
-#ifdef COUNT_HEX_HELPERS
+#if COUNT_HEX_HELPERS
 #include "opcodes.h"
 
 typedef struct {
@@ -59,7 +59,7 @@ void print_helper_counts(void)
 #endif
 
 /* Exceptions processing helpers */
-void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
+static void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
                                           uint32_t exception, uintptr_t pc)
 {
     CPUState *cs = CPU(hexagon_env_get_cpu(env));
@@ -68,7 +68,7 @@ void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-void helper_raise_exception(CPUHexagonState *env, uint32_t exception)
+void HELPER(raise_exception)(CPUHexagonState *env, uint32_t exception)
 {
     do_raise_exception_err(env, exception, 0);
 }
@@ -412,8 +412,7 @@ static inline void log_mmvector_write(CPUHexagonState *env, int num,
     log_ext_vreg_write(env, num, &var, vnew, slot);
 }
 
-#include "q6v_defines.h"
-#include "regs.h"
+#include "imported/q6v_defines.h"
 
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")

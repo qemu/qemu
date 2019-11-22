@@ -16,8 +16,6 @@ obj-y += \
     imported/mmvec/decode_ext_mmvec.o \
     imported/mmvec/system_ext_mmvec.o
 
-CFLAGS += -I$(SRC_PATH)/target/hexagon/imported
-
 QEMU_ODEF = $(BUILD_DIR)/hexagon-linux-user/qemu.odef
 QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap.h
 

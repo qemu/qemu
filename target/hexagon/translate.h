@@ -53,6 +53,7 @@ extern TCGv hex_QRegs_updated;
 extern TCGv hex_is_gather_store_insn;
 extern TCGv hex_gather_issued;
 
+void hexagon_translate_init(void);
 extern void gen_exception(int excp);
 extern void gen_exception_debug(void);
 

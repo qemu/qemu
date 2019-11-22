@@ -3,8 +3,8 @@
 #ifndef _MACROS_H
 #define _MACROS_H
 
-#include "arch.h"
-#include "iss_ver_registers.h"
+#include "imported/arch.h"
+#include "imported/iss_ver_registers.h"
 #include "exec/helper-proto.h"
 
 #define GET_FIELD(FIELD, REGIN) \

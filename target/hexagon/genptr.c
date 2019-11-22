@@ -8,12 +8,11 @@
 #include "cpu.h"
 #include "tcg-op.h"
 #include "tcg-op-gvec.h"
-#include "opcodes.h"
-#include "utils.h"
+#include "imported/opcodes.h"
+#include "imported/utils.h"
 #include "translate.h"
-#include "regs.h"
 #include "macros.h"
-#include "q6v_defines.h"
+#include "imported/q6v_defines.h"
 
 static inline TCGv gen_read_rreg(TCGv result, int num)
 {
@@ -504,6 +503,12 @@ static inline void gen_set_usr_fieldi(int field, int x)
     TCGv val = tcg_const_tl(x);
     gen_set_usr_field(field, val);
     tcg_temp_free(val);
+}
+
+#define fWRAP_J2_trap0(GENHLPR, SHORTCODE) \
+{ \
+    GENHLPR \
+    ctx->base.is_jmp = DISAS_NORETURN; \
 }
 
 #define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
@@ -3407,7 +3412,7 @@ static void generate_##TAG(CPUHexagonState *env, DisasContext *ctx, \
 /* Fill in the table with NULLs because not all the opcodes have DEF_QEMU */
 semantic_insn_t opcode_genptr[] = {
 #define OPCODE(X)                              NULL,
-#include "opcodes.odef"
+#include "imported/opcodes.odef"
     NULL
 #undef OPCODE
 };
