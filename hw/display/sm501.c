@@ -1958,11 +1958,9 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(usb_dev));
 
     /* bridge to serial emulation module */
-    if (s->chr_state) {
-        serial_mm_init(&s->state.mmio_region, SM501_UART0, 2,
-                       NULL, /* TODO : chain irq to IRL */
-                       115200, s->chr_state, DEVICE_LITTLE_ENDIAN);
-    }
+    serial_mm_init(&s->state.mmio_region, SM501_UART0, 2,
+                   NULL, /* TODO : chain irq to IRL */
+                   115200, s->chr_state, DEVICE_LITTLE_ENDIAN);
 }
 
 static Property sm501_sysbus_properties[] = {
