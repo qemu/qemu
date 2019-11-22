@@ -8,6 +8,7 @@
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
 #include "cpu.h"
+#include "internal.h"
 
 static int gdb_get_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
 {

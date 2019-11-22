@@ -8,6 +8,9 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
+/*
+ * Change HEX_DEBUG to 1 to turn on debugging output
+ */
 #define HEX_DEBUG 0
 #define HEX_DEBUG_LOG(...) \
     do { \
@@ -19,33 +22,22 @@
         } \
     } while (0)
 
-#ifdef FIXME
-#define COUNT_HEX_HELPERS
-#endif
-
 /* Forward declaration needed by some of the header files */
 typedef struct CPUHexagonState CPUHexagonState;
 
 #include <fenv.h>
-#include "qemu/osdep.h"
-#include "global_types.h"
-#include "max.h"
-#include "iss_ver_registers.h"
+#include "imported/global_types.h"
+#include "imported/max.h"
+#include "imported/iss_ver_registers.h"
 #include "mmvec/mmvec.h"
 
 #define TARGET_PAGE_BITS 16     /* 64K pages */
-/*
- * For experimenting with oslib (4K pages)
- * #define TARGET_PAGE_BITS 12
- */
 #define TARGET_LONG_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#include <time.h>
 #include "qemu/compiler.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
-#include "regs.h"
+#include "imported/regs.h"
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -53,12 +45,9 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define HEXAGON_CPU_TYPE_NAME(name) (name HEXAGON_CPU_TYPE_SUFFIX)
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 
-#define TYPE_HEXAGON_CPU_V67             HEXAGON_CPU_TYPE_NAME("v67")
+#define TYPE_HEXAGON_CPU_V67 HEXAGON_CPU_TYPE_NAME("v67")
 
 #define MMU_USER_IDX 0
-
-#define TRANSLATE_FAIL 1
-#define TRANSLATE_SUCCESS 0
 
 struct MemLog {
     vaddr_t va;
@@ -182,26 +171,10 @@ static inline HexagonCPU *hexagon_env_get_cpu(CPUHexagonState *env)
     return container_of(env, HexagonCPU, env);
 }
 
-
 #include "cpu_bits.h"
 
-extern const char * const hexagon_regnames[];
-extern const char * const hexagon_prednames[];
-
-#define ENV_GET_CPU(e)  CPU(hexagon_env_get_cpu(e))
-#define ENV_OFFSET      offsetof(HexagonCPU, env)
-
-int hexagon_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
-int hexagon_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-
 #define cpu_signal_handler cpu_hexagon_signal_handler
-
-int cpu_hexagon_signal_handler(int host_signum, void *pinfo, void *puc);
-
-void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
-                                          uint32_t exception, uintptr_t pc);
-
-#define TB_FLAGS_MMU_MASK  3
+extern int cpu_hexagon_signal_handler(int host_signum, void *pinfo, void *puc);
 
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
@@ -215,17 +188,8 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
 #endif
 }
 
-void hexagon_translate_init(void);
-void hexagon_debug(CPUHexagonState *env);
-void hexagon_debug_vreg(CPUHexagonState *env, int regnum);
-void hexagon_debug_qreg(CPUHexagonState *env, int regnum);
-
 typedef struct CPUHexagonState CPUArchState;
 typedef HexagonCPU ArchCPU;
-
-#ifdef COUNT_HEX_HELPERS
-extern void print_helper_counts(void);
-#endif
 
 #include "exec/cpu-all.h"
 

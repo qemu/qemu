@@ -7,6 +7,8 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "internal.h"
+#include "translate.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -44,13 +46,33 @@ const char * const hexagon_regnames[] = {
   "c24", "c25", "c26", "c27", "c28",  "c29", "c30", "c31",
 };
 
-const char * const hexagon_prednames[] = {
-  "p0 ", "p1 ", "p2 ", "p3 "
-};
-
+/*
+ * One of the main debugging techniques is to use "-d cpu" and compare against
+ * LLDB output when single stepping.  However, the target and qemu put the
+ * stacks at different locations.  This is used to compensate so the diff is
+ * cleaner.
+ */
 static inline target_ulong hack_stack_ptrs(CPUHexagonState *env,
                                            target_ulong addr)
 {
+    static bool first = true;
+    if (first) {
+        env->stack_start = env->gpr[HEX_REG_SP];
+        env->gpr[HEX_REG_USR] = 0x560000;
+#if 0
+        /*
+         * Change the two numbers below to
+         *     1    qemu stack location
+         *     2    hardware stack location
+         * Or set to zero for normal mode (no stack adjustment)
+         */
+        env->stack_adjust = 0xfffeeb80 - 0xbf89f980;
+#else
+        env->stack_adjust = 0;
+#endif
+        first = false;
+    }
+
     target_ulong stack_start = env->stack_start;
     target_ulong stack_size = 0x10000;
     target_ulong stack_adjust = env->stack_adjust;
@@ -143,20 +165,20 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
         hack_stack_ptrs(env, env->gpr[HEX_REG_GP]));
 #endif
     print_reg(f, env, HEX_REG_PC);
-#ifdef FIXME
+#ifdef CONFIG_USER_ONLY
     /*
      * Not modelled in qemu, print junk to minimize the diff's
      * with LLDB output
      */
-    print_reg(f, env, HEX_REG_CAUSE);
-    print_reg(f, env, HEX_REG_BADVA);
-    print_reg(f, env, HEX_REG_CS0);
-    print_reg(f, env, HEX_REG_CS1);
-#else
     fprintf(f, "  cause = 0x000000db\n");
     fprintf(f, "  badva = 0x00000000\n");
     fprintf(f, "  cs0 = 0x00000000\n");
     fprintf(f, "  cs1 = 0x00000000\n");
+#else
+    print_reg(f, env, HEX_REG_CAUSE);
+    print_reg(f, env, HEX_REG_BADVA);
+    print_reg(f, env, HEX_REG_CS0);
+    print_reg(f, env, HEX_REG_CS1);
 #endif
     fprintf(f, "}\n");
 

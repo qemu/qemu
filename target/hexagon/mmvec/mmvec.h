@@ -4,10 +4,10 @@
 #define _VEC_ARCH_H
 
 #define VECEXT 1
-#include "arch_types.h"
+#include "imported/arch_types.h"
 #include <stdint.h>
-#include "max.h"
-#include "arch.h"
+#include "imported/max.h"
+#include "imported/arch.h"
 
 /* From thread.h */
 enum mem_access_types {

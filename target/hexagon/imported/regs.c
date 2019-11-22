@@ -6,6 +6,7 @@
  * $Id: regs.c,v 
  *
  */
+#include "qemu/osdep.h"
 #include <string.h>
 #include "arch.h"
 #include "regs.h"
