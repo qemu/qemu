@@ -1,6 +1,6 @@
 /* Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved. */
 
-#include "q6v_defines.h"
+#include "imported/q6v_defines.h"
 
 #ifdef QEMU_GENERATE
 #else

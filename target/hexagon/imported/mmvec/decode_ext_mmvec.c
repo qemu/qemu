@@ -1,5 +1,6 @@
 /* Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved. */
 
+#include "qemu/osdep.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -13,11 +14,11 @@
 #include <arch/insn.h>
 #include <arch/printinsn.h>
 #else
-#include "decode.h"
-#include "utils.h"
-#include "opcodes.h"
-#include "insn.h"
-#include "printinsn.h"
+#include "imported/decode.h"
+#include "imported/utils.h"
+#include "imported/opcodes.h"
+#include "imported/insn.h"
+#include "imported/printinsn.h"
 
 // From external_api.h
 typedef enum hvx_resource {

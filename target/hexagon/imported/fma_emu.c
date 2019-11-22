@@ -1,5 +1,6 @@
 /* Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved. */
 
+#include "qemu/osdep.h"
 #include "myfenv.h"
 
 #include <stdio.h>

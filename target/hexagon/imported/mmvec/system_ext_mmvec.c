@@ -3,13 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "qemu/osdep.h"
 //#include <arch/thread.h>
 //#include <arch/memwrap.h>
 //#include <arch/system.h>
 //#include <arch/external_api.h>
-#include "opcodes.h"
-#include "insn.h"
-#include "arch.h"
+#include "imported/opcodes.h"
+#include "imported/insn.h"
+#include "imported/arch.h"
 //#include "pmu.h"
 
 //#include "vtcm.h"

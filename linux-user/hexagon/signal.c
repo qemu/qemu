@@ -71,7 +71,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
     /* This is the X/Open sanctioned signal stack switching.  */
     sp = target_sigsp(sp, ka) - framesize;
 
-    sp &= ~7UL; /* align sp on 8-byte boundary */
+    sp = QEMU_ALIGN_DOWN(sp, 8);
 
     return sp;
 }
