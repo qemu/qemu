@@ -1893,8 +1893,18 @@ static const TypeInfo xive_presenter_info = {
     .class_size = sizeof(XivePresenterClass),
 };
 
+/*
+ * XIVE Fabric
+ */
+static const TypeInfo xive_fabric_info = {
+    .name = TYPE_XIVE_FABRIC,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(XiveFabricClass),
+};
+
 static void xive_register_types(void)
 {
+    type_register_static(&xive_fabric_info);
     type_register_static(&xive_source_info);
     type_register_static(&xive_notifier_info);
     type_register_static(&xive_presenter_info);
