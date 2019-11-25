@@ -478,7 +478,7 @@ static void test_keyval_visit_size(void)
     visit_free(v);
 
     /* Trailing crap */
-    qdict = keyval_parse("sz1=16E,sz2=16Gi", NULL, &error_abort);
+    qdict = keyval_parse("sz1=0Z,sz2=16Gi", NULL, &error_abort);
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
     qobject_unref(qdict);
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
