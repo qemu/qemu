@@ -463,9 +463,10 @@ typedef struct XiveENDSource {
 #define XIVE_TM_USER_PAGE       0x3
 
 extern const MemoryRegionOps xive_tm_ops;
-void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
-                        unsigned size);
-uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size);
+void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
+                        uint64_t value, unsigned size);
+uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
+                           unsigned size);
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
 Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp);

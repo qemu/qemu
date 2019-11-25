@@ -144,19 +144,20 @@ static inline uint32_t xive_tctx_word2(uint8_t *ring)
  * XIVE Thread Interrupt Management Area (TIMA)
  */
 
-static void xive_tm_set_hv_cppr(XiveTCTX *tctx, hwaddr offset,
-                                uint64_t value, unsigned size)
+static void xive_tm_set_hv_cppr(XivePresenter *xptr, XiveTCTX *tctx,
+                                hwaddr offset, uint64_t value, unsigned size)
 {
     xive_tctx_set_cppr(tctx, TM_QW3_HV_PHYS, value & 0xff);
 }
 
-static uint64_t xive_tm_ack_hv_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
+static uint64_t xive_tm_ack_hv_reg(XivePresenter *xptr, XiveTCTX *tctx,
+                                   hwaddr offset, unsigned size)
 {
     return xive_tctx_accept(tctx, TM_QW3_HV_PHYS);
 }
 
-static uint64_t xive_tm_pull_pool_ctx(XiveTCTX *tctx, hwaddr offset,
-                                      unsigned size)
+static uint64_t xive_tm_pull_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                                      hwaddr offset, unsigned size)
 {
     uint32_t qw2w2_prev = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
     uint32_t qw2w2;
@@ -166,13 +167,14 @@ static uint64_t xive_tm_pull_pool_ctx(XiveTCTX *tctx, hwaddr offset,
     return qw2w2;
 }
 
-static void xive_tm_vt_push(XiveTCTX *tctx, hwaddr offset,
+static void xive_tm_vt_push(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                             uint64_t value, unsigned size)
 {
     tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = value & 0xff;
 }
 
-static uint64_t xive_tm_vt_poll(XiveTCTX *tctx, hwaddr offset, unsigned size)
+static uint64_t xive_tm_vt_poll(XivePresenter *xptr, XiveTCTX *tctx,
+                                hwaddr offset, unsigned size)
 {
     return tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] & 0xff;
 }
@@ -315,13 +317,14 @@ static uint64_t xive_tm_raw_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
  * state changes (side effects) in addition to setting/returning the
  * interrupt management area context of the processor thread.
  */
-static uint64_t xive_tm_ack_os_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
+static uint64_t xive_tm_ack_os_reg(XivePresenter *xptr, XiveTCTX *tctx,
+                                   hwaddr offset, unsigned size)
 {
     return xive_tctx_accept(tctx, TM_QW1_OS);
 }
 
-static void xive_tm_set_os_cppr(XiveTCTX *tctx, hwaddr offset,
-                                uint64_t value, unsigned size)
+static void xive_tm_set_os_cppr(XivePresenter *xptr, XiveTCTX *tctx,
+                                hwaddr offset, uint64_t value, unsigned size)
 {
     xive_tctx_set_cppr(tctx, TM_QW1_OS, value & 0xff);
 }
@@ -330,8 +333,8 @@ static void xive_tm_set_os_cppr(XiveTCTX *tctx, hwaddr offset,
  * Adjust the IPB to allow a CPU to process event queues of other
  * priorities during one physical interrupt cycle.
  */
-static void xive_tm_set_os_pending(XiveTCTX *tctx, hwaddr offset,
-                                   uint64_t value, unsigned size)
+static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
+                                   hwaddr offset, uint64_t value, unsigned size)
 {
     ipb_update(&tctx->regs[TM_QW1_OS], value & 0xff);
     xive_tctx_notify(tctx, TM_QW1_OS);
@@ -366,8 +369,8 @@ static void xive_tctx_set_os_cam(XiveTCTX *tctx, uint32_t qw1w2)
     memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
 }
 
-static uint64_t xive_tm_pull_os_ctx(XiveTCTX *tctx, hwaddr offset,
-                                    unsigned size)
+static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                                    hwaddr offset, unsigned size)
 {
     uint32_t qw1w2;
     uint32_t qw1w2_new;
@@ -396,9 +399,11 @@ typedef struct XiveTmOp {
     uint8_t  page_offset;
     uint32_t op_offset;
     unsigned size;
-    void     (*write_handler)(XiveTCTX *tctx, hwaddr offset, uint64_t value,
-                              unsigned size);
-    uint64_t (*read_handler)(XiveTCTX *tctx, hwaddr offset, unsigned size);
+    void     (*write_handler)(XivePresenter *xptr, XiveTCTX *tctx,
+                              hwaddr offset,
+                              uint64_t value, unsigned size);
+    uint64_t (*read_handler)(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
+                             unsigned size);
 } XiveTmOp;
 
 static const XiveTmOp xive_tm_operations[] = {
@@ -444,8 +449,8 @@ static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 /*
  * TIMA MMIO handlers
  */
-void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
-                        unsigned size)
+void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
+                        uint64_t value, unsigned size)
 {
     const XiveTmOp *xto;
 
@@ -462,7 +467,7 @@ void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA "
                           "@%"HWADDR_PRIx"\n", offset);
         } else {
-            xto->write_handler(tctx, offset, value, size);
+            xto->write_handler(xptr, tctx, offset, value, size);
         }
         return;
     }
@@ -472,7 +477,7 @@ void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
      */
     xto = xive_tm_find_op(offset, size, true);
     if (xto) {
-        xto->write_handler(tctx, offset, value, size);
+        xto->write_handler(xptr, tctx, offset, value, size);
         return;
     }
 
@@ -482,7 +487,8 @@ void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
     xive_tm_raw_write(tctx, offset, value, size);
 }
 
-uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
+uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
+                           unsigned size)
 {
     const XiveTmOp *xto;
 
@@ -500,7 +506,7 @@ uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
                           "@%"HWADDR_PRIx"\n", offset);
             return -1;
         }
-        return xto->read_handler(tctx, offset, size);
+        return xto->read_handler(xptr, tctx, offset, size);
     }
 
     /*
@@ -508,7 +514,7 @@ uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
      */
     xto = xive_tm_find_op(offset, size, false);
     if (xto) {
-        return xto->read_handler(tctx, offset, size);
+        return xto->read_handler(xptr, tctx, offset, size);
     }
 
     /*
@@ -522,14 +528,14 @@ static void xive_tm_write(void *opaque, hwaddr offset,
 {
     XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
 
-    xive_tctx_tm_write(tctx, offset, value, size);
+    xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
 }
 
 static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
 {
     XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
 
-    return xive_tctx_tm_read(tctx, offset, size);
+    return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
 }
 
 const MemoryRegionOps xive_tm_ops = {

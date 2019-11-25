@@ -1436,7 +1436,7 @@ static void xive_tm_indirect_write(void *opaque, hwaddr offset,
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
 
-    xive_tctx_tm_write(tctx, offset, value, size);
+    xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
 }
 
 static uint64_t xive_tm_indirect_read(void *opaque, hwaddr offset,
@@ -1444,7 +1444,7 @@ static uint64_t xive_tm_indirect_read(void *opaque, hwaddr offset,
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
 
-    return xive_tctx_tm_read(tctx, offset, size);
+    return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
 }
 
 static const MemoryRegionOps xive_tm_indirect_ops = {
