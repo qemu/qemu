@@ -1400,12 +1400,13 @@ static const MemoryRegionOps pnv_xive_ic_lsi_ops = {
  */
 
 /*
- * When the TIMA is accessed from the indirect page, the thread id
- * (PIR) has to be configured in the IC registers before. This is used
- * for resets and for debug purpose also.
+ * When the TIMA is accessed from the indirect page, the thread id of
+ * the target CPU is configured in the PC_TCTXT_INDIR0 register before
+ * use. This is used for resets and for debug purpose also.
  */
 static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
 {
+    PnvChip *chip = xive->chip;
     uint64_t tctxt_indir = xive->regs[PC_TCTXT_INDIR0 >> 3];
     PowerPCCPU *cpu = NULL;
     int pir;
@@ -1415,15 +1416,15 @@ static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
         return NULL;
     }
 
-    pir = GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir) & 0xff;
-    cpu = ppc_get_vcpu_by_pir(pir);
+    pir = (chip->chip_id << 8) | GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir);
+    cpu = pnv_chip_find_cpu(chip, pir);
     if (!cpu) {
         xive_error(xive, "IC: invalid PIR %x for indirect access", pir);
         return NULL;
     }
 
     /* Check that HW thread is XIVE enabled */
-    if (!(xive->regs[PC_THREAD_EN_REG0 >> 3] & PPC_BIT(pir & 0x3f))) {
+    if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
         xive_error(xive, "IC: CPU %x is not enabled", pir);
     }
 

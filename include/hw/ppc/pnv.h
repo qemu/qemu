@@ -162,6 +162,8 @@ typedef struct PnvChipClass {
 #define PNV_CHIP_INDEX(chip)                                    \
     (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
 
+PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
+
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define PNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)

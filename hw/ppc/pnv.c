@@ -1371,6 +1371,23 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip";
 }
 
+PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir)
+{
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+        CPUCore *cc = CPU_CORE(pc);
+
+        for (j = 0; j < cc->nr_threads; j++) {
+            if (ppc_cpu_pir(pc->threads[j]) == pir) {
+                return pc->threads[j];
+            }
+        }
+    }
+    return NULL;
+}
+
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
