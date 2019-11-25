@@ -377,34 +377,43 @@ static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
                               bool cam_ignore, uint8_t priority,
                               uint32_t logic_serv, XiveTCTXMatch *match)
 {
-    CPUState *cs;
+    PnvXive *xive = PNV_XIVE(xptr);
+    PnvChip *chip = xive->chip;
     int count = 0;
+    int i, j;
 
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
-        int ring;
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+        CPUCore *cc = CPU_CORE(pc);
 
-        /*
-         * Check the thread context CAM lines and record matches.
-         */
-        ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk, nvt_idx,
-                                         cam_ignore, logic_serv);
-        /*
-         * Save the context and follow on to catch duplicates, that we
-         * don't support yet.
-         */
-        if (ring != -1) {
-            if (match->tctx) {
-                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a "
-                              "thread context NVT %x/%x\n",
-                              nvt_blk, nvt_idx);
-                return -1;
+        for (j = 0; j < cc->nr_threads; j++) {
+            PowerPCCPU *cpu = pc->threads[j];
+            XiveTCTX *tctx;
+            int ring;
+
+            tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+            /*
+             * Check the thread context CAM lines and record matches.
+             */
+            ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk,
+                                             nvt_idx, cam_ignore, logic_serv);
+            /*
+             * Save the context and follow on to catch duplicates, that we
+             * don't support yet.
+             */
+            if (ring != -1) {
+                if (match->tctx) {
+                    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a "
+                                  "thread context NVT %x/%x\n",
+                                  nvt_blk, nvt_idx);
+                    return -1;
+                }
+
+                match->ring = ring;
+                match->tctx = tctx;
+                count++;
             }
-
-            match->ring = ring;
-            match->tctx = tctx;
-            count++;
         }
     }
 
