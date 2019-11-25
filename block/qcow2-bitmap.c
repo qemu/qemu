@@ -988,7 +988,26 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        BdrvDirtyBitmap *bitmap = load_bitmap(bs, bm, errp);
+        BdrvDirtyBitmap *bitmap;
+
+        if ((bm->flags & BME_FLAG_IN_USE) &&
+            bdrv_find_dirty_bitmap(bs, bm->name))
+        {
+            /*
+             * We already have corresponding BdrvDirtyBitmap, and bitmap in the
+             * image is marked IN_USE. Firstly, this state is valid, no reason
+             * to consider existing BdrvDirtyBitmap to be bad. Secondly it's
+             * absolutely possible, when we do migration with shared storage
+             * with dirty-bitmaps capability enabled: if the bitmap was loaded
+             * from this storage before migration start, the storage will
+             * of-course contain IN_USE outdated version of the bitmap, and we
+             * should not load it on migration target, as we already have this
+             * bitmap, being migrated.
+             */
+            continue;
+        }
+
+        bitmap = load_bitmap(bs, bm, errp);
         if (bitmap == NULL) {
             goto fail;
         }
