@@ -395,14 +395,11 @@ typedef union VTDInvDesc VTDInvDesc;
         (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
 #define VTD_SPTE_PAGE_L4_RSVD_MASK(aw) \
         (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
-#define VTD_SPTE_LPAGE_L1_RSVD_MASK(aw) \
-        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+
 #define VTD_SPTE_LPAGE_L2_RSVD_MASK(aw) \
         (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
 #define VTD_SPTE_LPAGE_L3_RSVD_MASK(aw) \
         (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
-#define VTD_SPTE_LPAGE_L4_RSVD_MASK(aw) \
-        (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
 
 /* Information about page-selective IOTLB invalidate */
 struct VTDIOTLBPageInvInfo {
