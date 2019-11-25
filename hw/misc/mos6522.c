@@ -113,6 +113,10 @@ static int64_t get_next_irq_time(MOS6522State *s, MOS6522Timer *ti,
     int64_t d, next_time;
     unsigned int counter;
 
+    if (ti->frequency == 0) {
+        return INT64_MAX;
+    }
+
     /* current counter value */
     d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
                  ti->frequency, NANOSECONDS_PER_SECOND);
@@ -149,10 +153,10 @@ static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
     if (!ti->timer) {
         return;
     }
+    ti->next_irq_time = get_next_irq_time(s, ti, current_time);
     if ((s->ier & T1_INT) == 0 || (s->acr & T1MODE) != T1MODE_CONT) {
         timer_del(ti->timer);
     } else {
-        ti->next_irq_time = get_next_irq_time(s, ti, current_time);
         timer_mod(ti->timer, ti->next_irq_time);
     }
 }
@@ -163,10 +167,10 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
     if (!ti->timer) {
         return;
     }
+    ti->next_irq_time = get_next_irq_time(s, ti, current_time);
     if ((s->ier & T2_INT) == 0) {
         timer_del(ti->timer);
     } else {
-        ti->next_irq_time = get_next_irq_time(s, ti, current_time);
         timer_mod(ti->timer, ti->next_irq_time);
     }
 }
