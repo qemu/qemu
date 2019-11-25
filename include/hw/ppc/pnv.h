@@ -103,6 +103,7 @@ typedef struct Pnv9Chip {
  * A SMT8 fused core is a pair of SMT4 cores.
  */
 #define PNV9_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
+#define PNV9_PIR2CHIP(pir)      (((pir) >> 8) & 0x7f)
 
 typedef struct PnvChipClass {
     /*< private >*/
@@ -196,6 +197,8 @@ static inline bool pnv_is_power9(PnvMachineState *pnv)
 {
     return pnv_chip_is_power9(pnv->chips[0]);
 }
+
+PnvChip *pnv_get_chip(uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
