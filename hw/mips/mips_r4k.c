@@ -307,6 +307,7 @@ void mips_r4k_init(MachineState *machine)
 
 static void mips_machine_init(MachineClass *mc)
 {
+    mc->deprecation_reason = "use malta machine type instead";
     mc->desc = "mips r4k platform";
     mc->init = mips_r4k_init;
     mc->block_default_type = IF_IDE;

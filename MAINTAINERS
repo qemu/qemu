@@ -972,7 +972,7 @@ F: hw/net/mipsnet.c
 R4000
 M: Aurelien Jarno <aurelien@aurel32.net>
 R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
-S: Maintained
+S: Obsolete
 F: hw/mips/mips_r4k.c
 
 Fulong 2E
