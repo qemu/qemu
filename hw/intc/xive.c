@@ -1428,51 +1428,14 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
                                  bool cam_ignore, uint8_t priority,
                                  uint32_t logic_serv, XiveTCTXMatch *match)
 {
-    CPUState *cs;
+    XivePresenter *xptr = XIVE_PRESENTER(xrtr);
+    XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
+    int count;
 
-    /*
-     * TODO (PowerNV): handle chip_id overwrite of block field for
-     * hardwired CAM compares
-     */
-
-    CPU_FOREACH(cs) {
-        XiveTCTX *tctx = xive_router_get_tctx(xrtr, cs);
-        int ring;
-
-        /*
-         * Skip partially initialized vCPUs. This can happen when
-         * vCPUs are hotplugged.
-         */
-        if (!tctx) {
-            continue;
-        }
-
-        /*
-         * HW checks that the CPU is enabled in the Physical Thread
-         * Enable Register (PTER).
-         */
-
-        /*
-         * Check the thread context CAM lines and record matches. We
-         * will handle CPU exception delivery later
-         */
-        ring = xive_presenter_tctx_match(XIVE_PRESENTER(xrtr), tctx, format,
-                                         nvt_blk, nvt_idx,
-                                         cam_ignore, logic_serv);
-        /*
-         * Save the context and follow on to catch duplicates, that we
-         * don't support yet.
-         */
-        if (ring != -1) {
-            if (match->tctx) {
-                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a thread "
-                              "context NVT %x/%x\n", nvt_blk, nvt_idx);
-                return false;
-            }
-
-            match->ring = ring;
-            match->tctx = tctx;
-        }
+    count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
+                           priority, logic_serv, match);
+    if (count < 0) {
+        return false;
     }
 
     if (!match->tctx) {
