@@ -1423,30 +1423,6 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
     return -1;
 }
 
-static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
-                                 uint8_t nvt_blk, uint32_t nvt_idx,
-                                 bool cam_ignore, uint8_t priority,
-                                 uint32_t logic_serv, XiveTCTXMatch *match)
-{
-    XivePresenter *xptr = XIVE_PRESENTER(xrtr);
-    XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
-    int count;
-
-    count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
-                           priority, logic_serv, match);
-    if (count < 0) {
-        return false;
-    }
-
-    if (!match->tctx) {
-        qemu_log_mask(LOG_UNIMP, "XIVE: NVT %x/%x is not dispatched\n",
-                      nvt_blk, nvt_idx);
-        return false;
-    }
-
-    return true;
-}
-
 /*
  * This is our simple Xive Presenter Engine model. It is merged in the
  * Router as it does not require an extra object.
@@ -1462,22 +1438,32 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static bool xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
+static bool xive_presenter_notify(uint8_t format,
                                   uint8_t nvt_blk, uint32_t nvt_idx,
                                   bool cam_ignore, uint8_t priority,
                                   uint32_t logic_serv)
 {
+    XiveFabric *xfb = XIVE_FABRIC(qdev_get_machine());
+    XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
-    bool found;
+    int count;
 
-    found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
-                                 priority, logic_serv, &match);
-    if (found) {
+    /*
+     * Ask the machine to scan the interrupt controllers for a match
+     */
+    count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, cam_ignore,
+                           priority, logic_serv, &match);
+    if (count < 0) {
+        return false;
+    }
+
+    /* handle CPU exception delivery */
+    if (count) {
         ipb_update(&match.tctx->regs[match.ring], priority);
         xive_tctx_notify(match.tctx, match.ring);
     }
 
-    return found;
+    return !!count;
 }
 
 /*
@@ -1590,7 +1576,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
         return;
     }
 
-    found = xive_presenter_notify(xrtr, format, nvt_blk, nvt_idx,
+    found = xive_presenter_notify(format, nvt_blk, nvt_idx,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
