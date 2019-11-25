@@ -1371,17 +1371,25 @@ int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
    return xrc->write_nvt(xrtr, nvt_blk, nvt_idx, nvt, word_number);
 }
 
+static int xive_router_get_block_id(XiveRouter *xrtr)
+{
+   XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->get_block_id(xrtr);
+}
+
 /*
  * Encode the HW CAM line in the block group mode format :
  *
  *   chip << 19 | 0000000 0 0001 thread (7Bit)
  */
-static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx)
+static uint32_t xive_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
 {
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint8_t blk = xive_router_get_block_id(XIVE_ROUTER(xptr));
 
-    return xive_nvt_cam_line((pir >> 8) & 0xf, 1 << 7 | (pir & 0x7f));
+    return xive_nvt_cam_line(blk, 1 << 7 | (pir & 0x7f));
 }
 
 /*
@@ -1418,7 +1426,7 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 
         /* PHYS ring */
         if ((be32_to_cpu(qw3w2) & TM_QW3W2_VT) &&
-            cam == xive_tctx_hw_cam_line(tctx)) {
+            cam == xive_tctx_hw_cam_line(xptr, tctx)) {
             return TM_QW3_HV_PHYS;
         }
 
@@ -1755,7 +1763,11 @@ static uint64_t xive_end_source_read(void *opaque, hwaddr addr, unsigned size)
     uint8_t pq;
     uint64_t ret = -1;
 
-    end_blk = xsrc->block_id;
+    /*
+     * The block id should be deduced from the load address on the END
+     * ESB MMIO but our model only supports a single block per XIVE chip.
+     */
+    end_blk = xive_router_get_block_id(xsrc->xrtr);
     end_idx = addr >> (xsrc->esb_shift + 1);
 
     if (xive_router_get_end(xsrc->xrtr, end_blk, end_idx, &end)) {
@@ -1855,7 +1867,6 @@ static void xive_end_source_realize(DeviceState *dev, Error **errp)
 }
 
 static Property xive_end_source_properties[] = {
-    DEFINE_PROP_UINT8("block-id", XiveENDSource, block_id, 0),
     DEFINE_PROP_UINT32("nr-ends", XiveENDSource, nr_ends, 0),
     DEFINE_PROP_UINT32("shift", XiveENDSource, esb_shift, XIVE_ESB_64K),
     DEFINE_PROP_LINK("xive", XiveENDSource, xrtr, TYPE_XIVE_ROUTER,

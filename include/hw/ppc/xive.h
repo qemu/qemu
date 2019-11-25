@@ -351,6 +351,7 @@ typedef struct XiveRouterClass {
                    XiveNVT *nvt);
     int (*write_nvt)(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                      XiveNVT *nvt, uint8_t word_number);
+    uint8_t (*get_block_id)(XiveRouter *xrtr);
 } XiveRouterClass;
 
 int xive_router_get_eas(XiveRouter *xrtr, uint8_t eas_blk, uint32_t eas_idx,
@@ -431,7 +432,6 @@ typedef struct XiveENDSource {
     DeviceState parent;
 
     uint32_t        nr_ends;
-    uint8_t         block_id;
 
     /* ESB memory region */
     uint32_t        esb_shift;

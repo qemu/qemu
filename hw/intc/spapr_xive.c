@@ -473,6 +473,11 @@ static int spapr_xive_match_nvt(XivePresenter *xptr, uint8_t format,
     return count;
 }
 
+static uint8_t spapr_xive_get_block_id(XiveRouter *xrtr)
+{
+    return SPAPR_XIVE_BLOCK_ID;
+}
+
 static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
@@ -766,6 +771,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = spapr_xive_write_end;
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
+    xrc->get_block_id = spapr_xive_get_block_id;
 
     sicc->activate = spapr_xive_activate;
     sicc->deactivate = spapr_xive_deactivate;

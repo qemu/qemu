@@ -459,6 +459,11 @@ static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
     return count;
 }
 
+static uint8_t pnv_xive_get_block_id(XiveRouter *xrtr)
+{
+    return pnv_xive_block_id(PNV_XIVE(xrtr));
+}
+
 /*
  * The TIMA MMIO space is shared among the chips and to identify the
  * chip from which the access is being done, we extract the chip id
@@ -1890,6 +1895,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = pnv_xive_write_end;
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
+    xrc->get_block_id = pnv_xive_get_block_id;
 
     xnc->notify = pnv_xive_notify;
     xpc->match_nvt  = pnv_xive_match_nvt;
