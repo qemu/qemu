@@ -1495,15 +1495,20 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+int ppc_cpu_pir(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    return env->spr_cb[SPR_PIR].default_value;
+}
+
 PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
 
-        if (env->spr_cb[SPR_PIR].default_value == pir) {
+        if (ppc_cpu_pir(cpu) == pir) {
             return cpu;
         }
     }
