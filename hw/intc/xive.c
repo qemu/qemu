@@ -1363,9 +1363,10 @@ static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx)
 /*
  * The thread context register words are in big-endian format.
  */
-static int xive_presenter_tctx_match(XiveTCTX *tctx, uint8_t format,
-                                     uint8_t nvt_blk, uint32_t nvt_idx,
-                                     bool cam_ignore, uint32_t logic_serv)
+int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
+                              uint8_t format,
+                              uint8_t nvt_blk, uint32_t nvt_idx,
+                              bool cam_ignore, uint32_t logic_serv)
 {
     uint32_t cam = xive_nvt_cam_line(nvt_blk, nvt_idx);
     uint32_t qw3w2 = xive_tctx_word2(&tctx->regs[TM_QW3_HV_PHYS]);
@@ -1422,11 +1423,6 @@ static int xive_presenter_tctx_match(XiveTCTX *tctx, uint8_t format,
     return -1;
 }
 
-typedef struct XiveTCTXMatch {
-    XiveTCTX *tctx;
-    uint8_t ring;
-} XiveTCTXMatch;
-
 static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
                                  uint8_t nvt_blk, uint32_t nvt_idx,
                                  bool cam_ignore, uint8_t priority,
@@ -1460,7 +1456,8 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
          * Check the thread context CAM lines and record matches. We
          * will handle CPU exception delivery later
          */
-        ring = xive_presenter_tctx_match(tctx, format, nvt_blk, nvt_idx,
+        ring = xive_presenter_tctx_match(XIVE_PRESENTER(xrtr), tctx, format,
+                                         nvt_blk, nvt_idx,
                                          cam_ignore, logic_serv);
         /*
          * Save the context and follow on to catch duplicates, that we
@@ -1754,6 +1751,7 @@ static const TypeInfo xive_router_info = {
     .class_init    = xive_router_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_XIVE_NOTIFIER },
+        { TYPE_XIVE_PRESENTER },
         { }
     }
 };
@@ -1923,10 +1921,20 @@ static const TypeInfo xive_notifier_info = {
     .class_size = sizeof(XiveNotifierClass),
 };
 
+/*
+ * XIVE Presenter
+ */
+static const TypeInfo xive_presenter_info = {
+    .name = TYPE_XIVE_PRESENTER,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(XivePresenterClass),
+};
+
 static void xive_register_types(void)
 {
     type_register_static(&xive_source_info);
     type_register_static(&xive_notifier_info);
+    type_register_static(&xive_presenter_info);
     type_register_static(&xive_router_info);
     type_register_static(&xive_end_source_info);
     type_register_static(&xive_tctx_info);
