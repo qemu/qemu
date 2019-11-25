@@ -47,12 +47,6 @@ static uint8_t ipb_to_pipr(uint8_t ibp)
     return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
 }
 
-static void ipb_update(uint8_t *regs, uint8_t priority)
-{
-    regs[TM_IPB] |= priority_to_ipb(priority);
-    regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
-}
-
 static uint8_t exception_mask(uint8_t ring)
 {
     switch (ring) {
@@ -132,6 +126,15 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     tctx->regs[ring + TM_CPPR] = cppr;
 
     /* CPPR has changed, check if we need to raise a pending exception */
+    xive_tctx_notify(tctx, ring);
+}
+
+void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
+{
+    uint8_t *regs = &tctx->regs[ring];
+
+    regs[TM_IPB] |= ipb;
+    regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
     xive_tctx_notify(tctx, ring);
 }
 
@@ -336,8 +339,7 @@ static void xive_tm_set_os_cppr(XivePresenter *xptr, XiveTCTX *tctx,
 static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
                                    hwaddr offset, uint64_t value, unsigned size)
 {
-    ipb_update(&tctx->regs[TM_QW1_OS], value & 0xff);
-    xive_tctx_notify(tctx, TM_QW1_OS);
+    xive_tctx_ipb_update(tctx, TM_QW1_OS, priority_to_ipb(value & 0xff));
 }
 
 static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
@@ -1429,8 +1431,7 @@ static bool xive_presenter_notify(uint8_t format,
 
     /* handle CPU exception delivery */
     if (count) {
-        ipb_update(&match.tctx->regs[match.ring], priority);
-        xive_tctx_notify(match.tctx, match.ring);
+        xive_tctx_ipb_update(match.tctx, match.ring, priority_to_ipb(priority));
     }
 
     return !!count;
