@@ -1317,13 +1317,6 @@ int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
    return xrc->write_nvt(xrtr, nvt_blk, nvt_idx, nvt, word_number);
 }
 
-XiveTCTX *xive_router_get_tctx(XiveRouter *xrtr, CPUState *cs)
-{
-    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
-
-    return xrc->get_tctx(xrtr, cs);
-}
-
 /*
  * Encode the HW CAM line in the block group mode format :
  *

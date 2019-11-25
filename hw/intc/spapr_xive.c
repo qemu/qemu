@@ -427,13 +427,6 @@ static int spapr_xive_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk,
     g_assert_not_reached();
 }
 
-static XiveTCTX *spapr_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
-{
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-    return spapr_cpu_state(cpu)->tctx;
-}
-
 static int spapr_xive_match_nvt(XivePresenter *xptr, uint8_t format,
                                 uint8_t nvt_blk, uint32_t nvt_idx,
                                 bool cam_ignore, uint8_t priority,
@@ -773,7 +766,6 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = spapr_xive_write_end;
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
-    xrc->get_tctx = spapr_xive_get_tctx;
 
     sicc->activate = spapr_xive_activate;
     sicc->deactivate = spapr_xive_deactivate;

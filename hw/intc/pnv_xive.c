@@ -460,18 +460,6 @@ static PnvXive *pnv_xive_tm_get_xive(PowerPCCPU *cpu)
     return xive;
 }
 
-static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
-{
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    PnvXive *xive = pnv_xive_tm_get_xive(cpu);
-
-    if (!xive) {
-        return NULL;
-    }
-
-    return XIVE_TCTX(pnv_cpu_state(cpu)->intc);
-}
-
 /*
  * The internal sources (IPIs) of the interrupt controller have no
  * knowledge of the XIVE chip on which they reside. Encode the block
@@ -1900,7 +1888,6 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = pnv_xive_write_end;
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
-    xrc->get_tctx = pnv_xive_get_tctx;
 
     xnc->notify = pnv_xive_notify;
     xpc->match_nvt  = pnv_xive_match_nvt;
