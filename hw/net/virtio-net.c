@@ -759,6 +759,10 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
 
+    if (n->primary_dev) {
+        return;
+    }
+
     n->primary_device_opts = qemu_opts_find(qemu_find_opts("device"),
             n->primary_device_id);
     if (n->primary_device_opts) {
@@ -2801,25 +2805,33 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
         n->primary_device_opts = qemu_opts_from_qdict(
                 qemu_find_opts("device"),
                 n->primary_device_dict, errp);
+        if (!n->primary_device_opts) {
+            error_setg(errp, "virtio_net: couldn't find primary device opts");
+            goto out;
+        }
     }
-    if (n->primary_device_opts) {
-        if (n->primary_dev) {
-            n->primary_bus = n->primary_dev->parent_bus;
-        }
-        qdev_set_parent_bus(n->primary_dev, n->primary_bus);
-        n->primary_should_be_hidden = false;
-        qemu_opt_set_bool(n->primary_device_opts,
-                "partially_hotplugged", true, errp);
-        hotplug_ctrl = qdev_get_hotplug_handler(n->primary_dev);
-        if (hotplug_ctrl) {
-            hotplug_handler_pre_plug(hotplug_ctrl, n->primary_dev, errp);
-            hotplug_handler_plug(hotplug_ctrl, n->primary_dev, errp);
-        }
-        if (!n->primary_dev) {
+    if (!n->primary_dev) {
             error_setg(errp, "virtio_net: couldn't find primary device");
-        }
+            goto out;
     }
-    return *errp != NULL;
+
+    n->primary_bus = n->primary_dev->parent_bus;
+    if (!n->primary_bus) {
+        error_setg(errp, "virtio_net: couldn't find primary bus");
+        goto out;
+    }
+    qdev_set_parent_bus(n->primary_dev, n->primary_bus);
+    n->primary_should_be_hidden = false;
+    qemu_opt_set_bool(n->primary_device_opts,
+                      "partially_hotplugged", true, errp);
+    hotplug_ctrl = qdev_get_hotplug_handler(n->primary_dev);
+    if (hotplug_ctrl) {
+        hotplug_handler_pre_plug(hotplug_ctrl, n->primary_dev, errp);
+        hotplug_handler_plug(hotplug_ctrl, n->primary_dev, errp);
+    }
+
+out:
+    return *errp == NULL;
 }
 
 static void virtio_net_handle_migration_primary(VirtIONet *n,
@@ -2848,7 +2860,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
             warn_report("couldn't unplug primary device");
         }
     } else if (migration_has_failed(s)) {
-        /* We already unplugged the device let's plugged it back */
+        /* We already unplugged the device let's plug it back */
         if (!failover_replug_primary(n, &err)) {
             if (err) {
                 error_report_err(err);
@@ -2868,9 +2880,12 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
             QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    bool match_found;
-    bool hide;
+    bool match_found = false;
+    bool hide = false;
 
+    if (!device_opts) {
+        return -1;
+    }
     n->primary_device_dict = qemu_opts_to_qdict(device_opts,
             n->primary_device_dict);
     if (n->primary_device_dict) {
@@ -2878,7 +2893,7 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
         n->standby_id = g_strdup(qdict_get_try_str(n->primary_device_dict,
                     "failover_pair_id"));
     }
-    if (device_opts && g_strcmp0(n->standby_id, n->netclient_name) == 0) {
+    if (g_strcmp0(n->standby_id, n->netclient_name) == 0) {
         match_found = true;
     } else {
         match_found = false;
@@ -3124,6 +3139,9 @@ static bool primary_unplug_pending(void *opaque)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(vdev);
 
+    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
+        return false;
+    }
     return n->primary_dev ? n->primary_dev->pending_deleted_event : false;
 }
 
