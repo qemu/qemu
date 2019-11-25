@@ -528,6 +528,44 @@ static uint32_t pnv_xive_nr_ipis(PnvXive *xive, uint8_t blk)
 }
 
 /*
+ * Compute the number of entries per indirect subpage.
+ */
+static uint64_t pnv_xive_vst_per_subpage(PnvXive *xive, uint32_t type)
+{
+    uint8_t blk = pnv_xive_block_id(xive);
+    uint64_t vsd = xive->vsds[type][blk];
+    const XiveVstInfo *info = &vst_infos[type];
+    uint64_t vsd_addr;
+    uint32_t page_shift;
+
+    /* For direct tables, fake a valid value */
+    if (!(VSD_INDIRECT & vsd)) {
+        return 1;
+    }
+
+    /* Get the page size of the indirect table. */
+    vsd_addr = vsd & VSD_ADDRESS_MASK;
+    vsd = ldq_be_dma(&address_space_memory, vsd_addr);
+
+    if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
+        xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
+        return 0;
+    }
+
+    page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+
+    if (!pnv_xive_vst_page_size_allowed(page_shift)) {
+        xive_error(xive, "VST: invalid %s page shift %d", info->name,
+                   page_shift);
+        return 0;
+    }
+
+    return (1ull << page_shift) / info->size;
+}
+
+/*
  * EDT Table
  *
  * The Virtualization Controller MMIO region containing the IPI ESB
@@ -1665,6 +1703,21 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     },
 };
 
+static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
+                                    Monitor *mon)
+{
+    uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
+    uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
+
+    if (!xive_nvt_is_valid(nvt)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n", nvt_idx,
+                   eq_blk, eq_idx,
+                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+}
+
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
@@ -1674,7 +1727,9 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     uint32_t nr_ipis = pnv_xive_nr_ipis(xive, blk);
     XiveEAS eas;
     XiveEND end;
+    XiveNVT nvt;
     int i;
+    uint64_t xive_nvt_per_subpage;
 
     monitor_printf(mon, "XIVE[%x] #%d Source %08x .. %08x\n", chip_id, blk,
                    srcno0, srcno0 + nr_ipis - 1);
@@ -1701,6 +1756,15 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
         xive_end_eas_pic_print_info(&end, i++, mon);
+    }
+
+    monitor_printf(mon, "XIVE[%x] #%d NVTT %08x .. %08x\n", chip_id, blk,
+                   0, XIVE_NVT_COUNT - 1);
+    xive_nvt_per_subpage = pnv_xive_vst_per_subpage(xive, VST_TSEL_VPDT);
+    for (i = 0; i < XIVE_NVT_COUNT; i += xive_nvt_per_subpage) {
+        while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
+            xive_nvt_pic_print_info(&nvt, i++, mon);
+        }
     }
 }
 

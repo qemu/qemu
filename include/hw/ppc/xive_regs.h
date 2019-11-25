@@ -252,6 +252,8 @@ typedef struct XiveNVT {
         uint32_t        w0;
 #define NVT_W0_VALID             PPC_BIT32(0)
         uint32_t        w1;
+#define NVT_W1_EQ_BLOCK          PPC_BITMASK32(0, 3)
+#define NVT_W1_EQ_INDEX          PPC_BITMASK32(4, 31)
         uint32_t        w2;
         uint32_t        w3;
         uint32_t        w4;
@@ -277,6 +279,7 @@ typedef struct XiveNVT {
  * field of the XIVE END
  */
 #define XIVE_NVT_SHIFT                19
+#define XIVE_NVT_COUNT                (1 << XIVE_NVT_SHIFT)
 
 static inline uint32_t xive_nvt_cam_line(uint8_t nvt_blk, uint32_t nvt_idx)
 {
