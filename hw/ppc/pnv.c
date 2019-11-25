@@ -280,14 +280,12 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
 
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
-    const char *typename = pnv_chip_core_typename(chip);
-    size_t typesize = object_type_get_instance_size(typename);
     int i;
 
     pnv_dt_xscom(chip, fdt, 0);
 
     for (i = 0; i < chip->nr_cores; i++) {
-        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+        PnvCore *pnv_core = chip->cores[i];
 
         pnv_dt_core(chip, pnv_core, fdt);
 
@@ -302,14 +300,12 @@ static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 
 static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 {
-    const char *typename = pnv_chip_core_typename(chip);
-    size_t typesize = object_type_get_instance_size(typename);
     int i;
 
     pnv_dt_xscom(chip, fdt, 0);
 
     for (i = 0; i < chip->nr_cores; i++) {
-        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+        PnvCore *pnv_core = chip->cores[i];
 
         pnv_dt_core(chip, pnv_core, fdt);
     }
@@ -913,8 +909,6 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
  {
     PnvChip *chip = PNV_CHIP(chip8);
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    const char *typename = pnv_chip_core_typename(chip);
-    size_t typesize = object_type_get_instance_size(typename);
     int i, j;
     char *name;
     XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
@@ -928,7 +922,7 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
 
     /* Map the ICP registers for each thread */
     for (i = 0; i < chip->nr_cores; i++) {
-        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+        PnvCore *pnv_core = chip->cores[i];
         int core_hwid = CPU_CORE(pnv_core)->core_id;
 
         for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
@@ -1108,8 +1102,6 @@ static void pnv_chip_power9_instance_init(Object *obj)
 static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(chip9);
-    const char *typename = pnv_chip_core_typename(chip);
-    size_t typesize = object_type_get_instance_size(typename);
     int i;
 
     chip9->nr_quads = DIV_ROUND_UP(chip->nr_cores, 4);
@@ -1118,7 +1110,7 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
     for (i = 0; i < chip9->nr_quads; i++) {
         char eq_name[32];
         PnvQuad *eq = &chip9->quads[i];
-        PnvCore *pnv_core = PNV_CORE(chip->cores + (i * 4) * typesize);
+        PnvCore *pnv_core = chip->cores[i * 4];
         int core_id = CPU_CORE(pnv_core)->core_id;
 
         snprintf(eq_name, sizeof(eq_name), "eq[%d]", core_id);
@@ -1290,7 +1282,6 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
-    size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
 
     if (!object_class_by_name(typename)) {
@@ -1305,21 +1296,24 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         return;
     }
 
-    chip->cores = g_malloc0(typesize * chip->nr_cores);
+    chip->cores = g_new0(PnvCore *, chip->nr_cores);
 
     for (i = 0, core_hwid = 0; (core_hwid < sizeof(chip->cores_mask) * 8)
              && (i < chip->nr_cores); core_hwid++) {
         char core_name[32];
-        void *pnv_core = chip->cores + i * typesize;
+        PnvCore *pnv_core;
         uint64_t xscom_core_base;
 
         if (!(chip->cores_mask & (1ull << core_hwid))) {
             continue;
         }
 
+        pnv_core = PNV_CORE(object_new(typename));
+
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
-        object_initialize_child(OBJECT(chip), core_name, pnv_core, typesize,
-                                typename, &error_fatal, NULL);
+        object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
+                                  &error_abort);
+        chip->cores[i] = pnv_core;
         object_property_set_int(OBJECT(pnv_core), ms->smp.threads, "nr-threads",
                                 &error_fatal);
         object_property_set_int(OBJECT(pnv_core), core_hwid,
@@ -1340,7 +1334,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         }
 
         pnv_xscom_add_subregion(chip, xscom_core_base,
-                                &PNV_CORE(pnv_core)->xscom_regs);
+                                &pnv_core->xscom_regs);
         i++;
     }
 }

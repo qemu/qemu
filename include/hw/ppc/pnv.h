@@ -56,7 +56,7 @@ typedef struct PnvChip {
 
     uint32_t     nr_cores;
     uint64_t     cores_mask;
-    void         *cores;
+    PnvCore      **cores;
 
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
