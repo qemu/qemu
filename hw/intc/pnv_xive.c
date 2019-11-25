@@ -372,6 +372,21 @@ static int pnv_xive_get_eas(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
     return pnv_xive_vst_read(xive, VST_TSEL_IVT, blk, idx, eas);
 }
 
+/*
+ * One bit per thread id. The first register PC_THREAD_EN_REG0 covers
+ * the first cores 0-15 (normal) of the chip or 0-7 (fused). The
+ * second register covers cores 16-23 (normal) or 8-11 (fused).
+ */
+static bool pnv_xive_is_cpu_enabled(PnvXive *xive, PowerPCCPU *cpu)
+{
+    int pir = ppc_cpu_pir(cpu);
+    uint32_t fc = PNV9_PIR2FUSEDCORE(pir);
+    uint64_t reg = fc < 8 ? PC_THREAD_EN_REG0 : PC_THREAD_EN_REG1;
+    uint32_t bit = pir & 0x3f;
+
+    return xive->regs[reg >> 3] & PPC_BIT(bit);
+}
+
 static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
                               uint8_t nvt_blk, uint32_t nvt_idx,
                               bool cam_ignore, uint8_t priority,
@@ -390,6 +405,10 @@ static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
             PowerPCCPU *cpu = pc->threads[j];
             XiveTCTX *tctx;
             int ring;
+
+            if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
+                continue;
+            }
 
             tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 

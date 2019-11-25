@@ -99,6 +99,11 @@ typedef struct Pnv9Chip {
     PnvQuad      *quads;
 } Pnv9Chip;
 
+/*
+ * A SMT8 fused core is a pair of SMT4 cores.
+ */
+#define PNV9_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
+
 typedef struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
