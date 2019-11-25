@@ -523,35 +523,6 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     return xive_tm_raw_read(tctx, offset, size);
 }
 
-static void xive_tm_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
-{
-    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
-
-    xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
-}
-
-static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
-{
-    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
-
-    return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
-}
-
-const MemoryRegionOps xive_tm_ops = {
-    .read = xive_tm_read,
-    .write = xive_tm_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
-};
-
 static char *xive_tctx_ring_print(uint8_t *ring)
 {
     uint32_t w2 = xive_tctx_word2(ring);

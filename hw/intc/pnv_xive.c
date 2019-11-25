@@ -1467,6 +1467,39 @@ static const MemoryRegionOps xive_tm_indirect_ops = {
     },
 };
 
+static void pnv_xive_tm_write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PnvXive *xive = pnv_xive_tm_get_xive(cpu);
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+    xive_tctx_tm_write(XIVE_PRESENTER(xive), tctx, offset, value, size);
+}
+
+static uint64_t pnv_xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PnvXive *xive = pnv_xive_tm_get_xive(cpu);
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+    return xive_tctx_tm_read(XIVE_PRESENTER(xive), tctx, offset, size);
+}
+
+const MemoryRegionOps pnv_xive_tm_ops = {
+    .read = pnv_xive_tm_read,
+    .write = pnv_xive_tm_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 /*
  * Interrupt controller XSCOM region.
  */
@@ -1809,7 +1842,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                           "xive-pc", PNV9_XIVE_PC_SIZE);
 
     /* Thread Interrupt Management Area (Direct) */
-    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops,
+    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &pnv_xive_tm_ops,
                           xive, "xive-tima", PNV9_XIVE_TM_SIZE);
 
     qemu_register_reset(pnv_xive_reset, dev);
