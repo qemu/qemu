@@ -340,6 +340,7 @@
 #define __NR_fsmount	(__NR_Linux + 432)
 #define __NR_fspick	(__NR_Linux + 433)
 #define __NR_pidfd_open	(__NR_Linux + 434)
+#define __NR_clone3	(__NR_Linux + 435)
 
 
 #endif /* _ASM_MIPS_UNISTD_N64_H */
