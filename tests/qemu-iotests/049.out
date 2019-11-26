@@ -121,6 +121,11 @@ qemu-img: TEST_DIR/t.qcow2: Parameter 'size' expects a non-negative number below
 Optional suffix k, M, G, T, P or E means kilo-, mega-, giga-, tera-, peta-
 and exabytes, respectively.
 
+== 4. Specify size twice (-o and traditional parameter) ==
+
+qemu-img create -f qcow2 -o size=10M TEST_DIR/t.qcow2 20M
+qemu-img: TEST_DIR/t.qcow2: The image size must be specified only once
+
 == Check correct interpretation of suffixes for cluster size ==
 
 qemu-img create -f qcow2 -o cluster_size=1024 TEST_DIR/t.qcow2 64M

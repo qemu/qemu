@@ -5751,12 +5751,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
+    /* Create parameter list */
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    /* Create parameter list with default values */
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
 
     /* Parse -o options */
     if (options) {
@@ -5764,6 +5763,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
         if (local_err) {
             goto out;
         }
+    }
+
+    if (!qemu_opt_get(opts, BLOCK_OPT_SIZE)) {
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
+    } else if (img_size != UINT64_C(-1)) {
+        error_setg(errp, "The image size must be specified only once");
+        goto out;
     }
 
     if (base_filename) {

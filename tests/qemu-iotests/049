@@ -78,6 +78,11 @@ for s in $sizes; do
     test_qemu_img create -f $IMGFMT -o size=$s "$TEST_IMG"
 done
 
+echo "== 4. Specify size twice (-o and traditional parameter) =="
+echo
+
+test_qemu_img create -f $IMGFMT -o size=10M "$TEST_IMG" 20M
+
 echo "== Check correct interpretation of suffixes for cluster size =="
 echo
 sizes="1024 1024b 1k 1K 1M "
