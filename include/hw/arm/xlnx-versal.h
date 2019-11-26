@@ -119,4 +119,7 @@ typedef struct Versal {
 #define MM_IOU_SCNTRS_SIZE          0x10000
 #define MM_FPD_CRF                  0xfd1a0000U
 #define MM_FPD_CRF_SIZE             0x140000
+
+#define MM_PMC_CRP                  0xf1260000U
+#define MM_PMC_CRP_SIZE             0x10000
 #endif
