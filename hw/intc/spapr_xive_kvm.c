@@ -152,7 +152,8 @@ void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
 
 void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
-    SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    SpaprXive *xive = SPAPR_MACHINE(ms)->xive;
     unsigned long vcpu_id;
     int ret;
 
@@ -171,8 +172,16 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     ret = kvm_vcpu_enable_cap(tctx->cs, KVM_CAP_PPC_IRQ_XIVE, 0, xive->fd,
                               vcpu_id, 0);
     if (ret < 0) {
-        error_setg(errp, "XIVE: unable to connect CPU%ld to KVM device: %s",
+        Error *local_err = NULL;
+
+        error_setg(&local_err,
+                   "XIVE: unable to connect CPU%ld to KVM device: %s",
                    vcpu_id, strerror(errno));
+        if (errno == ENOSPC) {
+            error_append_hint(&local_err, "Try -smp maxcpus=N with N < %u\n",
+                              ms->smp.max_cpus);
+        }
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -756,6 +765,16 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     if (xive->fd < 0) {
         error_setg_errno(errp, -xive->fd, "XIVE: error creating KVM device");
         return -1;
+    }
+
+    /* Tell KVM about the # of VCPUs we may have */
+    if (kvm_device_check_attr(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
+                              KVM_DEV_XIVE_NR_SERVERS)) {
+        if (kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
+                              KVM_DEV_XIVE_NR_SERVERS, &nr_servers, true,
+                              &local_err)) {
+            goto fail;
+        }
     }
 
     /*
