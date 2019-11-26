@@ -483,10 +483,7 @@ class BootLinuxConsole(Test):
                    '/20191021T083923Z/pool-m68k/main'
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
-        try:
-            deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        except OSError as exp:
-            self.cancel(exp)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-5.3.0-1-m68k')
 
