@@ -2233,18 +2233,17 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         if (env->v7m.secure) {
             lr |= R_V7M_EXCRET_S_MASK;
         }
-        if (!(env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK)) {
-            lr |= R_V7M_EXCRET_FTYPE_MASK;
-        }
     } else {
         lr = R_V7M_EXCRET_RES1_MASK |
             R_V7M_EXCRET_S_MASK |
             R_V7M_EXCRET_DCRS_MASK |
-            R_V7M_EXCRET_FTYPE_MASK |
             R_V7M_EXCRET_ES_MASK;
         if (env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK) {
             lr |= R_V7M_EXCRET_SPSEL_MASK;
         }
+    }
+    if (!(env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK)) {
+        lr |= R_V7M_EXCRET_FTYPE_MASK;
     }
     if (!arm_v7m_is_handler_mode(env)) {
         lr |= R_V7M_EXCRET_MODE_MASK;
