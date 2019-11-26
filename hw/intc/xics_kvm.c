@@ -342,7 +342,8 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-int xics_kvm_connect(SpaprInterruptController *intc, Error **errp)
+int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
+                     Error **errp)
 {
     ICSState *ics = ICS_SPAPR(intc);
     int rc;

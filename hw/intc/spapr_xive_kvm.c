@@ -728,7 +728,8 @@ static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
  * All the XIVE memory regions are now backed by mappings from the KVM
  * XIVE device.
  */
-int kvmppc_xive_connect(SpaprInterruptController *intc, Error **errp)
+int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
+                        Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;

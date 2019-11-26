@@ -43,7 +43,8 @@ typedef struct SpaprInterruptController SpaprInterruptController;
 typedef struct SpaprInterruptControllerClass {
     InterfaceClass parent;
 
-    int (*activate)(SpaprInterruptController *intc, Error **errp);
+    int (*activate)(SpaprInterruptController *intc, uint32_t nr_servers,
+                    Error **errp);
     void (*deactivate)(SpaprInterruptController *intc);
 
     /*
@@ -98,8 +99,13 @@ qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq);
 int spapr_irq_post_load(SpaprMachineState *spapr, int version_id);
 void spapr_irq_reset(SpaprMachineState *spapr, Error **errp);
 int spapr_irq_get_phandle(SpaprMachineState *spapr, void *fdt, Error **errp);
-int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
+
+typedef int (*SpaprInterruptControllerInitKvm)(SpaprInterruptController *,
+                                               uint32_t, Error **);
+
+int spapr_irq_init_kvm(SpaprInterruptControllerInitKvm fn,
                        SpaprInterruptController *intc,
+                       uint32_t nr_servers,
                        Error **errp);
 
 /*

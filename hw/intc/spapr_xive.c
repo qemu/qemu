@@ -697,12 +697,14 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
                      plat_res_int_priorities, sizeof(plat_res_int_priorities)));
 }
 
-static int spapr_xive_activate(SpaprInterruptController *intc, Error **errp)
+static int spapr_xive_activate(SpaprInterruptController *intc,
+                               uint32_t nr_servers, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
 
     if (kvm_enabled()) {
-        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, errp);
+        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, nr_servers,
+                                    errp);
         if (rc < 0) {
             return rc;
         }
