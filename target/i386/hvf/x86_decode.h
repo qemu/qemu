@@ -27,12 +27,12 @@ typedef enum x86_prefix {
     PREFIX_REPN =                  0xf2,
     PREFIX_REP =                   0xf3,
     /* group 2 */
-    PREFIX_CS_SEG_OVEERIDE =       0x2e,
-    PREFIX_SS_SEG_OVEERIDE =       0x36,
-    PREFIX_DS_SEG_OVEERIDE =       0x3e,
-    PREFIX_ES_SEG_OVEERIDE =       0x26,
-    PREFIX_FS_SEG_OVEERIDE =       0x64,
-    PREFIX_GS_SEG_OVEERIDE =       0x65,
+    PREFIX_CS_SEG_OVERRIDE =       0x2e,
+    PREFIX_SS_SEG_OVERRIDE =       0x36,
+    PREFIX_DS_SEG_OVERRIDE =       0x3e,
+    PREFIX_ES_SEG_OVERRIDE =       0x26,
+    PREFIX_FS_SEG_OVERRIDE =       0x64,
+    PREFIX_GS_SEG_OVERRIDE =       0x65,
     /* group 3 */
     PREFIX_OP_SIZE_OVERRIDE =      0x66,
     /* group 4 */
@@ -303,10 +303,10 @@ uint64_t sign(uint64_t val, int size);
 
 uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode);
 
-target_ulong get_reg_ref(CPUX86State *env, int reg, int rex, int is_extended,
-                         int size);
-target_ulong get_reg_val(CPUX86State *env, int reg, int rex, int is_extended,
-                         int size);
+target_ulong get_reg_ref(CPUX86State *env, int reg, int rex_present,
+                         int is_extended, int size);
+target_ulong get_reg_val(CPUX86State *env, int reg, int rex_present,
+                         int is_extended, int size);
 void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op);
 target_ulong decode_linear_addr(CPUX86State *env, struct x86_decode *decode,

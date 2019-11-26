@@ -122,7 +122,8 @@ static void decode_rax(CPUX86State *env, struct x86_decode *decode,
 {
     op->type = X86_VAR_REG;
     op->reg = R_EAX;
-    op->ptr = get_reg_ref(env, op->reg, decode->rex.rex, 0,
+    /* Since reg is always AX, REX prefix has no impact. */
+    op->ptr = get_reg_ref(env, op->reg, false, 0,
                           decode->operand_size);
 }
 
@@ -1687,40 +1688,37 @@ calc_addr:
     }
 }
 
-target_ulong get_reg_ref(CPUX86State *env, int reg, int rex, int is_extended,
-                         int size)
+target_ulong get_reg_ref(CPUX86State *env, int reg, int rex_present,
+                         int is_extended, int size)
 {
     target_ulong ptr = 0;
-    int which = 0;
 
     if (is_extended) {
         reg |= R_R8;
     }
 
-
     switch (size) {
     case 1:
-        if (is_extended || reg < 4 || rex) {
-            which = 1;
+        if (is_extended || reg < 4 || rex_present) {
             ptr = (target_ulong)&RL(env, reg);
         } else {
-            which = 2;
             ptr = (target_ulong)&RH(env, reg - 4);
         }
         break;
     default:
-        which = 3;
         ptr = (target_ulong)&RRX(env, reg);
         break;
     }
     return ptr;
 }
 
-target_ulong get_reg_val(CPUX86State *env, int reg, int rex, int is_extended,
-                         int size)
+target_ulong get_reg_val(CPUX86State *env, int reg, int rex_present,
+                         int is_extended, int size)
 {
     target_ulong val = 0;
-    memcpy(&val, (void *)get_reg_ref(env, reg, rex, is_extended, size), size);
+    memcpy(&val,
+           (void *)get_reg_ref(env, reg, rex_present, is_extended, size),
+           size);
     return val;
 }
 
@@ -1853,28 +1851,38 @@ void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
 static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
 {
     while (1) {
+        /*
+         * REX prefix must come after legacy prefixes.
+         * REX before legacy is ignored.
+         * Clear rex to simulate this.
+         */
         uint8_t byte = decode_byte(env, decode);
         switch (byte) {
         case PREFIX_LOCK:
             decode->lock = byte;
+            decode->rex.rex = 0;
             break;
         case PREFIX_REPN:
         case PREFIX_REP:
             decode->rep = byte;
+            decode->rex.rex = 0;
             break;
-        case PREFIX_CS_SEG_OVEERIDE:
-        case PREFIX_SS_SEG_OVEERIDE:
-        case PREFIX_DS_SEG_OVEERIDE:
-        case PREFIX_ES_SEG_OVEERIDE:
-        case PREFIX_FS_SEG_OVEERIDE:
-        case PREFIX_GS_SEG_OVEERIDE:
+        case PREFIX_CS_SEG_OVERRIDE:
+        case PREFIX_SS_SEG_OVERRIDE:
+        case PREFIX_DS_SEG_OVERRIDE:
+        case PREFIX_ES_SEG_OVERRIDE:
+        case PREFIX_FS_SEG_OVERRIDE:
+        case PREFIX_GS_SEG_OVERRIDE:
             decode->segment_override = byte;
+            decode->rex.rex = 0;
             break;
         case PREFIX_OP_SIZE_OVERRIDE:
             decode->op_size_override = byte;
+            decode->rex.rex = 0;
             break;
         case PREFIX_ADDR_SIZE_OVERRIDE:
             decode->addr_size_override = byte;
+            decode->rex.rex = 0;
             break;
         case PREFIX_REX ... (PREFIX_REX + 0xf):
             if (x86_is_long_mode(env_cpu(env))) {
@@ -2111,14 +2119,14 @@ void init_decoder()
 {
     int i;
     
-    for (i = 0; i < ARRAY_SIZE(_decode_tbl2); i++) {
-        memcpy(_decode_tbl1, &invl_inst, sizeof(invl_inst));
+    for (i = 0; i < ARRAY_SIZE(_decode_tbl1); i++) {
+        memcpy(&_decode_tbl1[i], &invl_inst, sizeof(invl_inst));
     }
     for (i = 0; i < ARRAY_SIZE(_decode_tbl2); i++) {
-        memcpy(_decode_tbl2, &invl_inst, sizeof(invl_inst));
+        memcpy(&_decode_tbl2[i], &invl_inst, sizeof(invl_inst));
     }
     for (i = 0; i < ARRAY_SIZE(_decode_tbl3); i++) {
-        memcpy(_decode_tbl3, &invl_inst, sizeof(invl_inst_x87));
+        memcpy(&_decode_tbl3[i], &invl_inst_x87, sizeof(invl_inst_x87));
     
     }
     for (i = 0; i < ARRAY_SIZE(_1op_inst); i++) {
@@ -2167,22 +2175,22 @@ target_ulong decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
                                target_ulong addr, X86Seg seg)
 {
     switch (decode->segment_override) {
-    case PREFIX_CS_SEG_OVEERIDE:
+    case PREFIX_CS_SEG_OVERRIDE:
         seg = R_CS;
         break;
-    case PREFIX_SS_SEG_OVEERIDE:
+    case PREFIX_SS_SEG_OVERRIDE:
         seg = R_SS;
         break;
-    case PREFIX_DS_SEG_OVEERIDE:
+    case PREFIX_DS_SEG_OVERRIDE:
         seg = R_DS;
         break;
-    case PREFIX_ES_SEG_OVEERIDE:
+    case PREFIX_ES_SEG_OVERRIDE:
         seg = R_ES;
         break;
-    case PREFIX_FS_SEG_OVEERIDE:
+    case PREFIX_FS_SEG_OVERRIDE:
         seg = R_FS;
         break;
-    case PREFIX_GS_SEG_OVEERIDE:
+    case PREFIX_GS_SEG_OVERRIDE:
         seg = R_GS;
         break;
     default:
