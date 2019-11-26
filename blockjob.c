@@ -261,7 +261,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         return;
     }
     if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative value");
         return;
     }
 
