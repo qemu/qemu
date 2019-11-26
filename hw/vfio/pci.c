@@ -216,30 +216,18 @@ static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 #endif
 }
 
-static void vfio_intx_update(PCIDevice *pdev)
+static void vfio_intx_update(VFIOPCIDevice *vdev, PCIINTxRoute *route)
 {
-    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
-    PCIINTxRoute route;
     Error *err = NULL;
 
-    if (vdev->interrupt != VFIO_INT_INTx) {
-        return;
-    }
-
-    route = pci_device_route_intx_to_irq(&vdev->pdev, vdev->intx.pin);
-
-    if (!pci_intx_route_changed(&vdev->intx.route, &route)) {
-        return; /* Nothing changed */
-    }
-
     trace_vfio_intx_update(vdev->vbasedev.name,
-                           vdev->intx.route.irq, route.irq);
+                           vdev->intx.route.irq, route->irq);
 
     vfio_intx_disable_kvm(vdev);
 
-    vdev->intx.route = route;
+    vdev->intx.route = *route;
 
-    if (route.mode != PCI_INTX_ENABLED) {
+    if (route->mode != PCI_INTX_ENABLED) {
         return;
     }
 
@@ -250,6 +238,30 @@ static void vfio_intx_update(PCIDevice *pdev)
 
     /* Re-enable the interrupt in cased we missed an EOI */
     vfio_intx_eoi(&vdev->vbasedev);
+}
+
+static void vfio_intx_routing_notifier(PCIDevice *pdev)
+{
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
+    PCIINTxRoute route;
+
+    if (vdev->interrupt != VFIO_INT_INTx) {
+        return;
+    }
+
+    route = pci_device_route_intx_to_irq(&vdev->pdev, vdev->intx.pin);
+
+    if (pci_intx_route_changed(&vdev->intx.route, &route)) {
+        vfio_intx_update(vdev, &route);
+    }
+}
+
+static void vfio_irqchip_change(Notifier *notify, void *data)
+{
+    VFIOPCIDevice *vdev = container_of(notify, VFIOPCIDevice,
+                                       irqchip_change_notifier);
+
+    vfio_intx_update(vdev, &vdev->intx.route);
 }
 
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
@@ -2967,31 +2979,34 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
-        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
+        pci_device_set_intx_routing_notifier(&vdev->pdev,
+                                             vfio_intx_routing_notifier);
+        vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
+        kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
         ret = vfio_intx_enable(vdev, errp);
         if (ret) {
-            goto out_teardown;
+            goto out_deregister;
         }
     }
 
     if (vdev->display != ON_OFF_AUTO_OFF) {
         ret = vfio_display_probe(vdev, errp);
         if (ret) {
-            goto out_teardown;
+            goto out_deregister;
         }
     }
     if (vdev->enable_ramfb && vdev->dpy == NULL) {
         error_setg(errp, "ramfb=on requires display=on");
-        goto out_teardown;
+        goto out_deregister;
     }
     if (vdev->display_xres || vdev->display_yres) {
         if (vdev->dpy == NULL) {
             error_setg(errp, "xres and yres properties require display=on");
-            goto out_teardown;
+            goto out_deregister;
         }
         if (vdev->dpy->edid_regs == NULL) {
             error_setg(errp, "xres and yres properties need edid support");
-            goto out_teardown;
+            goto out_deregister;
         }
     }
 
@@ -3015,8 +3030,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     return;
 
-out_teardown:
+out_deregister:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
+    kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
+out_teardown:
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
 error:
@@ -3059,6 +3076,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
+    kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {
         timer_free(vdev->intx.mmap_timer);

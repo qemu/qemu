@@ -149,6 +149,9 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_LAST_INFO
 };
 
+static NotifierList kvm_irqchip_change_notifiers =
+    NOTIFIER_LIST_INITIALIZER(kvm_irqchip_change_notifiers);
+
 #define kvm_slots_lock(kml)      qemu_mutex_lock(&(kml)->slots_lock)
 #define kvm_slots_unlock(kml)    qemu_mutex_unlock(&(kml)->slots_lock)
 
@@ -1394,6 +1397,21 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
     clear_gsi(s, virq);
     kvm_arch_release_virq_post(virq);
     trace_kvm_irqchip_release_virq(virq);
+}
+
+void kvm_irqchip_add_change_notifier(Notifier *n)
+{
+    notifier_list_add(&kvm_irqchip_change_notifiers, n);
+}
+
+void kvm_irqchip_remove_change_notifier(Notifier *n)
+{
+    notifier_remove(n);
+}
+
+void kvm_irqchip_change_notify(void)
+{
+    notifier_list_notify(&kvm_irqchip_change_notifiers, NULL);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)

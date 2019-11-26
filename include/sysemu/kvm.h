@@ -201,6 +201,7 @@ typedef struct KVMCapabilityInfo {
 struct KVMState;
 typedef struct KVMState KVMState;
 extern KVMState *kvm_state;
+typedef struct Notifier Notifier;
 
 /* external API */
 
@@ -400,6 +401,10 @@ int kvm_set_irq(KVMState *s, int irq, int level);
 int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg);
 
 void kvm_irqchip_add_irq_route(KVMState *s, int gsi, int irqchip, int pin);
+
+void kvm_irqchip_add_change_notifier(Notifier *n);
+void kvm_irqchip_remove_change_notifier(Notifier *n);
+void kvm_irqchip_change_notify(void);
 
 void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 

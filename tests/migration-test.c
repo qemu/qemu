@@ -614,7 +614,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         extra_opts = use_shmem ? get_shmem_opts("256M", shmem_path) : NULL;
-        cmd_src = g_strdup_printf("-machine accel=%s -m 256M -nodefaults"
+        cmd_src = g_strdup_printf("-machine accel=%s,vsmt=8 -m 256M -nodefaults"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -prom-env 'use-nvramrc?=true' -prom-env "
@@ -623,7 +623,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                   "until' %s %s",  accel, tmpfs, end_address,
                                   start_address, extra_opts ? extra_opts : "",
                                   opts_src);
-        cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
+        cmd_dst = g_strdup_printf("-machine accel=%s,vsmt=8 -m 256M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s %s %s",
