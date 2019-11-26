@@ -479,7 +479,8 @@ class BootLinuxConsole(Test):
         :avocado: tags=arch:m68k
         :avocado: tags=machine:q800
         """
-        deb_url = ('http://ftp.ports.debian.org/debian-ports/pool-m68k/main'
+        deb_url = ('https://snapshot.debian.org/archive/debian-ports'
+                   '/20191021T083923Z/pool-m68k/main'
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
         try:
