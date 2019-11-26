@@ -134,7 +134,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.check_bitmap(self.vm_a, sha256 if persistent else False)
 
     def do_test_migration(self, persistent, migrate_bitmaps, online,
-                          shared_storage):
+                          shared_storage, pre_shutdown):
         granularity = 512
 
         # regions = ((start, count), ...)
@@ -142,14 +142,12 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
                    (0xf0000, 0x10000),
                    (0xa0201, 0x1000))
 
-        should_migrate = migrate_bitmaps or persistent and shared_storage
+        should_migrate = \
+            (migrate_bitmaps and (persistent or not pre_shutdown)) or \
+            (persistent and shared_storage)
         mig_caps = [{'capability': 'events', 'state': True}]
         if migrate_bitmaps:
             mig_caps.append({'capability': 'dirty-bitmaps', 'state': True})
-
-        result = self.vm_a.qmp('migrate-set-capabilities',
-                               capabilities=mig_caps)
-        self.assert_qmp(result, 'return', {})
 
         self.vm_b.add_incoming(incoming_cmd if online else "defer")
         self.vm_b.add_drive(disk_a if shared_storage else disk_b)
@@ -165,6 +163,14 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         for r in regions:
             self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % r)
         sha256 = self.get_bitmap_hash(self.vm_a)
+
+        if pre_shutdown:
+            self.vm_a.shutdown()
+            self.vm_a.launch()
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=mig_caps)
+        self.assert_qmp(result, 'return', {})
 
         result = self.vm_a.qmp('migrate', uri=mig_cmd)
         while True:
@@ -210,11 +216,13 @@ def inject_test_case(klass, name, method, *args, **kwargs):
     mc = operator.methodcaller(method, *args, **kwargs)
     setattr(klass, 'test_' + method + name, lambda self: mc(self))
 
-for cmb in list(itertools.product((True, False), repeat=4)):
+for cmb in list(itertools.product((True, False), repeat=5)):
     name = ('_' if cmb[0] else '_not_') + 'persistent_'
     name += ('_' if cmb[1] else '_not_') + 'migbitmap_'
     name += '_online' if cmb[2] else '_offline'
     name += '_shared' if cmb[3] else '_nonshared'
+    if (cmb[4]):
+        name += '__pre_shutdown'
 
     inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
                      *list(cmb))
