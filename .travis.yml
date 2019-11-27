@@ -237,13 +237,7 @@ matrix:
         - TEST_CMD=""
 
 
-    # MacOSX builds
-    - env:
-        - CONFIG="--target-list=${MAIN_SOFTMMU_TARGETS}"
-      os: osx
-      osx_image: xcode9.4
-      compiler: clang
-
+    # MacOSX builds - cirrus.yml also tests some MacOS builds including latest Xcode
 
     - env:
         - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
