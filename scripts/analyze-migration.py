@@ -86,8 +86,8 @@ class MigrationFile(object):
 
         # Find the last NULL byte, then the first brace after that. This should
         # be the beginning of our JSON data.
-        nulpos = data.rfind("\0")
-        jsonpos = data.find("{", nulpos)
+        nulpos = data.rfind(b'\0')
+        jsonpos = data.find(b'{', nulpos)
 
         # Check backwards from there and see whether we guessed right
         self.file.seek(datapos + jsonpos - 5, 0)
