@@ -24,6 +24,7 @@ struct ppc_tb_t {
     /* Time base management */
     int64_t  tb_offset;    /* Compensation                    */
     int64_t  atb_offset;   /* Compensation                    */
+    int64_t  vtb_offset;
     uint32_t tb_freq;      /* TB frequency                    */
     /* Decrementer management */
     uint64_t decr_next;    /* Tick for next decr interrupt    */

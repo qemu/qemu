@@ -682,6 +682,22 @@ void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value)
                      &tb_env->atb_offset, ((uint64_t)value << 32) | tb);
 }
 
+uint64_t cpu_ppc_load_vtb(CPUPPCState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    return cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                          tb_env->vtb_offset);
+}
+
+void cpu_ppc_store_vtb(CPUPPCState *env, uint64_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                     &tb_env->vtb_offset, value);
+}
+
 static void cpu_ppc_tb_stop (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;

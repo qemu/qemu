@@ -45,6 +45,11 @@ target_ulong helper_load_atbu(CPUPPCState *env)
     return cpu_ppc_load_atbu(env);
 }
 
+target_ulong helper_load_vtb(CPUPPCState *env)
+{
+    return cpu_ppc_load_vtb(env);
+}
+
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 target_ulong helper_load_purr(CPUPPCState *env)
 {
@@ -111,6 +116,11 @@ target_ulong helper_load_hdecr(CPUPPCState *env)
 void helper_store_hdecr(CPUPPCState *env, target_ulong val)
 {
     cpu_ppc_store_hdecr(env, val);
+}
+
+void helper_store_vtb(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc_store_vtb(env, val);
 }
 
 target_ulong helper_load_40x_pit(CPUPPCState *env)
