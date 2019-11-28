@@ -128,6 +128,11 @@ void helper_store_vtb(CPUPPCState *env, target_ulong val)
     cpu_ppc_store_vtb(env, val);
 }
 
+void helper_store_tbu40(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc_store_tbu40(env, val);
+}
+
 target_ulong helper_load_40x_pit(CPUPPCState *env)
 {
     return load_40x_pit(env);
