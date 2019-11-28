@@ -1586,8 +1586,9 @@ void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr)
     spapr_reallocate_hpt(spapr, hpt_shift, &error_fatal);
 
     if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(MACHINE(spapr)),
-                                          spapr->htab_shift);
+        hwaddr vrma_limit = kvmppc_vrma_limit(spapr->htab_shift);
+
+        spapr->rma_size = MIN(spapr_node0_size(MACHINE(spapr)), vrma_limit);
     }
 }
 
