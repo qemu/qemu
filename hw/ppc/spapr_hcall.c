@@ -1458,7 +1458,7 @@ static void spapr_check_setup_free_hpt(SpaprMachineState *spapr,
         spapr_free_hpt(spapr);
     } else if (!(patbe_new & PATE1_GR)) {
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
-        spapr_setup_hpt_and_vrma(spapr);
+        spapr_setup_hpt(spapr);
     }
     return;
 }
@@ -1845,7 +1845,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
          * (because the guest isn't going to use radix) then set it up here. */
         if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
             /* legacy hash or new hash: */
-            spapr_setup_hpt_and_vrma(spapr);
+            spapr_setup_hpt(spapr);
         }
 
         if (fdt_bufsize < sizeof(hdr)) {

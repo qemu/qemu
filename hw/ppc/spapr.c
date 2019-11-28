@@ -1569,7 +1569,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
     spapr_set_all_lpcrs(0, LPCR_HR | LPCR_UPRT);
 }
 
-void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr)
+void spapr_setup_hpt(SpaprMachineState *spapr)
 {
     int hpt_shift;
 
@@ -1585,10 +1585,16 @@ void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr)
     }
     spapr_reallocate_hpt(spapr, hpt_shift, &error_fatal);
 
-    if (spapr->vrma_adjust) {
+    if (kvm_enabled()) {
         hwaddr vrma_limit = kvmppc_vrma_limit(spapr->htab_shift);
 
-        spapr->rma_size = MIN(spapr_node0_size(MACHINE(spapr)), vrma_limit);
+        /* Check our RMA fits in the possible VRMA */
+        if (vrma_limit < spapr->rma_size) {
+            error_report("Unable to create %" HWADDR_PRIu
+                         "MiB RMA (VRMA only allows %" HWADDR_PRIu "MiB",
+                         spapr->rma_size / MiB, vrma_limit / MiB);
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -1628,7 +1634,7 @@ static void spapr_machine_reset(MachineState *machine)
         spapr->patb_entry = PATE1_GR;
         spapr_set_all_lpcrs(LPCR_HR | LPCR_UPRT, LPCR_HR | LPCR_UPRT);
     } else {
-        spapr_setup_hpt_and_vrma(spapr);
+        spapr_setup_hpt(spapr);
     }
 
     qemu_devices_reset();
@@ -2694,20 +2700,6 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     spapr->rma_size = node0_size;
-
-    /* With KVM, we don't actually know whether KVM supports an
-     * unbounded RMA (PR KVM) or is limited by the hash table size
-     * (HV KVM using VRMA), so we always assume the latter
-     *
-     * In that case, we also limit the initial allocations for RTAS
-     * etc... to 256M since we have no way to know what the VRMA size
-     * is going to be as it depends on the size of the hash table
-     * which isn't determined yet.
-     */
-    if (kvm_enabled()) {
-        spapr->vrma_adjust = 1;
-        spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
-    }
 
     /* Actually we don't support unbounded RMA anymore since we added
      * proper emulation of HV mode. The max we can get is 16G which
