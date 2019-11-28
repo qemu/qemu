@@ -55,6 +55,11 @@ target_ulong helper_load_purr(CPUPPCState *env)
 {
     return (target_ulong)cpu_ppc_load_purr(env);
 }
+
+void helper_store_purr(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc_store_purr(env, val);
+}
 #endif
 
 target_ulong helper_load_601_rtcl(CPUPPCState *env)

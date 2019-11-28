@@ -33,8 +33,7 @@ struct ppc_tb_t {
     /* Hypervisor decrementer management */
     uint64_t hdecr_next;    /* Tick for next hdecr interrupt  */
     QEMUTimer *hdecr_timer;
-    uint64_t purr_load;
-    uint64_t purr_start;
+    int64_t purr_offset;
     void *opaque;
     uint32_t flags;
 };

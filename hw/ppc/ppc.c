@@ -809,12 +809,9 @@ target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
 uint64_t cpu_ppc_load_purr (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
-    uint64_t diff;
 
-    diff = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - tb_env->purr_start;
-
-    return tb_env->purr_load +
-        muldiv64(diff, tb_env->tb_freq, NANOSECONDS_PER_SECOND);
+    return cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                          tb_env->purr_offset);
 }
 
 /* When decrementer expires,
@@ -973,12 +970,12 @@ static void cpu_ppc_hdecr_cb(void *opaque)
     cpu_ppc_hdecr_excp(cpu);
 }
 
-static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
+void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
 {
-    ppc_tb_t *tb_env = cpu->env.tb_env;
+    ppc_tb_t *tb_env = env->tb_env;
 
-    tb_env->purr_load = value;
-    tb_env->purr_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                     &tb_env->purr_offset, value);
 }
 
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
@@ -995,7 +992,7 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      */
     _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
     _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
-    cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
+    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
 }
 
 static void timebase_save(PPCTimebase *tb)

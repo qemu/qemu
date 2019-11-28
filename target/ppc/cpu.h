@@ -1311,6 +1311,7 @@ void cpu_ppc_store_decr(CPUPPCState *env, target_ulong value);
 target_ulong cpu_ppc_load_hdecr(CPUPPCState *env);
 void cpu_ppc_store_hdecr(CPUPPCState *env, target_ulong value);
 uint64_t cpu_ppc_load_purr(CPUPPCState *env);
+void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value);
 uint32_t cpu_ppc601_load_rtcl(CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu(CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)
