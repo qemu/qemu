@@ -526,6 +526,7 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
                                         bool blk_level)
 {
+    BdrvChild *parent_child;
     BlockStats *s = NULL;
 
     s = g_malloc0(sizeof(*s));
@@ -555,9 +556,35 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
         s->has_driver_specific = true;
     }
 
-    if (bs->file) {
+    parent_child = bdrv_primary_child(bs);
+    if (!parent_child ||
+        !(parent_child->role & (BDRV_CHILD_DATA | BDRV_CHILD_FILTERED)))
+    {
+        BdrvChild *c;
+
+        /*
+         * Look for a unique data-storing child.  We do not need to look for
+         * filtered children, as there would be only one and it would have been
+         * the primary child.
+         */
+        parent_child = NULL;
+        QLIST_FOREACH(c, &bs->children, next) {
+            if (c->role & BDRV_CHILD_DATA) {
+                if (parent_child) {
+                    /*
+                     * There are multiple data-storing children and we cannot
+                     * choose between them.
+                     */
+                    parent_child = NULL;
+                    break;
+                }
+                parent_child = c;
+            }
+        }
+    }
+    if (parent_child) {
         s->has_parent = true;
-        s->parent = bdrv_query_bds_stats(bs->file->bs, blk_level);
+        s->parent = bdrv_query_bds_stats(parent_child->bs, blk_level);
     }
 
     if (blk_level && bs->backing) {
