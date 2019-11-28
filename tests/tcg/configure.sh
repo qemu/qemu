@@ -36,8 +36,10 @@ TMPC="${TMPDIR1}/qemu-conf.c"
 TMPE="${TMPDIR1}/qemu-conf.exe"
 
 container="no"
-if has "docker" || has "podman"; then
-  container=$($python $source_path/tests/docker/docker.py probe)
+if test $use_containers = "yes"; then
+    if has "docker" || has "podman"; then
+        container=$($python $source_path/tests/docker/docker.py probe)
+    fi
 fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
