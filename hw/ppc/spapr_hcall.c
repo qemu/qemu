@@ -1671,7 +1671,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     target_ulong fdt_bufsize = args[2];
     target_ulong ov_table;
     uint32_t cas_pvr;
-    SpaprOptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates;
+    SpaprOptionVector *ov1_guest, *ov5_guest, *ov5_cas_old;
     bool guest_radix;
     Error *local_err = NULL;
     bool raw_mode_supported = false;
@@ -1770,9 +1770,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     /* capabilities that have been added since CAS-generated guest reset.
      * if capabilities have since been removed, generate another reset
      */
-    ov5_updates = spapr_ovec_new();
-    spapr->cas_reboot = spapr_ovec_diff(ov5_updates,
-                                        ov5_cas_old, spapr->ov5_cas);
+    spapr->cas_reboot = !spapr_ovec_subset(ov5_cas_old, spapr->ov5_cas);
     spapr_ovec_cleanup(ov5_cas_old);
     /* Now that processing is finished, set the radix/hash bit for the
      * guest if it requested a valid mode; otherwise terminate the boot. */
@@ -1848,8 +1846,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         spapr->fdt_initial_size = spapr->fdt_size;
         spapr->fdt_blob = fdt;
     }
-
-    spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);

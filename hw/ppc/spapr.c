@@ -1840,8 +1840,6 @@ static bool spapr_ov5_cas_needed(void *opaque)
 {
     SpaprMachineState *spapr = opaque;
     SpaprOptionVector *ov5_mask = spapr_ovec_new();
-    SpaprOptionVector *ov5_legacy = spapr_ovec_new();
-    SpaprOptionVector *ov5_removed = spapr_ovec_new();
     bool cas_needed;
 
     /* Prior to the introduction of SpaprOptionVector, we had two option
@@ -1873,17 +1871,11 @@ static bool spapr_ov5_cas_needed(void *opaque)
     spapr_ovec_set(ov5_mask, OV5_DRCONF_MEMORY);
     spapr_ovec_set(ov5_mask, OV5_DRMEM_V2);
 
-    /* spapr_ovec_diff returns true if bits were removed. we avoid using
-     * the mask itself since in the future it's possible "legacy" bits may be
-     * removed via machine options, which could generate a false positive
-     * that breaks migration.
-     */
-    spapr_ovec_intersect(ov5_legacy, spapr->ov5, ov5_mask);
-    cas_needed = spapr_ovec_diff(ov5_removed, spapr->ov5, ov5_legacy);
+    /* We need extra information if we have any bits outside the mask
+     * defined above */
+    cas_needed = !spapr_ovec_subset(spapr->ov5, ov5_mask);
 
     spapr_ovec_cleanup(ov5_mask);
-    spapr_ovec_cleanup(ov5_legacy);
-    spapr_ovec_cleanup(ov5_removed);
 
     return cas_needed;
 }
