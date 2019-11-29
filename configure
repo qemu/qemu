@@ -6720,7 +6720,7 @@ if test "$l2tpv3" = "yes" ; then
   echo "CONFIG_L2TPV3=y" >> $config_host_mak
 fi
 if test "$cap_ng" = "yes" ; then
-  echo "CONFIG_LIBCAP=y" >> $config_host_mak
+  echo "CONFIG_LIBCAP_NG=y" >> $config_host_mak
 fi
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do

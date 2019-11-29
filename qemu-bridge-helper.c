@@ -43,7 +43,7 @@
 
 #include "net/tap-linux.h"
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 #include <cap-ng.h>
 #endif
 
@@ -207,7 +207,7 @@ static int send_fd(int c, int fd)
     return sendmsg(c, &msg, 0);
 }
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 static int drop_privileges(void)
 {
     /* clear all capabilities */
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
     int access_allowed, access_denied;
     int ret = EXIT_SUCCESS;
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
     /* if we're run from an suid binary, immediately drop privileges preserving
      * cap_net_admin */
     if (geteuid() == 0 && getuid() != geteuid()) {
