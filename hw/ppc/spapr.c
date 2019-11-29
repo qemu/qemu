@@ -76,7 +76,6 @@
 #include "hw/nmi.h"
 #include "hw/intc/intc.h"
 
-#include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/mem/memory-device.h"
 #include "hw/ppc/spapr_tpm_proxy.h"
@@ -897,63 +896,6 @@ out:
     return ret;
 }
 
-static bool spapr_hotplugged_dev_before_cas(void)
-{
-    Object *drc_container, *obj;
-    ObjectProperty *prop;
-    ObjectPropertyIterator iter;
-
-    drc_container = container_get(object_get_root(), "/dr-connector");
-    object_property_iter_init(&iter, drc_container);
-    while ((prop = object_property_iter_next(&iter))) {
-        if (!strstart(prop->type, "link<", NULL)) {
-            continue;
-        }
-        obj = object_property_get_link(drc_container, prop->name, NULL);
-        if (spapr_drc_needed(obj)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset,
-                             size_t space);
-
-int spapr_h_cas_compose_response(SpaprMachineState *spapr,
-                                 target_ulong addr, target_ulong size,
-                                 SpaprOptionVector *ov5_updates)
-{
-    void *fdt;
-    SpaprDeviceTreeUpdateHeader hdr = { .version_id = 1 };
-
-    if (spapr_hotplugged_dev_before_cas()) {
-        return 1;
-    }
-
-    if (size < sizeof(hdr)) {
-        error_report("SLOF provided insufficient CAS buffer "
-                     TARGET_FMT_lu " (min: %zu)", size, sizeof(hdr));
-        exit(EXIT_FAILURE);
-    }
-
-    size -= sizeof(hdr);
-
-    fdt = spapr_build_fdt(spapr, false, size);
-    _FDT((fdt_pack(fdt)));
-
-    cpu_physical_memory_write(addr, &hdr, sizeof(hdr));
-    cpu_physical_memory_write(addr + sizeof(hdr), fdt, fdt_totalsize(fdt));
-    trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
-
-    g_free(spapr->fdt_blob);
-    spapr->fdt_size = fdt_totalsize(fdt);
-    spapr->fdt_initial_size = spapr->fdt_size;
-    spapr->fdt_blob = fdt;
-
-    return 0;
-}
-
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *ms = MACHINE(spapr);
@@ -1191,8 +1133,7 @@ static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
     }
 }
 
-static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset,
-                             size_t space)
+void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
