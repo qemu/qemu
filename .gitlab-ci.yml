@@ -59,7 +59,7 @@ build-user:
 
 build-clang:
  script:
- - apt-get install -y -qq clang libsdl2-dev libattr1-dev libcap-dev
+ - apt-get install -y -qq clang libsdl2-dev libattr1-dev libcap-ng-dev
       xfslibs-dev libiscsi-dev libnfs-dev libseccomp-dev gnutls-dev librbd-dev
  - ./configure --cc=clang --cxx=clang++ --enable-werror
       --target-list="alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
