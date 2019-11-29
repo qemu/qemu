@@ -2648,6 +2648,42 @@ static PCIHostState *spapr_create_default_phb(void)
     return PCI_HOST_BRIDGE(dev);
 }
 
+static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    hwaddr rma_size = machine->ram_size;
+    hwaddr node0_size = spapr_node0_size(machine);
+
+    /* RMA has to fit in the first NUMA node */
+    rma_size = MIN(rma_size, node0_size);
+
+    /*
+     * VRMA access is via a special 1TiB SLB mapping, so the RMA can
+     * never exceed that
+     */
+    rma_size = MIN(rma_size, 1 * TiB);
+
+    /*
+     * Clamp the RMA size based on machine type.  This is for
+     * migration compatibility with older qemu versions, which limited
+     * the RMA size for complicated and mostly bad reasons.
+     */
+    if (smc->rma_limit) {
+        rma_size = MIN(rma_size, smc->rma_limit);
+    }
+
+    if (rma_size < MIN_RMA_SLOF) {
+        error_setg(errp,
+                   "pSeries SLOF firmware requires >= %" HWADDR_PRIx
+                   "ldMiB guest RMA (Real Mode Area memory)",
+                   MIN_RMA_SLOF / MiB);
+        return 0;
+    }
+
+    return rma_size;
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void spapr_machine_init(MachineState *machine)
 {
@@ -2659,7 +2695,6 @@ static void spapr_machine_init(MachineState *machine)
     PCIHostState *phb;
     int i;
     MemoryRegion *sysmem = get_system_memory();
-    hwaddr node0_size = spapr_node0_size(machine);
     long load_limit, fw_size;
     char *filename;
     Error *resize_hpt_err = NULL;
@@ -2699,22 +2734,7 @@ static void spapr_machine_init(MachineState *machine)
         exit(1);
     }
 
-    spapr->rma_size = node0_size;
-
-    /*
-     * Clamp the RMA size based on machine type.  This is for
-     * migration compatibility with older qemu versions, which limited
-     * the RMA size for complicated and mostly bad reasons.
-     */
-    if (smc->rma_limit) {
-        spapr->rma_size = MIN(spapr->rma_size, smc->rma_limit);
-    }
-
-    if (spapr->rma_size > node0_size) {
-        error_report("Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")",
-                     spapr->rma_size);
-        exit(1);
-    }
+    spapr->rma_size = spapr_rma_size(spapr, &error_fatal);
 
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
@@ -2949,13 +2969,6 @@ static void spapr_machine_init(MachineState *machine)
             usb_create_simple(usb_bus, "usb-kbd");
             usb_create_simple(usb_bus, "usb-mouse");
         }
-    }
-
-    if (spapr->rma_size < MIN_RMA_SLOF) {
-        error_report(
-            "pSeries SLOF firmware requires >= %ldMiB guest RMA (Real Mode Area memory)",
-            MIN_RMA_SLOF / MiB);
-        exit(1);
     }
 
     if (kernel_filename) {
