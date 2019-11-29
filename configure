@@ -3864,22 +3864,6 @@ else
 fi
 
 ##########################################
-# libcap probe
-
-if test "$cap" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <sys/capability.h>
-int main(void) { cap_t caps; caps = cap_init(); return caps != NULL; }
-EOF
-  if compile_prog "" "-lcap" ; then
-    cap=yes
-  else
-    cap=no
-  fi
-fi
-
-##########################################
 # pthread probe
 PTHREADLIBS_LIST="-pthread -lpthread -lpthreadGC2"
 
@@ -6204,12 +6188,12 @@ if test "$want_tools" = "yes" ; then
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
-    if test "$virtfs" != no && test "$cap" = yes && test "$attr" = yes ; then
+    if test "$virtfs" != no && test "$cap_ng" = yes && test "$attr" = yes ; then
       virtfs=yes
       tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
     else
       if test "$virtfs" = yes; then
-        error_exit "VirtFS requires libcap devel and libattr devel"
+        error_exit "VirtFS requires libcap-ng devel and libattr devel"
       fi
       virtfs=no
     fi
