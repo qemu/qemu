@@ -1973,7 +1973,7 @@ static void raw_aio_attach_aio_context(BlockDriverState *bs,
 #ifdef CONFIG_LINUX_AIO
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
-        Error *local_err;
+        Error *local_err = NULL;
         if (!aio_setup_linux_aio(new_context, &local_err)) {
             error_reportf_err(local_err, "Unable to use native AIO, "
                                          "falling back to thread pool: ");

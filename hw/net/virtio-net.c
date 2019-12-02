@@ -2795,6 +2795,7 @@ static bool failover_unplug_primary(VirtIONet *n)
 
 static bool failover_replug_primary(VirtIONet *n, Error **errp)
 {
+    Error *err = NULL;
     HotplugHandler *hotplug_ctrl;
     PCIDevice *pdev = PCI_DEVICE(n->primary_dev);
 
@@ -2806,32 +2807,33 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
                 qemu_find_opts("device"),
                 n->primary_device_dict, errp);
         if (!n->primary_device_opts) {
-            error_setg(errp, "virtio_net: couldn't find primary device opts");
-            goto out;
+            return false;
         }
     }
-    if (!n->primary_dev) {
-            error_setg(errp, "virtio_net: couldn't find primary device");
-            goto out;
-    }
-
     n->primary_bus = n->primary_dev->parent_bus;
     if (!n->primary_bus) {
         error_setg(errp, "virtio_net: couldn't find primary bus");
-        goto out;
+        return false;
     }
     qdev_set_parent_bus(n->primary_dev, n->primary_bus);
     n->primary_should_be_hidden = false;
     qemu_opt_set_bool(n->primary_device_opts,
-                      "partially_hotplugged", true, errp);
+                      "partially_hotplugged", true, &err);
+    if (err) {
+        goto out;
+    }
     hotplug_ctrl = qdev_get_hotplug_handler(n->primary_dev);
     if (hotplug_ctrl) {
-        hotplug_handler_pre_plug(hotplug_ctrl, n->primary_dev, errp);
+        hotplug_handler_pre_plug(hotplug_ctrl, n->primary_dev, &err);
+        if (err) {
+            goto out;
+        }
         hotplug_handler_plug(hotplug_ctrl, n->primary_dev, errp);
     }
 
 out:
-    return *errp == NULL;
+    error_propagate(errp, err);
+    return !err;
 }
 
 static void virtio_net_handle_migration_primary(VirtIONet *n,
@@ -2849,8 +2851,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
         }
     }
 
-    if (migration_in_setup(s) && !should_be_hidden &&
-        n->primary_dev) {
+    if (migration_in_setup(s) && !should_be_hidden) {
         if (failover_unplug_primary(n)) {
             vmstate_unregister(n->primary_dev, qdev_get_vmsd(n->primary_dev),
                     n->primary_dev);
