@@ -24,9 +24,6 @@
 #define QuV      (*(mmqreg_t *)(QuV_void))
 #define QvV      (*(mmqreg_t *)(QvV_void))
 #define QxV      (*(mmqreg_t *)(QxV_void))
-
-#define VddddV   (*(mmvector_quad_t *)(VddddV_void))
-#define VyyyyV   (*(mmvector_quad_t *)(VyyyyV_void))
 #endif
 
 #ifdef QEMU_GENERATE

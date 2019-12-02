@@ -32,11 +32,12 @@
 #endif
 
 #ifdef QEMU_GENERATE
-#define DECL_RREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
+#define DECL_REG(NAME, NUM, X, OFF) \
+    TCGv NAME = tcg_temp_local_new(); \
     int NUM = REGNO(X) + OFF
-#define DECL_RREG_WRITABLE(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
+
+#define DECL_REG_WRITABLE(NAME, NUM, X, OFF) \
+    TCGv NAME = tcg_temp_local_new(); \
     int NUM = REGNO(X) + OFF; \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
@@ -47,89 +48,73 @@
 /*
  * For read-only temps, avoid allocating and freeing
  */
-#define DECL_RREG_READONLY(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME; \
+#define DECL_REG_READONLY(NAME, NUM, X, OFF) \
+    TCGv NAME; \
     int NUM = REGNO(X) + OFF
 
-#define DECL_RREG_d(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_WRITABLE(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_e(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_s(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_t(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_u(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_v(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_x(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_WRITABLE(TYPE, NAME, NUM, X, OFF)
-#define DECL_RREG_y(TYPE, NAME, NUM, X, OFF) \
-    DECL_RREG_WRITABLE(TYPE, NAME, NUM, X, OFF)
+#define DECL_RREG_d(NAME, NUM, X, OFF) \
+    DECL_REG_WRITABLE(NAME, NUM, X, OFF)
+#define DECL_RREG_e(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
+#define DECL_RREG_s(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_RREG_t(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_RREG_u(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_RREG_v(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_RREG_x(NAME, NUM, X, OFF) \
+    DECL_REG_WRITABLE(NAME, NUM, X, OFF)
+#define DECL_RREG_y(NAME, NUM, X, OFF) \
+    DECL_REG_WRITABLE(NAME, NUM, X, OFF)
 
-#define DECL_PREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
-    int NUM = REGNO(X) + OFF
-/*
- * For read-only temps, avoid allocating and freeing
- */
-#define DECL_PREG_READONLY(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME; \
-    int NUM = REGNO(X) + OFF
+#define DECL_PREG_d(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
+#define DECL_PREG_e(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
+#define DECL_PREG_s(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_PREG_t(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_PREG_u(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_PREG_v(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_PREG_x(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
+#define DECL_PREG_y(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
 
-#define DECL_PREG_d(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_e(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_s(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_t(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_u(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_v(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG_READONLY(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_x(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG(TYPE, NAME, NUM, X, OFF)
-#define DECL_PREG_y(TYPE, NAME, NUM, X, OFF) \
-    DECL_PREG(TYPE, NAME, NUM, X, OFF)
+#define DECL_CREG_d(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
+#define DECL_CREG_s(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
 
-#define DECL_CREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
-    int NUM = REGNO(X) + OFF
+#define DECL_MREG_u(NAME, NUM, X, OFF) \
+    DECL_REG(NAME, NUM, X, OFF)
 
-#define DECL_CREG_d(TYPE, NAME, NUM, X, OFF) \
-    DECL_CREG(TYPE, NAME, NUM, X, OFF)
-#define DECL_CREG_s(TYPE, NAME, NUM, X, OFF) \
-    DECL_CREG(TYPE, NAME, NUM, X, OFF)
+#define DECL_NEW_NREG_s(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_NEW_NREG_t(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
 
-#define DECL_MREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
-    int NUM = REGNO(X) + OFF
-/*
- * For read-only temps, avoid allocating and freeing
- */
-#define DECL_MREG_READONLY(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME; \
-    int NUM = REGNO(X) + OFF
+#define DECL_NEW_PREG_t(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_NEW_PREG_u(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
+#define DECL_NEW_PREG_v(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
 
-#define DECL_MREG_u(TYPE, NAME, NUM, X, OFF) \
-    DECL_MREG(TYPE, NAME, NUM, X, OFF)
+#define DECL_NEW_OREG_s(NAME, NUM, X, OFF) \
+    DECL_REG_READONLY(NAME, NUM, X, OFF)
 
-#define DECL_NEW_NREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME; \
-    int NUM = REGNO(X) + OFF
-
-#define DECL_NEW_PREG(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME; \
-    int NUM = REGNO(X) + OFF
-
-#define DECL_PAIR(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new_i64(); \
+#define DECL_PAIR(NAME, NUM, X, OFF) \
+    TCGv_i64 NAME = tcg_temp_local_new_i64(); \
     size1u_t NUM = REGNO(X) + OFF
-#define DECL_PAIR_WRITABLE(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new_i64(); \
+
+#define DECL_PAIR_WRITABLE(NAME, NUM, X, OFF) \
+    TCGv_i64 NAME = tcg_temp_local_new_i64(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
@@ -143,16 +128,21 @@
         } \
     } while (0)
 
-#define DECL_PAIR_dd(TYPE, NAME, NUM, X, OFF) \
-    DECL_PAIR_WRITABLE(TYPE, NAME, NUM, X, OFF)
-#define DECL_PAIR_ss(TYPE, NAME, NUM, X, OFF) \
-    DECL_PAIR(TYPE, NAME, NUM, X, OFF)
-#define DECL_PAIR_tt(TYPE, NAME, NUM, X, OFF) \
-    DECL_PAIR(TYPE, NAME, NUM, X, OFF)
-#define DECL_PAIR_xx(TYPE, NAME, NUM, X, OFF) \
-    DECL_PAIR_WRITABLE(TYPE, NAME, NUM, X, OFF)
-#define DECL_PAIR_yy(TYPE, NAME, NUM, X, OFF) \
-    DECL_PAIR_WRITABLE(TYPE, NAME, NUM, X, OFF)
+#define DECL_RREG_dd(NAME, NUM, X, OFF) \
+    DECL_PAIR_WRITABLE(NAME, NUM, X, OFF)
+#define DECL_RREG_ss(NAME, NUM, X, OFF) \
+    DECL_PAIR(NAME, NUM, X, OFF)
+#define DECL_RREG_tt(NAME, NUM, X, OFF) \
+    DECL_PAIR(NAME, NUM, X, OFF)
+#define DECL_RREG_xx(NAME, NUM, X, OFF) \
+    DECL_PAIR_WRITABLE(NAME, NUM, X, OFF)
+#define DECL_RREG_yy(NAME, NUM, X, OFF) \
+    DECL_PAIR_WRITABLE(NAME, NUM, X, OFF)
+
+#define DECL_CREG_dd(NAME, NUM, X, OFF) \
+    DECL_PAIR_WRITABLE(NAME, NUM, X, OFF)
+#define DECL_CREG_ss(NAME, NUM, X, OFF) \
+    DECL_PAIR(NAME, NUM, X, OFF)
 
 #define DECL_IMM(NAME, X) \
     TCGv NAME = tcg_const_tl(IMMNO(X))
@@ -178,18 +168,36 @@
 #define FREE_REG_READONLY(NAME) \
     /* Nothing */
 
-#define FREE_REG_d(NAME)            FREE_REG(NAME)
-#define FREE_REG_e(NAME)            FREE_REG(NAME)
-#define FREE_REG_s(NAME)            FREE_REG_READONLY(NAME)
-#define FREE_REG_t(NAME)            FREE_REG_READONLY(NAME)
-#define FREE_REG_u(NAME)            FREE_REG_READONLY(NAME)
-#define FREE_REG_v(NAME)            FREE_REG_READONLY(NAME)
-#define FREE_REG_x(NAME)            FREE_REG(NAME)
-#define FREE_REG_y(NAME)            FREE_REG(NAME)
+#define FREE_RREG_d(NAME)            FREE_REG(NAME)
+#define FREE_RREG_e(NAME)            FREE_REG(NAME)
+#define FREE_RREG_s(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_RREG_t(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_RREG_u(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_RREG_v(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_RREG_x(NAME)            FREE_REG(NAME)
+#define FREE_RREG_y(NAME)            FREE_REG(NAME)
 
-#define DECL_NEW(TYPE, NAME, NUM, X, OFF) \
-    TYPE NAME = tcg_temp_local_new(); \
-    int NUM = REGNO(X) + OFF
+#define FREE_PREG_d(NAME)            FREE_REG(NAME)
+#define FREE_PREG_e(NAME)            FREE_REG(NAME)
+#define FREE_PREG_s(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_PREG_t(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_PREG_u(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_PREG_v(NAME)            FREE_REG_READONLY(NAME)
+#define FREE_PREG_x(NAME)            FREE_REG(NAME)
+
+#define FREE_CREG_d(NAME)            FREE_REG(NAME)
+#define FREE_CREG_s(NAME)            FREE_REG_READONLY(NAME)
+
+#define FREE_MREG_u(NAME)            FREE_REG_READONLY(NAME)
+
+#define FREE_NEW_NREG_s(NAME)        FREE_REG(NAME)
+#define FREE_NEW_NREG_t(NAME)        FREE_REG(NAME)
+
+#define FREE_NEW_PREG_t(NAME)        FREE_REG_READONLY(NAME)
+#define FREE_NEW_PREG_u(NAME)        FREE_REG_READONLY(NAME)
+#define FREE_NEW_PREG_v(NAME)        FREE_REG_READONLY(NAME)
+
+#define FREE_NEW_OREG_s(NAME)        FREE_REG(NAME)
 
 #define DECL_IMM(NAME, X) \
     TCGv NAME = tcg_const_tl(IMMNO(X))
@@ -197,17 +205,17 @@
 #define DECL_EA \
     TCGv EA = tcg_temp_local_new()
 
-#define FREE_REG(NAME) \
-    tcg_temp_free(NAME)
-
-#define FREE_NEW_NREG(NAME) \
-    tcg_temp_free(NAME)
-
-#define FREE_NEW_PREG(NAME) \
-    /* Nothing */
-
 #define FREE_REG_PAIR(NAME) \
     tcg_temp_free_i64(NAME)
+
+#define FREE_RREG_dd(NAME)           FREE_REG_PAIR(NAME)
+#define FREE_RREG_ss(NAME)           FREE_REG_PAIR(NAME)
+#define FREE_RREG_tt(NAME)           FREE_REG_PAIR(NAME)
+#define FREE_RREG_xx(NAME)           FREE_REG_PAIR(NAME)
+#define FREE_RREG_yy(NAME)           FREE_REG_PAIR(NAME)
+
+#define FREE_CREG_dd(NAME)           FREE_REG_PAIR(NAME)
+#define FREE_CREG_ss(NAME)           FREE_REG_PAIR(NAME)
 
 #define FREE_IMM(NAME) \
     tcg_temp_free(NAME)
@@ -245,21 +253,24 @@
 #define IMMNO(NUM) (insn->immed[NUM])
 
 #ifdef QEMU_GENERATE
-#define READ_RREG(dest, NUM) \
-    gen_read_rreg(dest, NUM)
-#define READ_RREG_READONLY(dest, NUM) \
+#define READ_REG(dest, NUM) \
+    gen_read_reg(dest, NUM)
+#define READ_REG_READONLY(dest, NUM) \
     do { dest = hex_gpr[NUM]; } while (0)
 
 #define READ_RREG_s(dest, NUM) \
-    READ_RREG_READONLY(dest, NUM)
+    READ_REG_READONLY(dest, NUM)
 #define READ_RREG_t(dest, NUM) \
-    READ_RREG_READONLY(dest, NUM)
+    READ_REG_READONLY(dest, NUM)
 #define READ_RREG_u(dest, NUM) \
-    READ_RREG_READONLY(dest, NUM)
+    READ_REG_READONLY(dest, NUM)
 #define READ_RREG_x(dest, NUM) \
-    READ_RREG(dest, NUM)
+    READ_REG(dest, NUM)
 #define READ_RREG_y(dest, NUM) \
-    READ_RREG(dest, NUM)
+    READ_REG(dest, NUM)
+
+#define READ_OREG_s(dest, NUM) \
+    READ_REG_READONLY(dest, NUM)
 
 #ifdef QEMU_GENERATE
 #define READ_CREG_s(dest, NUM) \
@@ -267,7 +278,7 @@
         if ((NUM) + HEX_REG_SA0 == HEX_REG_P3_0) { \
             gen_read_p3_0(dest); \
         } else { \
-            READ_RREG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
+            READ_REG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
         } \
     } while (0)
 #else
@@ -287,18 +298,17 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
         if (NUM == HEX_REG_P3_0) { \
             dest = read_p3_0(env); \
         } else { \
-            READ_RREG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
+            READ_REG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
         } \
     } while (0)
 #endif
-/* HACK since circular addressing not implemented */
 #define READ_MREG_u(dest, NUM) \
     do { \
-        READ_RREG_READONLY(dest, ((NUM) + HEX_REG_M0)); \
+        READ_REG_READONLY(dest, ((NUM) + HEX_REG_M0)); \
         dest = dest; \
     } while (0)
 #else
-#define READ_RREG(NUM) \
+#define READ_REG(NUM) \
     (env->gpr[(NUM)])
 #define READ_MREG(NUM) \
     (env->gpr[NUM + REG_M])
@@ -307,10 +317,16 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 #endif
 
 #ifdef QEMU_GENERATE
-#define READ_RREG_PAIR(tmp, NUM) \
+#define READ_REG_PAIR(tmp, NUM) \
     tcg_gen_concat_i32_i64(tmp, hex_gpr[NUM], hex_gpr[(NUM) + 1])
+#define READ_RREG_ss(tmp, NUM)          READ_REG_PAIR(tmp, NUM)
+#define READ_RREG_tt(tmp, NUM)          READ_REG_PAIR(tmp, NUM)
+#define READ_RREG_xx(tmp, NUM)          READ_REG_PAIR(tmp, NUM)
+#define READ_RREG_yy(tmp, NUM)          READ_REG_PAIR(tmp, NUM)
+
 #define READ_CREG_PAIR(tmp, i) \
-    READ_RREG_PAIR(tmp, ((i) + HEX_REG_SA0))
+    READ_REG_PAIR(tmp, ((i) + HEX_REG_SA0))
+#define READ_CREG_ss(tmp, i)            READ_CREG_PAIR(tmp, i)
 #endif
 
 #ifdef QEMU_GENERATE
@@ -325,14 +341,30 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 
 #define READ_NEW_PREG(pred, PNUM) \
     do { pred = hex_new_pred_value[PNUM]; } while (0)
+#define READ_NEW_PREG_t(pred, PNUM)      READ_NEW_PREG(pred, PNUM)
+#define READ_NEW_PREG_u(pred, PNUM)      READ_NEW_PREG(pred, PNUM)
+#define READ_NEW_PREG_v(pred, PNUM)      READ_NEW_PREG(pred, PNUM)
 
-#define READ_NEW_NREG(tmp, i)    (tmp = tcg_const_tl(i))
+#define READ_NEW_REG(tmp, i) \
+    do { tmp = tcg_const_tl(i); } while (0)
+#define READ_NEW_NREG_s(tmp, i)          READ_NEW_REG(tmp, i)
+#define READ_NEW_NREG_t(tmp, i)          READ_NEW_REG(tmp, i)
+#define READ_NEW_OREG_s(tmp, i)          READ_NEW_REG(tmp, i)
 #else
 #define READ_PREG(NUM)                (env->pred[NUM])
 #endif
 
-#define WRITE_RREG(NUM, VAL) LOG_REG_WRITE(NUM, VAL)
-#define WRITE_PREG(NUM, VAL) LOG_PRED_WRITE(NUM, VAL)
+
+#define WRITE_RREG(NUM, VAL)             LOG_REG_WRITE(NUM, VAL)
+#define WRITE_RREG_d(NUM, VAL)           LOG_REG_WRITE(NUM, VAL)
+#define WRITE_RREG_e(NUM, VAL)           LOG_REG_WRITE(NUM, VAL)
+#define WRITE_RREG_x(NUM, VAL)           LOG_REG_WRITE(NUM, VAL)
+#define WRITE_RREG_y(NUM, VAL)           LOG_REG_WRITE(NUM, VAL)
+
+#define WRITE_PREG(NUM, VAL)             LOG_PRED_WRITE(NUM, VAL)
+#define WRITE_PREG_d(NUM, VAL)           LOG_PRED_WRITE(NUM, VAL)
+#define WRITE_PREG_e(NUM, VAL)           LOG_PRED_WRITE(NUM, VAL)
+#define WRITE_PREG_x(NUM, VAL)           LOG_PRED_WRITE(NUM, VAL)
 
 #ifdef QEMU_GENERATE
 #define WRITE_CREG(i, tmp) \
@@ -343,15 +375,22 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
             WRITE_RREG((i) + HEX_REG_SA0, tmp); \
         } \
     } while (0)
-#define WRITE_CREG_PAIR(i, tmp) WRITE_RREG_PAIR((i) + HEX_REG_SA0, tmp)
+#define WRITE_CREG_d(NUM, VAL)           WRITE_CREG(NUM, VAL)
 
-#define WRITE_RREG_PAIR(NUM, VAL) \
+#define WRITE_CREG_PAIR(i, tmp)          WRITE_REG_PAIR((i) + HEX_REG_SA0, tmp)
+#define WRITE_CREG_dd(NUM, VAL)          WRITE_CREG_PAIR(NUM, VAL)
+
+#define WRITE_REG_PAIR(NUM, VAL) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
         gen_log_reg_write_pair(NUM, VAL, insn->slot, is_predicated); \
         ctx_log_reg_write(ctx, (NUM)); \
         ctx_log_reg_write(ctx, (NUM) + 1); \
     } while (0)
+
+#define WRITE_RREG_dd(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
+#define WRITE_RREG_xx(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
+#define WRITE_RREG_yy(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
 #endif
 
 #ifdef QEMU_GENERATE
@@ -688,15 +727,15 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
     return tmp;
 }
 #define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
-#define fREAD_R0() (READ_RREG(tmp, 0))
-#define fREAD_LR() (READ_RREG(tmp, HEX_REG_LR))
-#define fREAD_SSR() (READ_RREG(tmp, HEX_REG_SSR))
+#define fREAD_R0() (READ_REG(tmp, 0))
+#define fREAD_LR() (READ_REG(tmp, HEX_REG_LR))
+#define fREAD_SSR() (READ_REG(tmp, HEX_REG_SSR))
 #else
 #define fREAD_IREG(VAL) \
     (fSXTN(11, 64, (((VAL) & 0xf0000000) >> 21) | ((VAL >> 17) & 0x7f)))
-#define fREAD_R0() (READ_RREG(0))
-#define fREAD_LR() (READ_RREG(HEX_REG_LR))
-#define fREAD_SSR() (READ_RREG(HEX_REG_SSR))
+#define fREAD_R0() (READ_REG(0))
+#define fREAD_LR() (READ_REG(HEX_REG_LR))
+#define fREAD_SSR() (READ_REG(HEX_REG_SSR))
 #endif
 
 #define fWRITE_R0(A) WRITE_RREG(0, A)
@@ -707,31 +746,31 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fWRITE_GP(A) WRITE_RREG(HEX_REG_GP, A)
 
 #ifdef QEMU_GENERATE
-#define fREAD_SP() (READ_RREG(tmp, HEX_REG_SP))
-#define fREAD_GOSP() (READ_RREG(tmp, HEX_REG_GOSP))
-#define fREAD_GELR() (READ_RREG(tmp, HEX_REG_GELR))
-#define fREAD_GEVB() (READ_RREG(tmp, HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_RREG(tmp, REG_CSA + N))
-#define fREAD_LC0 (READ_RREG(tmp, HEX_REG_LC0))
-#define fREAD_LC1 (READ_RREG(tmp, HEX_REG_LC1))
-#define fREAD_SA0 (READ_RREG(tmp, HEX_REG_SA0))
-#define fREAD_SA1 (READ_RREG(tmp, HEX_REG_SA1))
-#define fREAD_FP() (READ_RREG(tmp, HEX_REG_FP))
-#define fREAD_GP() (READ_RREG(tmp, HEX_REG_GP))
-#define fREAD_PC() (READ_RREG(tmp, HEX_REG_PC))
+#define fREAD_SP() (READ_REG(tmp, HEX_REG_SP))
+#define fREAD_GOSP() (READ_REG(tmp, HEX_REG_GOSP))
+#define fREAD_GELR() (READ_REG(tmp, HEX_REG_GELR))
+#define fREAD_GEVB() (READ_REG(tmp, HEX_REG_GEVB))
+#define fREAD_CSREG(N) (READ_REG(tmp, REG_CSA + N))
+#define fREAD_LC0 (READ_REG(tmp, HEX_REG_LC0))
+#define fREAD_LC1 (READ_REG(tmp, HEX_REG_LC1))
+#define fREAD_SA0 (READ_REG(tmp, HEX_REG_SA0))
+#define fREAD_SA1 (READ_REG(tmp, HEX_REG_SA1))
+#define fREAD_FP() (READ_REG(tmp, HEX_REG_FP))
+#define fREAD_GP() (READ_REG(tmp, HEX_REG_GP))
+#define fREAD_PC() (READ_REG(tmp, HEX_REG_PC))
 #else
-#define fREAD_SP() (READ_RREG(HEX_REG_SP))
-#define fREAD_GOSP() (READ_RREG(HEX_REG_GOSP))
-#define fREAD_GELR() (READ_RREG(HEX_REG_GELR))
-#define fREAD_GEVB() (READ_RREG(HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_RREG(REG_CSA + N))
-#define fREAD_LC0 (READ_RREG(HEX_REG_LC0))
-#define fREAD_LC1 (READ_RREG(HEX_REG_LC1))
-#define fREAD_SA0 (READ_RREG(HEX_REG_SA0))
-#define fREAD_SA1 (READ_RREG(HEX_REG_SA1))
-#define fREAD_FP() (READ_RREG(HEX_REG_FP))
-#define fREAD_GP() (READ_RREG(HEX_REG_GP))
-#define fREAD_PC() (READ_RREG(HEX_REG_PC))
+#define fREAD_SP() (READ_REG(HEX_REG_SP))
+#define fREAD_GOSP() (READ_REG(HEX_REG_GOSP))
+#define fREAD_GELR() (READ_REG(HEX_REG_GELR))
+#define fREAD_GEVB() (READ_REG(HEX_REG_GEVB))
+#define fREAD_CSREG(N) (READ_REG(REG_CSA + N))
+#define fREAD_LC0 (READ_REG(HEX_REG_LC0))
+#define fREAD_LC1 (READ_REG(HEX_REG_LC1))
+#define fREAD_SA0 (READ_REG(HEX_REG_SA0))
+#define fREAD_SA1 (READ_REG(HEX_REG_SA1))
+#define fREAD_FP() (READ_REG(HEX_REG_FP))
+#define fREAD_GP() (READ_REG(HEX_REG_GP))
+#define fREAD_PC() (READ_REG(HEX_REG_PC))
 #endif
 
 #define fREAD_NPC() (env->next_PC & (0xfffffffe))
@@ -1195,7 +1234,7 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 #define fMEMOP(NUM, SIZE, SIGN, EA, FNTYPE, VALUE)
 
 #ifdef QEMU_GENERATE
-#define fGET_FRAMEKEY() READ_RREG(tmp, HEX_REG_FRAMEKEY)
+#define fGET_FRAMEKEY() READ_REG(tmp, HEX_REG_FRAMEKEY)
 static inline TCGv_i64 gen_frame_scramble(TCGv_i64 result)
 {
     /* ((LR << 32) | FP) ^ (FRAMEKEY << 32)) */
@@ -1230,7 +1269,7 @@ static inline TCGv_i64 gen_frame_unscramble(TCGv_i64 frame)
 
 #define fFRAME_UNSCRAMBLE(VAL) gen_frame_unscramble(VAL)
 #else
-#define fGET_FRAMEKEY() READ_RREG(HEX_REG_FRAMEKEY)
+#define fGET_FRAMEKEY() READ_REG(HEX_REG_FRAMEKEY)
 #define fFRAME_SCRAMBLE(VAL) ((VAL) ^ (fCAST8u(fGET_FRAMEKEY()) << 32))
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 #endif

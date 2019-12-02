@@ -119,18 +119,6 @@ typedef union {
 } mmvector_pair_t;
 
 typedef union {
-    size8u_t ud[4 * MAX_VEC_SIZE_BYTES / 8];
-    size8s_t  d[4 * MAX_VEC_SIZE_BYTES / 8];
-    size4u_t uw[4 * MAX_VEC_SIZE_BYTES / 4];
-    size4s_t  w[4 * MAX_VEC_SIZE_BYTES / 4];
-    size2u_t uh[4 * MAX_VEC_SIZE_BYTES / 2];
-    size2s_t  h[4 * MAX_VEC_SIZE_BYTES / 2];
-    size1u_t ub[4 * MAX_VEC_SIZE_BYTES / 1];
-    size1s_t  b[4 * MAX_VEC_SIZE_BYTES / 1];
-    mmvector_t v[4];
-} mmvector_quad_t;
-
-typedef union {
     size8u_t ud[MAX_VEC_SIZE_BYTES / 8 / 8];
     size8s_t  d[MAX_VEC_SIZE_BYTES / 8 / 8];
     size4u_t uw[MAX_VEC_SIZE_BYTES / 4 / 8];
@@ -176,7 +164,7 @@ enum {
 
 
 #ifdef QEMU_GENERATE
-#define DECL_EXT_VREG(VAR, NUM, X, OFF) \
+#define DECL_VREG(VAR, NUM, X, OFF) \
     TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
@@ -184,7 +172,24 @@ enum {
         tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
     } while (0)
 
-#define DECL_EXT_VREG_PAIR(VAR, NUM, X, OFF) \
+#define DECL_VREG_d(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_s(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_t(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_u(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_v(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_w(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_x(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+#define DECL_VREG_y(VAR, NUM, X, OFF) \
+    DECL_VREG(VAR, NUM, X, OFF)
+
+#define DECL_VREG_PAIR(VAR, NUM, X, OFF) \
     TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
@@ -192,15 +197,16 @@ enum {
         tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
     } while (0)
 
-#define DECL_EXT_VREG_QUAD(VAR, NUM, X, OFF) \
-    TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
-    size1u_t NUM = REGNO(X) + OFF; \
-    do { \
-        uint32_t __offset = new_temp_vreg_offset(ctx, 4); \
-        tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
-    } while (0)
+#define DECL_VREG_dd(VAR, NUM, X, OFF) \
+    DECL_VREG_PAIR(VAR, NUM, X, OFF)
+#define DECL_VREG_uu(VAR, NUM, X, OFF) \
+    DECL_VREG_PAIR(VAR, NUM, X, OFF)
+#define DECL_VREG_vv(VAR, NUM, X, OFF) \
+    DECL_VREG_PAIR(VAR, NUM, X, OFF)
+#define DECL_VREG_xx(VAR, NUM, X, OFF) \
+    DECL_VREG_PAIR(VAR, NUM, X, OFF)
 
-#define DECL_EXT_QREG(VAR, NUM, X, OFF) \
+#define DECL_QREG(VAR, NUM, X, OFF) \
     TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
@@ -208,22 +214,67 @@ enum {
         tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
     } while (0)
 
-#define FREE_EXT_VREG(VAR)          tcg_temp_free_ptr(VAR)
-#define FREE_EXT_VREG_PAIR(VAR)     tcg_temp_free_ptr(VAR)
-#define FREE_EXT_VREG_QUAD(VAR)     tcg_temp_free_ptr(VAR)
-#define FREE_EXT_QREG(VAR)          tcg_temp_free_ptr(VAR)
+#define DECL_QREG_d(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_e(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_s(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_t(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_u(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_v(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
+#define DECL_QREG_x(VAR, NUM, X, OFF) \
+    DECL_QREG(VAR, NUM, X, OFF)
 
-#define READ_EXT_VREG(NUM, VAR, VTMP) \
-    gen_read_ext_vreg(VAR, NUM, VTMP)
+#define FREE_VREG(VAR)          tcg_temp_free_ptr(VAR)
+#define FREE_VREG_d(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_s(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_u(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_v(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_w(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_x(VAR)        FREE_VREG(VAR)
+#define FREE_VREG_y(VAR)        FREE_VREG(VAR)
 
-#define READ_EXT_VREG_PAIR(NUM, VAR, VTMP) \
-    gen_read_ext_vreg_pair(VAR, NUM, VTMP)
+#define FREE_VREG_PAIR(VAR)     tcg_temp_free_ptr(VAR)
+#define FREE_VREG_dd(VAR)       FREE_VREG_PAIR(VAR)
+#define FREE_VREG_uu(VAR)       FREE_VREG_PAIR(VAR)
+#define FREE_VREG_vv(VAR)       FREE_VREG_PAIR(VAR)
+#define FREE_VREG_xx(VAR)       FREE_VREG_PAIR(VAR)
 
-#define READ_EXT_VREG_QUAD(NUM, VAR, VTMP) \
-    gen_read_ext_vreg_quad(VAR, NUM, VTMP)
+#define FREE_QREG(VAR)          tcg_temp_free_ptr(VAR)
+#define FREE_QREG_d(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_e(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_s(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_t(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_u(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_v(VAR)        FREE_QREG(VAR)
+#define FREE_QREG_x(VAR)        FREE_QREG(VAR)
 
-#define READ_EXT_QREG(NUM, VAR, VTMP) \
-    gen_read_ext_qreg(VAR, NUM, VTMP)
+#define READ_VREG(VAR, NUM) \
+    gen_read_vreg(VAR, NUM, 0)
+#define READ_VREG_s(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_u(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_v(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_w(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_x(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_y(VAR, NUM)    READ_VREG(VAR, NUM)
+
+#define READ_VREG_PAIR(VAR, NUM) \
+    gen_read_vreg_pair(VAR, NUM, 0)
+#define READ_VREG_uu(VAR, NUM)   READ_VREG_PAIR(VAR, NUM)
+#define READ_VREG_vv(VAR, NUM)   READ_VREG_PAIR(VAR, NUM)
+#define READ_VREG_xx(VAR, NUM)   READ_VREG_PAIR(VAR, NUM)
+
+#define READ_QREG(VAR, NUM) \
+    gen_read_qreg(VAR, NUM, 0)
+#define READ_QREG_s(VAR, NUM)     READ_QREG(VAR, NUM)
+#define READ_QREG_t(VAR, NUM)     READ_QREG(VAR, NUM)
+#define READ_QREG_u(VAR, NUM)     READ_QREG(VAR, NUM)
+#define READ_QREG_v(VAR, NUM)     READ_QREG(VAR, NUM)
+#define READ_QREG_x(VAR, NUM)     READ_QREG(VAR, NUM)
 
 #define DECL_NEW_OREG(TYPE, NAME, NUM, X, OFF) \
     TYPE NAME; \
@@ -234,14 +285,14 @@ enum {
 #define FREE_NEW_OREG(NAME) \
     tcg_temp_free(NAME)
 
-#define LOG_EXT_VREG_WRITE(NUM, VAR, VNEW) \
+#define LOG_VREG_WRITE(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
         gen_log_ext_vreg_write(VAR, NUM, VNEW, insn->slot); \
         ctx_log_vreg_write(ctx, (NUM), is_predicated); \
     } while (0)
 
-#define LOG_EXT_VREG_WRITE_PAIR(NUM, VAR, VNEW) \
+#define LOG_VREG_WRITE_PAIR(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
         gen_log_ext_vreg_write_pair(VAR, NUM, VNEW, insn->slot); \
@@ -249,17 +300,7 @@ enum {
         ctx_log_vreg_write(ctx, (NUM) ^ 1, is_predicated); \
     } while (0)
 
-#define LOG_EXT_VREG_WRITE_QUAD(NUM, VAR, VNEW) \
-    do { \
-        int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
-        gen_log_ext_vreg_write_quad(VAR, NUM, VNEW, insn->slot); \
-        ctx_log_vreg_write(ctx, (NUM) ^ 0, is_predicated); \
-        ctx_log_vreg_write(ctx, (NUM) ^ 1, is_predicated); \
-        ctx_log_vreg_write(ctx, (NUM) ^ 2, is_predicated); \
-        ctx_log_vreg_write(ctx, (NUM) ^ 3, is_predicated); \
-    } while (0)
-
-#define LOG_EXT_QREG_WRITE(NUM, VAR, VNEW) \
+#define LOG_QREG_WRITE(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
         gen_log_ext_qreg_write(VAR, NUM, VNEW, insn->slot); \
@@ -269,10 +310,10 @@ enum {
 #define NEW_WRITTEN(NUM) ((env->VRegs_select >> (NUM)) & 1)
 #define TMP_WRITTEN(NUM) ((env->VRegs_updated_tmp >> (NUM)) & 1)
 
-#define LOG_EXT_VREG_WRITE_FUNC(X) \
+#define LOG_VREG_WRITE_FUNC(X) \
     _Generic((X), void * : log_ext_vreg_write, mmvector_t : log_mmvector_write)
-#define LOG_EXT_VREG_WRITE(NUM, VAR, VNEW) \
-    LOG_EXT_VREG_WRITE_FUNC(VAR)(env, NUM, VAR, VNEW, slot)
+#define LOG_VREG_WRITE(NUM, VAR, VNEW) \
+    LOG_VREG_WRITE_FUNC(VAR)(env, NUM, VAR, VNEW, slot)
 
 #define READ_EXT_VREG(NUM, VAR, VTMP) \
     do { \
@@ -292,24 +333,20 @@ enum {
         READ_EXT_VREG((NUM) ^ 0, VAR.v[0], VTMP); \
         READ_EXT_VREG((NUM) ^ 1, VAR.v[1], VTMP) \
     } while (0)
-
-#define READ_EXT_VREG_QUAD(NUM, VAR, VTMP) \
-    do { \
-        READ_EXT_VREG((NUM) ^ 0, VAR.v[0], VTMP); \
-        READ_EXT_VREG((NUM) ^ 1, VAR.v[1], VTMP); \
-        READ_EXT_VREG((NUM) ^ 2, VAR.v[2], VTMP); \
-        READ_EXT_VREG((NUM) ^ 3, VAR.v[3], VTMP); \
-    } while (0)
 #endif
 
-#define WRITE_EXT_VREG(NUM, VAR, VNEW) \
-    LOG_EXT_VREG_WRITE(NUM, VAR, VNEW)
-#define WRITE_EXT_VREG_PAIR(NUM, VAR, VNEW) \
-    LOG_EXT_VREG_WRITE_PAIR(NUM, VAR, VNEW)
-#define WRITE_EXT_VREG_QUAD(NUM, VAR, VNEW) \
-    LOG_EXT_VREG_WRITE_QUAD(NUM, VAR, VNEW)
-#define WRITE_EXT_QREG(NUM, VAR, VNEW) \
-    LOG_EXT_QREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_EXT_VREG(NUM, VAR, VNEW)   LOG_VREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_VREG_d(NUM, VAR, VNEW)     LOG_VREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_VREG_x(NUM, VAR, VNEW)     LOG_VREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_VREG_y(NUM, VAR, VNEW)     LOG_VREG_WRITE(NUM, VAR, VNEW)
+
+#define WRITE_VREG_dd(NUM, VAR, VNEW)    LOG_VREG_WRITE_PAIR(NUM, VAR, VNEW)
+#define WRITE_VREG_xx(NUM, VAR, VNEW)    LOG_VREG_WRITE_PAIR(NUM, VAR, VNEW)
+#define WRITE_VREG_yy(NUM, VAR, VNEW)    LOG_VREG_WRITE_PAIR(NUM, VAR, VNEW)
+
+#define WRITE_QREG_d(NUM, VAR, VNEW)     LOG_QREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_QREG_e(NUM, VAR, VNEW)     LOG_QREG_WRITE(NUM, VAR, VNEW)
+#define WRITE_QREG_x(NUM, VAR, VNEW)     LOG_QREG_WRITE(NUM, VAR, VNEW)
 
 #define LOG_VTCM_BYTE(VA, MASK, VAL, IDX) \
     do { \
@@ -324,13 +361,6 @@ enum {
         env->vtcm_log.offsets.uh[IDX]  = (VAL & 0xFFF); \
         env->vtcm_log.offsets.uh[IDX] |= ((MASK & 0xF) << 12) ; \
     } while (0)
-
-#define READ_ZREG(NUM) \
-    ({ DECL_EXT_ZREG(__tmpVR); READ_EXT_ZREG(NUM, __tmpVR, 0); __tmpVR; })
-#define READ_VREG(NUM) \
-    ({ DECL_EXT_VREG(__tmpVR); READ_EXT_VREG(NUM, __tmpVR, 0); __tmpVR; })
-#define WRITE_VREG(NUM, VAR) \
-    WRITE_EXT_VREG(NUM, VAR, EXT_DFL)
 
 void mem_load_vector_oddva(CPUHexagonState *env, vaddr_t vaddr,
                            vaddr_t lookup_vaddr, int slot, int size,
