@@ -14,7 +14,7 @@
 #include "macros.h"
 #include "imported/q6v_defines.h"
 
-static inline TCGv gen_read_rreg(TCGv result, int num)
+static inline TCGv gen_read_reg(TCGv result, int num)
 {
     tcg_gen_mov_tl(result, hex_gpr[num]);
     return result;
@@ -708,7 +708,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
-    READ_RREG_PAIR(RyyV, RyyN); \
+    READ_REG_PAIR(RyyV, RyyN); \
     GET_EA;  \
     fLOAD(1, 2, u, EA, tmpV);  \
     tcg_gen_extu_i32_i64(tmp_i64, tmpV); \
@@ -745,7 +745,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
-    READ_RREG_PAIR(RyyV, RyyN); \
+    READ_REG_PAIR(RyyV, RyyN); \
     GET_EA;  \
     fLOAD(1, 1, u, EA, tmpV);  \
     tcg_gen_extu_i32_i64(tmp_i64, tmpV); \
@@ -1456,7 +1456,7 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
     tcg_gen_extu_i32_i64(LSB_i64, LSB); \
     fLOAD(1, 8, u, EA, tmp_i64); \
     tcg_gen_mov_i64(unscramble, fFRAME_UNSCRAMBLE(tmp_i64)); \
-    READ_RREG_PAIR(RddV, HEX_REG_FP); \
+    READ_REG_PAIR(RddV, HEX_REG_FP); \
     tcg_gen_movcond_i64(TCG_COND_NE, RddV, LSB_i64, zero_i64, \
                         unscramble, RddV); \
     tcg_gen_mov_tl(SP, hex_gpr[HEX_REG_SP]); \
@@ -1507,14 +1507,14 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
     tcg_gen_extu_i32_i64(LSB_i64, LSB); \
     fLOAD(1, 8, u, EA, tmp_i64); \
     tcg_gen_mov_i64(unscramble, fFRAME_UNSCRAMBLE(tmp_i64)); \
-    READ_RREG_PAIR(RddV, HEX_REG_FP); \
+    READ_REG_PAIR(RddV, HEX_REG_FP); \
     tcg_gen_movcond_i64(TCG_COND_NE, RddV, LSB_i64, zero_i64, \
                         unscramble, RddV); \
     tcg_gen_mov_tl(SP, hex_gpr[HEX_REG_SP]); \
     tcg_gen_addi_tl(tmp, EA, 8); \
     tcg_gen_movcond_tl(TCG_COND_NE, SP, LSB, zero, tmp, SP); \
     fWRITE_SP(SP); \
-    WRITE_RREG_PAIR(HEX_REG_FP, RddV); \
+    WRITE_REG_PAIR(HEX_REG_FP, RddV); \
     gen_cond_return(LSB, fGETWORD(1, RddV)); \
     tcg_temp_free(LSB); \
     tcg_temp_free_i64(LSB_i64); \
@@ -2632,7 +2632,7 @@ static inline uint32_t new_temp_qreg_offset(DisasContext *ctx)
     return offset;
 }
 
-static inline void gen_read_ext_qreg(TCGv_ptr var, int num, int vtmp)
+static inline void gen_read_qreg(TCGv_ptr var, int num, int vtmp)
 {
     uint32_t offset = offsetof(CPUHexagonState, QRegs[(num)]);
     TCGv_ptr src = tcg_temp_new_ptr();
@@ -2641,7 +2641,7 @@ static inline void gen_read_ext_qreg(TCGv_ptr var, int num, int vtmp)
     tcg_temp_free_ptr(src);
 }
 
-static inline void gen_read_ext_vreg(TCGv_ptr var, int num, int vtmp)
+static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
 {
     TCGv zero = tcg_const_tl(0);
     TCGv offset_future =
@@ -2711,36 +2711,16 @@ static inline void gen_read_ext_vreg(TCGv_ptr var, int num, int vtmp)
     tcg_temp_free(tmp_written);
 }
 
-static inline void gen_read_ext_vreg_pair(TCGv_ptr var, int num, int vtmp)
+static inline void gen_read_vreg_pair(TCGv_ptr var, int num, int vtmp)
 {
     TCGv_ptr v0 = tcg_temp_new_ptr();
     TCGv_ptr v1 = tcg_temp_new_ptr();
     tcg_gen_addi_ptr(v0, var, offsetof(mmvector_pair_t, v[0]));
-    gen_read_ext_vreg(v0, num ^ 0, vtmp);
+    gen_read_vreg(v0, num ^ 0, vtmp);
     tcg_gen_addi_ptr(v1, var, offsetof(mmvector_pair_t, v[1]));
-    gen_read_ext_vreg(v1, num ^ 1, vtmp);
+    gen_read_vreg(v1, num ^ 1, vtmp);
     tcg_temp_free_ptr(v0);
     tcg_temp_free_ptr(v1);
-}
-
-static inline void gen_read_ext_vreg_quad(TCGv_ptr var, int num, int vtmp)
-{
-    TCGv_ptr v0 = tcg_temp_new_ptr();
-    TCGv_ptr v1 = tcg_temp_new_ptr();
-    TCGv_ptr v2 = tcg_temp_new_ptr();
-    TCGv_ptr v3 = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(v0, var, offsetof(mmvector_quad_t, v[0]));
-    gen_read_ext_vreg(v0, num ^ 0, vtmp);
-    tcg_gen_addi_ptr(v1, var, offsetof(mmvector_quad_t, v[1]));
-    gen_read_ext_vreg(v1, num ^ 1, vtmp);
-    tcg_gen_addi_ptr(v2, var, offsetof(mmvector_quad_t, v[2]));
-    gen_read_ext_vreg(v2, num ^ 2, vtmp);
-    tcg_gen_addi_ptr(v3, var, offsetof(mmvector_quad_t, v[3]));
-    gen_read_ext_vreg(v3, num ^ 3, vtmp);
-    tcg_temp_free_ptr(v0);
-    tcg_temp_free_ptr(v1);
-    tcg_temp_free_ptr(v2);
-    tcg_temp_free_ptr(v3);
 }
 
 static inline void gen_log_ext_vreg_write(TCGv_ptr var, int num, int vnew,
@@ -2795,27 +2775,6 @@ static inline void gen_log_ext_vreg_write_pair(TCGv_ptr var, int num, int vnew,
     gen_log_ext_vreg_write(v1, num ^ 1, vnew, slot_num);
     tcg_temp_free_ptr(v0);
     tcg_temp_free_ptr(v1);
-}
-
-static inline void gen_log_ext_vreg_write_quad(TCGv_ptr var, int num, int vnew,
-                                               int slot_num)
-{
-    TCGv_ptr v0 = tcg_temp_local_new_ptr();
-    TCGv_ptr v1 = tcg_temp_local_new_ptr();
-    TCGv_ptr v2 = tcg_temp_local_new_ptr();
-    TCGv_ptr v3 = tcg_temp_local_new_ptr();
-    tcg_gen_addi_ptr(v0, var, offsetof(mmvector_quad_t, v[0]));
-    gen_log_ext_vreg_write(v0, num ^ 0, vnew, slot_num);
-    tcg_gen_addi_ptr(v1, var, offsetof(mmvector_quad_t, v[1]));
-    gen_log_ext_vreg_write(v1, num ^ 1, vnew, slot_num);
-    tcg_gen_addi_ptr(v2, var, offsetof(mmvector_quad_t, v[2]));
-    gen_log_ext_vreg_write(v2, num ^ 2, vnew, slot_num);
-    tcg_gen_addi_ptr(v3, var, offsetof(mmvector_quad_t, v[3]));
-    gen_log_ext_vreg_write(v3, num ^ 3, vnew, slot_num);
-    tcg_temp_free_ptr(v0);
-    tcg_temp_free_ptr(v1);
-    tcg_temp_free_ptr(v2);
-    tcg_temp_free_ptr(v3);
 }
 
 static inline void gen_log_ext_qreg_write(TCGv_ptr var, int num, int vnew,
