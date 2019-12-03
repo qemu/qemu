@@ -1,3 +1,20 @@
+/*
+ *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 OP_ATTRIB(J2_jump,ATTRIBS(A_BRANCHADDER,A_COF,A_DIRECT,A_EXTENDABLE,A_EXT_LOWER_IMMED,A_IMPLICIT_READS_PC,A_IMPLICIT_WRITES_PC,A_JUMP,A_RELAX_COF_2ND,A_RESTRICT_COF_MAX1,A_RESTRICT_LOOP_LA))
 OP_ATTRIB(J2_jumpr,ATTRIBS(A_COF,A_IMPLICIT_WRITES_PC,A_INDIRECT,A_JUMP,A_RESTRICT_COF_MAX1,A_RESTRICT_LOOP_LA))
 OP_ATTRIB(J2_jumpt,ATTRIBS(A_BIMODAL_BRANCH,A_BRANCHADDER,A_CJUMP,A_COF,A_DIRECT,A_DOTOLD,A_EXTENDABLE,A_EXT_LOWER_IMMED,A_IMPLICIT_READS_PC,A_IMPLICIT_WRITES_PC,A_JUMP,A_NOTE_CONDITIONAL,A_PRED_BIT_12,A_RELAX_COF_1ST,A_RELAX_COF_2ND,A_RESTRICT_COF_MAX1,A_RESTRICT_LOOP_LA))
