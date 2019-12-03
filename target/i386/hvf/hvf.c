@@ -637,6 +637,8 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
     env->exception_injected = 0;
     env->interrupt_injected = -1;
     env->nmi_injected = false;
+    env->ins_len = 0;
+    env->has_error_code = false;
     if (idtvec_info & VMCS_IDT_VEC_VALID) {
         switch (idtvec_info & VMCS_IDT_VEC_TYPE) {
         case VMCS_IDT_VEC_HWINTR:
@@ -659,7 +661,7 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
             (idtvec_info & VMCS_IDT_VEC_TYPE) == VMCS_IDT_VEC_SWINTR) {
             env->ins_len = ins_len;
         }
-        if (idtvec_info & VMCS_INTR_DEL_ERRCODE) {
+        if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
             env->has_error_code = true;
             env->error_code = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_ERROR);
         }
