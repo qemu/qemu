@@ -39,6 +39,7 @@
 #include "fuse_virtio.h"
 #include "fuse_lowlevel.h"
 #include <assert.h>
+#include <cap-ng.h>
 #include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -139,6 +140,13 @@ static const struct fuse_opt lo_opts[] = {
 
 static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n);
 
+static struct {
+    pthread_mutex_t mutex;
+    void *saved;
+} cap;
+/* That we loaded cap-ng in the current thread from the saved */
+static __thread bool cap_loaded = 0;
+
 static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st);
 
 static int is_dot_or_dotdot(const char *name)
@@ -160,6 +168,37 @@ static int is_safe_path_component(const char *path)
 static struct lo_data *lo_data(fuse_req_t req)
 {
     return (struct lo_data *)fuse_req_userdata(req);
+}
+
+/*
+ * Load capng's state from our saved state if the current thread
+ * hadn't previously been loaded.
+ * returns 0 on success
+ */
+static int load_capng(void)
+{
+    if (!cap_loaded) {
+        pthread_mutex_lock(&cap.mutex);
+        capng_restore_state(&cap.saved);
+        /*
+         * restore_state free's the saved copy
+         * so make another.
+         */
+        cap.saved = capng_save_state();
+        if (!cap.saved) {
+            fuse_log(FUSE_LOG_ERR, "capng_save_state (thread)\n");
+            return -EINVAL;
+        }
+        pthread_mutex_unlock(&cap.mutex);
+
+        /*
+         * We want to use the loaded state for our pid,
+         * not the original
+         */
+        capng_setpid(syscall(SYS_gettid));
+        cap_loaded = true;
+    }
+    return 0;
 }
 
 static void lo_map_init(struct lo_map *map)
@@ -2024,6 +2063,35 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
 }
 
 /*
+ * Capture the capability state, we'll need to restore this for individual
+ * threads later; see load_capng.
+ */
+static void setup_capng(void)
+{
+    /* Note this accesses /proc so has to happen before the sandbox */
+    if (capng_get_caps_process()) {
+        fuse_log(FUSE_LOG_ERR, "capng_get_caps_process\n");
+        exit(1);
+    }
+    pthread_mutex_init(&cap.mutex, NULL);
+    pthread_mutex_lock(&cap.mutex);
+    cap.saved = capng_save_state();
+    if (!cap.saved) {
+        fuse_log(FUSE_LOG_ERR, "capng_save_state\n");
+        exit(1);
+    }
+    pthread_mutex_unlock(&cap.mutex);
+}
+
+static void cleanup_capng(void)
+{
+    free(cap.saved);
+    cap.saved = NULL;
+    pthread_mutex_destroy(&cap.mutex);
+}
+
+
+/*
  * Make the source directory our root so symlinks cannot escape and no other
  * files are accessible.  Assumes unshare(CLONE_NEWNS) was already called.
  */
@@ -2216,12 +2284,16 @@ int main(int argc, char *argv[])
 
     fuse_daemonize(opts.foreground);
 
+    /* Must be before sandbox since it wants /proc */
+    setup_capng();
+
     setup_sandbox(&lo, se);
 
     /* Block until ctrl+c or fusermount -u */
     ret = virtio_loop(se);
 
     fuse_session_unmount(se);
+    cleanup_capng();
 err_out3:
     fuse_remove_signal_handlers(se);
 err_out2:
