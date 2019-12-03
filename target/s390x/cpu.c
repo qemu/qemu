@@ -100,7 +100,7 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
     case S390_CPU_RESET_INITIAL:
         /* initial reset does not clear everything! */
         memset(&env->start_initial_reset_fields, 0,
-               offsetof(CPUS390XState, end_reset_fields) -
+               offsetof(CPUS390XState, start_normal_reset_fields) -
                offsetof(CPUS390XState, start_initial_reset_fields));
 
         /* architectured initial value for Breaking-Event-Address register */
@@ -123,6 +123,11 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
                                   &env->fpu_status);
        /* fall through */
     case S390_CPU_RESET_NORMAL:
+        env->psw.mask &= ~PSW_MASK_RI;
+        memset(&env->start_normal_reset_fields, 0,
+               offsetof(CPUS390XState, end_reset_fields) -
+               offsetof(CPUS390XState, start_normal_reset_fields));
+
         env->pfault_token = -1UL;
         env->bpbc = false;
         break;
