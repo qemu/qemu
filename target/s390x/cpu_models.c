@@ -870,6 +870,7 @@ static void check_compatibility(const S390CPUModel *max_model,
 
 static S390CPUModel *get_max_cpu_model(Error **errp)
 {
+    Error *err = NULL;
     static S390CPUModel max_model;
     static bool cached;
 
@@ -878,22 +879,24 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
     }
 
     if (kvm_enabled()) {
-        kvm_s390_get_host_cpu_model(&max_model, errp);
+        kvm_s390_get_host_cpu_model(&max_model, &err);
     } else {
         max_model.def = s390_find_cpu_def(QEMU_MAX_CPU_TYPE, QEMU_MAX_CPU_GEN,
                                           QEMU_MAX_CPU_EC_GA, NULL);
         bitmap_copy(max_model.features, qemu_max_cpu_feat, S390_FEAT_MAX);
-   }
-    if (!*errp) {
-        cached = true;
-        return &max_model;
     }
-    return NULL;
+    if (err) {
+        error_propagate(errp, err);
+        return NULL;
+    }
+    cached = true;
+    return &max_model;
 }
 
 static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 {
 #ifndef CONFIG_USER_ONLY
+    Error *err = NULL;
     static S390CPUModel applied_model;
     static bool applied;
 
@@ -909,20 +912,23 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
     }
 
     if (kvm_enabled()) {
-        kvm_s390_apply_cpu_model(model, errp);
+        kvm_s390_apply_cpu_model(model, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     }
 
-    if (!*errp) {
-        applied = true;
-        if (model) {
-            applied_model = *model;
-        }
+    applied = true;
+    if (model) {
+        applied_model = *model;
     }
 #endif
 }
 
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
+    Error *err = NULL;
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
@@ -939,7 +945,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     }
 
     max_model = get_max_cpu_model(errp);
-    if (*errp) {
+    if (!max_model) {
         error_prepend(errp, "CPU models are not available: ");
         return;
     }
@@ -951,8 +957,9 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     cpu->model->cpu_ver = max_model->cpu_ver;
 
     check_consistency(cpu->model);
-    check_compatibility(max_model, cpu->model, errp);
-    if (*errp) {
+    check_compatibility(max_model, cpu->model, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
 
