@@ -582,10 +582,10 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     struct kvm_create_device cd = {0};
     struct kvm_device_attr test_attr = {0};
     int ret;
-    Error *errp_local = NULL;
+    Error *err = NULL;
 
-    KVM_S390_FLIC_GET_CLASS(dev)->parent_realize(dev, &errp_local);
-    if (errp_local) {
+    KVM_S390_FLIC_GET_CLASS(dev)->parent_realize(dev, &err);
+    if (err) {
         goto fail;
     }
     flic_state->fd = -1;
@@ -593,7 +593,7 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     cd.type = KVM_DEV_TYPE_FLIC;
     ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd);
     if (ret < 0) {
-        error_setg_errno(&errp_local, errno, "Creating the KVM device failed");
+        error_setg_errno(&err, errno, "Creating the KVM device failed");
         trace_flic_create_device(errno);
         goto fail;
     }
@@ -605,7 +605,7 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
                                             KVM_HAS_DEVICE_ATTR, test_attr);
     return;
 fail:
-    error_propagate(errp, errp_local);
+    error_propagate(errp, err);
 }
 
 static void kvm_s390_flic_reset(DeviceState *dev)
