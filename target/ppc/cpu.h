@@ -1090,7 +1090,9 @@ struct CPUPPCState {
 #if !defined(CONFIG_USER_ONLY)
     /*
      * This is the IRQ controller, which is implementation dependent
-     * and only relevant when emulating a complete machine.
+     * and only relevant when emulating a complete machine. Note that
+     * this isn't used by recent Book3s compatible CPUs (POWER7 and
+     * newer).
      */
     uint32_t irq_input_state;
     void **irq_inputs;

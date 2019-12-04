@@ -275,10 +275,9 @@ void ppc970_irq_init(PowerPCCPU *cpu)
 static void power7_set_irq(void *opaque, int pin, int level)
 {
     PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
-                env, pin, level);
+            &cpu->env, pin, level);
 
     switch (pin) {
     case POWER7_INPUT_INT:
@@ -291,11 +290,6 @@ static void power7_set_irq(void *opaque, int pin, int level)
         /* Unknown pin - do nothing */
         LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
         return;
-    }
-    if (level) {
-        env->irq_input_state |= 1 << pin;
-    } else {
-        env->irq_input_state &= ~(1 << pin);
     }
 }
 
@@ -311,10 +305,9 @@ void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 static void power9_set_irq(void *opaque, int pin, int level)
 {
     PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
-                env, pin, level);
+            &cpu->env, pin, level);
 
     switch (pin) {
     case POWER9_INPUT_INT:
@@ -333,11 +326,6 @@ static void power9_set_irq(void *opaque, int pin, int level)
         /* Unknown pin - do nothing */
         LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
         return;
-    }
-    if (level) {
-        env->irq_input_state |= 1 << pin;
-    } else {
-        env->irq_input_state &= ~(1 << pin);
     }
 }
 
