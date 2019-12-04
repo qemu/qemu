@@ -10461,6 +10461,7 @@ static void ppc_cpu_reset(CPUState *s)
     env->pending_interrupts = 0;
     s->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
+    ppc_irq_reset(cpu);
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
