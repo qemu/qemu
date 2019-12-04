@@ -477,6 +477,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
                                 Error **errp)
 {
+    Error *err = NULL;
     const QDict *qdict = NULL;
     const QDictEntry *e;
     Visitor *visitor;
@@ -513,24 +514,26 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
 
     if (qdict) {
         visitor = qobject_input_visitor_new(info->props);
-        visit_start_struct(visitor, NULL, NULL, 0, errp);
-        if (*errp) {
+        visit_start_struct(visitor, NULL, NULL, 0, &err);
+        if (err) {
+            error_propagate(errp, err);
             visit_free(visitor);
             object_unref(obj);
             return;
         }
         for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-            object_property_set(obj, visitor, e->key, errp);
-            if (*errp) {
+            object_property_set(obj, visitor, e->key, &err);
+            if (err) {
                 break;
             }
         }
-        if (!*errp) {
+        if (!err) {
             visit_check_struct(visitor, errp);
         }
         visit_end_struct(visitor, NULL);
         visit_free(visitor);
-        if (*errp) {
+        if (err) {
+            error_propagate(errp, err);
             object_unref(obj);
             return;
         }
@@ -595,13 +598,15 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
                                                       Error **errp)
 {
+    Error *err = NULL;
     CpuModelExpansionInfo *expansion_info = NULL;
     S390CPUModel s390_model;
     bool delta_changes = false;
 
     /* convert it to our internal representation */
-    cpu_model_from_info(&s390_model, model, errp);
-    if (*errp) {
+    cpu_model_from_info(&s390_model, model, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
 
@@ -634,18 +639,21 @@ CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
                                                      CpuModelInfo *infob,
                                                      Error **errp)
 {
+    Error *err = NULL;
     CpuModelCompareResult feat_result, gen_result;
     CpuModelCompareInfo *compare_info;
     S390FeatBitmap missing, added;
     S390CPUModel modela, modelb;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, errp);
-    if (*errp) {
+    cpu_model_from_info(&modela, infoa, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
-    cpu_model_from_info(&modelb, infob, errp);
-    if (*errp) {
+    cpu_model_from_info(&modelb, infob, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
     compare_info = g_new0(CpuModelCompareInfo, 1);
@@ -707,6 +715,7 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
                                                     CpuModelInfo *infob,
                                                     Error **errp)
 {
+    Error *err = NULL;
     CpuModelBaselineInfo *baseline_info;
     S390CPUModel modela, modelb, model;
     uint16_t cpu_type;
@@ -714,13 +723,15 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
     uint8_t max_gen;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, errp);
-    if (*errp) {
+    cpu_model_from_info(&modela, infoa, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
 
-    cpu_model_from_info(&modelb, infob, errp);
-    if (*errp) {
+    cpu_model_from_info(&modelb, infob, &err);
+    if (err) {
+        error_propagate(errp, err);
         return NULL;
     }
 
