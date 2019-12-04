@@ -49,6 +49,9 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 
+# The repair process will create a large file - so check for availability first
+_require_large_file 64G
+
 rt_offset=65536  # 0x10000 (XXX: just an assumption)
 rb_offset=131072 # 0x20000 (XXX: just an assumption)
 l1_offset=196608 # 0x30000 (XXX: just an assumption)
