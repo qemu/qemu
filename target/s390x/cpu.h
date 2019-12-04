@@ -98,10 +98,6 @@ struct CPUS390XState {
 
     uint64_t cregs[16]; /* control registers */
 
-    int pending_int;
-    uint16_t external_call_addr;
-    DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
-
     uint64_t ckc;
     uint64_t cputm;
     uint32_t todpr;
@@ -116,6 +112,10 @@ struct CPUS390XState {
     /* Fields up to this point are not cleared by normal CPU reset */
     struct {} start_normal_reset_fields;
     uint8_t riccb[64];     /* runtime instrumentation control */
+
+    int pending_int;
+    uint16_t external_call_addr;
+    DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
