@@ -586,16 +586,17 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 
     KVM_S390_FLIC_GET_CLASS(dev)->parent_realize(dev, &err);
     if (err) {
-        goto fail;
+        error_propagate(errp, err);
+        return;
     }
     flic_state->fd = -1;
 
     cd.type = KVM_DEV_TYPE_FLIC;
     ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd);
     if (ret < 0) {
-        error_setg_errno(&err, errno, "Creating the KVM device failed");
+        error_setg_errno(errp, errno, "Creating the KVM device failed");
         trace_flic_create_device(errno);
-        goto fail;
+        return;
     }
     flic_state->fd = cd.fd;
 
@@ -603,9 +604,6 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
-    return;
-fail:
-    error_propagate(errp, err);
 }
 
 static void kvm_s390_flic_reset(DeviceState *dev)
