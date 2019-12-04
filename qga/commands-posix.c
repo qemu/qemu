@@ -1060,6 +1060,7 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
                                                   GuestFilesystemInfo *fs,
                                                   Error **errp)
 {
+    Error *err = NULL;
     DIR *dir;
     char *dirpath;
     struct dirent *entry;
@@ -1089,10 +1090,11 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
 
             g_debug(" slave device '%s'", entry->d_name);
             path = g_strdup_printf("%s/slaves/%s", syspath, entry->d_name);
-            build_guest_fsinfo_for_device(path, fs, errp);
+            build_guest_fsinfo_for_device(path, fs, &err);
             g_free(path);
 
-            if (*errp) {
+            if (err) {
+                error_propagate(errp, err);
                 break;
             }
         }
