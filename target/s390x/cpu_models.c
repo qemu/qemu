@@ -987,6 +987,7 @@ static void get_feature(Object *obj, Visitor *v, const char *name,
 static void set_feature(Object *obj, Visitor *v, const char *name,
                         void *opaque, Error **errp)
 {
+    Error *err = NULL;
     S390Feat feat = (S390Feat) opaque;
     DeviceState *dev = DEVICE(obj);
     S390CPU *cpu = S390_CPU(obj);
@@ -1002,8 +1003,9 @@ static void set_feature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, errp);
-    if (*errp) {
+    visit_type_bool(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
     if (value) {
@@ -1043,6 +1045,7 @@ static void get_feature_group(Object *obj, Visitor *v, const char *name,
 static void set_feature_group(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
+    Error *err = NULL;
     S390FeatGroup group = (S390FeatGroup) opaque;
     const S390FeatGroupDef *def = s390_feat_group_def(group);
     DeviceState *dev = DEVICE(obj);
@@ -1059,8 +1062,9 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, errp);
-    if (*errp) {
+    visit_type_bool(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
     if (value) {
