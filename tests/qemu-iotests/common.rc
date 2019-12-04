@@ -643,5 +643,15 @@ _require_drivers()
     done
 }
 
+# Check that we have a file system that allows huge (but very sparse) files
+#
+_require_large_file()
+{
+    if ! truncate --size="$1" "$TEST_IMG"; then
+        _notrun "file system on $TEST_DIR does not support large enough files"
+    fi
+    rm "$TEST_IMG"
+}
+
 # make sure this script returns success
 true
