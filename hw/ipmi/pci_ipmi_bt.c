@@ -54,6 +54,7 @@ static void pci_ipmi_lower_irq(IPMIBT *ik)
 
 static void pci_ipmi_bt_realize(PCIDevice *pd, Error **errp)
 {
+    Error *err = NULL;
     PCIIPMIBTDevice *pik = PCI_IPMI_BT(pd);
     IPMIInterface *ii = IPMI_INTERFACE(pd);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
@@ -74,8 +75,9 @@ static void pci_ipmi_bt_realize(PCIDevice *pd, Error **errp)
     pik->bt.raise_irq = pci_ipmi_raise_irq;
     pik->bt.lower_irq = pci_ipmi_lower_irq;
 
-    iic->init(ii, 8, errp);
-    if (*errp) {
+    iic->init(ii, 8, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
     }
     pci_register_bar(pd, 0, PCI_BASE_ADDRESS_SPACE_IO, &pik->bt.io);
