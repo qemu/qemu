@@ -214,10 +214,11 @@ matrix:
         - TEST_CMD=""
 
 
-    # We manually include builds which we disable "make check" for
+    # Check the TCG interpreter (TCI)
     - env:
-        - CONFIG="--enable-debug --enable-tcg-interpreter"
-        - TEST_CMD=""
+        - CONFIG="--enable-debug-tcg --enable-tcg-interpreter --disable-kvm --disable-containers
+            --target-list=alpha-softmmu,arm-softmmu,hppa-softmmu,m68k-softmmu,microblaze-softmmu,moxie-softmmu,ppc-softmmu,s390x-softmmu,x86_64-softmmu"
+        - TEST_CMD="make check-qtest check-tcg V=1"
 
 
     # We don't need to exercise every backend with every front-end
