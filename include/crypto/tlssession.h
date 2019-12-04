@@ -56,7 +56,7 @@
  *
  * static int mysock_run_tls(int sockfd,
  *                           QCryptoTLSCreds *creds,
- *                           Error *errp)
+ *                           Error **errp)
  * {
  *    QCryptoTLSSession *sess;
  *
