@@ -462,11 +462,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
         .list = NULL,
     };
 
-    list_data.model = get_max_cpu_model(errp);
-    if (*errp) {
-        error_free(*errp);
-        *errp = NULL;
-    }
+    list_data.model = get_max_cpu_model(NULL);
 
     object_class_foreach(create_cpu_model_list, TYPE_S390_CPU, false,
                          &list_data);
