@@ -48,9 +48,8 @@ static BlockJob *mk_job(BlockBackend *blk, const char *id,
             g_assert_cmpstr(job->job.id, ==, blk_name(blk));
         }
     } else {
-        g_assert_nonnull(err);
+        error_free_or_abort(&err);
         g_assert_null(job);
-        error_free(err);
     }
 
     return job;
