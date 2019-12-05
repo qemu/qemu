@@ -21,8 +21,6 @@
 #include "exec/log.h"
 #include "qemu.h"
 
-//#define DEBUG_MMAP
-
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
 
@@ -597,11 +595,8 @@ int target_munmap(abi_ulong start, abi_ulong len)
     abi_ulong end, real_start, real_end, addr;
     int prot, ret;
 
-#ifdef DEBUG_MMAP
-    printf("munmap: start=0x" TARGET_ABI_FMT_lx " len=0x"
-           TARGET_ABI_FMT_lx "\n",
-           start, len);
-#endif
+    trace_target_munmap(start, len);
+
     if (start & ~TARGET_PAGE_MASK)
         return -TARGET_EINVAL;
     len = TARGET_PAGE_ALIGN(len);
