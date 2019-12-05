@@ -2610,16 +2610,15 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
     switch (addr) {
     /* Root Table Address Register, 64-bit */
     case DMAR_RTADDR_REG:
+        val = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
         if (size == 4) {
-            val = s->root & ((1ULL << 32) - 1);
-        } else {
-            val = s->root;
+            val = val & ((1ULL << 32) - 1);
         }
         break;
 
     case DMAR_RTADDR_REG_HI:
         assert(size == 4);
-        val = s->root >> 32;
+        val = vtd_get_quad_raw(s, DMAR_RTADDR_REG) >> 32;
         break;
 
     /* Invalidation Queue Address Register, 64-bit */
