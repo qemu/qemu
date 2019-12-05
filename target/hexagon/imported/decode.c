@@ -27,12 +27,12 @@
 #include <ctype.h>
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "iclass.h"
+//#include "iclass.h"
 #include "opcodes.h"
 #include "decode.h"
 #include "insn.h"
 #include "max.h"
-#include "printinsn.h"
+//#include "printinsn.h"
 #include "ext.h"
 #include "utils.h"
 #include "isa_constants.h"
@@ -94,7 +94,7 @@ void __decode_error(unsigned int cause)
 #define DEF_REGMAP(NAME,ELEMENTS,...) \
 	static const unsigned int DECODE_REGISTER_##NAME[ELEMENTS] = { __VA_ARGS__ };
 
-#include "regmap.def"
+#include "regmap.h"
 
 #define DECODE_MAPPED_REG(REGNO,NAME) insn->regno[REGNO] = DECODE_REGISTER_##NAME[insn->regno[REGNO]];
 
@@ -202,26 +202,25 @@ static dectree_table_t dectree_table_##TAG = { \
 #undef DECODE_NEW_TABLE_HELPER
 #undef DECODE_SEPARATOR_BITS
 
-#ifdef NO_SILVER 
 static dectree_table_t dectree_table_DECODE_EXT_EXT_noext = {
 	.size = 1, .lookup_function = NULL, .startbit = 0, .width = 0,
 	.table = {
 		{ .type = DECTREE_ENTRY_INVALID, .opcode = XX_LAST_OPCODE },
         }
 };
-#endif
 
 static dectree_table_t *ext_trees[XX_LAST_EXT_IDX];
 
-#define DEF_EXT(NAME,START,NUM) for (i = START; i < (START+NUM); i++) { \
-		ext_trees[i] = &dectree_table_DECODE_EXT_EXT_##NAME; \
-	}
 static void decode_ext_init(void)
 {
 	int i;
-#include "ext.def"
+    for (i = EXT_IDX_noext; i < EXT_IDX_noext_AFTER; i++) {
+        ext_trees[i] = &dectree_table_DECODE_EXT_EXT_noext;
+    }
+    for (i = EXT_IDX_mmvec; i < EXT_IDX_mmvec_AFTER; i++) {
+        ext_trees[i] = &dectree_table_DECODE_EXT_EXT_mmvec;
+    }
 }
-#undef DEF_EXT
 
 typedef struct {
 	size4u_t mask;
@@ -920,6 +919,7 @@ static inline int check_twowrite(insn_t * insn)
 #define JUST_GENISET_SUPPORT
 #undef JUST_GENISET_SUPPORT
 
+#if 0
 /* Check to see whether it was OK to skip over a slot N */
 static int
 #ifdef FIXME
@@ -951,7 +951,9 @@ decode_assembler_check_skipped_slot(packet_t * pkt, int slot)
 	}
 	return 0;
 }
+#endif
 
+#if 0
 /* Check all the slot ordering restrictions */
 #ifdef FIXME
 static int decode_assembler_check_slots(thread_t * thread, packet_t * pkt, exception_info *einfo)
@@ -1131,6 +1133,7 @@ static int decode_assembler_check_slots(packet_t * pkt)
 	
 	return 0;
 }
+#endif
 
 static int
 #ifdef FIXME
@@ -1261,6 +1264,7 @@ decode_assembler_check_loopla(packet_t * pkt)
 	return 0;
 }
 
+#if 0
 #ifdef FIXME
 static int decode_assembler_check_sc(thread_t * thread, packet_t * pkt, exception_info *einfo)
 #else
@@ -1315,6 +1319,7 @@ static int decode_assembler_check_sc(packet_t * pkt)
 	}
 	return 0;
 }
+#endif
 
 #ifdef FIXME
 static int decode_assembler_check_fpops(thread_t * thread, packet_t * pkt, exception_info *einfo)
@@ -1354,11 +1359,11 @@ static int decode_assembler_checks(packet_t * pkt)
 	errors += decode_assembler_check_sc(thread, pkt,einfo);
 #else
 	errors += decode_assembler_check_fpops(pkt);
-	errors += decode_assembler_check_slots(pkt);
+//	errors += decode_assembler_check_slots(pkt);
 	errors += decode_assembler_check_branching(pkt);
 	errors += decode_assembler_check_srmove(pkt);
 	errors += decode_assembler_check_loopla(pkt);
-	errors += decode_assembler_check_sc(pkt);
+//	errors += decode_assembler_check_sc(pkt);
 #endif
 	return errors;
 }
@@ -1562,6 +1567,7 @@ static int decode_check_latepred(packet_t * packet)
 	return 0;
 }
 
+#if 0
 static const char *
 #ifdef FIXME
 get_valid_slot_str(const thread_t *thread, const packet_t *pkt, unsigned int slot)
@@ -1585,6 +1591,7 @@ get_valid_slot_str(const packet_t *pkt, unsigned int slot)
 		return find_iclass_slots(pkt->insn[slot].opcode,  pkt->insn[slot].iclass);
 	}
 }
+#endif
 
 static int decode_possible_multiwrite(packet_t * pkt)
 {

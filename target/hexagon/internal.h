@@ -19,6 +19,20 @@
 #define HEXAGON_INTERNAL_H
 
 /*
+ * Change HEX_DEBUG to 1 to turn on debugging output
+ */
+#define HEX_DEBUG 0
+#define HEX_DEBUG_LOG(...) \
+    do { \
+        if (HEX_DEBUG) { \
+            if (qemu_logfile == NULL) { \
+                qemu_logfile = stderr; \
+            } \
+            qemu_log(__VA_ARGS__); \
+        } \
+    } while (0)
+
+/*
  * Change COUNT_HEX_HELPERS to 1 to count how many times each helper
  * is called.  This is useful to figure out which helpers would benefit
  * from writing an fWRAP macro.

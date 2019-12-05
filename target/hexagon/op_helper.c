@@ -152,7 +152,6 @@ static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
     }
 }
 
-#if HEX_DEBUG
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
     HEX_DEBUG_LOG("Start packet: pc = 0x%x\n", env->gpr[HEX_REG_PC]);
@@ -162,7 +161,6 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
         env->reg_written[i] = 0;
     }
 }
-#endif
 
 int32_t HELPER(new_value)(CPUHexagonState *env, int rnum)
 {
@@ -174,7 +172,6 @@ static inline int32_t new_pred_value(CPUHexagonState *env, int pnum)
     return env->new_pred_value[pnum];
 }
 
-#if HEX_DEBUG
 void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 {
     if (env->mem_log_stores[slot].width != check) {
@@ -183,7 +180,6 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
         g_assert_not_reached();
     }
 }
-#endif
 
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
@@ -227,7 +223,6 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
     }
 }
 
-#if HEX_DEBUG
 static void print_store(CPUHexagonState *env, int slot)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
@@ -303,7 +298,6 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                   env->gpr[HEX_REG_QEMU_HVX_CNT]);
 
 }
-#endif
 
 int32_t HELPER(sfrecipa_val)(CPUHexagonState *env, int32_t RsV, int32_t RtV)
 {
@@ -377,7 +371,6 @@ int32_t HELPER(sfinvsqrta_pred)(CPUHexagonState *env, int32_t RsV)
     return PeV;
 }
 
-#if HEX_DEBUG
 /* Helpful for printing intermediate values within instructions */
 void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
 {
@@ -388,7 +381,6 @@ void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
 {
     HEX_DEBUG_LOG("value = 0x%lx\n", value);
 }
-#endif
 
 static inline void log_ext_vreg_write(CPUHexagonState *env, int num, void *var,
                                       int vnew, uint32_t slot)

@@ -6,7 +6,6 @@ obj-y += \
     genptr.o \
     imported/decode.o \
     imported/opcodes.o \
-    imported/iclass.o \
     imported/printinsn.o \
     imported/utils.o \
     imported/arch.o \
@@ -22,10 +21,10 @@ QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap.h
 $(QEMU_ODEF) $(QEMU_WRAP_H): \
     $(SRC_PATH)/target/hexagon/do_qemu.py \
     $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
-    $(SRC_PATH)/target/hexagon/imported/attribs.def
+    $(SRC_PATH)/target/hexagon/attribs_def.h
 	$(SRC_PATH)/target/hexagon/do_qemu.py \
             $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
-            $(SRC_PATH)/target/hexagon/imported/attribs.def
+            $(SRC_PATH)/target/hexagon/attribs_def.h
 
 target/hexagon/genptr.o: $(QEMU_ODEF)
 target/hexagon/genptr.o: $(QEMU_WRAP_H)

@@ -242,9 +242,10 @@ decode_set_slot_number(packet_t * pkt)
 	int i;
 	int hit_mem_insn = 0;
 	int hit_duplex = 0;
-	const char *valid_slot_str;
+//	const char *valid_slot_str;
 
 	for (i = 0, slot = 3; i < pkt->num_insns; i++) {
+#if 0
 		if (pkt->insn[i].opcode == J2_endloop01)
 			// EJP: Fixme: add slot = 4 or something?
 			continue;
@@ -273,6 +274,7 @@ decode_set_slot_number(packet_t * pkt)
 			}
 			slot--;
 		}
+#endif
 		pkt->insn[i].slot = slot;
 		if (slot)
 			slot--;				/* I've assigned the slot, now decrement it for the next insn */

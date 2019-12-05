@@ -259,9 +259,12 @@ check_mem_instruction(hvx_resource_t * resources, int * ilist, int num_insn, pac
 		// valid instruction
 		if (ilist[current_insn]>-1) {
 			if (GET_ATTRIB(packet->insn[ilist[current_insn]].opcode, A_CVI_VM)) {
+#if 0
 				if (GET_ATTRIB(packet->insn[ilist[current_insn]].opcode, A_LOAD) && GET_ATTRIB(packet->insn[ilist[current_insn]].opcode, A_EXPERIMENTAL)) {
 					// Disable checking for Experimentals now						
-				} else if (GET_ATTRIB(packet->insn[ilist[current_insn]].opcode, A_LOAD)) {
+				} else
+#endif
+				if (GET_ATTRIB(packet->insn[ilist[current_insn]].opcode, A_LOAD)) {
 					if (resources[HVX_RESOURCE_LOAD] == FREE) {
 						resources[HVX_RESOURCE_LOAD] = USED;
 						packet->insn[ilist[current_insn]].hvx_resource |= (1<<HVX_RESOURCE_LOAD);

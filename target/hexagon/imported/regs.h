@@ -25,16 +25,8 @@
 
 #include "arch_types.h"
 
-#define DEF_SUBSYS_REG(NAME,DESC,OFFSET)
-
 #define NUM_GEN_REGS 32
-#define NUM_PREGS 4
 #define NUM_PER_THREAD_CR (32 + 32 + 16 + 48)	/* user + guest + per-thread supervisor + A regs */
-#ifdef CONFIG_USER_ONLY
-#define TOTAL_PER_THREAD_REGS 64
-#else
-#define TOTAL_PER_THREAD_REGS (NUM_GEN_REGS+NUM_PER_THREAD_CR)
-#endif
 #define NUM_GLOBAL_REGS (128 + 32) /* + A regs */
 #define NUM_PMU_REGS 8
 
@@ -44,34 +36,12 @@
 #define READ_L2REG(...)  0
 
 enum regs_enum {
-#define DEF_REG_MUTABILITY(REG,MASK)
-#define DEF_GLOBAL_REG_MUTABILITY(REG,MASK)
 #define DEF_REG_FIELD(TAG,NAME,START,WIDTH,DESCRIPTION)
 #define DEF_GLOBAL_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_MMAP_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_REG(TAG,NAME,SYMBOL,NUM,OFFSET)\
   TAG=OFFSET,
-#include "regs.def"
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
-#undef DEF_REG_FIELD
-#undef DEF_GLOBAL_REG
-#undef DEF_MMAP_REG
-#undef DEF_REG
-};
-
-enum last_regs_enum {
-#define DEF_REG_MUTABILITY(REG,MASK)
-#define DEF_GLOBAL_REG_MUTABILITY(REG,MASK)
-#define DEF_REG_FIELD(TAG,NAME,START,WIDTH,DESCRIPTION)
-#define DEF_GLOBAL_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
-#define DEF_MMAP_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
-#define DEF_REG(TAG,NAME,SYMBOL,NUM,OFFSET)\
-  LAST_REG_FOR_##TAG=(OFFSET+NUM-1),
-#include "regs.def"
-	ENDOFREGS
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
+#include "regs_def.h"
 #undef DEF_REG_FIELD
 #undef DEF_GLOBAL_REG
 #undef DEF_MMAP_REG
@@ -95,14 +65,12 @@ extern reg_field_t reg_field_info[];
 
 
 enum global_regs_enum {
-#define DEF_REG_MUTABILITY(REG,MASK)
-#define DEF_GLOBAL_REG_MUTABILITY(REG,MASK)
 #define DEF_REG_FIELD(TAG,NAME,START,WIDTH,DESCRIPTION)
 #define DEF_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_MMAP_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_GLOBAL_REG(TAG,NAME,SYMBOL,NUM,OFFSET) \
     TAG = OFFSET,
-#include "regs.def"
+#include "regs_def.h"
     END_GLOBAL_REGS
 };
 
@@ -110,19 +78,15 @@ enum global_regs_enum {
 #undef DEF_MMAP_REG
 #undef DEF_GLOBAL_REG
 #undef DEF_REG_FIELD
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
 
 
 enum reg_fields_enum {
-#define DEF_REG_MUTABILITY(REG,MASK)
-#define DEF_GLOBAL_REG_MUTABILITY(REG,MASK)
 #define DEF_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_GLOBAL_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_MMAP_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
 #define DEF_REG_FIELD(TAG,NAME,START,WIDTH,DESCRIPTION) \
     TAG,
-#include "regs.def"
+#include "regs_def.h"
     NUM_REG_FIELDS
 };
 
@@ -130,7 +94,5 @@ enum reg_fields_enum {
 #undef DEF_GLOBAL_REG
 #undef DEF_MMAP_REG
 #undef DEF_REG_FIELD
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
 
 #endif

@@ -32,14 +32,6 @@
 #include "insn.h"
 #include "regs.h"
 #include "macros.h"
-//#include "decode.h"
-//#include "../arch/external_api.h"
-
-#if defined(NO_SILVER) || defined(DISASM_SILVER)
-#define SKIP_SILVER 0
-#else
-#define SKIP_SILVER 1
-#endif
 
 const char *sreg2str(int reg);
 const char *sreg2str(int reg)
@@ -55,15 +47,11 @@ const char *sreg2str(int reg)
 #define DEF_GLOBAL_REG(...)		/* Nothing */
 #define DEF_MMAP_REG(...) /* NOTHING */
 #define DEF_REG_FIELD(...)		/* Nothing */
-#define DEF_REG_MUTABILITY(...)	/* Nothing */
-#define DEF_GLOBAL_REG_MUTABILITY(...)	/* Nothing */
-#include "regs.def"
+#include "regs_def.h"
 #undef DEF_REG
 #undef DEF_GLOBAL_REG
 #undef DEF_MMAP_REG
 #undef DEF_REG_FIELD
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
 
 #define DEF_REG(...)			/* Nothing */
 #define DEF_MMAP_REG(...) /* NOTHING */
@@ -74,15 +62,11 @@ const char *sreg2str(int reg)
 		return buf; \
 	}
 #define DEF_REG_FIELD(...)		/* Nothing */
-#define DEF_REG_MUTABILITY(...)	/* Nothing */
-#define DEF_GLOBAL_REG_MUTABILITY(...)	/* Nothing */
-#include "regs.def"
+#include "regs_def.h"
 #undef DEF_REG
 #undef DEF_MMAP_REG
 #undef DEF_GLOBAL_REG
 #undef DEF_REG_FIELD
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
 
 	return "???";
 }
@@ -101,15 +85,11 @@ const char *creg2str(int reg)
 #define DEF_GLOBAL_REG(...)		/* Nothing */
 #define DEF_MMAP_REG(...) /* NOTHING */
 #define DEF_REG_FIELD(...)		/* Nothing */
-#define DEF_REG_MUTABILITY(...)	/* Nothing */
-#define DEF_GLOBAL_REG_MUTABILITY(...)	/* Nothing */
-#include "regs.def"
+#include "regs_def.h"
 #undef DEF_REG
 #undef DEF_GLOBAL_REG
 #undef DEF_MMAP_REG
 #undef DEF_REG_FIELD
-#undef DEF_REG_MUTABILITY
-#undef DEF_GLOBAL_REG_MUTABILITY
 
 	return "???";
 }
@@ -228,6 +208,7 @@ void snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, thread_t * thread, s
 
         slot = pkt->insn[i].slot;
         if(SNPRINT_FIELD(fields, SNFIELD_SLOTTAG)) {
+#if 0
 			if (!(SKIP_SILVER && GET_ATTRIB(pkt->insn[i].opcode,A_VECX))) {
             snprintf(tmpbuf, 127, " //slot=%d:tag=%s:%s", 
                      slot,
@@ -235,6 +216,7 @@ void snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, thread_t * thread, s
 		     timing_class_names[insn_timing_classes[pkt->insn[i].opcode]]);
             strncat(buf, tmpbuf, n);
 			}
+#endif
         }
 
 		if ((pkt->slot_cancelled & (1 << slot)) 
@@ -248,6 +230,7 @@ void snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, thread_t * thread, s
                    GET_ATTRIB(pkt->insn[i].opcode, A_ICINVA) ||
                    GET_ATTRIB(pkt->insn[i].opcode, A_COPBYADDRESS)) {
             if(SNPRINT_FIELD(fields, SNFIELD_EAPA)) {
+#if 0
                 if ((thread != NULL) 
 				&& (!(SKIP_SILVER 
 				  && GET_ATTRIB(pkt->insn[i].opcode,A_VECX)))) {
@@ -258,6 +241,7 @@ void snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, thread_t * thread, s
 				);
                     strncat(buf, tmpbuf, n);
                 }
+#endif
 			}
 		}
 		snprint_add_trap1_info(buf, n, pkt->insn[i].opcode, thread);
@@ -301,6 +285,7 @@ void __snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, size4u_t fields)
         slot = pkt->insn[i].slot;
 #ifdef FIXME
         if(SNPRINT_FIELD(fields, SNFIELD_SLOTTAG)) {
+#if 0
 			if (!(SKIP_SILVER && GET_ATTRIB(pkt->insn[i].opcode,A_VECX))) {
             snprintf(tmpbuf, 127, " //slot=%d:tag=%s:%s", 
                      slot,
@@ -308,6 +293,7 @@ void __snprint_a_pkt_fields(char *buf, int n, packet_t * pkt, size4u_t fields)
 		     timing_class_names[insn_timing_classes[pkt->insn[i].opcode]]);
             strncat(buf, tmpbuf, n);
 			}
+#endif
         }
 #endif
 
@@ -391,10 +377,12 @@ void snprint_a_pkt(char *buf, int n, packet_t * pkt, thread_t * thread)
 		}
 		slot = pkt->insn[i].slot;
         opcode = pkt->insn[i].opcode;
+#if 0
 		if (!(SKIP_SILVER && GET_ATTRIB(pkt->insn[i].opcode,A_VECX))) {
 			snprintf(tmpbuf, 127, " //slot=%d:tag=%s", slot, opcode_names[opcode]);
 			strncat(buf, tmpbuf, n);
 		}
+#endif
 
 		if (pkt->slot_cancelled & (1 << slot)) {
 			strncat(buf, " //cancelled", n);

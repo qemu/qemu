@@ -19,6 +19,7 @@
 #define TRANSLATE_H
 
 #include "cpu.h"
+#include "internal.h"
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
