@@ -136,44 +136,11 @@ static inline bool ivshmem_is_master(IVShmemState *s)
     return s->master == ON_OFF_AUTO_ON;
 }
 
-static void ivshmem_update_irq(IVShmemState *s)
-{
-    PCIDevice *d = PCI_DEVICE(s);
-    uint32_t isr = s->intrstatus & s->intrmask;
-
-    /*
-     * Do nothing unless the device actually uses INTx.  Here's how
-     * the device variants signal interrupts, what they put in PCI
-     * config space:
-     * Device variant    Interrupt  Interrupt Pin  MSI-X cap.
-     * ivshmem-plain         none            0         no
-     * ivshmem-doorbell     MSI-X            1        yes(1)
-     * ivshmem,msi=off       INTx            1         no
-     * ivshmem,msi=on       MSI-X            1(2)     yes(1)
-     * (1) if guest enabled MSI-X
-     * (2) the device lies
-     * Leads to the condition for doing nothing:
-     */
-    if (ivshmem_has_feature(s, IVSHMEM_MSI)
-        || !d->config[PCI_INTERRUPT_PIN]) {
-        return;
-    }
-
-    /* don't print ISR resets */
-    if (isr) {
-        IVSHMEM_DPRINTF("Set IRQ to %d (%04x %04x)\n",
-                        isr ? 1 : 0, s->intrstatus, s->intrmask);
-    }
-
-    pci_set_irq(d, isr != 0);
-}
-
 static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
 {
     IVSHMEM_DPRINTF("IntrMask write(w) val = 0x%04x\n", val);
 
     s->intrmask = val;
-    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrMask_read(IVShmemState *s)
@@ -189,7 +156,6 @@ static void ivshmem_IntrStatus_write(IVShmemState *s, uint32_t val)
     IVSHMEM_DPRINTF("IntrStatus write(w) val = 0x%04x\n", val);
 
     s->intrstatus = val;
-    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
@@ -198,7 +164,6 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
 
     /* reading ISR clears all interrupts */
     s->intrstatus = 0;
-    ivshmem_update_irq(s);
     return ret;
 }
 
