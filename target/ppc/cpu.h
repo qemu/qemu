@@ -2364,6 +2364,7 @@ enum {
     PCR_COMPAT_2_06     = PPC_BIT(61),
     PCR_COMPAT_2_07     = PPC_BIT(60),
     PCR_COMPAT_3_00     = PPC_BIT(59),
+    PCR_COMPAT_3_10     = PPC_BIT(58),
     PCR_VEC_DIS         = PPC_BIT(0), /* Vec. disable (bit NA since POWER8) */
     PCR_VSX_DIS         = PPC_BIT(1), /* VSX disable (bit NA since POWER8) */
     PCR_TM_DIS          = PPC_BIT(2), /* Trans. memory disable (POWER8) */
