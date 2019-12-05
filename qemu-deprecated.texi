@@ -367,6 +367,14 @@ guarantees must resolve the CPU model aliases using te
 ``alias-of'' field returned by the ``query-cpu-definitions'' QMP
 command.
 
+While those guarantees are kept, the return value of
+``query-cpu-definitions'' will have existing CPU model aliases
+point to a version that doesn't break runnability guarantees
+(specifically, version 1 of those CPU models).  In future QEMU
+versions, aliases will point to newer CPU model versions
+depending on the machine type, so management software must
+resolve CPU model aliases before starting a virtual machine.
+
 
 @node Recently removed features
 @appendix Recently removed features
