@@ -608,9 +608,12 @@ static const TypeInfo pnv_psi_power8_info = {
 #define   PSIHB9_IRQ_METHOD             PPC_BIT(0)
 #define   PSIHB9_IRQ_RESET              PPC_BIT(1)
 #define PSIHB9_ESB_CI_BASE              0x60
-#define   PSIHB9_ESB_CI_VALID           1
+#define   PSIHB9_ESB_CI_64K             PPC_BIT(1)
+#define   PSIHB9_ESB_CI_ADDR_MASK       PPC_BITMASK(8, 47)
+#define   PSIHB9_ESB_CI_VALID           PPC_BIT(63)
 #define PSIHB9_ESB_NOTIF_ADDR           0x68
-#define   PSIHB9_ESB_NOTIF_VALID        1
+#define   PSIHB9_ESB_NOTIF_ADDR_MASK    PPC_BITMASK(8, 60)
+#define   PSIHB9_ESB_NOTIF_VALID        PPC_BIT(63)
 #define PSIHB9_IVT_OFFSET               0x70
 #define   PSIHB9_IVT_OFF_SHIFT          32
 
