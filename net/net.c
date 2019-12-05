@@ -1126,16 +1126,13 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 
             prefix_addr = substrings[0];
 
-            if (substrings[1]) {
-                /* User-specified prefix length.  */
-                int err;
-
-                err = qemu_strtoul(substrings[1], NULL, 10, &prefix_len);
-                if (err) {
-                    error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                               "ipv6-prefixlen", "a number");
-                    goto out;
-                }
+            /* Handle user-specified prefix length. */
+            if (substrings[1] &&
+                qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
+            {
+                error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                           "ipv6-prefixlen", "a number");
+                goto out;
             }
 
             qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
