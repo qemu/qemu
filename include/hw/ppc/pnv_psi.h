@@ -69,6 +69,8 @@ typedef struct Pnv9Psi {
     XiveSource source;
 } Pnv9Psi;
 
+#define TYPE_PNV10_PSI TYPE_PNV_PSI "-POWER10"
+
 #define PNV_PSI_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
 #define PNV_PSI_GET_CLASS(obj) \

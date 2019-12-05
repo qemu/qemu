@@ -647,9 +647,9 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
 
 static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
 {
-    /*
-     * No interrupt controller yet
-     */;
+    Pnv10Chip *chip10 = PNV10_CHIP(chip);
+
+    pnv_psi_pic_print_info(&chip10->psi, mon);
 }
 
 static void pnv_init(MachineState *machine)
@@ -1311,16 +1311,17 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 
 static void pnv_chip_power10_instance_init(Object *obj)
 {
-    /*
-     * No controllers yet
-     */
-    ;
+    Pnv10Chip *chip10 = PNV10_CHIP(obj);
+
+    object_initialize_child(obj, "psi",  &chip10->psi, sizeof(chip10->psi),
+                            TYPE_PNV10_PSI, &error_abort, NULL);
 }
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     PnvChip *chip = PNV_CHIP(dev);
+    Pnv10Chip *chip10 = PNV10_CHIP(dev);
     Error *local_err = NULL;
 
     /* XSCOM bridge is first */
@@ -1336,6 +1337,18 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* Processor Service Interface (PSI) Host Bridge */
+    object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
+                            "bar", &error_fatal);
+    object_property_set_bool(OBJECT(&chip10->psi), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_PSIHB_BASE,
+                            &PNV_PSI(&chip10->psi)->xscom_regs);
 }
 
 static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)

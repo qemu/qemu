@@ -538,6 +538,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
 
 static const char compat_p8[] = "ibm,power8-psihb-x\0ibm,psihb-x";
 static const char compat_p9[] = "ibm,power9-psihb-x\0ibm,psihb-x";
+static const char compat_p10[] = "ibm,power10-psihb-x\0ibm,psihb-x";
 
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
@@ -557,7 +558,10 @@ static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
     _FDT(fdt_setprop(fdt, offset, "reg", reg, sizeof(reg)));
     _FDT(fdt_setprop_cell(fdt, offset, "#address-cells", 2));
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells", 1));
-    if (ppc->chip_type == PNV_CHIP_POWER9) {
+    if (ppc->chip_type == PNV_CHIP_POWER10) {
+        _FDT(fdt_setprop(fdt, offset, "compatible", compat_p10,
+                         sizeof(compat_p10)));
+    } else if (ppc->chip_type == PNV_CHIP_POWER9) {
         _FDT(fdt_setprop(fdt, offset, "compatible", compat_p9,
                          sizeof(compat_p9)));
     } else {
@@ -909,6 +913,24 @@ static const TypeInfo pnv_psi_power9_info = {
     },
 };
 
+static void pnv_psi_power10_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvPsiClass *ppc = PNV_PSI_CLASS(klass);
+
+    dc->desc    = "PowerNV PSI Controller POWER10";
+
+    ppc->chip_type  = PNV_CHIP_POWER10;
+    ppc->xscom_pcba = PNV10_XSCOM_PSIHB_BASE;
+    ppc->xscom_size = PNV10_XSCOM_PSIHB_SIZE;
+}
+
+static const TypeInfo pnv_psi_power10_info = {
+    .name          = TYPE_PNV10_PSI,
+    .parent        = TYPE_PNV9_PSI,
+    .class_init    = pnv_psi_power10_class_init,
+};
+
 static void pnv_psi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -938,6 +960,7 @@ static void pnv_psi_register_types(void)
     type_register_static(&pnv_psi_info);
     type_register_static(&pnv_psi_power8_info);
     type_register_static(&pnv_psi_power9_info);
+    type_register_static(&pnv_psi_power10_info);
 }
 
 type_init(pnv_psi_register_types);
