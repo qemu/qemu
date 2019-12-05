@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "internal.h"
 #include "tcg-op.h"
 #include "tcg-op-gvec.h"
 #include "imported/opcodes.h"

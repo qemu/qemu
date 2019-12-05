@@ -18,26 +18,10 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
-/*
- * Change HEX_DEBUG to 1 to turn on debugging output
- */
-#define HEX_DEBUG 0
-#define HEX_DEBUG_LOG(...) \
-    do { \
-        if (HEX_DEBUG) { \
-            if (qemu_logfile == NULL) { \
-                qemu_logfile = stderr; \
-            } \
-            qemu_log(__VA_ARGS__); \
-        } \
-    } while (0)
-
 /* Forward declaration needed by some of the header files */
 typedef struct CPUHexagonState CPUHexagonState;
 
 #include <fenv.h>
-#include "imported/global_types.h"
-#include "imported/max.h"
 #include "imported/iss_ver_registers.h"
 #include "mmvec/mmvec.h"
 
@@ -47,7 +31,13 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu/compiler.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
-#include "imported/regs.h"
+
+#define NUM_PREGS 4
+#ifdef CONFIG_USER_ONLY
+#define TOTAL_PER_THREAD_REGS 64
+#else
+#error System mode not implemented
+#endif
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -107,9 +97,13 @@ struct CPUHexagonState {
 
     size1u_t slot_cancelled;
     target_ulong new_value[TOTAL_PER_THREAD_REGS];
-#if HEX_DEBUG
+
+    /*
+     * Only used when HEX_DEBUG is on, but unconditionally included
+     * to reduce recompile time when turning it on/off.
+     */
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
-#endif
+
     target_ulong new_pred_value[NUM_PREGS];
     target_ulong pred_written[NUM_PREGS];
 

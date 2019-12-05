@@ -15,33 +15,18 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef ATTRIBS_H
+#define ATTRIBS_H 1
 
-#include "opcodes.h"
+enum {
+#define DEF_ATTRIB(NAME, ...) A_##NAME,
+#include "attribs_def.h"
+#undef DEF_ATTRIB
+};
 
-#define ICLASS_FROM_TYPE(TYPE) ICLASS_##TYPE
+#define ATTRIB_WIDTH 32
+#define GET_ATTRIB(opcode, attrib) \
+    (((opcode_attribs[opcode][attrib / ATTRIB_WIDTH])\
+    >> (attrib % ATTRIB_WIDTH)) & 0x1)
 
-typedef enum {
-
-#define DEF_PP_ICLASS32(TYPE,SLOTS,UNITS) ICLASS_FROM_TYPE(TYPE),
-#define DEF_EE_ICLASS32(TYPE,SLOTS,UNITS)	/* nothing */
-#include "iclass.def"
-#undef DEF_PP_ICLASS32
-#undef DEF_EE_ICLASS32
-
-#define DEF_EE_ICLASS32(TYPE,SLOTS,UNITS) ICLASS_FROM_TYPE(TYPE),
-#define DEF_PP_ICLASS32(TYPE,SLOTS,UNITS)	/* nothing */
-#include "iclass.def"
-#undef DEF_PP_ICLASS32
-#undef DEF_EE_ICLASS32
-
-    ICLASS_FROM_TYPE(COPROC_VX),
-    ICLASS_FROM_TYPE(COPROC_VMEM),
-	NUM_ICLASSES
-} iclass_t;
-
-const char *
-find_iclass_slots(opcode_t opcode, int itype);
-
-const char *
-find_iclass_name(opcode_t opcode, int itype);
+#endif /* ATTRIBS_H */

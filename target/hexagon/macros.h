@@ -20,6 +20,7 @@
 
 #include "imported/arch.h"
 #include "imported/iss_ver_registers.h"
+#include "imported/regs.h"
 #include "exec/helper-proto.h"
 
 #define GET_FIELD(FIELD, REGIN) \
@@ -328,7 +329,7 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 #define READ_MREG(NUM) \
     (env->gpr[NUM + REG_M])
 #define READ_CSREG(NUM) \
-    (env->gpr[NUM + REG_CSA])
+    (env->gpr[NUM + HEX_REG_CS0])
 #endif
 
 #ifdef QEMU_GENERATE
@@ -765,7 +766,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_GOSP() (READ_REG(tmp, HEX_REG_GOSP))
 #define fREAD_GELR() (READ_REG(tmp, HEX_REG_GELR))
 #define fREAD_GEVB() (READ_REG(tmp, HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_REG(tmp, REG_CSA + N))
+#define fREAD_CSREG(N) (READ_REG(tmp, HEX_REG_CS0 + N))
 #define fREAD_LC0 (READ_REG(tmp, HEX_REG_LC0))
 #define fREAD_LC1 (READ_REG(tmp, HEX_REG_LC1))
 #define fREAD_SA0 (READ_REG(tmp, HEX_REG_SA0))
@@ -778,7 +779,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_GOSP() (READ_REG(HEX_REG_GOSP))
 #define fREAD_GELR() (READ_REG(HEX_REG_GELR))
 #define fREAD_GEVB() (READ_REG(HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_REG(REG_CSA + N))
+#define fREAD_CSREG(N) (READ_REG(HEX_REG_CS0 + N))
 #define fREAD_LC0 (READ_REG(HEX_REG_LC0))
 #define fREAD_LC1 (READ_REG(HEX_REG_LC1))
 #define fREAD_SA0 (READ_REG(HEX_REG_SA0))

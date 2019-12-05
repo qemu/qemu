@@ -5954,7 +5954,6 @@ MACROATTRIB("fDUMPQ","""do { printf(STR ":" #REG ": 0x%016llx\n",REG.ud[0]); } w
 MACROATTRIB("fUSE_LOOKUP_ADDRESS_BY_REV","""PROC->arch_proc_options->mmvec_use_full_va_for_lookup""","()","mmvec")
 MACROATTRIB("fUSE_LOOKUP_ADDRESS","""1""","()","mmvec")
 MACROATTRIB("fRT8NOTE","""""","(A_NOTE_RT8)","mmvec")
-MACROATTRIB("fEXPERIMENTAL","""""","(A_EXPERIMENTAL)","mmvec")
 MACROATTRIB("fNOTQ","""({mmqreg_t _ret; int _i_; for (_i_ = 0; _i_ < fVECSIZE()/64; _i_++) _ret.ud[_i_] = ~VAL.ud[_i_]; _ret;})""","()","mmvec")
 MACROATTRIB("fGETQBITS","""((MASK) & (REG.w[(BITNO)>>5] >> ((BITNO) & 0x1f)))""","()","mmvec")
 MACROATTRIB("fGETQBIT","""fGETQBITS(REG,1,1,BITNO)""","()","mmvec")
