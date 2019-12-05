@@ -115,6 +115,7 @@ typedef struct Pnv10Chip {
 
     /*< public >*/
     Pnv9Psi      psi;
+    PnvLpcController lpc;
 } Pnv10Chip;
 
 typedef struct PnvChipClass {
@@ -328,6 +329,9 @@ IPMIBmc *pnv_bmc_create(void);
 
 #define PNV10_XSCOM_SIZE             0x0000000400000000ull
 #define PNV10_XSCOM_BASE(chip)       PNV10_CHIP_BASE(chip, 0x00603fc00000000ull)
+
+#define PNV10_LPCM_SIZE             0x0000000100000000ull
+#define PNV10_LPCM_BASE(chip)       PNV10_CHIP_BASE(chip, 0x0006030000000000ull)
 
 #define PNV10_PSIHB_ESB_SIZE        0x0000000000100000ull
 #define PNV10_PSIHB_ESB_BASE(chip)  PNV10_CHIP_BASE(chip, 0x0006030202000000ull)

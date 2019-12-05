@@ -314,7 +314,7 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
         pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
     }
 
-    pnv_dt_lpc(chip, fdt, 0);
+    pnv_dt_lpc(chip, fdt, 0, PNV9_LPCM_BASE(chip), PNV9_LPCM_SIZE);
 }
 
 static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
@@ -332,6 +332,8 @@ static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
     if (chip->ram_size) {
         pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
     }
+
+    pnv_dt_lpc(chip, fdt, 0, PNV10_LPCM_BASE(chip), PNV10_LPCM_SIZE);
 }
 
 static void pnv_dt_rtc(ISADevice *d, void *fdt, int lpc_off)
@@ -601,8 +603,8 @@ static ISABus *pnv_chip_power9_isa_create(PnvChip *chip, Error **errp)
 
 static ISABus *pnv_chip_power10_isa_create(PnvChip *chip, Error **errp)
 {
-    error_setg(errp, "No ISA bus!");
-    return NULL;
+    Pnv10Chip *chip10 = PNV10_CHIP(chip);
+    return pnv_lpc_isa_create(&chip10->lpc, false, errp);
 }
 
 static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
@@ -1315,6 +1317,8 @@ static void pnv_chip_power10_instance_init(Object *obj)
 
     object_initialize_child(obj, "psi",  &chip10->psi, sizeof(chip10->psi),
                             TYPE_PNV10_PSI, &error_abort, NULL);
+    object_initialize_child(obj, "lpc",  &chip10->lpc, sizeof(chip10->lpc),
+                            TYPE_PNV10_LPC, &error_abort, NULL);
 }
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
@@ -1349,6 +1353,21 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_PSIHB_BASE,
                             &PNV_PSI(&chip10->psi)->xscom_regs);
+
+    /* LPC */
+    object_property_set_link(OBJECT(&chip10->lpc), OBJECT(&chip10->psi), "psi",
+                             &error_abort);
+    object_property_set_bool(OBJECT(&chip10->lpc), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
+                                &chip10->lpc.xscom_regs);
+
+    chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
+                                            (uint64_t) PNV10_LPCM_BASE(chip));
 }
 
 static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)

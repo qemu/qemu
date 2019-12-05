@@ -122,26 +122,26 @@ static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 }
 
 /* POWER9 only */
-int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset)
+int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset, uint64_t lpcm_addr,
+               uint64_t lpcm_size)
 {
     const char compat[] = "ibm,power9-lpcm-opb\0simple-bus";
     const char lpc_compat[] = "ibm,power9-lpc\0ibm,lpc";
     char *name;
     int offset, lpcm_offset;
-    uint64_t lpcm_addr = PNV9_LPCM_BASE(chip);
     uint32_t opb_ranges[8] = { 0,
                                cpu_to_be32(lpcm_addr >> 32),
                                cpu_to_be32((uint32_t)lpcm_addr),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
+                               cpu_to_be32(lpcm_size / 2),
+                               cpu_to_be32(lpcm_size / 2),
                                cpu_to_be32(lpcm_addr >> 32),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
+                               cpu_to_be32(lpcm_size / 2),
+                               cpu_to_be32(lpcm_size / 2),
     };
     uint32_t opb_reg[4] = { cpu_to_be32(lpcm_addr >> 32),
                             cpu_to_be32((uint32_t)lpcm_addr),
-                            cpu_to_be32(PNV9_LPCM_SIZE >> 32),
-                            cpu_to_be32((uint32_t)PNV9_LPCM_SIZE),
+                            cpu_to_be32(lpcm_size >> 32),
+                            cpu_to_be32((uint32_t)lpcm_size),
     };
     uint32_t lpc_ranges[12] = { 0, 0,
                                 cpu_to_be32(LPC_MEM_OPB_ADDR),
@@ -691,6 +691,19 @@ static const TypeInfo pnv_lpc_power9_info = {
     .class_init    = pnv_lpc_power9_class_init,
 };
 
+static void pnv_lpc_power10_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PowerNV LPC Controller POWER10";
+}
+
+static const TypeInfo pnv_lpc_power10_info = {
+    .name          = TYPE_PNV10_LPC,
+    .parent        = TYPE_PNV9_LPC,
+    .class_init    = pnv_lpc_power10_class_init,
+};
+
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
@@ -764,6 +777,7 @@ static void pnv_lpc_register_types(void)
     type_register_static(&pnv_lpc_info);
     type_register_static(&pnv_lpc_power8_info);
     type_register_static(&pnv_lpc_power9_info);
+    type_register_static(&pnv_lpc_power10_info);
 }
 
 type_init(pnv_lpc_register_types)
