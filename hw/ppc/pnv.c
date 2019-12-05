@@ -317,6 +317,23 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
     pnv_dt_lpc(chip, fdt, 0);
 }
 
+static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
+{
+    int i;
+
+    pnv_dt_xscom(chip, fdt, 0);
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pnv_core = chip->cores[i];
+
+        pnv_dt_core(chip, pnv_core, fdt);
+    }
+
+    if (chip->ram_size) {
+        pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
+    }
+}
+
 static void pnv_dt_rtc(ISADevice *d, void *fdt, int lpc_off)
 {
     uint32_t io_base = d->ioport_id;
@@ -467,6 +484,7 @@ static void *pnv_dt_create(MachineState *machine)
 {
     const char plat_compat8[] = "qemu,powernv8\0qemu,powernv\0ibm,powernv";
     const char plat_compat9[] = "qemu,powernv9\0ibm,powernv";
+    const char plat_compat10[] = "qemu,powernv10\0ibm,powernv";
     PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
     char *buf;
@@ -484,7 +502,10 @@ static void *pnv_dt_create(MachineState *machine)
     _FDT((fdt_setprop_cell(fdt, 0, "#size-cells", 0x2)));
     _FDT((fdt_setprop_string(fdt, 0, "model",
                              "IBM PowerNV (emulated by qemu)")));
-    if (pnv_is_power9(pnv)) {
+    if (pnv_is_power10(pnv)) {
+        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat10,
+                          sizeof(plat_compat10))));
+    } else if (pnv_is_power9(pnv)) {
         _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat9,
                           sizeof(plat_compat9))));
     } else {
@@ -528,8 +549,8 @@ static void *pnv_dt_create(MachineState *machine)
         pnv_dt_bmc_sensors(pnv->bmc, fdt);
     }
 
-    /* Create an extra node for power management on Power9 */
-    if (pnv_is_power9(pnv)) {
+    /* Create an extra node for power management on Power9 and Power10 */
+    if (pnv_is_power9(pnv) || pnv_is_power10(pnv)) {
         pnv_dt_power_mgt(fdt);
     }
 
@@ -578,6 +599,12 @@ static ISABus *pnv_chip_power9_isa_create(PnvChip *chip, Error **errp)
     return pnv_lpc_isa_create(&chip9->lpc, false, errp);
 }
 
+static ISABus *pnv_chip_power10_isa_create(PnvChip *chip, Error **errp)
+{
+    error_setg(errp, "No ISA bus!");
+    return NULL;
+}
+
 static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
 {
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
@@ -616,6 +643,13 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
     object_property_set_link(obj, OBJECT(bmc), "bmc", &error_fatal);
     object_property_set_int(obj, irq, "irq", &error_fatal);
     object_property_set_bool(obj, true, "realized", &error_fatal);
+}
+
+static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
+{
+    /*
+     * No interrupt controller yet
+     */;
 }
 
 static void pnv_init(MachineState *machine)
@@ -822,6 +856,11 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
     return (chip->chip_id << 8) | (core_id << 2);
 }
 
+static uint32_t pnv_chip_core_pir_p10(PnvChip *chip, uint32_t core_id)
+{
+    return (chip->chip_id << 8) | (core_id << 2);
+}
+
 static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
@@ -859,6 +898,27 @@ static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
     pnv_cpu->intc = NULL;
 }
 
+static void pnv_chip_power10_intc_create(PnvChip *chip, PowerPCCPU *cpu,
+                                        Error **errp)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    /* Will be defined when the interrupt controller is */
+    pnv_cpu->intc = NULL;
+}
+
+static void pnv_chip_power10_intc_reset(PnvChip *chip, PowerPCCPU *cpu)
+{
+    ;
+}
+
+static void pnv_chip_power10_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    pnv_cpu->intc = NULL;
+}
+
 /*
  * Allowed core identifiers on a POWER8 Processor Chip :
  *
@@ -885,6 +945,9 @@ static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
  * POWER9 has 24 cores, ids starting at 0x0
  */
 #define POWER9_CORE_MASK   (0xffffffffffffffull)
+
+
+#define POWER10_CORE_MASK  (0xffffffffffffffull)
 
 static void pnv_chip_power8_instance_init(Object *obj)
 {
@@ -1246,6 +1309,56 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
+static void pnv_chip_power10_instance_init(Object *obj)
+{
+    /*
+     * No controllers yet
+     */
+    ;
+}
+
+static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
+    PnvChip *chip = PNV_CHIP(dev);
+    Error *local_err = NULL;
+
+    /* XSCOM bridge is first */
+    pnv_xscom_realize(chip, PNV10_XSCOM_SIZE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV10_XSCOM_BASE(chip));
+
+    pcc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvChipClass *k = PNV_CHIP_CLASS(klass);
+
+    k->chip_type = PNV_CHIP_POWER10;
+    k->chip_cfam_id = 0x120da04900008000ull; /* P10 DD1.0 (with NX) */
+    k->cores_mask = POWER10_CORE_MASK;
+    k->core_pir = pnv_chip_core_pir_p10;
+    k->intc_create = pnv_chip_power10_intc_create;
+    k->intc_reset = pnv_chip_power10_intc_reset;
+    k->intc_destroy = pnv_chip_power10_intc_destroy;
+    k->isa_create = pnv_chip_power10_isa_create;
+    k->dt_populate = pnv_chip_power10_dt_populate;
+    k->pic_print_info = pnv_chip_power10_pic_print_info;
+    dc->desc = "PowerNV Chip POWER10";
+
+    device_class_set_parent_realize(dc, pnv_chip_power10_realize,
+                                    &k->parent_realize);
+}
+
 static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
@@ -1327,10 +1440,12 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                  &error_fatal);
 
         /* Each core has an XSCOM MMIO region */
-        if (!pnv_chip_is_power9(chip)) {
-            xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
-        } else {
+        if (pnv_chip_is_power10(chip)) {
+            xscom_core_base = PNV10_XSCOM_EC_BASE(core_hwid);
+        } else if (pnv_chip_is_power9(chip)) {
             xscom_core_base = PNV9_XSCOM_EC_BASE(core_hwid);
+        } else {
+            xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
         }
 
         pnv_xscom_add_subregion(chip, xscom_core_base,
@@ -1558,6 +1673,14 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
     mc->alias = "powernv";
 }
 
+static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "IBM PowerNV (Non-Virtualized) POWER10";
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v1.0");
+}
+
 static void pnv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1595,7 +1718,19 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
         .parent        = TYPE_PNV9_CHIP,          \
     }
 
+#define DEFINE_PNV10_CHIP_TYPE(type, class_initfn) \
+    {                                              \
+        .name          = type,                     \
+        .class_init    = class_initfn,             \
+        .parent        = TYPE_PNV10_CHIP,          \
+    }
+
 static const TypeInfo types[] = {
+    {
+        .name          = MACHINE_TYPE_NAME("powernv10"),
+        .parent        = TYPE_PNV_MACHINE,
+        .class_init    = pnv_machine_power10_class_init,
+    },
     {
         .name          = MACHINE_TYPE_NAME("powernv9"),
         .parent        = TYPE_PNV_MACHINE,
@@ -1634,6 +1769,17 @@ static const TypeInfo types[] = {
         .class_size    = sizeof(PnvChipClass),
         .abstract      = true,
     },
+
+    /*
+     * P10 chip and variants
+     */
+    {
+        .name          = TYPE_PNV10_CHIP,
+        .parent        = TYPE_PNV_CHIP,
+        .instance_init = pnv_chip_power10_instance_init,
+        .instance_size = sizeof(Pnv10Chip),
+    },
+    DEFINE_PNV10_CHIP_TYPE(TYPE_PNV_CHIP_POWER10, pnv_chip_power10_class_init),
 
     /*
      * P9 chip and variants

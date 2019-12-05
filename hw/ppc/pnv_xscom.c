@@ -69,10 +69,16 @@ static uint32_t pnv_xscom_pcba(PnvChip *chip, uint64_t addr)
 {
     addr &= (PNV_XSCOM_SIZE - 1);
 
-    if (pnv_chip_is_power9(chip)) {
-        return addr >> 3;
-    } else {
+    switch (PNV_CHIP_GET_CLASS(chip)->chip_type) {
+    case PNV_CHIP_POWER8E:
+    case PNV_CHIP_POWER8:
+    case PNV_CHIP_POWER8NVL:
         return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
+    case PNV_CHIP_POWER9:
+    case PNV_CHIP_POWER10:
+        return addr >> 3;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -307,6 +313,7 @@ static int xscom_dt_child(Object *child, void *opaque)
 
 static const char compat_p8[] = "ibm,power8-xscom\0ibm,xscom";
 static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
+static const char compat_p10[] = "ibm,power10-xscom\0ibm,xscom";
 
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
 {
@@ -315,7 +322,10 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
     ForeachPopulateArgs args;
     char *name;
 
-    if (pnv_chip_is_power9(chip)) {
+    if (pnv_chip_is_power10(chip)) {
+        reg[0] = cpu_to_be64(PNV10_XSCOM_BASE(chip));
+        reg[1] = cpu_to_be64(PNV10_XSCOM_SIZE);
+    } else if (pnv_chip_is_power9(chip)) {
         reg[0] = cpu_to_be64(PNV9_XSCOM_BASE(chip));
         reg[1] = cpu_to_be64(PNV9_XSCOM_SIZE);
     } else {
@@ -332,7 +342,10 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, xscom_offset, "reg", reg, sizeof(reg))));
 
-    if (pnv_chip_is_power9(chip)) {
+    if (pnv_chip_is_power10(chip)) {
+        _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p10,
+                          sizeof(compat_p10))));
+    } else if (pnv_chip_is_power9(chip)) {
         _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p9,
                           sizeof(compat_p9))));
     } else {

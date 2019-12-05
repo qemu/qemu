@@ -43,6 +43,7 @@ typedef enum PnvChipType {
     PNV_CHIP_POWER8,      /* AKA Venice */
     PNV_CHIP_POWER8NVL,   /* AKA Naples */
     PNV_CHIP_POWER9,      /* AKA Nimbus */
+    PNV_CHIP_POWER10,     /* AKA TBD */
 } PnvChipType;
 
 typedef struct PnvChip {
@@ -105,6 +106,14 @@ typedef struct Pnv9Chip {
 #define PNV9_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
 #define PNV9_PIR2CHIP(pir)      (((pir) >> 8) & 0x7f)
 
+#define TYPE_PNV10_CHIP "pnv10-chip"
+#define PNV10_CHIP(obj) OBJECT_CHECK(Pnv10Chip, (obj), TYPE_PNV10_CHIP)
+
+typedef struct Pnv10Chip {
+    /*< private >*/
+    PnvChip      parent_obj;
+} Pnv10Chip;
+
 typedef struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
@@ -143,6 +152,10 @@ typedef struct PnvChipClass {
 #define TYPE_PNV_CHIP_POWER9 PNV_CHIP_TYPE_NAME("power9_v2.0")
 #define PNV_CHIP_POWER9(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER9)
+
+#define TYPE_PNV_CHIP_POWER10 PNV_CHIP_TYPE_NAME("power10_v1.0")
+#define PNV_CHIP_POWER10(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER10)
 
 /*
  * This generates a HW chip id depending on an index, as found on a
@@ -202,6 +215,16 @@ PnvChip *pnv_get_chip(uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
+
+static inline bool pnv_chip_is_power10(const PnvChip *chip)
+{
+    return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER10;
+}
+
+static inline bool pnv_is_power10(PnvMachineState *pnv)
+{
+    return pnv_chip_is_power10(pnv->chips[0]);
+}
 
 /*
  * BMC helpers
@@ -293,4 +316,14 @@ IPMIBmc *pnv_bmc_create(void);
 #define PNV9_HOMER_SIZE              0x0000000000300000ull
 #define PNV9_HOMER_BASE(chip)                                           \
     (0x203ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV9_HOMER_SIZE)
+
+/*
+ * POWER10 MMIO base addresses - 16TB stride per chip
+ */
+#define PNV10_CHIP_BASE(chip, base)   \
+    ((base) + ((uint64_t) (chip)->chip_id << 44))
+
+#define PNV10_XSCOM_SIZE             0x0000000400000000ull
+#define PNV10_XSCOM_BASE(chip)       PNV10_CHIP_BASE(chip, 0x00603fc00000000ull)
+
 #endif /* PPC_PNV_H */

@@ -70,6 +70,9 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_OCC_BASE        0x0066000
 #define PNV_XSCOM_OCC_SIZE        0x6000
 
+/*
+ * Layout of the XSCOM PCB addresses (POWER 9)
+ */
 #define PNV9_XSCOM_EC_BASE(core) \
     ((uint64_t)(((core) & 0x1F) + 0x20) << 24)
 #define PNV9_XSCOM_EC_SIZE        0x100000
@@ -86,6 +89,22 @@ typedef struct PnvXScomInterfaceClass {
 
 #define PNV9_XSCOM_XIVE_BASE      0x5013000
 #define PNV9_XSCOM_XIVE_SIZE      0x300
+
+/*
+ * Layout of the XSCOM PCB addresses (POWER 10)
+ */
+#define PNV10_XSCOM_EQ_CHIPLET(core)  (0x20 + ((core) >> 2))
+#define PNV10_XSCOM_EQ(chiplet)       ((chiplet) << 24)
+#define PNV10_XSCOM_EC(proc)                    \
+    ((0x2 << 16) | ((1 << (3 - (proc))) << 12))
+
+#define PNV10_XSCOM_EQ_BASE(core)     \
+    ((uint64_t) PNV10_XSCOM_EQ(PNV10_XSCOM_EQ_CHIPLET(core)))
+#define PNV10_XSCOM_EQ_SIZE        0x100000
+
+#define PNV10_XSCOM_EC_BASE(core) \
+    ((uint64_t) PNV10_XSCOM_EQ_BASE(core) | PNV10_XSCOM_EC(core & 0x3))
+#define PNV10_XSCOM_EC_SIZE        0x100000
 
 extern void pnv_xscom_realize(PnvChip *chip, uint64_t size, Error **errp);
 extern int pnv_dt_xscom(PnvChip *chip, void *fdt, int offset);
