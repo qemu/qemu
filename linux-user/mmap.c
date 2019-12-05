@@ -538,8 +538,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
  the_end1:
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
+    trace_target_mmap_complete(start);
 #ifdef DEBUG_MMAP
-    printf("ret=0x" TARGET_ABI_FMT_lx "\n", start);
     page_dump(stdout);
     printf("\n");
 #endif
