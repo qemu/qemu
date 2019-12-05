@@ -194,29 +194,6 @@ NetClientState *net_hub_add_port(int hub_id, const char *name,
 }
 
 /**
- * Find a specific client on a hub
- */
-NetClientState *net_hub_find_client_by_name(int hub_id, const char *name)
-{
-    NetHub *hub;
-    NetHubPort *port;
-    NetClientState *peer;
-
-    QLIST_FOREACH(hub, &hubs, next) {
-        if (hub->id == hub_id) {
-            QLIST_FOREACH(port, &hub->ports, next) {
-                peer = port->nc.peer;
-
-                if (peer && strcmp(peer->name, name) == 0) {
-                    return peer;
-                }
-            }
-        }
-    }
-    return NULL;
-}
-
-/**
  * Find a available port on a hub; otherwise create one new port
  */
 NetClientState *net_hub_port_find(int hub_id)

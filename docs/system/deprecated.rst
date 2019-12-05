@@ -248,12 +248,6 @@ the 'wait' field, which is only applicable to sockets in server mode
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
-The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (since 3.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
-'hostfwd_remove' HMP commands has been replaced by ``netdev_id``.
-
 ``cpu-add`` (since 4.0)
 '''''''''''''''''''''''
 
@@ -429,6 +423,15 @@ QEMU Machine Protocol (QMP) commands
 
 The "autoload" parameter has been ignored since 2.12.0. All bitmaps
 are automatically loaded from qcow2 images.
+
+Human Monitor Protocol (HMP) commands
+-------------------------------------
+
+The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
+'hostfwd_remove' HMP commands has been replaced by ``netdev_id``.
 
 Related binaries
 ----------------
