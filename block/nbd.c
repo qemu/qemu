@@ -1915,6 +1915,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = nbd_client_connect(bs, errp);
     if (ret < 0) {
+        nbd_clear_bdrvstate(s);
         return ret;
     }
     /* successfully connected */
