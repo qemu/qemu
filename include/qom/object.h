@@ -1635,9 +1635,9 @@ void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
  * property of type 'uint64'.
  */
 void object_property_add_uint64_ptr(Object *obj, const char *name,
-                                    const uint64_t *v, Error **Errp);
+                                    const uint64_t *v, Error **errp);
 void object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
-                                          const uint64_t *v, Error **Errp);
+                                          const uint64_t *v, Error **errp);
 
 /**
  * object_property_add_alias:
