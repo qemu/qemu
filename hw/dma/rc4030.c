@@ -397,10 +397,11 @@ static void update_jazz_irq(rc4030State *s)
 
     pending = s->isr_jazz & s->imr_jazz;
 
-    if (pending != 0)
+    if (pending != 0) {
         qemu_irq_raise(s->jazz_bus_irq);
-    else
+    } else {
         qemu_irq_lower(s->jazz_bus_irq);
+    }
 }
 
 static void rc4030_irq_jazz_request(void *opaque, int irq, int level)
@@ -588,7 +589,8 @@ static const VMStateDescription vmstate_rc4030 = {
     }
 };
 
-static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
+static void rc4030_do_dma(void *opaque, int n, uint8_t *buf,
+                          int len, int is_write)
 {
     rc4030State *s = opaque;
     hwaddr dma_addr;
@@ -643,8 +645,8 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     struct rc4030DMAState *p;
     int i;
 
-    s = (rc4030_dma *)g_malloc0(sizeof(rc4030_dma) * n);
-    p = (struct rc4030DMAState *)g_malloc0(sizeof(struct rc4030DMAState) * n);
+    s = (rc4030_dma *)g_new0(rc4030_dma, n);
+    p = (struct rc4030DMAState *)g_new0(struct rc4030DMAState, n);
     for (i = 0; i < n; i++) {
         p->opaque = opaque;
         p->n = i;

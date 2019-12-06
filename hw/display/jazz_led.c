@@ -90,25 +90,25 @@ static void draw_horizontal_line(DisplaySurface *ds,
 
     bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
     d = surface_data(ds) + surface_stride(ds) * posy + bpp * posx1;
-    switch(bpp) {
-        case 1:
-            for (x = posx1; x <= posx2; x++) {
-                *((uint8_t *)d) = color;
-                d++;
-            }
-            break;
-        case 2:
-            for (x = posx1; x <= posx2; x++) {
-                *((uint16_t *)d) = color;
-                d += 2;
-            }
-            break;
-        case 4:
-            for (x = posx1; x <= posx2; x++) {
-                *((uint32_t *)d) = color;
-                d += 4;
-            }
-            break;
+    switch (bpp) {
+    case 1:
+        for (x = posx1; x <= posx2; x++) {
+            *((uint8_t *)d) = color;
+            d++;
+        }
+        break;
+    case 2:
+        for (x = posx1; x <= posx2; x++) {
+            *((uint16_t *)d) = color;
+            d += 2;
+        }
+        break;
+    case 4:
+        for (x = posx1; x <= posx2; x++) {
+            *((uint32_t *)d) = color;
+            d += 4;
+        }
+        break;
     }
 }
 
@@ -121,25 +121,25 @@ static void draw_vertical_line(DisplaySurface *ds,
 
     bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
     d = surface_data(ds) + surface_stride(ds) * posy1 + bpp * posx;
-    switch(bpp) {
-        case 1:
-            for (y = posy1; y <= posy2; y++) {
-                *((uint8_t *)d) = color;
-                d += surface_stride(ds);
-            }
-            break;
-        case 2:
-            for (y = posy1; y <= posy2; y++) {
-                *((uint16_t *)d) = color;
-                d += surface_stride(ds);
-            }
-            break;
-        case 4:
-            for (y = posy1; y <= posy2; y++) {
-                *((uint32_t *)d) = color;
-                d += surface_stride(ds);
-            }
-            break;
+    switch (bpp) {
+    case 1:
+        for (y = posy1; y <= posy2; y++) {
+            *((uint8_t *)d) = color;
+            d += surface_stride(ds);
+        }
+        break;
+    case 2:
+        for (y = posy1; y <= posy2; y++) {
+            *((uint16_t *)d) = color;
+            d += surface_stride(ds);
+        }
+        break;
+    case 4:
+        for (y = posy1; y <= posy2; y++) {
+            *((uint32_t *)d) = color;
+            d += surface_stride(ds);
+        }
+        break;
     }
 }
 
@@ -164,28 +164,28 @@ static void jazz_led_update_display(void *opaque)
     if (s->state & REDRAW_SEGMENTS) {
         /* set colors according to bpp */
         switch (surface_bits_per_pixel(surface)) {
-            case 8:
-                color_segment = rgb_to_pixel8(0xaa, 0xaa, 0xaa);
-                color_led = rgb_to_pixel8(0x00, 0xff, 0x00);
-                break;
-            case 15:
-                color_segment = rgb_to_pixel15(0xaa, 0xaa, 0xaa);
-                color_led = rgb_to_pixel15(0x00, 0xff, 0x00);
-                break;
-            case 16:
-                color_segment = rgb_to_pixel16(0xaa, 0xaa, 0xaa);
-                color_led = rgb_to_pixel16(0x00, 0xff, 0x00);
-                break;
-            case 24:
-                color_segment = rgb_to_pixel24(0xaa, 0xaa, 0xaa);
-                color_led = rgb_to_pixel24(0x00, 0xff, 0x00);
-                break;
-            case 32:
-                color_segment = rgb_to_pixel32(0xaa, 0xaa, 0xaa);
-                color_led = rgb_to_pixel32(0x00, 0xff, 0x00);
-                break;
-            default:
-                return;
+        case 8:
+            color_segment = rgb_to_pixel8(0xaa, 0xaa, 0xaa);
+            color_led = rgb_to_pixel8(0x00, 0xff, 0x00);
+            break;
+        case 15:
+            color_segment = rgb_to_pixel15(0xaa, 0xaa, 0xaa);
+            color_led = rgb_to_pixel15(0x00, 0xff, 0x00);
+            break;
+        case 16:
+            color_segment = rgb_to_pixel16(0xaa, 0xaa, 0xaa);
+            color_led = rgb_to_pixel16(0x00, 0xff, 0x00);
+            break;
+        case 24:
+            color_segment = rgb_to_pixel24(0xaa, 0xaa, 0xaa);
+            color_led = rgb_to_pixel24(0x00, 0xff, 0x00);
+            break;
+        case 32:
+            color_segment = rgb_to_pixel32(0xaa, 0xaa, 0xaa);
+            color_led = rgb_to_pixel32(0x00, 0xff, 0x00);
+            break;
+        default:
+            return;
         }
 
         /* display segments */
@@ -205,8 +205,9 @@ static void jazz_led_update_display(void *opaque)
                              (s->segments & 0x80) ? color_segment : 0);
 
         /* display led */
-        if (!(s->segments & 0x01))
+        if (!(s->segments & 0x01)) {
             color_led = 0; /* black */
+        }
         draw_horizontal_line(surface, 68, 50, 50, color_led);
         draw_horizontal_line(surface, 69, 49, 51, color_led);
         draw_horizontal_line(surface, 70, 48, 52, color_led);
