@@ -6,7 +6,7 @@
  * ISA memory at the 0x10000000 (PHYS, 16Mb in size).
  * All peripherial devices are attached to this "bus" with
  * the standard PC ISA addresses.
-*/
+ */
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
@@ -54,17 +54,18 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void mips_qemu_write (void *opaque, hwaddr addr,
-                             uint64_t val, unsigned size)
+static void mips_qemu_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
-    if ((addr & 0xffff) == 0 && val == 42)
+    if ((addr & 0xffff) == 0 && val == 42) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-    else if ((addr & 0xffff) == 4 && val == 42)
+    } else if ((addr & 0xffff) == 4 && val == 42) {
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
 }
 
-static uint64_t mips_qemu_read (void *opaque, hwaddr addr,
-                                unsigned size)
+static uint64_t mips_qemu_read(void *opaque, hwaddr addr,
+                               unsigned size)
 {
     return 0;
 }
@@ -100,8 +101,9 @@ static int64_t load_kernel(void)
                            (uint64_t *)&kernel_high, big_endian,
                            EM_MIPS, 1, 0);
     if (kernel_size >= 0) {
-        if ((entry & ~0x7fffffffULL) == 0x80000000)
+        if ((entry & ~0x7fffffffULL) == 0x80000000) {
             entry = (int32_t)entry;
+        }
     } else {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
@@ -113,9 +115,10 @@ static int64_t load_kernel(void)
     initrd_size = 0;
     initrd_offset = 0;
     if (loaderparams.initrd_filename) {
-        initrd_size = get_image_size (loaderparams.initrd_filename);
+        initrd_size = get_image_size(loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) &
+                             INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
@@ -139,11 +142,13 @@ static int64_t load_kernel(void)
     params_buf[1] = tswap32(0x12345678);
 
     if (initrd_size > 0) {
-        snprintf((char *)params_buf + 8, 256, "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
+        snprintf((char *)params_buf + 8, 256,
+                 "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
                  cpu_mips_phys_to_kseg0(NULL, initrd_offset),
                  initrd_size, loaderparams.kernel_cmdline);
     } else {
-        snprintf((char *)params_buf + 8, 256, "%s", loaderparams.kernel_cmdline);
+        snprintf((char *)params_buf + 8, 256,
+        "%s", loaderparams.kernel_cmdline);
     }
 
     rom_add_blob_fixed("params", params_buf, params_size,
@@ -207,15 +212,21 @@ void mips_r4k_init(MachineState *machine)
 
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    memory_region_init_io(iomem, NULL, &mips_qemu_ops, NULL, "mips-qemu", 0x10000);
+    memory_region_init_io(iomem, NULL, &mips_qemu_ops,
+                          NULL, "mips-qemu", 0x10000);
+
     memory_region_add_subregion(address_space_mem, 0x1fbf0000, iomem);
 
-    /* Try to load a BIOS image. If this fails, we continue regardless,
-       but initialize the hardware ourselves. When a kernel gets
-       preloaded we also initialize the hardware, since the BIOS wasn't
-       run. */
-    if (bios_name == NULL)
+    /*
+     * Try to load a BIOS image. If this fails, we continue regardless,
+     * but initialize the hardware ourselves. When a kernel gets
+     * preloaded we also initialize the hardware, since the BIOS wasn't
+     * run.
+     */
+
+    if (bios_name == NULL) {
         bios_name = BIOS_FILENAME;
+    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         bios_size = get_image_size(filename);
@@ -227,6 +238,7 @@ void mips_r4k_init(MachineState *machine)
 #else
     be = 0;
 #endif
+    dinfo = drive_get(IF_PFLASH, 0, 0);
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
         bios = g_new(MemoryRegion, 1);
         memory_region_init_ram(bios, NULL, "mips_r4k.bios", BIOS_SIZE,
@@ -235,7 +247,7 @@ void mips_r4k_init(MachineState *machine)
         memory_region_add_subregion(get_system_memory(), 0x1fc00000, bios);
 
         load_image_targphys(filename, 0x1fc00000, BIOS_SIZE);
-    } else if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
+    } else if (dinfo != NULL) {
         uint32_t mips_rom = 0x00400000;
         if (!pflash_cfi01_register(0x1fc00000, "mips_r4k.bios", mips_rom,
                                    blk_by_legacy_dinfo(dinfo),
@@ -280,11 +292,12 @@ void mips_r4k_init(MachineState *machine)
 
     isa_vga_init(isa_bus);
 
-    if (nd_table[0].used)
+    if (nd_table[0].used) {
         isa_ne2000_init(isa_bus, 0x300, 9, &nd_table[0]);
+    }
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
-    for(i = 0; i < MAX_IDE_BUS; i++)
+    for (i = 0; i < MAX_IDE_BUS; i++)
         isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[MAX_IDE_DEVS * i],
                      hd[MAX_IDE_DEVS * i + 1]);
