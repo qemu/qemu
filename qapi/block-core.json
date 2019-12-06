@@ -2963,8 +2963,12 @@
 #
 # Driver specific block device options for the NVMe backend.
 #
-# @device:    controller address of the NVMe device.
+# @device:    PCI controller address of the NVMe device in
+#             format hhhh:bb:ss.f (host:bus:slot.function)
 # @namespace: namespace number of the device, starting from 1.
+#
+# Note that the PCI @device must have been unbound from any host
+# kernel driver before instructing QEMU to add the blockdev.
 #
 # Since: 2.12
 ##
