@@ -47,7 +47,7 @@ typedef struct {
 
 helper_count_t helper_counts[] = {
 #define OPCODE(TAG)    { 0, #TAG },
-#include "opcodes.odef"
+#include "opcodes_def_generated.h"
 #undef OPCODE
     { 0, NULL }
 };
@@ -421,6 +421,6 @@ static inline void log_mmvector_write(CPUHexagonState *env, int num,
     printf("ERROR: bogus helper: " #tag "\n")
 
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPFN
-#include "qemu.odef"
+#include "qemu_def_generated.h"
 #undef DEF_QEMU
 

@@ -45,8 +45,8 @@ void decode_init(void);
 
 
 const char *opcode_names[] = {
-#define OPCODE(IID) DONAME(IID),
-#include "opcodes.odef"
+#define OPCODE(IID) DONAME(IID)
+#include "opcodes_def_generated.h"
 	NULL
 #undef OPCODE
 };
@@ -54,7 +54,7 @@ const char *opcode_names[] = {
 const char *opcode_reginfo[] = {
 #define IMMINFO(TAG,SIGN,SIZE,SHAMT,SIGN2,SIZE2,SHAMT2)	/* nothing */
 #define REGINFO(TAG,REGINFO,RREGS,WREGS) REGINFO,
-#include "op_regs.odef"
+#include "op_regs_generated.h"
 	NULL
 #undef REGINFO
 #undef IMMINFO
@@ -64,7 +64,7 @@ const char *opcode_reginfo[] = {
 const char *opcode_rregs[] = {
 #define IMMINFO(TAG,SIGN,SIZE,SHAMT,SIGN2,SIZE2,SHAMT2)	/* nothing */
 #define REGINFO(TAG,REGINFO,RREGS,WREGS) RREGS,
-#include "op_regs.odef"
+#include "op_regs_generated.h"
 	NULL
 #undef REGINFO
 #undef IMMINFO
@@ -74,15 +74,15 @@ const char *opcode_rregs[] = {
 const char *opcode_wregs[] = {
 #define IMMINFO(TAG,SIGN,SIZE,SHAMT,SIGN2,SIZE2,SHAMT2)	/* nothing */
 #define REGINFO(TAG,REGINFO,RREGS,WREGS) WREGS,
-#include "op_regs.odef"
+#include "op_regs_generated.h"
 	NULL
 #undef REGINFO
 #undef IMMINFO
 };
 
 const char * opcode_short_semantics[] = {
-#define OPCODE(X)              NULL,
-#include "opcodes.odef"
+#define OPCODE(X)              NULL
+#include "opcodes_def_generated.h"
 #undef OPCODE
 	NULL
 };
@@ -107,14 +107,14 @@ void opcode_init(void)
 
 #define ATTRIBS(...) , ## __VA_ARGS__,0
 #define OP_ATTRIB(TAG,ARGS) init_attribs(TAG ARGS);
-#include "op_attribs.odef"
+#include "op_attribs_generated.h"
 #undef OP_ATTRIB
 #undef ATTRIBS
 	decode_init();
 	
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) \
     opcode_short_semantics[TAG] = #SHORTCODE;
-#include "qemu.odef"
+#include "qemu_def_generated.h"
 #undef DEF_QEMU
 }
 

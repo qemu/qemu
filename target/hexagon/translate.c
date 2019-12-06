@@ -146,6 +146,38 @@ static int check_gather_store_insn(insn_t *insn)
     return check;
 }
 
+static void check_implicit_reg_write(DisasContext *ctx, insn_t *insn,
+                                 int attrib, int rnum)
+{
+    if (GET_ATTRIB(insn->opcode, attrib)) {
+        ctx->ctx_reg_log[ctx->ctx_reg_log_idx] = rnum;
+        ctx->ctx_reg_log_idx++;
+    }
+}
+
+static void check_implicit_pred_write(DisasContext *ctx, insn_t *insn,
+                                 int attrib, int pnum)
+{
+    if (GET_ATTRIB(insn->opcode, attrib)) {
+        ctx->ctx_preg_log[ctx->ctx_preg_log_idx] = pnum;
+        ctx->ctx_preg_log_idx++;
+    }
+}
+
+static void mark_implicit_writes(DisasContext *ctx, insn_t *insn)
+{
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
+
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P0, 0);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P1, 1);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P2, 2);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
+}
+
 static void gen_insn(CPUHexagonState *env, DisasContext *ctx, insn_t *insn)
 {
     int is_gather_store = check_gather_store_insn(insn);
@@ -153,6 +185,7 @@ static void gen_insn(CPUHexagonState *env, DisasContext *ctx, insn_t *insn)
         tcg_gen_movi_tl(hex_is_gather_store_insn, 1);
     }
     insn->generate(env, ctx, insn);
+    mark_implicit_writes(ctx, insn);
     if (is_gather_store) {
         tcg_gen_movi_tl(hex_is_gather_store_insn, 0);
     }
