@@ -99,10 +99,12 @@ class LinuxSSH(Test):
     def ssh_command(self, command, is_root=True):
         self.ssh_logger.info(command)
         result = self.ssh_session.cmd(command)
-        stdout_lines = [line.rstrip() for line in result.stdout_text.splitlines()]
+        stdout_lines = [line.rstrip() for line
+                        in result.stdout_text.splitlines()]
         for line in stdout_lines:
             self.ssh_logger.info(line)
-        stderr_lines = [line.rstrip() for line in result.stderr_text.splitlines()]
+        stderr_lines = [line.rstrip() for line
+                        in result.stderr_text.splitlines()]
         for line in stderr_lines:
             self.ssh_logger.warning(line)
         return stdout_lines, stderr_lines
