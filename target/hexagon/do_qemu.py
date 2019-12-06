@@ -152,8 +152,8 @@ for line in open(sys.argv[1]).readlines():
 calculate_attribs()
 
 
-attribre = re.compile(r'DEF_ATTRIB\(([A-Za-z0-9_]+),([^,]*),' +
-        r'"([A-Za-z0-9_\.]*)","([A-Za-z0-9_\.]*)"\)')
+attribre = re.compile(r'DEF_ATTRIB\(([A-Za-z0-9_]+), ([^,]*), ' +
+        r'"([A-Za-z0-9_\.]*)", "([A-Za-z0-9_\.]*)"\)')
 for line in open(sys.argv[2]).readlines():
     if not attribre.match(line):
         continue
@@ -660,7 +660,7 @@ def gen_tcg_func(f, tag, regs, imms):
     f.write(")")
     if need_slot(tag): f.write(")")
     if need_part1(tag): f.write(")")
-    f.write(";,\n%s)\n" % semdict[tag] )
+    f.write(",\n%s);\n" % semdict[tag] )
 
     ## Write all the outputs
     for regtype,regid,toss,numregs in regs:
@@ -810,12 +810,109 @@ def gen_qemu(f, tag):
     f.write(")\n")
 
 
-wrap_hdr = open ('qemu_wrap.h', 'w')
+wrap_hdr = open ('qemu_wrap_generated.h', 'w')
 for tag in tags:
     wrap_hdr.write( "#ifndef fWRAP_%s\n" % tag )
     wrap_hdr.write( "#define fWRAP_%s(GENHLPR, SHORTCODE) GENHLPR\n" % tag )
     wrap_hdr.write( "#endif\n\n" )
 wrap_hdr.close()
+
+opcodes_def_file = open ('opcodes_def_generated.h', 'w')
+for tag in tags:
+    opcodes_def_file.write ( "OPCODE(%s),\n" % (tag) )
+opcodes_def_file.close()
+
+attribs_file = open('op_attribs_generated.h', 'w')
+for tag in tags:
+    attribs_file.write('OP_ATTRIB(%s,ATTRIBS(%s))\n' % \
+        (tag,string.join(sorted(attribdict[tag]),",")))
+attribs_file.close()
+
+#f = open('op_regs_generated.h','w')
+f = cStringIO.StringIO()
+
+def calculate_regid_reg(tag):
+    def letter_inc(x): return chr(ord(x)+1)
+    ordered_implregs = [ 'SP','FP','LR' ]
+    srcdst_lett = 'X'
+    src_lett = 'S'
+    dst_lett = 'D'
+    retstr = ""
+    mapdict = {}
+    for reg in ordered_implregs:
+        reg_rd = 0
+        reg_wr = 0
+        if ('A_IMPLICIT_READS_'+reg) in attribdict[tag]: reg_rd = 1
+        if ('A_IMPLICIT_WRITES_'+reg) in attribdict[tag]: reg_wr = 1
+        if reg_rd and reg_wr:
+            retstr += srcdst_lett
+            mapdict[srcdst_lett] = reg
+            srcdst_lett = letter_inc(srcdst_lett)
+        elif reg_rd:
+            retstr += src_lett
+            mapdict[src_lett] = reg
+            src_lett = letter_inc(src_lett)
+        elif reg_wr:
+            retstr += dst_lett
+            mapdict[dst_lett] = reg
+            dst_lett = letter_inc(dst_lett)
+    return retstr,mapdict
+
+def calculate_regid_letters(tag):
+    retstr,mapdict = calculate_regid_reg(tag)
+    return retstr
+
+def do_strip_verif_info_in_regs(x):
+    y=x.replace('UREG.','')
+    y=y.replace('MREG.','')
+    return y.replace('GREG.','')
+
+for tag in tags:
+    regs = tagregs[tag]
+    rregs = []
+    wregs = []
+    regids = ""
+    for regtype,regid,toss,numregs in regs:
+        if regid[0] in "stuvwxy":
+            if regid[0] not in regids: regids += regid[0]
+            rregs.append(regtype+regid+numregs)
+        if regid[0] in "dexy":
+            wregs.append(regtype+regid+numregs)
+            if regid[0] not in regids: regids += regid[0]
+    for attrib in attribdict[tag]:
+        if attribinfo[attrib]['rreg']:
+            rregs.append(do_strip_verif_info_in_regs(
+                             attribinfo[attrib]['rreg']))
+        if attribinfo[attrib]['wreg']:
+            wregs.append(do_strip_verif_info_in_regs(
+                             attribinfo[attrib]['wreg']))
+    regids += calculate_regid_letters(tag)
+    f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")' % \
+        (tag,regids,",".join(rregs),",".join(wregs)))
+
+
+for tag in tags:
+    imms = tagimms[tag]
+    f.write( 'IMMINFO(%s' % tag)
+    if not imms:
+        f.write(''','u',0,0,'U',0,0''')
+    for sign,size,shamt in imms:
+        if sign == 'r': sign = 's'
+        if not shamt:
+            shamt = "0"
+        f.write(''','%s',%s,%s''' % (sign,size,shamt))
+    if len(imms) == 1:
+        if sign.isupper():
+            myu = 'u'
+        else:
+            myu = 'U'
+        f.write(''','%s',0,0''' % myu)
+    f.write(')\n')
+
+realf = open('op_regs_generated.h','w')
+realf.write(f.getvalue())
+realf.close()
+f.close()
 
 f = cStringIO.StringIO()
 
@@ -850,7 +947,7 @@ for tag in tags:
 
     gen_qemu(f, tag)
 
-realf = open('qemu.odef','w')
+realf = open('qemu_def_generated.h','w')
 realf.write(f.getvalue())
 realf.close()
 f.close()

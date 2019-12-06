@@ -37,7 +37,6 @@
 #define MAX_THREADS_PER_CLUSTER 4
 #define THREADS_PER_CORE (MAX_CLUSTERS * MAX_THREADS_PER_CLUSTER)		/* HW threads in a core */
 #define THREADS_MAX (MAX_CORES * THREADS_PER_CORE)
-#define DMA_MAX THREADS_MAX  // DMA: make this independent
 #define MAX_EXT_CONTEXTS 4
 #define MAX_L2_INTERLEAVES 2
 #define MAX_VFIFO_COUNT 4

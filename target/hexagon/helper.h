@@ -27,7 +27,7 @@ DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
 DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
 
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
-#include "qemu.odef"
+#include "qemu_def_generated.h"
 #undef DEF_QEMU
 
 DEF_HELPER_2(debug_value, void, env, s32)

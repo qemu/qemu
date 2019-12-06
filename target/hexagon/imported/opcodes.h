@@ -29,8 +29,8 @@ struct ThreadState;
 struct Instruction;
 
 typedef enum {
-#define OPCODE(IID) IID,
-#include "opcodes.odef"
+#define OPCODE(IID) IID
+#include "opcodes_def_generated.h"
 	XX_LAST_OPCODE
 #undef OPCODE
 } opcode_t;

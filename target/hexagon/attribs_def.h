@@ -16,609 +16,391 @@
  */
 
 /* Keep this as the first attribute: */
-DEF_ATTRIB(AA_DUMMY, "Dummy Zeroth Attribute")
+DEF_ATTRIB(AA_DUMMY, "Dummy Zeroth Attribute", "", "")
 
 /* Misc */
-DEF_ATTRIB(FAKEINSN, "Not a real instruction")
-DEF_ATTRIB(MAPPING, "Not a real instruction -- asm mapped to real insn")
-DEF_ATTRIB(CONDMAPPING,
-    "Not a real instruction -- asm mapped to real insns -- "
-    "mapping based on values")
-DEF_ATTRIB(EXTENSION, "This instruction is an extension instruction")
-DEF_ATTRIB(SHARED_EXTENSION,
-    "This instruction is a shared extension instruction")
+DEF_ATTRIB(FAKEINSN, "Not a real instruction", "", "")
+DEF_ATTRIB(MAPPING, "Not real -- asm mapped", "", "")
+DEF_ATTRIB(CONDMAPPING, "Not real -- mapped based on values", "", "")
+DEF_ATTRIB(EXTENSION, "Extension instruction", "", "")
+DEF_ATTRIB(SHARED_EXTENSION, "Shared extension instruction", "", "")
 
-DEF_ATTRIB(PRIV, "Instruction not available in user or guest mode")
-DEF_ATTRIB(GUEST, "Instruction not available in user mode")
+DEF_ATTRIB(PRIV, "Not available in user or guest mode", "", "")
+DEF_ATTRIB(GUEST, "Not available in user mode", "", "")
 
-DEF_ATTRIB(FPOP, "Instruction is a Floating Point Operation")
-DEF_ATTRIB(FPDOUBLE,
-    "Instruction is a double-precision Floating Point Operation")
-DEF_ATTRIB(FPSINGLE,
-    "Instruction is a single-precision Floating Point Operation")
-DEF_ATTRIB(SFMAKE, "Instruction is a Single Float Make")
-DEF_ATTRIB(DFMAKE, "Instruction is a Single Float Make")
+DEF_ATTRIB(FPOP, "Floating Point Operation", "", "")
+DEF_ATTRIB(FPDOUBLE, "Double-precision Floating Point Operation", "", "")
+DEF_ATTRIB(FPSINGLE, "Single-precision Floating Point Operation", "", "")
+DEF_ATTRIB(SFMAKE, "Single Float Make", "", "")
+DEF_ATTRIB(DFMAKE, "Single Float Make", "", "")
 
-DEF_ATTRIB(NO_TIMING_LOG,
-    "Instruction does not get logged to the timing model")
+DEF_ATTRIB(NO_TIMING_LOG, "Does not get logged to the timing model", "", "")
 
-DEF_ATTRIB(EXTENDABLE, "Immediate may be extended")
-DEF_ATTRIB(EXT_UPPER_IMMED, "Extend upper case immediate")
-DEF_ATTRIB(EXT_LOWER_IMMED, "Extend lower case immediate")
-DEF_ATTRIB(MUST_EXTEND, "Immediate must be extended")
-DEF_ATTRIB(INVPRED, "The predicate is inverted for true/false sense")
+DEF_ATTRIB(EXTENDABLE, "Immediate may be extended", "", "")
+DEF_ATTRIB(EXT_UPPER_IMMED, "Extend upper case immediate", "", "")
+DEF_ATTRIB(EXT_LOWER_IMMED, "Extend lower case immediate", "", "")
+DEF_ATTRIB(MUST_EXTEND, "Immediate must be extended", "", "")
+DEF_ATTRIB(INVPRED, "The predicate is inverted for true/false sense", "", "")
 
-DEF_ATTRIB(ARCHV2, "V2 architecture")
-DEF_ATTRIB(ARCHV3, "V3 architecture")
-DEF_ATTRIB(ARCHV4, "V4 architecture")
-DEF_ATTRIB(ARCHV5, "V5 architecture")
+DEF_ATTRIB(ARCHV2, "V2 architecture", "", "")
+DEF_ATTRIB(ARCHV3, "V3 architecture", "", "")
+DEF_ATTRIB(ARCHV4, "V4 architecture", "", "")
+DEF_ATTRIB(ARCHV5, "V5 architecture", "", "")
 
-DEF_ATTRIB(PACKED, "Packable instruction")
-DEF_ATTRIB(SUBINSN, "sub-instruction")
+DEF_ATTRIB(PACKED, "Packable instruction", "", "")
+DEF_ATTRIB(SUBINSN, "sub-instruction", "", "")
 
-DEF_ATTRIB(16BIT, "16-bit instruction")
+DEF_ATTRIB(16BIT, "16-bit instruction", "", "")
 
 /* Load and Store attributes */
-DEF_ATTRIB(LOAD, "Instruction loads from memory")
-DEF_ATTRIB(STORE, "Instruction stores to memory")
-DEF_ATTRIB(STOREIMMED, "Instruction stores immed to memory")
-DEF_ATTRIB(MEMSIZE_1B, "Memory width is 1 byte")
-DEF_ATTRIB(MEMSIZE_2B, "Memory width is 2 bytes")
-DEF_ATTRIB(MEMSIZE_4B, "Memory width is 4 bytes")
-DEF_ATTRIB(MEMSIZE_8B, "Memory width is 8 bytes")
-DEF_ATTRIB(MEMLIKE, "Memory-like instruction")
-DEF_ATTRIB(MEMLIKE_PACKET_RULES,
-    "Not a Memory-like instruction but "
-    "follows Memory-like instruction packet rules")
-DEF_ATTRIB(CACHEOP, "Instruction is a cache operation")
-DEF_ATTRIB(COPBYADDRESS, "Instruction is a cache operation by address")
-DEF_ATTRIB(COPBYIDX, "Instruction is a cache operation by index")
-DEF_ATTRIB(RELEASE, "Instruction releases a lock")
-DEF_ATTRIB(ACQUIRE, "Instruction acquires a lock")
+DEF_ATTRIB(LOAD, "Loads from memory", "", "")
+DEF_ATTRIB(STORE, "Stores to memory", "", "")
+DEF_ATTRIB(STOREIMMED, "Stores immed to memory", "", "")
+DEF_ATTRIB(MEMSIZE_1B, "Memory width is 1 byte", "", "")
+DEF_ATTRIB(MEMSIZE_2B, "Memory width is 2 bytes", "", "")
+DEF_ATTRIB(MEMSIZE_4B, "Memory width is 4 bytes", "", "")
+DEF_ATTRIB(MEMSIZE_8B, "Memory width is 8 bytes", "", "")
+DEF_ATTRIB(MEMLIKE, "Memory-like instruction", "", "")
+DEF_ATTRIB(MEMLIKE_PACKET_RULES, "follows Memory-like packet rules", "", "")
+DEF_ATTRIB(CACHEOP, "Cache operation", "", "")
+DEF_ATTRIB(COPBYADDRESS, "Cache operation by address", "", "")
+DEF_ATTRIB(COPBYIDX, "Cache operation by index", "", "")
+DEF_ATTRIB(RELEASE, "Releases a lock", "", "")
+DEF_ATTRIB(ACQUIRE, "Acquires a lock", "", "")
 
 
 /* Load and Store Addressing Mode Attributes */
-DEF_ATTRIB(EA_REG_ONLY,
-    "Effective Address calculated by input register only")
-DEF_ATTRIB(EA_IMM_ONLY,
-    "Effective Address calculated by immediate only")
-DEF_ATTRIB(EA_REG_PLUS_IMM,
-    "Effective Address calculated by register plus immediate")
-DEF_ATTRIB(EA_REG_PLUS_REGSCALED,
-    "Effective Address calculated by register plus scaled register")
-DEF_ATTRIB(EA_IMM_PLUS_REGSCALED,
-    "Effective Address calculated by immediate plus scaled register")
-DEF_ATTRIB(EA_BREV_REG,
-    "Effective Address calculated by bit-reversed input register")
-DEF_ATTRIB(EA_GP_IMM,
-    "Effective address caluclated by Glogbal Pointer plus immediate "
-    "(unless extended)")
-DEF_ATTRIB(EA_PAGECROSS,
-    "Effective Address Calculation can have a Page Cross Stall")
+DEF_ATTRIB(EA_REG_ONLY, "EA = input register only", "", "")
+DEF_ATTRIB(EA_IMM_ONLY, "EA = immediate only", "", "")
+DEF_ATTRIB(EA_REG_PLUS_IMM, "EA = register plus immediate", "", "")
+DEF_ATTRIB(EA_REG_PLUS_REGSCALED, "EA = register plus scaled register", "", "")
+DEF_ATTRIB(EA_IMM_PLUS_REGSCALED, "EA = immediate plus scaled register", "", "")
+DEF_ATTRIB(EA_BREV_REG, "EA = bit-reversed input register", "", "")
+DEF_ATTRIB(EA_GP_IMM, "EA = GP plus immediate (unless extended)", "", "")
+DEF_ATTRIB(EA_PAGECROSS, "EA calculation can have a Page Cross Stall", "", "")
 
-DEF_ATTRIB(PM_ANY, "Post Modify")
-DEF_ATTRIB(PM_I, "Post Modify by Immediate")
-DEF_ATTRIB(PM_M, "Post Modify by M register")
-DEF_ATTRIB(PM_CIRI, "Post Modify with Circular Addressing by immediate")
-DEF_ATTRIB(PM_CIRR, "Post Modify with Circular Addressing by I field")
+DEF_ATTRIB(PM_ANY, "Post Modify", "", "")
+DEF_ATTRIB(PM_I, "Post Modify by Immediate", "", "")
+DEF_ATTRIB(PM_M, "Post Modify by M register", "", "")
+DEF_ATTRIB(PM_CIRI, "Post Modify with Circular Addressing by immediate", "", "")
+DEF_ATTRIB(PM_CIRR, "Post Modify with Circular Addressing by I field", "", "")
 
-DEF_ATTRIB(VMEM, "This instruction is VMEM-type")
-DEF_ATTRIB(VBUF, "This instruction touches the VBUF")
-DEF_ATTRIB(VDBG, "Vector debugging instruction")
+DEF_ATTRIB(VMEM, "VMEM-type", "", "")
+DEF_ATTRIB(VBUF, "Touches the VBUF", "", "")
+DEF_ATTRIB(VDBG, "Vector debugging instruction", "", "")
 
 /* V6 Vector attributes */
-DEF_ATTRIB(CVI, "This instruction executes on the HVX extension")
-DEF_ATTRIB(NT_VMEM, "Non-temporal memory access")
-DEF_ATTRIB(VMEMU, "This instruction is an unaligned memory access")
+DEF_ATTRIB(CVI, "Executes on the HVX extension", "", "")
+DEF_ATTRIB(NT_VMEM, "Non-temporal memory access", "", "")
+DEF_ATTRIB(VMEMU, "Unaligned memory access", "", "")
 
-DEF_ATTRIB(CVI_NEW,
-    "This new value memory instruction executes on multimedia vector engine",
-    "", "")
-DEF_ATTRIB(CVI_VM,
-    "This memory instruction executes on multimedia vector engine")
-DEF_ATTRIB(CVI_VP,
-    "This permute instruction executes on multimedia vector engine")
-DEF_ATTRIB(CVI_VP_VS,
-    "This double vector permute/shift instruction executes on multimedia "
-    "vector engine")
-DEF_ATTRIB(CVI_VX,
-    "This multiply instruction executes on multimedia vector engine")
-DEF_ATTRIB(CVI_VX_DV,
-    "This double vector multiply instruction executes on multimedia "
-    "vector engine")
-DEF_ATTRIB(CVI_VS,
-    "This shift instruction executes on multimedia vector engine")
-DEF_ATTRIB(CVI_VS_VX,
-    "This permute/shift and multiply instruction executes on multimedia "
-    "vector engine")
-DEF_ATTRIB(CVI_VA,
-    "This alu instruction executes on multimedia vector engine")
-DEF_ATTRIB(CVI_VA_DV,
-    "This double vector alu instruction executes on multimedia vector engine",
-    "", "")
-DEF_ATTRIB(CVI_4SLOT,
-    "This instruction consumes all the vector execution resources")
-DEF_ATTRIB(CVI_TMP,
-    "Transient Memory Load not written to register file")
-DEF_ATTRIB(CVI_TMP_SRC,
-    "Transient reassign")
-DEF_ATTRIB(CVI_EXTRACT, "HVX Extract Instruction that goes through L2")
-DEF_ATTRIB(CVI_EARLY,
-    "HVX instructions that always require early sources")
-DEF_ATTRIB(CVI_LATE,
-    "HVX instructions that always require late sources")
-DEF_ATTRIB(CVI_VV_LATE,
-    "HVX instructions that always require late Vv source")
-DEF_ATTRIB(CVI_REQUIRES_TMPLOAD,
-    ".tmp load must be included in packet")
-DEF_ATTRIB(CVI_PUMP_2X,
-    "Goes through the pipeline twice")
-DEF_ATTRIB(CVI_PUMP_4X,
-    "Goes through the pipeline four times")
-DEF_ATTRIB(CVI_GATHER,
-    "CVI Gather operation")
-DEF_ATTRIB(CVI_SCATTER,
-    "CVI Scatter operation")
-DEF_ATTRIB(CVI_SCATTER_RELEASE,
-    "CVI Store Release for syncing of scatter instructions")
-DEF_ATTRIB(CVI_GATHER_RELEASE,
-    "CVI Store Release for syncing of gather instructions")
-DEF_ATTRIB(CVI_TMP_DST,
-    "CVI instruction that doesn't write a destination register")
-DEF_ATTRIB(CVI_SCATTER_WORD_ACC,
-    "CVI Scatter Word Accumulate (second pass through network)")
-DEF_ATTRIB(CVI_SCATTER_ACC,
-    "CVI Scatter Accumulate")
+DEF_ATTRIB(CVI_NEW, "New value memory instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VM, "Memory instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VP, "Permute instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VP_VS, "Double vector permute/shft insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VX, "Multiply instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VX_DV, "Double vector multiply insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VS, "Shift instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VS_VX, "Permute/shift and multiply insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VA, "ALU instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VA_DV, "Double vector alu instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_4SLOT, "Consumes all the vector execution resources", "", "")
+DEF_ATTRIB(CVI_TMP, "Transient Memory Load not written to register", "", "")
+DEF_ATTRIB(CVI_TMP_SRC, "Transient reassign", "", "")
+DEF_ATTRIB(CVI_EXTRACT, "HVX Extract Instruction that goes through L2", "", "")
+DEF_ATTRIB(CVI_EARLY, "HVX instructions that require early sources", "", "")
+DEF_ATTRIB(CVI_LATE, "HVX insn that always require late sources", "", "")
+DEF_ATTRIB(CVI_VV_LATE, "HVX insn that always require late Vv source", "", "")
+DEF_ATTRIB(CVI_REQUIRES_TMPLOAD, ".tmp load must be included in packet", "", "")
+DEF_ATTRIB(CVI_PUMP_2X, "Goes through the pipeline twice", "", "")
+DEF_ATTRIB(CVI_PUMP_4X, "Goes through the pipeline four times", "", "")
+DEF_ATTRIB(CVI_GATHER, "CVI Gather operation", "", "")
+DEF_ATTRIB(CVI_SCATTER, "CVI Scatter operation", "", "")
+DEF_ATTRIB(CVI_SCATTER_RELEASE, "CVI Store Release for scatter", "", "")
+DEF_ATTRIB(CVI_GATHER_RELEASE, "CVI Store Release for gather", "", "")
+DEF_ATTRIB(CVI_TMP_DST, "CVI instruction that doesn't write a register", "", "")
+DEF_ATTRIB(CVI_SCATTER_WORD_ACC, "CVI Scatter Word Accum (second pass)", "", "")
+DEF_ATTRIB(CVI_SCATTER_ACC, "CVI Scatter Accumulate", "", "")
 
-DEF_ATTRIB(CVI_GATHER_ADDR_2B, "CVI Scatter/Gather address is halfword")
-DEF_ATTRIB(CVI_GATHER_ADDR_4B, "CVI Scatter/Gather address is word")
+DEF_ATTRIB(CVI_GATHER_ADDR_2B, "CVI Scatter/Gather address is halfword", "", "")
+DEF_ATTRIB(CVI_GATHER_ADDR_4B, "CVI Scatter/Gather address is word", "", "")
 
-DEF_ATTRIB(VFETCH, "memory fetch op to L2 for a single vector")
+DEF_ATTRIB(VFETCH, "memory fetch op to L2 for a single vector", "", "")
 
-DEF_ATTRIB(CVI_SLOT23,
-    "This instruction can execute in slot 2 or slot 3<comma> "
-    "even though it is a HVX instruction.")
+DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
 
-DEF_ATTRIB(VTCM_ALLBANK_ACCESS,
-    "This instruction allocates in all VTCM schedulers due to a region access.")
+DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers", "", "")
 
 /* Change-of-flow attributes */
-DEF_ATTRIB(JUMP, "This instruction is a Jump-type instruction")
-DEF_ATTRIB(DIRECT, "This instruction uses an PC-relative immediate field")
-DEF_ATTRIB(INDIRECT, "This instruction is a absolute register jump")
-DEF_ATTRIB(CJUMP, "This is a conditional jump")
-DEF_ATTRIB(CALL, "This instruction is a function call instruction")
-DEF_ATTRIB(RET, "This instruction is a function return instruction")
-DEF_ATTRIB(PERM, "This instruction is a permute instruction")
-DEF_ATTRIB(COF, "This instruction is a change-of-flow instruction")
-DEF_ATTRIB(CONDEXEC, "This instruction may be cancelled by a predicate")
-DEF_ATTRIB(DOTOLD,
-    "This instruction uses a predicate generated in a previous packet")
-DEF_ATTRIB(DOTNEW,
-    "This instruction uses a predicate generated in the same packet")
-DEF_ATTRIB(DOTNEWVALUE,
-    "This instruction uses a register value generated in the same packet")
-DEF_ATTRIB(NEWCMPJUMP, "This instruction is a compound compare and jump")
-DEF_ATTRIB(NVSTORE, "This instruction is a new-value store")
-DEF_ATTRIB(MEMOP, "This instruction is a memop")
+DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
+DEF_ATTRIB(DIRECT, "Uses an PC-relative immediate field", "", "")
+DEF_ATTRIB(INDIRECT, "Absolute register jump", "", "")
+DEF_ATTRIB(CJUMP, "Conditional jump", "", "")
+DEF_ATTRIB(CALL, "Function call instruction", "", "")
+DEF_ATTRIB(RET, "Function return instruction", "", "")
+DEF_ATTRIB(PERM, "Permute instruction", "", "")
+DEF_ATTRIB(COF, "Change-of-flow instruction", "", "")
+DEF_ATTRIB(CONDEXEC, "May be cancelled by a predicate", "", "")
+DEF_ATTRIB(DOTOLD, "Uses a predicate generated in a previous packet", "", "")
+DEF_ATTRIB(DOTNEW, "Uses a predicate generated in the same packet", "", "")
+DEF_ATTRIB(DOTNEWVALUE, "Uses a register value generated in this pkt", "", "")
+DEF_ATTRIB(NEWCMPJUMP, "Compound compare and jump", "", "")
+DEF_ATTRIB(NVSTORE, "New-value store", "", "")
+DEF_ATTRIB(MEMOP, "memop", "", "")
 
-DEF_ATTRIB(ROPS_2, "Compound instruction worth 2 wimpy RISC-ops")
-DEF_ATTRIB(ROPS_3, "Compound instruction worth 3 wimpy RISC-ops")
+DEF_ATTRIB(ROPS_2, "Compound instruction worth 2 wimpy RISC-ops", "", "")
+DEF_ATTRIB(ROPS_3, "Compound instruction worth 3 wimpy RISC-ops", "", "")
 
 
 /* access to implicit registers */
-DEF_ATTRIB(IMPLICIT_WRITES_LR, "This instruction writes the link register")
-DEF_ATTRIB(IMPLICIT_READS_LR, "This instruction reads the link register")
-DEF_ATTRIB(IMPLICIT_READS_LC0,
-    "This instruction reads the loop count register for loop 0")
-DEF_ATTRIB(IMPLICIT_READS_LC1,
-    "This instruction reads the loop count register for loop 1")
-DEF_ATTRIB(IMPLICIT_READS_SA0,
-    "This instruction reads the start address register for loop 0")
-DEF_ATTRIB(IMPLICIT_READS_SA1,
-    "This instruction reads the start address register for loop 1")
-DEF_ATTRIB(IMPLICIT_WRITES_PC,
-    "This instruction writes the program counter")
-DEF_ATTRIB(IMPLICIT_READS_PC,
-    "This instruction reads the program counter")
-DEF_ATTRIB(IMPLICIT_WRITES_SP,
-    "This instruction writes the stack pointer register")
-DEF_ATTRIB(IMPLICIT_READS_SP,
-    "This instruction reads the stack pointer register")
-DEF_ATTRIB(IMPLICIT_WRITES_FP,
-    "This instruction writes the frame pointer register")
-DEF_ATTRIB(IMPLICIT_READS_FP,
-    "This instruction reads the frame pointer register")
-DEF_ATTRIB(IMPLICIT_WRITES_GP,
-    "This instruction writes the global pointer register")
-DEF_ATTRIB(IMPLICIT_READS_GP,
-    "This instruction reads the global pointer register")
-DEF_ATTRIB(IMPLICIT_WRITES_LC0,
-    "This instruction writes the Loop Count for loop 0")
-DEF_ATTRIB(IMPLICIT_WRITES_LC1,
-    "This instruction writes the Loop Count for loop 1")
-DEF_ATTRIB(IMPLICIT_WRITES_EA,
-    "This instruction writes the End Address")
-DEF_ATTRIB(IMPLICIT_WRITES_SA0,
-    "This instruction writes the Start Address for loop 0")
-DEF_ATTRIB(IMPLICIT_WRITES_SA1,
-    "This instruction writes the Start Address for loop 1")
-DEF_ATTRIB(IMPLICIT_WRITES_R00, "This instruction writes Register 0")
-DEF_ATTRIB(IMPLICIT_WRITES_P0, "This instruction writes Predicate 0")
-DEF_ATTRIB(IMPLICIT_WRITES_P1, "This instruction writes Predicate 1")
-DEF_ATTRIB(IMPLICIT_WRITES_P2, "This instruction writes Predicate 1")
-DEF_ATTRIB(IMPLICIT_WRITES_P3, "This instruction may write Predicate 3")
-DEF_ATTRIB(IMPLICIT_READS_R00, "This instruction reads Register 0")
-DEF_ATTRIB(IMPLICIT_READS_P0, "This instruction reads Predicate 0")
-DEF_ATTRIB(IMPLICIT_READS_P1, "This instruction reads Predicate 1")
-DEF_ATTRIB(IMPLICIT_READS_P3, "This instruction reads Predicate 3")
-DEF_ATTRIB(IMPLICIT_READS_Q3, "This instruction reads Vector Predicate 3")
-DEF_ATTRIB(IMPLICIT_READS_CS,
-    "This instruction reads the CS register corresponding with the specified "
-    "M register")
-DEF_ATTRIB(IMPLICIT_READS_FRAMEKEY,
-    "This instruction reads the FRAMEKEY register")
-DEF_ATTRIB(IMPLICIT_READS_FRAMELIMIT,
-    "This instruction reads the FRAMELIMIT register")
-DEF_ATTRIB(IMPLICIT_READS_ELR, "This instruction reads the ELR register")
-DEF_ATTRIB(IMPLICIT_READS_SGP0, "This instruction reads the SGP0 register")
-DEF_ATTRIB(IMPLICIT_READS_SGP1, "This instruction reads the SGP1 register")
-DEF_ATTRIB(IMPLICIT_WRITES_SGP0, "This instruction reads the SGP0 register")
-DEF_ATTRIB(IMPLICIT_WRITES_SGP1, "This instruction reads the SGP1 register")
-DEF_ATTRIB(IMPLICIT_WRITES_STID_PRIO_ANYTHREAD,
-    "This instruction reads the STID PRIO register on any thread")
-DEF_ATTRIB(IMPLICIT_WRITES_SRBIT,
-    "This instruction writes the OVerFlow bit in the Status Register")
-DEF_ATTRIB(IMPLICIT_WRITES_FPFLAGS,
-    "This instruction may write the Floating Point Flags in SR")
-DEF_ATTRIB(IMPLICIT_WRITES_LPCFG,
-    "This instruction writes the Loop Config bits in the Status Register")
-DEF_ATTRIB(IMPLICIT_WRITES_CVBITS,
-    "This instruction writes the Carry and Signed Overflow flags "
-    "in the Status Register")
-DEF_ATTRIB(IMPLICIT_READS_FPRND,
-    "This instruction may read the Floating Point Rounding Mode configuration")
-DEF_ATTRIB(IMPLICIT_READS_SSR, "This instruction may read SSR values")
-DEF_ATTRIB(IMPLICIT_READS_CCR, "This instruction may read CCR values")
-DEF_ATTRIB(IMPLICIT_WRITES_CCR, "This instruction may write CCR values")
-DEF_ATTRIB(IMPLICIT_WRITES_SSR, "This instruction may write SSR values")
-DEF_ATTRIB(IMPLICIT_READS_GELR, "This instruction may read GELR values")
-DEF_ATTRIB(IMPLICIT_READS_GEVB, "This instruction may read GEVB values")
-DEF_ATTRIB(IMPLICIT_READS_GSR, "This instruction may read GSR values")
-DEF_ATTRIB(IMPLICIT_READS_GOSP, "This instruction may read GOSP values")
-DEF_ATTRIB(IMPLICIT_WRITES_GELR, "This instruction may write GELR values")
-DEF_ATTRIB(IMPLICIT_WRITES_GSR, "This instruction may write GSR values")
-DEF_ATTRIB(IMPLICIT_WRITES_GOSP, "This instruction may write GOSP values")
-DEF_ATTRIB(IMPLICIT_READS_IPENDAD_IPEND,
-    "This instruction may read the IPEND field")
-DEF_ATTRIB(IMPLICIT_WRITES_IPENDAD_IPEND,
-    "This instruction may write the IPEND field")
-DEF_ATTRIB(IMPLICIT_READS_IPENDAD_IAD,
-    "This instruction may read the IAD field")
-DEF_ATTRIB(IMPLICIT_WRITES_IPENDAD_IAD,
-    "This instruction may read write IAD field")
-DEF_ATTRIB(IMPLICIT_WRITES_IMASK_ANYTHREAD,
-    "This instruction may write IMASK on any thread")
-DEF_ATTRIB(IMPLICIT_READS_IMASK_ANYTHREAD,
-    "This instruction may write IMASK on any thread")
-DEF_ATTRIB(IMPLICIT_READS_SYSCFG_K0LOCK,
-    "This instruction may reads SYSCFG.K0LOCK value")
-DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_K0LOCK,
-    "This instruction may write SYSCFG.K0LOCK value")
-DEF_ATTRIB(IMPLICIT_READS_SYSCFG_TLBLOCK,
-    "This instruction may reads SYSCFG.TLBLOCK value")
-DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_TLBLOCK,
-    "This instruction may write SYSCFG.TLBLOCK value")
-DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_GCA,
-    "This instruction may write SYSCFG.GCA value")
-DEF_ATTRIB(IMPLICIT_READS_SYSCFG_GCA,
-    "This instruction may read SYSCFG.GCA value")
-DEF_ATTRIB(IMPLICIT_WRITES_USR_PFA, "This instruction may write USR_PFA value")
+DEF_ATTRIB(IMPLICIT_WRITES_LR, "Writes the link register", "", "UREG.LR")
+DEF_ATTRIB(IMPLICIT_READS_LR, "Reads the link register", "UREG.LR", "")
+DEF_ATTRIB(IMPLICIT_READS_LC0, "Reads loop count for loop 0", "UREG.LC0", "")
+DEF_ATTRIB(IMPLICIT_READS_LC1, "Reads loop count for loop 1", "UREG.LC1", "")
+DEF_ATTRIB(IMPLICIT_READS_SA0, "Reads start address for loop 0", "UREG.SA0", "")
+DEF_ATTRIB(IMPLICIT_READS_SA1, "Reads start address for loop 1", "UREG.SA1", "")
+DEF_ATTRIB(IMPLICIT_WRITES_PC, "Writes the program counter", "", "UREG.PC")
+DEF_ATTRIB(IMPLICIT_READS_PC, "Reads the program counter", "UREG.PC", "")
+DEF_ATTRIB(IMPLICIT_WRITES_SP, "Writes the stack pointer", "", "UREG.SP")
+DEF_ATTRIB(IMPLICIT_READS_SP, "Reads the stack pointer", "UREG.SP", "")
+DEF_ATTRIB(IMPLICIT_WRITES_FP, "Writes the frame pointer", "", "UREG.FP")
+DEF_ATTRIB(IMPLICIT_READS_FP, "Reads the frame pointer", "UREG.FP", "")
+DEF_ATTRIB(IMPLICIT_WRITES_GP, "Writes the GP register", "", "UREG.GP")
+DEF_ATTRIB(IMPLICIT_READS_GP, "Reads the GP register", "UREG.GP", "")
+DEF_ATTRIB(IMPLICIT_WRITES_LC0, "Writes loop count for loop 0", "", "UREG.LC0")
+DEF_ATTRIB(IMPLICIT_WRITES_LC1, "Writes loop count for loop 1", "", "UREG.LC1")
+DEF_ATTRIB(IMPLICIT_WRITES_SA0, "Writes start addr for loop 0", "", "UREG.SA0")
+DEF_ATTRIB(IMPLICIT_WRITES_SA1, "Writes start addr for loop 1", "", "UREG.SA1")
+DEF_ATTRIB(IMPLICIT_WRITES_R00, "Writes Register 0", "", "UREG.R00")
+DEF_ATTRIB(IMPLICIT_WRITES_P0, "Writes Predicate 0", "", "UREG.P0")
+DEF_ATTRIB(IMPLICIT_WRITES_P1, "Writes Predicate 1", "", "UREG.P1")
+DEF_ATTRIB(IMPLICIT_WRITES_P2, "Writes Predicate 1", "", "UREG.P2")
+DEF_ATTRIB(IMPLICIT_WRITES_P3, "May write Predicate 3", "", "UREG.P3")
+DEF_ATTRIB(IMPLICIT_READS_R00, "Reads Register 0", "UREG.R00", "")
+DEF_ATTRIB(IMPLICIT_READS_P0, "Reads Predicate 0", "UREG.P0", "")
+DEF_ATTRIB(IMPLICIT_READS_P1, "Reads Predicate 1", "UREG.P1", "")
+DEF_ATTRIB(IMPLICIT_READS_P3, "Reads Predicate 3", "UREG.P3", "")
+DEF_ATTRIB(IMPLICIT_READS_Q3, "Reads Vector Predicate 3", "UREG.Q3", "")
+DEF_ATTRIB(IMPLICIT_READS_CS, "Reads the CS/M register", "UREG.CS", "")
+DEF_ATTRIB(IMPLICIT_READS_FRAMEKEY, "Reads FRAMEKEY", "UREG.FRAMEKEY", "")
+DEF_ATTRIB(IMPLICIT_READS_FRAMELIMIT, "Reads FRAMELIMIT", "UREG.FRAMELIMIT", "")
+DEF_ATTRIB(IMPLICIT_READS_ELR, "Reads the ELR register", "MREG.ELR", "")
+DEF_ATTRIB(IMPLICIT_READS_SGP0, "Reads the SGP0 register", "MREG.SGP0", "")
+DEF_ATTRIB(IMPLICIT_READS_SGP1, "Reads the SGP1 register", "MREG.SGP1", "")
+DEF_ATTRIB(IMPLICIT_WRITES_SGP0, "Reads the SGP0 register", "", "MREG.SGP0")
+DEF_ATTRIB(IMPLICIT_WRITES_SGP1, "Reads the SGP1 register", "", "MREG.SGP1")
+DEF_ATTRIB(IMPLICIT_WRITES_STID_PRIO_ANYTHREAD, "Reads", "", "MREG.STID.PRIO")
+DEF_ATTRIB(IMPLICIT_WRITES_SRBIT, "Writes the OVF bit", "", "UREG.SR.OVF")
+DEF_ATTRIB(IMPLICIT_WRITES_FPFLAGS, "May write FP flags", "", "UREG.SR.FPFLAGS")
+DEF_ATTRIB(IMPLICIT_WRITES_LPCFG, "Writes the loop config", "", "UREG.SR.LPCFG")
+DEF_ATTRIB(IMPLICIT_WRITES_CVBITS, "Writes the CV flags", "", "UREG.SR.CV")
+DEF_ATTRIB(IMPLICIT_READS_FPRND, "May read FP rnd mode", "UREG.SR.FPRND", "")
+DEF_ATTRIB(IMPLICIT_READS_SSR, "May read SSR values", "MREG.SSR", "")
+DEF_ATTRIB(IMPLICIT_READS_CCR, "May read CCR values", "MREG.CCR", "")
+DEF_ATTRIB(IMPLICIT_WRITES_CCR, "May write CCR values", "", "MREG.CCR")
+DEF_ATTRIB(IMPLICIT_WRITES_SSR, "May write SSR values", "", "MREG.SSR")
+DEF_ATTRIB(IMPLICIT_READS_GELR, "May read GELR values", "GREG.GELR", "")
+DEF_ATTRIB(IMPLICIT_READS_GEVB, "May read GEVB values", "MREG.GEVB", "")
+DEF_ATTRIB(IMPLICIT_READS_GSR, "May read GSR values", "GREG.GSR", "")
+DEF_ATTRIB(IMPLICIT_READS_GOSP, "May read GOSP values", "GREG.GOSP", "")
+DEF_ATTRIB(IMPLICIT_WRITES_GELR, "May write GELR values", "", "GREG.GELR")
+DEF_ATTRIB(IMPLICIT_WRITES_GSR, "May write GSR values", "", "GREG.GSR")
+DEF_ATTRIB(IMPLICIT_WRITES_GOSP, "May write GOSP values", "", "GREG.GOSP")
+DEF_ATTRIB(IMPLICIT_READS_IPENDAD_IPEND, "May read", "MREG.IPENDAD.IPEND", "")
+DEF_ATTRIB(IMPLICIT_WRITES_IPENDAD_IPEND, "May write", "", "MREG.IPENDAD.IPEND")
+DEF_ATTRIB(IMPLICIT_READS_IPENDAD_IAD, "May read", "MREG.IPENDAD.IAD", "")
+DEF_ATTRIB(IMPLICIT_WRITES_IPENDAD_IAD, "May write", "", "MREG.IPENDAD.IAD")
+DEF_ATTRIB(IMPLICIT_WRITES_IMASK_ANYTHREAD, "May write", "", "MREG.IMASK")
+DEF_ATTRIB(IMPLICIT_READS_IMASK_ANYTHREAD, "May read", "MREG.IMASK", "")
+DEF_ATTRIB(IMPLICIT_READS_SYSCFG_K0LOCK, "May read", "MREG.SYSCFG.K0LOCK", "")
+DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_K0LOCK, "May write", "", "MREG.SYSCFG.K0LOCK")
+DEF_ATTRIB(IMPLICIT_READS_SYSCFG_TLBLOCK, "May read", "MREG.SYSCFG.TLBLOCK", "")
+DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_TLBLOCK, "May wr", "", "MREG.SYSCFG.TLBLOCK")
+DEF_ATTRIB(IMPLICIT_WRITES_SYSCFG_GCA, "May write", "", "MREG.SYSCFG.GCA")
+DEF_ATTRIB(IMPLICIT_READS_SYSCFG_GCA, "May read", "MREG.SYSCFG.GCA", "")
+DEF_ATTRIB(IMPLICIT_WRITES_USR_PFA, "May write USR_PFA", "", "UREG.SR.PFA")
 
 /* Other things the instruction does */
-DEF_ATTRIB(ACC, "This instruction has a multiply")
-DEF_ATTRIB(MPY, "This instruction has a multiply")
-DEF_ATTRIB(SATURATE, "This instruction does signed saturation")
-DEF_ATTRIB(USATURATE, "This instruction does unsigned saturation")
-DEF_ATTRIB(CIRCADDR, "This instruction uses circular addressing mode")
-DEF_ATTRIB(BREVADDR, "This instruction uses bit reverse addressing mode")
-DEF_ATTRIB(BIDIRSHIFTL,
-    "This instruction uses a bidirectional shift left. If the shift amount "
-    "is positive<comma> shift left by the shift amount.  If the shift amount "
-    "is negative<comma> shift right by the negation of the shift amount.")
-DEF_ATTRIB(BIDIRSHIFTR,
-    "This instruction uses a bidirectional shift right. If the shift amount "
-    "is positive<comma> shift right by the shift amount.  If the shift amount "
-    "is negative<comma> shift left by the negation of the shift amount.")
-DEF_ATTRIB(BRANCHADDER,
-    "This instruction contains a PC-plus-immediate operation.")
-DEF_ATTRIB(CRSLOT23,
-    "This instruction can execute in slot 2 or slot 3<comma> "
-    "even though it is a CR instruction.")
-DEF_ATTRIB(COMMUTES, "The operation is communitive")
-DEF_ATTRIB(DEALLOCRET, "This instruction is a dealloc_return")
-DEF_ATTRIB(DEALLOCFRAME, "This instruction is a deallocframe")
+DEF_ATTRIB(ACC, "Has a multiply", "", "")
+DEF_ATTRIB(MPY, "Has a multiply", "", "")
+DEF_ATTRIB(SATURATE, "Does signed saturation", "", "")
+DEF_ATTRIB(USATURATE, "Does unsigned saturation", "", "")
+DEF_ATTRIB(CIRCADDR, "Uses circular addressing mode", "", "")
+DEF_ATTRIB(BREVADDR, "Uses bit reverse addressing mode", "", "")
+DEF_ATTRIB(BIDIRSHIFTL, "Uses a bidirectional shift left", "", "")
+DEF_ATTRIB(BIDIRSHIFTR, "Uses a bidirectional shift right", "", "")
+DEF_ATTRIB(BRANCHADDER, "Contains a PC-plus-immediate operation.", "", "")
+DEF_ATTRIB(CRSLOT23, "Can execute in slot 2 or slot 3 (CR)", "", "")
+DEF_ATTRIB(COMMUTES, "The operation is communitive", "", "")
+DEF_ATTRIB(DEALLOCRET, "dealloc_return", "", "")
+DEF_ATTRIB(DEALLOCFRAME, "deallocframe", "", "")
 
 /* Instruction Types */
 
-DEF_ATTRIB(IT_ALU, "This instruction is an ALU type")
-DEF_ATTRIB(IT_ALU_ADDSUB, "This instruction is an ALU add or subtract type")
-DEF_ATTRIB(IT_ALU_MINMAX, "This instruction is an ALU MIN or MAX type")
-DEF_ATTRIB(IT_ALU_MOVE, "This instruction is an ALU data movement type")
-DEF_ATTRIB(IT_ALU_LOGICAL, "This instruction is an ALU logical operation type")
-DEF_ATTRIB(IT_ALU_SHIFT, "This instruction is an ALU shift operation type")
-DEF_ATTRIB(IT_ALU_SHIFT_AND_OP,
-    "This instruction is an ALU shift and additional operation type")
-DEF_ATTRIB(IT_ALU_CMP, "This instruction is an ALU compare operation type")
+DEF_ATTRIB(IT_ALU, "ALU type", "", "")
+DEF_ATTRIB(IT_ALU_ADDSUB, "ALU add or subtract type", "", "")
+DEF_ATTRIB(IT_ALU_MINMAX, "ALU MIN or MAX type", "", "")
+DEF_ATTRIB(IT_ALU_MOVE, "ALU data movement type", "", "")
+DEF_ATTRIB(IT_ALU_LOGICAL, "ALU logical operation type", "", "")
+DEF_ATTRIB(IT_ALU_SHIFT, "ALU shift operation type", "", "")
+DEF_ATTRIB(IT_ALU_SHIFT_AND_OP, "ALU shift and additional op type", "", "")
+DEF_ATTRIB(IT_ALU_CMP, "ALU compare operation type", "", "")
 
-DEF_ATTRIB(IT_LOAD, "This instruction loads from memory")
-DEF_ATTRIB(IT_STORE, "This instruction loads from memory")
+DEF_ATTRIB(IT_LOAD, "Loads from memory", "", "")
+DEF_ATTRIB(IT_STORE, "Stores to memory", "", "")
 
-DEF_ATTRIB(IT_MPY, "This instruction is a Multiply type")
-DEF_ATTRIB(IT_MPY_32, "This instruction is a 32-bit Multiply type")
+DEF_ATTRIB(IT_MPY, "Multiply type", "", "")
+DEF_ATTRIB(IT_MPY_32, "32-bit Multiply type", "", "")
 
-DEF_ATTRIB(IT_COF, "This instruction is a Change-of-flow type")
-DEF_ATTRIB(IT_HWLOOP, "This instruction sets up hardware loop registers")
+DEF_ATTRIB(IT_COF, "Change-of-flow type", "", "")
+DEF_ATTRIB(IT_HWLOOP, "Sets up hardware loop registers", "", "")
 
-DEF_ATTRIB(IT_MISC, "This instruction is a misc instruction type")
+DEF_ATTRIB(IT_MISC, "misc instruction type", "", "")
 
-DEF_ATTRIB(IT_NOP, "This instruction is a nop instruction")
-DEF_ATTRIB(IT_EXTENDER, "This instruction is a constant extender instruction")
+DEF_ATTRIB(IT_NOP, "nop instruction", "", "")
+DEF_ATTRIB(IT_EXTENDER, "constant extender instruction", "", "")
 
 
 /* Exceptions the instruction can generate */
 
-DEF_ATTRIB(EXCEPTION_TLB,
-    "This instruction can generate a TLB Miss Exception")
-DEF_ATTRIB(EXCEPTION_ACCESS,
-    "This instruction can generate an Access Rights Violation Exception")
-DEF_ATTRIB(EXCEPTION_SWI,
-    "This instruction generates a Software Interrupt (trap) type exception")
+DEF_ATTRIB(EXCEPTION_TLB, "Can generate a TLB Miss Exception", "", "")
+DEF_ATTRIB(EXCEPTION_ACCESS, "Can generate Access Violation Exception", "", "")
+DEF_ATTRIB(EXCEPTION_SWI, "Software Interrupt (trap) exception", "", "")
 
 
 /* Documentation Notes */
-DEF_ATTRIB(NOTE_ARCHV2,
-    "This instruction is only available in the V2 architecture")
+DEF_ATTRIB(NOTE_ARCHV2, "Only available in the V2 architecture", "", "")
 
-DEF_ATTRIB(NOTE_PACKET_PC,
-    "The PC value is the address of the start of the packet")
+DEF_ATTRIB(NOTE_PACKET_PC, "The PC is the addr of the start of the pkt", "", "")
 
-DEF_ATTRIB(NOTE_PACKET_NPC,
-    "The Next PC value is the address immediately following the last "
-    "instruction in the packet containing this instruction.")
+DEF_ATTRIB(NOTE_PACKET_NPC, "Next PC is the address following pkt", "", "")
 
-DEF_ATTRIB(NOTE_CONDITIONAL,
-    "This instruction can be conditionally executed based on the value of "
-    "a predicate register. If the instruction is preceded by 'if Pn'<comma> "
-    "then the instruction only executes if the least-significant bit of the "
-    "predicate register is 1. Similarly<comma> if the instruction is preceded "
-    "by 'if !Pn'<comma> then the instruction is executed only if the least-"
-    "significant bit of Pn is 0.")
+DEF_ATTRIB(NOTE_CONDITIONAL, "can be conditionally executed", "", "")
 
-DEF_ATTRIB(NOTE_NEWVAL_SLOT0,
-    "Forms of this instruction which use a new-value operand produced in "
-    "the packet must execute on slot 0.")
+DEF_ATTRIB(NOTE_NEWVAL_SLOT0, "New-value oprnd must execute on slot 0", "", "")
 
-DEF_ATTRIB(NOTE_RELATIVE_ADDRESS,
-    "A PC-relative address is formed by taking the decoded immediate value "
-    "and adding it to the current PC value.")
+DEF_ATTRIB(NOTE_RELATIVE_ADDRESS, "A PC-relative address is formed", "", "")
 
-DEF_ATTRIB(NOTE_LA_RESTRICT,
-    "This instruction cannot execute in the last address of a hardware loop.")
+DEF_ATTRIB(NOTE_LA_RESTRICT, "Cannot be in the last pkt of a HW loop", "", "")
 
-DEF_ATTRIB(NOTE_OOBVSHIFT,
-    "If the number of bits to be shifted is greater than the width of the "
-    "vector element<comma> the result is either all sign-bits (for arithmetic "
-    "right shifts) or all zeros for logical and left shifts.")
-DEF_ATTRIB(NOTE_BIDIRSHIFT,
-    "This instruction uses a bidirectional shift. If the shift amount is "
-    "negative<comma> the direction of the shift is reversed.")
+DEF_ATTRIB(NOTE_OOBVSHIFT, "Possible shift overflow", "", "")
+DEF_ATTRIB(NOTE_BIDIRSHIFT, "Bidirectional shift", "", "")
 
-DEF_ATTRIB(NOTE_CVFLAGS,
-    "This instruction sets the Carry and Overflow flags in USR.")
-DEF_ATTRIB(NOTE_SR_OVF_WHEN_SATURATING,
-    "If saturation occurs during execution of this instruction (a result is "
-    "clamped to either maximum or minimum values)<comma> then the OVF bit in "
-    "the Status Register is set. OVF will remain set until explicitly cleared "
-    "by a transfer to SR.")
-DEF_ATTRIB(NOTE_PRIV,
-    "This is a monitor-level feature. If performed in User or Guest "
-    "mode<comma> a privilege error exception will occur.")
-DEF_ATTRIB(NOTE_GUEST,
-    "This is a guest-level feature. If performed in User mode<comma> a "
-    "privilege error exception will occur.")
-DEF_ATTRIB(NOTE_NOPACKET,
-    "This is a solo instruction. It must not be grouped with other "
-    "instructions in a packet.")
-DEF_ATTRIB(NOTE_AXOK,
-    "This instruction may only be grouped with ALU32 or non-floating-point "
-    "XTYPE instructions.")
-DEF_ATTRIB(NOTE_NOSLOT1,
-    "A packet containing this instruction must have slot 1 either empty or "
-    "executing a NOP.")
-DEF_ATTRIB(NOTE_SLOT1_AOK,
-    "A packet containing this instruction must have slot 1 either empty or "
-    "executing an ALU32 instruction.")
-DEF_ATTRIB(NOTE_NOSLOT01,
-    "A packet containing this instruction must have both slot 1 and slot 2 "
-    "either empty or executing a NOP.")
-DEF_ATTRIB(NOTE_NEEDS_MEMLD, "Must be grouped with a memory load instruction.")
-DEF_ATTRIB(NOTE_LATEPRED,
-    "The predicate generated by this instruction can not be used as a .new "
-    "predicate<comma> nor can it be automatically ANDed with another "
-    "predicate.")
-DEF_ATTRIB(NOTE_COMPAT_ACCURACY,
-     "This instruction provides a certain amount of accuracy. In future "
-     "versions the accuracy may increase. For future compatibility<comma> "
-     "dependence on exact values must be avoided.")
-DEF_ATTRIB(NOTE_NVSLOT0,
-    "This instruction can execute only in slot 0<comma> even though it is an "
-    "ST instruction.")
-DEF_ATTRIB(NOTE_DEPRECATED,
-    "This instruction will be deprecated in a future version.")
-DEF_ATTRIB(NOTE_NOISTARIV1, "This may not work correctly in Istari V1.")
-DEF_ATTRIB(NOTE_NONAPALIV1, "This may not work correctly in Napali V1.")
-DEF_ATTRIB(NOTE_BADTAG_UNDEF,
-    "Results are undefined if a tag read or write addresses a non-present "
-    "set or way.")
-DEF_ATTRIB(NOTE_NOSLOT2_MPY,
-    "A packet with this instruction cannot have a slot 2 multiply instruction.")
-DEF_ATTRIB(NOTE_HVX_ONLY,
-    "This instruction is only available on a core with HVX.")
+DEF_ATTRIB(NOTE_CVFLAGS, "Sets the Carry and Overflow flags in USR.", "", "")
+DEF_ATTRIB(NOTE_SR_OVF_WHEN_SATURATING, "Might set OVF bit", "", "")
+DEF_ATTRIB(NOTE_PRIV, "Monitor-level feature", "", "")
+DEF_ATTRIB(NOTE_GUEST, "Guest-level feature", "", "")
+DEF_ATTRIB(NOTE_NOPACKET, "solo instruction", "", "")
+DEF_ATTRIB(NOTE_AXOK, "May only be grouped with ALU32 or non-FP XTYPE.", "", "")
+DEF_ATTRIB(NOTE_NOSLOT1, "Packet with this insn must have slot 1 empty", "", "")
+DEF_ATTRIB(NOTE_SLOT1_AOK, "Packet must have slot 1 empty or ALU32", "", "")
+DEF_ATTRIB(NOTE_NOSLOT01, "Packet must have both slot 1 and 2 empty", "", "")
+DEF_ATTRIB(NOTE_NEEDS_MEMLD, "Must be grouped with a memory load", "", "")
+DEF_ATTRIB(NOTE_LATEPRED, "The predicate can not be used as a .new", "", "")
+DEF_ATTRIB(NOTE_COMPAT_ACCURACY, "In the future accuracy may increase", "", "")
+DEF_ATTRIB(NOTE_NVSLOT0, "Can execute only in slot 0 (ST)", "", "")
+DEF_ATTRIB(NOTE_DEPRECATED, "Will be deprecated in a future version.", "", "")
+DEF_ATTRIB(NOTE_NONAPALIV1, "may not work correctly in Napali V1.", "", "")
+DEF_ATTRIB(NOTE_BADTAG_UNDEF, "Undefined if a tag is non-present", "", "")
+DEF_ATTRIB(NOTE_NOSLOT2_MPY, "Packet cannot have a slot 2 multiply", "", "")
+DEF_ATTRIB(NOTE_HVX_ONLY, "Only available on a core with HVX.", "", "")
 
-DEF_ATTRIB(NOTE_NOCOF_RESTRICT,
-    "This instruction cannot be grouped in a packet with any program flow "
-    "instructions.")
-DEF_ATTRIB(NOTE_BRANCHADDER_MAX1,
-    "A maximum of one PC-plus-offset calculation is allowed per packet. "
-    "Loop instructions count towards this maximum.")
+DEF_ATTRIB(NOTE_NOCOF_RESTRICT, "Cannot be grouped with any COF", "", "")
+DEF_ATTRIB(NOTE_BRANCHADDER_MAX1, "One PC-plus-offset calculation", "", "")
 
-DEF_ATTRIB(NOTE_CRSLOT23,
-    "This instruction may execute on either slot2 or slot3<comma> even though "
-    "it is a CR-type")
-DEF_ATTRIB(NOTE_EXTENSION_AUDIO,
-    "This instruction can only execute on a core with the Hexagon audio "
-    "extensions")
+DEF_ATTRIB(NOTE_CRSLOT23, "Execute on either slot2 or slot3 (CR)", "", "")
+DEF_ATTRIB(NOTE_EXTENSION_AUDIO, "Hexagon audio extensions", "", "")
 
 
 /* V6 MMVector Notes for Documentation */
-DEF_ATTRIB(NOTE_ANY_RESOURCE, "This instruction can use any HVX resource.")
-DEF_ATTRIB(NOTE_ANY2_RESOURCE,
-    "This instruction uses any pair of the HVX resources (both multiply or "
-    "shift/permute).")
-DEF_ATTRIB(NOTE_PERMUTE_RESOURCE,
-    "This instruction uses the HVX permute resource.")
-DEF_ATTRIB(NOTE_SHIFT_RESOURCE,
-    "This instruction uses the HVX shift resource.")
-DEF_ATTRIB(NOTE_MPY_RESOURCE,
-    "This instruction uses a HVX multiply resource.")
-DEF_ATTRIB(NOTE_MPYDV_RESOURCE,
-    "This instruction uses both HVX multiply resources.")
-DEF_ATTRIB(NOTE_NT_VMEM,
-    "An optional \"non-temporal\" hint to the micro-architecture can be "
-    "specified to indicate the data has no reuse.")
-DEF_ATTRIB(NOTE_ALL_RESOURCE, "This instruction uses all HVX resources.")
-DEF_ATTRIB(NOTE_VMEM,
-    "Immediates used in address computation are specificed in multiples of "
-    "vector length.")
-DEF_ATTRIB(NOTE_ANY_VS_VX_RESOURCE,
-    "A double capacity variation of the instruction that consumes two "
-    "resources: multiply and shift or multiply and permute.")
+DEF_ATTRIB(NOTE_ANY_RESOURCE, "Can use any HVX resource.", "", "")
+DEF_ATTRIB(NOTE_ANY2_RESOURCE, "Uses any pair of the HVX resources", "", "")
+DEF_ATTRIB(NOTE_PERMUTE_RESOURCE, "Uses the HVX permute resource.", "", "")
+DEF_ATTRIB(NOTE_SHIFT_RESOURCE, "Uses the HVX shift resource.", "", "")
+DEF_ATTRIB(NOTE_MPY_RESOURCE, "Uses a HVX multiply resource.", "", "")
+DEF_ATTRIB(NOTE_MPYDV_RESOURCE, "Uses both HVX multiply resources.", "", "")
+DEF_ATTRIB(NOTE_NT_VMEM, "Non-temporal hint to the micro-architecture", "", "")
+DEF_ATTRIB(NOTE_ALL_RESOURCE, "Uses all HVX resources.", "", "")
+DEF_ATTRIB(NOTE_VMEM, "Immediates are in multiples of vector length.", "", "")
+DEF_ATTRIB(NOTE_ANY_VS_VX_RESOURCE, "Consumes two resources", "", "")
 
-DEF_ATTRIB(NOTE_RT8,
-    "Input scalar register Rt is limited to registers 0 through 7")
-
-DEF_ATTRIB(NOTE_MX, "This is in-memory matrix multiply instruction.")
+DEF_ATTRIB(NOTE_RT8, "Input scalar register Rt is limited to R0-R7", "", "")
 
 /* Restrictions to make note of */
-DEF_ATTRIB(RESTRICT_LOOP_LA, "Cannot be in the last packet of a loop")
-DEF_ATTRIB(RESTRICT_NEEDS_MEMLD,
-    "Must be grouped with a memory load instruction")
-DEF_ATTRIB(RESTRICT_COF_MAX1,
-    "A maximum of one change-of-flow is allowed per packet")
-DEF_ATTRIB(RESTRICT_NOPACKET, "This instruction is not allowed in a packet")
-DEF_ATTRIB(RESTRICT_NOSRMOVE,
-    "Do not write SR in the same packet as this instruction")
-DEF_ATTRIB(RESTRICT_SLOT0ONLY, "This instruction must execute on slot0")
-DEF_ATTRIB(RESTRICT_SLOT1ONLY, "This instruction must execute on slot1")
-DEF_ATTRIB(RESTRICT_SLOT2ONLY, "This instruction must execute on slot2")
-DEF_ATTRIB(RESTRICT_SLOT3ONLY, "This instruction must execute on slot3")
-DEF_ATTRIB(RESTRICT_NOSLOT2_MPY,
-    "A packet with this instruction cannot have a slot 2 multiply")
-DEF_ATTRIB(RESTRICT_NOSLOT1, "No slot 1 instruction allowed in parallel")
-DEF_ATTRIB(RESTRICT_SLOT1_AOK, "Slot 1 instruction must be empty or an A-type")
-DEF_ATTRIB(RESTRICT_NOSLOT01, "No slot 0 or 1 instructions allowed in parallel")
-DEF_ATTRIB(RESTRICT_NOSLOT1_STORE,
-    "A packet containing this instruction must not have a store in slot 1.")
-DEF_ATTRIB(RESTRICT_NOSLOT0_LOAD,
-    "A packet containing this instruction must not have a store in slot 1.")
-DEF_ATTRIB(RESTRICT_NOCOF,
-    "This instruction cannot be grouped in a packet with any program flow "
-    "instructions.")
-DEF_ATTRIB(RESTRICT_BRANCHADDER_MAX1,
-    "A maximum of one PC-plus-offset calculation is allowed per packet. Loop "
-    "setup instructions count towards this maximum.")
-DEF_ATTRIB(RESTRICT_PREFERSLOT0,
-    "Try to encode this instruction into slot 0 if possible.")
-DEF_ATTRIB(RESTRICT_SINGLE_MEM_FIRST,
-    "Packets with single memory operations must have the memory operation "
-    "encoded last. The assembler will automatically do this by default.")
-DEF_ATTRIB(RESTRICT_PACKET_AXOK,
-    "This instruction may exist in a packet where the other instructions are "
-    "A-type or X-type")
-DEF_ATTRIB(RESTRICT_PACKET_SOMEREGS_OK,
-    "This instruction has relaxed grouping rules for some registers")
-DEF_ATTRIB(RESTRICT_LATEPRED,
-    "The predicate generated by this instruction can not be used as a .new "
-    "predicate<comma> nor can it be automatically ANDed with another "
-    "predicate.")
+DEF_ATTRIB(RESTRICT_LOOP_LA, "Cannot be in the last packet of a loop", "", "")
+DEF_ATTRIB(RESTRICT_NEEDS_MEMLD, "Must be grouped with a load", "", "")
+DEF_ATTRIB(RESTRICT_COF_MAX1, "One change-of-flow per packet", "", "")
+DEF_ATTRIB(RESTRICT_NOPACKET, "Not allowed in a packet", "", "")
+DEF_ATTRIB(RESTRICT_NOSRMOVE, "Do not write SR in the same packet", "", "")
+DEF_ATTRIB(RESTRICT_SLOT0ONLY, "Must execute on slot0", "", "")
+DEF_ATTRIB(RESTRICT_SLOT1ONLY, "Must execute on slot1", "", "")
+DEF_ATTRIB(RESTRICT_SLOT2ONLY, "Must execute on slot2", "", "")
+DEF_ATTRIB(RESTRICT_SLOT3ONLY, "Must execute on slot3", "", "")
+DEF_ATTRIB(RESTRICT_NOSLOT2_MPY, "A packet cannot have a slot 2 mpy", "", "")
+DEF_ATTRIB(RESTRICT_NOSLOT1, "No slot 1 instruction in parallel", "", "")
+DEF_ATTRIB(RESTRICT_SLOT1_AOK, "Slot 1 insn must be empty or A-type", "", "")
+DEF_ATTRIB(RESTRICT_NOSLOT01, "No slot 0 or 1 instructions in parallel", "", "")
+DEF_ATTRIB(RESTRICT_NOSLOT1_STORE, "Packet must not have slot 1 store", "", "")
+DEF_ATTRIB(RESTRICT_NOSLOT0_LOAD, "Packet must not have a slot 1 load", "", "")
+DEF_ATTRIB(RESTRICT_NOCOF, "Cannot be grouped with any COF", "", "")
+DEF_ATTRIB(RESTRICT_BRANCHADDER_MAX1, "One PC-plus-offset calculation", "", "")
+DEF_ATTRIB(RESTRICT_PREFERSLOT0, "Try to encode into slot 0", "", "")
+DEF_ATTRIB(RESTRICT_SINGLE_MEM_FIRST, "Single memory op must be last", "", "")
+DEF_ATTRIB(RESTRICT_PACKET_AXOK, "May exist with A-type or X-type", "", "")
+DEF_ATTRIB(RESTRICT_PACKET_SOMEREGS_OK, "Relaxed grouping rules", "", "")
+DEF_ATTRIB(RESTRICT_LATEPRED, "Predicate can not be used as a .new.", "", "")
 
-DEF_ATTRIB(PAIR_1OF2,
-    "For assembler. First instruction of pair that must be in packet.")
-DEF_ATTRIB(PAIR_2OF2,
-    "For assembler. Second instruction of pair that must be in packet.")
+DEF_ATTRIB(PAIR_1OF2, "For assembler", "", "")
+DEF_ATTRIB(PAIR_2OF2, "For assembler", "", "")
 
 /* Performance based preferences */
-DEF_ATTRIB(PREFER_SLOT3,
-    "Complex XU: prevent xu competition by prefering slot3")
+DEF_ATTRIB(PREFER_SLOT3, "Complex XU prefering slot3", "", "")
 
-DEF_ATTRIB(RELAX_COF_1ST,
-    "This branch instruction can be paired with certain other branch "
-    "instructions<comma> and can be the first in assembly order")
-DEF_ATTRIB(RELAX_COF_2ND,
-    "This branch instruction can be paired with certain other branch "
-    "instructions<comma> and can be the second in assembly order")
+DEF_ATTRIB(RELAX_COF_1ST, "COF can be fisrt in assembly order", "", "")
+DEF_ATTRIB(RELAX_COF_2ND, "COF can be second in assembly order", "", "")
 
-DEF_ATTRIB(ICOP, "This instruction is an instruction cache op")
+DEF_ATTRIB(ICOP, "Instruction cache op", "", "")
 
-DEF_ATTRIB(INTRINSIC_RETURNS_UNSIGNED,
-    "The intrinsic for this instruction returns an unsigned result.")
+DEF_ATTRIB(INTRINSIC_RETURNS_UNSIGNED, "Intrinsic returns an unsigned", "", "")
 
-DEF_ATTRIB(PRED_BIT_1, "The branch uses bit 1 as the prediction bit")
-DEF_ATTRIB(PRED_BIT_4, "The branch uses bit 4 as the prediction bit")
-DEF_ATTRIB(PRED_BIT_8, "The branch uses bit 8 as the prediction bit")
-DEF_ATTRIB(PRED_BIT_12, "The branch uses bit 12 as the prediction bit")
-DEF_ATTRIB(PRED_BIT_13, "The branch uses bit 13 as the prediction bit")
-DEF_ATTRIB(PRED_BIT_7, "The branch uses bit 7 as the prediction bit")
-DEF_ATTRIB(HWLOOP0_SETUP, "Instruction sets up HW loop0")
-DEF_ATTRIB(HWLOOP1_SETUP, "Instruction sets up HW loop1")
-DEF_ATTRIB(HWLOOP0_END, "Instruction ends HW loop0")
-DEF_ATTRIB(HWLOOP1_END, "Instruction ends HW loop1")
-DEF_ATTRIB(RET_TYPE, "Instruction is a return type")
-DEF_ATTRIB(HINTJR, "Instruction is a hintjr type")
-DEF_ATTRIB(DCZEROA, "Instruction is dczeroa type")
-DEF_ATTRIB(ICTAGOP, "Instruction is ictag op type ictagr ictagw icdatar")
-DEF_ATTRIB(ICFLUSHOP, "Instruction is icflush op type icinva icinvidx ickill")
-DEF_ATTRIB(DCFLUSHOP,
-    "Instruction is dcflush op type dckill dccleana dccleanidx dccleaninva "
-    "dccleaninvidx dcinva dcinvidx")
-DEF_ATTRIB(DCTAGOP, "Instruction is dctag op type dctagr dctagw")
-DEF_ATTRIB(L2FLUSHOP,
-    "Instruction is l2flush op type l2kill l2cleaninvidx l2cleanidx l2invidx")
-DEF_ATTRIB(L2TAGOP, "Instruction is l2tag op type l2tagr l2tagw")
-DEF_ATTRIB(DCFETCH, "Instruction is dcfetch type")
-DEF_ATTRIB(BIMODAL_BRANCH, "Updates the bimodal branch predictor")
+DEF_ATTRIB(PRED_BIT_1, "The branch uses bit 1 as the prediction bit", "", "")
+DEF_ATTRIB(PRED_BIT_4, "The branch uses bit 4 as the prediction bit", "", "")
+DEF_ATTRIB(PRED_BIT_8, "The branch uses bit 8 as the prediction bit", "", "")
+DEF_ATTRIB(PRED_BIT_12, "The branch uses bit 12 as the prediction bit", "", "")
+DEF_ATTRIB(PRED_BIT_13, "The branch uses bit 13 as the prediction bit", "", "")
+DEF_ATTRIB(PRED_BIT_7, "The branch uses bit 7 as the prediction bit", "", "")
+DEF_ATTRIB(HWLOOP0_SETUP, "Sets up HW loop0", "", "")
+DEF_ATTRIB(HWLOOP1_SETUP, "Sets up HW loop1", "", "")
+DEF_ATTRIB(HWLOOP0_END, "Ends HW loop0", "", "")
+DEF_ATTRIB(HWLOOP1_END, "Ends HW loop1", "", "")
+DEF_ATTRIB(RET_TYPE, "return type", "", "")
+DEF_ATTRIB(HINTJR, "hintjr type", "", "")
+DEF_ATTRIB(DCZEROA, "dczeroa type", "", "")
+DEF_ATTRIB(ICTAGOP, "ictag op type", "", "")
+DEF_ATTRIB(ICFLUSHOP, "icflush op type", "", "")
+DEF_ATTRIB(DCFLUSHOP, "dcflush op type", "", "")
+DEF_ATTRIB(DCTAGOP, "dctag op type", "", "")
+DEF_ATTRIB(L2FLUSHOP, "l2flush op type", "", "")
+DEF_ATTRIB(L2TAGOP, "l2tag op type", "", "")
+DEF_ATTRIB(DCFETCH, "dcfetch type", "", "")
+DEF_ATTRIB(BIMODAL_BRANCH, "Updates the bimodal branch predictor", "", "")
 
-DEF_ATTRIB(VECINSN, "Long Vector Instruction")
-DEF_ATTRIB(MEMSIZE_32B, "Memory width is 32 bytes")
-DEF_ATTRIB(FOUR_PHASE, "Four Phase Instruction")
-DEF_ATTRIB(L2FETCH, "Instruction is l2fetch type")
+DEF_ATTRIB(VECINSN, "Long Vector Instruction", "", "")
+DEF_ATTRIB(MEMSIZE_32B, "Memory width is 32 bytes", "", "")
+DEF_ATTRIB(FOUR_PHASE, "Four Phase Instruction", "", "")
+DEF_ATTRIB(L2FETCH, "Instruction is l2fetch type", "", "")
 
-DEF_ATTRIB(PREDUSE_BSB,
-    "Instructions that consume predicates and need to go BSB due to late "
-    "predicate generation by the previous instruction")
-DEF_ATTRIB(ICINVA, "Instruction is icinva")
-DEF_ATTRIB(DCCLEANINVA, "Instruction is dccleaninva")
+DEF_ATTRIB(PREDUSE_BSB, "Instructions need back-skip-back scheduling", "", "")
+DEF_ATTRIB(ICINVA, "icinva", "", "")
+DEF_ATTRIB(DCCLEANINVA, "dccleaninva", "", "")
 
-DEF_ATTRIB(EXTENSION_AUDIO, "Instruction is an audio extension")
+DEF_ATTRIB(EXTENSION_AUDIO, "audio extension", "", "")
 
-DEF_ATTRIB(MEMCPY, "This instruction is a memcpy or dma-type instruction")
-DEF_ATTRIB(NO_INTRINSIC, "Don't generate an intrisic for this instruciton")
+DEF_ATTRIB(MEMCPY, "memcpy or dma-type instruction", "", "")
+DEF_ATTRIB(NO_INTRINSIC, "Don't generate an intrisic", "", "")
 
-DEF_ATTRIB(NO_XML, "Don't generate a XML docs for this instruction")
-
-DEF_ATTRIB(DMA,  "User-DMA instruction")
+DEF_ATTRIB(NO_XML, "Don't generate a XML docs for this instruction", "", "")
 
 /* Keep this as the last attribute: */
-DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file")
+DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")
 
