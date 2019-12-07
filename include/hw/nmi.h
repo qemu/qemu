@@ -31,7 +31,7 @@
 #define NMI_GET_CLASS(obj) \
     OBJECT_GET_CLASS(NMIClass, (obj), TYPE_NMI)
 #define NMI(obj) \
-     INTERFACE_CHECK(NMI, (obj), TYPE_NMI)
+     INTERFACE_CHECK(NMIState, (obj), TYPE_NMI)
 
 typedef struct NMIState NMIState;
 
