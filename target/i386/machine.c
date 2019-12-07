@@ -261,7 +261,7 @@ static int cpu_pre_save(void *opaque)
      * intercepted anymore.
      *
      * Furthermore, when a L2 exception is intercepted by L1
-     * hypervisor, it's exception payload (CR2/DR6 on #PF/#DB)
+     * hypervisor, its exception payload (CR2/DR6 on #PF/#DB)
      * should not be set yet in the respective vCPU register.
      * Thus, in case an exception is pending, it is
      * important to save the exception payload seperately.
@@ -271,9 +271,9 @@ static int cpu_pre_save(void *opaque)
      * distinguish between a pending and injected exception
      * and we don't need to store seperately the exception payload.
      *
-     * In order to preserve better backwards-compatabile migration,
+     * In order to preserve better backwards-compatible migration,
      * convert a pending exception to an injected exception in
-     * case it is not important to distingiush between them
+     * case it is not important to distinguish between them
      * as described above.
      */
     if (env->exception_pending && !(env->hflags & HF_GUEST_MASK)) {
@@ -415,7 +415,7 @@ static bool exception_info_needed(void *opaque)
 
     /*
      * It is important to save exception-info only in case
-     * we need to distingiush between a pending and injected
+     * we need to distinguish between a pending and injected
      * exception. Which is only required in case there is a
      * pending exception and vCPU is running L2.
      * For more info, refer to comment in cpu_pre_save().
