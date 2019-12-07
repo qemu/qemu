@@ -115,8 +115,8 @@ static void tlb_dyn_init(CPUArchState *env)
 
 /**
  * tlb_mmu_resize_locked() - perform TLB resize bookkeeping; resize if necessary
- * @env: CPU that owns the TLB
- * @mmu_idx: MMU index of the TLB
+ * @desc: The CPUTLBDesc portion of the TLB
+ * @fast: The CPUTLBDescFast portion of the same TLB
  *
  * Called with tlb_lock_held.
  *
@@ -153,10 +153,9 @@ static void tlb_dyn_init(CPUArchState *env)
  * high), since otherwise we are likely to have a significant amount of
  * conflict misses.
  */
-static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
+static void tlb_mmu_resize_locked(CPUTLBDesc *desc, CPUTLBDescFast *fast)
 {
-    CPUTLBDesc *desc = &env_tlb(env)->d[mmu_idx];
-    size_t old_size = tlb_n_entries(&env_tlb(env)->f[mmu_idx]);
+    size_t old_size = tlb_n_entries(fast);
     size_t rate;
     size_t new_size = old_size;
     int64_t now = get_clock_realtime();
@@ -198,14 +197,15 @@ static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
         return;
     }
 
-    g_free(env_tlb(env)->f[mmu_idx].table);
-    g_free(env_tlb(env)->d[mmu_idx].iotlb);
+    g_free(fast->table);
+    g_free(desc->iotlb);
 
     tlb_window_reset(desc, now, 0);
     /* desc->n_used_entries is cleared by the caller */
-    env_tlb(env)->f[mmu_idx].mask = (new_size - 1) << CPU_TLB_ENTRY_BITS;
-    env_tlb(env)->f[mmu_idx].table = g_try_new(CPUTLBEntry, new_size);
-    env_tlb(env)->d[mmu_idx].iotlb = g_try_new(CPUIOTLBEntry, new_size);
+    fast->mask = (new_size - 1) << CPU_TLB_ENTRY_BITS;
+    fast->table = g_try_new(CPUTLBEntry, new_size);
+    desc->iotlb = g_try_new(CPUIOTLBEntry, new_size);
+
     /*
      * If the allocations fail, try smaller sizes. We just freed some
      * memory, so going back to half of new_size has a good chance of working.
@@ -213,25 +213,24 @@ static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
      * allocations to fail though, so we progressively reduce the allocation
      * size, aborting if we cannot even allocate the smallest TLB we support.
      */
-    while (env_tlb(env)->f[mmu_idx].table == NULL ||
-           env_tlb(env)->d[mmu_idx].iotlb == NULL) {
+    while (fast->table == NULL || desc->iotlb == NULL) {
         if (new_size == (1 << CPU_TLB_DYN_MIN_BITS)) {
             error_report("%s: %s", __func__, strerror(errno));
             abort();
         }
         new_size = MAX(new_size >> 1, 1 << CPU_TLB_DYN_MIN_BITS);
-        env_tlb(env)->f[mmu_idx].mask = (new_size - 1) << CPU_TLB_ENTRY_BITS;
+        fast->mask = (new_size - 1) << CPU_TLB_ENTRY_BITS;
 
-        g_free(env_tlb(env)->f[mmu_idx].table);
-        g_free(env_tlb(env)->d[mmu_idx].iotlb);
-        env_tlb(env)->f[mmu_idx].table = g_try_new(CPUTLBEntry, new_size);
-        env_tlb(env)->d[mmu_idx].iotlb = g_try_new(CPUIOTLBEntry, new_size);
+        g_free(fast->table);
+        g_free(desc->iotlb);
+        fast->table = g_try_new(CPUTLBEntry, new_size);
+        desc->iotlb = g_try_new(CPUIOTLBEntry, new_size);
     }
 }
 
 static void tlb_flush_one_mmuidx_locked(CPUArchState *env, int mmu_idx)
 {
-    tlb_mmu_resize_locked(env, mmu_idx);
+    tlb_mmu_resize_locked(&env_tlb(env)->d[mmu_idx], &env_tlb(env)->f[mmu_idx]);
     env_tlb(env)->d[mmu_idx].n_used_entries = 0;
     env_tlb(env)->d[mmu_idx].large_page_addr = -1;
     env_tlb(env)->d[mmu_idx].large_page_mask = -1;
