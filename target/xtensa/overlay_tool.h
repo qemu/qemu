@@ -373,15 +373,28 @@
 #elif XCHAL_HAVE_MPU
 
 #ifndef XTENSA_MPU_BG_MAP
+#ifdef XCHAL_MPU_BACKGROUND_MAP
+#define XCHAL_MPU_BGMAP(s, vaddr_start, vaddr_last, rights, memtype, x...) \
+    { .vaddr = (vaddr_start), .attr = ((rights) << 8) | ((memtype) << 12), },
+
+#define XTENSA_MPU_BG_MAP (xtensa_mpu_entry []){\
+    XCHAL_MPU_BACKGROUND_MAP(0) \
+}
+
+#define XTENSA_MPU_BG_MAP_ENTRIES XCHAL_MPU_BACKGROUND_ENTRIES
+#else
 #define XTENSA_MPU_BG_MAP (xtensa_mpu_entry []){\
     { .vaddr = 0, .attr = 0x00006700, }, \
 }
+
+#define XTENSA_MPU_BG_MAP_ENTRIES 1
+#endif
 #endif
 
 #define TLB_SECTION \
     .mpu_align = XCHAL_MPU_ALIGN, \
     .n_mpu_fg_segments = XCHAL_MPU_ENTRIES, \
-    .n_mpu_bg_segments = 1, \
+    .n_mpu_bg_segments = XTENSA_MPU_BG_MAP_ENTRIES, \
     .mpu_bg = XTENSA_MPU_BG_MAP
 
 #ifndef XCHAL_SYSROM0_PADDR
