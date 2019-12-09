@@ -2330,17 +2330,22 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
+void virtio_delete_queue(VirtQueue *vq)
+{
+    vq->vring.num = 0;
+    vq->vring.num_default = 0;
+    vq->handle_output = NULL;
+    vq->handle_aio_output = NULL;
+    g_free(vq->used_elems);
+}
+
 void virtio_del_queue(VirtIODevice *vdev, int n)
 {
     if (n < 0 || n >= VIRTIO_QUEUE_MAX) {
         abort();
     }
 
-    vdev->vq[n].vring.num = 0;
-    vdev->vq[n].vring.num_default = 0;
-    vdev->vq[n].handle_output = NULL;
-    vdev->vq[n].handle_aio_output = NULL;
-    g_free(vdev->vq[n].used_elems);
+    virtio_delete_queue(&vdev->vq[n]);
 }
 
 static void virtio_set_isr(VirtIODevice *vdev, int value)
