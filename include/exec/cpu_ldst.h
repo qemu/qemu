@@ -152,7 +152,7 @@ static inline void clear_helper_retaddr(void)
 
 #else
 
-/* The memory helpers for tcg-generated code need tcg_target_long etc.  */
+/* Needed for TCG_OVERSIZED_GUEST */
 #include "tcg.h"
 
 static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
@@ -184,6 +184,29 @@ static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
 {
     return &env_tlb(env)->f[mmu_idx].table[tlb_index(env, mmu_idx, addr)];
 }
+
+uint32_t cpu_ldub_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                            int mmu_idx, uintptr_t ra);
+uint32_t cpu_lduw_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                            int mmu_idx, uintptr_t ra);
+uint32_t cpu_ldl_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                           int mmu_idx, uintptr_t ra);
+uint64_t cpu_ldq_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                           int mmu_idx, uintptr_t ra);
+
+int cpu_ldsb_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                       int mmu_idx, uintptr_t ra);
+int cpu_ldsw_mmuidx_ra(CPUArchState *env, abi_ptr addr,
+                       int mmu_idx, uintptr_t ra);
+
+void cpu_stb_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void cpu_stw_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void cpu_stl_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void cpu_stq_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
 
 #ifdef MMU_MODE0_SUFFIX
 #define CPU_MMU_INDEX 0

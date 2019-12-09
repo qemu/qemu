@@ -24,13 +24,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(SOFTMMU_CODE_ACCESS)
-#include "trace-root.h"
-#endif
-
-#include "qemu/plugin.h"
-#include "trace/mem.h"
-
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define USUFFIX q
@@ -63,56 +56,40 @@
 #define RES_TYPE uint32_t
 #endif
 
+/* generic load/store macros */
+
 #ifdef SOFTMMU_CODE_ACCESS
-#define ADDR_READ addr_code
-#define MMUSUFFIX _cmmu
-#define URETSUFFIX USUFFIX
-#define SRETSUFFIX glue(s, SUFFIX)
-#else
-#define ADDR_READ addr_read
-#define MMUSUFFIX _mmu
-#define URETSUFFIX USUFFIX
-#define SRETSUFFIX glue(s, SUFFIX)
+
+static inline RES_TYPE
+glue(glue(cpu_ld, USUFFIX), _code)(CPUArchState *env, target_ulong ptr)
+{
+    TCGMemOpIdx oi = make_memop_idx(MO_TE | SHIFT, CPU_MMU_INDEX);
+    return glue(glue(helper_ret_ld, USUFFIX), _cmmu)(env, ptr, oi, 0);
+}
+
+#if DATA_SIZE <= 2
+static inline int
+glue(glue(cpu_lds, SUFFIX), _code)(CPUArchState *env, target_ulong ptr)
+{
+    return (DATA_STYPE)glue(glue(cpu_ld, USUFFIX), _code)(env, ptr);
+}
 #endif
 
-/* generic load/store macros */
+#else
 
 static inline RES_TYPE
 glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
                                                   uintptr_t retaddr)
 {
-    CPUTLBEntry *entry;
-    RES_TYPE res;
-    target_ulong addr;
-    int mmu_idx = CPU_MMU_INDEX;
-    MemOp op = MO_TE | SHIFT;
-#if !defined(SOFTMMU_CODE_ACCESS)
-    uint16_t meminfo = trace_mem_get_info(op, mmu_idx, false);
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-#endif
-
-    addr = ptr;
-    entry = tlb_entry(env, mmu_idx, addr);
-    if (unlikely(entry->ADDR_READ !=
-                 (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        TCGMemOpIdx oi = make_memop_idx(op, mmu_idx);
-        res = glue(glue(helper_ret_ld, URETSUFFIX), MMUSUFFIX)(env, addr,
-                                                               oi, retaddr);
-    } else {
-        uintptr_t hostaddr = addr + entry->addend;
-        res = glue(glue(ld, USUFFIX), _p)((uint8_t *)hostaddr);
-    }
-#ifndef SOFTMMU_CODE_ACCESS
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-#endif
-    return res;
+    return glue(glue(cpu_ld, USUFFIX), _mmuidx_ra)(env, ptr, CPU_MMU_INDEX,
+                                                   retaddr);
 }
 
 static inline RES_TYPE
 glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 {
-    return glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(env, ptr, 0);
+    return glue(glue(cpu_ld, USUFFIX), _mmuidx_ra)(env, ptr, CPU_MMU_INDEX, 0);
 }
 
 #if DATA_SIZE <= 2
@@ -121,41 +98,16 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
                                                   uintptr_t retaddr)
 {
-    CPUTLBEntry *entry;
-    int res;
-    target_ulong addr;
-    int mmu_idx = CPU_MMU_INDEX;
-    MemOp op = MO_TE | MO_SIGN | SHIFT;
-#ifndef SOFTMMU_CODE_ACCESS
-    uint16_t meminfo = trace_mem_get_info(op, mmu_idx, false);
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-#endif
-
-    addr = ptr;
-    entry = tlb_entry(env, mmu_idx, addr);
-    if (unlikely(entry->ADDR_READ !=
-                 (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        TCGMemOpIdx oi = make_memop_idx(op & ~MO_SIGN, mmu_idx);
-        res = (DATA_STYPE)glue(glue(helper_ret_ld, SRETSUFFIX),
-                               MMUSUFFIX)(env, addr, oi, retaddr);
-    } else {
-        uintptr_t hostaddr = addr + entry->addend;
-        res = glue(glue(lds, SUFFIX), _p)((uint8_t *)hostaddr);
-    }
-#ifndef SOFTMMU_CODE_ACCESS
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-#endif
-    return res;
+    return glue(glue(cpu_lds, SUFFIX), _mmuidx_ra)(env, ptr, CPU_MMU_INDEX,
+                                                   retaddr);
 }
 
 static inline int
 glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 {
-    return glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(env, ptr, 0);
+    return glue(glue(cpu_lds, SUFFIX), _mmuidx_ra)(env, ptr, CPU_MMU_INDEX, 0);
 }
 #endif
-
-#ifndef SOFTMMU_CODE_ACCESS
 
 /* generic store macro */
 
@@ -164,36 +116,15 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                  target_ulong ptr,
                                                  RES_TYPE v, uintptr_t retaddr)
 {
-    CPUTLBEntry *entry;
-    target_ulong addr;
-    int mmu_idx = CPU_MMU_INDEX;
-    MemOp op = MO_TE | SHIFT;
-#if !defined(SOFTMMU_CODE_ACCESS)
-    uint16_t meminfo = trace_mem_get_info(op, mmu_idx, true);
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-#endif
-
-    addr = ptr;
-    entry = tlb_entry(env, mmu_idx, addr);
-    if (unlikely(tlb_addr_write(entry) !=
-                 (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        TCGMemOpIdx oi = make_memop_idx(op, mmu_idx);
-        glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(env, addr, v, oi,
-                                                     retaddr);
-    } else {
-        uintptr_t hostaddr = addr + entry->addend;
-        glue(glue(st, SUFFIX), _p)((uint8_t *)hostaddr, v);
-    }
-#ifndef SOFTMMU_CODE_ACCESS
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-#endif
+    glue(glue(cpu_st, SUFFIX), _mmuidx_ra)(env, ptr, v, CPU_MMU_INDEX,
+                                           retaddr);
 }
 
 static inline void
 glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
                                       RES_TYPE v)
 {
-    glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(env, ptr, v, 0);
+    glue(glue(cpu_st, SUFFIX), _mmuidx_ra)(env, ptr, v, CPU_MMU_INDEX, 0);
 }
 
 #endif /* !SOFTMMU_CODE_ACCESS */
@@ -204,8 +135,4 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
 #undef SUFFIX
 #undef USUFFIX
 #undef DATA_SIZE
-#undef MMUSUFFIX
-#undef ADDR_READ
-#undef URETSUFFIX
-#undef SRETSUFFIX
 #undef SHIFT
