@@ -1469,8 +1469,10 @@ int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
     Qcow2BitmapList *bm_list;
 
     if (s->nb_bitmaps == 0) {
-        /* Absence of the bitmap is not an error: see explanation above
-         * bdrv_remove_persistent_dirty_bitmap() definition. */
+        /*
+         * Absence of the bitmap is not an error: see explanation above
+         * bdrv_co_remove_persistent_dirty_bitmap() definition.
+         */
         return 0;
     }
 
@@ -1485,7 +1487,8 @@ int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 
     bm = find_bitmap_by_name(bm_list, name);
     if (bm == NULL) {
-        ret = -EINVAL;
+        /* Absence of the bitmap is not an error, see above. */
+        ret = 0;
         goto out;
     }
 
