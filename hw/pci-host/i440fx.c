@@ -376,13 +376,13 @@ typedef struct {
 
 /* Here we just expose minimal host bridge offset subset. */
 static const IGDHostInfo igd_host_bridge_infos[] = {
-    {0x08, 2},  /* revision id */
-    {0x2c, 2},  /* sybsystem vendor id */
-    {0x2e, 2},  /* sybsystem id */
-    {0x50, 2},  /* SNB: processor graphics control register */
-    {0x52, 2},  /* processor graphics control register */
-    {0xa4, 4},  /* SNB: graphics base of stolen memory */
-    {0xa8, 4},  /* SNB: base of GTT stolen memory */
+    {PCI_REVISION_ID,         2},
+    {PCI_SUBSYSTEM_VENDOR_ID, 2},
+    {PCI_SUBSYSTEM_ID,        2},
+    {0x50,                    2}, /* SNB: processor graphics control register */
+    {0x52,                    2}, /* processor graphics control register */
+    {0xa4,                    4}, /* SNB: graphics base of stolen memory */
+    {0xa8,                    4}, /* SNB: base of GTT stolen memory */
 };
 
 static void host_pci_config_read(int pos, int len, uint32_t *val, Error **errp)
