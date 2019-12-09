@@ -21,17 +21,11 @@
 #include "regs.h"
 
 reg_field_t reg_field_info[] = {
-#define DEF_GLOBAL_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
-#define DEF_MMAP_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
-#define DEF_REG(TAG,NAME,SYMBOL,NUM,OFFSET)
-#define DEF_REG_FIELD(TAG,NAME,START,WIDTH,DESCRIPTION)    \
-  {NAME,START,WIDTH,DESCRIPTION},
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION)    \
+      {NAME, START, WIDTH, DESCRIPTION},
 #include "regs_def.h"
-	{NULL, 0, 0}
+      {NULL, 0, 0}
 };
 
-#undef DEF_REG
-#undef DEF_GLOBAL_REG
 #undef DEF_REG_FIELD
-#undef DEF_MMAP_REG
 

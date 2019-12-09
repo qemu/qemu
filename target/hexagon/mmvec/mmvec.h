@@ -21,7 +21,6 @@
 #define VECEXT 1
 #include "imported/arch_types.h"
 #include <stdint.h>
-#include "imported/max.h"
 #include "imported/arch.h"
 
 /* From thread.h */
