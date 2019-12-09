@@ -15,27 +15,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_REG(REG_R_REGS,          /* Tag */
-        "General Registers", /* Name */
-        "r%02d",             /* Symbol for register */
-        32,                  /* How many are there */
-        0)                   /* The position in register array of 1st element */
-
-DEF_REG(REG_SA0,  "Start Address 0",         "sa0",  1, NUM_GEN_REGS + 0)
-DEF_REG(REG_LC0,  "Loop Count 0",            "lc0",  1, NUM_GEN_REGS + 1)
-DEF_REG(REG_SA1,  "Start Address 1",         "sa1",  1, NUM_GEN_REGS + 2)
-DEF_REG(REG_LC1,  "Loop Count 1",            "lc1",  1, NUM_GEN_REGS + 3)
-DEF_REG(REG_PQ,   "Predicate Quad",          "p3:0", 1, NUM_GEN_REGS + 4)
-DEF_REG(REG_M,    "Modifier Register",       "m%d",  2, NUM_GEN_REGS + 6)
-DEF_REG(REG_USR,  "User status register",    "usr",  1, NUM_GEN_REGS + 8)
-DEF_REG(REG_PC,   "Program Counter",         "pc",   1, NUM_GEN_REGS + 9)
-DEF_REG(REG_UGP,  "User general pointer",    "ugp",  1, NUM_GEN_REGS + 10)
-DEF_REG(REG_GP,   "Global pointer",          "gp",   1, NUM_GEN_REGS + 11)
-DEF_REG(REG_CSA,  "Circular Start",          "cs%d", 2, NUM_GEN_REGS + 12)
-
-DEF_REG(REG_FRAMELIMIT, "Frame Limit", "framelimit", 1, NUM_GEN_REGS + 16)
-DEF_REG(REG_FRAMEKEY,   "Frame Key",   "framekey",   1, NUM_GEN_REGS + 17)
-
 /*
  * For registers that have individual fields, explain them here
  *   DEF_REG_FIELD(tag,

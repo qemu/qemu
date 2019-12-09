@@ -22,7 +22,7 @@
 typedef struct CPUHexagonState CPUHexagonState;
 
 #include <fenv.h>
-#include "imported/iss_ver_registers.h"
+#include "hex_regs.h"
 #include "mmvec/mmvec.h"
 
 #define TARGET_PAGE_BITS 16     /* 64K pages */
@@ -38,6 +38,11 @@ typedef struct CPUHexagonState CPUHexagonState;
 #else
 #error System mode not implemented
 #endif
+
+#define SLOTS_MAX 4
+#define STORES_MAX 2
+#define REG_WRITES_MAX 32
+#define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 

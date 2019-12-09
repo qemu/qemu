@@ -15,6 +15,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HEX_REGS_H
+#define HEX_REGS_H
+
 #define HEX_REG_R00 0
 #define HEX_REG_R01 1
 #define HEX_REG_R02 2
@@ -75,6 +78,8 @@
 #define HEX_REG_QEMU_HVX_CNT 54
 #define HEX_REG_UTIMERLO 62
 #define HEX_REG_UTIMERHI 63
+
+#ifndef CONFIG_USER_ONLY
 #define HEX_REG_SGP0 64
 #define HEX_REG_SGP1 65
 #define HEX_REG_STID 66
@@ -87,4 +92,6 @@
 #define HEX_REG_BADVA 73
 #define HEX_REG_IMASK 74
 #define HEX_REG_GEVB 75
+#endif
 
+#endif

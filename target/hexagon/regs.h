@@ -15,15 +15,26 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EXT_H
-#define EXT_H 1
+#ifndef REGS_H
+#define REGS_H
 
-enum {
-    EXT_IDX_noext = 0,
-    EXT_IDX_noext_AFTER = 4,
-    EXT_IDX_mmvec = 4,
-    EXT_IDX_mmvec_AFTER = 8,
-    XX_LAST_EXT_IDX
+#define NUM_GEN_REGS 32
+
+typedef struct {
+    const char *name;
+    int offset;
+    int width;
+    const char *description;
+} reg_field_t;
+
+extern reg_field_t reg_field_info[];
+
+enum reg_fields_enum {
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION) \
+    TAG,
+#include "regs_def.h"
+    NUM_REG_FIELDS
+#undef DEF_REG_FIELD
 };
 
 #endif

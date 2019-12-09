@@ -19,8 +19,8 @@
 #define MACROS_H
 
 #include "imported/arch.h"
-#include "imported/iss_ver_registers.h"
-#include "imported/regs.h"
+#include "hex_regs.h"
+#include "regs.h"
 #include "exec/helper-proto.h"
 
 #define GET_FIELD(FIELD, REGIN) \

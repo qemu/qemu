@@ -25,9 +25,12 @@
  */
 
 #include "cpu.h"
-#include "max.h"
 #include "global_types.h"
 #include "translate.h"
+
+#define INSTRUCTIONS_MAX 7		/* 2 pairs + loopend */
+#define REG_OPERANDS_MAX 5
+#define IMMEDS_MAX 2
 
 /* Forward declarations */
 struct Packet;
@@ -252,7 +255,7 @@ struct Packet {
 	size8u_t pkt_has_shared_extension:1; /* For global extentions like HMX that are not context (XA) based (at least for now) */
 	size8u_t pkt_not_logged_for_timing:1; /* BQ - Usually has solo instruction that doesn't go to timing like k0lock */
 	
-	size4u_t exec_count[THREADS_MAX];	/* how many times it executed */
+//	size4u_t exec_count[THREADS_MAX];	/* how many times it executed */
 
 	size4u_t native_pkt:1;
 	size4u_t total_memop:2;

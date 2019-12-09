@@ -20,8 +20,9 @@ QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap_generated.h
 OPCODES_DEF_H = $(BUILD_DIR)/hexagon-linux-user/opcodes_def_generated.h
 OP_ATTRIBS_H = $(BUILD_DIR)/hexagon-linux-user/op_attribs_generated.h
 OP_REGS_H = $(BUILD_DIR)/hexagon-linux-user/op_regs_generated.h
+PRINTINSN_H = $(BUILD_DIR)/hexagon-linux-user/printinsn_generated.h
 
-$(QEMU_DEF_H) $(QEMU_WRAP_H) $(OPCODES_DEF_H) $(OP_ATTRIBS_H): \
+$(QEMU_DEF_H) $(QEMU_WRAP_H) $(OPCODES_DEF_H) $(OP_ATTRIBS_H) $(PRINTINSN_H): \
     $(SRC_PATH)/target/hexagon/do_qemu.py \
     $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
     $(SRC_PATH)/target/hexagon/attribs_def.h
@@ -29,10 +30,10 @@ $(QEMU_DEF_H) $(QEMU_WRAP_H) $(OPCODES_DEF_H) $(OP_ATTRIBS_H): \
             $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
             $(SRC_PATH)/target/hexagon/attribs_def.h
 
-target/hexagon/genptr.o: $(QEMU_DEF_H) $(OPCODES_DEF_H)
-target/hexagon/genptr.o: $(QEMU_WRAP_H)
+target/hexagon/genptr.o: $(QEMU_DEF_H) $(QEMU_WRAP) $(OPCODES_DEF_H)
 target/hexagon/op_helper.o: $(QEMU_DEF_H)
 target/hexagon/opcodes.o: $(QEMU_DEF_H)
-target/hexagon/helper.h: $(QEMU_DEF_H)
-target/imported/opcodes.o: $(QEMU_DEF_H) $(OPCODES_DEF_H) $(OP_REGS_H)
+##target/hexagon/helper.h: $(QEMU_DEF_H)
+target/hexagon/imported/opcodes.o: $(QEMU_DEF_H) $(OPCODES_DEF_H) $(OP_REGS_H)
+target/hexagon/imported/printinsn.o: $(PRINTINSN_H)
 tcg/tcg.o: $(QEMU_DEF_H)

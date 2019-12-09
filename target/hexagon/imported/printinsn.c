@@ -36,6 +36,7 @@
 const char *sreg2str(int reg);
 const char *sreg2str(int reg)
 {
+#if 0
 	// FIXME: Can't return a stack allocated array
 	static char buf[32];
 #define DEF_REG(REG,DESCR,REGNAM,NREGS,VAL) \
@@ -69,11 +70,15 @@ const char *sreg2str(int reg)
 #undef DEF_REG_FIELD
 
 	return "???";
+#else
+    return hexagon_regnames[reg];
+#endif
 }
 
 const char *creg2str(int reg);
 const char *creg2str(int reg)
 {
+#if 0
 	// FIXME: Can't return a stack allocated array
 	static char buf[32];
 #define DEF_REG(REG,DESCR,REGNAM,NREGS,VAL) \
@@ -92,6 +97,9 @@ const char *creg2str(int reg)
 #undef DEF_REG_FIELD
 
 	return "???";
+#else
+    return hexagon_regnames[reg + NUM_GEN_REGS];
+#endif
 }
 
 void snprintinsn(char *buf, int n, insn_t * insn)
@@ -102,7 +110,7 @@ void snprintinsn(char *buf, int n, insn_t * insn)
 		case TAG: \
 			snprintf(buf,n,FMT,__VA_ARGS__);\
 			break;
-#include "printinsn.odef"
+#include "printinsn_generated.h"
 #undef DEF_ENCSTR
 #undef IMMNO
 #undef REGNO

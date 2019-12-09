@@ -31,9 +31,7 @@
 #include "opcodes.h"
 #include "decode.h"
 #include "insn.h"
-#include "max.h"
 //#include "printinsn.h"
-#include "ext.h"
 #include "utils.h"
 #include "isa_constants.h"
 #include "macros.h"
@@ -47,6 +45,14 @@
 #include "mmvec/decode_ext_mmvec.h"
 
 #define NO_SILVER
+
+enum {
+    EXT_IDX_noext = 0,
+    EXT_IDX_noext_AFTER = 4,
+    EXT_IDX_mmvec = 4,
+    EXT_IDX_mmvec_AFTER = 8,
+    XX_LAST_EXT_IDX
+};
 
 #define snprint_a_pkt(pkt_buf, x, y, z) \
     sprintf(pkt_buf, "FIXME: %s, %d", __FILE__, __LINE__)
