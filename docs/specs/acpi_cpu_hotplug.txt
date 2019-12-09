@@ -47,6 +47,7 @@ read access:
     [0x0-0x3] Command data 2: (DWORD access)
               if value last stored in 'Command field':
                 0: reads as 0x0
+                3: upper 32 bits of architecture specific CPU ID value
                 other values: reserved
     [0x4] CPU device status fields: (1 byte access)
         bits:
@@ -61,6 +62,8 @@ read access:
     [0x8] Command data: (DWORD access)
           contains 0 unless value last stored in 'Command field' is one of:
               0: contains 'CPU selector' value of a CPU with pending event[s]
+              3: lower 32 bits of architecture specific CPU ID value
+                 (in x86 case: APIC ID)
 
 write access:
     offset:

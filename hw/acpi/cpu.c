@@ -18,6 +18,7 @@ enum {
     CPHP_GET_NEXT_CPU_WITH_EVENT_CMD = 0,
     CPHP_OST_EVENT_CMD = 1,
     CPHP_OST_STATUS_CMD = 2,
+    CPHP_GET_CPU_ID_CMD = 3,
     CPHP_CMD_MAX
 };
 
@@ -75,6 +76,9 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
         case CPHP_GET_NEXT_CPU_WITH_EVENT_CMD:
            val = cpu_st->selector;
            break;
+        case CPHP_GET_CPU_ID_CMD:
+           val = cdev->arch_id & 0xFFFFFFFF;
+           break;
         default:
            break;
         }
@@ -84,6 +88,9 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
         switch (cpu_st->command) {
         case CPHP_GET_NEXT_CPU_WITH_EVENT_CMD:
            val = 0;
+           break;
+        case CPHP_GET_CPU_ID_CMD:
+           val = cdev->arch_id >> 32;
            break;
         default:
            break;
