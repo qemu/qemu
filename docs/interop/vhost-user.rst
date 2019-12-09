@@ -1376,3 +1376,20 @@ Command line options:
   Enable virgl rendering support.
 
   (optional)
+
+vhost-user-blk
+--------------
+
+Command line options:
+
+--blk-file=PATH
+
+  Specify block device or file path.
+
+  (optional)
+
+--read-only
+
+  Enable read-only.
+
+  (optional)
