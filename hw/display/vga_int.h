@@ -60,7 +60,6 @@ typedef struct VGACommonState {
     MemoryRegion *legacy_address_space;
     uint8_t *vram_ptr;
     MemoryRegion vram;
-    MemoryRegion vram_vbe;
     uint32_t vram_size;
     uint32_t vram_size_mb; /* property */
     uint32_t vbe_size;
@@ -106,7 +105,6 @@ typedef struct VGACommonState {
     uint32_t vbe_start_addr;
     uint32_t vbe_line_offset;
     uint32_t vbe_bank_mask;
-    int vbe_mapped;
     /* display refresh support */
     QemuConsole *con;
     uint32_t font_offsets[2];
@@ -178,7 +176,6 @@ void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 
-void vga_init_vbe(VGACommonState *s, Object *obj, MemoryRegion *address_space);
 uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr);
 void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val);
 void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val);
