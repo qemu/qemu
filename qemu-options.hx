@@ -1468,16 +1468,6 @@ would still return entries from other devices).
 @end table
 ETEXI
 
-DEF("virtfs_synth", 0, QEMU_OPTION_virtfs_synth,
-    "-virtfs_synth Create synthetic file system image\n",
-    QEMU_ARCH_ALL)
-STEXI
-@item -virtfs_synth
-@findex -virtfs_synth
-Create synthetic file system image. Note that this option is now deprecated.
-Please use @code{-fsdev synth} and @code{-device virtio-9p-...} instead.
-ETEXI
-
 DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "-iscsi [user=user][,password=password]\n"
     "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
