@@ -12,6 +12,7 @@
 #define ACPI_CPU_FLAGS_OFFSET_RW 4
 #define ACPI_CPU_CMD_OFFSET_WR 5
 #define ACPI_CPU_CMD_DATA_OFFSET_RW 8
+#define ACPI_CPU_CMD_DATA2_OFFSET_R 0
 
 enum {
     CPHP_GET_NEXT_CPU_WITH_EVENT_CMD = 0,
@@ -78,6 +79,16 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
            break;
         }
         trace_cpuhp_acpi_read_cmd_data(cpu_st->selector, val);
+        break;
+    case ACPI_CPU_CMD_DATA2_OFFSET_R:
+        switch (cpu_st->command) {
+        case CPHP_GET_NEXT_CPU_WITH_EVENT_CMD:
+           val = 0;
+           break;
+        default:
+           break;
+        }
+        trace_cpuhp_acpi_read_cmd_data2(cpu_st->selector, val);
         break;
     default:
         break;
