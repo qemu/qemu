@@ -93,7 +93,9 @@
 #include "fw_cfg.h"
 #include "trace.h"
 
-GlobalProperty pc_compat_4_2[] = {};
+GlobalProperty pc_compat_4_2[] = {
+    { "mch", "smbase-smram", "off" },
+};
 const size_t pc_compat_4_2_len = G_N_ELEMENTS(pc_compat_4_2);
 
 GlobalProperty pc_compat_4_1[] = {};
