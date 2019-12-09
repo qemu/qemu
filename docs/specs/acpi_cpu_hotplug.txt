@@ -90,8 +90,7 @@ write access:
             other values: reserved
     [0x6-0x7] reserved
     [0x8] Command data: (DWORD access)
-          current 'Command field' value:
-              0: OSPM reads value of CPU selector
+          if last stored 'Command field' value:
               1: stores value into OST event register
               2: stores value into OST status register, triggers
                  ACPI_DEVICE_OST QMP event from QEMU to external applications
