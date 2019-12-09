@@ -1,10 +1,10 @@
 /*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2019  Red Hat, Inc.
-
-  This program can be distributed under the terms of the GNU LGPLv2.
-  See the file COPYING.LIB.
-*/
+ * FUSE: Filesystem in Userspace
+ * Copyright (C) 2019  Red Hat, Inc.
+ *
+ * This program can be distributed under the terms of the GNU LGPLv2.
+ * See the file COPYING.LIB.
+ */
 
 #ifndef FUSE_LOG_H_
 #define FUSE_LOG_H_
@@ -22,14 +22,14 @@
  * These levels correspond to syslog(2) log levels since they are widely used.
  */
 enum fuse_log_level {
-	FUSE_LOG_EMERG,
-	FUSE_LOG_ALERT,
-	FUSE_LOG_CRIT,
-	FUSE_LOG_ERR,
-	FUSE_LOG_WARNING,
-	FUSE_LOG_NOTICE,
-	FUSE_LOG_INFO,
-	FUSE_LOG_DEBUG
+    FUSE_LOG_EMERG,
+    FUSE_LOG_ALERT,
+    FUSE_LOG_CRIT,
+    FUSE_LOG_ERR,
+    FUSE_LOG_WARNING,
+    FUSE_LOG_NOTICE,
+    FUSE_LOG_INFO,
+    FUSE_LOG_DEBUG
 };
 
 /**
@@ -45,8 +45,8 @@ enum fuse_log_level {
  * @param fmt sprintf-style format string including newline
  * @param ap format string arguments
  */
-typedef void (*fuse_log_func_t)(enum fuse_log_level level,
-				const char *fmt, va_list ap);
+typedef void (*fuse_log_func_t)(enum fuse_log_level level, const char *fmt,
+                                va_list ap);
 
 /**
  * Install a custom log handler function.

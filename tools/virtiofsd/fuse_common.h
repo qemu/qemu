@@ -1,21 +1,23 @@
-/*  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-
-  This program can be distributed under the terms of the GNU LGPLv2.
-  See the file COPYING.LIB.
-*/
+/*
+ * FUSE: Filesystem in Userspace
+ * Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+ *
+ * This program can be distributed under the terms of the GNU LGPLv2.
+ * See the file COPYING.LIB.
+ */
 
 /** @file */
 
 #if !defined(FUSE_H_) && !defined(FUSE_LOWLEVEL_H_)
-#error "Never include <fuse_common.h> directly; use <fuse.h> or <fuse_lowlevel.h> instead."
+#error \
+    "Never include <fuse_common.h> directly; use <fuse.h> or <fuse_lowlevel.h> instead."
 #endif
 
 #ifndef FUSE_COMMON_H_
 #define FUSE_COMMON_H_
 
-#include "fuse_opt.h"
 #include "fuse_log.h"
+#include "fuse_opt.h"
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -25,7 +27,7 @@
 /** Minor version of FUSE library interface */
 #define FUSE_MINOR_VERSION 2
 
-#define FUSE_MAKE_VERSION(maj, min)  ((maj) * 10 + (min))
+#define FUSE_MAKE_VERSION(maj, min) ((maj) * 10 + (min))
 #define FUSE_VERSION FUSE_MAKE_VERSION(FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION)
 
 /**
@@ -38,67 +40,83 @@
  * descriptors can share a single file handle.
  */
 struct fuse_file_info {
-	/** Open flags.	 Available in open() and release() */
-	int flags;
+    /** Open flags. Available in open() and release() */
+    int flags;
 
-	/** In case of a write operation indicates if this was caused
-	    by a delayed write from the page cache. If so, then the
-	    context's pid, uid, and gid fields will not be valid, and
-	    the *fh* value may not match the *fh* value that would
-	    have been sent with the corresponding individual write
-	    requests if write caching had been disabled. */
-	unsigned int writepage : 1;
+    /*
+     * In case of a write operation indicates if this was caused
+     * by a delayed write from the page cache. If so, then the
+     * context's pid, uid, and gid fields will not be valid, and
+     * the *fh* value may not match the *fh* value that would
+     * have been sent with the corresponding individual write
+     * requests if write caching had been disabled.
+     */
+    unsigned int writepage:1;
 
-	/** Can be filled in by open, to use direct I/O on this file. */
-	unsigned int direct_io : 1;
+    /** Can be filled in by open, to use direct I/O on this file. */
+    unsigned int direct_io:1;
 
-	/** Can be filled in by open. It signals the kernel that any
-	    currently cached file data (ie., data that the filesystem
-	    provided the last time the file was open) need not be
-	    invalidated. Has no effect when set in other contexts (in
-	    particular it does nothing when set by opendir()). */
-	unsigned int keep_cache : 1;
+    /*
+     *  Can be filled in by open. It signals the kernel that any
+     *  currently cached file data (ie., data that the filesystem
+     *  provided the last time the file was open) need not be
+     *  invalidated. Has no effect when set in other contexts (in
+     *  particular it does nothing when set by opendir()).
+     */
+    unsigned int keep_cache:1;
 
-	/** Indicates a flush operation.  Set in flush operation, also
-	    maybe set in highlevel lock operation and lowlevel release
-	    operation. */
-	unsigned int flush : 1;
+    /*
+     *  Indicates a flush operation.  Set in flush operation, also
+     *  maybe set in highlevel lock operation and lowlevel release
+     *  operation.
+     */
+    unsigned int flush:1;
 
-	/** Can be filled in by open, to indicate that the file is not
-	    seekable. */
-	unsigned int nonseekable : 1;
+    /*
+     *  Can be filled in by open, to indicate that the file is not
+     *  seekable.
+     */
+    unsigned int nonseekable:1;
 
-	/* Indicates that flock locks for this file should be
-	   released.  If set, lock_owner shall contain a valid value.
-	   May only be set in ->release(). */
-	unsigned int flock_release : 1;
+    /*
+     * Indicates that flock locks for this file should be
+     * released.  If set, lock_owner shall contain a valid value.
+     * May only be set in ->release().
+     */
+    unsigned int flock_release:1;
 
-	/** Can be filled in by opendir. It signals the kernel to
-	    enable caching of entries returned by readdir().  Has no
-	    effect when set in other contexts (in particular it does
-	    nothing when set by open()). */
-	unsigned int cache_readdir : 1;
+    /*
+     *  Can be filled in by opendir. It signals the kernel to
+     *  enable caching of entries returned by readdir().  Has no
+     *  effect when set in other contexts (in particular it does
+     *  nothing when set by open()).
+     */
+    unsigned int cache_readdir:1;
 
-	/** Padding.  Reserved for future use*/
-	unsigned int padding : 25;
-	unsigned int padding2 : 32;
+    /** Padding.  Reserved for future use*/
+    unsigned int padding:25;
+    unsigned int padding2:32;
 
-	/** File handle id.  May be filled in by filesystem in create,
-	 * open, and opendir().  Available in most other file operations on the
-	 * same file handle. */
-	uint64_t fh;
+    /*
+     *  File handle id.  May be filled in by filesystem in create,
+     * open, and opendir().  Available in most other file operations on the
+     * same file handle.
+     */
+    uint64_t fh;
 
-	/** Lock owner id.  Available in locking operations and flush */
-	uint64_t lock_owner;
+    /** Lock owner id.  Available in locking operations and flush */
+    uint64_t lock_owner;
 
-	/** Requested poll events.  Available in ->poll.  Only set on kernels
-	    which support it.  If unsupported, this field is set to zero. */
-	uint32_t poll_events;
+    /*
+     * Requested poll events.  Available in ->poll.  Only set on kernels
+     * which support it.  If unsupported, this field is set to zero.
+     */
+    uint32_t poll_events;
 };
 
-/**************************************************************************
- * Capability bits for 'fuse_conn_info.capable' and 'fuse_conn_info.want' *
- **************************************************************************/
+/*
+ * Capability bits for 'fuse_conn_info.capable' and 'fuse_conn_info.want'
+ */
 
 /**
  * Indicates that the filesystem supports asynchronous read requests.
@@ -110,7 +128,7 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_ASYNC_READ		(1 << 0)
+#define FUSE_CAP_ASYNC_READ (1 << 0)
 
 /**
  * Indicates that the filesystem supports "remote" locking.
@@ -118,7 +136,7 @@ struct fuse_file_info {
  * This feature is enabled by default when supported by the kernel,
  * and if getlk() and setlk() handlers are implemented.
  */
-#define FUSE_CAP_POSIX_LOCKS		(1 << 1)
+#define FUSE_CAP_POSIX_LOCKS (1 << 1)
 
 /**
  * Indicates that the filesystem supports the O_TRUNC open flag.  If
@@ -127,14 +145,14 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_ATOMIC_O_TRUNC		(1 << 3)
+#define FUSE_CAP_ATOMIC_O_TRUNC (1 << 3)
 
 /**
  * Indicates that the filesystem supports lookups of "." and "..".
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_EXPORT_SUPPORT		(1 << 4)
+#define FUSE_CAP_EXPORT_SUPPORT (1 << 4)
 
 /**
  * Indicates that the kernel should not apply the umask to the
@@ -142,7 +160,7 @@ struct fuse_file_info {
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_DONT_MASK		(1 << 6)
+#define FUSE_CAP_DONT_MASK (1 << 6)
 
 /**
  * Indicates that libfuse should try to use splice() when writing to
@@ -150,7 +168,7 @@ struct fuse_file_info {
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_SPLICE_WRITE		(1 << 7)
+#define FUSE_CAP_SPLICE_WRITE (1 << 7)
 
 /**
  * Indicates that libfuse should try to move pages instead of copying when
@@ -158,7 +176,7 @@ struct fuse_file_info {
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_SPLICE_MOVE		(1 << 8)
+#define FUSE_CAP_SPLICE_MOVE (1 << 8)
 
 /**
  * Indicates that libfuse should try to use splice() when reading from
@@ -167,7 +185,7 @@ struct fuse_file_info {
  * This feature is enabled by default when supported by the kernel and
  * if the filesystem implements a write_buf() handler.
  */
-#define FUSE_CAP_SPLICE_READ		(1 << 9)
+#define FUSE_CAP_SPLICE_READ (1 << 9)
 
 /**
  * If set, the calls to flock(2) will be emulated using POSIX locks and must
@@ -180,14 +198,14 @@ struct fuse_file_info {
  * This feature is enabled by default when supported by the kernel and
  * if the filesystem implements a flock() handler.
  */
-#define FUSE_CAP_FLOCK_LOCKS		(1 << 10)
+#define FUSE_CAP_FLOCK_LOCKS (1 << 10)
 
 /**
  * Indicates that the filesystem supports ioctl's on directories.
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_IOCTL_DIR		(1 << 11)
+#define FUSE_CAP_IOCTL_DIR (1 << 11)
 
 /**
  * Traditionally, while a file is open the FUSE kernel module only
@@ -209,7 +227,7 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_AUTO_INVAL_DATA	(1 << 12)
+#define FUSE_CAP_AUTO_INVAL_DATA (1 << 12)
 
 /**
  * Indicates that the filesystem supports readdirplus.
@@ -217,7 +235,7 @@ struct fuse_file_info {
  * This feature is enabled by default when supported by the kernel and if the
  * filesystem implements a readdirplus() handler.
  */
-#define FUSE_CAP_READDIRPLUS		(1 << 13)
+#define FUSE_CAP_READDIRPLUS (1 << 13)
 
 /**
  * Indicates that the filesystem supports adaptive readdirplus.
@@ -245,7 +263,7 @@ struct fuse_file_info {
  * if the filesystem implements both a readdirplus() and a readdir()
  * handler.
  */
-#define FUSE_CAP_READDIRPLUS_AUTO	(1 << 14)
+#define FUSE_CAP_READDIRPLUS_AUTO (1 << 14)
 
 /**
  * Indicates that the filesystem supports asynchronous direct I/O submission.
@@ -256,7 +274,7 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_ASYNC_DIO		(1 << 15)
+#define FUSE_CAP_ASYNC_DIO (1 << 15)
 
 /**
  * Indicates that writeback caching should be enabled. This means that
@@ -265,7 +283,7 @@ struct fuse_file_info {
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_WRITEBACK_CACHE	(1 << 16)
+#define FUSE_CAP_WRITEBACK_CACHE (1 << 16)
 
 /**
  * Indicates support for zero-message opens. If this flag is set in
@@ -278,7 +296,7 @@ struct fuse_file_info {
  * Setting (or unsetting) this flag in the `want` field has *no
  * effect*.
  */
-#define FUSE_CAP_NO_OPEN_SUPPORT	(1 << 17)
+#define FUSE_CAP_NO_OPEN_SUPPORT (1 << 17)
 
 /**
  * Indicates support for parallel directory operations. If this flag
@@ -288,7 +306,7 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_PARALLEL_DIROPS        (1 << 18)
+#define FUSE_CAP_PARALLEL_DIROPS (1 << 18)
 
 /**
  * Indicates support for POSIX ACLs.
@@ -307,7 +325,7 @@ struct fuse_file_info {
  *
  * This feature is disabled by default.
  */
-#define FUSE_CAP_POSIX_ACL              (1 << 19)
+#define FUSE_CAP_POSIX_ACL (1 << 19)
 
 /**
  * Indicates that the filesystem is responsible for unsetting
@@ -316,7 +334,7 @@ struct fuse_file_info {
  *
  * This feature is enabled by default when supported by the kernel.
  */
-#define FUSE_CAP_HANDLE_KILLPRIV         (1 << 20)
+#define FUSE_CAP_HANDLE_KILLPRIV (1 << 20)
 
 /**
  * Indicates support for zero-message opendirs. If this flag is set in
@@ -328,7 +346,7 @@ struct fuse_file_info {
  *
  * Setting (or unsetting) this flag in the `want` field has *no effect*.
  */
-#define FUSE_CAP_NO_OPENDIR_SUPPORT    (1 << 24)
+#define FUSE_CAP_NO_OPENDIR_SUPPORT (1 << 24)
 
 /**
  * Ioctl flags
@@ -340,12 +358,12 @@ struct fuse_file_info {
  *
  * FUSE_IOCTL_MAX_IOV: maximum of in_iovecs + out_iovecs
  */
-#define FUSE_IOCTL_COMPAT	(1 << 0)
-#define FUSE_IOCTL_UNRESTRICTED	(1 << 1)
-#define FUSE_IOCTL_RETRY	(1 << 2)
-#define FUSE_IOCTL_DIR		(1 << 4)
+#define FUSE_IOCTL_COMPAT (1 << 0)
+#define FUSE_IOCTL_UNRESTRICTED (1 << 1)
+#define FUSE_IOCTL_RETRY (1 << 2)
+#define FUSE_IOCTL_DIR (1 << 4)
 
-#define FUSE_IOCTL_MAX_IOV	256
+#define FUSE_IOCTL_MAX_IOV 256
 
 /**
  * Connection information, passed to the ->init() method
@@ -355,114 +373,114 @@ struct fuse_file_info {
  * value must usually be smaller than the indicated value.
  */
 struct fuse_conn_info {
-	/**
-	 * Major version of the protocol (read-only)
-	 */
-	unsigned proto_major;
+    /**
+     * Major version of the protocol (read-only)
+     */
+    unsigned proto_major;
 
-	/**
-	 * Minor version of the protocol (read-only)
-	 */
-	unsigned proto_minor;
+    /**
+     * Minor version of the protocol (read-only)
+     */
+    unsigned proto_minor;
 
-	/**
-	 * Maximum size of the write buffer
-	 */
-	unsigned max_write;
+    /**
+     * Maximum size of the write buffer
+     */
+    unsigned max_write;
 
-	/**
-	 * Maximum size of read requests. A value of zero indicates no
-	 * limit. However, even if the filesystem does not specify a
-	 * limit, the maximum size of read requests will still be
-	 * limited by the kernel.
-	 *
-	 * NOTE: For the time being, the maximum size of read requests
-	 * must be set both here *and* passed to fuse_session_new()
-	 * using the ``-o max_read=<n>`` mount option. At some point
-	 * in the future, specifying the mount option will no longer
-	 * be necessary.
-	 */
-	unsigned max_read;
+    /**
+     * Maximum size of read requests. A value of zero indicates no
+     * limit. However, even if the filesystem does not specify a
+     * limit, the maximum size of read requests will still be
+     * limited by the kernel.
+     *
+     * NOTE: For the time being, the maximum size of read requests
+     * must be set both here *and* passed to fuse_session_new()
+     * using the ``-o max_read=<n>`` mount option. At some point
+     * in the future, specifying the mount option will no longer
+     * be necessary.
+     */
+    unsigned max_read;
 
-	/**
-	 * Maximum readahead
-	 */
-	unsigned max_readahead;
+    /**
+     * Maximum readahead
+     */
+    unsigned max_readahead;
 
-	/**
-	 * Capability flags that the kernel supports (read-only)
-	 */
-	unsigned capable;
+    /**
+     * Capability flags that the kernel supports (read-only)
+     */
+    unsigned capable;
 
-	/**
-	 * Capability flags that the filesystem wants to enable.
-	 *
-	 * libfuse attempts to initialize this field with
-	 * reasonable default values before calling the init() handler.
-	 */
-	unsigned want;
+    /**
+     * Capability flags that the filesystem wants to enable.
+     *
+     * libfuse attempts to initialize this field with
+     * reasonable default values before calling the init() handler.
+     */
+    unsigned want;
 
-	/**
-	 * Maximum number of pending "background" requests. A
-	 * background request is any type of request for which the
-	 * total number is not limited by other means. As of kernel
-	 * 4.8, only two types of requests fall into this category:
-	 *
-	 *   1. Read-ahead requests
-	 *   2. Asynchronous direct I/O requests
-	 *
-	 * Read-ahead requests are generated (if max_readahead is
-	 * non-zero) by the kernel to preemptively fill its caches
-	 * when it anticipates that userspace will soon read more
-	 * data.
-	 *
-	 * Asynchronous direct I/O requests are generated if
-	 * FUSE_CAP_ASYNC_DIO is enabled and userspace submits a large
-	 * direct I/O request. In this case the kernel will internally
-	 * split it up into multiple smaller requests and submit them
-	 * to the filesystem concurrently.
-	 *
-	 * Note that the following requests are *not* background
-	 * requests: writeback requests (limited by the kernel's
-	 * flusher algorithm), regular (i.e., synchronous and
-	 * buffered) userspace read/write requests (limited to one per
-	 * thread), asynchronous read requests (Linux's io_submit(2)
-	 * call actually blocks, so these are also limited to one per
-	 * thread).
-	 */
-	unsigned max_background;
+    /**
+     * Maximum number of pending "background" requests. A
+     * background request is any type of request for which the
+     * total number is not limited by other means. As of kernel
+     * 4.8, only two types of requests fall into this category:
+     *
+     *   1. Read-ahead requests
+     *   2. Asynchronous direct I/O requests
+     *
+     * Read-ahead requests are generated (if max_readahead is
+     * non-zero) by the kernel to preemptively fill its caches
+     * when it anticipates that userspace will soon read more
+     * data.
+     *
+     * Asynchronous direct I/O requests are generated if
+     * FUSE_CAP_ASYNC_DIO is enabled and userspace submits a large
+     * direct I/O request. In this case the kernel will internally
+     * split it up into multiple smaller requests and submit them
+     * to the filesystem concurrently.
+     *
+     * Note that the following requests are *not* background
+     * requests: writeback requests (limited by the kernel's
+     * flusher algorithm), regular (i.e., synchronous and
+     * buffered) userspace read/write requests (limited to one per
+     * thread), asynchronous read requests (Linux's io_submit(2)
+     * call actually blocks, so these are also limited to one per
+     * thread).
+     */
+    unsigned max_background;
 
-	/**
-	 * Kernel congestion threshold parameter. If the number of pending
-	 * background requests exceeds this number, the FUSE kernel module will
-	 * mark the filesystem as "congested". This instructs the kernel to
-	 * expect that queued requests will take some time to complete, and to
-	 * adjust its algorithms accordingly (e.g. by putting a waiting thread
-	 * to sleep instead of using a busy-loop).
-	 */
-	unsigned congestion_threshold;
+    /**
+     * Kernel congestion threshold parameter. If the number of pending
+     * background requests exceeds this number, the FUSE kernel module will
+     * mark the filesystem as "congested". This instructs the kernel to
+     * expect that queued requests will take some time to complete, and to
+     * adjust its algorithms accordingly (e.g. by putting a waiting thread
+     * to sleep instead of using a busy-loop).
+     */
+    unsigned congestion_threshold;
 
-	/**
-	 * When FUSE_CAP_WRITEBACK_CACHE is enabled, the kernel is responsible
-	 * for updating mtime and ctime when write requests are received. The
-	 * updated values are passed to the filesystem with setattr() requests.
-	 * However, if the filesystem does not support the full resolution of
-	 * the kernel timestamps (nanoseconds), the mtime and ctime values used
-	 * by kernel and filesystem will differ (and result in an apparent
-	 * change of times after a cache flush).
-	 *
-	 * To prevent this problem, this variable can be used to inform the
-	 * kernel about the timestamp granularity supported by the file-system.
-	 * The value should be power of 10.  The default is 1, i.e. full
-	 * nano-second resolution. Filesystems supporting only second resolution
-	 * should set this to 1000000000.
-	 */
-	unsigned time_gran;
+    /**
+     * When FUSE_CAP_WRITEBACK_CACHE is enabled, the kernel is responsible
+     * for updating mtime and ctime when write requests are received. The
+     * updated values are passed to the filesystem with setattr() requests.
+     * However, if the filesystem does not support the full resolution of
+     * the kernel timestamps (nanoseconds), the mtime and ctime values used
+     * by kernel and filesystem will differ (and result in an apparent
+     * change of times after a cache flush).
+     *
+     * To prevent this problem, this variable can be used to inform the
+     * kernel about the timestamp granularity supported by the file-system.
+     * The value should be power of 10.  The default is 1, i.e. full
+     * nano-second resolution. Filesystems supporting only second resolution
+     * should set this to 1000000000.
+     */
+    unsigned time_gran;
 
-	/**
-	 * For future use.
-	 */
-	unsigned reserved[22];
+    /**
+     * For future use.
+     */
+    unsigned reserved[22];
 };
 
 struct fuse_session;
@@ -489,21 +507,20 @@ struct fuse_conn_info_opts;
  *   -o async_read          sets FUSE_CAP_ASYNC_READ in conn->want
  *   -o sync_read           unsets FUSE_CAP_ASYNC_READ in conn->want
  *   -o atomic_o_trunc      sets FUSE_CAP_ATOMIC_O_TRUNC in conn->want
- *   -o no_remote_lock      Equivalent to -o no_remote_flock,no_remote_posix_lock
- *   -o no_remote_flock     Unsets FUSE_CAP_FLOCK_LOCKS in conn->want
- *   -o no_remote_posix_lock  Unsets FUSE_CAP_POSIX_LOCKS in conn->want
- *   -o [no_]splice_write     (un-)sets FUSE_CAP_SPLICE_WRITE in conn->want
- *   -o [no_]splice_move      (un-)sets FUSE_CAP_SPLICE_MOVE in conn->want
- *   -o [no_]splice_read      (un-)sets FUSE_CAP_SPLICE_READ in conn->want
- *   -o [no_]auto_inval_data  (un-)sets FUSE_CAP_AUTO_INVAL_DATA in conn->want
- *   -o readdirplus=no        unsets FUSE_CAP_READDIRPLUS in conn->want
- *   -o readdirplus=yes       sets FUSE_CAP_READDIRPLUS and unsets
- *                            FUSE_CAP_READDIRPLUS_AUTO in conn->want
- *   -o readdirplus=auto      sets FUSE_CAP_READDIRPLUS and
- *                            FUSE_CAP_READDIRPLUS_AUTO in conn->want
- *   -o [no_]async_dio        (un-)sets FUSE_CAP_ASYNC_DIO in conn->want
- *   -o [no_]writeback_cache  (un-)sets FUSE_CAP_WRITEBACK_CACHE in conn->want
- *   -o time_gran=N           sets conn->time_gran
+ *   -o no_remote_lock      Equivalent to -o
+ *no_remote_flock,no_remote_posix_lock -o no_remote_flock     Unsets
+ *FUSE_CAP_FLOCK_LOCKS in conn->want -o no_remote_posix_lock  Unsets
+ *FUSE_CAP_POSIX_LOCKS in conn->want -o [no_]splice_write     (un-)sets
+ *FUSE_CAP_SPLICE_WRITE in conn->want -o [no_]splice_move      (un-)sets
+ *FUSE_CAP_SPLICE_MOVE in conn->want -o [no_]splice_read      (un-)sets
+ *FUSE_CAP_SPLICE_READ in conn->want -o [no_]auto_inval_data  (un-)sets
+ *FUSE_CAP_AUTO_INVAL_DATA in conn->want -o readdirplus=no        unsets
+ *FUSE_CAP_READDIRPLUS in conn->want -o readdirplus=yes       sets
+ *FUSE_CAP_READDIRPLUS and unsets FUSE_CAP_READDIRPLUS_AUTO in conn->want -o
+ *readdirplus=auto      sets FUSE_CAP_READDIRPLUS and FUSE_CAP_READDIRPLUS_AUTO
+ *in conn->want -o [no_]async_dio        (un-)sets FUSE_CAP_ASYNC_DIO in
+ *conn->want -o [no_]writeback_cache  (un-)sets FUSE_CAP_WRITEBACK_CACHE in
+ *conn->want -o time_gran=N           sets conn->time_gran
  *
  * Known options will be removed from *args*, unknown options will be
  * passed through unchanged.
@@ -511,7 +528,7 @@ struct fuse_conn_info_opts;
  * @param args argument vector (input+output)
  * @return parsed options
  **/
-struct fuse_conn_info_opts* fuse_parse_conn_info_opts(struct fuse_args *args);
+struct fuse_conn_info_opts *fuse_parse_conn_info_opts(struct fuse_args *args);
 
 /**
  * This function applies the (parsed) parameters in *opts* to the
@@ -521,7 +538,7 @@ struct fuse_conn_info_opts* fuse_parse_conn_info_opts(struct fuse_args *args);
  * option has been explicitly set.
  */
 void fuse_apply_conn_info_opts(struct fuse_conn_info_opts *opts,
-			  struct fuse_conn_info *conn);
+                               struct fuse_conn_info *conn);
 
 /**
  * Go into the background
@@ -552,81 +569,81 @@ const char *fuse_pkgversion(void);
  */
 void fuse_pollhandle_destroy(struct fuse_pollhandle *ph);
 
-/* ----------------------------------------------------------- *
- * Data buffer						       *
- * ----------------------------------------------------------- */
+/*
+ * Data buffer
+ */
 
 /**
  * Buffer flags
  */
 enum fuse_buf_flags {
-	/**
-	 * Buffer contains a file descriptor
-	 *
-	 * If this flag is set, the .fd field is valid, otherwise the
-	 * .mem fields is valid.
-	 */
-	FUSE_BUF_IS_FD		= (1 << 1),
+    /**
+     * Buffer contains a file descriptor
+     *
+     * If this flag is set, the .fd field is valid, otherwise the
+     * .mem fields is valid.
+     */
+    FUSE_BUF_IS_FD = (1 << 1),
 
-	/**
-	 * Seek on the file descriptor
-	 *
-	 * If this flag is set then the .pos field is valid and is
-	 * used to seek to the given offset before performing
-	 * operation on file descriptor.
-	 */
-	FUSE_BUF_FD_SEEK	= (1 << 2),
+    /**
+     * Seek on the file descriptor
+     *
+     * If this flag is set then the .pos field is valid and is
+     * used to seek to the given offset before performing
+     * operation on file descriptor.
+     */
+    FUSE_BUF_FD_SEEK = (1 << 2),
 
-	/**
-	 * Retry operation on file descriptor
-	 *
-	 * If this flag is set then retry operation on file descriptor
-	 * until .size bytes have been copied or an error or EOF is
-	 * detected.
-	 */
-	FUSE_BUF_FD_RETRY	= (1 << 3),
+    /**
+     * Retry operation on file descriptor
+     *
+     * If this flag is set then retry operation on file descriptor
+     * until .size bytes have been copied or an error or EOF is
+     * detected.
+     */
+    FUSE_BUF_FD_RETRY = (1 << 3),
 };
 
 /**
  * Buffer copy flags
  */
 enum fuse_buf_copy_flags {
-	/**
-	 * Don't use splice(2)
-	 *
-	 * Always fall back to using read and write instead of
-	 * splice(2) to copy data from one file descriptor to another.
-	 *
-	 * If this flag is not set, then only fall back if splice is
-	 * unavailable.
-	 */
-	FUSE_BUF_NO_SPLICE	= (1 << 1),
+    /**
+     * Don't use splice(2)
+     *
+     * Always fall back to using read and write instead of
+     * splice(2) to copy data from one file descriptor to another.
+     *
+     * If this flag is not set, then only fall back if splice is
+     * unavailable.
+     */
+    FUSE_BUF_NO_SPLICE = (1 << 1),
 
-	/**
-	 * Force splice
-	 *
-	 * Always use splice(2) to copy data from one file descriptor
-	 * to another.  If splice is not available, return -EINVAL.
-	 */
-	FUSE_BUF_FORCE_SPLICE	= (1 << 2),
+    /**
+     * Force splice
+     *
+     * Always use splice(2) to copy data from one file descriptor
+     * to another.  If splice is not available, return -EINVAL.
+     */
+    FUSE_BUF_FORCE_SPLICE = (1 << 2),
 
-	/**
-	 * Try to move data with splice.
-	 *
-	 * If splice is used, try to move pages from the source to the
-	 * destination instead of copying.  See documentation of
-	 * SPLICE_F_MOVE in splice(2) man page.
-	 */
-	FUSE_BUF_SPLICE_MOVE	= (1 << 3),
+    /**
+     * Try to move data with splice.
+     *
+     * If splice is used, try to move pages from the source to the
+     * destination instead of copying.  See documentation of
+     * SPLICE_F_MOVE in splice(2) man page.
+     */
+    FUSE_BUF_SPLICE_MOVE = (1 << 3),
 
-	/**
-	 * Don't block on the pipe when copying data with splice
-	 *
-	 * Makes the operations on the pipe non-blocking (if the pipe
-	 * is full or empty).  See SPLICE_F_NONBLOCK in the splice(2)
-	 * man page.
-	 */
-	FUSE_BUF_SPLICE_NONBLOCK= (1 << 4),
+    /**
+     * Don't block on the pipe when copying data with splice
+     *
+     * Makes the operations on the pipe non-blocking (if the pipe
+     * is full or empty).  See SPLICE_F_NONBLOCK in the splice(2)
+     * man page.
+     */
+    FUSE_BUF_SPLICE_NONBLOCK = (1 << 4),
 };
 
 /**
@@ -636,36 +653,36 @@ enum fuse_buf_copy_flags {
  * be supplied as a memory pointer or as a file descriptor
  */
 struct fuse_buf {
-	/**
-	 * Size of data in bytes
-	 */
-	size_t size;
+    /**
+     * Size of data in bytes
+     */
+    size_t size;
 
-	/**
-	 * Buffer flags
-	 */
-	enum fuse_buf_flags flags;
+    /**
+     * Buffer flags
+     */
+    enum fuse_buf_flags flags;
 
-	/**
-	 * Memory pointer
-	 *
-	 * Used unless FUSE_BUF_IS_FD flag is set.
-	 */
-	void *mem;
+    /**
+     * Memory pointer
+     *
+     * Used unless FUSE_BUF_IS_FD flag is set.
+     */
+    void *mem;
 
-	/**
-	 * File descriptor
-	 *
-	 * Used if FUSE_BUF_IS_FD flag is set.
-	 */
-	int fd;
+    /**
+     * File descriptor
+     *
+     * Used if FUSE_BUF_IS_FD flag is set.
+     */
+    int fd;
 
-	/**
-	 * File position
-	 *
-	 * Used if FUSE_BUF_FD_SEEK flag is set.
-	 */
-	off_t pos;
+    /**
+     * File position
+     *
+     * Used if FUSE_BUF_FD_SEEK flag is set.
+     */
+    off_t pos;
 };
 
 /**
@@ -677,41 +694,39 @@ struct fuse_buf {
  * Allocate dynamically to add more than one buffer.
  */
 struct fuse_bufvec {
-	/**
-	 * Number of buffers in the array
-	 */
-	size_t count;
+    /**
+     * Number of buffers in the array
+     */
+    size_t count;
 
-	/**
-	 * Index of current buffer within the array
-	 */
-	size_t idx;
+    /**
+     * Index of current buffer within the array
+     */
+    size_t idx;
 
-	/**
-	 * Current offset within the current buffer
-	 */
-	size_t off;
+    /**
+     * Current offset within the current buffer
+     */
+    size_t off;
 
-	/**
-	 * Array of buffers
-	 */
-	struct fuse_buf buf[1];
+    /**
+     * Array of buffers
+     */
+    struct fuse_buf buf[1];
 };
 
 /* Initialize bufvec with a single buffer of given size */
-#define FUSE_BUFVEC_INIT(size__)				\
-	((struct fuse_bufvec) {					\
-		/* .count= */ 1,				\
-		/* .idx =  */ 0,				\
-		/* .off =  */ 0,				\
-		/* .buf =  */ { /* [0] = */ {			\
-			/* .size =  */ (size__),		\
-			/* .flags = */ (enum fuse_buf_flags) 0,	\
-			/* .mem =   */ NULL,			\
-			/* .fd =    */ -1,			\
-			/* .pos =   */ 0,			\
-		} }						\
-	} )
+#define FUSE_BUFVEC_INIT(size__)                                      \
+    ((struct fuse_bufvec){ /* .count= */ 1,                           \
+                           /* .idx =  */ 0,                           \
+                           /* .off =  */ 0, /* .buf =  */             \
+                           { /* [0] = */ {                            \
+                               /* .size =  */ (size__),               \
+                               /* .flags = */ (enum fuse_buf_flags)0, \
+                               /* .mem =   */ NULL,                   \
+                               /* .fd =    */ -1,                     \
+                               /* .pos =   */ 0,                      \
+                           } } })
 
 /**
  * Get total size of data in a fuse buffer vector
@@ -730,16 +745,16 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv);
  * @return actual number of bytes copied or -errno on error
  */
 ssize_t fuse_buf_copy(struct fuse_bufvec *dst, struct fuse_bufvec *src,
-		      enum fuse_buf_copy_flags flags);
+                      enum fuse_buf_copy_flags flags);
 
-/* ----------------------------------------------------------- *
- * Signal handling					       *
- * ----------------------------------------------------------- */
+/*
+ * Signal handling
+ */
 
 /**
  * Exit session on HUP, TERM and INT signals and ignore PIPE signal
  *
- * Stores session in a global variable.	 May only be called once per
+ * Stores session in a global variable. May only be called once per
  * process until fuse_remove_signal_handlers() is called.
  *
  * Once either of the POSIX signals arrives, the signal handler calls
@@ -766,12 +781,12 @@ int fuse_set_signal_handlers(struct fuse_session *se);
  */
 void fuse_remove_signal_handlers(struct fuse_session *se);
 
-/* ----------------------------------------------------------- *
- * Compatibility stuff					       *
- * ----------------------------------------------------------- */
+/*
+ * Compatibility stuff
+ */
 
 #if !defined(FUSE_USE_VERSION) || FUSE_USE_VERSION < 30
-#  error only API version 30 or greater is supported
+#error only API version 30 or greater is supported
 #endif
 
 
@@ -781,11 +796,14 @@ void fuse_remove_signal_handlers(struct fuse_session *se);
  * On 32bit systems please add -D_FILE_OFFSET_BITS=64 to your compile flags!
  */
 
-#if defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 6) && !defined __cplusplus
+#if defined(__GNUC__) &&                                      \
+    (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 6) && \
+    !defined __cplusplus
 _Static_assert(sizeof(off_t) == 8, "fuse: off_t must be 64bit");
 #else
-struct _fuse_off_t_must_be_64bit_dummy_struct \
-	{ unsigned _fuse_off_t_must_be_64bit:((sizeof(off_t) == 8) ? 1 : -1); };
+struct _fuse_off_t_must_be_64bit_dummy_struct {
+    unsigned _fuse_off_t_must_be_64bit:((sizeof(off_t) == 8) ? 1 : -1);
+};
 #endif
 
 #endif /* FUSE_COMMON_H_ */

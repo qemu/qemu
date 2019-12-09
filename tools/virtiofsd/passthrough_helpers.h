@@ -28,23 +28,24 @@
  * operation
  */
 static int mknod_wrapper(int dirfd, const char *path, const char *link,
-	int mode, dev_t rdev)
+                         int mode, dev_t rdev)
 {
-	int res;
+    int res;
 
-	if (S_ISREG(mode)) {
-		res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
-		if (res >= 0)
-			res = close(res);
-	} else if (S_ISDIR(mode)) {
-		res = mkdirat(dirfd, path, mode);
-	} else if (S_ISLNK(mode) && link != NULL) {
-		res = symlinkat(link, dirfd, path);
-	} else if (S_ISFIFO(mode)) {
-		res = mkfifoat(dirfd, path, mode);
-	} else {
-		res = mknodat(dirfd, path, mode, rdev);
-	}
+    if (S_ISREG(mode)) {
+        res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
+        if (res >= 0) {
+            res = close(res);
+        }
+    } else if (S_ISDIR(mode)) {
+        res = mkdirat(dirfd, path, mode);
+    } else if (S_ISLNK(mode) && link != NULL) {
+        res = symlinkat(link, dirfd, path);
+    } else if (S_ISFIFO(mode)) {
+        res = mkfifoat(dirfd, path, mode);
+    } else {
+        res = mknodat(dirfd, path, mode, rdev);
+    }
 
-	return res;
+    return res;
 }

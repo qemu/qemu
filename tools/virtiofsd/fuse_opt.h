@@ -1,10 +1,10 @@
 /*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-
-  This program can be distributed under the terms of the GNU LGPLv2.
-  See the file COPYING.LIB.
-*/
+ * FUSE: Filesystem in Userspace
+ * Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+ *
+ * This program can be distributed under the terms of the GNU LGPLv2.
+ * See the file COPYING.LIB.
+ */
 
 #ifndef FUSE_OPT_H_
 #define FUSE_OPT_H_
@@ -37,7 +37,7 @@
  *
  *  - 'offsetof(struct foo, member)'  actions i) and iii)
  *
- *  - -1			      action ii)
+ *  - -1                              action ii)
  *
  * The 'offsetof()' macro is defined in the <stddef.h> header.
  *
@@ -48,7 +48,7 @@
  *
  * The types of templates are:
  *
- * 1) "-x", "-foo", "--foo", "--foo-bar", etc.	These match only
+ * 1) "-x", "-foo", "--foo", "--foo-bar", etc. These match only
  *   themselves.  Invalid values are "--" and anything beginning
  *   with "-o"
  *
@@ -71,58 +71,67 @@
  * freed.
  */
 struct fuse_opt {
-	/** Matching template and optional parameter formatting */
-	const char *templ;
+    /** Matching template and optional parameter formatting */
+    const char *templ;
 
-	/**
-	 * Offset of variable within 'data' parameter of fuse_opt_parse()
-	 * or -1
-	 */
-	unsigned long offset;
+    /**
+     * Offset of variable within 'data' parameter of fuse_opt_parse()
+     * or -1
+     */
+    unsigned long offset;
 
-	/**
-	 * Value to set the variable to, or to be passed as 'key' to the
-	 * processing function.	 Ignored if template has a format
-	 */
-	int value;
+    /**
+     * Value to set the variable to, or to be passed as 'key' to the
+     * processing function. Ignored if template has a format
+     */
+    int value;
 };
 
 /**
- * Key option.	In case of a match, the processing function will be
+ * Key option. In case of a match, the processing function will be
  * called with the specified key.
  */
-#define FUSE_OPT_KEY(templ, key) { templ, -1U, key }
+#define FUSE_OPT_KEY(templ, key) \
+    {                            \
+        templ, -1U, key          \
+    }
 
 /**
- * Last option.	 An array of 'struct fuse_opt' must end with a NULL
+ * Last option. An array of 'struct fuse_opt' must end with a NULL
  * template value
  */
-#define FUSE_OPT_END { NULL, 0, 0 }
+#define FUSE_OPT_END \
+    {                \
+        NULL, 0, 0   \
+    }
 
 /**
  * Argument list
  */
 struct fuse_args {
-	/** Argument count */
-	int argc;
+    /** Argument count */
+    int argc;
 
-	/** Argument vector.  NULL terminated */
-	char **argv;
+    /** Argument vector.  NULL terminated */
+    char **argv;
 
-	/** Is 'argv' allocated? */
-	int allocated;
+    /** Is 'argv' allocated? */
+    int allocated;
 };
 
 /**
  * Initializer for 'struct fuse_args'
  */
-#define FUSE_ARGS_INIT(argc, argv) { argc, argv, 0 }
+#define FUSE_ARGS_INIT(argc, argv) \
+    {                              \
+        argc, argv, 0              \
+    }
 
 /**
  * Key value passed to the processing function if an option did not
  * match any template
  */
-#define FUSE_OPT_KEY_OPT     -1
+#define FUSE_OPT_KEY_OPT -1
 
 /**
  * Key value passed to the processing function for all non-options
@@ -130,7 +139,7 @@ struct fuse_args {
  * Non-options are the arguments beginning with a character other than
  * '-' or all arguments after the special '--' option
  */
-#define FUSE_OPT_KEY_NONOPT  -2
+#define FUSE_OPT_KEY_NONOPT -2
 
 /**
  * Special key value for options to keep
@@ -174,7 +183,7 @@ struct fuse_args {
  * @return -1 on error, 0 if arg is to be discarded, 1 if arg should be kept
  */
 typedef int (*fuse_opt_proc_t)(void *data, const char *arg, int key,
-			       struct fuse_args *outargs);
+                               struct fuse_args *outargs);
 
 /**
  * Option parsing function
@@ -197,7 +206,7 @@ typedef int (*fuse_opt_proc_t)(void *data, const char *arg, int key,
  * @return -1 on error, 0 on success
  */
 int fuse_opt_parse(struct fuse_args *args, void *data,
-		   const struct fuse_opt opts[], fuse_opt_proc_t proc);
+                   const struct fuse_opt opts[], fuse_opt_proc_t proc);
 
 /**
  * Add an option to a comma separated option list
