@@ -1,6 +1,11 @@
 config PAM
     bool
 
+config XEN_IGD_PASSTHROUGH
+    bool
+    default y
+    depends on XEN && PCI_I440FX
+
 config PREP_PCI
     bool
     select PCI
