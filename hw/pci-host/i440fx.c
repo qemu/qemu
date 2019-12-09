@@ -419,12 +419,11 @@ out:
 static void igd_pt_i440fx_realize(PCIDevice *pci_dev, Error **errp)
 {
     uint32_t val = 0;
-    int i, num;
+    size_t i;
     int pos, len;
     Error *local_err = NULL;
 
-    num = ARRAY_SIZE(igd_host_bridge_infos);
-    for (i = 0; i < num; i++) {
+    for (i = 0; i < ARRAY_SIZE(igd_host_bridge_infos); i++) {
         pos = igd_host_bridge_infos[i].offset;
         len = igd_host_bridge_infos[i].len;
         host_pci_config_read(pos, len, &val, &local_err);
