@@ -15,14 +15,14 @@ CPU present bitmap for:
   PIIX-PM  (IO port 0xaf00-0xaf1f, 1-byte access)
   One bit per CPU. Bit position reflects corresponding CPU APIC ID. Read-only.
   The first DWORD in bitmap is used in write mode to switch from legacy
-  to new CPU hotplug interface, write 0 into it to do switch.
+  to modern CPU hotplug interface, write 0 into it to do switch.
 ---------------------------------------------------------------
 QEMU sets corresponding CPU bit on hot-add event and issues SCI
 with GPE.2 event set. CPU present map is read by ACPI BIOS GPE.2 handler
 to notify OS about CPU hot-add events. CPU hot-remove isn't supported.
 
 =====================================
-ACPI CPU hotplug interface registers:
+Modern ACPI CPU hotplug interface registers:
 -------------------------------------
 Register block base address:
     ICH9-LPC IO port 0x0cd8
@@ -67,6 +67,7 @@ write access:
     [0x0-0x3] CPU selector: (DWORD access)
               selects active CPU device. All following accesses to other
               registers will read/store data from/to selected CPU.
+              Valid values: [0 .. max_cpus)
     [0x4] CPU device control fields: (1 byte access)
         bits:
             0: reserved, OSPM must clear it before writing to register.
@@ -98,4 +99,48 @@ write access:
               2: stores value into OST status register, triggers
                  ACPI_DEVICE_OST QMP event from QEMU to external applications
                  with current values of OST event and status registers.
-            other values: reserved
+              other values: reserved
+
+Typical usecases:
+    - (x86) Detecting and enabling modern CPU hotplug interface.
+      QEMU starts with legacy CPU hotplug interface enabled. Detecting and
+      switching to modern interface is based on the 2 legacy CPU hotplug features:
+        1. Writes into CPU bitmap are ignored.
+        2. CPU bitmap always has bit#0 set, corresponding to boot CPU.
+
+      Use following steps to detect and enable modern CPU hotplug interface:
+        1. Store 0x0 to the 'CPU selector' register,
+           attempting to switch to modern mode
+        2. Store 0x0 to the 'CPU selector' register,
+           to ensure valid selector value
+        3. Store 0x0 to the 'Command field' register,
+        4. Read the 'Command data 2' register.
+           If read value is 0x0, the modern interface is enabled.
+           Otherwise legacy or no CPU hotplug interface available
+
+    - Get a cpu with pending event
+      1. Store 0x0 to the 'CPU selector' register.
+      2. Store 0x0 to the 'Command field' register.
+      3. Read the 'CPU device status fields' register.
+      4. If both bit#1 and bit#2 are clear in the value read, there is no CPU
+         with a pending event and selected CPU remains unchanged.
+      5. Otherwise, read the 'Command data' register. The value read is the
+         selector of the CPU with the pending event (which is already
+         selected).
+
+    - Enumerate CPUs present/non present CPUs
+      01. Set the present CPU count to 0.
+      02. Set the iterator to 0.
+      03. Store 0x0 to the 'CPU selector' register, to ensure that it's in
+          a valid state and that access to other registers won't be ignored.
+      04. Store 0x0 to the 'Command field' register to make 'Command data'
+          register return 'CPU selector' value of selected CPU
+      05. Read the 'CPU device status fields' register.
+      06. If bit#0 is set, increment the present CPU count.
+      07. Increment the iterator.
+      08. Store the iterator to the 'CPU selector' register.
+      09. Read the 'Command data' register.
+      10. If the value read is not zero, goto 05.
+      11. Otherwise store 0x0 to the 'CPU selector' register, to put it
+          into a valid state and exit.
+          The iterator at this point equals "max_cpus".
