@@ -531,7 +531,7 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
     }
 }
 
-static inline DeviceState *create_acpi_ged(VirtMachineState *vms, qemu_irq *pic)
+static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
 {
     DeviceState *dev;
     MachineState *ms = MACHINE(vms);
@@ -547,14 +547,14 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms, qemu_irq *pic)
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_ACPI_GED].base);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, vms->memmap[VIRT_PCDIMM_ACPI].base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irq]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(vms->gic, irq));
 
     qdev_init_nofail(dev);
 
     return dev;
 }
 
-static void create_its(VirtMachineState *vms, DeviceState *gicdev)
+static void create_its(VirtMachineState *vms)
 {
     const char *itsclass = its_class_name();
     DeviceState *dev;
@@ -566,7 +566,7 @@ static void create_its(VirtMachineState *vms, DeviceState *gicdev)
 
     dev = qdev_create(NULL, itsclass);
 
-    object_property_set_link(OBJECT(dev), OBJECT(gicdev), "parent-gicv3",
+    object_property_set_link(OBJECT(dev), OBJECT(vms->gic), "parent-gicv3",
                              &error_abort);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_ITS].base);
@@ -574,7 +574,7 @@ static void create_its(VirtMachineState *vms, DeviceState *gicdev)
     fdt_add_its_gic_node(vms);
 }
 
-static void create_v2m(VirtMachineState *vms, qemu_irq *pic)
+static void create_v2m(VirtMachineState *vms)
 {
     int i;
     int irq = vms->irqmap[VIRT_GIC_V2M];
@@ -587,17 +587,17 @@ static void create_v2m(VirtMachineState *vms, qemu_irq *pic)
     qdev_init_nofail(dev);
 
     for (i = 0; i < NUM_GICV2M_SPIS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(vms->gic, irq + i));
     }
 
     fdt_add_v2m_gic_node(vms);
 }
 
-static void create_gic(VirtMachineState *vms, qemu_irq *pic)
+static void create_gic(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
     /* We create a standalone GIC */
-    DeviceState *gicdev;
     SysBusDevice *gicbusdev;
     const char *gictype;
     int type = vms->gic_version, i;
@@ -606,15 +606,15 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
 
     gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
 
-    gicdev = qdev_create(NULL, gictype);
-    qdev_prop_set_uint32(gicdev, "revision", type);
-    qdev_prop_set_uint32(gicdev, "num-cpu", smp_cpus);
+    vms->gic = qdev_create(NULL, gictype);
+    qdev_prop_set_uint32(vms->gic, "revision", type);
+    qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /* Note that the num-irq property counts both internal and external
      * interrupts; there are always 32 of the former (mandated by GIC spec).
      */
-    qdev_prop_set_uint32(gicdev, "num-irq", NUM_IRQS + 32);
+    qdev_prop_set_uint32(vms->gic, "num-irq", NUM_IRQS + 32);
     if (!kvm_irqchip_in_kernel()) {
-        qdev_prop_set_bit(gicdev, "has-security-extensions", vms->secure);
+        qdev_prop_set_bit(vms->gic, "has-security-extensions", vms->secure);
     }
 
     if (type == 3) {
@@ -624,25 +624,25 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
 
         nb_redist_regions = virt_gicv3_redist_region_count(vms);
 
-        qdev_prop_set_uint32(gicdev, "len-redist-region-count",
+        qdev_prop_set_uint32(vms->gic, "len-redist-region-count",
                              nb_redist_regions);
-        qdev_prop_set_uint32(gicdev, "redist-region-count[0]", redist0_count);
+        qdev_prop_set_uint32(vms->gic, "redist-region-count[0]", redist0_count);
 
         if (nb_redist_regions == 2) {
             uint32_t redist1_capacity =
                     vms->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
 
-            qdev_prop_set_uint32(gicdev, "redist-region-count[1]",
+            qdev_prop_set_uint32(vms->gic, "redist-region-count[1]",
                 MIN(smp_cpus - redist0_count, redist1_capacity));
         }
     } else {
         if (!kvm_irqchip_in_kernel()) {
-            qdev_prop_set_bit(gicdev, "has-virtualization-extensions",
+            qdev_prop_set_bit(vms->gic, "has-virtualization-extensions",
                               vms->virt);
         }
     }
-    qdev_init_nofail(gicdev);
-    gicbusdev = SYS_BUS_DEVICE(gicdev);
+    qdev_init_nofail(vms->gic);
+    gicbusdev = SYS_BUS_DEVICE(vms->gic);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
     if (type == 3) {
         sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
@@ -678,23 +678,23 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
 
         for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
             qdev_connect_gpio_out(cpudev, irq,
-                                  qdev_get_gpio_in(gicdev,
+                                  qdev_get_gpio_in(vms->gic,
                                                    ppibase + timer_irq[irq]));
         }
 
         if (type == 3) {
-            qemu_irq irq = qdev_get_gpio_in(gicdev,
+            qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
             qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
                                         0, irq);
         } else if (vms->virt) {
-            qemu_irq irq = qdev_get_gpio_in(gicdev,
+            qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
             sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus, irq);
         }
 
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
-                                    qdev_get_gpio_in(gicdev, ppibase
+                                    qdev_get_gpio_in(vms->gic, ppibase
                                                      + VIRTUAL_PMU_IRQ));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
@@ -706,20 +706,16 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 
-    for (i = 0; i < NUM_IRQS; i++) {
-        pic[i] = qdev_get_gpio_in(gicdev, i);
-    }
-
     fdt_add_gic_node(vms);
 
     if (type == 3 && vms->its) {
-        create_its(vms, gicdev);
+        create_its(vms);
     } else if (type == 2) {
-        create_v2m(vms, pic);
+        create_v2m(vms);
     }
 }
 
-static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
+static void create_uart(const VirtMachineState *vms, int uart,
                         MemoryRegion *mem, Chardev *chr)
 {
     char *nodename;
@@ -735,7 +731,7 @@ static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
     qdev_init_nofail(dev);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
-    sysbus_connect_irq(s, 0, pic[irq]);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
     qemu_fdt_add_subnode(vms->fdt, nodename);
@@ -767,7 +763,7 @@ static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
     g_free(nodename);
 }
 
-static void create_rtc(const VirtMachineState *vms, qemu_irq *pic)
+static void create_rtc(const VirtMachineState *vms)
 {
     char *nodename;
     hwaddr base = vms->memmap[VIRT_RTC].base;
@@ -775,7 +771,7 @@ static void create_rtc(const VirtMachineState *vms, qemu_irq *pic)
     int irq = vms->irqmap[VIRT_RTC];
     const char compat[] = "arm,pl031\0arm,primecell";
 
-    sysbus_create_simple("pl031", base, pic[irq]);
+    sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
 
     nodename = g_strdup_printf("/pl031@%" PRIx64, base);
     qemu_fdt_add_subnode(vms->fdt, nodename);
@@ -803,7 +799,7 @@ static void virt_powerdown_req(Notifier *n, void *opaque)
     }
 }
 
-static void create_gpio(const VirtMachineState *vms, qemu_irq *pic)
+static void create_gpio(const VirtMachineState *vms)
 {
     char *nodename;
     DeviceState *pl061_dev;
@@ -812,7 +808,8 @@ static void create_gpio(const VirtMachineState *vms, qemu_irq *pic)
     int irq = vms->irqmap[VIRT_GPIO];
     const char compat[] = "arm,pl061\0arm,primecell";
 
-    pl061_dev = sysbus_create_simple("pl061", base, pic[irq]);
+    pl061_dev = sysbus_create_simple("pl061", base,
+                                     qdev_get_gpio_in(vms->gic, irq));
 
     uint32_t phandle = qemu_fdt_alloc_phandle(vms->fdt);
     nodename = g_strdup_printf("/pl061@%" PRIx64, base);
@@ -846,7 +843,7 @@ static void create_gpio(const VirtMachineState *vms, qemu_irq *pic)
     g_free(nodename);
 }
 
-static void create_virtio_devices(const VirtMachineState *vms, qemu_irq *pic)
+static void create_virtio_devices(const VirtMachineState *vms)
 {
     int i;
     hwaddr size = vms->memmap[VIRT_MMIO].size;
@@ -882,7 +879,8 @@ static void create_virtio_devices(const VirtMachineState *vms, qemu_irq *pic)
         int irq = vms->irqmap[VIRT_MMIO] + i;
         hwaddr base = vms->memmap[VIRT_MMIO].base + i * size;
 
-        sysbus_create_simple("virtio-mmio", base, pic[irq]);
+        sysbus_create_simple("virtio-mmio", base,
+                             qdev_get_gpio_in(vms->gic, irq));
     }
 
     /* We add dtb nodes in reverse order so that they appear in the finished
@@ -1131,7 +1129,7 @@ static void create_pcie_irq_map(const VirtMachineState *vms,
                            0x7           /* PCI irq */);
 }
 
-static void create_smmu(const VirtMachineState *vms, qemu_irq *pic,
+static void create_smmu(const VirtMachineState *vms,
                         PCIBus *bus)
 {
     char *node;
@@ -1154,7 +1152,8 @@ static void create_smmu(const VirtMachineState *vms, qemu_irq *pic,
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(vms->gic, irq + i));
     }
 
     node = g_strdup_printf("/smmuv3@%" PRIx64, base);
@@ -1181,7 +1180,7 @@ static void create_smmu(const VirtMachineState *vms, qemu_irq *pic,
     g_free(node);
 }
 
-static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
+static void create_pcie(VirtMachineState *vms)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = vms->memmap[VIRT_PCIE_MMIO].size;
@@ -1241,7 +1240,8 @@ static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(vms->gic, irq + i));
         gpex_set_irq_num(GPEX_HOST(dev), i, irq + i);
     }
 
@@ -1301,7 +1301,7 @@ static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
     if (vms->iommu) {
         vms->iommu_phandle = qemu_fdt_alloc_phandle(vms->fdt);
 
-        create_smmu(vms, pic, pci->bus);
+        create_smmu(vms, pci->bus);
 
         qemu_fdt_setprop_cells(vms->fdt, nodename, "iommu-map",
                                0x0, vms->iommu_phandle, 0x0, 0x10000);
@@ -1310,7 +1310,7 @@ static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
     g_free(nodename);
 }
 
-static void create_platform_bus(VirtMachineState *vms, qemu_irq *pic)
+static void create_platform_bus(VirtMachineState *vms)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -1326,8 +1326,8 @@ static void create_platform_bus(VirtMachineState *vms, qemu_irq *pic)
 
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < PLATFORM_BUS_NUM_IRQS; i++) {
-        int irqn = vms->irqmap[VIRT_PLATFORM_BUS] + i;
-        sysbus_connect_irq(s, i, pic[irqn]);
+        int irq = vms->irqmap[VIRT_PLATFORM_BUS] + i;
+        sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, irq));
     }
 
     memory_region_add_subregion(sysmem,
@@ -1509,7 +1509,6 @@ static void machvirt_init(MachineState *machine)
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *possible_cpus;
-    qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = NULL;
     int n, virt_max_cpus;
@@ -1712,27 +1711,27 @@ static void machvirt_init(MachineState *machine)
 
     virt_flash_fdt(vms, sysmem, secure_sysmem ?: sysmem);
 
-    create_gic(vms, pic);
+    create_gic(vms);
 
     fdt_add_pmu_nodes(vms);
 
-    create_uart(vms, pic, VIRT_UART, sysmem, serial_hd(0));
+    create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
-        create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
+        create_uart(vms, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
     }
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
 
-    create_rtc(vms, pic);
+    create_rtc(vms);
 
-    create_pcie(vms, pic);
+    create_pcie(vms);
 
     if (has_ged && aarch64 && firmware_loaded && acpi_enabled) {
-        vms->acpi_dev = create_acpi_ged(vms, pic);
+        vms->acpi_dev = create_acpi_ged(vms);
     } else {
-        create_gpio(vms, pic);
+        create_gpio(vms);
     }
 
      /* connect powerdown request */
@@ -1743,12 +1742,12 @@ static void machvirt_init(MachineState *machine)
      * (which will be automatically plugged in to the transports). If
      * no backend is created the transport will just sit harmlessly idle.
      */
-    create_virtio_devices(vms, pic);
+    create_virtio_devices(vms);
 
     vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(vms->fw_cfg);
 
-    create_platform_bus(vms, pic);
+    create_platform_bus(vms);
 
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.nb_cpus = smp_cpus;
