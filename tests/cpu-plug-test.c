@@ -148,11 +148,7 @@ static void add_pc_test_case(const char *mname)
         (strcmp(mname, "pc-1.3") == 0) ||
         (strcmp(mname, "pc-1.2") == 0) ||
         (strcmp(mname, "pc-1.1") == 0) ||
-        (strcmp(mname, "pc-1.0") == 0) ||
-        (strcmp(mname, "pc-0.15") == 0) ||
-        (strcmp(mname, "pc-0.14") == 0) ||
-        (strcmp(mname, "pc-0.13") == 0) ||
-        (strcmp(mname, "pc-0.12") == 0)) {
+        (strcmp(mname, "pc-1.0") == 0)) {
         path = g_strdup_printf("cpu-plug/%s/init/%ux%ux%u&maxcpus=%u",
                                mname, data->sockets, data->cores,
                                data->threads, data->maxcpus);

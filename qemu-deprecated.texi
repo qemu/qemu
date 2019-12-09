@@ -265,7 +265,7 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 This machine type is very old and unmaintained. Users should use the 'malta'
 machine type instead.
 
-@subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)
+@subsection pc-1.0, pc-1.1, pc-1.2 and pc-1.3 (since 5.0)
 
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.
