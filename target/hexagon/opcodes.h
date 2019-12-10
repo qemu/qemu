@@ -15,26 +15,41 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef REGS_H
-#define REGS_H
+#ifndef OPCODES_H
+#define OPCODES_H
 
-#define NUM_GEN_REGS 32
+#include "attribs.h"
+#include "imported/insn.h"
+
+typedef enum {
+#define OPCODE(IID) IID
+#include "opcodes_def_generated.h"
+    XX_LAST_OPCODE
+#undef OPCODE
+} opcode_t;
+
+extern const char *opcode_names[];
+
+extern const char *opcode_reginfo[];
+extern const char *opcode_rregs[];
+extern const char *opcode_wregs[];
 
 typedef struct {
-    const char *name;
-    int offset;
-    int width;
-    const char *description;
-} reg_field_t;
+    const char * const encoding;
+    size4u_t vals;
+    size4u_t dep_vals;
+    size1u_t is_ee:1;
+} opcode_encoding_t;
 
-extern reg_field_t reg_field_info[];
+extern opcode_encoding_t opcode_encodings[XX_LAST_OPCODE];
 
-enum reg_fields_enum {
-#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION) \
-    TAG,
-#include "regs_def.h"
-    NUM_REG_FIELDS
-#undef DEF_REG_FIELD
-};
+extern semantic_insn_t opcode_genptr[];
+
+extern size4u_t
+    opcode_attribs[XX_LAST_OPCODE][(A_ZZ_LASTATTRIB / ATTRIB_WIDTH) + 1];
+
+extern void opcode_init(void);
+
+extern int opcode_which_immediate_is_extended(opcode_t opcode);
 
 #endif

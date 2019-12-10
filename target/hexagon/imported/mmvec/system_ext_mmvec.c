@@ -23,7 +23,7 @@
 //#include <arch/memwrap.h>
 //#include <arch/system.h>
 //#include <arch/external_api.h>
-#include "imported/opcodes.h"
+#include "opcodes.h"
 #include "imported/insn.h"
 #include "imported/arch.h"
 //#include "pmu.h"

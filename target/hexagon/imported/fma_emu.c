@@ -48,62 +48,36 @@
 typedef union {
 	double f;
 	size8u_t i;
-#ifndef SLOWLARIS
 	struct {
 		size8u_t mant:52;
 		size8u_t exp:11;
 		size8u_t sign:1;
 	} x;
-#else
-	struct {
-		size8u_t sign:1;
-		size8u_t exp:11;
-		size8u_t mant:52;
-	} x;
-#endif
 } df_t;
 
 typedef union {
 	float f;
 	size4u_t i;
-#ifndef SLOWLARIS
 	struct {
 		size4u_t mant:23;
 		size4u_t exp:8;
 		size4u_t sign:1;
 	} x;
-#else
-	struct {
-		size4u_t sign:1;
-		size4u_t exp:8;
-		size4u_t mant:23;
-	} x;
-#endif
 } sf_t;
 
 typedef struct {
 	union {
 		size8u_t low;
 		struct {
-#ifndef SLOWLARIS
 			size4u_t w0;
 			size4u_t w1;
-#else
-			size4u_t w1;
-			size4u_t w0;
-#endif
 		};
 	};
 	union {
 		size8u_t high;
 		struct {
-#ifndef SLOWLARIS
-			size4u_t w2;
-			size4u_t w3;
-#else
 			size4u_t w3;
 			size4u_t w2;
-#endif
 		};
 	};
 } int128_t;
@@ -348,7 +322,8 @@ static inline xf_t xf_norm_right(xf_t a, int amt)
 }
 
 
-/* On the add/sub, we need to be able to shift out lots of bits, but need a
+/*
+ * On the add/sub, we need to be able to shift out lots of bits, but need a
  * sticky bit for what was shifted out, I think. 
  */
 xf_t xf_add(xf_t a, xf_t b);
@@ -672,129 +647,6 @@ GEN_XF_ROUND(df_t,fDF_MANTBITS(),DF_INF_EXP)
 GEN_XF_ROUND(sf_t,fSF_MANTBITS(),SF_INF_EXP)
 GEN_XF_ROUND(hf_t,fHF_MANTBITS(),HF_INF_EXP)
 
-#if 0
-double xf_round_double(xf_t a)
-{
-	df_t ret;
-	ret.i = 0;
-	ret.x.sign = a.sign;
-	if ((a.mant.high == 0) && (a.mant.low == 0)
-		&& ((a.guard | a.round | a.sticky) == 0)) {
-		/* result zero */
-		switch (fegetround()) {
-		case FE_DOWNWARD:
-			return -0.0;
-		default:
-			return 0.0;
-		}
-	}
-	/* Normalize right */
-	/* We want 52 bits of mantissa plus the leading one. */
-	/* That means that we want 53 bits, or 0x001F_FFFF_FFFF_FFFF */
-	/* So we need to normalize right while the high word is non-zero and
-	 * while the low word is nonzero when masked with 0xffe0_0000_0000_0000 */
-	xf_debug("input: ", a);
-	while ((a.mant.high != 0) || ((a.mant.low >> 53) != 0)) {
-		a = xf_norm_right(a, 1);
-	}
-	xf_debug("norm_right: ", a);
-	/* OK, now normalize left */
-	/* We want to normalize left until we have a leading one in bit 53 */
-	/* Theoretically, we only need to shift a maximum of one to the left if we
-	 * shifted out lots of bits from B, or if we had no shift / 1 shift sticky shoudl be zero 
-	 */
-	while ((a.mant.low & (1ULL << MANTBITS)) == 0) {
-		a = xf_norm_left(a);
-	}
-	xf_debug("norm_left: ", a);
-
-	/* OK, now we might need to denormalize because of potential underflow.  We need
-	 * to do this before rounding, and rounding might make us normal again */
-
-	while (a.exp <= 0) {
-		a = xf_norm_right(a, 1 - a.exp);
-		/* Do we have underflow?  That's when we get an inexact answer because we
-		 * ran out of bits in a denormal. */
-		if (a.guard || a.round || a.sticky) {
-			feraiseexcept(FE_UNDERFLOW);
-		}
-	}
-	xf_debug("norm_denorm: ", a);
-
-	/* OK, we're relatively canonical... now we need to round */
-	if (a.guard || a.round || a.sticky) {
-		feraiseexcept(FE_INEXACT);
-		switch (fegetround()) {
-		case FE_TOWARDZERO:
-			/* Chop and we're done */
-			break;
-		case FE_UPWARD:
-			if (a.sign == 0)
-				a.mant.low += 1;
-			break;
-		case FE_DOWNWARD:
-			if (a.sign != 0)
-				a.mant.low += 1;
-			break;
-		default:
-			if (a.round || a.sticky) {
-				/* round up if guard is 1, down if guard is zero */
-				a.mant.low += a.guard;
-			} else if (a.guard) {
-				/* exactly .5, round up if odd */
-				a.mant.low += (a.mant.low & 1);
-			}
-			break;
-		}
-	}
-	xf_debug("post_round: ", a);
-	/* OK, now we might have carried all the way up.  So we might need to shr once */
-	/* at least we know that the lsb should be zero if we rounded and got a carry out... */
-	if ((a.mant.low >> (MANTBITS+1)) != 0) {
-		a = xf_norm_right(a, 1);
-	}
-	xf_debug("once_norm_right: ", a);
-	/* Overflow? */
-	if (a.exp >= INF_EXP) {
-		/* Yep, inf result */
-		xf_debug("inf: ", a);
-		feraiseexcept(FE_OVERFLOW);
-		feraiseexcept(FE_INEXACT);
-		switch (fegetround()) {
-		case FE_TOWARDZERO:
-			return maxfinite(a);
-		case FE_UPWARD:
-			if (a.sign == 0)
-				return infinite(a);
-			else
-				return maxfinite(a);
-		case FE_DOWNWARD:
-			if (a.sign != 0)
-				return infinite(a);
-			else
-				return maxfinite(a);
-		default:
-			return infinite(a);
-		}
-	}
-	/* Underflow? */
-	if (a.mant.low & (1ULL << MANTBITS)) {
-		/* Leading one means: No, we're normal. So, we should be done... */
-		xf_debug("norm: ", a);
-		ret.x.exp = a.exp;
-		ret.x.mant = a.mant.low;
-		return ret.f;
-	}
-	xf_debug("denorm: ", a);
-	if (a.exp != 1)
-		printf("a.exp == %d\n", a.exp);
-	assert(a.exp == 1);
-	ret.x.exp = 0;
-	ret.x.mant = a.mant.low;
-	return ret.f;
-}
-#endif
-
 static inline double special_fma(df_t a, df_t b, df_t c)
 {
 	df_t ret;
@@ -1067,114 +919,3 @@ float conv_df_to_sf(double in_f)
 	return xf_round_sf_t(x).f;
 }
 
-
-hf_t conv_df_to_hf(double in_f)
-{
-	xf_t x;
-	df_t in;
-	hf_t ret;
-	in.f = in_f;
-	if (isz(in_f)) {
-		ret.i = 0;
-		ret.x.sign = in.x.sign;
-		return ret;
-	}
-	if (isnan(in_f)) {
-		ret.i = ~0;
-		return ret;
-	}
-	if (isinf(in_f)) {
-		ret.x.sign = in.x.sign;
-		ret.x.exp = ~0;
-		ret.x.mant = 0;
-		return ret;
-	}
-	xf_init(&x);
-	in.f = in_f;
-	x.mant = int128_mul_6464(df_getmant(in), 1);
-	x.exp = df_getexp(in) - DF_BIAS + HF_BIAS - fDF_MANTBITS() + fHF_MANTBITS();
-	x.sign = in.x.sign;
-	xf_debug("conv to hf: x: ", x);
-	return xf_round_hf_t(x);
-}
-
-float conv_hf_to_sf(hf_t in)
-{
-	sf_t ret;
-	ret.x.sign = in.x.sign;
-	ret.x.exp = in.x.exp - HF_BIAS + SF_BIAS;
-	ret.x.mant = in.x.mant << (fSF_MANTBITS() - fHF_MANTBITS());
-	return ret.f;
-}
-
-
-#if TEST_FMA != 0
-
-#include <stdio.h>
-
-static sf_t parse_input(const char *str)
-{
-	unsigned long long int llx;
-	sf_t ret;
-	llx = strtoull(str,NULL,16);
-	ret.i = llx;
-	return ret;
-}
-
-static void print_val(const char *msg, sf_t val)
-{
-	printf("%s: 0x%08x %a %e\n",msg,val.i,val.f,val.f);
-}
-
-static void print_flags(const char *str)
-{
-	printf("%s",str);
-	if (fetestexcept(FE_DIVBYZERO)) printf(" DIVBYZERO ");
-	if (fetestexcept(FE_INEXACT)) printf(" INEXACT ");
-	if (fetestexcept(FE_INVALID)) printf(" INVALID ");
-	if (fetestexcept(FE_OVERFLOW)) printf(" OVERFLOW ");
-	if (fetestexcept(FE_UNDERFLOW)) printf(" UNDERFLOW ");
-	if (fetestexcept(__FE_DENORM)) printf(" DENORM ");
-	printf(" [ 0x%x ] ",__builtin_ia32_stmxcsr());
-	printf("\n");
-}
-
-#define N_ROUNDING_MODES 4
-#define ROUNDDEF(X) { X , #X },
-
-struct {
-	int val;
-	const char *str;
-} roundconsts[N_ROUNDING_MODES] = {
-ROUNDDEF(FE_TONEAREST)
-ROUNDDEF(FE_TOWARDZERO)
-ROUNDDEF(FE_DOWNWARD)
-ROUNDDEF(FE_UPWARD)
-};
-
-int main(int argc, const char **argv)
-{
-	int roundmode,scale;
-	sf_t a, b, c, result;
-	if (argc != 6) {
-		printf("Usage: %s roundmode mult1 mult2 acc scale\n",argv[0]);
-		return 1;
-	}
-	roundmode = strtoul(argv[1],NULL,0) % N_ROUNDING_MODES;
-	printf("Rounding mode: %d (%s)\n",roundmode,roundconsts[roundmode].str);
-	fesetround(roundconsts[roundmode].val);
-	a = parse_input(argv[2]);
-	b = parse_input(argv[3]);
-	c = parse_input(argv[4]);
-	print_val("mult1",a);
-	print_val("mult2",b);
-	print_val("acc",c);
-	scale = (signed char)(strtol(argv[5],NULL,0));
-	printf("scale=%x (%d)\n",scale,scale);
-	result.f = internal_fmafx(a.f,b.f,c.f,scale);
-	print_val("result",result);
-	print_flags("Flags: ");
-	
-}
-
-#endif

@@ -15,8 +15,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "imported/q6v_defines.h"
-
 #ifdef QEMU_GENERATE
 #else
 #define VdV      (*(mmvector_t *)(VdV_void))

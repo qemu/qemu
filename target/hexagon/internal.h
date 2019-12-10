@@ -52,4 +52,6 @@ extern void print_helper_counts(void);
 
 extern const char * const hexagon_regnames[];
 
+extern void init_genptr(void);
+
 #endif

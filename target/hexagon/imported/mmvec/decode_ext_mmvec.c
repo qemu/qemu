@@ -30,8 +30,7 @@
 #include <arch/printinsn.h>
 #else
 #include "imported/decode.h"
-#include "imported/utils.h"
-#include "imported/opcodes.h"
+#include "opcodes.h"
 #include "imported/insn.h"
 #include "imported/printinsn.h"
 

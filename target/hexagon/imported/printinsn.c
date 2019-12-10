@@ -30,7 +30,6 @@
 #include "opcodes.h"
 #include "printinsn.h"
 #include "insn.h"
-#include "regs.h"
 #include "macros.h"
 
 const char *sreg2str(int reg);
