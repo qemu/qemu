@@ -976,8 +976,8 @@ S: Obsolete
 F: hw/mips/mips_r4k.c
 
 Fulong 2E
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 M: Aleksandar Markovic <amarkovic@wavecomp.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
 S: Odd Fixes
 F: hw/mips/mips_fulong2e.c
 F: hw/isa/vt82c686.c
