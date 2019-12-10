@@ -328,9 +328,6 @@ int cpu_mb_signal_handler(int host_signum, void *pinfo,
 #define cpu_signal_handler cpu_mb_signal_handler
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _nommu
-#define MMU_MODE1_SUFFIX _kernel
-#define MMU_MODE2_SUFFIX _user
 #define MMU_NOMMU_IDX   0
 #define MMU_KERNEL_IDX  1
 #define MMU_USER_IDX    2
