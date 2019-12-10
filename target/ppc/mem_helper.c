@@ -177,14 +177,7 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     } else {
         /* Slow path */
         for (i = 0; i < dcbz_size; i += 8) {
-            if (epid) {
-#if !defined(CONFIG_USER_ONLY)
-                /* Does not make sense on USER_ONLY config */
-                cpu_stq_eps_ra(env, addr + i, 0, retaddr);
-#endif
-            } else {
-                cpu_stq_data_ra(env, addr + i, 0, retaddr);
-            }
+            cpu_stq_mmuidx_ra(env, addr + i, 0, mmu_idx, retaddr);
         }
     }
 }
@@ -216,7 +209,7 @@ void helper_icbiep(CPUPPCState *env, target_ulong addr)
 #if !defined(CONFIG_USER_ONLY)
     /* See comments above */
     addr &= ~(env->dcache_line_size - 1);
-    cpu_ldl_epl_ra(env, addr, GETPC());
+    cpu_ldl_mmuidx_ra(env, addr, PPC_TLB_EPID_LOAD, GETPC());
 #endif
 }
 
