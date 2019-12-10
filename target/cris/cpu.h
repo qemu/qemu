@@ -253,8 +253,6 @@ enum {
 #define cpu_signal_handler cpu_cris_signal_handler
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
 #define MMU_USER_IDX 1
 static inline int cpu_mmu_index (CPUCRISState *env, bool ifetch)
 {
