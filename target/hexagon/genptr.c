@@ -23,11 +23,9 @@
 #include "internal.h"
 #include "tcg-op.h"
 #include "tcg-op-gvec.h"
-#include "imported/opcodes.h"
-#include "imported/utils.h"
+#include "opcodes.h"
 #include "translate.h"
 #include "macros.h"
-#include "imported/q6v_defines.h"
 #include "genptr_helpers.h"
 
 #define fWRAP_J2_trap0(GENHLPR, SHORTCODE) \
@@ -1800,7 +1798,7 @@ semantic_insn_t opcode_genptr[] = {
 };
 
 /* This function overwrites the NULL entries where we have a DEF_QEMU */
-void init_opcode_genptr(void)
+void init_genptr(void)
 {
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) \
     opcode_genptr[TAG] = generate_##TAG;

@@ -32,8 +32,11 @@
 #include "decode.h"
 #include "insn.h"
 //#include "printinsn.h"
-#include "utils.h"
-#include "isa_constants.h"
+
+/* FIXME - Figure out if these are needed */
+#define warn(...) /* Nothing */
+#define fatal(...) g_assert_not_reached();
+
 #include "macros.h"
 #ifdef VERIFICATION
 #include "ver_external_api.h"
@@ -89,11 +92,10 @@ void decode_error(thread_t * thread, exception_info *einfo, unsigned int cause)
 	einfo->elr = thread->Regs[REG_PC];
 }
 #else
-#define decode_error(x, y, z) __decode_error(z)
-void __decode_error(unsigned int cause);
-void __decode_error(unsigned int cause)
+#define decode_error(x, y, z) __decode_error()
+static void __decode_error(void)
 {
-    printf("decode_error: %d\n", cause);
+    printf("decode_error\n");
 }
 #endif
 
@@ -282,7 +284,6 @@ static const decode_itable_entry_t decode_legacy_itable[XX_LAST_OPCODE] =
 #undef DECODE_NEW_TABLE
 #undef DECODE_SEPARATOR_BITS
 
-void decode_init(void);
 void decode_init(void)
 {
 	decode_ext_init();
@@ -611,11 +612,13 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
           	pkt->insn[i].is_dcop = 1;
         }
         
+#ifdef FIXME
 		if ((pkt->insn[i].is_load) ||
 			(pkt->insn[i].iclass == ICLASS_M) ||
 			(pkt->insn[i].iclass == ICLASS_ALU64)) {
 			pkt->pkt_has_long_latency_insn = 1;
 		}
+#endif
 
 		if ((pkt->mem_access) && (GET_ATTRIB(opcode, A_DCFETCH))) {
 			pkt->dcfetch_and_access = 1;

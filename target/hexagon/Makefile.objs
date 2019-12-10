@@ -4,14 +4,13 @@ obj-y += \
     op_helper.o \
     gdbstub.o \
     genptr.o \
+    reg_fields.o \
     imported/decode.o \
-    imported/opcodes.o \
+    opcodes.o \
     imported/printinsn.o \
-    imported/utils.o \
     imported/arch.o \
     imported/fma_emu.o \
-    imported/conv_emu.o \
-    imported/regs.o \
+    conv_emu.o \
     imported/mmvec/decode_ext_mmvec.o \
     imported/mmvec/system_ext_mmvec.o
 

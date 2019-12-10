@@ -30,10 +30,9 @@
 #include "macros.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
-#include "imported/utils.h"
-#include "imported/fma_emu.h"
+#include "fma_emu.h"
 #include "imported/myfenv.h"
-#include "imported/conv_emu.h"
+#include "conv_emu.h"
 #include "translate.h"
 #include "qemu.h"
 
@@ -415,7 +414,8 @@ static inline void log_mmvector_write(CPUHexagonState *env, int num,
     log_ext_vreg_write(env, num, &var, vnew, slot);
 }
 
-#include "imported/q6v_defines.h"
+#define warn(...) /* Nothing */
+#define fatal(...) g_assert_not_reached();
 
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")

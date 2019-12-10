@@ -15,17 +15,26 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include <string.h>
-#include "arch.h"
-#include "regs.h"
+#ifndef REGS_H
+#define REGS_H
 
-reg_field_t reg_field_info[] = {
-#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION)    \
-      {NAME, START, WIDTH, DESCRIPTION},
-#include "regs_def.h"
-      {NULL, 0, 0}
+#define NUM_GEN_REGS 32
+
+typedef struct {
+    const char *name;
+    int offset;
+    int width;
+    const char *description;
+} reg_field_t;
+
+extern reg_field_t reg_field_info[];
+
+enum reg_fields_enum {
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION) \
+    TAG,
+#include "reg_fields_def.h"
+    NUM_REG_FIELDS
+#undef DEF_REG_FIELD
 };
 
-#undef DEF_REG_FIELD
-
+#endif

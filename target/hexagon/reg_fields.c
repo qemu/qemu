@@ -15,17 +15,14 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FMA_EMU_H
-#define FMA_EMU_H 1
+#include <string.h>
+#include "reg_fields.h"
 
+reg_field_t reg_field_info[] = {
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION)    \
+      {NAME, START, WIDTH, DESCRIPTION},
+#include "reg_fields_def.h"
+      {NULL, 0, 0}
+#undef DEF_REG_FIELD
+};
 
-float internal_fmafx(float a_in, float b_in, float c_in, int scale);
-float internal_fmaf(float a_in, float b_in, float c_in);
-double internal_fma(double a_in, double b_in, double c_in);
-double internal_fmax(double a_in, double b_in, double c_in, int scale);
-float internal_mpyf(float a_in, float b_in);
-double internal_mpy(double a_in, double b_in);
-double internal_mpyhh(double a_in, double b_in, unsigned long long int accumulated);
-
-
-#endif

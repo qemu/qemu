@@ -15,9 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GLOBAL_TYPES_H_
-#define _GLOBAL_TYPES_H_ 1
-
+#ifndef GLOBAL_TYPES_H
+#define GLOBAL_TYPES_H
 
 typedef unsigned char size1u_t;
 typedef char size1s_t;
@@ -36,4 +35,4 @@ typedef struct size16s {
     size8u_t lo;
 } size16s_t;
 
-#endif /* _GLOBAL_TYPES_H_ */
+#endif

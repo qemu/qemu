@@ -51,27 +51,13 @@ extern size16s_t sub128(size16s_t a, size16s_t b);
 extern size16s_t shiftr128(size16s_t a, size4u_t n);
 extern size16s_t shiftl128(size16s_t a, size4u_t n);
 extern size16s_t and128(size16s_t a, size16s_t b);
-extern size8s_t conv_round64(size8s_t a, size4u_t n);
 extern void arch_fpop_start(CPUHexagonState *env);
 extern void arch_fpop_end(CPUHexagonState *env);
 extern void arch_raise_fpflag(unsigned int flags);
-extern int arch_df_recip_common(size8s_t * Rs, size8s_t * Rt, size8s_t * Rd, int *adjust);
-extern int arch_sf_recip_common(reg_t * Rs, reg_t * Rt, reg_t * Rd, int *adjust);
-extern int arch_sf_invsqrt_common(reg_t * Rs, reg_t * Rd, int *adjust);
-extern int arch_df_invsqrt_common(size8s_t * Rs, size8s_t * Rd, int *adjust);
+extern int arch_sf_recip_common(size4s_t *Rs, size4s_t *Rt, size4s_t *Rd,
+                                int *adjust);
+extern int arch_sf_invsqrt_common(size4s_t *Rs, size4s_t *Rd, int *adjust);
 extern int arch_recip_lookup(int index);
 extern int arch_invsqrt_lookup(int index);
-extern void arch_test_sf_recip(float n, float d, float *inv_out, float *n_out,
-						float *d_out, int *adj_out);
-extern void arch_test_df_recip(double n, double d, double *inv_out, double *n_out,
-						double *d_out, int *adj_out);
-extern void arch_test_sf_invsqrt(float r, float *invsqrt_out, float *r_out,
-						  int *adj_out);
-extern void arch_test_df_invsqrt(double r, double *invsqrt_out, double *r_out,
-						  int *adj_out);
-extern float arch_test_div(float n, float d);
-extern double arch_test_divd(double n, double d);
-extern float arch_test_sqrt(float r);
-extern double arch_test_sqrtd(double r);
 
 #endif

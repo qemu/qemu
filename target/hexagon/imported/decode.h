@@ -22,6 +22,7 @@
 #include "opcodes.h"
 #include "global_types.h"
 
+extern void decode_init(void);
 extern packet_t *decode_this(size4u_t *words, packet_t *decode_pkt);
 extern void decode_send_insn_to(packet_t * packet, int start, int newloc);
 

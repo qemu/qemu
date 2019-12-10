@@ -20,8 +20,11 @@
 
 #include "imported/arch.h"
 #include "hex_regs.h"
-#include "regs.h"
+#include "reg_fields.h"
 #include "exec/helper-proto.h"
+
+#define PCALIGN 4
+#define PCALIGN_MASK (PCALIGN - 1)
 
 #define GET_FIELD(FIELD, REGIN) \
     fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \

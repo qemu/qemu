@@ -549,7 +549,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
 
 static void decode_packet(CPUHexagonState *env, DisasContext *ctx)
 {
-    size4u_t words[4];
+    uint32_t words[4];
     packet_t pkt;
     int i;
 
@@ -751,7 +751,7 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, mem_log_stores[i].data64), "store_val64");
     }
 
-    init_opcode_genptr();
+    init_genptr();
 }
 
 int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)
