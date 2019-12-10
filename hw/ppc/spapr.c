@@ -103,7 +103,7 @@
 #define FW_OVERHEAD             0x2800000
 #define KERNEL_LOAD_ADDR        FW_MAX_SIZE
 
-#define MIN_RMA_SLOF            128UL
+#define MIN_RMA_SLOF            (128 * MiB)
 
 #define PHANDLE_INTC            0x00001111
 
@@ -2956,10 +2956,10 @@ static void spapr_machine_init(MachineState *machine)
         }
     }
 
-    if (spapr->rma_size < (MIN_RMA_SLOF * MiB)) {
+    if (spapr->rma_size < MIN_RMA_SLOF) {
         error_report(
-            "pSeries SLOF firmware requires >= %ldM guest RMA (Real Mode Area memory)",
-            MIN_RMA_SLOF);
+            "pSeries SLOF firmware requires >= %ldMiB guest RMA (Real Mode Area memory)",
+            MIN_RMA_SLOF / MiB);
         exit(1);
     }
 
