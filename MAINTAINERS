@@ -959,8 +959,11 @@ M: Aleksandar Markovic <amarkovic@wavecomp.com>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
+F: hw/isa/piix4.c
+F: hw/acpi/piix4.c
 F: hw/mips/mips_malta.c
 F: hw/mips/gt64xxx_pci.c
+F: include/hw/southbridge/piix.h
 F: tests/acceptance/linux_ssh_mips_malta.py
 
 Mipssim
