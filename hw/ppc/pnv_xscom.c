@@ -304,7 +304,10 @@ static int xscom_dt_child(Object *child, void *opaque)
         PnvXScomInterface *xd = PNV_XSCOM_INTERFACE(child);
         PnvXScomInterfaceClass *xc = PNV_XSCOM_INTERFACE_GET_CLASS(xd);
 
-        if (xc->dt_xscom) {
+        /*
+         * Only "realized" devices should be configured in the DT
+         */
+        if (xc->dt_xscom && DEVICE(child)->realized) {
             _FDT((xc->dt_xscom(xd, args->fdt, args->xscom_offset)));
         }
     }
