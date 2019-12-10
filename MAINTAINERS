@@ -955,8 +955,9 @@ F: hw/display/jazz_led.c
 F: hw/dma/rc4030.c
 
 Malta
-M: Aurelien Jarno <aurelien@aurel32.net>
-R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
+M: Aleksandar Markovic <amarkovic@wavecomp.com>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: hw/mips/mips_malta.c
 F: hw/mips/gt64xxx_pci.c
