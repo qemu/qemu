@@ -35,5 +35,7 @@ build:
     options: "-e HOME=/root"
   ci:
     - unset CC
-    - ./configure ${QEMU_CONFIGURE_OPTS} --target-list=${TARGET_LIST}
+    - mkdir build
+    - cd build
+    - ../configure ${QEMU_CONFIGURE_OPTS} --target-list=${TARGET_LIST}
     - make -j$(($(getconf _NPROCESSORS_ONLN) + 1))
