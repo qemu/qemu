@@ -35,7 +35,6 @@
 #include "qemu/atomic128.h"
 #include "translate-all.h"
 #include "trace-root.h"
-#include "qemu/plugin.h"
 #include "trace/mem.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
@@ -1697,6 +1696,68 @@ uint64_t cpu_ldq_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                            ? helper_le_ldq_mmu : helper_be_ldq_mmu);
 }
 
+uint32_t cpu_ldub_data_ra(CPUArchState *env, target_ulong ptr,
+                          uintptr_t retaddr)
+{
+    return cpu_ldub_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+int cpu_ldsb_data_ra(CPUArchState *env, target_ulong ptr, uintptr_t retaddr)
+{
+    return cpu_ldsb_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+uint32_t cpu_lduw_data_ra(CPUArchState *env, target_ulong ptr,
+                          uintptr_t retaddr)
+{
+    return cpu_lduw_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+int cpu_ldsw_data_ra(CPUArchState *env, target_ulong ptr, uintptr_t retaddr)
+{
+    return cpu_ldsw_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+uint32_t cpu_ldl_data_ra(CPUArchState *env, target_ulong ptr, uintptr_t retaddr)
+{
+    return cpu_ldl_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+uint64_t cpu_ldq_data_ra(CPUArchState *env, target_ulong ptr, uintptr_t retaddr)
+{
+    return cpu_ldq_mmuidx_ra(env, ptr, cpu_mmu_index(env, false), retaddr);
+}
+
+uint32_t cpu_ldub_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_ldub_data_ra(env, ptr, 0);
+}
+
+int cpu_ldsb_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_ldsb_data_ra(env, ptr, 0);
+}
+
+uint32_t cpu_lduw_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_lduw_data_ra(env, ptr, 0);
+}
+
+int cpu_ldsw_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_ldsw_data_ra(env, ptr, 0);
+}
+
+uint32_t cpu_ldl_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_ldl_data_ra(env, ptr, 0);
+}
+
+uint64_t cpu_ldq_data(CPUArchState *env, target_ulong ptr)
+{
+    return cpu_ldq_data_ra(env, ptr, 0);
+}
+
 /*
  * Store Helpers
  */
@@ -1968,6 +2029,50 @@ void cpu_stq_mmuidx_ra(CPUArchState *env, target_ulong addr, uint64_t val,
                        int mmu_idx, uintptr_t retaddr)
 {
     cpu_store_helper(env, addr, val, mmu_idx, retaddr, MO_TEQ);
+}
+
+void cpu_stb_data_ra(CPUArchState *env, target_ulong ptr,
+                     uint32_t val, uintptr_t retaddr)
+{
+    cpu_stb_mmuidx_ra(env, ptr, val, cpu_mmu_index(env, false), retaddr);
+}
+
+void cpu_stw_data_ra(CPUArchState *env, target_ulong ptr,
+                     uint32_t val, uintptr_t retaddr)
+{
+    cpu_stw_mmuidx_ra(env, ptr, val, cpu_mmu_index(env, false), retaddr);
+}
+
+void cpu_stl_data_ra(CPUArchState *env, target_ulong ptr,
+                     uint32_t val, uintptr_t retaddr)
+{
+    cpu_stl_mmuidx_ra(env, ptr, val, cpu_mmu_index(env, false), retaddr);
+}
+
+void cpu_stq_data_ra(CPUArchState *env, target_ulong ptr,
+                     uint64_t val, uintptr_t retaddr)
+{
+    cpu_stq_mmuidx_ra(env, ptr, val, cpu_mmu_index(env, false), retaddr);
+}
+
+void cpu_stb_data(CPUArchState *env, target_ulong ptr, uint32_t val)
+{
+    cpu_stb_data_ra(env, ptr, val, 0);
+}
+
+void cpu_stw_data(CPUArchState *env, target_ulong ptr, uint32_t val)
+{
+    cpu_stw_data_ra(env, ptr, val, 0);
+}
+
+void cpu_stl_data(CPUArchState *env, target_ulong ptr, uint32_t val)
+{
+    cpu_stl_data_ra(env, ptr, val, 0);
+}
+
+void cpu_stq_data(CPUArchState *env, target_ulong ptr, uint64_t val)
+{
+    cpu_stq_data_ra(env, ptr, val, 0);
 }
 
 /* First set of helpers allows passing in of OI and RETADDR.  This makes
