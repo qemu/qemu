@@ -668,6 +668,21 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
     return 0;
 }
 
+static bool ppc_hash64_use_vrma(CPUPPCState *env)
+{
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        /*
+         * ISAv3.0 (POWER9) always uses VRMA, the VPM0 field and RMOR
+         * register no longer exist
+         */
+        return true;
+
+    default:
+        return !!(env->spr[SPR_LPCR] & LPCR_VPM0);
+    }
+}
+
 static void ppc_hash64_set_isi(CPUState *cs, uint64_t error_code)
 {
     CPUPPCState *env = &POWERPC_CPU(cs)->env;
@@ -676,15 +691,7 @@ static void ppc_hash64_set_isi(CPUState *cs, uint64_t error_code)
     if (msr_ir) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        switch (env->mmu_model) {
-        case POWERPC_MMU_3_00:
-            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
-            vpm = true;
-            break;
-        default:
-            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
-            break;
-        }
+        vpm = ppc_hash64_use_vrma(env);
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HISI;
@@ -702,15 +709,7 @@ static void ppc_hash64_set_dsi(CPUState *cs, uint64_t dar, uint64_t dsisr)
     if (msr_dr) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
-        switch (env->mmu_model) {
-        case POWERPC_MMU_3_00:
-            /* Field deprecated in ISAv3.00 - interrupts always go to hyperv */
-            vpm = true;
-            break;
-        default:
-            vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM0);
-            break;
-        }
+        vpm = ppc_hash64_use_vrma(env);
     }
     if (vpm && !msr_hv) {
         cs->exception_index = POWERPC_EXCP_HDSI;
@@ -799,7 +798,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             if (!(eaddr >> 63)) {
                 raddr |= env->spr[SPR_HRMOR];
             }
-        } else if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+        } else if (ppc_hash64_use_vrma(env)) {
             /* Emulated VRMA mode */
             slb = &env->vrma_slb;
             if (!slb->sps) {
@@ -967,7 +966,7 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
         } else if ((msr_hv || !env->has_hv_mode) && !(addr >> 63)) {
             /* In HV mode, add HRMOR if top EA bit is clear */
             return raddr | env->spr[SPR_HRMOR];
-        } else if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+        } else if (ppc_hash64_use_vrma(env)) {
             /* Emulated VRMA mode */
             slb = &env->vrma_slb;
             if (!slb->sps) {
@@ -1056,8 +1055,7 @@ static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
     slb->sps = NULL;
 
     /* Is VRMA enabled ? */
-    lpcr = env->spr[SPR_LPCR];
-    if (!(lpcr & LPCR_VPM0)) {
+    if (!ppc_hash64_use_vrma(env)) {
         return;
     }
 
@@ -1065,6 +1063,7 @@ static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
      * Make one up. Mostly ignore the ESID which will not be needed
      * for translation
      */
+    lpcr = env->spr[SPR_LPCR];
     vsid = SLB_VSID_VRMA;
     vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
     vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
