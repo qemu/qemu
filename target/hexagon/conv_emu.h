@@ -19,7 +19,6 @@
 #define CONV_EMU_H
 
 #include "imported/global_types.h"
-#include "imported/arch_types.h"
 
 extern size8u_t conv_sf_to_8u(float in);
 extern size4u_t conv_sf_to_4u(float in);

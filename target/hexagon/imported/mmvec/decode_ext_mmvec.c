@@ -31,8 +31,8 @@
 #else
 #include "imported/decode.h"
 #include "opcodes.h"
-#include "imported/insn.h"
-#include "imported/printinsn.h"
+#include "insn.h"
+#include "printinsn.h"
 
 // From external_api.h
 typedef enum hvx_resource {
@@ -868,7 +868,7 @@ int mmvec_ext_decode_checks(thread_t * thread, packet_t *packet, exception_info 
 int mmvec_ext_decode_checks(packet_t *packet)
 {
 	int errors = 0;
-    packet->pkt_has_vmemu_access = 0; // Cleared, set by instruction if vmemu is truly unaligned
+//    packet->pkt_has_vmemu_access = 0; // Cleared, set by instruction if vmemu is truly unaligned
 	errors += check_new_value(packet);
     //decode_check_vmemu_and_scalar_memory_ops(thread, packet,einfo);
 	errors += decode_populate_cvi_resources(packet);

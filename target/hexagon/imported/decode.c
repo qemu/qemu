@@ -446,7 +446,7 @@ static inline int decode_opcode_ends_loop(int opcode)
 	return GET_ATTRIB(opcode, A_HWLOOP0_END) || GET_ATTRIB(opcode, A_HWLOOP1_END);
 }
 
-static int decode_possible_multiwrite(packet_t * pkt);
+//static int decode_possible_multiwrite(packet_t * pkt);
 
 /* Set the is_* fields in each instruction 
  */
@@ -463,7 +463,7 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 	int stores = 0;
 	int canjump;
 	int total_slots_valid = 0;
-    int total_insns_sans_nop = 0;
+//    int total_insns_sans_nop = 0;
 
 	pkt->num_rops = 0;
 	pkt->pkt_has_cof = 0;
@@ -479,25 +479,27 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 	pkt->pkt_has_endloop1 = 0;
 	pkt->pkt_has_cacheop = 0;
 	pkt->memop_or_nvstore = 0;
+#if 0
 	pkt->pkt_has_valid_slot0_non_mem = 0;
 	pkt->pkt_has_valid_slot1_non_mem = 0;
 	pkt->pkt_has_valid_slot01_non_mem = 0;
+#endif
 	pkt->pkt_has_dczeroa = 0;
-	pkt->dcfetch_and_access = 0;
+//	pkt->dcfetch_and_access = 0;
 	pkt->pkt_has_dealloc_return = 0;
     pkt->pkt_has_jumpr_return = 0;
     pkt->pkt_has_ras_ret  = 0;
-	pkt->pkt_not_logged_for_timing = 0;
-	pkt->native_pkt = 1;
-	pkt->total_memop = 0;
+//	pkt->pkt_not_logged_for_timing = 0;
+//	pkt->native_pkt = 1;
+//	pkt->total_memop = 0;
 	//pkt->pkt_has_extension = 0;
-    pkt->pkt_nonvmem_st_ct = 0;
-    pkt->pkt_memport_ct = 0;
-    pkt->pkt_memport_s0 = 0;
-    pkt->pkt_memport_s1 = 0;
+//    pkt->pkt_nonvmem_st_ct = 0;
+//    pkt->pkt_memport_ct = 0;
+//    pkt->pkt_memport_s0 = 0;
+//    pkt->pkt_memport_s1 = 0;
 
-    pkt->pkt_has_dword_store = 0;
-    pkt->pkt_has_dword_load = 0;
+//    pkt->pkt_has_dword_store = 0;
+//    pkt->pkt_has_dword_load = 0;
 
 #ifdef VERIFICATION
 	thread->last_pkt_to_silver = 0;
@@ -508,6 +510,7 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 		if (pkt->insn[i].part1)
 			continue;			/* Skip compare of cmp-jumps */
 
+#if 0
 		if (GET_ATTRIB(opcode, A_EXTENSION)) {
 			pkt->pkt_has_vecx = 1;
 #ifdef VERIFICATION
@@ -516,9 +519,10 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 			thread->last_pkt_to_silver = 1;
 #endif	
 		}
-		if (GET_ATTRIB(opcode, A_NO_TIMING_LOG)) {
-			pkt->pkt_not_logged_for_timing = 1;
-		}
+#endif
+//		if (GET_ATTRIB(opcode, A_NO_TIMING_LOG)) {
+//			pkt->pkt_not_logged_for_timing = 1;
+//		}
 		
 		if (GET_ATTRIB(opcode, A_ROPS_3)) {
 			pkt->num_rops += 3;
@@ -567,16 +571,16 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 			pkt->insn[i].is_store = 1;
             if (GET_ATTRIB(opcode, A_VMEM)) 
                 pkt->insn[i].is_vmem_st = 1;
-            else
-                pkt->pkt_nonvmem_st_ct++;
+//            else
+//                pkt->pkt_nonvmem_st_ct++;
 
 			if (pkt->insn[i].slot == 0)
 				pkt->pkt_has_store_s0 = 1;
 			else
 				pkt->pkt_has_store_s1 = 1;
 
-            if (GET_ATTRIB(opcode, A_MEMSIZE_8B))
-                pkt->pkt_has_dword_store = 1;
+//            if (GET_ATTRIB(opcode, A_MEMSIZE_8B))
+//                pkt->pkt_has_dword_store = 1;
 		}
 		if (GET_ATTRIB(opcode, A_DCFETCH)) {
 			pkt->insn[i].is_dcfetch = 1;
@@ -591,19 +595,19 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 			else
 				pkt->pkt_has_load_s1 = 1;
 
-            if (GET_ATTRIB(opcode, A_MEMSIZE_8B))
-                pkt->pkt_has_dword_load = 1;
+//            if (GET_ATTRIB(opcode, A_MEMSIZE_8B))
+//                pkt->pkt_has_dword_load = 1;
 		}
-		if (GET_ATTRIB(opcode, A_VMEMU)) 		   
-				pkt->pkt_has_vmemu = 1;	
+//		if (GET_ATTRIB(opcode, A_VMEMU)) 		   
+//				pkt->pkt_has_vmemu = 1;	
 		if (GET_ATTRIB(opcode, A_CVI_GATHER) || GET_ATTRIB(opcode, A_CVI_SCATTER) ) {
 			pkt->insn[i].is_scatgath = 1;		
-			pkt->pkt_has_scatgath = 1;			
+//			pkt->pkt_has_scatgath = 1;			
 		}
 		
 		if (GET_ATTRIB(opcode, A_MEMOP)) {
 			pkt->insn[i].is_memop = 1;
-			pkt->total_memop++;
+//			pkt->total_memop++;
 		} 
         if (GET_ATTRIB(opcode, A_DEALLOCRET) || GET_ATTRIB(opcode, A_DEALLOCFRAME)) {
           	pkt->insn[i].is_dealloc = 1;
@@ -620,14 +624,14 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 		}
 #endif
 
-		if ((pkt->mem_access) && (GET_ATTRIB(opcode, A_DCFETCH))) {
-			pkt->dcfetch_and_access = 1;
-		}
+//		if ((pkt->mem_access) && (GET_ATTRIB(opcode, A_DCFETCH))) {
+//			pkt->dcfetch_and_access = 1;
+//		}
 
-        if(pkt->mem_access && GET_ATTRIB(opcode, A_CIRCADDR)) {
+//        if(pkt->mem_access && GET_ATTRIB(opcode, A_CIRCADDR)) {
 //            fINSERT_BITS(pkt->pkt_has_circular, 1, pkt->insn[i].slot, 1);
-            pkt->pkt_has_circular = 1;
-        }
+//            pkt->pkt_has_circular = 1;
+//        }
 
 		pkt->pkt_has_call |= GET_ATTRIB(opcode, A_CALL);
 		pkt->pkt_has_jumpr |= GET_ATTRIB(opcode, A_INDIRECT) && !(GET_ATTRIB(opcode,A_HINTJR));
@@ -689,19 +693,19 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 			break;
 		}
 		total_slots_valid++;
-        if(!GET_ATTRIB(pkt->insn[i].opcode, A_IT_NOP)) {
-            total_insns_sans_nop++;
-        }
+//        if(!GET_ATTRIB(pkt->insn[i].opcode, A_IT_NOP)) {
+//            total_insns_sans_nop++;
+//        }
 
 		/* And track #loads/stores */
 		if (pkt->insn[i].is_store) {
 			stores++;
-            if (pkt->insn[i].is_vmem_st)
-              pkt->pkt_vmem_st_ct++;
+//            if (pkt->insn[i].is_vmem_st)
+//              pkt->pkt_vmem_st_ct++;
 		} else if (pkt->insn[i].is_load) {
 			loads++;
-            if (pkt->insn[i].is_vmem_ld)
-              pkt->pkt_vmem_ld_ct++;
+//            if (pkt->insn[i].is_vmem_ld)
+//              pkt->pkt_vmem_ld_ct++;
 		}
 
 #ifdef FIXME
@@ -716,6 +720,7 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 #endif
 
 	}
+#if 0
 	/* Track non memory slot0,1 valids */
 	if ((pkt->slot0_valid) &&
 		(!pkt->pkt_has_load_s0) && (!pkt->pkt_has_store_s0)) {
@@ -731,6 +736,7 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 		((loads == 0) && (stores == 0))) {
 		pkt->pkt_has_valid_slot01_non_mem = 1;
 	}
+#endif
 
 	if (stores == 2) {
 		pkt->dual_store = 1;
@@ -744,10 +750,10 @@ static int decode_set_insn_attr_fields(packet_t * pkt)
 		pkt->single_store = 1;
 	}
 
-	pkt->total_slots_valid_minus_1 = total_slots_valid - 1;
-    pkt->total_insns_sans_nop = total_insns_sans_nop;
+//	pkt->total_slots_valid_minus_1 = total_slots_valid - 1;
+//    pkt->total_insns_sans_nop = total_insns_sans_nop;
 
-	pkt->possible_multi_regwrite = decode_possible_multiwrite(pkt);
+//	pkt->possible_multi_regwrite = decode_possible_multiwrite(pkt);
 
 #ifdef FIXME
 	if (thread->processor_ptr->features->QDSP6_TINY_CORE && thread->processor_ptr->arch_proc_options->tiny_core_exception_checks)
@@ -1396,6 +1402,7 @@ static int decode_audio_extensions(packet_t * pkt)
 	return 0;
 }
 
+#if 0
 #ifdef FIXME
 static int decode_native_packet(thread_t * thread, packet_t * pkt, exception_info *einfo)
 #else
@@ -1411,6 +1418,7 @@ static int decode_native_packet(packet_t * pkt)
 #endif
 	return 0;
 }
+#endif
 
 static int
 #ifdef FIXME
@@ -1602,6 +1610,7 @@ get_valid_slot_str(const packet_t *pkt, unsigned int slot)
 }
 #endif
 
+#if 0
 static int decode_possible_multiwrite(packet_t * pkt)
 {
 	int i;
@@ -1643,7 +1652,9 @@ static int decode_possible_multiwrite(packet_t * pkt)
 	}
 	return 0;
 }
+#endif
 
+#if 0
 #ifdef FIXME
 static int decode_handle_stores(thread_t * thread, packet_t * pkt, exception_info *einfo)
 #else
@@ -1667,6 +1678,7 @@ static int decode_handle_stores(packet_t * pkt)
 	/* TBD: insert load with storebuf search for A_LOAD instructions */
 	return 0;
 }
+#endif
 
 #include "q6v_decode.c"
 

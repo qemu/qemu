@@ -16,12 +16,12 @@
  */
 
 #include <stdio.h>
+#include <math.h>
 #include "qemu/osdep.h"
 #include "tcg-op.h"
 #include "fma_emu.h"
 #include "arch.h"
 #include "macros.h"
-#include "myfenv.h"
 
 /*
  * These three tables are used by the cabacdecbin instruction

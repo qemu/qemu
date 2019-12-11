@@ -8,7 +8,7 @@ obj-y += \
     imported/decode.o \
     opcodes.o \
     imported/printinsn.o \
-    imported/arch.o \
+    arch.o \
     imported/fma_emu.o \
     conv_emu.o \
     imported/mmvec/decode_ext_mmvec.o \
