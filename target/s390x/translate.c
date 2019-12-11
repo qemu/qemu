@@ -3272,13 +3272,8 @@ static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_lura(DisasContext *s, DisasOps *o)
 {
-    gen_helper_lura(o->out, cpu_env, o->in2);
-    return DISAS_NEXT;
-}
-
-static DisasJumpType op_lurag(DisasContext *s, DisasOps *o)
-{
-    gen_helper_lurag(o->out, cpu_env, o->in2);
+    o->addr1 = get_address(s, 0, get_field(s->fields, r2), 0);
+    tcg_gen_qemu_ld_tl(o->out, o->addr1, MMU_REAL_IDX, s->insn->data);
     return DISAS_NEXT;
 }
 #endif
@@ -4506,17 +4501,9 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 {
-    gen_helper_stura(cpu_env, o->in2, o->in1);
-    if (s->base.tb->flags & FLAG_MASK_PER) {
-        update_psw_addr(s);
-        gen_helper_per_store_real(cpu_env);
-    }
-    return DISAS_NEXT;
-}
+    o->addr1 = get_address(s, 0, get_field(s->fields, r2), 0);
+    tcg_gen_qemu_st_tl(o->in1, o->addr1, MMU_REAL_IDX, s->insn->data);
 
-static DisasJumpType op_sturg(DisasContext *s, DisasOps *o)
-{
-    gen_helper_sturg(cpu_env, o->in2, o->in1);
     if (s->base.tb->flags & FLAG_MASK_PER) {
         update_psw_addr(s);
         gen_helper_per_store_real(cpu_env);

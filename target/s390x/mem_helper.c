@@ -2329,28 +2329,6 @@ void HELPER(purge)(CPUS390XState *env)
     tlb_flush_all_cpus_synced(env_cpu(env));
 }
 
-/* load using real address */
-uint64_t HELPER(lura)(CPUS390XState *env, uint64_t addr)
-{
-    return cpu_ldl_real_ra(env, wrap_address(env, addr), GETPC());
-}
-
-uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
-{
-    return cpu_ldq_real_ra(env, wrap_address(env, addr), GETPC());
-}
-
-/* store using real address */
-void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
-{
-    cpu_stl_real_ra(env, wrap_address(env, addr), (uint32_t)v1, GETPC());
-}
-
-void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
-{
-    cpu_stq_real_ra(env, wrap_address(env, addr), v1, GETPC());
-}
-
 /* load real address */
 uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 {
