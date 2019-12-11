@@ -58,25 +58,6 @@
 
 /* generic load/store macros */
 
-#ifdef SOFTMMU_CODE_ACCESS
-
-static inline RES_TYPE
-glue(glue(cpu_ld, USUFFIX), _code)(CPUArchState *env, target_ulong ptr)
-{
-    TCGMemOpIdx oi = make_memop_idx(MO_TE | SHIFT, CPU_MMU_INDEX);
-    return glue(glue(helper_ret_ld, USUFFIX), _cmmu)(env, ptr, oi, 0);
-}
-
-#if DATA_SIZE <= 2
-static inline int
-glue(glue(cpu_lds, SUFFIX), _code)(CPUArchState *env, target_ulong ptr)
-{
-    return (DATA_STYPE)glue(glue(cpu_ld, USUFFIX), _code)(env, ptr);
-}
-#endif
-
-#else
-
 static inline RES_TYPE
 glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
@@ -126,8 +107,6 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
 {
     glue(glue(cpu_st, SUFFIX), _mmuidx_ra)(env, ptr, v, CPU_MMU_INDEX, 0);
 }
-
-#endif /* !SOFTMMU_CODE_ACCESS */
 
 #undef RES_TYPE
 #undef DATA_TYPE

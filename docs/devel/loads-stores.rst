@@ -171,8 +171,6 @@ more in line with the other memory access functions.
 
 load: ``helper_{endian}_ld{sign}{size}_mmu(env, addr, opindex, retaddr)``
 
-load (code): ``helper_{endian}_ld{sign}{size}_cmmu(env, addr, opindex, retaddr)``
-
 store: ``helper_{endian}_st{size}_mmu(env, addr, val, opindex, retaddr)``
 
 ``sign``
@@ -192,7 +190,7 @@ store: ``helper_{endian}_st{size}_mmu(env, addr, val, opindex, retaddr)``
  - ``ret`` : target endianness
 
 Regexes for git grep
- - ``\<helper_\(le\|be\|ret\)_ld[us]\?[bwlq]_c\?mmu\>``
+ - ``\<helper_\(le\|be\|ret\)_ld[us]\?[bwlq]_mmu\>``
  - ``\<helper_\(le\|be\|ret\)_st[bwlq]_mmu\>``
 
 ``address_space_*``
