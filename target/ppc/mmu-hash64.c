@@ -1091,33 +1091,6 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 
     /* Filter out bits */
     switch (env->mmu_model) {
-    case POWERPC_MMU_64B: /* 970 */
-        if (val & 0x40) {
-            lpcr |= LPCR_LPES0;
-        }
-        if (val & 0x8000000000000000ull) {
-            lpcr |= LPCR_LPES1;
-        }
-        if (val & 0x20) {
-            lpcr |= (0x4ull << LPCR_RMLS_SHIFT);
-        }
-        if (val & 0x4000000000000000ull) {
-            lpcr |= (0x2ull << LPCR_RMLS_SHIFT);
-        }
-        if (val & 0x2000000000000000ull) {
-            lpcr |= (0x1ull << LPCR_RMLS_SHIFT);
-        }
-        env->spr[SPR_RMOR] = ((lpcr >> 41) & 0xffffull) << 26;
-
-        /*
-         * XXX We could also write LPID from HID4 here
-         * but since we don't tag any translation on it
-         * it doesn't actually matter
-         *
-         * XXX For proper emulation of 970 we also need
-         * to dig HRMOR out of HID5
-         */
-        break;
     case POWERPC_MMU_2_03: /* P5p */
         lpcr = val & (LPCR_RMLS | LPCR_ILE |
                       LPCR_LPES0 | LPCR_LPES1 |
@@ -1154,7 +1127,7 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
         }
         break;
     default:
-        ;
+        g_assert_not_reached();
     }
     env->spr[SPR_LPCR] = lpcr;
     ppc_hash64_update_rmls(cpu);
