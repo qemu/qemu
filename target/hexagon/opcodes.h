@@ -19,7 +19,7 @@
 #define OPCODES_H
 
 #include "attribs.h"
-#include "imported/insn.h"
+#include "insn.h"
 
 typedef enum {
 #define OPCODE(IID) IID

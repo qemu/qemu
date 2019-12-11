@@ -18,9 +18,8 @@
 #ifndef ARCH_H
 #define ARCH_H
 
-#include "global_types.h"
-#include "arch_types.h"
 #include "cpu.h"
+#include "imported/global_types.h"
 
 extern size1u_t rLPS_table_64x4[64][4];
 extern size1u_t AC_next_state_MPS_64[64];

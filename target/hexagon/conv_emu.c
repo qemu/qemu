@@ -16,11 +16,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "imported/myfenv.h"
 #include "imported/global_types.h"
 #include "macros.h"
 #include <stdio.h>
-#include <assert.h>
+#include <math.h>
 #include "conv_emu.h"
 
 #define isz(X) (fpclassify(X) == FP_ZERO)

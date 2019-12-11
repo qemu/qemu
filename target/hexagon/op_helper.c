@@ -31,7 +31,6 @@
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
 #include "fma_emu.h"
-#include "imported/myfenv.h"
 #include "conv_emu.h"
 #include "translate.h"
 #include "qemu.h"

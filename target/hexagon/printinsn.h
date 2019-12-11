@@ -15,18 +15,12 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ARCH_TYPES_H
-#define ARCH_TYPES_H
+#ifndef PRINTINSN_H
+#define PRINTINSN_H
 
-#include "global_types.h"
+#include <stdio.h>
+#include "insn.h"
 
-typedef union {
-    size2u_t i;
-    struct {
-        size2u_t mant:10;
-        size2u_t exp:5;
-        size2u_t sign:1;
-    } x;
-} hf_t;
+extern void snprint_a_pkt(char *buf, int n, packet_t *pkt);
 
 #endif

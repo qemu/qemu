@@ -18,10 +18,9 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#include "imported/arch.h"
+#include "cpu.h"
 #include "hex_regs.h"
 #include "reg_fields.h"
-#include "exec/helper-proto.h"
 
 #define PCALIGN 4
 #define PCALIGN_MASK (PCALIGN - 1)
@@ -1120,10 +1119,6 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 #define fUNFLOAT(A) \
     ({ union { float f; size4u_t i; } _fipun; \
      _fipun.f = (A); isnan(_fipun.f) ? 0xFFFFFFFFU : _fipun.i; })
-#define fHALF(A) ({ hf_t h; h.i = (A); h; })
-#define fUNHALF(A) (A.i)
-#define fHF_BIAS() 15
-#define fHF_MANTBITS() 10
 #define fSFNANVAL() 0xffffffff
 #define fSFINFVAL(A) (((A) & 0x80000000) | 0x7f800000)
 #define fSFONEVAL(A) (((A) & 0x80000000) | fUNFLOAT(1.0))

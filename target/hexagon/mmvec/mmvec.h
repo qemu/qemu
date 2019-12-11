@@ -19,9 +19,9 @@
 #define MMVEC_H
 
 #define VECEXT 1
-#include "imported/arch_types.h"
+
 #include <stdint.h>
-#include "imported/arch.h"
+#include "arch.h"
 
 /* From thread.h */
 enum mem_access_types {

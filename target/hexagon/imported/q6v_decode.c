@@ -382,7 +382,7 @@ int do_decode_packet(size4u_t PC_VA, int max_words, const size4u_t *words, packe
 			return -1;
 		}
 		for (i = 0; i < new_insns; i++) {
-			pkt->insn[num_insns+i].encoding_offset = words_read;
+//			pkt->insn[num_insns+i].encoding_offset = words_read;
 			check_twowrite(&pkt->insn[num_insns+i]);
 		}
 		/* XXX: FIXME: this is kludgy */
@@ -426,9 +426,9 @@ int do_decode_packet(size4u_t PC_VA, int max_words, const size4u_t *words, packe
 	}	
     pkt->pkt_has_initloop |= pkt->pkt_has_initloop0 | pkt->pkt_has_initloop1;
 
-	pkt->possible_pgxing = (((PC_VA & (4096-1)) + pkt->encod_pkt_size_in_bytes) > 4096);
-	pkt->mem_access = (num_mems > 0);
-	pkt->double_access = (num_mems == 2);
+//	pkt->possible_pgxing = (((PC_VA & (4096-1)) + pkt->encod_pkt_size_in_bytes) > 4096);
+//	pkt->mem_access = (num_mems > 0);
+//	pkt->double_access = (num_mems == 2);
 	if (num_mems > 2) {
 		decode_error(thread,einfo,PRECISE_CAUSE_INVALID_PACKET);
 		return -2;
@@ -464,19 +464,18 @@ int do_decode_packet(size4u_t PC_VA, int max_words, const size4u_t *words, packe
 	}
 #else
 	if(pkt->pkt_has_extension) {
-		// FIXME - For now, HVX will be the only coproc
 		errors += mmvec_ext_decode_checks(pkt);
 	}
 #endif
 
 	errors += decode_shuffle_for_execution(pkt);
 	errors += decode_split_cmpjump(pkt);
-	errors += decode_handle_stores(pkt);
+//	errors += decode_handle_stores(pkt);
 	errors += decode_set_insn_attr_fields(pkt);
-	errors += decode_native_packet(pkt);
+//	errors += decode_native_packet(pkt);
 	if (errors) return -1;
 
-	pkt->PC_VA = PC_VA;
+//	pkt->PC_VA = PC_VA;
 
 	return words_read;
 }

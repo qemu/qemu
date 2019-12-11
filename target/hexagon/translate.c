@@ -28,7 +28,7 @@
 #include "exec/helper-gen.h"
 #include "imported/decode.h"
 #include "translate.h"
-#include "imported/printinsn.h"
+#include "printinsn.h"
 #include "macros.h"
 
 #include "exec/translator.h"
