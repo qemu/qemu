@@ -129,11 +129,6 @@ static inline void clear_helper_retaddr(void)
 #include "exec/cpu_ldst_useronly_template.h"
 #undef MEMSUFFIX
 
-/*
- * Code access is deprecated in favour of translator_ld* functions
- * (see translator.h). However there are still users that need to
- * converted so for now these stay.
- */
 #define MEMSUFFIX _code
 #define CODE_ACCESS
 #define DATA_SIZE 1
@@ -454,12 +449,6 @@ void cpu_stq_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint64_t val,
 #include "exec/cpu_ldst_template.h"
 #undef CPU_MMU_INDEX
 #undef MEMSUFFIX
-
-/*
- * Code access is deprecated in favour of translator_ld* functions
- * (see translator.h). However there are still users that need to
- * converted so for now these stay.
- */
 
 #define CPU_MMU_INDEX (cpu_mmu_index(env, true))
 #define MEMSUFFIX _code

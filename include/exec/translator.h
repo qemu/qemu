@@ -148,41 +148,19 @@ void translator_loop_temp_check(DisasContextBase *db);
 /*
  * Translator Load Functions
  *
- * These are intended to replace the old cpu_ld*_code functions and
- * are mandatory for front-ends that have been migrated to the common
- * translator_loop. These functions are only intended to be called
- * from the translation stage and should not be called from helper
- * functions. Those functions should be converted to encode the
- * relevant information at translation time.
+ * These are intended to replace the direct usage of the cpu_ld*_code
+ * functions and are mandatory for front-ends that have been migrated
+ * to the common translator_loop. These functions are only intended
+ * to be called from the translation stage and should not be called
+ * from helper functions. Those functions should be converted to encode
+ * the relevant information at translation time.
  */
 
-#ifdef CONFIG_USER_ONLY
-
-#define DO_LOAD(type, name, shift)               \
-    do {                                         \
-        set_helper_retaddr(1);                   \
-        ret = name ## _p(g2h(pc));               \
-        clear_helper_retaddr();                  \
-    } while (0)
-
-#else
-
-#define DO_LOAD(type, name, shift)                          \
-    do {                                                    \
-        int mmu_idx = cpu_mmu_index(env, true);             \
-        TCGMemOpIdx oi = make_memop_idx(shift, mmu_idx);    \
-        ret = helper_ret_ ## name ## _cmmu(env, pc, oi, 0); \
-    } while (0)
-
-#endif
-
-#define GEN_TRANSLATOR_LD(fullname, name, type, shift, swap_fn)         \
+#define GEN_TRANSLATOR_LD(fullname, type, load_fn, swap_fn)             \
     static inline type                                                  \
     fullname ## _swap(CPUArchState *env, abi_ptr pc, bool do_swap)      \
     {                                                                   \
-        type ret;                                                       \
-        DO_LOAD(type, name, shift);                                     \
-                                                                        \
+        type ret = load_fn(env, pc);                                    \
         if (do_swap) {                                                  \
             ret = swap_fn(ret);                                         \
         }                                                               \
@@ -195,11 +173,11 @@ void translator_loop_temp_check(DisasContextBase *db);
         return fullname ## _swap(env, pc, false);                       \
     }
 
-GEN_TRANSLATOR_LD(translator_ldub, ldub, uint8_t, 0, /* no swap */ )
-GEN_TRANSLATOR_LD(translator_ldsw, ldsw, int16_t, 1, bswap16)
-GEN_TRANSLATOR_LD(translator_lduw, lduw, uint16_t, 1, bswap16)
-GEN_TRANSLATOR_LD(translator_ldl, ldl, uint32_t, 2, bswap32)
-GEN_TRANSLATOR_LD(translator_ldq, ldq, uint64_t, 3, bswap64)
+GEN_TRANSLATOR_LD(translator_ldub, uint8_t, cpu_ldub_code, /* no swap */)
+GEN_TRANSLATOR_LD(translator_ldsw, int16_t, cpu_ldsw_code, bswap16)
+GEN_TRANSLATOR_LD(translator_lduw, uint16_t, cpu_lduw_code, bswap16)
+GEN_TRANSLATOR_LD(translator_ldl, uint32_t, cpu_ldl_code, bswap32)
+GEN_TRANSLATOR_LD(translator_ldq, uint64_t, cpu_ldq_code, bswap64)
 #undef GEN_TRANSLATOR_LD
 
 #endif  /* EXEC__TRANSLATOR_H */
