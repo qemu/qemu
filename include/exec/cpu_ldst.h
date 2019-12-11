@@ -120,35 +120,33 @@ static inline void clear_helper_retaddr(void)
 
 /* In user-only mode we provide only the _code and _data accessors. */
 
-#define MEMSUFFIX _data
-#define DATA_SIZE 1
-#include "exec/cpu_ldst_useronly_template.h"
+uint32_t cpu_ldub_data(CPUArchState *env, abi_ptr ptr);
+uint32_t cpu_lduw_data(CPUArchState *env, abi_ptr ptr);
+uint32_t cpu_ldl_data(CPUArchState *env, abi_ptr ptr);
+uint64_t cpu_ldq_data(CPUArchState *env, abi_ptr ptr);
+int cpu_ldsb_data(CPUArchState *env, abi_ptr ptr);
+int cpu_ldsw_data(CPUArchState *env, abi_ptr ptr);
 
-#define DATA_SIZE 2
-#include "exec/cpu_ldst_useronly_template.h"
+uint32_t cpu_ldub_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
+uint32_t cpu_lduw_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
+uint32_t cpu_ldl_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
+uint64_t cpu_ldq_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
+int cpu_ldsb_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
+int cpu_ldsw_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr);
 
-#define DATA_SIZE 4
-#include "exec/cpu_ldst_useronly_template.h"
+void cpu_stb_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
+void cpu_stw_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
+void cpu_stl_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
+void cpu_stq_data(CPUArchState *env, abi_ptr ptr, uint64_t val);
 
-#define DATA_SIZE 8
-#include "exec/cpu_ldst_useronly_template.h"
-#undef MEMSUFFIX
-
-#define MEMSUFFIX _code
-#define CODE_ACCESS
-#define DATA_SIZE 1
-#include "exec/cpu_ldst_useronly_template.h"
-
-#define DATA_SIZE 2
-#include "exec/cpu_ldst_useronly_template.h"
-
-#define DATA_SIZE 4
-#include "exec/cpu_ldst_useronly_template.h"
-
-#define DATA_SIZE 8
-#include "exec/cpu_ldst_useronly_template.h"
-#undef MEMSUFFIX
-#undef CODE_ACCESS
+void cpu_stb_data_ra(CPUArchState *env, abi_ptr ptr,
+                     uint32_t val, uintptr_t retaddr);
+void cpu_stw_data_ra(CPUArchState *env, abi_ptr ptr,
+                     uint32_t val, uintptr_t retaddr);
+void cpu_stl_data_ra(CPUArchState *env, abi_ptr ptr,
+                     uint32_t val, uintptr_t retaddr);
+void cpu_stq_data_ra(CPUArchState *env, abi_ptr ptr,
+                     uint64_t val, uintptr_t retaddr);
 
 /*
  * Provide the same *_mmuidx_ra interface as for softmmu.
@@ -520,6 +518,8 @@ void cpu_stq_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint64_t val,
 #undef CPU_MMU_INDEX
 #undef MEMSUFFIX
 
+#endif /* defined(CONFIG_USER_ONLY) */
+
 uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr addr);
 uint32_t cpu_lduw_code(CPUArchState *env, abi_ptr addr);
 uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr addr);
@@ -534,8 +534,6 @@ static inline int cpu_ldsw_code(CPUArchState *env, abi_ptr addr)
 {
     return (int16_t)cpu_lduw_code(env, addr);
 }
-
-#endif /* defined(CONFIG_USER_ONLY) */
 
 /**
  * tlb_vaddr_to_host:
