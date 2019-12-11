@@ -29,6 +29,9 @@
 #define TYPE_PNV9_OCC TYPE_PNV_OCC "-POWER9"
 #define PNV9_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV9_OCC)
 
+#define PNV_OCC_SENSOR_DATA_BLOCK_OFFSET 0x00580000
+#define PNV_OCC_SENSOR_DATA_BLOCK_SIZE   0x00025800
+
 typedef struct PnvOCC {
     DeviceState xd;
 
@@ -50,10 +53,11 @@ typedef struct PnvOCCClass {
     DeviceClass parent_class;
 
     int xscom_size;
-    int sram_size;
     const MemoryRegionOps *xscom_ops;
-    const MemoryRegionOps *sram_ops;
     int psi_irq;
 } PnvOCCClass;
+
+#define PNV_OCC_SENSOR_DATA_BLOCK_BASE(i)                               \
+    (PNV_OCC_SENSOR_DATA_BLOCK_OFFSET + (i) * PNV_OCC_SENSOR_DATA_BLOCK_SIZE)
 
 #endif /* PPC_PNV_OCC_H */

@@ -1065,7 +1065,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
 
     /* OCC SRAM model */
-    memory_region_add_subregion(get_system_memory(), PNV_OCC_COMMON_AREA_BASE,
+    memory_region_add_subregion(get_system_memory(), PNV_OCC_SENSOR_BASE(chip),
                                 &chip8->occ.sram_regs);
 
     /* HOMER */
@@ -1278,7 +1278,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
 
     /* OCC SRAM model */
-    memory_region_add_subregion(get_system_memory(), PNV9_OCC_COMMON_AREA_BASE,
+    memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
                                 &chip9->occ.sram_regs);
 
     /* HOMER */
