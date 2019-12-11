@@ -10,7 +10,6 @@
 
 import logging
 import tempfile
-from avocado.utils.process import run
 
 from avocado_qemu import Test
 
@@ -41,13 +40,15 @@ class LinuxInitrd(Test):
             initrd.seek(max_size)
             initrd.write(b'\0')
             initrd.flush()
-            cmd = "%s -kernel %s -initrd %s -m 4096" % (
-                  self.qemu_bin, kernel_path, initrd.name)
-            res = run(cmd, ignore_status=True)
-            self.assertEqual(res.exit_status, 1)
+            self.vm.add_args('-kernel', kernel_path, '-initrd', initrd.name,
+                             '-m', '4096')
+            self.vm.set_qmp_monitor(enabled=False)
+            self.vm.launch()
+            self.vm.wait()
+            self.assertEqual(self.vm.exitcode(), 1)
             expected_msg = r'.*initrd is too large.*max: \d+, need %s.*' % (
                 max_size + 1)
-            self.assertRegex(res.stderr_text, expected_msg)
+            self.assertRegex(self.vm.get_log(), expected_msg)
 
     def test_with_2gib_file_should_work_with_linux_v4_16(self):
         """
