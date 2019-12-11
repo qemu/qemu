@@ -4507,12 +4507,20 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 {
     gen_helper_stura(cpu_env, o->in2, o->in1);
+    if (s->base.tb->flags & FLAG_MASK_PER) {
+        update_psw_addr(s);
+        gen_helper_per_store_real(cpu_env);
+    }
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_sturg(DisasContext *s, DisasOps *o)
 {
     gen_helper_sturg(cpu_env, o->in2, o->in1);
+    if (s->base.tb->flags & FLAG_MASK_PER) {
+        update_psw_addr(s);
+        gen_helper_per_store_real(cpu_env);
+    }
     return DISAS_NEXT;
 }
 #endif

@@ -620,6 +620,16 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
         }
     }
 }
+
+void HELPER(per_store_real)(CPUS390XState *env)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_STORE) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+        /* PSW is saved just before calling the helper.  */
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    }
+}
 #endif
 
 static uint8_t stfl_bytes[2048];
