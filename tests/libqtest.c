@@ -254,7 +254,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     s->expected_status = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
-        setenv("QEMU_AUDIO_DRV", "none", true);
+        g_setenv("QEMU_AUDIO_DRV", "none", true);
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
     }
