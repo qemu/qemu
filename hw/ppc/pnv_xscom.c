@@ -36,16 +36,6 @@
 #define PRD_P9_IPOLL_REG_MASK           0x000F0033
 #define PRD_P9_IPOLL_REG_STATUS         0x000F0034
 
-/* PBA BARs */
-#define P8_PBA_BAR0                     0x2013f00
-#define P8_PBA_BAR2                     0x2013f02
-#define P8_PBA_BARMASK0                 0x2013f04
-#define P8_PBA_BARMASK2                 0x2013f06
-#define P9_PBA_BAR0                     0x5012b00
-#define P9_PBA_BAR2                     0x5012b02
-#define P9_PBA_BARMASK0                 0x5012b04
-#define P9_PBA_BARMASK2                 0x5012b06
-
 static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 {
     /*
@@ -90,26 +80,6 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x18002:       /* ECID2 */
         return 0;
 
-    case P9_PBA_BAR0:
-        return PNV9_HOMER_BASE(chip);
-    case P8_PBA_BAR0:
-        return PNV_HOMER_BASE(chip);
-
-    case P9_PBA_BARMASK0: /* P9 homer region size */
-        return PNV9_HOMER_SIZE;
-    case P8_PBA_BARMASK0: /* P8 homer region size */
-        return PNV_HOMER_SIZE;
-
-    case P9_PBA_BAR2: /* P9 occ common area */
-        return PNV9_OCC_COMMON_AREA(chip);
-    case P8_PBA_BAR2: /* P8 occ common area */
-        return PNV_OCC_COMMON_AREA(chip);
-
-    case P9_PBA_BARMASK2: /* P9 occ common area size */
-        return PNV9_OCC_COMMON_AREA_SIZE;
-    case P8_PBA_BARMASK2: /* P8 occ common area size */
-        return PNV_OCC_COMMON_AREA_SIZE;
-
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
 
@@ -130,9 +100,7 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x202000f:     /* ADU stuff, receive status register*/
         return 0;
     case 0x2013f01:     /* PBA stuff */
-    case 0x2013f03:     /* PBA stuff */
     case 0x2013f05:     /* PBA stuff */
-    case 0x2013f07:     /* PBA stuff */
         return 0;
     case 0x2013028:     /* CAPP stuff */
     case 0x201302a:     /* CAPP stuff */

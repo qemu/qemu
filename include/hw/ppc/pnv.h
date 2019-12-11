@@ -244,12 +244,10 @@ IPMIBmc *pnv_bmc_create(void);
 #define PNV_XSCOM_BASE(chip)                                            \
     (0x0003fc0000000000ull + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
 
-#define PNV_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
-#define PNV_OCC_COMMON_AREA(chip)                                       \
-    (0x7fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
-                         PNV_OCC_COMMON_AREA_SIZE))
+#define PNV_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
+#define PNV_OCC_COMMON_AREA_BASE    0x7fff800000ull
 
-#define PNV_HOMER_SIZE              0x0000000000300000ull
+#define PNV_HOMER_SIZE              0x0000000000400000ull
 #define PNV_HOMER_BASE(chip)                                            \
     (0x7ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_HOMER_SIZE)
 
@@ -312,12 +310,10 @@ IPMIBmc *pnv_bmc_create(void);
 #define PNV9_XSCOM_SIZE              0x0000000400000000ull
 #define PNV9_XSCOM_BASE(chip)        PNV9_CHIP_BASE(chip, 0x00603fc00000000ull)
 
-#define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
-#define PNV9_OCC_COMMON_AREA(chip)                                      \
-    (0x203fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
-                           PNV9_OCC_COMMON_AREA_SIZE))
+#define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
+#define PNV9_OCC_COMMON_AREA_BASE    0x203fff800000ull
 
-#define PNV9_HOMER_SIZE              0x0000000000300000ull
+#define PNV9_HOMER_SIZE              0x0000000000400000ull
 #define PNV9_HOMER_BASE(chip)                                           \
     (0x203ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV9_HOMER_SIZE)
 
