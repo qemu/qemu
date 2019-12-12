@@ -1,11 +1,11 @@
 obj-$(CONFIG_KVM) += kvm/
 obj-y += e820_memory_layout.o multiboot.o
 obj-y += x86.o
-obj-y += pc.o
+obj-$(CONFIG_PC) += pc.o pc_sysfw.o
 obj-$(CONFIG_I440FX) += pc_piix.o
 obj-$(CONFIG_Q35) += pc_q35.o
 obj-$(CONFIG_MICROVM) += microvm.o
-obj-y += fw_cfg.o pc_sysfw.o
+obj-y += fw_cfg.o
 obj-y += x86-iommu.o
 obj-$(CONFIG_VTD) += intel_iommu.o
 obj-$(CONFIG_AMD_IOMMU) += amd_iommu.o
@@ -14,4 +14,4 @@ obj-$(CONFIG_VMPORT) += vmport.o
 obj-$(CONFIG_VMMOUSE) += vmmouse.o
 
 obj-y += kvmvapic.o
-obj-y += acpi-build.o
+obj-$(CONFIG_PC) += acpi-build.o

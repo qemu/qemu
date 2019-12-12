@@ -1,1 +1,5 @@
-obj-y += clock.o apic.o i8259.o ioapic.o i8254.o
+obj-y += clock.o
+obj-$(CONFIG_APIC) += apic.o
+obj-$(CONFIG_IOAPIC) += ioapic.o
+obj-$(CONFIG_I8254) += i8254.o
+obj-$(CONFIG_I8259) += i8259.o
