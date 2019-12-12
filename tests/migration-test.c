@@ -579,12 +579,10 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "150M";
-        cmd_src = g_strdup_printf(" -name source,debug-threads=on"
-                                  " -serial file:%s/src_serial"
+        cmd_src = g_strdup_printf(" -serial file:%s/src_serial"
                                   " -drive file=%s,format=raw",
                                   tmpfs, bootpath);
-        cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
-                                  " -serial file:%s/dest_serial"
+        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
                                   " -incoming %s",
                                   tmpfs, bootpath, uri);
@@ -595,11 +593,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "128M";
-        cmd_src = g_strdup_printf(" -name source,debug-threads=on"
-                                  " -serial file:%s/src_serial -bios %s",
+        cmd_src = g_strdup_printf(" -serial file:%s/src_serial -bios %s",
                                   tmpfs, bootpath);
-        cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
-                                  " -serial file:%s/dest_serial -bios %s"
+        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial -bios %s"
                                   " -incoming %s",
                                   tmpfs, bootpath, uri);
         start_address = S390_TEST_MEM_START;
@@ -609,15 +605,13 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_args = ",vsmt=8";
         memory_size = "256M";
         cmd_src = g_strdup_printf("-nodefaults"
-                                  " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -prom-env 'use-nvramrc?=true' -prom-env "
                                   "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
                                   "until'", tmpfs, end_address,
                                   start_address);
-        cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
-                                  " -serial file:%s/dest_serial"
+        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial"
                                   " -incoming %s",
                                   tmpfs, uri);
 
@@ -628,11 +622,11 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "virt,";
         machine_args = "gic-version=max";
         memory_size = "150M";
-        cmd_src = g_strdup_printf("-name vmsource,debug-threads=on -cpu max "
+        cmd_src = g_strdup_printf("-cpu max "
                                   "-serial file:%s/src_serial "
                                   "-kernel %s",
                                   tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-name vmdest,debug-threads=on -cpu max "
+        cmd_dst = g_strdup_printf("-cpu max "
                                   "-serial file:%s/dest_serial "
                                   "-kernel %s "
                                   "-incoming %s",
@@ -666,6 +660,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     }
 
     cmd_source = g_strdup_printf("-machine %saccel=kvm:tcg%s "
+                                 "-name source,debug-threads=on "
                                  "-m %s "
                                  "%s %s %s %s",
                                  machine_type, machine_args,
@@ -676,6 +671,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_free(cmd_source);
 
     cmd_target = g_strdup_printf("-machine %saccel=kvm:tcg%s "
+                                 "-name target,debug-threads=on "
                                  "-m %s "
                                  "%s %s %s %s",
                                  machine_type, machine_args,
