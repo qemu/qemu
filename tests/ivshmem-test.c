@@ -443,7 +443,7 @@ static gchar *mktempshm(int size, int *fd)
     while (true) {
         gchar *name;
 
-        name = g_strdup_printf("/qtest-%u-%u", getpid(), g_random_int());
+        name = g_strdup_printf("/qtest-%u-%u", getpid(), g_test_rand_int());
         *fd = shm_open(name, O_CREAT|O_RDWR|O_EXCL,
                        S_IRWXU|S_IRWXG|S_IRWXO);
         if (*fd > 0) {

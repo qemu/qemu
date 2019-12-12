@@ -22,10 +22,10 @@ static void check_bitmap_copy_with_offset(void)
     bmap2 = bitmap_new(BMAP_SIZE);
     bmap3 = bitmap_new(BMAP_SIZE);
 
-    bmap1[0] = random();
-    bmap1[1] = random();
-    bmap1[2] = random();
-    bmap1[3] = random();
+    bmap1[0] = g_test_rand_int();
+    bmap1[1] = g_test_rand_int();
+    bmap1[2] = g_test_rand_int();
+    bmap1[3] = g_test_rand_int();
     total = BITS_PER_LONG * 4;
 
     /* Shift 115 bits into bmap2 */
