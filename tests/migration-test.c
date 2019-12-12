@@ -563,7 +563,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     char *extra_opts = NULL;
     char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
-    const char *accel = "kvm:tcg";
+    const char *machine_type;
+    const char *machine_args;
 
     opts_src = opts_src ? opts_src : "";
     opts_dst = opts_dst ? opts_dst : "";
@@ -582,72 +583,78 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         /* the assembled x86 boot sector should be exactly one sector large */
         assert(sizeof(x86_bootsect) == 512);
         init_bootfile(bootpath, x86_bootsect, sizeof(x86_bootsect));
+        machine_type = "";
+        machine_args = "";
         extra_opts = use_shmem ? get_shmem_opts("150M", shmem_path) : NULL;
-        cmd_src = g_strdup_printf("-machine accel=%s -m 150M"
+        cmd_src = g_strdup_printf("-m 150M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,format=raw %s",
-                                  accel, tmpfs, bootpath,
+                                  tmpfs, bootpath,
                                   extra_opts ? extra_opts : "");
-        cmd_dst = g_strdup_printf("-machine accel=%s -m 150M"
+        cmd_dst = g_strdup_printf("-m 150M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
                                   " -incoming %s %s",
-                                  accel, tmpfs, bootpath, uri,
+                                  tmpfs, bootpath, uri,
                                   extra_opts ? extra_opts : "");
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
         init_bootfile(bootpath, s390x_elf, sizeof(s390x_elf));
+        machine_type = "";
+        machine_args = "";
         extra_opts = use_shmem ? get_shmem_opts("128M", shmem_path) : NULL;
-        cmd_src = g_strdup_printf("-machine accel=%s -m 128M"
+        cmd_src = g_strdup_printf("-m 128M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial -bios %s %s",
-                                  accel, tmpfs, bootpath,
+                                  tmpfs, bootpath,
                                   extra_opts ? extra_opts : "");
-        cmd_dst = g_strdup_printf("-machine accel=%s -m 128M"
+        cmd_dst = g_strdup_printf("-m 128M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial -bios %s"
                                   " -incoming %s %s",
-                                  accel, tmpfs, bootpath, uri,
+                                  tmpfs, bootpath, uri,
                                   extra_opts ? extra_opts : "");
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
+        machine_type = "";
+        machine_args = ",vsmt=8";
         extra_opts = use_shmem ? get_shmem_opts("256M", shmem_path) : NULL;
-        cmd_src = g_strdup_printf("-machine accel=%s,vsmt=8 -m 256M -nodefaults"
+        cmd_src = g_strdup_printf("-m 256M -nodefaults"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -prom-env 'use-nvramrc?=true' -prom-env "
                                   "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                  "until' %s",  accel, tmpfs, end_address,
+                                  "until' %s", tmpfs, end_address,
                                   start_address, extra_opts ? extra_opts : "");
-        cmd_dst = g_strdup_printf("-machine accel=%s,vsmt=8 -m 256M"
+        cmd_dst = g_strdup_printf("-m 256M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s %s",
-                                  accel, tmpfs, uri,
+                                  tmpfs, uri,
                                   extra_opts ? extra_opts : "");
 
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
         init_bootfile(bootpath, aarch64_kernel, sizeof(aarch64_kernel));
+        machine_type = "virt,";
+        machine_args = "gic-version=max";
         extra_opts = use_shmem ? get_shmem_opts("150M", shmem_path) : NULL;
-        cmd_src = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
-                                  "-name vmsource,debug-threads=on -cpu max "
+        cmd_src = g_strdup_printf("-name vmsource,debug-threads=on -cpu max "
                                   "-m 150M -serial file:%s/src_serial "
                                   "-kernel %s %s",
-                                  accel, tmpfs, bootpath,
+                                  tmpfs, bootpath,
                                   extra_opts ? extra_opts : "");
-        cmd_dst = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
-                                  "-name vmdest,debug-threads=on -cpu max "
+        cmd_dst = g_strdup_printf("-name vmdest,debug-threads=on -cpu max "
                                   "-m 150M -serial file:%s/dest_serial "
                                   "-kernel %s "
                                   "-incoming %s %s",
-                                  accel, tmpfs, bootpath, uri,
+                                  tmpfs, bootpath, uri,
                                   extra_opts ? extra_opts : "");
 
         start_address = ARM_TEST_MEM_START;
@@ -667,13 +674,15 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         ignore_stderr = "";
     }
 
-    cmd_source = g_strdup_printf("%s %s %s",
+    cmd_source = g_strdup_printf("-machine %saccel=kvm:tcg%s %s %s %s",
+                                 machine_type, machine_args,
                                  cmd_src, opts_src, ignore_stderr);
     g_free(cmd_src);
     *from = qtest_init(cmd_source);
     g_free(cmd_source);
 
-    cmd_target = g_strdup_printf("%s %s %s",
+    cmd_target = g_strdup_printf("-machine %saccel=kvm:tcg%s %s %s %s",
+                                 machine_type, machine_args,
                                  cmd_dst, opts_dst, ignore_stderr);
     g_free(cmd_dst);
     *to = qtest_init(cmd_target);
