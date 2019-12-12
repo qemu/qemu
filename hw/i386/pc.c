@@ -44,6 +44,7 @@
 #include "migration/vmstate.h"
 #include "multiboot.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
 #include "hw/timer/i8254.h"
 #include "hw/input/i8042.h"

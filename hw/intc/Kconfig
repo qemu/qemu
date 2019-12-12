@@ -9,6 +9,7 @@ config PL190
 
 config IOAPIC
     bool
+    select I8259
 
 config ARM_GIC
     bool
@@ -21,6 +22,7 @@ config OPENPIC
 config APIC
     bool
     select MSI_NONBROKEN
+    select I8259
 
 config ARM_GIC_KVM
     bool

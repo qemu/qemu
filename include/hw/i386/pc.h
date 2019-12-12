@@ -134,14 +134,6 @@ typedef struct PCMachineClass {
 #define PC_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
 
-/* i8259.c */
-
-extern DeviceState *isa_pic;
-qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
-qemu_irq *kvm_i8259_init(ISABus *bus);
-int pic_read_irq(DeviceState *d);
-int pic_get_output(DeviceState *d);
-
 /* ioapic.c */
 
 /* Global System Interrupts */

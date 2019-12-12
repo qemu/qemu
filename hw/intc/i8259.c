@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/i386/pc.h"
+#include "hw/intc/i8259.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "qemu/timer.h"

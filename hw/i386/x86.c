@@ -39,6 +39,7 @@
 #include "target/i386/cpu.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
+#include "hw/intc/i8259.h"
 
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/nmi.h"

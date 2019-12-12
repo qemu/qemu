@@ -34,6 +34,7 @@
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
+#include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/char/serial.h"
