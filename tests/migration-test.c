@@ -558,6 +558,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 {
     gchar *cmd_src, *cmd_dst;
     gchar *cmd_source, *cmd_target;
+    const gchar *ignore_stderr;
     char *bootpath = NULL;
     char *extra_opts = NULL;
     char *shmem_path = NULL;
@@ -661,24 +662,19 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_free(extra_opts);
 
     if (hide_stderr) {
-        gchar *tmp;
-        tmp = g_strdup_printf("%s 2>/dev/null", cmd_src);
-        g_free(cmd_src);
-        cmd_src = tmp;
-
-        tmp = g_strdup_printf("%s 2>/dev/null", cmd_dst);
-        g_free(cmd_dst);
-        cmd_dst = tmp;
+        ignore_stderr = "2>/dev/null";
+    } else {
+        ignore_stderr = "";
     }
 
-    cmd_source = g_strdup_printf("%s %s",
-                                 cmd_src, opts_src);
+    cmd_source = g_strdup_printf("%s %s %s",
+                                 cmd_src, opts_src, ignore_stderr);
     g_free(cmd_src);
     *from = qtest_init(cmd_source);
     g_free(cmd_source);
 
-    cmd_target = g_strdup_printf("%s %s",
-                                 cmd_dst, opts_dst);
+    cmd_target = g_strdup_printf("%s %s %s",
+                                 cmd_dst, opts_dst, ignore_stderr);
     g_free(cmd_dst);
     *to = qtest_init(cmd_target);
     g_free(cmd_target);
