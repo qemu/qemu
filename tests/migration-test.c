@@ -579,13 +579,10 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "150M";
-        cmd_src = g_strdup_printf(" -serial file:%s/src_serial"
-                                  " -drive file=%s,format=raw",
-                                  tmpfs, bootpath);
-        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial"
-                                  " -drive file=%s,format=raw"
+        cmd_src = g_strdup_printf("-drive file=%s,format=raw", bootpath);
+        cmd_dst = g_strdup_printf("-drive file=%s,format=raw"
                                   " -incoming %s",
-                                  tmpfs, bootpath, uri);
+                                  bootpath, uri);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
@@ -593,28 +590,22 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "128M";
-        cmd_src = g_strdup_printf(" -serial file:%s/src_serial -bios %s",
-                                  tmpfs, bootpath);
-        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial -bios %s"
+        cmd_src = g_strdup_printf("-bios %s", bootpath);
+        cmd_dst = g_strdup_printf("-bios %s"
                                   " -incoming %s",
-                                  tmpfs, bootpath, uri);
+                                  bootpath, uri);
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         machine_type = "";
         machine_args = ",vsmt=8";
         memory_size = "256M";
-        cmd_src = g_strdup_printf("-nodefaults"
-                                  " -serial file:%s/src_serial"
-                                  " -prom-env 'use-nvramrc?=true' -prom-env "
+        cmd_src = g_strdup_printf("-nodefaults "
+                                  "-prom-env 'use-nvramrc?=true' -prom-env "
                                   "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                  "until'", tmpfs, end_address,
-                                  start_address);
-        cmd_dst = g_strdup_printf(" -serial file:%s/dest_serial"
-                                  " -incoming %s",
-                                  tmpfs, uri);
-
+                                  "until'", end_address, start_address);
+        cmd_dst = g_strdup_printf(" -incoming %s", uri);
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
@@ -623,14 +614,12 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_args = "gic-version=max";
         memory_size = "150M";
         cmd_src = g_strdup_printf("-cpu max "
-                                  "-serial file:%s/src_serial "
                                   "-kernel %s",
-                                  tmpfs, bootpath);
+                                  bootpath);
         cmd_dst = g_strdup_printf("-cpu max "
-                                  "-serial file:%s/dest_serial "
                                   "-kernel %s "
                                   "-incoming %s",
-                                  tmpfs, bootpath, uri);
+                                  bootpath, uri);
 
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
@@ -661,10 +650,11 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
     cmd_source = g_strdup_printf("-machine %saccel=kvm:tcg%s "
                                  "-name source,debug-threads=on "
+                                 "-serial file:%s/src_serial "
                                  "-m %s "
                                  "%s %s %s %s",
                                  machine_type, machine_args,
-                                 memory_size,
+                                 tmpfs, memory_size,
                                  cmd_src, shmem_opts, opts_src, ignore_stderr);
     g_free(cmd_src);
     *from = qtest_init(cmd_source);
@@ -673,9 +663,10 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     cmd_target = g_strdup_printf("-machine %saccel=kvm:tcg%s "
                                  "-name target,debug-threads=on "
                                  "-m %s "
+                                 "-serial file:%s/dest_serial "
                                  "%s %s %s %s",
                                  machine_type, machine_args,
-                                 memory_size,
+                                 tmpfs, memory_size,
                                  cmd_dst, shmem_opts, opts_dst, ignore_stderr);
     g_free(cmd_dst);
     *to = qtest_init(cmd_target);
