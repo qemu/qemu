@@ -83,10 +83,6 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         return;
     }
 
-    if (!mc->cpu_index_to_instance_props || !mc->get_default_cpu_node_id) {
-        error_setg(errp, "NUMA is not supported by this machine-type");
-        return;
-    }
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         CpuInstanceProperties props;
         if (cpus->value >= max_cpus) {
@@ -178,9 +174,8 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    if (!mc->numa_mem_supported) {
+    if (!ms->numa_state) {
         error_setg(errp, "NUMA is not supported by this machine-type");
         goto end;
     }
