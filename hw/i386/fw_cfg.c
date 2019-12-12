@@ -16,7 +16,6 @@
 #include "sysemu/numa.h"
 #include "hw/acpi/acpi.h"
 #include "hw/firmware/smbios.h"
-#include "hw/i386/pc.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/timer/hpet.h"
 #include "hw/nvram/fw_cfg.h"

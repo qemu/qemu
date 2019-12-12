@@ -1,10 +1,10 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
 #include "migration/cpu.h"
 #include "hyperv.h"
+#include "hw/i386/x86.h"
 #include "kvm_i386.h"
 
 #include "sysemu/kvm.h"

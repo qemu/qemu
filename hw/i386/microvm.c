@@ -32,7 +32,6 @@
 #include "hw/kvm/clock.h"
 #include "hw/i386/microvm.h"
 #include "hw/i386/x86.h"
-#include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
 #include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"
@@ -133,7 +132,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
         qemu_irq *i8259;
 
-        i8259 = i8259_init(isa_bus, pc_allocate_cpu_irq());
+        i8259 = i8259_init(isa_bus, x86_allocate_cpu_irq());
         for (i = 0; i < ISA_NUM_IRQS; i++) {
             gsi_state->i8259_irq[i] = i8259[i];
         }

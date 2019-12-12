@@ -23,6 +23,8 @@
 
 #include "hw/boards.h"
 #include "hw/nmi.h"
+#include "hw/isa/isa.h"
+#include "hw/i386/ioapic.h"
 
 typedef struct {
     /*< private >*/
@@ -99,5 +101,21 @@ void x86_load_linux(X86MachineState *x86ms,
                     bool linuxboot_dma_enabled);
 
 bool x86_machine_is_smm_enabled(X86MachineState *x86ms);
+
+/* Global System Interrupts */
+
+#define GSI_NUM_PINS IOAPIC_NUM_PINS
+
+typedef struct GSIState {
+    qemu_irq i8259_irq[ISA_NUM_IRQS];
+    qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
+} GSIState;
+
+qemu_irq x86_allocate_cpu_irq(void);
+void gsi_handler(void *opaque, int n, int level);
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
+
+/* hpet.c */
+extern int no_hpet;
 
 #endif

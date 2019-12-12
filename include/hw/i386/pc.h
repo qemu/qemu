@@ -3,11 +3,9 @@
 
 #include "exec/memory.h"
 #include "hw/boards.h"
-#include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "hw/block/flash.h"
 #include "net/net.h"
-#include "hw/i386/ioapic.h"
 #include "hw/i386/x86.h"
 
 #include "qemu/range.h"
@@ -134,17 +132,6 @@ typedef struct PCMachineClass {
 
 /* ioapic.c */
 
-/* Global System Interrupts */
-
-#define GSI_NUM_PINS IOAPIC_NUM_PINS
-
-typedef struct GSIState {
-    qemu_irq i8259_irq[ISA_NUM_IRQS];
-    qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
-} GSIState;
-
-void gsi_handler(void *opaque, int n, int level);
-
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
 
 /* vmport.c */
@@ -188,7 +175,6 @@ void pc_memory_init(PCMachineState *pcms,
                     MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory);
 uint64_t pc_pci_hole64_start(void);
-qemu_irq pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
@@ -206,17 +192,11 @@ void pc_pci_device_init(PCIBus *pci_bus);
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
 
 void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs);
-void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 ISADevice *pc_find_fdc0(void);
 int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
-#define FW_CFG_IO_BASE     0x510
-
 #define PORT92_A20_LINE "a20"
-
-/* hpet.c */
-extern int no_hpet;
 
 /* pc_sysfw.c */
 void pc_system_flash_create(PCMachineState *pcms);
