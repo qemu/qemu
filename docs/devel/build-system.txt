@@ -404,10 +404,7 @@ using Makefile.target for the build rules.
 - rules.mak
 
 This file provides the generic helper rules for invoking build tools, in
-particular the compiler and linker. This also contains the magic (hairy)
-'unnest-vars' function which is used to merge the variable definitions
-from all Makefile.objs in the source tree down into the main Makefile
-context.
+particular the compiler and linker.
 
 
 - default-configs/*.mak

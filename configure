@@ -78,7 +78,6 @@ TMPC="${TMPDIR1}/${TMPB}.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
 TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPE="${TMPDIR1}/${TMPB}.exe"
-TMPMO="${TMPDIR1}/${TMPB}.mo"
 TMPTXT="${TMPDIR1}/${TMPB}.txt"
 
 rm -f config.log
@@ -469,7 +468,7 @@ bigendian="no"
 mingw32="no"
 gcov="no"
 EXESUF=""
-DSOSUF=".so"
+HOST_DSOSUF=".so"
 LDFLAGS_SHARED="-shared"
 modules="no"
 module_upgrades="no"
@@ -1001,7 +1000,7 @@ fi
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
-  DSOSUF=".dll"
+  HOST_DSOSUF=".dll"
   # MinGW needs -mthreads for TLS and macro _MT.
   CFLAGS="-mthreads $CFLAGS"
   LIBS="-lwinmm -lws2_32 $LIBS"
@@ -6255,31 +6254,6 @@ EOF
   fi
 fi
 
-#################################################
-# Sparc implicitly links with --relax, which is
-# incompatible with -r, so --no-relax should be
-# given. It does no harm to give it on other
-# platforms too.
-
-# Note: the prototype is needed since QEMU_CFLAGS
-#       contains -Wmissing-prototypes
-cat > $TMPC << EOF
-extern int foo(void);
-int foo(void) { return 0; }
-EOF
-if ! compile_object ""; then
-  error_exit "Failed to compile object file for LD_REL_FLAGS test"
-fi
-for i in '-Wl,-r -Wl,--no-relax' -Wl,-r -r; do
-  if do_cc -nostdlib $i -o $TMPMO $TMPO; then
-    LD_REL_FLAGS=$i
-    break
-  fi
-done
-if test "$modules" = "yes" && test "$LD_REL_FLAGS" = ""; then
-  feature_not_found "modules" "Cannot find how to build relocatable objects"
-fi
-
 ##########################################
 # check for sysmacros.h
 
@@ -7011,12 +6985,7 @@ fi
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_AUDIO_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
-    case "$drv" in
-	alsa | oss | pa | sdl)
-	    echo "$def=m" >> $config_host_mak ;;
-	*)
-	    echo "$def=y" >> $config_host_mak ;;
-    esac
+    echo "$def=y" >> $config_host_mak
 done
 if test "$alsa" = "yes" ; then
     echo "CONFIG_ALSA=y" >> $config_host_mak
@@ -7105,7 +7074,7 @@ if test "$iconv" = "yes" ; then
   echo "ICONV_LIBS=$iconv_lib" >> $config_host_mak
 fi
 if test "$curses" = "yes" ; then
-  echo "CONFIG_CURSES=m" >> $config_host_mak
+  echo "CONFIG_CURSES=y" >> $config_host_mak
   echo "CURSES_CFLAGS=$curses_inc" >> $config_host_mak
   echo "CURSES_LIBS=$curses_lib" >> $config_host_mak
 fi
@@ -7200,7 +7169,7 @@ if test "$bswap_h" = "yes" ; then
   echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$curl" = "yes" ; then
-  echo "CONFIG_CURL=m" >> $config_host_mak
+  echo "CONFIG_CURL=y" >> $config_host_mak
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
   echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
@@ -7209,7 +7178,7 @@ if test "$brlapi" = "yes" ; then
   echo "BRLAPI_LIBS=$brlapi_libs" >> $config_host_mak
 fi
 if test "$gtk" = "yes" ; then
-  echo "CONFIG_GTK=m" >> $config_host_mak
+  echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
   echo "GTK_LIBS=$gtk_libs" >> $config_host_mak
   if test "$gtk_gl" = "yes" ; then
@@ -7472,13 +7441,13 @@ if test "$zstd" = "yes" ; then
 fi
 
 if test "$libiscsi" = "yes" ; then
-  echo "CONFIG_LIBISCSI=m" >> $config_host_mak
+  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
   echo "LIBISCSI_CFLAGS=$libiscsi_cflags" >> $config_host_mak
   echo "LIBISCSI_LIBS=$libiscsi_libs" >> $config_host_mak
 fi
 
 if test "$libnfs" = "yes" ; then
-  echo "CONFIG_LIBNFS=m" >> $config_host_mak
+  echo "CONFIG_LIBNFS=y" >> $config_host_mak
   echo "LIBNFS_LIBS=$libnfs_libs" >> $config_host_mak
 fi
 
@@ -7500,7 +7469,7 @@ if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
-  echo "CONFIG_RBD=m" >> $config_host_mak
+  echo "CONFIG_RBD=y" >> $config_host_mak
   echo "RBD_LIBS=$rbd_libs" >> $config_host_mak
 fi
 
@@ -7572,7 +7541,7 @@ if test "$getauxval" = "yes" ; then
 fi
 
 if test "$glusterfs" = "yes" ; then
-  echo "CONFIG_GLUSTERFS=m" >> $config_host_mak
+  echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
   echo "GLUSTERFS_CFLAGS=$glusterfs_cflags" >> $config_host_mak
   echo "GLUSTERFS_LIBS=$glusterfs_libs" >> $config_host_mak
 fi
@@ -7602,7 +7571,7 @@ if test "$glusterfs_iocb_has_stat" = "yes" ; then
 fi
 
 if test "$libssh" = "yes" ; then
-  echo "CONFIG_LIBSSH=m" >> $config_host_mak
+  echo "CONFIG_LIBSSH=y" >> $config_host_mak
   echo "LIBSSH_CFLAGS=$libssh_cflags" >> $config_host_mak
   echo "LIBSSH_LIBS=$libssh_libs" >> $config_host_mak
 fi
@@ -7862,7 +7831,7 @@ echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "PTHREAD_LIB=$PTHREAD_LIB" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
-echo "DSOSUF=$DSOSUF" >> $config_host_mak
+echo "HOST_DSOSUF=$HOST_DSOSUF" >> $config_host_mak
 echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 echo "TASN1_LIBS=$tasn1_libs" >> $config_host_mak

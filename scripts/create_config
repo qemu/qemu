@@ -91,6 +91,9 @@ case $line in
     name=${line%=*}
     echo "#define $name 1"
     ;;
+ HOST_DSOSUF=*)
+    echo "#define HOST_DSOSUF \"${line#*=}\""
+    ;;
  HOST_*=*) # configuration
     name=${line%=*}
     value=${line#*=}
@@ -122,9 +125,6 @@ case $line in
     name=${line%=*}
     value=${line#*=}
     echo "#define $name $value"
-    ;;
- DSOSUF=*)
-    echo "#define HOST_DSOSUF \"${line#*=}\""
     ;;
 esac
 
