@@ -281,7 +281,7 @@ else {
         /* TODO: Populate SPD eeprom data.  */
         pcms->smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                                     x86ms->gsi[9], smi_irq,
-                                    pc_machine_is_smm_enabled(pcms),
+                                    x86_machine_is_smm_enabled(x86ms),
                                     &piix4_pm);
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
 
@@ -309,9 +309,9 @@ else {
 
 static void pc_compat_2_3_fn(MachineState *machine)
 {
-    PCMachineState *pcms = PC_MACHINE(machine);
+    X86MachineState *x86ms = X86_MACHINE(machine);
     if (kvm_enabled()) {
-        pcms->smm = ON_OFF_AUTO_OFF;
+        x86ms->smm = ON_OFF_AUTO_OFF;
     }
 }
 

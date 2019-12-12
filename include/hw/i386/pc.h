@@ -43,7 +43,6 @@ struct PCMachineState {
 
     /* Configuration options: */
     OnOffAuto vmport;
-    OnOffAuto smm;
 
     bool acpi_build_enabled;
     bool smbus_enabled;
@@ -61,7 +60,6 @@ struct PCMachineState {
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_DEVMEM_REGION_SIZE "device-memory-region-size"
 #define PC_MACHINE_VMPORT           "vmport"
-#define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_SMBUS            "smbus"
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
@@ -165,7 +163,6 @@ void vmmouse_set_data(const uint32_t *data);
 /* pc.c */
 extern int fd_bootchk;
 
-bool pc_machine_is_smm_enabled(PCMachineState *pcms);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
 void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp);
