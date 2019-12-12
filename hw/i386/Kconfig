@@ -103,11 +103,17 @@ config MICROVM
     select MC146818RTC
     select VIRTIO_MMIO
 
+config X86_IOMMU
+    bool
+    depends on PC
+
 config VTD
     bool
+    select X86_IOMMU
 
 config AMD_IOMMU
     bool
+    select X86_IOMMU
 
 config VMPORT
     bool
