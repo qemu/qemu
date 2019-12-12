@@ -380,13 +380,6 @@ static void cleanup(const char *filename)
     g_free(path);
 }
 
-static char *get_shmem_opts(const char *mem_size, const char *shmem_path)
-{
-    return g_strdup_printf("-object memory-backend-file,id=mem0,size=%s"
-                           ",mem-path=%s,share=on -numa node,memdev=mem0",
-                           mem_size, shmem_path);
-}
-
 static char *SocketAddress_to_str(SocketAddress *addr)
 {
     switch (addr->type) {
@@ -560,8 +553,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     gchar *cmd_source, *cmd_target;
     const gchar *ignore_stderr;
     char *bootpath = NULL;
-    char *extra_opts = NULL;
-    char *shmem_path = NULL;
+    char *shmem_opts;
+    char *shmem_path;
     const char *arch = qtest_get_arch();
     const char *machine_type;
     const char *machine_args;
@@ -575,7 +568,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
             g_test_skip("/dev/shm is not supported");
             return -1;
         }
-        shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
     }
 
     got_stop = false;
@@ -587,18 +579,15 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "150M";
-        extra_opts = use_shmem ? get_shmem_opts(memory_size, shmem_path) : NULL;
         cmd_src = g_strdup_printf(" -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -drive file=%s,format=raw %s",
-                                  tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  " -drive file=%s,format=raw",
+                                  tmpfs, bootpath);
         cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
-                                  " -incoming %s %s",
-                                  tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  " -incoming %s",
+                                  tmpfs, bootpath, uri);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
@@ -606,36 +595,31 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "128M";
-        extra_opts = use_shmem ? get_shmem_opts(memory_size, shmem_path) : NULL;
         cmd_src = g_strdup_printf(" -name source,debug-threads=on"
-                                  " -serial file:%s/src_serial -bios %s %s",
-                                  tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  " -serial file:%s/src_serial -bios %s",
+                                  tmpfs, bootpath);
         cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial -bios %s"
-                                  " -incoming %s %s",
-                                  tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  " -incoming %s",
+                                  tmpfs, bootpath, uri);
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         machine_type = "";
         machine_args = ",vsmt=8";
         memory_size = "256M";
-        extra_opts = use_shmem ? get_shmem_opts(memory_size, shmem_path) : NULL;
         cmd_src = g_strdup_printf("-nodefaults"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -prom-env 'use-nvramrc?=true' -prom-env "
                                   "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                  "until' %s", tmpfs, end_address,
-                                  start_address, extra_opts ? extra_opts : "");
+                                  "until'", tmpfs, end_address,
+                                  start_address);
         cmd_dst = g_strdup_printf(" -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
-                                  " -incoming %s %s",
-                                  tmpfs, uri,
-                                  extra_opts ? extra_opts : "");
+                                  " -incoming %s",
+                                  tmpfs, uri);
 
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
@@ -644,18 +628,15 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "virt,";
         machine_args = "gic-version=max";
         memory_size = "150M";
-        extra_opts = use_shmem ? get_shmem_opts(memory_size, shmem_path) : NULL;
         cmd_src = g_strdup_printf("-name vmsource,debug-threads=on -cpu max "
                                   "-serial file:%s/src_serial "
-                                  "-kernel %s %s",
-                                  tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  "-kernel %s",
+                                  tmpfs, bootpath);
         cmd_dst = g_strdup_printf("-name vmdest,debug-threads=on -cpu max "
                                   "-serial file:%s/dest_serial "
                                   "-kernel %s "
-                                  "-incoming %s %s",
-                                  tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  "-incoming %s",
+                                  tmpfs, bootpath, uri);
 
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
@@ -666,7 +647,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     }
 
     g_free(bootpath);
-    g_free(extra_opts);
 
     if (hide_stderr) {
         ignore_stderr = "2>/dev/null";
@@ -674,26 +654,38 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         ignore_stderr = "";
     }
 
+    if (use_shmem) {
+        shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
+        shmem_opts = g_strdup_printf(
+            "-object memory-backend-file,id=mem0,size=%s"
+            ",mem-path=%s,share=on -numa node,memdev=mem0",
+            memory_size, shmem_path);
+    } else {
+        shmem_path = NULL;
+        shmem_opts = g_strdup("");
+    }
+
     cmd_source = g_strdup_printf("-machine %saccel=kvm:tcg%s "
                                  "-m %s "
-                                 "%s %s %s",
+                                 "%s %s %s %s",
                                  machine_type, machine_args,
                                  memory_size,
-                                 cmd_src, opts_src, ignore_stderr);
+                                 cmd_src, shmem_opts, opts_src, ignore_stderr);
     g_free(cmd_src);
     *from = qtest_init(cmd_source);
     g_free(cmd_source);
 
     cmd_target = g_strdup_printf("-machine %saccel=kvm:tcg%s "
                                  "-m %s "
-                                 "%s %s %s",
+                                 "%s %s %s %s",
                                  machine_type, machine_args,
                                  memory_size,
-                                 cmd_dst, opts_dst, ignore_stderr);
+                                 cmd_dst, shmem_opts, opts_dst, ignore_stderr);
     g_free(cmd_dst);
     *to = qtest_init(cmd_target);
     g_free(cmd_target);
 
+    g_free(shmem_opts);
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
      * It's valid becase QEMU has already opened this file
