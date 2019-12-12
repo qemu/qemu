@@ -549,7 +549,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                bool use_shmem, const char *opts_src,
                                const char *opts_dst)
 {
-    gchar *cmd_src, *cmd_dst;
+    gchar *arch_source, *arch_target;
     gchar *cmd_source, *cmd_target;
     const gchar *ignore_stderr;
     char *bootpath = NULL;
@@ -579,8 +579,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "150M";
-        cmd_src = g_strdup_printf("-drive file=%s,format=raw", bootpath);
-        cmd_dst = g_strdup(cmd_src);
+        arch_source = g_strdup_printf("-drive file=%s,format=raw", bootpath);
+        arch_target = g_strdup(arch_source);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
@@ -588,20 +588,20 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "";
         machine_args = "";
         memory_size = "128M";
-        cmd_src = g_strdup_printf("-bios %s", bootpath);
-        cmd_dst = g_strdup(cmd_src);
+        arch_source = g_strdup_printf("-bios %s", bootpath);
+        arch_target = g_strdup(arch_source);
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         machine_type = "";
         machine_args = ",vsmt=8";
         memory_size = "256M";
-        cmd_src = g_strdup_printf("-nodefaults "
-                                  "-prom-env 'use-nvramrc?=true' -prom-env "
-                                  "'nvramrc=hex .\" _\" begin %x %x "
-                                  "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                  "until'", end_address, start_address);
-        cmd_dst = g_strdup("");
+        arch_source = g_strdup_printf("-nodefaults "
+                                      "-prom-env 'use-nvramrc?=true' -prom-env "
+                                      "'nvramrc=hex .\" _\" begin %x %x "
+                                      "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
+                                      "until'", end_address, start_address);
+        arch_target = g_strdup("");
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
@@ -609,10 +609,10 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         machine_type = "virt,";
         machine_args = "gic-version=max";
         memory_size = "150M";
-        cmd_src = g_strdup_printf("-cpu max "
-                                  "-kernel %s",
-                                  bootpath);
-        cmd_dst = g_strdup(cmd_src);
+        arch_source = g_strdup_printf("-cpu max "
+                                      "-kernel %s",
+                                      bootpath);
+        arch_target = g_strdup(arch_source);
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
 
@@ -647,8 +647,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  "%s %s %s %s",
                                  machine_type, machine_args,
                                  memory_size, tmpfs,
-                                 cmd_src, shmem_opts, opts_src, ignore_stderr);
-    g_free(cmd_src);
+                                 arch_source, shmem_opts, opts_src,
+                                 ignore_stderr);
+    g_free(arch_source);
     *from = qtest_init(cmd_source);
     g_free(cmd_source);
 
@@ -660,8 +661,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  "%s %s %s %s",
                                  machine_type, machine_args,
                                  memory_size, tmpfs, uri,
-                                 cmd_dst, shmem_opts, opts_dst, ignore_stderr);
-    g_free(cmd_dst);
+                                 arch_target, shmem_opts, opts_dst,
+                                 ignore_stderr);
+    g_free(arch_target);
     *to = qtest_init(cmd_target);
     g_free(cmd_target);
 
