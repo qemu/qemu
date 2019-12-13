@@ -48,18 +48,6 @@ void kvm_pc_setup_irq_routing(bool pci_enabled)
     }
 }
 
-void kvm_pc_gsi_handler(void *opaque, int n, int level)
-{
-    GSIState *s = opaque;
-
-    if (n < ISA_NUM_IRQS) {
-        /* Kernel will forward to both PIC and IOAPIC */
-        qemu_set_irq(s->i8259_irq[n], level);
-    } else {
-        qemu_set_irq(s->ioapic_irq[n], level);
-    }
-}
-
 typedef struct KVMIOAPICState KVMIOAPICState;
 
 struct KVMIOAPICState {

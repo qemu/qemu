@@ -295,6 +295,7 @@ void gsi_handler(void *opaque, int n, int level)
 
     trace_x86_gsi_interrupt(n, level);
     if (n < ISA_NUM_IRQS) {
+        /* Under KVM, Kernel will forward to both PIC and IOAPIC */
         qemu_set_irq(s->i8259_irq[n], level);
     }
     qemu_set_irq(s->ioapic_irq[n], level);
