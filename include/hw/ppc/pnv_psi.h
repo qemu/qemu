@@ -79,7 +79,6 @@ typedef struct Pnv9Psi {
 typedef struct PnvPsiClass {
     SysBusDeviceClass parent_class;
 
-    int chip_type;
     uint32_t xscom_pcba;
     uint32_t xscom_size;
     uint64_t bar_mask;

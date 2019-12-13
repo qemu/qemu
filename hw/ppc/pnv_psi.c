@@ -574,7 +574,6 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
     dc->desc    = "PowerNV PSI Controller POWER8";
     dc->realize = pnv_psi_power8_realize;
 
-    ppc->chip_type =  PNV_CHIP_POWER8;
     ppc->xscom_pcba = PNV_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB_BAR_MASK;
@@ -884,7 +883,6 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
     dc->desc    = "PowerNV PSI Controller POWER9";
     dc->realize = pnv_psi_power9_realize;
 
-    ppc->chip_type  = PNV_CHIP_POWER9;
     ppc->xscom_pcba = PNV9_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB9_BAR_MASK;
@@ -915,7 +913,6 @@ static void pnv_psi_power10_class_init(ObjectClass *klass, void *data)
 
     dc->desc    = "PowerNV PSI Controller POWER10";
 
-    ppc->chip_type  = PNV_CHIP_POWER10;
     ppc->xscom_pcba = PNV10_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV10_XSCOM_PSIHB_SIZE;
     ppc->compat     = compat;
