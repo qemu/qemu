@@ -227,11 +227,6 @@ static inline bool pnv_chip_is_power9(const PnvChip *chip)
     return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER9;
 }
 
-static inline bool pnv_is_power9(PnvMachineState *pnv)
-{
-    return pnv_chip_is_power9(pnv->chips[0]);
-}
-
 PnvChip *pnv_get_chip(uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
@@ -240,11 +235,6 @@ PnvChip *pnv_get_chip(uint32_t chip_id);
 static inline bool pnv_chip_is_power10(const PnvChip *chip)
 {
     return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER10;
-}
-
-static inline bool pnv_is_power10(PnvMachineState *pnv)
-{
-    return pnv_chip_is_power10(pnv->chips[0]);
 }
 
 /*
