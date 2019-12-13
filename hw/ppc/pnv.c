@@ -280,11 +280,13 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
 
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
+    static const char compat[] = "ibm,power8-xscom\0ibm,xscom";
     int i;
 
     pnv_dt_xscom(chip, fdt, 0,
                  cpu_to_be64(PNV_XSCOM_BASE(chip)),
-                 cpu_to_be64(PNV_XSCOM_SIZE));
+                 cpu_to_be64(PNV_XSCOM_SIZE),
+                 compat, sizeof(compat));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
@@ -302,11 +304,13 @@ static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 
 static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 {
+    static const char compat[] = "ibm,power9-xscom\0ibm,xscom";
     int i;
 
     pnv_dt_xscom(chip, fdt, 0,
                  cpu_to_be64(PNV9_XSCOM_BASE(chip)),
-                 cpu_to_be64(PNV9_XSCOM_SIZE));
+                 cpu_to_be64(PNV9_XSCOM_SIZE),
+                 compat, sizeof(compat));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
@@ -323,11 +327,13 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 
 static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
 {
+    static const char compat[] = "ibm,power10-xscom\0ibm,xscom";
     int i;
 
     pnv_dt_xscom(chip, fdt, 0,
                  cpu_to_be64(PNV10_XSCOM_BASE(chip)),
-                 cpu_to_be64(PNV10_XSCOM_SIZE));
+                 cpu_to_be64(PNV10_XSCOM_SIZE),
+                 compat, sizeof(compat));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];

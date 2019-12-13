@@ -282,12 +282,9 @@ static int xscom_dt_child(Object *child, void *opaque)
     return 0;
 }
 
-static const char compat_p8[] = "ibm,power8-xscom\0ibm,xscom";
-static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
-static const char compat_p10[] = "ibm,power10-xscom\0ibm,xscom";
-
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
-                 uint64_t xscom_base, uint64_t xscom_size)
+                 uint64_t xscom_base, uint64_t xscom_size,
+                 const char *compat, int compat_size)
 {
     uint64_t reg[] = { xscom_base, xscom_size };
     int xscom_offset;
@@ -302,18 +299,7 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "#address-cells", 1)));
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, xscom_offset, "reg", reg, sizeof(reg))));
-
-    if (pnv_chip_is_power10(chip)) {
-        _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p10,
-                          sizeof(compat_p10))));
-    } else if (pnv_chip_is_power9(chip)) {
-        _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p9,
-                          sizeof(compat_p9))));
-    } else {
-        _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p8,
-                          sizeof(compat_p8))));
-    }
-
+    _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat, compat_size)));
     _FDT((fdt_setprop(fdt, xscom_offset, "scom-controller", NULL, 0)));
 
     args.fdt = fdt;

@@ -115,7 +115,8 @@ typedef struct PnvXScomInterfaceClass {
 
 void pnv_xscom_realize(PnvChip *chip, uint64_t size, Error **errp);
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
-                 uint64_t xscom_base, uint64_t xscom_size);
+                 uint64_t xscom_base, uint64_t xscom_size,
+                 const char *compat, int compat_size);
 
 void pnv_xscom_add_subregion(PnvChip *chip, hwaddr offset,
                              MemoryRegion *mr);
