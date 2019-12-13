@@ -831,6 +831,12 @@ static void pnv_chip_power8_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
     pnv_cpu->intc = NULL;
 }
 
+static void pnv_chip_power8_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                            Monitor *mon)
+{
+    icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
+}
+
 /*
  *    0:48  Reserved - Read as zeroes
  *   49:52  Node ID
@@ -888,6 +894,12 @@ static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
     pnv_cpu->intc = NULL;
 }
 
+static void pnv_chip_power9_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                            Monitor *mon)
+{
+    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), mon);
+}
+
 static void pnv_chip_power10_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
@@ -907,6 +919,11 @@ static void pnv_chip_power10_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
     pnv_cpu->intc = NULL;
+}
+
+static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                             Monitor *mon)
+{
 }
 
 /*
@@ -1085,6 +1102,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
+    k->intc_print_info = pnv_chip_power8_intc_print_info;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1106,6 +1124,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
+    k->intc_print_info = pnv_chip_power8_intc_print_info;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1127,6 +1146,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
+    k->intc_print_info = pnv_chip_power8_intc_print_info;
     k->isa_create = pnv_chip_power8nvl_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
@@ -1298,6 +1318,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power9_intc_create;
     k->intc_reset = pnv_chip_power9_intc_reset;
     k->intc_destroy = pnv_chip_power9_intc_destroy;
+    k->intc_print_info = pnv_chip_power9_intc_print_info;
     k->isa_create = pnv_chip_power9_isa_create;
     k->dt_populate = pnv_chip_power9_dt_populate;
     k->pic_print_info = pnv_chip_power9_pic_print_info;
@@ -1378,6 +1399,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power10_intc_create;
     k->intc_reset = pnv_chip_power10_intc_reset;
     k->intc_destroy = pnv_chip_power10_intc_destroy;
+    k->intc_print_info = pnv_chip_power10_intc_print_info;
     k->isa_create = pnv_chip_power10_isa_create;
     k->dt_populate = pnv_chip_power10_dt_populate;
     k->pic_print_info = pnv_chip_power10_pic_print_info;
@@ -1574,11 +1596,9 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        if (pnv_chip_is_power9(pnv->chips[0])) {
-            xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), mon);
-        } else {
-            icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
-        }
+        /* XXX: loop on each chip/core/thread instead of CPU_FOREACH() */
+        PNV_CHIP_GET_CLASS(pnv->chips[0])->intc_print_info(pnv->chips[0], cpu,
+                                                           mon);
     }
 
     for (i = 0; i < pnv->num_chips; i++) {
