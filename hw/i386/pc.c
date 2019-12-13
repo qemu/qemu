@@ -710,11 +710,6 @@ static uint64_t port92_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void port92_init(ISADevice *dev, qemu_irq a20_out)
-{
-    qdev_connect_gpio_out_named(DEVICE(dev), PORT92_A20_LINE, 0, a20_out);
-}
-
 static const VMStateDescription vmstate_port92_isa = {
     .name = "port92",
     .version_id = 1,
@@ -770,8 +765,8 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_port92_isa;
     /*
      * Reason: unlike ordinary ISA devices, this one needs additional
-     * wiring: its A20 output line needs to be wired up by
-     * port92_init().
+     * wiring: its A20 output line needs to be wired up with
+     * qdev_connect_gpio_out_named().
      */
     dc->user_creatable = false;
 }
@@ -1282,7 +1277,8 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl, bool no_vmport)
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042_setup_a20_line(i8042, a20_line[0]);
-    port92_init(port92, a20_line[1]);
+    qdev_connect_gpio_out_named(DEVICE(port92),
+                                PORT92_A20_LINE, 0, a20_line[1]);
     g_free(a20_line);
 }
 
