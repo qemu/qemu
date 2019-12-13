@@ -546,14 +546,14 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
     }
 
     ret = HV_STATUS_INVALID_CONNECTION_ID;
-    rcu_read_lock();
-    QLIST_FOREACH_RCU(mh, &msg_handlers, link) {
-        if (mh->conn_id == (msg->connection_id & HV_CONNECTION_ID_MASK)) {
-            ret = mh->handler(msg, mh->data);
-            break;
+    WITH_RCU_READ_LOCK_GUARD() {
+        QLIST_FOREACH_RCU(mh, &msg_handlers, link) {
+            if (mh->conn_id == (msg->connection_id & HV_CONNECTION_ID_MASK)) {
+                ret = mh->handler(msg, mh->data);
+                break;
+            }
         }
     }
-    rcu_read_unlock();
 
 unmap:
     cpu_physical_memory_unmap(msg, len, 0, 0);
@@ -619,7 +619,6 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
 
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
 {
-    uint16_t ret;
     EventFlagHandler *handler;
 
     if (unlikely(!fast)) {
@@ -645,15 +644,12 @@ uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
         return HV_STATUS_INVALID_HYPERCALL_INPUT;
     }
 
-    ret = HV_STATUS_INVALID_CONNECTION_ID;
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     QLIST_FOREACH_RCU(handler, &event_flag_handlers, link) {
         if (handler->conn_id == param) {
             event_notifier_set(handler->notifier);
-            ret = 0;
-            break;
+            return 0;
         }
     }
-    rcu_read_unlock();
-    return ret;
+    return HV_STATUS_INVALID_CONNECTION_ID;
 }
