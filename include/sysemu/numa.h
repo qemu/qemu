@@ -18,6 +18,8 @@ struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;
+    bool has_cpu;
+    uint16_t initiator;
     uint8_t distance[MAX_NODES];
 };
 
@@ -32,6 +34,9 @@ struct NumaState {
 
     /* Allow setting NUMA distance for different NUMA nodes */
     bool have_numa_distance;
+
+    /* Detect if HMAT support is enabled. */
+    bool hmat_enabled;
 
     /* NUMA nodes information */
     NodeInfo nodes[MAX_NODES];
