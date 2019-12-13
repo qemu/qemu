@@ -1120,6 +1120,12 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->homer.regs);
 }
 
+static uint32_t pnv_chip_power8_xscom_pcba(PnvChip *chip, uint64_t addr)
+{
+    addr &= (PNV_XSCOM_SIZE - 1);
+    return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
+}
+
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1137,6 +1143,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_core_base = pnv_chip_power8_xscom_core_base;
+    k->xscom_pcba = pnv_chip_power8_xscom_pcba;
     dc->desc = "PowerNV Chip POWER8E";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1160,6 +1167,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_core_base = pnv_chip_power8_xscom_core_base;
+    k->xscom_pcba = pnv_chip_power8_xscom_pcba;
     dc->desc = "PowerNV Chip POWER8";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1183,6 +1191,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_core_base = pnv_chip_power8_xscom_core_base;
+    k->xscom_pcba = pnv_chip_power8_xscom_pcba;
     dc->desc = "PowerNV Chip POWER8NVL";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1339,6 +1348,12 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                 &chip9->homer.regs);
 }
 
+static uint32_t pnv_chip_power9_xscom_pcba(PnvChip *chip, uint64_t addr)
+{
+    addr &= (PNV9_XSCOM_SIZE - 1);
+    return addr >> 3;
+}
+
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1356,6 +1371,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->dt_populate = pnv_chip_power9_dt_populate;
     k->pic_print_info = pnv_chip_power9_pic_print_info;
     k->xscom_core_base = pnv_chip_power9_xscom_core_base;
+    k->xscom_pcba = pnv_chip_power9_xscom_pcba;
     dc->desc = "PowerNV Chip POWER9";
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
@@ -1421,6 +1437,12 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV10_LPCM_BASE(chip));
 }
 
+static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
+{
+    addr &= (PNV10_XSCOM_SIZE - 1);
+    return addr >> 3;
+}
+
 static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1438,6 +1460,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     k->dt_populate = pnv_chip_power10_dt_populate;
     k->pic_print_info = pnv_chip_power10_pic_print_info;
     k->xscom_core_base = pnv_chip_power10_xscom_core_base;
+    k->xscom_pcba = pnv_chip_power10_xscom_pcba;
     dc->desc = "PowerNV Chip POWER10";
 
     device_class_set_parent_realize(dc, pnv_chip_power10_realize,

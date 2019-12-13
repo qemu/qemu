@@ -57,19 +57,7 @@ static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 
 static uint32_t pnv_xscom_pcba(PnvChip *chip, uint64_t addr)
 {
-    addr &= (PNV_XSCOM_SIZE - 1);
-
-    switch (PNV_CHIP_GET_CLASS(chip)->chip_type) {
-    case PNV_CHIP_POWER8E:
-    case PNV_CHIP_POWER8:
-    case PNV_CHIP_POWER8NVL:
-        return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
-    case PNV_CHIP_POWER9:
-    case PNV_CHIP_POWER10:
-        return addr >> 3;
-    default:
-        g_assert_not_reached();
-    }
+    return PNV_CHIP_GET_CLASS(chip)->xscom_pcba(chip, addr);
 }
 
 static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
