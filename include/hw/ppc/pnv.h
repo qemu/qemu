@@ -137,6 +137,7 @@ typedef struct PnvChipClass {
     ISABus *(*isa_create)(PnvChip *chip, Error **errp);
     void (*dt_populate)(PnvChip *chip, void *fdt);
     void (*pic_print_info)(PnvChip *chip, Monitor *mon);
+    uint64_t (*xscom_core_base)(PnvChip *chip, uint32_t core_id);
 } PnvChipClass;
 
 #define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP

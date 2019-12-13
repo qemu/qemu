@@ -615,6 +615,24 @@ static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
     pnv_psi_pic_print_info(&chip9->psi, mon);
 }
 
+static uint64_t pnv_chip_power8_xscom_core_base(PnvChip *chip,
+                                                uint32_t core_id)
+{
+    return PNV_XSCOM_EX_BASE(core_id);
+}
+
+static uint64_t pnv_chip_power9_xscom_core_base(PnvChip *chip,
+                                                uint32_t core_id)
+{
+    return PNV9_XSCOM_EC_BASE(core_id);
+}
+
+static uint64_t pnv_chip_power10_xscom_core_base(PnvChip *chip,
+                                                 uint32_t core_id)
+{
+    return PNV10_XSCOM_EC_BASE(core_id);
+}
+
 static bool pnv_match_cpu(const char *default_type, const char *cpu_type)
 {
     PowerPCCPUClass *ppc_default =
@@ -1106,6 +1124,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
+    k->xscom_core_base = pnv_chip_power8_xscom_core_base;
     dc->desc = "PowerNV Chip POWER8E";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1128,6 +1147,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
+    k->xscom_core_base = pnv_chip_power8_xscom_core_base;
     dc->desc = "PowerNV Chip POWER8";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1150,6 +1170,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8nvl_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
+    k->xscom_core_base = pnv_chip_power8_xscom_core_base;
     dc->desc = "PowerNV Chip POWER8NVL";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1322,6 +1343,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power9_isa_create;
     k->dt_populate = pnv_chip_power9_dt_populate;
     k->pic_print_info = pnv_chip_power9_pic_print_info;
+    k->xscom_core_base = pnv_chip_power9_xscom_core_base;
     dc->desc = "PowerNV Chip POWER9";
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
@@ -1403,6 +1425,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power10_isa_create;
     k->dt_populate = pnv_chip_power10_dt_populate;
     k->pic_print_info = pnv_chip_power10_pic_print_info;
+    k->xscom_core_base = pnv_chip_power10_xscom_core_base;
     dc->desc = "PowerNV Chip POWER10";
 
     device_class_set_parent_realize(dc, pnv_chip_power10_realize,
@@ -1490,13 +1513,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                  &error_fatal);
 
         /* Each core has an XSCOM MMIO region */
-        if (pnv_chip_is_power10(chip)) {
-            xscom_core_base = PNV10_XSCOM_EC_BASE(core_hwid);
-        } else if (pnv_chip_is_power9(chip)) {
-            xscom_core_base = PNV9_XSCOM_EC_BASE(core_hwid);
-        } else {
-            xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
-        }
+        xscom_core_base = pcc->xscom_core_base(chip, core_hwid);
 
         pnv_xscom_add_subregion(chip, xscom_core_base,
                                 &pnv_core->xscom_regs);
