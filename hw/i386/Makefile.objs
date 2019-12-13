@@ -13,6 +13,7 @@ obj-$(CONFIG_AMD_IOMMU) += amd_iommu.o
 obj-$(CONFIG_XEN) += ../xenpv/ xen/
 obj-$(CONFIG_VMPORT) += vmport.o
 obj-$(CONFIG_VMMOUSE) += vmmouse.o
+obj-$(CONFIG_PC) += port92.o
 
 obj-y += kvmvapic.o
 obj-$(CONFIG_PC) += acpi-build.o
