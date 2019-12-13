@@ -3890,26 +3890,27 @@ int colo_init_ram_cache(void)
 {
     RAMBlock *block;
 
-    rcu_read_lock();
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        block->colo_cache = qemu_anon_ram_alloc(block->used_length,
-                                                NULL,
-                                                false);
-        if (!block->colo_cache) {
-            error_report("%s: Can't alloc memory for COLO cache of block %s,"
-                         "size 0x" RAM_ADDR_FMT, __func__, block->idstr,
-                         block->used_length);
-            RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-                if (block->colo_cache) {
-                    qemu_anon_ram_free(block->colo_cache, block->used_length);
-                    block->colo_cache = NULL;
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            block->colo_cache = qemu_anon_ram_alloc(block->used_length,
+                                                    NULL,
+                                                    false);
+            if (!block->colo_cache) {
+                error_report("%s: Can't alloc memory for COLO cache of block %s,"
+                             "size 0x" RAM_ADDR_FMT, __func__, block->idstr,
+                             block->used_length);
+                RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+                    if (block->colo_cache) {
+                        qemu_anon_ram_free(block->colo_cache, block->used_length);
+                        block->colo_cache = NULL;
+                    }
                 }
+                return -errno;
             }
-            return -errno;
+            memcpy(block->colo_cache, block->host, block->used_length);
         }
-        memcpy(block->colo_cache, block->host, block->used_length);
     }
-    rcu_read_unlock();
+
     /*
     * Record the dirty pages that sent by PVM, we use this dirty bitmap together
     * with to decide which page in cache should be flushed into SVM's RAM. Here
