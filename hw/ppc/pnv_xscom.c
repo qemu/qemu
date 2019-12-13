@@ -286,23 +286,13 @@ static const char compat_p8[] = "ibm,power8-xscom\0ibm,xscom";
 static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
 static const char compat_p10[] = "ibm,power10-xscom\0ibm,xscom";
 
-int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
+int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
+                 uint64_t xscom_base, uint64_t xscom_size)
 {
-    uint64_t reg[2];
+    uint64_t reg[] = { xscom_base, xscom_size };
     int xscom_offset;
     ForeachPopulateArgs args;
     char *name;
-
-    if (pnv_chip_is_power10(chip)) {
-        reg[0] = cpu_to_be64(PNV10_XSCOM_BASE(chip));
-        reg[1] = cpu_to_be64(PNV10_XSCOM_SIZE);
-    } else if (pnv_chip_is_power9(chip)) {
-        reg[0] = cpu_to_be64(PNV9_XSCOM_BASE(chip));
-        reg[1] = cpu_to_be64(PNV9_XSCOM_SIZE);
-    } else {
-        reg[0] = cpu_to_be64(PNV_XSCOM_BASE(chip));
-        reg[1] = cpu_to_be64(PNV_XSCOM_SIZE);
-    }
 
     name = g_strdup_printf("xscom@%" PRIx64, be64_to_cpu(reg[0]));
     xscom_offset = fdt_add_subnode(fdt, root_offset, name);

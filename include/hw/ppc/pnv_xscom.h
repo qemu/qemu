@@ -114,7 +114,8 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV10_XSCOM_PSIHB_SIZE     0x100
 
 void pnv_xscom_realize(PnvChip *chip, uint64_t size, Error **errp);
-int pnv_dt_xscom(PnvChip *chip, void *fdt, int offset);
+int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
+                 uint64_t xscom_base, uint64_t xscom_size);
 
 void pnv_xscom_add_subregion(PnvChip *chip, hwaddr offset,
                              MemoryRegion *mr);

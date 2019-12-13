@@ -282,7 +282,9 @@ static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
     int i;
 
-    pnv_dt_xscom(chip, fdt, 0);
+    pnv_dt_xscom(chip, fdt, 0,
+                 cpu_to_be64(PNV_XSCOM_BASE(chip)),
+                 cpu_to_be64(PNV_XSCOM_SIZE));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
@@ -302,7 +304,9 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 {
     int i;
 
-    pnv_dt_xscom(chip, fdt, 0);
+    pnv_dt_xscom(chip, fdt, 0,
+                 cpu_to_be64(PNV9_XSCOM_BASE(chip)),
+                 cpu_to_be64(PNV9_XSCOM_SIZE));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
@@ -321,7 +325,9 @@ static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
 {
     int i;
 
-    pnv_dt_xscom(chip, fdt, 0);
+    pnv_dt_xscom(chip, fdt, 0,
+                 cpu_to_be64(PNV10_XSCOM_BASE(chip)),
+                 cpu_to_be64(PNV10_XSCOM_SIZE));
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
