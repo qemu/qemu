@@ -2191,7 +2191,7 @@ unsigned long init_guest_space(unsigned long host_start,
              * to where we need to put the commpage.
              */
             munmap((void *)real_start, host_size);
-            real_size = aligned_size + qemu_host_page_size;
+            real_size = aligned_size + align;
             real_start = (unsigned long)
                 mmap((void *)real_start, real_size, PROT_NONE, flags, -1, 0);
             if (real_start == (unsigned long)-1) {
