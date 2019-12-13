@@ -426,10 +426,12 @@
 #
 # @cpu: property based CPU(s) to node mapping (Since: 2.10)
 #
+# @hmat-lb: memory latency and bandwidth information (Since: 5.0)
+#
 # Since: 2.1
 ##
 { 'enum': 'NumaOptionsType',
-  'data': [ 'node', 'dist', 'cpu' ] }
+  'data': [ 'node', 'dist', 'cpu', 'hmat-lb' ] }
 
 ##
 # @NumaOptions:
@@ -444,7 +446,8 @@
   'data': {
     'node': 'NumaNodeOptions',
     'dist': 'NumaDistOptions',
-    'cpu': 'NumaCpuOptions' }}
+    'cpu': 'NumaCpuOptions',
+    'hmat-lb': 'NumaHmatLBOptions' }}
 
 ##
 # @NumaNodeOptions:
@@ -556,6 +559,92 @@
 { 'struct': 'NumaCpuOptions',
    'base': 'CpuInstanceProperties',
    'data' : {} }
+
+##
+# @HmatLBMemoryHierarchy:
+#
+# The memory hierarchy in the System Locality Latency and Bandwidth
+# Information Structure of HMAT (Heterogeneous Memory Attribute Table)
+#
+# For more information about @HmatLBMemoryHierarchy, see chapter
+# 5.2.27.4: Table 5-146: Field "Flags" of ACPI 6.3 spec.
+#
+# @memory: the structure represents the memory performance
+#
+# @first-level: first level of memory side cache
+#
+# @second-level: second level of memory side cache
+#
+# @third-level: third level of memory side cache
+#
+# Since: 5.0
+##
+{ 'enum': 'HmatLBMemoryHierarchy',
+  'data': [ 'memory', 'first-level', 'second-level', 'third-level' ] }
+
+##
+# @HmatLBDataType:
+#
+# Data type in the System Locality Latency and Bandwidth
+# Information Structure of HMAT (Heterogeneous Memory Attribute Table)
+#
+# For more information about @HmatLBDataType, see chapter
+# 5.2.27.4: Table 5-146:  Field "Data Type" of ACPI 6.3 spec.
+#
+# @access-latency: access latency (nanoseconds)
+#
+# @read-latency: read latency (nanoseconds)
+#
+# @write-latency: write latency (nanoseconds)
+#
+# @access-bandwidth: access bandwidth (Bytes per second)
+#
+# @read-bandwidth: read bandwidth (Bytes per second)
+#
+# @write-bandwidth: write bandwidth (Bytes per second)
+#
+# Since: 5.0
+##
+{ 'enum': 'HmatLBDataType',
+  'data': [ 'access-latency', 'read-latency', 'write-latency',
+            'access-bandwidth', 'read-bandwidth', 'write-bandwidth' ] }
+
+##
+# @NumaHmatLBOptions:
+#
+# Set the system locality latency and bandwidth information
+# between Initiator and Target proximity Domains.
+#
+# For more information about @NumaHmatLBOptions, see chapter
+# 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
+#
+# @initiator: the Initiator Proximity Domain.
+#
+# @target: the Target Proximity Domain.
+#
+# @hierarchy: the Memory Hierarchy. Indicates the performance
+#             of memory or side cache.
+#
+# @data-type: presents the type of data, access/read/write
+#             latency or hit latency.
+#
+# @latency: the value of latency from @initiator to @target
+#           proximity domain, the latency unit is "ns(nanosecond)".
+#
+# @bandwidth: the value of bandwidth between @initiator and @target
+#             proximity domain, the bandwidth unit is
+#             "Bytes per second".
+#
+# Since: 5.0
+##
+{ 'struct': 'NumaHmatLBOptions',
+    'data': {
+    'initiator': 'uint16',
+    'target': 'uint16',
+    'hierarchy': 'HmatLBMemoryHierarchy',
+    'data-type': 'HmatLBDataType',
+    '*latency': 'uint64',
+    '*bandwidth': 'size' }}
 
 ##
 # @HostMemPolicy:
