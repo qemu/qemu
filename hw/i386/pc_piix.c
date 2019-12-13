@@ -431,6 +431,7 @@ static void pc_i440fx_4_2_machine_options(MachineClass *m)
     m->alias = "pc";
     m->is_default = 1;
     pcmc->default_cpu_version = 1;
+    compat_props_add(m->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 
 DEFINE_I440FX_MACHINE(v4_2, "pc-i440fx-4.2", NULL,

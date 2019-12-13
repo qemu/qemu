@@ -4916,6 +4916,44 @@ access
 CN=laptop.example.com,O=Example Home,L=London,ST=London,C=GB
 @end example
 
+@item -object iothread,id=@var{id},poll-max-ns=@var{poll-max-ns},poll-grow=@var{poll-grow},poll-shrink=@var{poll-shrink}
+
+Creates a dedicated event loop thread that devices can be assigned to.  This is
+known as an IOThread.  By default device emulation happens in vCPU threads or
+the main event loop thread.  This can become a scalability bottleneck.
+IOThreads allow device emulation and I/O to run on other host CPUs.
+
+The @option{id} parameter is a unique ID that will be used to reference this
+IOThread from @option{-device ...,iothread=@var{id}}.  Multiple devices can be
+assigned to an IOThread.  Note that not all devices support an
+@option{iothread} parameter.
+
+The @code{query-iothreads} QMP command lists IOThreads and reports their thread
+IDs so that the user can configure host CPU pinning/affinity.
+
+IOThreads use an adaptive polling algorithm to reduce event loop latency.
+Instead of entering a blocking system call to monitor file descriptors and then
+pay the cost of being woken up when an event occurs, the polling algorithm
+spins waiting for events for a short time.  The algorithm's default parameters
+are suitable for many cases but can be adjusted based on knowledge of the
+workload and/or host device latency.
+
+The @option{poll-max-ns} parameter is the maximum number of nanoseconds to busy
+wait for events.  Polling can be disabled by setting this value to 0.
+
+The @option{poll-grow} parameter is the multiplier used to increase the polling
+time when the algorithm detects it is missing events due to not polling long
+enough.
+
+The @option{poll-shrink} parameter is the divisor used to decrease the polling
+time when the algorithm detects it is spending too long polling without
+encountering events.
+
+The polling parameters can be modified at run-time using the @code{qom-set} command (where @code{iothread1} is the IOThread's @code{id}):
+
+@example
+(qemu) qom-set /objects/iothread1 poll-max-ns 100000
+@end example
 
 @end table
 

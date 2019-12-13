@@ -4496,7 +4496,7 @@ static const TypeInfo spapr_machine_info = {
  */
 static void spapr_machine_4_2_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 
 DEFINE_SPAPR_MACHINE(4_2, "4.2", true);
