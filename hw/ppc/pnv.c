@@ -484,9 +484,7 @@ static void pnv_dt_power_mgt(void *fdt)
 
 static void *pnv_dt_create(MachineState *machine)
 {
-    const char plat_compat8[] = "qemu,powernv8\0qemu,powernv\0ibm,powernv";
-    const char plat_compat9[] = "qemu,powernv9\0ibm,powernv";
-    const char plat_compat10[] = "qemu,powernv10\0ibm,powernv";
+    PnvMachineClass *pmc = PNV_MACHINE_GET_CLASS(machine);
     PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
     char *buf;
@@ -504,17 +502,7 @@ static void *pnv_dt_create(MachineState *machine)
     _FDT((fdt_setprop_cell(fdt, 0, "#size-cells", 0x2)));
     _FDT((fdt_setprop_string(fdt, 0, "model",
                              "IBM PowerNV (emulated by qemu)")));
-    if (pnv_is_power10(pnv)) {
-        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat10,
-                          sizeof(plat_compat10))));
-    } else if (pnv_is_power9(pnv)) {
-        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat9,
-                          sizeof(plat_compat9))));
-    } else {
-        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat8,
-                          sizeof(plat_compat8))));
-    }
-
+    _FDT((fdt_setprop(fdt, 0, "compatible", pmc->compat, pmc->compat_size)));
 
     buf =  qemu_uuid_unparse_strdup(&qemu_uuid);
     _FDT((fdt_setprop_string(fdt, 0, "vm,uuid", buf)));
@@ -1692,6 +1680,8 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
+    static const char compat[] = "qemu,powernv8\0qemu,powernv\0ibm,powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER8";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
@@ -1699,26 +1689,39 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
     xic->icp_get = pnv_icp_get;
     xic->ics_get = pnv_ics_get;
     xic->ics_resend = pnv_ics_resend;
+
+    pmc->compat = compat;
+    pmc->compat_size = sizeof(compat);
 }
 
 static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
+    PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
+    static const char compat[] = "qemu,powernv9\0ibm,powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER9";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.0");
     xfc->match_nvt = pnv_match_nvt;
 
     mc->alias = "powernv";
+
+    pmc->compat = compat;
+    pmc->compat_size = sizeof(compat);
 }
 
 static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
+    static const char compat[] = "qemu,powernv10\0ibm,powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER10";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v1.0");
+
+    pmc->compat = compat;
+    pmc->compat_size = sizeof(compat);
 }
 
 static void pnv_machine_class_init(ObjectClass *oc, void *data)
@@ -1796,6 +1799,7 @@ static const TypeInfo types[] = {
         .instance_size = sizeof(PnvMachineState),
         .instance_init = pnv_machine_instance_init,
         .class_init    = pnv_machine_class_init,
+        .class_size    = sizeof(PnvMachineClass),
         .interfaces = (InterfaceInfo[]) {
             { TYPE_INTERRUPT_STATS_PROVIDER },
             { },

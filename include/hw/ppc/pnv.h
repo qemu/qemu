@@ -185,6 +185,19 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define PNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)
+#define PNV_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PnvMachineClass, obj, TYPE_PNV_MACHINE)
+#define PNV_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(PnvMachineClass, klass, TYPE_PNV_MACHINE)
+
+typedef struct PnvMachineClass {
+    /*< private >*/
+    MachineClass parent_class;
+
+    /*< public >*/
+    const char *compat;
+    int compat_size;
+} PnvMachineClass;
 
 typedef struct PnvMachineState {
     /*< private >*/
