@@ -278,6 +278,17 @@ spec you can use the ``-cpu rv64gcsu,priv_spec=v1.9.1`` command line argument.
 
 @section Device options
 
+@subsection Emulated device options
+
+@subsubsection -device virtio-blk,scsi=on|off (since 5.0.0)
+
+The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
+and later do not support it because the virtio-scsi device was introduced for
+full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
+
+Note this also applies to ``-device virtio-blk-pci,scsi=on|off'', which is an
+alias.
+
 @subsection Block device options
 
 @subsubsection "backing": "" (since 2.12.0)
