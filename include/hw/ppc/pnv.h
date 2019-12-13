@@ -38,14 +38,6 @@
 #define PNV_CHIP_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
 
-typedef enum PnvChipType {
-    PNV_CHIP_POWER8E,     /* AKA Murano (default) */
-    PNV_CHIP_POWER8,      /* AKA Venice */
-    PNV_CHIP_POWER8NVL,   /* AKA Naples */
-    PNV_CHIP_POWER9,      /* AKA Nimbus */
-    PNV_CHIP_POWER10,     /* AKA TBD */
-} PnvChipType;
-
 typedef struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -123,7 +115,6 @@ typedef struct PnvChipClass {
     SysBusDeviceClass parent_class;
 
     /*< public >*/
-    PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
 
