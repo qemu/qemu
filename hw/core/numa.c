@@ -379,6 +379,73 @@ void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
     g_array_append_val(hmat_lb->list, lb_data);
 }
 
+void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
+                           Error **errp)
+{
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    NodeInfo *numa_info = ms->numa_state->nodes;
+    NumaHmatCacheOptions *hmat_cache = NULL;
+
+    if (node->node_id >= nb_numa_nodes) {
+        error_setg(errp, "Invalid node-id=%" PRIu32 ", it should be less "
+                   "than %d", node->node_id, nb_numa_nodes);
+        return;
+    }
+
+    if (numa_info[node->node_id].lb_info_provided != (BIT(0) | BIT(1))) {
+        error_setg(errp, "The latency and bandwidth information of "
+                   "node-id=%" PRIu32 " should be provided before memory side "
+                   "cache attributes", node->node_id);
+        return;
+    }
+
+    if (node->level < 1 || node->level >= HMAT_LB_LEVELS) {
+        error_setg(errp, "Invalid level=%" PRIu8 ", it should be larger than 0 "
+                   "and less than or equal to %d", node->level,
+                   HMAT_LB_LEVELS - 1);
+        return;
+    }
+
+    assert(node->associativity < HMAT_CACHE_ASSOCIATIVITY__MAX);
+    assert(node->policy < HMAT_CACHE_WRITE_POLICY__MAX);
+    if (ms->numa_state->hmat_cache[node->node_id][node->level]) {
+        error_setg(errp, "Duplicate configuration of the side cache for "
+                   "node-id=%" PRIu32 " and level=%" PRIu8,
+                   node->node_id, node->level);
+        return;
+    }
+
+    if ((node->level > 1) &&
+        ms->numa_state->hmat_cache[node->node_id][node->level - 1] &&
+        (node->size >=
+            ms->numa_state->hmat_cache[node->node_id][node->level - 1]->size)) {
+        error_setg(errp, "Invalid size=%" PRIu64 ", the size of level=%" PRIu8
+                   " should be less than the size(%" PRIu64 ") of "
+                   "level=%u", node->size, node->level,
+                   ms->numa_state->hmat_cache[node->node_id]
+                                             [node->level - 1]->size,
+                   node->level - 1);
+        return;
+    }
+
+    if ((node->level < HMAT_LB_LEVELS - 1) &&
+        ms->numa_state->hmat_cache[node->node_id][node->level + 1] &&
+        (node->size <=
+            ms->numa_state->hmat_cache[node->node_id][node->level + 1]->size)) {
+        error_setg(errp, "Invalid size=%" PRIu64 ", the size of level=%" PRIu8
+                   " should be larger than the size(%" PRIu64 ") of "
+                   "level=%u", node->size, node->level,
+                   ms->numa_state->hmat_cache[node->node_id]
+                                             [node->level + 1]->size,
+                   node->level + 1);
+        return;
+    }
+
+    hmat_cache = g_malloc0(sizeof(*hmat_cache));
+    memcpy(hmat_cache, node, sizeof(*hmat_cache));
+    ms->numa_state->hmat_cache[node->node_id][node->level] = hmat_cache;
+}
+
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
@@ -426,6 +493,19 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
         }
 
         parse_numa_hmat_lb(ms->numa_state, &object->u.hmat_lb, &err);
+        if (err) {
+            goto end;
+        }
+        break;
+    case NUMA_OPTIONS_TYPE_HMAT_CACHE:
+        if (!ms->numa_state->hmat_enabled) {
+            error_setg(errp, "ACPI Heterogeneous Memory Attribute Table "
+                       "(HMAT) is disabled, enable it with -machine hmat=on "
+                       "before using any of hmat specific options");
+            return;
+        }
+
+        parse_numa_hmat_cache(ms, &object->u.hmat_cache, &err);
         if (err) {
             goto end;
         }
