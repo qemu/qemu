@@ -89,11 +89,6 @@ error in the future.
 The @code{-realtime mlock=on|off} argument has been replaced by the
 @code{-overcommit mem-lock=on|off} argument.
 
-@subsection -virtfs_synth (since 4.1)
-
-The ``-virtfs_synth'' argument is now deprecated. Please use ``-fsdev synth''
-and ``-device virtio-9p-...'' instead.
-
 @subsection -numa node,mem=@var{size} (since 4.1)
 
 The parameter @option{mem} of @option{-numa node} is used to assign a part of

@@ -13,7 +13,6 @@
 #include <sys/resource.h>
 #include <getopt.h>
 #include <syslog.h>
-#include <sys/capability.h>
 #include <sys/fsuid.h>
 #include <sys/vfs.h>
 #include <sys/ioctl.h>
@@ -21,6 +20,7 @@
 #ifdef CONFIG_LINUX_MAGIC_H
 #include <linux/magic.h>
 #endif
+#include <cap-ng.h>
 #include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/xattr.h"
@@ -79,49 +79,10 @@ static void do_perror(const char *string)
     }
 }
 
-static int do_cap_set(cap_value_t *cap_value, int size, int reset)
-{
-    cap_t caps;
-    if (reset) {
-        /*
-         * Start with an empty set and set permitted and effective
-         */
-        caps = cap_init();
-        if (caps == NULL) {
-            do_perror("cap_init");
-            return -1;
-        }
-        if (cap_set_flag(caps, CAP_PERMITTED, size, cap_value, CAP_SET) < 0) {
-            do_perror("cap_set_flag");
-            goto error;
-        }
-    } else {
-        caps = cap_get_proc();
-        if (!caps) {
-            do_perror("cap_get_proc");
-            return -1;
-        }
-    }
-    if (cap_set_flag(caps, CAP_EFFECTIVE, size, cap_value, CAP_SET) < 0) {
-        do_perror("cap_set_flag");
-        goto error;
-    }
-    if (cap_set_proc(caps) < 0) {
-        do_perror("cap_set_proc");
-        goto error;
-    }
-    cap_free(caps);
-    return 0;
-
-error:
-    cap_free(caps);
-    return -1;
-}
-
 static int init_capabilities(void)
 {
     /* helper needs following capabilities only */
-    cap_value_t cap_list[] = {
+    int cap_list[] = {
         CAP_CHOWN,
         CAP_DAC_OVERRIDE,
         CAP_FOWNER,
@@ -130,7 +91,34 @@ static int init_capabilities(void)
         CAP_MKNOD,
         CAP_SETUID,
     };
-    return do_cap_set(cap_list, ARRAY_SIZE(cap_list), 1);
+    int i;
+
+    capng_clear(CAPNG_SELECT_BOTH);
+    for (i = 0; i < ARRAY_SIZE(cap_list); i++) {
+        if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+                         cap_list[i]) < 0) {
+            do_perror("capng_update");
+            return -1;
+        }
+    }
+    if (capng_apply(CAPNG_SELECT_BOTH) < 0) {
+        do_perror("capng_apply");
+        return -1;
+    }
+
+    /* Prepare effective set for setugid.  */
+    for (i = 0; i < ARRAY_SIZE(cap_list); i++) {
+        if (cap_list[i] == CAP_DAC_OVERRIDE) {
+            continue;
+        }
+
+        if (capng_update(CAPNG_DROP, CAPNG_EFFECTIVE,
+                         cap_list[i]) < 0) {
+            do_perror("capng_update");
+            return -1;
+        }
+    }
+    return 0;
 }
 
 static int socket_read(int sockfd, void *buff, ssize_t size)
@@ -295,14 +283,6 @@ static int setugid(int uid, int gid, int *suid, int *sgid)
 {
     int retval;
 
-    /*
-     * We still need DAC_OVERRIDE because we don't change
-     * supplementary group ids, and hence may be subjected DAC rules
-     */
-    cap_value_t cap_list[] = {
-        CAP_DAC_OVERRIDE,
-    };
-
     *suid = geteuid();
     *sgid = getegid();
 
@@ -316,11 +296,21 @@ static int setugid(int uid, int gid, int *suid, int *sgid)
         goto err_sgid;
     }
 
-    if (uid != 0 || gid != 0) {
-        if (do_cap_set(cap_list, ARRAY_SIZE(cap_list), 0) < 0) {
-            retval = -errno;
-            goto err_suid;
-        }
+    if (uid == 0 && gid == 0) {
+        /* Linux has already copied the permitted set to the effective set.  */
+        return 0;
+    }
+
+    /*
+     * All capabilities have been cleared from the effective set.  However
+     * we still need DAC_OVERRIDE because we don't change supplementary
+     * group ids, and hence may be subject to DAC rules.  init_capabilities
+     * left the set of capabilities that we want in libcap-ng's state.
+     */
+    if (capng_apply(CAPNG_SELECT_CAPS) < 0) {
+        retval = -errno;
+        do_perror("capng_apply");
+        goto err_suid;
     }
     return 0;
 
