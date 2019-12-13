@@ -472,7 +472,7 @@ static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
                        &args);
 }
 
-static void pnv_dt_power_mgt(void *fdt)
+static void pnv_dt_power_mgt(PnvMachineState *pnv, void *fdt)
 {
     int off;
 
@@ -539,9 +539,9 @@ static void *pnv_dt_create(MachineState *machine)
         pnv_dt_bmc_sensors(pnv->bmc, fdt);
     }
 
-    /* Create an extra node for power management on Power9 and Power10 */
-    if (pnv_is_power9(pnv) || pnv_is_power10(pnv)) {
-        pnv_dt_power_mgt(fdt);
+    /* Create an extra node for power management on machines that support it */
+    if (pmc->dt_power_mgt) {
+        pmc->dt_power_mgt(pnv, fdt);
     }
 
     return fdt;
@@ -1709,6 +1709,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
 
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
+    pmc->dt_power_mgt = pnv_dt_power_mgt;
 }
 
 static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
@@ -1722,6 +1723,7 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
 
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
+    pmc->dt_power_mgt = pnv_dt_power_mgt;
 }
 
 static void pnv_machine_class_init(ObjectClass *oc, void *data)

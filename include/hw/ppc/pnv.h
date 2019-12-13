@@ -190,6 +190,8 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
 #define PNV_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PnvMachineClass, klass, TYPE_PNV_MACHINE)
 
+typedef struct PnvMachineState PnvMachineState;
+
 typedef struct PnvMachineClass {
     /*< private >*/
     MachineClass parent_class;
@@ -197,9 +199,11 @@ typedef struct PnvMachineClass {
     /*< public >*/
     const char *compat;
     int compat_size;
+
+    void (*dt_power_mgt)(PnvMachineState *pnv, void *fdt);
 } PnvMachineClass;
 
-typedef struct PnvMachineState {
+struct PnvMachineState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -216,7 +220,7 @@ typedef struct PnvMachineState {
     Notifier     powerdown_notifier;
 
     PnvPnor      *pnor;
-} PnvMachineState;
+};
 
 static inline bool pnv_chip_is_power9(const PnvChip *chip)
 {
