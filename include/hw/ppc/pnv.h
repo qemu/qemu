@@ -224,20 +224,10 @@ struct PnvMachineState {
     PnvPnor      *pnor;
 };
 
-static inline bool pnv_chip_is_power9(const PnvChip *chip)
-{
-    return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER9;
-}
-
 PnvChip *pnv_get_chip(uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
-
-static inline bool pnv_chip_is_power10(const PnvChip *chip)
-{
-    return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER10;
-}
 
 /*
  * BMC helpers
