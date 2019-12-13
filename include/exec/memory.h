@@ -2171,7 +2171,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
 
     if (__builtin_constant_p(len)) {
         if (len) {
-            rcu_read_lock();
+            RCU_READ_LOCK_GUARD();
             fv = address_space_to_flatview(as);
             l = len;
             mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
@@ -2182,7 +2182,6 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
                 result = flatview_read_continue(fv, addr, attrs, buf, len,
                                                 addr1, l, mr);
             }
-            rcu_read_unlock();
         }
     } else {
         result = address_space_read_full(as, addr, attrs, buf, len);
