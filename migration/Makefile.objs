@@ -9,6 +9,7 @@ common-obj-y += qjson.o
 common-obj-y += block-dirty-bitmap.o
 common-obj-y += multifd.o
 common-obj-y += multifd-zlib.o
+common-obj-$(CONFIG_ZSTD) += multifd-zstd.o
 
 common-obj-$(CONFIG_RDMA) += rdma.o
 

@@ -495,12 +495,14 @@
 #
 # @none: no compression.
 # @zlib: use zlib compression method.
+# @zstd: use zstd compression method.
 #
 # Since: 5.0
 #
 ##
 { 'enum': 'MultiFDCompression',
-  'data': [ 'none', 'zlib' ] }
+  'data': [ 'none', 'zlib',
+            { 'name': 'zstd', 'if': 'defined(CONFIG_ZSTD)' } ] }
 
 ##
 # @MigrationParameter:
