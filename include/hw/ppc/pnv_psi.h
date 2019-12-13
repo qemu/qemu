@@ -83,6 +83,8 @@ typedef struct PnvPsiClass {
     uint32_t xscom_pcba;
     uint32_t xscom_size;
     uint64_t bar_mask;
+    const char *compat;
+    int compat_size;
 
     void (*irq_set)(PnvPsi *psi, int, bool state);
 } PnvPsiClass;

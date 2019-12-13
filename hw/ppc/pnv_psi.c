@@ -536,10 +536,6 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(pnv_psi_reset, dev);
 }
 
-static const char compat_p8[] = "ibm,power8-psihb-x\0ibm,psihb-x";
-static const char compat_p9[] = "ibm,power9-psihb-x\0ibm,psihb-x";
-static const char compat_p10[] = "ibm,power10-psihb-x\0ibm,psihb-x";
-
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
     PnvPsiClass *ppc = PNV_PSI_GET_CLASS(dev);
@@ -558,16 +554,8 @@ static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
     _FDT(fdt_setprop(fdt, offset, "reg", reg, sizeof(reg)));
     _FDT(fdt_setprop_cell(fdt, offset, "#address-cells", 2));
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells", 1));
-    if (ppc->chip_type == PNV_CHIP_POWER10) {
-        _FDT(fdt_setprop(fdt, offset, "compatible", compat_p10,
-                         sizeof(compat_p10)));
-    } else if (ppc->chip_type == PNV_CHIP_POWER9) {
-        _FDT(fdt_setprop(fdt, offset, "compatible", compat_p9,
-                         sizeof(compat_p9)));
-    } else {
-        _FDT(fdt_setprop(fdt, offset, "compatible", compat_p8,
-                         sizeof(compat_p8)));
-    }
+    _FDT(fdt_setprop(fdt, offset, "compatible", ppc->compat,
+                     ppc->compat_size));
     return 0;
 }
 
@@ -581,6 +569,7 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvPsiClass *ppc = PNV_PSI_CLASS(klass);
+    static const char compat[] = "ibm,power8-psihb-x\0ibm,psihb-x";
 
     dc->desc    = "PowerNV PSI Controller POWER8";
     dc->realize = pnv_psi_power8_realize;
@@ -590,6 +579,8 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
     ppc->xscom_size = PNV_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB_BAR_MASK;
     ppc->irq_set    = pnv_psi_power8_irq_set;
+    ppc->compat     = compat;
+    ppc->compat_size = sizeof(compat);
 }
 
 static const TypeInfo pnv_psi_power8_info = {
@@ -888,6 +879,7 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvPsiClass *ppc = PNV_PSI_CLASS(klass);
     XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
+    static const char compat[] = "ibm,power9-psihb-x\0ibm,psihb-x";
 
     dc->desc    = "PowerNV PSI Controller POWER9";
     dc->realize = pnv_psi_power9_realize;
@@ -897,6 +889,8 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB9_BAR_MASK;
     ppc->irq_set    = pnv_psi_power9_irq_set;
+    ppc->compat     = compat;
+    ppc->compat_size = sizeof(compat);
 
     xfc->notify      = pnv_psi_notify;
 }
@@ -917,12 +911,15 @@ static void pnv_psi_power10_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvPsiClass *ppc = PNV_PSI_CLASS(klass);
+    static const char compat[] = "ibm,power10-psihb-x\0ibm,psihb-x";
 
     dc->desc    = "PowerNV PSI Controller POWER10";
 
     ppc->chip_type  = PNV_CHIP_POWER10;
     ppc->xscom_pcba = PNV10_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV10_XSCOM_PSIHB_SIZE;
+    ppc->compat     = compat;
+    ppc->compat_size = sizeof(compat);
 }
 
 static const TypeInfo pnv_psi_power10_info = {
