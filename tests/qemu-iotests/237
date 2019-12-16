@@ -26,15 +26,6 @@ from iotests import imgfmt
 
 iotests.verify_image_format(supported_fmts=['vmdk'])
 
-def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
-                        filters=[iotests.filter_qmp_testfiles])
-
-    if 'return' in result:
-        assert result['return'] == {}
-        vm.run_job('job0')
-    iotests.log("")
-
 with iotests.FilePath('t.vmdk') as disk_path, \
      iotests.FilePath('t.vmdk.1') as extent1_path, \
      iotests.FilePath('t.vmdk.2') as extent2_path, \
@@ -50,16 +41,16 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     size = 5 * 1024 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
     vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
                node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'imgfile',
-                          'size': size })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'imgfile',
+                         'size': size })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -74,21 +65,21 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     size = 64 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'extents': [],
-                          'subformat': 'monolithicSparse',
-                          'adapter-type': 'ide',
-                          'hwversion': '4',
-                          'zeroed-grain': False })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'extents': [],
+                         'subformat': 'monolithicSparse',
+                         'adapter-type': 'ide',
+                         'hwversion': '4',
+                         'zeroed-grain': False })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -103,20 +94,20 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     size = 32 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'extents': [],
-                          'subformat': 'monolithicSparse',
-                          'adapter-type': 'buslogic',
-                          'zeroed-grain': True })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'extents': [],
+                         'subformat': 'monolithicSparse',
+                         'adapter-type': 'buslogic',
+                         'zeroed-grain': True })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -128,9 +119,9 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': "this doesn't exist",
-                          'size': size })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': "this doesn't exist",
+                         'size': size })
     vm.shutdown()
 
     #
@@ -148,10 +139,10 @@ with iotests.FilePath('t.vmdk') as disk_path, \
 
     vm.launch()
     for adapter_type in [ 'ide', 'buslogic', 'lsilogic', 'legacyESX' ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'size': size,
-                              'adapter-type': adapter_type })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'size': size,
+                             'adapter-type': adapter_type })
     vm.shutdown()
 
     # Invalid
@@ -160,10 +151,10 @@ with iotests.FilePath('t.vmdk') as disk_path, \
 
     vm.launch()
     for adapter_type in [ 'foo', 'IDE', 'legacyesx', 1 ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'size': size,
-                              'adapter-type': adapter_type })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'size': size,
+                             'adapter-type': adapter_type })
     vm.shutdown()
 
     #
@@ -185,10 +176,10 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': size,
-                          'subformat': 'monolithicFlat' })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': size,
+                         'subformat': 'monolithicFlat' })
     vm.shutdown()
 
     # Correct extent
@@ -196,11 +187,11 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': size,
-                          'subformat': 'monolithicFlat',
-                          'extents': ['ext1'] })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': size,
+                         'subformat': 'monolithicFlat',
+                         'extents': ['ext1'] })
     vm.shutdown()
 
     # Extra extent
@@ -208,11 +199,11 @@ with iotests.FilePath('t.vmdk') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 512,
-                          'subformat': 'monolithicFlat',
-                          'extents': ['ext1', 'ext2', 'ext3'] })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 512,
+                         'subformat': 'monolithicFlat',
+                         'extents': ['ext1', 'ext2', 'ext3'] })
     vm.shutdown()
 
     # Split formats
@@ -228,11 +219,11 @@ with iotests.FilePath('t.vmdk') as disk_path, \
             extents = [ "ext%d" % (i) for i in range(1, num_extents + 1) ]
 
             vm.launch()
-            blockdev_create(vm, { 'driver': imgfmt,
-                                  'file': 'node0',
-                                  'size': size,
-                                  'subformat': subfmt,
-                                  'extents': extents })
+            vm.blockdev_create({ 'driver': imgfmt,
+                                 'file': 'node0',
+                                 'size': size,
+                                 'subformat': subfmt,
+                                 'extents': extents })
             vm.shutdown()
 
             iotests.img_info_log(disk_path)
