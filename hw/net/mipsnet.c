@@ -9,19 +9,19 @@
 
 /* MIPSnet register offsets */
 
-#define MIPSNET_DEV_ID		0x00
-#define MIPSNET_BUSY		0x08
-#define MIPSNET_RX_DATA_COUNT	0x0c
-#define MIPSNET_TX_DATA_COUNT	0x10
-#define MIPSNET_INT_CTL		0x14
-# define MIPSNET_INTCTL_TXDONE		0x00000001
-# define MIPSNET_INTCTL_RXDONE		0x00000002
-# define MIPSNET_INTCTL_TESTBIT		0x80000000
-#define MIPSNET_INTERRUPT_INFO	0x18
-#define MIPSNET_RX_DATA_BUFFER	0x1c
-#define MIPSNET_TX_DATA_BUFFER	0x20
+#define MIPSNET_DEV_ID          0x00
+#define MIPSNET_BUSY            0x08
+#define MIPSNET_RX_DATA_COUNT   0x0c
+#define MIPSNET_TX_DATA_COUNT   0x10
+#define MIPSNET_INT_CTL         0x14
+# define MIPSNET_INTCTL_TXDONE          0x00000001
+# define MIPSNET_INTCTL_RXDONE          0x00000002
+# define MIPSNET_INTCTL_TESTBIT         0x80000000
+#define MIPSNET_INTERRUPT_INFO  0x18
+#define MIPSNET_RX_DATA_BUFFER  0x1c
+#define MIPSNET_TX_DATA_BUFFER  0x20
 
-#define MAX_ETH_FRAME_SIZE	1514
+#define MAX_ETH_FRAME_SIZE      1514
 
 #define TYPE_MIPS_NET "mipsnet"
 #define MIPS_NET(obj) OBJECT_CHECK(MIPSnetState, (obj), TYPE_MIPS_NET)
@@ -64,8 +64,9 @@ static void mipsnet_update_irq(MIPSnetState *s)
 
 static int mipsnet_buffer_full(MIPSnetState *s)
 {
-    if (s->rx_count >= MAX_ETH_FRAME_SIZE)
+    if (s->rx_count >= MAX_ETH_FRAME_SIZE) {
         return 1;
+    }
     return 0;
 }
 
@@ -73,18 +74,21 @@ static int mipsnet_can_receive(NetClientState *nc)
 {
     MIPSnetState *s = qemu_get_nic_opaque(nc);
 
-    if (s->busy)
+    if (s->busy) {
         return 0;
+    }
     return !mipsnet_buffer_full(s);
 }
 
-static ssize_t mipsnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t mipsnet_receive(NetClientState *nc,
+                               const uint8_t *buf, size_t size)
 {
     MIPSnetState *s = qemu_get_nic_opaque(nc);
 
     trace_mipsnet_receive(size);
-    if (!mipsnet_can_receive(nc))
+    if (!mipsnet_can_receive(nc)) {
         return 0;
+    }
 
     if (size >= sizeof(s->rx_buffer)) {
         return 0;
@@ -115,10 +119,10 @@ static uint64_t mipsnet_ioport_read(void *opaque, hwaddr addr,
     addr &= 0x3f;
     switch (addr) {
     case MIPSNET_DEV_ID:
-        ret = be32_to_cpu(0x4d495053);		/* MIPS */
+        ret = be32_to_cpu(0x4d495053);          /* MIPS */
         break;
     case MIPSNET_DEV_ID + 4:
-        ret = be32_to_cpu(0x4e455430);		/* NET0 */
+        ret = be32_to_cpu(0x4e455430);          /* NET0 */
         break;
     case MIPSNET_BUSY:
         ret = s->busy;

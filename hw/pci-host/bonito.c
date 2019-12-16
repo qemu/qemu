@@ -14,7 +14,8 @@
  * fulong 2e mini pc has a bonito north bridge.
  */
 
-/* what is the meaning of devfn in qemu and IDSEL in bonito northbridge?
+/*
+ * what is the meaning of devfn in qemu and IDSEL in bonito northbridge?
  *
  * devfn   pci_slot<<3  + funno
  * one pci bus can have 32 devices and each device can have 8 functions.
@@ -49,7 +50,7 @@
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 
-//#define DEBUG_BONITO
+/* #define DEBUG_BONITO */
 
 #ifdef DEBUG_BONITO
 #define DPRINTF(fmt, ...) fprintf(stderr, "%s: " fmt, __func__, ##__VA_ARGS__)
@@ -60,45 +61,45 @@
 /* from linux soure code. include/asm-mips/mips-boards/bonito64.h*/
 #define BONITO_BOOT_BASE        0x1fc00000
 #define BONITO_BOOT_SIZE        0x00100000
-#define BONITO_BOOT_TOP         (BONITO_BOOT_BASE+BONITO_BOOT_SIZE-1)
+#define BONITO_BOOT_TOP         (BONITO_BOOT_BASE + BONITO_BOOT_SIZE - 1)
 #define BONITO_FLASH_BASE       0x1c000000
 #define BONITO_FLASH_SIZE       0x03000000
-#define BONITO_FLASH_TOP        (BONITO_FLASH_BASE+BONITO_FLASH_SIZE-1)
+#define BONITO_FLASH_TOP        (BONITO_FLASH_BASE + BONITO_FLASH_SIZE - 1)
 #define BONITO_SOCKET_BASE      0x1f800000
 #define BONITO_SOCKET_SIZE      0x00400000
-#define BONITO_SOCKET_TOP       (BONITO_SOCKET_BASE+BONITO_SOCKET_SIZE-1)
+#define BONITO_SOCKET_TOP       (BONITO_SOCKET_BASE + BONITO_SOCKET_SIZE - 1)
 #define BONITO_REG_BASE         0x1fe00000
 #define BONITO_REG_SIZE         0x00040000
-#define BONITO_REG_TOP          (BONITO_REG_BASE+BONITO_REG_SIZE-1)
+#define BONITO_REG_TOP          (BONITO_REG_BASE + BONITO_REG_SIZE - 1)
 #define BONITO_DEV_BASE         0x1ff00000
 #define BONITO_DEV_SIZE         0x00100000
-#define BONITO_DEV_TOP          (BONITO_DEV_BASE+BONITO_DEV_SIZE-1)
+#define BONITO_DEV_TOP          (BONITO_DEV_BASE + BONITO_DEV_SIZE - 1)
 #define BONITO_PCILO_BASE       0x10000000
 #define BONITO_PCILO_BASE_VA    0xb0000000
 #define BONITO_PCILO_SIZE       0x0c000000
-#define BONITO_PCILO_TOP        (BONITO_PCILO_BASE+BONITO_PCILO_SIZE-1)
+#define BONITO_PCILO_TOP        (BONITO_PCILO_BASE + BONITO_PCILO_SIZE - 1)
 #define BONITO_PCILO0_BASE      0x10000000
 #define BONITO_PCILO1_BASE      0x14000000
 #define BONITO_PCILO2_BASE      0x18000000
 #define BONITO_PCIHI_BASE       0x20000000
 #define BONITO_PCIHI_SIZE       0x20000000
-#define BONITO_PCIHI_TOP        (BONITO_PCIHI_BASE+BONITO_PCIHI_SIZE-1)
+#define BONITO_PCIHI_TOP        (BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE - 1)
 #define BONITO_PCIIO_BASE       0x1fd00000
 #define BONITO_PCIIO_BASE_VA    0xbfd00000
 #define BONITO_PCIIO_SIZE       0x00010000
-#define BONITO_PCIIO_TOP        (BONITO_PCIIO_BASE+BONITO_PCIIO_SIZE-1)
+#define BONITO_PCIIO_TOP        (BONITO_PCIIO_BASE + BONITO_PCIIO_SIZE - 1)
 #define BONITO_PCICFG_BASE      0x1fe80000
 #define BONITO_PCICFG_SIZE      0x00080000
-#define BONITO_PCICFG_TOP       (BONITO_PCICFG_BASE+BONITO_PCICFG_SIZE-1)
+#define BONITO_PCICFG_TOP       (BONITO_PCICFG_BASE + BONITO_PCICFG_SIZE - 1)
 
 
 #define BONITO_PCICONFIGBASE    0x00
 #define BONITO_REGBASE          0x100
 
-#define BONITO_PCICONFIG_BASE   (BONITO_PCICONFIGBASE+BONITO_REG_BASE)
+#define BONITO_PCICONFIG_BASE   (BONITO_PCICONFIGBASE + BONITO_REG_BASE)
 #define BONITO_PCICONFIG_SIZE   (0x100)
 
-#define BONITO_INTERNAL_REG_BASE  (BONITO_REGBASE+BONITO_REG_BASE)
+#define BONITO_INTERNAL_REG_BASE  (BONITO_REGBASE + BONITO_REG_BASE)
 #define BONITO_INTERNAL_REG_SIZE  (0x70)
 
 #define BONITO_SPCICONFIG_BASE  (BONITO_PCICFG_BASE)
@@ -111,7 +112,7 @@
 
 #define BONITO_BONPONCFG        (0x00 >> 2)      /* 0x100 */
 #define BONITO_BONGENCFG_OFFSET 0x4
-#define BONITO_BONGENCFG        (BONITO_BONGENCFG_OFFSET>>2)   /*0x104 */
+#define BONITO_BONGENCFG        (BONITO_BONGENCFG_OFFSET >> 2)   /*0x104 */
 
 /* 2. IO & IDE configuration */
 #define BONITO_IODEVCFG         (0x08 >> 2)      /* 0x108 */
@@ -177,15 +178,15 @@
 /* idsel BIT = pci slot number +12 */
 #define PCI_SLOT_BASE              12
 #define PCI_IDSEL_VIA686B_BIT      (17)
-#define PCI_IDSEL_VIA686B          (1<<PCI_IDSEL_VIA686B_BIT)
+#define PCI_IDSEL_VIA686B          (1 << PCI_IDSEL_VIA686B_BIT)
 
-#define PCI_ADDR(busno,devno,funno,regno)  \
-    ((((busno)<<16)&0xff0000) + (((devno)<<11)&0xf800) + (((funno)<<8)&0x700) + (regno))
+#define PCI_ADDR(busno , devno , funno , regno)  \
+    ((((busno) << 16) & 0xff0000) + (((devno) << 11) & 0xf800) + \
+    (((funno) << 8) & 0x700) + (regno))
 
 typedef struct BonitoState BonitoState;
 
-typedef struct PCIBonitoState
-{
+typedef struct PCIBonitoState {
     PCIDevice dev;
 
     BonitoState *pcihost;
@@ -239,7 +240,8 @@ static void bonito_writel(void *opaque, hwaddr addr,
 
     saddr = addr >> 2;
 
-    DPRINTF("bonito_writel "TARGET_FMT_plx" val %x saddr %x\n", addr, val, saddr);
+    DPRINTF("bonito_writel "TARGET_FMT_plx" val %x saddr %x\n",
+            addr, val, saddr);
     switch (saddr) {
     case BONITO_BONPONCFG:
     case BONITO_IODEVCFG:
@@ -363,7 +365,7 @@ static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
         return 0;
     }
 
-    val = ((uint32_t *)(&s->bonldma))[addr/sizeof(uint32_t)];
+    val = ((uint32_t *)(&s->bonldma))[addr / sizeof(uint32_t)];
 
     return val;
 }
@@ -377,7 +379,7 @@ static void bonito_ldma_writel(void *opaque, hwaddr addr,
         return;
     }
 
-    ((uint32_t *)(&s->bonldma))[addr/sizeof(uint32_t)] = val & 0xffffffff;
+    ((uint32_t *)(&s->bonldma))[addr / sizeof(uint32_t)] = val & 0xffffffff;
 }
 
 static const MemoryRegionOps bonito_ldma_ops = {
@@ -400,7 +402,7 @@ static uint64_t bonito_cop_readl(void *opaque, hwaddr addr,
         return 0;
     }
 
-    val = ((uint32_t *)(&s->boncop))[addr/sizeof(uint32_t)];
+    val = ((uint32_t *)(&s->boncop))[addr / sizeof(uint32_t)];
 
     return val;
 }
@@ -414,7 +416,7 @@ static void bonito_cop_writel(void *opaque, hwaddr addr,
         return;
     }
 
-    ((uint32_t *)(&s->boncop))[addr/sizeof(uint32_t)] = val & 0xffffffff;
+    ((uint32_t *)(&s->boncop))[addr / sizeof(uint32_t)] = val & 0xffffffff;
 }
 
 static const MemoryRegionOps bonito_cop_ops = {
@@ -446,7 +448,8 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     cfgaddr = addr & 0xffff;
     cfgaddr |= (s->regs[BONITO_PCIMAP_CFG] & 0xffff) << 16;
 
-    idsel = (cfgaddr & BONITO_PCICONF_IDSEL_MASK) >> BONITO_PCICONF_IDSEL_OFFSET;
+    idsel = (cfgaddr & BONITO_PCICONF_IDSEL_MASK) >>
+             BONITO_PCICONF_IDSEL_OFFSET;
     devno = ctz32(idsel);
     funno = (cfgaddr & BONITO_PCICONF_FUN_MASK) >> BONITO_PCICONF_FUN_OFFSET;
     regno = (cfgaddr & BONITO_PCICONF_REG_MASK) >> BONITO_PCICONF_REG_OFFSET;
@@ -550,7 +553,7 @@ static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
 }
 
 /* map the original irq (0~3) to bonito irq (16~47, but 16~31 are unused) */
-static int pci_bonito_map_irq(PCIDevice * pci_dev, int irq_num)
+static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
@@ -618,7 +621,10 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
 
-    /* Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined" */
+    /*
+     * Bonito North Bridge, built on FPGA,
+     * VENDOR_ID/DEVICE_ID are "undefined"
+     */
     pci_config_set_prog_interface(dev->config, 0x00);
 
     /* set the north bridge register mapping */

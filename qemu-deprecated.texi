@@ -261,6 +261,11 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 
 @section System emulator machines
 
+@subsection mips r4k platform (since 4.2)
+
+This machine type is very old and unmaintained. Users should use the 'malta'
+machine type instead.
+
 @subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)
 
 These machine types are very old and likely can not be used for live migration

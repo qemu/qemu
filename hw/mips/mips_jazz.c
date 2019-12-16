@@ -52,8 +52,7 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 
-enum jazz_model_e
-{
+enum jazz_model_e {
     JAZZ_MAGNUM,
     JAZZ_PICA61,
 };
@@ -90,16 +89,20 @@ static const MemoryRegionOps rtc_ops = {
 static uint64_t dma_dummy_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    /* Nothing to do. That is only to ensure that
-     * the current DMA acknowledge cycle is completed. */
+    /*
+     * Nothing to do. That is only to ensure that
+     * the current DMA acknowledge cycle is completed.
+     */
     return 0xff;
 }
 
 static void dma_dummy_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    /* Nothing to do. That is only to ensure that
-     * the current DMA acknowledge cycle is completed. */
+    /*
+     * Nothing to do. That is only to ensure that
+     * the current DMA acknowledge cycle is completed.
+     */
 }
 
 static const MemoryRegionOps dma_dummy_ops = {
@@ -109,8 +112,8 @@ static const MemoryRegionOps dma_dummy_ops = {
 };
 
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
-#define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
-
+#define MAGNUM_BIOS_SIZE                                                       \
+        (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 static void (*real_do_transaction_failed)(CPUState *cpu, hwaddr physaddr,
                                           vaddr addr, unsigned size,
                                           MMUAccessType access_type,
@@ -201,8 +204,9 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
 
     /* load the BIOS image. */
-    if (bios_name == NULL)
+    if (bios_name == NULL) {
         bios_name = BIOS_FILENAME;
+    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
@@ -229,7 +233,8 @@ static void mips_jazz_init(MachineState *machine,
                                 sysbus_mmio_get_region(sysbus, 0));
     memory_region_add_subregion(address_space, 0xf0000000,
                                 sysbus_mmio_get_region(sysbus, 1));
-    memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
+    memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops,
+                          NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
     /* ISA bus: IO space at 0x90000000, mem space at 0x91000000 */
@@ -276,8 +281,9 @@ static void mips_jazz_init(MachineState *machine,
     /* Network controller */
     for (n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
-        if (!nd->model)
+        if (!nd->model) {
             nd->model = g_strdup("dp83932");
+        }
         if (strcmp(nd->model, "dp83932") == 0) {
             qemu_check_nic_model(nd, "dp83932");
 
@@ -338,12 +344,12 @@ static void mips_jazz_init(MachineState *machine,
     /* Serial ports */
     if (serial_hd(0)) {
         serial_mm_init(address_space, 0x80006000, 0,
-                       qdev_get_gpio_in(rc4030, 8), 8000000/16,
+                       qdev_get_gpio_in(rc4030, 8), 8000000 / 16,
                        serial_hd(0), DEVICE_NATIVE_ENDIAN);
     }
     if (serial_hd(1)) {
         serial_mm_init(address_space, 0x80007000, 0,
-                       qdev_get_gpio_in(rc4030, 9), 8000000/16,
+                       qdev_get_gpio_in(rc4030, 9), 8000000 / 16,
                        serial_hd(1), DEVICE_NATIVE_ENDIAN);
     }
 
