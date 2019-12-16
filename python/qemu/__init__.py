@@ -9,9 +9,3 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 #
-# Based on qmp.py.
-#
-
-from . import qmp
-from . import machine
-from . import accel
