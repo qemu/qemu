@@ -189,8 +189,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     device_class_set_parent_realize(dc, mips_cpu_realizefn,
                                     &mcc->parent_realize);
-    mcc->parent_reset = cc->reset;
-    cc->reset = mips_cpu_reset;
+    cpu_class_set_parent_reset(cc, mips_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;

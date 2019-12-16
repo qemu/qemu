@@ -2707,8 +2707,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
                                     &acc->parent_realize);
     dc->props = arm_cpu_properties;
 
-    acc->parent_reset = cc->reset;
-    cc->reset = arm_cpu_reset;
+    cpu_class_set_parent_reset(cc, arm_cpu_reset, &acc->parent_reset);
 
     cc->class_by_name = arm_cpu_class_by_name;
     cc->has_work = arm_cpu_has_work;

@@ -292,8 +292,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, mb_cpu_realizefn,
                                     &mcc->parent_realize);
-    mcc->parent_reset = cc->reset;
-    cc->reset = mb_cpu_reset;
+    cpu_class_set_parent_reset(cc, mb_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = mb_cpu_class_by_name;
     cc->has_work = mb_cpu_has_work;

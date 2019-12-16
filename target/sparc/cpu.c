@@ -859,8 +859,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
                                     &scc->parent_realize);
     dc->props = sparc_cpu_properties;
 
-    scc->parent_reset = cc->reset;
-    cc->reset = sparc_cpu_reset;
+    cpu_class_set_parent_reset(cc, sparc_cpu_reset, &scc->parent_reset);
 
     cc->class_by_name = sparc_cpu_class_by_name;
     cc->parse_features = sparc_cpu_parse_features;

@@ -10873,8 +10873,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     dc->props = ppc_cpu_properties;
 
-    pcc->parent_reset = cc->reset;
-    cc->reset = ppc_cpu_reset;
+    cpu_class_set_parent_reset(cc, ppc_cpu_reset, &pcc->parent_reset);
 
     cc->class_by_name = ppc_cpu_class_by_name;
     pcc->parent_parse_features = cc->parse_features;

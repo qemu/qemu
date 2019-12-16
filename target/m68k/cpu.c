@@ -273,8 +273,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 
     device_class_set_parent_realize(dc, m68k_cpu_realizefn,
                                     &mcc->parent_realize);
-    mcc->parent_reset = cc->reset;
-    cc->reset = m68k_cpu_reset;
+    cpu_class_set_parent_reset(cc, m68k_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = m68k_cpu_class_by_name;
     cc->has_work = m68k_cpu_has_work;

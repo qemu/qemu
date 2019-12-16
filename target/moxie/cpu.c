@@ -101,8 +101,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, moxie_cpu_realizefn,
                                     &mcc->parent_realize);
-    mcc->parent_reset = cc->reset;
-    cc->reset = moxie_cpu_reset;
+    cpu_class_set_parent_reset(cc, moxie_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
