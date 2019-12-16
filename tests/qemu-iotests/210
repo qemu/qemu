@@ -26,15 +26,6 @@ from iotests import imgfmt
 iotests.verify_image_format(supported_fmts=['luks'])
 iotests.verify_protocol(supported=['file'])
 
-def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
-                        filters=[iotests.filter_qmp_testfiles])
-
-    if 'return' in result:
-        assert result['return'] == {}
-        vm.run_job('job0')
-    iotests.log("")
-
 with iotests.FilePath('t.luks') as disk_path, \
      iotests.VM() as vm:
 
@@ -49,18 +40,18 @@ with iotests.FilePath('t.luks') as disk_path, \
     size = 128 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
     vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
                node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'imgfile',
-                          'key-secret': 'keysec0',
-                          'size': size,
-                          'iter-time': 10 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'imgfile',
+                         'key-secret': 'keysec0',
+                         'size': size,
+                         'iter-time': 10 })
     vm.shutdown()
 
     # TODO Proper support for images to be used with imgopts and/or protocols
@@ -79,22 +70,22 @@ with iotests.FilePath('t.luks') as disk_path, \
     size = 64 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'key-secret': 'keysec0',
-                          'cipher-alg': 'twofish-128',
-                          'cipher-mode': 'ctr',
-                          'ivgen-alg': 'plain64',
-                          'ivgen-hash-alg': 'md5',
-                          'hash-alg': 'sha1',
-                          'iter-time': 10 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'key-secret': 'keysec0',
+                         'cipher-alg': 'twofish-128',
+                         'cipher-mode': 'ctr',
+                         'ivgen-alg': 'plain64',
+                         'ivgen-hash-alg': 'md5',
+                         'hash-alg': 'sha1',
+                         'iter-time': 10 })
     vm.shutdown()
 
     # TODO Proper support for images to be used with imgopts and/or protocols
@@ -113,9 +104,9 @@ with iotests.FilePath('t.luks') as disk_path, \
     size = 64 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': "this doesn't exist",
-                          'size': size })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': "this doesn't exist",
+                         'size': size })
     vm.shutdown()
 
     #
@@ -126,11 +117,11 @@ with iotests.FilePath('t.luks') as disk_path, \
 
     vm.add_blockdev('driver=file,filename=%s,node-name=node0' % (disk_path))
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'key-secret': 'keysec0',
-                          'size': 0,
-                          'iter-time': 10 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'key-secret': 'keysec0',
+                         'size': 0,
+                         'iter-time': 10 })
     vm.shutdown()
 
     # TODO Proper support for images to be used with imgopts and/or protocols
@@ -157,10 +148,10 @@ with iotests.FilePath('t.luks') as disk_path, \
 
     vm.launch()
     for size in [ 18446744073709551104, 9223372036854775808, 9223372036854775296 ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'key-secret': 'keysec0',
-                              'size': size })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'key-secret': 'keysec0',
+                             'size': size })
     vm.shutdown()
 
     #
