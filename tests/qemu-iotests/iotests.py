@@ -643,6 +643,22 @@ class VM(qtest.QEMUQtestMachine):
             elif status == 'null':
                 return error
 
+    # Returns None on success, and an error string on failure
+    def blockdev_create(self, options, job_id='job0', filters=None):
+        if filters is None:
+            filters = [filter_qmp_testfiles]
+        result = self.qmp_log('blockdev-create', filters=filters,
+                              job_id=job_id, options=options)
+
+        if 'return' in result:
+            assert result['return'] == {}
+            job_result = self.run_job(job_id)
+        else:
+            job_result = result['error']
+
+        log("")
+        return job_result
+
     def enable_migration_events(self, name):
         log('Enabling migration QMP events on %s...' % name)
         log(self.qmp('migrate-set-capabilities', capabilities=[
