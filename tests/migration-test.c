@@ -14,7 +14,6 @@
 
 #include "libqtest.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qjson.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
@@ -24,6 +23,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 
+#include "migration-helpers.h"
 #include "migration/migration-test.h"
 
 /* TODO actually test the results and get rid of this */
@@ -31,7 +31,6 @@
 
 unsigned start_address;
 unsigned end_address;
-bool got_stop;
 static bool uffd_feature_thread_id;
 
 #if defined(__linux__)
@@ -157,67 +156,6 @@ static void wait_for_serial(const char *side)
     } while (true);
 }
 
-static void stop_cb(void *opaque, const char *name, QDict *data)
-{
-    if (!strcmp(name, "STOP")) {
-        got_stop = true;
-    }
-}
-
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-GCC_FMT_ATTR(3, 4)
-static QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
-{
-    va_list ap;
-
-    va_start(ap, command);
-    qtest_qmp_vsend_fds(who, &fd, 1, command, ap);
-    va_end(ap);
-
-    return qtest_qmp_receive_success(who, stop_cb, NULL);
-}
-
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-GCC_FMT_ATTR(2, 3)
-static QDict *wait_command(QTestState *who, const char *command, ...)
-{
-    va_list ap;
-
-    va_start(ap, command);
-    qtest_qmp_vsend(who, command, ap);
-    va_end(ap);
-
-    return qtest_qmp_receive_success(who, stop_cb, NULL);
-}
-
-/*
- * Note: caller is responsible to free the returned object via
- * qobject_unref() after use
- */
-static QDict *migrate_query(QTestState *who)
-{
-    return wait_command(who, "{ 'execute': 'query-migrate' }");
-}
-
-/*
- * Note: caller is responsible to free the returned object via
- * g_free() after use
- */
-static gchar *migrate_query_status(QTestState *who)
-{
-    QDict *rsp_return = migrate_query(who);
-    gchar *status = g_strdup(qdict_get_str(rsp_return, "status"));
-
-    g_assert(status);
-    qobject_unref(rsp_return);
-
-    return status;
-}
-
 /*
  * It's tricky to use qemu's migration event capability with qtest,
  * events suddenly appearing confuse the qmp()/hmp() responses.
@@ -263,48 +201,6 @@ static void read_blocktime(QTestState *who)
     rsp_return = migrate_query(who);
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
     qobject_unref(rsp_return);
-}
-
-static bool check_migration_status(QTestState *who, const char *goal,
-                                   const char **ungoals)
-{
-    bool ready;
-    char *current_status;
-    const char **ungoal;
-
-    current_status = migrate_query_status(who);
-    ready = strcmp(current_status, goal) == 0;
-    if (!ungoals) {
-        g_assert_cmpstr(current_status, !=, "failed");
-        /*
-         * If looking for a state other than completed,
-         * completion of migration would cause the test to
-         * hang.
-         */
-        if (strcmp(goal, "completed") != 0) {
-            g_assert_cmpstr(current_status, !=, "completed");
-        }
-    } else {
-        for (ungoal = ungoals; *ungoal; ungoal++) {
-            g_assert_cmpstr(current_status, !=,  *ungoal);
-        }
-    }
-    g_free(current_status);
-    return ready;
-}
-
-static void wait_for_migration_status(QTestState *who,
-                                      const char *goal,
-                                      const char **ungoals)
-{
-    while (!check_migration_status(who, goal, ungoals)) {
-        usleep(1000);
-    }
-}
-
-static void wait_for_migration_complete(QTestState *who)
-{
-    wait_for_migration_status(who, "completed", NULL);
 }
 
 static void wait_for_migration_pass(QTestState *who)
@@ -502,30 +398,6 @@ static void migrate_set_capability(QTestState *who, const char *capability,
                     "'capabilities': [ { "
                     "'capability': %s, 'state': %i } ] } }",
                     capability, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
-}
-
-/*
- * Send QMP command "migrate".
- * Arguments are built from @fmt... (formatted like
- * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.
- */
-GCC_FMT_ATTR(3, 4)
-static void migrate(QTestState *who, const char *uri, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *args, *rsp;
-
-    va_start(ap, fmt);
-    args = qdict_from_vjsonf_nofail(fmt, ap);
-    va_end(ap);
-
-    g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
-
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate', 'arguments': %p}", args);
-
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 }
@@ -800,7 +672,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
     g_free(uri);
 
     wait_for_migration_pass(from);
@@ -891,39 +763,13 @@ static void test_postcopy_recovery(void)
     wait_for_migration_status(from, "postcopy-paused",
                               (const char * []) { "failed", "active",
                                                   "completed", NULL });
-    migrate(from, uri, "{'resume': true}");
+    migrate_qmp(from, uri, "{'resume': true}");
     g_free(uri);
 
     /* Restore the postcopy bandwidth to unlimited */
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
 
     migrate_postcopy_complete(from, to);
-}
-
-static void wait_for_migration_fail(QTestState *from, bool allow_active)
-{
-    QDict *rsp_return;
-    char *status;
-    bool failed;
-
-    do {
-        status = migrate_query_status(from);
-        bool result = !strcmp(status, "setup") || !strcmp(status, "failed") ||
-                 (allow_active && !strcmp(status, "active"));
-        if (!result) {
-            fprintf(stderr, "%s: unexpected status status=%s allow_active=%d\n",
-                    __func__, status, allow_active);
-        }
-        g_assert(result);
-        failed = !strcmp(status, "failed");
-        g_free(status);
-    } while (!failed);
-
-    /* Is the machine currently running? */
-    rsp_return = wait_command(from, "{ 'execute': 'query-status' }");
-    g_assert(qdict_haskey(rsp_return, "running"));
-    g_assert(qdict_get_bool(rsp_return, "running"));
-    qobject_unref(rsp_return);
 }
 
 static void test_baddest(void)
@@ -936,7 +782,7 @@ static void test_baddest(void)
     if (test_migrate_start(&from, &to, "tcp:0:0", args)) {
         return;
     }
-    migrate(from, "tcp:0:0", "{}");
+    migrate_qmp(from, "tcp:0:0", "{}");
     wait_for_migration_fail(from, false);
     test_migrate_end(from, to, false);
 }
@@ -963,7 +809,7 @@ static void test_precopy_unix(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     wait_for_migration_pass(from);
 
@@ -1000,7 +846,7 @@ static void test_ignore_shared(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     wait_for_migration_pass(from);
 
@@ -1047,7 +893,7 @@ static void test_xbzrle(const char *uri)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     wait_for_migration_pass(from);
 
@@ -1098,7 +944,7 @@ static void test_precopy_tcp(void)
 
     uri = migrate_get_socket_address(to, "socket-address");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     wait_for_migration_pass(from);
 
@@ -1167,7 +1013,7 @@ static void test_migrate_fd_proto(void)
     close(pair[1]);
 
     /* Start migration to the 2nd socket*/
-    migrate(from, "fd:fd-mig", "{}");
+    migrate_qmp(from, "fd:fd-mig", "{}");
 
     wait_for_migration_pass(from);
 
@@ -1222,7 +1068,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     if (should_fail) {
         qtest_set_expected_status(to, 1);
@@ -1316,7 +1162,7 @@ static void test_migrate_auto_converge(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri, "{}");
+    migrate_qmp(from, uri, "{}");
 
     /* Wait for throttling begins */
     percentage = 0;
