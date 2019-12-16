@@ -27,15 +27,9 @@ iotests.verify_image_format(supported_fmts=['vdi'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
-                        filters=[iotests.filter_qmp_testfiles])
-
-    if 'return' in result:
-        assert result['return'] == {}
-        error = vm.run_job('job0')
-        if error and 'Could not allocate bmap' in error:
-            iotests.notrun('Insufficient memory')
-    iotests.log("")
+    error = vm.blockdev_create(options)
+    if error and 'Could not allocate bmap' in error:
+        iotests.notrun('Insufficient memory')
 
 with iotests.FilePath('t.vdi') as disk_path, \
      iotests.VM() as vm:
