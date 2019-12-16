@@ -128,10 +128,13 @@ void xen_device_copy_grant_refs(XenDevice *xendev, bool to_domain,
 typedef bool (*XenEventHandler)(void *opaque);
 
 XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
-                                               AioContext *ctx,
                                                unsigned int port,
                                                XenEventHandler handler,
                                                void *opaque, Error **errp);
+void xen_device_set_event_channel_context(XenDevice *xendev,
+                                          XenEventChannel *channel,
+                                          AioContext *ctx,
+                                          Error **errp);
 void xen_device_notify_event_channel(XenDevice *xendev,
                                      XenEventChannel *channel,
                                      Error **errp);
