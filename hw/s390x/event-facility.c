@@ -339,14 +339,16 @@ out:
 
 static void sclp_events_bus_realize(BusState *bus, Error **errp)
 {
+    Error *err = NULL;
     BusChild *kid;
 
     /* TODO: recursive realization has to be done in common code */
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
 
-        object_property_set_bool(OBJECT(dev), true, "realized", errp);
-        if (*errp) {
+        object_property_set_bool(OBJECT(dev), true, "realized", &err);
+        if (errp) {
+            error_propagate(errp, err);
             return;
         }
     }

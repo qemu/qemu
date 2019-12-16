@@ -102,7 +102,7 @@ again:
         if (errno == EAGAIN) {
             goto again;
         }
-        error_report("vfio-ccw: wirte I/O region failed with errno=%d", errno);
+        error_report("vfio-ccw: write I/O region failed with errno=%d", errno);
         ret = -errno;
     } else {
         ret = region->ret_code;

@@ -103,6 +103,9 @@
 
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
+GlobalProperty pc_compat_4_2[] = {};
+const size_t pc_compat_4_2_len = G_N_ELEMENTS(pc_compat_4_2);
+
 GlobalProperty pc_compat_4_1[] = {};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
