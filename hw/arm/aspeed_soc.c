@@ -163,8 +163,6 @@ static void aspeed_soc_init(Object *obj)
     snprintf(typename, sizeof(typename), "aspeed.timer-%s", socname);
     sysbus_init_child_obj(obj, "timerctrl", OBJECT(&s->timerctrl),
                           sizeof(s->timerctrl), typename);
-    object_property_add_const_link(OBJECT(&s->timerctrl), "scu",
-                                   OBJECT(&s->scu), &error_abort);
 
     snprintf(typename, sizeof(typename), "aspeed.i2c-%s", socname);
     sysbus_init_child_obj(obj, "i2c", OBJECT(&s->i2c), sizeof(s->i2c),
@@ -174,8 +172,6 @@ static void aspeed_soc_init(Object *obj)
     sysbus_init_child_obj(obj, "fmc", OBJECT(&s->fmc), sizeof(s->fmc),
                           typename);
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
-                              &error_abort);
-    object_property_add_alias(obj, "dram", OBJECT(&s->fmc), "dram",
                               &error_abort);
 
     for (i = 0; i < sc->spis_num; i++) {
@@ -196,8 +192,6 @@ static void aspeed_soc_init(Object *obj)
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
         sysbus_init_child_obj(obj, "wdt[*]", OBJECT(&s->wdt[i]),
                               sizeof(s->wdt[i]), typename);
-        object_property_add_const_link(OBJECT(&s->wdt[i]), "scu",
-                                       OBJECT(&s->scu), &error_abort);
     }
 
     for (i = 0; i < sc->macs_num; i++) {
@@ -293,6 +287,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_RTC));
 
     /* Timer */
+    object_property_set_link(OBJECT(&s->timerctrl),
+                             OBJECT(&s->scu), "scu", &error_abort);
     object_property_set_bool(OBJECT(&s->timerctrl), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -313,6 +309,11 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* I2C */
+    object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->i2c), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -323,6 +324,11 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_I2C));
 
     /* FMC, The number of CS is set at the board level */
+    object_property_set_link(OBJECT(&s->fmc), OBJECT(s->dram_mr), "dram", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_int(OBJECT(&s->fmc), sc->memmap[ASPEED_SDRAM],
                             "sdram-base", &err);
     if (err) {
@@ -368,6 +374,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->wdts_num; i++) {
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
 
+        object_property_set_link(OBJECT(&s->wdt[i]),
+                                 OBJECT(&s->scu), "scu", &error_abort);
         object_property_set_bool(OBJECT(&s->wdt[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
@@ -429,6 +437,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 }
 static Property aspeed_soc_properties[] = {
     DEFINE_PROP_UINT32("num-cpus", AspeedSoCState, num_cpus, 0),
+    DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

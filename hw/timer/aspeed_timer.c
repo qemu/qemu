@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/qdev-properties.h"
 #include "trace.h"
 
 #define TIMER_NR_REGS 4
@@ -603,15 +604,8 @@ static void aspeed_timer_realize(DeviceState *dev, Error **errp)
     int i;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedTimerCtrlState *s = ASPEED_TIMER(dev);
-    Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "scu", &err);
-    if (!obj) {
-        error_propagate_prepend(errp, err, "required link 'scu' not found: ");
-        return;
-    }
-    s->scu = ASPEED_SCU(obj);
+    assert(s->scu);
 
     for (i = 0; i < ASPEED_TIMER_NR_TIMERS; i++) {
         aspeed_init_one_timer(s, i);
@@ -677,6 +671,12 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
     }
 };
 
+static Property aspeed_timer_properties[] = {
+    DEFINE_PROP_LINK("scu", AspeedTimerCtrlState, scu, TYPE_ASPEED_SCU,
+                     AspeedSCUState *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -685,6 +685,7 @@ static void timer_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_timer_reset;
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
+    dc->props = aspeed_timer_properties;
 }
 
 static const TypeInfo aspeed_timer_info = {

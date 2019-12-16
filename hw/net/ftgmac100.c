@@ -1204,17 +1204,8 @@ static void aspeed_mii_realize(DeviceState *dev, Error **errp)
 {
     AspeedMiiState *s = ASPEED_MII(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "nic", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'nic' not found: ");
-        return;
-    }
-
-    s->nic = FTGMAC100(obj);
+    assert(s->nic);
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &aspeed_mii_ops, s,
                           TYPE_ASPEED_MII, 0x8);
@@ -1231,6 +1222,13 @@ static const VMStateDescription vmstate_aspeed_mii = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static Property aspeed_mii_properties[] = {
+    DEFINE_PROP_LINK("nic", AspeedMiiState, nic, TYPE_FTGMAC100,
+                     FTGMAC100State *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void aspeed_mii_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1239,6 +1237,7 @@ static void aspeed_mii_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_mii_reset;
     dc->realize = aspeed_mii_realize;
     dc->desc = "Aspeed MII controller";
+    dc->props = aspeed_mii_properties;
 }
 
 static const TypeInfo aspeed_mii_info = {

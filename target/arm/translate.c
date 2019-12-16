@@ -6897,7 +6897,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             return 1;
         }
 
-        if (ri->accessfn ||
+        if (s->hstr_active || ri->accessfn ||
             (arm_dc_feature(s, ARM_FEATURE_XSCALE) && cpnum < 14)) {
             /* Emit code to perform further access permissions checks at
              * runtime; this may result in an exception.
@@ -7083,7 +7083,11 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             if (arm_dc_feature(s, ARM_FEATURE_M)) {
                 gen_helper_rebuild_hflags_m32(cpu_env, tcg_el);
             } else {
-                gen_helper_rebuild_hflags_a32(cpu_env, tcg_el);
+                if (ri->type & ARM_CP_NEWEL) {
+                    gen_helper_rebuild_hflags_a32_newel(cpu_env);
+                } else {
+                    gen_helper_rebuild_hflags_a32(cpu_env, tcg_el);
+                }
             }
             tcg_temp_free_i32(tcg_el);
             /*
@@ -10843,6 +10847,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
                                !arm_el_is_aa64(env, 3);
     dc->thumb = FIELD_EX32(tb_flags, TBFLAG_A32, THUMB);
     dc->sctlr_b = FIELD_EX32(tb_flags, TBFLAG_A32, SCTLR_B);
+    dc->hstr_active = FIELD_EX32(tb_flags, TBFLAG_A32, HSTR_ACTIVE);
     dc->be_data = FIELD_EX32(tb_flags, TBFLAG_ANY, BE_DATA) ? MO_BE : MO_LE;
     condexec = FIELD_EX32(tb_flags, TBFLAG_A32, CONDEXEC);
     dc->condexec_mask = (condexec & 0xf) << 1;
