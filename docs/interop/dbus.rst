@@ -103,3 +103,8 @@ https://dbus.freedesktop.org/doc/dbus-api-design.html
 
 The "org.qemu.*" prefix is reserved for services implemented &
 distributed by the QEMU project.
+
+QEMU Interfaces
+===============
+
+:doc:`dbus-vmstate`

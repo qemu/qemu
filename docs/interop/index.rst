@@ -14,6 +14,7 @@ Contents:
 
    bitmaps
    dbus
+   dbus-vmstate
    live-block-operations
    pr-helper
    qemu-ga
