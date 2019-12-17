@@ -112,6 +112,8 @@ static uint64_t ppc_excp_vector_offset(CPUState *cs, int ail)
     uint64_t offset = 0;
 
     switch (ail) {
+    case AIL_NONE:
+        break;
     case AIL_0001_8000:
         offset = 0x18000;
         break;
