@@ -217,15 +217,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
     char name[32];
-    Object *chip;
 
-    chip = object_property_get_link(OBJECT(dev), "chip", &local_err);
-    if (!chip) {
-        error_propagate_prepend(errp, local_err,
-                                "required link 'chip' not found: ");
-        return;
-    }
-    pc->chip = PNV_CHIP(chip);
+    assert(pc->chip);
 
     pc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
@@ -254,6 +247,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
+    /* TODO: check PNV_XSCOM_EX_SIZE for p10 */
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), pcc->xscom_ops,
                           pc, name, PNV_XSCOM_EX_SIZE);
 
@@ -297,6 +291,7 @@ static void pnv_core_unrealize(DeviceState *dev, Error **errp)
 
 static Property pnv_core_properties[] = {
     DEFINE_PROP_UINT32("pir", PnvCore, pir, 0),
+    DEFINE_PROP_LINK("chip", PnvCore, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -311,6 +306,14 @@ static void pnv_core_power9_class_init(ObjectClass *oc, void *data)
 {
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
+    pcc->xscom_ops = &pnv_core_power9_xscom_ops;
+}
+
+static void pnv_core_power10_class_init(ObjectClass *oc, void *data)
+{
+    PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
+
+    /* TODO: Use the P9 XSCOMs for now on P10 */
     pcc->xscom_ops = &pnv_core_power9_xscom_ops;
 }
 
@@ -343,6 +346,7 @@ static const TypeInfo pnv_core_infos[] = {
     DEFINE_PNV_CORE_TYPE(power8, "power8_v2.0"),
     DEFINE_PNV_CORE_TYPE(power8, "power8nvl_v1.0"),
     DEFINE_PNV_CORE_TYPE(power9, "power9_v2.0"),
+    DEFINE_PNV_CORE_TYPE(power10, "power10_v1.0"),
 };
 
 DEFINE_TYPES(pnv_core_infos)

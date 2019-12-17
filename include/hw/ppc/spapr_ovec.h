@@ -66,9 +66,7 @@ SpaprOptionVector *spapr_ovec_clone(SpaprOptionVector *ov_orig);
 void spapr_ovec_intersect(SpaprOptionVector *ov,
                           SpaprOptionVector *ov1,
                           SpaprOptionVector *ov2);
-bool spapr_ovec_diff(SpaprOptionVector *ov,
-                     SpaprOptionVector *ov_old,
-                     SpaprOptionVector *ov_new);
+bool spapr_ovec_subset(SpaprOptionVector *ov1, SpaprOptionVector *ov2);
 void spapr_ovec_cleanup(SpaprOptionVector *ov);
 void spapr_ovec_set(SpaprOptionVector *ov, long bitnr);
 void spapr_ovec_clear(SpaprOptionVector *ov, long bitnr);

@@ -29,7 +29,7 @@
 
 #include "pnv_xive_regs.h"
 
-#define XIVE_DEBUG
+#undef XIVE_DEBUG
 
 /*
  * Virtual structures table (VST)
@@ -86,12 +86,29 @@ static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
 }
 
 /*
+ * When PC_TCTXT_CHIPID_OVERRIDE is configured, the PC_TCTXT_CHIPID
+ * field overrides the hardwired chip ID in the Powerbus operations
+ * and for CAM compares
+ */
+static uint8_t pnv_xive_block_id(PnvXive *xive)
+{
+    uint8_t blk = xive->chip->chip_id;
+    uint64_t cfg_val = xive->regs[PC_TCTXT_CFG >> 3];
+
+    if (cfg_val & PC_TCTXT_CHIPID_OVERRIDE) {
+        blk = GETFIELD(PC_TCTXT_CHIPID, cfg_val);
+    }
+
+    return blk;
+}
+
+/*
  * Remote access to controllers. HW uses MMIOs. For now, a simple scan
  * of the chips is good enough.
  *
  * TODO: Block scope support
  */
-static PnvXive *pnv_xive_get_ic(uint8_t blk)
+static PnvXive *pnv_xive_get_remote(uint8_t blk)
 {
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     int i;
@@ -100,7 +117,7 @@ static PnvXive *pnv_xive_get_ic(uint8_t blk)
         Pnv9Chip *chip9 = PNV9_CHIP(pnv->chips[i]);
         PnvXive *xive = &chip9->xive;
 
-        if (xive->chip->chip_id == blk) {
+        if (pnv_xive_block_id(xive) == blk) {
             return xive;
         }
     }
@@ -123,36 +140,22 @@ static uint64_t pnv_xive_vst_page_size_allowed(uint32_t page_shift)
          page_shift == 21 || page_shift == 24;
 }
 
-static uint64_t pnv_xive_vst_size(uint64_t vsd)
-{
-    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
-
-    /*
-     * Read the first descriptor to get the page size of the indirect
-     * table.
-     */
-    if (VSD_INDIRECT & vsd) {
-        uint32_t nr_pages = vst_tsize / XIVE_VSD_SIZE;
-        uint32_t page_shift;
-
-        vsd = ldq_be_dma(&address_space_memory, vsd & VSD_ADDRESS_MASK);
-        page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
-
-        if (!pnv_xive_vst_page_size_allowed(page_shift)) {
-            return 0;
-        }
-
-        return nr_pages * (1ull << page_shift);
-    }
-
-    return vst_tsize;
-}
-
 static uint64_t pnv_xive_vst_addr_direct(PnvXive *xive, uint32_t type,
                                          uint64_t vsd, uint32_t idx)
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
+    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
+    uint32_t idx_max;
+
+    idx_max = vst_tsize / info->size - 1;
+    if (idx > idx_max) {
+#ifdef XIVE_DEBUG
+        xive_error(xive, "VST: %s entry %x out of range [ 0 .. %x ] !?",
+                   info->name, idx, idx_max);
+#endif
+        return 0;
+    }
 
     return vst_addr + idx * info->size;
 }
@@ -171,7 +174,9 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
     vsd = ldq_be_dma(&address_space_memory, vsd_addr);
 
     if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
         xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
         return 0;
     }
 
@@ -192,7 +197,9 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
         vsd = ldq_be_dma(&address_space_memory, vsd_addr);
 
         if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
             xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
             return 0;
         }
 
@@ -215,7 +222,6 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t vsd;
-    uint32_t idx_max;
 
     if (blk >= info->max_blocks) {
         xive_error(xive, "VST: invalid block id %d for VST %s %d !?",
@@ -227,18 +233,9 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
-        xive = pnv_xive_get_ic(blk);
+        xive = pnv_xive_get_remote(blk);
 
         return xive ? pnv_xive_vst_addr(xive, type, blk, idx) : 0;
-    }
-
-    idx_max = pnv_xive_vst_size(vsd) / info->size - 1;
-    if (idx > idx_max) {
-#ifdef XIVE_DEBUG
-        xive_error(xive, "VST: %s entry %x/%x out of range [ 0 .. %x ] !?",
-                   info->name, blk, idx, idx_max);
-#endif
-        return 0;
     }
 
     if (VSD_INDIRECT & vsd) {
@@ -384,7 +381,10 @@ static int pnv_xive_get_eas(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
 {
     PnvXive *xive = PNV_XIVE(xrtr);
 
-    if (pnv_xive_get_ic(blk) != xive) {
+    /*
+     * EAT lookups should be local to the IC
+     */
+    if (pnv_xive_block_id(xive) != blk) {
         xive_error(xive, "VST: EAS %x is remote !?", XIVE_EAS(blk, idx));
         return -1;
     }
@@ -392,31 +392,97 @@ static int pnv_xive_get_eas(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
     return pnv_xive_vst_read(xive, VST_TSEL_IVT, blk, idx, eas);
 }
 
-static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
+/*
+ * One bit per thread id. The first register PC_THREAD_EN_REG0 covers
+ * the first cores 0-15 (normal) of the chip or 0-7 (fused). The
+ * second register covers cores 16-23 (normal) or 8-11 (fused).
+ */
+static bool pnv_xive_is_cpu_enabled(PnvXive *xive, PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
-    PnvXive *xive = NULL;
-    CPUPPCState *env = &cpu->env;
-    int pir = env->spr_cb[SPR_PIR].default_value;
+    int pir = ppc_cpu_pir(cpu);
+    uint32_t fc = PNV9_PIR2FUSEDCORE(pir);
+    uint64_t reg = fc < 8 ? PC_THREAD_EN_REG0 : PC_THREAD_EN_REG1;
+    uint32_t bit = pir & 0x3f;
 
-    /*
-     * Perform an extra check on the HW thread enablement.
-     *
-     * The TIMA is shared among the chips and to identify the chip
-     * from which the access is being done, we extract the chip id
-     * from the PIR.
-     */
-    xive = pnv_xive_get_ic((pir >> 8) & 0xf);
-    if (!xive) {
-        return NULL;
+    return xive->regs[reg >> 3] & PPC_BIT(bit);
+}
+
+static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
+                              uint8_t nvt_blk, uint32_t nvt_idx,
+                              bool cam_ignore, uint8_t priority,
+                              uint32_t logic_serv, XiveTCTXMatch *match)
+{
+    PnvXive *xive = PNV_XIVE(xptr);
+    PnvChip *chip = xive->chip;
+    int count = 0;
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+        CPUCore *cc = CPU_CORE(pc);
+
+        for (j = 0; j < cc->nr_threads; j++) {
+            PowerPCCPU *cpu = pc->threads[j];
+            XiveTCTX *tctx;
+            int ring;
+
+            if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
+                continue;
+            }
+
+            tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+            /*
+             * Check the thread context CAM lines and record matches.
+             */
+            ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk,
+                                             nvt_idx, cam_ignore, logic_serv);
+            /*
+             * Save the context and follow on to catch duplicates, that we
+             * don't support yet.
+             */
+            if (ring != -1) {
+                if (match->tctx) {
+                    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a "
+                                  "thread context NVT %x/%x\n",
+                                  nvt_blk, nvt_idx);
+                    return -1;
+                }
+
+                match->ring = ring;
+                match->tctx = tctx;
+                count++;
+            }
+        }
     }
 
-    if (!(xive->regs[PC_THREAD_EN_REG0 >> 3] & PPC_BIT(pir & 0x3f))) {
-        xive_error(PNV_XIVE(xrtr), "IC: CPU %x is not enabled", pir);
-    }
+    return count;
+}
 
-    return tctx;
+static uint8_t pnv_xive_get_block_id(XiveRouter *xrtr)
+{
+    return pnv_xive_block_id(PNV_XIVE(xrtr));
+}
+
+/*
+ * The TIMA MMIO space is shared among the chips and to identify the
+ * chip from which the access is being done, we extract the chip id
+ * from the PIR.
+ */
+static PnvXive *pnv_xive_tm_get_xive(PowerPCCPU *cpu)
+{
+    int pir = ppc_cpu_pir(cpu);
+    PnvChip *chip;
+    PnvXive *xive;
+
+    chip = pnv_get_chip(PNV9_PIR2CHIP(pir));
+    assert(chip);
+    xive = &PNV9_CHIP(chip)->xive;
+
+    if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
+        xive_error(xive, "IC: CPU %x is not enabled", pir);
+    }
+    return xive;
 }
 
 /*
@@ -429,7 +495,7 @@ static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
 static void pnv_xive_notify(XiveNotifier *xn, uint32_t srcno)
 {
     PnvXive *xive = PNV_XIVE(xn);
-    uint8_t blk = xive->chip->chip_id;
+    uint8_t blk = pnv_xive_block_id(xive);
 
     xive_router_notify(xn, XIVE_EAS(blk, srcno));
 }
@@ -453,19 +519,50 @@ static uint64_t pnv_xive_pc_size(PnvXive *xive)
     return (~xive->regs[CQ_PC_BARM >> 3] + 1) & CQ_PC_BARM_MASK;
 }
 
-static uint32_t pnv_xive_nr_ipis(PnvXive *xive)
+static uint32_t pnv_xive_nr_ipis(PnvXive *xive, uint8_t blk)
 {
-    uint8_t blk = xive->chip->chip_id;
+    uint64_t vsd = xive->vsds[VST_TSEL_SBE][blk];
+    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
 
-    return pnv_xive_vst_size(xive->vsds[VST_TSEL_SBE][blk]) * SBE_PER_BYTE;
+    return VSD_INDIRECT & vsd ? 0 : vst_tsize * SBE_PER_BYTE;
 }
 
-static uint32_t pnv_xive_nr_ends(PnvXive *xive)
+/*
+ * Compute the number of entries per indirect subpage.
+ */
+static uint64_t pnv_xive_vst_per_subpage(PnvXive *xive, uint32_t type)
 {
-    uint8_t blk = xive->chip->chip_id;
+    uint8_t blk = pnv_xive_block_id(xive);
+    uint64_t vsd = xive->vsds[type][blk];
+    const XiveVstInfo *info = &vst_infos[type];
+    uint64_t vsd_addr;
+    uint32_t page_shift;
 
-    return pnv_xive_vst_size(xive->vsds[VST_TSEL_EQDT][blk])
-        / vst_infos[VST_TSEL_EQDT].size;
+    /* For direct tables, fake a valid value */
+    if (!(VSD_INDIRECT & vsd)) {
+        return 1;
+    }
+
+    /* Get the page size of the indirect table. */
+    vsd_addr = vsd & VSD_ADDRESS_MASK;
+    vsd = ldq_be_dma(&address_space_memory, vsd_addr);
+
+    if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE_DEBUG
+        xive_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
+        return 0;
+    }
+
+    page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+
+    if (!pnv_xive_vst_page_size_allowed(page_shift)) {
+        xive_error(xive, "VST: invalid %s page shift %d", info->name,
+                   page_shift);
+        return 0;
+    }
+
+    return (1ull << page_shift) / info->size;
 }
 
 /*
@@ -598,6 +695,7 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
     XiveSource *xsrc = &xive->ipi_source;
     const XiveVstInfo *info = &vst_infos[type];
     uint32_t page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+    uint64_t vst_tsize = 1ull << page_shift;
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
 
     /* Basic checks */
@@ -633,11 +731,16 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
 
     case VST_TSEL_EQDT:
         /*
-         * Backing store pages for the END. Compute the number of ENDs
-         * provisioned by FW and resize the END ESB window accordingly.
+         * Backing store pages for the END.
+         *
+         * If the table is direct, we can compute the number of PQ
+         * entries provisioned by FW (such as skiboot) and resize the
+         * END ESB window accordingly.
          */
-        memory_region_set_size(&end_xsrc->esb_mmio, pnv_xive_nr_ends(xive) *
-                               (1ull << (end_xsrc->esb_shift + 1)));
+        if (!(VSD_INDIRECT & vsd)) {
+            memory_region_set_size(&end_xsrc->esb_mmio, (vst_tsize / info->size)
+                                   * (1ull << xsrc->esb_shift));
+        }
         memory_region_add_subregion(&xive->end_edt_mmio, 0,
                                     &end_xsrc->esb_mmio);
         break;
@@ -646,11 +749,16 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
         /*
          * Backing store pages for the source PQ bits. The model does
          * not use these PQ bits backed in RAM because the XiveSource
-         * model has its own. Compute the number of IRQs provisioned
-         * by FW and resize the IPI ESB window accordingly.
+         * model has its own.
+         *
+         * If the table is direct, we can compute the number of PQ
+         * entries provisioned by FW (such as skiboot) and resize the
+         * ESB window accordingly.
          */
-        memory_region_set_size(&xsrc->esb_mmio, pnv_xive_nr_ipis(xive) *
-                               (1ull << xsrc->esb_shift));
+        if (!(VSD_INDIRECT & vsd)) {
+            memory_region_set_size(&xsrc->esb_mmio, vst_tsize * SBE_PER_BYTE
+                                   * (1ull << xsrc->esb_shift));
+        }
         memory_region_add_subregion(&xive->ipi_edt_mmio, 0, &xsrc->esb_mmio);
         break;
 
@@ -789,20 +897,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
     case PC_TCTXT_CFG:
         /*
          * TODO: block group support
-         *
-         * PC_TCTXT_CFG_BLKGRP_EN
-         * PC_TCTXT_CFG_HARD_CHIPID_BLK :
-         *   Moves the chipid into block field for hardwired CAM compares.
-         *   Block offset value is adjusted to 0b0..01 & ThrdId
-         *
-         *   Will require changes in xive_presenter_tctx_match(). I am
-         *   not sure how to handle that yet.
          */
-
-        /* Overrides hardwired chip ID with the chip ID field */
-        if (val & PC_TCTXT_CHIPID_OVERRIDE) {
-            xive->tctx_chipid = GETFIELD(PC_TCTXT_CHIPID, val);
-        }
         break;
     case PC_TCTXT_TRACK:
         /*
@@ -1349,12 +1444,13 @@ static const MemoryRegionOps pnv_xive_ic_lsi_ops = {
  */
 
 /*
- * When the TIMA is accessed from the indirect page, the thread id
- * (PIR) has to be configured in the IC registers before. This is used
- * for resets and for debug purpose also.
+ * When the TIMA is accessed from the indirect page, the thread id of
+ * the target CPU is configured in the PC_TCTXT_INDIR0 register before
+ * use. This is used for resets and for debug purpose also.
  */
 static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
 {
+    PnvChip *chip = xive->chip;
     uint64_t tctxt_indir = xive->regs[PC_TCTXT_INDIR0 >> 3];
     PowerPCCPU *cpu = NULL;
     int pir;
@@ -1364,15 +1460,15 @@ static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
         return NULL;
     }
 
-    pir = GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir) & 0xff;
-    cpu = ppc_get_vcpu_by_pir(pir);
+    pir = (chip->chip_id << 8) | GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir);
+    cpu = pnv_chip_find_cpu(chip, pir);
     if (!cpu) {
         xive_error(xive, "IC: invalid PIR %x for indirect access", pir);
         return NULL;
     }
 
     /* Check that HW thread is XIVE enabled */
-    if (!(xive->regs[PC_THREAD_EN_REG0 >> 3] & PPC_BIT(pir & 0x3f))) {
+    if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
         xive_error(xive, "IC: CPU %x is not enabled", pir);
     }
 
@@ -1384,7 +1480,7 @@ static void xive_tm_indirect_write(void *opaque, hwaddr offset,
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
 
-    xive_tctx_tm_write(tctx, offset, value, size);
+    xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
 }
 
 static uint64_t xive_tm_indirect_read(void *opaque, hwaddr offset,
@@ -1392,12 +1488,45 @@ static uint64_t xive_tm_indirect_read(void *opaque, hwaddr offset,
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
 
-    return xive_tctx_tm_read(tctx, offset, size);
+    return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
 }
 
 static const MemoryRegionOps xive_tm_indirect_ops = {
     .read = xive_tm_indirect_read,
     .write = xive_tm_indirect_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static void pnv_xive_tm_write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PnvXive *xive = pnv_xive_tm_get_xive(cpu);
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+    xive_tctx_tm_write(XIVE_PRESENTER(xive), tctx, offset, value, size);
+}
+
+static uint64_t pnv_xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PnvXive *xive = pnv_xive_tm_get_xive(cpu);
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+    return xive_tctx_tm_read(XIVE_PRESENTER(xive), tctx, offset, size);
+}
+
+const MemoryRegionOps pnv_xive_tm_ops = {
+    .read = pnv_xive_tm_read,
+    .write = pnv_xive_tm_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -1574,23 +1703,40 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     },
 };
 
+static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
+                                    Monitor *mon)
+{
+    uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
+    uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
+
+    if (!xive_nvt_is_valid(nvt)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n", nvt_idx,
+                   eq_blk, eq_idx,
+                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+}
+
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
-    uint8_t blk = xive->chip->chip_id;
+    uint8_t blk = pnv_xive_block_id(xive);
+    uint8_t chip_id = xive->chip->chip_id;
     uint32_t srcno0 = XIVE_EAS(blk, 0);
-    uint32_t nr_ipis = pnv_xive_nr_ipis(xive);
-    uint32_t nr_ends = pnv_xive_nr_ends(xive);
+    uint32_t nr_ipis = pnv_xive_nr_ipis(xive, blk);
     XiveEAS eas;
     XiveEND end;
+    XiveNVT nvt;
     int i;
+    uint64_t xive_nvt_per_subpage;
 
-    monitor_printf(mon, "XIVE[%x] Source %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_ipis - 1);
+    monitor_printf(mon, "XIVE[%x] #%d Source %08x .. %08x\n", chip_id, blk,
+                   srcno0, srcno0 + nr_ipis - 1);
     xive_source_pic_print_info(&xive->ipi_source, srcno0, mon);
 
-    monitor_printf(mon, "XIVE[%x] EAT %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_ipis - 1);
+    monitor_printf(mon, "XIVE[%x] #%d EAT %08x .. %08x\n", chip_id, blk,
+                   srcno0, srcno0 + nr_ipis - 1);
     for (i = 0; i < nr_ipis; i++) {
         if (xive_router_get_eas(xrtr, blk, i, &eas)) {
             break;
@@ -1600,21 +1746,25 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "XIVE[%x] ENDT %08x .. %08x\n", blk, 0, nr_ends - 1);
-    for (i = 0; i < nr_ends; i++) {
-        if (xive_router_get_end(xrtr, blk, i, &end)) {
-            break;
-        }
-        xive_end_pic_print_info(&end, i, mon);
+    monitor_printf(mon, "XIVE[%x] #%d ENDT\n", chip_id, blk);
+    i = 0;
+    while (!xive_router_get_end(xrtr, blk, i, &end)) {
+        xive_end_pic_print_info(&end, i++, mon);
     }
 
-    monitor_printf(mon, "XIVE[%x] END Escalation %08x .. %08x\n", blk, 0,
-                   nr_ends - 1);
-    for (i = 0; i < nr_ends; i++) {
-        if (xive_router_get_end(xrtr, blk, i, &end)) {
-            break;
+    monitor_printf(mon, "XIVE[%x] #%d END Escalation EAT\n", chip_id, blk);
+    i = 0;
+    while (!xive_router_get_end(xrtr, blk, i, &end)) {
+        xive_end_eas_pic_print_info(&end, i++, mon);
+    }
+
+    monitor_printf(mon, "XIVE[%x] #%d NVTT %08x .. %08x\n", chip_id, blk,
+                   0, XIVE_NVT_COUNT - 1);
+    xive_nvt_per_subpage = pnv_xive_vst_per_subpage(xive, VST_TSEL_VPDT);
+    for (i = 0; i < XIVE_NVT_COUNT; i += xive_nvt_per_subpage) {
+        while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
+            xive_nvt_pic_print_info(&nvt, i++, mon);
         }
-        xive_end_eas_pic_print_info(&end, i, mon);
     }
 }
 
@@ -1623,12 +1773,6 @@ static void pnv_xive_reset(void *dev)
     PnvXive *xive = PNV_XIVE(dev);
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
-
-    /*
-     * Use the PnvChip id to identify the XIVE interrupt controller.
-     * It can be overriden by configuration at runtime.
-     */
-    xive->tctx_chipid = xive->chip->chip_id;
 
     /* Default page size (Should be changed at runtime to 64k) */
     xive->ic_shift = xive->vc_shift = xive->pc_shift = 12;
@@ -1675,17 +1819,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
-    Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "chip", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'chip' not found: ");
-        return;
-    }
-
-    /* The PnvChip id identifies the XIVE interrupt controller. */
-    xive->chip = PNV_CHIP(obj);
+    assert(xive->chip);
 
     /*
      * The XiveSource and XiveENDSource objects are realized with the
@@ -1695,8 +1830,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
      */
     object_property_set_int(OBJECT(xsrc), PNV_XIVE_NR_IRQS, "nr-irqs",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(xsrc), OBJECT(xive), "xive",
+                             &error_abort);
     object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1705,8 +1840,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
 
     object_property_set_int(OBJECT(end_xsrc), PNV_XIVE_NR_ENDS, "nr-ends",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(end_xsrc), OBJECT(xive), "xive",
+                             &error_abort);
     object_property_set_bool(OBJECT(end_xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1766,7 +1901,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                           "xive-pc", PNV9_XIVE_PC_SIZE);
 
     /* Thread Interrupt Management Area (Direct) */
-    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops,
+    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &pnv_xive_tm_ops,
                           xive, "xive-tima", PNV9_XIVE_TM_SIZE);
 
     qemu_register_reset(pnv_xive_reset, dev);
@@ -1800,6 +1935,8 @@ static Property pnv_xive_properties[] = {
     DEFINE_PROP_UINT64("vc-bar", PnvXive, vc_base, 0),
     DEFINE_PROP_UINT64("pc-bar", PnvXive, pc_base, 0),
     DEFINE_PROP_UINT64("tm-bar", PnvXive, tm_base, 0),
+    /* The PnvChip id identifies the XIVE interrupt controller. */
+    DEFINE_PROP_LINK("chip", PnvXive, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1809,6 +1946,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
     XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
+    XivePresenterClass *xpc = XIVE_PRESENTER_CLASS(klass);
 
     xdc->dt_xscom = pnv_xive_dt_xscom;
 
@@ -1821,9 +1959,10 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = pnv_xive_write_end;
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
-    xrc->get_tctx = pnv_xive_get_tctx;
+    xrc->get_block_id = pnv_xive_get_block_id;
 
     xnc->notify = pnv_xive_notify;
+    xpc->match_nvt  = pnv_xive_match_nvt;
 };
 
 static const TypeInfo pnv_xive_info = {

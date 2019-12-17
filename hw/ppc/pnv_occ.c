@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-
+#include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_occ.h"
@@ -167,9 +167,7 @@ static void pnv_occ_power8_class_init(ObjectClass *klass, void *data)
     PnvOCCClass *poc = PNV_OCC_CLASS(klass);
 
     poc->xscom_size = PNV_XSCOM_OCC_SIZE;
-    poc->sram_size = PNV_OCC_COMMON_AREA_SIZE;
     poc->xscom_ops = &pnv_occ_power8_xscom_ops;
-    poc->sram_ops = &pnv_occ_sram_ops;
     poc->psi_irq = PSIHB_IRQ_OCC;
 }
 
@@ -240,9 +238,7 @@ static void pnv_occ_power9_class_init(ObjectClass *klass, void *data)
     PnvOCCClass *poc = PNV_OCC_CLASS(klass);
 
     poc->xscom_size = PNV9_XSCOM_OCC_SIZE;
-    poc->sram_size = PNV9_OCC_COMMON_AREA_SIZE;
     poc->xscom_ops = &pnv_occ_power9_xscom_ops;
-    poc->sram_ops = &pnv_occ_sram_ops;
     poc->psi_irq = PSIHB9_IRQ_OCC;
 }
 
@@ -257,27 +253,25 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
     PnvOCC *occ = PNV_OCC(dev);
     PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
-    Object *obj;
-    Error *local_err = NULL;
+
+    assert(occ->psi);
 
     occ->occmisc = 0;
-
-    obj = object_property_get_link(OBJECT(dev), "psi", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'psi' not found: ");
-        return;
-    }
-    occ->psi = PNV_PSI(obj);
 
     /* XScom region for OCC registers */
     pnv_xscom_region_init(&occ->xscom_regs, OBJECT(dev), poc->xscom_ops,
                           occ, "xscom-occ", poc->xscom_size);
 
-    /* XScom region for OCC SRAM registers */
-    pnv_xscom_region_init(&occ->sram_regs, OBJECT(dev), poc->sram_ops,
-                          occ, "occ-common-area", poc->sram_size);
+    /* OCC common area mmio region for OCC SRAM registers */
+    memory_region_init_io(&occ->sram_regs, OBJECT(dev), &pnv_occ_sram_ops,
+                          occ, "occ-common-area",
+                          PNV_OCC_SENSOR_DATA_BLOCK_SIZE);
 }
+
+static Property pnv_occ_properties[] = {
+    DEFINE_PROP_LINK("psi", PnvOCC, psi, TYPE_PNV_PSI, PnvPsi *),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pnv_occ_class_init(ObjectClass *klass, void *data)
 {
@@ -285,6 +279,7 @@ static void pnv_occ_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_occ_realize;
     dc->desc = "PowerNV OCC Controller";
+    dc->props = pnv_occ_properties;
 }
 
 static const TypeInfo pnv_occ_type_info = {

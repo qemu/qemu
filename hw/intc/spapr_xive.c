@@ -205,6 +205,35 @@ void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable)
     memory_region_set_enabled(&xive->end_source.esb_mmio, false);
 }
 
+static void spapr_xive_tm_write(void *opaque, hwaddr offset,
+                          uint64_t value, unsigned size)
+{
+    XiveTCTX *tctx = spapr_cpu_state(POWERPC_CPU(current_cpu))->tctx;
+
+    xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
+}
+
+static uint64_t spapr_xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    XiveTCTX *tctx = spapr_cpu_state(POWERPC_CPU(current_cpu))->tctx;
+
+    return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
+}
+
+const MemoryRegionOps spapr_xive_tm_ops = {
+    .read = spapr_xive_tm_read,
+    .write = spapr_xive_tm_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 static void spapr_xive_end_reset(XiveEND *end)
 {
     memset(end, 0, sizeof(*end));
@@ -276,8 +305,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
      */
     object_property_set_int(OBJECT(xsrc), xive->nr_irqs, "nr-irqs",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(xsrc), OBJECT(xive), "xive",
+                             &error_abort);
     object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -290,8 +319,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
      */
     object_property_set_int(OBJECT(end_xsrc), xive->nr_irqs, "nr-ends",
                             &error_fatal);
-    object_property_add_const_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
-                                   &error_fatal);
+    object_property_set_link(OBJECT(end_xsrc), OBJECT(xive), "xive",
+                             &error_abort);
     object_property_set_bool(OBJECT(end_xsrc), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -314,8 +343,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(spapr_xive_reset, dev);
 
     /* TIMA initialization */
-    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
-                          "xive.tima", 4ull << TM_SHIFT);
+    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &spapr_xive_tm_ops,
+                          xive, "xive.tima", 4ull << TM_SHIFT);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 
     /*
@@ -398,11 +427,55 @@ static int spapr_xive_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk,
     g_assert_not_reached();
 }
 
-static XiveTCTX *spapr_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
+static int spapr_xive_match_nvt(XivePresenter *xptr, uint8_t format,
+                                uint8_t nvt_blk, uint32_t nvt_idx,
+                                bool cam_ignore, uint8_t priority,
+                                uint32_t logic_serv, XiveTCTXMatch *match)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUState *cs;
+    int count = 0;
 
-    return spapr_cpu_state(cpu)->tctx;
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        XiveTCTX *tctx = spapr_cpu_state(cpu)->tctx;
+        int ring;
+
+        /*
+         * Skip partially initialized vCPUs. This can happen when
+         * vCPUs are hotplugged.
+         */
+        if (!tctx) {
+            continue;
+        }
+
+        /*
+         * Check the thread context CAM lines and record matches.
+         */
+        ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk, nvt_idx,
+                                         cam_ignore, logic_serv);
+        /*
+         * Save the matching thread interrupt context and follow on to
+         * check for duplicates which are invalid.
+         */
+        if (ring != -1) {
+            if (match->tctx) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a thread "
+                              "context NVT %x/%x\n", nvt_blk, nvt_idx);
+                return -1;
+            }
+
+            match->ring = ring;
+            match->tctx = tctx;
+            count++;
+        }
+    }
+
+    return count;
+}
+
+static uint8_t spapr_xive_get_block_id(XiveRouter *xrtr)
+{
+    return SPAPR_XIVE_BLOCK_ID;
 }
 
 static const VMStateDescription vmstate_spapr_xive_end = {
@@ -651,12 +724,14 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
                      plat_res_int_priorities, sizeof(plat_res_int_priorities)));
 }
 
-static int spapr_xive_activate(SpaprInterruptController *intc, Error **errp)
+static int spapr_xive_activate(SpaprInterruptController *intc,
+                               uint32_t nr_servers, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
 
     if (kvm_enabled()) {
-        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, errp);
+        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, nr_servers,
+                                    errp);
         if (rc < 0) {
             return rc;
         }
@@ -684,6 +759,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
     SpaprInterruptControllerClass *sicc = SPAPR_INTC_CLASS(klass);
+    XivePresenterClass *xpc = XIVE_PRESENTER_CLASS(klass);
 
     dc->desc    = "sPAPR XIVE Interrupt Controller";
     dc->props   = spapr_xive_properties;
@@ -695,7 +771,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = spapr_xive_write_end;
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
-    xrc->get_tctx = spapr_xive_get_tctx;
+    xrc->get_block_id = spapr_xive_get_block_id;
 
     sicc->activate = spapr_xive_activate;
     sicc->deactivate = spapr_xive_deactivate;
@@ -708,6 +784,8 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->print_info = spapr_xive_print_info;
     sicc->dt = spapr_xive_dt;
     sicc->post_load = spapr_xive_post_load;
+
+    xpc->match_nvt  = spapr_xive_match_nvt;
 }
 
 static const TypeInfo spapr_xive_info = {

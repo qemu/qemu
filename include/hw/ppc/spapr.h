@@ -766,11 +766,9 @@ struct SpaprEventLogEntry {
     QTAILQ_ENTRY(SpaprEventLogEntry) next;
 };
 
+void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space);
 void spapr_events_init(SpaprMachineState *sm);
 void spapr_dt_events(SpaprMachineState *sm, void *fdt);
-int spapr_h_cas_compose_response(SpaprMachineState *sm,
-                                 target_ulong addr, target_ulong size,
-                                 SpaprOptionVector *ov5_updates);
 void close_htab_fd(SpaprMachineState *spapr);
 void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr);
 void spapr_free_hpt(SpaprMachineState *spapr);

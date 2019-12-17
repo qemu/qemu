@@ -51,36 +51,38 @@ static const CompatInfo compat_table[] = {
     { /* POWER6, ISA2.05 */
         .name = "power6",
         .pvr = CPU_POWERPC_LOGICAL_2_05,
-        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 |
-               PCR_COMPAT_2_05 | PCR_TM_DIS | PCR_VSX_DIS,
+        .pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00 | PCR_COMPAT_2_07 |
+               PCR_COMPAT_2_06 | PCR_COMPAT_2_05 | PCR_TM_DIS | PCR_VSX_DIS,
         .pcr_level = PCR_COMPAT_2_05,
         .max_vthreads = 2,
     },
     { /* POWER7, ISA2.06 */
         .name = "power7",
         .pvr = CPU_POWERPC_LOGICAL_2_06,
-        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00 | PCR_COMPAT_2_07 |
+               PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_vthreads = 4,
     },
     {
         .name = "power7+",
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
-        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
+        .pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00 | PCR_COMPAT_2_07 |
+               PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_vthreads = 4,
     },
     { /* POWER8, ISA2.07 */
         .name = "power8",
         .pvr = CPU_POWERPC_LOGICAL_2_07,
-        .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07,
+        .pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00 | PCR_COMPAT_2_07,
         .pcr_level = PCR_COMPAT_2_07,
         .max_vthreads = 8,
     },
     { /* POWER9, ISA3.00 */
         .name = "power9",
         .pvr = CPU_POWERPC_LOGICAL_3_00,
-        .pcr = PCR_COMPAT_3_00,
+        .pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00,
         .pcr_level = PCR_COMPAT_3_00,
         /*
          * POWER9 hardware only supports 4 threads / core, but this
@@ -89,6 +91,13 @@ static const CompatInfo compat_table[] = {
          * confusing if half of the threads disappear from the guest
          * if it announces it's POWER9 aware at CAS time.
          */
+        .max_vthreads = 8,
+    },
+    { /* POWER10, ISA3.10 */
+        .name = "power10",
+        .pvr = CPU_POWERPC_LOGICAL_3_10,
+        .pcr = PCR_COMPAT_3_10,
+        .pcr_level = PCR_COMPAT_3_10,
         .max_vthreads = 8,
     },
 };

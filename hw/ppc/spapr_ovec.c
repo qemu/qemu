@@ -76,31 +76,21 @@ void spapr_ovec_intersect(SpaprOptionVector *ov,
     bitmap_and(ov->bitmap, ov1->bitmap, ov2->bitmap, OV_MAXBITS);
 }
 
-/* returns true if options bits were removed, false otherwise */
-bool spapr_ovec_diff(SpaprOptionVector *ov,
-                     SpaprOptionVector *ov_old,
-                     SpaprOptionVector *ov_new)
+/* returns true if ov1 has a subset of bits in ov2 */
+bool spapr_ovec_subset(SpaprOptionVector *ov1, SpaprOptionVector *ov2)
 {
-    unsigned long *change_mask = bitmap_new(OV_MAXBITS);
-    unsigned long *removed_bits = bitmap_new(OV_MAXBITS);
-    bool bits_were_removed = false;
+    unsigned long *tmp = bitmap_new(OV_MAXBITS);
+    bool result;
 
-    g_assert(ov);
-    g_assert(ov_old);
-    g_assert(ov_new);
+    g_assert(ov1);
+    g_assert(ov2);
 
-    bitmap_xor(change_mask, ov_old->bitmap, ov_new->bitmap, OV_MAXBITS);
-    bitmap_and(ov->bitmap, ov_new->bitmap, change_mask, OV_MAXBITS);
-    bitmap_and(removed_bits, ov_old->bitmap, change_mask, OV_MAXBITS);
+    bitmap_andnot(tmp, ov1->bitmap, ov2->bitmap, OV_MAXBITS);
+    result = bitmap_empty(tmp, OV_MAXBITS);
 
-    if (!bitmap_empty(removed_bits, OV_MAXBITS)) {
-        bits_were_removed = true;
-    }
+    g_free(tmp);
 
-    g_free(change_mask);
-    g_free(removed_bits);
-
-    return bits_were_removed;
+    return result;
 }
 
 void spapr_ovec_cleanup(SpaprOptionVector *ov)

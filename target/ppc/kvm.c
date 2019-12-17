@@ -2076,7 +2076,7 @@ int kvmppc_set_smt_threads(int smt)
     return ret;
 }
 
-void kvmppc_hint_smt_possible(Error **errp)
+void kvmppc_error_append_smt_possible_hint(Error **errp_in)
 {
     int i;
     GString *g;
@@ -2091,10 +2091,10 @@ void kvmppc_hint_smt_possible(Error **errp)
             }
         }
         s = g_string_free(g, false);
-        error_append_hint(errp, "%s.\n", s);
+        error_append_hint(errp_in, "%s.\n", s);
         g_free(s);
     } else {
-        error_append_hint(errp,
+        error_append_hint(errp_in,
                           "This KVM seems to be too old to support VSMT.\n");
     }
 }

@@ -70,15 +70,16 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num)
     bitmap_clear(spapr->irq_map, irq - SPAPR_IRQ_MSI, num);
 }
 
-int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
+int spapr_irq_init_kvm(SpaprInterruptControllerInitKvm fn,
                        SpaprInterruptController *intc,
+                       uint32_t nr_servers,
                        Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     Error *local_err = NULL;
 
     if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        if (fn(intc, &local_err) < 0) {
+        if (fn(intc, nr_servers, &local_err) < 0) {
             if (machine_kernel_irqchip_required(machine)) {
                 error_prepend(&local_err,
                               "kernel_irqchip requested but unavailable: ");
@@ -313,25 +314,11 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         Object *obj;
 
         obj = object_new(TYPE_ICS_SPAPR);
-        object_property_add_child(OBJECT(spapr), "ics", obj, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
 
-        object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                       &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
-        object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
+        object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
+        object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
+                                 &error_abort);
+        object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &error_abort);
         object_property_set_bool(obj, true, "realized", &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -495,6 +482,7 @@ static void set_active_intc(SpaprMachineState *spapr,
                             SpaprInterruptController *new_intc)
 {
     SpaprInterruptControllerClass *sicc;
+    uint32_t nr_servers = spapr_max_server_number(spapr);
 
     assert(new_intc);
 
@@ -512,7 +500,7 @@ static void set_active_intc(SpaprMachineState *spapr,
 
     sicc = SPAPR_INTC_GET_CLASS(new_intc);
     if (sicc->activate) {
-        sicc->activate(new_intc, &error_fatal);
+        sicc->activate(new_intc, nr_servers, &error_fatal);
     }
 
     spapr->active_intc = new_intc;

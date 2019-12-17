@@ -32,7 +32,8 @@
 #define TYPE_ICS_SPAPR "ics-spapr"
 #define ICS_SPAPR(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SPAPR)
 
-int xics_kvm_connect(SpaprInterruptController *intc, Error **errp);
+int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
+                     Error **errp);
 void xics_kvm_disconnect(SpaprInterruptController *intc);
 bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr);
 

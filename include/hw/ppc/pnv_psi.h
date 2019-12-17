@@ -69,6 +69,8 @@ typedef struct Pnv9Psi {
     XiveSource source;
 } Pnv9Psi;
 
+#define TYPE_PNV10_PSI TYPE_PNV_PSI "-POWER10"
+
 #define PNV_PSI_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
 #define PNV_PSI_GET_CLASS(obj) \
@@ -77,10 +79,11 @@ typedef struct Pnv9Psi {
 typedef struct PnvPsiClass {
     SysBusDeviceClass parent_class;
 
-    int chip_type;
     uint32_t xscom_pcba;
     uint32_t xscom_size;
     uint64_t bar_mask;
+    const char *compat;
+    int compat_size;
 
     void (*irq_set)(PnvPsi *psi, int, bool state);
 } PnvPsiClass;

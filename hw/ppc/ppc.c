@@ -275,10 +275,9 @@ void ppc970_irq_init(PowerPCCPU *cpu)
 static void power7_set_irq(void *opaque, int pin, int level)
 {
     PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
-                env, pin, level);
+            &cpu->env, pin, level);
 
     switch (pin) {
     case POWER7_INPUT_INT:
@@ -291,11 +290,6 @@ static void power7_set_irq(void *opaque, int pin, int level)
         /* Unknown pin - do nothing */
         LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
         return;
-    }
-    if (level) {
-        env->irq_input_state |= 1 << pin;
-    } else {
-        env->irq_input_state &= ~(1 << pin);
     }
 }
 
@@ -311,10 +305,9 @@ void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 static void power9_set_irq(void *opaque, int pin, int level)
 {
     PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
-                env, pin, level);
+            &cpu->env, pin, level);
 
     switch (pin) {
     case POWER9_INPUT_INT:
@@ -333,11 +326,6 @@ static void power9_set_irq(void *opaque, int pin, int level)
         /* Unknown pin - do nothing */
         LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
         return;
-    }
-    if (level) {
-        env->irq_input_state |= 1 << pin;
-    } else {
-        env->irq_input_state &= ~(1 << pin);
     }
 }
 
@@ -694,6 +682,35 @@ void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value)
                      &tb_env->atb_offset, ((uint64_t)value << 32) | tb);
 }
 
+uint64_t cpu_ppc_load_vtb(CPUPPCState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    return cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                          tb_env->vtb_offset);
+}
+
+void cpu_ppc_store_vtb(CPUPPCState *env, uint64_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                     &tb_env->vtb_offset, value);
+}
+
+void cpu_ppc_store_tbu40(CPUPPCState *env, uint64_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                        tb_env->tb_offset);
+    tb &= 0xFFFFFFUL;
+    tb |= (value & ~0xFFFFFFUL);
+    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                     &tb_env->tb_offset, tb);
+}
+
 static void cpu_ppc_tb_stop (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
@@ -805,12 +822,9 @@ target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
 uint64_t cpu_ppc_load_purr (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
-    uint64_t diff;
 
-    diff = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - tb_env->purr_start;
-
-    return tb_env->purr_load +
-        muldiv64(diff, tb_env->tb_freq, NANOSECONDS_PER_SECOND);
+    return cpu_ppc_get_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                          tb_env->purr_offset);
 }
 
 /* When decrementer expires,
@@ -969,12 +983,12 @@ static void cpu_ppc_hdecr_cb(void *opaque)
     cpu_ppc_hdecr_excp(cpu);
 }
 
-static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
+void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
 {
-    ppc_tb_t *tb_env = cpu->env.tb_env;
+    ppc_tb_t *tb_env = env->tb_env;
 
-    tb_env->purr_load = value;
-    tb_env->purr_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    cpu_ppc_store_tb(tb_env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                     &tb_env->purr_offset, value);
 }
 
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
@@ -991,7 +1005,7 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      */
     _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
     _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 32);
-    cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
+    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
 }
 
 static void timebase_save(PPCTimebase *tb)
@@ -1495,18 +1509,31 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+int ppc_cpu_pir(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    return env->spr_cb[SPR_PIR].default_value;
+}
+
 PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
 
-        if (env->spr_cb[SPR_PIR].default_value == pir) {
+        if (ppc_cpu_pir(cpu) == pir) {
             return cpu;
         }
     }
 
     return NULL;
+}
+
+void ppc_irq_reset(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    env->irq_input_state = 0;
+    kvmppc_set_interrupt(cpu, PPC_INTERRUPT_EXT, 0);
 }

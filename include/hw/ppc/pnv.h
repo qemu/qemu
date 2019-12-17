@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "hw/ipmi/ipmi.h"
 #include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/pnv_pnor.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
 #include "hw/ppc/pnv_homer.h"
@@ -37,13 +38,6 @@
 #define PNV_CHIP_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
 
-typedef enum PnvChipType {
-    PNV_CHIP_POWER8E,     /* AKA Murano (default) */
-    PNV_CHIP_POWER8,      /* AKA Venice */
-    PNV_CHIP_POWER8NVL,   /* AKA Naples */
-    PNV_CHIP_POWER9,      /* AKA Nimbus */
-} PnvChipType;
-
 typedef struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -55,7 +49,7 @@ typedef struct PnvChip {
 
     uint32_t     nr_cores;
     uint64_t     cores_mask;
-    void         *cores;
+    PnvCore      **cores;
 
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
@@ -98,12 +92,29 @@ typedef struct Pnv9Chip {
     PnvQuad      *quads;
 } Pnv9Chip;
 
+/*
+ * A SMT8 fused core is a pair of SMT4 cores.
+ */
+#define PNV9_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
+#define PNV9_PIR2CHIP(pir)      (((pir) >> 8) & 0x7f)
+
+#define TYPE_PNV10_CHIP "pnv10-chip"
+#define PNV10_CHIP(obj) OBJECT_CHECK(Pnv10Chip, (obj), TYPE_PNV10_CHIP)
+
+typedef struct Pnv10Chip {
+    /*< private >*/
+    PnvChip      parent_obj;
+
+    /*< public >*/
+    Pnv9Psi      psi;
+    PnvLpcController lpc;
+} Pnv10Chip;
+
 typedef struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
 
     /*< public >*/
-    PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
 
@@ -113,9 +124,12 @@ typedef struct PnvChipClass {
     void (*intc_create)(PnvChip *chip, PowerPCCPU *cpu, Error **errp);
     void (*intc_reset)(PnvChip *chip, PowerPCCPU *cpu);
     void (*intc_destroy)(PnvChip *chip, PowerPCCPU *cpu);
+    void (*intc_print_info)(PnvChip *chip, PowerPCCPU *cpu, Monitor *mon);
     ISABus *(*isa_create)(PnvChip *chip, Error **errp);
     void (*dt_populate)(PnvChip *chip, void *fdt);
     void (*pic_print_info)(PnvChip *chip, Monitor *mon);
+    uint64_t (*xscom_core_base)(PnvChip *chip, uint32_t core_id);
+    uint32_t (*xscom_pcba)(PnvChip *chip, uint64_t addr);
 } PnvChipClass;
 
 #define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP
@@ -137,6 +151,10 @@ typedef struct PnvChipClass {
 #define PNV_CHIP_POWER9(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER9)
 
+#define TYPE_PNV_CHIP_POWER10 PNV_CHIP_TYPE_NAME("power10_v1.0")
+#define PNV_CHIP_POWER10(obj) \
+    OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER10)
+
 /*
  * This generates a HW chip id depending on an index, as found on a
  * two socket system with dual chip modules :
@@ -156,11 +174,30 @@ typedef struct PnvChipClass {
 #define PNV_CHIP_INDEX(chip)                                    \
     (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
 
+PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
+
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define PNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)
+#define PNV_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PnvMachineClass, obj, TYPE_PNV_MACHINE)
+#define PNV_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(PnvMachineClass, klass, TYPE_PNV_MACHINE)
 
-typedef struct PnvMachineState {
+typedef struct PnvMachineState PnvMachineState;
+
+typedef struct PnvMachineClass {
+    /*< private >*/
+    MachineClass parent_class;
+
+    /*< public >*/
+    const char *compat;
+    int compat_size;
+
+    void (*dt_power_mgt)(PnvMachineState *pnv, void *fdt);
+} PnvMachineClass;
+
+struct PnvMachineState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -175,17 +212,11 @@ typedef struct PnvMachineState {
 
     IPMIBmc      *bmc;
     Notifier     powerdown_notifier;
-} PnvMachineState;
 
-static inline bool pnv_chip_is_power9(const PnvChip *chip)
-{
-    return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER9;
-}
+    PnvPnor      *pnor;
+};
 
-static inline bool pnv_is_power9(PnvMachineState *pnv)
-{
-    return pnv_chip_is_power9(pnv->chips[0]);
-}
+PnvChip *pnv_get_chip(uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
@@ -195,6 +226,7 @@ static inline bool pnv_is_power9(PnvMachineState *pnv)
  */
 void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
+IPMIBmc *pnv_bmc_create(void);
 
 /*
  * POWER8 MMIO base addresses
@@ -203,12 +235,12 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_XSCOM_BASE(chip)                                            \
     (0x0003fc0000000000ull + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
 
-#define PNV_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
-#define PNV_OCC_COMMON_AREA(chip)                                       \
-    (0x7fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
-                         PNV_OCC_COMMON_AREA_SIZE))
+#define PNV_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
+#define PNV_OCC_COMMON_AREA_BASE    0x7fff800000ull
+#define PNV_OCC_SENSOR_BASE(chip)   (PNV_OCC_COMMON_AREA_BASE + \
+    PNV_OCC_SENSOR_DATA_BLOCK_BASE(PNV_CHIP_INDEX(chip)))
 
-#define PNV_HOMER_SIZE              0x0000000000300000ull
+#define PNV_HOMER_SIZE              0x0000000000400000ull
 #define PNV_HOMER_BASE(chip)                                            \
     (0x7ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_HOMER_SIZE)
 
@@ -271,12 +303,31 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV9_XSCOM_SIZE              0x0000000400000000ull
 #define PNV9_XSCOM_BASE(chip)        PNV9_CHIP_BASE(chip, 0x00603fc00000000ull)
 
-#define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
-#define PNV9_OCC_COMMON_AREA(chip)                                      \
-    (0x203fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
-                           PNV9_OCC_COMMON_AREA_SIZE))
+#define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
+#define PNV9_OCC_COMMON_AREA_BASE    0x203fff800000ull
+#define PNV9_OCC_SENSOR_BASE(chip)   (PNV9_OCC_COMMON_AREA_BASE +       \
+    PNV_OCC_SENSOR_DATA_BLOCK_BASE(PNV_CHIP_INDEX(chip)))
 
-#define PNV9_HOMER_SIZE              0x0000000000300000ull
+#define PNV9_HOMER_SIZE              0x0000000000400000ull
 #define PNV9_HOMER_BASE(chip)                                           \
     (0x203ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV9_HOMER_SIZE)
+
+/*
+ * POWER10 MMIO base addresses - 16TB stride per chip
+ */
+#define PNV10_CHIP_BASE(chip, base)   \
+    ((base) + ((uint64_t) (chip)->chip_id << 44))
+
+#define PNV10_XSCOM_SIZE             0x0000000400000000ull
+#define PNV10_XSCOM_BASE(chip)       PNV10_CHIP_BASE(chip, 0x00603fc00000000ull)
+
+#define PNV10_LPCM_SIZE             0x0000000100000000ull
+#define PNV10_LPCM_BASE(chip)       PNV10_CHIP_BASE(chip, 0x0006030000000000ull)
+
+#define PNV10_PSIHB_ESB_SIZE        0x0000000000100000ull
+#define PNV10_PSIHB_ESB_BASE(chip)  PNV10_CHIP_BASE(chip, 0x0006030202000000ull)
+
+#define PNV10_PSIHB_SIZE            0x0000000000100000ull
+#define PNV10_PSIHB_BASE(chip)      PNV10_CHIP_BASE(chip, 0x0006030203000000ull)
+
 #endif /* PPC_PNV_H */

@@ -24,7 +24,7 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
-
+#include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -86,7 +86,7 @@ enum {
 #define ISA_FW_SIZE             0x10000000
 #define LPC_IO_OPB_ADDR         0xd0010000
 #define LPC_IO_OPB_SIZE         0x00010000
-#define LPC_MEM_OPB_ADDR        0xe0010000
+#define LPC_MEM_OPB_ADDR        0xe0000000
 #define LPC_MEM_OPB_SIZE        0x10000000
 #define LPC_FW_OPB_ADDR         0xf0000000
 #define LPC_FW_OPB_SIZE         0x10000000
@@ -122,26 +122,36 @@ static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 }
 
 /* POWER9 only */
-int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset)
+int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset, uint64_t lpcm_addr,
+               uint64_t lpcm_size)
 {
     const char compat[] = "ibm,power9-lpcm-opb\0simple-bus";
     const char lpc_compat[] = "ibm,power9-lpc\0ibm,lpc";
     char *name;
     int offset, lpcm_offset;
-    uint64_t lpcm_addr = PNV9_LPCM_BASE(chip);
     uint32_t opb_ranges[8] = { 0,
                                cpu_to_be32(lpcm_addr >> 32),
                                cpu_to_be32((uint32_t)lpcm_addr),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
+                               cpu_to_be32(lpcm_size / 2),
+                               cpu_to_be32(lpcm_size / 2),
                                cpu_to_be32(lpcm_addr >> 32),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
-                               cpu_to_be32(PNV9_LPCM_SIZE / 2),
+                               cpu_to_be32(lpcm_size / 2),
+                               cpu_to_be32(lpcm_size / 2),
     };
     uint32_t opb_reg[4] = { cpu_to_be32(lpcm_addr >> 32),
                             cpu_to_be32((uint32_t)lpcm_addr),
-                            cpu_to_be32(PNV9_LPCM_SIZE >> 32),
-                            cpu_to_be32((uint32_t)PNV9_LPCM_SIZE),
+                            cpu_to_be32(lpcm_size >> 32),
+                            cpu_to_be32((uint32_t)lpcm_size),
+    };
+    uint32_t lpc_ranges[12] = { 0, 0,
+                                cpu_to_be32(LPC_MEM_OPB_ADDR),
+                                cpu_to_be32(LPC_MEM_OPB_SIZE),
+                                cpu_to_be32(1), 0,
+                                cpu_to_be32(LPC_IO_OPB_ADDR),
+                                cpu_to_be32(LPC_IO_OPB_SIZE),
+                                cpu_to_be32(3), 0,
+                                cpu_to_be32(LPC_FW_OPB_ADDR),
+                                cpu_to_be32(LPC_FW_OPB_SIZE),
     };
     uint32_t reg[2];
 
@@ -211,6 +221,8 @@ int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset)
     _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, offset, "compatible", lpc_compat,
                       sizeof(lpc_compat))));
+    _FDT((fdt_setprop(fdt, offset, "ranges", lpc_ranges,
+                      sizeof(lpc_ranges))));
 
     return 0;
 }
@@ -679,20 +691,24 @@ static const TypeInfo pnv_lpc_power9_info = {
     .class_init    = pnv_lpc_power9_class_init,
 };
 
+static void pnv_lpc_power10_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PowerNV LPC Controller POWER10";
+}
+
+static const TypeInfo pnv_lpc_power10_info = {
+    .name          = TYPE_PNV10_LPC,
+    .parent        = TYPE_PNV9_LPC,
+    .class_init    = pnv_lpc_power10_class_init,
+};
+
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
-    Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "psi", &local_err);
-    if (!obj) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'psi' not found: ");
-        return;
-    }
-    /* The LPC controller needs PSI to generate interrupts  */
-    lpc->psi = PNV_PSI(obj);
+    assert(lpc->psi);
 
     /* Reg inits */
     lpc->lpc_hc_fw_rd_acc_size = LPC_HC_FW_RD_4B;
@@ -734,12 +750,18 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
                                 &lpc->lpc_hc_regs);
 }
 
+static Property pnv_lpc_properties[] = {
+    DEFINE_PROP_LINK("psi", PnvLpcController, psi, TYPE_PNV_PSI, PnvPsi *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pnv_lpc_realize;
     dc->desc = "PowerNV LPC Controller";
+    dc->props = pnv_lpc_properties;
 }
 
 static const TypeInfo pnv_lpc_info = {
@@ -755,6 +777,7 @@ static void pnv_lpc_register_types(void)
     type_register_static(&pnv_lpc_info);
     type_register_static(&pnv_lpc_power8_info);
     type_register_static(&pnv_lpc_power9_info);
+    type_register_static(&pnv_lpc_power10_info);
 }
 
 type_init(pnv_lpc_register_types)
@@ -801,6 +824,7 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
     ISABus *isa_bus;
     qemu_irq *irqs;
     qemu_irq_handler handler;
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
 
     /* let isa_bus_new() create its own bridge on SysBus otherwise
      * devices speficied on the command line won't find the bus and
@@ -825,5 +849,17 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
     irqs = qemu_allocate_irqs(handler, lpc, ISA_NUM_IRQS);
 
     isa_bus_irqs(isa_bus, irqs);
+
+    /*
+     * TODO: Map PNOR on the LPC FW address space on demand ?
+     */
+    memory_region_add_subregion(&lpc->isa_fw, PNOR_SPI_OFFSET,
+                                &pnv->pnor->mmio);
+    /*
+     * Start disabled. The HIOMAP protocol will activate the mapping
+     * with HIOMAP_C_CREATE_WRITE_WINDOW
+     */
+    memory_region_set_enabled(&pnv->pnor->mmio, false);
+
     return isa_bus;
 }

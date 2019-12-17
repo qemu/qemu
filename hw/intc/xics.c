@@ -289,9 +289,6 @@ void icp_reset(ICPState *icp)
     icp->pending_priority = 0xff;
     icp->mfrr = 0xff;
 
-    /* Make all outputs are deasserted */
-    qemu_set_irq(icp->output, 0);
-
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
 
@@ -305,33 +302,13 @@ void icp_reset(ICPState *icp)
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
-    PowerPCCPU *cpu;
     CPUPPCState *env;
-    Object *obj;
     Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_XICS, &err);
-    if (!obj) {
-        error_propagate_prepend(errp, err,
-                                "required link '" ICP_PROP_XICS
-                                "' not found: ");
-        return;
-    }
+    assert(icp->xics);
+    assert(icp->cs);
 
-    icp->xics = XICS_FABRIC(obj);
-
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, &err);
-    if (!obj) {
-        error_propagate_prepend(errp, err,
-                                "required link '" ICP_PROP_CPU
-                                "' not found: ");
-        return;
-    }
-
-    cpu = POWERPC_CPU(obj);
-    icp->cs = CPU(obj);
-
-    env = &cpu->env;
+    env = &POWERPC_CPU(icp->cs)->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:
         icp->output = env->irq_inputs[POWER7_INPUT_INT];
@@ -368,12 +345,20 @@ static void icp_unrealize(DeviceState *dev, Error **errp)
     vmstate_unregister(NULL, &vmstate_icp_server, icp);
 }
 
+static Property icp_properties[] = {
+    DEFINE_PROP_LINK(ICP_PROP_XICS, ICPState, xics, TYPE_XICS_FABRIC,
+                     XICSFabric *),
+    DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
+    dc->props = icp_properties;
     /*
      * Reason: part of XICS interrupt controller, needs to be wired up
      * by icp_create().
@@ -397,11 +382,8 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     obj = object_new(type);
     object_property_add_child(cpu, type, obj, &error_abort);
     object_unref(obj);
-    object_ref(OBJECT(xi));
-    object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
-                                   &error_abort);
-    object_ref(cpu);
-    object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    object_property_set_link(obj, OBJECT(xi), ICP_PROP_XICS, &error_abort);
+    object_property_set_link(obj, cpu, ICP_PROP_CPU, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         object_unparent(obj);
@@ -416,8 +398,6 @@ void icp_destroy(ICPState *icp)
 {
     Object *obj = OBJECT(icp);
 
-    object_unref(object_property_get_link(obj, ICP_PROP_CPU, &error_abort));
-    object_unref(object_property_get_link(obj, ICP_PROP_XICS, &error_abort));
     object_unparent(obj);
 }
 
@@ -609,17 +589,8 @@ static void ics_reset_handler(void *dev)
 static void ics_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS(dev);
-    Error *local_err = NULL;
-    Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &local_err);
-    if (!obj) {
-        error_propagate_prepend(errp, local_err,
-                                "required link '" ICS_PROP_XICS
-                                "' not found: ");
-        return;
-    }
-    ics->xics = XICS_FABRIC(obj);
+    assert(ics->xics);
 
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
@@ -699,6 +670,8 @@ static const VMStateDescription vmstate_ics = {
 
 static Property ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_LINK(ICS_PROP_XICS, ICSState, xics, TYPE_XICS_FABRIC,
+                     XICSFabric *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
