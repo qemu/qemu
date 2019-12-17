@@ -898,7 +898,7 @@ for tag in tags:
         if attribinfo[attrib]['wreg']:
             wregs.append(strip_verif_info_in_regs(attribinfo[attrib]['wreg']))
     regids += calculate_regid_letters(tag)
-    f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")' % \
+    f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")\n' % \
         (tag,regids,",".join(rregs),",".join(wregs)))
 
 

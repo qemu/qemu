@@ -26,13 +26,8 @@
 #include "opcodes.h"
 #include "translate.h"
 #include "macros.h"
+#include "mmvec/macros.h"
 #include "genptr_helpers.h"
-
-#define fWRAP_J2_trap0(GENHLPR, SHORTCODE) \
-    do { \
-        GENHLPR; \
-        ctx->base.is_jmp = DISAS_NORETURN; \
-    } while (0)
 
 #define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
 

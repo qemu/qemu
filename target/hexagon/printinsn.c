@@ -22,6 +22,7 @@
 #include "printinsn.h"
 #include "insn.h"
 #include "macros.h"
+#include "internal.h"
 
 static const char *sreg2str(unsigned int reg)
 {

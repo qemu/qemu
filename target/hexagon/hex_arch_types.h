@@ -15,16 +15,28 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DECODE_H
-#define DECODE_H
+#ifndef HEXAGON_ARCH_TYPES_H
+#define HEXAGON_ARCH_TYPES_H
 
-#include "cpu.h"
-#include "opcodes.h"
-#include "global_types.h"
+/*
+ * These types are used by the code generated from the Hexagon
+ * architecture library.
+ */
+typedef unsigned char size1u_t;
+typedef char size1s_t;
+typedef unsigned short int size2u_t;
+typedef short size2s_t;
+typedef unsigned int size4u_t;
+typedef int size4s_t;
+typedef unsigned long long int size8u_t;
+typedef long long int size8s_t;
+typedef size8u_t paddr_t;
+typedef size4u_t vaddr_t;
+typedef size8u_t pcycles_t;
 
-extern void decode_init(void);
-extern packet_t *decode_this(size4u_t *words, packet_t *decode_pkt);
-extern void decode_send_insn_to(packet_t * packet, int start, int newloc);
-
+typedef struct size16s {
+    size8s_t hi;
+    size8u_t lo;
+} size16s_t;
 
 #endif

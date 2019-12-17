@@ -15,24 +15,32 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GLOBAL_TYPES_H
-#define GLOBAL_TYPES_H
+#ifndef ICLASS_H
+#define ICLASS_H
 
-typedef unsigned char size1u_t;
-typedef char size1s_t;
-typedef unsigned short int size2u_t;
-typedef short size2s_t;
-typedef unsigned int size4u_t;
-typedef int size4s_t;
-typedef unsigned long long int size8u_t;
-typedef long long int size8s_t;
-typedef size8u_t paddr_t;
-typedef size4u_t vaddr_t;
-typedef size8u_t pcycles_t;
+#include "opcodes.h"
 
-typedef struct size16s {
-    size8s_t hi;
-    size8u_t lo;
-} size16s_t;
+#define ICLASS_FROM_TYPE(TYPE) ICLASS_##TYPE
+
+typedef enum {
+
+#define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS)    ICLASS_FROM_TYPE(TYPE),
+#define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS)    /* nothing */
+#include "imported/iclass.def"
+#undef DEF_PP_ICLASS32
+#undef DEF_EE_ICLASS32
+
+#define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS)    ICLASS_FROM_TYPE(TYPE),
+#define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS)    /* nothing */
+#include "imported/iclass.def"
+#undef DEF_PP_ICLASS32
+#undef DEF_EE_ICLASS32
+
+    ICLASS_FROM_TYPE(COPROC_VX),
+    ICLASS_FROM_TYPE(COPROC_VMEM),
+    NUM_ICLASSES
+} iclass_t;
+
+extern const char *find_iclass_slots(opcode_t opcode, int itype);
 
 #endif

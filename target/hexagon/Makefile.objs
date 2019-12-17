@@ -6,13 +6,14 @@ obj-y += \
     genptr.o \
     reg_fields.o \
     imported/decode.o \
+    iclass.o \
     opcodes.o \
-    imported/printinsn.o \
+    printinsn.o \
     arch.o \
-    imported/fma_emu.o \
+    fma_emu.o \
     conv_emu.o \
-    imported/mmvec/decode_ext_mmvec.o \
-    imported/mmvec/system_ext_mmvec.o
+    mmvec/decode_ext_mmvec.o \
+    mmvec/system_ext_mmvec.o
 
 QEMU_DEF_H = $(BUILD_DIR)/hexagon-linux-user/qemu_def_generated.h
 QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap_generated.h

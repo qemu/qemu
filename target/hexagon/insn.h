@@ -19,7 +19,7 @@
 #define INSN_H
 
 #include "cpu.h"
-#include "imported/global_types.h"
+#include "hex_arch_types.h"
 #include "translate.h"
 
 #define INSTRUCTIONS_MAX 7    /* 2 pairs + loopend */
@@ -87,7 +87,6 @@ struct Packet {
     size8u_t pkt_has_endloop1:1;
     size8u_t pkt_has_endloop01:1;
     size8u_t pkt_has_call:1;
-    size8u_t pkt_has_ras_ret:1;
     size8u_t pkt_has_jumpr:1;
     size8u_t pkt_has_cjump:1;
     size8u_t pkt_has_cjump_dotnew:1;
@@ -96,7 +95,6 @@ struct Packet {
     size8u_t pkt_has_duplex:1;
     size8u_t pkt_has_payload:1;      /* Contains a constant extender */
     size8u_t pkt_has_dealloc_return:1;
-    size8u_t pkt_has_jumpr_return:1;
 
     /* Pre-decodes about SLOTS */
     size8u_t slot0_valid:1;

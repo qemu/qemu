@@ -15,20 +15,15 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_HELPER_2(raise_exception, noreturn, env, i32)
-DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_2(new_value, s32, env, int)
-DEF_HELPER_3(debug_check_store_width, void, env, int, int)
-DEF_HELPER_1(commit_hvx_stores, void, env)
-DEF_HELPER_3(debug_commit_end, void, env, int, int)
-DEF_HELPER_3(sfrecipa_val, s32, env, s32, s32)
-DEF_HELPER_3(sfrecipa_pred, s32, env, s32, s32)
-DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
-DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
+#ifndef DECODE_H
+#define DECODE_H
 
-#define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
-#include "qemu_def_generated.h"
-#undef DEF_QEMU
+#include "cpu.h"
+#include "opcodes.h"
+#include "hex_arch_types.h"
 
-DEF_HELPER_2(debug_value, void, env, s32)
-DEF_HELPER_2(debug_value_i64, void, env, s64)
+extern void decode_init(void);
+extern packet_t *decode_this(size4u_t *words, packet_t *decode_pkt);
+extern void decode_send_insn_to(packet_t *packet, int start, int newloc);
+
+#endif

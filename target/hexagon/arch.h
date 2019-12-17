@@ -19,7 +19,7 @@
 #define ARCH_H
 
 #include "cpu.h"
-#include "imported/global_types.h"
+#include "hex_arch_types.h"
 
 extern size1u_t rLPS_table_64x4[64][4];
 extern size1u_t AC_next_state_MPS_64[64];

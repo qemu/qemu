@@ -22,8 +22,6 @@
 typedef struct CPUHexagonState CPUHexagonState;
 
 #include <fenv.h>
-#include "hex_regs.h"
-#include "mmvec/mmvec.h"
 
 #define TARGET_PAGE_BITS 16     /* 64K pages */
 #define TARGET_LONG_BITS 32
@@ -31,6 +29,8 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu/compiler.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
+#include "hex_regs.h"
+#include "mmvec/mmvec.h"
 
 #define NUM_PREGS 4
 #ifdef CONFIG_USER_ONLY
@@ -55,10 +55,10 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define MMU_USER_IDX 0
 
 struct MemLog {
-    vaddr_t va;
-    size1u_t width;
-    size4u_t data32;
-    size8u_t data64;
+    target_ulong va;
+    uint8_t width;
+    uint32_t data32;
+    uint64_t data64;
 };
 
 typedef struct {
@@ -70,8 +70,8 @@ typedef struct {
 
 typedef struct {
     unsigned char cdata[256];
-    size4u_t range;
-    size1u_t format;
+    uint32_t range;
+    uint8_t format;
 } mem_access_info_t;
 
 #define EXEC_STATUS_OK          0x0000
@@ -100,12 +100,12 @@ struct CPUHexagonState {
     target_ulong stack_start;
     target_ulong stack_adjust;
 
-    size1u_t slot_cancelled;
+    uint8_t slot_cancelled;
     target_ulong new_value[TOTAL_PER_THREAD_REGS];
 
     /*
      * Only used when HEX_DEBUG is on, but unconditionally included
-     * to reduce recompile time when turning it on/off.
+     * to reduce recompile time when turning HEX_DEBUG on/off.
      */
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 

@@ -30,7 +30,7 @@
 #include <ctype.h>
 #include "qemu/osdep.h"
 #include "opcodes.h"
-#include "imported/decode.h"
+#include "decode.h"
 
 #define VEC_DESCR(A, B, C) DESCR(A, B, C)
 #define DONAME(X) #X
@@ -92,9 +92,95 @@ static void init_attribs(int tag, ...)
     }
 }
 
+static size4u_t str2val(const char *str)
+{
+    size4u_t ret = 0;
+    for (/* no setup */ ; *str; str++) {
+        switch (*str) {
+        case ' ':
+        case '\t':
+            break;
+        case 's':
+        case 't':
+        case 'u':
+        case 'v':
+        case 'w':
+        case 'd':
+        case 'e':
+        case 'x':
+        case 'y':
+        case 'i':
+        case 'I':
+        case 'P':
+        case 'E':
+        case 'o':
+        case '-':
+        case '0':
+            ret = (ret << 1) | 0;
+            break;
+        case '1':
+            ret = (ret << 1) | 1;
+            break;
+        default:
+            break;
+        }
+    }
+    return ret;
+}
+
+static size1u_t has_ee(const char *str)
+{
+    return (strchr(str, 'E') != NULL);
+}
+
+opcode_encoding_t opcode_encodings[] = {
+#define DEF_ENC32(OPCODE, ENCSTR) \
+    [OPCODE] = { .encoding = ENCSTR },
+
+#define DEF_ENC16(OPCODE, ENCSTR) \
+    [OPCODE] = { .encoding = ENCSTR, .enc_class = HALF },
+
+#define DEF_ENC_SUBINSN(OPCODE, CLASS, ENCSTR) \
+    [OPCODE] = { .encoding = ENCSTR, .enc_class = CLASS },
+
+#define DEF_EXT_ENC(OPCODE, CLASS, ENCSTR) \
+    [OPCODE] = { .encoding = ENCSTR, .enc_class = CLASS },
+
+#include "imported/encode.def"
+
+#undef DEF_ENC32
+#undef DEF_ENC16
+#undef DEF_ENC_SUBINSN
+#undef DEF_EXT_ENC
+};
+
 void opcode_init(void)
 {
     init_attribs(0, 0);
+
+#define DEF_ENC32(OPCODE, ENCSTR) \
+    opcode_encodings[OPCODE].vals = str2val(ENCSTR); \
+    opcode_encodings[OPCODE].is_ee = has_ee(ENCSTR);
+
+#define DEF_ENC16(OPCODE, ENCSTR) \
+    opcode_encodings[OPCODE].vals = str2val(ENCSTR);
+
+#define DEF_ENC_SUBINSN(OPCODE, CLASS, ENCSTR) \
+    opcode_encodings[OPCODE].vals = str2val(ENCSTR);
+
+#define LEGACY_DEF_ENC32(OPCODE, ENCSTR) \
+    opcode_encodings[OPCODE].dep_vals = str2val(ENCSTR);
+
+#define DEF_EXT_ENC(OPCODE, CLASS, ENCSTR) \
+    opcode_encodings[OPCODE].vals = str2val(ENCSTR);
+
+#include "imported/encode.def"
+
+#undef LEGACY_DEF_ENC32
+#undef DEF_ENC32
+#undef DEF_ENC16
+#undef DEF_ENC_SUBINSN
+#undef DEF_EXT_ENC
 
 #define ATTRIBS(...) , ## __VA_ARGS__, 0
 #define OP_ATTRIB(TAG, ARGS) init_attribs(TAG ARGS);

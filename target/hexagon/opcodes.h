@@ -28,6 +28,19 @@ typedef enum {
 #undef OPCODE
 } opcode_t;
 
+typedef enum {
+    NORMAL,
+    HALF,
+    SUBINSN_A,
+    SUBINSN_L1,
+    SUBINSN_L2,
+    SUBINSN_S1,
+    SUBINSN_S2,
+    EXT_noext,
+    EXT_mmvec,
+    XX_LAST_ENC_CLASS
+} enc_class_t;
+
 extern const char *opcode_names[];
 
 extern const char *opcode_reginfo[];
@@ -38,6 +51,7 @@ typedef struct {
     const char * const encoding;
     size4u_t vals;
     size4u_t dep_vals;
+    const enc_class_t enc_class;
     size1u_t is_ee:1;
 } opcode_encoding_t;
 
