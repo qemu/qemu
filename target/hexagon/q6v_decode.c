@@ -360,7 +360,6 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
         for (i = 0; i < new_insns; i++) {
             check_twowrite(&pkt->insn[num_insns + i]);
         }
-        /* XXX: FIXME: this is kludgy */
         /*
          * If we saw an extender, mark next word extended so immediate
          * decode works
