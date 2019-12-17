@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# Test migration to file for taking an external snapshot with VM state.
+
+import iotests
+import os
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_protocol(supported=['file'])
+iotests.verify_platform(['linux'])
+
+with iotests.FilePath('base') as base_path , \
+     iotests.FilePath('top') as top_path, \
+     iotests.VM() as vm:
+
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, base_path, '64M')
+
+    iotests.log('=== Launch VM ===')
+    vm.add_object('iothread,id=iothread0')
+    vm.add_blockdev('file,filename=%s,node-name=base-file' % (base_path))
+    vm.add_blockdev('%s,file=base-file,node-name=base-fmt' % (iotests.imgfmt))
+    vm.add_device('virtio-blk,drive=base-fmt,iothread=iothread0,id=vda')
+    vm.launch()
+
+    vm.enable_migration_events('VM')
+
+    iotests.log('\n=== Migrate to file ===')
+    vm.qmp_log('migrate', uri='exec:cat > /dev/null')
+
+    with iotests.Timeout(3, 'Migration does not complete'):
+        vm.wait_migration()
+
+    iotests.log('\nVM is now stopped:')
+    iotests.log(vm.qmp('query-migrate')['return']['status'])
+    vm.qmp_log('query-status')
+
+    iotests.log('\n=== Create a snapshot of the disk image ===')
+    vm.blockdev_create({
+        'driver': 'file',
+        'filename': top_path,
+        'size': 0,
+    })
+    vm.qmp_log('blockdev-add', node_name='top-file',
+               driver='file', filename=top_path,
+               filters=[iotests.filter_qmp_testfiles])
+
+    vm.blockdev_create({
+        'driver': iotests.imgfmt,
+        'file': 'top-file',
+        'size': 1024 * 1024,
+    })
+    vm.qmp_log('blockdev-add', node_name='top-fmt',
+               driver=iotests.imgfmt, file='top-file')
+
+    vm.qmp_log('blockdev-snapshot', node='base-fmt', overlay='top-fmt')
+
+    iotests.log('\n=== Resume the VM and simulate a write request ===')
+    vm.qmp_log('cont')
+    iotests.log(vm.hmp_qemu_io('-d vda/virtio-backend', 'write 4k 4k'))
+
+    iotests.log('\n=== Commit it to the backing file ===')
+    result = vm.qmp_log('block-commit', job_id='job0', auto_dismiss=False,
+                        device='top-fmt', top_node='top-fmt',
+                        filters=[iotests.filter_qmp_testfiles])
+    if 'return' in result:
+        vm.run_job('job0')
