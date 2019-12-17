@@ -92,7 +92,8 @@ ENV PACKAGES \
     vte291-devel \
     which \
     xen-devel \
-    zlib-devel
+    zlib-devel \
+    libzstd-devel
 ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
 
 RUN dnf install -y $PACKAGES

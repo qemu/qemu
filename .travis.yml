@@ -49,6 +49,7 @@ addons:
       - libusb-1.0-0-dev
       - libvdeplug-dev
       - libvte-2.91-dev
+      - libzstd-dev
       - sparse
       - uuid-dev
       - gcovr

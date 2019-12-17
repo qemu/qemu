@@ -21,6 +21,7 @@ build-system2:
  script:
  - apt-get install -y -qq libsdl2-dev libgcrypt-dev libbrlapi-dev libaio-dev
       libfdt-dev liblzo2-dev librdmacm-dev libibverbs-dev libibumad-dev
+      libzstd-dev
  - mkdir build
  - cd build
  - ../configure --enable-werror --target-list="tricore-softmmu unicore32-softmmu
