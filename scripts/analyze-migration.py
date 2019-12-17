@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 #  Migration Stream Analyzer
 #
@@ -17,12 +17,18 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
-import numpy as np
 import json
 import os
 import argparse
 import collections
+import struct
+import sys
+
+
+MIN_PYTHON = (3, 2)
+if sys.version_info < MIN_PYTHON:
+    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
+
 
 def mkdir_p(path):
     try:
@@ -30,29 +36,26 @@ def mkdir_p(path):
     except OSError:
         pass
 
+
 class MigrationFile(object):
     def __init__(self, filename):
         self.filename = filename
         self.file = open(self.filename, "rb")
 
     def read64(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i8')[0])
+        return int.from_bytes(self.file.read(8), byteorder='big', signed=True)
 
     def read32(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i4')[0])
+        return int.from_bytes(self.file.read(4), byteorder='big', signed=True)
 
     def read16(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i2')[0])
+        return int.from_bytes(self.file.read(2), byteorder='big', signed=True)
 
     def read8(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i1')[0])
+        return int.from_bytes(self.file.read(1), byteorder='big', signed=True)
 
     def readstr(self, len = None):
-        if len is None:
-            len = self.read8()
-        if len == 0:
-            return ""
-        return np.fromfile(self.file, count=1, dtype=('S%d' % len))[0]
+        return self.readvar(len).decode('utf-8')
 
     def readvar(self, size = None):
         if size is None:
@@ -86,8 +89,8 @@ class MigrationFile(object):
 
         # Find the last NULL byte, then the first brace after that. This should
         # be the beginning of our JSON data.
-        nulpos = data.rfind("\0")
-        jsonpos = data.find("{", nulpos)
+        nulpos = data.rfind(b'\0')
+        jsonpos = data.find(b'{', nulpos)
 
         # Check backwards from there and see whether we guessed right
         self.file.seek(datapos + jsonpos - 5, 0)
@@ -275,7 +278,7 @@ class VMSDFieldGeneric(object):
         return str(self.__str__())
 
     def __str__(self):
-        return " ".join("{0:02x}".format(ord(c)) for c in self.data)
+        return " ".join("{0:02x}".format(c) for c in self.data)
 
     def getDict(self):
         return self.__str__()
@@ -307,8 +310,8 @@ class VMSDFieldInt(VMSDFieldGeneric):
 
     def read(self):
         super(VMSDFieldInt, self).read()
-        self.sdata = np.fromstring(self.data, count=1, dtype=(self.sdtype))[0]
-        self.udata = np.fromstring(self.data, count=1, dtype=(self.udtype))[0]
+        self.sdata = int.from_bytes(self.data, byteorder='big', signed=True)
+        self.udata = int.from_bytes(self.data, byteorder='big', signed=False)
         self.data = self.sdata
         return self.data
 
@@ -363,7 +366,7 @@ class VMSDFieldStruct(VMSDFieldGeneric):
             array_len = field.pop('array_len')
             field['index'] = 0
             new_fields.append(field)
-            for i in xrange(1, array_len):
+            for i in range(1, array_len):
                 c = field.copy()
                 c['index'] = i
                 new_fields.append(c)

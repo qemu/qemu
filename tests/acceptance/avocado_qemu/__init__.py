@@ -100,14 +100,24 @@ def exec_command_and_wait_for_pattern(test, command,
 
 
 class Test(avocado.Test):
+    def _get_unique_tag_val(self, tag_name):
+        """
+        Gets a tag value, if unique for a key
+        """
+        vals = self.tags.get(tag_name, [])
+        if len(vals) == 1:
+            return vals.pop()
+        return None
+
     def setUp(self):
         self._vms = {}
-        arches = self.tags.get('arch', [])
-        if len(arches) == 1:
-            arch = arches.pop()
-        else:
-            arch = None
-        self.arch = self.params.get('arch', default=arch)
+
+        self.arch = self.params.get('arch',
+                                    default=self._get_unique_tag_val('arch'))
+
+        self.machine = self.params.get('machine',
+                                       default=self._get_unique_tag_val('machine'))
+
         default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
                                         default=default_qemu_bin)
@@ -129,6 +139,8 @@ class Test(avocado.Test):
             name = str(uuid.uuid4())
         if self._vms.get(name) is None:
             self._vms[name] = self._new_vm(*args)
+            if self.machine is not None:
+                self._vms[name].set_machine(self.machine)
         return self._vms[name]
 
     def tearDown(self):
