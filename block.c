@@ -5335,10 +5335,6 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
         return;
     }
 
-    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
-        return;
-    }
-
     QLIST_FOREACH(child, &bs->children, next) {
         bdrv_co_invalidate_cache(child->bs, &local_err);
         if (local_err) {
@@ -5360,34 +5356,36 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
      * just keep the extended permissions for the next time that an activation
      * of the image is tried.
      */
-    bs->open_flags &= ~BDRV_O_INACTIVE;
-    bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, &local_err);
-    if (ret < 0) {
-        bs->open_flags |= BDRV_O_INACTIVE;
-        error_propagate(errp, local_err);
-        return;
-    }
-    bdrv_set_perm(bs, perm, shared_perm);
-
-    if (bs->drv->bdrv_co_invalidate_cache) {
-        bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
-        if (local_err) {
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        bs->open_flags &= ~BDRV_O_INACTIVE;
+        bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
+        ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, &local_err);
+        if (ret < 0) {
             bs->open_flags |= BDRV_O_INACTIVE;
             error_propagate(errp, local_err);
             return;
         }
-    }
+        bdrv_set_perm(bs, perm, shared_perm);
 
-    FOR_EACH_DIRTY_BITMAP(bs, bm) {
-        bdrv_dirty_bitmap_skip_store(bm, false);
-    }
+        if (bs->drv->bdrv_co_invalidate_cache) {
+            bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
+            if (local_err) {
+                bs->open_flags |= BDRV_O_INACTIVE;
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
 
-    ret = refresh_total_sectors(bs, bs->total_sectors);
-    if (ret < 0) {
-        bs->open_flags |= BDRV_O_INACTIVE;
-        error_setg_errno(errp, -ret, "Could not refresh total sector count");
-        return;
+        FOR_EACH_DIRTY_BITMAP(bs, bm) {
+            bdrv_dirty_bitmap_skip_store(bm, false);
+        }
+
+        ret = refresh_total_sectors(bs, bs->total_sectors);
+        if (ret < 0) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_setg_errno(errp, -ret, "Could not refresh total sector count");
+            return;
+        }
     }
 
     QLIST_FOREACH(parent, &bs->parents, next_parent) {
