@@ -5,7 +5,7 @@ obj-y += \
     gdbstub.o \
     genptr.o \
     reg_fields.o \
-    imported/decode.o \
+    decode.o \
     iclass.o \
     opcodes.o \
     printinsn.o \

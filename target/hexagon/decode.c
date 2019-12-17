@@ -104,7 +104,7 @@ typedef struct _dectree_table_struct {
 #define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
 #define DECODE_OPINFO(...)                    /* NOTHING */
 
-#include "dectree.odef"
+#include "imported/dectree.odef"
 
 #undef DECODE_OPINFO
 #undef DECODE_MATCH_INFO
@@ -148,7 +148,7 @@ typedef struct _dectree_table_struct {
 #define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
 #define DECODE_OPINFO(...)                    /* NOTHING */
 
-#include "dectree.odef"
+#include "imported/dectree.odef"
 
 #undef DECODE_OPINFO
 #undef DECODE_MATCH_INFO
@@ -210,7 +210,7 @@ typedef struct {
 #define DECODE_LEGACY_MATCH_INFO(...) /* NOTHING */
 
 static const decode_itable_entry_t decode_itable[XX_LAST_OPCODE] = {
-#include "dectree.odef"
+#include "imported/dectree.odef"
 };
 
 #undef DECODE_MATCH_INFO
@@ -220,7 +220,7 @@ static const decode_itable_entry_t decode_itable[XX_LAST_OPCODE] = {
 #define DECODE_LEGACY_MATCH_INFO(...) DECODE_MATCH_INFO_NORMAL(__VA_ARGS__)
 
 static const decode_itable_entry_t decode_legacy_itable[XX_LAST_OPCODE] = {
-#include "dectree.odef"
+#include "imported/dectree.odef"
 };
 
 #undef DECODE_OPINFO
@@ -726,15 +726,17 @@ static int decode_shuffle_for_execution(packet_t *packet)
     return 0;
 }
 
-/* Actually check two writes / instruction case */
-// FIXME - Figure what this is doing and if it is needed
+/*
+ * Check that an instruction with two destination registers
+ * (e.g., post-increment load) does not assign to the same
+ * register twice.
+ */
 static inline int check_twowrite(insn_t *insn)
 {
     int n_dests = 0;
     size4u_t dmask = 1;
     size4u_t xmask = 1;
     size2u_t opcode = insn->opcode;
-    char buf[128];
 
     if (strstr(opcode_wregs[opcode], "Rd")) {
         n_dests++;
@@ -745,6 +747,8 @@ static inline int check_twowrite(insn_t *insn)
     if (n_dests < 2) {
         return 0;
     }
+
+    /* Pairs need 2 bits in the mask */
     if (strstr(opcode_wregs[opcode], "Rdd")) {
         dmask = 3;
     }
@@ -752,14 +756,13 @@ static inline int check_twowrite(insn_t *insn)
         xmask = 3;
     }
 
-    dmask = dmask << insn->regno[strchr(opcode_reginfo[opcode], 'd') -
-            opcode_reginfo[opcode]];
-    xmask = xmask << insn->regno[strchr(opcode_reginfo[opcode], 'x') -
-            opcode_reginfo[opcode]];
+    dmask <<= insn->regno[strchr(opcode_reginfo[opcode], 'd') -
+                          opcode_reginfo[opcode]];
+    xmask <<= insn->regno[strchr(opcode_reginfo[opcode], 'x') -
+                          opcode_reginfo[opcode]];
 
     if (dmask & xmask) {
-        sprintf(buf, "FIXME: %s, %d", __FILE__, __LINE__);
-        warn("[UNDEFINED] Overlapping regs? %s", buf);
+        warn("[UNDEFINED] Overlapping regs? %s, %d", __FILE__, __LINE__);
     }
     return 0;
 }
@@ -1108,13 +1111,13 @@ static int decode_assembler_check_sc(packet_t *pkt)
     enum {
 #define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS) ICLASS_PP_TYPE_##TYPE,
 #define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS)    /* NOTHING */
-#include "iclass.def"
+#include "imported/iclass.def"
 #undef DEF_EE_ICLASS32
 #undef DEF_PP_ICLASS32
 
 #define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS)    /* NOTHING */
 #define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS) ICLASS_EE_TYPE_##TYPE,
-#include "iclass.def"
+#include "imported/iclass.def"
 #undef DEF_EE_ICLASS32
 #undef DEF_PP_ICLASS32
     };
