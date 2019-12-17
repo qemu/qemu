@@ -25,23 +25,14 @@
 #include "opcodes.h"
 #include "decode.h"
 #include "insn.h"
-
-/* FIXME - Figure out if these are needed */
-#define warn(...) /* Nothing */
-#define fatal(...) g_assert_not_reached();
-
 #include "macros.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/decode_ext_mmvec.h"
 
 
-enum {
-    EXT_IDX_noext = 0,
-    EXT_IDX_noext_AFTER = 4,
-    EXT_IDX_mmvec = 4,
-    EXT_IDX_mmvec_AFTER = 8,
-    XX_LAST_EXT_IDX
-};
+/* FIXME - Generate an exception when there is an invalid insn/packet */
+#define warn(...) /* Nothing */
+#define fatal(...) g_assert_not_reached();
 
 #define snprint_a_pkt(pkt_buf, x, y, z) \
     sprintf(pkt_buf, "FIXME: %s, %d", __FILE__, __LINE__)
@@ -51,6 +42,15 @@ static void __decode_error(void)
 {
     printf("decode_error\n");
 }
+
+
+enum {
+    EXT_IDX_noext = 0,
+    EXT_IDX_noext_AFTER = 4,
+    EXT_IDX_mmvec = 4,
+    EXT_IDX_mmvec_AFTER = 8,
+    XX_LAST_EXT_IDX
+};
 
 #define DEF_REGMAP(NAME, ELEMENTS, ...) \
     static const unsigned int DECODE_REGISTER_##NAME[ELEMENTS] = \

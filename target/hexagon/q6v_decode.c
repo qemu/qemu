@@ -171,7 +171,6 @@ decode_insns_tablewalk(insn_t *insn, dectree_table_t *table, size4u_t encoding)
         size4u_t active_ext;
         /*
          * For now, HVX will be the only coproc
-         * FIXME - Need to check that this thread has acquired a context
          */
         active_ext = 4;
         return decode_insns_tablewalk(insn, ext_trees[active_ext], encoding);
