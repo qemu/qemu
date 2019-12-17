@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "imported/global_types.h"
+#include "hex_arch_types.h"
 #include "macros.h"
 #include <stdio.h>
 #include <math.h>

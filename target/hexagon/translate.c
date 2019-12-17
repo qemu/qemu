@@ -26,7 +26,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "imported/decode.h"
+#include "decode.h"
 #include "translate.h"
 #include "printinsn.h"
 #include "macros.h"
@@ -530,7 +530,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
     }
     gen_exec_counters(pkt);
 #if HEX_DEBUG
-    do {
+    {
         TCGv has_st0 =
             tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
@@ -538,7 +538,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
         gen_helper_debug_commit_end(cpu_env, has_st0, has_st1);
         tcg_temp_free(has_st0);
         tcg_temp_free(has_st1);
-    } while (0);
+    }
 #endif
 
     if (end_tb) {

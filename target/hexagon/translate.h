@@ -19,7 +19,6 @@
 #define TRANSLATE_H
 
 #include "cpu.h"
-#include "internal.h"
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -31,7 +30,7 @@ typedef struct DisasContext {
     int ctx_reg_log_idx;
     int ctx_preg_log[PRED_WRITES_MAX];
     int ctx_preg_log_idx;
-    size1u_t ctx_store_width[STORES_MAX];
+    uint8_t ctx_store_width[STORES_MAX];
     int ctx_temp_vregs_idx;
     int ctx_temp_qregs_idx;
     int ctx_vreg_log[NUM_VREGS];
@@ -49,9 +48,7 @@ extern TCGv hex_this_PC;
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_branch_taken;
 extern TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
-#if HEX_DEBUG
 extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
-#endif
 extern TCGv hex_new_pred_value[NUM_PREGS];
 extern TCGv hex_pred_written[NUM_PREGS];
 extern TCGv hex_store_addr[STORES_MAX];

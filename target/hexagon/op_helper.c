@@ -27,9 +27,11 @@
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "hex_arch_types.h"
 #include "macros.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
+#include "arch.h"
 #include "fma_emu.h"
 #include "conv_emu.h"
 #include "translate.h"
@@ -82,10 +84,11 @@ void HELPER(raise_exception)(CPUHexagonState *env, uint32_t exception)
     do_raise_exception_err(env, exception, 0);
 }
 
-static inline void log_reg_write(CPUHexagonState *env, int rnum, int32_t val,
-                                 uint32_t slot)
+static inline void log_reg_write(CPUHexagonState *env, int rnum,
+                                 target_ulong val, uint32_t slot)
 {
-    HEX_DEBUG_LOG("log_reg_write[%d] = %d (0x%x)", rnum, val, val);
+    HEX_DEBUG_LOG("log_reg_write[%d] = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")",
+                  rnum, val, val);
     if (env->slot_cancelled & (1 << slot)) {
         HEX_DEBUG_LOG(" CANCELLED");
     }
@@ -106,9 +109,12 @@ static inline void log_reg_write_pair(CPUHexagonState *env, int rnum,
     log_reg_write(env, rnum + 1, (val >> 32) & 0xFFFFFFFF, slot);
 }
 
-static inline void log_pred_write(CPUHexagonState *env, int pnum, int32_t val)
+static inline void log_pred_write(CPUHexagonState *env, int pnum,
+                                  target_ulong val)
 {
-    HEX_DEBUG_LOG("log_pred_write[%d] = %d (0x%x)\n", pnum, val, val);
+    HEX_DEBUG_LOG("log_pred_write[%d] = " TARGET_FMT_ld
+                  " (0x" TARGET_FMT_lx ")\n",
+                  pnum, val, val);
 
     /* Multiple writes to the same preg are and'ed together */
     if (env->pred_written[pnum]) {
@@ -120,9 +126,11 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum, int32_t val)
 }
 
 static inline void log_store32(CPUHexagonState *env, target_ulong addr,
-                               int32_t val, int width, int slot)
+                               target_ulong val, int width, int slot)
 {
-    HEX_DEBUG_LOG("log_store%d(0x%x, %d [0x%x])\n", width, addr, val, val);
+    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx ", " TARGET_FMT_ld
+                  " [0x" TARGET_FMT_lx "])\n",
+                  width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data32 = val;
@@ -131,7 +139,8 @@ static inline void log_store32(CPUHexagonState *env, target_ulong addr,
 static inline void log_store64(CPUHexagonState *env, target_ulong addr,
                                int64_t val, int width, int slot)
 {
-    HEX_DEBUG_LOG("log_store%d(0x%x, %ld [0x%lx])\n", width, addr, val, val);
+    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx ", %ld [0x%lx])\n",
+                   width, addr, val, val);
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
@@ -139,7 +148,7 @@ static inline void log_store64(CPUHexagonState *env, target_ulong addr,
 
 static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
-    HEX_DEBUG_LOG("write_new_pc(0x%x)\n", addr);
+    HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
     if (env->branch_taken) {
         HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
                       "ignoring the second one\n");
@@ -152,7 +161,8 @@ static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
-    HEX_DEBUG_LOG("Start packet: pc = 0x%x\n", env->gpr[HEX_REG_PC]);
+    HEX_DEBUG_LOG("Start packet: pc = 0x" TARGET_FMT_lx "\n",
+                  env->gpr[HEX_REG_PC]);
 
     int i;
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
@@ -227,18 +237,18 @@ static void print_store(CPUHexagonState *env, int slot)
         size1u_t width = env->mem_log_stores[slot].width;
         if (width == 1) {
             size4u_t data = env->mem_log_stores[slot].data32 & 0xff;
-            HEX_DEBUG_LOG("\tmemb[0x%x] = %d (0x%02x)\n",
+            HEX_DEBUG_LOG("\tmemb[0x" TARGET_FMT_lx "] = %d (0x%02x)\n",
                           env->mem_log_stores[slot].va, data, data);
         } else if (width == 2) {
             size4u_t data = env->mem_log_stores[slot].data32 & 0xffff;
-            HEX_DEBUG_LOG("\tmemh[0x%x] = %d (0x%04x)\n",
+            HEX_DEBUG_LOG("\tmemh[0x" TARGET_FMT_lx "] = %d (0x%04x)\n",
                           env->mem_log_stores[slot].va, data, data);
         } else if (width == 4) {
             size4u_t data = env->mem_log_stores[slot].data32;
-            HEX_DEBUG_LOG("\tmemw[0x%x] = %d (0x%08x)\n",
+            HEX_DEBUG_LOG("\tmemw[0x" TARGET_FMT_lx "] = %d (0x%08x)\n",
                           env->mem_log_stores[slot].va, data, data);
         } else if (width == 8) {
-            HEX_DEBUG_LOG("\tmemd[0x%x] = %lld (0x%016llx)\n",
+            HEX_DEBUG_LOG("\tmemd[0x" TARGET_FMT_lx "] = %lu (0x%016lx)\n",
                           env->mem_log_stores[slot].va,
                           env->mem_log_stores[slot].data64,
                           env->mem_log_stores[slot].data64);
@@ -256,7 +266,8 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     bool pred_printed = false;
     int i;
 
-    HEX_DEBUG_LOG("Packet committed: pc = 0x%x\n", env->this_PC);
+    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n",
+                  env->this_PC);
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         if (env->reg_written[i]) {
@@ -264,8 +275,8 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 HEX_DEBUG_LOG("Regs written\n");
                 reg_printed = true;
             }
-            HEX_DEBUG_LOG("\tr%d = %d (0x%x)\n", i, env->new_value[i],
-                          env->new_value[i]);
+            HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx " )\n",
+                          i, env->new_value[i], env->new_value[i]);
         }
     }
 
@@ -275,7 +286,8 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 HEX_DEBUG_LOG("Predicates written\n");
                 pred_printed = true;
             }
-            HEX_DEBUG_LOG("\tp%d = 0x%x\n", i, env->new_pred_value[i]);
+            HEX_DEBUG_LOG("\tp%d = 0x" TARGET_FMT_lx "\n",
+                          i, env->new_pred_value[i]);
         }
     }
 
@@ -290,7 +302,9 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     }
 
     HEX_DEBUG_LOG("Next PC = 0x%x\n", env->next_PC);
-    HEX_DEBUG_LOG("Exec counters: pkt = %d, insn = %d, hvx = %d\n",
+    HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
+                  ", insn = " TARGET_FMT_lx
+                  ", hvx = " TARGET_FMT_lx "\n",
                   env->gpr[HEX_REG_QEMU_PKT_CNT],
                   env->gpr[HEX_REG_QEMU_INSN_CNT],
                   env->gpr[HEX_REG_QEMU_HVX_CNT]);

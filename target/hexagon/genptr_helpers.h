@@ -543,6 +543,14 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
 {
+#if HEX_DEBUG
+    int i;
+    for (i = 0; i < ctx->ctx_reg_log_idx; i++) {
+        if (ctx->ctx_reg_log[i] == rnum) {
+            HEX_DEBUG_LOG("WARNING: Multiple writes to r%d\n", rnum);
+        }
+    }
+#endif
     ctx->ctx_reg_log[ctx->ctx_reg_log_idx] = rnum;
     ctx->ctx_reg_log_idx++;
 }

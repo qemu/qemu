@@ -249,7 +249,7 @@
 
 #define SLOT_WRAP(CODE) \
     do { \
-        TCGv slot = tcg_const_tl(insn->is_endloop ? 4 : insn->slot); \
+        TCGv slot = tcg_const_tl(insn->slot); \
         CODE; \
         tcg_temp_free(slot); \
     } while (0)
