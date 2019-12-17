@@ -273,7 +273,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);
-    setenv("GNUTLS_FORCE_FIPS_MODE", "2", 1);
+    g_setenv("GNUTLS_FORCE_FIPS_MODE", "2", 1);
 
     mkdir(WORKDIR, 0700);
 

@@ -1325,7 +1325,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
 
-    setenv("QTEST_SILENT_ERRORS", "1", 1);
+    g_setenv("QTEST_SILENT_ERRORS", "1", 1);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/vmstate/simple/primitive", test_simple_primitive);

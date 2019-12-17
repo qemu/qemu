@@ -36,7 +36,7 @@ build-disabled:
 
 build-tcg-disabled:
  script:
- - apt-get install -y -qq clang libgtk-3-dev libbluetooth-dev libusb-dev
+ - apt-get install -y -qq clang libgtk-3-dev libusb-dev
  - ./configure --cc=clang --enable-werror --disable-tcg --audio-drv-list=""
  - make -j2
  - make check-unit

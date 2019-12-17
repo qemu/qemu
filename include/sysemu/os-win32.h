@@ -67,8 +67,6 @@ int getpagesize(void);
 # define EPROTONOSUPPORT EINVAL
 #endif
 
-int setenv(const char *name, const char *value, int overwrite);
-
 typedef struct {
     long tv_sec;
     long tv_usec;

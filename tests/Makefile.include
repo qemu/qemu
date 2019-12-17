@@ -16,12 +16,10 @@ check-help:
 	@echo " $(MAKE) check-softfloat      Run FPU emulation tests"
 	@echo " $(MAKE) check-acceptance     Run all acceptance (functional) tests"
 	@echo
-	@echo " $(MAKE) check-report.html    Generates an HTML test report"
+	@echo " $(MAKE) check-report.tap     Generates an aggregated TAP test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
 	@echo " $(MAKE) check-clean          Clean the tests and related data"
 	@echo
-	@echo "Please note that HTML reports do not regenerate if the unit tests"
-	@echo "have not changed."
 	@echo
 	@echo "The variable SPEED can be set to control the gtester speed setting."
 	@echo "Default options are -k and (for $(MAKE) V=1) --verbose; they can be"
