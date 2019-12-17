@@ -1671,11 +1671,8 @@ static char *x86_cpu_type_name(const char *model_name)
 
 static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
 {
-    ObjectClass *oc;
-    char *typename = x86_cpu_type_name(cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
-    return oc;
+    g_autofree char *typename = x86_cpu_type_name(cpu_model);
+    return object_class_by_name(typename);
 }
 
 static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
@@ -3160,6 +3157,66 @@ static X86CPUDefinition builtin_x86_defs[] = {
         }
     },
     {
+        .name = "Cooperlake",
+        .level = 0xd,
+        .vendor = CPUID_VENDOR_INTEL,
+        .family = 6,
+        .model = 85,
+        .stepping = 10,
+        .features[FEAT_1_EDX] =
+            CPUID_VME | CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
+            CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
+            CPUID_PGE | CPUID_MTRR | CPUID_SEP | CPUID_APIC | CPUID_CX8 |
+            CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
+            CPUID_DE | CPUID_FP87,
+        .features[FEAT_1_ECX] =
+            CPUID_EXT_AVX | CPUID_EXT_XSAVE | CPUID_EXT_AES |
+            CPUID_EXT_POPCNT | CPUID_EXT_X2APIC | CPUID_EXT_SSE42 |
+            CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_SSSE3 |
+            CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3 |
+            CPUID_EXT_TSC_DEADLINE_TIMER | CPUID_EXT_FMA | CPUID_EXT_MOVBE |
+            CPUID_EXT_PCID | CPUID_EXT_F16C | CPUID_EXT_RDRAND,
+        .features[FEAT_8000_0001_EDX] =
+            CPUID_EXT2_LM | CPUID_EXT2_PDPE1GB | CPUID_EXT2_RDTSCP |
+            CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
+        .features[FEAT_8000_0001_ECX] =
+            CPUID_EXT3_ABM | CPUID_EXT3_LAHF_LM | CPUID_EXT3_3DNOWPREFETCH,
+        .features[FEAT_7_0_EBX] =
+            CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 |
+            CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_AVX2 | CPUID_7_0_EBX_SMEP |
+            CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ERMS | CPUID_7_0_EBX_INVPCID |
+            CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_RDSEED | CPUID_7_0_EBX_ADX |
+            CPUID_7_0_EBX_SMAP | CPUID_7_0_EBX_CLWB |
+            CPUID_7_0_EBX_AVX512F | CPUID_7_0_EBX_AVX512DQ |
+            CPUID_7_0_EBX_AVX512BW | CPUID_7_0_EBX_AVX512CD |
+            CPUID_7_0_EBX_AVX512VL | CPUID_7_0_EBX_CLFLUSHOPT,
+        .features[FEAT_7_0_ECX] =
+            CPUID_7_0_ECX_PKU |
+            CPUID_7_0_ECX_AVX512VNNI,
+        .features[FEAT_7_0_EDX] =
+            CPUID_7_0_EDX_SPEC_CTRL | CPUID_7_0_EDX_STIBP |
+            CPUID_7_0_EDX_SPEC_CTRL_SSBD | CPUID_7_0_EDX_ARCH_CAPABILITIES,
+        .features[FEAT_ARCH_CAPABILITIES] =
+            MSR_ARCH_CAP_RDCL_NO | MSR_ARCH_CAP_IBRS_ALL |
+            MSR_ARCH_CAP_SKIP_L1DFL_VMENTRY | MSR_ARCH_CAP_MDS_NO,
+        .features[FEAT_7_1_EAX] =
+            CPUID_7_1_EAX_AVX512_BF16,
+        /*
+         * Missing: XSAVES (not supported by some Linux versions,
+         * including v4.1 to v4.12).
+         * KVM doesn't yet expose any XSAVES state save component,
+         * and the only one defined in Skylake (processor tracing)
+         * probably will block migration anyway.
+         */
+        .features[FEAT_XSAVE] =
+            CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
+            CPUID_XSAVE_XGETBV1,
+        .features[FEAT_6_EAX] =
+            CPUID_6_EAX_ARAT,
+        .xlevel = 0x80000008,
+        .model_id = "Intel Xeon Processor (Cooperlake)",
+    },
+    {
         .name = "Icelake-Client",
         .level = 0xd,
         .vendor = CPUID_VENDOR_INTEL,
@@ -4166,7 +4223,6 @@ static void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
     CPUX86State *env = &cpu->env;
     FeatureWordInfo *f = &feature_word_info[w];
     int i;
-    char *feat_word_str;
 
     if (!cpu->force_features) {
         env->features[w] &= ~mask;
@@ -4179,13 +4235,12 @@ static void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
 
     for (i = 0; i < 64; ++i) {
         if ((1ULL << i) & mask) {
-            feat_word_str = feature_word_description(f, i);
+            g_autofree char *feat_word_str = feature_word_description(f, i);
             warn_report("%s: %s%s%s [bit %d]",
                         verbose_prefix,
                         feat_word_str,
                         f->feat_names[i] ? "." : "",
                         f->feat_names[i] ? f->feat_names[i] : "", i);
-            g_free(feat_word_str);
         }
     }
 }
@@ -4687,17 +4742,14 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
     ObjectClass *class_b = (ObjectClass *)b;
     X86CPUClass *cc_a = X86_CPU_CLASS(class_a);
     X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
-    char *name_a, *name_b;
     int ret;
 
     if (cc_a->ordering != cc_b->ordering) {
         ret = cc_a->ordering - cc_b->ordering;
     } else {
-        name_a = x86_cpu_class_get_model_name(cc_a);
-        name_b = x86_cpu_class_get_model_name(cc_b);
+        g_autofree char *name_a = x86_cpu_class_get_model_name(cc_a);
+        g_autofree char *name_b = x86_cpu_class_get_model_name(cc_b);
         ret = strcmp(name_a, name_b);
-        g_free(name_a);
-        g_free(name_b);
     }
     return ret;
 }
@@ -4735,9 +4787,9 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
-    char *name = x86_cpu_class_get_model_name(cc);
-    char *desc = g_strdup(cc->model_description);
-    char *alias_of = x86_cpu_class_get_alias_of(cc);
+    g_autofree char *name = x86_cpu_class_get_model_name(cc);
+    g_autofree char *desc = g_strdup(cc->model_description);
+    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc);
 
     if (!desc && alias_of) {
         if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
@@ -4751,9 +4803,6 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     }
 
     qemu_printf("x86 %-20s  %-48s\n", name, desc);
-    g_free(name);
-    g_free(desc);
-    g_free(alias_of);
 }
 
 /* list available CPU models and flags */
@@ -5192,7 +5241,7 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 
 static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
 {
-    char *typename = x86_cpu_type_name(name);
+    g_autofree char *typename = x86_cpu_type_name(name);
     TypeInfo ti = {
         .name = typename,
         .parent = TYPE_X86_CPU,
@@ -5201,14 +5250,12 @@ static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
     };
 
     type_register(&ti);
-    g_free(typename);
 }
 
 static void x86_register_cpudef_types(X86CPUDefinition *def)
 {
     X86CPUModel *m;
     const X86CPUVersionDefinition *vdef;
-    char *name;
 
     /* AMD aliases are handled at runtime based on CPUID vendor, so
      * they shouldn't be set on the CPU model table.
@@ -5228,11 +5275,11 @@ static void x86_register_cpudef_types(X86CPUDefinition *def)
 
     for (vdef = x86_cpu_def_get_versions(def); vdef->version; vdef++) {
         X86CPUModel *m = g_new0(X86CPUModel, 1);
+        g_autofree char *name =
+            x86_cpu_versioned_model_name(def, vdef->version);
         m->cpudef = def;
         m->version = vdef->version;
-        name = x86_cpu_versioned_model_name(def, vdef->version);
         x86_register_cpu_model_type(name, m);
-        g_free(name);
 
         if (vdef->alias) {
             X86CPUModel *am = g_new0(X86CPUModel, 1);
@@ -6304,9 +6351,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (xcc->host_cpuid_required) {
         if (!accel_uses_host_cpuid()) {
-            char *name = x86_cpu_class_get_model_name(xcc);
+            g_autofree char *name = x86_cpu_class_get_model_name(xcc);
             error_setg(&local_err, "CPU model '%s' requires KVM", name);
-            g_free(name);
             goto out;
         }
 
@@ -6422,10 +6468,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     /* Cache information initialization */
     if (!cpu->legacy_cache) {
         if (!xcc->model || !xcc->model->cpudef->cache_info) {
-            char *name = x86_cpu_class_get_model_name(xcc);
+            g_autofree char *name = x86_cpu_class_get_model_name(xcc);
             error_setg(errp,
                        "CPU model '%s' doesn't support legacy-cache=off", name);
-            g_free(name);
             return;
         }
         env->cache_info_cpuid2 = env->cache_info_cpuid4 = env->cache_info_amd =
