@@ -1140,7 +1140,6 @@
         fCARRY_FROM_ADD(RssV, RttV, LSB_i64); \
         tcg_gen_extrl_i64_i32(tmp, RssV); \
         f8BITSOF(PxV, tmp); \
-        fHIDE(MARK_LATE_PRED_WRITE(PxN)) \
         tcg_temp_free(LSB); \
         tcg_temp_free_i64(LSB_i64); \
         tcg_temp_free_i64(tmp_i64); \
@@ -1161,7 +1160,6 @@
         fCARRY_FROM_ADD(RssV, tmp_i64, LSB_i64); \
         tcg_gen_extrl_i64_i32(tmp, RssV); \
         f8BITSOF(PxV, tmp); \
-        fHIDE(MARK_LATE_PRED_WRITE(PxN)) \
         tcg_temp_free(LSB); \
         tcg_temp_free_i64(LSB_i64); \
         tcg_temp_free_i64(tmp_i64); \

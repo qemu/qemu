@@ -243,23 +243,6 @@
         env->vtcm_log.offsets.uh[IDX] |= ((MASK & 0xF) << 12) ; \
     } while (0)
 
-#ifdef QEMU_GENERATE
-#else
-/*
- * Loads should never be executed from a helper, but they are needed so
- * the helpers will compile.  All the instructions with loads must be
- * implemented under QEMU_GENERATE
- */
-
-static inline void mem_store_release(uint32_t size, uint32_t align_vaddr,
-                                     uint32_t vaddr, int32_t type,
-                                     bool use_lookup)
-{
-    printf("FIXME: mem_store_release\n");
-    g_assert_not_reached();
-}
-#endif
-
 #define fUSE_LOOKUP_ADDRESS_BY_REV(PROC) true
 #define fUSE_LOOKUP_ADDRESS() 1
 #define fRT8NOTE()
@@ -395,7 +378,7 @@ static inline mmvector_t mmvec_zero_vector(void)
         } \
     } while (0)
 
-/* FIXME - Will this always be tmp_VRegs[0]; */
+/* NOTE - Will this always be tmp_VRegs[0]; */
 #define GATHER_FUNCTION(EA, OFFSET, IDX, LEN, ELEMENT_SIZE, BANK_IDX, QVAL) \
     do { \
         int i0; \
@@ -509,8 +492,6 @@ static inline mmvector_t mmvec_zero_vector(void)
 #define fSTORERELEASE(EA, TYPE) \
     do { \
         fV_AL_CHECK(EA, fVECSIZE() - 1); \
-        mem_store_release(fVECSIZE(), EA & ~(fVECSIZE() - 1), EA, TYPE, \
-                          fUSE_LOOKUP_ADDRESS_BY_REV()); \
     } while (0)
 #define fLOADMMV_AL(EA, ALIGNMENT, LEN, DST) \
     do { \

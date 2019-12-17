@@ -261,11 +261,7 @@
         tcg_temp_free(part1); \
     } while (0)
 
-/*
- * FIXME - Writing more than one late pred in the same packet should
- *         raise an exception
- */
-#define MARK_LATE_PRED_WRITE(RNUM) {}
+#define MARK_LATE_PRED_WRITE(RNUM) /* Not modelled in qemu */
 
 #define REGNO(NUM) (insn->regno[NUM])
 #define IMMNO(NUM) (insn->immed[NUM])
@@ -869,11 +865,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fWRITE_P1(VAL) WRITE_PREG(1, VAL)
 #define fWRITE_P2(VAL) WRITE_PREG(2, VAL)
 #define fWRITE_P3(VAL) WRITE_PREG(3, VAL)
-#define fWRITE_P3_LATE(VAL) \
-    do { \
-        WRITE_PREG(3, VAL); \
-        fHIDE(MARK_LATE_PRED_WRITE(3)) \
-    } while (0)
+#define fWRITE_P3_LATE(VAL) WRITE_PREG(3, VAL)
 #define fPART1(WORK) if (part1) { WORK; return; }
 #define fCAST4u(A) ((size4u_t)(A))
 #define fCAST4s(A) ((size4s_t)(A))
@@ -1202,8 +1194,9 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
      ((MANT) & ((1ULL << fDF_MANTBITS()) - 1)))
 
 #ifdef QEMU_GENERATE
-#define fFPOP_START() /* FIXME */
-#define fFPOP_END()   /* FIXME */
+/* These will be needed if we write any FP instructions with TCG */
+#define fFPOP_START() g_assert_not_reached();
+#define fFPOP_END()   g_assert_not_reached();
 #else
 #define fFPOP_START() arch_fpop_start(env)
 #define fFPOP_END() arch_fpop_end(env)
@@ -1288,7 +1281,12 @@ static inline TCGv_i64 gen_frame_unscramble(TCGv_i64 frame)
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 #endif
 
-#define fFRAMECHECK(ADDR, EA)  /* FIXME Skip frame check for now */
+#ifdef CONFIG_USER_ONLY
+#define fFRAMECHECK(ADDR, EA) do { } while (0) /* Not modelled in linux-user */
+#else
+/* System mode not implemented yet */
+#define fFRAMECHECK(ADDR, EA)  g_assert_not_reached();
+#endif
 
 #ifdef QEMU_GENERATE
 #define fLOAD_LOCKED(NUM, SIZE, SIGN, EA, DST) \

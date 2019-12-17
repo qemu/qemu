@@ -32,7 +32,7 @@ semdict = {}          # tag -> semantics
 extdict = {}          # tag -> What extension an instruction belongs to (or "")
 extnames = {}         # ext name -> True
 attribdict = {}       # tag -> attributes
-macros = {}           # macro -> macro information... FIXME for per-ext macros
+macros = {}           # macro -> macro information...
 attribinfo = {}       # Register information and misc
 tags = []             # list of all tags
 
@@ -142,9 +142,6 @@ def MACROATTRIB(macname,beh,attribstring,ext=""):
         attribs = attribstring.split(",")
     else:
         attribs = []
-    if macname in macros:
-        raise Exception("FIXME: you need to continue distinguishing " +
-                        "different extensions from each other? ext=<<%s>>"%ext)
     macros[mackey] = Macro(mackey,macname,beh,attribs,ext)
 
 # read in file.  Evaluate each line: each line calls a function above
