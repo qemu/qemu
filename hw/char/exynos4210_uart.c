@@ -528,7 +528,7 @@ static void exynos4210_uart_receive(void *opaque, const uint8_t *buf, int size)
 }
 
 
-static void exynos4210_uart_event(void *opaque, int event)
+static void exynos4210_uart_event(void *opaque, QEMUChrEvent event)
 {
     Exynos4210UartState *s = (Exynos4210UartState *)opaque;
 

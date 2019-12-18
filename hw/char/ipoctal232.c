@@ -503,7 +503,7 @@ static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void hostdev_event(void *opaque, int event)
+static void hostdev_event(void *opaque, QEMUChrEvent event)
 {
     SCC2698Channel *ch = opaque;
     switch (event) {

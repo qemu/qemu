@@ -358,7 +358,7 @@ static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void sh_serial_event(void *opaque, int event)
+static void sh_serial_event(void *opaque, QEMUChrEvent event)
 {
     sh_serial_state *s = opaque;
     if (event == CHR_EVENT_BREAK)

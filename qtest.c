@@ -722,7 +722,7 @@ static int qtest_can_read(void *opaque)
     return 1024;
 }
 
-static void qtest_event(void *opaque, int event)
+static void qtest_event(void *opaque, QEMUChrEvent event)
 {
     int i;
 

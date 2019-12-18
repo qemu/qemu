@@ -180,7 +180,7 @@ static int uart_can_rx(void *opaque)
     return !(s->regs[R_STAT] & STAT_RX_EVT);
 }
 
-static void uart_event(void *opaque, int event)
+static void uart_event(void *opaque, QEMUChrEvent event)
 {
 }
 

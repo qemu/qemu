@@ -1354,7 +1354,7 @@ static void usbredir_chardev_read(void *opaque, const uint8_t *buf, int size)
     usbredirparser_do_write(dev->parser);
 }
 
-static void usbredir_chardev_event(void *opaque, int event)
+static void usbredir_chardev_event(void *opaque, QEMUChrEvent event)
 {
     USBRedirDevice *dev = opaque;
 

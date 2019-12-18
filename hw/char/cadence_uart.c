@@ -348,7 +348,7 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void uart_event(void *opaque, int event)
+static void uart_event(void *opaque, QEMUChrEvent event)
 {
     CadenceUARTState *s = opaque;
     uint8_t buf = '\0';

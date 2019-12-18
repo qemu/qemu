@@ -1322,7 +1322,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
     cur_mon = old_mon;
 }
 
-static void monitor_event(void *opaque, int event)
+static void monitor_event(void *opaque, QEMUChrEvent event)
 {
     Monitor *mon = opaque;
     MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);

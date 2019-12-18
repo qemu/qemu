@@ -202,7 +202,7 @@ static int serial_can_receive(void *opaque)
     return sizeof(s->rx_fifo) - s->rx_fifo_len;
 }
 
-static void serial_event(void *opaque, int event)
+static void serial_event(void *opaque, QEMUChrEvent event)
 {
 
 }

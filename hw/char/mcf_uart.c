@@ -256,7 +256,7 @@ static void mcf_uart_push_byte(mcf_uart_state *s, uint8_t data)
     mcf_uart_update(s);
 }
 
-static void mcf_uart_event(void *opaque, int event)
+static void mcf_uart_event(void *opaque, QEMUChrEvent event)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
 

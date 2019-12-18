@@ -545,7 +545,7 @@ static void malta_fpga_reset(void *opaque)
     snprintf(s->display_text, 9, "        ");
 }
 
-static void malta_fgpa_display_event(void *opaque, int event)
+static void malta_fgpa_display_event(void *opaque, QEMUChrEvent event)
 {
     MaltaFPGAState *s = opaque;
 

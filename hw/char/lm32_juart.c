@@ -104,7 +104,7 @@ static int juart_can_rx(void *opaque)
     return !(s->jrx & JRX_FULL);
 }
 
-static void juart_event(void *opaque, int event)
+static void juart_event(void *opaque, QEMUChrEvent event)
 {
 }
 

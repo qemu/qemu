@@ -142,7 +142,7 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void chr_event(void *opaque, int event)
+static void chr_event(void *opaque, QEMUChrEvent event)
 {
     Terminal3270 *t = opaque;
     CcwDevice *ccw_dev = CCW_DEVICE(t);

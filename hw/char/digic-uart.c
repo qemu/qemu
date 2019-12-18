@@ -131,7 +131,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
     s->reg_rx = *buf;
 }
 
-static void uart_event(void *opaque, int event)
+static void uart_event(void *opaque, QEMUChrEvent event)
 {
 }
 

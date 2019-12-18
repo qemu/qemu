@@ -132,7 +132,7 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void redirector_chr_event(void *opaque, int event)
+static void redirector_chr_event(void *opaque, QEMUChrEvent event)
 {
     NetFilterState *nf = opaque;
     MirrorState *s = FILTER_REDIRECTOR(nf);

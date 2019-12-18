@@ -634,7 +634,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
     serial_update_irq(s);
 }
 
-static void serial_event(void *opaque, int event)
+static void serial_event(void *opaque, QEMUChrEvent event)
 {
     SerialState *s = opaque;
     DPRINTF("event %x\n", event);

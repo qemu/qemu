@@ -245,7 +245,7 @@ static int uart_can_receive(void *opaque)
     return s->rx_started ? (UART_FIFO_LENGTH - s->rx_fifo_len) : 0;
 }
 
-static void uart_event(void *opaque, int event)
+static void uart_event(void *opaque, QEMUChrEvent event)
 {
     NRF51UARTState *s = NRF51_UART(opaque);
 
