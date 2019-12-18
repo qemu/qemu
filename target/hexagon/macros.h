@@ -733,7 +733,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 {
     /*
      *  #define fREAD_IREG(VAL) \
-     *      (fSXTN(11,64,(((VAL) & 0xf0000000)>>21) | ((VAL>>17)&0x7f) ))
+     *      (fSXTN(11, 64, (((VAL) & 0xf0000000)>>21) | ((VAL >> 17) & 0x7f)))
      */
     tcg_gen_sari_tl(tmp, val, 17);
     tcg_gen_andi_tl(tmp, tmp, 0x7f);
@@ -1195,8 +1195,8 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 
 #ifdef QEMU_GENERATE
 /* These will be needed if we write any FP instructions with TCG */
-#define fFPOP_START() g_assert_not_reached();
-#define fFPOP_END()   g_assert_not_reached();
+#define fFPOP_START()      /* nothing */
+#define fFPOP_END()        /* nothing */
 #else
 #define fFPOP_START() arch_fpop_start(env)
 #define fFPOP_END() arch_fpop_end(env)
