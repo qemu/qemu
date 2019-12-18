@@ -1371,6 +1371,10 @@ static void monitor_event(void *opaque, int event)
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
+
+    case CHR_EVENT_BREAK:
+        /* Ignored */
+        break;
     }
 }
 
