@@ -38,15 +38,6 @@ Testing: -blockdev file,node-name=base,filename=TEST_DIR/t.IMGFMT.base -blockdev
                     "cluster-size": 65536,
                     "format": "IMGFMT",
                     "actual-size": SIZE,
-                    "format-specific": {
-                        "type": "IMGFMT",
-                        "data": {
-                            "compat": "1.1",
-                            "lazy-refcounts": false,
-                            "refcount-bits": 16,
-                            "corrupt": false
-                        }
-                    },
                     "full-backing-filename": "TEST_DIR/t.IMGFMT.base",
                     "backing-filename": "TEST_DIR/t.IMGFMT.base",
                     "dirty-flag": false
@@ -57,15 +48,6 @@ Testing: -blockdev file,node-name=base,filename=TEST_DIR/t.IMGFMT.base -blockdev
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
-                "format-specific": {
-                    "type": "IMGFMT",
-                    "data": {
-                        "compat": "1.1",
-                        "lazy-refcounts": false,
-                        "refcount-bits": 16,
-                        "corrupt": false
-                    }
-                },
                 "full-backing-filename": "TEST_DIR/t.IMGFMT.mid",
                 "backing-filename": "TEST_DIR/t.IMGFMT.mid",
                 "dirty-flag": false
@@ -136,15 +118,6 @@ Testing: -blockdev file,node-name=base,filename=TEST_DIR/t.IMGFMT.base -blockdev
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
-                "format-specific": {
-                    "type": "IMGFMT",
-                    "data": {
-                        "compat": "1.1",
-                        "lazy-refcounts": false,
-                        "refcount-bits": 16,
-                        "corrupt": false
-                    }
-                },
                 "full-backing-filename": "TEST_DIR/t.IMGFMT.base",
                 "backing-filename": "TEST_DIR/t.IMGFMT.base",
                 "dirty-flag": false
