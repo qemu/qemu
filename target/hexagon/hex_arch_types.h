@@ -15,20 +15,28 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_HELPER_2(raise_exception, noreturn, env, i32)
-DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_2(new_value, s32, env, int)
-DEF_HELPER_3(debug_check_store_width, void, env, int, int)
-DEF_HELPER_1(commit_hvx_stores, void, env)
-DEF_HELPER_3(debug_commit_end, void, env, int, int)
-DEF_HELPER_3(sfrecipa_val, s32, env, s32, s32)
-DEF_HELPER_3(sfrecipa_pred, s32, env, s32, s32)
-DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
-DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
+#ifndef HEXAGON_ARCH_TYPES_H
+#define HEXAGON_ARCH_TYPES_H
 
-#define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
-#include "qemu_def_generated.h"
-#undef DEF_QEMU
+/*
+ * These types are used by the code generated from the Hexagon
+ * architecture library.
+ */
+typedef unsigned char size1u_t;
+typedef char size1s_t;
+typedef unsigned short int size2u_t;
+typedef short size2s_t;
+typedef unsigned int size4u_t;
+typedef int size4s_t;
+typedef unsigned long long int size8u_t;
+typedef long long int size8s_t;
+typedef size8u_t paddr_t;
+typedef size4u_t vaddr_t;
+typedef size8u_t pcycles_t;
 
-DEF_HELPER_2(debug_value, void, env, s32)
-DEF_HELPER_2(debug_value_i64, void, env, s64)
+typedef struct size16s {
+    size8s_t hi;
+    size8u_t lo;
+} size16s_t;
+
+#endif

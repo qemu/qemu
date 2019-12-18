@@ -15,16 +15,24 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_CPU_BITS_H
-#define HEXAGON_CPU_BITS_H
+/*
+ *  Certain operand types represent a non-contiguous set of values.
+ *  For example, the compound compare-and-jump instruction can only access
+ *  registers R0-R7 and R16-23.
+ *  This table represents the mapping from the encoding to the actual values.
+ */
 
-#define HEX_EXCP_FETCH_NO_UPAGE  0x012
-#define HEX_EXCP_PRIV_NO_UREAD   0x024
-#define HEX_EXCP_PRIV_NO_UWRITE  0x025
+#ifndef REGMAP_H
+#define REGMAP_H
 
-#define HEX_EXCP_TRAP0           0x172
-#define HEX_EXCP_TRAP1           0x173
-#define HEX_EXCP_SC4             0x100
-#define HEX_EXCP_SC8             0x200
+        /* Name   Num Table */
+DEF_REGMAP(R_16,  16, 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23)
+DEF_REGMAP(R__8,  8,  0, 2, 4, 6, 16, 18, 20, 22)
+DEF_REGMAP(R__4,  4,  0, 2, 4, 6)
+DEF_REGMAP(R_4,   4,  0, 1, 2, 3)
+DEF_REGMAP(R_8S,  8,  0, 1, 2, 3, 16, 17, 18, 19)
+DEF_REGMAP(R_8,   8,  0, 1, 2, 3, 4, 5, 6, 7)
+DEF_REGMAP(V__8,  8,  0, 4, 8, 12, 16, 20, 24, 28)
+DEF_REGMAP(V__16, 16, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30)
 
 #endif

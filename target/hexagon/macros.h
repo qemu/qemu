@@ -18,9 +18,12 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#include "imported/arch.h"
-#include "imported/iss_ver_registers.h"
-#include "exec/helper-proto.h"
+#include "cpu.h"
+#include "hex_regs.h"
+#include "reg_fields.h"
+
+#define PCALIGN 4
+#define PCALIGN_MASK (PCALIGN - 1)
 
 #define GET_FIELD(FIELD, REGIN) \
     fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \
@@ -246,7 +249,7 @@
 
 #define SLOT_WRAP(CODE) \
     do { \
-        TCGv slot = tcg_const_tl(insn->is_endloop ? 4 : insn->slot); \
+        TCGv slot = tcg_const_tl(insn->slot); \
         CODE; \
         tcg_temp_free(slot); \
     } while (0)
@@ -258,11 +261,7 @@
         tcg_temp_free(part1); \
     } while (0)
 
-/*
- * FIXME - Writing more than one late pred in the same packet should
- *         raise an exception
- */
-#define MARK_LATE_PRED_WRITE(RNUM) {}
+#define MARK_LATE_PRED_WRITE(RNUM) /* Not modelled in qemu */
 
 #define REGNO(NUM) (insn->regno[NUM])
 #define IMMNO(NUM) (insn->immed[NUM])
@@ -328,7 +327,7 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 #define READ_MREG(NUM) \
     (env->gpr[NUM + REG_M])
 #define READ_CSREG(NUM) \
-    (env->gpr[NUM + REG_CSA])
+    (env->gpr[NUM + HEX_REG_CS0])
 #endif
 
 #ifdef QEMU_GENERATE
@@ -734,7 +733,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 {
     /*
      *  #define fREAD_IREG(VAL) \
-     *      (fSXTN(11,64,(((VAL) & 0xf0000000)>>21) | ((VAL>>17)&0x7f) ))
+     *      (fSXTN(11, 64, (((VAL) & 0xf0000000)>>21) | ((VAL >> 17) & 0x7f)))
      */
     tcg_gen_sari_tl(tmp, val, 17);
     tcg_gen_andi_tl(tmp, tmp, 0x7f);
@@ -765,7 +764,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_GOSP() (READ_REG(tmp, HEX_REG_GOSP))
 #define fREAD_GELR() (READ_REG(tmp, HEX_REG_GELR))
 #define fREAD_GEVB() (READ_REG(tmp, HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_REG(tmp, REG_CSA + N))
+#define fREAD_CSREG(N) (READ_REG(tmp, HEX_REG_CS0 + N))
 #define fREAD_LC0 (READ_REG(tmp, HEX_REG_LC0))
 #define fREAD_LC1 (READ_REG(tmp, HEX_REG_LC1))
 #define fREAD_SA0 (READ_REG(tmp, HEX_REG_SA0))
@@ -778,7 +777,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_GOSP() (READ_REG(HEX_REG_GOSP))
 #define fREAD_GELR() (READ_REG(HEX_REG_GELR))
 #define fREAD_GEVB() (READ_REG(HEX_REG_GEVB))
-#define fREAD_CSREG(N) (READ_REG(REG_CSA + N))
+#define fREAD_CSREG(N) (READ_REG(HEX_REG_CS0 + N))
 #define fREAD_LC0 (READ_REG(HEX_REG_LC0))
 #define fREAD_LC1 (READ_REG(HEX_REG_LC1))
 #define fREAD_SA0 (READ_REG(HEX_REG_SA0))
@@ -866,11 +865,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fWRITE_P1(VAL) WRITE_PREG(1, VAL)
 #define fWRITE_P2(VAL) WRITE_PREG(2, VAL)
 #define fWRITE_P3(VAL) WRITE_PREG(3, VAL)
-#define fWRITE_P3_LATE(VAL) \
-    do { \
-        WRITE_PREG(3, VAL); \
-        fHIDE(MARK_LATE_PRED_WRITE(3)) \
-    } while (0)
+#define fWRITE_P3_LATE(VAL) WRITE_PREG(3, VAL)
 #define fPART1(WORK) if (part1) { WORK; return; }
 #define fCAST4u(A) ((size4u_t)(A))
 #define fCAST4s(A) ((size4s_t)(A))
@@ -1116,10 +1111,6 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 #define fUNFLOAT(A) \
     ({ union { float f; size4u_t i; } _fipun; \
      _fipun.f = (A); isnan(_fipun.f) ? 0xFFFFFFFFU : _fipun.i; })
-#define fHALF(A) ({ hf_t h; h.i = (A); h; })
-#define fUNHALF(A) (A.i)
-#define fHF_BIAS() 15
-#define fHF_MANTBITS() 10
 #define fSFNANVAL() 0xffffffff
 #define fSFINFVAL(A) (((A) & 0x80000000) | 0x7f800000)
 #define fSFONEVAL(A) (((A) & 0x80000000) | fUNFLOAT(1.0))
@@ -1203,8 +1194,9 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
      ((MANT) & ((1ULL << fDF_MANTBITS()) - 1)))
 
 #ifdef QEMU_GENERATE
-#define fFPOP_START() /* FIXME */
-#define fFPOP_END()   /* FIXME */
+/* These will be needed if we write any FP instructions with TCG */
+#define fFPOP_START()      /* nothing */
+#define fFPOP_END()        /* nothing */
 #else
 #define fFPOP_START() arch_fpop_start(env)
 #define fFPOP_END() arch_fpop_end(env)
@@ -1289,7 +1281,12 @@ static inline TCGv_i64 gen_frame_unscramble(TCGv_i64 frame)
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 #endif
 
-#define fFRAMECHECK(ADDR, EA)  /* FIXME Skip frame check for now */
+#ifdef CONFIG_USER_ONLY
+#define fFRAMECHECK(ADDR, EA) do { } while (0) /* Not modelled in linux-user */
+#else
+/* System mode not implemented yet */
+#define fFRAMECHECK(ADDR, EA)  g_assert_not_reached();
+#endif
 
 #ifdef QEMU_GENERATE
 #define fLOAD_LOCKED(NUM, SIZE, SIGN, EA, DST) \

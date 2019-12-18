@@ -26,9 +26,9 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "imported/decode.h"
+#include "decode.h"
 #include "translate.h"
-#include "imported/printinsn.h"
+#include "printinsn.h"
 #include "macros.h"
 
 #include "exec/translator.h"
@@ -146,6 +146,38 @@ static int check_gather_store_insn(insn_t *insn)
     return check;
 }
 
+static void check_implicit_reg_write(DisasContext *ctx, insn_t *insn,
+                                 int attrib, int rnum)
+{
+    if (GET_ATTRIB(insn->opcode, attrib)) {
+        ctx->ctx_reg_log[ctx->ctx_reg_log_idx] = rnum;
+        ctx->ctx_reg_log_idx++;
+    }
+}
+
+static void check_implicit_pred_write(DisasContext *ctx, insn_t *insn,
+                                 int attrib, int pnum)
+{
+    if (GET_ATTRIB(insn->opcode, attrib)) {
+        ctx->ctx_preg_log[ctx->ctx_preg_log_idx] = pnum;
+        ctx->ctx_preg_log_idx++;
+    }
+}
+
+static void mark_implicit_writes(DisasContext *ctx, insn_t *insn)
+{
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
+    check_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
+
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P0, 0);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P1, 1);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P2, 2);
+    check_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
+}
+
 static void gen_insn(CPUHexagonState *env, DisasContext *ctx, insn_t *insn)
 {
     int is_gather_store = check_gather_store_insn(insn);
@@ -153,6 +185,7 @@ static void gen_insn(CPUHexagonState *env, DisasContext *ctx, insn_t *insn)
         tcg_gen_movi_tl(hex_is_gather_store_insn, 1);
     }
     insn->generate(env, ctx, insn);
+    mark_implicit_writes(ctx, insn);
     if (is_gather_store) {
         tcg_gen_movi_tl(hex_is_gather_store_insn, 0);
     }
@@ -497,7 +530,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
     }
     gen_exec_counters(pkt);
 #if HEX_DEBUG
-    do {
+    {
         TCGv has_st0 =
             tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
@@ -505,7 +538,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
         gen_helper_debug_commit_end(cpu_env, has_st0, has_st1);
         tcg_temp_free(has_st0);
         tcg_temp_free(has_st1);
-    } while (0);
+    }
 #endif
 
     if (end_tb) {
@@ -516,7 +549,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
 
 static void decode_packet(CPUHexagonState *env, DisasContext *ctx)
 {
-    size4u_t words[4];
+    uint32_t words[4];
     packet_t pkt;
     int i;
 
@@ -718,7 +751,7 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, mem_log_stores[i].data64), "store_val64");
     }
 
-    init_opcode_genptr();
+    init_genptr();
 }
 
 int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)

@@ -15,20 +15,14 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_HELPER_2(raise_exception, noreturn, env, i32)
-DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_2(new_value, s32, env, int)
-DEF_HELPER_3(debug_check_store_width, void, env, int, int)
-DEF_HELPER_1(commit_hvx_stores, void, env)
-DEF_HELPER_3(debug_commit_end, void, env, int, int)
-DEF_HELPER_3(sfrecipa_val, s32, env, s32, s32)
-DEF_HELPER_3(sfrecipa_pred, s32, env, s32, s32)
-DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
-DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
+#include <string.h>
+#include "reg_fields.h"
 
-#define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
-#include "qemu_def_generated.h"
-#undef DEF_QEMU
+reg_field_t reg_field_info[] = {
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION)    \
+      {NAME, START, WIDTH, DESCRIPTION},
+#include "reg_fields_def.h"
+      {NULL, 0, 0}
+#undef DEF_REG_FIELD
+};
 
-DEF_HELPER_2(debug_value, void, env, s32)
-DEF_HELPER_2(debug_value_i64, void, env, s64)

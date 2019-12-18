@@ -18,28 +18,10 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
-/*
- * Change HEX_DEBUG to 1 to turn on debugging output
- */
-#define HEX_DEBUG 0
-#define HEX_DEBUG_LOG(...) \
-    do { \
-        if (HEX_DEBUG) { \
-            if (qemu_logfile == NULL) { \
-                qemu_logfile = stderr; \
-            } \
-            qemu_log(__VA_ARGS__); \
-        } \
-    } while (0)
-
 /* Forward declaration needed by some of the header files */
 typedef struct CPUHexagonState CPUHexagonState;
 
 #include <fenv.h>
-#include "imported/global_types.h"
-#include "imported/max.h"
-#include "imported/iss_ver_registers.h"
-#include "mmvec/mmvec.h"
 
 #define TARGET_PAGE_BITS 16     /* 64K pages */
 #define TARGET_LONG_BITS 32
@@ -47,7 +29,20 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu/compiler.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
-#include "imported/regs.h"
+#include "hex_regs.h"
+#include "mmvec/mmvec.h"
+
+#define NUM_PREGS 4
+#ifdef CONFIG_USER_ONLY
+#define TOTAL_PER_THREAD_REGS 64
+#else
+#error System mode not implemented
+#endif
+
+#define SLOTS_MAX 4
+#define STORES_MAX 2
+#define REG_WRITES_MAX 32
+#define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -60,10 +55,10 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define MMU_USER_IDX 0
 
 struct MemLog {
-    vaddr_t va;
-    size1u_t width;
-    size4u_t data32;
-    size8u_t data64;
+    target_ulong va;
+    uint8_t width;
+    uint32_t data32;
+    uint64_t data64;
 };
 
 typedef struct {
@@ -75,8 +70,8 @@ typedef struct {
 
 typedef struct {
     unsigned char cdata[256];
-    size4u_t range;
-    size1u_t format;
+    uint32_t range;
+    uint8_t format;
 } mem_access_info_t;
 
 #define EXEC_STATUS_OK          0x0000
@@ -105,11 +100,15 @@ struct CPUHexagonState {
     target_ulong stack_start;
     target_ulong stack_adjust;
 
-    size1u_t slot_cancelled;
+    uint8_t slot_cancelled;
     target_ulong new_value[TOTAL_PER_THREAD_REGS];
-#if HEX_DEBUG
+
+    /*
+     * Only used when HEX_DEBUG is on, but unconditionally included
+     * to reduce recompile time when turning HEX_DEBUG on/off.
+     */
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
-#endif
+
     target_ulong new_pred_value[NUM_PREGS];
     target_ulong pred_written[NUM_PREGS];
 

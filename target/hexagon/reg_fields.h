@@ -15,20 +15,26 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_HELPER_2(raise_exception, noreturn, env, i32)
-DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_2(new_value, s32, env, int)
-DEF_HELPER_3(debug_check_store_width, void, env, int, int)
-DEF_HELPER_1(commit_hvx_stores, void, env)
-DEF_HELPER_3(debug_commit_end, void, env, int, int)
-DEF_HELPER_3(sfrecipa_val, s32, env, s32, s32)
-DEF_HELPER_3(sfrecipa_pred, s32, env, s32, s32)
-DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
-DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
+#ifndef REGS_H
+#define REGS_H
 
-#define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
-#include "qemu_def_generated.h"
-#undef DEF_QEMU
+#define NUM_GEN_REGS 32
 
-DEF_HELPER_2(debug_value, void, env, s32)
-DEF_HELPER_2(debug_value_i64, void, env, s64)
+typedef struct {
+    const char *name;
+    int offset;
+    int width;
+    const char *description;
+} reg_field_t;
+
+extern reg_field_t reg_field_info[];
+
+enum reg_fields_enum {
+#define DEF_REG_FIELD(TAG, NAME, START, WIDTH, DESCRIPTION) \
+    TAG,
+#include "reg_fields_def.h"
+    NUM_REG_FIELDS
+#undef DEF_REG_FIELD
+};
+
+#endif
