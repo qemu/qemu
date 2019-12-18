@@ -101,7 +101,8 @@ static inline void log_reg_write(CPUHexagonState *env, int rnum,
     }
 }
 
-static inline void log_reg_write_pair(CPUHexagonState *env, int rnum,
+static __attribute__((unused))
+inline void log_reg_write_pair(CPUHexagonState *env, int rnum,
                                       int64_t val, uint32_t slot)
 {
     HEX_DEBUG_LOG("log_reg_write_pair[%d:%d] = %ld\n", rnum + 1, rnum, val);
