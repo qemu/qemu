@@ -900,6 +900,12 @@ struct {
     uint64_t packet_num;
     /* send channels ready */
     QemuSemaphore channels_ready;
+    /*
+     * Have we already run terminate threads.  There is a race when it
+     * happens that we got one error while we are exiting.
+     * We will use atomic operations.  Only valid values are 0 and 1.
+     */
+    int exiting;
 } *multifd_send_state;
 
 /*
@@ -927,6 +933,10 @@ static int multifd_send_pages(RAMState *rs)
     MultiFDSendParams *p = NULL; /* make happy gcc */
     MultiFDPages_t *pages = multifd_send_state->pages;
     uint64_t transferred;
+
+    if (atomic_read(&multifd_send_state->exiting)) {
+        return -1;
+    }
 
     qemu_sem_wait(&multifd_send_state->channels_ready);
     for (i = next_channel;; i = (i + 1) % migrate_multifd_channels()) {
@@ -1007,6 +1017,16 @@ static void multifd_send_terminate_threads(Error *err)
             migrate_set_state(&s->state, s->state,
                               MIGRATION_STATUS_FAILED);
         }
+    }
+
+    /*
+     * We don't want to exit each threads twice.  Depending on where
+     * we get the error, or if there are two independent errors in two
+     * threads at the same time, we can end calling this function
+     * twice.
+     */
+    if (atomic_xchg(&multifd_send_state->exiting, 1)) {
+        return;
     }
 
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -1118,6 +1138,10 @@ static void *multifd_send_thread(void *opaque)
 
     while (true) {
         qemu_sem_wait(&p->sem);
+
+        if (atomic_read(&multifd_send_state->exiting)) {
+            break;
+        }
         qemu_mutex_lock(&p->mutex);
 
         if (p->pending_job) {
@@ -1224,6 +1248,7 @@ int multifd_save_setup(void)
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
     multifd_send_state->pages = multifd_pages_init(page_count);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
+    atomic_set(&multifd_send_state->exiting, 0);
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
