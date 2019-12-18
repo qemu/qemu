@@ -171,6 +171,11 @@ static void cryptodev_vhost_user_event(void *opaque, int event)
         b->ready = false;
         cryptodev_vhost_user_stop(queues, s);
         break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
+        break;
     }
 }
 
