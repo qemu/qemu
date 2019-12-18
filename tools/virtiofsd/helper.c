@@ -148,6 +148,8 @@ void fuse_cmdline_help(void)
            "    -o cache=<mode>            cache mode. could be one of \"auto, "
            "always, none\"\n"
            "                               default: auto\n"
+           "    -o flock|no_flock          enable/disable flock\n"
+           "                               default: no_flock\n"
            "    -o log_level=<level>       log level, default to \"info\"\n"
            "                               level could be one of \"debug, "
            "info, warn, err\"\n"
@@ -163,7 +165,13 @@ void fuse_cmdline_help(void)
            "                               enable/disable readirplus\n"
            "                               default: readdirplus except with "
            "cache=none\n"
-          );
+           "    -o timeout=<number>        I/O timeout (second)\n"
+           "                               default: depends on cache= option.\n"
+           "    -o writeback|no_writeback  enable/disable writeback cache\n"
+           "                               default: no_writeback\n"
+           "    -o xattr|no_xattr          enable/disable xattr\n"
+           "                               default: no_xattr\n"
+           );
 }
 
 static int fuse_helper_opt_proc(void *data, const char *arg, int key,
