@@ -162,6 +162,11 @@ static void chr_event(void *opaque, int event)
         }
         virtio_serial_close(port);
         break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
+        break;
     }
 }
 
