@@ -479,6 +479,10 @@ static void usb_serial_event(void *opaque, int event)
                 usb_device_detach(&s->dev);
             }
             break;
+        case CHR_EVENT_MUX_IN:
+        case CHR_EVENT_MUX_OUT:
+            /* Ignore */
+            break;
     }
 }
 
