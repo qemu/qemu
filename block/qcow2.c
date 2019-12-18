@@ -1705,13 +1705,13 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     if (!(bdrv_get_flags(bs) & BDRV_O_INACTIVE)) {
         /* It's case 1, 2 or 3.2. Or 3.1 which is BUG in management layer. */
         bool header_updated = qcow2_load_dirty_bitmaps(bs, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto fail;
+        }
 
         update_header = update_header && !header_updated;
-    }
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
     }
 
     if (update_header) {
