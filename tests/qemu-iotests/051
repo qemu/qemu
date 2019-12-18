@@ -41,6 +41,7 @@ _supported_proto file
 # A compat=0.10 image is created in this test which does not support anything
 # other than refcount_bits=16
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+_require_drivers nbd
 
 do_run_qemu()
 {
