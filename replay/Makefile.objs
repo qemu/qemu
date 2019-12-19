@@ -7,3 +7,4 @@ common-obj-y += replay-char.o
 common-obj-y += replay-snapshot.o
 common-obj-y += replay-net.o
 common-obj-y += replay-audio.o
+common-obj-y += replay-random.o

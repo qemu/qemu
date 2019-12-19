@@ -67,6 +67,7 @@ Modifications of qemu include:
  * network filter for recording and replaying the packets
  * block driver for making block layer deterministic
  * serial port input record and replay
+ * recording of random numbers obtained from the external sources
 
 Locking and thread synchronisation
 ----------------------------------
