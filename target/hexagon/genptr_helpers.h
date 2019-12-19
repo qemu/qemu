@@ -957,8 +957,8 @@ static inline void gen_read_vreg_pair(TCGv_ptr var, int num, int vtmp)
     tcg_temp_free_ptr(v1);
 }
 
-static inline void gen_log_ext_vreg_write(TCGv_ptr var, int num, int vnew,
-                                          int slot_num)
+static inline void gen_log_vreg_write(TCGv_ptr var, int num, int vnew,
+                                      int slot_num)
 {
     TCGv cancelled = tcg_temp_local_new();
     TCGLabel *label_end = gen_new_label();
@@ -998,20 +998,20 @@ static inline void gen_log_ext_vreg_write(TCGv_ptr var, int num, int vnew,
     tcg_temp_free(cancelled);
 }
 
-static inline void gen_log_ext_vreg_write_pair(TCGv_ptr var, int num, int vnew,
-                                               int slot_num)
+static inline void gen_log_vreg_write_pair(TCGv_ptr var, int num, int vnew,
+                                           int slot_num)
 {
     TCGv_ptr v0 = tcg_temp_local_new_ptr();
     TCGv_ptr v1 = tcg_temp_local_new_ptr();
     tcg_gen_addi_ptr(v0, var, offsetof(mmvector_pair_t, v[0]));
-    gen_log_ext_vreg_write(v0, num ^ 0, vnew, slot_num);
+    gen_log_vreg_write(v0, num ^ 0, vnew, slot_num);
     tcg_gen_addi_ptr(v1, var, offsetof(mmvector_pair_t, v[1]));
-    gen_log_ext_vreg_write(v1, num ^ 1, vnew, slot_num);
+    gen_log_vreg_write(v1, num ^ 1, vnew, slot_num);
     tcg_temp_free_ptr(v0);
     tcg_temp_free_ptr(v1);
 }
 
-static inline void gen_log_ext_qreg_write(TCGv_ptr var, int num, int vnew,
+static inline void gen_log_qreg_write(TCGv_ptr var, int num, int vnew,
                                           int slot_num)
 {
     TCGv cancelled = tcg_temp_local_new();

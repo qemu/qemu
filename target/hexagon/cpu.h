@@ -43,6 +43,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define STORES_MAX 2
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
+#define VSTORES_MAX 2
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -137,9 +138,9 @@ struct CPUHexagonState {
     mmqreg_t future_QRegs[NUM_QREGS];
     QRegMask QRegs_updated;
 
-    vstorelog_t vstore[2];
-    uint8_t store_pending[2];
-    uint8_t vstore_pending[2];
+    vstorelog_t vstore[VSTORES_MAX];
+    uint8_t store_pending[VSTORES_MAX];
+    uint8_t vstore_pending[VSTORES_MAX];
     target_ulong is_gather_store_insn;
     target_ulong gather_issued;
     uint8_t vtcm_pending;

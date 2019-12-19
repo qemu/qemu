@@ -1345,10 +1345,10 @@ get_valid_slot_str(const packet_t *pkt, unsigned int slot)
 
 #include "q6v_decode.c"
 
-packet_t *decode_this(size4u_t *words, packet_t *decode_pkt)
+packet_t *decode_this(int max_words, size4u_t *words, packet_t *decode_pkt)
 {
     int ret;
-    ret = do_decode_packet(4, words, decode_pkt);
+    ret = do_decode_packet(max_words, words, decode_pkt);
     if (ret <= 0) {
         /* ERROR or BAD PARSE */
         return NULL;

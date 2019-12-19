@@ -20,22 +20,17 @@
 #include <stddef.h>
 #include <math.h>
 #include "qemu/osdep.h"
-#include "qemu/log.h"
+#include "qemu.h"
+#include "exec/helper-proto.h"
 #include "tcg-op.h"
 #include "cpu.h"
 #include "internal.h"
-#include "qemu/main-loop.h"
-#include "exec/exec-all.h"
-#include "exec/helper-proto.h"
-#include "hex_arch_types.h"
 #include "macros.h"
-#include "mmvec/mmvec.h"
-#include "mmvec/macros.h"
 #include "arch.h"
 #include "fma_emu.h"
 #include "conv_emu.h"
-#include "translate.h"
-#include "qemu.h"
+#include "mmvec/mmvec.h"
+#include "mmvec/macros.h"
 
 #if COUNT_HEX_HELPERS
 #include "opcodes.h"
@@ -52,7 +47,10 @@ helper_count_t helper_counts[] = {
     { 0, NULL }
 };
 
-#define COUNT_HELPER(TAG)      do { helper_counts[(TAG)].count++; } while (0)
+#define COUNT_HELPER(TAG) \
+    do { \
+        helper_counts[(TAG)].count++; \
+    } while (0)
 
 void print_helper_counts(void)
 {
@@ -71,7 +69,8 @@ void print_helper_counts(void)
 
 /* Exceptions processing helpers */
 static void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
-                                          uint32_t exception, uintptr_t pc)
+                                                 uint32_t exception,
+                                                 uintptr_t pc)
 {
     CPUState *cs = CPU(hexagon_env_get_cpu(env));
     qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
@@ -150,6 +149,11 @@ static inline void log_store64(CPUHexagonState *env, target_ulong addr,
 static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
+
+    /*
+     * If more than one branch it taken in a packet, only the first one
+     * is actually done.
+     */
     if (env->branch_taken) {
         HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
                       "ignoring the second one\n");
@@ -160,6 +164,7 @@ static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
     }
 }
 
+/* Handy place to set a breakpoint */
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
     HEX_DEBUG_LOG("Start packet: pc = 0x" TARGET_FMT_lx "\n",
@@ -171,6 +176,10 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
     }
 }
 
+/*
+ * This helper is needed when the rnum has already been turned into a TCGv,
+ * so we can't just do tcg_gen_mov_tl(result, hex_new_value[rnum]);
+ */
 int32_t HELPER(new_value)(CPUHexagonState *env, int rnum)
 {
     return env->new_value[rnum];
@@ -181,6 +190,7 @@ static inline int32_t new_pred_value(CPUHexagonState *env, int pnum)
     return env->new_pred_value[pnum];
 }
 
+/* Checks for bookkeeping errors between disassembly context and runtime */
 void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 {
     if (env->mem_log_stores[slot].width != check) {
@@ -193,7 +203,9 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     int i;
-    for (i = 0; i < 2; i++) {
+
+    /* Normal (possibly masked) vector store */
+    for (i = 0; i < VSTORES_MAX; i++) {
         if (env->vstore_pending[i]) {
             env->vstore_pending[i] = 0;
             target_ulong va = env->vstore[i].va;
@@ -206,6 +218,7 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
         }
     }
 
+    /* Scatter store */
     if (env->vtcm_pending) {
         env->vtcm_pending = 0;
         if (env->vtcm_log.op) {
@@ -312,6 +325,15 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
 
 }
 
+/*
+ * sfrecipa and sfinvsqrta have two results
+ *     r0,p0=sfrecipa(r1,r2)
+ *     r0,p0=sfinvsqrta(r1)
+ * Since helpers can only return a single value, we have two helpers
+ * for each of these. They each contain basically the same code (copy/pasted
+ * from the arch library), but * one returns the register and the other
+ * returns the predicate.
+ */
 int32_t HELPER(sfrecipa_val)(CPUHexagonState *env, int32_t RsV, int32_t RtV)
 {
     /* int32_t PeV; Not needed to compute value */
@@ -395,10 +417,11 @@ void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
     HEX_DEBUG_LOG("value = 0x%lx\n", value);
 }
 
-static inline void log_ext_vreg_write(CPUHexagonState *env, int num, void *var,
+/* Log a write to HVX vector */
+static inline void log_vreg_write(CPUHexagonState *env, int num, void *var,
                                       int vnew, uint32_t slot)
 {
-    HEX_DEBUG_LOG("log_ext_vreg_write[%d]", num);
+    HEX_DEBUG_LOG("log_vreg_write[%d]", num);
     if (env->slot_cancelled & (1 << slot)) {
         HEX_DEBUG_LOG(" CANCELLED");
     }
@@ -416,18 +439,19 @@ static inline void log_ext_vreg_write(CPUHexagonState *env, int num, void *var,
     }
 }
 
+static inline void log_mmvector_write(CPUHexagonState *env, int num,
+                                      mmvector_t var, int vnew, uint32_t slot)
+{
+    log_vreg_write(env, num, &var, vnew, slot);
+}
+
 static void cancel_slot(CPUHexagonState *env, uint32_t slot)
 {
     HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
     env->slot_cancelled |= (1 << slot);
 }
 
-static inline void log_mmvector_write(CPUHexagonState *env, int num,
-                                      mmvector_t var, int vnew, uint32_t slot)
-{
-    log_ext_vreg_write(env, num, &var, vnew, slot);
-}
-
+/* These macros can be referenced in the generated helper functions */
 #define warn(...) /* Nothing */
 #define fatal(...) g_assert_not_reached();
 
