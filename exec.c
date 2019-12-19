@@ -2116,14 +2116,13 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
  */
 void qemu_ram_writeback(RAMBlock *block, ram_addr_t start, ram_addr_t length)
 {
-    void *addr = ramblock_ptr(block, start);
-
     /* The requested range should fit in within the block range */
     g_assert((start + length) <= block->used_length);
 
 #ifdef CONFIG_LIBPMEM
     /* The lack of support for pmem should not block the sync */
     if (ramblock_is_pmem(block)) {
+        void *addr = ramblock_ptr(block, start);
         pmem_persist(addr, length);
         return;
     }
@@ -2134,6 +2133,7 @@ void qemu_ram_writeback(RAMBlock *block, ram_addr_t start, ram_addr_t length)
          * specified as persistent (or is not one) - use the msync.
          * Less optimal but still achieves the same goal
          */
+        void *addr = ramblock_ptr(block, start);
         if (qemu_msync(addr, length, block->fd)) {
             warn_report("%s: failed to sync memory range: start: "
                     RAM_ADDR_FMT " length: " RAM_ADDR_FMT,
