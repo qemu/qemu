@@ -49,6 +49,25 @@ run-plugin-semihosting-with-%:
 		 $(call strip-plugin,$<) 2> $<.err, \
 		"$< on $(TARGET_NAME) with $*")
 
+ARM_TESTS += semiconsole semiconsole-arm
+
+semiconsole: CFLAGS += -mthumb
+run-semiconsole: semiconsole
+	$(call skip-test, $<, "MANUAL ONLY")
+
+run-plugin-semiconsole-with-%:
+	$(call skip-test, $<, "MANUAL ONLY")
+
+semiconsole-arm: CFLAGS += -marm
+semiconsole-arm: semiconsole.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+run-semiconsole-arm: semiconsole-arm
+	$(call skip-test, $<, "MANUAL ONLY")
+
+run-plugin-semiconsole-arm-with-%:
+	$(call skip-test, $<, "MANUAL ONLY")
+
 TESTS += $(ARM_TESTS)
 
 # On ARM Linux only supports 4k pages
