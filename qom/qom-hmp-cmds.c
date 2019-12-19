@@ -37,7 +37,7 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
         }
         qapi_free_ObjectPropertyInfoList(start);
     }
-    hmp_handle_error(mon, &err);
+    hmp_handle_error(mon, err);
 }
 
 void hmp_qom_set(Monitor *mon, const QDict *qdict)
@@ -59,7 +59,7 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
         }
         object_property_parse(obj, value, property, &err);
     }
-    hmp_handle_error(mon, &err);
+    hmp_handle_error(mon, err);
 }
 
 typedef struct QOMCompositionState {

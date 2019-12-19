@@ -1139,7 +1139,7 @@ static void realtime_init(void)
 
 static void configure_msg(QemuOpts *opts)
 {
-    enable_timestamp_msg = qemu_opt_get_bool(opts, "timestamp", true);
+    error_with_timestamp = qemu_opt_get_bool(opts, "timestamp", false);
 }
 
 

@@ -57,7 +57,7 @@ struct SpaprPhbPciNvGpuConfig {
     uint64_t nv2_atsd_current;
     int num; /* number of non empty (i.e. tgt!=0) entries in slots[] */
     SpaprPhbPciNvGpuSlot slots[NVGPU_MAX_NUM];
-    Error *errp;
+    Error *err;
 };
 
 static SpaprPhbPciNvGpuSlot *
@@ -153,7 +153,7 @@ static void spapr_phb_pci_collect_nvgpu(PCIBus *bus, PCIDevice *pdev,
             spapr_pci_collect_nvnpu(nvgpus, pdev, tgt, MEMORY_REGION(mr_npu),
                                     &local_err);
         }
-        error_propagate(&nvgpus->errp, local_err);
+        error_propagate(&nvgpus->err, local_err);
     }
     if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
          PCI_HEADER_TYPE_BRIDGE)) {
@@ -187,9 +187,9 @@ void spapr_phb_nvgpu_setup(SpaprPhbState *sphb, Error **errp)
     pci_for_each_device(bus, pci_bus_num(bus),
                         spapr_phb_pci_collect_nvgpu, sphb->nvgpus);
 
-    if (sphb->nvgpus->errp) {
-        error_propagate(errp, sphb->nvgpus->errp);
-        sphb->nvgpus->errp = NULL;
+    if (sphb->nvgpus->err) {
+        error_propagate(errp, sphb->nvgpus->err);
+        sphb->nvgpus->err = NULL;
         goto cleanup_exit;
     }
 

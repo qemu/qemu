@@ -69,6 +69,7 @@ static void isa_ipmi_kcs_lower_irq(IPMIKCS *ik)
 
 static void ipmi_isa_realize(DeviceState *dev, Error **errp)
 {
+    Error *err = NULL;
     ISADevice *isadev = ISA_DEVICE(dev);
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(dev);
     IPMIInterface *ii = IPMI_INTERFACE(dev);
@@ -84,9 +85,11 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     iik->kcs.bmc->intf = ii;
     iik->kcs.opaque = iik;
 
-    iic->init(ii, 0, errp);
-    if (*errp)
+    iic->init(ii, 0, &err);
+    if (err) {
+        error_propagate(errp, err);
         return;
+    }
 
     if (iik->isairq > 0) {
         isa_init_irq(isadev, &iik->irq, iik->isairq);

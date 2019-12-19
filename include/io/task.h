@@ -119,7 +119,7 @@ typedef void (*QIOTaskWorker)(QIOTask *task,
  *   gboolean myobject_operation_timer(gpointer opaque)
  *   {
  *      QIOTask *task = QIO_TASK(opaque);
- *      Error *err;*
+ *      Error *err = NULL;
  *
  *      ...check something important...
  *       if (err) {

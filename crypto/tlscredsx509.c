@@ -380,7 +380,7 @@ qcrypto_tls_creds_load_cert(QCryptoTLSCredsX509 *creds,
     gnutls_x509_crt_t cert = NULL;
     g_autofree char *buf = NULL;
     gsize buflen;
-    GError *gerr;
+    GError *gerr = NULL;
     int ret = -1;
     int err;
 
