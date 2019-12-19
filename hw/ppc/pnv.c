@@ -561,7 +561,7 @@ static void *pnv_dt_create(MachineState *machine)
 
 static void pnv_powerdown_notify(Notifier *n, void *opaque)
 {
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = container_of(n, PnvMachineState, powerdown_notifier);
 
     if (pnv->bmc) {
         pnv_bmc_powerdown(pnv->bmc);
