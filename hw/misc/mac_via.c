@@ -27,6 +27,8 @@
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "hw/qdev-properties.h"
+#include "sysemu/block-backend.h"
 #include "trace.h"
 
 /*
@@ -375,6 +377,15 @@ static void via2_irq_request(void *opaque, int irq, int level)
     mdc->update_irq(s);
 }
 
+
+static void pram_update(MacVIAState *m)
+{
+    if (m->blk) {
+        blk_pwrite(m->blk, 0, m->mos6522_via1.PRAM,
+                   sizeof(m->mos6522_via1.PRAM), 0);
+    }
+}
+
 /*
  * RTC Commands
  *
@@ -547,6 +558,7 @@ static void via1_rtc_update(MacVIAState *m)
             /* PRAM address 0x00 -> 0x13 */
             trace_via1_rtc_cmd_pram_write(m->cmd - REG_PRAM_ADDR, m->data_out);
             v1s->PRAM[m->cmd - REG_PRAM_ADDR] = m->data_out;
+            pram_update(m);
             m->cmd = REG_EMPTY;
             break;
         case REG_PRAM_SECT...REG_PRAM_SECT_LAST:
@@ -577,6 +589,7 @@ static void via1_rtc_update(MacVIAState *m)
     g_assert(REG_PRAM_SECT <= m->cmd && m->cmd <= REG_PRAM_SECT_LAST);
     sector = m->cmd - REG_PRAM_SECT;
     v1s->PRAM[sector * 32 + m->alt] = m->data_out;
+    pram_update(m);
     trace_via1_rtc_cmd_pram_sect_write(sector, m->alt, sector * 32 + m->alt,
                                        m->data_out);
     m->alt = REG_EMPTY;
@@ -857,6 +870,7 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     MacVIAState *m = MAC_VIA(dev);
     MOS6522State *ms;
     struct tm tm;
+    int ret;
 
     /* Init VIAs 1 and 2 */
     sysbus_init_child_obj(OBJECT(dev), "via1", &m->mos6522_via1,
@@ -890,6 +904,28 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     m->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via_adb_poll, m);
     m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
                                                VIA1_IRQ_ADB_READY_BIT);
+
+    if (m->blk) {
+        int64_t len = blk_getlength(m->blk);
+        if (len < 0) {
+            error_setg_errno(errp, -len,
+                             "could not get length of backing image");
+            return;
+        }
+        ret = blk_set_perm(m->blk,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                           BLK_PERM_ALL, errp);
+        if (ret < 0) {
+            return;
+        }
+
+        len = blk_pread(m->blk, 0, m->mos6522_via1.PRAM,
+                        sizeof(m->mos6522_via1.PRAM));
+        if (len != sizeof(m->mos6522_via1.PRAM)) {
+            error_setg(errp, "can't read PRAM contents");
+            return;
+        }
+    }
 }
 
 static void mac_via_init(Object *obj)
@@ -914,10 +950,33 @@ static void mac_via_init(Object *obj)
                         TYPE_ADB_BUS, DEVICE(obj), "adb.0");
 }
 
+static void postload_update_cb(void *opaque, int running, RunState state)
+{
+    MacVIAState *m = MAC_VIA(opaque);
+
+    qemu_del_vm_change_state_handler(m->vmstate);
+    m->vmstate = NULL;
+
+    pram_update(m);
+}
+
+static int mac_via_post_load(void *opaque, int version_id)
+{
+    MacVIAState *m = MAC_VIA(opaque);
+
+    if (m->blk) {
+        m->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
+                                                      m);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_mac_via = {
     .name = "mac-via",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = mac_via_post_load,
     .fields = (VMStateField[]) {
         /* VIAs */
         VMSTATE_STRUCT(mos6522_via1.parent_obj, MacVIAState, 0, vmstate_mos6522,
@@ -950,6 +1009,11 @@ static const VMStateDescription vmstate_mac_via = {
     }
 };
 
+static Property mac_via_properties[] = {
+    DEFINE_PROP_DRIVE("drive", MacVIAState, blk),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void mac_via_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -957,6 +1021,7 @@ static void mac_via_class_init(ObjectClass *oc, void *data)
     dc->realize = mac_via_realize;
     dc->reset = mac_via_reset;
     dc->vmsd = &vmstate_mac_via;
+    dc->props = mac_via_properties;
 }
 
 static TypeInfo mac_via_info = {

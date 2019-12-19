@@ -158,6 +158,7 @@ static void q800_init(MachineState *machine)
     NubusBus *nubus;
     GLUEState *irq;
     qemu_irq *pic;
+    DriveInfo *dinfo;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -200,6 +201,11 @@ static void q800_init(MachineState *machine)
     /* VIA */
 
     via_dev = qdev_create(NULL, TYPE_MAC_VIA);
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_abort);
+    }
     qdev_init_nofail(via_dev);
     sysbus = SYS_BUS_DEVICE(via_dev);
     sysbus_mmio_map(sysbus, 0, VIA_BASE);
