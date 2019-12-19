@@ -257,11 +257,11 @@ void bdrv_backup_top_drop(BlockDriverState *bs)
     BDRVBackupTopState *s = bs->opaque;
     AioContext *aio_context = bdrv_get_aio_context(bs);
 
-    block_copy_state_free(s->bcs);
-
     aio_context_acquire(aio_context);
 
     bdrv_drained_begin(bs);
+
+    block_copy_state_free(s->bcs);
 
     s->active = false;
     bdrv_child_refresh_perms(bs, bs->backing, &error_abort);
