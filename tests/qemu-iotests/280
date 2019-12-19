@@ -45,7 +45,7 @@ with iotests.FilePath('base') as base_path , \
     vm.qmp_log('migrate', uri='exec:cat > /dev/null')
 
     with iotests.Timeout(3, 'Migration does not complete'):
-        vm.wait_migration()
+        vm.wait_migration('postmigrate')
 
     iotests.log('\nVM is now stopped:')
     iotests.log(vm.qmp('query-migrate')['return']['status'])

@@ -668,12 +668,16 @@ class VM(qtest.QEMUQtestMachine):
             }
         ]))
 
-    def wait_migration(self):
+    def wait_migration(self, expect_runstate):
         while True:
             event = self.event_wait('MIGRATION')
             log(event, filters=[filter_qmp_event])
             if event['data']['status'] == 'completed':
                 break
+        # The event may occur in finish-migrate, so wait for the expected
+        # post-migration runstate
+        while self.qmp('query-status')['return']['status'] != expect_runstate:
+            pass
 
     def node_info(self, node_name):
         nodes = self.qmp('query-named-block-nodes')
