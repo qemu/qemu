@@ -169,14 +169,14 @@
 #define LOG_VREG_WRITE(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
-        gen_log_ext_vreg_write(VAR, NUM, VNEW, insn->slot); \
+        gen_log_vreg_write(VAR, NUM, VNEW, insn->slot); \
         ctx_log_vreg_write(ctx, (NUM), is_predicated); \
     } while (0)
 
 #define LOG_VREG_WRITE_PAIR(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
-        gen_log_ext_vreg_write_pair(VAR, NUM, VNEW, insn->slot); \
+        gen_log_vreg_write_pair(VAR, NUM, VNEW, insn->slot); \
         ctx_log_vreg_write(ctx, (NUM) ^ 0, is_predicated); \
         ctx_log_vreg_write(ctx, (NUM) ^ 1, is_predicated); \
     } while (0)
@@ -184,7 +184,7 @@
 #define LOG_QREG_WRITE(NUM, VAR, VNEW) \
     do { \
         int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC); \
-        gen_log_ext_qreg_write(VAR, NUM, VNEW, insn->slot); \
+        gen_log_qreg_write(VAR, NUM, VNEW, insn->slot); \
         ctx_log_qreg_write(ctx, (NUM), is_predicated); \
     } while (0)
 #else
@@ -192,7 +192,7 @@
 #define TMP_WRITTEN(NUM) ((env->VRegs_updated_tmp >> (NUM)) & 1)
 
 #define LOG_VREG_WRITE_FUNC(X) \
-    _Generic((X), void * : log_ext_vreg_write, mmvector_t : log_mmvector_write)
+    _Generic((X), void * : log_vreg_write, mmvector_t : log_mmvector_write)
 #define LOG_VREG_WRITE(NUM, VAR, VNEW) \
     LOG_VREG_WRITE_FUNC(VAR)(env, NUM, VAR, VNEW, slot)
 

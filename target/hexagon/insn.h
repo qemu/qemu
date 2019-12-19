@@ -138,6 +138,7 @@ struct Packet {
     size8u_t pkt_hvx_all:4;
     size8u_t pkt_hvx_none:4;
 
+    size8u_t pkt_has_hvx:1;
     size8u_t pkt_has_extension:1;
 
     insn_t insn[INSTRUCTIONS_MAX];
