@@ -59,10 +59,7 @@ fi
 # Sanity check: For raw, we require a file system that permits the creation
 # of a HUGE (but very sparse) file. Check we can create it before continuing.
 if [ "$IMGFMT" = "raw" ]; then
-    if ! truncate --size=5T "$TEST_IMG"; then
-        _notrun "file system on $TEST_DIR does not support large enough files"
-    fi
-    rm "$TEST_IMG"
+    _require_large_file 5T
 fi
 
 echo

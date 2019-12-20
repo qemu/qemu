@@ -406,9 +406,20 @@ test_file_monitor_events(void)
     char *pathdst = NULL;
     QFileMonitorTestData data;
     GHashTable *ids = g_hash_table_new(g_int64_hash, g_int64_equal);
+    char *travis_arch;
 
     qemu_mutex_init(&data.lock);
     data.records = NULL;
+
+    /*
+     * This test does not work on Travis LXD containers since some
+     * syscalls are blocked in that environment.
+     */
+    travis_arch = getenv("TRAVIS_ARCH");
+    if (travis_arch && !g_str_equal(travis_arch, "x86_64")) {
+        g_test_skip("Test does not work on non-x86 Travis containers.");
+        return;
+    }
 
     /*
      * The file monitor needs the main loop running in

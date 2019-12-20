@@ -34,6 +34,7 @@ vm-help vm-test:
 	@echo "    DEBUG=1              	 - Enable verbose output on host and interactive debugging"
 	@echo "    V=1				 - Enable verbose ouput on host and guest commands"
 	@echo "    QEMU=/path/to/qemu		 - Change path to QEMU binary"
+	@echo "    QEMU_IMG=/path/to/qemu-img	 - Change path to qemu-img tool"
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
 

@@ -34,8 +34,13 @@ static char *create_test_img(int secs)
     fd = mkstemp(template);
     g_assert(fd >= 0);
     ret = ftruncate(fd, (off_t)secs * 512);
-    g_assert(ret == 0);
     close(fd);
+
+    if (ret) {
+        free(template);
+        template = NULL;
+    }
+
     return template;
 }
 
@@ -934,6 +939,10 @@ int main(int argc, char **argv)
     for (i = 0; i < backend_last; i++) {
         if (img_secs[i] >= 0) {
             img_file_name[i] = create_test_img(img_secs[i]);
+            if (!img_file_name[i]) {
+                g_test_message("Could not create test images.");
+                goto test_add_done;
+            }
         } else {
             img_file_name[i] = NULL;
         }
@@ -965,6 +974,7 @@ int main(int argc, char **argv)
                        "skipping hd-geo/override/* tests");
     }
 
+test_add_done:
     ret = g_test_run();
 
     for (i = 0; i < backend_last; i++) {

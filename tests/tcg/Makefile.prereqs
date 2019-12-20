@@ -13,6 +13,6 @@ DOCKER_IMAGE:=
 
 ifneq ($(DOCKER_IMAGE),)
 build-tcg-tests-$(PROBE_TARGET): docker-image-$(DOCKER_IMAGE)
+endif
 $(BUILD_DIR)/tests/tcg/config_$(PROBE_TARGET).mak: config-host.mak
 config-host.mak: $(SRC_PATH)/tests/tcg/configure.sh
-endif

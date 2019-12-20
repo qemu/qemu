@@ -98,38 +98,6 @@ TraceEvent *trace_event_name(const char *name)
     return NULL;
 }
 
-static bool pattern_glob(const char *pat, const char *ev)
-{
-    while (*pat != '\0' && *ev != '\0') {
-        if (*pat == *ev) {
-            pat++;
-            ev++;
-        }
-        else if (*pat == '*') {
-            if (pattern_glob(pat, ev+1)) {
-                return true;
-            } else if (pattern_glob(pat+1, ev)) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    while (*pat == '*') {
-        pat++;
-    }
-
-    if (*pat == '\0' && *ev == '\0') {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
 void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 {
     iter->event = 0;
@@ -148,8 +116,7 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
             iter->group++;
         }
         if (!iter->pattern ||
-            pattern_glob(iter->pattern,
-                         trace_event_get_name(ev))) {
+            g_pattern_match_simple(iter->pattern, trace_event_get_name(ev))) {
             return ev;
         }
     }
