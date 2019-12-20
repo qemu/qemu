@@ -161,7 +161,6 @@ typedef struct AC97BusMasterRegs {
 typedef struct AC97LinkState {
     PCIDevice dev;
     QEMUSoundCard card;
-    uint32_t use_broken_id;
     uint32_t glob_cnt;
     uint32_t glob_sta;
     uint32_t cas;
@@ -1373,13 +1372,6 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     c[PCI_BASE_ADDRESS_0 + 6] = 0x00;
     c[PCI_BASE_ADDRESS_0 + 7] = 0x00;
 
-    if (s->use_broken_id) {
-        c[PCI_SUBSYSTEM_VENDOR_ID] = 0x86;
-        c[PCI_SUBSYSTEM_VENDOR_ID + 1] = 0x80;
-        c[PCI_SUBSYSTEM_ID] = 0x00;
-        c[PCI_SUBSYSTEM_ID + 1] = 0x00;
-    }
-
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
 
@@ -1411,7 +1403,6 @@ static int ac97_init (PCIBus *bus)
 
 static Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, card),
-    DEFINE_PROP_UINT32 ("use_broken_id", AC97LinkState, use_broken_id, 0),
     DEFINE_PROP_END_OF_LIST (),
 };
 

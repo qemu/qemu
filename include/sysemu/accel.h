@@ -64,9 +64,9 @@ typedef struct AccelClass {
 #define ACCEL_GET_CLASS(obj) \
     OBJECT_GET_CLASS(AccelClass, (obj), TYPE_ACCEL)
 
-extern unsigned long tcg_tb_size;
+AccelClass *accel_find(const char *opt_name);
+int accel_init_machine(AccelState *accel, MachineState *ms);
 
-void configure_accelerator(MachineState *ms, const char *progname);
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
 

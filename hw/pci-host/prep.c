@@ -32,7 +32,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/i386/pc.h"
+#include "hw/intc/i8259.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/or-irq.h"

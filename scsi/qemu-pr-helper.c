@@ -24,7 +24,7 @@
 #include <linux/dm-ioctl.h>
 #include <scsi/sg.h>
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 #include <cap-ng.h>
 #endif
 #include <pwd.h>
@@ -70,7 +70,7 @@ static int num_active_sockets = 1;
 static int noisy;
 static int verbose;
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 static int uid = -1;
 static int gid = -1;
 #endif
@@ -97,7 +97,7 @@ static void usage(const char *name)
 "                            (default '%s')\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
 "                            specify tracing options\n"
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 "  -u, --user=USER           user to drop privileges to\n"
 "  -g, --group=GROUP         group to drop privileges to\n"
 #endif
@@ -827,7 +827,7 @@ static void close_server_socket(void)
     num_active_sockets--;
 }
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
 static int drop_privileges(void)
 {
     /* clear all capabilities */
@@ -920,7 +920,7 @@ int main(int argc, char **argv)
             pidfile = g_strdup(optarg);
             pidfile_specified = true;
             break;
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
         case 'u': {
             unsigned long res;
             struct passwd *userinfo = getpwnam(optarg);
@@ -1056,7 +1056,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-#ifdef CONFIG_LIBCAP
+#ifdef CONFIG_LIBCAP_NG
     if (drop_privileges() < 0) {
         error_report("Failed to drop privileges: %s", strerror(errno));
         exit(EXIT_FAILURE);

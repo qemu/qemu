@@ -598,7 +598,6 @@ static void qsp_ht_delete(void *p, uint32_t h, void *htp)
 
 static void qsp_mktree(GTree *tree, bool callsite_coalesce)
 {
-    QSPSnapshot *snap;
     struct qht ht, coalesce_ht;
     struct qht *htp;
 
@@ -610,20 +609,19 @@ static void qsp_mktree(GTree *tree, bool callsite_coalesce)
      * We must remain in an RCU read-side critical section until we're done
      * with the snapshot.
      */
-    rcu_read_lock();
-    snap = atomic_rcu_read(&qsp_snapshot);
+    WITH_RCU_READ_LOCK_GUARD() {
+        QSPSnapshot *snap = atomic_rcu_read(&qsp_snapshot);
 
-    /* Aggregate all results from the global hash table into a local one */
-    qht_init(&ht, qsp_entry_no_thread_cmp, QSP_INITIAL_SIZE,
-             QHT_MODE_AUTO_RESIZE | QHT_MODE_RAW_MUTEXES);
-    qht_iter(&qsp_ht, qsp_aggregate, &ht);
+        /* Aggregate all results from the global hash table into a local one */
+        qht_init(&ht, qsp_entry_no_thread_cmp, QSP_INITIAL_SIZE,
+                 QHT_MODE_AUTO_RESIZE | QHT_MODE_RAW_MUTEXES);
+        qht_iter(&qsp_ht, qsp_aggregate, &ht);
 
-    /* compute the difference wrt the snapshot, if any */
-    if (snap) {
-        qsp_diff(&snap->ht, &ht);
+        /* compute the difference wrt the snapshot, if any */
+        if (snap) {
+            qsp_diff(&snap->ht, &ht);
+        }
     }
-    /* done with the snapshot; RCU can reclaim it */
-    rcu_read_unlock();
 
     htp = &ht;
     if (callsite_coalesce) {

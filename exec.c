@@ -3903,10 +3903,9 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
 
     if ((start + length) <= rb->used_length) {
         bool need_madvise, need_fallocate;
-        uint8_t *host_endaddr = host_startaddr + length;
-        if ((uintptr_t)host_endaddr & (rb->page_size - 1)) {
-            error_report("ram_block_discard_range: Unaligned end address: %p",
-                         host_endaddr);
+        if (length & (rb->page_size - 1)) {
+            error_report("ram_block_discard_range: Unaligned length: %zx",
+                         length);
             goto err;
         }
 

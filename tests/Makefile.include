@@ -167,7 +167,7 @@ check-qtest-pci-$(CONFIG_IVSHMEM_DEVICE) += tests/ivshmem-test$(EXESUF)
 check-qtest-i386-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
 check-qtest-i386-y += tests/ide-test$(EXESUF)
-check-qtest-i386-y += tests/ahci-test$(EXESUF)
+check-qtest-i386-$(CONFIG_TOOLS) += tests/ahci-test$(EXESUF)
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
 check-qtest-i386-y += tests/boot-order-test$(EXESUF)
 check-qtest-i386-y += tests/bios-tables-test$(EXESUF)
@@ -1191,7 +1191,9 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
 .PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean
 check-qapi-schema: check-tests/qapi-schema/frontend check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
+ifeq ($(CONFIG_TOOLS),y)
 check-block: $(patsubst %,check-%, $(check-block-y))
+endif
 check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)

@@ -120,7 +120,7 @@ static void test_cdboot(gconstpointer data)
 {
     QTestState *qts;
 
-    qts = qtest_initf("-M accel=kvm:tcg -no-shutdown %s%s", (const char *)data,
+    qts = qtest_initf("-accel kvm -accel tcg -no-shutdown %s%s", (const char *)data,
                       isoimage);
     boot_sector_test(qts);
     qtest_quit(qts);

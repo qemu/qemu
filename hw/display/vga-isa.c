@@ -76,7 +76,9 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     memory_region_set_coalescing(vga_io_memory);
     s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);
 
-    vga_init_vbe(s, OBJECT(dev), isa_address_space(isadev));
+    memory_region_add_subregion(isa_address_space(isadev),
+                                VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                &s->vram);
     /* ROM BIOS */
     rom_add_vga(VGABIOS_FILENAME);
 }

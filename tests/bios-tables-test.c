@@ -51,7 +51,7 @@
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
 typedef struct {
-    const char *accel;
+    bool tcg_only;
     const char *machine;
     const char *variant;
     const char *uefi_fl1;
@@ -607,19 +607,19 @@ static void test_acpi_one(const char *params, test_data *data)
          * TODO: convert '-drive if=pflash' to new syntax (see e33763be7cd3)
          * when arm/virt boad starts to support it.
          */
-        args = g_strdup_printf("-machine %s,accel=%s -nodefaults -nographic "
+        args = g_strdup_printf("-machine %s %s -accel tcg -nodefaults -nographic "
             "-drive if=pflash,format=raw,file=%s,readonly "
             "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
-            data->machine, data->accel ? data->accel : "kvm:tcg",
+            data->machine, data->tcg_only ? "" : "-accel kvm",
             data->uefi_fl1, data->uefi_fl2, data->cd, params ? params : "");
 
     } else {
         /* Disable kernel irqchip to be able to override apic irq0. */
-        args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+        args = g_strdup_printf("-machine %s,kernel-irqchip=off %s -accel tcg "
             "-net none -display none %s "
             "-drive id=hd0,if=none,file=%s,format=raw "
             "-device ide-hd,drive=hd0 ",
-             data->machine, data->accel ? data->accel : "kvm:tcg",
+             data->machine, data->tcg_only ? "" : "-accel kvm",
              params ? params : "", disk);
     }
 
@@ -904,7 +904,7 @@ static void test_acpi_virt_tcg_memhp(void)
 {
     test_data data = {
         .machine = "virt",
-        .accel = "tcg",
+        .tcg_only = true,
         .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
         .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
         .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
@@ -929,7 +929,7 @@ static void test_acpi_virt_tcg_numamem(void)
 {
     test_data data = {
         .machine = "virt",
-        .accel = "tcg",
+        .tcg_only = true,
         .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
         .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
         .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
@@ -951,7 +951,7 @@ static void test_acpi_virt_tcg(void)
 {
     test_data data = {
         .machine = "virt",
-        .accel = "tcg",
+        .tcg_only = true,
         .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
         .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
         .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",

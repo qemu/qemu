@@ -22,10 +22,10 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/ioapic.h"
+#include "hw/intc/i8259.h"
 #include "hw/pci/msi.h"
 #include "qemu/host-utils.h"
 #include "trace.h"
-#include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
 #include "qapi/error.h"
 

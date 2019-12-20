@@ -142,6 +142,12 @@ QEMU 4.1 has three options, please migrate to one of these three:
       to do is specify the kernel they want to boot with the -kernel option
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
+@subsection -tb-size option (since 5.0)
+
+QEMU 5.0 introduced an alternative syntax to specify the size of the translation
+block cache, @option{-accel tcg,tb-size=}.  The new syntax deprecates the
+previously available @option{-tb-size} option.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection change (since 2.5.0)
@@ -259,7 +265,7 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 This machine type is very old and unmaintained. Users should use the 'malta'
 machine type instead.
 
-@subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)
+@subsection pc-1.0, pc-1.1, pc-1.2 and pc-1.3 (since 5.0)
 
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.

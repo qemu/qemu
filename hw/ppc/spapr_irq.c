@@ -75,12 +75,11 @@ int spapr_irq_init_kvm(SpaprInterruptControllerInitKvm fn,
                        uint32_t nr_servers,
                        Error **errp)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
     Error *local_err = NULL;
 
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+    if (kvm_enabled() && kvm_kernel_irqchip_allowed()) {
         if (fn(intc, nr_servers, &local_err) < 0) {
-            if (machine_kernel_irqchip_required(machine)) {
+            if (kvm_kernel_irqchip_required()) {
                 error_prepend(&local_err,
                               "kernel_irqchip requested but unavailable: ");
                 error_propagate(errp, local_err);
@@ -185,7 +184,7 @@ static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
      */
     if (kvm_enabled() &&
         spapr->irq == &spapr_irq_dual &&
-        machine_kernel_irqchip_required(machine) &&
+        kvm_kernel_irqchip_required() &&
         xics_kvm_has_broken_disconnect(spapr)) {
         error_setg(errp, "KVM is too old to support ic-mode=dual,kernel-irqchip=on");
         return -1;
@@ -288,17 +287,10 @@ uint32_t spapr_irq_nr_msis(SpaprMachineState *spapr)
 
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
-    if (machine_kernel_irqchip_split(machine)) {
+    if (kvm_enabled() && kvm_kernel_irqchip_split()) {
         error_setg(errp, "kernel_irqchip split mode not supported on pseries");
-        return;
-    }
-
-    if (!kvm_enabled() && machine_kernel_irqchip_required(machine)) {
-        error_setg(errp,
-                   "kernel_irqchip requested but only available with KVM");
         return;
     }
 

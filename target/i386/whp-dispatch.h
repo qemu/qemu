@@ -50,5 +50,9 @@ extern struct WHPDispatch whp_dispatch;
 
 bool init_whp_dispatch(void);
 
+typedef enum WHPFunctionList {
+    WINHV_PLATFORM_FNS_DEFAULT,
+    WINHV_EMULATION_FNS_DEFAULT,
+} WHPFunctionList;
 
 #endif /* WHP_DISPATCH_H */

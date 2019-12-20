@@ -1,5 +1,5 @@
 /*
- * QEMU i440FX/PIIX3 PCI Bridge Emulation
+ * QEMU i440FX PCI Bridge Emulation
  *
  * Copyright (c) 2006 Fabrice Bellard
  *
@@ -31,7 +31,6 @@
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/pci-host/pam.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 
@@ -50,23 +49,6 @@ typedef struct I440FXState {
     bool pci_hole64_fix;
     uint32_t short_root_bus;
 } I440FXState;
-
-#define I440FX_PCI_DEVICE(obj) \
-    OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
-
-struct PCII440FXState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion *system_memory;
-    MemoryRegion *pci_address_space;
-    MemoryRegion *ram_memory;
-    PAMMemoryRegion pam_regions[13];
-    MemoryRegion smram_region;
-    MemoryRegion smram, low_smram;
-};
-
 
 #define I440FX_PAM      0x59
 #define I440FX_PAM_SIZE 7
@@ -386,90 +368,6 @@ static const TypeInfo i440fx_info = {
     },
 };
 
-/* IGD Passthrough Host Bridge. */
-typedef struct {
-    uint8_t offset;
-    uint8_t len;
-} IGDHostInfo;
-
-/* Here we just expose minimal host bridge offset subset. */
-static const IGDHostInfo igd_host_bridge_infos[] = {
-    {0x08, 2},  /* revision id */
-    {0x2c, 2},  /* sybsystem vendor id */
-    {0x2e, 2},  /* sybsystem id */
-    {0x50, 2},  /* SNB: processor graphics control register */
-    {0x52, 2},  /* processor graphics control register */
-    {0xa4, 4},  /* SNB: graphics base of stolen memory */
-    {0xa8, 4},  /* SNB: base of GTT stolen memory */
-};
-
-static void host_pci_config_read(int pos, int len, uint32_t *val, Error **errp)
-{
-    int rc, config_fd;
-    /* Access real host bridge. */
-    char *path = g_strdup_printf("/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
-                                 0, 0, 0, 0, "config");
-
-    config_fd = open(path, O_RDWR);
-    if (config_fd < 0) {
-        error_setg_errno(errp, errno, "Failed to open: %s", path);
-        goto out;
-    }
-
-    if (lseek(config_fd, pos, SEEK_SET) != pos) {
-        error_setg_errno(errp, errno, "Failed to seek: %s", path);
-        goto out_close_fd;
-    }
-
-    do {
-        rc = read(config_fd, (uint8_t *)val, len);
-    } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
-    if (rc != len) {
-        error_setg_errno(errp, errno, "Failed to read: %s", path);
-    }
-
-out_close_fd:
-    close(config_fd);
-out:
-    g_free(path);
-}
-
-static void igd_pt_i440fx_realize(PCIDevice *pci_dev, Error **errp)
-{
-    uint32_t val = 0;
-    int i, num;
-    int pos, len;
-    Error *local_err = NULL;
-
-    num = ARRAY_SIZE(igd_host_bridge_infos);
-    for (i = 0; i < num; i++) {
-        pos = igd_host_bridge_infos[i].offset;
-        len = igd_host_bridge_infos[i].len;
-        host_pci_config_read(pos, len, &val, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-        pci_default_write_config(pci_dev, pos, val, len);
-    }
-}
-
-static void igd_passthrough_i440fx_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->realize = igd_pt_i440fx_realize;
-    dc->desc = "IGD Passthrough Host bridge";
-}
-
-static const TypeInfo igd_passthrough_i440fx_info = {
-    .name          = TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE,
-    .parent        = TYPE_I440FX_PCI_DEVICE,
-    .instance_size = sizeof(PCII440FXState),
-    .class_init    = igd_passthrough_i440fx_class_init,
-};
-
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)
 {
@@ -514,7 +412,6 @@ static const TypeInfo i440fx_pcihost_info = {
 static void i440fx_register_types(void)
 {
     type_register_static(&i440fx_info);
-    type_register_static(&igd_passthrough_i440fx_info);
     type_register_static(&i440fx_pcihost_info);
 }
 

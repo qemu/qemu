@@ -19,6 +19,7 @@
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "net/net.h"
 #include "qemu/log.h"
 
 #define MAX_IDE_BUS 2

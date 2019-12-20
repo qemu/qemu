@@ -111,3 +111,11 @@ amdvi_ir_irte_ga_val(uint64_t hi, uint64_t lo) "hi 0x%"PRIx64" lo 0x%"PRIx64
 # vmport.c
 vmport_register(unsigned char command, void *func, void *opaque) "command: 0x%02x func: %p opaque: %p"
 vmport_command(unsigned char command) "command: 0x%02x"
+
+# x86.c
+x86_gsi_interrupt(int irqn, int level) "GSI interrupt #%d level:%d"
+x86_pic_interrupt(int irqn, int level) "PIC interrupt #%d level:%d"
+
+# port92.c
+port92_read(uint8_t val) "port92: read 0x%02x"
+port92_write(uint8_t val) "port92: write 0x%02x"

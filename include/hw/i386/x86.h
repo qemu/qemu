@@ -23,6 +23,8 @@
 
 #include "hw/boards.h"
 #include "hw/nmi.h"
+#include "hw/isa/isa.h"
+#include "hw/i386/ioapic.h"
 
 typedef struct {
     /*< private >*/
@@ -60,6 +62,8 @@ typedef struct {
     uint16_t boot_cpus;
     unsigned smp_dies;
 
+    OnOffAuto smm;
+
     /*
      * Address space used by IOAPIC device. All IOAPIC interrupts
      * will be translated to MSI messages in the address space.
@@ -68,6 +72,7 @@ typedef struct {
 } X86MachineState;
 
 #define X86_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
+#define X86_MACHINE_SMM              "smm"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 #define X86_MACHINE(obj) \
@@ -94,5 +99,23 @@ void x86_load_linux(X86MachineState *x86ms,
                     int acpi_data_size,
                     bool pvh_enabled,
                     bool linuxboot_dma_enabled);
+
+bool x86_machine_is_smm_enabled(X86MachineState *x86ms);
+
+/* Global System Interrupts */
+
+#define GSI_NUM_PINS IOAPIC_NUM_PINS
+
+typedef struct GSIState {
+    qemu_irq i8259_irq[ISA_NUM_IRQS];
+    qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
+} GSIState;
+
+qemu_irq x86_allocate_cpu_irq(void);
+void gsi_handler(void *opaque, int n, int level);
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
+
+/* hpet.c */
+extern int no_hpet;
 
 #endif

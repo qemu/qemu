@@ -292,19 +292,13 @@ static QemuOptsList qemu_accel_opts = {
     .name = "accel",
     .implied_opt_name = "accel",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_accel_opts.head),
-    .merge_lists = true,
     .desc = {
-        {
-            .name = "accel",
-            .type = QEMU_OPT_STRING,
-            .help = "Select the type of accelerator",
-        },
-        {
-            .name = "thread",
-            .type = QEMU_OPT_STRING,
-            .help = "Enable/disable multi-threaded TCG",
-        },
-        { /* end of list */ }
+        /*
+         * no elements => accept any
+         * sanity checking will happen later
+         * when setting accelerator properties
+         */
+        { }
     },
 };
 
@@ -896,13 +890,9 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            static GlobalProperty slew_lost_ticks = {
-                .driver   = "mc146818rtc",
-                .property = "lost_tick_policy",
-                .value    = "slew",
-            };
-
-            qdev_prop_register_global(&slew_lost_ticks);
+            object_register_sugar_prop("mc146818rtc",
+                                       "lost_tick_policy",
+                                       "slew");
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
@@ -1142,13 +1132,6 @@ static void configure_msg(QemuOpts *opts)
     error_with_timestamp = qemu_opt_get_bool(opts, "timestamp", false);
 }
 
-
-/* Now we still need this for compatibility with XEN. */
-bool has_igd_gfx_passthru;
-static void igd_gfx_passthru(void)
-{
-    has_igd_gfx_passthru = current_machine->igd_gfx_passthru;
-}
 
 /***********************************************************/
 /* USB devices */
@@ -2490,27 +2473,17 @@ static MachineClass *select_machine(void)
     return machine_class;
 }
 
-static int machine_set_property(void *opaque,
-                                const char *name, const char *value,
-                                Error **errp)
+static int object_parse_property_opt(Object *obj,
+                                     const char *name, const char *value,
+                                     const char *skip, Error **errp)
 {
-    Object *obj = OBJECT(opaque);
     Error *local_err = NULL;
-    char *p, *qom_name;
 
-    if (strcmp(name, "type") == 0) {
+    if (g_str_equal(name, skip)) {
         return 0;
     }
 
-    qom_name = g_strdup(name);
-    for (p = qom_name; *p; p++) {
-        if (*p == '_') {
-            *p = '-';
-        }
-    }
-
-    object_property_parse(obj, value, qom_name, &local_err);
-    g_free(qom_name);
+    object_property_parse(obj, value, name, &local_err);
 
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2520,6 +2493,35 @@ static int machine_set_property(void *opaque,
     return 0;
 }
 
+static int machine_set_property(void *opaque,
+                                const char *name, const char *value,
+                                Error **errp)
+{
+    g_autofree char *qom_name = g_strdup(name);
+    char *p;
+
+    for (p = qom_name; *p; p++) {
+        if (*p == '_') {
+            *p = '-';
+        }
+    }
+
+    /* Legacy options do not correspond to MachineState properties.  */
+    if (g_str_equal(qom_name, "accel")) {
+        return 0;
+    }
+    if (g_str_equal(qom_name, "igd-passthru")) {
+        object_register_sugar_prop(ACCEL_CLASS_NAME("xen"), qom_name, value);
+        return 0;
+    }
+    if (g_str_equal(qom_name, "kvm-shadow-mem") ||
+        g_str_equal(qom_name, "kernel-irqchip")) {
+        object_register_sugar_prop(ACCEL_CLASS_NAME("kvm"), qom_name, value);
+        return 0;
+    }
+
+    return object_parse_property_opt(opaque, name, value, "type", errp);
+}
 
 /*
  * Initial object creation happens before all other
@@ -2698,6 +2700,118 @@ static void user_register_global_props(void)
 {
     qemu_opts_foreach(qemu_find_opts("global"),
                       global_init_func, NULL, NULL);
+}
+
+static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
+{
+    configure_icount(opts, errp);
+    return 0;
+}
+
+static int accelerator_set_property(void *opaque,
+                                const char *name, const char *value,
+                                Error **errp)
+{
+    return object_parse_property_opt(opaque, name, value, "accel", errp);
+}
+
+static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
+{
+    bool *p_init_failed = opaque;
+    const char *acc = qemu_opt_get(opts, "accel");
+    AccelClass *ac = accel_find(acc);
+    AccelState *accel;
+    int ret;
+
+    if (!ac) {
+        *p_init_failed = true;
+        error_report("invalid accelerator %s", acc);
+        return 0;
+    }
+    accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
+    object_apply_compat_props(OBJECT(accel));
+    qemu_opt_foreach(opts, accelerator_set_property,
+                     accel,
+                     &error_fatal);
+
+    ret = accel_init_machine(accel, current_machine);
+    if (ret < 0) {
+        *p_init_failed = true;
+        error_report("failed to initialize %s: %s",
+                     acc, strerror(-ret));
+        return 0;
+    }
+
+    return 1;
+}
+
+static void configure_accelerators(const char *progname)
+{
+    const char *accel;
+    char **accel_list, **tmp;
+    bool accel_initialised = false;
+    bool init_failed = false;
+
+    qemu_opts_foreach(qemu_find_opts("icount"),
+                      do_configure_icount, NULL, &error_fatal);
+
+    accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
+    if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
+        if (accel == NULL) {
+            /* Select the default accelerator */
+            if (!accel_find("tcg") && !accel_find("kvm")) {
+                error_report("No accelerator selected and"
+                             " no default accelerator available");
+                exit(1);
+            } else {
+                int pnlen = strlen(progname);
+                if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
+                    /* If the program name ends with "kvm", we prefer KVM */
+                    accel = "kvm:tcg";
+                } else {
+                    accel = "tcg:kvm";
+                }
+            }
+        }
+
+        accel_list = g_strsplit(accel, ":", 0);
+
+        for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
+            /*
+             * Filter invalid accelerators here, to prevent obscenities
+             * such as "-machine accel=tcg,,thread=single".
+             */
+            if (accel_find(*tmp)) {
+                qemu_opts_parse_noisily(qemu_find_opts("accel"), *tmp, true);
+            } else {
+                init_failed = true;
+                error_report("invalid accelerator %s", *tmp);
+            }
+        }
+    } else {
+        if (accel != NULL) {
+            error_report("The -accel and \"-machine accel=\" options are incompatible");
+            exit(1);
+        }
+    }
+
+    if (!qemu_opts_foreach(qemu_find_opts("accel"),
+                           do_configure_accelerator, &init_failed, &error_fatal)) {
+        if (!init_failed) {
+            error_report("no accelerator found");
+        }
+        exit(1);
+    }
+
+    if (init_failed) {
+        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
+        error_report("falling back to %s", ac->name);
+    }
+
+    if (use_icount && !(tcg_enabled() || qtest_enabled())) {
+        error_report("-icount is not allowed with hardware virtualization");
+        exit(1);
+    }
 }
 
 int main(int argc, char **argv, char **envp)
@@ -3374,9 +3488,6 @@ int main(int argc, char **argv, char **envp)
                                  "use -M accel=... for now instead");
                     exit(1);
                 }
-                opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
-                                        false, &error_abort);
-                qemu_opt_set(opts, "accel", optarg, &error_abort);
                 break;
             case QEMU_OPTION_usb:
                 olist = qemu_find_opts("machine");
@@ -3483,10 +3594,8 @@ int main(int argc, char **argv, char **envp)
                 error_report("TCG is disabled");
                 exit(1);
 #endif
-                if (qemu_strtoul(optarg, NULL, 0, &tcg_tb_size) < 0) {
-                    error_report("Invalid argument to -tb-size");
-                    exit(1);
-                }
+                warn_report("The -tb-size option is deprecated, use -accel tcg,tb-size instead");
+                object_register_sugar_prop(ACCEL_CLASS_NAME("tcg"), "tb-size", optarg);
                 break;
             case QEMU_OPTION_icount:
                 icount_opts = qemu_opts_parse_noisily(qemu_find_opts("icount"),
@@ -3731,8 +3840,7 @@ int main(int argc, char **argv, char **envp)
                       cleanup_add_fd, NULL, &error_fatal);
 #endif
 
-    current_machine = MACHINE(object_new(object_class_get_name(
-                          OBJECT_CLASS(machine_class))));
+    current_machine = MACHINE(object_new_with_class(OBJECT_CLASS(machine_class)));
     if (machine_help_func(qemu_get_machine_opts(), current_machine)) {
         exit(0);
     }
@@ -4010,7 +4118,7 @@ int main(int argc, char **argv, char **envp)
      * Note: uses machine properties such as kernel-irqchip, must run
      * after machine_set_property().
      */
-    configure_accelerator(current_machine, argv[0]);
+    configure_accelerators(argv[0]);
 
     /*
      * Beware, QOM objects created before this point miss global and
@@ -4095,18 +4203,6 @@ int main(int argc, char **argv, char **envp)
     qemu_spice_init();
 
     cpu_ticks_init();
-    if (icount_opts) {
-        if (!tcg_enabled()) {
-            error_report("-icount is not allowed with hardware virtualization");
-            exit(1);
-        }
-        configure_icount(icount_opts, &error_abort);
-        qemu_opts_del(icount_opts);
-    }
-
-    if (tcg_enabled()) {
-        qemu_tcg_configure(accel_opts, &error_fatal);
-    }
 
     if (default_net) {
         QemuOptsList *net = qemu_find_opts("net");
@@ -4202,9 +4298,6 @@ int main(int argc, char **argv, char **envp)
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }
-
-    /* Check if IGD GFX passthrough. */
-    igd_gfx_passthru();
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);

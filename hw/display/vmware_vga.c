@@ -1312,11 +1312,6 @@ static void pci_vmsvga_realize(PCIDevice *dev, Error **errp)
                      &s->chip.vga.vram);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &s->chip.fifo_ram);
-
-    if (!dev->rom_bar) {
-        /* compatibility with pc-0.13 and older */
-        vga_init_vbe(&s->chip.vga, OBJECT(dev), pci_address_space(dev));
-    }
 }
 
 static Property vga_vmware_properties[] = {

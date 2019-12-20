@@ -30,7 +30,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/southbridge/piix.h"
 #include "migration/vmstate.h"
-#include "hw/i386/pc.h"
+#include "hw/intc/i8259.h"
 #include "hw/irq.h"
 #include "exec/address-spaces.h"
 #include "trace.h"

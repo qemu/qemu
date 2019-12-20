@@ -109,7 +109,7 @@ static void read_guid_from_monitor(QTestState *qts, QemuUUID *guid)
 static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 
 #define GUID_CMD(guid)                          \
-    "-machine accel=kvm:tcg "                   \
+    "-accel kvm -accel tcg "                    \
     "-device vmgenid,id=testvgid,guid=%s "      \
     "-drive id=hd0,if=none,file=%s,format=raw " \
     "-device ide-hd,drive=hd0 ", guid, disk

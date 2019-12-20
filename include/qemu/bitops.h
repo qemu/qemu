@@ -424,13 +424,16 @@ static inline uint64_t deposit64(uint64_t value, int start, int length,
 
 /**
  * half_shuffle32:
- * @value: 32-bit value (of which only the bottom 16 bits are of interest)
+ * @x: 32-bit value (of which only the bottom 16 bits are of interest)
  *
- * Given an input value:
- *  xxxx xxxx xxxx xxxx ABCD EFGH IJKL MNOP
+ * Given an input value::
+ *
+ *   xxxx xxxx xxxx xxxx ABCD EFGH IJKL MNOP
+ *
  * return the value where the bottom 16 bits are spread out into
- * the odd bits in the word, and the even bits are zeroed:
- *  0A0B 0C0D 0E0F 0G0H 0I0J 0K0L 0M0N 0O0P
+ * the odd bits in the word, and the even bits are zeroed::
+ *
+ *   0A0B 0C0D 0E0F 0G0H 0I0J 0K0L 0M0N 0O0P
  *
  * Any bits set in the top half of the input are ignored.
  *
@@ -450,13 +453,16 @@ static inline uint32_t half_shuffle32(uint32_t x)
 
 /**
  * half_shuffle64:
- * @value: 64-bit value (of which only the bottom 32 bits are of interest)
+ * @x: 64-bit value (of which only the bottom 32 bits are of interest)
  *
- * Given an input value:
- *  xxxx xxxx xxxx .... xxxx xxxx ABCD EFGH IJKL MNOP QRST UVWX YZab cdef
+ * Given an input value::
+ *
+ *   xxxx xxxx xxxx .... xxxx xxxx ABCD EFGH IJKL MNOP QRST UVWX YZab cdef
+ *
  * return the value where the bottom 32 bits are spread out into
- * the odd bits in the word, and the even bits are zeroed:
- *  0A0B 0C0D 0E0F 0G0H 0I0J 0K0L 0M0N .... 0U0V 0W0X 0Y0Z 0a0b 0c0d 0e0f
+ * the odd bits in the word, and the even bits are zeroed::
+ *
+ *   0A0B 0C0D 0E0F 0G0H 0I0J 0K0L 0M0N .... 0U0V 0W0X 0Y0Z 0a0b 0c0d 0e0f
  *
  * Any bits set in the top half of the input are ignored.
  *
@@ -477,13 +483,16 @@ static inline uint64_t half_shuffle64(uint64_t x)
 
 /**
  * half_unshuffle32:
- * @value: 32-bit value (of which only the odd bits are of interest)
+ * @x: 32-bit value (of which only the odd bits are of interest)
  *
- * Given an input value:
- *  xAxB xCxD xExF xGxH xIxJ xKxL xMxN xOxP
+ * Given an input value::
+ *
+ *   xAxB xCxD xExF xGxH xIxJ xKxL xMxN xOxP
+ *
  * return the value where all the odd bits are compressed down
- * into the low half of the word, and the high half is zeroed:
- *  0000 0000 0000 0000 ABCD EFGH IJKL MNOP
+ * into the low half of the word, and the high half is zeroed::
+ *
+ *   0000 0000 0000 0000 ABCD EFGH IJKL MNOP
  *
  * Any even bits set in the input are ignored.
  *
@@ -504,13 +513,16 @@ static inline uint32_t half_unshuffle32(uint32_t x)
 
 /**
  * half_unshuffle64:
- * @value: 64-bit value (of which only the odd bits are of interest)
+ * @x: 64-bit value (of which only the odd bits are of interest)
  *
- * Given an input value:
- *  xAxB xCxD xExF xGxH xIxJ xKxL xMxN .... xUxV xWxX xYxZ xaxb xcxd xexf
+ * Given an input value::
+ *
+ *   xAxB xCxD xExF xGxH xIxJ xKxL xMxN .... xUxV xWxX xYxZ xaxb xcxd xexf
+ *
  * return the value where all the odd bits are compressed down
- * into the low half of the word, and the high half is zeroed:
- *  0000 0000 0000 .... 0000 0000 ABCD EFGH IJKL MNOP QRST UVWX YZab cdef
+ * into the low half of the word, and the high half is zeroed::
+ *
+ *   0000 0000 0000 .... 0000 0000 ABCD EFGH IJKL MNOP QRST UVWX YZab cdef
  *
  * Any even bits set in the input are ignored.
  *

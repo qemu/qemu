@@ -20,8 +20,8 @@
  */
 #define SVE_MAX_VQ 16
 
-#define MACHINE     "-machine virt,gic-version=max,accel=tcg "
-#define MACHINE_KVM "-machine virt,gic-version=max,accel=kvm:tcg "
+#define MACHINE     "-machine virt,gic-version=max -accel tcg "
+#define MACHINE_KVM "-machine virt,gic-version=max -accel kvm -accel tcg "
 #define QUERY_HEAD  "{ 'execute': 'query-cpu-model-expansion', " \
                     "  'arguments': { 'type': 'full', "
 #define QUERY_TAIL  "}}"

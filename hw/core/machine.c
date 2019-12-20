@@ -178,86 +178,6 @@ GlobalProperty hw_compat_2_1[] = {
 };
 const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
 
-static char *machine_get_accel(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->accel);
-}
-
-static void machine_set_accel(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->accel);
-    ms->accel = g_strdup(value);
-}
-
-static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
-                                       const char *name, void *opaque,
-                                       Error **errp)
-{
-    Error *err = NULL;
-    MachineState *ms = MACHINE(obj);
-    OnOffSplit mode;
-
-    visit_type_OnOffSplit(v, name, &mode, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    } else {
-        switch (mode) {
-        case ON_OFF_SPLIT_ON:
-            ms->kernel_irqchip_allowed = true;
-            ms->kernel_irqchip_required = true;
-            ms->kernel_irqchip_split = false;
-            break;
-        case ON_OFF_SPLIT_OFF:
-            ms->kernel_irqchip_allowed = false;
-            ms->kernel_irqchip_required = false;
-            ms->kernel_irqchip_split = false;
-            break;
-        case ON_OFF_SPLIT_SPLIT:
-            ms->kernel_irqchip_allowed = true;
-            ms->kernel_irqchip_required = true;
-            ms->kernel_irqchip_split = true;
-            break;
-        default:
-            /* The value was checked in visit_type_OnOffSplit() above. If
-             * we get here, then something is wrong in QEMU.
-             */
-            abort();
-        }
-    }
-}
-
-static void machine_get_kvm_shadow_mem(Object *obj, Visitor *v,
-                                       const char *name, void *opaque,
-                                       Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-    int64_t value = ms->kvm_shadow_mem;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void machine_set_kvm_shadow_mem(Object *obj, Visitor *v,
-                                       const char *name, void *opaque,
-                                       Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-    Error *error = NULL;
-    int64_t value;
-
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-
-    ms->kvm_shadow_mem = value;
-}
-
 static char *machine_get_kernel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -430,20 +350,6 @@ static void machine_set_graphics(Object *obj, bool value, Error **errp)
     MachineState *ms = MACHINE(obj);
 
     ms->enable_graphics = value;
-}
-
-static bool machine_get_igd_gfx_passthru(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->igd_gfx_passthru;
-}
-
-static void machine_set_igd_gfx_passthru(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->igd_gfx_passthru = value;
 }
 
 static char *machine_get_firmware(Object *obj, Error **errp)
@@ -813,23 +719,6 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->numa_mem_align_shift = 23;
     mc->numa_auto_assign_ram = numa_default_auto_assign_ram;
 
-    object_class_property_add_str(oc, "accel",
-        machine_get_accel, machine_set_accel, &error_abort);
-    object_class_property_set_description(oc, "accel",
-        "Accelerator list", &error_abort);
-
-    object_class_property_add(oc, "kernel-irqchip", "on|off|split",
-        NULL, machine_set_kernel_irqchip,
-        NULL, NULL, &error_abort);
-    object_class_property_set_description(oc, "kernel-irqchip",
-        "Configure KVM in-kernel irqchip", &error_abort);
-
-    object_class_property_add(oc, "kvm-shadow-mem", "int",
-        machine_get_kvm_shadow_mem, machine_set_kvm_shadow_mem,
-        NULL, NULL, &error_abort);
-    object_class_property_set_description(oc, "kvm-shadow-mem",
-        "KVM shadow MMU size", &error_abort);
-
     object_class_property_add_str(oc, "kernel",
         machine_get_kernel, machine_set_kernel, &error_abort);
     object_class_property_set_description(oc, "kernel",
@@ -887,12 +776,6 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "graphics",
         "Set on/off to enable/disable graphics emulation", &error_abort);
 
-    object_class_property_add_bool(oc, "igd-passthru",
-        machine_get_igd_gfx_passthru, machine_set_igd_gfx_passthru,
-        &error_abort);
-    object_class_property_set_description(oc, "igd-passthru",
-        "Set on/off to enable/disable igd passthrou", &error_abort);
-
     object_class_property_add_str(oc, "firmware",
         machine_get_firmware, machine_set_firmware,
         &error_abort);
@@ -935,9 +818,6 @@ static void machine_initfn(Object *obj)
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
 
-    ms->kernel_irqchip_allowed = true;
-    ms->kernel_irqchip_split = mc->default_kernel_irqchip_split;
-    ms->kvm_shadow_mem = -1;
     ms->dump_guest_core = true;
     ms->mem_merge = true;
     ms->enable_graphics = true;
@@ -976,7 +856,6 @@ static void machine_finalize(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
 
-    g_free(ms->accel);
     g_free(ms->kernel_filename);
     g_free(ms->initrd_filename);
     g_free(ms->kernel_cmdline);
@@ -992,26 +871,6 @@ static void machine_finalize(Object *obj)
 bool machine_usb(MachineState *machine)
 {
     return machine->usb;
-}
-
-bool machine_kernel_irqchip_allowed(MachineState *machine)
-{
-    return machine->kernel_irqchip_allowed;
-}
-
-bool machine_kernel_irqchip_required(MachineState *machine)
-{
-    return machine->kernel_irqchip_required;
-}
-
-bool machine_kernel_irqchip_split(MachineState *machine)
-{
-    return machine->kernel_irqchip_split;
-}
-
-int machine_kvm_shadow_mem(MachineState *machine)
-{
-    return machine->kvm_shadow_mem;
 }
 
 int machine_phandle_start(MachineState *machine)

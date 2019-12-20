@@ -57,7 +57,7 @@ static void test_machine(const void *machine)
             " -machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken";
     }
 
-    qts = qtest_initf("-M %s,accel=tcg %s -prom-env 'use-nvramrc?=true' "
+    qts = qtest_initf("-M %s -accel tcg %s -prom-env 'use-nvramrc?=true' "
                       "-prom-env 'nvramrc=%x %x l!' ", (const char *)machine,
                       extra_args, MAGIC, ADDRESS);
     check_guest_memory(qts);

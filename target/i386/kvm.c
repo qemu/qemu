@@ -35,7 +35,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "hw/i386/pc.h"
+#include "hw/i386/x86.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
@@ -2163,7 +2163,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
-    shadow_mem = machine_kvm_shadow_mem(ms);
+    shadow_mem = object_property_get_int(OBJECT(s), "kvm-shadow-mem", &error_abort);
     if (shadow_mem != -1) {
         shadow_mem /= 4096;
         ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
@@ -2173,8 +2173,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     if (kvm_check_extension(s, KVM_CAP_X86_SMM) &&
-        object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE) &&
-        pc_machine_is_smm_enabled(PC_MACHINE(ms))) {
+        x86_machine_is_smm_enabled(X86_MACHINE(ms))) {
         smram_machine_done.notify = register_smram_listener;
         qemu_add_machine_init_done_notifier(&smram_machine_done);
     }
@@ -4494,10 +4493,10 @@ void kvm_arch_init_irq_routing(KVMState *s)
     }
 }
 
-int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
+int kvm_arch_irqchip_create(KVMState *s)
 {
     int ret;
-    if (machine_kernel_irqchip_split(ms)) {
+    if (kvm_kernel_irqchip_split()) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_SPLIT_IRQCHIP, 0, 24);
         if (ret) {
             error_report("Could not enable split irqchip mode: %s",
@@ -4511,146 +4510,6 @@ int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
     } else {
         return 0;
     }
-}
-
-/* Classic KVM device assignment interface. Will remain x86 only. */
-int kvm_device_pci_assign(KVMState *s, PCIHostDeviceAddress *dev_addr,
-                          uint32_t flags, uint32_t *dev_id)
-{
-    struct kvm_assigned_pci_dev dev_data = {
-        .segnr = dev_addr->domain,
-        .busnr = dev_addr->bus,
-        .devfn = PCI_DEVFN(dev_addr->slot, dev_addr->function),
-        .flags = flags,
-    };
-    int ret;
-
-    dev_data.assigned_dev_id =
-        (dev_addr->domain << 16) | (dev_addr->bus << 8) | dev_data.devfn;
-
-    ret = kvm_vm_ioctl(s, KVM_ASSIGN_PCI_DEVICE, &dev_data);
-    if (ret < 0) {
-        return ret;
-    }
-
-    *dev_id = dev_data.assigned_dev_id;
-
-    return 0;
-}
-
-int kvm_device_pci_deassign(KVMState *s, uint32_t dev_id)
-{
-    struct kvm_assigned_pci_dev dev_data = {
-        .assigned_dev_id = dev_id,
-    };
-
-    return kvm_vm_ioctl(s, KVM_DEASSIGN_PCI_DEVICE, &dev_data);
-}
-
-static int kvm_assign_irq_internal(KVMState *s, uint32_t dev_id,
-                                   uint32_t irq_type, uint32_t guest_irq)
-{
-    struct kvm_assigned_irq assigned_irq = {
-        .assigned_dev_id = dev_id,
-        .guest_irq = guest_irq,
-        .flags = irq_type,
-    };
-
-    if (kvm_check_extension(s, KVM_CAP_ASSIGN_DEV_IRQ)) {
-        return kvm_vm_ioctl(s, KVM_ASSIGN_DEV_IRQ, &assigned_irq);
-    } else {
-        return kvm_vm_ioctl(s, KVM_ASSIGN_IRQ, &assigned_irq);
-    }
-}
-
-int kvm_device_intx_assign(KVMState *s, uint32_t dev_id, bool use_host_msi,
-                           uint32_t guest_irq)
-{
-    uint32_t irq_type = KVM_DEV_IRQ_GUEST_INTX |
-        (use_host_msi ? KVM_DEV_IRQ_HOST_MSI : KVM_DEV_IRQ_HOST_INTX);
-
-    return kvm_assign_irq_internal(s, dev_id, irq_type, guest_irq);
-}
-
-int kvm_device_intx_set_mask(KVMState *s, uint32_t dev_id, bool masked)
-{
-    struct kvm_assigned_pci_dev dev_data = {
-        .assigned_dev_id = dev_id,
-        .flags = masked ? KVM_DEV_ASSIGN_MASK_INTX : 0,
-    };
-
-    return kvm_vm_ioctl(s, KVM_ASSIGN_SET_INTX_MASK, &dev_data);
-}
-
-static int kvm_deassign_irq_internal(KVMState *s, uint32_t dev_id,
-                                     uint32_t type)
-{
-    struct kvm_assigned_irq assigned_irq = {
-        .assigned_dev_id = dev_id,
-        .flags = type,
-    };
-
-    return kvm_vm_ioctl(s, KVM_DEASSIGN_DEV_IRQ, &assigned_irq);
-}
-
-int kvm_device_intx_deassign(KVMState *s, uint32_t dev_id, bool use_host_msi)
-{
-    return kvm_deassign_irq_internal(s, dev_id, KVM_DEV_IRQ_GUEST_INTX |
-        (use_host_msi ? KVM_DEV_IRQ_HOST_MSI : KVM_DEV_IRQ_HOST_INTX));
-}
-
-int kvm_device_msi_assign(KVMState *s, uint32_t dev_id, int virq)
-{
-    return kvm_assign_irq_internal(s, dev_id, KVM_DEV_IRQ_HOST_MSI |
-                                              KVM_DEV_IRQ_GUEST_MSI, virq);
-}
-
-int kvm_device_msi_deassign(KVMState *s, uint32_t dev_id)
-{
-    return kvm_deassign_irq_internal(s, dev_id, KVM_DEV_IRQ_GUEST_MSI |
-                                                KVM_DEV_IRQ_HOST_MSI);
-}
-
-bool kvm_device_msix_supported(KVMState *s)
-{
-    /* The kernel lacks a corresponding KVM_CAP, so we probe by calling
-     * KVM_ASSIGN_SET_MSIX_NR with an invalid parameter. */
-    return kvm_vm_ioctl(s, KVM_ASSIGN_SET_MSIX_NR, NULL) == -EFAULT;
-}
-
-int kvm_device_msix_init_vectors(KVMState *s, uint32_t dev_id,
-                                 uint32_t nr_vectors)
-{
-    struct kvm_assigned_msix_nr msix_nr = {
-        .assigned_dev_id = dev_id,
-        .entry_nr = nr_vectors,
-    };
-
-    return kvm_vm_ioctl(s, KVM_ASSIGN_SET_MSIX_NR, &msix_nr);
-}
-
-int kvm_device_msix_set_vector(KVMState *s, uint32_t dev_id, uint32_t vector,
-                               int virq)
-{
-    struct kvm_assigned_msix_entry msix_entry = {
-        .assigned_dev_id = dev_id,
-        .gsi = virq,
-        .entry = vector,
-    };
-
-    return kvm_vm_ioctl(s, KVM_ASSIGN_SET_MSIX_ENTRY, &msix_entry);
-}
-
-int kvm_device_msix_assign(KVMState *s, uint32_t dev_id)
-{
-    return kvm_assign_irq_internal(s, dev_id, KVM_DEV_IRQ_HOST_MSIX |
-                                              KVM_DEV_IRQ_GUEST_MSIX, 0);
-}
-
-int kvm_device_msix_deassign(KVMState *s, uint32_t dev_id)
-{
-    return kvm_deassign_irq_internal(s, dev_id, KVM_DEV_IRQ_GUEST_MSIX |
-                                                KVM_DEV_IRQ_HOST_MSIX);
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,

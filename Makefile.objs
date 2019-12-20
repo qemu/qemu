@@ -1,7 +1,7 @@
 #######################################################################
 # Common libraries for tools and emulators
-stub-obj-y = stubs/ util/ crypto/
-util-obj-y = util/ qobject/ qapi/
+stub-obj-y = stubs/
+util-obj-y = crypto/ util/ qobject/ qapi/
 
 chardev-obj-y = chardev/
 
@@ -25,7 +25,6 @@ block-obj-m = block/
 # crypto-obj-y is code used by both qemu system emulation and qemu-img
 
 crypto-obj-y = crypto/
-crypto-user-obj-y = crypto/
 
 #######################################################################
 # qom-obj-y is code used by both qemu system emulation and qemu-img
@@ -55,6 +54,7 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 
 common-obj-$(CONFIG_LINUX) += fsdev/
 
+common-obj-y += accel/
 common-obj-y += migration/
 
 common-obj-y += audio/

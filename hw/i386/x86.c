@@ -34,18 +34,23 @@
 #include "sysemu/numa.h"
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
+#include "hw/intc/i8259.h"
 
 #include "hw/acpi/cpu_hotplug.h"
+#include "hw/irq.h"
 #include "hw/nmi.h"
 #include "hw/loader.h"
 #include "multiboot.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
+#include "config-devices.h"
+#include "kvm_i386.h"
 
 #define BIOS_FILENAME "bios.bin"
 
@@ -218,6 +223,105 @@ static long get_file_size(FILE *f)
     fseek(f, where, SEEK_SET);
 
     return size;
+}
+
+/* TSC handling */
+uint64_t cpu_get_tsc(CPUX86State *env)
+{
+    return cpu_get_ticks();
+}
+
+/* IRQ handling */
+static void pic_irq_request(void *opaque, int irq, int level)
+{
+    CPUState *cs = first_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+
+    trace_x86_pic_interrupt(irq, level);
+    if (cpu->apic_state && !kvm_irqchip_in_kernel()) {
+        CPU_FOREACH(cs) {
+            cpu = X86_CPU(cs);
+            if (apic_accept_pic_intr(cpu->apic_state)) {
+                apic_deliver_pic_intr(cpu->apic_state, level);
+            }
+        }
+    } else {
+        if (level) {
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+    }
+}
+
+qemu_irq x86_allocate_cpu_irq(void)
+{
+    return qemu_allocate_irq(pic_irq_request, NULL, 0);
+}
+
+int cpu_get_pic_interrupt(CPUX86State *env)
+{
+    X86CPU *cpu = env_archcpu(env);
+    int intno;
+
+    if (!kvm_irqchip_in_kernel()) {
+        intno = apic_get_interrupt(cpu->apic_state);
+        if (intno >= 0) {
+            return intno;
+        }
+        /* read the irq from the PIC */
+        if (!apic_accept_pic_intr(cpu->apic_state)) {
+            return -1;
+        }
+    }
+
+    intno = pic_read_irq(isa_pic);
+    return intno;
+}
+
+DeviceState *cpu_get_current_apic(void)
+{
+    if (current_cpu) {
+        X86CPU *cpu = X86_CPU(current_cpu);
+        return cpu->apic_state;
+    } else {
+        return NULL;
+    }
+}
+
+void gsi_handler(void *opaque, int n, int level)
+{
+    GSIState *s = opaque;
+
+    trace_x86_gsi_interrupt(n, level);
+    if (n < ISA_NUM_IRQS) {
+        /* Under KVM, Kernel will forward to both PIC and IOAPIC */
+        qemu_set_irq(s->i8259_irq[n], level);
+    }
+    qemu_set_irq(s->ioapic_irq[n], level);
+}
+
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+    unsigned int i;
+
+    assert(parent_name);
+    if (kvm_ioapic_in_kernel()) {
+        dev = qdev_create(NULL, TYPE_KVM_IOAPIC);
+    } else {
+        dev = qdev_create(NULL, TYPE_IOAPIC);
+    }
+    object_property_add_child(object_resolve_path(parent_name, NULL),
+                              "ioapic", OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    d = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
+
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
+    }
 }
 
 struct setup_data {
@@ -745,10 +849,53 @@ static void x86_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     x86ms->max_ram_below_4g = value;
 }
 
+bool x86_machine_is_smm_enabled(X86MachineState *x86ms)
+{
+    bool smm_available = false;
+
+    if (x86ms->smm == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+
+    if (tcg_enabled() || qtest_enabled()) {
+        smm_available = true;
+    } else if (kvm_enabled()) {
+        smm_available = kvm_has_smm();
+    }
+
+    if (smm_available) {
+        return true;
+    }
+
+    if (x86ms->smm == ON_OFF_AUTO_ON) {
+        error_report("System Management Mode not supported by this hypervisor.");
+        exit(1);
+    }
+    return false;
+}
+
+static void x86_machine_get_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    OnOffAuto smm = x86ms->smm;
+
+    visit_type_OnOffAuto(v, name, &smm, errp);
+}
+
+static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &x86ms->smm, errp);
+}
+
 static void x86_machine_initfn(Object *obj)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
 
+    x86ms->smm = ON_OFF_AUTO_AUTO;
     x86ms->max_ram_below_4g = 0; /* use default */
     x86ms->smp_dies = 1;
 }
@@ -769,9 +916,14 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, X86_MACHINE_MAX_RAM_BELOW_4G, "size",
         x86_machine_get_max_ram_below_4g, x86_machine_set_max_ram_below_4g,
         NULL, NULL, &error_abort);
-
     object_class_property_set_description(oc, X86_MACHINE_MAX_RAM_BELOW_4G,
         "Maximum ram below the 4G boundary (32bit boundary)", &error_abort);
+
+    object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto",
+        x86_machine_get_smm, x86_machine_set_smm,
+        NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, X86_MACHINE_SMM,
+        "Enable SMM", &error_abort);
 }
 
 static const TypeInfo x86_machine_info = {

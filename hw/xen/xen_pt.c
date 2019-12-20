@@ -65,6 +65,8 @@
 #include "qemu/range.h"
 #include "exec/address-spaces.h"
 
+bool has_igd_gfx_passthru;
+
 #define XEN_PT_NR_IRQS (256)
 static uint8_t xen_pt_mapped_machine_irq[XEN_PT_NR_IRQS] = {0};
 
