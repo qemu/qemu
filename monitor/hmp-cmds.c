@@ -2467,23 +2467,31 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
     BlockBackend *local_blk = NULL;
+    bool qdev = qdict_get_try_bool(qdict, "qdev", false);
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
     int ret;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
-        if (bs) {
-            blk = local_blk = blk_new(bdrv_get_aio_context(bs),
-                                      0, BLK_PERM_ALL);
-            ret = blk_insert_bs(blk, bs, &err);
-            if (ret < 0) {
+    if (qdev) {
+        blk = blk_by_qdev_id(device, &err);
+        if (!blk) {
+            goto fail;
+        }
+    } else {
+        blk = blk_by_name(device);
+        if (!blk) {
+            BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
+            if (bs) {
+                blk = local_blk = blk_new(bdrv_get_aio_context(bs),
+                                          0, BLK_PERM_ALL);
+                ret = blk_insert_bs(blk, bs, &err);
+                if (ret < 0) {
+                    goto fail;
+                }
+            } else {
                 goto fail;
             }
-        } else {
-            goto fail;
         }
     }
 

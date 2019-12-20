@@ -1875,9 +1875,11 @@ ETEXI
 
     {
         .name       = "qemu-io",
-        .args_type  = "device:B,command:s",
-        .params     = "[device] \"[command]\"",
-        .help       = "run a qemu-io command on a block device",
+        .args_type  = "qdev:-d,device:B,command:s",
+        .params     = "[-d] [device] \"[command]\"",
+        .help       = "run a qemu-io command on a block device\n\t\t\t"
+                      "-d: [device] is a device ID rather than a "
+                      "drive ID or node name",
         .cmd        = hmp_qemu_io,
     },
 

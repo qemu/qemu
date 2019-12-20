@@ -367,7 +367,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 return -EINVAL;
             }
 
-            if (bitmaps_ext.bitmap_directory_offset & (s->cluster_size - 1)) {
+            if (offset_into_cluster(s, bitmaps_ext.bitmap_directory_offset)) {
                 error_setg(errp, "bitmaps_ext: "
                                  "invalid bitmap directory offset");
                 return -EINVAL;
@@ -1705,13 +1705,13 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     if (!(bdrv_get_flags(bs) & BDRV_O_INACTIVE)) {
         /* It's case 1, 2 or 3.2. Or 3.1 which is BUG in management layer. */
         bool header_updated = qcow2_load_dirty_bitmaps(bs, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto fail;
+        }
 
         update_header = update_header && !header_updated;
-    }
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
     }
 
     if (update_header) {
@@ -1722,7 +1722,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         }
     }
 
-    bs->supported_zero_flags = header.version >= 3 ? BDRV_REQ_MAY_UNMAP : 0;
+    bs->supported_zero_flags = header.version >= 3 ?
+                               BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK : 0;
 
     /* Repair image if dirty */
     if (!(flags & (BDRV_O_CHECK | BDRV_O_INACTIVE)) && !bs->read_only &&
@@ -1958,9 +1959,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_offset;
-    int index_in_cluster, ret;
     unsigned int bytes;
-    int status = 0;
+    int ret, status = 0;
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -1981,8 +1981,7 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
 
     if ((ret == QCOW2_CLUSTER_NORMAL || ret == QCOW2_CLUSTER_ZERO_ALLOC) &&
         !s->crypto) {
-        index_in_cluster = offset & (s->cluster_size - 1);
-        *map = cluster_offset | index_in_cluster;
+        *map = cluster_offset | offset_into_cluster(s, offset);
         *file = s->data_file->bs;
         status |= BDRV_BLOCK_OFFSET_VALID;
     }

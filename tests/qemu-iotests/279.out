@@ -1,0 +1,35 @@
+QA output created by 279
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+
+== qemu-img info --backing-chain ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+backing file: TEST_DIR/t.IMGFMT.mid
+
+image: TEST_DIR/t.IMGFMT.mid
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+backing file: TEST_DIR/t.IMGFMT.base
+
+image: TEST_DIR/t.IMGFMT.base
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+
+== qemu-img info --backing-chain --image-opts ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+backing file: TEST_DIR/t.IMGFMT.mid
+
+image: TEST_DIR/t.IMGFMT.mid
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+backing file: TEST_DIR/t.IMGFMT.base
+
+image: TEST_DIR/t.IMGFMT.base
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+*** done

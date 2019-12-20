@@ -943,7 +943,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/desc', "Invalid parameter 'speed'")
+        self.assert_qmp(result, 'error/desc', "Parameter 'speed' expects a non-negative value")
 
         self.assert_no_active_block_jobs()
 
@@ -952,7 +952,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/desc', "Invalid parameter 'speed'")
+        self.assert_qmp(result, 'error/desc', "Parameter 'speed' expects a non-negative value")
 
         self.cancel_and_wait(resume=True)
 

@@ -162,6 +162,11 @@ def qemu_io(*args):
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
     return subp.communicate()[0]
 
+def qemu_io_log(*args):
+    result = qemu_io(*args)
+    log(result, filters=[filter_testfiles, filter_qemu_io])
+    return result
+
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
     args = qemu_io_args + list(args)
@@ -604,7 +609,7 @@ class VM(qtest.QEMUQtestMachine):
         ]
         error = None
         while True:
-            ev = filter_qmp_event(self.events_wait(events))
+            ev = filter_qmp_event(self.events_wait(events, timeout=wait))
             if ev['event'] != 'JOB_STATUS_CHANGE':
                 if use_log:
                     log(ev)
@@ -617,6 +622,8 @@ class VM(qtest.QEMUQtestMachine):
                         error = j['error']
                         if use_log:
                             log('Job failed: %s' % (j['error']))
+            elif status == 'ready':
+                self.qmp_log('job-complete', id=job)
             elif status == 'pending' and not auto_finalize:
                 if pre_finalize:
                     pre_finalize()
@@ -635,6 +642,22 @@ class VM(qtest.QEMUQtestMachine):
                     self.qmp('job-dismiss', id=job)
             elif status == 'null':
                 return error
+
+    # Returns None on success, and an error string on failure
+    def blockdev_create(self, options, job_id='job0', filters=None):
+        if filters is None:
+            filters = [filter_qmp_testfiles]
+        result = self.qmp_log('blockdev-create', filters=filters,
+                              job_id=job_id, options=options)
+
+        if 'return' in result:
+            assert result['return'] == {}
+            job_result = self.run_job(job_id)
+        else:
+            job_result = result['error']
+
+        log("")
+        return job_result
 
     def enable_migration_events(self, name):
         log('Enabling migration QMP events on %s...' % name)

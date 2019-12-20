@@ -2680,7 +2680,10 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
 
         blk_unref(blk);
 
+        /* Clear parameters that only apply to the topmost image */
         filename = fmt = NULL;
+        image_opts = false;
+
         if (chain) {
             if (info->has_full_backing_filename) {
                 filename = info->full_backing_filename;

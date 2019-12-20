@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Test multiple blockdev-snapshot calls with 'backing': null
+# Test qemu-img --backing-chain --image-opts
 #
 # Copyright (C) 2019 Red Hat, Inc.
 #
@@ -26,6 +26,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$TEST_IMG.mid"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -33,43 +34,22 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-# This is a qcow2 regression test
-_supported_fmt qcow2
+# Backing files are required...
+_supported_fmt qcow qcow2 vmdk qed
 _supported_proto file
 _supported_os Linux
-
-do_run_qemu()
-{
-    echo Testing: "$@"
-    $QEMU -nographic -qmp-pretty stdio -nodefaults "$@"
-    echo
-}
-
-run_qemu()
-{
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp |
-        _filter_generated_node_ids | _filter_imgfmt |
-        _filter_actual_image_size | _filter_img_info
-}
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
 TEST_IMG="$TEST_IMG.mid" _make_test_img -b "$TEST_IMG.base"
 _make_test_img -b "$TEST_IMG.mid"
 
-run_qemu \
-    -blockdev file,node-name=base,filename="$TEST_IMG.base" \
-     -blockdev file,node-name=midf,filename="$TEST_IMG.mid" \
-     -blockdev '{"driver":"qcow2","node-name":"mid","file":"midf","backing":null}' \
-     -blockdev file,node-name=topf,filename="$TEST_IMG" \
-     -blockdev '{"driver":"qcow2","file":"topf","node-name":"top","backing":null}' \
-<<EOF
-{"execute":"qmp_capabilities"}
-{"execute":"blockdev-snapshot","arguments":{"node":"base","overlay":"mid"}}
-{"execute":"blockdev-snapshot","arguments":{"node":"mid","overlay":"top"}}
-{"execute":"query-named-block-nodes"}
-{"execute":"x-debug-query-block-graph"}
-{"execute":"quit"}
-EOF
+echo
+echo '== qemu-img info --backing-chain =='
+_img_info --backing-chain | _filter_img_info
+
+echo
+echo '== qemu-img info --backing-chain --image-opts =='
+TEST_IMG="driver=qcow2,file.driver=file,file.filename=$TEST_IMG" _img_info --backing-chain --image-opts | _filter_img_info
 
 # success, all done
 echo "*** done"

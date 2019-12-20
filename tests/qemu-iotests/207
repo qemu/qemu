@@ -35,13 +35,7 @@ def filter_hash(qmsg):
     return iotests.filter_qmp(qmsg, _filter)
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
-                        filters=[iotests.filter_qmp_testfiles, filter_hash])
-
-    if 'return' in result:
-        assert result['return'] == {}
-        vm.run_job('job0')
-    iotests.log("")
+    vm.blockdev_create(options, filters=[iotests.filter_qmp_testfiles, filter_hash])
 
 with iotests.FilePath('t.img') as disk_path, \
      iotests.VM() as vm:

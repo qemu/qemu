@@ -25,16 +25,6 @@ from iotests import imgfmt
 
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
-def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create',
-                        filters=[iotests.filter_qmp_testfiles],
-                        job_id='job0', options=options)
-
-    if 'return' in result:
-        assert result['return'] == {}
-        vm.run_job('job0')
-    iotests.log("")
-
 with iotests.FilePath('t.qcow2') as disk_path, \
      iotests.FilePath('t.qcow2.base') as backing_path, \
      iotests.VM() as vm:
@@ -50,18 +40,18 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     size = 128 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
     vm.qmp_log('blockdev-add',
                filters=[iotests.filter_qmp_testfiles],
                driver='file', filename=disk_path,
                node_name='imgfile')
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'imgfile',
-                          'size': size })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'imgfile',
+                         'size': size })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -76,23 +66,23 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     size = 64 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0,
-                          'preallocation': 'off',
-                          'nocow': False })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0,
+                         'preallocation': 'off',
+                         'nocow': False })
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'version': 'v3',
-                          'cluster-size': 65536,
-                          'preallocation': 'off',
-                          'lazy-refcounts': False,
-                          'refcount-bits': 16 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'version': 'v3',
+                         'cluster-size': 65536,
+                         'preallocation': 'off',
+                         'lazy-refcounts': False,
+                         'refcount-bits': 16 })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -107,23 +97,23 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     size = 32 * 1024 * 1024
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0,
-                          'preallocation': 'falloc',
-                          'nocow': True })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0,
+                         'preallocation': 'falloc',
+                         'nocow': True })
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'version': 'v3',
-                          'cluster-size': 2097152,
-                          'preallocation': 'metadata',
-                          'lazy-refcounts': True,
-                          'refcount-bits': 1 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'version': 'v3',
+                         'cluster-size': 2097152,
+                         'preallocation': 'metadata',
+                         'lazy-refcounts': True,
+                         'refcount-bits': 1 })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -135,20 +125,20 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': 'file',
-                          'filename': disk_path,
-                          'size': 0 })
+    vm.blockdev_create({ 'driver': 'file',
+                         'filename': disk_path,
+                         'size': 0 })
 
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'backing-file': backing_path,
-                          'backing-fmt': 'qcow2',
-                          'version': 'v2',
-                          'cluster-size': 512 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'backing-file': backing_path,
+                         'backing-fmt': 'qcow2',
+                         'version': 'v2',
+                         'cluster-size': 512 })
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -160,22 +150,22 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': {
-                              'driver': 'file',
-                              'filename': disk_path,
-                          },
-                          'size': size,
-                          'encrypt': {
-                              'format': 'luks',
-                              'key-secret': 'keysec0',
-                              'cipher-alg': 'twofish-128',
-                              'cipher-mode': 'ctr',
-                              'ivgen-alg': 'plain64',
-                              'ivgen-hash-alg': 'md5',
-                              'hash-alg': 'sha1',
-                              'iter-time': 10,
-                          }})
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': {
+                             'driver': 'file',
+                             'filename': disk_path,
+                         },
+                         'size': size,
+                         'encrypt': {
+                             'format': 'luks',
+                             'key-secret': 'keysec0',
+                             'cipher-alg': 'twofish-128',
+                             'cipher-mode': 'ctr',
+                             'ivgen-alg': 'plain64',
+                             'ivgen-hash-alg': 'md5',
+                             'hash-alg': 'sha1',
+                             'iter-time': 10,
+                         }})
     vm.shutdown()
 
     iotests.img_info_log(disk_path)
@@ -187,9 +177,9 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     iotests.log("")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': "this doesn't exist",
-                          'size': size })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': "this doesn't exist",
+                         'size': size })
     vm.shutdown()
 
     #
@@ -211,9 +201,9 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     vm.launch()
     for size in [ 1234, 18446744073709551104, 9223372036854775808,
                   9223372036854775296 ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'size': size })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'size': size })
     vm.shutdown()
 
     #
@@ -222,20 +212,20 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     iotests.log("=== Invalid version ===")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 67108864,
-                          'version': 'v1' })
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 67108864,
-                          'version': 'v2',
-                          'lazy-refcounts': True })
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 67108864,
-                          'version': 'v2',
-                          'refcount-bits': 8 })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 67108864,
+                         'version': 'v1' })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 67108864,
+                         'version': 'v2',
+                         'lazy-refcounts': True })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 67108864,
+                         'version': 'v2',
+                         'refcount-bits': 8 })
     vm.shutdown()
 
     #
@@ -244,15 +234,15 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     iotests.log("=== Invalid backing file options ===")
 
     vm.launch()
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 67108864,
-                          'backing-file': '/dev/null',
-                          'preallocation': 'full' })
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 67108864,
-                          'backing-fmt': imgfmt })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 67108864,
+                         'backing-file': '/dev/null',
+                         'preallocation': 'full' })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 67108864,
+                         'backing-fmt': imgfmt })
     vm.shutdown()
 
     #
@@ -262,14 +252,14 @@ with iotests.FilePath('t.qcow2') as disk_path, \
 
     vm.launch()
     for csize in [ 1234, 128, 4194304, 0 ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'size': 67108864,
-                              'cluster-size': csize })
-    blockdev_create(vm, { 'driver': imgfmt,
-                          'file': 'node0',
-                          'size': 281474976710656,
-                          'cluster-size': 512 })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'size': 67108864,
+                             'cluster-size': csize })
+    vm.blockdev_create({ 'driver': imgfmt,
+                         'file': 'node0',
+                         'size': 281474976710656,
+                         'cluster-size': 512 })
     vm.shutdown()
 
     #
@@ -279,8 +269,8 @@ with iotests.FilePath('t.qcow2') as disk_path, \
 
     vm.launch()
     for refcount_bits in [ 128, 0, 7 ]:
-        blockdev_create(vm, { 'driver': imgfmt,
-                              'file': 'node0',
-                              'size': 67108864,
-                              'refcount-bits': refcount_bits })
+        vm.blockdev_create({ 'driver': imgfmt,
+                             'file': 'node0',
+                             'size': 67108864,
+                             'refcount-bits': refcount_bits })
     vm.shutdown()

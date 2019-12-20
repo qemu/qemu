@@ -1,0 +1,50 @@
+Formatting 'TEST_DIR/PID-base', fmt=qcow2 size=67108864 cluster_size=65536 lazy_refcounts=off refcount_bits=16
+
+=== Launch VM ===
+Enabling migration QMP events on VM...
+{"return": {}}
+
+=== Migrate to file ===
+{"execute": "migrate", "arguments": {"uri": "exec:cat > /dev/null"}}
+{"return": {}}
+{"data": {"status": "setup"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "active"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+
+VM is now stopped:
+completed
+{"execute": "query-status", "arguments": {}}
+{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
+
+=== Create a snapshot of the disk image ===
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-top", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-top", "node-name": "top-file"}}
+{"return": {}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "qcow2", "file": "top-file", "size": 1048576}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": "top-file", "node-name": "top-fmt"}}
+{"return": {}}
+{"execute": "blockdev-snapshot", "arguments": {"node": "base-fmt", "overlay": "top-fmt"}}
+{"return": {}}
+
+=== Resume the VM and simulate a write request ===
+{"execute": "cont", "arguments": {}}
+{"return": {}}
+{"return": ""}
+
+=== Commit it to the backing file ===
+{"execute": "block-commit", "arguments": {"auto-dismiss": false, "device": "top-fmt", "job-id": "job0", "top-node": "top-fmt"}}
+{"return": {}}
+{"execute": "job-complete", "arguments": {"id": "job0"}}
+{"return": {}}
+{"data": {"device": "job0", "len": 65536, "offset": 65536, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_READY", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "job0", "len": 65536, "offset": 65536, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}

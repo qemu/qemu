@@ -1872,12 +1872,12 @@ M: John Snow <jsnow@redhat.com>
 R: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 L: qemu-block@nongnu.org
 S: Supported
-F: util/hbitmap.c
-F: block/dirty-bitmap.c
 F: include/qemu/hbitmap.h
 F: include/block/dirty-bitmap.h
-F: qcow2-bitmap.c
+F: block/dirty-bitmap.c
+F: block/qcow2-bitmap.c
 F: migration/block-dirty-bitmap.c
+F: util/hbitmap.c
 F: tests/test-hbitmap.c
 F: docs/interop/bitmaps.rst
 T: git https://github.com/jnsnow/qemu.git bitmaps

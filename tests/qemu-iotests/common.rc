@@ -217,7 +217,8 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
         TEST_IMG="$DRIVER,file.filename=$TEST_DIR/t.$IMGFMT"
     elif [ "$IMGPROTO" = "nbd" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-        TEST_IMG="$DRIVER,file.driver=nbd,file.type=unix,file.path=$SOCKDIR/nbd"
+        TEST_IMG="$DRIVER,file.driver=nbd,file.type=unix"
+        TEST_IMG="$TEST_IMG,file.path=$SOCK_DIR/nbd"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"

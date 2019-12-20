@@ -3,6 +3,7 @@
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -12,6 +13,7 @@
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 
 image: TEST_IMG
 file format: IMGFMT
@@ -23,6 +25,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -32,6 +35,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 
 image: TEST_IMG
 file format: IMGFMT
@@ -43,6 +47,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -53,6 +58,7 @@ cluster_size: 2097152
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
+
 image: TEST_IMG
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
@@ -62,6 +68,7 @@ virtual size: 1 MiB (1048576 bytes)
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -73,6 +80,7 @@ Job failed: The requested image size cannot be represented in CHS geometry
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
+
 qemu-img: Could not open 'TEST_IMG': File too small for a VHD header
 
 --- Creating empty file ---
@@ -80,6 +88,7 @@ qemu-img: Could not open 'TEST_IMG': File too small for a VHD header
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -89,6 +98,7 @@ qemu-img: Could not open 'TEST_IMG': File too small for a VHD header
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 
 image: TEST_IMG
 file format: IMGFMT
@@ -100,6 +110,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -109,6 +120,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 
 image: TEST_IMG
 file format: IMGFMT
@@ -120,6 +132,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 {"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
 {"return": {}}
 
@@ -129,6 +142,7 @@ cluster_size: 2097152
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
+
 
 image: TEST_IMG
 file format: IMGFMT
