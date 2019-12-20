@@ -192,6 +192,11 @@ static void ps2_reset_queue(PS2State *s)
     q->count = 0;
 }
 
+int ps2_queue_empty(PS2State *s)
+{
+    return s->queue.count == 0;
+}
+
 void ps2_queue_noirq(PS2State *s, int b)
 {
     PS2Queue *q = &s->queue;

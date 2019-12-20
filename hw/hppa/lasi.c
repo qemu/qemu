@@ -22,6 +22,7 @@
 #include "hw/net/lasi_82596.h"
 #include "hw/char/parallel.h"
 #include "hw/char/serial.h"
+#include "hw/input/lasips2.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
 
@@ -324,6 +325,7 @@ DeviceState *lasi_init(MemoryRegion *address_space)
                      lpt_irq, parallel_hds[0]);
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
+
     s->rtc = time(NULL);
     s->rtc_ref = 0;
 
@@ -333,8 +335,14 @@ DeviceState *lasi_init(MemoryRegion *address_space)
                 lasi_get_irq(LASI_UART_HPA));
         serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
                 serial_irq, 8000000 / 16,
-                serial_hd(1), DEVICE_NATIVE_ENDIAN);
+                serial_hd(0), DEVICE_NATIVE_ENDIAN);
     }
+
+    /* PS/2 Keyboard/Mouse */
+    qemu_irq ps2kbd_irq = qemu_allocate_irq(lasi_set_irq, s,
+            lasi_get_irq(LASI_PS2KBD_HPA));
+    lasips2_init(address_space, LASI_PS2KBD_HPA,  ps2kbd_irq);
+
     return dev;
 }
 

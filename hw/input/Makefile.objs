@@ -15,3 +15,4 @@ common-obj-$(CONFIG_VHOST_USER_INPUT) += vhost-user-input.o
 obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_keypad.o
 obj-$(CONFIG_TSC210X) += tsc210x.o
+obj-$(CONFIG_LASIPS2) += lasips2.o

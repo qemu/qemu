@@ -41,3 +41,6 @@ config VHOST_USER_INPUT
 
 config TSC210X
     bool
+
+config LASIPS2
+    select PS2
