@@ -10,3 +10,4 @@ config DINO
     select IDE_CMD646
     select MC146818RTC
     select LSI_SCSI_PCI
+    select LASI_82596

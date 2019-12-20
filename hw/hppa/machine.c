@@ -16,6 +16,7 @@
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "hw/net/lasi_82596.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -101,6 +102,9 @@ static void machine_hppa_init(MachineState *machine)
                                          "ram", ram_size);
     memory_region_add_subregion(addr_space, 0, ram_region);
 
+    /* Init Lasi chip */
+    lasi_init(addr_space);
+
     /* Init Dino (PCI host bus chip).  */
     pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
     assert(pci_bus);
@@ -125,7 +129,9 @@ static void machine_hppa_init(MachineState *machine)
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
+        if (!enable_lasi_lan()) {
+            pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
+        }
     }
 
     /* Load firmware.  Given that this is not "real" firmware,

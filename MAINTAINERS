@@ -178,6 +178,8 @@ S: Maintained
 F: target/hppa/
 F: hw/hppa/
 F: disas/hppa.c
+F: hw/net/*i82596*
+F: include/hw/net/lasi_82596.h
 
 LM32 TCG CPUs
 M: Michael Walle <michael@walle.cc>
