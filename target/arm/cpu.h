@@ -932,7 +932,12 @@ struct ARMCPU {
      */
     DECLARE_BITMAP(sve_vq_map, ARM_MAX_VQ);
     DECLARE_BITMAP(sve_vq_init, ARM_MAX_VQ);
+
+    /* Generic timer counter frequency, in Hz */
+    uint64_t gt_cntfrq_hz;
 };
+
+unsigned int gt_cntfrq_period_ns(ARMCPU *cpu);
 
 void arm_cpu_post_init(Object *obj);
 

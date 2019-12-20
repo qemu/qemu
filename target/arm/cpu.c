@@ -974,6 +974,8 @@ static void arm_cpu_initfn(Object *obj)
     if (tcg_enabled()) {
         cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
     }
+
+    cpu->gt_cntfrq_hz = NANOSECONDS_PER_SECOND / GTIMER_SCALE;
 }
 
 static Property arm_cpu_reset_cbar_property =
@@ -1053,6 +1055,12 @@ static void arm_set_init_svtor(Object *obj, Visitor *v, const char *name,
     ARMCPU *cpu = ARM_CPU(obj);
 
     visit_type_uint32(v, name, &cpu->init_svtor, errp);
+}
+
+unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
+{
+    return NANOSECONDS_PER_SECOND > cpu->gt_cntfrq_hz ?
+      NANOSECONDS_PER_SECOND / cpu->gt_cntfrq_hz : 1;
 }
 
 void arm_cpu_post_init(Object *obj)
