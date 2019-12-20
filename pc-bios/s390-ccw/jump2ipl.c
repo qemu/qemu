@@ -12,11 +12,11 @@
 #define KERN_IMAGE_START 0x010000UL
 #define PSW_MASK_64 0x0000000100000000ULL
 #define PSW_MASK_32 0x0000000080000000ULL
-#define IPL_PSW_MASK (PSW_MASK_32 | PSW_MASK_64)
+#define PSW_MASK_SHORTPSW 0x0008000000000000ULL
+#define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_32 | PSW_MASK_64)
 
 typedef struct ResetInfo {
-    uint32_t ipl_mask;
-    uint32_t ipl_addr;
+    uint64_t ipl_psw;
     uint32_t ipl_continue;
 } ResetInfo;
 
@@ -50,7 +50,9 @@ void jump_to_IPL_code(uint64_t address)
     ResetInfo *current = 0;
 
     save = *current;
-    current->ipl_addr = (uint32_t) (uint64_t) &jump_to_IPL_2;
+
+    current->ipl_psw = (uint64_t) &jump_to_IPL_2;
+    current->ipl_psw |= RESET_PSW_MASK;
     current->ipl_continue = address & 0x7fffffff;
 
     debug_print_int("set IPL addr to", current->ipl_continue);
@@ -82,7 +84,7 @@ void jump_to_low_kernel(void)
     }
 
     /* Trying to get PSW at zero address */
-    if (*((uint64_t *)0) & IPL_PSW_MASK) {
+    if (*((uint64_t *)0) & RESET_PSW_MASK) {
         jump_to_IPL_code((*((uint64_t *)0)) & 0x7fffffff);
     }
 
