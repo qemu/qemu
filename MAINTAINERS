@@ -1483,6 +1483,7 @@ S: Odd Fixes
 F: include/hw/sd/sd*
 F: hw/sd/core.c
 F: hw/sd/sd*
+F: hw/sd/ssi-sd.c
 F: tests/sd*
 
 USB
