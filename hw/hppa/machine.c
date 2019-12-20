@@ -75,6 +75,7 @@ static void machine_hppa_init(MachineState *machine)
     MemoryRegion *cpu_region;
     long i;
     unsigned int smp_cpus = machine->smp.cpus;
+    SysBusDevice *s;
 
     ram_size = machine->ram_size;
 
@@ -126,6 +127,15 @@ static void machine_hppa_init(MachineState *machine)
     /* SCSI disk setup. */
     dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
     lsi53c8xx_handle_legacy_cmdline(dev);
+
+    /* Graphics setup. */
+    if (machine->enable_graphics && vga_interface_type != VGA_NONE) {
+        dev = qdev_create(NULL, "artist");
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(s, 0, LASI_GFX_HPA);
+        sysbus_mmio_map(s, 1, ARTIST_FB_ADDR);
+    }
 
     /* Network setup. */
     for (i = 0; i < nb_nics; i++) {
