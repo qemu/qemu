@@ -115,7 +115,6 @@ typedef struct MOS6522State {
     uint8_t pcr;
     uint8_t ifr;
     uint8_t ier;
-    uint8_t anh;
 
     MOS6522Timer timers[2];
     uint64_t frequency;
