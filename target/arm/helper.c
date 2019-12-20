@@ -11512,6 +11512,20 @@ void HELPER(rebuild_hflags_a64)(CPUARMState *env, int el)
     env->hflags = rebuild_hflags_a64(env, el, fp_el, mmu_idx);
 }
 
+static inline void assert_hflags_rebuild_correctly(CPUARMState *env)
+{
+#ifdef CONFIG_DEBUG_TCG
+    uint32_t env_flags_current = env->hflags;
+    uint32_t env_flags_rebuilt = rebuild_hflags_internal(env);
+
+    if (unlikely(env_flags_current != env_flags_rebuilt)) {
+        fprintf(stderr, "TCG hflags mismatch (current:0x%08x rebuilt:0x%08x)\n",
+                env_flags_current, env_flags_rebuilt);
+        abort();
+    }
+#endif
+}
+
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
@@ -11519,9 +11533,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     uint32_t pstate_for_ss;
 
     *cs_base = 0;
-#ifdef CONFIG_DEBUG_TCG
-    assert(flags == rebuild_hflags_internal(env));
-#endif
+    assert_hflags_rebuild_correctly(env);
 
     if (FIELD_EX32(flags, TBFLAG_ANY, AARCH64_STATE)) {
         *pc = env->pc;
