@@ -365,9 +365,8 @@ S: Maintained
 F: target/arm/kvm.c
 
 MIPS KVM CPUs
-M: James Hogan <jhogan@kernel.org>
 R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
-S: Maintained
+S: Orphan
 F: target/mips/kvm.c
 
 PPC KVM CPUs
