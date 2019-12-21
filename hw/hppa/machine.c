@@ -127,10 +127,10 @@ static void machine_hppa_init(MachineState *machine)
     dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
     lsi53c8xx_handle_legacy_cmdline(dev);
 
-    /* Network setup.  e1000 is good enough, failing Tulip support.  */
+    /* Network setup. */
     for (i = 0; i < nb_nics; i++) {
         if (!enable_lasi_lan()) {
-            pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
         }
     }
 
