@@ -196,7 +196,7 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
     }
 
     top->total_sectors = source->total_sectors;
-    top->opaque = state = g_new0(BDRVBackupTopState, 1);
+    state = top->opaque;
 
     bdrv_ref(target);
     state->target = bdrv_attach_child(top, target, "target", &child_file, errp);
