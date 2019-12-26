@@ -2344,6 +2344,7 @@ void virtio_delete_queue(VirtQueue *vq)
     vq->handle_aio_output = NULL;
     g_free(vq->used_elems);
     vq->used_elems = NULL;
+    virtio_virtqueue_reset_region_cache(vq);
 }
 
 void virtio_del_queue(VirtIODevice *vdev, int n)
