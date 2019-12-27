@@ -47,7 +47,7 @@ class QEMUMonitorProtocol(object):
                         or a tuple in the form ( address, port ) for a TCP
                         connection
         @param server: server mode listens on the socket (bool)
-        @raise socket.error on socket connection errors
+        @raise OSError on socket connection errors
         @note No connection is established, this is done by the connect() or
               accept() methods
         """
@@ -107,8 +107,8 @@ class QEMUMonitorProtocol(object):
         self.__sock.setblocking(0)
         try:
             self.__json_read()
-        except socket.error as err:
-            if err[0] == errno.EAGAIN:
+        except OSError as err:
+            if err.errno == errno.EAGAIN:
                 # No data available
                 pass
         self.__sock.setblocking(1)
@@ -133,7 +133,7 @@ class QEMUMonitorProtocol(object):
         Connect to the QMP Monitor and perform capabilities negotiation.
 
         @return QMP greeting dict
-        @raise socket.error on socket connection errors
+        @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
@@ -147,7 +147,7 @@ class QEMUMonitorProtocol(object):
         Await connection from QMP Monitor and perform capabilities negotiation.
 
         @return QMP greeting dict
-        @raise socket.error on socket connection errors
+        @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
@@ -167,10 +167,10 @@ class QEMUMonitorProtocol(object):
         self.logger.debug(">>> %s", qmp_cmd)
         try:
             self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
-        except socket.error as err:
-            if err[0] == errno.EPIPE:
+        except OSError as err:
+            if err.errno == errno.EPIPE:
                 return
-            raise socket.error(err)
+            raise err
         resp = self.__json_read()
         self.logger.debug("<<< %s", resp)
         return resp
