@@ -1,5 +1,4 @@
-# QEMU Monitor Protocol Python class
-#
+""" QEMU Monitor Protocol Python class """
 # Copyright (C) 2009, 2010 Red Hat Inc.
 #
 # Authors:
@@ -15,22 +14,34 @@ import logging
 
 
 class QMPError(Exception):
-    pass
+    """
+    QMP base exception
+    """
 
 
 class QMPConnectError(QMPError):
-    pass
+    """
+    QMP connection exception
+    """
 
 
 class QMPCapabilitiesError(QMPError):
-    pass
+    """
+    QMP negotiate capabilities exception
+    """
 
 
 class QMPTimeoutError(QMPError):
-    pass
+    """
+    QMP timeout exception
+    """
 
 
-class QEMUMonitorProtocol(object):
+class QEMUMonitorProtocol:
+    """
+    Provide an API to connect to QEMU via QEMU Monitor Protocol (QMP) and then
+    allow to handle commands and events.
+    """
 
     #: Logger object for debugging messages
     logger = logging.getLogger('QMP')
@@ -81,7 +92,7 @@ class QEMUMonitorProtocol(object):
         while True:
             data = self.__sockfile.readline()
             if not data:
-                return
+                return None
             resp = json.loads(data)
             if 'event' in resp:
                 self.logger.debug("<<< %s", resp)
@@ -132,7 +143,7 @@ class QEMUMonitorProtocol(object):
         """
         Connect to the QMP Monitor and perform capabilities negotiation.
 
-        @return QMP greeting dict
+        @return QMP greeting dict, or None if negotiate is false
         @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
@@ -141,6 +152,7 @@ class QEMUMonitorProtocol(object):
         self.__sockfile = self.__sock.makefile()
         if negotiate:
             return self.__negotiate_capabilities()
+        return None
 
     def accept(self):
         """
@@ -169,7 +181,7 @@ class QEMUMonitorProtocol(object):
             self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
         except OSError as err:
             if err.errno == errno.EPIPE:
-                return
+                return None
             raise err
         resp = self.__json_read()
         self.logger.debug("<<< %s", resp)
@@ -243,14 +255,33 @@ class QEMUMonitorProtocol(object):
         self.__events = []
 
     def close(self):
+        """
+        Close the socket and socket file.
+        """
         self.__sock.close()
         self.__sockfile.close()
 
     def settimeout(self, timeout):
+        """
+        Set the socket timeout.
+
+        @param timeout (float): timeout in seconds, or None.
+        @note This is a wrap around socket.settimeout
+        """
         self.__sock.settimeout(timeout)
 
     def get_sock_fd(self):
+        """
+        Get the socket file descriptor.
+
+        @return The file descriptor number.
+        """
         return self.__sock.fileno()
 
     def is_scm_available(self):
+        """
+        Check if the socket allows for SCM_RIGHTS.
+
+        @return True if SCM_RIGHTS is available, otherwise False.
+        """
         return self.__sock.family == socket.AF_UNIX
