@@ -45,10 +45,6 @@ class QEMUMonitorProtocol:
 
     #: Logger object for debugging messages
     logger = logging.getLogger('QMP')
-    #: Socket's error class
-    error = socket.error
-    #: Socket's timeout
-    timeout = socket.timeout
 
     def __init__(self, address, server=False):
         """
