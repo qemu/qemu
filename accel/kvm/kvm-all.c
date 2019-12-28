@@ -98,7 +98,7 @@ struct KVMState
     int kvm_shadow_mem;
     bool kernel_irqchip_allowed;
     bool kernel_irqchip_required;
-    bool kernel_irqchip_split;
+    OnOffAuto kernel_irqchip_split;
     bool sync_mmu;
     bool manual_dirty_log_protect;
     /* The man page (and posix) say ioctl numbers are signed int, but
@@ -1783,6 +1783,7 @@ static void kvm_irqchip_create(KVMState *s)
 {
     int ret;
 
+    assert(s->kernel_irqchip_split != ON_OFF_AUTO_AUTO);
     if (kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
         ;
     } else if (kvm_check_extension(s, KVM_CAP_S390_IRQCHIP)) {
@@ -1799,7 +1800,7 @@ static void kvm_irqchip_create(KVMState *s)
      * in-kernel irqchip for us */
     ret = kvm_arch_irqchip_create(s);
     if (ret == 0) {
-        if (s->kernel_irqchip_split) {
+        if (s->kernel_irqchip_split == ON_OFF_AUTO_ON) {
             perror("Split IRQ chip mode not supported.");
             exit(1);
         } else {
@@ -2068,6 +2069,10 @@ static int kvm_init(MachineState *ms)
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
+    }
+
+    if (s->kernel_irqchip_split == ON_OFF_AUTO_AUTO) {
+        s->kernel_irqchip_split = mc->default_kernel_irqchip_split ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
 
     if (s->kernel_irqchip_allowed) {
@@ -3005,17 +3010,17 @@ static void kvm_set_kernel_irqchip(Object *obj, Visitor *v,
         case ON_OFF_SPLIT_ON:
             s->kernel_irqchip_allowed = true;
             s->kernel_irqchip_required = true;
-            s->kernel_irqchip_split = false;
+            s->kernel_irqchip_split = ON_OFF_AUTO_OFF;
             break;
         case ON_OFF_SPLIT_OFF:
             s->kernel_irqchip_allowed = false;
             s->kernel_irqchip_required = false;
-            s->kernel_irqchip_split = false;
+            s->kernel_irqchip_split = ON_OFF_AUTO_OFF;
             break;
         case ON_OFF_SPLIT_SPLIT:
             s->kernel_irqchip_allowed = true;
             s->kernel_irqchip_required = true;
-            s->kernel_irqchip_split = true;
+            s->kernel_irqchip_split = ON_OFF_AUTO_ON;
             break;
         default:
             /* The value was checked in visit_type_OnOffSplit() above. If
@@ -3038,7 +3043,7 @@ bool kvm_kernel_irqchip_required(void)
 
 bool kvm_kernel_irqchip_split(void)
 {
-    return kvm_state->kernel_irqchip_split;
+    return kvm_state->kernel_irqchip_split == ON_OFF_AUTO_ON;
 }
 
 static void kvm_accel_instance_init(Object *obj)
@@ -3046,6 +3051,8 @@ static void kvm_accel_instance_init(Object *obj)
     KVMState *s = KVM_STATE(obj);
 
     s->kvm_shadow_mem = -1;
+    s->kernel_irqchip_allowed = true;
+    s->kernel_irqchip_split = ON_OFF_AUTO_AUTO;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
