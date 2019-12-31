@@ -7,14 +7,11 @@ obj-$(CONFIG_PSERIES) += spapr_pci.o spapr_rtc.o spapr_drc.o
 obj-$(CONFIG_PSERIES) += spapr_cpu_core.o spapr_ovec.o spapr_irq.o
 obj-$(CONFIG_PSERIES) += spapr_tpm_proxy.o
 obj-$(CONFIG_SPAPR_RNG) +=  spapr_rng.o
+obj-$(call land,$(CONFIG_PSERIES),$(CONFIG_LINUX)) += spapr_pci_vfio.o spapr_pci_nvlink2.o
 # IBM PowerNV
 obj-$(CONFIG_POWERNV) += pnv.o pnv_xscom.o pnv_core.o pnv_lpc.o pnv_psi.o pnv_occ.o pnv_bmc.o
 obj-$(CONFIG_POWERNV) += pnv_homer.o pnv_pnor.o
 
-
-ifeq ($(CONFIG_PCI)$(CONFIG_PSERIES)$(CONFIG_LINUX), yyy)
-obj-y += spapr_pci_vfio.o spapr_pci_nvlink2.o
-endif
 obj-$(CONFIG_PSERIES) += spapr_rtas_ddw.o
 # PowerPC 4xx boards
 obj-$(CONFIG_PPC405) += ppc405_boards.o ppc405_uc.o
