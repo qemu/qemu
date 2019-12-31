@@ -12,6 +12,7 @@ config SUN4M
     select LANCE
     select M48T59
     select STP2000
+    select CHRP_NVRAM
 
 config LEON3
     bool

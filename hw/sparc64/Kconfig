@@ -12,6 +12,7 @@ config SUN4U
     select IDE_CMD646
     select PCKBD
     select SIMBA
+    select CHRP_NVRAM
 
 config NIAGARA
     bool

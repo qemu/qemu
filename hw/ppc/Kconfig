@@ -11,6 +11,7 @@ config PSERIES
     select XIVE_SPAPR
     select MSI_NONBROKEN
     select FDT_PPC
+    select CHRP_NVRAM
 
 config SPAPR_RNG
     bool
