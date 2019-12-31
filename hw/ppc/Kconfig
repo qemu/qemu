@@ -110,6 +110,7 @@ config E500
 
 config VIRTEX
     bool
+    select PPC4XX
     select PFLASH_CFI01
     select SERIAL
     select XILINX
