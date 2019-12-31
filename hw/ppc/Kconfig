@@ -50,6 +50,7 @@ config PPC4XX
 
 config SAM460EX
     bool
+    select PPC405
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
