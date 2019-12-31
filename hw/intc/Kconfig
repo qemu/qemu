@@ -3,6 +3,7 @@ config HEATHROW_PIC
 
 config I8259
     bool
+    select ISA_BUS
 
 config PL190
     bool
