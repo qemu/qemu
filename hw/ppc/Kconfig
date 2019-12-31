@@ -72,6 +72,7 @@ config PREP
     select M48T59
     select PC87312
     select RS6000_MC
+    select FW_CFG_PPC
 
 config RS6000_MC
     bool
@@ -85,6 +86,7 @@ config MAC_OLDWORLD
     select GRACKLE_PCI
     select HEATHROW_PIC
     select MACIO
+    select FW_CFG_PPC
 
 config MAC_NEWWORLD
     bool
@@ -96,6 +98,7 @@ config MAC_NEWWORLD
     select MACIO_GPIO
     select MAC_PMU
     select UNIN_PCI
+    select FW_CFG_PPC
 
 config E500
     bool
@@ -130,3 +133,6 @@ config XIVE_KVM
     bool
     default y
     depends on XIVE_SPAPR && KVM
+
+config FW_CFG_PPC
+    bool
