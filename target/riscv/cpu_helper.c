@@ -22,7 +22,7 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "tcg-op.h"
+#include "tcg/tcg-op.h"
 #include "trace.h"
 
 int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)

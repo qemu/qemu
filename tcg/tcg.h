@@ -31,7 +31,7 @@
 #include "qemu/bitops.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
-#include "tcg-mo.h"
+#include "tcg/tcg-mo.h"
 #include "tcg-target.h"
 #include "qemu/int128.h"
 
@@ -211,7 +211,7 @@ typedef uint64_t TCGRegSet;
 
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
-#include "tcg-opc.h"
+#include "tcg/tcg-opc.h"
 #undef DEF
     NB_OPS,
 } TCGOpcode;

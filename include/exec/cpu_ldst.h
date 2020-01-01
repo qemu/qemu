@@ -214,7 +214,7 @@ static inline void cpu_stq_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 #else
 
 /* Needed for TCG_OVERSIZED_GUEST */
-#include "tcg.h"
+#include "tcg/tcg.h"
 
 static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
 {

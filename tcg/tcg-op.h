@@ -25,7 +25,7 @@
 #ifndef TCG_TCG_OP_H
 #define TCG_TCG_OP_H
 
-#include "tcg.h"
+#include "tcg/tcg.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
