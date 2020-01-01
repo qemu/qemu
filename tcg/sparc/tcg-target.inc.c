@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-pool.inc.c"
+#include "../tcg-pool.inc.c"
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
