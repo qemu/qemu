@@ -2441,7 +2441,7 @@ static void lo_copy_file_range(fuse_req_t req, fuse_ino_t ino_in, off_t off_in,
 
     res = copy_file_range(in_fd, &off_in, out_fd, &off_out, len, flags);
     if (res < 0) {
-        fuse_reply_err(req, -errno);
+        fuse_reply_err(req, errno);
     } else {
         fuse_reply_write(req, res);
     }
