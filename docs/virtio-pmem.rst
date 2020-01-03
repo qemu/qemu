@@ -27,17 +27,18 @@ virtio pmem usage
 -----------------
 
   A virtio pmem device backed by a memory-backend-file can be created on
-  the QEMU command line as in the following example:
+  the QEMU command line as in the following example::
 
-  -object memory-backend-file,id=mem1,share,mem-path=./virtio_pmem.img,size=4G
-  -device virtio-pmem-pci,memdev=mem1,id=nv1
+    -object memory-backend-file,id=mem1,share,mem-path=./virtio_pmem.img,size=4G
+    -device virtio-pmem-pci,memdev=mem1,id=nv1
 
-   where:
-   - "object memory-backend-file,id=mem1,share,mem-path=<image>, size=<image size>"
-     creates a backend file with the specified size.
+  where:
 
-   - "device virtio-pmem-pci,id=nvdimm1,memdev=mem1" creates a virtio pmem
-     pci device whose storage is provided by above memory backend device.
+  - "object memory-backend-file,id=mem1,share,mem-path=<image>, size=<image size>"
+    creates a backend file with the specified size.
+
+  - "device virtio-pmem-pci,id=nvdimm1,memdev=mem1" creates a virtio pmem
+    pci device whose storage is provided by above memory backend device.
 
   Multiple virtio pmem devices can be created if multiple pairs of "-object"
   and "-device" are provided.
@@ -50,7 +51,7 @@ memory backing has to be added via 'object_add'; afterwards, the virtio
 pmem device can be added via 'device_add'.
 
 For example, the following commands add another 4GB virtio pmem device to
-the guest:
+the guest::
 
  (qemu) object_add memory-backend-file,id=mem2,share=on,mem-path=virtio_pmem2.img,size=4G
  (qemu) device_add virtio-pmem-pci,id=virtio_pmem2,memdev=mem2
