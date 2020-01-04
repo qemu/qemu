@@ -162,6 +162,10 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
                     "pa_threaded_mainloop_lock failed\n");
+    if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
+        /* wait for stream to become ready */
+        goto unlock;
+    }
 
     while (total < length) {
         size_t l;
@@ -191,6 +195,7 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
         }
     }
 
+unlock:
     pa_threaded_mainloop_unlock(c->mainloop);
     return total;
 
