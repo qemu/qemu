@@ -536,7 +536,6 @@ static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
 {
     int err;
 
-    pa_threaded_mainloop_lock(c->mainloop);
     /*
      * wait until actually connects. workaround pa bug #247
      * https://gitlab.freedesktop.org/pulseaudio/pulseaudio/issues/247
@@ -550,7 +549,6 @@ static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
         dolog("Failed to disconnect! err=%d\n", err);
     }
     pa_stream_unref(stream);
-    pa_threaded_mainloop_unlock(c->mainloop);
 }
 
 static void qpa_fini_out (HWVoiceOut *hw)
@@ -558,8 +556,12 @@ static void qpa_fini_out (HWVoiceOut *hw)
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     if (pa->stream) {
-        qpa_simple_disconnect(pa->g->conn, pa->stream);
+        PAConnection *c = pa->g->conn;
+
+        pa_threaded_mainloop_lock(c->mainloop);
+        qpa_simple_disconnect(c, pa->stream);
         pa->stream = NULL;
+        pa_threaded_mainloop_unlock(c->mainloop);
     }
 }
 
@@ -568,8 +570,20 @@ static void qpa_fini_in (HWVoiceIn *hw)
     PAVoiceIn *pa = (PAVoiceIn *) hw;
 
     if (pa->stream) {
-        qpa_simple_disconnect(pa->g->conn, pa->stream);
+        PAConnection *c = pa->g->conn;
+
+        pa_threaded_mainloop_lock(c->mainloop);
+        if (pa->read_length) {
+            int r = pa_stream_drop(pa->stream);
+            if (r) {
+                qpa_logerr(pa_context_errno(c->context),
+                           "pa_stream_drop failed\n");
+            }
+            pa->read_length = 0;
+        }
+        qpa_simple_disconnect(c, pa->stream);
         pa->stream = NULL;
+        pa_threaded_mainloop_unlock(c->mainloop);
     }
 }
 
