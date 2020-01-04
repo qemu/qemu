@@ -338,8 +338,6 @@ static void hda_audio_output_cb(void *opaque, int avail)
         return;
     }
 
-    hda_timer_sync_adjust(st, (wpos - rpos) - to_transfer - (B_SIZE >> 1));
-
     while (to_transfer) {
         uint32_t start = (uint32_t) (rpos & B_MASK);
         uint32_t chunk = (uint32_t) MIN(B_SIZE - start, to_transfer);
@@ -351,6 +349,8 @@ static void hda_audio_output_cb(void *opaque, int avail)
             break;
         }
     }
+
+    hda_timer_sync_adjust(st, (wpos - rpos) - (B_SIZE >> 1));
 }
 
 static void hda_audio_compat_input_cb(void *opaque, int avail)
