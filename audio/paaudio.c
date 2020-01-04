@@ -156,34 +156,43 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
 {
     PAVoiceIn *p = (PAVoiceIn *) hw;
     PAConnection *c = p->g->conn;
-    size_t l;
-    int r;
+    size_t total = 0;
 
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
                     "pa_threaded_mainloop_lock failed\n");
 
-    if (!p->read_length) {
-        r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
-        CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                           "pa_stream_peek failed\n");
-    }
+    while (total < length) {
+        size_t l;
+        int r;
 
-    l = MIN(p->read_length, length);
-    memcpy(data, p->read_data, l);
+        if (!p->read_length) {
+            r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
+            CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
+                               "pa_stream_peek failed\n");
+            if (!p->read_length) {
+                /* buffer is empty */
+                break;
+            }
+        }
 
-    p->read_data += l;
-    p->read_length -= l;
+        l = MIN(p->read_length, length - total);
+        memcpy((char *)data + total, p->read_data, l);
 
-    if (!p->read_length) {
-        r = pa_stream_drop(p->stream);
-        CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                           "pa_stream_drop failed\n");
+        p->read_data += l;
+        p->read_length -= l;
+        total += l;
+
+        if (!p->read_length) {
+            r = pa_stream_drop(p->stream);
+            CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
+                               "pa_stream_drop failed\n");
+        }
     }
 
     pa_threaded_mainloop_unlock(c->mainloop);
-    return l;
+    return total;
 
 unlock_and_fail:
     pa_threaded_mainloop_unlock(c->mainloop);
