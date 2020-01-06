@@ -802,6 +802,13 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         object_property_set_int(chip, machine->smp.cores,
                                 "nr-cores", &error_fatal);
+        /*
+         * The POWER8 machine use the XICS interrupt interface.
+         * Propagate the XICS fabric to the chip and its controllers.
+         */
+        if (object_dynamic_cast(OBJECT(pnv), TYPE_XICS_FABRIC)) {
+            object_property_set_link(chip, OBJECT(pnv), "xics", &error_abort);
+        }
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
@@ -843,12 +850,12 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
 static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
+    Pnv8Chip *chip8 = PNV8_CHIP(chip);
     Error *local_err = NULL;
     Object *obj;
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
-    obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
-                     &local_err);
+    obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, chip8->xics, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1002,6 +1009,12 @@ static void pnv_chip_power8_instance_init(Object *obj)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
 
+    object_property_add_link(obj, "xics", TYPE_XICS_FABRIC,
+                             (Object **)&chip8->xics,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_STRONG,
+                             &error_abort);
+
     object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
                             TYPE_PNV8_PSI, &error_abort, NULL);
 
@@ -1021,7 +1034,6 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     int i, j;
     char *name;
-    XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
 
     name = g_strdup_printf("icp-%x", chip->chip_id);
     memory_region_init(&chip8->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
@@ -1037,7 +1049,7 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
 
         for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
             uint32_t pir = pcc->core_pir(chip, core_hwid) + j;
-            PnvICPState *icp = PNV_ICP(xics_icp_get(xi, pir));
+            PnvICPState *icp = PNV_ICP(xics_icp_get(chip8->xics, pir));
 
             memory_region_add_subregion(&chip8->icp_mmio, pir << 12,
                                         &icp->mmio);
@@ -1052,6 +1064,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     Pnv8Chip *chip8 = PNV8_CHIP(dev);
     Pnv8Psi *psi8 = &chip8->psi;
     Error *local_err = NULL;
+
+    assert(chip8->xics);
 
     /* XSCOM bridge is first */
     pnv_xscom_realize(chip, PNV_XSCOM_SIZE, &local_err);
@@ -1070,7 +1084,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip8->psi), PNV_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    object_property_set_link(OBJECT(&chip8->psi), OBJECT(qdev_get_machine()),
+    object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip8->xics),
                              ICS_PROP_XICS, &error_abort);
     object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
     if (local_err) {

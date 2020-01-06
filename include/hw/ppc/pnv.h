@@ -72,6 +72,8 @@ typedef struct Pnv8Chip {
     Pnv8Psi      psi;
     PnvOCC       occ;
     PnvHomer     homer;
+
+    XICSFabric    *xics;
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
