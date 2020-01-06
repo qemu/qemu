@@ -49,7 +49,7 @@ qemu_img_create('-f', iotests.imgfmt, '-o', 'preallocation=metadata', disk,
                 str(size))
 
 vm = QEMUMachine(iotests.qemu_prog)
-vm.add_args('-machine', 'accel=kvm:tcg')
+vm.add_args('-accel', 'kvm', '-accel', 'tcg')
 if iotests.qemu_default_machine == 's390-ccw-virtio':
         vm.add_args('-no-shutdown')
 vm.add_args('-drive', 'id=src,file=' + disk)
