@@ -156,34 +156,48 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
 {
     PAVoiceIn *p = (PAVoiceIn *) hw;
     PAConnection *c = p->g->conn;
-    size_t l;
-    int r;
+    size_t total = 0;
 
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
                     "pa_threaded_mainloop_lock failed\n");
-
-    if (!p->read_length) {
-        r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
-        CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                           "pa_stream_peek failed\n");
+    if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
+        /* wait for stream to become ready */
+        goto unlock;
     }
 
-    l = MIN(p->read_length, length);
-    memcpy(data, p->read_data, l);
+    while (total < length) {
+        size_t l;
+        int r;
 
-    p->read_data += l;
-    p->read_length -= l;
+        if (!p->read_length) {
+            r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
+            CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
+                               "pa_stream_peek failed\n");
+            if (!p->read_length) {
+                /* buffer is empty */
+                break;
+            }
+        }
 
-    if (!p->read_length) {
-        r = pa_stream_drop(p->stream);
-        CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                           "pa_stream_drop failed\n");
+        l = MIN(p->read_length, length - total);
+        memcpy((char *)data + total, p->read_data, l);
+
+        p->read_data += l;
+        p->read_length -= l;
+        total += l;
+
+        if (!p->read_length) {
+            r = pa_stream_drop(p->stream);
+            CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
+                               "pa_stream_drop failed\n");
+        }
     }
 
+unlock:
     pa_threaded_mainloop_unlock(c->mainloop);
-    return l;
+    return total;
 
 unlock_and_fail:
     pa_threaded_mainloop_unlock(c->mainloop);
@@ -536,7 +550,6 @@ static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
 {
     int err;
 
-    pa_threaded_mainloop_lock(c->mainloop);
     /*
      * wait until actually connects. workaround pa bug #247
      * https://gitlab.freedesktop.org/pulseaudio/pulseaudio/issues/247
@@ -550,7 +563,6 @@ static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
         dolog("Failed to disconnect! err=%d\n", err);
     }
     pa_stream_unref(stream);
-    pa_threaded_mainloop_unlock(c->mainloop);
 }
 
 static void qpa_fini_out (HWVoiceOut *hw)
@@ -558,8 +570,12 @@ static void qpa_fini_out (HWVoiceOut *hw)
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     if (pa->stream) {
-        qpa_simple_disconnect(pa->g->conn, pa->stream);
+        PAConnection *c = pa->g->conn;
+
+        pa_threaded_mainloop_lock(c->mainloop);
+        qpa_simple_disconnect(c, pa->stream);
         pa->stream = NULL;
+        pa_threaded_mainloop_unlock(c->mainloop);
     }
 }
 
@@ -568,8 +584,20 @@ static void qpa_fini_in (HWVoiceIn *hw)
     PAVoiceIn *pa = (PAVoiceIn *) hw;
 
     if (pa->stream) {
-        qpa_simple_disconnect(pa->g->conn, pa->stream);
+        PAConnection *c = pa->g->conn;
+
+        pa_threaded_mainloop_lock(c->mainloop);
+        if (pa->read_length) {
+            int r = pa_stream_drop(pa->stream);
+            if (r) {
+                qpa_logerr(pa_context_errno(c->context),
+                           "pa_stream_drop failed\n");
+            }
+            pa->read_length = 0;
+        }
+        qpa_simple_disconnect(c, pa->stream);
         pa->stream = NULL;
+        pa_threaded_mainloop_unlock(c->mainloop);
     }
 }
 
