@@ -1714,12 +1714,19 @@ void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
                            xive_get_field64(EAS_END_DATA,  eas.w));
 }
 
+static Property xive_router_properties[] = {
+    DEFINE_PROP_LINK("xive-fabric", XiveRouter, xfb,
+                     TYPE_XIVE_FABRIC, XiveFabric *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xive_router_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
 
     dc->desc    = "XIVE Router Engine";
+    dc->props   = xive_router_properties;
     xnc->notify = xive_router_notify;
 }
 
@@ -1727,6 +1734,7 @@ static const TypeInfo xive_router_info = {
     .name          = TYPE_XIVE_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .abstract      = true,
+    .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
     .interfaces    = (InterfaceInfo[]) {

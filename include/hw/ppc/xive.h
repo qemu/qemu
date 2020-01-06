@@ -324,9 +324,12 @@ typedef struct XiveTCTX {
 /*
  * XIVE Router
  */
+typedef struct XiveFabric XiveFabric;
 
 typedef struct XiveRouter {
     SysBusDevice    parent;
+
+    XiveFabric *xfb;
 } XiveRouter;
 
 #define TYPE_XIVE_ROUTER "xive-router"
@@ -401,8 +404,6 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 /*
  * XIVE Fabric (Interface between Interrupt Controller and Machine)
  */
-
-typedef struct XiveFabric XiveFabric;
 
 #define TYPE_XIVE_FABRIC "xive-fabric"
 #define XIVE_FABRIC(obj)                                     \
