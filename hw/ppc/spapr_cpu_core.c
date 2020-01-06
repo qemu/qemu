@@ -50,21 +50,13 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
      * the settings below ensure proper operations with TCG in absence of
      * a real hypervisor.
      *
-     * Clearing VPM0 will also cause us to use RMOR in mmu-hash64.c for
-     * real mode accesses, which thankfully defaults to 0 and isn't
-     * accessible in guest mode.
-     *
      * Disable Power-saving mode Exit Cause exceptions for the CPU, so
      * we don't get spurious wakups before an RTAS start-cpu call.
      * For the same reason, set PSSCR_EC.
      */
-    lpcr &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV | pcc->lpcr_pm);
+    lpcr &= ~(LPCR_VPM1 | LPCR_ISL | LPCR_KBV | pcc->lpcr_pm);
     lpcr |= LPCR_LPES0 | LPCR_LPES1;
     env->spr[SPR_PSSCR] |= PSSCR_EC;
-
-    /* Set RMLS to the max (ie, 16G) */
-    lpcr &= ~LPCR_RMLS;
-    lpcr |= 1ull << LPCR_RMLS_SHIFT;
 
     ppc_store_lpcr(cpu, lpcr);
 
