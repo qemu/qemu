@@ -3981,7 +3981,13 @@ static PropValue tcg_default_props[] = {
 };
 
 
-X86CPUVersion default_cpu_version = CPU_VERSION_LATEST;
+/*
+ * We resolve CPU model aliases using -v1 when using "-machine
+ * none", but this is just for compatibility while libvirt isn't
+ * adapted to resolve CPU model versions before creating VMs.
+ * See "Runnability guarantee of CPU models" at * qemu-deprecated.texi.
+ */
+X86CPUVersion default_cpu_version = 1;
 
 void x86_cpu_set_default_version(X86CPUVersion version)
 {

@@ -843,7 +843,7 @@ static void machine_initfn(Object *obj)
                                         NULL);
     }
 
-    if (mc->numa_mem_supported) {
+    if (mc->cpu_index_to_instance_props && mc->get_default_cpu_node_id) {
         ms->numa_state = g_new0(NumaState, 1);
     }
 
@@ -966,7 +966,7 @@ void machine_run_board_init(MachineState *machine)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
 
-    if (machine_class->numa_mem_supported) {
+    if (machine->numa_state) {
         numa_complete_configuration(machine);
         if (machine->numa_state->num_nodes) {
             machine_numa_finish_cpu_init(machine);
