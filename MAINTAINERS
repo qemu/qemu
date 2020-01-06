@@ -2392,8 +2392,7 @@ F: plugins/
 F: tests/plugin
 
 AArch64 TCG target
-M: Claudio Fontana <claudio.fontana@huawei.com>
-M: Claudio Fontana <claudio.fontana@gmail.com>
+M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 L: qemu-arm@nongnu.org
 F: tcg/aarch64/
