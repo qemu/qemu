@@ -33,6 +33,7 @@
 #include "chardev/char-fe.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include "io/channel-file.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -193,6 +194,7 @@ static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
 static void text_console_update_cursor(void *opaque);
+static bool ppm_save(int fd, DisplaySurface *ds, Error **errp);
 
 static void gui_update(void *opaque)
 {
@@ -259,13 +261,22 @@ static void gui_setup_refresh(DisplayState *ds)
     ds->have_text = have_text;
 }
 
+void graphic_hw_update_done(QemuConsole *con)
+{
+}
+
 void graphic_hw_update(QemuConsole *con)
 {
+    bool async = false;
     if (!con) {
         con = active_console;
     }
     if (con && con->hw_ops->gfx_update) {
         con->hw_ops->gfx_update(con->hw);
+        async = con->hw_ops->gfx_update_async;
+    }
+    if (!async) {
+        graphic_hw_update_done(con);
     }
 }
 
@@ -299,52 +310,34 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
-static void ppm_save(const char *filename, DisplaySurface *ds,
-                     Error **errp)
+static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
 {
     int width = pixman_image_get_width(ds->image);
     int height = pixman_image_get_height(ds->image);
-    int fd;
-    FILE *f;
+    g_autoptr(Object) ioc = OBJECT(qio_channel_file_new_fd(fd));
+    g_autofree char *header = NULL;
+    g_autoptr(pixman_image_t) linebuf = NULL;
     int y;
-    int ret;
-    pixman_image_t *linebuf;
 
-    trace_ppm_save(filename, ds);
-    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-    if (fd == -1) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
-        return;
+    trace_ppm_save(fd, ds);
+
+    header = g_strdup_printf("P6\n%d %d\n%d\n", width, height, 255);
+    if (qio_channel_write_all(QIO_CHANNEL(ioc),
+                              header, strlen(header), errp) < 0) {
+        return false;
     }
-    f = fdopen(fd, "wb");
-    ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
-    if (ret < 0) {
-        linebuf = NULL;
-        goto write_err;
-    }
+
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
         qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
-        clearerr(f);
-        ret = fwrite(pixman_image_get_data(linebuf), 1,
-                     pixman_image_get_stride(linebuf), f);
-        (void)ret;
-        if (ferror(f)) {
-            goto write_err;
+        if (qio_channel_write_all(QIO_CHANNEL(ioc),
+                                  (char *)pixman_image_get_data(linebuf),
+                                  pixman_image_get_stride(linebuf), errp) < 0) {
+            return false;
         }
     }
 
-out:
-    qemu_pixman_image_unref(linebuf);
-    fclose(f);
-    return;
-
-write_err:
-    error_setg(errp, "failed to write to file '%s': %s", filename,
-               strerror(errno));
-    unlink(filename);
-    goto out;
+    return true;
 }
 
 void qmp_screendump(const char *filename, bool has_device, const char *device,
@@ -352,6 +345,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
 {
     QemuConsole *con;
     DisplaySurface *surface;
+    int fd;
 
     if (has_device) {
         con = qemu_console_lookup_by_device_name(device, has_head ? head : 0,
@@ -378,7 +372,16 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
         return;
     }
 
-    ppm_save(filename, surface, errp);
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    if (fd == -1) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
+        return;
+    }
+
+    if (!ppm_save(fd, surface, errp)) {
+        qemu_unlink(filename);
+    }
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)

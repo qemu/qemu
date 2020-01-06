@@ -109,7 +109,7 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                                                 qxl->guest_primary.surface.mem,
                                                 MEMSLOT_GROUP_GUEST);
         if (!qxl->guest_primary.data) {
-            return;
+            goto end;
         }
         qxl_set_rect_to_surface(qxl, &qxl->dirty[0]);
         qxl->num_dirty_rects = 1;
@@ -137,7 +137,7 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
     }
 
     if (!qxl->guest_primary.data) {
-        return;
+        goto end;
     }
     for (i = 0; i < qxl->num_dirty_rects; i++) {
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {
@@ -158,6 +158,11 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                        qxl->dirty[i].bottom - qxl->dirty[i].top);
     }
     qxl->num_dirty_rects = 0;
+
+end:
+    if (qxl->render_update_cookie_num == 0) {
+        graphic_hw_update_done(qxl->ssd.dcl.con);
+    }
 }
 
 /*

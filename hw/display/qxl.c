@@ -1181,6 +1181,7 @@ static const QXLInterface qxl_interface = {
 
 static const GraphicHwOps qxl_ops = {
     .gfx_update  = qxl_hw_update,
+    .gfx_update_async = true,
 };
 
 static void qxl_enter_vga_mode(PCIQXLDevice *d)

@@ -15,7 +15,7 @@ displaysurface_create_pixman(void *display_surface) "surface=%p"
 displaysurface_free(void *display_surface) "surface=%p"
 displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
 displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
-ppm_save(const char *filename, void *display_surface) "%s surface=%p"
+ppm_save(int fd, void *display_surface) "fd=%d surface=%p"
 
 # gtk.c
 # gtk-gl-area.c
