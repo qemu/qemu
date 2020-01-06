@@ -16,6 +16,10 @@ struct PnvChip;
 
 #define TYPE_PNV_XIVE "pnv-xive"
 #define PNV_XIVE(obj) OBJECT_CHECK(PnvXive, (obj), TYPE_PNV_XIVE)
+#define PNV_XIVE_CLASS(klass)                                   \
+    OBJECT_CLASS_CHECK(PnvXiveClass, (klass), TYPE_PNV_XIVE)
+#define PNV_XIVE_GET_CLASS(obj)                                 \
+    OBJECT_GET_CLASS(PnvXiveClass, (obj), TYPE_PNV_XIVE)
 
 #define XIVE_BLOCK_MAX      16
 
@@ -84,6 +88,12 @@ typedef struct PnvXive {
     uint64_t      vdt[XIVE_TABLE_VDT_MAX];
     uint64_t      edt[XIVE_TABLE_EDT_MAX];
 } PnvXive;
+
+typedef struct PnvXiveClass {
+    XiveRouterClass parent_class;
+
+    DeviceRealize parent_realize;
+} PnvXiveClass;
 
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon);
 

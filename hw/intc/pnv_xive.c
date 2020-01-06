@@ -1816,9 +1816,16 @@ static void pnv_xive_init(Object *obj)
 static void pnv_xive_realize(DeviceState *dev, Error **errp)
 {
     PnvXive *xive = PNV_XIVE(dev);
+    PnvXiveClass *pxc = PNV_XIVE_GET_CLASS(dev);
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
+
+    pxc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     assert(xive->chip);
 
@@ -1947,10 +1954,12 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
     XivePresenterClass *xpc = XIVE_PRESENTER_CLASS(klass);
+    PnvXiveClass *pxc = PNV_XIVE_CLASS(klass);
 
     xdc->dt_xscom = pnv_xive_dt_xscom;
 
     dc->desc = "PowerNV XIVE Interrupt Controller";
+    device_class_set_parent_realize(dc, pnv_xive_realize, &pxc->parent_realize);
     dc->realize = pnv_xive_realize;
     dc->props = pnv_xive_properties;
 
@@ -1971,6 +1980,7 @@ static const TypeInfo pnv_xive_info = {
     .instance_init = pnv_xive_init,
     .instance_size = sizeof(PnvXive),
     .class_init    = pnv_xive_class_init,
+    .class_size    = sizeof(PnvXiveClass),
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
