@@ -247,7 +247,7 @@ matrix:
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       language: python
       python:
-        - "3.4"
+        - "3.5"
 
 
     - env:
