@@ -470,6 +470,8 @@ static void pnv_psi_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "ics-psi",  &psi8->ics, sizeof(psi8->ics),
                             TYPE_ICS, &error_abort, NULL);
+    object_property_add_alias(obj, ICS_PROP_XICS, OBJECT(&psi8->ics),
+                              ICS_PROP_XICS, &error_abort);
 }
 
 static const uint8_t irq_to_xivr[] = {
@@ -485,19 +487,10 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
 {
     PnvPsi *psi = PNV_PSI(dev);
     ICSState *ics = &PNV8_PSI(psi)->ics;
-    Object *obj;
     Error *err = NULL;
     unsigned int i;
 
-    obj = object_property_get_link(OBJECT(dev), "xics", &err);
-    if (!obj) {
-        error_setg(errp, "%s: required link 'xics' not found: %s",
-                   __func__, error_get_pretty(err));
-        return;
-    }
-
     /* Create PSI interrupt control source */
-    object_property_set_link(OBJECT(ics), obj, ICS_PROP_XICS, &error_abort);
     object_property_set_int(OBJECT(ics), PSI_NUM_INTERRUPTS, "nr-irqs", &err);
     if (err) {
         error_propagate(errp, err);
