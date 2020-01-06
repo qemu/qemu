@@ -439,17 +439,14 @@ static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size,
     count = qemu_get_be64(f);
     len = count * sizeof(struct kvm_s390_irq);
     if (count == FLIC_FAILED) {
-        r = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     if (count == 0) {
-        r = 0;
-        goto out;
+        return 0;
     }
     buf = g_try_malloc0(len);
     if (!buf) {
-        r = -ENOMEM;
-        goto out;
+        return -ENOMEM;
     }
 
     if (qemu_get_buffer(f, (uint8_t *) buf, len) != len) {
@@ -460,7 +457,6 @@ static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size,
 
 out_free:
     g_free(buf);
-out:
     return r;
 }
 
