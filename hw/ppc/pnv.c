@@ -768,6 +768,18 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
+    pnv->num_chips =
+        machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
+    /*
+     * TODO: should we decide on how many chips we can create based
+     * on #cores and Venice vs. Murano vs. Naples chip type etc...,
+     */
+    if (!is_power_of_2(pnv->num_chips) || pnv->num_chips > 4) {
+        error_report("invalid number of chips: '%d'", pnv->num_chips);
+        error_printf("Try '-smp sockets=N'. Valid values are : 1, 2 or 4.\n");
+        exit(1);
+    }
+
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
@@ -1696,53 +1708,6 @@ PnvChip *pnv_get_chip(uint32_t chip_id)
     return NULL;
 }
 
-static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    visit_type_uint32(v, name, &PNV_MACHINE(obj)->num_chips, errp);
-}
-
-static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    PnvMachineState *pnv = PNV_MACHINE(obj);
-    uint32_t num_chips;
-    Error *local_err = NULL;
-
-    visit_type_uint32(v, name, &num_chips, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    /*
-     * TODO: should we decide on how many chips we can create based
-     * on #cores and Venice vs. Murano vs. Naples chip type etc...,
-     */
-    if (!is_power_of_2(num_chips) || num_chips > 4) {
-        error_setg(errp, "invalid number of chips: '%d'", num_chips);
-        return;
-    }
-
-    pnv->num_chips = num_chips;
-}
-
-static void pnv_machine_instance_init(Object *obj)
-{
-    PnvMachineState *pnv = PNV_MACHINE(obj);
-    pnv->num_chips = 1;
-}
-
-static void pnv_machine_class_props_init(ObjectClass *oc)
-{
-    object_class_property_add(oc, "num-chips", "uint32",
-                              pnv_get_num_chips, pnv_set_num_chips,
-                              NULL, NULL, NULL);
-    object_class_property_set_description(oc, "num-chips",
-                              "Specifies the number of processor chips",
-                              NULL);
-}
-
 static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1812,8 +1777,6 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->default_ram_size = INITRD_LOAD_ADDR + INITRD_MAX_SIZE;
     ispc->print_info = pnv_pic_print_info;
-
-    pnv_machine_class_props_init(oc);
 }
 
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
@@ -1866,7 +1829,6 @@ static const TypeInfo types[] = {
         .parent        = TYPE_MACHINE,
         .abstract       = true,
         .instance_size = sizeof(PnvMachineState),
-        .instance_init = pnv_machine_instance_init,
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
         .interfaces = (InterfaceInfo[]) {
