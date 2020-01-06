@@ -1815,7 +1815,7 @@ static void pci_nic_uninit(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
-    vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
+    vmstate_unregister(VMSTATE_IF(&pci_dev->qdev), s->vmstate, s);
     g_free(s->vmstate);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
     qemu_del_nic(s->nic);
@@ -1874,7 +1874,7 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
     s->vmstate = g_memdup(&vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = qemu_get_queue(s->nic)->model;
-    vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
+    vmstate_register(VMSTATE_IF(&pci_dev->qdev), -1, s->vmstate, s);
 }
 
 static void eepro100_instance_init(Object *obj)

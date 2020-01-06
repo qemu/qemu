@@ -2196,6 +2196,8 @@ Migration
 M: Juan Quintela <quintela@redhat.com>
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
 S: Maintained
+F: hw/core/vmstate-if.c
+F: include/hw/vmstate-if.h
 F: include/migration/
 F: migration/
 F: scripts/vmstate-static-checker.py
@@ -2203,6 +2205,16 @@ F: tests/vmstate-static-checker-data/
 F: tests/migration-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
+
+D-Bus
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+S: Maintained
+F: backends/dbus-vmstate.c
+F: tests/dbus-vmstate*
+F: util/dbus.c
+F: include/qemu/dbus.h
+F: docs/interop/dbus.rst
+F: docs/interop/dbus-vmstate.rst
 
 Seccomp
 M: Eduardo Otubo <otubo@redhat.com>

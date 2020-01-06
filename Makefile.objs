@@ -128,6 +128,7 @@ vhost-user-gpu-obj-y = contrib/vhost-user-gpu/
 trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
+trace-events-subdirs += backends
 trace-events-subdirs += crypto
 trace-events-subdirs += monitor
 ifeq ($(CONFIG_USER_ONLY),y)

@@ -3701,8 +3701,14 @@ if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     gio=yes
     gio_cflags=$($pkg_config --cflags gio-2.0)
     gio_libs=$($pkg_config --libs gio-2.0)
+    gdbus_codegen=$($pkg_config --variable=gdbus_codegen gio-2.0)
 else
     gio=no
+fi
+
+if $pkg_config --atleast-version=$glib_req_ver gio-unix-2.0; then
+    gio_cflags="$gio_cflags $($pkg_config --cflags gio-unix-2.0)"
+    gio_libs="$gio_libs $($pkg_config --libs gio-unix-2.0)"
 fi
 
 # Sanity check that the current size_t matches the
@@ -6904,6 +6910,7 @@ if test "$gio" = "yes" ; then
     echo "CONFIG_GIO=y" >> $config_host_mak
     echo "GIO_CFLAGS=$gio_cflags" >> $config_host_mak
     echo "GIO_LIBS=$gio_libs" >> $config_host_mak
+    echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then

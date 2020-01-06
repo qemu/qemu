@@ -822,7 +822,7 @@ static void onenand_realize(DeviceState *dev, Error **errp)
     onenand_mem_setup(s);
     sysbus_init_irq(sbd, &s->intr);
     sysbus_init_mmio(sbd, &s->container);
-    vmstate_register(dev,
+    vmstate_register(VMSTATE_IF(dev),
                      ((s->shift & 0x7f) << 24)
                      | ((s->id.man & 0xff) << 16)
                      | ((s->id.dev & 0xff) << 8)
