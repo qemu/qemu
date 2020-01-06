@@ -21,6 +21,8 @@
 
 struct IOThread {
     AioContext *ctx;
+    GMainContext *worker_context;
+    GMainLoop *main_loop;
 
     QemuThread thread;
     QemuMutex init_done_lock;
@@ -35,6 +37,17 @@ AioContext *qemu_get_current_aio_context(void)
     return my_iothread ? my_iothread->ctx : qemu_get_aio_context();
 }
 
+static void iothread_init_gcontext(IOThread *iothread)
+{
+    GSource *source;
+
+    iothread->worker_context = g_main_context_new();
+    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    g_source_attach(source, iothread->worker_context);
+    g_source_unref(source);
+    iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
@@ -44,6 +57,20 @@ static void *iothread_run(void *opaque)
     my_iothread = iothread;
     qemu_mutex_lock(&iothread->init_done_lock);
     iothread->ctx = aio_context_new(&error_abort);
+
+    /*
+     * We must connect the ctx to a GMainContext, because in older versions
+     * of glib the g_source_ref()/unref() functions are not threadsafe
+     * on sources without a context.
+     */
+    iothread_init_gcontext(iothread);
+
+    /*
+     * g_main_context_push_thread_default() must be called before anything
+     * in this new thread uses glib.
+     */
+    g_main_context_push_thread_default(iothread->worker_context);
+
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
@@ -51,6 +78,7 @@ static void *iothread_run(void *opaque)
         aio_poll(iothread->ctx, true);
     }
 
+    g_main_context_pop_thread_default(iothread->worker_context);
     rcu_unregister_thread();
     return NULL;
 }
@@ -66,6 +94,8 @@ void iothread_join(IOThread *iothread)
 {
     aio_bh_schedule_oneshot(iothread->ctx, iothread_stop_bh, iothread);
     qemu_thread_join(&iothread->thread);
+    g_main_context_unref(iothread->worker_context);
+    g_main_loop_unref(iothread->main_loop);
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
     aio_context_unref(iothread->ctx);
