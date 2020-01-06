@@ -15,6 +15,7 @@ config HPET
 
 config I8254
     bool
+    depends on ISA_BUS
 
 config ALTERA_TIMER
     bool
