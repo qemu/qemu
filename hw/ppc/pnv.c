@@ -1717,20 +1717,6 @@ static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
     return total_count;
 }
 
-PnvChip *pnv_get_chip(uint32_t chip_id)
-{
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-    int i;
-
-    for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
-        if (chip->chip_id == chip_id) {
-            return chip;
-        }
-    }
-    return NULL;
-}
-
 static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);

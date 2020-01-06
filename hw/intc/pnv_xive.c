@@ -472,12 +472,8 @@ static uint8_t pnv_xive_get_block_id(XiveRouter *xrtr)
 static PnvXive *pnv_xive_tm_get_xive(PowerPCCPU *cpu)
 {
     int pir = ppc_cpu_pir(cpu);
-    PnvChip *chip;
-    PnvXive *xive;
-
-    chip = pnv_get_chip(PNV9_PIR2CHIP(pir));
-    assert(chip);
-    xive = &PNV9_CHIP(chip)->xive;
+    XivePresenter *xptr = XIVE_TCTX(pnv_cpu_state(cpu)->intc)->xptr;
+    PnvXive *xive = PNV_XIVE(xptr);
 
     if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
         xive_error(xive, "IC: CPU %x is not enabled", pir);
