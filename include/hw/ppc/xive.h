@@ -311,6 +311,8 @@ void xive_source_set_irq(void *opaque, int srcno, int val);
 #define XIVE_TM_RING_COUNT      4
 #define XIVE_TM_RING_SIZE       0x10
 
+typedef struct XivePresenter XivePresenter;
+
 typedef struct XiveTCTX {
     DeviceState parent_obj;
 
@@ -319,6 +321,8 @@ typedef struct XiveTCTX {
     qemu_irq    os_output;
 
     uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
+
+    XivePresenter *xptr;
 } XiveTCTX;
 
 /*
@@ -377,8 +381,6 @@ typedef struct XiveTCTXMatch {
     XiveTCTX *tctx;
     uint8_t ring;
 } XiveTCTXMatch;
-
-typedef struct XivePresenter XivePresenter;
 
 #define TYPE_XIVE_PRESENTER "xive-presenter"
 #define XIVE_PRESENTER(obj)                                     \
@@ -467,7 +469,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                            unsigned size);
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp);
+Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp);
 void xive_tctx_reset(XiveTCTX *tctx);
 void xive_tctx_destroy(XiveTCTX *tctx);
 void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb);

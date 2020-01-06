@@ -654,6 +654,7 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     assert(tctx->cs);
+    assert(tctx->xptr);
 
     cpu = POWERPC_CPU(tctx->cs);
     env = &cpu->env;
@@ -727,6 +728,8 @@ static const VMStateDescription vmstate_xive_tctx = {
 
 static Property xive_tctx_properties[] = {
     DEFINE_PROP_LINK("cpu", XiveTCTX, cs, TYPE_CPU, CPUState *),
+    DEFINE_PROP_LINK("presenter", XiveTCTX, xptr, TYPE_XIVE_PRESENTER,
+                     XivePresenter *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -752,7 +755,7 @@ static const TypeInfo xive_tctx_info = {
     .class_init    = xive_tctx_class_init,
 };
 
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
+Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
 {
     Error *local_err = NULL;
     Object *obj;
@@ -761,6 +764,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
     object_property_set_link(obj, cpu, "cpu", &error_abort);
+    object_property_set_link(obj, OBJECT(xptr), "presenter", &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         goto error;

@@ -601,7 +601,7 @@ static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,
     Object *obj;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(xive), errp);
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_PRESENTER(xive), errp);
     if (!obj) {
         return -1;
     }
