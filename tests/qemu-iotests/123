@@ -29,7 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$SRC_IMG"
+    _rm_test_img "$SRC_IMG"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -44,7 +44,7 @@ _supported_os Linux
 SRC_IMG="$TEST_DIR/source.$IMGFMT"
 
 _make_test_img 1M
-$QEMU_IMG create -f $IMGFMT "$SRC_IMG" 1M | _filter_img_create
+TEST_IMG_FILE=$SRC_IMG IMGPROTO=file _make_test_img 1M
 
 $QEMU_IO -c 'write -P 42 0 1M' "$SRC_IMG" | _filter_qemu_io
 

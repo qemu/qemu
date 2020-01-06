@@ -29,7 +29,7 @@ status=1    # failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_IMG.converted"
+    _rm_test_img "$TEST_IMG.converted"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -45,7 +45,7 @@ _supported_proto file
 echo "== Huge file =="
 echo
 
-IMGOPTS='cluster_size=2M' _make_test_img 2T
+_make_test_img -o 'cluster_size=2M' 2T
 
 $QEMU_IMG measure -O raw -f qcow2 "$TEST_IMG"
 $QEMU_IMG measure -O qcow2 -o cluster_size=64k -f qcow2 "$TEST_IMG"

@@ -29,7 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_IMG.qcow2"
+    IMGFMT=qcow2 _rm_test_img "$TEST_IMG.qcow2"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -70,18 +70,18 @@ poke_file "$TEST_IMG" "$grain_table_size_offset" "\x01\x00\x00\x00"
 
 echo
 echo "=== Testing monolithicFlat creation and opening ==="
-IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
+_make_test_img -o "subformat=monolithicFlat" 2G
 _img_info
 _cleanup_test_img
 
 echo
 echo "=== Testing monolithicFlat with zeroed_grain ==="
-IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
+_make_test_img -o "subformat=monolithicFlat,zeroed_grain=on" 2G
 _cleanup_test_img
 
 echo
 echo "=== Testing big twoGbMaxExtentFlat ==="
-IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
+_make_test_img -o "subformat=twoGbMaxExtentFlat" 1000G
 $QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
 _cleanup_test_img
 
@@ -101,13 +101,13 @@ _img_info
 
 echo
 echo "=== Testing truncated sparse ==="
-IMGOPTS="subformat=monolithicSparse" _make_test_img 100G
+_make_test_img -o "subformat=monolithicSparse" 100G
 truncate -s 10M $TEST_IMG
 _img_info
 
 echo
 echo "=== Converting to streamOptimized from image with small cluster size==="
-TEST_IMG="$TEST_IMG.qcow2" IMGFMT=qcow2 IMGOPTS="cluster_size=4096" _make_test_img 1G
+TEST_IMG="$TEST_IMG.qcow2" IMGFMT=qcow2 _make_test_img -o "cluster_size=4096" 1G
 $QEMU_IO -f qcow2 -c "write -P 0xa 0 512" "$TEST_IMG.qcow2" | _filter_qemu_io
 $QEMU_IO -f qcow2 -c "write -P 0xb 10240 512" "$TEST_IMG.qcow2" | _filter_qemu_io
 $QEMU_IMG convert -f qcow2 -O vmdk -o subformat=streamOptimized "$TEST_IMG.qcow2" "$TEST_IMG" 2>&1
@@ -117,7 +117,7 @@ echo "=== Testing monolithicFlat with internally generated JSON file name ==="
 
 echo '--- blkdebug ---'
 # Should work, because bdrv_dirname() works fine with blkdebug
-IMGOPTS="subformat=monolithicFlat" _make_test_img 64M
+_make_test_img -o "subformat=monolithicFlat" 64M
 $QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=read_aio" \
          -c info \
     2>&1 \
@@ -126,7 +126,7 @@ _cleanup_test_img
 
 echo '--- quorum ---'
 # Should not work, because bdrv_dirname() does not work with quorum
-IMGOPTS="subformat=monolithicFlat" _make_test_img 64M
+_make_test_img -o "subformat=monolithicFlat" 64M
 cp "$TEST_IMG" "$TEST_IMG.orig"
 
 filename="json:{
@@ -161,7 +161,7 @@ _cleanup_test_img
 
 echo
 echo "=== Testing 4TB monolithicFlat creation and IO ==="
-IMGOPTS="subformat=monolithicFlat" _make_test_img 4T
+_make_test_img -o "subformat=monolithicFlat" 4T
 _img_info
 $QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
@@ -170,7 +170,7 @@ _cleanup_test_img
 echo
 echo "=== Testing qemu-img map on extents ==="
 for fmt in monolithicSparse twoGbMaxExtentSparse; do
-    IMGOPTS="subformat=$fmt" _make_test_img 31G
+    _make_test_img -o "subformat=$fmt" 31G
     $QEMU_IO -c "write 65024 1k" "$TEST_IMG" | _filter_qemu_io
     $QEMU_IO -c "write 2147483136 1k" "$TEST_IMG" | _filter_qemu_io
     $QEMU_IO -c "write 5G 1k" "$TEST_IMG" | _filter_qemu_io

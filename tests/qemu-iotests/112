@@ -40,8 +40,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 # This test will set refcount_bits on its own which would conflict with the
-# manual setting; compat will be overridden as well
-_unsupported_imgopts refcount_bits 'compat=0.10'
+# manual setting; compat will be overridden as well;
+# and external data files do not work well with our refcount testing
+_unsupported_imgopts refcount_bits 'compat=0.10' data_file
 
 print_refcount_bits()
 {
@@ -53,20 +54,20 @@ echo '=== refcount_bits limits ==='
 echo
 
 # Must be positive (non-zero)
-IMGOPTS="$IMGOPTS,refcount_bits=0" _make_test_img 64M
+_make_test_img -o "refcount_bits=0" 64M
 # Must be positive (non-negative)
-IMGOPTS="$IMGOPTS,refcount_bits=-1" _make_test_img 64M
+_make_test_img -o "refcount_bits=-1" 64M
 # May not exceed 64
-IMGOPTS="$IMGOPTS,refcount_bits=128" _make_test_img 64M
+_make_test_img -o "refcount_bits=128" 64M
 # Must be a power of two
-IMGOPTS="$IMGOPTS,refcount_bits=42" _make_test_img 64M
+_make_test_img -o "refcount_bits=42" 64M
 
 # 1 is the minimum
-IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+_make_test_img -o "refcount_bits=1" 64M
 print_refcount_bits
 
 # 64 is the maximum
-IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+_make_test_img -o "refcount_bits=64" 64M
 print_refcount_bits
 
 # 16 is the default
@@ -78,19 +79,19 @@ echo '=== refcount_bits and compat=0.10 ==='
 echo
 
 # Should work
-IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=16" _make_test_img 64M
+_make_test_img -o "compat=0.10,refcount_bits=16" 64M
 print_refcount_bits
 
 # Should not work
-IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=1" _make_test_img 64M
-IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=64" _make_test_img 64M
+_make_test_img -o "compat=0.10,refcount_bits=1" 64M
+_make_test_img -o "compat=0.10,refcount_bits=64" 64M
 
 
 echo
 echo '=== Snapshot limit on refcount_bits=1 ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+_make_test_img -o "refcount_bits=1" 64M
 print_refcount_bits
 
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
@@ -106,7 +107,7 @@ echo
 echo '=== Snapshot limit on refcount_bits=2 ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=2" _make_test_img 64M
+_make_test_img -o "refcount_bits=2" 64M
 print_refcount_bits
 
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
@@ -124,7 +125,7 @@ echo
 echo '=== Compressed clusters with refcount_bits=1 ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+_make_test_img -o "refcount_bits=1" 64M
 print_refcount_bits
 
 # Both should fit into a single host cluster; instead of failing to increase the
@@ -140,7 +141,7 @@ echo
 echo '=== MSb set in 64 bit refcount ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+_make_test_img -o "refcount_bits=64" 64M
 print_refcount_bits
 
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
@@ -158,7 +159,7 @@ echo
 echo '=== Snapshot on maximum 64 bit refcount value ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+_make_test_img -o "refcount_bits=64" 64M
 print_refcount_bits
 
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
@@ -239,7 +240,7 @@ echo
 echo '=== Testing too many references for check ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+_make_test_img -o "refcount_bits=1" 64M
 print_refcount_bits
 
 # This cluster should be created at 0x50000
@@ -262,7 +263,7 @@ echo
 echo '=== Multiple walks necessary during amend ==='
 echo
 
-IMGOPTS="$IMGOPTS,refcount_bits=1,cluster_size=512" _make_test_img 64k
+_make_test_img -o "refcount_bits=1,cluster_size=512" 64k
 
 # Cluster 0 is the image header, clusters 1 to 4 are used by the L1 table, a
 # single L2 table, the reftable and a single refblock. This creates 58 data

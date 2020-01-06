@@ -28,8 +28,8 @@ status=1 # failure is the default!
 
 _cleanup()
 {
-    rm -f "${TEST_IMG}.mid"
-    rm -f "${TEST_IMG}.copy"
+    _rm_test_img "${TEST_IMG}.mid"
+    _rm_test_img "${TEST_IMG}.copy"
     _cleanup_test_img
     _cleanup_qemu
 }

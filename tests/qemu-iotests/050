@@ -29,8 +29,8 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_IMG.old"
-    rm -f "$TEST_IMG.new"
+    _rm_test_img "$TEST_IMG.old"
+    _rm_test_img "$TEST_IMG.new"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -40,10 +40,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2 qed
 _supported_proto file
-
-if test "$IMGFMT" = qcow2 && test $IMGOPTS = ""; then
-  IMGOPTS=compat=1.1
-fi
 
 echo
 echo "== Creating images =="

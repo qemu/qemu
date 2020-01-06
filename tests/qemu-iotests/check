@@ -587,13 +587,13 @@ export QEMU_PROG="$(type -p "$QEMU_PROG")"
 
 case "$QEMU_PROG" in
     *qemu-system-arm|*qemu-system-aarch64)
-        export QEMU_OPTIONS="-nodefaults -display none -machine virt,accel=qtest"
+        export QEMU_OPTIONS="-nodefaults -display none -machine virt -accel qtest"
         ;;
     *qemu-system-tricore)
-        export QEMU_OPTIONS="-nodefaults -display none -machine tricore_testboard,accel=qtest"
+        export QEMU_OPTIONS="-nodefaults -display none -machine tricore_testboard -accel qtest"
         ;;
     *)
-        export QEMU_OPTIONS="-nodefaults -display none -machine accel=qtest"
+        export QEMU_OPTIONS="-nodefaults -display none -accel qtest"
         ;;
 esac
 

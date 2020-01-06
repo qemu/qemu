@@ -42,8 +42,9 @@ _supported_proto file
 _supported_os Linux
 _require_drivers copy-on-read
 
-# Internal snapshots are (currently) impossible with refcount_bits=1
-_unsupported_imgopts 'refcount_bits=1[^0-9]'
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
 
 do_run_qemu()
 {
@@ -69,7 +70,11 @@ size=128M
 
 run_test()
 {
-    _make_test_img $size
+    if [ -n "$BACKING_FILE" ]; then
+        _make_test_img -b "$BACKING_FILE" $size
+    else
+        _make_test_img $size
+    fi
     printf "savevm snap0\ninfo snapshots\nloadvm snap0\n" | run_qemu "$@" | _filter_date
 }
 
@@ -120,12 +125,12 @@ echo
 
 TEST_IMG="$TEST_IMG.base" _make_test_img $size
 
-IMGOPTS="backing_file=$TEST_IMG.base" \
+BACKING_FILE="$TEST_IMG.base" \
 run_test -blockdev driver=file,filename="$TEST_IMG.base",node-name=backing-file \
          -blockdev driver=file,filename="$TEST_IMG",node-name=file \
          -blockdev driver=$IMGFMT,file=file,backing=backing-file,node-name=fmt
 
-IMGOPTS="backing_file=$TEST_IMG.base" \
+BACKING_FILE="$TEST_IMG.base" \
 run_test -blockdev driver=file,filename="$TEST_IMG.base",node-name=backing-file \
          -blockdev driver=$IMGFMT,file=backing-file,node-name=backing-fmt \
          -blockdev driver=file,filename="$TEST_IMG",node-name=file \
@@ -142,7 +147,7 @@ echo
 echo "=== -blockdev with NBD server on the backing file ==="
 echo
 
-IMGOPTS="backing_file=$TEST_IMG.base" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base" $size
 cat <<EOF |
 nbd_server_start unix:$SOCK_DIR/nbd
 nbd_server_add -w backing-fmt

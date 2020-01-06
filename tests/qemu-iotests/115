@@ -64,8 +64,7 @@ echo
 # least 256 MB. We can achieve that by using preallocation=metadata for an image
 # which has a guest disk size of 256 MB.
 
-IMGOPTS="$IMGOPTS,refcount_bits=64,cluster_size=512,preallocation=metadata" \
-    _make_test_img 256M
+_make_test_img -o "refcount_bits=64,cluster_size=512,preallocation=metadata" 256M
 
 # We know for sure that the L1 and refcount tables do not overlap with any other
 # structure because the metadata overlap checks would have caught that case.

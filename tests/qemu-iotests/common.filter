@@ -122,7 +122,13 @@ _filter_actual_image_size()
 # replace driver-specific options in the "Formatting..." line
 _filter_img_create()
 {
-    $SED -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
+    data_file_filter=()
+    if data_file=$(_get_data_file "$TEST_IMG"); then
+        data_file_filter=(-e "s# data_file=$data_file##")
+    fi
+
+    $SED "${data_file_filter[@]}" \
+        -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
         -e "s#$SOCK_DIR#SOCK_DIR#g" \
@@ -209,9 +215,22 @@ _filter_img_info()
 # human and json output
 _filter_qemu_img_map()
 {
+    # Assuming the data_file value in $IMGOPTS contains a '$TEST_IMG',
+    # create a filter that replaces the data file name by $TEST_IMG.
+    # Example:
+    #   In $IMGOPTS: 'data_file=$TEST_IMG.data_file'
+    #   Then data_file_pattern == '\(.*\).data_file'
+    #   And  data_file_filter  == -e 's#\(.*\).data_file#\1#
+    data_file_filter=()
+    if data_file_pattern=$(_get_data_file '\\(.*\\)'); then
+        data_file_filter=(-e "s#$data_file_pattern#\\1#")
+    fi
+
     $SED -e 's/\([0-9a-fx]* *[0-9a-fx]* *\)[0-9a-fx]* */\1/g' \
         -e 's/"offset": [0-9]\+/"offset": OFFSET/g' \
-        -e 's/Mapped to *//' | _filter_testdir | _filter_imgfmt
+        -e 's/Mapped to *//' \
+        "${data_file_filter[@]}" \
+        | _filter_testdir | _filter_imgfmt
 }
 
 _filter_nbd()
@@ -230,6 +249,30 @@ _filter_nbd()
 _filter_qmp_empty_return()
 {
     grep -v '{"return": {}}'
+}
+
+_filter_json_filename()
+{
+    $PYTHON -c 'import sys
+result, *fnames = sys.stdin.read().split("json:{")
+depth = 0
+for fname in fnames:
+    depth += 1 # For the opening brace in the split separator
+    for chr_i, chr in enumerate(fname):
+        if chr == "{":
+            depth += 1
+        elif chr == "}":
+            depth -= 1
+            if depth == 0:
+                break
+
+    # json:{} filenames may be nested; filter out everything from
+    # inside the outermost one
+    if depth == 0:
+        chr_i += 1 # First character past the filename
+        result += "json:{ /* filtered */ }" + fname[chr_i:]
+
+sys.stdout.write(result)'
 }
 
 # make sure this script returns success

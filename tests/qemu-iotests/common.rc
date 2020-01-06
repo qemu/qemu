@@ -298,17 +298,32 @@ _stop_nbd_server()
     fi
 }
 
+# Gets the data_file value from IMGOPTS and replaces the '$TEST_IMG'
+# pattern by '$1'
+# Caution: The replacement is done with sed, so $1 must be escaped
+#          properly.  (The delimiter is '#'.)
+_get_data_file()
+{
+    if ! echo "$IMGOPTS" | grep -q 'data_file='; then
+        return 1
+    fi
+
+    echo "$IMGOPTS" | sed -e 's/.*data_file=\([^,]*\).*/\1/' \
+                    | sed -e "s#\\\$TEST_IMG#$1#"
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
     # at least one argument (the image size) needs to be added
     local extra_img_options=""
-    local image_size=$*
     local optstr=""
     local img_name=""
     local use_backing=0
     local backing_file=""
     local object_options=""
+    local opts_param=false
+    local misc_params=()
 
     if [ -n "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG_FILE
@@ -317,18 +332,43 @@ _make_test_img()
     fi
 
     if [ -n "$IMGOPTS" ]; then
-        optstr=$(_optstr_add "$optstr" "$IMGOPTS")
+        imgopts_expanded=$(echo "$IMGOPTS" | sed -e "s#\\\$TEST_IMG#$img_name#")
+        optstr=$(_optstr_add "$optstr" "$imgopts_expanded")
     fi
     if [ -n "$IMGKEYSECRET" ]; then
         object_options="--object secret,id=keysec0,data=$IMGKEYSECRET"
         optstr=$(_optstr_add "$optstr" "key-secret=keysec0")
     fi
 
-    if [ "$1" = "-b" ]; then
-        use_backing=1
-        backing_file=$2
-        image_size=$3
-    fi
+    for param; do
+        if [ "$use_backing" = "1" -a -z "$backing_file" ]; then
+            backing_file=$param
+            continue
+        elif $opts_param; then
+            optstr=$(_optstr_add "$optstr" "$param")
+            opts_param=false
+            continue
+        fi
+
+        case "$param" in
+            -b)
+                use_backing=1
+                ;;
+
+            -o)
+                opts_param=true
+                ;;
+
+            --no-opts)
+                optstr=""
+                ;;
+
+            *)
+                misc_params=("${misc_params[@]}" "$param")
+                ;;
+        esac
+    done
+
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
         optstr=$(_optstr_add "$optstr" "cluster_size=$CLUSTER_SIZE")
     fi
@@ -344,9 +384,9 @@ _make_test_img()
     # XXX(hch): have global image options?
     (
      if [ $use_backing = 1 ]; then
-        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" "${misc_params[@]}" 2>&1
      else
-        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options "$img_name" "${misc_params[@]}" 2>&1
      fi
     ) | _filter_img_create
 
@@ -375,6 +415,11 @@ _rm_test_img()
         # Remove all the extents for vmdk
         "$QEMU_IMG" info "$img" 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
             | xargs -I {} rm -f "{}"
+    elif [ "$IMGFMT" = "qcow2" ]; then
+        # Remove external data file
+        if data_file=$(_get_data_file "$img"); then
+            rm -f "$data_file"
+        fi
     fi
     rm -f "$img"
 }

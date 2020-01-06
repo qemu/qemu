@@ -38,6 +38,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file nfs
+# External data files do not support compressed clusters
+_unsupported_imgopts data_file
 
 IMG_SIZE=128K
 

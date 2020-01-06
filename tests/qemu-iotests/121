@@ -39,6 +39,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# Refcount structures are used much differently with external data
+# files
+_unsupported_imgopts data_file
 
 echo
 echo '=== New refcount structures may not conflict with existing structures ==='
@@ -50,7 +53,7 @@ echo
 # Preallocation speeds up the write operation, but preallocating everything will
 # destroy the purpose of the write; so preallocate one KB less than what would
 # cause a reftable growth...
-IMGOPTS='preallocation=metadata,cluster_size=1k' _make_test_img 64512K
+_make_test_img -o 'preallocation=metadata,cluster_size=1k' 64512K
 # ...and make the image the desired size afterwards.
 $QEMU_IMG resize "$TEST_IMG" 65M
 
@@ -73,7 +76,7 @@ echo
 echo '--- Test 2 ---'
 echo
 
-IMGOPTS='preallocation=metadata,cluster_size=1k' _make_test_img 64513K
+_make_test_img -o 'preallocation=metadata,cluster_size=1k' 64513K
 # This results in an L1 table growth which in turn results in some clusters at
 # the start of the image becoming free
 $QEMU_IMG resize "$TEST_IMG" 65M
@@ -96,7 +99,7 @@ echo
 echo '=== Allocating a new refcount block must not leave holes in the image ==='
 echo
 
-IMGOPTS='cluster_size=512,refcount_bits=16' _make_test_img 1M
+_make_test_img -o 'cluster_size=512,refcount_bits=16' 1M
 
 # This results in an image with 256 used clusters: the qcow2 header,
 # the refcount table, one refcount block, the L1 table, four L2 tables

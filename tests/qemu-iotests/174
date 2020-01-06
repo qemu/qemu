@@ -40,7 +40,7 @@ _unsupported_fmt raw
 
 
 size=256K
-IMGFMT=raw IMGKEYSECRET= IMGOPTS= _make_test_img $size | _filter_imgfmt
+IMGFMT=raw IMGKEYSECRET= _make_test_img --no-opts $size | _filter_imgfmt
 
 echo
 echo "== reading wrong format should fail =="

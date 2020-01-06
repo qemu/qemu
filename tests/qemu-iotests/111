@@ -41,8 +41,7 @@ _supported_fmt qed qcow qcow2 vmdk
 _supported_proto file
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
 
-$QEMU_IMG create -f $IMGFMT -b "$TEST_IMG.inexistent" "$TEST_IMG" 2>&1 \
-    | _filter_testdir | _filter_imgfmt
+_make_test_img -b "$TEST_IMG.inexistent"
 
 # success, all done
 echo '*** done'

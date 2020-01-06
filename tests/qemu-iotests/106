@@ -51,7 +51,7 @@ for create_mode in off falloc full; do
         echo
         echo "--- create_mode=$create_mode growth_mode=$growth_mode ---"
 
-        IMGOPTS="preallocation=$create_mode" _make_test_img ${CREATION_SIZE}K
+        _make_test_img -o "preallocation=$create_mode" ${CREATION_SIZE}K
         $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
 
         expected_size=0

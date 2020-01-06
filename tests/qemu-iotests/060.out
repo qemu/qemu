@@ -7,10 +7,10 @@ ERROR cluster 3 refcount=1 reference=3
 
 1 errors were found on the image.
 Data may be corrupted, or further writes to the image may corrupt it.
-incompatible_features     0x0
+incompatible_features     []
 qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with active L1 table); further corruption events will be suppressed
 write failed: Input/output error
-incompatible_features     0x2
+incompatible_features     [1]
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
@@ -33,10 +33,10 @@ ERROR cluster 2 refcount=1 reference=2
 
 2 errors were found on the image.
 Data may be corrupted, or further writes to the image may corrupt it.
-incompatible_features     0x0
+incompatible_features     []
 qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with refcount block); further corruption events will be suppressed
 write failed: Input/output error
-incompatible_features     0x2
+incompatible_features     [1]
 ERROR refcount block 0 refcount=2
 ERROR cluster 2 refcount=1 reference=2
 Rebuilding refcount structure
@@ -49,10 +49,10 @@ The following inconsistencies were found and repaired:
 
 Double checking the fixed image now...
 No errors were found on the image.
-incompatible_features     0x0
+incompatible_features     []
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-incompatible_features     0x0
+incompatible_features     []
 
 === Testing cluster data reference into inactive L2 table ===
 
@@ -69,10 +69,10 @@ Data may be corrupted, or further writes to the image may corrupt it.
 
 1 leaked clusters were found on the image.
 This means waste of disk space, but no harm to data.
-incompatible_features     0x0
+incompatible_features     []
 qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with inactive L2 table); further corruption events will be suppressed
 write failed: Input/output error
-incompatible_features     0x2
+incompatible_features     [1]
 ERROR cluster 4 refcount=1 reference=2
 Leaked cluster 9 refcount=1 reference=0
 Repairing cluster 4 refcount=1 reference=2
@@ -85,10 +85,10 @@ The following inconsistencies were found and repaired:
 
 Double checking the fixed image now...
 No errors were found on the image.
-incompatible_features     0x0
+incompatible_features     []
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-incompatible_features     0x0
+incompatible_features     []
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.

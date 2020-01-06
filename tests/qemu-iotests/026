@@ -49,7 +49,10 @@ _supported_cache_modes writethrough none
 # 32 and 64 bits do not work either, however, due to different leaked cluster
 # count on error.
 # Thus, the only remaining option is refcount_bits=16.
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+#
+# As for data_file, none of the refcount tests can work for it.
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' \
+    data_file
 
 echo "Errors while writing 128 kB"
 echo

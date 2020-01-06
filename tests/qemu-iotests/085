@@ -41,10 +41,13 @@ _cleanup()
     _cleanup_qemu
     for i in $(seq 1 ${SNAPSHOTS})
     do
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
+        _rm_test_img "${TEST_DIR}/${i}-${snapshot_virt0}"
+        _rm_test_img "${TEST_DIR}/${i}-${snapshot_virt1}"
     done
-    rm -f "${TEST_IMG}" "${TEST_IMG}.1" "${TEST_IMG}.2" "${TEST_IMG}.base"
+    for img in "${TEST_IMG}".{1,2,base}
+    do
+        _rm_test_img "$img"
+    done
 
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -102,8 +105,7 @@ add_snapshot_image()
 {
     base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
-    _make_test_img -u -b "${base_image}" "$size"
-    mv "${TEST_IMG}" "${snapshot_file}"
+    TEST_IMG=$snapshot_file _make_test_img -u -b "${base_image}" "$size"
     do_blockdev_add "$1" "'backing': null, " "${snapshot_file}"
 }
 
@@ -119,10 +121,8 @@ blockdev_snapshot()
 
 size=128M
 
-_make_test_img $size
-mv "${TEST_IMG}" "${TEST_IMG}.1"
-_make_test_img $size
-mv "${TEST_IMG}" "${TEST_IMG}.2"
+TEST_IMG="$TEST_IMG.1" _make_test_img $size
+TEST_IMG="$TEST_IMG.2" _make_test_img $size
 
 echo
 echo === Running QEMU ===

@@ -38,6 +38,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
+# data_file does not support compressed clusters
+_unsupported_imgopts data_file
 
 CLUSTER_SIZE=64k
 size=128M

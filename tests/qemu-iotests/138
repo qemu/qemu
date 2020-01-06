@@ -36,17 +36,19 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-# This tests qocw2-specific low-level functionality
+# This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# With an external data file, data clusters are not refcounted
+# (and so qemu-img check does not check their refcount)
+_unsupported_imgopts data_file
 
 echo
 echo '=== Check on an image with a multiple of 2^32 clusters ==='
 echo
 
-IMGOPTS=$(_optstr_add "$IMGOPTS" "cluster_size=512") \
-    _make_test_img 512
+_make_test_img -o "cluster_size=512" 512
 
 # Allocate L2 table
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io

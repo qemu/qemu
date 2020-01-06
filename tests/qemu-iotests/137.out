@@ -36,11 +36,9 @@ qemu-io: Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ./common.rc: Killed                  ( VALGRIND_QEMU="${VALGRIND_QEMU_IO}" _qemu_proc_exec "${VALGRIND_LOGFILE}" "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@" )
-incompatible_features     0x0
+OK: Dirty bit not set
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-wrote 65536/65536 bytes at offset 0
-64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io: Parameter 'lazy-refcounts' expects 'on' or 'off'
-qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with qcow2_header); further corruption events will be suppressed
+qcow2: Marking image as corrupt: Preventing invalid allocation of L2 table at offset 0; further corruption events will be suppressed
 write failed: Input/output error
 *** done

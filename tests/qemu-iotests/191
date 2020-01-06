@@ -28,9 +28,9 @@ status=1 # failure is the default!
 
 _cleanup()
 {
-    rm -f "${TEST_IMG}.mid"
-    rm -f "${TEST_IMG}.ovl2"
-    rm -f "${TEST_IMG}.ovl3"
+    _rm_test_img "${TEST_IMG}.mid"
+    _rm_test_img "${TEST_IMG}.ovl2"
+    _rm_test_img "${TEST_IMG}.ovl3"
     _cleanup_test_img
     _cleanup_qemu
 }
@@ -43,6 +43,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
+# An external data file would change the query-named-block-nodes output
+_unsupported_imgopts data_file
 
 size=64M
 
@@ -51,8 +53,7 @@ echo === Preparing and starting VM ===
 echo
 
 TEST_IMG="${TEST_IMG}.base" _make_test_img $size
-IMGOPTS=$(_optstr_add "$IMGOPTS" "backing_fmt=$IMGFMT") \
-    TEST_IMG="${TEST_IMG}.mid" _make_test_img -b "${TEST_IMG}.base"
+TEST_IMG="${TEST_IMG}.mid" _make_test_img -o "backing_fmt=$IMGFMT" -b "${TEST_IMG}.base"
 _make_test_img -b "${TEST_IMG}.mid"
 TEST_IMG="${TEST_IMG}.ovl2" _make_test_img -b "${TEST_IMG}.mid"
 

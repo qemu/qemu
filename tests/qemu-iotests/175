@@ -95,7 +95,7 @@ stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_block
 for mode in off full falloc; do
     echo
     echo "== creating image with preallocation $mode =="
-    IMGOPTS=preallocation=$mode _make_test_img $size | _filter_imgfmt
+    _make_test_img -o preallocation=$mode $size | _filter_imgfmt
     stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $size
 done
 

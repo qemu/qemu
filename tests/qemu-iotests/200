@@ -31,7 +31,8 @@ status=1    # failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "${TEST_IMG}" "${BACKING_IMG}"
+    _rm_test_img "${TEST_IMG}"
+    _rm_test_img "${BACKING_IMG}"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -46,8 +47,8 @@ _supported_proto file
 BACKING_IMG="${TEST_DIR}/backing.img"
 TEST_IMG="${TEST_DIR}/test.img"
 
-${QEMU_IMG} create -f $IMGFMT "${BACKING_IMG}" 512M | _filter_img_create
-${QEMU_IMG} create -f $IMGFMT -F $IMGFMT "${TEST_IMG}" -b "${BACKING_IMG}" 512M | _filter_img_create
+TEST_IMG="$BACKING_IMG" _make_test_img 512M
+_make_test_img -F $IMGFMT -b "$BACKING_IMG" 512M
 
 ${QEMU_IO} -c "write -P 0xa5 512 300M" "${BACKING_IMG}" | _filter_qemu_io
 

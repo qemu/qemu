@@ -40,14 +40,15 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-# This tests qocw2-specific low-level functionality
+# This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 # (1) We create a v2 image that supports nothing but refcount_bits=16
 # (2) We do some refcount management on our own which expects
 #     refcount_bits=16
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# As for data files, they do not support snapshots at all.
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 # Parameters:
 #   $1: image filename

@@ -29,7 +29,9 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_IMG".[123].base
+    for img in "$TEST_IMG".[123].base; do
+        _rm_test_img "$img"
+    done
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 

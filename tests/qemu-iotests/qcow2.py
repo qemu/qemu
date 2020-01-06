@@ -42,9 +42,9 @@ class QcowHeader:
         [ uint64_t, '%#x',  'snapshot_offset' ],
 
         # Version 3 header fields
-        [ uint64_t, '%#x',  'incompatible_features' ],
-        [ uint64_t, '%#x',  'compatible_features' ],
-        [ uint64_t, '%#x',  'autoclear_features' ],
+        [ uint64_t, 'mask', 'incompatible_features' ],
+        [ uint64_t, 'mask', 'compatible_features' ],
+        [ uint64_t, 'mask', 'autoclear_features' ],
         [ uint32_t, '%d',   'refcount_order' ],
         [ uint32_t, '%d',   'header_length' ],
     ];
@@ -130,7 +130,17 @@ class QcowHeader:
 
     def dump(self):
         for f in QcowHeader.fields:
-            print("%-25s" % f[2], f[1] % self.__dict__[f[2]])
+            value = self.__dict__[f[2]]
+            if f[1] == 'mask':
+                bits = []
+                for bit in range(64):
+                    if value & (1 << bit):
+                        bits.append(bit)
+                value_str = str(bits)
+            else:
+                value_str = f[1] % value
+
+            print("%-25s" % f[2], value_str)
         print("")
 
     def dump_extensions(self):
@@ -152,6 +162,10 @@ class QcowHeader:
 def cmd_dump_header(fd):
     h = QcowHeader(fd)
     h.dump()
+    h.dump_extensions()
+
+def cmd_dump_header_exts(fd):
+    h = QcowHeader(fd)
     h.dump_extensions()
 
 def cmd_set_header(fd, name, value):
@@ -230,6 +244,7 @@ def cmd_set_feature_bit(fd, group, bit):
 
 cmds = [
     [ 'dump-header',          cmd_dump_header,          0, 'Dump image header and header extensions' ],
+    [ 'dump-header-exts',     cmd_dump_header_exts,     0, 'Dump image header extensions' ],
     [ 'set-header',           cmd_set_header,           2, 'Set a field in the header'],
     [ 'add-header-ext',       cmd_add_header_ext,       2, 'Add a header extension' ],
     [ 'add-header-ext-stdio', cmd_add_header_ext_stdio, 1, 'Add a header extension, data from stdin' ],

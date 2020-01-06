@@ -41,8 +41,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto generic
 # refcount_bits must be at least 4 so we can create ten internal snapshots
-# (1 bit supports none, 2 bits support two, 4 bits support 14)
-_unsupported_imgopts 'refcount_bits=\(1\|2\)[^0-9]'
+# (1 bit supports none, 2 bits support two, 4 bits support 14);
+# snapshot are generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=\(1\|2\)[^0-9]' data_file
 
 echo
 echo "creating image"
