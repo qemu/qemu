@@ -4195,18 +4195,18 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
                    kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
 }
 
+/*
+ * This is a XIVE only operation
+ */
 static int spapr_match_nvt(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool cam_ignore, uint8_t priority,
                            uint32_t logic_serv, XiveTCTXMatch *match)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(xfb);
-    XivePresenter *xptr = XIVE_PRESENTER(spapr->xive);
+    XivePresenter *xptr = XIVE_PRESENTER(spapr->active_intc);
     XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
     int count;
-
-    /* This is a XIVE only operation */
-    assert(spapr->active_intc == SPAPR_INTC(spapr->xive));
 
     count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
                            priority, logic_serv, match);
