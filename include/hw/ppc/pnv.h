@@ -48,6 +48,7 @@ typedef struct PnvChip {
     uint64_t     ram_size;
 
     uint32_t     nr_cores;
+    uint32_t     nr_threads;
     uint64_t     cores_mask;
     PnvCore      **cores;
 

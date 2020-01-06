@@ -802,6 +802,8 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         object_property_set_int(chip, machine->smp.cores,
                                 "nr-cores", &error_fatal);
+        object_property_set_int(chip, machine->smp.threads,
+                                "nr-threads", &error_fatal);
         /*
          * The POWER8 machine use the XICS interrupt interface.
          * Propagate the XICS fabric to the chip and its controllers.
@@ -1526,7 +1528,6 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
@@ -1562,8 +1563,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
                                   &error_abort);
         chip->cores[i] = pnv_core;
-        object_property_set_int(OBJECT(pnv_core), ms->smp.threads, "nr-threads",
-                                &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), chip->nr_threads,
+                                "nr-threads", &error_fatal);
         object_property_set_int(OBJECT(pnv_core), core_hwid,
                                 CPU_CORE_PROP_CORE_ID, &error_fatal);
         object_property_set_int(OBJECT(pnv_core),
@@ -1602,6 +1603,7 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
+    DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
