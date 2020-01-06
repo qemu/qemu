@@ -820,7 +820,7 @@ static void pnv_init(MachineState *machine)
     g_free(chip_typename);
 
     /* Create the machine BMC simulator */
-    pnv->bmc = pnv_bmc_create();
+    pnv->bmc = pnv_bmc_create(pnv->pnor);
 
     /* Instantiate ISA bus on chip 0 */
     pnv->isa_bus = pnv_isa_create(pnv->chips[0], &error_fatal);
