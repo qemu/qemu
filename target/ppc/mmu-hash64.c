@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -757,6 +758,31 @@ static void ppc_hash64_set_c(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
     stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
 }
 
+static target_ulong rmls_limit(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    /*
+     * This is the full 4 bits encoding of POWER8. Previous
+     * CPUs only support a subset of these but the filtering
+     * is done when writing LPCR.
+     *
+     * Unsupported values mean the OS has shot itself in the
+     * foot. Return a 0-sized RMA in this case, which we expect
+     * to trigger an immediate DSI or ISI
+     */
+    static const target_ulong rma_sizes[16] = {
+        [1] = 16 * GiB,
+        [2] = 1 * GiB,
+        [3] = 64 * MiB,
+        [4] = 256 * MiB,
+        [7] = 128 * MiB,
+        [8] = 32 * MiB,
+    };
+    target_ulong rmls = (env->spr[SPR_LPCR] & LPCR_RMLS) >> LPCR_RMLS_SHIFT;
+
+    return rma_sizes[rmls];
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
@@ -1006,41 +1032,6 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
-static void ppc_hash64_update_rmls(PowerPCCPU *cpu)
-{
-    CPUPPCState *env = &cpu->env;
-    uint64_t lpcr = env->spr[SPR_LPCR];
-
-    /*
-     * This is the full 4 bits encoding of POWER8. Previous
-     * CPUs only support a subset of these but the filtering
-     * is done when writing LPCR
-     */
-    switch ((lpcr & LPCR_RMLS) >> LPCR_RMLS_SHIFT) {
-    case 0x8: /* 32MB */
-        env->rmls = 0x2000000ull;
-        break;
-    case 0x3: /* 64MB */
-        env->rmls = 0x4000000ull;
-        break;
-    case 0x7: /* 128MB */
-        env->rmls = 0x8000000ull;
-        break;
-    case 0x4: /* 256MB */
-        env->rmls = 0x10000000ull;
-        break;
-    case 0x2: /* 1GB */
-        env->rmls = 0x40000000ull;
-        break;
-    case 0x1: /* 16GB */
-        env->rmls = 0x400000000ull;
-        break;
-    default:
-        /* What to do here ??? */
-        env->rmls = 0;
-    }
-}
-
 static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
@@ -1099,7 +1090,7 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    ppc_hash64_update_rmls(cpu);
+    env->rmls = rmls_limit(cpu);
     ppc_hash64_update_vrma(cpu);
 }
 
