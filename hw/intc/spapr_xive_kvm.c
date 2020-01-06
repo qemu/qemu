@@ -75,7 +75,7 @@ static void kvm_cpu_disable_all(void)
 
 void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 {
-    SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
+    SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     uint64_t state[2];
     int ret;
 
@@ -97,7 +97,7 @@ void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 
 void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 {
-    SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
+    SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     uint64_t state[2] = { 0 };
     int ret;
 
@@ -152,8 +152,7 @@ void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
 
 void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
-    SpaprXive *xive = SPAPR_MACHINE(ms)->xive;
+    SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     unsigned long vcpu_id;
     int ret;
 
@@ -179,7 +178,7 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
                    vcpu_id, strerror(errno));
         if (errno == ENOSPC) {
             error_append_hint(&local_err, "Try -smp maxcpus=N with N < %u\n",
-                              ms->smp.max_cpus);
+                              MACHINE(qdev_get_machine())->smp.max_cpus);
         }
         error_propagate(errp, local_err);
         return;
