@@ -32,6 +32,7 @@ class FreeBSDVM(basevm.BaseVM):
         "git",
         "pkgconf",
         "bzip2",
+        "python37",
 
         # gnu tools
         "bash",
@@ -63,7 +64,7 @@ class FreeBSDVM(basevm.BaseVM):
         mkdir src build; cd src;
         tar -xf /dev/vtbd1;
         cd ../build
-        ../src/configure --python=python3.6 {configure_opts};
+        ../src/configure --python=python3.7 {configure_opts};
         gmake --output-sync -j{jobs} {target} {verbose};
     """
 
