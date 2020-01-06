@@ -878,7 +878,7 @@ static int spapr_dt_cas_updates(SpaprMachineState *spapr, void *fdt,
         g_assert(smc->dr_lmb_enabled);
         ret = spapr_populate_drconf_memory(spapr, fdt);
         if (ret) {
-            goto out;
+            return ret;
         }
     }
 
@@ -889,11 +889,8 @@ static int spapr_dt_cas_updates(SpaprMachineState *spapr, void *fdt,
             return offset;
         }
     }
-    ret = spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
-                                 "ibm,architecture-vec-5");
-
-out:
-    return ret;
+    return spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
+                                  "ibm,architecture-vec-5");
 }
 
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
