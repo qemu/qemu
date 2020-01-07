@@ -149,3 +149,22 @@ bcm2835_mbox_write(unsigned int size, uint64_t addr, uint64_t value) "mbox write
 bcm2835_mbox_read(unsigned int size, uint64_t addr, uint64_t value) "mbox read sz:%u addr:0x%"PRIx64" data:0x%"PRIx64
 bcm2835_mbox_irq(unsigned level) "mbox irq:ARM level:%u"
 bcm2835_mbox_property(uint32_t tag, uint32_t bufsize, size_t resplen) "mbox property tag:0x%08x in_sz:%u out_sz:%zu"
+
+# mac_via.c
+via1_rtc_update_data_out(int count, int value) "count=%d value=0x%02x"
+via1_rtc_update_data_in(int count, int value) "count=%d value=0x%02x"
+via1_rtc_internal_status(int cmd, int alt, int value) "cmd=0x%02x alt=0x%02x value=0x%02x"
+via1_rtc_internal_cmd(int cmd) "cmd=0x%02x"
+via1_rtc_cmd_invalid(int value) "value=0x%02x"
+via1_rtc_internal_time(uint32_t time) "time=0x%08x"
+via1_rtc_internal_set_cmd(int cmd) "cmd=0x%02x"
+via1_rtc_internal_ignore_cmd(int cmd) "cmd=0x%02x"
+via1_rtc_internal_set_alt(int alt, int sector, int offset) "alt=0x%02x sector=%u offset=%u"
+via1_rtc_cmd_seconds_read(int reg, int value) "reg=%d value=0x%02x"
+via1_rtc_cmd_seconds_write(int reg, int value) "reg=%d value=0x%02x"
+via1_rtc_cmd_test_write(int value) "value=0x%02x"
+via1_rtc_cmd_wprotect_write(int value) "value=0x%02x"
+via1_rtc_cmd_pram_read(int addr, int value) "addr=%u value=0x%02x"
+via1_rtc_cmd_pram_write(int addr, int value) "addr=%u value=0x%02x"
+via1_rtc_cmd_pram_sect_read(int sector, int offset, int addr, int value) "sector=%u offset=%u addr=%d value=0x%02x"
+via1_rtc_cmd_pram_sect_write(int sector, int offset, int addr, int value) "sector=%u offset=%u addr=%d value=0x%02x"
