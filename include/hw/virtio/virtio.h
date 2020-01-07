@@ -100,6 +100,8 @@ struct VirtIODevice
     uint16_t device_id;
     bool vm_running;
     bool broken; /* device in invalid state, needs reset */
+    bool use_disabled_flag; /* allow use of 'disable' flag when needed */
+    bool disabled; /* device in temporarily disabled state */
     bool use_started;
     bool started;
     bool start_on_kick; /* when virtio 1.0 feature has not been negotiated */
@@ -183,6 +185,8 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_del_queue(VirtIODevice *vdev, int n);
 
+void virtio_delete_queue(VirtQueue *vq);
+
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
@@ -224,6 +228,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id);
 
 void virtio_notify_config(VirtIODevice *vdev);
 
+bool virtio_queue_get_notification(VirtQueue *vq);
 void virtio_queue_set_notification(VirtQueue *vq, int enable);
 
 int virtio_queue_ready(VirtQueue *vq);
@@ -378,4 +383,17 @@ static inline void virtio_set_started(VirtIODevice *vdev, bool started)
         vdev->started = started;
     }
 }
+
+static inline void virtio_set_disabled(VirtIODevice *vdev, bool disable)
+{
+    if (vdev->use_disabled_flag) {
+        vdev->disabled = disable;
+    }
+}
+
+static inline bool virtio_device_disabled(VirtIODevice *vdev)
+{
+    return unlikely(vdev->disabled || vdev->broken);
+}
+
 #endif

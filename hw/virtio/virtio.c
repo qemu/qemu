@@ -432,6 +432,11 @@ static void virtio_queue_packed_set_notification(VirtQueue *vq, int enable)
     }
 }
 
+bool virtio_queue_get_notification(VirtQueue *vq)
+{
+    return vq->notification;
+}
+
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
     vq->notification = enable;
@@ -546,7 +551,7 @@ static inline bool is_desc_avail(uint16_t flags, bool wrap_counter)
  * Called within rcu_read_lock().  */
 static int virtio_queue_empty_rcu(VirtQueue *vq)
 {
-    if (unlikely(vq->vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         return 1;
     }
 
@@ -565,7 +570,7 @@ static int virtio_queue_split_empty(VirtQueue *vq)
 {
     bool empty;
 
-    if (unlikely(vq->vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         return 1;
     }
 
@@ -783,7 +788,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 
     virtqueue_unmap_sg(vq, elem, len);
 
-    if (unlikely(vq->vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         return;
     }
 
@@ -839,7 +844,7 @@ static void virtqueue_packed_flush(VirtQueue *vq, unsigned int count)
 
 void virtqueue_flush(VirtQueue *vq, unsigned int count)
 {
-    if (unlikely(vq->vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         vq->inuse -= count;
         return;
     }
@@ -1602,7 +1607,7 @@ err_undo_map:
 
 void *virtqueue_pop(VirtQueue *vq, size_t sz)
 {
-    if (unlikely(vq->vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         return NULL;
     }
 
@@ -1698,7 +1703,7 @@ unsigned int virtqueue_drop_all(VirtQueue *vq)
 {
     struct VirtIODevice *vdev = vq->vdev;
 
-    if (unlikely(vdev->broken)) {
+    if (virtio_device_disabled(vq->vdev)) {
         return 0;
     }
 
@@ -1816,7 +1821,7 @@ static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    if (unlikely(vdev->broken)) {
+    if (virtio_device_disabled(vdev)) {
         return;
     }
 
@@ -1920,6 +1925,7 @@ void virtio_reset(void *opaque)
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
     vdev->status = 0;
+    vdev->disabled = false;
     atomic_set(&vdev->isr, 0);
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
@@ -2330,17 +2336,24 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
+void virtio_delete_queue(VirtQueue *vq)
+{
+    vq->vring.num = 0;
+    vq->vring.num_default = 0;
+    vq->handle_output = NULL;
+    vq->handle_aio_output = NULL;
+    g_free(vq->used_elems);
+    vq->used_elems = NULL;
+    virtio_virtqueue_reset_region_cache(vq);
+}
+
 void virtio_del_queue(VirtIODevice *vdev, int n)
 {
     if (n < 0 || n >= VIRTIO_QUEUE_MAX) {
         abort();
     }
 
-    vdev->vq[n].vring.num = 0;
-    vdev->vq[n].vring.num_default = 0;
-    vdev->vq[n].handle_output = NULL;
-    vdev->vq[n].handle_aio_output = NULL;
-    g_free(vdev->vq[n].used_elems);
+    virtio_delete_queue(&vdev->vq[n]);
 }
 
 static void virtio_set_isr(VirtIODevice *vdev, int value)
@@ -2553,6 +2566,13 @@ static bool virtio_started_needed(void *opaque)
     return vdev->started;
 }
 
+static bool virtio_disabled_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return vdev->disabled;
+}
+
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
@@ -2718,6 +2738,17 @@ static const VMStateDescription vmstate_virtio_started = {
     }
 };
 
+static const VMStateDescription vmstate_virtio_disabled = {
+    .name = "virtio/disabled",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_disabled_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(disabled, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio = {
     .name = "virtio",
     .version_id = 1,
@@ -2735,6 +2766,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_extra_state,
         &vmstate_virtio_started,
         &vmstate_virtio_packed_virtqueues,
+        &vmstate_virtio_disabled,
         NULL
     }
 };
@@ -3384,17 +3416,12 @@ static bool virtio_queue_host_notifier_aio_poll(void *opaque)
 {
     EventNotifier *n = opaque;
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
-    bool progress;
 
     if (!vq->vring.desc || virtio_queue_empty(vq)) {
         return false;
     }
 
-    progress = virtio_queue_notify_aio_vq(vq);
-
-    /* In case the handler function re-enabled notifications */
-    virtio_queue_set_notification(vq, 0);
-    return progress;
+    return virtio_queue_notify_aio_vq(vq);
 }
 
 static void virtio_queue_host_notifier_aio_poll_end(EventNotifier *n)
@@ -3569,6 +3596,7 @@ static void virtio_device_instance_finalize(Object *obj)
 static Property virtio_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
     DEFINE_PROP_BOOL("use-started", VirtIODevice, use_started, true),
+    DEFINE_PROP_BOOL("use-disabled-flag", VirtIODevice, use_disabled_flag, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

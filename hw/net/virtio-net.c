@@ -3102,7 +3102,8 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
     for (i = 0; i < max_queues; i++) {
         virtio_net_del_queue(n, i);
     }
-
+    /* delete also control vq */
+    virtio_del_queue(vdev, max_queues * 2);
     qemu_announce_timer_del(&n->announce_timer, false);
     g_free(n->vqs);
     qemu_del_nic(n->nic);
