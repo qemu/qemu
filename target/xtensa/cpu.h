@@ -645,7 +645,9 @@ static inline int xtensa_get_cintlevel(const CPUXtensaState *env)
 
 static inline int xtensa_get_ring(const CPUXtensaState *env)
 {
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
+    if (xtensa_option_bits_enabled(env->config,
+                                   XTENSA_OPTION_BIT(XTENSA_OPTION_MMU) |
+                                   XTENSA_OPTION_BIT(XTENSA_OPTION_MPU))) {
         return (env->sregs[PS] & PS_RING) >> PS_RING_SHIFT;
     } else {
         return 0;
@@ -654,8 +656,10 @@ static inline int xtensa_get_ring(const CPUXtensaState *env)
 
 static inline int xtensa_get_cring(const CPUXtensaState *env)
 {
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) &&
-            (env->sregs[PS] & PS_EXCM) == 0) {
+    if (xtensa_option_bits_enabled(env->config,
+                                   XTENSA_OPTION_BIT(XTENSA_OPTION_MMU) |
+                                   XTENSA_OPTION_BIT(XTENSA_OPTION_MPU)) &&
+        (env->sregs[PS] & PS_EXCM) == 0) {
         return (env->sregs[PS] & PS_RING) >> PS_RING_SHIFT;
     } else {
         return 0;

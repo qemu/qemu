@@ -2713,7 +2713,8 @@ static void translate_wsr_ps(DisasContext *dc, const OpcodeArg arg[],
     uint32_t mask = PS_WOE | PS_CALLINC | PS_OWB |
         PS_UM | PS_EXCM | PS_INTLEVEL;
 
-    if (option_enabled(dc, XTENSA_OPTION_MMU)) {
+    if (option_enabled(dc, XTENSA_OPTION_MMU) ||
+        option_enabled(dc, XTENSA_OPTION_MPU)) {
         mask |= PS_RING;
     }
     tcg_gen_andi_i32(cpu_SR[par[0]], arg[0].in, mask);
