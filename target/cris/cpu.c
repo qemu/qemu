@@ -147,6 +147,14 @@ static void cris_cpu_set_irq(void *opaque, int irq, int level)
     CPUState *cs = CPU(cpu);
     int type = irq == CRIS_CPU_IRQ ? CPU_INTERRUPT_HARD : CPU_INTERRUPT_NMI;
 
+    if (irq == CRIS_CPU_IRQ) {
+        /*
+         * The PIC passes us the vector for the IRQ as the value it sends
+         * over the qemu_irq line
+         */
+        cpu->env.interrupt_vector = level;
+    }
+
     if (level) {
         cpu_interrupt(cs, type);
     } else {

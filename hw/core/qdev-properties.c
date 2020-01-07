@@ -501,13 +501,6 @@ const PropertyInfo qdev_prop_string = {
     .set   = set_string,
 };
 
-/* --- pointer --- */
-
-/* Not a proper property, just for dirty hacks.  TODO Remove it!  */
-const PropertyInfo qdev_prop_ptr = {
-    .name  = "ptr",
-};
-
 /* --- mac address --- */
 
 /*
@@ -1163,17 +1156,6 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
     object_property_set_str(OBJECT(dev),
                             qapi_enum_lookup(prop->info->enum_table, value),
                             name, &error_abort);
-}
-
-void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
-{
-    Property *prop;
-    void **ptr;
-
-    prop = qdev_prop_find(dev, name);
-    assert(prop && prop->info == &qdev_prop_ptr);
-    ptr = qdev_get_prop_ptr(dev, prop);
-    *ptr = value;
 }
 
 static GPtrArray *global_props(void)

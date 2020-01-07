@@ -83,7 +83,7 @@ typedef struct {
     uint32_t i2csel;
     CharBackend display;
     char display_text[9];
-    SerialState *uart;
+    SerialMM *uart;
     bool display_inited;
 } MaltaFPGAState;
 

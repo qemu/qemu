@@ -1156,9 +1156,9 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl, bool no_vmport)
         vmmouse = NULL;
     }
     if (vmmouse) {
-        DeviceState *dev = DEVICE(vmmouse);
-        qdev_prop_set_ptr(dev, "ps2_mouse", i8042);
-        qdev_init_nofail(dev);
+        object_property_set_link(OBJECT(vmmouse), OBJECT(i8042),
+                                 "i8042", &error_abort);
+        qdev_init_nofail(DEVICE(vmmouse));
     }
     port92 = isa_create_simple(isa_bus, TYPE_PORT92);
 
@@ -1198,7 +1198,6 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
      * when the HPET wants to take over. Thus we have to disable the latter.
      */
     if (!no_hpet && (!kvm_irqchip_in_kernel() || kvm_has_pit_state2())) {
-        /* In order to set property, here not using sysbus_try_create_simple */
         hpet = qdev_try_create(NULL, TYPE_HPET);
         if (hpet) {
             /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7

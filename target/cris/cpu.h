@@ -34,6 +34,7 @@
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
 /* CRUS CPU device objects interrupt lines.  */
+/* PIC passes the vector for the IRQ as the value of it sends over qemu_irq */
 #define CRIS_CPU_IRQ 0
 #define CRIS_CPU_NMI 1
 

@@ -27,7 +27,7 @@
 struct omap_uart_s {
     MemoryRegion iomem;
     hwaddr base;
-    SerialState *serial; /* TODO */
+    SerialMM *serial; /* TODO */
     struct omap_target_agent_s *ta;
     omap_clk fclk;
     qemu_irq irq;

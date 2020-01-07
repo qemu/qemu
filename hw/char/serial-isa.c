@@ -73,9 +73,8 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     }
     index++;
 
-    s->baudbase = 115200;
     isa_init_irq(isadev, &s->irq, isa->isairq);
-    serial_realize_core(s, errp);
+    object_property_set_bool(OBJECT(s), true, "realized", errp);
     qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
     memory_region_init_io(&s->io, OBJECT(isa), &serial_io_ops, s, "serial", 8);
@@ -111,10 +110,19 @@ static void serial_isa_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static void serial_isa_initfn(Object *o)
+{
+    ISASerialState *self = ISA_SERIAL(o);
+
+    object_initialize_child(o, "serial", &self->state, sizeof(self->state),
+                            TYPE_SERIAL, &error_abort, NULL);
+}
+
 static const TypeInfo serial_isa_info = {
     .name          = TYPE_ISA_SERIAL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),
+    .instance_init = serial_isa_initfn,
     .class_init    = serial_isa_class_initfn,
 };
 

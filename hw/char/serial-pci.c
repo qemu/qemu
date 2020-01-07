@@ -40,6 +40,8 @@ typedef struct PCISerialState {
     uint8_t prog_if;
 } PCISerialState;
 
+#define TYPE_PCI_SERIAL "pci-serial"
+#define PCI_SERIAL(s) OBJECT_CHECK(PCISerialState, (s), TYPE_PCI_SERIAL)
 
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
@@ -47,8 +49,7 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
     SerialState *s = &pci->state;
     Error *err = NULL;
 
-    s->baudbase = 115200;
-    serial_realize_core(s, &err);
+    object_property_set_bool(OBJECT(s), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -67,7 +68,7 @@ static void serial_pci_exit(PCIDevice *dev)
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
 
-    serial_exit_core(s);
+    object_property_set_bool(OBJECT(s), false, "realized", NULL);
     qemu_free_irq(s->irq);
 }
 
@@ -103,10 +104,19 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static void serial_pci_init(Object *o)
+{
+    PCISerialState *ps = PCI_SERIAL(o);
+
+    object_initialize_child(o, "serial", &ps->state, sizeof(ps->state),
+                            TYPE_SERIAL, &error_abort, NULL);
+}
+
 static const TypeInfo serial_pci_info = {
-    .name          = "pci-serial",
+    .name          = TYPE_PCI_SERIAL,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCISerialState),
+    .instance_init = serial_pci_init,
     .class_init    = serial_pci_class_initfn,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

@@ -24,10 +24,6 @@ typedef struct SysBusDevice SysBusDevice;
 
 /**
  * SysBusDeviceClass:
- * @init: Callback function invoked when the #DeviceState.realized property
- * is changed to %true. Deprecated, new types inheriting directly from
- * TYPE_SYS_BUS_DEVICE should use #DeviceClass.realize instead, new leaf
- * types should consult their respective parent type.
  *
  * SysBusDeviceClass is not overriding #DeviceClass.realize, so derived
  * classes overriding it are not required to invoke its implementation.
@@ -117,8 +113,7 @@ void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque);
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
                                  hwaddr addr, ...);
-DeviceState *sysbus_try_create_varargs(const char *name,
-                                       hwaddr addr, ...);
+
 static inline DeviceState *sysbus_create_simple(const char *name,
                                               hwaddr addr,
                                               qemu_irq irq)
@@ -126,11 +121,5 @@ static inline DeviceState *sysbus_create_simple(const char *name,
     return sysbus_create_varargs(name, addr, irq, NULL);
 }
 
-static inline DeviceState *sysbus_try_create_simple(const char *name,
-                                                    hwaddr addr,
-                                                    qemu_irq irq)
-{
-    return sysbus_try_create_varargs(name, addr, irq, NULL);
-}
 
 #endif /* HW_SYSBUS_H */

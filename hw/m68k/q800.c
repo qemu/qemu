@@ -266,7 +266,8 @@ static void q800_init(MachineState *machine)
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_prop_set_uint8(dev, "it_shift", 2);
     qdev_prop_set_bit(dev, "big_endian", true);
-    qdev_prop_set_ptr(dev, "dma_mr", get_system_memory());
+    object_property_set_link(OBJECT(dev), OBJECT(get_system_memory()),
+                             "dma_mr", &error_abort);
     qdev_init_nofail(dev);
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);

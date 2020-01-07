@@ -394,11 +394,8 @@ static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
     NamedGPIOList *ngl;
 
     QLIST_FOREACH(ngl, &dev->gpios, node) {
-        /* NULL is a valid and matchable name, otherwise do a normal
-         * strcmp match.
-         */
-        if ((!ngl->name && !name) ||
-                (name && ngl->name && strcmp(name, ngl->name) == 0)) {
+        /* NULL is a valid and matchable name. */
+        if (g_strcmp0(name, ngl->name) == 0) {
             return ngl;
         }
     }
@@ -739,14 +736,6 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     if (prop->info->create) {
         prop->info->create(obj, prop, &local_err);
     } else {
-        /*
-         * TODO qdev_prop_ptr does not have getters or setters.  It must
-         * go now that it can be replaced with links.  The test should be
-         * removed along with it: all static properties are read/write.
-         */
-        if (!prop->info->get && !prop->info->set) {
-            return;
-        }
         object_property_add(obj, prop->name, prop->info->name,
                             prop->info->get, prop->info->set,
                             prop->info->release,

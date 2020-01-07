@@ -27,8 +27,6 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-//#include "pc.h"
-//#include "etraxfs.h"
 
 #define D(x)
 
@@ -48,7 +46,6 @@ struct etrax_pic
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
-    void *interrupt_vector;
     qemu_irq parent_irq;
     qemu_irq parent_nmi;
     uint32_t regs[R_MAX];
@@ -79,11 +76,7 @@ static void pic_update(struct etrax_pic *fs)
         }
     }
 
-    if (fs->interrupt_vector) {
-        /* hack alert: ptr property */
-        *(uint32_t*)(fs->interrupt_vector) = vector;
-    }
-    qemu_set_irq(fs->parent_irq, !!vector);
+    qemu_set_irq(fs->parent_irq, vector);
 }
 
 static uint64_t
@@ -163,28 +156,11 @@ static void etraxfs_pic_init(Object *obj)
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
-static Property etraxfs_pic_properties[] = {
-    DEFINE_PROP_PTR("interrupt_vector", struct etrax_pic, interrupt_vector),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->props = etraxfs_pic_properties;
-    /*
-     * Note: pointer property "interrupt_vector" may remain null, thus
-     * no need for dc->user_creatable = false;
-     */
-}
-
 static const TypeInfo etraxfs_pic_info = {
     .name          = TYPE_ETRAX_FS_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct etrax_pic),
     .instance_init = etraxfs_pic_init,
-    .class_init    = etraxfs_pic_class_init,
 };
 
 static void etraxfs_pic_register_types(void)
