@@ -815,6 +815,19 @@ int virtio_loop(struct fuse_session *se)
         }
     }
 
+    /*
+     * Make sure all fv_queue_thread()s quit on exit, as we're about to
+     * free virtio dev and fuse session, no one should access them anymore.
+     */
+    for (int i = 0; i < se->virtio_dev->nqueues; i++) {
+        if (!se->virtio_dev->qi[i]) {
+            continue;
+        }
+
+        fuse_log(FUSE_LOG_INFO, "%s: Stopping queue %d thread\n", __func__, i);
+        fv_queue_cleanup_thread(se->virtio_dev, i);
+    }
+
     fuse_log(FUSE_LOG_INFO, "%s: Exit\n", __func__);
 
     return 0;
