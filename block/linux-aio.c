@@ -26,7 +26,7 @@
  *      than this we will get EAGAIN from io_submit which is communicated to
  *      the guest as an I/O error.
  */
-#define MAX_EVENTS 128
+#define MAX_EVENTS 1024
 
 struct qemu_laiocb {
     Coroutine *co;
