@@ -111,7 +111,7 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
 }
 
 static Property pnv_pnor_properties[] = {
-    DEFINE_PROP_UINT32("size", PnvPnor, size, 128 << 20),
+    DEFINE_PROP_INT64("size", PnvPnor, size, 128 << 20),
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
     DEFINE_PROP_END_OF_LIST(),
 };

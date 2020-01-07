@@ -23,7 +23,7 @@ typedef struct PnvPnor {
     BlockBackend   *blk;
 
     uint8_t        *storage;
-    uint32_t       size;
+    int64_t        size;
     MemoryRegion   mmio;
 } PnvPnor;
 
