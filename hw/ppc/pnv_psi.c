@@ -469,6 +469,16 @@ static void pnv_psi_reset_handler(void *dev)
     device_reset(DEVICE(dev));
 }
 
+static void pnv_psi_realize(DeviceState *dev, Error **errp)
+{
+    PnvPsi *psi = PNV_PSI(dev);
+
+    /* Default BAR for MMIO region */
+    pnv_psi_set_bar(psi, psi->bar | PSIHB_BAR_EN);
+
+    qemu_register_reset(pnv_psi_reset_handler, dev);
+}
+
 static void pnv_psi_power8_instance_init(Object *obj)
 {
     Pnv8Psi *psi8 = PNV8_PSI(obj);
@@ -521,9 +531,6 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&psi->regs_mr, OBJECT(dev), &psi_mmio_ops, psi,
                           "psihb", PNV_PSIHB_SIZE);
 
-    /* Default BAR for MMIO region */
-    pnv_psi_set_bar(psi, psi->bar | PSIHB_BAR_EN);
-
     /* Default sources in XIVR */
     for (i = 0; i < PSI_NUM_INTERRUPTS; i++) {
         uint8_t xivr = irq_to_xivr[i];
@@ -531,7 +538,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
             ((uint64_t) i << PSIHB_XIVR_SRC_SH);
     }
 
-    qemu_register_reset(pnv_psi_reset_handler, dev);
+    pnv_psi_realize(dev, errp);
 }
 
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
@@ -866,9 +873,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&psi->regs_mr, OBJECT(dev), &pnv_psi_p9_mmio_ops, psi,
                           "psihb", PNV9_PSIHB_SIZE);
 
-    pnv_psi_set_bar(psi, psi->bar | PSIHB_BAR_EN);
-
-    qemu_register_reset(pnv_psi_reset_handler, dev);
+    pnv_psi_realize(dev, errp);
 }
 
 static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
