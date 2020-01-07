@@ -455,13 +455,18 @@ static const MemoryRegionOps pnv_psi_xscom_ops = {
     }
 };
 
-static void pnv_psi_reset(void *dev)
+static void pnv_psi_reset(DeviceState *dev)
 {
     PnvPsi *psi = PNV_PSI(dev);
 
     memset(psi->regs, 0x0, sizeof(psi->regs));
 
     psi->regs[PSIHB_XSCOM_BAR] = psi->bar | PSIHB_BAR_EN;
+}
+
+static void pnv_psi_reset_handler(void *dev)
+{
+    device_reset(DEVICE(dev));
 }
 
 static void pnv_psi_power8_instance_init(Object *obj)
@@ -526,7 +531,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
             ((uint64_t) i << PSIHB_XIVR_SRC_SH);
     }
 
-    qemu_register_reset(pnv_psi_reset, dev);
+    qemu_register_reset(pnv_psi_reset_handler, dev);
 }
 
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
@@ -809,7 +814,7 @@ static void pnv_psi_power9_irq_set(PnvPsi *psi, int irq, bool state)
     qemu_set_irq(psi->qirqs[irq], state);
 }
 
-static void pnv_psi_power9_reset(void *dev)
+static void pnv_psi_power9_reset(DeviceState *dev)
 {
     Pnv9Psi *psi = PNV9_PSI(dev);
 
@@ -863,7 +868,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
 
     pnv_psi_set_bar(psi, psi->bar | PSIHB_BAR_EN);
 
-    qemu_register_reset(pnv_psi_power9_reset, dev);
+    qemu_register_reset(pnv_psi_reset_handler, dev);
 }
 
 static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
@@ -875,6 +880,7 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
 
     dc->desc    = "PowerNV PSI Controller POWER9";
     dc->realize = pnv_psi_power9_realize;
+    dc->reset   = pnv_psi_power9_reset;
 
     ppc->xscom_pcba = PNV9_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
@@ -927,6 +933,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PowerNV PSI Controller";
     dc->props = pnv_psi_properties;
+    dc->reset = pnv_psi_reset;
 }
 
 static const TypeInfo pnv_psi_info = {
