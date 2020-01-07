@@ -614,6 +614,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         extra_opts = use_shmem ? get_shmem_opts("256M", shmem_path) : NULL;
+        start_address = PPC_TEST_MEM_START;
+        end_address = PPC_TEST_MEM_END;
         cmd_src = g_strdup_printf("-machine accel=%s,vsmt=8 -m 256M -nodefaults"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
@@ -629,9 +631,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                   " -incoming %s %s %s",
                                   accel, tmpfs, uri,
                                   extra_opts ? extra_opts : "", opts_dst);
-
-        start_address = PPC_TEST_MEM_START;
-        end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
         init_bootfile(bootpath, aarch64_kernel, sizeof(aarch64_kernel));
         extra_opts = use_shmem ? get_shmem_opts("150M", shmem_path) : NULL;
