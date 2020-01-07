@@ -350,15 +350,15 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->segs[R_GS].base = ldl_p(mem_buf);
             return 4;
 
-#ifdef TARGET_X86_64
         case IDX_SEG_REGS + 8:
+#ifdef TARGET_X86_64
             if (env->hflags & HF_CS64_MASK) {
                 env->kernelgsbase = ldq_p(mem_buf);
                 return 8;
             }
             env->kernelgsbase = ldl_p(mem_buf);
-            return 4;
 #endif
+            return 4;
 
         case IDX_FP_REGS + 8:
             cpu_set_fpuc(env, ldl_p(mem_buf));
