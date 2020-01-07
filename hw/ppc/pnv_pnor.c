@@ -33,6 +33,7 @@ static uint64_t pnv_pnor_read(void *opaque, hwaddr addr, unsigned size)
 static void pnv_pnor_update(PnvPnor *s, int offset, int size)
 {
     int offset_end;
+    int ret;
 
     if (s->blk) {
         return;
@@ -42,8 +43,11 @@ static void pnv_pnor_update(PnvPnor *s, int offset, int size)
     offset = QEMU_ALIGN_DOWN(offset, BDRV_SECTOR_SIZE);
     offset_end = QEMU_ALIGN_UP(offset_end, BDRV_SECTOR_SIZE);
 
-    blk_pwrite(s->blk, offset, s->storage + offset,
-               offset_end - offset, 0);
+    ret = blk_pwrite(s->blk, offset, s->storage + offset,
+                     offset_end - offset, 0);
+    if (ret < 0) {
+        error_report("Could not update PNOR: %s", strerror(-ret));
+    }
 }
 
 static void pnv_pnor_write(void *opaque, hwaddr addr, uint64_t data,
