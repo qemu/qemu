@@ -41,7 +41,6 @@
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
 static void bdrv_parent_cb_resize(BlockDriverState *bs);
-static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
 
@@ -716,12 +715,69 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
     qemu_co_mutex_unlock(&bs->reqs_lock);
 }
 
+static bool tracked_request_overlaps(BdrvTrackedRequest *req,
+                                     int64_t offset, uint64_t bytes)
+{
+    /*        aaaa   bbbb */
+    if (offset >= req->overlap_offset + req->overlap_bytes) {
+        return false;
+    }
+    /* bbbb   aaaa        */
+    if (req->overlap_offset >= offset + bytes) {
+        return false;
+    }
+    return true;
+}
+
+static bool coroutine_fn
+bdrv_wait_serialising_requests_locked(BlockDriverState *bs,
+                                      BdrvTrackedRequest *self)
+{
+    BdrvTrackedRequest *req;
+    bool retry;
+    bool waited = false;
+
+    do {
+        retry = false;
+        QLIST_FOREACH(req, &bs->tracked_requests, list) {
+            if (req == self || (!req->serialising && !self->serialising)) {
+                continue;
+            }
+            if (tracked_request_overlaps(req, self->overlap_offset,
+                                         self->overlap_bytes))
+            {
+                /* Hitting this means there was a reentrant request, for
+                 * example, a block driver issuing nested requests.  This must
+                 * never happen since it means deadlock.
+                 */
+                assert(qemu_coroutine_self() != req->co);
+
+                /* If the request is already (indirectly) waiting for us, or
+                 * will wait for us as soon as it wakes up, then just go on
+                 * (instead of producing a deadlock in the former case). */
+                if (!req->waiting_for) {
+                    self->waiting_for = req;
+                    qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
+                    self->waiting_for = NULL;
+                    retry = true;
+                    waited = true;
+                    break;
+                }
+            }
+        }
+    } while (retry);
+    return waited;
+}
+
 bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 {
+    BlockDriverState *bs = req->bs;
     int64_t overlap_offset = req->offset & ~(align - 1);
     uint64_t overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
                                - overlap_offset;
+    bool waited;
 
+    qemu_co_mutex_lock(&bs->reqs_lock);
     if (!req->serialising) {
         atomic_inc(&req->bs->serialising_in_flight);
         req->serialising = true;
@@ -729,7 +785,9 @@ bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 
     req->overlap_offset = MIN(req->overlap_offset, overlap_offset);
     req->overlap_bytes = MAX(req->overlap_bytes, overlap_bytes);
-    return bdrv_wait_serialising_requests(req);
+    waited = bdrv_wait_serialising_requests_locked(bs, req);
+    qemu_co_mutex_unlock(&bs->reqs_lock);
+    return waited;
 }
 
 /**
@@ -783,20 +841,6 @@ static int bdrv_get_cluster_size(BlockDriverState *bs)
     }
 }
 
-static bool tracked_request_overlaps(BdrvTrackedRequest *req,
-                                     int64_t offset, uint64_t bytes)
-{
-    /*        aaaa   bbbb */
-    if (offset >= req->overlap_offset + req->overlap_bytes) {
-        return false;
-    }
-    /* bbbb   aaaa        */
-    if (req->overlap_offset >= offset + bytes) {
-        return false;
-    }
-    return true;
-}
-
 void bdrv_inc_in_flight(BlockDriverState *bs)
 {
     atomic_inc(&bs->in_flight);
@@ -816,45 +860,15 @@ void bdrv_dec_in_flight(BlockDriverState *bs)
 static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self)
 {
     BlockDriverState *bs = self->bs;
-    BdrvTrackedRequest *req;
-    bool retry;
     bool waited = false;
 
     if (!atomic_read(&bs->serialising_in_flight)) {
         return false;
     }
 
-    do {
-        retry = false;
-        qemu_co_mutex_lock(&bs->reqs_lock);
-        QLIST_FOREACH(req, &bs->tracked_requests, list) {
-            if (req == self || (!req->serialising && !self->serialising)) {
-                continue;
-            }
-            if (tracked_request_overlaps(req, self->overlap_offset,
-                                         self->overlap_bytes))
-            {
-                /* Hitting this means there was a reentrant request, for
-                 * example, a block driver issuing nested requests.  This must
-                 * never happen since it means deadlock.
-                 */
-                assert(qemu_coroutine_self() != req->co);
-
-                /* If the request is already (indirectly) waiting for us, or
-                 * will wait for us as soon as it wakes up, then just go on
-                 * (instead of producing a deadlock in the former case). */
-                if (!req->waiting_for) {
-                    self->waiting_for = req;
-                    qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
-                    self->waiting_for = NULL;
-                    retry = true;
-                    waited = true;
-                    break;
-                }
-            }
-        }
-        qemu_co_mutex_unlock(&bs->reqs_lock);
-    } while (retry);
+    qemu_co_mutex_lock(&bs->reqs_lock);
+    waited = bdrv_wait_serialising_requests_locked(bs, self);
+    qemu_co_mutex_unlock(&bs->reqs_lock);
 
     return waited;
 }
