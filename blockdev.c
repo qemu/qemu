@@ -2984,6 +2984,7 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
+    AioContext *aio_context;
 
     if (!name || name[0] == '\0') {
         error_setg(errp, "Bitmap name cannot be empty");
@@ -2995,11 +2996,14 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (has_granularity) {
         if (granularity < 512 || !is_power_of_2(granularity)) {
             error_setg(errp, "Granularity must be power of 2 "
                              "and at least 512");
-            return;
+            goto out;
         }
     } else {
         /* Default to cluster size, if available: */
@@ -3017,12 +3021,12 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     if (persistent &&
         !bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp))
     {
-        return;
+        goto out;
     }
 
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
     if (bitmap == NULL) {
-        return;
+        goto out;
     }
 
     if (disabled) {
@@ -3030,6 +3034,9 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     }
 
     bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
+
+out:
+    aio_context_release(aio_context);
 }
 
 static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
@@ -3038,21 +3045,27 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
+    AioContext *aio_context;
 
     bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
     if (!bitmap || !bs) {
         return NULL;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY | BDRV_BITMAP_RO,
                                 errp)) {
+        aio_context_release(aio_context);
         return NULL;
     }
 
     if (bdrv_dirty_bitmap_get_persistence(bitmap) &&
         bdrv_remove_persistent_dirty_bitmap(bs, name, errp) < 0)
     {
-            return NULL;
+        aio_context_release(aio_context);
+        return NULL;
     }
 
     if (release) {
@@ -3063,6 +3076,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
         *bitmap_bs = bs;
     }
 
+    aio_context_release(aio_context);
     return release ? NULL : bitmap;
 }
 
