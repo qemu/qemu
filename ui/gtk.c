@@ -1966,6 +1966,11 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               GSList *group, GtkWidget *view_menu)
 {
     bool zoom_to_fit = false;
+    int refresh_rate_millihz;
+
+    GdkDisplay *dpy = gtk_widget_get_display(s->window);
+    GdkWindow *win = gtk_widget_get_window(s->window);
+    GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
 
     vc->label = qemu_console_get_label(con);
     vc->s = s;
@@ -2026,6 +2031,12 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
     vc->gfx.kbd = qkbd_state_init(con);
     vc->gfx.dcl.con = con;
+
+    refresh_rate_millihz = gdk_monitor_get_refresh_rate(monitor);
+    if (refresh_rate_millihz) {
+        vc->gfx.dcl.update_interval = MILLISEC_PER_SEC / refresh_rate_millihz;
+    }
+
     register_displaychangelistener(&vc->gfx.dcl);
 
     gd_connect_vc_gfx_signals(vc);
