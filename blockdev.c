@@ -1731,6 +1731,8 @@ static void external_snapshot_abort(BlkActionState *common)
     if (state->new_bs) {
         if (state->overlay_appended) {
             AioContext *aio_context;
+            AioContext *tmp_context;
+            int ret;
 
             aio_context = bdrv_get_aio_context(state->old_bs);
             aio_context_acquire(aio_context);
@@ -1738,6 +1740,25 @@ static void external_snapshot_abort(BlkActionState *common)
             bdrv_ref(state->old_bs);   /* we can't let bdrv_set_backind_hd()
                                           close state->old_bs; we need it */
             bdrv_set_backing_hd(state->new_bs, NULL, &error_abort);
+
+            /*
+             * The call to bdrv_set_backing_hd() above returns state->old_bs to
+             * the main AioContext. As we're still going to be using it, return
+             * it to the AioContext it was before.
+             */
+            tmp_context = bdrv_get_aio_context(state->old_bs);
+            if (aio_context != tmp_context) {
+                aio_context_release(aio_context);
+                aio_context_acquire(tmp_context);
+
+                ret = bdrv_try_set_aio_context(state->old_bs,
+                                               aio_context, NULL);
+                assert(ret == 0);
+
+                aio_context_release(tmp_context);
+                aio_context_acquire(aio_context);
+            }
+
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
 
