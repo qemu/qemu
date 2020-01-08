@@ -255,9 +255,6 @@ append_failed:
 void bdrv_backup_top_drop(BlockDriverState *bs)
 {
     BDRVBackupTopState *s = bs->opaque;
-    AioContext *aio_context = bdrv_get_aio_context(bs);
-
-    aio_context_acquire(aio_context);
 
     bdrv_drained_begin(bs);
 
@@ -271,6 +268,4 @@ void bdrv_backup_top_drop(BlockDriverState *bs)
     bdrv_drained_end(bs);
 
     bdrv_unref(bs);
-
-    aio_context_release(aio_context);
 }
