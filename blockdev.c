@@ -1940,16 +1940,13 @@ typedef struct BlockdevBackupState {
     BlockJob *job;
 } BlockdevBackupState;
 
-static BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
-                                    Error **errp);
-
 static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
-    BlockDriverState *bs, *target;
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
     AioContext *aio_context;
-    Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
     backup = common->action->u.blockdev_backup.data;
@@ -1959,8 +1956,8 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
         return;
     }
 
-    target = bdrv_lookup_bs(backup->target, backup->target, errp);
-    if (!target) {
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
+    if (!target_bs) {
         return;
     }
 
@@ -1971,13 +1968,10 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     /* Paired with .clean() */
     bdrv_drained_begin(state->bs);
 
-    state->job = do_blockdev_backup(backup, common->block_job_txn, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
+    state->job = do_backup_common(qapi_BlockdevBackup_base(backup),
+                                  bs, target_bs, aio_context,
+                                  common->block_job_txn, errp);
 
-out:
     aio_context_release(aio_context);
 }
 
@@ -3695,41 +3689,13 @@ XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
     return bdrv_get_xdbg_block_graph(errp);
 }
 
-BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
-                             Error **errp)
+void qmp_blockdev_backup(BlockdevBackup *backup, Error **errp)
 {
-    BlockDriverState *bs;
-    BlockDriverState *target_bs;
-    AioContext *aio_context;
-    BlockJob *job;
-
-    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
-    if (!bs) {
-        return NULL;
-    }
-
-    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
-    if (!target_bs) {
-        return NULL;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
-    job = do_backup_common(qapi_BlockdevBackup_base(backup),
-                           bs, target_bs, aio_context, txn, errp);
-
-    aio_context_release(aio_context);
-    return job;
-}
-
-void qmp_blockdev_backup(BlockdevBackup *arg, Error **errp)
-{
-    BlockJob *job;
-    job = do_blockdev_backup(arg, NULL, errp);
-    if (job) {
-        job_start(&job->job);
-    }
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP,
+        .u.blockdev_backup.data = backup,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 /* Parameter check and block job starting for drive mirroring.
