@@ -1869,6 +1869,11 @@ static void parse_display(const char *p)
 {
     const char *opts;
 
+    if (is_help_option(p)) {
+        qemu_display_help();
+        exit(0);
+    }
+
     if (strstart(p, "sdl", &opts)) {
         /*
          * sdl DisplayType needs hand-crafted parser instead of
