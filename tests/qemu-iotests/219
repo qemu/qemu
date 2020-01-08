@@ -63,7 +63,7 @@ def test_pause_resume(vm):
                 # logged immediately
                 iotests.log(vm.qmp('query-jobs'))
 
-def test_job_lifecycle(vm, job, job_args, has_ready=False):
+def test_job_lifecycle(vm, job, job_args, has_ready=False, is_mirror=False):
     global img_size
 
     iotests.log('')
@@ -135,6 +135,9 @@ def test_job_lifecycle(vm, job, job_args, has_ready=False):
     iotests.log('Waiting for PENDING state...')
     iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
     iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
+    if is_mirror:
+        iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
+        iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
 
     if not job_args.get('auto-finalize', True):
         # PENDING state:
@@ -218,7 +221,7 @@ with iotests.FilePath('disk.img') as disk_path, \
 
     for auto_finalize in [True, False]:
         for auto_dismiss in [True, False]:
-            test_job_lifecycle(vm, 'drive-backup', job_args={
+            test_job_lifecycle(vm, 'drive-backup', is_mirror=True, job_args={
                 'device': 'drive0-node',
                 'target': copy_path,
                 'sync': 'full',
