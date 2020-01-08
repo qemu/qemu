@@ -2384,20 +2384,12 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                                !client->export_meta.bitmap,
                                                NBD_META_ID_BASE_ALLOCATION,
                                                errp);
-                if (ret < 0) {
-                    return ret;
-                }
-            }
-
-            if (client->export_meta.bitmap) {
+            } else {              /* client->export_meta.bitmap */
                 ret = nbd_co_send_bitmap(client, request->handle,
                                          client->exp->export_bitmap,
                                          request->from, request->len,
                                          dont_fragment,
                                          true, NBD_META_ID_DIRTY_BITMAP, errp);
-                if (ret < 0) {
-                    return ret;
-                }
             }
 
             return ret;
