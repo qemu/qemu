@@ -1,0 +1,247 @@
+#!/usr/bin/env python
+#
+# Test cases for blockdev + IOThread interactions
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img
+
+image_len = 64 * 1024 * 1024
+
+# Test for RHBZ#1782175
+class TestDirtyBitmapIOThread(iotests.QMPTestCase):
+    drive0_img = os.path.join(iotests.test_dir, 'drive0.img')
+    images = { 'drive0': drive0_img }
+
+    def setUp(self):
+        for name in self.images:
+            qemu_img('create', '-f', iotests.imgfmt,
+                     self.images[name], str(image_len))
+
+        self.vm = iotests.VM()
+        self.vm.add_object('iothread,id=iothread0')
+
+        for name in self.images:
+            self.vm.add_blockdev('driver=file,filename=%s,node-name=file_%s'
+                                 % (self.images[name], name))
+            self.vm.add_blockdev('driver=qcow2,file=file_%s,node-name=%s'
+                                 % (name, name))
+
+        self.vm.launch()
+        self.vm.qmp('x-blockdev-set-iothread',
+                    node_name='drive0', iothread='iothread0',
+                    force=True)
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for name in self.images:
+            os.remove(self.images[name])
+
+    def test_add_dirty_bitmap(self):
+        result = self.vm.qmp(
+            'block-dirty-bitmap-add',
+            node='drive0',
+            name='bitmap1',
+            persistent=True,
+        )
+
+        self.assert_qmp(result, 'return', {})
+
+
+# Test for RHBZ#1746217 & RHBZ#1773517
+class TestNBDMirrorIOThread(iotests.QMPTestCase):
+    nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
+    drive0_img = os.path.join(iotests.test_dir, 'drive0.img')
+    mirror_img = os.path.join(iotests.test_dir, 'mirror.img')
+    images = { 'drive0': drive0_img, 'mirror': mirror_img }
+
+    def setUp(self):
+        for name in self.images:
+            qemu_img('create', '-f', iotests.imgfmt,
+                     self.images[name], str(image_len))
+
+        self.vm_src = iotests.VM(path_suffix='src')
+        self.vm_src.add_object('iothread,id=iothread0')
+        self.vm_src.add_blockdev('driver=file,filename=%s,node-name=file0'
+                          % (self.drive0_img))
+        self.vm_src.add_blockdev('driver=qcow2,file=file0,node-name=drive0')
+        self.vm_src.launch()
+        self.vm_src.qmp('x-blockdev-set-iothread',
+                        node_name='drive0', iothread='iothread0',
+                        force=True)
+
+        self.vm_tgt = iotests.VM(path_suffix='tgt')
+        self.vm_tgt.add_object('iothread,id=iothread0')
+        self.vm_tgt.add_blockdev('driver=file,filename=%s,node-name=file0'
+                          % (self.mirror_img))
+        self.vm_tgt.add_blockdev('driver=qcow2,file=file0,node-name=drive0')
+        self.vm_tgt.launch()
+        self.vm_tgt.qmp('x-blockdev-set-iothread',
+                        node_name='drive0', iothread='iothread0',
+                        force=True)
+
+    def tearDown(self):
+        self.vm_src.shutdown()
+        self.vm_tgt.shutdown()
+        for name in self.images:
+            os.remove(self.images[name])
+
+    def test_nbd_mirror(self):
+        result = self.vm_tgt.qmp(
+            'nbd-server-start',
+            addr={
+                'type': 'unix',
+                'data': { 'path': self.nbd_sock }
+            }
+        )
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_tgt.qmp(
+            'nbd-server-add',
+            device='drive0',
+            writable=True
+        )
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_src.qmp(
+            'drive-mirror',
+            device='drive0',
+            target='nbd+unix:///drive0?socket=' + self.nbd_sock,
+            sync='full',
+            mode='existing',
+            speed=64*1024*1024,
+            job_id='j1'
+        )
+        self.assert_qmp(result, 'return', {})
+
+        self.vm_src.event_wait(name="BLOCK_JOB_READY")
+
+
+# Test for RHBZ#1779036
+class TestExternalSnapshotAbort(iotests.QMPTestCase):
+    drive0_img = os.path.join(iotests.test_dir, 'drive0.img')
+    snapshot_img = os.path.join(iotests.test_dir, 'snapshot.img')
+    images = { 'drive0': drive0_img, 'snapshot': snapshot_img }
+
+    def setUp(self):
+        for name in self.images:
+            qemu_img('create', '-f', iotests.imgfmt,
+                     self.images[name], str(image_len))
+
+        self.vm = iotests.VM()
+        self.vm.add_object('iothread,id=iothread0')
+        self.vm.add_blockdev('driver=file,filename=%s,node-name=file0'
+                          % (self.drive0_img))
+        self.vm.add_blockdev('driver=qcow2,file=file0,node-name=drive0')
+        self.vm.launch()
+        self.vm.qmp('x-blockdev-set-iothread',
+                    node_name='drive0', iothread='iothread0',
+                    force=True)
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for name in self.images:
+            os.remove(self.images[name])
+
+    def test_external_snapshot_abort(self):
+        # Use a two actions transaction with a bogus values on the second
+        # one to trigger an abort of the transaction.
+        result = self.vm.qmp('transaction', actions=[
+            {
+                'type': 'blockdev-snapshot-sync',
+                'data': { 'node-name': 'drive0',
+                          'snapshot-file': self.snapshot_img,
+                          'snapshot-node-name': 'snap1',
+                          'mode': 'absolute-paths',
+                          'format': 'qcow2' }
+            },
+            {
+                'type': 'blockdev-snapshot-sync',
+                'data': { 'node-name': 'drive0',
+                          'snapshot-file': '/fakesnapshot',
+                          'snapshot-node-name': 'snap2',
+                          'mode': 'absolute-paths',
+                          'format': 'qcow2' }
+            },
+        ])
+
+        # Crashes on failure, we expect this error.
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+
+# Test for RHBZ#1782111
+class TestBlockdevBackupAbort(iotests.QMPTestCase):
+    drive0_img = os.path.join(iotests.test_dir, 'drive0.img')
+    drive1_img = os.path.join(iotests.test_dir, 'drive1.img')
+    snap0_img = os.path.join(iotests.test_dir, 'snap0.img')
+    snap1_img = os.path.join(iotests.test_dir, 'snap1.img')
+    images = { 'drive0': drive0_img,
+               'drive1': drive1_img,
+               'snap0': snap0_img,
+               'snap1': snap1_img }
+
+    def setUp(self):
+        for name in self.images:
+            qemu_img('create', '-f', iotests.imgfmt,
+                     self.images[name], str(image_len))
+
+        self.vm = iotests.VM()
+        self.vm.add_object('iothread,id=iothread0')
+        self.vm.add_device('virtio-scsi,iothread=iothread0')
+
+        for name in self.images:
+            self.vm.add_blockdev('driver=file,filename=%s,node-name=file_%s'
+                                 % (self.images[name], name))
+            self.vm.add_blockdev('driver=qcow2,file=file_%s,node-name=%s'
+                                 % (name, name))
+
+        self.vm.add_device('scsi-hd,drive=drive0')
+        self.vm.add_device('scsi-hd,drive=drive1')
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for name in self.images:
+            os.remove(self.images[name])
+
+    def test_blockdev_backup_abort(self):
+        # Use a two actions transaction with a bogus values on the second
+        # one to trigger an abort of the transaction.
+        result = self.vm.qmp('transaction', actions=[
+            {
+                'type': 'blockdev-backup',
+                'data': { 'device': 'drive0',
+                          'target': 'snap0',
+                          'sync': 'full',
+                          'job-id': 'j1' }
+            },
+            {
+                'type': 'blockdev-backup',
+                'data': { 'device': 'drive1',
+                          'target': 'snap1',
+                          'sync': 'full' }
+            },
+        ])
+
+        # Hangs on failure, we expect this error.
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])
