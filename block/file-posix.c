@@ -2753,7 +2753,6 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
         req->overlap_bytes = req->bytes;
 
         bdrv_mark_request_serialising(req, bs->bl.request_alignment);
-        bdrv_wait_serialising_requests(req);
     }
 #endif
 
