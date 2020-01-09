@@ -2766,21 +2766,26 @@ static void configure_accelerators(const char *progname)
 
         if (accel == NULL) {
             /* Select the default accelerator */
-            if (!accel_find("tcg") && !accel_find("kvm")) {
-                error_report("No accelerator selected and"
-                             " no default accelerator available");
-                exit(1);
-            } else {
-                int pnlen = strlen(progname);
-                if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
+            bool have_tcg = accel_find("tcg");
+            bool have_kvm = accel_find("kvm");
+
+            if (have_tcg && have_kvm) {
+                if (g_str_has_suffix(progname, "kvm")) {
                     /* If the program name ends with "kvm", we prefer KVM */
                     accel = "kvm:tcg";
                 } else {
                     accel = "tcg:kvm";
                 }
+            } else if (have_kvm) {
+                accel = "kvm";
+            } else if (have_tcg) {
+                accel = "tcg";
+            } else {
+                error_report("No accelerator selected and"
+                             " no default accelerator available");
+                exit(1);
             }
         }
-
         accel_list = g_strsplit(accel, ":", 0);
 
         for (tmp = accel_list; *tmp; tmp++) {
