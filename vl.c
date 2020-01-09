@@ -2756,7 +2756,6 @@ static void configure_accelerators(const char *progname)
 {
     const char *accel;
     char **accel_list, **tmp;
-    bool accel_initialised = false;
     bool init_failed = false;
 
     qemu_opts_foreach(qemu_find_opts("icount"),
@@ -2783,7 +2782,7 @@ static void configure_accelerators(const char *progname)
 
         accel_list = g_strsplit(accel, ":", 0);
 
-        for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
+        for (tmp = accel_list; tmp && *tmp; tmp++) {
             /*
              * Filter invalid accelerators here, to prevent obscenities
              * such as "-machine accel=tcg,,thread=single".
