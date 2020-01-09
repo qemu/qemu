@@ -221,6 +221,7 @@ qcrypto_secret_prop_set_loaded(Object *obj,
         secret->rawlen = inputlen;
     } else {
         g_free(secret->rawdata);
+        secret->rawdata = NULL;
         secret->rawlen = 0;
     }
 }
@@ -231,7 +232,7 @@ qcrypto_secret_prop_get_loaded(Object *obj,
                                Error **errp G_GNUC_UNUSED)
 {
     QCryptoSecret *secret = QCRYPTO_SECRET(obj);
-    return secret->data != NULL;
+    return secret->rawdata != NULL;
 }
 
 
