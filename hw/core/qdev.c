@@ -678,13 +678,11 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
 }
 
 /**
- * qdev_property_add_legacy:
+ * qdev_class_add_legacy_property:
  * @dev: Device to add the property to.
  * @prop: The qdev property definition.
- * @errp: location to store error information.
  *
  * Add a legacy QOM property to @dev for qdev property @prop.
- * On error, store error in @errp.
  *
  * Legacy properties are string versions of QOM properties.  The format of
  * the string depends on the property type.  Legacy properties are only
@@ -693,50 +691,66 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
  * Do not use this in new code!  QOM Properties added through this interface
  * will be given names in the "legacy" namespace.
  */
-static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
-                                     Error **errp)
+static void qdev_class_add_legacy_property(DeviceClass *dc, Property *prop)
 {
-    gchar *name;
+    g_autofree char *name = NULL;
 
     /* Register pointer properties as legacy properties */
     if (!prop->info->print && prop->info->get) {
         return;
     }
 
-    if (prop->info->create) {
-        return;
-    }
-
     name = g_strdup_printf("legacy-%s", prop->name);
-    object_property_add(OBJECT(dev), name, "str",
-                        prop->info->print ? qdev_get_legacy_property : prop->info->get,
-                        NULL,
-                        NULL,
-                        prop, errp);
-
-    g_free(name);
+    object_class_property_add(OBJECT_CLASS(dc), name, "str",
+        prop->info->print ? qdev_get_legacy_property : prop->info->get,
+        NULL, NULL, prop, &error_abort);
 }
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
 {
     Object *obj = OBJECT(dev);
+    ObjectProperty *op;
 
-    if (prop->info->create) {
-        prop->info->create(obj, prop, &error_abort);
-    } else {
-        object_property_add(obj, prop->name, prop->info->name,
-                            prop->info->get, prop->info->set,
-                            prop->info->release,
-                            prop, &error_abort);
-    }
+    assert(!prop->info->create);
+
+    op = object_property_add(obj, prop->name, prop->info->name,
+                             prop->info->get, prop->info->set,
+                             prop->info->release,
+                             prop, &error_abort);
 
     object_property_set_description(obj, prop->name,
                                     prop->info->description,
                                     &error_abort);
 
     if (prop->set_default) {
-        prop->info->set_default_value(obj, prop);
+        prop->info->set_default_value(op, prop);
+        if (op->init) {
+            op->init(obj, op);
+        }
     }
+}
+
+static void qdev_class_add_property(DeviceClass *klass, Property *prop)
+{
+    ObjectClass *oc = OBJECT_CLASS(klass);
+
+    if (prop->info->create) {
+        prop->info->create(oc, prop, &error_abort);
+    } else {
+        ObjectProperty *op;
+
+        op = object_class_property_add(oc,
+                                       prop->name, prop->info->name,
+                                       prop->info->get, prop->info->set,
+                                       prop->info->release,
+                                       prop, &error_abort);
+        if (prop->set_default) {
+            prop->info->set_default_value(op, prop);
+        }
+    }
+    object_class_property_set_description(oc, prop->name,
+                                          prop->info->description,
+                                          &error_abort);
 }
 
 /* @qdev_alias_all_properties - Add alias properties to the source object for
@@ -932,8 +946,6 @@ static bool device_get_hotplugged(Object *obj, Error **errp)
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    ObjectClass *class;
-    Property *prop;
 
     if (qdev_hotplug) {
         dev->hotplugged = 1;
@@ -943,15 +955,6 @@ static void device_initfn(Object *obj)
     dev->instance_id_alias = -1;
     dev->realized = false;
     dev->allow_unplug_during_migration = false;
-
-    class = object_get_class(OBJECT(dev));
-    do {
-        for (prop = DEVICE_CLASS(class)->props_; prop && prop->name; prop++) {
-            qdev_property_add_legacy(dev, prop, &error_abort);
-            qdev_property_add_static(dev, prop);
-        }
-        class = object_class_get_parent(class);
-    } while (class != object_class_by_name(TYPE_DEVICE));
 
     QLIST_INIT(&dev->gpios);
 }
@@ -1065,7 +1068,13 @@ static void device_class_init(ObjectClass *class, void *data)
 
 void device_class_set_props(DeviceClass *dc, Property *props)
 {
+    Property *prop;
+
     dc->props_ = props;
+    for (prop = props; prop && prop->name; prop++) {
+        qdev_class_add_legacy_property(dc, prop);
+        qdev_class_add_property(dc, prop);
+    }
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,

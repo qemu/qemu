@@ -73,12 +73,10 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
-static void set_default_value_enum(Object *obj, const Property *prop)
+static void set_default_value_enum(ObjectProperty *op, const Property *prop)
 {
-    object_property_set_str(obj,
-                            qapi_enum_lookup(prop->info->enum_table,
-                                             prop->defval.i),
-                            prop->name, &error_abort);
+    object_property_set_default_str(op,
+        qapi_enum_lookup(prop->info->enum_table, prop->defval.i));
 }
 
 /* Bit */
@@ -132,9 +130,9 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
     bit_prop_set(dev, prop, value);
 }
 
-static void set_default_value_bool(Object *obj, const Property *prop)
+static void set_default_value_bool(ObjectProperty *op, const Property *prop)
 {
-    object_property_set_bool(obj, prop->defval.u, prop->name, &error_abort);
+    object_property_set_default_bool(op, prop->defval.u);
 }
 
 const PropertyInfo qdev_prop_bit = {
@@ -265,14 +263,14 @@ static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_uint8(v, name, ptr, errp);
 }
 
-static void set_default_value_int(Object *obj, const Property *prop)
+static void set_default_value_int(ObjectProperty *op, const Property *prop)
 {
-    object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
+    object_property_set_default_int(op, prop->defval.i);
 }
 
-static void set_default_value_uint(Object *obj, const Property *prop)
+static void set_default_value_uint(ObjectProperty *op, const Property *prop)
 {
-    object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
+    object_property_set_default_uint(op, prop->defval.u);
 }
 
 const PropertyInfo qdev_prop_uint8 = {
@@ -925,9 +923,9 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
     g_free(str);
 }
 
-static void set_default_uuid_auto(Object *obj, const Property *prop)
+static void set_default_uuid_auto(ObjectProperty *op, const Property *prop)
 {
-    object_property_set_str(obj, UUID_VALUE_AUTO, prop->name, &error_abort);
+    object_property_set_default_str(op, UUID_VALUE_AUTO);
 }
 
 const PropertyInfo qdev_prop_uuid = {
@@ -1243,15 +1241,13 @@ const PropertyInfo qdev_prop_size = {
 
 /* --- object link property --- */
 
-static void create_link_property(Object *obj, Property *prop, Error **errp)
+static void create_link_property(ObjectClass *oc, Property *prop, Error **errp)
 {
-    Object **child = qdev_get_prop_ptr(DEVICE(obj), prop);
-
-    object_property_add_link(obj, prop->name, prop->link_type,
-                             child,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG,
-                             errp);
+    object_class_property_add_link(oc, prop->name, prop->link_type,
+                                   prop->offset,
+                                   qdev_prop_allow_set_link_before_realize,
+                                   OBJ_PROP_LINK_STRONG,
+                                   errp);
 }
 
 const PropertyInfo qdev_prop_link = {
