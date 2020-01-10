@@ -457,8 +457,6 @@ extern bool qdev_hot_removed;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
-GSList *qdev_build_hotpluggable_device_list(Object *peripheral);
-
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp);
 
 void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp);
