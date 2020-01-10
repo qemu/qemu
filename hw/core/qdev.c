@@ -944,14 +944,6 @@ static void device_initfn(Object *obj)
     dev->realized = false;
     dev->allow_unplug_during_migration = false;
 
-    object_property_add_bool(obj, "realized",
-                             device_get_realized, device_set_realized, NULL);
-    object_property_add_bool(obj, "hotpluggable",
-                             device_get_hotpluggable, NULL, NULL);
-    object_property_add_bool(obj, "hotplugged",
-                             device_get_hotplugged, NULL,
-                             &error_abort);
-
     class = object_get_class(OBJECT(dev));
     do {
         for (prop = DEVICE_CLASS(class)->props_; prop && prop->name; prop++) {
@@ -961,9 +953,6 @@ static void device_initfn(Object *obj)
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
 
-    object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
-                             (Object **)&dev->parent_bus, NULL, 0,
-                             &error_abort);
     QLIST_INIT(&dev->gpios);
 }
 
@@ -1059,6 +1048,19 @@ static void device_class_init(ObjectClass *class, void *data)
     dc->hotpluggable = true;
     dc->user_creatable = true;
     vc->get_id = device_vmstate_if_get_id;
+
+    object_class_property_add_bool(class, "realized",
+                                   device_get_realized, device_set_realized,
+                                   &error_abort);
+    object_class_property_add_bool(class, "hotpluggable",
+                                   device_get_hotpluggable, NULL,
+                                   &error_abort);
+    object_class_property_add_bool(class, "hotplugged",
+                                   device_get_hotplugged, NULL,
+                                   &error_abort);
+    object_class_property_add_link(class, "parent_bus", TYPE_BUS,
+                                   offsetof(DeviceState, parent_bus), NULL, 0,
+                                   &error_abort);
 }
 
 void device_class_set_props(DeviceClass *dc, Property *props)
