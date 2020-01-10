@@ -145,7 +145,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     virtio_serial_write(port, buf, size);
 }
 
-static void chr_event(void *opaque, int event)
+static void chr_event(void *opaque, QEMUChrEvent event)
 {
     VirtConsole *vcon = opaque;
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
@@ -161,6 +161,11 @@ static void chr_event(void *opaque, int event)
             vcon->watch = 0;
         }
         virtio_serial_close(port);
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

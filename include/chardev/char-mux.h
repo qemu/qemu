@@ -56,6 +56,6 @@ typedef struct MuxChardev {
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
 
 void mux_set_focus(Chardev *chr, int focus);
-void mux_chr_send_all_event(Chardev *chr, int event);
+void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event);
 
 #endif /* CHAR_MUX_H */

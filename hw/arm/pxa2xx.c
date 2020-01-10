@@ -1955,7 +1955,7 @@ static void pxa2xx_fir_rx(void *opaque, const uint8_t *buf, int size)
     pxa2xx_fir_update(s);
 }
 
-static void pxa2xx_fir_event(void *opaque, int event)
+static void pxa2xx_fir_event(void *opaque, QEMUChrEvent event)
 {
 }
 

@@ -1354,7 +1354,7 @@ static void usbredir_chardev_read(void *opaque, const uint8_t *buf, int size)
     usbredirparser_do_write(dev->parser);
 }
 
-static void usbredir_chardev_event(void *opaque, int event)
+static void usbredir_chardev_event(void *opaque, QEMUChrEvent event)
 {
     USBRedirDevice *dev = opaque;
 
@@ -1369,6 +1369,11 @@ static void usbredir_chardev_event(void *opaque, int event)
     case CHR_EVENT_CLOSED:
         DPRINTF("chardev close\n");
         qemu_bh_schedule(dev->chardev_close_bh);
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

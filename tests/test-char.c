@@ -54,7 +54,7 @@ static void fe_read(void *opaque, const uint8_t *buf, int size)
     quit = true;
 }
 
-static void fe_event(void *opaque, int event)
+static void fe_event(void *opaque, QEMUChrEvent event)
 {
     FeHandler *h = opaque;
     bool new_open_state;
@@ -633,7 +633,7 @@ typedef struct {
 
 
 static void
-char_socket_event(void *opaque, int event)
+char_socket_event(void *opaque, QEMUChrEvent event)
 {
     CharSocketTestData *data = opaque;
     data->event = event;
@@ -1006,7 +1006,7 @@ static void char_socket_client_test(gconstpointer opaque)
 }
 
 static void
-count_closed_event(void *opaque, int event)
+count_closed_event(void *opaque, QEMUChrEvent event)
 {
     int *count = opaque;
     if (event == CHR_EVENT_CLOSED) {

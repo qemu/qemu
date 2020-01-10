@@ -98,7 +98,7 @@ enum boston_plat_reg {
     PLAT_SYS_CTL        = 0x48,
 };
 
-static void boston_lcd_event(void *opaque, int event)
+static void boston_lcd_event(void *opaque, QEMUChrEvent event)
 {
     BostonState *s = opaque;
     if (event == CHR_EVENT_OPENED && !s->lcd_inited) {

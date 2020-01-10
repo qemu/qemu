@@ -235,7 +235,7 @@ static int uart_can_rx(void *opaque)
     return !(s->regs[R_LSR] & LSR_DR);
 }
 
-static void uart_event(void *opaque, int event)
+static void uart_event(void *opaque, QEMUChrEvent event)
 {
 }
 

@@ -1093,7 +1093,7 @@ static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
     strongarm_uart_update_int_status(s);
 }
 
-static void strongarm_uart_event(void *opaque, int event)
+static void strongarm_uart_event(void *opaque, QEMUChrEvent event)
 {
     StrongARMUARTState *s = opaque;
     if (event == CHR_EVENT_BREAK) {

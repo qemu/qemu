@@ -499,7 +499,7 @@ static TestServer *test_server_new(const gchar *name)
     return server;
 }
 
-static void chr_event(void *opaque, int event)
+static void chr_event(void *opaque, QEMUChrEvent event)
 {
     TestServer *s = opaque;
 

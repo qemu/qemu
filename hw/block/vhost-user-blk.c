@@ -361,7 +361,7 @@ static gboolean vhost_user_blk_watch(GIOChannel *chan, GIOCondition cond,
     return true;
 }
 
-static void vhost_user_blk_event(void *opaque, int event)
+static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 {
     DeviceState *dev = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -382,6 +382,11 @@ static void vhost_user_blk_event(void *opaque, int event)
             g_source_remove(s->watch);
             s->watch = 0;
         }
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

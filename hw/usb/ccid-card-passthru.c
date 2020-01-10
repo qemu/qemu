@@ -307,7 +307,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void ccid_card_vscard_event(void *opaque, int event)
+static void ccid_card_vscard_event(void *opaque, QEMUChrEvent event)
 {
     PassthruState *card = opaque;
 
@@ -317,6 +317,11 @@ static void ccid_card_vscard_event(void *opaque, int event)
         break;
     case CHR_EVENT_OPENED:
         DPRINTF(card, D_INFO, "%s: CHR_EVENT_OPENED\n", __func__);
+        break;
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+    case CHR_EVENT_CLOSED:
+        /* Ignore */
         break;
     }
 }

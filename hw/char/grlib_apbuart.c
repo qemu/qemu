@@ -155,7 +155,7 @@ static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void grlib_apbuart_event(void *opaque, int event)
+static void grlib_apbuart_event(void *opaque, QEMUChrEvent event)
 {
     trace_grlib_apbuart_event(event);
 }

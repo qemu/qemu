@@ -337,7 +337,7 @@ static QDict *qmp_greeting(MonitorQMP *mon)
         ver, cap_list);
 }
 
-static void monitor_qmp_event(void *opaque, int event)
+static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 {
     QDict *data;
     MonitorQMP *mon = opaque;
@@ -364,6 +364,11 @@ static void monitor_qmp_event(void *opaque, int event)
                                  mon, NULL);
         mon_refcount--;
         monitor_fdsets_cleanup();
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

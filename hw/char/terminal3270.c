@@ -142,7 +142,7 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void chr_event(void *opaque, int event)
+static void chr_event(void *opaque, QEMUChrEvent event)
 {
     Terminal3270 *t = opaque;
     CcwDevice *ccw_dev = CCW_DEVICE(t);
@@ -165,6 +165,11 @@ static void chr_event(void *opaque, int event)
     case CHR_EVENT_CLOSED:
         sch->curr_status.scsw.dstat = SCSW_DSTAT_DEVICE_END;
         css_conditional_io_interrupt(sch);
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

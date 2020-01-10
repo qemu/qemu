@@ -117,6 +117,13 @@ int64_t replay_read_clock(ReplayClockKind kind);
             ? replay_save_clock((clock), (value), cpu_get_icount_raw_locked()) \
         : (value))
 
+/* Processing data from random generators */
+
+/* Saves the values from the random number generator */
+void replay_save_random(int ret, void *buf, size_t len);
+/* Loads the saved values for the random number generator */
+int replay_read_random(void *buf, size_t len);
+
 /* Events */
 
 /*! Called when qemu shutdown is requested. */

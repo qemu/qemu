@@ -835,12 +835,15 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_TOPOLOGY_LEVEL_DIE      (5U << 8)
 
 /* MSR Feature Bits */
-#define MSR_ARCH_CAP_RDCL_NO    (1U << 0)
-#define MSR_ARCH_CAP_IBRS_ALL   (1U << 1)
-#define MSR_ARCH_CAP_RSBA       (1U << 2)
+#define MSR_ARCH_CAP_RDCL_NO            (1U << 0)
+#define MSR_ARCH_CAP_IBRS_ALL           (1U << 1)
+#define MSR_ARCH_CAP_RSBA               (1U << 2)
 #define MSR_ARCH_CAP_SKIP_L1DFL_VMENTRY (1U << 3)
-#define MSR_ARCH_CAP_SSB_NO     (1U << 4)
-#define MSR_ARCH_CAP_MDS_NO     (1U << 5)
+#define MSR_ARCH_CAP_SSB_NO             (1U << 4)
+#define MSR_ARCH_CAP_MDS_NO             (1U << 5)
+#define MSR_ARCH_CAP_PSCHANGE_MC_NO     (1U << 6)
+#define MSR_ARCH_CAP_TSX_CTRL_MSR       (1U << 7)
+#define MSR_ARCH_CAP_TAA_NO             (1U << 8)
 
 #define MSR_CORE_CAP_SPLIT_LOCK_DETECT  (1U << 5)
 

@@ -95,7 +95,7 @@ config Q35
 
 config MICROVM
     bool
-    imply SERIAL_ISA
+    select SERIAL_ISA # for serial_hds_isa_init()
     select ISA_BUS
     select APIC
     select IOAPIC

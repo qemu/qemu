@@ -280,7 +280,7 @@ static void pl011_receive(void *opaque, const uint8_t *buf, int size)
     pl011_put_fifo(opaque, *buf);
 }
 
-static void pl011_event(void *opaque, int event)
+static void pl011_event(void *opaque, QEMUChrEvent event)
 {
     if (event == CHR_EVENT_BREAK)
         pl011_put_fifo(opaque, 0x400);

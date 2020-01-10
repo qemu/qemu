@@ -87,10 +87,6 @@ typedef struct IPMIBmcExtern {
     bool send_reset;
 } IPMIBmcExtern;
 
-static int can_receive(void *opaque);
-static void receive(void *opaque, const uint8_t *buf, int size);
-static void chr_event(void *opaque, int event);
-
 static unsigned char
 ipmb_checksum(const unsigned char *data, int size, unsigned char start)
 {
@@ -383,7 +379,7 @@ static void receive(void *opaque, const uint8_t *buf, int size)
     handle_hw_op(ibe, hw_op);
 }
 
-static void chr_event(void *opaque, int event)
+static void chr_event(void *opaque, QEMUChrEvent event)
 {
     IPMIBmcExtern *ibe = opaque;
     IPMIInterface *s = ibe->parent.intf;
@@ -438,6 +434,12 @@ static void chr_event(void *opaque, int event)
             ibe->inbuf[3] = IPMI_CC_BMC_INIT_IN_PROGRESS;
             k->handle_rsp(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
         }
+        break;
+
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
         break;
     }
 }

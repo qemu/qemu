@@ -96,7 +96,7 @@ static void htif_recv(void *opaque, const uint8_t *buf, int size)
  * Called by the char dev to supply special events to the HTIF console.
  * Not used for HTIF.
  */
-static void htif_event(void *opaque, int event)
+static void htif_event(void *opaque, QEMUChrEvent event)
 {
 
 }

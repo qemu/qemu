@@ -634,7 +634,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
     serial_receive_byte(s, buf[0]);
 }
 
-static void serial_event(void *opaque, int event)
+static void serial_event(void *opaque, QEMUChrEvent event)
 {
     ESCCChannelState *s = opaque;
     if (event == CHR_EVENT_BREAK)

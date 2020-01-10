@@ -461,7 +461,7 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
     s->recv_used += size;
 }
 
-static void usb_serial_event(void *opaque, int event)
+static void usb_serial_event(void *opaque, QEMUChrEvent event)
 {
     USBSerialState *s = opaque;
 
@@ -478,6 +478,10 @@ static void usb_serial_event(void *opaque, int event)
             if (s->dev.attached) {
                 usb_device_detach(&s->dev);
             }
+            break;
+        case CHR_EVENT_MUX_IN:
+        case CHR_EVENT_MUX_OUT:
+            /* Ignore */
             break;
     }
 }

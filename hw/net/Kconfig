@@ -14,6 +14,7 @@ config EEPRO100_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select NMC93XX_EEPROM
 
 config PCNET_PCI
     bool
@@ -28,6 +29,7 @@ config TULIP
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select NMC93XX_EEPROM
 
 config E1000_PCI
     bool

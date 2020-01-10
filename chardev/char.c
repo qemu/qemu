@@ -49,7 +49,7 @@ static Object *get_chardevs_root(void)
     return container_get(object_get_root(), "/chardevs");
 }
 
-static void chr_be_event(Chardev *s, int event)
+static void chr_be_event(Chardev *s, QEMUChrEvent event)
 {
     CharBackend *be = s->be;
 
@@ -60,7 +60,7 @@ static void chr_be_event(Chardev *s, int event)
     be->chr_event(be->opaque, event);
 }
 
-void qemu_chr_be_event(Chardev *s, int event)
+void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
 {
     /* Keep track if the char device is open */
     switch (event) {
@@ -70,6 +70,11 @@ void qemu_chr_be_event(Chardev *s, int event)
         case CHR_EVENT_CLOSED:
             s->be_open = 0;
             break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_MUX_IN:
+    case CHR_EVENT_MUX_OUT:
+        /* Ignore */
+        break;
     }
 
     CHARDEV_GET_CLASS(s)->chr_be_event(s, event);

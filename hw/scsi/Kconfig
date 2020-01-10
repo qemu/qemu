@@ -34,6 +34,7 @@ config ESP_PCI
     default y if PCI_DEVICES
     depends on PCI
     select ESP
+    select NMC93XX_EEPROM
 
 config SPAPR_VSCSI
     bool

@@ -7,3 +7,11 @@ config AT24C
 
 config MAC_NVRAM
     bool
+    select CHRP_NVRAM
+
+# NMC93XX uses the NS uWire interface (similar to SPI but less configurable)
+config NMC93XX_EEPROM
+    bool
+
+config CHRP_NVRAM
+    bool

@@ -3171,7 +3171,7 @@ static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void gdb_chr_event(void *opaque, int event)
+static void gdb_chr_event(void *opaque, QEMUChrEvent event)
 {
     int i;
     GDBState *s = (GDBState *) opaque;

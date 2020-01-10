@@ -10,6 +10,8 @@ config PSERIES
     select XICS_SPAPR
     select XIVE_SPAPR
     select MSI_NONBROKEN
+    select FDT_PPC
+    select CHRP_NVRAM
 
 config SPAPR_RNG
     bool
@@ -26,6 +28,7 @@ config POWERNV
     select MC146818RTC
     select XICS
     select XIVE
+    select FDT_PPC
 
 config PPC405
     bool
@@ -42,6 +45,7 @@ config PPC440
     select PCI_EXPRESS
     select PPC4XX
     select SERIAL
+    select FDT_PPC
 
 config PPC4XX
     bool
@@ -50,6 +54,7 @@ config PPC4XX
 
 config SAM460EX
     bool
+    select PPC405
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
@@ -59,6 +64,7 @@ config SAM460EX
     select SMBUS_EEPROM
     select USB_EHCI_SYSBUS
     select USB_OHCI
+    select FDT_PPC
 
 config PREP
     bool
@@ -71,6 +77,7 @@ config PREP
     select M48T59
     select PC87312
     select RS6000_MC
+    select FW_CFG_PPC
 
 config RS6000_MC
     bool
@@ -84,6 +91,7 @@ config MAC_OLDWORLD
     select GRACKLE_PCI
     select HEATHROW_PIC
     select MACIO
+    select FW_CFG_PPC
 
 config MAC_NEWWORLD
     bool
@@ -95,6 +103,7 @@ config MAC_NEWWORLD
     select MACIO_GPIO
     select MAC_PMU
     select UNIN_PCI
+    select FW_CFG_PPC
 
 config E500
     bool
@@ -105,13 +114,17 @@ config E500
     select PLATFORM_BUS
     select PPCE500_PCI
     select SERIAL
+    select MPC_I2C
+    select FDT_PPC
 
 config VIRTEX
     bool
+    select PPC4XX
     select PFLASH_CFI01
     select SERIAL
     select XILINX
     select XILINX_ETHLITE
+    select FDT_PPC
 
 config XIVE
     bool
@@ -127,3 +140,10 @@ config XIVE_KVM
     bool
     default y
     depends on XIVE_SPAPR && KVM
+
+# Only used by 64-bit targets
+config FW_CFG_PPC
+    bool
+
+config FDT_PPC
+    bool

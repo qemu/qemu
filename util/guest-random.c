@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #include "crypto/random.h"
+#include "sysemu/replay.h"
 
 
 static __thread GRand *thread_rand;
@@ -44,13 +45,21 @@ static int glib_random_bytes(void *buf, size_t len)
 
 int qemu_guest_getrandom(void *buf, size_t len, Error **errp)
 {
+    int ret;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        return replay_read_random(buf, len);
+    }
     if (unlikely(deterministic)) {
         /* Deterministic implementation using Glib's Mersenne Twister.  */
-        return glib_random_bytes(buf, len);
+        ret = glib_random_bytes(buf, len);
     } else {
         /* Non-deterministic implementation using crypto routines.  */
-        return qcrypto_random_bytes(buf, len, errp);
+        ret = qcrypto_random_bytes(buf, len, errp);
     }
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        replay_save_random(ret, buf, len);
+    }
+    return ret;
 }
 
 void qemu_guest_getrandom_nofail(void *buf, size_t len)

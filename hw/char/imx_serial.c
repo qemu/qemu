@@ -323,7 +323,7 @@ static void imx_receive(void *opaque, const uint8_t *buf, int size)
     imx_put_data(opaque, *buf);
 }
 
-static void imx_event(void *opaque, int event)
+static void imx_event(void *opaque, QEMUChrEvent event)
 {
     if (event == CHR_EVENT_BREAK) {
         imx_put_data(opaque, URXD_BRK | URXD_FRMERR | URXD_ERR);
