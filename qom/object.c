@@ -1806,7 +1806,7 @@ static void object_set_link_property(Object *obj, Visitor *v,
     }
 
     *child = new_target;
-    if (prop->flags == OBJ_PROP_LINK_STRONG) {
+    if (prop->flags & OBJ_PROP_LINK_STRONG) {
         object_ref(new_target);
         object_unref(old_target);
     }
