@@ -1716,6 +1716,7 @@ typedef struct {
     union {
         Object **targetp;
         Object *target; /* if OBJ_PROP_LINK_DIRECT, when holding the pointer  */
+        ptrdiff_t offset; /* if OBJ_PROP_LINK_CLASS */
     };
     void (*check)(const Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
@@ -1726,6 +1727,8 @@ object_link_get_targetp(Object *obj, LinkProperty *lprop)
 {
     if (lprop->flags & OBJ_PROP_LINK_DIRECT) {
         return &lprop->target;
+    } else if (lprop->flags & OBJ_PROP_LINK_CLASS) {
+        return (void *)obj + lprop->offset;
     } else {
         return lprop->targetp;
     }
@@ -1841,7 +1844,9 @@ static void object_release_link_property(Object *obj, const char *name,
     if ((prop->flags & OBJ_PROP_LINK_STRONG) && *targetp) {
         object_unref(*targetp);
     }
-    g_free(prop);
+    if (!(prop->flags & OBJ_PROP_LINK_CLASS)) {
+        g_free(prop);
+    }
 }
 
 static void object_add_link_prop(Object *obj, const char *name,
@@ -1892,6 +1897,45 @@ void object_property_add_link(Object *obj, const char *name,
                               Error **errp)
 {
     object_add_link_prop(obj, name, type, targetp, check, flags, errp);
+}
+
+ObjectProperty *
+object_class_property_add_link(ObjectClass *oc,
+    const char *name,
+    const char *type, ptrdiff_t offset,
+    void (*check)(const Object *obj, const char *name,
+                  Object *val, Error **errp),
+    ObjectPropertyLinkFlags flags,
+    Error **errp)
+{
+    Error *local_err = NULL;
+    LinkProperty *prop = g_new0(LinkProperty, 1);
+    gchar *full_type;
+    ObjectProperty *op;
+
+    prop->offset = offset;
+    prop->check = check;
+    prop->flags = flags | OBJ_PROP_LINK_CLASS;
+
+    full_type = g_strdup_printf("link<%s>", type);
+
+    op = object_class_property_add(oc, name, full_type,
+                                   object_get_link_property,
+                                   check ? object_set_link_property : NULL,
+                                   object_release_link_property,
+                                   prop,
+                                   &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+        goto out;
+    }
+
+    op->resolve = object_resolve_link_property;
+
+out:
+    g_free(full_type);
+    return op;
 }
 
 void object_property_add_const_link(Object *obj, const char *name,
