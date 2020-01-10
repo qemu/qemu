@@ -26,10 +26,15 @@
 #
 # @description: if specified, the description of the property.
 #
+# @default-value: the default value, if any (since 5.0)
+#
 # Since: 1.2
 ##
 { 'struct': 'ObjectPropertyInfo',
-  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
+  'data': { 'name': 'str',
+            'type': 'str',
+            '*description': 'str',
+            '*default-value': 'any' } }
 
 ##
 # @qom-list:
