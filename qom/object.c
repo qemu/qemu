@@ -592,23 +592,22 @@ static inline bool object_property_is_child(ObjectProperty *prop)
 
 static void object_property_del_all(Object *obj)
 {
+    g_autoptr(GHashTable) done = g_hash_table_new(NULL, NULL);
     ObjectProperty *prop;
-    GHashTableIter iter;
-    gpointer key, value;
+    ObjectPropertyIterator iter;
     bool released;
 
     do {
         released = false;
-        g_hash_table_iter_init(&iter, obj->properties);
-        while (g_hash_table_iter_next(&iter, &key, &value)) {
-            prop = value;
-            if (prop->release) {
-                prop->release(obj, prop->name, prop->opaque);
-                prop->release = NULL;
-                released = true;
-                break;
+        object_property_iter_init(&iter, obj);
+        while ((prop = object_property_iter_next(&iter)) != NULL) {
+            if (g_hash_table_add(done, prop)) {
+                if (prop->release) {
+                    prop->release(obj, prop->name, prop->opaque);
+                    released = true;
+                    break;
+                }
             }
-            g_hash_table_iter_remove(&iter);
         }
     } while (released);
 
