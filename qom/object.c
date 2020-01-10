@@ -307,6 +307,7 @@ static void type_initialize(TypeImpl *ti)
         int i;
 
         g_assert(parent->class_size <= ti->class_size);
+        g_assert(parent->instance_size <= ti->instance_size);
         memcpy(ti->class, parent->class, parent->class_size);
         ti->class->interfaces = NULL;
         ti->class->properties = g_hash_table_new_full(
