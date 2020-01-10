@@ -1528,7 +1528,7 @@ void object_property_allow_set_link(const Object *, const char *,
  * @obj: the object to add a property to
  * @name: the name of the property
  * @type: the qobj type of the link
- * @child: a pointer to where the link object reference is stored
+ * @targetp: a pointer to where the link object reference is stored
  * @check: callback to veto setting or NULL if the property is read-only
  * @flags: additional options for the link
  * @errp: if an error occurs, a pointer to an area to store the error
@@ -1553,7 +1553,7 @@ void object_property_allow_set_link(const Object *, const char *,
  * modified.
  */
 void object_property_add_link(Object *obj, const char *name,
-                              const char *type, Object **child,
+                              const char *type, Object **targetp,
                               void (*check)(const Object *obj, const char *name,
                                             Object *val, Error **errp),
                               ObjectPropertyLinkFlags flags,
