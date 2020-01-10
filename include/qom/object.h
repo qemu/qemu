@@ -1511,6 +1511,9 @@ void object_property_add_child(Object *obj, const char *name,
 typedef enum {
     /* Unref the link pointer when the property is deleted */
     OBJ_PROP_LINK_STRONG = 0x1,
+
+    /* private */
+    OBJ_PROP_LINK_DIRECT = 0x2,
 } ObjectPropertyLinkFlags;
 
 /**

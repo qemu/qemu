@@ -1713,17 +1713,30 @@ void object_property_allow_set_link(const Object *obj, const char *name,
 }
 
 typedef struct {
-    Object **targetp;
+    union {
+        Object **targetp;
+        Object *target; /* if OBJ_PROP_LINK_DIRECT, when holding the pointer  */
+    };
     void (*check)(const Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
 } LinkProperty;
+
+static Object **
+object_link_get_targetp(Object *obj, LinkProperty *lprop)
+{
+    if (lprop->flags & OBJ_PROP_LINK_DIRECT) {
+        return &lprop->target;
+    } else {
+        return lprop->targetp;
+    }
+}
 
 static void object_get_link_property(Object *obj, Visitor *v,
                                      const char *name, void *opaque,
                                      Error **errp)
 {
     LinkProperty *lprop = opaque;
-    Object **targetp = lprop->targetp;
+    Object **targetp = object_link_get_targetp(obj, lprop);
     gchar *path;
 
     if (*targetp) {
@@ -1782,7 +1795,7 @@ static void object_set_link_property(Object *obj, Visitor *v,
 {
     Error *local_err = NULL;
     LinkProperty *prop = opaque;
-    Object **targetp = prop->targetp;
+    Object **targetp = object_link_get_targetp(obj, prop);
     Object *old_target = *targetp;
     Object *new_target = NULL;
     char *path = NULL;
@@ -1816,16 +1829,17 @@ static Object *object_resolve_link_property(Object *parent, void *opaque, const 
 {
     LinkProperty *lprop = opaque;
 
-    return *lprop->targetp;
+    return *object_link_get_targetp(parent, lprop);
 }
 
 static void object_release_link_property(Object *obj, const char *name,
                                          void *opaque)
 {
     LinkProperty *prop = opaque;
+    Object **targetp = object_link_get_targetp(obj, prop);
 
-    if ((prop->flags & OBJ_PROP_LINK_STRONG) && *prop->targetp) {
-        object_unref(*prop->targetp);
+    if ((prop->flags & OBJ_PROP_LINK_STRONG) && *targetp) {
+        object_unref(*targetp);
     }
     g_free(prop);
 }
