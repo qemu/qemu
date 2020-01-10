@@ -31,7 +31,16 @@ run-fcvt: fcvt
 
 # Semihosting smoke test for linux-user
 ARM_TESTS += semihosting
+semihosting: CFLAGS += -mthumb
 run-semihosting: semihosting
+	$(call run-test,$<,$(QEMU) $< 2> $<.err, "$< on $(TARGET_NAME)")
+
+ARM_TESTS += semihosting-arm
+semihosting-arm: CFLAGS += -marm
+semihosting-arm: semihosting.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+run-semihosting-arm: semihosting-arm
 	$(call run-test,$<,$(QEMU) $< 2> $<.err, "$< on $(TARGET_NAME)")
 
 run-plugin-semihosting-with-%:
@@ -39,6 +48,25 @@ run-plugin-semihosting-with-%:
 		-plugin $(PLUGIN_DIR)/$(call extract-plugin,$@) \
 		 $(call strip-plugin,$<) 2> $<.err, \
 		"$< on $(TARGET_NAME) with $*")
+
+ARM_TESTS += semiconsole semiconsole-arm
+
+semiconsole: CFLAGS += -mthumb
+run-semiconsole: semiconsole
+	$(call skip-test, $<, "MANUAL ONLY")
+
+run-plugin-semiconsole-with-%:
+	$(call skip-test, $<, "MANUAL ONLY")
+
+semiconsole-arm: CFLAGS += -marm
+semiconsole-arm: semiconsole.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+run-semiconsole-arm: semiconsole-arm
+	$(call skip-test, $<, "MANUAL ONLY")
+
+run-plugin-semiconsole-arm-with-%:
+	$(call skip-test, $<, "MANUAL ONLY")
 
 TESTS += $(ARM_TESTS)
 

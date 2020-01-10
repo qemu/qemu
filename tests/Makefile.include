@@ -969,7 +969,7 @@ FP_TEST_BIN=$(BUILD_DIR)/tests/fp/fp-test
 
 # the build dir is created by configure
 .PHONY: $(FP_TEST_BIN)
-$(FP_TEST_BIN):
+$(FP_TEST_BIN): config-host.h $(test-util-obj-y)
 	$(call quiet-command, \
 	 	$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" $(notdir $@), \
 	         "BUILD", "$(notdir $@)")

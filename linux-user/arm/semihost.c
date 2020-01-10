@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "hw/semihosting/console.h"
 #include "qemu.h"
+#include <termios.h>
 
 int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
 {
@@ -46,4 +47,30 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
                           __func__);
         }
     }
+}
+
+/*
+ * For linux-user we can safely block. However as we want to return as
+ * soon as a character is read we need to tweak the termio to disable
+ * line buffering. We restore the old mode afterwards in case the
+ * program is expecting more normal behaviour. This is slow but
+ * nothing using semihosting console reading is expecting to be fast.
+ */
+target_ulong qemu_semihosting_console_inc(CPUArchState *env)
+{
+    uint8_t c;
+    struct termios old_tio, new_tio;
+
+    /* Disable line-buffering and echo */
+    tcgetattr(STDIN_FILENO, &old_tio);
+    new_tio = old_tio;
+    new_tio.c_lflag &= (~ICANON & ~ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+
+    c = getchar();
+
+    /* restore config */
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+
+    return (target_ulong) c;
 }

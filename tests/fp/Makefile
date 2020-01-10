@@ -554,15 +554,13 @@ TF_OBJS_LIB += $(TF_OBJS_TEST)
 
 BINARIES := fp-test$(EXESUF) fp-bench$(EXESUF)
 
-# everything depends on config-host.h because platform.h includes it
-all: $(BUILD_DIR)/config-host.h
-	$(MAKE) $(BINARIES)
+# We require artefacts from the main build including config-host.h
+# because platform.h includes it. Rather than re-invoking the main
+# build we just error out if things aren't there.
+$(LIBQEMUUTIL) $(BUILD_DIR)/config-host.h:
+	$(error $@ missing, re-run parent build)
 
-$(LIBQEMUUTIL):
-	$(MAKE) -C $(BUILD_DIR) libqemuutil.a
-
-$(BUILD_DIR)/config-host.h:
-	$(MAKE) -C $(BUILD_DIR) config-host.h
+all: $(BUILD_DIR)/config-host.h $(BINARIES)
 
 # libtestfloat.a depends on libsoftfloat.a, so specify it first
 FP_TEST_LIBS := libtestfloat.a libsoftfloat.a $(LIBQEMUUTIL)
