@@ -1107,12 +1107,13 @@ GSList *object_class_get_list_sorted(const char *implements_type,
                         object_class_cmp);
 }
 
-void object_ref(Object *obj)
+Object *object_ref(Object *obj)
 {
     if (!obj) {
-        return;
+        return NULL;
     }
     atomic_inc(&obj->ref);
+    return obj;
 }
 
 void object_unref(Object *obj)
