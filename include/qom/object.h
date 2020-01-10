@@ -1837,6 +1837,19 @@ Object *container_get(Object *root, const char *path);
  */
 size_t object_type_get_instance_size(const char *typename);
 
+/**
+ * object_property_help:
+ * @name: the name of the property
+ * @type: the type of the property
+ * @defval: the default value
+ * @description: description of the property
+ *
+ * Returns: a user-friendly formatted string describing the property
+ * for help purposes.
+ */
+char *object_property_help(const char *name, const char *type,
+                           QObject *defval, const char *description);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Object, object_unref)
 
 #endif

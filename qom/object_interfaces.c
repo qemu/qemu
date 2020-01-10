@@ -4,6 +4,8 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
 #include "qom/object_interfaces.h"
 #include "qemu/help_option.h"
 #include "qemu/module.h"
@@ -158,6 +160,29 @@ int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+char *object_property_help(const char *name, const char *type,
+                           QObject *defval, const char *description)
+{
+    GString *str = g_string_new(NULL);
+
+    g_string_append_printf(str, "  %s=<%s>", name, type);
+    if (description || defval) {
+        if (str->len < 24) {
+            g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
+        }
+        g_string_append(str, " - ");
+    }
+    if (description) {
+        g_string_append(str, description);
+    }
+    if (defval) {
+        g_autofree char *def_json = qstring_free(qobject_to_json(defval), TRUE);
+        g_string_append_printf(str, " (default: %s)", def_json);
+    }
+
+    return g_string_free(str, false);
+}
+
 bool user_creatable_print_help(const char *type, QemuOpts *opts)
 {
     ObjectClass *klass;
@@ -184,27 +209,13 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
 
         object_class_property_iter_init(&iter, klass);
         while ((prop = object_property_iter_next(&iter))) {
-            GString *str;
-            char *defval;
-
             if (!prop->set) {
                 continue;
             }
 
-            str = g_string_new(NULL);
-            g_string_append_printf(str, "  %s=<%s>", prop->name, prop->type);
-            defval = object_property_get_default(prop);
-            if (defval) {
-                g_string_append_printf(str, " (default: %s)", defval);
-                g_free(defval);
-            }
-            if (prop->description) {
-                if (str->len < 24) {
-                    g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
-                }
-                g_string_append_printf(str, " - %s", prop->description);
-            }
-            g_ptr_array_add(array, g_string_free(str, false));
+            g_ptr_array_add(array,
+                            object_property_help(prop->name, prop->type,
+                                                 prop->defval, prop->description));
         }
         g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
         if (array->len > 0) {
