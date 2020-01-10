@@ -321,7 +321,7 @@ static void pl031_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl031;
-    dc->props = pl031_properties;
+    device_class_set_props(dc, pl031_properties);
 }
 
 static const TypeInfo pl031_info = {

@@ -224,7 +224,7 @@ static void nrf51_soc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = nrf51_soc_realize;
-    dc->props = nrf51_soc_properties;
+    device_class_set_props(dc, nrf51_soc_properties);
 }
 
 static const TypeInfo nrf51_soc_info = {

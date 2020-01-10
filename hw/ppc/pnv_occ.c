@@ -279,7 +279,7 @@ static void pnv_occ_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_occ_realize;
     dc->desc = "PowerNV OCC Controller";
-    dc->props = pnv_occ_properties;
+    device_class_set_props(dc, pnv_occ_properties);
 }
 
 static const TypeInfo pnv_occ_type_info = {

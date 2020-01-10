@@ -288,7 +288,7 @@ static void armv7m_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = armv7m_realize;
-    dc->props = armv7m_properties;
+    device_class_set_props(dc, armv7m_properties);
 }
 
 static const TypeInfo armv7m_info = {
@@ -367,7 +367,7 @@ static void bitband_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = bitband_realize;
-    dc->props = bitband_properties;
+    device_class_set_props(dc, bitband_properties);
 }
 
 static const TypeInfo bitband_info = {

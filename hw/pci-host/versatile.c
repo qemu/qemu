@@ -509,7 +509,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     dc->realize = pci_vpb_realize;
     dc->reset = pci_vpb_reset;
     dc->vmsd = &pci_vpb_vmstate;
-    dc->props = pci_vpb_properties;
+    device_class_set_props(dc, pci_vpb_properties);
 }
 
 static const TypeInfo pci_vpb_info = {

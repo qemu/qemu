@@ -690,7 +690,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_OTHER;
 
     dc->desc = "RDMA Device";
-    dc->props = pvrdma_dev_properties;
+    device_class_set_props(dc, pvrdma_dev_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 
     ir->print_statistics = pvrdma_print_statistics;

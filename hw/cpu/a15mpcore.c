@@ -164,7 +164,7 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = a15mp_priv_realize;
-    dc->props = a15mp_priv_properties;
+    device_class_set_props(dc, a15mp_priv_properties);
     /* We currently have no savable state */
 }
 

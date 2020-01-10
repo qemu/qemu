@@ -684,7 +684,6 @@ static void e1000e_class_init(ObjectClass *class, void *data)
     dc->desc = "Intel 82574L GbE Controller";
     dc->reset = e1000e_qdev_reset;
     dc->vmsd = &e1000e_vmstate;
-    dc->props = e1000e_properties;
 
     e1000e_prop_disable_vnet = qdev_prop_uint8;
     e1000e_prop_disable_vnet.description = "Do not use virtio headers, "
@@ -697,6 +696,7 @@ static void e1000e_class_init(ObjectClass *class, void *data)
     e1000e_prop_subsys = qdev_prop_uint16;
     e1000e_prop_subsys.description = "PCI device Subsystem ID";
 
+    device_class_set_props(dc, e1000e_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 

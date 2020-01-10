@@ -106,7 +106,7 @@ static void serial_isa_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = serial_isa_realizefn;
     dc->vmsd = &vmstate_isa_serial;
-    dc->props = serial_isa_properties;
+    device_class_set_props(dc, serial_isa_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

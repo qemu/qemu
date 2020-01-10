@@ -1314,7 +1314,7 @@ static void s390_pci_device_class_init(ObjectClass *klass, void *data)
     dc->reset = s390_pci_device_reset;
     dc->bus_type = TYPE_S390_PCI_BUS;
     dc->realize = s390_pci_device_realize;
-    dc->props = s390_pci_device_properties;
+    device_class_set_props(dc, s390_pci_device_properties);
     dc->vmsd = &s390_pci_device_vmstate;
 }
 

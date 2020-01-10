@@ -314,7 +314,7 @@ static void nrf51_uart_class_init(ObjectClass *klass, void *data)
 
     dc->reset = nrf51_uart_reset;
     dc->realize = nrf51_uart_realize;
-    dc->props = nrf51_uart_properties;
+    device_class_set_props(dc, nrf51_uart_properties);
     dc->vmsd = &nrf51_uart_vmstate;
 }
 

@@ -125,7 +125,7 @@ static void debugcon_isa_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = debugcon_isa_realizefn;
-    dc->props = debugcon_isa_properties;
+    device_class_set_props(dc, debugcon_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

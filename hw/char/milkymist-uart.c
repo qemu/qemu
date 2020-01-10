@@ -239,7 +239,7 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = milkymist_uart_realize;
     dc->reset = milkymist_uart_reset;
     dc->vmsd = &vmstate_milkymist_uart;
-    dc->props = milkymist_uart_properties;
+    device_class_set_props(dc, milkymist_uart_properties);
 }
 
 static const TypeInfo milkymist_uart_info = {

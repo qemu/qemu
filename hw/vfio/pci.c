@@ -3199,7 +3199,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
 
     dc->reset = vfio_pci_reset;
-    dc->props = vfio_pci_dev_properties;
+    device_class_set_props(dc, vfio_pci_dev_properties);
     dc->desc = "VFIO-based PCI device assignment";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     pdc->realize = vfio_realize;
@@ -3231,7 +3231,7 @@ static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = vfio_pci_dev_nohotplug_properties;
+    device_class_set_props(dc, vfio_pci_dev_nohotplug_properties);
     dc->hotpluggable = false;
 }
 

@@ -184,7 +184,7 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
-    dc->props = pic_properties_common;
+    device_class_set_props(dc, pic_properties_common);
     dc->realize = pic_common_realize;
     /*
      * Reason: unlike ordinary ISA devices, the PICs need additional

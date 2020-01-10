@@ -407,7 +407,7 @@ static void omap_intc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = omap_inth_reset;
-    dc->props = omap_intc_properties;
+    device_class_set_props(dc, omap_intc_properties);
     /* Reason: pointer property "clk" */
     dc->user_creatable = false;
     dc->realize = omap_intc_realize;
@@ -660,7 +660,7 @@ static void omap2_intc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = omap_inth_reset;
-    dc->props = omap2_intc_properties;
+    device_class_set_props(dc, omap2_intc_properties);
     /* Reason: pointer property "iclk", "fclk" */
     dc->user_creatable = false;
     dc->realize = omap2_intc_realize;

@@ -229,7 +229,7 @@ static void m2sxxx_soc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = m2sxxx_soc_realize;
-    dc->props = m2sxxx_soc_properties;
+    device_class_set_props(dc, m2sxxx_soc_properties);
 }
 
 static const TypeInfo m2sxxx_soc_info = {

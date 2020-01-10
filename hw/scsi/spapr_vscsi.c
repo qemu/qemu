@@ -1267,7 +1267,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->dt_compatible = "IBM,v-scsi";
     k->signal_mask = 0x00000001;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->props = spapr_vscsi_properties;
+    device_class_set_props(dc, spapr_vscsi_properties);
     k->rtce_window_size = 0x10000000;
     dc->vmsd = &vmstate_spapr_vscsi;
 }

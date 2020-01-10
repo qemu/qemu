@@ -168,7 +168,7 @@ static void cs4231_class_init(ObjectClass *klass, void *data)
 
     dc->reset = cs_reset;
     dc->vmsd = &vmstate_cs4231;
-    dc->props = cs4231_properties;
+    device_class_set_props(dc, cs4231_properties);
 }
 
 static const TypeInfo cs4231_info = {

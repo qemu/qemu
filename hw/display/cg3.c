@@ -382,7 +382,7 @@ static void cg3_class_init(ObjectClass *klass, void *data)
     dc->realize = cg3_realizefn;
     dc->reset = cg3_reset;
     dc->vmsd = &vmstate_cg3;
-    dc->props = cg3_properties;
+    device_class_set_props(dc, cg3_properties);
 }
 
 static const TypeInfo cg3_info = {

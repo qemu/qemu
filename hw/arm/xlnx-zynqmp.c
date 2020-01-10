@@ -657,7 +657,7 @@ static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->props = xlnx_zynqmp_props;
+    device_class_set_props(dc, xlnx_zynqmp_props);
     dc->realize = xlnx_zynqmp_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;

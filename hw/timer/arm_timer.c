@@ -397,7 +397,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
 
     k->realize = sp804_realize;
-    k->props = sp804_properties;
+    device_class_set_props(k, sp804_properties);
     k->vmsd = &vmstate_sp804;
 }
 

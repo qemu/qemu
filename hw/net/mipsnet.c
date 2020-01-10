@@ -278,7 +278,7 @@ static void mipsnet_class_init(ObjectClass *klass, void *data)
     dc->desc = "MIPS Simulator network device";
     dc->reset = mipsnet_sysbus_reset;
     dc->vmsd = &vmstate_mipsnet;
-    dc->props = mipsnet_properties;
+    device_class_set_props(dc, mipsnet_properties);
 }
 
 static const TypeInfo mipsnet_info = {

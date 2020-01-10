@@ -179,7 +179,7 @@ static void gicv2m_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = gicv2m_properties;
+    device_class_set_props(dc, gicv2m_properties);
     dc->realize = gicv2m_realize;
 }
 

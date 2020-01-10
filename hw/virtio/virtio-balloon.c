@@ -932,7 +932,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-    dc->props = virtio_balloon_properties;
+    device_class_set_props(dc, virtio_balloon_properties);
     dc->vmsd = &vmstate_virtio_balloon;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     vdc->realize = virtio_balloon_device_realize;

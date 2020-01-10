@@ -1338,7 +1338,7 @@ static void imx_eth_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd    = &vmstate_imx_eth;
     dc->reset   = imx_eth_reset;
-    dc->props   = imx_eth_properties;
+    device_class_set_props(dc, imx_eth_properties);
     dc->realize = imx_eth_realize;
     dc->desc    = "i.MX FEC/ENET Ethernet Controller";
 }

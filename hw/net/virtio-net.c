@@ -3236,7 +3236,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-    dc->props = virtio_net_properties;
+    device_class_set_props(dc, virtio_net_properties);
     dc->vmsd = &vmstate_virtio_net;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->realize = virtio_net_device_realize;

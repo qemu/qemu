@@ -315,7 +315,7 @@ static void gus_class_initfn (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Gravis Ultrasound GF1";
     dc->vmsd = &vmstate_gus;
-    dc->props = gus_properties;
+    device_class_set_props(dc, gus_properties);
 }
 
 static const TypeInfo gus_info = {

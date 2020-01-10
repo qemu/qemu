@@ -271,7 +271,7 @@ static void aspeed_wdt_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_wdt_reset;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->vmsd = &vmstate_aspeed_wdt;
-    dc->props = aspeed_wdt_properties;
+    device_class_set_props(dc, aspeed_wdt_properties);
 }
 
 static const TypeInfo aspeed_wdt_info = {

@@ -857,7 +857,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, sparc_cpu_realizefn,
                                     &scc->parent_realize);
-    dc->props = sparc_cpu_properties;
+    device_class_set_props(dc, sparc_cpu_properties);
 
     cpu_class_set_parent_reset(cc, sparc_cpu_reset, &scc->parent_reset);
 

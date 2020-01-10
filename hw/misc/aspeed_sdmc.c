@@ -261,7 +261,7 @@ static void aspeed_sdmc_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_sdmc_reset;
     dc->desc = "ASPEED SDRAM Memory Controller";
     dc->vmsd = &vmstate_aspeed_sdmc;
-    dc->props = aspeed_sdmc_properties;
+    device_class_set_props(dc, aspeed_sdmc_properties);
 }
 
 static const TypeInfo aspeed_sdmc_info = {

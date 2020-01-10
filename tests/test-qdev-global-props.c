@@ -55,7 +55,7 @@ static void static_prop_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = NULL;
-    dc->props = static_props;
+    device_class_set_props(dc, static_props);
 }
 
 static const TypeInfo static_prop_type = {

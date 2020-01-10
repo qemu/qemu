@@ -1332,7 +1332,7 @@ static void xen_device_class_init(ObjectClass *class, void *data)
 
     dev_class->realize = xen_device_realize;
     dev_class->unrealize = xen_device_unrealize;
-    dev_class->props = xen_device_props;
+    device_class_set_props(dev_class, xen_device_props);
     dev_class->bus_type = TYPE_XEN_BUS;
 }
 

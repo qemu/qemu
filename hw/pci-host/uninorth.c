@@ -476,7 +476,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = pci_unin_main_realize;
-    dc->props = pci_unin_main_pci_host_props;
+    device_class_set_props(dc, pci_unin_main_pci_host_props);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     sbc->explicit_ofw_unit_address = pci_unin_main_ofw_unit_address;

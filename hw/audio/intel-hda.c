@@ -1233,7 +1233,7 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_MULTIMEDIA_HD_AUDIO;
     dc->reset = intel_hda_reset;
     dc->vmsd = &vmstate_intel_hda;
-    dc->props = intel_hda_properties;
+    device_class_set_props(dc, intel_hda_properties);
 }
 
 static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
@@ -1289,7 +1289,7 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
     k->unrealize = hda_codec_dev_unrealize;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
     k->bus_type = TYPE_HDA_BUS;
-    k->props = hda_props;
+    device_class_set_props(k, hda_props);
 }
 
 static const TypeInfo hda_codec_device_type_info = {

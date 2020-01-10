@@ -442,7 +442,7 @@ static void exynos4210_combiner_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = exynos4210_combiner_reset;
-    dc->props = exynos4210_combiner_properties;
+    device_class_set_props(dc, exynos4210_combiner_properties);
     dc->vmsd = &vmstate_exynos4210_combiner;
 }
 

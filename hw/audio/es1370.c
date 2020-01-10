@@ -908,7 +908,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
     dc->reset = es1370_on_reset;
-    dc->props = es1370_properties;
+    device_class_set_props(dc, es1370_properties);
 }
 
 static const TypeInfo es1370_info = {

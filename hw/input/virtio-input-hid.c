@@ -222,7 +222,7 @@ static void virtio_input_hid_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOInputClass *vic = VIRTIO_INPUT_CLASS(klass);
 
-    dc->props          = virtio_input_hid_properties;
+    device_class_set_props(dc, virtio_input_hid_properties);
     vic->realize       = virtio_input_hid_realize;
     vic->unrealize     = virtio_input_hid_unrealize;
     vic->change_active = virtio_input_hid_change_active;
@@ -362,7 +362,7 @@ static void virtio_mouse_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props  = virtio_mouse_properties;
+    device_class_set_props(dc, virtio_mouse_properties);
 }
 
 static void virtio_mouse_init(Object *obj)
@@ -486,7 +486,7 @@ static void virtio_tablet_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props  = virtio_tablet_properties;
+    device_class_set_props(dc, virtio_tablet_properties);
 }
 
 static void virtio_tablet_init(Object *obj)

@@ -68,7 +68,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    dc->props = virtio_net_properties;
+    device_class_set_props(dc, virtio_net_properties);
     vpciklass->realize = virtio_net_pci_realize;
 }
 

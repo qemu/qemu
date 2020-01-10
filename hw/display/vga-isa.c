@@ -95,7 +95,7 @@ static void vga_isa_class_initfn(ObjectClass *klass, void *data)
     dc->realize = vga_isa_realizefn;
     dc->reset = vga_isa_reset;
     dc->vmsd = &vmstate_vga_common;
-    dc->props = vga_isa_properties;
+    device_class_set_props(dc, vga_isa_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 

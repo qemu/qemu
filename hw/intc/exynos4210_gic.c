@@ -355,7 +355,7 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = exynos4210_gic_properties;
+    device_class_set_props(dc, exynos4210_gic_properties);
     dc->realize = exynos4210_gic_realize;
 }
 
@@ -462,7 +462,7 @@ static void exynos4210_irq_gate_class_init(ObjectClass *klass, void *data)
 
     dc->reset = exynos4210_irq_gate_reset;
     dc->vmsd = &vmstate_exynos4210_irq_gate;
-    dc->props = exynos4210_irq_gate_properties;
+    device_class_set_props(dc, exynos4210_irq_gate_properties);
     dc->realize = exynos4210_irq_gate_realize;
 }
 

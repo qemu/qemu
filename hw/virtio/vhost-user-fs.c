@@ -271,7 +271,7 @@ static void vuf_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-    dc->props = vuf_properties;
+    device_class_set_props(dc, vuf_properties);
     dc->vmsd = &vuf_vmstate;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vuf_device_realize;

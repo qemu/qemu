@@ -154,7 +154,7 @@ static void mmio_ide_class_init(ObjectClass *oc, void *data)
 
     dc->realize = mmio_ide_realizefn;
     dc->reset = mmio_ide_reset;
-    dc->props = mmio_ide_properties;
+    device_class_set_props(dc, mmio_ide_properties);
     dc->vmsd = &vmstate_ide_mmio;
 }
 

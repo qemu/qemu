@@ -639,7 +639,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 
     dc->realize = etraxfs_eth_realize;
     dc->reset = etraxfs_eth_reset;
-    dc->props = etraxfs_eth_properties;
+    device_class_set_props(dc, etraxfs_eth_properties);
     /* Reason: dma_out, dma_in are not user settable */
     dc->user_creatable = false;
 }

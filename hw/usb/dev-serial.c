@@ -567,7 +567,7 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
 
     uc->product_desc   = "QEMU USB Serial";
     uc->usb_desc       = &desc_serial;
-    dc->props = serial_properties;
+    device_class_set_props(dc, serial_properties);
 }
 
 static const TypeInfo serial_info = {
@@ -588,7 +588,7 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
 
     uc->product_desc   = "QEMU USB Braille";
     uc->usb_desc       = &desc_braille;
-    dc->props = braille_properties;
+    device_class_set_props(dc, braille_properties);
 }
 
 static const TypeInfo braille_info = {

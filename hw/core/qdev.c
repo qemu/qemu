@@ -1061,6 +1061,11 @@ static void device_class_init(ObjectClass *class, void *data)
     vc->get_id = device_vmstate_if_get_id;
 }
 
+void device_class_set_props(DeviceClass *dc, Property *props)
+{
+    dc->props = props;
+}
+
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
                                    DeviceReset *parent_reset)

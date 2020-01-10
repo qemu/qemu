@@ -367,7 +367,7 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
 
     dc->reset = arm_gic_common_reset;
     dc->realize = arm_gic_common_realize;
-    dc->props = arm_gic_common_properties;
+    device_class_set_props(dc, arm_gic_common_properties);
     dc->vmsd = &vmstate_gic;
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }

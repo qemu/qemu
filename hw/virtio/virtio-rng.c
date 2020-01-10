@@ -269,7 +269,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-    dc->props = virtio_rng_properties;
+    device_class_set_props(dc, virtio_rng_properties);
     dc->vmsd = &vmstate_virtio_rng;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     vdc->realize = virtio_rng_device_realize;

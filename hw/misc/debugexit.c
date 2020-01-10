@@ -65,7 +65,7 @@ static void debug_exit_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = debug_exit_realizefn;
-    dc->props = debug_exit_properties;
+    device_class_set_props(dc, debug_exit_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

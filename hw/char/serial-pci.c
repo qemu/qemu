@@ -100,7 +100,7 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_serial;
-    dc->props = serial_pci_properties;
+    device_class_set_props(dc, serial_pci_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

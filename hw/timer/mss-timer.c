@@ -278,7 +278,7 @@ static void mss_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = mss_timer_properties;
+    device_class_set_props(dc, mss_timer_properties);
     dc->vmsd = &vmstate_mss_timer;
 }
 

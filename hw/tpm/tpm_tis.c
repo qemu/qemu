@@ -1023,7 +1023,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
     dc->realize = tpm_tis_realizefn;
-    dc->props = tpm_tis_properties;
+    device_class_set_props(dc, tpm_tis_properties);
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
     tc->model = TPM_MODEL_TPM_TIS;

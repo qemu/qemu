@@ -184,7 +184,7 @@ static void virtio_vga_base_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->props = virtio_vga_base_properties;
+    device_class_set_props(dc, virtio_vga_base_properties);
     dc->vmsd = &vmstate_virtio_vga_base;
     dc->hotpluggable = false;
     device_class_set_parent_reset(dc, virtio_vga_base_reset,

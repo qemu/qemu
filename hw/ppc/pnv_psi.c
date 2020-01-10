@@ -937,7 +937,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
     xdc->dt_xscom = pnv_psi_dt_xscom;
 
     dc->desc = "PowerNV PSI Controller";
-    dc->props = pnv_psi_properties;
+    device_class_set_props(dc, pnv_psi_properties);
     dc->reset = pnv_psi_reset;
 }
 

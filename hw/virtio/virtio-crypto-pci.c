@@ -69,7 +69,7 @@ static void virtio_crypto_pci_class_init(ObjectClass *klass, void *data)
 
     k->realize = virtio_crypto_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->props = virtio_crypto_pci_properties;
+    device_class_set_props(dc, virtio_crypto_pci_properties);
     pcidev_k->class_id = PCI_CLASS_OTHERS;
 }
 

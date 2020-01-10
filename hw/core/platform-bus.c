@@ -211,7 +211,7 @@ static void platform_bus_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = platform_bus_realize;
-    dc->props = platform_bus_properties;
+    device_class_set_props(dc, platform_bus_properties);
 }
 
 static const TypeInfo platform_bus_info = {

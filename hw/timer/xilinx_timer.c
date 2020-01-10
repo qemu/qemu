@@ -253,7 +253,7 @@ static void xilinx_timer_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = xilinx_timer_realize;
-    dc->props = xilinx_timer_properties;
+    device_class_set_props(dc, xilinx_timer_properties);
 }
 
 static const TypeInfo xilinx_timer_info = {

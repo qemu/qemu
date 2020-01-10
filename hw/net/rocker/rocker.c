@@ -1519,7 +1519,7 @@ static void rocker_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Rocker Switch";
     dc->reset = rocker_reset;
-    dc->props = rocker_properties;
+    device_class_set_props(dc, rocker_properties);
     dc->vmsd = &rocker_vmsd;
 }
 

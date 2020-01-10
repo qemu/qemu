@@ -343,7 +343,7 @@ static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
     dc->realize = milkymist_sysctl_realize;
     dc->reset = milkymist_sysctl_reset;
     dc->vmsd = &vmstate_milkymist_sysctl;
-    dc->props = milkymist_sysctl_properties;
+    device_class_set_props(dc, milkymist_sysctl_properties);
 }
 
 static const TypeInfo milkymist_sysctl_info = {

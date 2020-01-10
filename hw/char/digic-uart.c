@@ -183,7 +183,7 @@ static void digic_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = digic_uart_realize;
     dc->reset = digic_uart_reset;
     dc->vmsd = &vmstate_digic_uart;
-    dc->props = digic_uart_properties;
+    device_class_set_props(dc, digic_uart_properties);
 }
 
 static const TypeInfo digic_uart_info = {

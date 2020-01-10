@@ -1989,7 +1989,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 
     dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
-    dc->props = ipmi_sim_properties;
+    device_class_set_props(dc, ipmi_sim_properties);
     bk->handle_command = ipmi_sim_handle_command;
 }
 

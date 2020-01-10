@@ -466,7 +466,7 @@ static void macio_newworld_class_init(ObjectClass *oc, void *data)
     pdc->realize = macio_newworld_realize;
     pdc->device_id = PCI_DEVICE_ID_APPLE_UNI_N_KEYL;
     dc->vmsd = &vmstate_macio_newworld;
-    dc->props = macio_newworld_properties;
+    device_class_set_props(dc, macio_newworld_properties);
 }
 
 static Property macio_properties[] = {
@@ -481,7 +481,7 @@ static void macio_class_init(ObjectClass *klass, void *data)
 
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->class_id = PCI_CLASS_OTHERS << 8;
-    dc->props = macio_properties;
+    device_class_set_props(dc, macio_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     /* Reason: Uses serial_hds in macio_instance_init */
     dc->user_creatable = false;

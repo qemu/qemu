@@ -289,7 +289,7 @@ static void prep_systemio_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = prep_systemio_realize;
     dc->vmsd = &vmstate_prep_systemio;
-    dc->props = prep_systemio_properties;
+    device_class_set_props(dc, prep_systemio_properties);
 }
 
 static TypeInfo prep_systemio800_info = {

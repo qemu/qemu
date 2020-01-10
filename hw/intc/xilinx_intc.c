@@ -185,7 +185,7 @@ static void xilinx_intc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = xilinx_intc_properties;
+    device_class_set_props(dc, xilinx_intc_properties);
 }
 
 static const TypeInfo xilinx_intc_info = {

@@ -155,7 +155,7 @@ static void emulated_ccw_3270_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = emulated_ccw_3270_properties;
+    device_class_set_props(dc, emulated_ccw_3270_properties);
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
     dc->realize = emulated_ccw_3270_realize;
     dc->hotpluggable = false;

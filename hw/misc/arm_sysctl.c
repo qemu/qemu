@@ -642,7 +642,7 @@ static void arm_sysctl_class_init(ObjectClass *klass, void *data)
     dc->realize = arm_sysctl_realize;
     dc->reset = arm_sysctl_reset;
     dc->vmsd = &vmstate_arm_sysctl;
-    dc->props = arm_sysctl_properties;
+    device_class_set_props(dc, arm_sysctl_properties);
 }
 
 static const TypeInfo arm_sysctl_info = {

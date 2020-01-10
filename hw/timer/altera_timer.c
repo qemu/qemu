@@ -224,7 +224,7 @@ static void altera_timer_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = altera_timer_realize;
-    dc->props = altera_timer_properties;
+    device_class_set_props(dc, altera_timer_properties);
     dc->reset = altera_timer_reset;
 }
 

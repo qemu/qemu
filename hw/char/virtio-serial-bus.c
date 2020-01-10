@@ -1110,7 +1110,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_VIRTIO_SERIAL_BUS;
     k->realize = virtser_port_device_realize;
     k->unrealize = virtser_port_device_unrealize;
-    k->props = virtser_props;
+    device_class_set_props(k, virtser_props);
 }
 
 static const TypeInfo virtio_serial_port_type_info = {
@@ -1179,7 +1179,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
 
     QLIST_INIT(&vserdevices.devices);
 
-    dc->props = virtio_serial_properties;
+    device_class_set_props(dc, virtio_serial_properties);
     dc->vmsd = &vmstate_virtio_console;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     vdc->realize = virtio_serial_device_realize;

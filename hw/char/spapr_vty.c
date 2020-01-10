@@ -193,7 +193,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
     k->dt_type = "serial";
     k->dt_compatible = "hvterm1";
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    dc->props = spapr_vty_properties;
+    device_class_set_props(dc, spapr_vty_properties);
     dc->vmsd = &vmstate_spapr_vty;
 }
 

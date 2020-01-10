@@ -358,7 +358,7 @@ static void icp_class_init(ObjectClass *klass, void *data)
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
-    dc->props = icp_properties;
+    device_class_set_props(dc, icp_properties);
     /*
      * Reason: part of XICS interrupt controller, needs to be wired up
      * by icp_create().
@@ -680,7 +680,7 @@ static void ics_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ics_realize;
-    dc->props = ics_properties;
+    device_class_set_props(dc, ics_properties);
     dc->reset = ics_reset;
     dc->vmsd = &vmstate_ics;
     /*

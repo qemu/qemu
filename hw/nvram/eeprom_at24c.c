@@ -182,7 +182,7 @@ void at24c_eeprom_class_init(ObjectClass *klass, void *data)
     k->recv = &at24c_eeprom_recv;
     k->send = &at24c_eeprom_send;
 
-    dc->props = at24c_eeprom_props;
+    device_class_set_props(dc, at24c_eeprom_props);
     dc->reset = at24c_eeprom_reset;
 }
 

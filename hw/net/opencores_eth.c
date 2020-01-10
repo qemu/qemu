@@ -755,7 +755,7 @@ static void open_eth_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Opencores 10/100 Mbit Ethernet";
     dc->reset = qdev_open_eth_reset;
-    dc->props = open_eth_properties;
+    device_class_set_props(dc, open_eth_properties);
 }
 
 static const TypeInfo open_eth_info = {

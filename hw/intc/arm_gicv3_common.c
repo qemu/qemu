@@ -507,7 +507,7 @@ static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)
 
     dc->reset = arm_gicv3_common_reset;
     dc->realize = arm_gicv3_common_realize;
-    dc->props = arm_gicv3_common_properties;
+    device_class_set_props(dc, arm_gicv3_common_properties);
     dc->vmsd = &vmstate_gicv3;
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }

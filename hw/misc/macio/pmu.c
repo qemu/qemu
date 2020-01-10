@@ -795,7 +795,7 @@ static void pmu_class_init(ObjectClass *oc, void *data)
     dc->realize = pmu_realize;
     dc->reset = pmu_reset;
     dc->vmsd = &vmstate_pmu;
-    dc->props = pmu_properties;
+    device_class_set_props(dc, pmu_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 

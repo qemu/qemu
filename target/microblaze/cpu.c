@@ -308,7 +308,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_mb_cpu;
-    dc->props = mb_properties;
+    device_class_set_props(dc, mb_properties);
     cc->gdb_num_core_regs = 32 + 5;
 
     cc->disas_set_info = mb_disas_set_info;

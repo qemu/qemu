@@ -117,7 +117,7 @@ static void isa_ide_class_initfn(ObjectClass *klass, void *data)
     dc->realize = isa_ide_realizefn;
     dc->fw_name = "ide";
     dc->reset = isa_ide_reset;
-    dc->props = isa_ide_properties;
+    device_class_set_props(dc, isa_ide_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 

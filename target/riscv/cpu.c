@@ -492,7 +492,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
 #endif
     /* For now, mark unmigratable: */
     cc->vmsd = &vmstate_riscv_cpu;
-    dc->props = riscv_cpu_properties;
+    device_class_set_props(dc, riscv_cpu_properties);
 }
 
 char *riscv_isa_string(RISCVCPU *cpu)

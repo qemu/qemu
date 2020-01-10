@@ -427,7 +427,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
 
     dc->reset = slavio_timer_reset;
     dc->vmsd = &vmstate_slavio_timer;
-    dc->props = slavio_timer_properties;
+    device_class_set_props(dc, slavio_timer_properties);
 }
 
 static const TypeInfo slavio_timer_info = {

@@ -653,7 +653,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     dc->reset = piix4_pm_reset;
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
-    dc->props = piix4_pm_properties;
+    device_class_set_props(dc, piix4_pm_properties);
     /*
      * Reason: part of PIIX4 southbridge, needs to be wired up,
      * e.g. by mips_malta_init()

@@ -1635,7 +1635,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->alloc_streams  = usb_host_alloc_streams;
     uc->free_streams   = usb_host_free_streams;
     dc->vmsd = &vmstate_usb_host;
-    dc->props = usb_host_dev_properties;
+    device_class_set_props(dc, usb_host_dev_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 

@@ -2118,7 +2118,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
     SDCardClass *sc = SD_CARD_CLASS(klass);
 
     dc->realize = sd_realize;
-    dc->props = sd_properties;
+    device_class_set_props(dc, sd_properties);
     dc->vmsd = &sd_vmstate;
     dc->reset = sd_reset;
     dc->bus_type = TYPE_SD_BUS;

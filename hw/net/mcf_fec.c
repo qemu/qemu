@@ -670,7 +670,7 @@ static void mcf_fec_class_init(ObjectClass *oc, void *data)
     dc->realize = mcf_fec_realize;
     dc->desc = "MCF Fast Ethernet Controller network device";
     dc->reset = mcf_fec_reset;
-    dc->props = mcf_fec_properties;
+    device_class_set_props(dc, mcf_fec_properties);
 }
 
 static const TypeInfo mcf_fec_info = {

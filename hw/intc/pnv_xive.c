@@ -1957,7 +1957,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV XIVE Interrupt Controller";
     device_class_set_parent_realize(dc, pnv_xive_realize, &pxc->parent_realize);
     dc->realize = pnv_xive_realize;
-    dc->props = pnv_xive_properties;
+    device_class_set_props(dc, pnv_xive_properties);
 
     xrc->get_eas = pnv_xive_get_eas;
     xrc->get_end = pnv_xive_get_end;

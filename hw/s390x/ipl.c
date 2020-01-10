@@ -666,7 +666,7 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = s390_ipl_realize;
-    dc->props = s390_ipl_properties;
+    device_class_set_props(dc, s390_ipl_properties);
     dc->reset = s390_ipl_reset;
     dc->vmsd = &vmstate_ipl;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

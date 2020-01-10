@@ -520,7 +520,7 @@ static void omap_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = omap_i2c_properties;
+    device_class_set_props(dc, omap_i2c_properties);
     dc->reset = omap_i2c_reset;
     /* Reason: pointer properties "iclk", "fclk" */
     dc->user_creatable = false;

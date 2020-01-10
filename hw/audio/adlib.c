@@ -312,7 +312,7 @@ static void adlib_class_initfn (ObjectClass *klass, void *data)
     dc->realize = adlib_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = ADLIB_DESC;
-    dc->props = adlib_properties;
+    device_class_set_props(dc, adlib_properties);
 }
 
 static const TypeInfo adlib_info = {

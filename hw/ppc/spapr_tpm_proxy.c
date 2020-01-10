@@ -159,7 +159,7 @@ static void spapr_tpm_proxy_class_init(ObjectClass *k, void *data)
     dk->realize = spapr_tpm_proxy_realize;
     dk->unrealize = spapr_tpm_proxy_unrealize;
     dk->user_creatable = true;
-    dk->props = spapr_tpm_proxy_properties;
+    device_class_set_props(dk, spapr_tpm_proxy_properties);
 }
 
 static const TypeInfo spapr_tpm_proxy_info = {

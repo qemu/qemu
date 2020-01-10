@@ -74,7 +74,7 @@ static void riscv_harts_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = riscv_harts_props;
+    device_class_set_props(dc, riscv_harts_props);
     dc->realize = riscv_harts_realize;
 }
 

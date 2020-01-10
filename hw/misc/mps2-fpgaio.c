@@ -300,7 +300,7 @@ static void mps2_fpgaio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &mps2_fpgaio_vmstate;
     dc->reset = mps2_fpgaio_reset;
-    dc->props = mps2_fpgaio_properties;
+    device_class_set_props(dc, mps2_fpgaio_properties);
 }
 
 static const TypeInfo mps2_fpgaio_info = {

@@ -1531,7 +1531,7 @@ static void pxa2xx_i2c_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PXA2xx I2C Bus Controller";
     dc->vmsd = &vmstate_pxa2xx_i2c;
-    dc->props = pxa2xx_i2c_properties;
+    device_class_set_props(dc, pxa2xx_i2c_properties);
 }
 
 static const TypeInfo pxa2xx_i2c_info = {
@@ -2015,7 +2015,7 @@ static void pxa2xx_fir_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pxa2xx_fir_realize;
     dc->vmsd = &pxa2xx_fir_vmsd;
-    dc->props = pxa2xx_fir_properties;
+    device_class_set_props(dc, pxa2xx_fir_properties);
     dc->reset = pxa2xx_fir_reset;
 }
 

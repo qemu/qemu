@@ -236,7 +236,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 
     dc->reset = xilinx_uartlite_reset;
     dc->realize = xilinx_uartlite_realize;
-    dc->props = xilinx_uartlite_properties;
+    device_class_set_props(dc, xilinx_uartlite_properties);
 }
 
 static const TypeInfo xilinx_uartlite_info = {

@@ -685,7 +685,7 @@ static void timer_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_timer_reset;
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
-    dc->props = aspeed_timer_properties;
+    device_class_set_props(dc, aspeed_timer_properties);
 }
 
 static const TypeInfo aspeed_timer_info = {

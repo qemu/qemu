@@ -85,7 +85,7 @@ static void arm11_scu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = arm11_scu_realize;
-    dc->props = arm11_scu_properties;
+    device_class_set_props(dc, arm11_scu_properties);
 }
 
 static const TypeInfo arm11_scu_type_info = {

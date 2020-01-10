@@ -550,7 +550,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
     dc->reset = cadence_uart_reset;
-    dc->props = cadence_uart_properties;
+    device_class_set_props(dc, cadence_uart_properties);
   }
 
 static const TypeInfo cadence_uart_info = {

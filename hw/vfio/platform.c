@@ -699,7 +699,7 @@ static void vfio_platform_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = vfio_platform_realize;
-    dc->props = vfio_platform_dev_properties;
+    device_class_set_props(dc, vfio_platform_dev_properties);
     dc->vmsd = &vfio_platform_vmstate;
     dc->desc = "VFIO-based platform device assignment";
     sbc->connect_irq_notifier = vfio_start_irqfd_injection;
