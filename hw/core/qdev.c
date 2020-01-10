@@ -717,16 +717,6 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     g_free(name);
 }
 
-/**
- * qdev_property_add_static:
- * @dev: Device to add the property to.
- * @prop: The qdev property definition.
- * @errp: location to store error information.
- *
- * Add a static QOM property to @dev for qdev property @prop.
- * On error, store error in @errp.  Static properties access data in a struct.
- * The type of the QOM property is derived from prop->info.
- */
 void qdev_property_add_static(DeviceState *dev, Property *prop,
                               Error **errp)
 {
