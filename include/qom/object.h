@@ -1539,7 +1539,8 @@ void object_property_add_str(Object *obj, const char *name,
                              void (*set)(Object *, const char *, Error **),
                              Error **errp);
 
-void object_class_property_add_str(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_str(ObjectClass *klass,
+                                   const char *name,
                                    char *(*get)(Object *, Error **),
                                    void (*set)(Object *, const char *,
                                                Error **),
@@ -1561,7 +1562,8 @@ void object_property_add_bool(Object *obj, const char *name,
                               void (*set)(Object *, bool, Error **),
                               Error **errp);
 
-void object_class_property_add_bool(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
+                                    const char *name,
                                     bool (*get)(Object *, Error **),
                                     void (*set)(Object *, bool, Error **),
                                     Error **errp);
@@ -1585,7 +1587,8 @@ void object_property_add_enum(Object *obj, const char *name,
                               void (*set)(Object *, int, Error **),
                               Error **errp);
 
-void object_class_property_add_enum(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
+                                    const char *name,
                                     const char *typename,
                                     const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
@@ -1606,7 +1609,8 @@ void object_property_add_tm(Object *obj, const char *name,
                             void (*get)(Object *, struct tm *, Error **),
                             Error **errp);
 
-void object_class_property_add_tm(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
+                                  const char *name,
                                   void (*get)(Object *, struct tm *, Error **),
                                   Error **errp);
 
@@ -1622,7 +1626,8 @@ void object_class_property_add_tm(ObjectClass *klass, const char *name,
  */
 void object_property_add_uint8_ptr(Object *obj, const char *name,
                                    const uint8_t *v, Error **errp);
-void object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
+                                         const char *name,
                                          const uint8_t *v, Error **errp);
 
 /**
@@ -1637,7 +1642,8 @@ void object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
  */
 void object_property_add_uint16_ptr(Object *obj, const char *name,
                                     const uint16_t *v, Error **errp);
-void object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
+                                          const char *name,
                                           const uint16_t *v, Error **errp);
 
 /**
@@ -1652,7 +1658,8 @@ void object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
  */
 void object_property_add_uint32_ptr(Object *obj, const char *name,
                                     const uint32_t *v, Error **errp);
-void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
+                                          const char *name,
                                           const uint32_t *v, Error **errp);
 
 /**
@@ -1667,7 +1674,8 @@ void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
  */
 void object_property_add_uint64_ptr(Object *obj, const char *name,
                                     const uint64_t *v, Error **errp);
-void object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
+                                          const char *name,
                                           const uint64_t *v, Error **errp);
 
 /**

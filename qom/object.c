@@ -2065,7 +2065,8 @@ void object_property_add_str(Object *obj, const char *name,
     }
 }
 
-void object_class_property_add_str(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_str(ObjectClass *klass, const char *name,
                                    char *(*get)(Object *, Error **),
                                    void (*set)(Object *, const char *,
                                                Error **),
@@ -2073,11 +2074,12 @@ void object_class_property_add_str(ObjectClass *klass, const char *name,
 {
     Error *local_err = NULL;
     StringProperty *prop = g_malloc0(sizeof(*prop));
+    ObjectProperty *rv;
 
     prop->get = get;
     prop->set = set;
 
-    object_class_property_add(klass, name, "string",
+    rv = object_class_property_add(klass, name, "string",
                               get ? property_get_str : NULL,
                               set ? property_set_str : NULL,
                               property_release_str,
@@ -2086,6 +2088,8 @@ void object_class_property_add_str(ObjectClass *klass, const char *name,
         error_propagate(errp, local_err);
         g_free(prop);
     }
+
+    return rv;
 }
 
 typedef struct BoolProperty
@@ -2155,18 +2159,20 @@ void object_property_add_bool(Object *obj, const char *name,
     }
 }
 
-void object_class_property_add_bool(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_bool(ObjectClass *klass, const char *name,
                                     bool (*get)(Object *, Error **),
                                     void (*set)(Object *, bool, Error **),
                                     Error **errp)
 {
     Error *local_err = NULL;
     BoolProperty *prop = g_malloc0(sizeof(*prop));
+    ObjectProperty *rv;
 
     prop->get = get;
     prop->set = set;
 
-    object_class_property_add(klass, name, "bool",
+    rv = object_class_property_add(klass, name, "bool",
                               get ? property_get_bool : NULL,
                               set ? property_set_bool : NULL,
                               property_release_bool,
@@ -2175,6 +2181,8 @@ void object_class_property_add_bool(ObjectClass *klass, const char *name,
         error_propagate(errp, local_err);
         g_free(prop);
     }
+
+    return rv;
 }
 
 static void property_get_enum(Object *obj, Visitor *v, const char *name,
@@ -2240,7 +2248,8 @@ void object_property_add_enum(Object *obj, const char *name,
     }
 }
 
-void object_class_property_add_enum(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_enum(ObjectClass *klass, const char *name,
                                     const char *typename,
                                     const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
@@ -2249,12 +2258,13 @@ void object_class_property_add_enum(ObjectClass *klass, const char *name,
 {
     Error *local_err = NULL;
     EnumProperty *prop = g_malloc(sizeof(*prop));
+    ObjectProperty *rv;
 
     prop->lookup = lookup;
     prop->get = get;
     prop->set = set;
 
-    object_class_property_add(klass, name, typename,
+    rv = object_class_property_add(klass, name, typename,
                               get ? property_get_enum : NULL,
                               set ? property_set_enum : NULL,
                               property_release_enum,
@@ -2263,6 +2273,8 @@ void object_class_property_add_enum(ObjectClass *klass, const char *name,
         error_propagate(errp, local_err);
         g_free(prop);
     }
+
+    return rv;
 }
 
 typedef struct TMProperty {
@@ -2343,16 +2355,18 @@ void object_property_add_tm(Object *obj, const char *name,
     }
 }
 
-void object_class_property_add_tm(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_tm(ObjectClass *klass, const char *name,
                                   void (*get)(Object *, struct tm *, Error **),
                                   Error **errp)
 {
     Error *local_err = NULL;
     TMProperty *prop = g_malloc0(sizeof(*prop));
+    ObjectProperty *rv;
 
     prop->get = get;
 
-    object_class_property_add(klass, name, "struct tm",
+    rv = object_class_property_add(klass, name, "struct tm",
                               get ? property_get_tm : NULL, NULL,
                               property_release_tm,
                               prop, &local_err);
@@ -2360,6 +2374,8 @@ void object_class_property_add_tm(ObjectClass *klass, const char *name,
         error_propagate(errp, local_err);
         g_free(prop);
     }
+
+    return rv;
 }
 
 static char *qdev_get_type(Object *obj, Error **errp)
@@ -2402,11 +2418,13 @@ void object_property_add_uint8_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
-void object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
                                          const uint8_t *v, Error **errp)
 {
-    object_class_property_add(klass, name, "uint8", property_get_uint8_ptr,
-                              NULL, NULL, (void *)v, errp);
+    return object_class_property_add(klass, name, "uint8",
+                                     property_get_uint8_ptr,
+                                     NULL, NULL, (void *)v, errp);
 }
 
 void object_property_add_uint16_ptr(Object *obj, const char *name,
@@ -2416,11 +2434,13 @@ void object_property_add_uint16_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
-void object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
                                           const uint16_t *v, Error **errp)
 {
-    object_class_property_add(klass, name, "uint16", property_get_uint16_ptr,
-                              NULL, NULL, (void *)v, errp);
+    return object_class_property_add(klass, name, "uint16",
+                                     property_get_uint16_ptr,
+                                     NULL, NULL, (void *)v, errp);
 }
 
 void object_property_add_uint32_ptr(Object *obj, const char *name,
@@ -2430,11 +2450,13 @@ void object_property_add_uint32_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
-void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
                                           const uint32_t *v, Error **errp)
 {
-    object_class_property_add(klass, name, "uint32", property_get_uint32_ptr,
-                              NULL, NULL, (void *)v, errp);
+    return object_class_property_add(klass, name, "uint32",
+                                     property_get_uint32_ptr,
+                                     NULL, NULL, (void *)v, errp);
 }
 
 void object_property_add_uint64_ptr(Object *obj, const char *name,
@@ -2444,11 +2466,13 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
-void object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
+ObjectProperty *
+object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
                                           const uint64_t *v, Error **errp)
 {
-    object_class_property_add(klass, name, "uint64", property_get_uint64_ptr,
-                              NULL, NULL, (void *)v, errp);
+    return object_class_property_add(klass, name, "uint64",
+                                     property_get_uint64_ptr,
+                                     NULL, NULL, (void *)v, errp);
 }
 
 typedef struct {
