@@ -3702,6 +3702,9 @@ if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     gio_cflags=$($pkg_config --cflags gio-2.0)
     gio_libs=$($pkg_config --libs gio-2.0)
     gdbus_codegen=$($pkg_config --variable=gdbus_codegen gio-2.0)
+    if [ ! -x "$gdbus_codegen" ]; then
+        gdbus_codegen=
+    fi
 else
     gio=no
 fi
