@@ -478,6 +478,19 @@ void object_apply_compat_props(Object *obj)
     }
 }
 
+static void object_class_property_init_all(Object *obj)
+{
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+
+    object_class_property_iter_init(&iter, object_get_class(obj));
+    while ((prop = object_property_iter_next(&iter))) {
+        if (prop->init) {
+            prop->init(obj, prop);
+        }
+    }
+}
+
 static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
 {
     Object *obj = data;
@@ -491,6 +504,7 @@ static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
     object_ref(obj);
+    object_class_property_init_all(obj);
     obj->properties = g_hash_table_new_full(g_str_hash, g_str_equal,
                                             NULL, object_property_free);
     object_init_with_type(obj, type);
