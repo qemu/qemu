@@ -185,6 +185,7 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
         object_class_property_iter_init(&iter, klass);
         while ((prop = object_property_iter_next(&iter))) {
             GString *str;
+            char *defval;
 
             if (!prop->set) {
                 continue;
@@ -192,6 +193,11 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
 
             str = g_string_new(NULL);
             g_string_append_printf(str, "  %s=<%s>", prop->name, prop->type);
+            defval = object_property_get_default(prop);
+            if (defval) {
+                g_string_append_printf(str, " (default: %s)", defval);
+                g_free(defval);
+            }
             if (prop->description) {
                 if (str->len < 24) {
                     g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
