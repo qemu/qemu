@@ -332,6 +332,8 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
          * priority
          */
         qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
+        object_property_set_link(OBJECT(dev), OBJECT(spapr), "xive-fabric",
+                                 &error_abort);
         qdev_init_nofail(dev);
 
         spapr->xive = SPAPR_XIVE(dev);

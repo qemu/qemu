@@ -654,6 +654,7 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     assert(tctx->cs);
+    assert(tctx->xptr);
 
     cpu = POWERPC_CPU(tctx->cs);
     env = &cpu->env;
@@ -727,6 +728,8 @@ static const VMStateDescription vmstate_xive_tctx = {
 
 static Property xive_tctx_properties[] = {
     DEFINE_PROP_LINK("cpu", XiveTCTX, cs, TYPE_CPU, CPUState *),
+    DEFINE_PROP_LINK("presenter", XiveTCTX, xptr, TYPE_XIVE_PRESENTER,
+                     XivePresenter *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -752,7 +755,7 @@ static const TypeInfo xive_tctx_info = {
     .class_init    = xive_tctx_class_init,
 };
 
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
+Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
 {
     Error *local_err = NULL;
     Object *obj;
@@ -761,6 +764,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
     object_property_set_link(obj, cpu, "cpu", &error_abort);
+    object_property_set_link(obj, OBJECT(xptr), "presenter", &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         goto error;
@@ -1378,6 +1382,13 @@ static int xive_router_get_block_id(XiveRouter *xrtr)
    return xrc->get_block_id(xrtr);
 }
 
+static void xive_router_realize(DeviceState *dev, Error **errp)
+{
+    XiveRouter *xrtr = XIVE_ROUTER(dev);
+
+    assert(xrtr->xfb);
+}
+
 /*
  * Encode the HW CAM line in the block group mode format :
  *
@@ -1470,12 +1481,11 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static bool xive_presenter_notify(uint8_t format,
+static bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
                                   uint8_t nvt_blk, uint32_t nvt_idx,
                                   bool cam_ignore, uint8_t priority,
                                   uint32_t logic_serv)
 {
-    XiveFabric *xfb = XIVE_FABRIC(qdev_get_machine());
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
     int count;
@@ -1607,7 +1617,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
         return;
     }
 
-    found = xive_presenter_notify(format, nvt_blk, nvt_idx,
+    found = xive_presenter_notify(xrtr->xfb, format, nvt_blk, nvt_idx,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
@@ -1714,12 +1724,21 @@ void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
                            xive_get_field64(EAS_END_DATA,  eas.w));
 }
 
+static Property xive_router_properties[] = {
+    DEFINE_PROP_LINK("xive-fabric", XiveRouter, xfb,
+                     TYPE_XIVE_FABRIC, XiveFabric *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xive_router_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
 
     dc->desc    = "XIVE Router Engine";
+    dc->props   = xive_router_properties;
+    /* Parent is SysBusDeviceClass. No need to call its realize hook */
+    dc->realize = xive_router_realize;
     xnc->notify = xive_router_notify;
 }
 
@@ -1727,6 +1746,7 @@ static const TypeInfo xive_router_info = {
     .name          = TYPE_XIVE_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .abstract      = true,
+    .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
     .interfaces    = (InterfaceInfo[]) {

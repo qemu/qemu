@@ -311,6 +311,8 @@ void xive_source_set_irq(void *opaque, int srcno, int val);
 #define XIVE_TM_RING_COUNT      4
 #define XIVE_TM_RING_SIZE       0x10
 
+typedef struct XivePresenter XivePresenter;
+
 typedef struct XiveTCTX {
     DeviceState parent_obj;
 
@@ -319,14 +321,19 @@ typedef struct XiveTCTX {
     qemu_irq    os_output;
 
     uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
+
+    XivePresenter *xptr;
 } XiveTCTX;
 
 /*
  * XIVE Router
  */
+typedef struct XiveFabric XiveFabric;
 
 typedef struct XiveRouter {
     SysBusDevice    parent;
+
+    XiveFabric *xfb;
 } XiveRouter;
 
 #define TYPE_XIVE_ROUTER "xive-router"
@@ -375,8 +382,6 @@ typedef struct XiveTCTXMatch {
     uint8_t ring;
 } XiveTCTXMatch;
 
-typedef struct XivePresenter XivePresenter;
-
 #define TYPE_XIVE_PRESENTER "xive-presenter"
 #define XIVE_PRESENTER(obj)                                     \
     INTERFACE_CHECK(XivePresenter, (obj), TYPE_XIVE_PRESENTER)
@@ -401,8 +406,6 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 /*
  * XIVE Fabric (Interface between Interrupt Controller and Machine)
  */
-
-typedef struct XiveFabric XiveFabric;
 
 #define TYPE_XIVE_FABRIC "xive-fabric"
 #define XIVE_FABRIC(obj)                                     \
@@ -466,7 +469,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                            unsigned size);
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp);
+Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp);
 void xive_tctx_reset(XiveTCTX *tctx);
 void xive_tctx_destroy(XiveTCTX *tctx);
 void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb);

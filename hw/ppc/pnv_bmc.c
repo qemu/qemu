@@ -143,8 +143,8 @@ static uint16_t bytes_to_blocks(uint32_t bytes)
 static void hiomap_cmd(IPMIBmcSim *ibs, uint8_t *cmd, unsigned int cmd_len,
                        RspBuffer *rsp)
 {
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-    PnvPnor *pnor = pnv->pnor;
+    PnvPnor *pnor = PNV_PNOR(object_property_get_link(OBJECT(ibs), "pnor",
+                                                      &error_abort));
     uint32_t pnor_size = pnor->size;
     uint32_t pnor_addr = PNOR_SPI_OFFSET;
     bool readonly = false;
@@ -217,11 +217,13 @@ static const IPMINetfn hiomap_netfn = {
  * Instantiate the machine BMC. PowerNV uses the QEMU internal
  * simulator but it could also be external.
  */
-IPMIBmc *pnv_bmc_create(void)
+IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
 {
     Object *obj;
 
     obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
+    object_ref(OBJECT(pnor));
+    object_property_add_const_link(obj, "pnor", OBJECT(pnor), &error_abort);
     object_property_set_bool(obj, true, "realized", &error_fatal);
 
     /* Install the HIOMAP protocol handlers to access the PNOR */

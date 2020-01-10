@@ -37,6 +37,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      bool radix, bool gtse,
                                      uint64_t proc_tbl);
+void kvmppc_svm_off(Error **errp);
 #ifndef CONFIG_USER_ONLY
 bool kvmppc_spapr_use_multitce(void);
 int kvmppc_spapr_enable_inkernel_multitce(void);
@@ -199,6 +200,11 @@ static inline target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      uint64_t proc_tbl)
 {
     return 0;
+}
+
+static inline void kvmppc_svm_off(Error **errp)
+{
+    return;
 }
 
 static inline void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu,

@@ -878,7 +878,7 @@ static int spapr_dt_cas_updates(SpaprMachineState *spapr, void *fdt,
         g_assert(smc->dr_lmb_enabled);
         ret = spapr_populate_drconf_memory(spapr, fdt);
         if (ret) {
-            goto out;
+            return ret;
         }
     }
 
@@ -889,11 +889,8 @@ static int spapr_dt_cas_updates(SpaprMachineState *spapr, void *fdt,
             return offset;
         }
     }
-    ret = spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
-                                 "ibm,architecture-vec-5");
-
-out:
-    return ret;
+    return spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
+                                  "ibm,architecture-vec-5");
 }
 
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
@@ -1597,6 +1594,7 @@ static void spapr_machine_reset(MachineState *machine)
     void *fdt;
     int rc;
 
+    kvmppc_svm_off(&error_fatal);
     spapr_caps_apply(spapr);
 
     first_ppc_cpu = POWERPC_CPU(first_cpu);
@@ -4197,18 +4195,18 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
                    kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
 }
 
+/*
+ * This is a XIVE only operation
+ */
 static int spapr_match_nvt(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool cam_ignore, uint8_t priority,
                            uint32_t logic_serv, XiveTCTXMatch *match)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(xfb);
-    XivePresenter *xptr = XIVE_PRESENTER(spapr->xive);
+    XivePresenter *xptr = XIVE_PRESENTER(spapr->active_intc);
     XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
     int count;
-
-    /* This is a XIVE only operation */
-    assert(spapr->active_intc == SPAPR_INTC(spapr->xive));
 
     count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
                            priority, logic_serv, match);

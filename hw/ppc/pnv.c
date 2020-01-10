@@ -561,7 +561,7 @@ static void *pnv_dt_create(MachineState *machine)
 
 static void pnv_powerdown_notify(Notifier *n, void *opaque)
 {
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = container_of(n, PnvMachineState, powerdown_notifier);
 
     if (pnv->bmc) {
         pnv_bmc_powerdown(pnv->bmc);
@@ -768,6 +768,18 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
+    pnv->num_chips =
+        machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
+    /*
+     * TODO: should we decide on how many chips we can create based
+     * on #cores and Venice vs. Murano vs. Naples chip type etc...,
+     */
+    if (!is_power_of_2(pnv->num_chips) || pnv->num_chips > 4) {
+        error_report("invalid number of chips: '%d'", pnv->num_chips);
+        error_printf("Try '-smp sockets=N'. Valid values are : 1, 2 or 4.\n");
+        exit(1);
+    }
+
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
@@ -790,12 +802,25 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         object_property_set_int(chip, machine->smp.cores,
                                 "nr-cores", &error_fatal);
+        object_property_set_int(chip, machine->smp.threads,
+                                "nr-threads", &error_fatal);
+        /*
+         * The POWER8 machine use the XICS interrupt interface.
+         * Propagate the XICS fabric to the chip and its controllers.
+         */
+        if (object_dynamic_cast(OBJECT(pnv), TYPE_XICS_FABRIC)) {
+            object_property_set_link(chip, OBJECT(pnv), "xics", &error_abort);
+        }
+        if (object_dynamic_cast(OBJECT(pnv), TYPE_XIVE_FABRIC)) {
+            object_property_set_link(chip, OBJECT(pnv), "xive-fabric",
+                                     &error_abort);
+        }
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
 
     /* Create the machine BMC simulator */
-    pnv->bmc = pnv_bmc_create();
+    pnv->bmc = pnv_bmc_create(pnv->pnor);
 
     /* Instantiate ISA bus on chip 0 */
     pnv->isa_bus = pnv_isa_create(pnv->chips[0], &error_fatal);
@@ -831,12 +856,12 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
 static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
+    Pnv8Chip *chip8 = PNV8_CHIP(chip);
     Error *local_err = NULL;
     Object *obj;
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
-    obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
-                     &local_err);
+    obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, chip8->xics, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -900,7 +925,8 @@ static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
      * controller object is initialized afterwards. Hopefully, it's
      * only used at runtime.
      */
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(&chip9->xive), &local_err);
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_PRESENTER(&chip9->xive),
+                           &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -990,10 +1016,14 @@ static void pnv_chip_power8_instance_init(Object *obj)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
 
+    object_property_add_link(obj, "xics", TYPE_XICS_FABRIC,
+                             (Object **)&chip8->xics,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_STRONG,
+                             &error_abort);
+
     object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
                             TYPE_PNV8_PSI, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip8->psi), "xics",
-                                   OBJECT(qdev_get_machine()), &error_abort);
 
     object_initialize_child(obj, "lpc",  &chip8->lpc, sizeof(chip8->lpc),
                             TYPE_PNV8_LPC, &error_abort, NULL);
@@ -1011,7 +1041,6 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     int i, j;
     char *name;
-    XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
 
     name = g_strdup_printf("icp-%x", chip->chip_id);
     memory_region_init(&chip8->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
@@ -1027,7 +1056,7 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
 
         for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
             uint32_t pir = pcc->core_pir(chip, core_hwid) + j;
-            PnvICPState *icp = PNV_ICP(xics_icp_get(xi, pir));
+            PnvICPState *icp = PNV_ICP(xics_icp_get(chip8->xics, pir));
 
             memory_region_add_subregion(&chip8->icp_mmio, pir << 12,
                                         &icp->mmio);
@@ -1042,6 +1071,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     Pnv8Chip *chip8 = PNV8_CHIP(dev);
     Pnv8Psi *psi8 = &chip8->psi;
     Error *local_err = NULL;
+
+    assert(chip8->xics);
 
     /* XSCOM bridge is first */
     pnv_xscom_realize(chip, PNV_XSCOM_SIZE, &local_err);
@@ -1060,6 +1091,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip8->psi), PNV_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip8->xics),
+                             ICS_PROP_XICS, &error_abort);
     object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1201,6 +1234,8 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "xive", &chip9->xive, sizeof(chip9->xive),
                             TYPE_PNV_XIVE, &error_abort, NULL);
+    object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
+                              "xive-fabric", &error_abort);
 
     object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
                             TYPE_PNV9_PSI, &error_abort, NULL);
@@ -1494,7 +1529,6 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
@@ -1530,8 +1564,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
                                   &error_abort);
         chip->cores[i] = pnv_core;
-        object_property_set_int(OBJECT(pnv_core), ms->smp.threads, "nr-threads",
-                                &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), chip->nr_threads,
+                                "nr-threads", &error_fatal);
         object_property_set_int(OBJECT(pnv_core), core_hwid,
                                 CPU_CORE_PROP_CORE_ID, &error_fatal);
         object_property_set_int(OBJECT(pnv_core),
@@ -1570,6 +1604,7 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
+    DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1682,67 +1717,6 @@ static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
     return total_count;
 }
 
-PnvChip *pnv_get_chip(uint32_t chip_id)
-{
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-    int i;
-
-    for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
-        if (chip->chip_id == chip_id) {
-            return chip;
-        }
-    }
-    return NULL;
-}
-
-static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    visit_type_uint32(v, name, &PNV_MACHINE(obj)->num_chips, errp);
-}
-
-static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    PnvMachineState *pnv = PNV_MACHINE(obj);
-    uint32_t num_chips;
-    Error *local_err = NULL;
-
-    visit_type_uint32(v, name, &num_chips, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    /*
-     * TODO: should we decide on how many chips we can create based
-     * on #cores and Venice vs. Murano vs. Naples chip type etc...,
-     */
-    if (!is_power_of_2(num_chips) || num_chips > 4) {
-        error_setg(errp, "invalid number of chips: '%d'", num_chips);
-        return;
-    }
-
-    pnv->num_chips = num_chips;
-}
-
-static void pnv_machine_instance_init(Object *obj)
-{
-    PnvMachineState *pnv = PNV_MACHINE(obj);
-    pnv->num_chips = 1;
-}
-
-static void pnv_machine_class_props_init(ObjectClass *oc)
-{
-    object_class_property_add(oc, "num-chips", "uint32",
-                              pnv_get_num_chips, pnv_set_num_chips,
-                              NULL, NULL, NULL);
-    object_class_property_set_description(oc, "num-chips",
-                              "Specifies the number of processor chips",
-                              NULL);
-}
-
 static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1812,8 +1786,6 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->default_ram_size = INITRD_LOAD_ADDR + INITRD_MAX_SIZE;
     ispc->print_info = pnv_pic_print_info;
-
-    pnv_machine_class_props_init(oc);
 }
 
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
@@ -1866,7 +1838,6 @@ static const TypeInfo types[] = {
         .parent        = TYPE_MACHINE,
         .abstract       = true,
         .instance_size = sizeof(PnvMachineState),
-        .instance_init = pnv_machine_instance_init,
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
         .interfaces = (InterfaceInfo[]) {

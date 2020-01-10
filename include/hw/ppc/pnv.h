@@ -48,6 +48,7 @@ typedef struct PnvChip {
     uint64_t     ram_size;
 
     uint32_t     nr_cores;
+    uint32_t     nr_threads;
     uint64_t     cores_mask;
     PnvCore      **cores;
 
@@ -72,6 +73,8 @@ typedef struct Pnv8Chip {
     Pnv8Psi      psi;
     PnvOCC       occ;
     PnvHomer     homer;
+
+    XICSFabric    *xics;
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
@@ -216,8 +219,6 @@ struct PnvMachineState {
     PnvPnor      *pnor;
 };
 
-PnvChip *pnv_get_chip(uint32_t chip_id);
-
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
 
@@ -226,7 +227,7 @@ PnvChip *pnv_get_chip(uint32_t chip_id);
  */
 void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
-IPMIBmc *pnv_bmc_create(void);
+IPMIBmc *pnv_bmc_create(PnvPnor *pnor);
 
 /*
  * POWER8 MMIO base addresses

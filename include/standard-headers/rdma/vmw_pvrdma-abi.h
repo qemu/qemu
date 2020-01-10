@@ -179,6 +179,11 @@ struct pvrdma_create_qp {
 	uint64_t __attribute__((aligned(8))) qp_addr;
 };
 
+struct pvrdma_create_qp_resp {
+	uint32_t qpn;
+	uint32_t qp_handle;
+};
+
 /* PVRDMA masked atomic compare and swap */
 struct pvrdma_ex_cmp_swap {
 	uint64_t __attribute__((aligned(8))) swap_val;
