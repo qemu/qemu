@@ -717,24 +717,17 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     g_free(name);
 }
 
-void qdev_property_add_static(DeviceState *dev, Property *prop,
-                              Error **errp)
+void qdev_property_add_static(DeviceState *dev, Property *prop)
 {
-    Error *local_err = NULL;
     Object *obj = OBJECT(dev);
 
     if (prop->info->create) {
-        prop->info->create(obj, prop, &local_err);
+        prop->info->create(obj, prop, &error_abort);
     } else {
         object_property_add(obj, prop->name, prop->info->name,
                             prop->info->get, prop->info->set,
                             prop->info->release,
-                            prop, &local_err);
-    }
-
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+                            prop, &error_abort);
     }
 
     object_property_set_description(obj, prop->name,
@@ -989,7 +982,7 @@ static void device_initfn(Object *obj)
     do {
         for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
             qdev_property_add_legacy(dev, prop, &error_abort);
-            qdev_property_add_static(dev, prop, &error_abort);
+            qdev_property_add_static(dev, prop);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
