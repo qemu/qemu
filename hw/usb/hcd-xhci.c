@@ -2000,6 +2000,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         if (xfer != NULL && xfer->running_retry) {
             DPRINTF("xhci: xfer nacked, stopping schedule\n");
             epctx->retry = xfer;
+            xhci_xfer_unmap(xfer);
             break;
         }
         if (count++ > TRANSFER_LIMIT) {
