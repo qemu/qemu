@@ -1768,7 +1768,7 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
     if (rb->clear_bmap && clear_bmap_test_and_clear(rb, page)) {
         uint8_t shift = rb->clear_bmap_shift;
         hwaddr size = 1ULL << (TARGET_PAGE_BITS + shift);
-        hwaddr start = (page << TARGET_PAGE_BITS) & (-size);
+        hwaddr start = (((ram_addr_t)page) << TARGET_PAGE_BITS) & (-size);
 
         /*
          * CLEAR_BITMAP_SHIFT_MIN should always guarantee this... this
@@ -2005,7 +2005,7 @@ static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
         return;
     }
 
-    ram_discard_range(rbname, offset, pages << TARGET_PAGE_BITS);
+    ram_discard_range(rbname, offset, ((ram_addr_t)pages) << TARGET_PAGE_BITS);
 }
 
 /*
@@ -2093,7 +2093,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     uint8_t *p;
     bool send_async = true;
     RAMBlock *block = pss->block;
-    ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
+    ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     ram_addr_t current_addr = block->offset + offset;
 
     p = block->host + offset;
@@ -2280,7 +2280,8 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
         *again = false;
         return false;
     }
-    if ((pss->page << TARGET_PAGE_BITS) >= pss->block->used_length) {
+    if ((((ram_addr_t)pss->page) << TARGET_PAGE_BITS)
+        >= pss->block->used_length) {
         /* Didn't find anything in this RAM Block */
         pss->page = 0;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
@@ -2571,7 +2572,7 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
                                 bool last_stage)
 {
     RAMBlock *block = pss->block;
-    ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
+    ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     int res;
 
     if (control_save_page(rs, block, offset, &res)) {
@@ -2657,7 +2658,8 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
         /* Allow rate limiting to happen in the middle of huge pages */
         migration_rate_limit();
     } while ((pss->page & (pagesize_bits - 1)) &&
-             offset_in_ramblock(pss->block, pss->page << TARGET_PAGE_BITS));
+             offset_in_ramblock(pss->block,
+                                ((ram_addr_t)pss->page) << TARGET_PAGE_BITS));
 
     /* The offset we leave with is the last one we looked at */
     pss->page--;
@@ -2874,8 +2876,10 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
 
         while (run_start < range) {
             unsigned long run_end = find_next_bit(bitmap, range, run_start + 1);
-            ram_discard_range(block->idstr, run_start << TARGET_PAGE_BITS,
-                              (run_end - run_start) << TARGET_PAGE_BITS);
+            ram_discard_range(block->idstr,
+                              ((ram_addr_t)run_start) << TARGET_PAGE_BITS,
+                              ((ram_addr_t)(run_end - run_start))
+                                << TARGET_PAGE_BITS);
             run_start = find_next_zero_bit(bitmap, range, run_end + 1);
         }
     }
@@ -4273,13 +4277,16 @@ static void colo_flush_ram_cache(void)
         while (block) {
             offset = migration_bitmap_find_dirty(ram_state, block, offset);
 
-            if (offset << TARGET_PAGE_BITS >= block->used_length) {
+            if (((ram_addr_t)offset) << TARGET_PAGE_BITS
+                >= block->used_length) {
                 offset = 0;
                 block = QLIST_NEXT_RCU(block, next);
             } else {
                 migration_bitmap_clear_dirty(ram_state, block, offset);
-                dst_host = block->host + (offset << TARGET_PAGE_BITS);
-                src_host = block->colo_cache + (offset << TARGET_PAGE_BITS);
+                dst_host = block->host
+                         + (((ram_addr_t)offset) << TARGET_PAGE_BITS);
+                src_host = block->colo_cache
+                         + (((ram_addr_t)offset) << TARGET_PAGE_BITS);
                 memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
             }
         }
