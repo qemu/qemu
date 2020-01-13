@@ -304,7 +304,7 @@ static inline void gen_check_store_width(DisasContext *ctx, int slot_num)
     tcg_temp_free(check);
 }
 #define HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num) \
-    gen_check_store_width(cts, slot_num)
+    gen_check_store_width(ctx, slot_num)
 #else
 #define HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num)  /* nothing */
 #endif
@@ -814,15 +814,4 @@ void hexagon_translate_init(void)
     }
 
     init_genptr();
-}
-
-/* Used for "-d in_asm" logging */
-int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)
-{
-    packet_t pkt;
-
-    decode_this(nwords, words, &pkt);
-    snprint_a_pkt(buf, bufsize, &pkt);
-
-    return pkt.encod_pkt_size_in_bytes;
 }

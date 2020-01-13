@@ -22,8 +22,6 @@
 #include "opcodes.h"
 #include "hex_arch_types.h"
 
-#define PACKET_WORDS_MAX               4
-
 extern void decode_init(void);
 
 static inline int is_packet_end(uint32_t word)
@@ -32,8 +30,11 @@ static inline int is_packet_end(uint32_t word)
     return ((bits == 0x3) || (bits == 0x0));
 }
 
+extern void decode_send_insn_to(packet_t *packet, int start, int newloc);
+
 extern packet_t *decode_this(int max_words, size4u_t *words,
                              packet_t *decode_pkt);
-extern void decode_send_insn_to(packet_t *packet, int start, int newloc);
+extern int disassemble_hexagon(uint32_t *words, int nwords,
+                               char *buf, int bufsize);
 
 #endif
