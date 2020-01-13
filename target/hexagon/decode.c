@@ -26,23 +26,9 @@
 #include "decode.h"
 #include "insn.h"
 #include "macros.h"
+#include "printinsn.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/decode_ext_mmvec.h"
-
-
-/* FIXME - Generate an exception when there is an invalid insn/packet */
-#define warn(...) /* Nothing */
-#define fatal(...) g_assert_not_reached();
-
-#define snprint_a_pkt(pkt_buf, x, y, z) \
-    sprintf(pkt_buf, "FIXME: %s, %d", __FILE__, __LINE__)
-
-#define decode_error(x, y, z) __decode_error()
-static void __decode_error(void)
-{
-    printf("decode_error\n");
-}
-
 
 enum {
     EXT_IDX_noext = 0,
@@ -59,17 +45,6 @@ enum {
 
 #define DECODE_MAPPED_REG(REGNO, NAME) \
     insn->regno[REGNO] = DECODE_REGISTER_##NAME[insn->regno[REGNO]];
-
-static int decode_get_regno(insn_t *insn, const char regid)
-{
-    char *idx;
-    idx = strchr(opcode_reginfo[insn->opcode], regid);
-    if (idx == NULL) {
-        return -1;
-    } else {
-        return idx - opcode_reginfo[insn->opcode];
-    }
-}
 
 typedef struct {
     struct _dectree_table_struct *table_link;
@@ -295,8 +270,7 @@ decode_fill_newvalue_regno(packet_t *packet)
              * out-of-range
              */
             if ((def_idx < 0) || (def_idx > (packet->num_insns - 1))) {
-                warn("A new-value consumer has no valid producer!\n");
-                decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
+                g_assert_not_reached();
                 return 1;
             }
 
@@ -318,18 +292,13 @@ decode_fill_newvalue_regno(packet_t *packet)
                         if (dststr) {
                             dststr = strchr(opcode_reginfo[def_opcode], 'y');
                         } else {
-                            decode_error(thread, einfo,
-                                         PRECISE_CAUSE_INVALID_PACKET);
-                            warn("A new-value consumer has no valid "
-                                 "producer!\n");
+                            g_assert_not_reached();
                             return 1;
                         }
                     }
                 }
             }
-            if (dststr == NULL) {
-                fatal("Didn't find register in opcode_reginfo");
-            }
+            g_assert(dststr != NULL);
             def_regnum =
                 packet->insn[def_idx].regno[dststr -
                     opcode_reginfo[def_opcode]];
@@ -726,443 +695,7 @@ static int decode_shuffle_for_execution(packet_t *packet)
     return 0;
 }
 
-/*
- * Check that an instruction with two destination registers
- * (e.g., post-increment load) does not assign to the same
- * register twice.
- */
-static inline int check_twowrite(insn_t *insn)
-{
-    int n_dests = 0;
-    size4u_t dmask = 1;
-    size4u_t xmask = 1;
-    size2u_t opcode = insn->opcode;
-
-    if (strstr(opcode_wregs[opcode], "Rd")) {
-        n_dests++;
-    }
-    if (strstr(opcode_wregs[opcode], "Rx")) {
-        n_dests++;
-    }
-    if (n_dests < 2) {
-        return 0;
-    }
-
-    /* Pairs need 2 bits in the mask */
-    if (strstr(opcode_wregs[opcode], "Rdd")) {
-        dmask = 3;
-    }
-    if (strstr(opcode_wregs[opcode], "Rxx")) {
-        xmask = 3;
-    }
-
-    dmask <<= insn->regno[strchr(opcode_reginfo[opcode], 'd') -
-                          opcode_reginfo[opcode]];
-    xmask <<= insn->regno[strchr(opcode_reginfo[opcode], 'x') -
-                          opcode_reginfo[opcode]];
-
-    if (dmask & xmask) {
-        warn("[UNDEFINED] Overlapping regs? %s, %d", __FILE__, __LINE__);
-    }
-    return 0;
-}
-
-/* Check to see whether it was OK to skip over a slot N */
-static int
-decode_assembler_check_skipped_slot(packet_t *pkt, int slot)
-{
-    int i;
-    const char *valid_slot_str;
-    char pkt_buf[1024];
-
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
-            continue;
-        }
-        if (pkt->insn[i].slot > slot) {
-            continue;    /* already in a higher slot */
-        }
-        if (pkt->insn[i].slot == slot) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            fatal("slot %d not empty? insn=%d pkt=%s", slot, i, pkt_buf);
-        }
-        valid_slot_str =
-            find_iclass_slots(pkt->insn[i].opcode, pkt->insn[i].iclass);
-        if (strchr(valid_slot_str, '0' + slot)) {
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("[NEWDEFINED] Slot%d empty, could be filled with insn in "
-                   "slot%d: <SLOT%s> %s",
-                   slot, pkt->insn[i].slot, valid_slot_str, pkt_buf);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/* Check all the slot ordering restrictions */
-static int decode_assembler_check_slots(packet_t *pkt)
-{
-    int slot;
-    int i, j;
-    const char *valid_slot_str;
-    char pkt_buf[1024];
-    unsigned int skipped_slots = 0;
-
-    /* Check to make sure they are grouped in decreasing order */
-    for (i = 0, slot = 3; i < pkt->num_insns; i++) {
-        if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
-            continue;
-        }
-        valid_slot_str =
-            find_iclass_slots(pkt->insn[i].opcode, pkt->insn[i].iclass);
-        if (slot < 0) {
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("[NEWDEFINED] Can't map insns to slots: %s", pkt_buf);
-            return 1;
-        }
-        while (strchr(valid_slot_str, '0' + slot) == NULL) {
-            if (slot <= 0) {
-                decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                warn("[NEWDEFINED] Can't map insns to slots: %s", pkt_buf);
-                return 1;
-            }
-            skipped_slots |= (1 << slot);
-            slot--;
-        }
-        slot--;
-    }
-
-    /* Check to make sure insns grouped as high as possible */
-    if (skipped_slots) {
-        for (slot = 3; slot >= 0; slot--) {
-            if (skipped_slots & (1 << slot)) {
-                decode_assembler_check_skipped_slot(pkt, slot);
-            }
-        }
-    }
-
-    /* Check single-mem-last */
-    for (i = 0; i < pkt->num_insns; i++) {
-        int saw_mem = 0;
-        int slot0_alu32 = 0;
-        if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
-            continue;
-        }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE) ||
-            GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE_PACKET_RULES)) {
-            saw_mem = 1;
-        }
-        if (pkt->insn[i].slot == 0 &&
-            (!GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE) &&
-             !GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE_PACKET_RULES))) {
-            slot0_alu32 = 1;
-        }
-        if (saw_mem && slot0_alu32) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("single mem in slot1: %s", pkt_buf);
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        }
-    }
-
-    /* Check noslot1 restriction */
-    for (i = 0; i < pkt->num_insns; i++) {
-        int saw_slot1_store = 0;
-        int need_restriction = 0;
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOSLOT1_STORE)) {
-            need_restriction = 1;
-        }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_STORE) &&
-            pkt->insn[i].slot == 1) {
-            saw_slot1_store = 1;
-        }
-
-        if (saw_slot1_store && need_restriction) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("slot1 store not allowed: %s", pkt_buf);
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            return 1;
-        }
-    }
-
-    /* Check noslot0 restriction */
-    for (i = 0; i < pkt->num_insns; i++) {
-        int saw_slot0_load = 0;
-        int need_restriction = 0;
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOSLOT0_LOAD)) {
-            need_restriction = 1;
-        }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_LOAD) &&
-            pkt->insn[i].slot == 0) {
-            saw_slot0_load = 1;
-        }
-
-        if (saw_slot0_load && need_restriction) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("slot0 load not allowed: %s", pkt_buf);
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            return 1;
-        }
-    }
-
-    /* Check solo insns */
-    for (i = 0; i < pkt->num_insns; i++) {
-        if ((GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOPACKET)) &&
-            pkt->num_insns > 1) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("insn %d solo, but in a packet: %s", i, pkt_buf);
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return 1;
-        }
-    }
-
-    /* Check slot1 empty insns */
-    for (i = 0; i < pkt->num_insns; i++) {
-        if ((GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOSLOT1)) &&
-            (skipped_slots & 2)) {
-            for (j = 0; j < pkt->num_insns; j++) {
-                if (i == j) {
-                    continue;
-                }
-                if ((pkt->insn[j].slot == 1) &&
-                    !GET_ATTRIB(pkt->insn[j].opcode, A_IT_NOP)) {
-                    decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                    warn("[NEWDEFINED] slot1 not empty/nop: %s", pkt_buf);
-                    return 1;
-                }
-            }
-        }
-    }
-
-    /* Check slot1 empty insns */
-    for (i = 0; i < pkt->num_insns; i++) {
-        if ((GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_SLOT1_AOK)) &&
-            (skipped_slots & 2)) {
-            for (j = 0; j < pkt->num_insns; j++) {
-                if (i == j) {
-                    continue;
-                }
-                if ((pkt->insn[j].slot == 1) &&
-                    (GET_ATTRIB(pkt->insn[j].opcode, A_LOAD) ||
-                     GET_ATTRIB(pkt->insn[j].opcode, A_STORE))) {
-                    decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                    warn("[NEWDEFINED] slot1 not A-type: %s", pkt_buf);
-                    return 1;
-                }
-            }
-        }
-    }
-
-    /* no slot 2 mpy for tiny core dmac */
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOSLOT2_MPY)) {
-            for (j = 0; j < pkt->num_insns; j++) {
-                if (GET_ATTRIB(pkt->insn[j].opcode, A_MPY) &&
-                    (pkt->insn[j].slot == 2)) {
-                    decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                    warn("[NEWDEFINED] slot 2 has a mpy with dmac: %s",
-                         pkt_buf);
-                    return 1;
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-static int
-decode_assembler_check_branching(packet_t *pkt)
-{
-    char pkt_buf[1024];
-    int i;
-    unsigned int n_branchadders = 0;
-    unsigned int n_cofs = 0;
-    unsigned int relax1 = 0;
-    unsigned int relax2 = 0;
-
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_BRANCHADDER)) {
-            n_branchadders++;
-        }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_COF)) {
-            n_cofs++;
-        }
-        if ((relax1 == 0) &&
-            (GET_ATTRIB(pkt->insn[i].opcode, A_RELAX_COF_1ST))) {
-            relax1 = 1;
-        } else if ((relax1 == 1) &&
-                   GET_ATTRIB(pkt->insn[i].opcode, A_RELAX_COF_2ND)) {
-            relax2 = 1;
-        }
-    }
-    if (n_cofs == 2) {
-        if (relax1 && relax2) {
-            return 0;
-        }
-    }
-    if (n_branchadders > 2) {
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-        warn("[NEWDEFINED] n_branchadders = %d > 2: %s",
-        n_branchadders, pkt_buf);
-        return 1;
-    }
-    if (n_cofs > 1) {
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-        warn("[NEWDEFINED] n_cofs = %d > 1: %s", n_cofs, pkt_buf);
-        return 1;
-    }
-    return 0;
-}
-
-static int
-decode_assembler_check_srmove(packet_t *pkt)
-{
-    char pkt_buf[1024];
-    unsigned int saw_srmove = 0;
-    unsigned int saw_nosrmove = 0;
-    int i;
-
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOSRMOVE)) {
-            saw_nosrmove++;
-        }
-        if ((pkt->insn[i].opcode == A2_tfrrcr) &&
-            (pkt->insn[i].regno[0] == 8)) {
-            saw_srmove = 1;
-        }
-    }
-
-    if (saw_srmove && saw_nosrmove) {
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-        warn("[NEWDEFINED] 'USR=R' not allowed with SR update: %s", pkt_buf);
-        return 1;
-    }
-    return 0;
-}
-
-static int
-decode_assembler_check_loopla(packet_t *pkt)
-{
-    char pkt_buf[1024];
-    int is_endloop0 = 0;
-    int is_endloop1 = 0;
-    int i;
-
-    /* Find what loops we might be the end of */
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_HWLOOP0_END)) {
-            is_endloop0 = 1;
-        }
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_HWLOOP1_END)) {
-            is_endloop1 = 1;
-        }
-    }
-
-    if (!is_endloop0 && !is_endloop1) {
-        return 0;    /* Nothing more to do */
-    }
-
-    for (i = 0; i < pkt->num_insns; i++) {
-        size2u_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_COF)) {
-            continue;    /* This is the endloop */
-        }
-        if (is_endloop0) {
-            if ((strstr(opcode_wregs[opcode], "SA0")) ||
-                (strstr(opcode_wregs[opcode], "LC0")) ||
-                ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 0)) ||
-                ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 1))) {
-                decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                warn("[NEWDEFINED] Writes SA0/LC0 in endloop0: %s",
-                     pkt_buf);
-                return 1;
-            }
-        }
-        if (is_endloop1) {
-            if ((strstr(opcode_wregs[opcode], "SA1")) ||
-                (strstr(opcode_wregs[opcode], "LC1")) ||
-                ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 2)) ||
-                ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 3))) {
-                decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-                warn("[NEWDEFINED] Writes SA1/LC1 in endloop1: %s",
-                pkt_buf);
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-static int decode_assembler_check_sc(packet_t *pkt)
-{
-    int i;
-    int has_sc = 0;
-    char pkt_buf[1024];
-    enum {
-#define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS) ICLASS_PP_TYPE_##TYPE,
-#define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS)    /* NOTHING */
-#include "imported/iclass.def"
-#undef DEF_EE_ICLASS32
-#undef DEF_PP_ICLASS32
-
-#define DEF_PP_ICLASS32(TYPE, SLOTS, UNITS)    /* NOTHING */
-#define DEF_EE_ICLASS32(TYPE, SLOTS, UNITS) ICLASS_EE_TYPE_##TYPE,
-#include "imported/iclass.def"
-#undef DEF_EE_ICLASS32
-#undef DEF_PP_ICLASS32
-    };
-
-
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (pkt->insn[i].opcode == S2_storew_locked) {
-            has_sc = 1;
-        }
-    }
-    if (!has_sc) {
-        return 0;
-    }
-    for (i = 0; i < pkt->num_insns; i++) {
-        if (pkt->insn[i].opcode == S2_storew_locked) {
-            continue;
-        }
-        if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("[NEWDEFINED] memw_locked store can only be grouped with "
-                 "A32/X: %s", pkt_buf);
-            return 1;
-        }
-        switch (pkt->insn[i].iclass) {
-        case ICLASS_PP_TYPE_ALU32_2op:
-        case ICLASS_PP_TYPE_ALU32_3op:
-        case ICLASS_PP_TYPE_ALU32_ADDI:
-        case ICLASS_PP_TYPE_S_2op:
-        case ICLASS_PP_TYPE_S_3op:
-        case ICLASS_PP_TYPE_ALU64:
-        case ICLASS_PP_TYPE_M:
-            break;
-        default:
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
-            warn("[NEWDEFINED] memw_locked store can only be grouped with "
-                 "A32/X: %s", pkt_buf);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int decode_assembler_check_fpops(packet_t *pkt)
+static void decode_assembler_count_fpops(packet_t *pkt)
 {
     int i;
     for (i = 0; i < pkt->num_insns; i++) {
@@ -1175,24 +708,6 @@ static int decode_assembler_check_fpops(packet_t *pkt)
             pkt->pkt_has_fpsp_op = 1;
         }
     }
-    return 0;
-}
-
-static int decode_assembler_checks(packet_t *pkt)
-{
-    int errors = 0;
-    errors += decode_assembler_check_fpops(pkt);
-    errors += decode_assembler_check_slots(pkt);
-    errors += decode_assembler_check_branching(pkt);
-    errors += decode_assembler_check_srmove(pkt);
-    errors += decode_assembler_check_loopla(pkt);
-    errors += decode_assembler_check_sc(pkt);
-    return errors;
-}
-
-static int decode_audio_extensions(packet_t *pkt)
-{
-    return 0;
 }
 
 static int
@@ -1201,23 +716,6 @@ apply_extender(packet_t *pkt, int i, size4u_t extender)
     int immed_num;
     size4u_t base_immed;
 
-    if (i == pkt->num_insns) {
-        warn("Extenders at end-of-packet, taking error exception");
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return 1;
-    }
-    if (GET_ATTRIB(pkt->insn[i].opcode, A_IT_EXTENDER)) {
-        /* Another extender word... */
-        warn("two extenders in a row, taking error exception");
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return 1;
-    }
-    if (!GET_ATTRIB(pkt->insn[i].opcode, A_EXTENDABLE)) {
-        warn("Instruction not extendable: %s",
-        opcode_names[pkt->insn[i].opcode]);
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return 1;
-    }
     immed_num = opcode_which_immediate_is_extended(pkt->insn[i].opcode);
     base_immed = pkt->insn[i].immed[immed_num];
 
@@ -1254,83 +752,6 @@ static int decode_remove_extenders(packet_t *packet)
     return 0;
 }
 
-static int decode_check_latepred(packet_t *packet)
-{
-    int i;
-    unsigned int pred_newreads = 0;
-    unsigned int latepred_writes = 0;
-    int opc;
-    int regno;
-    insn_t *insn;
-
-    for (i = 0; i < packet->num_insns; i++) {
-        insn = &packet->insn[i];
-        opc = insn->opcode;
-        if (GET_ATTRIB(opc, A_RESTRICT_LATEPRED)) {
-            if (GET_ATTRIB(opc, A_IMPLICIT_WRITES_P0)) {
-                latepred_writes |= 1;
-                continue;
-            }
-            if (GET_ATTRIB(opc, A_IMPLICIT_WRITES_P1)) {
-                latepred_writes |= 2;
-                continue;
-            }
-            if (GET_ATTRIB(opc, A_IMPLICIT_WRITES_P2)) {
-                latepred_writes |= 4;
-                continue;
-            }
-            if (GET_ATTRIB(opc, A_IMPLICIT_WRITES_P3)) {
-                /* Ignore loopend0/loopend1 because they might not write late */
-                if (GET_ATTRIB(opc, A_HWLOOP0_END)) {
-                    continue;
-                }
-                latepred_writes |= 8;
-                continue;
-            }
-            if (strstr(opcode_wregs[opc], "Pd")) {
-                regno = insn->regno[decode_get_regno(insn, 'd')];
-                latepred_writes |= (1 << regno);
-            }
-            if (strstr(opcode_wregs[opc], "Pe")) {
-                regno = insn->regno[decode_get_regno(insn, 'e')];
-                latepred_writes |= (1 << regno);
-            }
-        }
-
-        if (GET_ATTRIB(opc, A_DOTNEW)) {
-            if (GET_ATTRIB(opc, A_IMPLICIT_READS_P0)) {
-                pred_newreads |= 1;
-            }
-            if (GET_ATTRIB(opc, A_IMPLICIT_READS_P1)) {
-                pred_newreads |= 2;
-            }
-            if (strstr(opcode_rregs[opc], "Ps")) {
-                regno = insn->regno[decode_get_regno(insn, 's')];
-                pred_newreads |= (1 << regno);
-            }
-            if (strstr(opcode_rregs[opc], "Pt")) {
-                regno = insn->regno[decode_get_regno(insn, 't')];
-                pred_newreads |= (1 << regno);
-            }
-            if (strstr(opcode_rregs[opc], "Pu")) {
-                regno = insn->regno[decode_get_regno(insn, 'u')];
-                pred_newreads |= (1 << regno);
-            }
-            if (strstr(opcode_rregs[opc], "Pv")) {
-                regno = insn->regno[decode_get_regno(insn, 'v')];
-                pred_newreads |= (1 << regno);
-            }
-        }
-    }
-    if ((pred_newreads & latepred_writes) != 0) {
-        warn(".new predicate read of a late-generated predicate!");
-        warn("newreads: %x latewrites: %x", pred_newreads, latepred_writes);
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return 1;
-    }
-    return 0;
-}
-
 static const char *
 get_valid_slot_str(const packet_t *pkt, unsigned int slot)
 {
@@ -1356,3 +777,16 @@ packet_t *decode_this(int max_words, size4u_t *words, packet_t *decode_pkt)
     return decode_pkt;
 }
 
+/* Used for "-d in_asm" logging */
+int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)
+{
+    packet_t pkt;
+
+    if (decode_this(nwords, words, &pkt)) {
+        snprint_a_pkt(buf, bufsize, &pkt);
+        return pkt.encod_pkt_size_in_bytes;
+    } else {
+        snprintf(buf, bufsize, "<invalid>");
+        return 0;
+    }
+}

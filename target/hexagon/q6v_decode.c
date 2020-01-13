@@ -106,9 +106,6 @@ decode_subinsn_tablewalk(insn_t *insn, dectree_table_t *table,
     if (table->table[i].type == DECTREE_TABLE_LINK) {
         return decode_subinsn_tablewalk(insn, table->table[i].table_link,
                                         encoding);
-    } else if (table->table[i].type == DECTREE_SUBINSNS) {
-        fatal("No sub-sub instructions");
-        return 0;
     } else if (table->table[i].type == DECTREE_TERMINAL) {
         opc = table->table[i].opcode;
         if ((encoding & decode_itable[opc].mask) != decode_itable[opc].match) {
@@ -116,9 +113,6 @@ decode_subinsn_tablewalk(insn_t *insn, dectree_table_t *table,
         }
         decode_op(insn, opc, encoding);
         return 1;
-    } else if (table->table[i].type == DECTREE_EXTSPACE) {
-        fatal("no extension subinsns");
-        return 0;
     } else {
         return 0;
     }
@@ -193,7 +187,7 @@ decode_insns(insn_t *insn, size4u_t encoding)
     return decode_insns_tablewalk(insn, table, encoding);
 }
 
-static void decode_add_loop_insn(insn_t *insn, int loopnum)
+static void decode_add_endloop_insn(insn_t *insn, int loopnum)
 {
     if (loopnum == 10) {
         insn->opcode = J2_endloop01;
@@ -229,22 +223,9 @@ decode_set_slot_number(packet_t *pkt)
     const char *valid_slot_str;
 
     for (i = 0, slot = 3; i < pkt->num_insns; i++) {
-        if (slot < 0) {
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            warn("[NEWDEFINED] Can't map insns to slots: %s!",
-                 opcode_names[pkt->insn[i].opcode]);
-            return 1;
-        }
-
         valid_slot_str = get_valid_slot_str(pkt, i);
 
         while (strchr(valid_slot_str, '0' + slot) == NULL) {
-            if (slot <= 0) {
-                decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                warn("[NEWDEFINED] Can't map insns to slots: %s!",
-                opcode_names[pkt->insn[i].opcode]);
-                return 1;
-            }
             slot--;
         }
         pkt->insn[i].slot = slot;
@@ -351,14 +332,6 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
         encoding32 = words[words_read];
         end_of_packet = decode_parsebits_is_end(encoding32);
         new_insns = decode_insns(&pkt->insn[num_insns], encoding32);
-        if (new_insns == 0) {
-            warn("bad decode of insn, PC_VA=0x%08x", PC_VA);
-            decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            return -1;
-        }
-        for (i = 0; i < new_insns; i++) {
-            check_twowrite(&pkt->insn[num_insns + i]);
-        }
         /*
          * If we saw an extender, mark next word extended so immediate
          * decode works
@@ -374,9 +347,6 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
     pkt->num_insns = num_insns;
     if (!end_of_packet) {
         /* Ran out of words! */
-        warn("ran out of words...enc=%08x [%d/%d]",
-             encoding32, words_read - 1, max_words);
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
         return 0;
     }
     pkt->encod_pkt_size_in_bytes = words_read * 4;
@@ -407,36 +377,29 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
     }
     pkt->pkt_has_initloop |= pkt->pkt_has_initloop0 | pkt->pkt_has_initloop1;
 
-    if (num_mems > 2) {
-        decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        return -2;
-    }
     /* Shuffle / split / reorder for execution */
     if ((words_read == 2) && (decode_parsebits_is_loopend(words[0]))) {
-        decode_add_loop_insn(&pkt->insn[pkt->num_insns++], 0);
+        decode_add_endloop_insn(&pkt->insn[pkt->num_insns++], 0);
     }
     if (words_read >= 3) {
-        /* refactor somehow */
         size4u_t has_loop0, has_loop1;
         has_loop0 = decode_parsebits_is_loopend(words[0]);
         has_loop1 = decode_parsebits_is_loopend(words[1]);
         if (has_loop0 && has_loop1) {
-            decode_add_loop_insn(&pkt->insn[pkt->num_insns++], 10);
+            decode_add_endloop_insn(&pkt->insn[pkt->num_insns++], 10);
         } else if (has_loop1) {
-            decode_add_loop_insn(&pkt->insn[pkt->num_insns++], 1);
+            decode_add_endloop_insn(&pkt->insn[pkt->num_insns++], 1);
         } else if (has_loop0) {
-            decode_add_loop_insn(&pkt->insn[pkt->num_insns++], 0);
+            decode_add_endloop_insn(&pkt->insn[pkt->num_insns++], 0);
         }
     }
+
+    decode_assembler_count_fpops(pkt);
 
     errors += decode_apply_extenders(pkt);
     errors += decode_remove_extenders(pkt);
     errors += decode_set_slot_number(pkt);
-    errors += decode_assembler_checks(pkt);
-    errors += decode_check_latepred(pkt);
     errors += decode_fill_newvalue_regno(pkt);
-
-    errors += decode_audio_extensions(pkt);
 
     if (pkt->pkt_has_extension) {
         errors += mmvec_ext_decode_checks(pkt);
