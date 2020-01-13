@@ -71,7 +71,5 @@ extern void gen_exception(int excp);
 extern void gen_exception_debug(void);
 
 extern void gen_memcpy(TCGv_ptr dest, TCGv_ptr src, size_t n);
-extern int disassemble_hexagon(uint32_t *words, int nwords,
-                               char *buf, int bufsize);
 
 #endif

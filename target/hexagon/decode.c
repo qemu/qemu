@@ -26,22 +26,27 @@
 #include "decode.h"
 #include "insn.h"
 #include "macros.h"
+#include "printinsn.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/decode_ext_mmvec.h"
 
-
-/* FIXME - Generate an exception when there is an invalid insn/packet */
+#ifndef CONFIG_USER_ONLY
+/*
+ * FIXME
+ * This file contains checks for invalid packets.  The assembler performs
+ * the same checks and doesn't allow such packets.  So, * we'll assert on
+ * the fatal ones for now and generate an exception when we implement system
+ * mode.
+ */
 #define warn(...) /* Nothing */
 #define fatal(...) g_assert_not_reached();
-
-#define snprint_a_pkt(pkt_buf, x, y, z) \
-    sprintf(pkt_buf, "FIXME: %s, %d", __FILE__, __LINE__)
 
 #define decode_error(x, y, z) __decode_error()
 static void __decode_error(void)
 {
     printf("decode_error\n");
 }
+#endif
 
 
 enum {
@@ -60,6 +65,7 @@ enum {
 #define DECODE_MAPPED_REG(REGNO, NAME) \
     insn->regno[REGNO] = DECODE_REGISTER_##NAME[insn->regno[REGNO]];
 
+#ifndef CONFIG_USER_ONLY
 static int decode_get_regno(insn_t *insn, const char regid)
 {
     char *idx;
@@ -70,6 +76,7 @@ static int decode_get_regno(insn_t *insn, const char regid)
         return idx - opcode_reginfo[insn->opcode];
     }
 }
+#endif
 
 typedef struct {
     struct _dectree_table_struct *table_link;
@@ -295,8 +302,12 @@ decode_fill_newvalue_regno(packet_t *packet)
              * out-of-range
              */
             if ((def_idx < 0) || (def_idx > (packet->num_insns - 1))) {
+#ifdef CONFIG_USER_ONLY
+                g_assert_not_reached();
+#else
                 warn("A new-value consumer has no valid producer!\n");
                 decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
+#endif
                 return 1;
             }
 
@@ -318,18 +329,26 @@ decode_fill_newvalue_regno(packet_t *packet)
                         if (dststr) {
                             dststr = strchr(opcode_reginfo[def_opcode], 'y');
                         } else {
+#ifdef CONFIG_USER_ONLY
+                            g_assert_not_reached();
+#else
                             decode_error(thread, einfo,
                                          PRECISE_CAUSE_INVALID_PACKET);
                             warn("A new-value consumer has no valid "
                                  "producer!\n");
+#endif
                             return 1;
                         }
                     }
                 }
             }
+#ifdef CONFIG_USER_ONLY
+            g_assert(dststr != NULL);
+#else
             if (dststr == NULL) {
                 fatal("Didn't find register in opcode_reginfo");
             }
+#endif
             def_regnum =
                 packet->insn[def_idx].regno[dststr -
                     opcode_reginfo[def_opcode]];
@@ -726,6 +745,7 @@ static int decode_shuffle_for_execution(packet_t *packet)
     return 0;
 }
 
+#ifndef CONFIG_USER_ONLY
 /*
  * Check that an instruction with two destination registers
  * (e.g., post-increment load) does not assign to the same
@@ -766,7 +786,9 @@ static inline int check_twowrite(insn_t *insn)
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 /* Check to see whether it was OK to skip over a slot N */
 static int
 decode_assembler_check_skipped_slot(packet_t *pkt, int slot)
@@ -783,14 +805,14 @@ decode_assembler_check_skipped_slot(packet_t *pkt, int slot)
             continue;    /* already in a higher slot */
         }
         if (pkt->insn[i].slot == slot) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             fatal("slot %d not empty? insn=%d pkt=%s", slot, i, pkt_buf);
         }
         valid_slot_str =
             find_iclass_slots(pkt->insn[i].opcode, pkt->insn[i].iclass);
         if (strchr(valid_slot_str, '0' + slot)) {
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("[NEWDEFINED] Slot%d empty, could be filled with insn in "
                    "slot%d: <SLOT%s> %s",
                    slot, pkt->insn[i].slot, valid_slot_str, pkt_buf);
@@ -799,7 +821,9 @@ decode_assembler_check_skipped_slot(packet_t *pkt, int slot)
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 /* Check all the slot ordering restrictions */
 static int decode_assembler_check_slots(packet_t *pkt)
 {
@@ -818,14 +842,14 @@ static int decode_assembler_check_slots(packet_t *pkt)
             find_iclass_slots(pkt->insn[i].opcode, pkt->insn[i].iclass);
         if (slot < 0) {
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("[NEWDEFINED] Can't map insns to slots: %s", pkt_buf);
             return 1;
         }
         while (strchr(valid_slot_str, '0' + slot) == NULL) {
             if (slot <= 0) {
                 decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                snprint_a_pkt(pkt_buf, 1024, pkt);
                 warn("[NEWDEFINED] Can't map insns to slots: %s", pkt_buf);
                 return 1;
             }
@@ -861,7 +885,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
             slot0_alu32 = 1;
         }
         if (saw_mem && slot0_alu32) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("single mem in slot1: %s", pkt_buf);
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
         }
@@ -880,7 +904,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
         }
 
         if (saw_slot1_store && need_restriction) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("slot1 store not allowed: %s", pkt_buf);
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
             return 1;
@@ -900,7 +924,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
         }
 
         if (saw_slot0_load && need_restriction) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("slot0 load not allowed: %s", pkt_buf);
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
             return 1;
@@ -911,7 +935,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
     for (i = 0; i < pkt->num_insns; i++) {
         if ((GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_NOPACKET)) &&
             pkt->num_insns > 1) {
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("insn %d solo, but in a packet: %s", i, pkt_buf);
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
         return 1;
@@ -929,7 +953,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
                 if ((pkt->insn[j].slot == 1) &&
                     !GET_ATTRIB(pkt->insn[j].opcode, A_IT_NOP)) {
                     decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                    snprint_a_pkt(pkt_buf, 1024, pkt);
                     warn("[NEWDEFINED] slot1 not empty/nop: %s", pkt_buf);
                     return 1;
                 }
@@ -949,7 +973,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
                     (GET_ATTRIB(pkt->insn[j].opcode, A_LOAD) ||
                      GET_ATTRIB(pkt->insn[j].opcode, A_STORE))) {
                     decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                    snprint_a_pkt(pkt_buf, 1024, pkt);
                     warn("[NEWDEFINED] slot1 not A-type: %s", pkt_buf);
                     return 1;
                 }
@@ -964,7 +988,7 @@ static int decode_assembler_check_slots(packet_t *pkt)
                 if (GET_ATTRIB(pkt->insn[j].opcode, A_MPY) &&
                     (pkt->insn[j].slot == 2)) {
                     decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                    snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                    snprint_a_pkt(pkt_buf, 1024, pkt);
                     warn("[NEWDEFINED] slot 2 has a mpy with dmac: %s",
                          pkt_buf);
                     return 1;
@@ -974,7 +998,9 @@ static int decode_assembler_check_slots(packet_t *pkt)
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 static int
 decode_assembler_check_branching(packet_t *pkt)
 {
@@ -1007,20 +1033,22 @@ decode_assembler_check_branching(packet_t *pkt)
     }
     if (n_branchadders > 2) {
         decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+        snprint_a_pkt(pkt_buf, 1024, pkt);
         warn("[NEWDEFINED] n_branchadders = %d > 2: %s",
         n_branchadders, pkt_buf);
         return 1;
     }
     if (n_cofs > 1) {
         decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+        snprint_a_pkt(pkt_buf, 1024, pkt);
         warn("[NEWDEFINED] n_cofs = %d > 1: %s", n_cofs, pkt_buf);
         return 1;
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 static int
 decode_assembler_check_srmove(packet_t *pkt)
 {
@@ -1041,13 +1069,15 @@ decode_assembler_check_srmove(packet_t *pkt)
 
     if (saw_srmove && saw_nosrmove) {
         decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-        snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+        snprint_a_pkt(pkt_buf, 1024, pkt);
         warn("[NEWDEFINED] 'USR=R' not allowed with SR update: %s", pkt_buf);
         return 1;
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 static int
 decode_assembler_check_loopla(packet_t *pkt)
 {
@@ -1081,7 +1111,7 @@ decode_assembler_check_loopla(packet_t *pkt)
                 ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 0)) ||
                 ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 1))) {
                 decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                snprint_a_pkt(pkt_buf, 1024, pkt);
                 warn("[NEWDEFINED] Writes SA0/LC0 in endloop0: %s",
                      pkt_buf);
                 return 1;
@@ -1093,7 +1123,7 @@ decode_assembler_check_loopla(packet_t *pkt)
                 ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 2)) ||
                 ((opcode == A2_tfrrcr) &&(pkt->insn[i].regno[0] == 3))) {
                 decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-                snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+                snprint_a_pkt(pkt_buf, 1024, pkt);
                 warn("[NEWDEFINED] Writes SA1/LC1 in endloop1: %s",
                 pkt_buf);
                 return 1;
@@ -1102,7 +1132,9 @@ decode_assembler_check_loopla(packet_t *pkt)
     }
     return 0;
 }
+#endif
 
+#ifndef CONFIG_USER_ONLY
 static int decode_assembler_check_sc(packet_t *pkt)
 {
     int i;
@@ -1137,7 +1169,7 @@ static int decode_assembler_check_sc(packet_t *pkt)
         }
         if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("[NEWDEFINED] memw_locked store can only be grouped with "
                  "A32/X: %s", pkt_buf);
             return 1;
@@ -1153,7 +1185,7 @@ static int decode_assembler_check_sc(packet_t *pkt)
             break;
         default:
             decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
-            snprint_a_pkt(pkt_buf, 1024, pkt, NULL);
+            snprint_a_pkt(pkt_buf, 1024, pkt);
             warn("[NEWDEFINED] memw_locked store can only be grouped with "
                  "A32/X: %s", pkt_buf);
             return 1;
@@ -1161,8 +1193,9 @@ static int decode_assembler_check_sc(packet_t *pkt)
     }
     return 0;
 }
+#endif
 
-static int decode_assembler_check_fpops(packet_t *pkt)
+static void decode_assembler_count_fpops(packet_t *pkt)
 {
     int i;
     for (i = 0; i < pkt->num_insns; i++) {
@@ -1175,13 +1208,12 @@ static int decode_assembler_check_fpops(packet_t *pkt)
             pkt->pkt_has_fpsp_op = 1;
         }
     }
-    return 0;
 }
 
+#ifndef CONFIG_USER_ONLY
 static int decode_assembler_checks(packet_t *pkt)
 {
     int errors = 0;
-    errors += decode_assembler_check_fpops(pkt);
     errors += decode_assembler_check_slots(pkt);
     errors += decode_assembler_check_branching(pkt);
     errors += decode_assembler_check_srmove(pkt);
@@ -1189,11 +1221,7 @@ static int decode_assembler_checks(packet_t *pkt)
     errors += decode_assembler_check_sc(pkt);
     return errors;
 }
-
-static int decode_audio_extensions(packet_t *pkt)
-{
-    return 0;
-}
+#endif
 
 static int
 apply_extender(packet_t *pkt, int i, size4u_t extender)
@@ -1201,6 +1229,7 @@ apply_extender(packet_t *pkt, int i, size4u_t extender)
     int immed_num;
     size4u_t base_immed;
 
+#ifndef CONFIG_USER_ONLY
     if (i == pkt->num_insns) {
         warn("Extenders at end-of-packet, taking error exception");
         decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
@@ -1218,6 +1247,7 @@ apply_extender(packet_t *pkt, int i, size4u_t extender)
         decode_error(thread, einfo, PRECISE_CAUSE_INVALID_PACKET);
         return 1;
     }
+#endif
     immed_num = opcode_which_immediate_is_extended(pkt->insn[i].opcode);
     base_immed = pkt->insn[i].immed[immed_num];
 
@@ -1254,6 +1284,7 @@ static int decode_remove_extenders(packet_t *packet)
     return 0;
 }
 
+#ifndef CONFIG_USER_ONLY
 static int decode_check_latepred(packet_t *packet)
 {
     int i;
@@ -1330,6 +1361,7 @@ static int decode_check_latepred(packet_t *packet)
     }
     return 0;
 }
+#endif
 
 static const char *
 get_valid_slot_str(const packet_t *pkt, unsigned int slot)
@@ -1356,3 +1388,16 @@ packet_t *decode_this(int max_words, size4u_t *words, packet_t *decode_pkt)
     return decode_pkt;
 }
 
+/* Used for "-d in_asm" logging */
+int disassemble_hexagon(uint32_t *words, int nwords, char *buf, int bufsize)
+{
+    packet_t pkt;
+
+    if (decode_this(nwords, words, &pkt)) {
+        snprint_a_pkt(buf, bufsize, &pkt);
+        return pkt.encod_pkt_size_in_bytes;
+    } else {
+        snprintf(buf, bufsize, "<invalid>");
+        return 0;
+    }
+}
