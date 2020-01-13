@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>QEMU @@VERSION@@ Documentation</title>
+    </head>
+    <body>
+        <h1>QEMU @@VERSION@@ Documentation</h1>
+        <ul>
+            <li><a href="qemu-doc.html">User Documentation</a></li>
+            <li><a href="qemu-qmp-ref.html">QMP Reference Manual</a></li>
+            <li><a href="qemu-ga-ref.html">Guest Agent Protocol Reference</a></li>
+            <li><a href="interop/index.html">System Emulation Management and Interoperability Guide</a></li>
+            <li><a href="specs/index.html">System Emulation Guest Hardware Specifications</a></li>
+        </ul>
+    </body>
+</html>
