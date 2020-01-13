@@ -703,7 +703,7 @@ typedef struct {
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
-    MultiFDInit_t msg;
+    MultiFDInit_t msg = {};
     int ret;
 
     msg.magic = cpu_to_be32(MULTIFD_MAGIC);
