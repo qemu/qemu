@@ -975,13 +975,13 @@ static void lo_fallocate(fuse_req_t req, fuse_ino_t ino, int mode, off_t offset,
     int err = EOPNOTSUPP;
     (void)ino;
 
-#ifdef HAVE_FALLOCATE
+#ifdef CONFIG_FALLOCATE
     err = fallocate(fi->fh, mode, offset, length);
     if (err < 0) {
         err = errno;
     }
 
-#elif defined(HAVE_POSIX_FALLOCATE)
+#elif defined(CONFIG_POSIX_FALLOCATE)
     if (mode) {
         fuse_reply_err(req, EOPNOTSUPP);
         return;
