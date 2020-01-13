@@ -143,3 +143,14 @@ config CAN_SJA1000
     default y if PCI_DEVICES
     depends on PCI
     select CAN_BUS
+
+config CAN_CTUCANFD
+    bool
+    default y if PCI_DEVICES
+    select CAN_BUS
+
+config CAN_CTUCANFD_PCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI && CAN_CTUCANFD
+    select CAN_BUS
