@@ -88,6 +88,7 @@ struct USBHostDevice {
     bool                             needs_autoscan;
     bool                             allow_one_guest_reset;
     bool                             allow_all_guest_resets;
+    bool                             suppress_remote_wake;
 
     /* state */
     QTAILQ_ENTRY(USBHostDevice)      next;
@@ -386,6 +387,8 @@ static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
     r->p->status = status_map[xfer->status];
     r->p->actual_length = xfer->actual_length;
     if (r->in && xfer->actual_length) {
+        USBDevice *udev = USB_DEVICE(s);
+        struct libusb_config_descriptor *conf = (void *)r->cbuf;
         memcpy(r->cbuf, r->buffer + 8, xfer->actual_length);
 
         /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
@@ -393,6 +396,21 @@ static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
         if (r->usb3ep0quirk && xfer->actual_length >= 18 &&
             r->cbuf[7] == 9) {
             r->cbuf[7] = 64;
+        }
+        /*
+         *If this is GET_DESCRIPTOR request for configuration descriptor,
+         * remove 'remote wakeup' flag from it to prevent idle power down
+         * in Windows guest
+         */
+        if (s->suppress_remote_wake &&
+            udev->setup_buf[0] == USB_DIR_IN &&
+            udev->setup_buf[1] == USB_REQ_GET_DESCRIPTOR &&
+            udev->setup_buf[3] == USB_DT_CONFIG && udev->setup_buf[2] == 0 &&
+            xfer->actual_length >
+                offsetof(struct libusb_config_descriptor, bmAttributes) &&
+            (conf->bmAttributes & USB_CFG_ATT_WAKEUP)) {
+                trace_usb_host_remote_wakeup_removed(s->bus_num, s->addr);
+                conf->bmAttributes &= ~USB_CFG_ATT_WAKEUP;
         }
     }
     trace_usb_host_req_complete(s->bus_num, s->addr, r->p,
@@ -1596,6 +1614,8 @@ static Property usb_host_dev_properties[] = {
                        LIBUSB_LOG_LEVEL_WARNING),
     DEFINE_PROP_BIT("pipeline",    USBHostDevice, options,
                     USB_HOST_OPT_PIPELINE, true),
+    DEFINE_PROP_BOOL("suppress-remote-wake", USBHostDevice,
+                     suppress_remote_wake, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

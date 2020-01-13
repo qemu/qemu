@@ -266,3 +266,4 @@ usb_host_parse_config(int bus, int addr, int value, int active) "dev %d:%d, valu
 usb_host_parse_interface(int bus, int addr, int num, int alt, int active) "dev %d:%d, num %d, alt %d, active %d"
 usb_host_parse_endpoint(int bus, int addr, int ep, const char *dir, const char *type, int active) "dev %d:%d, ep %d, %s, %s, active %d"
 usb_host_parse_error(int bus, int addr, const char *errmsg) "dev %d:%d, msg %s"
+usb_host_remote_wakeup_removed(int bus, int addr) "dev %d:%d"
