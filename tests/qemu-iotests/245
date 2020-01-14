@@ -478,6 +478,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     # This test verifies that we can't change the children of a block
     # device during a reopen operation in a way that would create
     # cycles in the node graph
+    @iotests.skip_if_unsupported(['blkverify'])
     def test_graph_cycles(self):
         opts = []
 
@@ -534,6 +535,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
     # Misc reopen tests with different block drivers
+    @iotests.skip_if_unsupported(['quorum', 'throttle'])
     def test_misc_drivers(self):
         ####################
         ###### quorum ######
