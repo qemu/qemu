@@ -1669,7 +1669,8 @@ STEXI
 @item -display @var{type}
 @findex -display
 Select type of display to use. This option is a replacement for the
-old style -sdl/-curses/... options. Valid values for @var{type} are
+old style -sdl/-curses/... options. Use @code{-display help} to list
+the available display types. Valid values for @var{type} are
 @table @option
 @item sdl
 Display video output via SDL (usually in a separate graphics
