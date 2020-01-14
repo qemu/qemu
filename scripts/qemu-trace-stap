@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- python -*-
 #
 # Copyright (C) 2019 Red Hat, Inc
@@ -17,8 +17,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
-
-from __future__ import print_function
 
 import argparse
 import copy
@@ -104,7 +102,9 @@ def cmd_list(args):
         if verbose:
             print("Listing probes with name '%s'" % script)
         proc = subprocess.Popen(["stap", "-l", script],
-                                stdout=subprocess.PIPE, env=tapset_env(tapsets))
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True,
+                                env=tapset_env(tapsets))
         out, err = proc.communicate()
         if proc.returncode != 0:
             print("No probes found, are the tapsets installed in %s" % tapset_dir(args.binary))
