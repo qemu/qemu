@@ -803,7 +803,10 @@ static void multifd_send_fill_packet(MultiFDSendParams *p)
     }
 
     for (i = 0; i < p->pages->used; i++) {
-        packet->offset[i] = cpu_to_be64(p->pages->offset[i]);
+        /* there are architectures where ram_addr_t is 32 bit */
+        uint64_t temp = p->pages->offset[i];
+
+        packet->offset[i] = cpu_to_be64(temp);
     }
 }
 
@@ -877,10 +880,10 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     }
 
     for (i = 0; i < p->pages->used; i++) {
-        ram_addr_t offset = be64_to_cpu(packet->offset[i]);
+        uint64_t offset = be64_to_cpu(packet->offset[i]);
 
         if (offset > (block->used_length - TARGET_PAGE_SIZE)) {
-            error_setg(errp, "multifd: offset too long " RAM_ADDR_FMT
+            error_setg(errp, "multifd: offset too long %" PRIu64
                        " (max " RAM_ADDR_FMT ")",
                        offset, block->max_length);
             return -1;
@@ -1267,7 +1270,7 @@ int multifd_save_setup(void)
         p->id = i;
         p->pages = multifd_pages_init(page_count);
         p->packet_len = sizeof(MultiFDPacket_t)
-                      + sizeof(ram_addr_t) * page_count;
+                      + sizeof(uint64_t) * page_count;
         p->packet = g_malloc0(p->packet_len);
         p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
         p->packet->version = cpu_to_be32(MULTIFD_VERSION);
@@ -1484,7 +1487,7 @@ int multifd_load_setup(void)
         p->id = i;
         p->pages = multifd_pages_init(page_count);
         p->packet_len = sizeof(MultiFDPacket_t)
-                      + sizeof(ram_addr_t) * page_count;
+                      + sizeof(uint64_t) * page_count;
         p->packet = g_malloc0(p->packet_len);
         p->name = g_strdup_printf("multifdrecv_%d", i);
     }
