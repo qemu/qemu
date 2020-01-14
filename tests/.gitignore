@@ -12,6 +12,7 @@ test-*
 !test-*.c
 !docker/test-*
 test-qapi-commands.[ch]
+test-qapi-init-commands.[ch]
 include/test-qapi-commands-sub-module.[ch]
 test-qapi-commands-sub-sub-module.[ch]
 test-qapi-emit-events.[ch]

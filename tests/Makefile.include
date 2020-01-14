@@ -350,8 +350,10 @@ generated-files-y += tests/test-qapi-visit.h
 generated-files-y += tests/include/test-qapi-visit-sub-module.h
 generated-files-y += tests/test-qapi-visit-sub-sub-module.h
 generated-files-y += tests/test-qapi-commands.h
+generated-files-y += tests/test-qapi-init-commands.h
 generated-files-y += tests/include/test-qapi-commands-sub-module.h
 generated-files-y += tests/test-qapi-commands-sub-sub-module.h
+generated-files-y += tests/test-qapi-emit-events.h
 generated-files-y += tests/test-qapi-events.h
 generated-files-y += tests/include/test-qapi-events-sub-module.h
 generated-files-y += tests/test-qapi-events-sub-sub-module.h
@@ -465,7 +467,10 @@ tests/include/test-qapi-commands-sub-module.h \
 tests/include/test-qapi-commands-sub-module.c \
 tests/test-qapi-commands-sub-sub-module.h \
 tests/test-qapi-commands-sub-sub-module.c \
+tests/test-qapi-emit-events.c tests/test-qapi-emit-events.h \
 tests/test-qapi-events.c tests/test-qapi-events.h \
+tests/test-qapi-init-commands.c \
+tests/test-qapi-init-commands.h \
 tests/include/test-qapi-events-sub-module.c \
 tests/include/test-qapi-events-sub-module.h \
 tests/test-qapi-events-sub-sub-module.c \
@@ -505,11 +510,11 @@ tests/qtest/dbus-vmstate-test.o: tests/qtest/dbus-vmstate1.h
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) tests/test-qapi-events.o
+tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) tests/test-qapi-emit-events.o tests/test-qapi-events.o
 tests/test-qobject-output-visitor$(EXESUF): tests/test-qobject-output-visitor.o $(test-qapi-obj-y)
 tests/test-clone-visitor$(EXESUF): tests/test-clone-visitor.o $(test-qapi-obj-y)
 tests/test-qobject-input-visitor$(EXESUF): tests/test-qobject-input-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-cmds$(EXESUF): tests/test-qmp-cmds.o tests/test-qapi-commands.o $(test-qapi-obj-y)
+tests/test-qmp-cmds$(EXESUF): tests/test-qmp-cmds.o tests/test-qapi-commands.o tests/test-qapi-init-commands.o $(test-qapi-obj-y)
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y)
 tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y)
 

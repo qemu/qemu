@@ -9,3 +9,4 @@ enum QType
     member qdict
     member qlist
     member qbool
+module empty.json

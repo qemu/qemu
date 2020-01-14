@@ -37,6 +37,7 @@
 /qapi/qapi-emit-events.[ch]
 /qapi/qapi-events-*.[ch]
 /qapi/qapi-events.[ch]
+/qapi/qapi-init-commands.[ch]
 /qapi/qapi-introspect.[ch]
 /qapi/qapi-types-*.[ch]
 /qapi/qapi-types.[ch]

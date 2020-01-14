@@ -7,6 +7,7 @@
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"
 #include "test-qapi-commands.h"
+#include "test-qapi-init-commands.h"
 
 static QmpCommandList qmp_commands;
 
