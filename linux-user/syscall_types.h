@@ -255,6 +255,17 @@ STRUCT(blkpg_partition,
        MK_ARRAY(TYPE_CHAR, BLKPG_DEVNAMELTH), /* devname */
        MK_ARRAY(TYPE_CHAR, BLKPG_VOLNAMELTH)) /* volname */
 
+STRUCT(rtc_time,
+       TYPE_INT, /* tm_sec */
+       TYPE_INT, /* tm_min */
+       TYPE_INT, /* tm_hour */
+       TYPE_INT, /* tm_mday */
+       TYPE_INT, /* tm_mon */
+       TYPE_INT, /* tm_year */
+       TYPE_INT, /* tm_wday */
+       TYPE_INT, /* tm_yday */
+       TYPE_INT) /* tm_isdst */
+
 STRUCT(blkpg_ioctl_arg,
        TYPE_INT, /* op */
        TYPE_INT, /* flags */

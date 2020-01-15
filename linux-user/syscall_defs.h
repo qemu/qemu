@@ -772,6 +772,10 @@ struct target_pollfd {
 #define TARGET_RTC_PIE_OFF          TARGET_IO('p', 0x06)
 #define TARGET_RTC_WIE_ON           TARGET_IO('p', 0x0f)
 #define TARGET_RTC_WIE_OFF          TARGET_IO('p', 0x10)
+#define TARGET_RTC_ALM_READ         TARGET_IOR('p', 0x08, struct rtc_time)
+#define TARGET_RTC_ALM_SET          TARGET_IOW('p', 0x07, struct rtc_time)
+#define TARGET_RTC_RD_TIME          TARGET_IOR('p', 0x09, struct rtc_time)
+#define TARGET_RTC_SET_TIME         TARGET_IOW('p', 0x0a, struct rtc_time)
 
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SH4) ||    \
        defined(TARGET_XTENSA)
