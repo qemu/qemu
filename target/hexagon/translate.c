@@ -47,12 +47,12 @@ TCGv hex_dczero_addr;
 TCGv llsc_addr;
 TCGv llsc_val;
 TCGv_i64 llsc_val_i64;
+TCGv hex_is_gather_store_insn;
+TCGv hex_gather_issued;
 TCGv hex_VRegs_updated_tmp;
 TCGv hex_VRegs_updated;
 TCGv hex_VRegs_select;
 TCGv hex_QRegs_updated;
-TCGv hex_is_gather_store_insn;
-TCGv hex_gather_issued;
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -433,11 +433,11 @@ static void process_store_log(DisasContext *ctx, packet_t *pkt)
 static void process_dczeroa(DisasContext *ctx, packet_t *pkt)
 {
     if (pkt->pkt_has_dczeroa) {
-        /* Store 32 bytes of zero starting at addr */
+        /* Store 32 bytes of zero starting at (addr & ~0x1f) */
         TCGv addr = tcg_temp_new();
         TCGv_i64 zero = tcg_const_i64(0);
 
-        tcg_gen_mov_tl(addr, hex_dczero_addr);
+        tcg_gen_andi_tl(addr, hex_dczero_addr, ~0x1f);
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
@@ -458,6 +458,56 @@ static bool process_change_of_flow(DisasContext *ctx, packet_t *pkt)
         return true;
     }
     return false;
+}
+
+void gen_memcpy(TCGv_ptr dest, TCGv_ptr src, size_t n)
+{
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr s = tcg_temp_new_ptr();
+    int i;
+
+    tcg_gen_addi_ptr(d, dest, 0);
+    tcg_gen_addi_ptr(s, src, 0);
+    if (n % 8 == 0) {
+        TCGv_i64 temp = tcg_temp_new_i64();
+        for (i = 0; i < n / 8; i++) {
+            tcg_gen_ld_i64(temp, s, 0);
+            tcg_gen_st_i64(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 8);
+            tcg_gen_addi_ptr(d, d, 8);
+        }
+        tcg_temp_free_i64(temp);
+    } else if (n % 4 == 0) {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n / 4; i++) {
+            tcg_gen_ld32u_tl(temp, s, 0);
+            tcg_gen_st32_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 4);
+            tcg_gen_addi_ptr(d, d, 4);
+        }
+        tcg_temp_free(temp);
+    } else if (n % 2 == 0) {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n / 2; i++) {
+            tcg_gen_ld16u_tl(temp, s, 0);
+            tcg_gen_st16_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 2);
+            tcg_gen_addi_ptr(d, d, 2);
+        }
+        tcg_temp_free(temp);
+    } else {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n; i++) {
+            tcg_gen_ld8u_tl(temp, s, 0);
+            tcg_gen_st8_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 1);
+            tcg_gen_addi_ptr(d, d, 1);
+        }
+        tcg_temp_free(temp);
+    }
+
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(s);
 }
 
 static inline void gen_vec_copy(intptr_t dstoff, intptr_t srcoff, size_t size)
@@ -789,6 +839,11 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     llsc_val_i64 = tcg_global_mem_new_i64(cpu_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
+    hex_is_gather_store_insn = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, is_gather_store_insn),
+        "is_gather_store_insn");
+    hex_gather_issued = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, gather_issued), "gather_issued");
     hex_VRegs_updated_tmp = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, VRegs_updated_tmp), "VRegs_updated_tmp");
     hex_VRegs_updated = tcg_global_mem_new(cpu_env,
@@ -797,11 +852,6 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, VRegs_select), "VRegs_select");
     hex_QRegs_updated = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, QRegs_updated), "QRegs_updated");
-    hex_is_gather_store_insn = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, is_gather_store_insn),
-        "is_gather_store_insn");
-    hex_gather_issued = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, gather_issued), "gather_issued");
     for (i = 0; i < STORES_MAX; i++) {
         hex_store_addr[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, mem_log_stores[i].va), "store_addr");

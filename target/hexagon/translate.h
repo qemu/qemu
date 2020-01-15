@@ -22,6 +22,7 @@
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
+#include "internal.h"
 
 typedef struct DisasContext {
     DisasContextBase base;
@@ -41,6 +42,42 @@ typedef struct DisasContext {
     int ctx_qreg_log_idx;
 } DisasContext;
 
+static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
+{
+#if HEX_DEBUG
+    int i;
+    for (i = 0; i < ctx->ctx_reg_log_idx; i++) {
+        if (ctx->ctx_reg_log[i] == rnum) {
+            HEX_DEBUG_LOG("WARNING: Multiple writes to r%d\n", rnum);
+        }
+    }
+#endif
+    ctx->ctx_reg_log[ctx->ctx_reg_log_idx] = rnum;
+    ctx->ctx_reg_log_idx++;
+}
+
+static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
+{
+    ctx->ctx_preg_log[ctx->ctx_preg_log_idx] = pnum;
+    ctx->ctx_preg_log_idx++;
+}
+
+static inline void ctx_log_vreg_write(DisasContext *ctx,
+                                      int rnum, int is_predicated)
+{
+    ctx->ctx_vreg_log[ctx->ctx_vreg_log_idx] = rnum;
+    ctx->ctx_vreg_is_predicated[ctx->ctx_vreg_log_idx] = is_predicated;
+    ctx->ctx_vreg_log_idx++;
+}
+
+static inline void ctx_log_qreg_write(DisasContext *ctx,
+                                      int rnum, int is_predicated)
+{
+    ctx->ctx_qreg_log[ctx->ctx_qreg_log_idx] = rnum;
+    ctx->ctx_qreg_is_predicated[ctx->ctx_qreg_log_idx] = is_predicated;
+    ctx->ctx_qreg_log_idx++;
+}
+
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_next_PC;
@@ -59,12 +96,12 @@ extern TCGv hex_dczero_addr;
 extern TCGv llsc_addr;
 extern TCGv llsc_val;
 extern TCGv_i64 llsc_val_i64;
+extern TCGv hex_is_gather_store_insn;
+extern TCGv hex_gather_issued;
 extern TCGv hex_VRegs_updated_tmp;
 extern TCGv hex_VRegs_updated;
 extern TCGv hex_VRegs_select;
 extern TCGv hex_QRegs_updated;
-extern TCGv hex_is_gather_store_insn;
-extern TCGv hex_gather_issued;
 
 void hexagon_translate_init(void);
 extern void gen_exception(int excp);

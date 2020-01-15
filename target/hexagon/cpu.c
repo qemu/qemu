@@ -178,7 +178,7 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
     print_reg(f, env, HEX_REG_PC);
 #ifdef CONFIG_USER_ONLY
     /*
-     * Not modelled in qemu, print junk to minimize the diff's
+     * Not modelled in user mode, print junk to minimize the diff's
      * with LLDB output
      */
     fprintf(f, "  cause = 0x000000db\n");
