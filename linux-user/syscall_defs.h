@@ -2437,10 +2437,53 @@ struct target_statfs64 {
 
 #define TARGET_SOUND_MIXER_WRITE_RECSRC	TARGET_MIXER_WRITE(SOUND_MIXER_RECSRC)
 
+struct target_snd_timer_id {
+    int dev_class;
+    int dev_sclass;
+    int card;
+    int device;
+    int subdevice;
+};
+
+struct target_snd_timer_ginfo {
+    struct target_snd_timer_id tid;
+    unsigned int flags;
+    int card;
+    unsigned char id[64];
+    unsigned char name[80];
+    abi_ulong reserved0;
+    abi_ulong resolution;
+    abi_ulong resolution_min;
+    abi_ulong resolution_max;
+    unsigned int clients;
+    unsigned char reserved[32];
+};
+
+struct target_snd_timer_gparams {
+    struct target_snd_timer_id tid;
+    abi_ulong period_num;
+    abi_ulong period_den;
+    unsigned char reserved[32];
+};
+
+struct target_snd_timer_gstatus {
+    struct target_snd_timer_id tid;
+    abi_ulong resolution;
+    abi_ulong resolution_num;
+    abi_ulong resolution_den;
+    unsigned char reserved[32];
+};
+
 /* alsa timer ioctls */
 #define TARGET_SNDRV_TIMER_IOCTL_PVERSION     TARGET_IOR('T', 0x00, int)
 #define TARGET_SNDRV_TIMER_IOCTL_NEXT_DEVICE  TARGET_IOWR('T', 0x01,           \
                                                 struct snd_timer_id)
+#define TARGET_SNDRV_TIMER_IOCTL_GINFO        TARGET_IOWR('T', 0x03,           \
+                                                struct target_snd_timer_ginfo)
+#define TARGET_SNDRV_TIMER_IOCTL_GPARAMS      TARGET_IOW('T', 0x04,            \
+                                                struct target_snd_timer_gparams)
+#define TARGET_SNDRV_TIMER_IOCTL_GSTATUS      TARGET_IOWR('T', 0x05,           \
+                                                struct target_snd_timer_gstatus)
 
 /* vfat ioctls */
 #define TARGET_VFAT_IOCTL_READDIR_BOTH    TARGET_IORU('r', 1)
