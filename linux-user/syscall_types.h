@@ -83,6 +83,13 @@ STRUCT(buffmem_desc,
 STRUCT(mixer_info,
        MK_ARRAY(TYPE_CHAR, 16), MK_ARRAY(TYPE_CHAR, 32), TYPE_INT, MK_ARRAY(TYPE_INT, 10))
 
+STRUCT(snd_timer_id,
+       TYPE_INT, /* dev_class */
+       TYPE_INT, /* dev_sclass */
+       TYPE_INT, /* card */
+       TYPE_INT, /* device */
+       TYPE_INT) /* subdevice */
+
 /* loop device ioctls */
 STRUCT(loop_info,
        TYPE_INT,                 /* lo_number */

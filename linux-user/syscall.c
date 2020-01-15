@@ -111,6 +111,7 @@
 #include <linux/netlink.h>
 #include <linux/if_alg.h>
 #include <linux/rtc.h>
+#include <sound/asound.h>
 #include "linux_loop.h"
 #include "uname.h"
 
