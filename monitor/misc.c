@@ -1749,6 +1749,7 @@ static int64_t monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
             if (mon_fdset_fd_dup->fd == dup_fd) {
                 if (remove) {
                     QLIST_REMOVE(mon_fdset_fd_dup, next);
+                    g_free(mon_fdset_fd_dup);
                     if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
                         monitor_fdset_cleanup(mon_fdset);
                     }
