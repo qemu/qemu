@@ -22,26 +22,11 @@
 #include "cpu.h"
 #include "internal.h"
 #include "tcg-op.h"
-#include "tcg-op-gvec.h"
 #include "opcodes.h"
 #include "translate.h"
 #include "macros.h"
 #include "mmvec/macros.h"
 #include "genptr_helpers.h"
-
-#define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
-
-/*
- * Many instructions will work with just macro redefinitions
- * with the caveat that they need a tmp variable to carry a
- * value between them.
- */
-#define fWRAP_tmp(SHORTCODE) \
-    do { \
-        TCGv tmp = tcg_temp_new(); \
-        SHORTCODE; \
-        tcg_temp_free(tmp); \
-    } while (0)
 
 /*
  * Here is a primer to understand the tag names for load/store instructions
@@ -100,6 +85,18 @@
         fPM_CIRR(RxV, fREAD_IREG(MuV, (SHIFT)), MuV); \
     } while (0)
 
+/*
+ * Many instructions will work with just macro redefinitions
+ * with the caveat that they need a tmp variable to carry a
+ * value between them.
+ */
+#define fWRAP_tmp(SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        SHORTCODE; \
+        tcg_temp_free(tmp); \
+    } while (0)
+
 /* Byte load instructions */
 #define fWRAP_L2_loadrub_io(GENHLPR, SHORTCODE)      SHORTCODE
 #define fWRAP_L2_loadrb_io(GENHLPR, SHORTCODE)       SHORTCODE
@@ -138,6 +135,85 @@
 #define fWRAP_L4_loadrd_rr(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L2_loadrdgp(GENHLPR, SHORTCODE)        fWRAP_tmp(SHORTCODE)
 #define fWRAP_SL2_loadrd_sp(GENHLPR, SHORTCODE)      fWRAP_tmp(SHORTCODE)
+
+/* Instructions with multiple definitions */
+#define fWRAP_LOAD_AP(RES, SIZE, SIGN) \
+    do { \
+        fMUST_IMMEXT(UiV); \
+        fEA_IMM(UiV); \
+        fLOAD(1, SIZE, SIGN, EA, RES); \
+        tcg_gen_mov_tl(ReV, UiV); \
+    } while (0)
+
+#define fWRAP_L4_loadrub_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RdV, 1, u)
+#define fWRAP_L4_loadrb_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RdV, 1, s)
+#define fWRAP_L4_loadruh_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RdV, 2, u)
+#define fWRAP_L4_loadrh_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RdV, 2, s)
+#define fWRAP_L4_loadri_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RdV, 4, u)
+#define fWRAP_L4_loadrd_ap(GENHLPR, SHORTCODE) \
+    fWRAP_LOAD_AP(RddV, 8, u)
+
+#define fWRAP_L2_loadrub_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+#define fWRAP_L2_loadrb_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+#define fWRAP_L2_loadruh_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+#define fWRAP_L2_loadrh_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+#define fWRAP_L2_loadri_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+#define fWRAP_L2_loadrd_pci(GENHLPR, SHORTCODE) \
+      fWRAP_tmp(SHORTCODE)
+
+#define fWRAP_PCR(SHIFT, LOAD) \
+    do { \
+        TCGv ireg = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        fEA_REG(RxV); \
+        fREAD_IREG(MuV, SHIFT); \
+        gen_fcircadd(RxV, ireg, MuV, fREAD_CSREG(MuN)); \
+        LOAD; \
+        tcg_temp_free(tmp); \
+        tcg_temp_free(ireg); \
+    } while (0)
+
+#define fWRAP_L2_loadrub_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(0, fLOAD(1, 1, u, EA, RdV))
+#define fWRAP_L2_loadrb_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(0, fLOAD(1, 1, s, EA, RdV))
+#define fWRAP_L2_loadruh_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(1, fLOAD(1, 2, u, EA, RdV))
+#define fWRAP_L2_loadrh_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(1, fLOAD(1, 2, s, EA, RdV))
+#define fWRAP_L2_loadri_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(2, fLOAD(1, 4, u, EA, RdV))
+#define fWRAP_L2_loadrd_pcr(GENHLPR, SHORTCODE) \
+      fWRAP_PCR(3, fLOAD(1, 8, u, EA, RddV))
+
+#define fWRAP_L2_loadrub_pr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadrub_pbr(GENHLPR, SHORTCODE)     SHORTCODE
+#define fWRAP_L2_loadrub_pi(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadrb_pr(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadrb_pbr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadrb_pi(GENHLPR, SHORTCODE)       SHORTCODE;
+#define fWRAP_L2_loadruh_pr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadruh_pbr(GENHLPR, SHORTCODE)     SHORTCODE
+#define fWRAP_L2_loadruh_pi(GENHLPR, SHORTCODE)      SHORTCODE;
+#define fWRAP_L2_loadrh_pr(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadrh_pbr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadrh_pi(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadri_pr(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadri_pbr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadri_pi(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadrd_pr(GENHLPR, SHORTCODE)       SHORTCODE
+#define fWRAP_L2_loadrd_pbr(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L2_loadrd_pi(GENHLPR, SHORTCODE)       SHORTCODE
 
 /*
  * These instructions load 2 bytes and places them in
@@ -811,6 +887,60 @@
 #define fWRAP_S2_storerinewgp(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
+/* Predicated stores */
+#define fWRAP_PRED_STORE(GET_EA, PRED, SRC, SIZE, INC) \
+    do { \
+        TCGv LSB = tcg_temp_local_new(); \
+        TCGv NEWREG_ST = tcg_temp_local_new(); \
+        TCGv BYTE = tcg_temp_local_new(); \
+        TCGv HALF = tcg_temp_local_new(); \
+        TCGLabel *label = gen_new_label(); \
+        GET_EA; \
+        PRED;  \
+        PRED_STORE_CANCEL(LSB, EA); \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
+            INC; \
+            fSTORE(1, SIZE, EA, SRC); \
+        gen_set_label(label); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free(NEWREG_ST); \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(HALF); \
+    } while (0)
+
+#define NOINC    do {} while (0)
+
+#define fWRAP_S4_pstorerinewfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RRs(RsV, RuV, uiV), fLSBNEWNOT(PvN), \
+                     hex_new_value[NtX], 4, NOINC)
+#define fWRAP_S2_pstorerdtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     RttV, 8, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S4_pstorerdtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
+                     RttV, 8, NOINC)
+#define fWRAP_S4_pstorerbtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
+                     fGETBYTE(0, RtV), 1, NOINC)
+#define fWRAP_S2_pstorerhtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     fGETHALF(0, RtV), 2, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S2_pstoreritnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     RtV, 4, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S2_pstorerif_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
+                     RtV, 4, NOINC)
+#define fWRAP_S4_pstorerit_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBOLD(PvV), \
+                     RtV, 4, NOINC)
+#define fWRAP_S2_pstorerinewf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
+                     hex_new_value[NtX], 4, NOINC)
+#define fWRAP_S4_pstorerbnewfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBNEWNOT(PvN), \
+                     fGETBYTE(0, hex_new_value[NtX]), 1, NOINC)
+
 /* We have to brute force memops because they have C math in the semantics */
 #define fWRAP_MEMOP(GENHLPR, SHORTCODE, SIZE, OP) \
     do { \
@@ -870,6 +1000,9 @@
     fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, gen_setbit(tmp, UiV))
 #define fWRAP_L4_ior_memoph_io(GENHLPR, SHORTCODE) \
     fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, gen_setbit(tmp, UiV))
+
+/* dczeroa clears the 32 byte cache line at the address given */
+#define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
 
 /* We have to brute force allocframe because it has C math in the semantics */
 #define fWRAP_S2_allocframe(GENHLPR, SHORTCODE) \
@@ -1077,84 +1210,40 @@
 #define fWRAP_SL2_return_fnew(GENHLPR, SHORTCODE) \
     fWRAP_COND_RETURN_SUBINSN(fLSBNEW0NOT)
 
-/* Instructions with multiple definitions */
-#define fWRAP_LOAD_AP(RES, SIZE, SIGN) \
+/*
+ * Mathematical operations with more than one definition require
+ * special handling
+ */
+/*
+ * Approximate reciprocal
+ * r3,p1 = sfrecipa(r0, r1)
+ */
+#define fWRAP_F2_sfrecipa(GENHLPR, SHORTCODE) \
     do { \
-        fMUST_IMMEXT(UiV); \
-        fEA_IMM(UiV); \
-        fLOAD(1, SIZE, SIGN, EA, RES); \
-        tcg_gen_mov_tl(ReV, UiV); \
+        gen_helper_sfrecipa_val(RdV, cpu_env, RsV, RtV);  \
+        gen_helper_sfrecipa_pred(PeV, cpu_env, RsV, RtV);  \
     } while (0)
 
-#define fWRAP_L4_loadrub_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RdV, 1, u)
-#define fWRAP_L4_loadrb_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RdV, 1, s)
-#define fWRAP_L4_loadruh_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RdV, 2, u)
-#define fWRAP_L4_loadrh_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RdV, 2, s)
-#define fWRAP_L4_loadri_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RdV, 4, u)
-#define fWRAP_L4_loadrd_ap(GENHLPR, SHORTCODE) \
-    fWRAP_LOAD_AP(RddV, 8, u)
-
-#define fWRAP_L2_loadrub_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L2_loadrb_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L2_loadruh_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L2_loadrh_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L2_loadri_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L2_loadrd_pci(GENHLPR, SHORTCODE) \
-      fWRAP_tmp(SHORTCODE)
-
-#define fWRAP_PCR(SHIFT, LOAD) \
+/*
+ * Approximation of the reciprocal square root
+ * r1,p0 = sfinvsqrta(r0)
+ */
+#define fWRAP_F2_sfinvsqrta(GENHLPR, SHORTCODE) \
     do { \
-        TCGv ireg = tcg_temp_new(); \
-        TCGv tmp = tcg_temp_new(); \
-        fEA_REG(RxV); \
-        fREAD_IREG(MuV, SHIFT); \
-        gen_fcircadd(RxV, ireg, MuV, fREAD_CSREG(MuN)); \
-        LOAD; \
-        tcg_temp_free(tmp); \
-        tcg_temp_free(ireg); \
+        gen_helper_sfinvsqrta_val(RdV, cpu_env, RsV); \
+        gen_helper_sfinvsqrta_pred(PeV, cpu_env, RsV); \
     } while (0)
 
-#define fWRAP_L2_loadrub_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(0, fLOAD(1, 1, u, EA, RdV))
-#define fWRAP_L2_loadrb_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(0, fLOAD(1, 1, s, EA, RdV))
-#define fWRAP_L2_loadruh_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(1, fLOAD(1, 2, u, EA, RdV))
-#define fWRAP_L2_loadrh_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(1, fLOAD(1, 2, s, EA, RdV))
-#define fWRAP_L2_loadri_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(2, fLOAD(1, 4, u, EA, RdV))
-#define fWRAP_L2_loadrd_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(3, fLOAD(1, 8, u, EA, RddV))
+#define fWRAP_A5_ACS(GENHLPR, SHORTCODE) \
+    do { \
+        printf("FIXME: multiple definition inst needs check " #GENHLPR "\n"); \
+        g_assert_not_reached(); \
+    } while (0)
 
-#define fWRAP_L2_loadrub_pr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadrub_pbr(GENHLPR, SHORTCODE)     SHORTCODE
-#define fWRAP_L2_loadrub_pi(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadrb_pr(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadrb_pbr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadrb_pi(GENHLPR, SHORTCODE)       SHORTCODE;
-#define fWRAP_L2_loadruh_pr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadruh_pbr(GENHLPR, SHORTCODE)     SHORTCODE
-#define fWRAP_L2_loadruh_pi(GENHLPR, SHORTCODE)      SHORTCODE;
-#define fWRAP_L2_loadrh_pr(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadrh_pbr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadrh_pi(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadri_pr(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadri_pbr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadri_pi(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadrd_pr(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L2_loadrd_pbr(GENHLPR, SHORTCODE)      SHORTCODE
-#define fWRAP_L2_loadrd_pi(GENHLPR, SHORTCODE)       SHORTCODE
+/*
+ * The following fWRAP macros are to speed up qemu
+ * We can add more over time
+ */
 
 /*
  * Add or subtract with carry.
@@ -1201,13 +1290,6 @@
         tcg_temp_free(tmp); \
     } while (0)
 
-#define fWRAP_A5_ACS(GENHLPR, SHORTCODE) \
-    do { \
-        printf("FIXME: multiple definition inst needs check " #GENHLPR "\n"); \
-        g_assert_not_reached(); \
-    } while (0)
-
-
 /*
  * Compare each of the 8 unsigned bytes
  * The minimum is places in each byte of the destination.
@@ -1240,30 +1322,6 @@
         tcg_temp_free(tmp); \
     } while (0)
 
-/*
- * Approximate reciprocal
- * r3,p1 = sfrecipa(r0, r1)
- */
-#define fWRAP_F2_sfrecipa(GENHLPR, SHORTCODE) \
-    do { \
-        gen_helper_sfrecipa_val(RdV, cpu_env, RsV, RtV);  \
-        gen_helper_sfrecipa_pred(PeV, cpu_env, RsV, RtV);  \
-    } while (0)
-
-/*
- * Approximation of the reciprocal square root
- * r1,p0 = sfinvsqrta(r0)
- */
-#define fWRAP_F2_sfinvsqrta(GENHLPR, SHORTCODE) \
-    do { \
-        gen_helper_sfinvsqrta_val(RdV, cpu_env, RsV); \
-        gen_helper_sfinvsqrta_pred(PeV, cpu_env, RsV); \
-    } while (0)
-
-/*
- * These fWRAP macros are to speed up qemu
- * We can add more over time
- */
 #define fWRAP_J2_call(GENHLPR, SHORTCODE) \
     gen_call(riV)
 #define fWRAP_J2_callr(GENHLPR, SHORTCODE) \
@@ -1774,60 +1832,6 @@
 
 #define fWRAP_SL2_jumpr31_tnew(GENHLPR, SHORTCODE) \
     gen_cond_jumpr(hex_new_pred_value[0], hex_gpr[HEX_REG_LR])
-
-/* Predicated stores */
-#define fWRAP_PRED_STORE(GET_EA, PRED, SRC, SIZE, INC) \
-    do { \
-        TCGv LSB = tcg_temp_local_new(); \
-        TCGv NEWREG_ST = tcg_temp_local_new(); \
-        TCGv BYTE = tcg_temp_local_new(); \
-        TCGv HALF = tcg_temp_local_new(); \
-        TCGLabel *label = gen_new_label(); \
-        GET_EA; \
-        PRED;  \
-        PRED_STORE_CANCEL(LSB, EA); \
-        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
-            INC; \
-            fSTORE(1, SIZE, EA, SRC); \
-        gen_set_label(label); \
-        tcg_temp_free(LSB); \
-        tcg_temp_free(NEWREG_ST); \
-        tcg_temp_free(BYTE); \
-        tcg_temp_free(HALF); \
-    } while (0)
-
-#define NOINC    do {} while (0)
-
-#define fWRAP_S4_pstorerinewfnew_rr(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RRs(RsV, RuV, uiV), fLSBNEWNOT(PvN), \
-                     hex_new_value[NtX], 4, NOINC)
-#define fWRAP_S2_pstorerdtnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     RttV, 8, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S4_pstorerdtnew_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
-                     RttV, 8, NOINC)
-#define fWRAP_S4_pstorerbtnew_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
-                     fGETBYTE(0, RtV), 1, NOINC)
-#define fWRAP_S2_pstorerhtnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     fGETHALF(0, RtV), 2, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S2_pstoreritnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     RtV, 4, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S2_pstorerif_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
-                     RtV, 4, NOINC)
-#define fWRAP_S4_pstorerit_abs(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBOLD(PvV), \
-                     RtV, 4, NOINC)
-#define fWRAP_S2_pstorerinewf_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
-                     hex_new_value[NtX], 4, NOINC)
-#define fWRAP_S4_pstorerbnewfnew_abs(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBNEWNOT(PvN), \
-                     fGETBYTE(0, hex_new_value[NtX]), 1, NOINC)
 
 #include "qemu_wrap_generated.h"
 

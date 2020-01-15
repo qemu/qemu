@@ -194,6 +194,7 @@ def compute_tag_immediates(tag):
 ##          ss, tt, uu, vv   source register pair
 ##          x, y             read-write register
 ##          xx, yy           read-write register pair
+##
 tagregs = dict(zip(tags, list(map(compute_tag_regs, tags))))
 
 def is_pair(regid):
@@ -228,7 +229,6 @@ def is_new_val(regtype, regid, tag):
 
 tagimms = dict(zip(tags, list(map(compute_tag_immediates, tags))))
 
-
 def need_slot(tag):
     if ('A_CONDEXEC' in attribdict[tag] or
         'A_STORE' in attribdict[tag] or
@@ -243,6 +243,12 @@ def need_part1(tag):
 def need_ea(tag):
     return re.compile(r"\bEA\b").search(semdict[tag])
 
+def imm_name(immlett):
+    return "%siV" % immlett
+
+##
+## Helpers for gen_helper_prototype
+##
 def_helper_types = {
     'N' : 's32',
     'O' : 's32',
@@ -271,274 +277,11 @@ def gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i):
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
-
-
-def genptr_decl(f,regtype,regid,regno):
-    regN="%s%sN" % (regtype,regid)
-    macro = "DECL_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sV, %s, %d, 0);\n" % \
-        (macro, regtype, regid, regN, regno))
-
-def genptr_decl_new(f,regtype,regid,regno):
-    regN="%s%sX" % (regtype,regid)
-    macro = "DECL_NEW_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sN, %s, %d, 0);\n" % \
-        (macro, regtype, regid, regN, regno))
-
-def genptr_decl_opn(f, tag, regtype, regid, toss, numregs, i):
-    if (is_pair(regid)):
-        genptr_decl(f,regtype,regid,i)
-    elif (is_single(regid)):
-        if is_old_val(regtype, regid, tag):
-            genptr_decl(f,regtype,regid,i)
-        elif is_new_val(regtype, regid, tag):
-            genptr_decl_new(f,regtype,regid,i)
-        else:
-            print("Bad register parse: ",regtype,regid,toss,numregs)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def imm_name(immlett):
-    return "%siV" % immlett
-
-def genptr_decl_imm(f,immlett):
-    if (immlett.isupper()):
-        i = 1
-    else:
-        i = 0
-    f.write("DECL_IMM(%s,%d);\n" % (imm_name(immlett),i))
-
-
-def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
-    if (i > 0): f.write(", ")
-    if (is_pair(regid)):
-        f.write("%s%sV" % (regtype,regid))
-    elif (is_single(regid)):
-        if is_old_val(regtype, regid, tag):
-            f.write("%s%sV" % (regtype,regid))
-        elif is_new_val(regtype, regid, tag):
-            f.write("%s%sN" % (regtype,regid))
-        else:
-            print("Bad register parse: ",regtype,regid,toss,numregs)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def gen_helper_call_imm(f,immlett):
-    f.write(", %s" % imm_name(immlett))
-
-
-def genptr_free(f,regtype,regid,regno):
-    macro = "FREE_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sV);\n" % (macro, regtype, regid))
-
-def genptr_free_new(f,regtype,regid,regno):
-    macro = "FREE_NEW_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sN);\n" % (macro, regtype, regid))
-
-def genptr_free_opn(f,regtype,regid,i):
-    if (is_pair(regid)):
-        genptr_free(f,regtype,regid,i)
-    elif (is_single(regid)):
-        if is_old_val(regtype, regid, tag):
-            genptr_free(f,regtype,regid,i)
-        elif is_new_val(regtype, regid, tag):
-            genptr_free_new(f,regtype,regid,i)
-        else:
-            print("Bad register parse: ",regtype,regid,toss,numregs)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def genptr_free_imm(f,immlett):
-    f.write("FREE_IMM(%s);\n" % (imm_name(immlett)))
-
-
-def genptr_src_read(f,regtype,regid):
-    macro = "READ_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sV, %s%sN);\n" % \
-        (macro,regtype,regid,regtype,regid))
-
-def genptr_src_read_new(f,regtype,regid):
-    macro = "READ_NEW_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sN, %s%sX);\n" % \
-        (macro,regtype,regid,regtype,regid))
-
-def genptr_src_read_opn(f,regtype,regid):
-    if (is_pair(regid)):
-        genptr_src_read(f,regtype,regid)
-    elif (is_single(regid)):
-        if is_old_val(regtype, regid, tag):
-            genptr_src_read(f,regtype,regid)
-        elif is_new_val(regtype, regid, tag):
-            genptr_src_read_new(f,regtype,regid)
-        else:
-            print("Bad register parse: ",regtype,regid,toss,numregs)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-
-def genptr_dst_write(f,regtype, regid):
-    macro = "WRITE_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sN, %s%sV);\n" % (macro, regtype, regid, regtype, regid))
-
-def genptr_dst_write_ext(f, regtype, regid, newv="0"):
-    macro = "WRITE_%sREG_%s" % (regtype, regid)
-    f.write("%s(%s%sN, %s%sV,%s);\n" % \
-            (macro, regtype, regid, regtype, regid, newv))
-
-def genptr_dst_write_opn(f,regtype, regid, tag):
-    if (is_pair(regid)):
-        if (is_hvx_reg(regtype)):
-            if ('A_CVI_TMP' in attribdict[tag] or
-                'A_CVI_TMP_DST' in attribdict[tag]):
-                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
-            else:
-                genptr_dst_write_ext(f, regtype, regid)
-        else:
-            genptr_dst_write(f, regtype, regid)
-    elif (is_single(regid)):
-        if (is_hvx_reg(regtype)):
-            if 'A_CVI_NEW' in attribdict[tag]:
-                genptr_dst_write_ext(f, regtype, regid, "EXT_NEW")
-            elif 'A_CVI_TMP' in attribdict[tag]:
-                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
-            elif 'A_CVI_TMP_DST' in attribdict[tag]:
-                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
-            else:
-                genptr_dst_write_ext(f, regtype, regid, "EXT_DFL")
-        else:
-            genptr_dst_write(f, regtype, regid)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def gen_helper_return_type(f,regtype,regid,regno):
-    if regno > 1 : f.write(", ")
-    f.write("int32_t")
-
-def gen_helper_return_type_pair(f,regtype,regid,regno):
-    if regno > 1 : f.write(", ")
-    f.write("int64_t")
-
-
-def gen_helper_arg(f,regtype,regid,regno):
-    if regno > 0 : f.write(", " )
-    f.write("int32_t %s%sV" % (regtype,regid))
-
-def gen_helper_arg_new(f,regtype,regid,regno):
-    if regno >= 0 : f.write(", " )
-    f.write("int32_t %s%sN" % (regtype,regid))
-
-def gen_helper_arg_pair(f,regtype,regid,regno):
-    if regno >= 0 : f.write(", ")
-    f.write("int64_t %s%sV" % (regtype,regid))
-
-def gen_helper_arg_ext(f,regtype,regid,regno):
-    if regno > 0 : f.write(", ")
-    f.write("void *%s%sV_void" % (regtype,regid))
-
-def gen_helper_arg_ext_pair(f,regtype,regid,regno):
-    if regno > 0 : f.write(", ")
-    f.write("void *%s%sV_void" % (regtype,regid))
-
-def gen_helper_arg_opn(f,regtype,regid,i):
-    if (is_pair(regid)):
-        if (is_hvx_reg(regtype)):
-            gen_helper_arg_ext_pair(f,regtype,regid,i)
-        else:
-            gen_helper_arg_pair(f,regtype,regid,i)
-    elif (is_single(regid)):
-        if is_old_val(regtype, regid, tag):
-            if (is_hvx_reg(regtype)):
-                gen_helper_arg_ext(f,regtype,regid,i)
-            else:
-                gen_helper_arg(f,regtype,regid,i)
-        elif is_new_val(regtype, regid, tag):
-            gen_helper_arg_new(f,regtype,regid,i)
-        else:
-            print("Bad register parse: ",regtype,regid,toss,numregs)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def gen_helper_arg_imm(f,immlett):
-    f.write(", int32_t %s" % (imm_name(immlett)))
-
-
-def gen_helper_dest_decl(f,regtype,regid,regno,subfield=""):
-    f.write("int32_t %s%sV%s = 0;\n" % \
-        (regtype,regid,subfield))
-
-def gen_helper_dest_decl_pair(f,regtype,regid,regno,subfield=""):
-    f.write("int64_t %s%sV%s = 0;\n" % \
-        (regtype,regid,subfield))
-
-def gen_helper_dest_decl_ext(f,regtype,regid):
-    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
-        (regtype,regid,regtype,regid))
-
-def gen_helper_dest_decl_ext_pair(f,regtype,regid,regno):
-    f.write("/* %s%sV is *(mmvector_pair_t*))%s%sV_void) */\n" % \
-        (regtype,regid,regtype, regid))
-
-def gen_helper_dest_decl_opn(f,regtype,regid,i):
-    if (is_pair(regid)):
-        if (is_hvx_reg(regtype)):
-            gen_helper_dest_decl_ext_pair(f,regtype,regid, i)
-        else:
-            gen_helper_dest_decl_pair(f,regtype,regid,i)
-    elif (is_single(regid)):
-        if (is_hvx_reg(regtype)):
-            gen_helper_dest_decl_ext(f,regtype,regid)
-        else:
-            gen_helper_dest_decl(f,regtype,regid,i)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def gen_helper_src_var_ext(f,regtype,regid):
-    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
-        (regtype,regid,regtype,regid))
-
-def gen_helper_src_var_ext_pair(f,regtype,regid,regno):
-    f.write("/* %s%sV%s is *(mmvector_pair_t*)(%s%sV%s_void) */\n" % \
-        (regtype,regid,regno,regtype,regid,regno))
-
-
-def gen_helper_return(f,regtype,regid,regno):
-    f.write("return %s%sV;\n" % (regtype,regid))
-
-def gen_helper_return_pair(f,regtype,regid,regno):
-    f.write("return %s%sV;\n" % (regtype,regid))
-
-def gen_helper_dst_write_ext(f,regtype,regid):
-    f.write("/* %s%sV is *(mmvector_t*)%s%sV_void */\n" % \
-        (regtype,regid,regtype,regid))
-
-def gen_helper_dst_write_ext_pair(f,regtype,regid):
-    f.write("/* %s%sV is *(mmvector_pair_t*)%s%sV_void */\n" % \
-        (regtype,regid, regtype,regid))
-
-def gen_helper_return_opn(f, regtype, regid, i):
-    if (is_pair(regid)):
-        if (is_hvx_reg(regtype)):
-            gen_helper_dst_write_ext_pair(f,regtype,regid)
-        else:
-            gen_helper_return_pair(f,regtype,regid,i)
-    elif (is_single(regid)):
-        if (is_hvx_reg(regtype)):
-            gen_helper_dst_write_ext(f,regtype,regid)
-        else:
-            gen_helper_return(f,regtype,regid,i)
-    else:
-        print("Bad register parse: ",regtype,regid,toss,numregs)
-
-def gen_decl_ea(f):
-    f.write("size4u_t EA;\n")
-
-def gen_decl_ea_tcg(f):
-    f.write("DECL_EA;\n")
-
-def gen_free_ea_tcg(f):
-    f.write("FREE_EA;\n")
-
-
+##
+## Generate the DEF_HELPER prototype for an instruction
+##     For A2_add: Rd32=add(Rs32,Rt32)
+##     We produce: DEF_HELPER_3(A2_add, s32, env, s32, s32)
+##
 def gen_helper_prototype(f, tag, regs, imms):
     numresults = 0
     numscalarresults = 0
@@ -607,6 +350,165 @@ def gen_helper_prototype(f, tag, regs, imms):
         if need_part1(tag): f.write(' , i32' )
         f.write(')')
 
+##
+## Helpers for gen_tcg_func
+##
+def gen_decl_ea_tcg(f):
+    f.write("DECL_EA;\n")
+
+def gen_free_ea_tcg(f):
+    f.write("FREE_EA;\n")
+
+def genptr_decl(f,regtype,regid,regno):
+    regN="%s%sN" % (regtype,regid)
+    macro = "DECL_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sV, %s, %d, 0);\n" % \
+        (macro, regtype, regid, regN, regno))
+
+def genptr_decl_new(f,regtype,regid,regno):
+    regN="%s%sX" % (regtype,regid)
+    macro = "DECL_NEW_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN, %s, %d, 0);\n" % \
+        (macro, regtype, regid, regN, regno))
+
+def genptr_decl_opn(f, tag, regtype, regid, toss, numregs, i):
+    if (is_pair(regid)):
+        genptr_decl(f,regtype,regid,i)
+    elif (is_single(regid)):
+        if is_old_val(regtype, regid, tag):
+            genptr_decl(f,regtype,regid,i)
+        elif is_new_val(regtype, regid, tag):
+            genptr_decl_new(f,regtype,regid,i)
+        else:
+            print("Bad register parse: ",regtype,regid,toss,numregs)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def genptr_decl_imm(f,immlett):
+    if (immlett.isupper()):
+        i = 1
+    else:
+        i = 0
+    f.write("DECL_IMM(%s,%d);\n" % (imm_name(immlett),i))
+
+def genptr_free(f,regtype,regid,regno):
+    macro = "FREE_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sV);\n" % (macro, regtype, regid))
+
+def genptr_free_new(f,regtype,regid,regno):
+    macro = "FREE_NEW_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN);\n" % (macro, regtype, regid))
+
+def genptr_free_opn(f,regtype,regid,i):
+    if (is_pair(regid)):
+        genptr_free(f,regtype,regid,i)
+    elif (is_single(regid)):
+        if is_old_val(regtype, regid, tag):
+            genptr_free(f,regtype,regid,i)
+        elif is_new_val(regtype, regid, tag):
+            genptr_free_new(f,regtype,regid,i)
+        else:
+            print("Bad register parse: ",regtype,regid,toss,numregs)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def genptr_free_imm(f,immlett):
+    f.write("FREE_IMM(%s);\n" % (imm_name(immlett)))
+
+def genptr_src_read(f,regtype,regid):
+    macro = "READ_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sV, %s%sN);\n" % \
+        (macro,regtype,regid,regtype,regid))
+
+def genptr_src_read_new(f,regtype,regid):
+    macro = "READ_NEW_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN, %s%sX);\n" % \
+        (macro,regtype,regid,regtype,regid))
+
+def genptr_src_read_opn(f,regtype,regid):
+    if (is_pair(regid)):
+        genptr_src_read(f,regtype,regid)
+    elif (is_single(regid)):
+        if is_old_val(regtype, regid, tag):
+            genptr_src_read(f,regtype,regid)
+        elif is_new_val(regtype, regid, tag):
+            genptr_src_read_new(f,regtype,regid)
+        else:
+            print("Bad register parse: ",regtype,regid,toss,numregs)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
+    if (i > 0): f.write(", ")
+    if (is_pair(regid)):
+        f.write("%s%sV" % (regtype,regid))
+    elif (is_single(regid)):
+        if is_old_val(regtype, regid, tag):
+            f.write("%s%sV" % (regtype,regid))
+        elif is_new_val(regtype, regid, tag):
+            f.write("%s%sN" % (regtype,regid))
+        else:
+            print("Bad register parse: ",regtype,regid,toss,numregs)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def gen_helper_call_imm(f,immlett):
+    f.write(", %s" % imm_name(immlett))
+
+def genptr_dst_write(f,regtype, regid):
+    macro = "WRITE_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN, %s%sV);\n" % (macro, regtype, regid, regtype, regid))
+
+def genptr_dst_write_ext(f, regtype, regid, newv="0"):
+    macro = "WRITE_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN, %s%sV,%s);\n" % \
+            (macro, regtype, regid, regtype, regid, newv))
+
+def genptr_dst_write_opn(f,regtype, regid, tag):
+    if (is_pair(regid)):
+        if (is_hvx_reg(regtype)):
+            if ('A_CVI_TMP' in attribdict[tag] or
+                'A_CVI_TMP_DST' in attribdict[tag]):
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            else:
+                genptr_dst_write_ext(f, regtype, regid)
+        else:
+            genptr_dst_write(f, regtype, regid)
+    elif (is_single(regid)):
+        if (is_hvx_reg(regtype)):
+            if 'A_CVI_NEW' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_NEW")
+            elif 'A_CVI_TMP' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            elif 'A_CVI_TMP_DST' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            else:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_DFL")
+        else:
+            genptr_dst_write(f, regtype, regid)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+##
+## Generate the TCG code to call the helper
+##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
+##     We produce:
+##       {
+##       /* A2_add */
+##       DECL_RREG_d(RdV, RdN, 0, 0);
+##       DECL_RREG_s(RsV, RsN, 1, 0);
+##       DECL_RREG_t(RtV, RtN, 2, 0);
+##       READ_RREG_s(RsV, RsN);
+##       READ_RREG_t(RtV, RtN);
+##       fWRAP_A2_add(gen_helper_A2_add(RdV, cpu_env, RsV, RtV),
+##       { RdV=RsV+RtV;});
+##       WRITE_RREG_d(RdN, RdV);
+##       FREE_RREG_d(RdV);
+##       FREE_RREG_s(RsV);
+##       FREE_RREG_t(RtV);
+##       /* A2_add */
+##       }
+##
 def gen_tcg_func(f, tag, regs, imms):
     f.write('{\n')
     f.write('/* %s */\n' % tag)
@@ -689,6 +591,141 @@ def gen_tcg_func(f, tag, regs, imms):
     f.write("/* %s */\n" % tag)
     f.write("}")
 
+##
+## Helpers for gen_helper_definition
+##
+def gen_decl_ea(f):
+    f.write("size4u_t EA;\n")
+
+def gen_helper_return_type(f,regtype,regid,regno):
+    if regno > 1 : f.write(", ")
+    f.write("int32_t")
+
+def gen_helper_return_type_pair(f,regtype,regid,regno):
+    if regno > 1 : f.write(", ")
+    f.write("int64_t")
+
+def gen_helper_arg(f,regtype,regid,regno):
+    if regno > 0 : f.write(", " )
+    f.write("int32_t %s%sV" % (regtype,regid))
+
+def gen_helper_arg_new(f,regtype,regid,regno):
+    if regno >= 0 : f.write(", " )
+    f.write("int32_t %s%sN" % (regtype,regid))
+
+def gen_helper_arg_pair(f,regtype,regid,regno):
+    if regno >= 0 : f.write(", ")
+    f.write("int64_t %s%sV" % (regtype,regid))
+
+def gen_helper_arg_ext(f,regtype,regid,regno):
+    if regno > 0 : f.write(", ")
+    f.write("void *%s%sV_void" % (regtype,regid))
+
+def gen_helper_arg_ext_pair(f,regtype,regid,regno):
+    if regno > 0 : f.write(", ")
+    f.write("void *%s%sV_void" % (regtype,regid))
+
+def gen_helper_arg_opn(f,regtype,regid,i):
+    if (is_pair(regid)):
+        if (is_hvx_reg(regtype)):
+            gen_helper_arg_ext_pair(f,regtype,regid,i)
+        else:
+            gen_helper_arg_pair(f,regtype,regid,i)
+    elif (is_single(regid)):
+        if is_old_val(regtype, regid, tag):
+            if (is_hvx_reg(regtype)):
+                gen_helper_arg_ext(f,regtype,regid,i)
+            else:
+                gen_helper_arg(f,regtype,regid,i)
+        elif is_new_val(regtype, regid, tag):
+            gen_helper_arg_new(f,regtype,regid,i)
+        else:
+            print("Bad register parse: ",regtype,regid,toss,numregs)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def gen_helper_arg_imm(f,immlett):
+    f.write(", int32_t %s" % (imm_name(immlett)))
+
+def gen_helper_dest_decl(f,regtype,regid,regno,subfield=""):
+    f.write("int32_t %s%sV%s = 0;\n" % \
+        (regtype,regid,subfield))
+
+def gen_helper_dest_decl_pair(f,regtype,regid,regno,subfield=""):
+    f.write("int64_t %s%sV%s = 0;\n" % \
+        (regtype,regid,subfield))
+
+def gen_helper_dest_decl_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_dest_decl_ext_pair(f,regtype,regid,regno):
+    f.write("/* %s%sV is *(mmvector_pair_t*))%s%sV_void) */\n" % \
+        (regtype,regid,regtype, regid))
+
+def gen_helper_dest_decl_opn(f,regtype,regid,i):
+    if (is_pair(regid)):
+        if (is_hvx_reg(regtype)):
+            gen_helper_dest_decl_ext_pair(f,regtype,regid, i)
+        else:
+            gen_helper_dest_decl_pair(f,regtype,regid,i)
+    elif (is_single(regid)):
+        if (is_hvx_reg(regtype)):
+            gen_helper_dest_decl_ext(f,regtype,regid)
+        else:
+            gen_helper_dest_decl(f,regtype,regid,i)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def gen_helper_src_var_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_src_var_ext_pair(f,regtype,regid,regno):
+    f.write("/* %s%sV%s is *(mmvector_pair_t*)(%s%sV%s_void) */\n" % \
+        (regtype,regid,regno,regtype,regid,regno))
+
+def gen_helper_return(f,regtype,regid,regno):
+    f.write("return %s%sV;\n" % (regtype,regid))
+
+def gen_helper_return_pair(f,regtype,regid,regno):
+    f.write("return %s%sV;\n" % (regtype,regid))
+
+def gen_helper_dst_write_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)%s%sV_void */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_dst_write_ext_pair(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_pair_t*)%s%sV_void */\n" % \
+        (regtype,regid, regtype,regid))
+
+def gen_helper_return_opn(f, regtype, regid, i):
+    if (is_pair(regid)):
+        if (is_hvx_reg(regtype)):
+            gen_helper_dst_write_ext_pair(f,regtype,regid)
+        else:
+            gen_helper_return_pair(f,regtype,regid,i)
+    elif (is_single(regid)):
+        if (is_hvx_reg(regtype)):
+            gen_helper_dst_write_ext(f,regtype,regid)
+        else:
+            gen_helper_return(f,regtype,regid,i)
+    else:
+        print("Bad register parse: ",regtype,regid,toss,numregs)
+
+##
+## Generate the TCG code to call the helper
+##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
+##     We produce:
+##       int32_t HELPER(A2_add)(CPUHexagonState *env, int32_t RsV, int32_t RtV)
+##       {
+##       uint32_t slot = 4; slot = slot;
+##       int32_t RdV = 0;
+##       { RdV=RsV+RtV;}
+##       COUNT_HELPER(A2_add);
+##       return RdV;
+##       }
+##
 def gen_helper_definition(f, tag, regs, imms):
     numresults = 0
     numscalarresults = 0
@@ -804,6 +841,9 @@ def gen_helper_definition(f, tag, regs, imms):
         f.write("}")
         ## End of the helper definition
 
+##
+## Bring it all together in the DEF_QEMU macro
+##
 def gen_qemu(f, tag):
     regs = tagregs[tag]
     imms = tagimms[tag]
@@ -816,7 +856,48 @@ def gen_qemu(f, tag):
     gen_helper_definition(f, tag, regs, imms)
     f.write(")\n")
 
+##
+## Generate the qemu_def_generated.h file
+##
+f = StringIO()
 
+f.write("#ifndef DEF_QEMU\n")
+f.write("#define DEF_QEMU(TAG,SHORTCODE,HELPER,GENFN,HELPFN)   /* Nothing */\n")
+f.write("#endif\n\n")
+
+
+for tag in tags:
+    ## Skip assembler mapped instructions
+    if "A_MAPPING" in attribdict[tag]:
+        continue
+    ## Skip the fake instructions
+    if ( "A_FAKEINSN" in attribdict[tag] ) :
+        continue
+    ## Skip the priv instructions
+    if ( "A_PRIV" in attribdict[tag] ) :
+        continue
+    ## Skip the guest instructions
+    if ( "A_GUEST" in attribdict[tag] ) :
+        continue
+    ## Skip the diag instructions
+    if ( tag == "Y6_diag" ) :
+        continue
+    if ( tag == "Y6_diag0" ) :
+        continue
+    if ( tag == "Y6_diag1" ) :
+        continue
+
+    gen_qemu(f, tag)
+
+realf = open('qemu_def_generated.h','w')
+realf.write(f.getvalue())
+realf.close()
+f.close()
+
+##
+## Generate the qemu_wrap_generated.h file
+##     Gives a default definition of fWRAP_<tag> for each instruction
+##
 f = StringIO()
 for tag in tags:
     f.write( "#ifndef fWRAP_%s\n" % tag )
@@ -827,6 +908,10 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
+##
+## Generate the opcodes_def_generated.h file
+##     Gives a list of all the opcodes
+##
 f = StringIO()
 for tag in tags:
     f.write ( "OPCODE(%s),\n" % (tag) )
@@ -835,6 +920,10 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
+##
+## Generate the op_attribs_generated.h file
+##     Lists all the attributes associated with each instruction
+##
 f = StringIO()
 for tag in tags:
     f.write('OP_ATTRIB(%s,ATTRIBS(%s))\n' % \
@@ -844,6 +933,10 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
+##
+## Generate the op_regs_generated.h file
+##     Lists the register and immediate operands for each instruction
+##
 def calculate_regid_reg(tag):
     def letter_inc(x): return chr(ord(x)+1)
     ordered_implregs = [ 'SP','FP','LR' ]
@@ -903,7 +996,6 @@ for tag in tags:
     f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")\n' % \
         (tag,regids,",".join(rregs),",".join(wregs)))
 
-
 for tag in tags:
     imms = tagimms[tag]
     f.write( 'IMMINFO(%s' % tag)
@@ -927,41 +1019,10 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
-f = StringIO()
-
-f.write("#ifndef DEF_QEMU\n")
-f.write("#define DEF_QEMU(TAG,SHORTCODE,HELPER,GENFN,HELPFN)   /* Nothing */\n")
-f.write("#endif\n\n")
-
-
-for tag in tags:
-    ## Skip assembler mapped instructions
-    if "A_MAPPING" in attribdict[tag]:
-        continue
-    ## Skip the fake instructions
-    if ( "A_FAKEINSN" in attribdict[tag] ) :
-        continue
-    ## Skip the priv instructions
-    if ( "A_PRIV" in attribdict[tag] ) :
-        continue
-    ## Skip the guest instructions
-    if ( "A_GUEST" in attribdict[tag] ) :
-        continue
-    ## Skip the diag instructions
-    if ( tag == "Y6_diag" ) :
-        continue
-    if ( tag == "Y6_diag0" ) :
-        continue
-    if ( tag == "Y6_diag1" ) :
-        continue
-
-    gen_qemu(f, tag)
-
-realf = open('qemu_def_generated.h','w')
-realf.write(f.getvalue())
-realf.close()
-f.close()
-
+##
+## Generate the printinsn_generated.h file
+##     Data for printing each instruction (format string + operands)
+##
 def regprinter(m):
     str = m.group(1)
     str += ":".join(["%d"]*len(m.group(2)))

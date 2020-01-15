@@ -22,33 +22,6 @@
 #include "hex_regs.h"
 #include "reg_fields.h"
 
-#define PCALIGN 4
-#define PCALIGN_MASK (PCALIGN - 1)
-
-#define GET_FIELD(FIELD, REGIN) \
-    fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \
-                   reg_field_info[FIELD].offset)
-
-#ifdef QEMU_GENERATE
-#define GET_USR_FIELD(FIELD, DST) \
-    tcg_gen_extract_tl(DST, hex_gpr[HEX_REG_USR], \
-                       reg_field_info[FIELD].offset, \
-                       reg_field_info[FIELD].width)
-
-#define SET_USR_FIELD_FUNC(X) \
-    _Generic((X), int : gen_set_usr_fieldi, TCGv : gen_set_usr_field)
-#define SET_USR_FIELD(FIELD, VAL) \
-    SET_USR_FIELD_FUNC(VAL)(FIELD, VAL)
-#else
-#define GET_USR_FIELD(FIELD) \
-    fEXTRACTU_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
-                   reg_field_info[FIELD].offset)
-
-#define SET_USR_FIELD(FIELD, VAL) \
-    fINSERT_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
-                 reg_field_info[FIELD].offset, (VAL))
-#endif
-
 #ifdef QEMU_GENERATE
 #define DECL_REG(NAME, NUM, X, OFF) \
     TCGv NAME = tcg_temp_local_new(); \
@@ -405,6 +378,33 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 #define WRITE_RREG_dd(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
 #define WRITE_RREG_xx(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
 #define WRITE_RREG_yy(NUM, VAL)          WRITE_REG_PAIR(NUM, VAL)
+#endif
+
+#define PCALIGN 4
+#define PCALIGN_MASK (PCALIGN - 1)
+
+#define GET_FIELD(FIELD, REGIN) \
+    fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \
+                   reg_field_info[FIELD].offset)
+
+#ifdef QEMU_GENERATE
+#define GET_USR_FIELD(FIELD, DST) \
+    tcg_gen_extract_tl(DST, hex_gpr[HEX_REG_USR], \
+                       reg_field_info[FIELD].offset, \
+                       reg_field_info[FIELD].width)
+
+#define SET_USR_FIELD_FUNC(X) \
+    _Generic((X), int : gen_set_usr_fieldi, TCGv : gen_set_usr_field)
+#define SET_USR_FIELD(FIELD, VAL) \
+    SET_USR_FIELD_FUNC(VAL)(FIELD, VAL)
+#else
+#define GET_USR_FIELD(FIELD) \
+    fEXTRACTU_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
+                   reg_field_info[FIELD].offset)
+
+#define SET_USR_FIELD(FIELD, VAL) \
+    fINSERT_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
+                 reg_field_info[FIELD].offset, (VAL))
 #endif
 
 #ifdef QEMU_GENERATE

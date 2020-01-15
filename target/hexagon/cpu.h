@@ -126,6 +126,9 @@ struct CPUHexagonState {
     uint64_t     llsc_newval_i64;
     target_ulong llsc_reg;
 
+    target_ulong is_gather_store_insn;
+    target_ulong gather_issued;
+
     mmvector_t VRegs[NUM_VREGS];
     mmvector_t future_VRegs[NUM_VREGS];
     mmvector_t tmp_VRegs[NUM_VREGS];
@@ -141,8 +144,6 @@ struct CPUHexagonState {
     vstorelog_t vstore[VSTORES_MAX];
     uint8_t store_pending[VSTORES_MAX];
     uint8_t vstore_pending[VSTORES_MAX];
-    target_ulong is_gather_store_insn;
-    target_ulong gather_issued;
     uint8_t vtcm_pending;
     vtcm_storelog_t vtcm_log;
     mem_access_info_t mem_access[SLOTS_MAX];

@@ -758,7 +758,6 @@ get_valid_slot_str(const packet_t *pkt, unsigned int slot)
     if (GET_ATTRIB(pkt->insn[slot].opcode, A_EXTENSION)) {
         return mmvec_ext_decode_find_iclass_slots(pkt->insn[slot].opcode);
     } else {
-        /* First fix the general slot numbers */
         return find_iclass_slots(pkt->insn[slot].opcode,
                                  pkt->insn[slot].iclass);
     }

@@ -25,10 +25,7 @@
 #define HEX_DEBUG_LOG(...) \
     do { \
         if (HEX_DEBUG) { \
-            if (qemu_logfile == NULL) { \
-                qemu_logfile = stderr; \
-            } \
-            qemu_log(__VA_ARGS__); \
+            fprintf(stderr, __VA_ARGS__); \
         } \
     } while (0)
 
