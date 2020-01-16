@@ -331,6 +331,10 @@ static int kvm_s390_add_adapter_routes(S390FLICState *fs,
     int ret, i;
     uint64_t ind_offset = routes->adapter.ind_offset;
 
+    if (!kvm_gsi_routing_enabled()) {
+        return -ENOSYS;
+    }
+
     for (i = 0; i < routes->num_routes; i++) {
         ret = kvm_irqchip_add_adapter_route(kvm_state, &routes->adapter);
         if (ret < 0) {
@@ -357,6 +361,10 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
                                             AdapterRoutes *routes)
 {
     int i;
+
+    if (!kvm_gsi_routing_enabled()) {
+        return;
+    }
 
     for (i = 0; i < routes->num_routes; i++) {
         if (routes->gsi[i] >= 0) {
