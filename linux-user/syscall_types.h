@@ -261,6 +261,13 @@ STRUCT(blkpg_ioctl_arg,
        TYPE_INT, /* datalen */
        TYPE_PTRVOID) /* data */
 
+STRUCT(floppy_max_errors,
+       TYPE_INT, /* abort */
+       TYPE_INT, /* read_track */
+       TYPE_INT, /* reset */
+       TYPE_INT, /* recal */
+       TYPE_INT) /* reporting */
+
 #if defined(CONFIG_USBFS)
 /* usb device ioctls */
 STRUCT(usbdevfs_ctrltransfer,
