@@ -6426,6 +6426,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                 child->bs->exact_filename);
         pstrcpy(bs->filename, sizeof(bs->filename), child->bs->filename);
 
+        qobject_unref(bs->full_open_options);
         bs->full_open_options = qobject_ref(child->bs->full_open_options);
 
         return;
