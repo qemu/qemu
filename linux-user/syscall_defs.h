@@ -911,12 +911,14 @@ struct target_pollfd {
 #define TARGET_FICLONE    TARGET_IOW(0x94, 9, int)
 #define TARGET_FICLONERANGE TARGET_IOW(0x94, 13, struct file_clone_range)
 
-/* Note that the ioctl numbers claim type "long" but the actual type
- * used by the kernel is "int".
+/*
+ * Note that the ioctl numbers for FS_IOC_<GET|SET><FLAGS|VERSION>
+ * claim type "long" but the actual type used by the kernel is "int".
  */
 #define TARGET_FS_IOC_GETFLAGS TARGET_IOR('f', 1, abi_long)
 #define TARGET_FS_IOC_SETFLAGS TARGET_IOW('f', 2, abi_long)
-
+#define TARGET_FS_IOC_GETVERSION TARGET_IOR('v', 1, abi_long)
+#define TARGET_FS_IOC_SETVERSION TARGET_IOW('v', 2, abi_long)
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
 
 /* usb ioctls */
