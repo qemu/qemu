@@ -795,7 +795,7 @@ class QAPISchema(object):
         self.docs = parser.docs
         self._entity_list = []
         self._entity_dict = {}
-        self._module_dict = {}
+        self._module_dict = OrderedDict()
         self._schema_dir = os.path.dirname(fname)
         self._make_module(None) # built-ins
         self._make_module(fname)
