@@ -23,7 +23,6 @@ typedef struct AwA10State {
     /*< public >*/
 
     ARMCPU cpu;
-    qemu_irq irq[AW_A10_PIC_INT_NR];
     AwA10PITState timer;
     AwA10PICState intc;
     AwEmacState emac;
