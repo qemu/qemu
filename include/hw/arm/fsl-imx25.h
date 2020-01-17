@@ -24,6 +24,7 @@
 #include "hw/timer/imx_gpt.h"
 #include "hw/timer/imx_epit.h"
 #include "hw/net/imx_fec.h"
+#include "hw/misc/imx_rngc.h"
 #include "hw/i2c/imx_i2c.h"
 #include "hw/gpio/imx_gpio.h"
 #include "exec/memory.h"
@@ -50,6 +51,7 @@ typedef struct FslIMX25State {
     IMXGPTState    gpt[FSL_IMX25_NUM_GPTS];
     IMXEPITState   epit[FSL_IMX25_NUM_EPITS];
     IMXFECState    fec;
+    IMXRNGCState   rngc;
     IMXI2CState    i2c[FSL_IMX25_NUM_I2CS];
     IMXGPIOState   gpio[FSL_IMX25_NUM_GPIOS];
     MemoryRegion   rom[2];
@@ -211,6 +213,8 @@ typedef struct FslIMX25State {
 #define FSL_IMX25_GPIO4_SIZE    0x4000
 #define FSL_IMX25_GPIO3_ADDR    0x53FA4000
 #define FSL_IMX25_GPIO3_SIZE    0x4000
+#define FSL_IMX25_RNGC_ADDR     0x53FB0000
+#define FSL_IMX25_RNGC_SIZE     0x4000
 #define FSL_IMX25_GPIO1_ADDR    0x53FCC000
 #define FSL_IMX25_GPIO1_SIZE    0x4000
 #define FSL_IMX25_GPIO2_ADDR    0x53FD0000
@@ -238,6 +242,7 @@ typedef struct FslIMX25State {
 #define FSL_IMX25_EPIT1_IRQ     28
 #define FSL_IMX25_EPIT2_IRQ     27
 #define FSL_IMX25_FEC_IRQ       57
+#define FSL_IMX25_RNGC_IRQ      22
 #define FSL_IMX25_I2C1_IRQ      3
 #define FSL_IMX25_I2C2_IRQ      4
 #define FSL_IMX25_I2C3_IRQ      10

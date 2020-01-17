@@ -62,6 +62,9 @@ static void fsl_imx25_init(Object *obj)
 
     sysbus_init_child_obj(obj, "fec", &s->fec, sizeof(s->fec), TYPE_IMX_FEC);
 
+    sysbus_init_child_obj(obj, "rngc", &s->rngc, sizeof(s->rngc),
+                          TYPE_IMX_RNGC);
+
     for (i = 0; i < FSL_IMX25_NUM_I2CS; i++) {
         sysbus_init_child_obj(obj, "i2c[*]", &s->i2c[i], sizeof(s->i2c[i]),
                               TYPE_IMX_I2C);
@@ -188,6 +191,14 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->fec), 0,
                        qdev_get_gpio_in(DEVICE(&s->avic), FSL_IMX25_FEC_IRQ));
 
+    object_property_set_bool(OBJECT(&s->rngc), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->rngc), 0, FSL_IMX25_RNGC_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->rngc), 0,
+                       qdev_get_gpio_in(DEVICE(&s->avic), FSL_IMX25_RNGC_IRQ));
 
     /* Initialize all I2C */
     for (i = 0; i < FSL_IMX25_NUM_I2CS; i++) {
