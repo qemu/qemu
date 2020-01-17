@@ -48,7 +48,7 @@
 #include "hw/boards.h"
 #endif
 
-#include "tcg-op.h"
+#include "tcg/tcg-op.h"
 
 #if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32

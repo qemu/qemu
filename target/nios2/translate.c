@@ -23,7 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "tcg-op.h"
+#include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
 #include "disas/disas.h"
 #include "exec/helper-proto.h"

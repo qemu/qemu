@@ -53,7 +53,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/seqlock.h"
 #include "qemu/guest-random.h"
-#include "tcg.h"
+#include "tcg/tcg.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"

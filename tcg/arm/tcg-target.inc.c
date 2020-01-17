@@ -23,7 +23,7 @@
  */
 
 #include "elf.h"
-#include "tcg-pool.inc.c"
+#include "../tcg-pool.inc.c"
 
 int arm_arch = __ARM_ARCH;
 
@@ -1131,7 +1131,7 @@ static TCGCond tcg_out_cmp2(TCGContext *s, const TCGArg *args,
 }
 
 #ifdef CONFIG_SOFTMMU
-#include "tcg-ldst.inc.c"
+#include "../tcg-ldst.inc.c"
 
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)

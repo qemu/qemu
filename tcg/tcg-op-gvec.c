@@ -18,11 +18,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "tcg.h"
-#include "tcg-op.h"
-#include "tcg-op-gvec.h"
+#include "tcg/tcg.h"
+#include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
 #include "qemu/main-loop.h"
-#include "tcg-gvec-desc.h"
+#include "tcg/tcg-gvec-desc.h"
 
 #define MAX_UNROLL  4
 

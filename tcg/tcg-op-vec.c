@@ -19,9 +19,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "tcg.h"
-#include "tcg-op.h"
-#include "tcg-mo.h"
+#include "tcg/tcg.h"
+#include "tcg/tcg-op.h"
+#include "tcg/tcg-mo.h"
 
 /* Reduce the number of ifdefs below.  This assumes that all uses of
    TCGV_HIGH and TCGV_LOW are properly protected by a conditional that
