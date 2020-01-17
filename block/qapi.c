@@ -664,7 +664,7 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
     char *sizing = NULL;
 
     if (!sn) {
-        qemu_printf("%-10s%-20s%7s%20s%15s",
+        qemu_printf("%-10s%-20s%11s%20s%15s",
                     "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
     } else {
         ti = sn->date_sec;
@@ -679,7 +679,7 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
                  (int)(secs % 60),
                  (int)((sn->vm_clock_nsec / 1000000) % 1000));
         sizing = size_to_str(sn->vm_state_size);
-        qemu_printf("%-10s%-20s%7s%20s%15s",
+        qemu_printf("%-10s%-20s%11s%20s%15s",
                     sn->id_str, sn->name,
                     sizing,
                     date_buf,
