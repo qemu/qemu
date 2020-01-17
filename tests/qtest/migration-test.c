@@ -480,14 +480,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     } else if (strcmp(arch, "ppc64") == 0) {
         machine_opts = "vsmt=8";
         memory_size = "256M";
+        start_address = PPC_TEST_MEM_START;
+        end_address = PPC_TEST_MEM_END;
         arch_source = g_strdup_printf("-nodefaults "
                                       "-prom-env 'use-nvramrc?=true' -prom-env "
                                       "'nvramrc=hex .\" _\" begin %x %x "
                                       "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
                                       "until'", end_address, start_address);
         arch_target = g_strdup("");
-        start_address = PPC_TEST_MEM_START;
-        end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
         init_bootfile(bootpath, aarch64_kernel, sizeof(aarch64_kernel));
         machine_opts = "virt,gic-version=max";

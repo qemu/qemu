@@ -707,9 +707,9 @@ static void test_read_guest_mem(void *obj, void *arg, QGuestAllocator *alloc)
 static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
 {
     TestServer *s = arg;
-    TestServer *dest = test_server_new("dest");
-    GString *dest_cmdline = g_string_new(qos_get_current_command_line());
-    char *uri = g_strdup_printf("%s%s", "unix:", dest->mig_path);
+    TestServer *dest;
+    GString *dest_cmdline;
+    char *uri;
     QTestState *to;
     GSource *source;
     QDict *rsp;
@@ -719,6 +719,10 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     if (!wait_for_fds(s)) {
         return;
     }
+
+    dest = test_server_new("dest");
+    dest_cmdline = g_string_new(qos_get_current_command_line());
+    uri = g_strdup_printf("%s%s", "unix:", dest->mig_path);
 
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (256 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
@@ -778,6 +782,7 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     qtest_quit(to);
     test_server_free(dest);
     g_free(uri);
+    g_string_free(dest_cmdline, true);
 }
 
 static void wait_for_rings_started(TestServer *s, size_t count)
