@@ -25,6 +25,12 @@
 #include "hw/misc/unimp.h"
 #include "sysemu/sysemu.h"
 
+#define AW_A10_PIC_REG_BASE     0x01c20400
+#define AW_A10_PIT_REG_BASE     0x01c20c00
+#define AW_A10_UART0_REG_BASE   0x01c28000
+#define AW_A10_EMAC_BASE        0x01c0b000
+#define AW_A10_SATA_BASE        0x01c18000
+
 static void aw_a10_init(Object *obj)
 {
     AwA10State *s = AW_A10(obj);
@@ -49,8 +55,6 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
 {
     AwA10State *s = AW_A10(dev);
     SysBusDevice *sysbusdev;
-    uint8_t i;
-    qemu_irq fiq, irq;
     Error *err = NULL;
 
     object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
@@ -58,8 +62,6 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    irq = qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ);
-    fiq = qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ);
 
     object_property_set_bool(OBJECT(&s->intc), true, "realized", &err);
     if (err != NULL) {
@@ -68,11 +70,11 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     }
     sysbusdev = SYS_BUS_DEVICE(&s->intc);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_PIC_REG_BASE);
-    sysbus_connect_irq(sysbusdev, 0, irq);
-    sysbus_connect_irq(sysbusdev, 1, fiq);
-    for (i = 0; i < AW_A10_PIC_INT_NR; i++) {
-        s->irq[i] = qdev_get_gpio_in(DEVICE(&s->intc), i);
-    }
+    sysbus_connect_irq(sysbusdev, 0,
+                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
+    sysbus_connect_irq(sysbusdev, 1,
+                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
+    qdev_pass_gpios(DEVICE(&s->intc), dev, NULL);
 
     object_property_set_bool(OBJECT(&s->timer), true, "realized", &err);
     if (err != NULL) {
@@ -81,12 +83,12 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     }
     sysbusdev = SYS_BUS_DEVICE(&s->timer);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_PIT_REG_BASE);
-    sysbus_connect_irq(sysbusdev, 0, s->irq[22]);
-    sysbus_connect_irq(sysbusdev, 1, s->irq[23]);
-    sysbus_connect_irq(sysbusdev, 2, s->irq[24]);
-    sysbus_connect_irq(sysbusdev, 3, s->irq[25]);
-    sysbus_connect_irq(sysbusdev, 4, s->irq[67]);
-    sysbus_connect_irq(sysbusdev, 5, s->irq[68]);
+    sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 22));
+    sysbus_connect_irq(sysbusdev, 1, qdev_get_gpio_in(dev, 23));
+    sysbus_connect_irq(sysbusdev, 2, qdev_get_gpio_in(dev, 24));
+    sysbus_connect_irq(sysbusdev, 3, qdev_get_gpio_in(dev, 25));
+    sysbus_connect_irq(sysbusdev, 4, qdev_get_gpio_in(dev, 67));
+    sysbus_connect_irq(sysbusdev, 5, qdev_get_gpio_in(dev, 68));
 
     memory_region_init_ram(&s->sram_a, OBJECT(dev), "sram A", 48 * KiB,
                            &error_fatal);
@@ -105,7 +107,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     }
     sysbusdev = SYS_BUS_DEVICE(&s->emac);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
-    sysbus_connect_irq(sysbusdev, 0, s->irq[55]);
+    sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 55));
 
     object_property_set_bool(OBJECT(&s->sata), true, "realized", &err);
     if (err) {
@@ -113,10 +115,11 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, AW_A10_SATA_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, s->irq[56]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, qdev_get_gpio_in(dev, 56));
 
     /* FIXME use a qdev chardev prop instead of serial_hd() */
-    serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],
+    serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2,
+                   qdev_get_gpio_in(dev, 1),
                    115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 }
 
