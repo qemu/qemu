@@ -44,7 +44,7 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
         syn = syn_data_abort_with_iss(same_el,
                                       0, 0, 0, 0, 0,
                                       ea, 0, s1ptw, is_write, fsc,
-                                      false);
+                                      true);
         /* Merge the runtime syndrome with the template syndrome.  */
         syn |= template_syn;
     }
