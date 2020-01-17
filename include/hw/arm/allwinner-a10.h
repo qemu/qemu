@@ -12,12 +12,6 @@
 #include "target/arm/cpu.h"
 
 
-#define AW_A10_PIC_REG_BASE     0x01c20400
-#define AW_A10_PIT_REG_BASE     0x01c20c00
-#define AW_A10_UART0_REG_BASE   0x01c28000
-#define AW_A10_EMAC_BASE        0x01c0b000
-#define AW_A10_SATA_BASE        0x01c18000
-
 #define AW_A10_SDRAM_BASE       0x40000000
 
 #define TYPE_AW_A10 "allwinner-a10"
