@@ -70,7 +70,7 @@ void cpu_set_fpcsr(CPUOpenRISCState *env, uint32_t val)
         float_round_down
     };
 
-    env->fpcsr = val & 0x7ff;
+    env->fpcsr = val & 0xfff;
     set_float_rounding_mode(rm_to_sf[extract32(val, 1, 2)], &env->fp_status);
 }
 
