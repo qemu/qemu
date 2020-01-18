@@ -317,6 +317,11 @@ static void type_initialize(TypeImpl *ti)
 
         for (i = 0; i < ti->num_interfaces; i++) {
             TypeImpl *t = type_get_by_name(ti->interfaces[i].typename);
+            if (!t) {
+                error_report("missing interface '%s' for object '%s'",
+                             ti->interfaces[i].typename, parent->name);
+                abort();
+            }
             for (e = ti->class->interfaces; e; e = e->next) {
                 TypeImpl *target_type = OBJECT_CLASS(e->data)->type;
 
