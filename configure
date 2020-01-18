@@ -4095,6 +4095,8 @@ if test "$fdt_required" = "yes"; then
       "targets which need it (by specifying a cut down --target-list)."
   fi
   fdt=yes
+elif test "$fdt" != "yes" ; then
+  fdt=no
 fi
 
 if test "$fdt" != "no" ; then
