@@ -216,26 +216,31 @@ static int l2_load(BlockDriverState *bs, uint64_t offset,
 }
 
 /*
- * Writes one sector of the L1 table to the disk (can't update single entries
- * and we really don't want bdrv_pread to perform a read-modify-write)
+ * Writes an L1 entry to disk (note that depending on the alignment
+ * requirements this function may write more that just one entry in
+ * order to prevent bdrv_pwrite from performing a read-modify-write)
  */
-#define L1_ENTRIES_PER_SECTOR (512 / 8)
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t buf[L1_ENTRIES_PER_SECTOR] = { 0 };
     int l1_start_index;
     int i, ret;
+    int bufsize = MAX(sizeof(uint64_t),
+                      MIN(bs->file->bs->bl.request_alignment, s->cluster_size));
+    int nentries = bufsize / sizeof(uint64_t);
+    g_autofree uint64_t *buf = g_try_new0(uint64_t, nentries);
 
-    l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
-    for (i = 0; i < L1_ENTRIES_PER_SECTOR && l1_start_index + i < s->l1_size;
-         i++)
-    {
+    if (buf == NULL) {
+        return -ENOMEM;
+    }
+
+    l1_start_index = QEMU_ALIGN_DOWN(l1_index, nentries);
+    for (i = 0; i < MIN(nentries, s->l1_size - l1_start_index); i++) {
         buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
     }
 
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
-            s->l1_table_offset + 8 * l1_start_index, sizeof(buf), false);
+            s->l1_table_offset + 8 * l1_start_index, bufsize, false);
     if (ret < 0) {
         return ret;
     }
@@ -243,7 +248,7 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
     ret = bdrv_pwrite_sync(bs->file,
                            s->l1_table_offset + 8 * l1_start_index,
-                           buf, sizeof(buf));
+                           buf, bufsize);
     if (ret < 0) {
         return ret;
     }
