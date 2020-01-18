@@ -4,15 +4,14 @@ stub-obj-y = stubs/
 util-obj-y = crypto/ util/ qobject/ qapi/
 qom-obj-y = qom/
 
+#######################################################################
+# code used by both qemu system emulation and qemu-img
+
+ifeq ($(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS)),y)
+
 chardev-obj-y = chardev/
 
-#######################################################################
-# authz-obj-y is code used by both qemu system emulation and qemu-img
-
 authz-obj-y = authz/
-
-#######################################################################
-# block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = nbd/
 block-obj-y += block.o blockjob.o job.o
@@ -22,15 +21,11 @@ block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-m = block/
 
-#######################################################################
-# crypto-obj-y is code used by both qemu system emulation and qemu-img
-
 crypto-obj-y = crypto/
 
-#######################################################################
-# io-obj-y is code used by both qemu system emulation and qemu-img
-
 io-obj-y = io/
+
+endif # CONFIG_SOFTMMU or CONFIG_TOOLS
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
