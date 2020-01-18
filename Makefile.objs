@@ -71,11 +71,9 @@ qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 
 common-obj-$(CONFIG_FDT) += device_tree.o
 
-######################################################################
-# qapi
-
 common-obj-y += qapi/
-endif
+
+endif # CONFIG_SOFTMMU
 
 #######################################################################
 # Target-independent parts used in system and user emulation
