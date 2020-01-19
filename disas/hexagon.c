@@ -23,9 +23,6 @@
 #include "disas/dis-asm.h"
 #include "target/hexagon/cpu_bits.h"
 
-extern int disassemble_hexagon(uint32_t *words, int nwords,
-                               char *buf, int bufsize);
-
 int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
 {
     uint32_t words[PACKET_WORDS_MAX];
@@ -35,15 +32,15 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
     int i;
 
     for (i = 0; i < PACKET_WORDS_MAX; i++) {
-        status = (*info->read_memory_func)(memaddr + i*sizeof(uint32_t),
+        status = (*info->read_memory_func)(memaddr + i * sizeof(uint32_t),
                                            (bfd_byte *)&words[i],
                                            sizeof(uint32_t), info);
         if (status) {
-           if (i > 0) {
-               break;
-           }
-           (*info->memory_error_func)(status, memaddr, info);
-           return status;
+            if (i > 0) {
+                break;
+            }
+            (*info->memory_error_func)(status, memaddr, info);
+            return status;
         }
     }
 

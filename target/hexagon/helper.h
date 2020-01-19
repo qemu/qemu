@@ -25,6 +25,8 @@ DEF_HELPER_3(sfrecipa_val, s32, env, s32, s32)
 DEF_HELPER_3(sfrecipa_pred, s32, env, s32, s32)
 DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
 DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
+DEF_HELPER_4(vacsh_val, s64, env, s64, s64, s64)
+DEF_HELPER_4(vacsh_pred, s32, env, s64, s64, s64)
 
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
 #include "qemu_def_generated.h"

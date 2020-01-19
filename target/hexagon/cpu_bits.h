@@ -31,4 +31,7 @@
 
 #define PACKET_WORDS_MAX         4
 
+extern int disassemble_hexagon(uint32_t *words, int nwords,
+                               char *buf, int bufsize);
+
 #endif

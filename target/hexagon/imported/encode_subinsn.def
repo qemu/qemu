@@ -83,13 +83,13 @@ DEF_ENC_SUBINSN(SS2_allocframe,  SUBINSN_S2, "111 0iiiii----")
 /* A-type subinsns */
 /*******************/
 DEF_ENC_SUBINSN(SA1_addi,       SUBINSN_A, "00i iiiiiixxxx")
-DEF_ENC_SUBINSN(SA1_seti,       SUBINSN_A, "010 iiiiiidddd") 
-DEF_ENC_SUBINSN(SA1_addsp,      SUBINSN_A, "011 iiiiiidddd") 
+DEF_ENC_SUBINSN(SA1_seti,       SUBINSN_A, "010 iiiiiidddd")
+DEF_ENC_SUBINSN(SA1_addsp,      SUBINSN_A, "011 iiiiiidddd")
 
 DEF_ENC_SUBINSN(SA1_tfr,        SUBINSN_A, "100 00ssssdddd")
-DEF_ENC_SUBINSN(SA1_inc,        SUBINSN_A, "100 01ssssdddd") 
+DEF_ENC_SUBINSN(SA1_inc,        SUBINSN_A, "100 01ssssdddd")
 DEF_ENC_SUBINSN(SA1_and1,       SUBINSN_A, "100 10ssssdddd")
-DEF_ENC_SUBINSN(SA1_dec,        SUBINSN_A, "100 11ssssdddd") 
+DEF_ENC_SUBINSN(SA1_dec,        SUBINSN_A, "100 11ssssdddd")
 
 DEF_ENC_SUBINSN(SA1_sxth,       SUBINSN_A, "101 00ssssdddd")
 DEF_ENC_SUBINSN(SA1_sxtb,       SUBINSN_A, "101 01ssssdddd")

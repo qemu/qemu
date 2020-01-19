@@ -935,8 +935,8 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
     } while (0)
 #define fEA_IRs(IMM, REG, SCALE) \
     do { \
-        tcg_gen_shl_tl(tmp, REG, SCALE); \
-        tcg_gen_add_tl(EA, IMM, tmp); \
+        tcg_gen_shl_tl(EA, REG, SCALE); \
+        tcg_gen_add_tl(EA, IMM, EA); \
     } while (0)
 #else
 #define fEA_RI(REG, IMM) \
