@@ -41,42 +41,6 @@ typedef enum hvx_resource {
 #define USED    0
 
 static int
-handle_bad_packet(const char *reason)
-{
-    /* FIXME - Need proper error handling for invalid instruction */
-    printf("ERROR: %s\n", reason);
-    g_assert_not_reached();
-    return 1;
-}
-
-static int
-check_scatter_gather_packet(hvx_resource_t *resources, int *ilist,
-                            int num_insn, packet_t *packet)
-{
-
-    int current_insn = 0;
-    int scatter_gather_count = 0;
-    /* Loop on vector instruction count */
-    for (current_insn = 0; current_insn < num_insn; current_insn++) {
-        /* valid instruction */
-        if (ilist[current_insn] > -1) {
-            scatter_gather_count +=
-                GET_ATTRIB(packet->insn[ilist[current_insn]].opcode,
-                           A_CVI_SCATTER) ;
-            scatter_gather_count +=
-                GET_ATTRIB(packet->insn[ilist[current_insn]].opcode,
-                           A_CVI_GATHER) ;
-        }
-    }
-
-    if (scatter_gather_count > 1) {
-        return handle_bad_packet("Only one scatter/gather opcode per packet");
-    }
-
-    return 0;
-}
-
-static int
 check_dv_instruction(hvx_resource_t *resources, int *ilist,
                      int num_insn, packet_t *packet, unsigned int attribute,
                      hvx_resource_t resource0, hvx_resource_t resource1)
@@ -98,8 +62,7 @@ check_dv_instruction(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << resource1);
                 } else {
-                    return handle_bad_packet("Double vector instruction needs "
-                                             "two resources");
+                    g_assert_not_reached();
                 }
                 ilist[current_insn] = -1;     /* Remove Instruction */
             }
@@ -108,7 +71,7 @@ check_dv_instruction(hvx_resource_t *resources, int *ilist,
     return 0;
 }
 
-/* Double Vector instructions that can use anyone of specific or both pairs */
+/* Double Vector instructions that can use any one of specific or both pairs */
 static int
 check_dv_instruction2(hvx_resource_t *resources, int *ilist,
                       int num_insn, packet_t *packet, unsigned int attribute,
@@ -140,9 +103,7 @@ check_dv_instruction2(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << resource1);
                 } else {
-                    return handle_bad_packet("Double vector instruction needs "
-                                             "two resources from one of two "
-                                             "options.");
+                    g_assert_not_reached();
                 }
                 ilist[current_insn] = -1;     /* Remove Instruction */
             }
@@ -178,8 +139,7 @@ check_umem_instruction(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << HVX_RESOURCE_PERM);
                 } else {
-                    return handle_bad_packet("one or more of load, store, or "
-                                             "permute resource unavailable.");
+                    g_assert_not_reached();
                 }
 
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -209,7 +169,7 @@ check_mem_instruction(hvx_resource_t *resources, int *ilist,
                         packet->insn[ilist[current_insn]].hvx_resource |=
                             (1 << HVX_RESOURCE_LOAD);
                     } else {
-                        return handle_bad_packet("load resource unavailable");
+                        g_assert_not_reached();
                     }
 
                 } else if (GET_ATTRIB(opcode, A_STORE)) {
@@ -218,10 +178,10 @@ check_mem_instruction(hvx_resource_t *resources, int *ilist,
                         packet->insn[ilist[current_insn]].hvx_resource |=
                             (1 << HVX_RESOURCE_STORE);
                     } else {
-                        return handle_bad_packet("store resource unavailable");
+                        g_assert_not_reached();
                     }
                 } else {
-                    return handle_bad_packet("unknown vector memory instr");
+                    g_assert_not_reached();
                 }
 
                 /* Not a load temp and not a store new */
@@ -247,8 +207,7 @@ check_mem_instruction(hvx_resource_t *resources, int *ilist,
                         packet->insn[ilist[current_insn]].hvx_resource |=
                             (1 << HVX_RESOURCE_MPY1);
                     } else {
-                        return handle_bad_packet("no vector execution "
-                                                 "resources available");
+                        g_assert_not_reached();
                     }
                 }
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -281,7 +240,7 @@ check_instruction1(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << resource0);
                 } else {
-                    return handle_bad_packet("unavailable vector resource");
+                    g_assert_not_reached();
                 }
 
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -315,7 +274,7 @@ check_instruction2(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << resource1);
                 } else {
-                    return handle_bad_packet("unavailable vector resource");
+                    g_assert_not_reached();
                 }
 
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -358,7 +317,7 @@ check_instruction4(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << resource3);
                 } else {
-                    return handle_bad_packet("unavailable vector resource");
+                    g_assert_not_reached();
                 }
 
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -398,8 +357,7 @@ check_4res_instruction(hvx_resource_t *resources, int *ilist,
                     packet->insn[ilist[current_insn]].hvx_resource |=
                         (1 << HVX_RESOURCE_MPY1);
                 } else {
-                    return handle_bad_packet("all vector resources needed, "
-                                             "not all available");
+                    g_assert_not_reached();
                 }
 
                 ilist[current_insn] = -1;     /* Remove Instruction */
@@ -478,8 +436,6 @@ decode_populate_cvi_resources(packet_t *packet)
                                  packet, A_CVI_VA,
                                  HVX_RESOURCE_SHIFT, HVX_RESOURCE_PERM,
                                  HVX_RESOURCE_MPY0, HVX_RESOURCE_MPY1);
-    errors += check_scatter_gather_packet(hvx_resources, vlist, num_insn,
-                                          packet);
 
     return errors;
 }
@@ -529,8 +485,7 @@ check_new_value(packet_t *packet)
              */
             if ((def_off != 0) || (def_idx < 0) ||
                 (def_idx > (packet->num_insns - 1))) {
-                return handle_bad_packet("A new-value consumer has no valid "
-                                         "producer!");
+                g_assert_not_reached();
             }
             /* previous insn is the producer */
             def_opcode = packet->insn[def_idx].opcode;
@@ -550,9 +505,7 @@ check_new_value(packet_t *packet)
             } else {
                 if (dststr == NULL) {
                     /* still not there, we have a bad packet */
-                    return handle_bad_packet("A new-value consumer has no "
-                                             "valid producer! (can't find "
-                                             "written reg)");
+                    g_assert_not_reached();
                 }
                 def_regnum = packet->insn[def_idx].regno[dststr - reginfo];
                 /* Now patch up the consumer with the register number */

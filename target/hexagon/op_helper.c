@@ -22,7 +22,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "exec/helper-proto.h"
-#include "tcg-op.h"
+#include "tcg/tcg-op.h"
 #include "cpu.h"
 #include "internal.h"
 #include "macros.h"
@@ -326,12 +326,13 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
 }
 
 /*
- * sfrecipa and sfinvsqrta have two results
+ * sfrecipa, sfinvsqrta, vacsh have two results
  *     r0,p0=sfrecipa(r1,r2)
  *     r0,p0=sfinvsqrta(r1)
+ *     r1:0,p0=vacsh(r3:2,r5:4)
  * Since helpers can only return a single value, we have two helpers
  * for each of these. They each contain basically the same code (copy/pasted
- * from the arch library), but * one returns the register and the other
+ * from the arch library), but one returns the register and the other
  * returns the predicate.
  */
 int32_t HELPER(sfrecipa_val)(CPUHexagonState *env, int32_t RsV, int32_t RtV)
@@ -402,6 +403,48 @@ int32_t HELPER(sfinvsqrta_pred)(CPUHexagonState *env, int32_t RsV)
         mant = (fSF_INVSQRT_LOOKUP(idx) << 15);
         exp = fSF_BIAS() - ((fSF_GETEXP(RsV) - fSF_BIAS()) >> 1) - 1;
         RdV = fMAKESF(fGETBIT(31, RsV), exp, mant);
+    }
+    return PeV;
+}
+
+int64_t HELPER(vacsh_val)(CPUHexagonState *env,
+                           int64_t RxxV, int64_t RssV, int64_t RttV)
+{
+    int32_t PeV = 0;
+    fHIDE(int i;)
+    fHIDE(int xv;)
+    fHIDE(int sv;)
+    fHIDE(int tv;)
+    for (i = 0; i < 4; i++) {
+        xv = (int)fGETHALF(i, RxxV);
+        sv = (int)fGETHALF(i, RssV);
+        tv = (int)fGETHALF(i, RttV);
+        xv = xv + tv;
+        sv = sv - tv;
+        fSETBIT(i * 2, PeV, (xv > sv));
+        fSETBIT(i * 2 + 1, PeV, (xv > sv));
+        fSETHALF(i, RxxV, fSATH(fMAX(xv, sv)));
+    }
+    return RxxV;
+}
+
+int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
+                           int64_t RxxV, int64_t RssV, int64_t RttV)
+{
+    int32_t PeV = 0;
+    fHIDE(int i;)
+    fHIDE(int xv;)
+    fHIDE(int sv;)
+    fHIDE(int tv;)
+    for (i = 0; i < 4; i++) {
+        xv = (int)fGETHALF(i, RxxV);
+        sv = (int)fGETHALF(i, RssV);
+        tv = (int)fGETHALF(i, RttV);
+        xv = xv + tv;
+        sv = sv - tv;
+        fSETBIT(i * 2, PeV, (xv > sv));
+        fSETBIT(i * 2 + 1, PeV, (xv > sv));
+        fSETHALF(i, RxxV, fSATH(fMAX(xv, sv)));
     }
     return PeV;
 }

@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* 
- * This just includes all encoding files 
+/*
+ * This just includes all encoding files
  */
 
 #ifndef DEF_FIELD32

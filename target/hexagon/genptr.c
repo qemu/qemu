@@ -21,7 +21,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "internal.h"
-#include "tcg-op.h"
+#include "tcg/tcg-op.h"
 #include "opcodes.h"
 #include "translate.h"
 #include "macros.h"
@@ -100,8 +100,8 @@
 /* Byte load instructions */
 #define fWRAP_L2_loadrub_io(GENHLPR, SHORTCODE)      SHORTCODE
 #define fWRAP_L2_loadrb_io(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L4_loadrub_ur(GENHLPR, SHORTCODE)      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L4_loadrb_ur(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
+#define fWRAP_L4_loadrub_ur(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L4_loadrb_ur(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L4_loadrub_rr(GENHLPR, SHORTCODE)      SHORTCODE
 #define fWRAP_L4_loadrb_rr(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L2_loadrubgp(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
@@ -112,8 +112,8 @@
 /* Half word load instruction */
 #define fWRAP_L2_loadruh_io(GENHLPR, SHORTCODE)      SHORTCODE
 #define fWRAP_L2_loadrh_io(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L4_loadruh_ur(GENHLPR, SHORTCODE)      fWRAP_tmp(SHORTCODE)
-#define fWRAP_L4_loadrh_ur(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
+#define fWRAP_L4_loadruh_ur(GENHLPR, SHORTCODE)      SHORTCODE
+#define fWRAP_L4_loadrh_ur(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L4_loadruh_rr(GENHLPR, SHORTCODE)      SHORTCODE
 #define fWRAP_L4_loadrh_rr(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L2_loadruhgp(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
@@ -123,7 +123,7 @@
 
 /* Word load instructions */
 #define fWRAP_L2_loadri_io(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L4_loadri_ur(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
+#define fWRAP_L4_loadri_ur(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L4_loadri_rr(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L2_loadrigp(GENHLPR, SHORTCODE)        fWRAP_tmp(SHORTCODE)
 #define fWRAP_SL1_loadri_io(GENHLPR, SHORTCODE)      SHORTCODE
@@ -131,7 +131,7 @@
 
 /* Double word load instructions */
 #define fWRAP_L2_loadrd_io(GENHLPR, SHORTCODE)       SHORTCODE
-#define fWRAP_L4_loadrd_ur(GENHLPR, SHORTCODE)       fWRAP_tmp(SHORTCODE)
+#define fWRAP_L4_loadrd_ur(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L4_loadrd_rr(GENHLPR, SHORTCODE)       SHORTCODE
 #define fWRAP_L2_loadrdgp(GENHLPR, SHORTCODE)        fWRAP_tmp(SHORTCODE)
 #define fWRAP_SL2_loadrd_sp(GENHLPR, SHORTCODE)      fWRAP_tmp(SHORTCODE)
@@ -1236,8 +1236,8 @@
 
 #define fWRAP_A5_ACS(GENHLPR, SHORTCODE) \
     do { \
-        printf("FIXME: multiple definition inst needs check " #GENHLPR "\n"); \
-        g_assert_not_reached(); \
+        gen_helper_vacsh_val(RxxV, cpu_env, RxxV, RssV, RttV); \
+        gen_helper_vacsh_pred(PeV, cpu_env, RxxV, RssV, RttV); \
     } while (0)
 
 /*

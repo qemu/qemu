@@ -95,7 +95,7 @@ static void init_attribs(int tag, ...)
 static size4u_t str2val(const char *str)
 {
     size4u_t ret = 0;
-    for (/* no setup */ ; *str; str++) {
+    for ( ; *str; str++) {
         switch (*str) {
         case ' ':
         case '\t':

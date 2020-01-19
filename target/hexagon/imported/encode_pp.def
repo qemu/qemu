@@ -1025,7 +1025,7 @@ MPYI_ENC(M2_naccii,          "0010","xxxxx","-","-","1"     )
 
 
 DEF_FIELDROW_DESC32(ICLASS_M" 0011 -------- PP------ --------","[#3] Ry=(Ru,(Rs,Ry)) ")
-DEF_ENC32(M4_mpyrr_addr,ICLASS_M" 0011 000sssss PP-yyyyy ---uuuuu") 
+DEF_ENC32(M4_mpyrr_addr,ICLASS_M" 0011 000sssss PP-yyyyy ---uuuuu")
 
 
 DEF_FIELDROW_DESC32(ICLASS_M" 0100 -------- PP------ --------","[#4] Rdd=(Rs,Rt)")
@@ -1999,7 +1999,7 @@ SH_RRR_ENC(S2_shuffob,          "0001","00-","-","10-","ddddd")
 SH_RRR_ENC(S2_shuffeh,          "0001","00-","-","11-","ddddd")
 
 SH_RRR_ENC(S2_shuffoh,          "0001","10-","-","000","ddddd")
-// 001 
+// 001
 SH_RRR_ENC(S2_vtrunewh,         "0001","10-","-","010","ddddd")
 SH_RRR_ENC(S6_vtrunehb_ppp,		"0001","10-","-","011","ddddd")
 SH_RRR_ENC(S2_vtrunowh,         "0001","10-","-","100","ddddd")

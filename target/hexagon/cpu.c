@@ -68,9 +68,12 @@ static inline target_ulong hack_stack_ptrs(CPUHexagonState *env,
 {
     static bool first = true;
     if (first) {
+        first = false;
         env->stack_start = env->gpr[HEX_REG_SP];
         env->gpr[HEX_REG_USR] = 0x560000;
-#if 0
+
+#define ADJUST_STACK 0
+#if ADJUST_STACK
         /*
          * Change the two numbers below to
          *     1    qemu stack location
@@ -81,7 +84,6 @@ static inline target_ulong hack_stack_ptrs(CPUHexagonState *env,
 #else
         env->stack_adjust = 0;
 #endif
-        first = false;
     }
 
     target_ulong stack_start = env->stack_start;
@@ -193,8 +195,12 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
 #endif
     fprintf(f, "}\n");
 
-
-#if 0
+/*
+ * The HVX register dump takes up a ton of space in the log
+ * Don't print it unless it is needed
+ */
+#define DUMP_HVX 0
+#if DUMP_HVX
     fprintf(f, "Vector Registers = {\n");
     for (i = 0; i < NUM_VREGS; i++) {
         print_vreg(f, env, i);
