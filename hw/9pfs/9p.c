@@ -2472,8 +2472,7 @@ static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 
 
     if (fidp->fs.xattr.len < off) {
-        err = -ENOSPC;
-        goto out;
+        return -ENOSPC;
     }
     write_count = fidp->fs.xattr.len - off;
     if (write_count > count) {
@@ -2499,7 +2498,7 @@ static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
         off += to_copy;
         write_count -= to_copy;
     }
-out:
+
     return err;
 }
 
@@ -3067,8 +3066,7 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
     if (newdirfid != -1) {
         dirfidp = get_fid(pdu, newdirfid);
         if (dirfidp == NULL) {
-            err = -ENOENT;
-            goto out_nofid;
+            return -ENOENT;
         }
         if (fidp->fid_type != P9_FID_NONE) {
             err = -EINVAL;
@@ -3111,7 +3109,6 @@ out:
         put_fid(pdu, dirfidp);
     }
     v9fs_path_free(&new_path);
-out_nofid:
     return err;
 }
 
