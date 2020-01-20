@@ -1764,7 +1764,7 @@ async_common:
         qxl_set_mode(d, val, 0);
         break;
     case QXL_IO_LOG:
-        if (TRACE_QXL_IO_LOG_ENABLED || d->guestdebug) {
+        if (trace_event_get_state_backends(TRACE_QXL_IO_LOG) || d->guestdebug) {
             /* We cannot trust the guest to NUL terminate d->ram->log_buf */
             char *log_buf = g_strndup((const char *)d->ram->log_buf,
                                       sizeof(d->ram->log_buf));
