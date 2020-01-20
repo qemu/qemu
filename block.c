@@ -4807,14 +4807,15 @@ BlockDriverState *bdrv_find_node(const char *node_name)
 }
 
 /* Put this QMP function here so it can access the static graph_bdrv_states. */
-BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
+BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
+                                           Error **errp)
 {
     BlockDeviceInfoList *list, *entry;
     BlockDriverState *bs;
 
     list = NULL;
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
-        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, errp);
+        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, flat, errp);
         if (!info) {
             qapi_free_BlockDeviceInfoList(list);
             return NULL;

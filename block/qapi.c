@@ -42,7 +42,9 @@
 #include "qemu/cutils.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
-                                        BlockDriverState *bs, Error **errp)
+                                        BlockDriverState *bs,
+                                        bool flat,
+                                        Error **errp)
 {
     ImageInfo **p_image_info;
     BlockDriverState *bs0;
@@ -154,6 +156,11 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
             error_propagate(errp, local_err);
             qapi_free_BlockDeviceInfo(info);
             return NULL;
+        }
+
+        /* stop gathering data for flat output */
+        if (flat) {
+            break;
         }
 
         if (bs0->drv && bs0->backing) {
@@ -389,7 +396,7 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 
     if (bs && bs->drv) {
         info->has_inserted = true;
-        info->inserted = bdrv_block_device_info(blk, bs, errp);
+        info->inserted = bdrv_block_device_info(blk, bs, false, errp);
         if (info->inserted == NULL) {
             goto err;
         }

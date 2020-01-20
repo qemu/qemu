@@ -3734,9 +3734,13 @@ void qmp_drive_backup(DriveBackup *backup, Error **errp)
     blockdev_do_action(&action, errp);
 }
 
-BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
+BlockDeviceInfoList *qmp_query_named_block_nodes(bool has_flat,
+                                                 bool flat,
+                                                 Error **errp)
 {
-    return bdrv_named_nodes_list(errp);
+    bool return_flat = has_flat && flat;
+
+    return bdrv_named_nodes_list(return_flat, errp);
 }
 
 XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
