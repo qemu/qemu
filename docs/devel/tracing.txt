@@ -342,8 +342,10 @@ edit the "trace-events-all" file).
 
 In addition, there might be cases where relatively complex computations must be
 performed to generate values that are only used as arguments for a trace
-function. In these cases you can use the macro 'TRACE_${EVENT_NAME}_ENABLED' to
-guard such computations and avoid its compilation when the event is disabled:
+function. In these cases you can use 'trace_event_get_state_backends()' to
+guard such computations, so they are skipped if the event has been either
+compile-time disabled or run-time disabled. If the event is compile-time
+disabled, this check will have no performance impact.
 
     #include "trace.h"  /* needed for trace event prototype */
     
@@ -356,17 +358,13 @@ guard such computations and avoid its compilation when the event is disabled:
             align = getpagesize();
         }
         ptr = qemu_memalign(align, size);
-        if (TRACE_QEMU_VMALLOC_ENABLED) { /* preprocessor macro */
+        if (trace_event_get_state_backends(TRACE_QEMU_VMALLOC)) {
             void *complex;
             /* some complex computations to produce the 'complex' value */
             trace_qemu_vmalloc(size, ptr, complex);
         }
         return ptr;
     }
-
-You can check both if the event has been disabled and is dynamically enabled at
-the same time using the 'trace_event_get_state_backends' routine (see header
-"trace/control.h" for more information).
 
 === "tcg" ===
 
