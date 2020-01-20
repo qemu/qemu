@@ -52,7 +52,7 @@ run_qemu()
     local qmp_format="$3"
     local qmp_event="$4"
 
-    _launch_qemu -drive file="${source_img}",format=raw,cache=${CACHEMODE},id=src
+    _launch_qemu -drive file="${source_img}",format=raw,cache=${CACHEMODE},aio=${AIOMODE},id=src
     _send_qemu_cmd $QEMU_HANDLE "{ 'execute': 'qmp_capabilities' }" "return"
 
     _send_qemu_cmd $QEMU_HANDLE \

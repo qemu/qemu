@@ -67,7 +67,7 @@ echo === Starting QEMU VM ===
 echo
 qemu_comm_method="qmp"
 _launch_qemu -object iothread,id=iothread0 $virtio_scsi \
-             -drive file="${TEST_IMG}",media=disk,if=none,cache=$CACHEMODE,id=drive_sysdisk,format=$IMGFMT \
+             -drive file="${TEST_IMG}",media=disk,if=none,cache=$CACHEMODE,aio=$AIOMODE,id=drive_sysdisk,format=$IMGFMT \
              -device scsi-hd,drive=drive_sysdisk,bus=scsi0.0,id=sysdisk,bootindex=0
 h1=$QEMU_HANDLE
 

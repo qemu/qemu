@@ -108,7 +108,7 @@ echo block-backup
 echo
 
 qemu_comm_method="monitor"
-_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},aio=${AIOMODE},id=disk
 h=$QEMU_HANDLE
 if [ "${VALGRIND_QEMU}" == "y" ]; then
     QEMU_COMM_TIMEOUT=7
