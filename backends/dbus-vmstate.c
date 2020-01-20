@@ -412,7 +412,8 @@ dbus_vmstate_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    if (vmstate_register(VMSTATE_IF(self), -1, &dbus_vmstate, self) < 0) {
+    if (vmstate_register(VMSTATE_IF(self), VMSTATE_INSTANCE_ID_ANY,
+                         &dbus_vmstate, self) < 0) {
         error_setg(errp, "Failed to register vmstate");
     }
 }

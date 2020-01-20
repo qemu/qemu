@@ -146,7 +146,8 @@ static int max111x_init(SSISlave *d, int inputs)
     s->input[7] = 0x80;
     s->com = 0;
 
-    vmstate_register(VMSTATE_IF(dev), -1, &vmstate_max111x, s);
+    vmstate_register(VMSTATE_IF(dev), VMSTATE_INSTANCE_ID_ANY,
+                     &vmstate_max111x, s);
     return 0;
 }
 

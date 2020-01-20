@@ -4,7 +4,7 @@
 const VMStateDescription vmstate_dummy = {};
 
 int vmstate_register_with_alias_id(VMStateIf *obj,
-                                   int instance_id,
+                                   uint32_t instance_id,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,
                                    int required_for_version,

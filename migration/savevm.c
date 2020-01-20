@@ -233,7 +233,7 @@ typedef struct CompatEntry {
 typedef struct SaveStateEntry {
     QTAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
-    int instance_id;
+    uint32_t instance_id;
     int alias_id;
     int version_id;
     /* version id read from the stream */
@@ -250,6 +250,7 @@ typedef struct SaveStateEntry {
 
 typedef struct SaveState {
     QTAILQ_HEAD(, SaveStateEntry) handlers;
+    SaveStateEntry *handler_pri_head[MIG_PRI_MAX + 1];
     int global_section_id;
     uint32_t len;
     const char *name;
@@ -261,6 +262,7 @@ typedef struct SaveState {
 
 static SaveState savevm_state = {
     .handlers = QTAILQ_HEAD_INITIALIZER(savevm_state.handlers),
+    .handler_pri_head = { [MIG_PRI_DEFAULT ... MIG_PRI_MAX] = NULL },
     .global_section_id = 0,
 };
 
@@ -665,10 +667,10 @@ void dump_vmstate_json_to_file(FILE *out_file)
     fclose(out_file);
 }
 
-static int calculate_new_instance_id(const char *idstr)
+static uint32_t calculate_new_instance_id(const char *idstr)
 {
     SaveStateEntry *se;
-    int instance_id = 0;
+    uint32_t instance_id = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (strcmp(idstr, se->idstr) == 0
@@ -676,6 +678,8 @@ static int calculate_new_instance_id(const char *idstr)
             instance_id = se->instance_id + 1;
         }
     }
+    /* Make sure we never loop over without being noticed */
+    assert(instance_id != VMSTATE_INSTANCE_ID_ANY);
     return instance_id;
 }
 
@@ -709,20 +713,43 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
 {
     MigrationPriority priority = save_state_priority(nse);
     SaveStateEntry *se;
+    int i;
 
     assert(priority <= MIG_PRI_MAX);
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (save_state_priority(se) < priority) {
+    for (i = priority - 1; i >= 0; i--) {
+        se = savevm_state.handler_pri_head[i];
+        if (se != NULL) {
+            assert(save_state_priority(se) < priority);
             break;
         }
     }
 
-    if (se) {
+    if (i >= 0) {
         QTAILQ_INSERT_BEFORE(se, nse, entry);
     } else {
         QTAILQ_INSERT_TAIL(&savevm_state.handlers, nse, entry);
     }
+
+    if (savevm_state.handler_pri_head[priority] == NULL) {
+        savevm_state.handler_pri_head[priority] = nse;
+    }
+}
+
+static void savevm_state_handler_remove(SaveStateEntry *se)
+{
+    SaveStateEntry *next;
+    MigrationPriority priority = save_state_priority(se);
+
+    if (se == savevm_state.handler_pri_head[priority]) {
+        next = QTAILQ_NEXT(se, entry);
+        if (next != NULL && save_state_priority(next) == priority) {
+            savevm_state.handler_pri_head[priority] = next;
+        } else {
+            savevm_state.handler_pri_head[priority] = NULL;
+        }
+    }
+    QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
 }
 
 /* TODO: Individual devices generally have very little idea about the rest
@@ -730,7 +757,7 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
 int register_savevm_live(const char *idstr,
-                         int instance_id,
+                         uint32_t instance_id,
                          int version_id,
                          const SaveVMHandlers *ops,
                          void *opaque)
@@ -750,7 +777,7 @@ int register_savevm_live(const char *idstr,
 
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
-    if (instance_id == -1) {
+    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
@@ -777,14 +804,14 @@ void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque)
 
     QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
         if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
-            QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
+            savevm_state_handler_remove(se);
             g_free(se->compat);
             g_free(se);
         }
     }
 }
 
-int vmstate_register_with_alias_id(VMStateIf *obj, int instance_id,
+int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
                                    const VMStateDescription *vmsd,
                                    void *opaque, int alias_id,
                                    int required_for_version,
@@ -817,14 +844,14 @@ int vmstate_register_with_alias_id(VMStateIf *obj, int instance_id,
 
             se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
-            se->compat->instance_id = instance_id == -1 ?
+            se->compat->instance_id = instance_id == VMSTATE_INSTANCE_ID_ANY ?
                          calculate_compat_instance_id(vmsd->name) : instance_id;
-            instance_id = -1;
+            instance_id = VMSTATE_INSTANCE_ID_ANY;
         }
     }
     pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);
 
-    if (instance_id == -1) {
+    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
@@ -841,7 +868,7 @@ void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
 
     QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
         if (se->vmsd == vmsd && se->opaque == opaque) {
-            QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
+            savevm_state_handler_remove(se);
             g_free(se->compat);
             g_free(se);
         }
@@ -1600,7 +1627,7 @@ int qemu_save_device_state(QEMUFile *f)
     return qemu_file_get_error(f);
 }
 
-static SaveStateEntry *find_se(const char *idstr, int instance_id)
+static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
 {
     SaveStateEntry *se;
 
@@ -2267,7 +2294,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     /* Find savevm section */
     se = find_se(idstr, instance_id);
     if (se == NULL) {
-        error_report("Unknown savevm section or instance '%s' %d. "
+        error_report("Unknown savevm section or instance '%s' %"PRIu32". "
                      "Make sure that your current VM setup matches your "
                      "saved VM setup, including any hotplugged devices",
                      idstr, instance_id);
@@ -2291,7 +2318,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 
     ret = vmstate_load(f, se);
     if (ret < 0) {
-        error_report("error while loading state for instance 0x%x of"
+        error_report("error while loading state for instance 0x%"PRIx32" of"
                      " device '%s'", instance_id, idstr);
         return ret;
     }

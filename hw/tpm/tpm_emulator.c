@@ -914,7 +914,8 @@ static void tpm_emulator_inst_init(Object *obj)
     tpm_emu->cur_locty_number = ~0;
     qemu_mutex_init(&tpm_emu->mutex);
 
-    vmstate_register(NULL, -1, &vmstate_tpm_emulator, obj);
+    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
+                     &vmstate_tpm_emulator, obj);
 }
 
 /*
