@@ -420,7 +420,7 @@ static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
             size_t to_copy = MIN(len, hw->size_emul - hw->pos_emul);
             memcpy(hw->buf_emul + hw->pos_emul, buf, to_copy);
 
-            hw->pos_emul = (hw->pos_emul + to_copy) % hw->pos_emul;
+            hw->pos_emul = (hw->pos_emul + to_copy) % hw->size_emul;
             buf += to_copy;
             len -= to_copy;
         }
