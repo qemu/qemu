@@ -108,8 +108,8 @@ driver options if ``--image-opts`` is specified.
 
 .. option:: --aio=AIO
 
-  Set the asynchronous I/O mode between ``threads`` (the default)
-  and ``native`` (Linux only).
+  Set the asynchronous I/O mode between ``threads`` (the default),
+  ``native`` (Linux only), and ``io_uring`` (Linux 5.1+).
 
 .. option:: --discard=DISCARD
 
