@@ -2696,6 +2696,11 @@ static void kvm_init_msrs(X86CPU *cpu)
                           env->features[FEAT_CORE_CAPABILITY]);
     }
 
+    if (kvm_arch_get_supported_msr_feature(kvm_state,
+                                           MSR_IA32_UCODE_REV)) {
+        kvm_msr_entry_add(cpu, MSR_IA32_UCODE_REV, cpu->ucode_rev);
+    }
+
     /*
      * Older kernels do not include VMX MSRs in KVM_GET_MSR_INDEX_LIST, but
      * all kernels with MSR features should have them.
