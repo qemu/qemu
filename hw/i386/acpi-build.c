@@ -1816,7 +1816,6 @@ static void build_smb0(Aml *table, I2CBus *smbus, int devnr, int func)
     Aml *scope = aml_scope("_SB.PCI0");
     Aml *dev = aml_device("SMB0");
 
-    aml_append(dev, aml_name_decl("_HID", aml_eisaid("APP0005")));
     aml_append(dev, aml_name_decl("_ADR", aml_int(devnr << 16 | func)));
     build_acpi_ipmi_devices(dev, BUS(smbus), "\\_SB.PCI0.SMB0");
     aml_append(scope, dev);
