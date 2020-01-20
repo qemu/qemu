@@ -1523,7 +1523,7 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
 
     fi->fh = fh;
     if (lo->cache == CACHE_ALWAYS) {
-        fi->keep_cache = 1;
+        fi->cache_readdir = 1;
     }
     fuse_reply_open(req, fi);
     return;
