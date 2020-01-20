@@ -41,6 +41,18 @@ void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
 }
 
 #ifdef TARGET_PPC64
+static void raise_hv_fu_exception(CPUPPCState *env, uint32_t bit,
+                                  const char *caller, uint32_t cause,
+                                  uintptr_t raddr)
+{
+    qemu_log_mask(CPU_LOG_INT, "HV Facility %d is unavailable (%s)\n",
+                  bit, caller);
+
+    env->spr[SPR_HFSCR] &= ~((target_ulong)FSCR_IC_MASK << FSCR_IC_POS);
+
+    raise_exception_err_ra(env, POWERPC_EXCP_HV_FU, cause, raddr);
+}
+
 static void raise_fu_exception(CPUPPCState *env, uint32_t bit,
                                uint32_t sprn, uint32_t cause,
                                uintptr_t raddr)
@@ -54,6 +66,17 @@ static void raise_fu_exception(CPUPPCState *env, uint32_t bit,
     raise_exception_err_ra(env, POWERPC_EXCP_FU, 0, raddr);
 }
 #endif
+
+void helper_hfscr_facility_check(CPUPPCState *env, uint32_t bit,
+                                 const char *caller, uint32_t cause)
+{
+#ifdef TARGET_PPC64
+    if ((env->msr_mask & MSR_HVB) && !msr_hv &&
+                                     !(env->spr[SPR_HFSCR] & (1UL << bit))) {
+        raise_hv_fu_exception(env, bit, caller, cause, GETPC());
+    }
+#endif
+}
 
 void helper_fscr_facility_check(CPUPPCState *env, uint32_t bit,
                                 uint32_t sprn, uint32_t cause)
@@ -114,6 +137,8 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
 {
     target_ulong dpdes = 0;
 
+    helper_hfscr_facility_check(env, HFSCR_MSGP, "load DPDES", HFSCR_IC_MSGP);
+
     /* TODO: TCG supports only one thread */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
         dpdes = 1;
@@ -126,6 +151,8 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
+
+    helper_hfscr_facility_check(env, HFSCR_MSGP, "store DPDES", HFSCR_IC_MSGP);
 
     /* TODO: TCG supports only one thread */
     if (val & ~0x1) {
