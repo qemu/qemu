@@ -105,6 +105,42 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
 
     env->spr[SPR_PCR] = value & pcc->pcr_mask;
 }
+
+/*
+ * DPDES register is shared. Each bit reflects the state of the
+ * doorbell interrupt of a thread of the same core.
+ */
+target_ulong helper_load_dpdes(CPUPPCState *env)
+{
+    target_ulong dpdes = 0;
+
+    /* TODO: TCG supports only one thread */
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
+        dpdes = 1;
+    }
+
+    return dpdes;
+}
+
+void helper_store_dpdes(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    CPUState *cs = CPU(cpu);
+
+    /* TODO: TCG supports only one thread */
+    if (val & ~0x1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid DPDES register value "
+                      TARGET_FMT_lx"\n", val);
+        return;
+    }
+
+    if (val & 0x1) {
+        env->pending_interrupts |= 1 << PPC_INTERRUPT_DOORBELL;
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
+    }
+}
 #endif /* defined(TARGET_PPC64) */
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)
