@@ -947,7 +947,7 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(ctx, name)) {
         errno = EINVAL;
-        return -1;
+        goto out;
     }
 
     odirfd = local_opendir_nofollow(ctx, odirpath);
