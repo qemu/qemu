@@ -2071,8 +2071,15 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
 #endif
         case VNC_ENCODING_ZLIB:
-            vs->features |= VNC_FEATURE_ZLIB_MASK;
-            vs->vnc_encoding = enc;
+            /*
+             * VNC_ENCODING_ZRLE compresses better than VNC_ENCODING_ZLIB.
+             * So prioritize ZRLE, even if the client hints that it prefers
+             * ZLIB.
+             */
+            if ((vs->features & VNC_FEATURE_ZRLE_MASK) == 0) {
+                vs->features |= VNC_FEATURE_ZLIB_MASK;
+                vs->vnc_encoding = enc;
+            }
             break;
         case VNC_ENCODING_ZRLE:
             vs->features |= VNC_FEATURE_ZRLE_MASK;
