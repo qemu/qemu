@@ -305,15 +305,14 @@ static void do_ext_interrupt(CPUS390XState *env)
 
     if ((env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) &&
         (env->cregs[0] & CR0_EMERGENCY_SIGNAL_SC)) {
+        MachineState *ms = MACHINE(qdev_get_machine());
+        unsigned int max_cpus = ms->smp.max_cpus;
+
         lowcore->ext_int_code = cpu_to_be16(EXT_EMERGENCY);
         cpu_addr = find_first_bit(env->emergency_signals, S390_MAX_CPUS);
         g_assert(cpu_addr < S390_MAX_CPUS);
         lowcore->cpu_addr = cpu_to_be16(cpu_addr);
         clear_bit(cpu_addr, env->emergency_signals);
-#ifndef CONFIG_USER_ONLY
-        MachineState *ms = MACHINE(qdev_get_machine());
-        unsigned int max_cpus = ms->smp.max_cpus;
-#endif
         if (bitmap_empty(env->emergency_signals, max_cpus)) {
             env->pending_int &= ~INTERRUPT_EMERGENCY_SIGNAL;
         }
