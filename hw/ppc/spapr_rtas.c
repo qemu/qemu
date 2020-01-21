@@ -268,7 +268,6 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     MachineState *ms = MACHINE(spapr);
-    unsigned int max_cpus = ms->smp.max_cpus;
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
     target_ulong length = rtas_ld(args, 2);
@@ -280,10 +279,10 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           "DesMem=%" PRIu64 ","
                                           "DesProcs=%d,"
                                           "MaxPlatProcs=%d",
-                                          max_cpus,
+                                          ms->smp.max_cpus,
                                           ms->ram_size / MiB,
                                           ms->smp.cpus,
-                                          max_cpus);
+                                          ms->smp.max_cpus);
         if (pcc->n_host_threads > 0) {
             char *hostthr_val, *old = param_val;
 
