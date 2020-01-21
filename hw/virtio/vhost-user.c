@@ -1458,9 +1458,11 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
                    "VHOST_USER_PROTOCOL_F_LOG_SHMFD feature.");
     }
 
-    err = vhost_setup_slave_channel(dev);
-    if (err < 0) {
-        return err;
+    if (dev->vq_index == 0) {
+        err = vhost_setup_slave_channel(dev);
+        if (err < 0) {
+            return err;
+        }
     }
 
     u->postcopy_notifier.notify = vhost_user_postcopy_notifier;
