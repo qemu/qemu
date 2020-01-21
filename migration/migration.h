@@ -279,6 +279,7 @@ void migrate_fd_error(MigrationState *s, const Error *error);
 void migrate_fd_connect(MigrationState *s, Error *error_in);
 
 bool migration_is_setup_or_active(int state);
+bool migration_is_running(int state);
 
 void migrate_init(MigrationState *s);
 bool migration_is_blocked(Error **errp);
