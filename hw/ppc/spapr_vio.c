@@ -87,6 +87,7 @@ static int vio_make_devnode(SpaprVioDevice *dev,
     SpaprVioDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     int vdevice_off, node_off, ret;
     char *dt_name;
+    const char *dt_compatible;
 
     vdevice_off = fdt_path_offset(fdt, "/vdevice");
     if (vdevice_off < 0) {
@@ -113,9 +114,15 @@ static int vio_make_devnode(SpaprVioDevice *dev,
         }
     }
 
-    if (pc->dt_compatible) {
+    if (pc->get_dt_compatible) {
+        dt_compatible = pc->get_dt_compatible(dev);
+    } else {
+        dt_compatible = pc->dt_compatible;
+    }
+
+    if (dt_compatible) {
         ret = fdt_setprop_string(fdt, node_off, "compatible",
-                                 pc->dt_compatible);
+                                 dt_compatible);
         if (ret < 0) {
             return ret;
         }
