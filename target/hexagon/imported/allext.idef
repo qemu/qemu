@@ -15,5 +15,11 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_CLASS32("---- ---- -------- EE------ --------",ALL_EE)
-
+/*
+ * Top level file for all instruction set extensions
+ */
+#define EXTNAME mmvec
+#define EXTSTR "mmvec"
+#include "mmvec/ext.idef"
+#undef EXTNAME
+#undef EXTSTR

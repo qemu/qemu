@@ -1,0 +1,92 @@
+/*
+ *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Top level instruction definition file
+ */
+
+#define DEF_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING), \
+		"Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_COND_MAPPING(TAG,FROMSYN,COND,TOSYNA,TOSYNB) \
+        Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CONDMAPPING), \
+		"Conditional Mapping from " FROMSYN " to either " TOSYNA " or " TOSYNB, \
+		fCOND_ASM_MAP(FROMSYN,COND,TOSYNA,TOSYNB))
+
+#define DEF_V2_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_ARCHV2), \
+		"Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_V2_COND_MAPPING(TAG,FROMSYN,COND,TOSYNA,TOSYNB) \
+        Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CONDMAPPING,A_ARCHV2), \
+		"Conditional Mapping from " FROMSYN " to either " TOSYNA " or " TOSYNB, \
+		fCOND_ASM_MAP(FROMSYN,COND,TOSYNA,TOSYNB))
+
+#define DEF_V3_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_ARCHV3), \
+		"Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_V3_COND_MAPPING(TAG,FROMSYN,COND,TOSYNA,TOSYNB) \
+        Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CONDMAPPING,A_ARCHV3), \
+		"Conditional Mapping from " FROMSYN " to either " TOSYNA " or " TOSYNB, \
+		fCOND_ASM_MAP(FROMSYN,COND,TOSYNA,TOSYNB))
+
+#define DEF_V4_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_ARCHV4), \
+		"Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_V4_COND_MAPPING(TAG,FROMSYN,COND,TOSYNA,TOSYNB) \
+        Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CONDMAPPING,A_ARCHV4), \
+		"Conditional Mapping from " FROMSYN " to either " TOSYNA " or " TOSYNB, \
+		fCOND_ASM_MAP(FROMSYN,COND,TOSYNA,TOSYNB))
+
+#define DEF_V5_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_ARCHV5), \
+		"Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_V5_COND_MAPPING(TAG,FROMSYN,COND,TOSYNA,TOSYNB) \
+        Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CONDMAPPING,A_ARCHV5), \
+		"Conditional Mapping from " FROMSYN " to either " TOSYNA " or " TOSYNB, \
+		fCOND_ASM_MAP(FROMSYN,COND,TOSYNA,TOSYNB))
+
+#define DEF_VECX_MAPPING(TAG,FROMSYN,TOSYN) \
+	EXTINSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_VECX), \
+		"VECX Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+#define DEF_CVI_MAPPING(TAG,FROMSYN,TOSYN) \
+	Q6INSN(TAG,FROMSYN,ATTRIBS(A_MAPPING,A_CVI), \
+		"CVI Mapping from " FROMSYN " to " TOSYN, \
+		fASM_MAP(FROMSYN,TOSYN))
+
+
+#include "branch.idef"
+#include "ldst.idef"
+#include "compare.idef"
+#include "mpy.idef"
+#include "alu.idef"
+#include "float.idef"
+#include "shift.idef"
+#include "system.idef"
+#include "subinsns.idef"
+#include "allext.idef"
