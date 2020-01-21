@@ -2523,7 +2523,7 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    if (s.target_has_backing) {
+    if (s.target_has_backing && s.target_is_new) {
         /* Errors are treated as "backing length unknown" (which means
          * s.target_backing_sectors has to be negative, which it will
          * be automatically).  The backing file length is used only
