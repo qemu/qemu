@@ -281,7 +281,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           "DesProcs=%d,"
                                           "MaxPlatProcs=%d",
                                           max_cpus,
-                                          current_machine->ram_size / MiB,
+                                          ms->ram_size / MiB,
                                           ms->smp.cpus,
                                           max_cpus);
         if (pcc->n_host_threads > 0) {
