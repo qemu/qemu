@@ -114,8 +114,8 @@ static void test_logfile_write(gconstpointer data)
     QemuLogFile *logfile2;
     gchar const *dir = data;
     Error *err = NULL;
-    g_autofree gchar *file_path;
-    g_autofree gchar *file_path1;
+    g_autofree gchar *file_path = NULL;
+    g_autofree gchar *file_path1 = NULL;
     FILE *orig_fd;
 
     /*
@@ -157,7 +157,7 @@ static void test_logfile_lock(gconstpointer data)
     FILE *logfile;
     gchar const *dir = data;
     Error *err = NULL;
-    g_autofree gchar *file_path;
+    g_autofree gchar *file_path = NULL;
 
     file_path = g_build_filename(dir, "qemu_test_logfile_lock0.log", NULL);
 
