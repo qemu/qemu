@@ -25,6 +25,6 @@ config TPM_EMULATOR
 
 config TPM_SPAPR
     bool
-    default n
+    default y
     depends on TPM && PSERIES
     select TPMDEV
