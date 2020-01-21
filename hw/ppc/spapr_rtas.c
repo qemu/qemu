@@ -267,7 +267,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           uint32_t nret, target_ulong rets)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineState *ms = MACHINE(spapr);
     unsigned int max_cpus = ms->smp.max_cpus;
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
