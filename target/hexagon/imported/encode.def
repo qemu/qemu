@@ -75,7 +75,6 @@
 #endif
 
 #include "encode_pp.def"
-#include "encode_ee.def"
 #include "encode_subinsn.def"
 
 #ifdef __SELF_DEF_FIELD32

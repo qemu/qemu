@@ -402,35 +402,6 @@ DEF_ENC32(L2_loadw_locked,ICLASS_LD" 001 0 000 sssss PP00---- -00ddddd")
 DEF_ENC32(L4_loadw_phys,  ICLASS_LD" 001 0 000 sssss PP1ttttt -00ddddd")
 
 
-DEF_ENC32(L6_memcpy,  	  ICLASS_LD" 001 0 000 sssss PPuttttt -1000000")
-// HMX LOAD Operations
-//DEF_ENC32(M8_mxmemb,      ICLASS_LD" 001 0 000 ----- PPuttttt -1000001")
-//DEF_ENC32(M8_mxmemub,     ICLASS_LD" 001 0 000 ----- PPuttttt -1000010")
-//DEF_ENC32(M8_mxmemdm_b,   ICLASS_LD" 001 0 000 ----- PPuttttt -1000011")
-//DEF_ENC32(M8_mxmemdm_ub,  ICLASS_LD" 001 0 000 ----- PPuttttt -1000100")
-//DEF_ENC32(M8_mxmemb_r8,   ICLASS_LD" 001 0 000 ----- PPuttttt -1000101")
-//DEF_ENC32(M8_mxmemub_r8,  ICLASS_LD" 001 0 000 ----- PPuttttt -1000110")
-//DEF_ENC32(M8_mxmemqb_r8,  ICLASS_LD" 001 0 000 ----- PPuttttt -1000111")
-//DEF_ENC32(M8_mxmemqub_r8, ICLASS_LD" 001 0 000 ----- PPuttttt -1001000")
-//DEF_ENC32(M8_mxmemb_l8,   ICLASS_LD" 001 0 000 ----- PPuttttt -1001001")
-//DEF_ENC32(M8_mxmemub_l8,  ICLASS_LD" 001 0 000 ----- PPuttttt -1001010")
-//DEF_ENC32(M8_mxmemqb_l8,  ICLASS_LD" 001 0 000 ----- PPuttttt -1001011")
-//DEF_ENC32(M8_mxmemqub_l8, ICLASS_LD" 001 0 000 ----- PPuttttt -1001100")
-//DEF_ENC32(M8_mxmemb4,     ICLASS_LD" 001 0 000 ----- PPuttttt -1001101")
-//DEF_ENC32(M8_mxmemb2,     ICLASS_LD" 001 0 000 ----- PPuttttt -1001110")
-//DEF_ENC32(M8_mxmemb1,     ICLASS_LD" 001 0 000 ----- PPuttttt -1001111")
-//DEF_ENC32(M8_mxmemsb1,    ICLASS_LD" 001 0 000 ----- PPuttttt -1010000")
-//DEF_ENC32(M8_mxmemdmb4,   ICLASS_LD" 001 0 000 ----- PPuttttt -1010001")
-//DEF_ENC32(M8_mxmemdmb2,   ICLASS_LD" 001 0 000 ----- PPuttttt -1010010")
-//DEF_ENC32(M8_mxmemdmb1,   ICLASS_LD" 001 0 000 ----- PPuttttt -1010011")
-//DEF_ENC32(M8_mxmemdmsb1,  ICLASS_LD" 001 0 000 ----- PPuttttt -1010100")
-//DEF_ENC32(M8_mxbias,      ICLASS_LD" 001 0 000 ----- PPuttttt -1010101")
-//DEF_ENC32(M8_mxidentityb,  ICLASS_LD" 001 0 000 ----- PP-ttttt -1010110")
-//DEF_ENC32(M8_mxidentityub, ICLASS_LD" 001 0 000 ----- PP-ttttt -1010111")
-//DEF_ENC32(M8_mxscalarb,    ICLASS_LD" 001 0 000 ----- PP-ttttt -1011000")
-//DEF_ENC32(M8_mxscalarub,   ICLASS_LD" 001 0 000 ----- PP-ttttt -1011001")
-
-
 
 
 
@@ -570,23 +541,6 @@ DEF_ENC32(Y5_l2fetch,      ICLASS_ST" 011 01 00sssss PP-ttttt --------")
 DEF_ENC32(Y6_l2gcleanpa,   ICLASS_ST" 011 01 01----- PP-ttttt --------")
 DEF_ENC32(Y6_l2gcleaninvpa,ICLASS_ST" 011 01 10----- PP-ttttt --------")
 
-// HMX Store
-//DEF_ENC32(M8_mxcvtb,       ICLASS_ST" 011 01 11sssss PP-ttttt ----0000")
-//DEF_ENC32(M8_mxcvtub,      ICLASS_ST" 011 01 11sssss PP-ttttt ----0001")
-//DEF_ENC32(M8_mxcvtrb,      ICLASS_ST" 011 01 11sssss PP-ttttt ----0010")
-//DEF_ENC32(M8_mxcvtrub,     ICLASS_ST" 011 01 11sssss PP-ttttt ----0011")
-//DEF_ENC32(M8_mxcvtdmb,     ICLASS_ST" 011 01 11sssss PP-ttttt ----0100")
-//DEF_ENC32(M8_mxcvtdmub,    ICLASS_ST" 011 01 11sssss PP-ttttt ----0101")
-//DEF_ENC32(M8_mxcvtdmrb,    ICLASS_ST" 011 01 11sssss PP-ttttt ----0110")
-//DEF_ENC32(M8_mxcvtdmrub,   ICLASS_ST" 011 01 11sssss PP-ttttt ----0111")
-//DEF_ENC32(M8_mxcvtb_ch,    ICLASS_ST" 011 01 11sssss PP-ttttt ----1000")
-//DEF_ENC32(M8_mxcvtub_ch,   ICLASS_ST" 011 01 11sssss PP-ttttt ----1001")
-//DEF_ENC32(M8_mxcvtrb_ch,   ICLASS_ST" 011 01 11sssss PP-ttttt ----1010")
-//DEF_ENC32(M8_mxcvtrub_ch,  ICLASS_ST" 011 01 11sssss PP-ttttt ----1011")
-//DEF_ENC32(M8_mxcvtdmb_ch,  ICLASS_ST" 011 01 11sssss PP-ttttt ----1100")
-//DEF_ENC32(M8_mxcvtdmub_ch, ICLASS_ST" 011 01 11sssss PP-ttttt ----1101")
-//DEF_ENC32(M8_mxcvtdmrb_ch, ICLASS_ST" 011 01 11sssss PP-ttttt ----1110")
-//DEF_ENC32(M8_mxcvtdmrub_ch,ICLASS_ST" 011 01 11sssss PP-ttttt ----1111")
 
 
 

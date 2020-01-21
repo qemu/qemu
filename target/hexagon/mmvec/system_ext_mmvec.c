@@ -69,13 +69,6 @@ enum mem_access_types {
     access_type_barrier = 37,
     access_type_memcpy_load = 39,
     access_type_memcpy_store = 40,
-    access_type_hmx_load_act = 42,
-    access_type_hmx_load_wei = 43,
-    access_type_hmx_load_bias = 44,
-    access_type_hmx_store = 45,
-    access_type_hmx_store_bias = 46,
-    access_type_udma_load = 47,
-    access_type_udma_store = 48,
 
     NUM_CORE_ACCESS_TYPES
 };

@@ -15,6 +15,44 @@ obj-y += \
     mmvec/decode_ext_mmvec.o \
     mmvec/system_ext_mmvec.o
 
+#
+#  Step 1
+#  We use a C program to create semantics_generated.pyinc
+#
+GEN_SEMANTICS = gen_semantics
+GEN_SEMANTICS_SRC = $(SRC_PATH)/target/hexagon/gen_semantics.c
+IDEF_FILES = \
+    $(SRC_PATH)/target/hexagon/imported/allext.idef \
+    $(SRC_PATH)/target/hexagon/imported/alu.idef \
+    $(SRC_PATH)/target/hexagon/imported/branch.idef \
+    $(SRC_PATH)/target/hexagon/imported/compare.idef \
+    $(SRC_PATH)/target/hexagon/imported/float.idef \
+    $(SRC_PATH)/target/hexagon/imported/ldst.idef \
+    $(SRC_PATH)/target/hexagon/imported/mpy.idef \
+    $(SRC_PATH)/target/hexagon/imported/shift.idef \
+    $(SRC_PATH)/target/hexagon/imported/subinsns.idef \
+    $(SRC_PATH)/target/hexagon/imported/system.idef \
+    $(SRC_PATH)/target/hexagon/imported/mmvec/ext.idef
+DEF_FILES = \
+    $(SRC_PATH)/target/hexagon/imported/allidefs.def \
+    $(SRC_PATH)/target/hexagon/imported/macros.def \
+    $(SRC_PATH)/target/hexagon/imported/allext_macros.def \
+    $(SRC_PATH)/target/hexagon/imported/mmvec/macros.def
+
+
+$(GEN_SEMANTICS): $(GEN_SEMANTICS_SRC) $(IDEF_FILES) $(DEF_FILES)
+	$(CC) $(CFLAGS) $(GEN_SEMANTICS_SRC) -o $(GEN_SEMANTICS)
+
+SEMANTICS=semantics_generated.pyinc
+$(SEMANTICS): $(GEN_SEMANTICS)
+	$(call quiet-command, \
+	    $(GEN_SEMANTICS) $(SEMANTICS), \
+	    "GEN", $(SEMANTICS))
+
+#
+# Step 2
+# We use the do_qemu.py script to generate the following files
+#
 QEMU_DEF_H = $(BUILD_DIR)/hexagon-linux-user/qemu_def_generated.h
 QEMU_WRAP_H = $(BUILD_DIR)/hexagon-linux-user/qemu_wrap_generated.h
 OPCODES_DEF_H = $(BUILD_DIR)/hexagon-linux-user/opcodes_def_generated.h
@@ -22,18 +60,22 @@ OP_ATTRIBS_H = $(BUILD_DIR)/hexagon-linux-user/op_attribs_generated.h
 OP_REGS_H = $(BUILD_DIR)/hexagon-linux-user/op_regs_generated.h
 PRINTINSN_H = $(BUILD_DIR)/hexagon-linux-user/printinsn_generated.h
 
-$(QEMU_DEF_H) $(QEMU_WRAP_H) $(OPCODES_DEF_H) $(OP_ATTRIBS_H) $(PRINTINSN_H): \
-    $(SRC_PATH)/target/hexagon/do_qemu.py \
-    $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
-    $(SRC_PATH)/target/hexagon/attribs_def.h
-	$(SRC_PATH)/target/hexagon/do_qemu.py \
-            $(SRC_PATH)/target/hexagon/imported/semantics.pyinc \
-            $(SRC_PATH)/target/hexagon/attribs_def.h
+GENERATED_HEXAGON_FILES = \
+    $(QEMU_DEF_H) \
+    $(QEMU_WRAP_H) \
+    $(OPCODES_DEF_H) \
+    $(OP_ATTRIBS_H) \
+    $(OP_REGS_H) \
+    $(PRINTINSN_H)
 
-target/hexagon/genptr.o: $(QEMU_DEF_H) $(QEMU_WRAP) $(OPCODES_DEF_H)
-target/hexagon/op_helper.o: $(QEMU_DEF_H)
-target/hexagon/opcodes.o: $(QEMU_DEF_H)
-##target/hexagon/helper.h: $(QEMU_DEF_H)
-target/hexagon/imported/opcodes.o: $(QEMU_DEF_H) $(OPCODES_DEF_H) $(OP_REGS_H)
-target/hexagon/imported/printinsn.o: $(PRINTINSN_H)
-tcg/tcg.o: $(QEMU_DEF_H)
+$(GENERATED_HEXAGON_FILES): \
+    $(SRC_PATH)/target/hexagon/do_qemu.py \
+    $(SEMANTICS) \
+    $(SRC_PATH)/target/hexagon/attribs_def.h
+	$(call quiet-command, \
+	    $(SRC_PATH)/target/hexagon/do_qemu.py \
+                $(SEMANTICS) \
+                $(SRC_PATH)/target/hexagon/attribs_def.h, \
+	    "GEN", "Hexagon generated files")
+
+generated-files-y += $(GENERATED_HEXAGON_FILES)
