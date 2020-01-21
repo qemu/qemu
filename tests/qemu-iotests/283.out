@@ -1,0 +1,8 @@
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "target"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "blkdebug", "image": {"driver": "null-co", "node-name": "base", "size": 1048576}, "node-name": "source"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "blkdebug", "image": "base", "node-name": "other", "take-child-perms": ["write"]}}
+{"return": {}}
+{"execute": "blockdev-backup", "arguments": {"device": "source", "sync": "full", "target": "target"}}
+{"error": {"class": "GenericError", "desc": "Cannot set permissions for backup-top filter: Conflicts with use by other as 'image', which uses 'write' on base"}}
