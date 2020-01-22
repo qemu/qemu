@@ -974,7 +974,7 @@ static int multifd_send_pages(QEMUFile *f)
     return 1;
 }
 
-static int multifd_queue_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
+static int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
 {
     MultiFDPages_t *pages = multifd_send_state->pages;
 
@@ -993,12 +993,12 @@ static int multifd_queue_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
         }
     }
 
-    if (multifd_send_pages(rs->f) < 0) {
+    if (multifd_send_pages(f) < 0) {
         return -1;
     }
 
     if (pages->block != block) {
-        return  multifd_queue_page(rs, block, offset);
+        return  multifd_queue_page(f, block, offset);
     }
 
     return 1;
@@ -2136,7 +2136,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 static int ram_save_multifd_page(RAMState *rs, RAMBlock *block,
                                  ram_addr_t offset)
 {
-    if (multifd_queue_page(rs, block, offset) < 0) {
+    if (multifd_queue_page(rs->f, block, offset) < 0) {
         return -1;
     }
     ram_counters.normal++;
