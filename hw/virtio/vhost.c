@@ -551,7 +551,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
     trace_vhost_region_add_section(section->mr->name, mrs_gpa, mrs_size,
                                    mrs_host);
 
-    if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER) {   
+    if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER) {
         /* Round the section to it's page size */
         /* First align the start down to a page boundary */
         size_t mrs_page = qemu_ram_pagesize(mrs_rb);
@@ -566,8 +566,8 @@ static void vhost_region_add_section(struct vhost_dev *dev,
         if (alignage) {
             mrs_size += mrs_page - alignage;
         }
-        trace_vhost_region_add_section_aligned(section->mr->name, mrs_gpa, mrs_size,
-                                               mrs_host);
+        trace_vhost_region_add_section_aligned(section->mr->name, mrs_gpa,
+                                               mrs_size, mrs_host);
     }
 
     if (dev->n_tmp_sections) {
