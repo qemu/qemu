@@ -31,6 +31,13 @@ done
 
 eval `grep SRC_PATH= config-host.mak`
 
+old_allowed_dif=`grep -v -e 'List of comma-separated changed AML files to ignore' ${SRC_PATH}/tests/qtest/bios-tables-test-allowed-diff.h`
+
 echo '/* List of comma-separated changed AML files to ignore */' > ${SRC_PATH}/tests/qtest/bios-tables-test-allowed-diff.h
 
 echo "The files were rebuilt and can be added to git."
+
+if [ -z "$old_allowed_dif" ]; then
+    echo "Note! Please do not commit expected files with source changes"
+    echo "Note! Please follow the process documented in ${SRC_PATH}/tests/qtest/bios-tables-test.c"
+fi
