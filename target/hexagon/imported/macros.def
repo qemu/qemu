@@ -235,17 +235,17 @@ DEF_MACRO(
 	fNEWREG,(RNUM),
 	"RNUM.new",
 	"Register value produced in this packet",
-	({if (newvalue_missing(thread,RNUM) || 
+	({if (newvalue_missing(thread,RNUM) ||
       IS_CANCELLED(insn->new_value_producer_slot)) CANCEL; reglog_read(thread,RNUM);}),
 	(A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
 )
 // Store new with a missing newvalue or cancelled goes out as a zero byte store in V65
-// take advantage of the fact that reglog_read returns zero for not valid rnum 
+// take advantage of the fact that reglog_read returns zero for not valid rnum
 DEF_MACRO(
 	fNEWREG_ST,(RNUM),
 	"RNUM.new",
 	"Register value produced in this packet for store",
-	({if (newvalue_missing(thread,RNUM) || 
+	({if (newvalue_missing(thread,RNUM) ||
       IS_CANCELLED(insn->new_value_producer_slot)) { STORE_ZERO; RNUM = -1; }; reglog_read(thread,RNUM);}),
 	(A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
 )
@@ -502,26 +502,6 @@ DEF_MACRO(
 /* Read and Write Implicit Regs      */
 /*************************************/
 
-#ifdef VERIFICATION
-DEF_MACRO(
-	fVERIFICATION_REGWRITE_NOTE,(THREADID,REGNO),
-	"",
-	"",
-	ver_reg_write(thread->processor_ptr,THREADID,REGNO);,
-	()
-)
-#else
-DEF_MACRO(
-	fVERIFICATION_REGWRITE_NOTE,(THREADID,REGNO),
-	"",
-	"",
-	/* NOTHING */,
-	()
-)
-#endif
-
-
-
 DEF_MACRO(
 	fREAD_IREG, /* read link register */
 	(VAL), /* parameters */
@@ -564,7 +544,7 @@ DEF_MACRO(
 	(A), /* parameters */
 	"R0=A", /* short description */
 	"R0=A", /* long description */
-	fVERIF_MARK_RREG_ACCESS(0,'-',1,A); WRITE_RREG(0,A),          /* behavior */
+	WRITE_RREG(0,A),          /* behavior */
 	(A_IMPLICIT_WRITES_R00)
 )
 
@@ -573,7 +553,7 @@ DEF_MACRO(
 	(A), /* parameters */
 	"LR=A", /* short description */
 	"LR=A", /* long description */
-	fVERIF_MARK_RREG_ACCESS(REG_LR,'-',1,A); WRITE_RREG(REG_LR,A),          /* behavior */
+	WRITE_RREG(REG_LR,A),          /* behavior */
 	(A_IMPLICIT_WRITES_LR)
 )
 
@@ -582,7 +562,7 @@ DEF_MACRO(
 	(A), /* parameters */
 	"FP=A", /* short description */
 	"FP=A", /* long description */
-	fVERIF_MARK_RREG_ACCESS(REG_FP,'-',1,A); WRITE_RREG(REG_FP,A),          /* behavior */
+	WRITE_RREG(REG_FP,A),          /* behavior */
 	(A_IMPLICIT_WRITES_FP)
 )
 
@@ -591,7 +571,7 @@ DEF_MACRO(
 	(A), /* parameters */
 	"SP=A", /* short description */
 	"SP=A", /* long description */
-	fVERIF_MARK_RREG_ACCESS(REG_SP,'-',1,A); WRITE_RREG(REG_SP,A),          /* behavior */
+        WRITE_RREG(REG_SP,A),          /* behavior */
 	(A_IMPLICIT_WRITES_SP)
 )
 
@@ -600,7 +580,7 @@ DEF_MACRO(
 	(A), /* parameters */
 	"GOSP=A", /* short description */
 	"GOSP=A", /* long description */
-	fVERIF_MARK_RREG_ACCESS(REG_GOSP,'-',1,A); WRITE_RREG(REG_GOSP,A),          /* behavior */
+        WRITE_RREG(REG_GOSP,A),          /* behavior */
 	(A_IMPLICIT_WRITES_GOSP)
 )
 
@@ -790,11 +770,11 @@ DEF_MACRO(
 	fCUREXT_WRAP,(EXT_NO),
 	"",
 	"",
-	{	
+	{
 		EXT_NO = fCUREXT();
 		if (thread->processor_ptr->arch_proc_options->ext_contexts)
 			EXT_NO &= (thread->processor_ptr->arch_proc_options->ext_contexts-1);
-		else 
+		else
 			EXT_NO = 0;
 		EXT_NO = thread->processor_ptr->features->QDSP6_CP_PRESENT ? (EXT_NO & 0x3) : (EXT_NO+4);
 	},
@@ -808,7 +788,7 @@ DEF_MACRO(
 	"PC=A", /* long description */
 	if (!thread->branch_taken) {
            if (A != thread->next_PC) {
-             thread->next_pkt_guess=thread->last_pkt->taken_ptr; 
+             thread->next_pkt_guess=thread->last_pkt->taken_ptr;
            }
 	   fCHECK_PCALIGN(A);
            thread->branched = 1; thread->branch_taken = 1; thread->next_PC = A; \
@@ -829,7 +809,7 @@ DEF_MACRO(
 	   INC_TSTATN(tloopend_samepc,(thread->Regs[REG_PC]) == (A));*/ ,
 	()
 )
-	
+
 
 DEF_MACRO(
 	fCOF_CALLBACK,
@@ -837,16 +817,9 @@ DEF_MACRO(
 	"",
 	"",
   {
-// This might be same to always use, not just verif	  
-#ifdef VERIFICATION
-	if (!thread->cof_log_valid) {
-#endif
     thread->cof_log_to_va = (LOC);
     thread->cof_log_coftype = (TYPE);
     thread->cof_log_valid = 1;
-#ifdef VERIFICATION
-	}
-#endif	
   },
 	()
 )
@@ -865,11 +838,7 @@ DEF_MACRO(
 	(REGNO,TARGET,TYPE),
 	"",
 	"",
-#if 0	
-	if (thread->timing_on) {be_log_ret(thread->processor_ptr,thread->threadId,TARGET,REGNO); } ,
-#else
-	{ sys_branch_return(thread, insn->slot, TARGET, REGNO); },	
-#endif	
+	{ sys_branch_return(thread, insn->slot, TARGET, REGNO); },
 	(A_INDIRECT)
 )
 
@@ -896,11 +865,7 @@ DEF_MACRO(
 	(A),
 	"",
 	"",
-#if 0	
-	do { if (thread->timing_on) be_log_call(thread->processor_ptr,thread->threadId,A,fREAD_NPC()); } while (0),
-#else
-	{ sys_branch_call(thread, insn->slot, A, fREAD_NPC()); },	
-#endif
+	{ sys_branch_call(thread, insn->slot, A, fREAD_NPC()); },
 )
 
 DEF_MACRO(
@@ -945,7 +910,7 @@ DEF_MACRO(
 	fWRITE_LC0,
 	(VAL), /* parameters */
 	"LC0=VAL", /* short description */
-	"LC0=VAL", 
+	"LC0=VAL",
 	WRITE_RREG(REG_LC0,VAL),
 	(A_IMPLICIT_WRITES_LC0)
 )
@@ -954,7 +919,7 @@ DEF_MACRO(
 	fWRITE_LC1,
 	(VAL), /* parameters */
 	"LC1=VAL", /* short description */
-	"LC1=VAL", 
+	"LC1=VAL",
 	WRITE_RREG(REG_LC1,VAL),
 	(A_IMPLICIT_WRITES_LC1)
 )
@@ -973,9 +938,9 @@ DEF_MACRO(
 	(A,B,CARRY),
 	"SR[CV]=FLAGS(A+B)",
 	"SR[CV]=FLAGS(A+B)",
-	do { 
-		SET_USR_FIELD(USR_C,gen_carry_add((A),(B),((A)+(B)))); 
-		SET_USR_FIELD(USR_V,gen_overflow_add((A),(B),((A)+(B)))); 
+	do {
+		SET_USR_FIELD(USR_C,gen_carry_add((A),(B),((A)+(B))));
+		SET_USR_FIELD(USR_V,gen_overflow_add((A),(B),((A)+(B))));
 	} while (0),
 	(A_IMPLICIT_WRITES_CVBITS,A_NOTE_CVFLAGS,A_RESTRICT_NOSRMOVE)
 )
@@ -984,9 +949,9 @@ DEF_MACRO(
 	(A,B,CARRY),
 	"SR[CV]=FLAGS(A-B)",
 	"SR[CV]=FLAGS(A-B)",
-	do { 
-		SET_USR_FIELD(USR_C,gen_carry_add((A),(B),((A)-(B)))); 
-		SET_USR_FIELD(USR_V,gen_overflow_add((A),(B),((A)-(B)))); 
+	do {
+		SET_USR_FIELD(USR_C,gen_carry_add((A),(B),((A)-(B))));
+		SET_USR_FIELD(USR_V,gen_overflow_add((A),(B),((A)-(B))));
 	} while (0),
 	(A_IMPLICIT_WRITES_CVBITS,A_NOTE_CVFLAGS,A_RESTRICT_NOSRMOVE)
 )
@@ -1208,26 +1173,6 @@ DEF_MACRO(
 	/* optional attributes */
 )
 
-#if 0
-DEF_MACRO(
-	fCAST5u, /* macro name */
-	(A), /* parameters */
-	"unsigned 40-bit A", /* short description */
-	"unsigned 40-bit A", /* long description */
-	fZXTN(40,64,((size8u_t)(A))),          /* behavior */
-	/* optional attributes */
-)
-
-DEF_MACRO(
-	fCAST5s, /* macro name */
-	(A), /* parameters */
-	"signed 40-bit A", /* short description */
-	"signed 40-bit A", /* long description */
-	fSXTN(40,((size8s_t)(A))),          /* behavior */
-	/* optional attributes */
-)
-#endif
-
 DEF_MACRO(
 	fZE8_16, /* zero-extend 8 to 16 */
 	(A),
@@ -1265,7 +1210,7 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
-	fSE32_64, 
+	fSE32_64,
 	(A), /* parameters */
 	"A", /* short description */
 	"A", /* long description */
@@ -1274,7 +1219,7 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
-	fZE32_64, 
+	fZE32_64,
 	(A), /* parameters */
 	"A", /* short description */
 	"zero-extend A from 32 to 64", /* long description */
@@ -1703,17 +1648,17 @@ DEF_MACRO(
 	(A,ORIG_REG), /* parameters */
 	"sat_32(A)", /* short description */
 	"saturate A to 32-bits for left shift", /* long description */
-	((((size4s_t)((fSAT(A)) ^ ((size4s_t)(ORIG_REG)))) < 0) ? 
+	((((size4s_t)((fSAT(A)) ^ ((size4s_t)(ORIG_REG)))) < 0) ?
 		fSATVALN(32,((size4s_t)(ORIG_REG))) :
-		((((ORIG_REG) > 0) && ((A) == 0)) ? 
-			fSATVALN(32,(ORIG_REG)) : 
+		((((ORIG_REG) > 0) && ((A) == 0)) ?
+			fSATVALN(32,(ORIG_REG)) :
 			fSAT(A))),
 	(A_SATURATE)
 )
 
 DEF_MACRO(
-	fPASS, 
-	(A), 
+	fPASS,
+	(A),
 	"A", /* short description */
 	"", /* long description */
 	A,
@@ -1726,19 +1671,6 @@ DEF_MACRO(
 	"round(A)", /* long description */
 	(((A)+1)>>1),
 )
-
-
-#if 0
-DEF_MACRO(
-	fSSLH, /* signed shift left halfword */
-	(SRC,SHAMT), /* parameters */
-	"(SHAMT>0) ? (DEST=SRC<<SHAMT):(DEST=SRC>>-SHAMT)", /* short description */
-	"(SHAMT>0) ? (DEST=SRC<<SHAMT):(DEST=SRC>>-SHAMT)", /* short description */
-        (((fSXTN(8,SHAMT) >= 0) ? (fSE16_32(SRC) << fSXTN(8,SHAMT)) : (fSE16_32(SRC) >> (-fSXTN(8,SHAMT))))),
-	/* optional attributes */
-)
-#endif
-
 
 
 DEF_MACRO(
@@ -2032,7 +1964,7 @@ DEF_MACRO(
 	fMAKESF,(SIGN,EXP,MANT),
 	"-1**SIGN * 1.MANT * 2**(EXP-BIAS)",
 	"-1**SIGN * 1.MANT * 2**(EXP-BIAS)",
-	((((SIGN) & 1) << 31) | (((EXP) & 0xff) << fSF_MANTBITS()) | 
+	((((SIGN) & 1) << 31) | (((EXP) & 0xff) << fSF_MANTBITS()) |
 		((MANT) & ((1<<fSF_MANTBITS())-1))),
 	()
 )
@@ -2237,7 +2169,7 @@ DEF_MACRO(
 	fMAKEDF,(SIGN,EXP,MANT),
 	"-1**SIGN * 1.MANT * 2**(EXP-BIAS)",
 	"-1**SIGN * 1.MANT * 2**(EXP-BIAS)",
-	((((SIGN) & 1ULL) << 63) | (((EXP) & 0x7ffULL) << fDF_MANTBITS()) | 
+	((((SIGN) & 1ULL) << 63) | (((EXP) & 0x7ffULL) << fDF_MANTBITS()) |
 		((MANT) & ((1ULL<<fDF_MANTBITS())-1))),
 	()
 )
@@ -2359,7 +2291,7 @@ DEF_MACRO(
 		: fminf(A,B)),
 	(A_FPOP)
 )
-        
+
 /*************************************/
 /* Load/Store support                */
 /*************************************/
@@ -2469,39 +2401,6 @@ DEF_MACRO(fVTCM_MEMCPY,(DST,SRC,SIZE),
 
 
 /*************************************/
-/* High/Low access support           */
-/*************************************/
-#if 0
-DEF_MACRO(fRDH_L,(REG),
-	"REG.h[0]",
-	"REG.h[0]",
-	(REG&0x0000ffff),
-	()
-)
-
-DEF_MACRO(fRDH_H,(REG),
-	"REG.h[1]",
-	"REG.h[1]",
-	((REG>>16)&0x0000ffff),
-	()
-)
-
-DEF_MACRO(fWRH_L,(REG,VAL),
-	"REG.h[0] = VAL",
-	"REG.h[0] = VAL",
-	(REG=(REG&0xffff0000)|(VAL)),
-	()
-)
-
-DEF_MACRO(fWRH_H,(REG,VAL),
-	"REG.h[1] = VAL",
-	"REG.h[1] = VAL",
-	(REG=(REG&0x0000ffff)|((VAL)<<16)),
-	()
-)
-#endif
-
-/*************************************/
 /* Permute Handler                   */
 /*************************************/
 
@@ -2540,7 +2439,7 @@ DEF_MACRO(fGETUBYTE,(N,SRC),
 DEF_MACRO(fSETBYTE,(N,DST,VAL),
 	"DST.b[N]=VAL",
 	"Byte N from DST = VAL",
-	{ 
+	{
 	DST = (DST & ~(0x0ffLL<<((N)*8))) | (((size8u_t)((VAL) & 0x0ffLL)) << ((N)*8));
 	},
 	/* nothing */
@@ -2563,7 +2462,7 @@ DEF_MACRO(fGETUHALF,(N,SRC),
 DEF_MACRO(fSETHALF,(N,DST,VAL),
 	"DST.h[N]=VAL",
 	"Halfword N from DST = VAL",
-	{ 
+	{
 	DST = (DST & ~(0x0ffffLL<<((N)*16))) | (((size8u_t)((VAL) & 0x0ffff)) << ((N)*16));
 	},
 	/* nothing */
@@ -2588,7 +2487,7 @@ DEF_MACRO(fGETUWORD,(N,SRC),
 DEF_MACRO(fSETWORD,(N,DST,VAL),
 	"DST.w[N]=VAL",
 	"Word N from DST = VAL",
-	{ 
+	{
 	DST = (DST & ~(0x0ffffffffLL<<((N)*32))) | (((VAL) & 0x0ffffffffLL) << ((N)*32));
 	},
 	/* nothing */
@@ -2611,7 +2510,7 @@ DEF_MACRO(fEXTENSION_AUDIO,(A),
 DEF_MACRO(fSETBIT,(N,DST,VAL),
 	"DST.N = VAL",
 	"Set bit N in DST to VAL",
-	{ 
+	{
 	DST = (DST & ~(1ULL<<(N))) | (((size8u_t)(VAL))<<(N));
 	},
 	/* nothing */
@@ -2628,8 +2527,8 @@ DEF_MACRO(fGETBIT,(N,SRC),
 DEF_MACRO(fSETBITS,(HI,LO,DST,VAL),
 	"DST[HI:LO] = VAL",
 	"Set bits from HI to LO in DST to VAL",
-	do { 
-        int j; 
+	do {
+        int j;
         for (j=LO;j<=HI;j++) {
           fSETBIT(j,DST,VAL);
         }
@@ -2816,26 +2715,16 @@ DEF_MACRO(THREAD_EN_MASK,(PROC),
 
 
 
-#ifdef VERIFICATION
-DEF_MACRO(READ_IMASK,(TH),
-	"IMASK[TH]",
-	"IMASK[TH]",
-         ((((TH) >= (thread->processor_ptr->runnable_threads_max)) ? 0 : (thread->processor_ptr->thread[TH]->Regs[REG_IMASK] )) & 0xFFFF),
-	(A_IMPLICIT_READS_IMASK_ANYTHREAD)
-)
-#else
 DEF_MACRO(READ_IMASK,(TH),
 	"IMASK[TH]",
 	"IMASK[TH]",
          (((TH) >= (thread->processor_ptr->runnable_threads_max)) ? 0 : (thread->processor_ptr->thread[TH]->Regs[REG_IMASK])),
 	(A_IMPLICIT_READS_IMASK_ANYTHREAD)
-)   
-#endif
+)
 DEF_MACRO(WRITE_IMASK,(TH,VAL),
 	"IMASK[TH]=VAL",
 	"IMASK[TH]=VAL",
-        /* if ((TH) < (thread->processor_ptr->runnable_threads_max)) { LOG_OTHER_THREAD_REG_WRITE(thread,REG_IMASK,VAL,TH); fVERIFICATION_REGWRITE_NOTE((TH),(REG_IMASK)); }, */
-	 if ((TH) < (thread->processor_ptr->runnable_threads_max)) { thread->processor_ptr->thread[TH]->Regs[REG_IMASK]=(VAL & reg_mutability[REG_IMASK] ); fVERIFICATION_REGWRITE_NOTE((TH),(REG_IMASK)) },
+	 if ((TH) < (thread->processor_ptr->runnable_threads_max)) { thread->processor_ptr->thread[TH]->Regs[REG_IMASK]=(VAL & reg_mutability[REG_IMASK] ); },
 	(A_IMPLICIT_WRITES_IMASK_ANYTHREAD)
 )
 
@@ -2846,11 +2735,8 @@ DEF_MACRO(WRITE_PRIO,(TH,VAL),
 	{
 		if ((TH) < (thread->processor_ptr->runnable_threads_max)) {
 			size4u_t tid_reg = thread->processor_ptr->thread[TH]->Regs[REG_TID];
-			fINSERT_BITS(tid_reg, reg_field_info[STID_PRIO].width, reg_field_info[STID_PRIO].offset, VAL); 
+			fINSERT_BITS(tid_reg, reg_field_info[STID_PRIO].width, reg_field_info[STID_PRIO].offset, VAL);
 			LOG_OTHER_THREAD_REG_WRITE(thread,REG_TID,tid_reg,TH);
-#ifdef VERIFICATION
-			warn("setprio: writing thread=%d new priority of val=%x New TID=%x (Predicate=%x)",TH, VAL, tid_reg,TH);
-#endif		 
 		}
 	},
 	(A_IMPLICIT_WRITES_STID_PRIO_ANYTHREAD)
@@ -2860,7 +2746,7 @@ DEF_MACRO(WRITE_PRIO,(TH,VAL),
 DEF_MACRO(DO_IASSIGNW,(REG),
 	"IASSIGNW(REG)",
 	"IASSIGNW(REG)",
-	{ 
+	{
         int i;
         int intbitpos = ((REG>>16)&0xF);
         for (i=0;i<RUNNABLE_THREADS_MAX;i++) {
@@ -2875,11 +2761,10 @@ DEF_MACRO(DO_IASSIGNW,(REG),
 
 
 
-#ifndef VERIFICATION
 DEF_MACRO(fDO_NMI,(SREG),
 	"Raise NMI on threads",
 	"Raise NMI on threads",
-	{ 
+	{
 		int i;
 		for (i=0;i<RUNNABLE_THREADS_MAX;i++) {
 			if( ( (thread->processor_ptr->arch_proc_options->thread_enable_mask>>i) & 0x1) ) {
@@ -2890,13 +2775,6 @@ DEF_MACRO(fDO_NMI,(SREG),
 		}
 	},
 )
-#else
-DEF_MACRO(fDO_NMI,(SREG),
-	"Raise NMI on threads",
-	"Raise NMI on threads",
-	{ },
-)
-#endif
 
 DEF_MACRO(fDO_TRACE,(SREG),
 	"Send value to ETM trace",
@@ -2911,7 +2789,7 @@ DEF_MACRO(fDO_TRACE,(SREG),
 DEF_MACRO(DO_IASSIGNR,(SREG,DREG),
 	"DREG=IASSIGNR(SREG)",
 	"DREG=IASSIGNR(SREG)",
-	{ 
+	{
 		int i;
 		int result=0;
 		int intbitpos = ((SREG>>16)&0xF);
@@ -2969,19 +2847,15 @@ DEF_MACRO(DO_SWI,(REG),
         {fHIDE(CALLBACK(thread->processor_ptr->options->swi_callback,
          thread->system_ptr,thread->processor_ptr,
          thread->threadId,REG));
-         //fLOG_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IPEND,fREAD_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IPEND)|(REG));
          LOG_GLOBAL_REG_WRITE(REG_IPEND,(GLOBAL_REG_READ(REG_IPEND) | (REG & GLOBAL_REG_READ(REG_IEL))));
         },
-        //(A_EXCEPTION_SWI,A_IMPLICIT_READS_IPENDAD_IPEND,A_IMPLICIT_WRITES_IPENDAD_IPEND)
         (A_EXCEPTION_SWI)
 )
 
 DEF_MACRO(DO_CSWI,(REG),
         "IPEND &= ~REG",
         "IPEND &= ~REG",
-        //fLOG_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IPEND,fREAD_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IPEND) & ~(REG));,
         LOG_GLOBAL_REG_WRITE(REG_IPEND,GLOBAL_REG_READ(REG_IPEND) & ~((REG) & GLOBAL_REG_READ(REG_IEL)));,
-        //(A_IMPLICIT_READS_IPENDAD_IPEND,A_IMPLICIT_WRITES_IPENDAD_IPEND)
         ()
 )
 
@@ -2989,9 +2863,6 @@ DEF_MACRO(DO_CIAD,(VAL),
         "IAD &= ~VAL",
         "IAD &= ~VAL",
         sys_ciad(thread,VAL); LOG_GLOBAL_REG_WRITE(REG_IAD,GLOBAL_REG_READ(REG_IAD) & ~(VAL));,
-        //sys_ciad(thread,VAL);
-        //fLOG_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD,fREAD_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD) & ~(VAL));,
-        //(A_EXCEPTION_SWI,A_IMPLICIT_READS_IPENDAD_IAD,A_IMPLICIT_WRITES_IPENDAD_IAD)
         (A_EXCEPTION_SWI)
 )
 
@@ -2999,9 +2870,6 @@ DEF_MACRO(DO_SIAD,(VAL),
         "IAD |= VAL",
         "IAD |= VAL",
         sys_siad(thread,VAL); LOG_GLOBAL_REG_WRITE(REG_IAD,GLOBAL_REG_READ(REG_IAD) | (VAL));,
-        //sys_siad(thread,VAL);
-        //fLOG_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD,fREAD_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD) | (VAL));,
-        //(A_EXCEPTION_SWI,A_IMPLICIT_READS_IPENDAD_IAD,A_IMPLICIT_WRITES_IPENDAD_IAD)
         (A_EXCEPTION_SWI)
 )
 
@@ -3031,7 +2899,7 @@ DEF_MACRO(fDOCHKPAGECROSS,(BASE,SUM),
 		thread->mem_access[insn->slot].check_page_crosses = 1;
 		thread->mem_access[insn->slot].page_cross_base = BASE;
 		thread->mem_access[insn->slot].page_cross_sum = SUM;
-	}, 
+	},
 	(A_EA_PAGECROSS)
 )
 
@@ -3055,7 +2923,7 @@ DEF_MACRO(fPAUSE,(IMM),
 )
 
 
-#if 1 
+#if 1
 /* The way it should be */
 DEF_MACRO(fTRAP,(TRAPTYPE,IMM),
 	"SSR.CAUSE = IMM; TRAP # TRAPTYPE",
@@ -3078,7 +2946,7 @@ DEF_MACRO(fTRAP,(TRAPTYPE,IMM),
                (!thread->sandbox_execution) &&
                (!thread->processor_ptr->options->disable_angelswi)) {
                 sim_handle_debug(thread->system_ptr,thread->processor_ptr,thread->threadId,0xdb);
-        } else {  
+        } else {
           warn("Trap exception, TYPE=%d NPC=%x IMM=0x%x",TRAPTYPE,fREAD_NPC(),IMM);
           register_trap_exception(thread,fREAD_NPC(),TRAPTYPE,IMM);
         },
@@ -3092,16 +2960,16 @@ DEF_MACRO(fINTERNAL_CLEAR_SAMEPAGE,
 	"",
 	/* force re-xlate at next fetch, refresh of in_user_mode, etc */
 	/* Permissions change too... */
-	sys_utlb_invalidate(thread->processor_ptr,thread), 
+	sys_utlb_invalidate(thread->processor_ptr,thread),
 	/* NOTHING */
 )
-	
+
 DEF_MACRO(fCLEAR_RTE_EX,(),
       "SSR.SSR_EX = 0",
       "SSR.SSR_EX = 0",
       {
         fLOG_REG_FIELD(SSR,SSR_EX,0);
-  	    fINTERNAL_CLEAR_SAMEPAGE(); 
+  	    fINTERNAL_CLEAR_SAMEPAGE();
       },
       ()
 )
@@ -3128,7 +2996,7 @@ DEF_MACRO(fSET_TLB_LOCK,(),
         fLOG_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_TLBLOCK,1);
       } else {
         sys_waiting_for_tlb_lock(thread);
-      } 
+      }
       },
       (A_IMPLICIT_READS_SYSCFG_TLBLOCK,A_IMPLICIT_WRITES_SYSCFG_TLBLOCK)
 )
@@ -3143,7 +3011,7 @@ DEF_MACRO(fSET_K0_LOCK,(),
       } else {
       warn("k0lock_waiting: T%d: PC=0x%x: PCycle=%lld",thread->threadId,thread->Regs[REG_PC],thread->processor_ptr->pstats[pcycles]);
         sys_waiting_for_k0_lock(thread);
-      } 
+      }
       },
       (A_IMPLICIT_READS_SYSCFG_K0LOCK,A_IMPLICIT_WRITES_SYSCFG_K0LOCK)
 )
@@ -3283,7 +3151,7 @@ DEF_MACRO(fIN_DEBUG_MODE_NO_ISDB,(TNUM),
 DEF_MACRO(fIN_DEBUG_MODE_WARN,(TNUM),
 	"",
 	"",
-	{ 
+	{
 		if (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM)
 			warn("In ISDB debug mode, but TB told me to step normally");
 	},
@@ -3295,11 +3163,6 @@ DEF_MACRO(fCLEAR_RUN_MODE,(TNUM),
 	"modectl[TNUM] = 0",
 	{fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_E,
     fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_E) & ~(1<<(TNUM)))},
-#if 0
-        if (!thread->debug_mode) {
-	{thread->processor_ptr->global_regs[REG_MODECTL] &= ~(1<<TNUM);
-         sys_recalc_num_running_threads(thread->processor_ptr);}},
-#endif
 	/* NOTHING */
 )
 
@@ -3317,7 +3180,7 @@ DEF_MACRO(fCLEAR_RUN_MODE_NOW,(TNUM),
 DEF_MACRO(fGET_RUN_MODE,(TNUM),
 	"modectl[TNUM]",
 	"modectl[TNUM]",
-        ((thread->processor_ptr->global_regs[REG_MODECTL]>>TNUM)&0x1),   
+        ((thread->processor_ptr->global_regs[REG_MODECTL]>>TNUM)&0x1),
 )
 
 DEF_MACRO(fSET_WAIT_MODE,(TNUM),
@@ -3325,10 +3188,6 @@ DEF_MACRO(fSET_WAIT_MODE,(TNUM),
 	"modectl[(TNUM+16)] = 1",
 	{fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_W,
     fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_W) | 1<<(TNUM))},
-#if 0
-        {thread->processor_ptr->global_regs[REG_MODECTL] |= (1<<(TNUM+16));
-         sys_recalc_num_running_threads(thread->processor_ptr);},
-#endif
 	/* NOTHING */
 )
 
@@ -3343,7 +3202,7 @@ DEF_MACRO(fCLEAR_WAIT_MODE,(TNUM),
 DEF_MACRO(fGET_WAIT_MODE,(TNUM),
 	"modectl[(TNUM+16)]",
 	"modectl[(TNUM+16)]",
-        ((thread->processor_ptr->global_regs[REG_MODECTL]>>(TNUM+16))&0x1),   
+        ((thread->processor_ptr->global_regs[REG_MODECTL]>>(TNUM+16))&0x1),
 )
 
 
@@ -3490,41 +3349,12 @@ DEF_MACRO(WRITE_UGP,(VAL),
         WRITE_RREG(REG_UGP,VAL),
 )
 
-#if 0
-DEF_MACRO(fSTOP,(REG),
-	"stop(REG)",
-	"stop(REG)",
-	/* FIXME */,
-	()
-)
-#endif
-
 DEF_MACRO(fSTART,(REG),
 	"start(REG)",
 	"start(REG)",
 	fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_E, fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_E) | (((REG & ((1<<RUNNABLE_THREADS_MAX)-1))) & THREAD_EN_MASK(thread->processor_ptr))),
-#if 0
-	do {
-		fHIDE(size4u_t i;) 
-		for (i = 0; i < RUNNABLE_THREADS_MAX; i++) {
-			if (fGETBIT(i,RsV) && (fGET_RUN_MODE(i) == 0)) {
-				fSET_RUN_MODE(i);
-				fRESET_THREAD(thread,i);
-			}
-		}
-	} while (0)/* FIXME */,
-#endif
 	()
 )
-
-#if 0
-DEF_MACRO(fWAIT,(REG),
-	"wait(REG)",
-	"wait(REG)",
-	/* FIXME */,
-	()
-)
-#endif
 
 DEF_MACRO(fRESUME,(REG),
 	"resume(REG)",
@@ -3540,272 +3370,6 @@ DEF_MACRO(fGET_TNUM,(),
 	thread->threadId,
 	()
 )
-
-#ifdef VERIFICATION
-DEF_MACRO(fVERIF_MARK_RREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_reg_access(thread->processor_ptr,thread->threadId,REGNO,ASMLETTER,ISWRITE,(unsigned int)(VALUE),insn->opcode);,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_RREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_reg_access(thread->processor_ptr,thread->threadId,REGNO+1,ASMLETTER,ISWRITE,(unsigned int)((VALUE)>>32),insn->opcode);
-	ver_insn_reg_access(thread->processor_ptr,thread->threadId,REGNO,ASMLETTER,ISWRITE,(unsigned int)((VALUE)),insn->opcode);,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_CREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_reg_access(thread->processor_ptr,thread->threadId,NUM_GEN_REGS+REGNO,ASMLETTER,ISWRITE,(unsigned int)(VALUE),insn->opcode);,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_CREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_SREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (REGNO < 16) {
-		ver_insn_reg_access(thread->processor_ptr,thread->threadId,REG_SGP+REGNO,ASMLETTER,ISWRITE,(unsigned int)(VALUE),insn->opcode);
-	} else {
-		ver_insn_greg_access(thread->processor_ptr,thread->threadId,REGNO-16,ASMLETTER,ISWRITE,(unsigned int)(VALUE),insn->opcode);
-	},
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_SREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_VREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO,ASMLETTER,ISWRITE, &(VALUE), insn->opcode);,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_VREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO,ASMLETTER,ISWRITE, &(VALUE.v[0]), insn->opcode);
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO+1,ASMLETTER,ISWRITE, &(VALUE.v[1]), insn->opcode);,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_VREGQUAD_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO,ASMLETTER,ISWRITE, &(VALUE.v[0]), insn->opcode);
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO^1,ASMLETTER,ISWRITE, &(VALUE.v[1]), insn->opcode);
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO^2,ASMLETTER,ISWRITE, &(VALUE.v[2]), insn->opcode);
-	ver_insn_vreg_access(thread->processor_ptr,thread->threadId,REGNO^3,ASMLETTER,ISWRITE, &(VALUE.v[3]), insn->opcode);,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_GREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	ver_insn_reg_access(thread->processor_ptr,thread->threadId,REG_G+REGNO,ASMLETTER,ISWRITE,(unsigned int)(VALUE),insn->opcode),
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_GREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-#elif defined(ZEBU_CHECKSUM_TRACE)
-DEF_MACRO(fVERIF_MARK_RREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (ISWRITE) zebu_reg_write(REGNO,(unsigned int)(VALUE));,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_RREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (ISWRITE) zebu_reg_write(REGNO,(unsigned int)(VALUE));
-	if (ISWRITE) zebu_reg_write(REGNO+1,(unsigned int)((VALUE)>>32));,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_CREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (!ISWRITE) zebu_creg_read(REGNO, (unsigned int) (VALUE));,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_CREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (!ISWRITE) zebu_creg_read(REGNO, (unsigned int) (VALUE));
-	if (!ISWRITE) zebu_creg_read(REGNO+1, (unsigned int) ((VALUE)>>32));,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_SREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (!ISWRITE) zebu_sreg_read(REGNO, (unsigned int) (VALUE));,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_SREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (!ISWRITE) zebu_sreg_read(REGNO, (unsigned int) (VALUE));
-	if (!ISWRITE) zebu_sreg_read(REGNO+1, (unsigned int) ((VALUE)>>32));,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_VREG_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (ISWRITE) zebu_hvx_reg_write(REGNO,&(VALUE));,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_VREGPAIR_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (ISWRITE) zebu_hvx_reg_write(REGNO,&(VALUE.v[0]));
-	if (ISWRITE) zebu_hvx_reg_write(REGNO+1,&(VALUE.v[1]));,
-	()
-)
-DEF_MACRO(fVERIF_MARK_VREGQUAD_ACCESS,(REGNO,ASMLETTER,ISWRITE,VALUE),
-	"",
-	"",
-	if (ISWRITE) zebu_hvx_reg_write(REGNO,&(VALUE.v[0]));
-	if (ISWRITE) zebu_hvx_reg_write(REGNO+1,&(VALUE.v[1]));
-	if (ISWRITE) zebu_hvx_reg_write(REGNO+2,&(VALUE.v[2]));
-	if (ISWRITE) zebu_hvx_reg_write(REGNO+3,&(VALUE.v[3]));,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_GREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_GREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-#else
-
-DEF_MACRO(fVERIF_MARK_RREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_RREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_CREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_CREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_SREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_SREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_GREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_GREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_VREG_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-
-DEF_MACRO(fVERIF_MARK_VREGPAIR_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-DEF_MACRO(fVERIF_MARK_VREGQUAD_ACCESS,(...),
-	"",
-	"",
-	/* Nothing */,
-	()
-)
-
-#endif
 
 /********************************************/
 /* Cache Management                         */
@@ -3857,8 +3421,7 @@ DEF_MACRO(fICINVIDX,(REG),
 	"icache_inv_idx(REG)",
 	"icache_inv_idx(REG)",
   {
-  	arch_internal_flush(thread->processor_ptr,0,0xffffffff); /* FIXME */
-  //    sys_icinvidx(thread, (REG));
+  	arch_internal_flush(thread->processor_ptr,0,0xffffffff);
   }
   ,
 	()
@@ -4112,7 +3675,7 @@ DEF_MACRO(fTAKEN_INTERRUPT_EDGECLEAR,(proc,intnum),
 DEF_MACRO(fSET_IAD,(thread,intnum),
 	"set_iad(intnum)",
 	"Set IAD bit corresponding to intnum",
-	{ sys_siad(thread,INT_NUMTOMASK(intnum)); 
+	{ sys_siad(thread,INT_NUMTOMASK(intnum));
 	  fWRITE_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD,
 		fREAD_GLOBAL_REG_FIELD(IPENDAD,IPENDAD_IAD) | INT_NUMTOMASK(intnum)); },
 	()
@@ -4148,24 +3711,15 @@ DEF_MACRO(fBRANCH_SPECULATE_STALL,(DOTNEWVAL, JUMP_COND, SPEC_DIR, HINTBITNUM, S
 	"",
 	"Check the .new predicate and stall if wrongly speculated.",
 	{
-#if 0		
-	if(thread->timing_on) {
-      thread->processor_ptr->uarch.bp_check_branch_new_stall_ptr(thread->processor_ptr,thread->threadId,
-										JUMP_COND(JUMP_PRED_SET), SPEC_DIR, DOTNEWVAL, HINTBITNUM,STRBITNUM,0, 
-        					            thread->last_pkt->pkt_has_dual_jump, insn->is_2nd_jump,
-		                          (thread->fetch_access.vaddr + insn->encoding_offset*4));
-    }									  
-#else
 sys_speculate_branch_stall(thread, insn->slot, JUMP_COND(JUMP_PRED_SET),
 										   SPEC_DIR,
 										   DOTNEWVAL,
-										   HINTBITNUM, 
+										   HINTBITNUM,
 										   STRBITNUM,
 										   0,
 										   thread->last_pkt->pkt_has_dual_jump,
 										   insn->is_2nd_jump,
 										   (thread->fetch_access.vaddr + insn->encoding_offset*4));
-#endif	
   },
 	(A_BIMODAL_BRANCH)
 )
@@ -4268,7 +3822,7 @@ DEF_MACRO(fTIMING,(A),
 	if (UNLIKELY(thread->timing_on)) {
 		A;
 	},
-	()      
+	()
 )
 
 DEF_MACRO(IV1DEAD,(),
@@ -4357,7 +3911,7 @@ DEF_MACRO(fVIRTINSN_RTE,(IMM,REG),
 DEF_MACRO(fVIRTINSN_SETIE,(IMM,REG),
 	"VMSETIE",
 	"VMSETIE",
-	do { 	fLOG_REG_FIELD(CCR,CCR_GIE,(REG) & 1); 
+	do { 	fLOG_REG_FIELD(CCR,CCR_GIE,(REG) & 1);
 		REG = fREAD_REG_FIELD(CCR,CCR_GIE);
 		thread->trap1_info = TRAP1_VIRTINSN_SETIE;
 	} while (0),
@@ -4370,7 +3924,7 @@ DEF_MACRO(fVIRTINSN_GETIE,(IMM,REG),
 	{ 	thread->trap1_info = TRAP1_VIRTINSN_GETIE;
 		REG = fREAD_REG_FIELD(CCR,CCR_GIE);
 	},
-	
+
 	(A_IMPLICIT_READS_CCR)
 )
 

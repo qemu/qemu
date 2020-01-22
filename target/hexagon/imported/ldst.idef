@@ -152,28 +152,28 @@ Q6INSN(L2_deallocframe,"deallocframe", ATTRIBS(A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAM
 { fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
 	fLOAD(1,8,u,EA,tmp);
 	tmp = fFRAME_UNSCRAMBLE(tmp);
-	fWRITE_LR(fGETWORD(1,tmp)); 
-	fWRITE_FP(fGETWORD(0,tmp)); 
+	fWRITE_LR(fGETWORD(1,tmp));
+	fWRITE_FP(fGETWORD(0,tmp));
 	fWRITE_SP(EA+8); })
 #endif
 
 #if FRAME_EXPLICIT
 Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_ROPS_2,A_JINDIR,A_MEMSIZE_8B,A_LOAD,A_RETURN), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);
-	fLOAD(1,8,u,EA,tmp); 
+	fLOAD(1,8,u,EA,tmp);
 	RddV = fFRAME_UNSCRAMBLE(tmp);
-	fWRITE_SP(EA+8); 
+	fWRITE_SP(EA+8);
     fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR);})
 
 DEF_MAPPING(L6_return_map_to_raw,"dealloc_return","r31:30=dealloc_return(r30):raw")
 #else
 Q6INSN(L4_return,"dealloc_return", ATTRIBS(A_ROPS_2,A_JINDIR,A_MEMSIZE_8B,A_LOAD,A_RETURN), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
-	fLOAD(1,8,u,EA,tmp); 
+	fLOAD(1,8,u,EA,tmp);
 	tmp = fFRAME_UNSCRAMBLE(tmp);
-	fWRITE_LR(fGETWORD(1,tmp)); 
-	fWRITE_FP(fGETWORD(0,tmp)); 
-	fWRITE_SP(EA+8); 
+	fWRITE_LR(fGETWORD(1,tmp));
+	fWRITE_FP(fGETWORD(0,tmp));
+	fWRITE_SP(EA+8);
     fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);})
 #endif
 
@@ -330,16 +330,16 @@ DEF_MAPPING(L4_##TAG##b_zomap, "memb(Rs32)"OPER, "memb(Rs32+#0)"OPER);
 
 
 
-STD_MEMOP_AMODES(add_memop, "+=Rt32", "Add Register to Memory Word", tmp += RtV)  
-STD_MEMOP_AMODES(sub_memop, "-=Rt32", "Sub Register from Memory Word", tmp -= RtV)  
-STD_MEMOP_AMODES(and_memop, "&=Rt32", "Logical AND Register to Memory Word", tmp &= RtV)  
-STD_MEMOP_AMODES(or_memop, "|=Rt32", "Logical OR Register to Memory Word", tmp |= RtV)  
+STD_MEMOP_AMODES(add_memop, "+=Rt32", "Add Register to Memory Word", tmp += RtV)
+STD_MEMOP_AMODES(sub_memop, "-=Rt32", "Sub Register from Memory Word", tmp -= RtV)
+STD_MEMOP_AMODES(and_memop, "&=Rt32", "Logical AND Register to Memory Word", tmp &= RtV)
+STD_MEMOP_AMODES(or_memop, "|=Rt32", "Logical OR Register to Memory Word", tmp |= RtV)
 
 
-STD_MEMOP_AMODES(iadd_memop, "+=#U5", "Add Immediate to Memory Word", tmp += UiV)  
-STD_MEMOP_AMODES(isub_memop, "-=#U5", "Sub Immediate to Memory Word", tmp -= UiV)  
-STD_MEMOP_AMODES(iand_memop, "=clrbit(#U5)", "Clear a bit in memory", tmp &= (~(1<<UiV)))  
-STD_MEMOP_AMODES(ior_memop,  "=setbit(#U5)", "Set a bit in memory", tmp |= (1<<UiV))  
+STD_MEMOP_AMODES(iadd_memop, "+=#U5", "Add Immediate to Memory Word", tmp += UiV)
+STD_MEMOP_AMODES(isub_memop, "-=#U5", "Sub Immediate to Memory Word", tmp -= UiV)
+STD_MEMOP_AMODES(iand_memop, "=clrbit(#U5)", "Clear a bit in memory", tmp &= (~(1<<UiV)))
+STD_MEMOP_AMODES(ior_memop,  "=setbit(#U5)", "Set a bit in memory", tmp |= (1<<UiV))
 
 
 /*****************************************************************/

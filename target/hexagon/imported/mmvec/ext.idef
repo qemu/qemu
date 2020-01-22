@@ -156,7 +156,7 @@ DESCR, fHIDE(mmvector_t input;) input = fTMPVDATA(); DO_FOR_EACH_CODE(WIDTH, COD
 
 /******************************************************************************************
 *
-* MMVECTOR MEMORY OPERATIONS - NO NAPALI V1 
+* MMVECTOR MEMORY OPERATIONS - NO NAPALI V1
 *
 *******************************************************************************************/
 
@@ -231,17 +231,17 @@ ITERATOR_INSN_SHIFT_SLOT_NOV1(ITERSIZE,TAG, \
     fHIDE(int )shamt = RtV & SHAMTMASK; \
     DSTM(0,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VvV.SRCTYPE[i],shamt) >> shamt)); \
     DSTM(1,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuV.SRCTYPE[i],shamt) >> shamt)))
-    
+
 #define MMVEC_AVGS_NOV1(TYPE,TYPE2,DESCR, WIDTH, DEST,SRC)\
 ITERATOR_INSN2_ANY_SLOT_NOV1(WIDTH,vavg##TYPE,                        "Vd32=vavg"TYPE2"(Vu32,Vv32)",          "Vd32."#DEST"=vavg(Vu32."#SRC",Vv32."#SRC")",          "Vector Average "DESCR,                                      VdV.DEST[i]  = fVAVGS(       WIDTH,  VuV.SRC[i], VvV.SRC[i])) \
 ITERATOR_INSN2_ANY_SLOT_NOV1(WIDTH,vavg##TYPE##rnd,                   "Vd32=vavg"TYPE2"(Vu32,Vv32):rnd",      "Vd32."#DEST"=vavg(Vu32."#SRC",Vv32."#SRC"):rnd",      "Vector Average % Round"DESCR,                               VdV.DEST[i]  = fVAVGSRND(    WIDTH,  VuV.SRC[i], VvV.SRC[i])) \
 ITERATOR_INSN2_ANY_SLOT_NOV1(WIDTH,vnavg##TYPE,                       "Vd32=vnavg"TYPE2"(Vu32,Vv32)",         "Vd32."#DEST"=vnavg(Vu32."#SRC",Vv32."#SRC")",         "Vector Negative Average "DESCR,                             VdV.DEST[i]  = fVNAVGS(      WIDTH,  VuV.SRC[i], VvV.SRC[i]))
-    
+
   #define MMVEC_AVGU_NOV1(TYPE,TYPE2,DESCR, WIDTH, DEST,SRC)\
 ITERATOR_INSN2_ANY_SLOT_NOV1(WIDTH,vavg##TYPE,                        "Vd32=vavg"TYPE2"(Vu32,Vv32)",         "Vd32."#DEST"=vavg(Vu32."#SRC",Vv32."#SRC")",        "Vector Average "DESCR,                                      VdV.DEST[i] = fVAVGU(   WIDTH,  VuV.SRC[i], VvV.SRC[i])) \
 ITERATOR_INSN2_ANY_SLOT_NOV1(WIDTH,vavg##TYPE##rnd,                   "Vd32=vavg"TYPE2"(Vu32,Vv32):rnd",     "Vd32."#DEST"=vavg(Vu32."#SRC",Vv32."#SRC"):rnd",    "Vector Average % Round"DESCR,                               VdV.DEST[i] = fVAVGURND(WIDTH,  VuV.SRC[i], VvV.SRC[i]))
 
-  
+
 
 /******************************************************************************************
 *
@@ -267,7 +267,7 @@ EXTINSN(V6_##TAG##_npred_ppu,    "if (!" #SYNTAXP "4) " SYNTAXA "(Rx32++Mu2)" NT
 
 #define MMVEC_COND_EACH_EA(TAG,DESCR,ATTRIB,NT,SYNTAXA,SYNTAXB,SYNTAXP,BEH) \
 MMVEC_COND_EACH_EA_TRUE(TAG,DESCR,ATTRIB,NT,SYNTAXA,SYNTAXB,SYNTAXP,BEH) \
-MMVEC_COND_EACH_EA_FALSE(TAG,DESCR,ATTRIB,NT,SYNTAXA,SYNTAXB,SYNTAXP,BEH) 
+MMVEC_COND_EACH_EA_FALSE(TAG,DESCR,ATTRIB,NT,SYNTAXA,SYNTAXB,SYNTAXP,BEH)
 
 
 #define VEC_SCALE(X) X*fVECSIZE()
@@ -413,7 +413,7 @@ DEF_CVI_MAPPING(V6_ldcpnt0,  "if (Pv4) Vd32.cur=vmem(Rt32):nt", "if (Pv4) Vd32.c
 DEF_CVI_MAPPING(V6_ldtpnt0,  "if (Pv4) Vd32.tmp=vmem(Rt32):nt", "if (Pv4) Vd32.tmp=vmem(Rt32+#0):nt")
 DEF_CVI_MAPPING(V6_ldcnpnt0,  "if (!Pv4) Vd32.cur=vmem(Rt32):nt", "if (!Pv4) Vd32.cur=vmem(Rt32+#0):nt")
 DEF_CVI_MAPPING(V6_ldtnpnt0,  "if (!Pv4) Vd32.tmp=vmem(Rt32):nt", "if (!Pv4) Vd32.tmp=vmem(Rt32+#0):nt")
-	
+
 
 // Stores
 DEF_CVI_MAPPING(V6_stnt0,    "vmem(Rt32):nt=Vs32",     "vmem(Rt32+#0):nt=Vs32")
@@ -438,21 +438,21 @@ DEF_CVI_MAPPING(V6_stnpnt0,  "if (!Pv4) vmem(Rt32):nt=Vs32",     "if (!Pv4) vmem
         VdV.ub[i] = (i+SHIFT>=fVBYTES()) ? VuV.ub[i+SHIFT-fVBYTES()] : VvV.ub[i+SHIFT];\
 	}
 
-EXTINSN(V6_valignb,  "Vd32=valign(Vu32,Vv32,Rt8)",  ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE,A_NOTE_RT8),"Align Two vectors by Rt8 as control", 
-{ 
-	unsigned shift = RtV & (fVBYTES()-1);               
+EXTINSN(V6_valignb,  "Vd32=valign(Vu32,Vv32,Rt8)",  ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE,A_NOTE_RT8),"Align Two vectors by Rt8 as control",
+{
+	unsigned shift = RtV & (fVBYTES()-1);
 	VALIGNB(shift)
 })
 EXTINSN(V6_vlalignb, "Vd32=vlalign(Vu32,Vv32,Rt8)", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE,A_NOTE_RT8),"Align Two vectors by Rt8 as control",
 {
-	unsigned shift = fVBYTES() - (RtV & (fVBYTES()-1)); 
+	unsigned shift = fVBYTES() - (RtV & (fVBYTES()-1));
 	VALIGNB(shift)
 })
-EXTINSN(V6_valignbi, "Vd32=valign(Vu32,Vv32,#u3)", 	ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Align Two vectors by #u3 as control",  
-{                                   				
+EXTINSN(V6_valignbi, "Vd32=valign(Vu32,Vv32,#u3)", 	ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Align Two vectors by #u3 as control",
+{
 	VALIGNB(uiV)
 })
-EXTINSN(V6_vlalignbi,"Vd32=vlalign(Vu32,Vv32,#u3)", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Align Two vectors by #u3 as control",  
+EXTINSN(V6_vlalignbi,"Vd32=vlalign(Vu32,Vv32,#u3)", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP,A_NOTE_PERMUTE_RESOURCE),"Align Two vectors by #u3 as control",
 {
 	unsigned shift = fVBYTES() - uiV;
 	VALIGNB(shift)
@@ -1040,7 +1040,7 @@ ITERATOR_INSN2_SHIFT_SLOT(32,vrotr,"Vd32=vrotr(Vu32,Vv32)","Vd32.uw=vrotr(Vu32.u
  * MMVECTOR SHIFT AND PERMUTE
  * ******************************************************************/
 
-ITERATOR_INSN2_PERMUTE_SLOT_DOUBLE_VEC(32,vasr_into,"Vxx32=vasrinto(Vu32,Vv32)","Vxx32.w=vasrinto(Vu32.w,Vv32.w)","ASR vector 1 elements and overlay dropping bits to MSB of vector 2 elements", 
+ITERATOR_INSN2_PERMUTE_SLOT_DOUBLE_VEC(32,vasr_into,"Vxx32=vasrinto(Vu32,Vv32)","Vxx32.w=vasrinto(Vu32.w,Vv32.w)","ASR vector 1 elements and overlay dropping bits to MSB of vector 2 elements",
     fHIDE(int64_t ) shift = (fSE32_64(VuV.w[i]) << 32);
     fHIDE(int64_t ) mask  = (((fSE32_64(VxxV.v[0].w[i])) << 32) | fZE32_64(VxxV.v[0].w[i]));
     fHIDE(int64_t) lomask = (((fSE32_64(1)) << 32) - 1);
@@ -1062,9 +1062,9 @@ ITERATOR_INSN_SHIFT_SLOT(ITERSIZE,TAG, \
     DSTM(1,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuV.SRCTYPE[i],shamt) >> shamt)))
 
 
-	
-	
- 
+
+
+
 /* WORD TO HALF*/
 
 NARROWING_SHIFT(32,vasrwh,fSETHALF,h,w,,fECHO,fVNOROUND,0xF)
@@ -1178,8 +1178,8 @@ ITERATOR_INSN2_SHIFT_SLOT_NOV1(16,vaslh_acc,"Vx32+=vaslh(Vu32,Rt32)","Vx32.h+=va
 
 ITERATOR_INSN2_SHIFT_SLOT_NOV1(16,vasrh_acc,"Vx32+=vasrh(Vu32,Rt32)","Vx32.h+=vasr(Vu32.h,Rt32)",
 "Vector shift add halfword",
-    VxV.h[i]  +=  (VuV.h[i] >> (RtV & (16-1))))    
-    
+    VxV.h[i]  +=  (VuV.h[i] >> (RtV & (16-1))))
+
 /**************************************************************************
 *
 * MMVECTOR ELEMENT-WISE ARITHMETIC
@@ -1835,7 +1835,7 @@ EXTINSN(V6_veq##TYPE##_and, "Qx4&=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRI
 EXTINSN(V6_veq##TYPE##_or,  "Qx4|=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_NOTE_ANY_RESOURCE), DESCR" equalto with predicate-or", \
 	VCMP(QxV, fGETQBITS(QxV,WIDTH,MASK,i), |, ==, N, SRC, MASK, WIDTH)) \
 EXTINSN(V6_veq##TYPE##_xor, "Qx4^=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_NOTE_ANY_RESOURCE), DESCR" equalto with predicate-xor", \
-	VCMP(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, ==, N, SRC, MASK, WIDTH)) 
+	VCMP(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, ==, N, SRC, MASK, WIDTH))
 
 
 MMVEC_CMP(w,"w","","Vector Word Compare ", fVELEM(32), 0xF, 4, w)
@@ -2142,8 +2142,8 @@ ITERATOR_INSN2_PERMUTE_SLOT(16, vshuffb, "Vd32=vshuffb(Vu32)", "Vd32.b=vshuff(Vu
 EXTINSN(V6_extractw, "Rd32=vextract(Vu32,Rs32)",
 ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_RESTRICT_NOPACKET,A_CVI_EXTRACT,A_NOTE_NOPACKET,A_MEMLIKE,A_RESTRICT_SLOT0ONLY),
 "Extract an element from a vector to scalar",
-fHIDE(warn("RdN=%d VuN=%d RsN=%d RsV=0x%08x widx=%d",RdN,VuN,RsN,RsV,((RsV & (fVBYTES()-1)) >> 2));) 
-RdV = VuV.uw[ (RsV & (fVBYTES()-1)) >> 2]; 
+fHIDE(warn("RdN=%d VuN=%d RsN=%d RsV=0x%08x widx=%d",RdN,VuN,RsN,RsV,((RsV & (fVBYTES()-1)) >> 2));)
+RdV = VuV.uw[ (RsV & (fVBYTES()-1)) >> 2];
 fHIDE(warn("RdV=0x%08x",RdV);))
 
 DEF_CVI_MAPPING(V6_extractw_alt,"Rd32.w=vextract(Vu32,Rs32)","Rd32=vextract(Vu32,Rs32)")
@@ -2174,7 +2174,7 @@ ITERATOR_INSN_ANY_SLOT_DOUBLE_VEC(8,vcombine,"Vdd32=vcombine(Vu32,Vv32)",
     VddV.v[1].ub[i] = VuV.ub[i])
 
 
-	
+
 ///////////////////////////////////////////////////////////////////////////
 
 
@@ -2223,7 +2223,7 @@ ITERATOR_INSN2_SHIFT_SLOT(16,vcl0h,"Vd32=vcl0h(Vu32)","Vd32.uh=vcl0(Vu32.uh)",  
 
 ITERATOR_INSN2_SHIFT_SLOT(32,vnormamtw,"Vd32=vnormamtw(Vu32)","Vd32.w=vnormamt(Vu32.w)","Norm Amount Word",
 VdV.w[i]=fMAX(fCL1_4(~VuV.w[i]),fCL1_4(VuV.w[i]))-1; fHIDE(IV1DEAD();))
-ITERATOR_INSN2_SHIFT_SLOT(16,vnormamth,"Vd32=vnormamth(Vu32)","Vd32.h=vnormamt(Vu32.h)","Norm Amount Halfword",  
+ITERATOR_INSN2_SHIFT_SLOT(16,vnormamth,"Vd32=vnormamth(Vu32)","Vd32.h=vnormamt(Vu32.h)","Norm Amount Halfword",
 VdV.h[i]=fMAX(fCL1_2(~VuV.h[i]),fCL1_2(VuV.h[i]))-1; fHIDE(IV1DEAD();))
 
 ITERATOR_INSN_SHIFT_SLOT_VV_LATE(32,vaddclbw,"Vd32.w=vadd(vclb(Vu32.w),Vv32.w)",
@@ -2715,7 +2715,7 @@ EXTINSN(V6_vprefixqb,"Vd32.b=prefixsum(Qv4)",   ATTRIBS(A_EXTENSION,A_CVI,A_CVI_
     }
     } )
 EXTINSN(V6_vprefixqh,"Vd32.h=prefixsum(Qv4)",   ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_CVI_EARLY,A_NOTE_SHIFT_RESOURCE),  "parallel prefix sum of Q into halfwords",
-{   
+{
     fHIDE(int i;)
     fHIDE(size2u_t acc = 0;)
     fVFOREACH(16, i) {
@@ -2725,7 +2725,7 @@ EXTINSN(V6_vprefixqh,"Vd32.h=prefixsum(Qv4)",   ATTRIBS(A_EXTENSION,A_CVI,A_CVI_
     }
     } )
 EXTINSN(V6_vprefixqw,"Vd32.w=prefixsum(Qv4)",   ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_CVI_EARLY,A_NOTE_SHIFT_RESOURCE),  "parallel prefix sum of Q into words",
-{ 
+{
     fHIDE(int i;)
     fHIDE(size4u_t acc = 0;)
     fVFOREACH(32, i) {
@@ -2737,9 +2737,9 @@ EXTINSN(V6_vprefixqw,"Vd32.w=prefixsum(Qv4)",   ATTRIBS(A_EXTENSION,A_CVI,A_CVI_
     }
     } )
 
-	
-	
-	
+
+
+
 
 /******************************************************************************
  DEBUG Vector/Register Printing

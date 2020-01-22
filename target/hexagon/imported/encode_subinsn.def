@@ -65,15 +65,10 @@ DEF_ENC_SUBINSN(SS2_storeh_io,   SUBINSN_S2, "00i iisssstttt")
 DEF_ENC_SUBINSN(SS2_storew_sp,   SUBINSN_S2, "010 0iiiiitttt")
 DEF_ENC_SUBINSN(SS2_stored_sp,   SUBINSN_S2, "010 1iiiiiittt")
 
-//DEF_ENC_SUBINSN(SS2_storeb_new,  SUBINSN_S2, "011 00ssssiiii")
-//DEF_ENC_SUBINSN(SS2_storeh_new,  SUBINSN_S2, "011 01ssssiiii")
-//DEF_ENC_SUBINSN(SS2_storew_new,  SUBINSN_S2, "011 10ssssiiii")
-
 DEF_ENC_SUBINSN(SS2_storewi0,    SUBINSN_S2, "100 00ssssiiii")
 DEF_ENC_SUBINSN(SS2_storewi1,    SUBINSN_S2, "100 01ssssiiii")
 DEF_ENC_SUBINSN(SS2_storebi0,    SUBINSN_S2, "100 10ssssiiii")
 DEF_ENC_SUBINSN(SS2_storebi1,    SUBINSN_S2, "100 11ssssiiii")
-//DEF_ENC_SUBINSN(Sreserved     ,SUBINSN_S2, "101 ----------")
 
 DEF_ENC_SUBINSN(SS2_allocframe,  SUBINSN_S2, "111 0iiiii----")
 
@@ -118,8 +113,6 @@ DEF_ENC_SUBINSN(SA1_combinerz,  SUBINSN_A, "111 -1ssss1ddd")
 
 /* maybe R=cmpeq ? */
 
-
-//F_ENC_SUBINSN(SA1_aslh,       SUBINSN_A, "110 10ssssdddd")
 
 /* Add a group of NCJ: if (R.new==#0) jump:hint #r9 */
 /* Add a group of NCJ: if (R.new!=#0) jump:hint #r9 */

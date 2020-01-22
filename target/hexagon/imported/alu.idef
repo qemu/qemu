@@ -172,7 +172,7 @@ Q6INSN(A2_subp,"Rdd32=sub(Rtt32,Rss32)",ATTRIBS(),
 Q6INSN(A4_addp_c,"Rdd32=add(Rss32,Rtt32,Px4):carry",ATTRIBS(A_RESTRICT_LATEPRED,A_NOTE_LATEPRED),"Add with Carry",
 {
   fPREDUSE_TIMING();
-  RddV = RssV + RttV + fLSBOLD(PxV); 
+  RddV = RssV + RttV + fLSBOLD(PxV);
   PxV = f8BITSOF(fCARRY_FROM_ADD(RssV,RttV,fLSBOLD(PxV)));
   fHIDE(MARK_LATE_PRED_WRITE(PxN))
 })
@@ -180,7 +180,7 @@ Q6INSN(A4_addp_c,"Rdd32=add(Rss32,Rtt32,Px4):carry",ATTRIBS(A_RESTRICT_LATEPRED,
 Q6INSN(A4_subp_c,"Rdd32=sub(Rss32,Rtt32,Px4):carry",ATTRIBS(A_RESTRICT_LATEPRED,A_NOTE_LATEPRED),"Sub with Carry",
 {
   fPREDUSE_TIMING();
-  RddV = RssV + ~RttV + fLSBOLD(PxV); 
+  RddV = RssV + ~RttV + fLSBOLD(PxV);
   PxV = f8BITSOF(fCARRY_FROM_ADD(RssV,~RttV,fLSBOLD(PxV)));
   fHIDE(MARK_LATE_PRED_WRITE(PxN))
 })
@@ -201,11 +201,11 @@ Q6INSN(A2_abssat,"Rd32=abs(Rs32):sat",ATTRIBS(),
 "Arithmetic negate register", { RdV = fSAT(fABS(fCAST4_8s(RsV))); })
 
 Q6INSN(A2_vconj,"Rdd32=vconj(Rss32):sat",ATTRIBS(A_ARCHV2),
-"Vector Complex conjugate of Rss", 
+"Vector Complex conjugate of Rss",
 {  fSETHALF(1,RddV,fSATN(16,-fGETHALF(1,RssV)));
-   fSETHALF(0,RddV,fGETHALF(0,RssV));	 
+   fSETHALF(0,RddV,fGETHALF(0,RssV));
    fSETHALF(3,RddV,fSATN(16,-fGETHALF(3,RssV)));
-   fSETHALF(2,RddV,fGETHALF(2,RssV));	 
+   fSETHALF(2,RddV,fGETHALF(2,RssV));
 })
 
 
@@ -289,19 +289,19 @@ Q6INSN(A2_sxth,"Rd32=sxth(Rs32)",ATTRIBS(),
 "Sign extend half", {RdV = fSXTN(16,32,RsV);})
 
 Q6INSN(A2_combinew,"Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ROPS_2),
-"Combine two words into a register pair", 
+"Combine two words into a register pair",
 { fSETWORD(0,RddV,RtV);
   fSETWORD(1,RddV,RsV);
 })
 
 Q6INSN(A4_combineri,"Rdd32=combine(Rs32,#s8)",ATTRIBS(A_ROPS_2),
-"Combine a word and an immediate into a register pair", 
+"Combine a word and an immediate into a register pair",
 { fIMMEXT(siV); fSETWORD(0,RddV,siV);
   fSETWORD(1,RddV,RsV);
 })
 
 Q6INSN(A4_combineir,"Rdd32=combine(#s8,Rs32)",ATTRIBS(A_ROPS_2),
-"Combine a word and an immediate into a register pair", 
+"Combine a word and an immediate into a register pair",
 { fIMMEXT(siV); fSETWORD(0,RddV,RsV);
   fSETWORD(1,RddV,siV);
 })
@@ -367,7 +367,7 @@ Q6INSN(M2_xor_xacc,"Rx32^=xor(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
 
 Q6INSN(M4_xor_xacc,"Rxx32^=xor(Rss32,Rtt32)",,
 "logical XOR with XOR accumulation",{ RxxV^=RssV^RttV;})
- 
+
 
 
 Q6INSN(A4_andn,"Rd32=and(Rt32,~Rs32)",,
@@ -454,11 +454,6 @@ Q6INSN(M4_xor_andn,"Rx32^=and(Rs32,~Rt32)",ATTRIBS(A_ROPS_2),
 "Compound Xor-And", { RxV ^= (RsV & ~RtV); })
 
 
-//Q6INSN(M4_and_add,"Rx32&=add(Rs32,Rt32)",ATTRIBS(A_ROPS_2),
-//"Compound And-Add", { RxV &= (RsV + RtV); })
-
-//Q6INSN(M4_and_sub,"Rx32&=sub(Rs32,Rt32)",ATTRIBS(A_ROPS_2),
-//"Compound And-Sub", { RxV &= (RsV - RtV); })
 
 
 
@@ -1000,7 +995,7 @@ Q6INSN(A2_vavguh,"Rdd32=vavguh(Rss32,Rtt32)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV))>>1);     
+		fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV))>>1);
 	}
 })
 
@@ -1009,7 +1004,7 @@ Q6INSN(A2_vavgh,"Rdd32=vavgh(Rss32,Rtt32)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);     
+		fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);
 	}
 })
 
@@ -1018,7 +1013,7 @@ Q6INSN(A2_vnavgh,"Rdd32=vnavgh(Rtt32,Rss32)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1);     
+		fSETHALF(i,RddV,(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1);
 	}
 })
 
@@ -1081,7 +1076,7 @@ Q6INSN(A2_vavghcr,"Rdd32=vavgh(Rss32,Rtt32):crnd",ATTRIBS(A_ARCHV2),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,fCRND(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);     
+		fSETHALF(i,RddV,fCRND(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);
 	}
 })
 
@@ -1090,7 +1085,7 @@ Q6INSN(A2_vnavghcr,"Rdd32=vnavgh(Rtt32,Rss32):crnd:sat",ATTRIBS(A_ARCHV2),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,fSATH(fCRND(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1));     
+		fSETHALF(i,RddV,fSATH(fCRND(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1));
 	}
 })
 
@@ -1127,7 +1122,7 @@ Q6INSN(A2_vavguhr,"Rdd32=vavguh(Rss32,Rtt32):rnd",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV)+1)>>1);     
+		fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV)+1)>>1);
 	}
 })
 
@@ -1136,7 +1131,7 @@ Q6INSN(A2_vavghr,"Rdd32=vavgh(Rss32,Rtt32):rnd",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i=0;i<4;i++) {
-		fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV)+1)>>1);     
+		fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV)+1)>>1);
 	}
 })
 
@@ -1184,34 +1179,31 @@ Q6INSN(A4_cround_rr,"Rd32=cround(Rs32,Rt32)",ATTRIBS(),"Convergent Round", {RdV 
 		tmp128 = fSHIFTR128(tmp128, SHIFT);\
 		DST =  fCAST16S_8S(tmp128);\
 	}
-	
-Q6INSN(A7_croundd_ri,"Rdd32=cround(Rss32,#u6)",ATTRIBS(),"Convergent Round", 
-{	
+
+Q6INSN(A7_croundd_ri,"Rdd32=cround(Rss32,#u6)",ATTRIBS(),"Convergent Round",
+{
 CROUND(RddV,RssV,uiV);
 fEXTENSION_AUDIO();})
 
-Q6INSN(A7_croundd_rr,"Rdd32=cround(Rss32,Rt32)",ATTRIBS(),"Convergent Round", 
+Q6INSN(A7_croundd_rr,"Rdd32=cround(Rss32,Rt32)",ATTRIBS(),"Convergent Round",
 {
 CROUND(RddV,RssV,fZXTN(6,32,RtV));
 fEXTENSION_AUDIO();})
 
 
 
-//Q6INSN(A7_cround,"Rd32=cround(Rss32)",ATTRIBS(),"Convergent Round", {RdV = fCRNDN64(RssV,32); })
 
 
-//Q6INSN(A4_cround_ri_sat,"Rd32=cround(Rs32,#u5):sat",ATTRIBS(),"Convergent Round", {RdV = fSAT(fCRNDN(RsV,uiV)); })
-//Q6INSN(A4_cround_rr_sat,"Rd32=cround(Rs32,Rt32):sat",ATTRIBS(),"Convergent Round", {RdV = fSAT(fCRNDN(RsV,fZXTN(5,32,RtV))); })
 
 
 
 
 Q6INSN(A7_clip,"Rd32=clip(Rs32,#u5)",ATTRIBS(),"Clip to  #s5", 	{   fCLIP(RdV,RsV,uiV); fEXTENSION_AUDIO();})
 Q6INSN(A7_vclip,"Rdd32=vclip(Rss32,#u5)",ATTRIBS(),"Clip to  #s5",
-{ 
+{
 fHIDE(size4s_t tmp;)
 fCLIP(tmp, fGETWORD(0, RssV), uiV);
-fSETWORD(0, RddV, tmp);  
+fSETWORD(0, RddV, tmp);
 fCLIP(tmp,fGETWORD(1, RssV), uiV);
 fSETWORD(1, RddV, tmp);
 fEXTENSION_AUDIO();
@@ -1240,7 +1232,7 @@ Q6INSN(A4_vr##TAG##SHORTTYPE,"Rxx32=vr"#TAG#SHORTTYPE"(Rss32,Ru32)",ATTRIBS(), \
 	} \
 	fSETWORD(0,RxxV,TAG); \
 	fSETWORD(1,RxxV,addr); \
-}) 
+})
 
 #define RMINMAX(SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT) \
 VRMINORMAX(min,"minimum",>,SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT) \
@@ -1267,7 +1259,7 @@ Q6INSN(A2_v##TAG##SHORTTYPE,"Rdd32=v"#TAG#SHORTTYPE"(Rtt32,Rss32)",ATTRIBS(), \
 	for (i = 0; i < NEL; i++) { \
 		fSET##SETTYPE(i,RddV,FUNC(fGET##GETTYPE(i,RttV),fGET##GETTYPE(i,RssV))); \
 	} \
-}) 
+})
 
 #define VMINORMAX3(TAG,STR,FUNC,SHORTTYPE,SETTYPE,GETTYPE,NEL) \
 Q6INSN(A6_v##TAG##SHORTTYPE##3,"Rxx32=v"#TAG#SHORTTYPE"3(Rtt32,Rss32)",ATTRIBS(), \
@@ -1277,11 +1269,11 @@ Q6INSN(A6_v##TAG##SHORTTYPE##3,"Rxx32=v"#TAG#SHORTTYPE"3(Rtt32,Rss32)",ATTRIBS()
 	for (i = 0; i < NEL; i++) { \
 		fSET##SETTYPE(i,RxxV,FUNC(fGET##GETTYPE(i,RxxV),FUNC(fGET##GETTYPE(i,RttV),fGET##GETTYPE(i,RssV)))); \
 	} \
-}) 
+})
 
 #define MINMAX(SHORTTYPE,SETTYPE,GETTYPE,NEL) \
 VMINORMAX(min,"minimum",fMIN,SHORTTYPE,SETTYPE,GETTYPE,NEL) \
-VMINORMAX(max,"maximum",fMAX,SHORTTYPE,SETTYPE,GETTYPE,NEL) 
+VMINORMAX(max,"maximum",fMAX,SHORTTYPE,SETTYPE,GETTYPE,NEL)
 
 MINMAX(b,BYTE,BYTE,8)
 MINMAX(ub,BYTE,UBYTE,8)
@@ -1338,6 +1330,6 @@ Q6INSN(A4_modwrapu,"Rd32=modwrap(Rs32,Rt32)",ATTRIBS(),
 	    RdV = RsV - fCAST4u(RtV);
 	} else {
  	 		 RdV = RsV;
-    }	
-})	
+    }
+})
 
