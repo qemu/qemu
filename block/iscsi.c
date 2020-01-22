@@ -2164,58 +2164,6 @@ static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int coroutine_fn iscsi_co_create_opts(const char *filename, QemuOpts *opts,
-                                             Error **errp)
-{
-    int ret = 0;
-    int64_t total_size = 0;
-    BlockDriverState *bs;
-    IscsiLun *iscsilun = NULL;
-    QDict *bs_options;
-    Error *local_err = NULL;
-
-    bs = bdrv_new();
-
-    /* Read out options */
-    total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                              BDRV_SECTOR_SIZE);
-    bs->opaque = g_new0(struct IscsiLun, 1);
-    iscsilun = bs->opaque;
-
-    bs_options = qdict_new();
-    iscsi_parse_filename(filename, bs_options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-    } else {
-        ret = iscsi_open(bs, bs_options, 0, NULL);
-    }
-    qobject_unref(bs_options);
-
-    if (ret != 0) {
-        goto out;
-    }
-    iscsi_detach_aio_context(bs);
-    if (iscsilun->type != TYPE_DISK) {
-        ret = -ENODEV;
-        goto out;
-    }
-    if (bs->total_sectors < total_size) {
-        ret = -ENOSPC;
-        goto out;
-    }
-
-    ret = 0;
-out:
-    if (iscsilun->iscsi != NULL) {
-        iscsi_destroy_context(iscsilun->iscsi);
-    }
-    g_free(bs->opaque);
-    bs->opaque = NULL;
-    bdrv_unref(bs);
-    return ret;
-}
-
 static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     IscsiLun *iscsilun = bs->opaque;
@@ -2486,8 +2434,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_parse_filename    = iscsi_parse_filename,
     .bdrv_file_open         = iscsi_open,
     .bdrv_close             = iscsi_close,
-    .bdrv_co_create_opts    = iscsi_co_create_opts,
-    .create_opts            = &iscsi_create_opts,
     .bdrv_reopen_prepare    = iscsi_reopen_prepare,
     .bdrv_reopen_commit     = iscsi_reopen_commit,
     .bdrv_co_invalidate_cache = iscsi_co_invalidate_cache,
@@ -2525,8 +2471,6 @@ static BlockDriver bdrv_iser = {
     .bdrv_parse_filename    = iscsi_parse_filename,
     .bdrv_file_open         = iscsi_open,
     .bdrv_close             = iscsi_close,
-    .bdrv_co_create_opts    = iscsi_co_create_opts,
-    .create_opts            = &iscsi_create_opts,
     .bdrv_reopen_prepare    = iscsi_reopen_prepare,
     .bdrv_reopen_commit     = iscsi_reopen_commit,
     .bdrv_co_invalidate_cache  = iscsi_co_invalidate_cache,
