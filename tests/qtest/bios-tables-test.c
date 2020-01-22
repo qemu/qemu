@@ -426,7 +426,9 @@ static void test_acpi_asl(test_data *data)
 
         fprintf(stderr,
                 "acpi-test: Warning! %.4s binary file mismatch. "
-                "Actual [aml:%s], Expected [aml:%s].\n",
+                "Actual [aml:%s], Expected [aml:%s].\n"
+                "See source file tests/qtest/bios-tables-test.c "
+                "for instructions on how to update expected files.\n",
                 exp_sdt->aml, sdt->aml_file, exp_sdt->aml_file);
 
         all_tables_match = all_tables_match &&
