@@ -463,13 +463,19 @@ static void test_acpi_asl(test_data *data)
                         "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
                         exp_sdt->aml, sdt->asl_file, sdt->aml_file,
                         exp_sdt->asl_file, exp_sdt->aml_file);
+                fflush(stderr);
                 if (getenv("V")) {
                     const char *diff_cmd = getenv("DIFF");
                     if (diff_cmd) {
-                        int ret G_GNUC_UNUSED;
                         char *diff = g_strdup_printf("%s %s %s", diff_cmd,
                             exp_sdt->asl_file, sdt->asl_file);
+                        int out = dup(STDOUT_FILENO);
+                        int ret G_GNUC_UNUSED;
+
+                        dup2(STDERR_FILENO, STDOUT_FILENO);
                         ret = system(diff) ;
+                        dup2(out, STDOUT_FILENO);
+                        close(out);
                         g_free(diff);
                     } else {
                         fprintf(stderr, "acpi-test: Warning. not showing "
