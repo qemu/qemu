@@ -1320,10 +1320,12 @@ static void multifd_recv_terminate_threads(Error *err)
 
         qemu_mutex_lock(&p->mutex);
         p->quit = true;
-        /* We could arrive here for two reasons:
-           - normal quit, i.e. everything went fine, just finished
-           - error quit: We close the channels so the channel threads
-             finish the qio_channel_read_all_eof() */
+        /*
+         * We could arrive here for two reasons:
+         *  - normal quit, i.e. everything went fine, just finished
+         *  - error quit: We close the channels so the channel threads
+         *    finish the qio_channel_read_all_eof()
+         */
         if (p->c) {
             qio_channel_shutdown(p->c, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         }
