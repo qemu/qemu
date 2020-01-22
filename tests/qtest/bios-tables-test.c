@@ -465,25 +465,18 @@ static void test_acpi_asl(test_data *data)
                         exp_sdt->asl_file, exp_sdt->aml_file);
                 fflush(stderr);
                 if (getenv("V")) {
-                    const char *diff_cmd = getenv("DIFF");
-                    if (diff_cmd) {
-                        char *diff = g_strdup_printf("%s %s %s", diff_cmd,
-                            exp_sdt->asl_file, sdt->asl_file);
-                        int out = dup(STDOUT_FILENO);
-                        int ret G_GNUC_UNUSED;
+                    const char *diff_env = getenv("DIFF");
+                    const char *diff_cmd = diff_env ? diff_env : "diff -u";
+                    char *diff = g_strdup_printf("%s %s %s", diff_cmd,
+                                                 exp_sdt->asl_file, sdt->asl_file);
+                    int out = dup(STDOUT_FILENO);
+                    int ret G_GNUC_UNUSED;
 
-                        dup2(STDERR_FILENO, STDOUT_FILENO);
-                        ret = system(diff) ;
-                        dup2(out, STDOUT_FILENO);
-                        close(out);
-                        g_free(diff);
-                    } else {
-                        fprintf(stderr, "acpi-test: Warning. not showing "
-                            "difference since no diff utility is specified. "
-                            "Set 'DIFF' environment variable to a preferred "
-                            "diff utility and run 'make V=1 check' again to "
-                            "see ASL difference.");
-                    }
+                    dup2(STDERR_FILENO, STDOUT_FILENO);
+                    ret = system(diff) ;
+                    dup2(out, STDOUT_FILENO);
+                    close(out);
+                    g_free(diff);
                 }
             }
         }
