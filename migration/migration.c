@@ -53,6 +53,7 @@
 #include "monitor/monitor.h"
 #include "net/announce.h"
 #include "qemu/queue.h"
+#include "multifd.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
