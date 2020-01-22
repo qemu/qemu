@@ -217,10 +217,9 @@ static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
                           sizeof(associativity));
 }
 
-/* Populate the "ibm,pa-features" property */
-static void spapr_populate_pa_features(SpaprMachineState *spapr,
-                                       PowerPCCPU *cpu,
-                                       void *fdt, int offset)
+static void spapr_dt_pa_features(SpaprMachineState *spapr,
+                                 PowerPCCPU *cpu,
+                                 void *fdt, int offset)
 {
     uint8_t pa_features_206[] = { 6, 0,
         0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
@@ -315,8 +314,8 @@ static void add_str(GString *s, const gchar *s1)
     g_string_append_len(s, s1, strlen(s1) + 1);
 }
 
-static int spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
-                                       hwaddr size)
+static int spapr_dt_memory_node(void *fdt, int nodeid, hwaddr start,
+                                hwaddr size)
 {
     uint32_t associativity[] = {
         cpu_to_be32(0x4), /* length */
@@ -391,9 +390,8 @@ spapr_get_drconf_cell(uint32_t seq_lmbs, uint64_t base_addr,
     return elem;
 }
 
-/* ibm,dynamic-memory-v2 */
-static int spapr_populate_drmem_v2(SpaprMachineState *spapr, void *fdt,
-                                   int offset, MemoryDeviceInfoList *dimms)
+static int spapr_dt_dynamic_memory_v2(SpaprMachineState *spapr, void *fdt,
+                                      int offset, MemoryDeviceInfoList *dimms)
 {
     MachineState *machine = MACHINE(spapr);
     uint8_t *int_buf, *cur_index;
@@ -484,8 +482,7 @@ static int spapr_populate_drmem_v2(SpaprMachineState *spapr, void *fdt,
     return 0;
 }
 
-/* ibm,dynamic-memory */
-static int spapr_populate_drmem_v1(SpaprMachineState *spapr, void *fdt,
+static int spapr_dt_dynamic_memory(SpaprMachineState *spapr, void *fdt,
                                    int offset, MemoryDeviceInfoList *dimms)
 {
     MachineState *machine = MACHINE(spapr);
@@ -554,7 +551,8 @@ static int spapr_populate_drmem_v1(SpaprMachineState *spapr, void *fdt,
  * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
  * of this device tree node.
  */
-static int spapr_populate_drconf_memory(SpaprMachineState *spapr, void *fdt)
+static int spapr_dt_dynamic_reconfiguration_memory(SpaprMachineState *spapr,
+                                                   void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
@@ -593,9 +591,9 @@ static int spapr_populate_drconf_memory(SpaprMachineState *spapr, void *fdt)
     /* ibm,dynamic-memory or ibm,dynamic-memory-v2 */
     dimms = qmp_memory_device_list();
     if (spapr_ovec_test(spapr->ov5_cas, OV5_DRMEM_V2)) {
-        ret = spapr_populate_drmem_v2(spapr, fdt, offset, dimms);
+        ret = spapr_dt_dynamic_memory_v2(spapr, fdt, offset, dimms);
     } else {
-        ret = spapr_populate_drmem_v1(spapr, fdt, offset, dimms);
+        ret = spapr_dt_dynamic_memory(spapr, fdt, offset, dimms);
     }
     qapi_free_MemoryDeviceInfoList(dimms);
 
@@ -626,7 +624,7 @@ static int spapr_populate_drconf_memory(SpaprMachineState *spapr, void *fdt)
     return ret;
 }
 
-static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
+static int spapr_dt_memory(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
@@ -649,7 +647,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
         if (!mem_start) {
             /* spapr_machine_init() checks for rma_size <= node0_size
              * already */
-            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
+            spapr_dt_memory_node(fdt, i, 0, spapr->rma_size);
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
         }
@@ -661,7 +659,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
                 sizetmp = 1ULL << ctzl(mem_start);
             }
 
-            spapr_populate_memory_node(fdt, i, mem_start, sizetmp);
+            spapr_dt_memory_node(fdt, i, mem_start, sizetmp);
             node_size -= sizetmp;
             mem_start += sizetmp;
         }
@@ -672,7 +670,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
         int ret;
 
         g_assert(smc->dr_lmb_enabled);
-        ret = spapr_populate_drconf_memory(spapr, fdt);
+        ret = spapr_dt_dynamic_reconfiguration_memory(spapr, fdt);
         if (ret) {
             return ret;
         }
@@ -681,8 +679,8 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
     return 0;
 }
 
-static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
-                                  SpaprMachineState *spapr)
+static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
+                         SpaprMachineState *spapr)
 {
     MachineState *ms = MACHINE(spapr);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -782,7 +780,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           page_sizes_prop, page_sizes_prop_size)));
     }
 
-    spapr_populate_pa_features(spapr, cpu, fdt, offset);
+    spapr_dt_pa_features(spapr, cpu, fdt, offset);
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));
@@ -816,7 +814,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                               pcc->lrg_decr_bits)));
 }
 
-static void spapr_populate_cpus_dt_node(void *fdt, SpaprMachineState *spapr)
+static void spapr_dt_cpus(void *fdt, SpaprMachineState *spapr)
 {
     CPUState **rev;
     CPUState *cs;
@@ -860,13 +858,13 @@ static void spapr_populate_cpus_dt_node(void *fdt, SpaprMachineState *spapr)
         offset = fdt_add_subnode(fdt, cpus_offset, nodename);
         g_free(nodename);
         _FDT(offset);
-        spapr_populate_cpu_dt(cs, fdt, offset, spapr);
+        spapr_dt_cpu(cs, fdt, offset, spapr);
     }
 
     g_free(rev);
 }
 
-static int spapr_rng_populate_dt(void *fdt)
+static int spapr_dt_rng(void *fdt)
 {
     int node;
     int ret;
@@ -1111,8 +1109,7 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt, bool reset)
         g_free(bootlist);
     }
 
-    _FDT(spapr_ovec_populate_dt(fdt, chosen, spapr->ov5_cas,
-                                "ibm,architecture-vec-5"));
+    _FDT(spapr_dt_ovec(fdt, chosen, spapr->ov5_cas, "ibm,architecture-vec-5"));
 }
 
 static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
@@ -1190,7 +1187,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     /* /interrupt controller */
     spapr_irq_dt(spapr, spapr_max_server_number(spapr), fdt, PHANDLE_INTC);
 
-    ret = spapr_populate_memory(spapr, fdt);
+    ret = spapr_dt_memory(spapr, fdt);
     if (ret < 0) {
         error_report("couldn't setup memory nodes in fdt");
         exit(1);
@@ -1200,7 +1197,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     spapr_dt_vdevice(spapr->vio_bus, fdt);
 
     if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL)) {
-        ret = spapr_rng_populate_dt(fdt);
+        ret = spapr_dt_rng(fdt);
         if (ret < 0) {
             error_report("could not set up rng device in the fdt");
             exit(1);
@@ -1215,8 +1212,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
         }
     }
 
-    /* cpus */
-    spapr_populate_cpus_dt_node(fdt, spapr);
+    spapr_dt_cpus(fdt, spapr);
 
     if (smc->dr_lmb_enabled) {
         _FDT(spapr_dt_drc(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
@@ -3408,8 +3404,8 @@ int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     addr = spapr_drc_index(drc) * SPAPR_MEMORY_BLOCK_SIZE;
     node = object_property_get_uint(OBJECT(drc->dev), PC_DIMM_NODE_PROP,
                                     &error_abort);
-    *fdt_start_offset = spapr_populate_memory_node(fdt, node, addr,
-                                                   SPAPR_MEMORY_BLOCK_SIZE);
+    *fdt_start_offset = spapr_dt_memory_node(fdt, node, addr,
+                                             SPAPR_MEMORY_BLOCK_SIZE);
     return 0;
 }
 
@@ -3810,7 +3806,7 @@ int spapr_core_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     offset = fdt_add_subnode(fdt, 0, nodename);
     g_free(nodename);
 
-    spapr_populate_cpu_dt(cs, fdt, offset, spapr);
+    spapr_dt_cpu(cs, fdt, offset, spapr);
 
     *fdt_start_offset = offset;
     return 0;
