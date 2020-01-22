@@ -929,7 +929,7 @@ struct {
  * false.
  */
 
-static int multifd_send_pages(RAMState *rs)
+static int multifd_send_pages(QEMUFile *f)
 {
     int i;
     static int next_channel;
@@ -965,7 +965,7 @@ static int multifd_send_pages(RAMState *rs)
     multifd_send_state->pages = p->pages;
     p->pages = pages;
     transferred = ((uint64_t) pages->used) * TARGET_PAGE_SIZE + p->packet_len;
-    qemu_file_update_transfer(rs->f, transferred);
+    qemu_file_update_transfer(f, transferred);
     ram_counters.multifd_bytes += transferred;
     ram_counters.transferred += transferred;;
     qemu_mutex_unlock(&p->mutex);
@@ -993,7 +993,7 @@ static int multifd_queue_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
         }
     }
 
-    if (multifd_send_pages(rs) < 0) {
+    if (multifd_send_pages(rs->f) < 0) {
         return -1;
     }
 
@@ -1090,7 +1090,7 @@ static void multifd_send_sync_main(RAMState *rs)
         return;
     }
     if (multifd_send_state->pages->used) {
-        if (multifd_send_pages(rs) < 0) {
+        if (multifd_send_pages(rs->f) < 0) {
             error_report("%s: multifd_send_pages fail", __func__);
             return;
         }
