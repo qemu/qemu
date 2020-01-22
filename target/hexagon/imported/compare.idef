@@ -225,30 +225,30 @@ Q6INSN(C2_vitpack,"Rd32=vitpack(Ps4,Pt4)",ATTRIBS(),
 /* Mux instructions */
 
 Q6INSN(C2_mux,"Rd32=mux(Pu4,Rs32,Rt32)",ATTRIBS(),
-"Scalar MUX",	
+"Scalar MUX",
 { fPREDUSE_TIMING();(fLSBOLD(PuV)) ? (RdV=RsV):(RdV=RtV); })
 
 
 Q6INSN(C2_cmovenewit,"if (Pu4.new) Rd32=#s12",ATTRIBS(A_ARCHV2),
-"Scalar conditional move",	
+"Scalar conditional move",
 { fIMMEXT(siV); if (fLSBNEW(PuN)) RdV=siV; else CANCEL;})
 
 Q6INSN(C2_cmovenewif,"if (!Pu4.new) Rd32=#s12",ATTRIBS(A_ARCHV2),
-"Scalar conditional move",	
+"Scalar conditional move",
 { fIMMEXT(siV); if (fLSBNEWNOT(PuN)) RdV=siV; else CANCEL;})
 
 Q6INSN(C2_cmoveit,"if (Pu4) Rd32=#s12",ATTRIBS(A_ARCHV2),
-"Scalar conditional move",	
+"Scalar conditional move",
 { fIMMEXT(siV); if (fLSBOLD(PuV)) RdV=siV; else CANCEL;})
 
 Q6INSN(C2_cmoveif,"if (!Pu4) Rd32=#s12",ATTRIBS(A_ARCHV2),
-"Scalar conditional move",	
+"Scalar conditional move",
 { fIMMEXT(siV); if (fLSBOLDNOT(PuV)) RdV=siV; else CANCEL;})
 
 
 
 Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ROPS_2,A_ARCHV2),
-"Conditionally combine two words into a register pair", 
+"Conditionally combine two words into a register pair",
 { if (fLSBNEW(PuN)) {
     fSETWORD(0,RddV,RtV);
     fSETWORD(1,RddV,RsV);
@@ -256,7 +256,7 @@ Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ROPS_2
 })
 
 Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
-"Conditionally combine two words into a register pair", 
+"Conditionally combine two words into a register pair",
 { if (fLSBNEWNOT(PuN)) {
     fSETWORD(0,RddV,RtV);
     fSETWORD(1,RddV,RsV);
@@ -264,7 +264,7 @@ Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV
 })
 
 Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
-"Conditionally combine two words into a register pair", 
+"Conditionally combine two words into a register pair",
 { if (fLSBOLD(PuV)) {
     fSETWORD(0,RddV,RtV);
     fSETWORD(1,RddV,RsV);
@@ -272,7 +272,7 @@ Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS
 })
 
 Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROPS_2),
-"Conditionally combine two words into a register pair", 
+"Conditionally combine two words into a register pair",
 { if (fLSBOLDNOT(PuV)) {
     fSETWORD(0,RddV,RtV);
     fSETWORD(1,RddV,RsV);
@@ -282,18 +282,18 @@ Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2,A_ROP
 
 
 Q6INSN(C2_muxii,"Rd32=mux(Pu4,#s8,#S8)",ATTRIBS(A_ARCHV2),
-"Scalar MUX immediates",	
+"Scalar MUX immediates",
 { fPREDUSE_TIMING();fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=SiV); })
 
 
 
 Q6INSN(C2_muxir,"Rd32=mux(Pu4,Rs32,#s8)",ATTRIBS(A_ARCHV2),
-"Scalar MUX register immediate",	
+"Scalar MUX register immediate",
 { fPREDUSE_TIMING();fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=RsV):(RdV=siV); })
 
 
 Q6INSN(C2_muxri,"Rd32=mux(Pu4,#s8,Rs32)",ATTRIBS(A_ARCHV2),
-"Scalar MUX register immediate",	
+"Scalar MUX register immediate",
 { fPREDUSE_TIMING();fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=RsV); })
 
 
@@ -323,7 +323,7 @@ Q6INSN(A2_vcmpbeq,"Pd4=vcmpb.eq(Rss32,Rtt32)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i = 0; i < 8; i++) {
-		fSETBIT(i,PdV,(fGETBYTE(i,RssV) == fGETBYTE(i,RttV))); 
+		fSETBIT(i,PdV,(fGETBYTE(i,RssV) == fGETBYTE(i,RttV)));
 	}
 })
 
@@ -332,7 +332,7 @@ Q6INSN(A4_vcmpbeqi,"Pd4=vcmpb.eq(Rss32,#u8)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i = 0; i < 8; i++) {
-		fSETBIT(i,PdV,(fGETUBYTE(i,RssV) == uiV)); 
+		fSETBIT(i,PdV,(fGETUBYTE(i,RssV) == uiV));
 	}
 })
 
@@ -398,13 +398,13 @@ Q6INSN(A4_vcmpbgti,"Pd4=vcmpb.gt(Rss32,#s8)",ATTRIBS(),
 Q6INSN(A4_cmpbeq,"Pd4=cmpb.eq(Rs32,Rt32)",ATTRIBS(),
 "Compare bytes ",
 {
-	PdV=f8BITSOF(fGETBYTE(0,RsV) == fGETBYTE(0,RtV));     
+	PdV=f8BITSOF(fGETBYTE(0,RsV) == fGETBYTE(0,RtV));
 })
 
 Q6INSN(A4_cmpbeqi,"Pd4=cmpb.eq(Rs32,#u8)",ATTRIBS(),
 "Compare bytes ",
 {
-	PdV=f8BITSOF(fGETUBYTE(0,RsV) == uiV); 
+	PdV=f8BITSOF(fGETUBYTE(0,RsV) == uiV);
 })
 
 Q6INSN(A4_cmpbgtu,"Pd4=cmpb.gtu(Rs32,Rt32)",ATTRIBS(),
@@ -437,8 +437,8 @@ Q6INSN(A2_vcmpheq,"Pd4=vcmph.eq(Rss32,Rtt32)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i = 0; i < 4; i++) {
-		fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == fGETHALF(i,RttV))); 
-		fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == fGETHALF(i,RttV))); 
+		fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == fGETHALF(i,RttV)));
+		fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == fGETHALF(i,RttV)));
 	}
 })
 
@@ -467,8 +467,8 @@ Q6INSN(A4_vcmpheqi,"Pd4=vcmph.eq(Rss32,#s8)",ATTRIBS(),
 {
 	fHIDE(int i;)
 	for (i = 0; i < 4; i++) {
-		fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == siV)); 
-		fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == siV)); 
+		fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == siV));
+		fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == siV));
 	}
 })
 
@@ -496,7 +496,7 @@ Q6INSN(A4_vcmphgtui,"Pd4=vcmph.gtu(Rss32,#u7)",ATTRIBS(),
 Q6INSN(A4_cmpheq,"Pd4=cmph.eq(Rs32,Rt32)",ATTRIBS(),
 "Compare halfwords ",
 {
-	PdV=f8BITSOF(fGETHALF(0,RsV) == fGETHALF(0,RtV)); 
+	PdV=f8BITSOF(fGETHALF(0,RsV) == fGETHALF(0,RtV));
 })
 
 Q6INSN(A4_cmphgt,"Pd4=cmph.gt(Rs32,Rt32)",ATTRIBS(),
@@ -515,7 +515,7 @@ Q6INSN(A4_cmpheqi,"Pd4=cmph.eq(Rs32,#s8)",ATTRIBS(),
 "Compare halfwords ",
 {
 	fIMMEXT(siV);
-	PdV=f8BITSOF(fGETHALF(0,RsV) == siV); 
+	PdV=f8BITSOF(fGETHALF(0,RsV) == siV);
 })
 
 Q6INSN(A4_cmphgti,"Pd4=cmph.gt(Rs32,#s8)",ATTRIBS(),

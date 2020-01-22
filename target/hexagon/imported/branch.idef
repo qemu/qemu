@@ -17,7 +17,7 @@
 
 
 /*********************************************/
-/* Jump instructions			 */ 
+/* Jump instructions			 */
 /*********************************************/
 
 #define A_COFSTD A_RESTRICT_LOOP_LA,A_RESTRICT_COF_MAX1
@@ -278,7 +278,7 @@ Q6INSN(J2_ploop3si,"p3=sp3loop0(#r7:2,#U10)",ATTRIBS(ATTRIB_HWLOOP_SETUP,A_ARCHV
 
 
 Q6INSN(J2_endloop01,"endloop01",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP0_END,A_HWLOOP1_END,A_RESTRICT_LATEPRED),"Loopend for inner and outer loop",
-{ 
+{
 
   /* V2: With predicate control */
   if (fGET_LPCFG) {
@@ -304,17 +304,12 @@ Q6INSN(J2_endloop01,"endloop01",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP0_END,A_HWLOOP1_EN
       /* decrement loop count */
       fWRITE_LC1(fREAD_LC1-1);
     }
-#ifdef VERIFICATION
-  else {
-	  fCOF_CALLBACK(fREAD_PC(), COF_TYPE_LOOPFALLTHROUGH ); 
   }
-#endif 
-  } 
 
 })
 
 Q6INSN(J2_endloop0,"endloop0",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP0_END,A_RESTRICT_LATEPRED),"Loopend for inner loop",
-{ 
+{
 
   /* V2: With predicate control */
   if (fGET_LPCFG) {
@@ -333,15 +328,10 @@ Q6INSN(J2_endloop0,"endloop0",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP0_END,A_RESTRICT_LAT
     /* decrement loop count */
     fWRITE_LC0(fREAD_LC0-1);
   }
-#ifdef VERIFICATION
-  else {
-	  fCOF_CALLBACK(fREAD_PC(), COF_TYPE_LOOPFALLTHROUGH ); 
-  }
-#endif 
 })
 
 Q6INSN(J2_endloop1,"endloop1",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP1_END),"Loopend for outer loop",
-{ 
+{
   /* check if iterate */
   if (fREAD_LC1>1) {
     fBRANCH(fREAD_SA1,COF_TYPE_LOOPEND1);
@@ -349,11 +339,6 @@ Q6INSN(J2_endloop1,"endloop1",ATTRIBS(ATTRIB_HWLOOP,A_HWLOOP1_END),"Loopend for 
     /* decrement loop count */
     fWRITE_LC1(fREAD_LC1-1);
   }
-#ifdef VERIFICATION
-  else {
-	  fCOF_CALLBACK(fREAD_PC(), COF_TYPE_LOOPFALLTHROUGH ); 
-  }
-#endif 
 })
 
 

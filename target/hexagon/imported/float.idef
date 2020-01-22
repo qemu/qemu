@@ -54,7 +54,7 @@ Q6INSN(F2_sffms,"Rx32-=sfmpy(Rs32,Rt32)",ATTRIBS(),
 
 Q6INSN(F2_sffma_lib,"Rx32+=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 "Floating-Point Fused Multiply Add for Library Routines",
-{ fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;) 
+{ fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)
 	infminusinf = ((isinf(fFLOAT(RxV))) &&
 		(fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
 		(fGETBIT(31,RsV ^ RxV ^ RtV) != 0));
@@ -62,7 +62,7 @@ Q6INSN(F2_sffma_lib,"Rx32+=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 	fCHECKSFNAN3(RxV,RxV,RsV,RtV);
 	tmp=fUNFLOAT(fFMAF(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
 	if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
-	fFPCANCELFLAGS(); 
+	fFPCANCELFLAGS();
 	if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
 	if (infminusinf) RxV = 0;
 })
@@ -77,7 +77,7 @@ Q6INSN(F2_sffms_lib,"Rx32-=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 	fCHECKSFNAN3(RxV,RxV,RsV,RtV);
 	tmp=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
 	if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
-	fFPCANCELFLAGS(); 
+	fFPCANCELFLAGS();
 	if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
 	if (infminusinf) RxV = 0;
 })
@@ -280,9 +280,9 @@ Q6INSN(F2_dffms,"Rxx32-=dfmpy(Rss32,Rtt32)",ATTRIBS(A_FAKEINSN),
 
 Q6INSN(F2_dffma_lib,"Rxx32+=dfmpy(Rss32,Rtt32):lib",ATTRIBS(A_FAKEINSN),
 "Floating-Point Fused Multiply Add for Library Routines",
-{ FLATENCY(5);fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf;) 
+{ FLATENCY(5);fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf;)
   infinp = (isinf(fDOUBLE(RxxV))) || (isinf(fDOUBLE(RttV))) || (isinf(fDOUBLE(RssV)));
-  infminusinf = ((isinf(fDOUBLE(RxxV))) && 
+  infminusinf = ((isinf(fDOUBLE(RxxV))) &&
 		(fISINFPROD(fDOUBLE(RssV),fDOUBLE(RttV))) &&
 		(fGETBIT(63,RssV ^ RxxV ^ RttV) != 0));
   fCHECKDFNAN3(RxxV,RxxV,RssV,RttV);
@@ -301,8 +301,8 @@ Q6INSN(F2_dffms_lib,"Rxx32-=dfmpy(Rss32,Rtt32):lib",ATTRIBS(A_FAKEINSN),
 "Floating-Point Fused Multiply Add for Library Routines",
 { FLATENCY(5); fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf;)
   infinp = (isinf(fDOUBLE(RxxV))) || (isinf(fDOUBLE(RttV))) || (isinf(fDOUBLE(RssV)));
-  infminusinf = ((isinf(fDOUBLE(RxxV))) && 
-		(fISINFPROD(fDOUBLE(RssV),fDOUBLE(RttV))) && 
+  infminusinf = ((isinf(fDOUBLE(RxxV))) &&
+		(fISINFPROD(fDOUBLE(RssV),fDOUBLE(RttV))) &&
 		(fGETBIT(63,RssV ^ RxxV ^ RttV) == 0));
   fCHECKDFNAN3(RxxV,RxxV,RssV,RttV);
   if ((fDOUBLE(RssV) != 0.0) && (fDOUBLE(RttV) != 0.0)) {

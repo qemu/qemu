@@ -376,27 +376,14 @@ DEF_ANTICLASS32(ICLASS_LD" 1010 000----- PP------ --------",LD_ADDR_POST_IMMED)
 DEF_ANTICLASS32(ICLASS_LD" 1100 000----- PP------ --------",LD_ADDR_POST_REG)
 DEF_ANTICLASS32(ICLASS_LD" 1110 000----- PP------ --------",LD_ADDR_POST_REG)
 
-//DEF_ENC32(L2_deallocframe,    ICLASS_LD" 000 0 000 sssss PP0----- ---11110")
 DEF_ENC32(L2_deallocframe,    ICLASS_LD" 000 0 000 sssss PP0----- ---ddddd")
 DEF_ENC32(L4_return,          ICLASS_LD" 011 0 000 sssss PP0000-- ---ddddd")
-#if 1 && FRAME_EXPLICIT
 DEF_ENC32(L4_return_t,        ICLASS_LD" 011 0 000 sssss PP0100vv ---ddddd")
 DEF_ENC32(L4_return_f,        ICLASS_LD" 011 0 000 sssss PP1100vv ---ddddd")
 DEF_ENC32(L4_return_tnew_pt,  ICLASS_LD" 011 0 000 sssss PP0110vv ---ddddd")
 DEF_ENC32(L4_return_fnew_pt,  ICLASS_LD" 011 0 000 sssss PP1110vv ---ddddd")
 DEF_ENC32(L4_return_tnew_pnt, ICLASS_LD" 011 0 000 sssss PP0010vv ---ddddd")
 DEF_ENC32(L4_return_fnew_pnt, ICLASS_LD" 011 0 000 sssss PP1010vv ---ddddd")
-#else
-//DEF_ENC32(L2_deallocframe,    ICLASS_LD" 000 0 000 11110 PP0----- ---11110")
-//DEF_ENC32(L4_return,          ICLASS_LD" 011 0 000 sssss PP0000-- ---11110")
-//DEF_ENC32(L4_return,          ICLASS_LD" 011 0 000 11110 PP0000-- ---11110")
-DEF_ENC32(L4_return_t,        ICLASS_LD" 011 0 000 11110 PP0100ss ---11110")
-DEF_ENC32(L4_return_f,        ICLASS_LD" 011 0 000 11110 PP1100ss ---11110")
-DEF_ENC32(L4_return_tnew_pt,  ICLASS_LD" 011 0 000 11110 PP0110ss ---11110")
-DEF_ENC32(L4_return_fnew_pt,  ICLASS_LD" 011 0 000 11110 PP1110ss ---11110")
-DEF_ENC32(L4_return_tnew_pnt, ICLASS_LD" 011 0 000 11110 PP0010ss ---11110")
-DEF_ENC32(L4_return_fnew_pnt, ICLASS_LD" 011 0 000 11110 PP1010ss ---11110")
-#endif
 
 DEF_ENC32(L2_loadw_locked,ICLASS_LD" 001 0 000 sssss PP00---- -00ddddd")
 DEF_ENC32(L4_loadw_phys,  ICLASS_LD" 001 0 000 sssss PP1ttttt -00ddddd")
@@ -605,13 +592,10 @@ DEF_FIELDROW_DESC32(ICLASS_J" 0110 -------- PP------ --------","[#6] icop(Rs) ")
 DEF_ENC32(Y2_icinva,    ICLASS_J" 0110  110sssss  PP000---  --------")
 DEF_ENC32(Y2_icinvidx,  ICLASS_J" 0110  110sssss  PP001---  --------")
 DEF_ENC32(Y2_ickill,    ICLASS_J" 0110  110-----  PP010---  --------")
-//F_ENC32(Y2_ictagw,    ICLASS_J" 0110  110sssss  PP011---  --------")
-// EJP: V2: icfetch --> nop DEF_ENC32(Y2_icfetch,   ICLASS_J" 0110  110sssss  00101---  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0111 -------- PP------ --------","[#7] () ")
 DEF_ENC32(Y2_isync,     ICLASS_J" 0111  11000000  PP0---00  00000010")
 DEF_ENC32(J2_rte,       ICLASS_J" 0111  111-----  PP00----  000-----")
-//DEF_ENC32(J2_rteunlock, ICLASS_J" 0111  111-----  PP01----  000-----")
 
 /* JUMP */
 DEF_FIELDROW_DESC32(ICLASS_J" 100- -------- PP------ --------","[#8,9] PC=(#r22)")
@@ -633,8 +617,6 @@ DEF_ENC32(J2_jumpfnewpt,ICLASS_J" 1100  ii1iiiii  PPi11-uu  iiiiiii-")
 DEF_FIELDROW_DESC32(ICLASS_J" 1101 -------- PP------ --------","[#13] if (Pu) PC=(#r15), R31=return")
 DEF_ENC32(J2_callt,     ICLASS_J" 1101  ii0iiiii  PPi-0-uu  iiiiiii-")
 DEF_ENC32(J2_callf,     ICLASS_J" 1101  ii1iiiii  PPi-0-uu  iiiiiii-")
-//DEF_ENC32(J2_calltnew,  ICLASS_J" 1101  ii0iiiii  PPi01-uu  iiiiiii-")
-//DEF_ENC32(J2_callfnew,  ICLASS_J" 1101  ii1iiiii  PPi01-uu  iiiiiii-")
 
 
 
@@ -658,8 +640,6 @@ DEF_FIELDROW_DESC32(ICLASS_CJ" 00-- -------- -------- --------","[#0-3]  pd=cmp.
 DEF_FIELDROW_DESC32(ICLASS_CJ" 010- -------- -------- --------","[#4,5]  pd=cmp.eq(R,R) ; if ([!]p0.new) jump:[h] #s9:2 ")
 DEF_FIELDROW_DESC32(ICLASS_CJ" 0110 -------- -------- --------","[#6]    Rd=#u6 ; jump #s9:2 ")
 DEF_FIELDROW_DESC32(ICLASS_CJ" 0111 -------- -------- --------","[#7]    Rd=Rs ; jump #s9:2 ")
-//F_FIELDROW_DESC32(ICLASS_CJ" 0--- -------- 00!----- --------",J_PT,"Predict-taken")
-//F_FIELDROW_DESC32(ICLASS_CJ" 0--- -!------ 00------ --------",J_JS,"Jump-Sense")
 
 
 #define CMPJMPI_ENC(TAG,OPC) \
@@ -776,7 +756,6 @@ DEF_CLASS32(ICLASS_CR" ---- -------- PP------ --------",CR)
 DEF_CLASS32(ICLASS_CR" -0-- -------- PP------ --------",CRUSER)
 DEF_CLASS32(ICLASS_CR" -1-- -------- PP------ --------",CRSUPER)
 
-//DEF_FIELD32(ICLASS_CR" !--- -------- PP------ --------",CR_rs,"Read register Rs")
 DEF_FIELD32(ICLASS_CR" -!-- -------- PP------ --------",CR_sm,"Supervisor mode only")
 
 /* User CR ops */
@@ -892,10 +871,6 @@ DEF_ENC32(Y2_tlblock,  ICLASS_CR" 1100 001----- PP------ 001-----")
 DEF_ENC32(Y2_tlbunlock,ICLASS_CR" 1100 001----- PP------ 010-----")
 DEF_ENC32(Y2_k0lock,   ICLASS_CR" 1100 001----- PP------ 011-----")
 DEF_ENC32(Y2_k0unlock, ICLASS_CR" 1100 001----- PP------ 100-----")
-#if 0
-DEF_ENC32(Y2_k2lock,   ICLASS_CR" 1100 001----- PP------ 101-----")
-DEF_ENC32(Y2_k2unlock, ICLASS_CR" 1100 001----- PP------ 110-----")
-#endif
 DEF_ENC32(Y2_tlbp,     ICLASS_CR" 1100 100sssss PP------ ---ddddd")
 DEF_ENC32(Y5_tlboc,    ICLASS_CR" 1100 111sssss PP------ ---ddddd")
 DEF_ENC32(Y5_tlbasidi, ICLASS_CR" 1100 101sssss PP------ --------")
@@ -1044,8 +1019,6 @@ MPY_ENC(M4_pmpyw_acc,        "0111","xxxxx","1","1","0","0","11")
 MPY_ENC(M4_vpmpyh_acc,       "0111","xxxxx","1","1","0","1","11")
 MPY_ENC(M5_vmacbuu,          "0111","xxxxx","0","0","0","1","01")
 MPY_ENC(M5_vmacbsu,          "0111","xxxxx","0","0","1","1","01")
-/* EJP: I dont know that this is where we want this... */
-//MPY_ENC(A6_vinsertshiftb,    "0111","xxxxx","0","0","0","0","11")
 
 
 
@@ -1347,9 +1320,7 @@ DEF_FIELD32(            ICLASS_ALU2op" 0000 -------- PP---!-- --------",A32a_dn,
 
 ALU32_RR_ENC(A2_aslh,                 "0000","000","0","---","ddddd")
 ALU32_RR_ENC(A2_asrh,                 "0000","001","0","---","ddddd")
-// mapped to 0-r ALU32_RR_ENC(A2_neg,                  "0000","010","-","---","ddddd")
 ALU32_RR_ENC(A2_tfr,                  "0000","011","0","---","ddddd")
-// mapped to -1-r ALU32_RR_ENC(A2_not,                  "0000","100","-","---","ddddd")
 ALU32_RR_ENC(A2_sxtb,                 "0000","101","0","---","ddddd")
 ALU32_RR_ENC(A2_zxth,                 "0000","110","0","---","ddddd")
 ALU32_RR_ENC(A2_sxth,                 "0000","111","0","---","ddddd")
@@ -1399,24 +1370,6 @@ DEF_ENC32(C4_cmpltei,    ICLASS_ALU2op" 0101 01isssss PPiiiiii iii100dd")
 DEF_ENC32(C4_cmplteui,   ICLASS_ALU2op" 0101 100sssss PPiiiiii iii100dd")
 
 
-#if 0
-DEF_ENC32(C4_andcmpeqi,  ICLASS_ALU2op" 0101 00isssss PPiiiiii iii100xx")
-DEF_ENC32(C4_andcmpgti,  ICLASS_ALU2op" 0101 01isssss PPiiiiii iii100xx")
-DEF_ENC32(C4_andcmpgtui, ICLASS_ALU2op" 0101 100sssss PPiiiiii iii100xx")
-
-DEF_ENC32(C4_orcmpeqi,   ICLASS_ALU2op" 0101 00isssss PPiiiiii iii101xx")
-DEF_ENC32(C4_orcmpgti,   ICLASS_ALU2op" 0101 01isssss PPiiiiii iii101xx")
-DEF_ENC32(C4_orcmpgtui,  ICLASS_ALU2op" 0101 100sssss PPiiiiii iii101xx")
-
-DEF_ENC32(C4_andncmpeqi, ICLASS_ALU2op" 0101 00isssss PPiiiiii iii110xx")
-DEF_ENC32(C4_andncmpgti, ICLASS_ALU2op" 0101 01isssss PPiiiiii iii110xx")
-DEF_ENC32(C4_andncmpgtui,ICLASS_ALU2op" 0101 100sssss PPiiiiii iii110xx")
-
-DEF_ENC32(C4_orncmpeqi,  ICLASS_ALU2op" 0101 00isssss PPiiiiii iii111xx")
-DEF_ENC32(C4_orncmpgti,  ICLASS_ALU2op" 0101 01isssss PPiiiiii iii111xx")
-DEF_ENC32(C4_orncmpgtui, ICLASS_ALU2op" 0101 100sssss PPiiiiii iii111xx")
-#endif
-
 DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0110 -------- PP------ --------","[#6] Rd=(Rs,#s10)")
 ALU32_IRR_ENC(A2_andir,               "0110","00i","i","iii","ddddd")
 ALU32_IRR_ENC(A2_subri,               "0110","01i","i","iii","ddddd")
@@ -1454,7 +1407,6 @@ DEF_ENC32(C2_cmoveit,   ICLASS_ALU2op" 1110 0uu0iiii PP0iiiii iiiddddd")
 DEF_ENC32(C2_cmoveif,   ICLASS_ALU2op" 1110 1uu0iiii PP0iiiii iiiddddd")
 
 
-/*FIXME: Why here? */
 DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1111 -------- PP------ --------","[#15] nop")
 DEF_ENC32(A2_nop,       ICLASS_ALU2op" 1111 -------- PP------ --------")
 
@@ -1591,8 +1543,6 @@ V2A32_RRR_ENC(C2_ccombinewf,       "1101","000","0","1uu","ddddd")
 
 DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1110 -------- PP------ --------","[#14] Reserved")
 
-//DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1111 -------- PP------ --------","[#15] Illegal")
-//DEF_ENC32(A6_illegal,ICLASS_ALU3op" 1111 -------- PP------ --------")
 
 
 
@@ -1768,7 +1718,6 @@ SH2_RR_ENC(S2_vzxthw,            "0100","00-","-","11-","ddddd")
 SH2_RR_ENC(A2_sxtw,              "0100","01-","-","00-","ddddd")
 SH2_RR_ENC(S2_vsplatrh,          "0100","01-","-","01-","ddddd")
 SH2_RR_ENC(S6_vsplatrbp,         "0100","01-","-","10-","ddddd")
-//SH2_RR_ENC(A7_cround,         	"0100","01-","-","11-","ddddd")
 
 SH2_RR_ENC(F2_conv_sf2df,        "0100","1--","-","000","ddddd")
 SH2_RR_ENC(F2_conv_uw2df,        "0100","1--","-","001","ddddd")
@@ -1829,9 +1778,6 @@ SH2_RR_ENC(S5_popcountp,          "1000","011","-","011","ddddd")
 SH_RRI4_ENC(S5_asrhub_rnd_sat,    "1000","011",    "100","ddddd")
 SH_RRI4_ENC(S5_asrhub_sat,        "1000","011",    "101","ddddd")
 
-#if 0
-SH2_RR_ENC(F2_conv_df2hf,         "1000","000","-","011","ddddd")
-#endif
 SH2_RR_ENC(F2_conv_df2sf,         "1000","000","-","001","ddddd")
 SH2_RR_ENC(F2_conv_ud2sf,         "1000","001","-","001","ddddd")
 SH2_RR_ENC(F2_conv_d2sf,          "1000","010","-","001","ddddd")
@@ -1844,9 +1790,7 @@ SH2_RR_ENC(F2_conv_df2w_chop,     "1000","111","-","001","ddddd")
 
 DEF_FIELDROW_DESC32(ICLASS_S2op"   1001 -------- PP------ --------","[#9] Rd=(Ps,Pt)")
 DEF_ENC32(C2_vitpack, ICLASS_S2op" 1001   -00 ---ss  PP----tt --- ddddd")
-//DEF_ENC32(S6_ct0,     ICLASS_S2op" 1001   -01 ---ss  PP------ --- ddddd")
 DEF_ENC32(C2_tfrpr,   ICLASS_S2op" 1001   -1- ---ss  PP------ --- ddddd")
-//DEF_ENC32(S4_putbit_i,ICLASS_S2op" 1001   10- ---ss  PP0iiiii --- ddddd")
 
 
 DEF_FIELDROW_DESC32(ICLASS_S2op"   1010 -------- PP------ --------","[#10] Rdd=(Rss,#u6,#U6)")
@@ -1854,10 +1798,6 @@ DEF_ENC32(S4_extractp,ICLASS_S2op" 1010 IIIsssss PPiiiiii IIIddddd")
 
 
 DEF_FIELDROW_DESC32(ICLASS_S2op"   1011 -------- PP------ --------","[#11] Rd=(Rs)")
-#if 0
-SH2_RR_ENC(F2_conv_sf2hf,         "1011","000","-","011","ddddd")
-SH2_RR_ENC(F2_conv_hf2sf,         "1011","000","-","010","ddddd")
-#endif
 SH2_RR_ENC(F2_conv_uw2sf,         "1011","001","-","000","ddddd")
 SH2_RR_ENC(F2_conv_w2sf,          "1011","010","-","000","ddddd")
 SH2_RR_ENC(F2_conv_sf2uw,         "1011","011","-","000","ddddd")
@@ -1879,7 +1819,6 @@ SH2_RR_ENC(S2_svsathub,              "1100","10-","-",        "01-","ddddd")
 
 SH_RRI5_ENC(A4_cround_ri,            "1100","111",            "00-","ddddd")
 SH_RRI6_ENC(A7_croundd_ri,           "1100","111",            "01-","ddddd")
-//SH_RRI5_ENC(A4_cround_ri_sat,        "1100","111",            "01-","ddddd")
 SH_RRI5_ENC(A4_round_ri,             "1100","111",            "10-","ddddd")
 SH_RRI5_ENC(A4_round_ri_sat,         "1100","111",            "11-","ddddd")
 
@@ -1953,22 +1892,17 @@ SH_RRR_ENC(S2_shuffob,          "0001","00-","-","10-","ddddd")
 SH_RRR_ENC(S2_shuffeh,          "0001","00-","-","11-","ddddd")
 
 SH_RRR_ENC(S2_shuffoh,          "0001","10-","-","000","ddddd")
-// 001
 SH_RRR_ENC(S2_vtrunewh,         "0001","10-","-","010","ddddd")
 SH_RRR_ENC(S6_vtrunehb_ppp,		"0001","10-","-","011","ddddd")
 SH_RRR_ENC(S2_vtrunowh,         "0001","10-","-","100","ddddd")
 SH_RRR_ENC(S6_vtrunohb_ppp,		"0001","10-","-","101","ddddd")
 SH_RRR_ENC(S2_lfsp,             "0001","10-","-","110","ddddd")
-//SH_RRR_ENC(A6_injectb,          "0001","10-","-","111","ddddd")
 
 SH_RRR_ENC(S4_vxaddsubw,        "0001","01-","-","000","ddddd")
 SH_RRR_ENC(A5_vaddhubs,         "0001","01-","-","001","ddddd")
 SH_RRR_ENC(S4_vxsubaddw,        "0001","01-","-","010","ddddd")
-//SH_RRR_ENC(S6_asr_r_vvh,        "0001","01-","-","011","ddddd")
 SH_RRR_ENC(S4_vxaddsubh,        "0001","01-","-","100","ddddd")
-//SH_RRR_ENC(S6_vasrehw,          "0001","01-","-","101","ddddd")
 SH_RRR_ENC(S4_vxsubaddh,        "0001","01-","-","110","ddddd")
-//SH_RRR_ENC(S6_vasrohw,          "0001","01-","-","111","ddddd")
 
 SH_RRR_ENC(S4_vxaddsubhr,       "0001","11-","-","00-","ddddd")
 SH_RRR_ENC(S4_vxsubaddhr,       "0001","11-","-","01-","ddddd")
@@ -1990,24 +1924,16 @@ RSHIFTTYPES(vh,                 "0011","01-","-","-","ddddd")
 RSHIFTTYPES(p,                  "0011","10-","-","-","ddddd")
 SH_RRR_ENC(S2_vcrotate,         "0011","11-","-","00-","ddddd")
 SH_RRR_ENC(S2_vcnegh,           "0011","11-","-","01-","ddddd")
-#if 0
-SH_RRR_ENC(S6_rol_r_p,          "0011","11-","-","100","ddddd")
-SH_RRR_ENC(S6_ror_r_p,          "0011","11-","-","101","ddddd")
-#endif
 SH_RRR_ENC(S4_vrcrotate,        "0011","11-","i","11i","ddddd")
 
 
 DEF_FIELDROW_DESC32(ICLASS_S3op" 0100 -------- PP------ --------","[#4] Rd=(Rs,Rt,#u3)")
 DEF_ENC32(S2_addasl_rrri, ICLASS_S3op" 0100   000 sssss PP0ttttt iiiddddd")
-//DEF_ENC32(S4_addaddi,     ICLASS_S3op" 0100   100 sssss PPittttt iiiddddd")
-//DEF_ENC32(S4_subaddi,     ICLASS_S3op" 0100   101 sssss PPittttt iiiddddd")
-//DEF_ENC32(S4_subiadd,     ICLASS_S3op" 0100   110 sssss PPittttt iiiddddd")
 
 
 
 DEF_FIELDROW_DESC32(ICLASS_S3op" 0101 -------- PP------ --------","[#5] Rd=(Rss,Rt)")
 SH_RRR_ENC(S2_asr_r_svw_trun,   "0101","---","-","010","ddddd")
-//SH_RRR_ENC(A6_vcmpidxb,         "0101","---","-","011","ddddd")
 SH_RRR_ENC(M4_cmpyi_wh,         "0101","---","-","100","ddddd")
 SH_RRR_ENC(M4_cmpyr_wh,         "0101","---","-","110","ddddd")
 SH_RRR_ENC(M4_cmpyi_whc,        "0101","---","-","101","ddddd")
@@ -2016,10 +1942,6 @@ SH_RRR_ENC(M4_cmpyr_whc,        "0101","---","-","111","ddddd")
 DEF_FIELDROW_DESC32(ICLASS_S3op" 0110 -------- PP------ --------","[#6] Rd=(Rs,Rt)")
 SH_RRR_ENC(S2_asr_r_r_sat,      "0110","00-","-","00-","ddddd") \
 SH_RRR_ENC(S2_asl_r_r_sat,      "0110","00-","-","10-","ddddd")
-#if 0
-SH_RRR_ENC(S6_rol_r_r,          "0110","00-","-","110","ddddd")
-SH_RRR_ENC(S6_ror_r_r,          "0110","00-","-","111","ddddd")
-#endif
 
 RSHIFTTYPES(r,                  "0110","01-","-","-","ddddd")
 
@@ -2030,7 +1952,6 @@ SH_RRRiENC(S4_lsli,             "0110","10-","-","11i","ddddd")
 
 SH_RRR_ENC(A4_cround_rr,        "0110","11-","-","00-","ddddd")
 SH_RRR_ENC(A7_croundd_rr,       "0110","11-","-","01-","ddddd")
-//SH_RRR_ENC(A4_cround_rr_sat,    "0110","11-","-","01-","ddddd")
 SH_RRR_ENC(A4_round_rr,         "0110","11-","-","10-","ddddd")
 SH_RRR_ENC(A4_round_rr_sat,     "0110","11-","-","11-","ddddd")
 
@@ -2069,32 +1990,6 @@ SH_RRR_ENC(S4_extract_rp,       "1001","00-","-","01-","ddddd")
 DEF_FIELDROW_DESC32(ICLASS_S3op" 1010 -------- PP------ --------","[#10] Rxx=(Rss,Rtt)")
 SH_RRR_ENC(S2_insertp_rp,       "1010","0--","0","---","xxxxx")
 SH_RRR_ENC(M4_xor_xacc,         "1010","10-","0","000","xxxxx")
-//SH_RRR_ENC(S6_lsr_i_vh_acc,     "1010","10-","0","001","xxxxx")
-
-#if 0
-SH_RRR_ENC(A6_vaddubs_acc,      "1010","10-","0","001","xxxxx")
-
-SH_RRR_ENC(A6_vminub3,          "1010","110","0","000","xxxxx")
-SH_RRR_ENC(A6_vminb3,           "1010","110","0","001","xxxxx")
-SH_RRR_ENC(A6_vminuh3,          "1010","110","0","010","xxxxx")
-SH_RRR_ENC(A6_vminh3,           "1010","110","0","011","xxxxx")
-SH_RRR_ENC(A6_vminuw3,          "1010","110","0","100","xxxxx")
-SH_RRR_ENC(A6_vminw3,           "1010","110","0","101","xxxxx")
-// 110
-// 111
-SH_RRR_ENC(A6_vmaxub3,          "1010","111","0","000","xxxxx")
-SH_RRR_ENC(A6_vmaxb3,           "1010","111","0","001","xxxxx")
-SH_RRR_ENC(A6_vmaxuh3,          "1010","111","0","010","xxxxx")
-SH_RRR_ENC(A6_vmaxh3,           "1010","111","0","011","xxxxx")
-SH_RRR_ENC(A6_vmaxuw3,          "1010","111","0","100","xxxxx")
-SH_RRR_ENC(A6_vmaxw3,           "1010","111","0","101","xxxxx")
-#endif
-
-// 110
-// 111
-#if 0
-SH_RRR_ENC(S5_fastcoarse,	"1010","-dd","1","-vv","uuuuu")
-#endif
 
 DEF_FIELDROW_DESC32(ICLASS_S3op" 1011 -------- PP------ --------","[#11] Rxx=(Rss,Rt)")
 RSHIFTTYPES(p_or,               "1011","000","-","-","xxxxx")
@@ -2103,15 +1998,11 @@ RSHIFTTYPES(p_nac,              "1011","100","-","-","xxxxx")
 RSHIFTTYPES(p_acc,              "1011","110","-","-","xxxxx")
 RSHIFTTYPES(p_xor,              "1011","011","-","-","xxxxx")
 
-//SH_RRR_ENCX(A4_vrmaxb,		"1011","001","0","000","uuuuu")
-//SH_RRR_ENCX(A4_vrmaxub,		"1011","001","1","000","uuuuu")
 SH_RRR_ENCX(A4_vrmaxh,		"1011","001","0","001","uuuuu")
 SH_RRR_ENCX(A4_vrmaxuh,		"1011","001","1","001","uuuuu")
 SH_RRR_ENCX(A4_vrmaxw,		"1011","001","0","010","uuuuu")
 SH_RRR_ENCX(A4_vrmaxuw,		"1011","001","1","010","uuuuu")
 
-//SH_RRR_ENCX(A4_vrminb,		"1011","001","0","100","uuuuu")
-//SH_RRR_ENCX(A4_vrminub,		"1011","001","1","100","uuuuu")
 SH_RRR_ENCX(A4_vrminh,		"1011","001","0","101","uuuuu")
 SH_RRR_ENCX(A4_vrminuh,		"1011","001","1","101","uuuuu")
 SH_RRR_ENCX(A4_vrminw,		"1011","001","0","110","uuuuu")

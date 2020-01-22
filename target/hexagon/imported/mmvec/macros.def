@@ -48,7 +48,7 @@ DEF_MACRO(fRT8NOTE, (),
 DEF_MACRO(fNOTQ,(VAL),
 	"~VAL",
 	"~VAL",
-	/* Will break Visual Studio? */ 
+	/* Will break Visual Studio? */
 	({mmqreg_t _ret = {0}; int _i_; for (_i_ = 0; _i_ < fVECSIZE()/64; _i_++) _ret.ud[_i_] = ~VAL.ud[_i_]; _ret;}),
 	()
 )
@@ -123,7 +123,6 @@ DEF_MACRO(fGETCRUMB_SYMMETRIC,(IDX,SRC),
     ()
 )
 
-//#define ZERO_OFFSET_2B +(fGETCRUMB(z,VuV.uw[i])>=0)
 #define ZERO_OFFSET_2B +
 
 DEF_MACRO(fWRITE_VEC,
@@ -284,7 +283,7 @@ DEF_MACRO(fVECSIZE,(),
 DEF_MACRO(fSWAPB,(A, B),
     "SWAP(A,B)",
     "Swap bytes",
-    {	
+    {
 		size1u_t tmp = A;
 		A = B;
 		B = tmp;
@@ -376,7 +375,7 @@ DEF_MACRO(COUNT_OUT_OF_BOUNDS, (FLAG, SIZE),
      {
         if (!FLAG)
         {
-               THREAD2STRUCT->vtcm_log.oob_access += SIZE;               
+               THREAD2STRUCT->vtcm_log.oob_access += SIZE;
                warn("Scatter/Gather out of bounds of region");
         }
      },
@@ -405,7 +404,7 @@ DEF_MACRO(fVLOG_VTCM_WORD_INCREMENT, (EA,OFFSET,INC,IDX,ALIGNMENT,LEN),
         int log_byte =0;
         paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1));
         paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
-        for(int i0 = 0; i0 < 4; i0++) 
+        for(int i0 = 0; i0 < 4; i0++)
         {
             log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high));
             log_bank |= (log_byte<<i0);
@@ -443,7 +442,7 @@ DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT_DV, (EA,OFFSET,INC,IDX,IDX2,IDX_H,ALIGNM
         int log_bank = 0;
         int log_byte = 0;
         paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1));
-        paddr_t pa_high = thread->mem_access[slot].paddr+LEN; 
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
         for(int i0 = 0; i0 < 2; i0++) {
             log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high));
             log_bank |= (log_byte<<i0);
@@ -466,7 +465,7 @@ DEF_MACRO(GATHER_FUNCTION, (EA,OFFSET,IDX, LEN, ELEMENT_SIZE, BANK_IDX, QVAL),
         paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
         int log_bank = 0;
         int log_byte = 0;
-        for(i0 = 0; i0 < ELEMENT_SIZE; i0++) 
+        for(i0 = 0; i0 < ELEMENT_SIZE; i0++)
         {
             log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL;
             log_bank |= (log_byte<<i0);
@@ -536,13 +535,12 @@ DEF_MACRO(DEBUG_LOG_ADDR, (OFFSET),
     "  ",
     "  ",
     {
-       
-        if (thread->processor_ptr->arch_proc_options->mmvec_network_addr_log2) 
+
+        if (thread->processor_ptr->arch_proc_options->mmvec_network_addr_log2)
         {
-            
+
             int slot = insn->slot;
             paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
-           // pa = pa & ~(ALIGNMENT-1);
         }
     },
     ()
@@ -564,19 +562,19 @@ DEF_MACRO(SCATTER_OP_WRITE_TO_MEM, (TYPE),
                 TYPE dst = 0;
                 TYPE inc = 0;
                 for(int j = 0; j < sizeof(TYPE); j++) {
-                    dst |= (sim_mem_read1(thread->system_ptr, thread->threadId, mmvecx->vtcm_log.pa[i+j]) << (8*j)); 
+                    dst |= (sim_mem_read1(thread->system_ptr, thread->threadId, mmvecx->vtcm_log.pa[i+j]) << (8*j));
                     inc |= mmvecx->vtcm_log.data.ub[j+i] << (8*j);
-                    
+
                     mmvecx->vtcm_log.mask.ub[j+i] = 0;
                     mmvecx->vtcm_log.data.ub[j+i] = 0;
                     mmvecx->vtcm_log.offsets.ub[j+i] = 0;
-                }                   
+                }
                 dst += inc;
                 for(int j = 0; j < sizeof(TYPE); j++) {
                     sim_mem_write1(thread->system_ptr,thread->threadId, mmvecx->vtcm_log.pa[i+j], (dst >> (8*j))& 0xFF );
-                }                        
+                }
         }
-    
+
     }
     },
     ()
@@ -623,7 +621,7 @@ DEF_MACRO(fVLOG_VTCM_WORD, (EA,OFFSET,IN,IDX,LEN),
 DEF_MACRO(fVLOG_VTCM_HALFWORDQ, (EA,OFFSET,IN,IDX,Q,LEN),
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uh[IDX] ",
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uh[IDX] ",
-    {   
+    {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, IDX, fGETQBIT(QsV,2*IDX+i0), IN);
     },
     ()
@@ -631,7 +629,7 @@ DEF_MACRO(fVLOG_VTCM_HALFWORDQ, (EA,OFFSET,IN,IDX,Q,LEN),
 DEF_MACRO(fVLOG_VTCM_WORDQ, (EA,OFFSET,IN,IDX,Q,LEN),
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uw[IDX] ",
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uw[IDX] ",
-    {   
+    {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 4, IDX, fGETQBIT(QsV,4*IDX+i0), IN);
     },
     ()
@@ -653,7 +651,7 @@ DEF_MACRO(fVLOG_VTCM_HALFWORD_DV, (EA,OFFSET,IN,IDX,IDX2,IDX_H, LEN),
 DEF_MACRO(fVLOG_VTCM_HALFWORDQ_DV, (EA,OFFSET,IN,IDX,Q,IDX2,IDX_H, LEN),
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.hw[IDX2].uh[IDX_H] ",
     " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.hw[IDX2].uh[IDX_H] ",
-    {   
+    {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), fGETQBIT(QsV,2*IDX+i0), IN);
     },
     ()
@@ -669,7 +667,7 @@ DEF_MACRO(fSTORERELEASE, (EA,TYPE),
 	"Zero Byte Store Release (Sync)",
     {
         fV_AL_CHECK(EA,fVECSIZE()-1);
-       
+
         mem_store_release(thread, insn, fVECSIZE(), EA&~(fVECSIZE()-1), EA, TYPE, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
 	(A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
@@ -741,7 +739,7 @@ DEF_MACRO(fLOADMMVU_AL, (EA, ALIGNMENT, LEN, DST),
 
 DEF_MACRO(fLOADMMVU, (EA, DST),
 	"DST = *EA",
-	"Load vector from memory at EA (unaligned) to DST.",	
+	"Load vector from memory at EA (unaligned) to DST.",
 	{
 		/* if address happens to be aligned, only do aligned load */
         thread->last_pkt->pkt_has_vtcm_access = 0;
@@ -754,8 +752,8 @@ DEF_MACRO(fLOADMMVU, (EA, DST),
 		} else {
             thread->last_pkt->pkt_has_vmemu_access = 1;
 			thread->last_pkt->double_access = 1;
-			
-			fLOADMMVU_AL(EA,fVECSIZE(),fVECSIZE(),DST);	
+
+			fLOADMMVU_AL(EA,fVECSIZE(),fVECSIZE(),DST);
 		}
 	},
 	()
@@ -820,7 +818,7 @@ DEF_MACRO(fSTOREMMVNQ, (EA, SRC, MASK),
 DEF_MACRO(fSTOREMMVU_AL, (EA, ALIGNMENT, LEN, SRC),
     "char* addr = EA; for (i=0; i<LEN; ++i) addr[i] = SRC[i]",
     "Store LEN bytes from SRC into memory at EA (unaligned).",
-    { 
+    {
     size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
     size4u_t size2;
     if (size1>LEN) size1 = LEN;
@@ -852,7 +850,7 @@ DEF_MACRO(fSTOREMMVU, (EA, SRC),
 DEF_MACRO(fSTOREMMVQU_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
     "char* addr = EA; for (i=0; i<LEN; ++i) if (MASK[i]) addr[i] = SRC[i]",
     "Store LEN bytes from SRC into memory at EA (unaligned).",
-    { 
+    {
 	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
 	size4u_t size2;
 	mmvector_t maskvec;
@@ -875,7 +873,7 @@ DEF_MACRO(fSTOREMMVQU, (EA, SRC, MASK),
 		if ( (EA & (fVECSIZE()-1)) == 0) {
 			thread->last_pkt->double_access = 0;
 			fSTOREMMVQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
-		} else {	
+		} else {
 			thread->last_pkt->double_access = 1;
             thread->last_pkt->pkt_has_vmemu_access = 1;
 			fSTOREMMVQU_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
@@ -887,7 +885,7 @@ DEF_MACRO(fSTOREMMVQU, (EA, SRC, MASK),
 DEF_MACRO(fSTOREMMVNQU_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
     "char* addr = EA; for (i=0; i<LEN; ++i) if (!MASK[i]) addr[i] = SRC[i]",
     "Store LEN bytes from SRC into memory at EA (unaligned).",
-    { 
+    {
 	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
 	size4u_t size2;
 	mmvector_t maskvec;
@@ -904,7 +902,7 @@ DEF_MACRO(fSTOREMMVNQU_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
 DEF_MACRO(fSTOREMMVNQU, (EA, SRC, MASK),
 	"*EA = SRC",
 	"Store vector SRC to memory at EA (unaligned).",
-	{	
+	{
         thread->last_pkt->pkt_has_vtcm_access = 0;
         thread->last_pkt->pkt_access_count = 0;
 		if ( (EA & (fVECSIZE()-1)) == 0) {
@@ -1104,7 +1102,7 @@ DEF_MACRO(fVDOCHKPAGECROSS,(BASE,SUM),
 		thread->mem_access[slot].check_page_crosses = 1;
 		thread->mem_access[slot].page_cross_base = BASE;
 		thread->mem_access[slot].page_cross_sum = SUM;
-	}, 
+	},
 	(A_EA_PAGECROSS)
 )
 
