@@ -889,22 +889,6 @@ static int spapr_rng_populate_dt(void *fdt)
     return ret ? -1 : 0;
 }
 
-static int spapr_dt_cas_updates(SpaprMachineState *spapr, void *fdt,
-                                SpaprOptionVector *ov5_updates)
-{
-    int offset;
-
-    offset = fdt_path_offset(fdt, "/chosen");
-    if (offset < 0) {
-        offset = fdt_add_subnode(fdt, 0, "chosen");
-        if (offset < 0) {
-            return offset;
-        }
-    }
-    return spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
-                                  "ibm,architecture-vec-5");
-}
-
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *ms = MACHINE(spapr);
@@ -1043,81 +1027,92 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
                      val, sizeof(val)));
 }
 
-static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
+static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt, bool reset)
 {
     MachineState *machine = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     int chosen;
-    const char *boot_device = machine->boot_order;
-    char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
-    size_t cb = 0;
-    char *bootlist = get_boot_devices_list(&cb);
 
     _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
 
-    if (machine->kernel_cmdline && machine->kernel_cmdline[0]) {
-        _FDT(fdt_setprop_string(fdt, chosen, "bootargs",
-                                machine->kernel_cmdline));
-    }
-    if (spapr->initrd_size) {
-        _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
-                              spapr->initrd_base));
-        _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-end",
-                              spapr->initrd_base + spapr->initrd_size));
-    }
+    if (reset) {
+        const char *boot_device = machine->boot_order;
+        char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
+        size_t cb = 0;
+        char *bootlist = get_boot_devices_list(&cb);
 
-    if (spapr->kernel_size) {
-        uint64_t kprop[2] = { cpu_to_be64(spapr->kernel_addr),
-                              cpu_to_be64(spapr->kernel_size) };
-
-        _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel",
-                         &kprop, sizeof(kprop)));
-        if (spapr->kernel_le) {
-            _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel-le", NULL, 0));
+        if (machine->kernel_cmdline && machine->kernel_cmdline[0]) {
+            _FDT(fdt_setprop_string(fdt, chosen, "bootargs",
+                                    machine->kernel_cmdline));
         }
-    }
-    if (boot_menu) {
-        _FDT((fdt_setprop_cell(fdt, chosen, "qemu,boot-menu", boot_menu)));
-    }
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", graphic_width));
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", graphic_height));
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", graphic_depth));
 
-    if (cb && bootlist) {
-        int i;
+        if (spapr->initrd_size) {
+            _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
+                                  spapr->initrd_base));
+            _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-end",
+                                  spapr->initrd_base + spapr->initrd_size));
+        }
 
-        for (i = 0; i < cb; i++) {
-            if (bootlist[i] == '\n') {
-                bootlist[i] = ' ';
+        if (spapr->kernel_size) {
+            uint64_t kprop[2] = { cpu_to_be64(spapr->kernel_addr),
+                                  cpu_to_be64(spapr->kernel_size) };
+
+            _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel",
+                         &kprop, sizeof(kprop)));
+            if (spapr->kernel_le) {
+                _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel-le", NULL, 0));
             }
         }
-        _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-list", bootlist));
-    }
+        if (boot_menu) {
+            _FDT((fdt_setprop_cell(fdt, chosen, "qemu,boot-menu", boot_menu)));
+        }
+        _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", graphic_width));
+        _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", graphic_height));
+        _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", graphic_depth));
 
-    if (boot_device && strlen(boot_device)) {
-        _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-device", boot_device));
-    }
+        if (cb && bootlist) {
+            int i;
 
-    if (!spapr->has_graphics && stdout_path) {
+            for (i = 0; i < cb; i++) {
+                if (bootlist[i] == '\n') {
+                    bootlist[i] = ' ';
+                }
+            }
+            _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-list", bootlist));
+        }
+
+        if (boot_device && strlen(boot_device)) {
+            _FDT(fdt_setprop_string(fdt, chosen, "qemu,boot-device", boot_device));
+        }
+
+        if (!spapr->has_graphics && stdout_path) {
+            /*
+             * "linux,stdout-path" and "stdout" properties are
+             * deprecated by linux kernel. New platforms should only
+             * use the "stdout-path" property. Set the new property
+             * and continue using older property to remain compatible
+             * with the existing firmware.
+             */
+            _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
+            _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
+        }
+
         /*
-         * "linux,stdout-path" and "stdout" properties are deprecated by linux
-         * kernel. New platforms should only use the "stdout-path" property. Set
-         * the new property and continue using older property to remain
-         * compatible with the existing firmware.
+         * We can deal with BAR reallocation just fine, advertise it
+         * to the guest
          */
-        _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
-        _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
+        if (smc->linux_pci_probe) {
+            _FDT(fdt_setprop_cell(fdt, chosen, "linux,pci-probe-only", 0));
+        }
+
+        spapr_dt_ov5_platform_support(spapr, fdt, chosen);
+
+        g_free(stdout_path);
+        g_free(bootlist);
     }
 
-    /* We can deal with BAR reallocation just fine, advertise it to the guest */
-    if (smc->linux_pci_probe) {
-        _FDT(fdt_setprop_cell(fdt, chosen, "linux,pci-probe-only", 0));
-    }
-
-    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
-
-    g_free(stdout_path);
-    g_free(bootlist);
+    _FDT(spapr_ovec_populate_dt(fdt, chosen, spapr->ov5_cas,
+                                "ibm,architecture-vec-5"));
 }
 
 static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
@@ -1243,9 +1238,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     spapr_dt_rtas(spapr, fdt);
 
     /* /chosen */
-    if (reset) {
-        spapr_dt_chosen(spapr, fdt);
-    }
+    spapr_dt_chosen(spapr, fdt, reset);
 
     /* /hypervisor */
     if (kvm_enabled()) {
@@ -1262,13 +1255,6 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
             _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base,
                                   spapr->initrd_size)));
         }
-    }
-
-    /* ibm,client-architecture-support updates */
-    ret = spapr_dt_cas_updates(spapr, fdt, spapr->ov5_cas);
-    if (ret < 0) {
-        error_report("couldn't setup CAS properties fdt");
-        exit(1);
     }
 
     if (smc->dr_phb_enabled) {
