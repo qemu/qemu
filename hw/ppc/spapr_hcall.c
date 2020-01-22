@@ -1676,6 +1676,18 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     Error *local_err = NULL;
     bool raw_mode_supported = false;
     bool guest_xive;
+    CPUState *cs;
+
+    /* CAS is supposed to be called early when only the boot vCPU is active. */
+    CPU_FOREACH(cs) {
+        if (cs == CPU(cpu)) {
+            continue;
+        }
+        if (!cs->halted) {
+            warn_report("guest has multiple active vCPUs at CAS, which is not allowed");
+            return H_MULTI_THREADS_ACTIVE;
+        }
+    }
 
     cas_pvr = cas_check_pvr(spapr, cpu, &addr, &raw_mode_supported, &local_err);
     if (local_err) {
