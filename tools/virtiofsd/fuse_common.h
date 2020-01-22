@@ -605,48 +605,6 @@ enum fuse_buf_flags {
 };
 
 /**
- * Buffer copy flags
- */
-enum fuse_buf_copy_flags {
-    /**
-     * Don't use splice(2)
-     *
-     * Always fall back to using read and write instead of
-     * splice(2) to copy data from one file descriptor to another.
-     *
-     * If this flag is not set, then only fall back if splice is
-     * unavailable.
-     */
-    FUSE_BUF_NO_SPLICE = (1 << 1),
-
-    /**
-     * Force splice
-     *
-     * Always use splice(2) to copy data from one file descriptor
-     * to another.  If splice is not available, return -EINVAL.
-     */
-    FUSE_BUF_FORCE_SPLICE = (1 << 2),
-
-    /**
-     * Try to move data with splice.
-     *
-     * If splice is used, try to move pages from the source to the
-     * destination instead of copying.  See documentation of
-     * SPLICE_F_MOVE in splice(2) man page.
-     */
-    FUSE_BUF_SPLICE_MOVE = (1 << 3),
-
-    /**
-     * Don't block on the pipe when copying data with splice
-     *
-     * Makes the operations on the pipe non-blocking (if the pipe
-     * is full or empty).  See SPLICE_F_NONBLOCK in the splice(2)
-     * man page.
-     */
-    FUSE_BUF_SPLICE_NONBLOCK = (1 << 4),
-};
-
-/**
  * Single data buffer
  *
  * Generic data buffer for I/O, extended attributes, etc...  Data may
@@ -741,11 +699,9 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv);
  *
  * @param dst destination buffer vector
  * @param src source buffer vector
- * @param flags flags controlling the copy
  * @return actual number of bytes copied or -errno on error
  */
-ssize_t fuse_buf_copy(struct fuse_bufvec *dst, struct fuse_bufvec *src,
-                      enum fuse_buf_copy_flags flags);
+ssize_t fuse_buf_copy(struct fuse_bufvec *dst, struct fuse_bufvec *src);
 
 /*
  * Signal handling

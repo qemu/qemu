@@ -171,7 +171,7 @@ static ssize_t fuse_buf_fd_to_fd(const struct fuse_buf *dst, size_t dst_off,
 
 static ssize_t fuse_buf_copy_one(const struct fuse_buf *dst, size_t dst_off,
                                  const struct fuse_buf *src, size_t src_off,
-                                 size_t len, enum fuse_buf_copy_flags flags)
+                                 size_t len)
 {
     int src_is_fd = src->flags & FUSE_BUF_IS_FD;
     int dst_is_fd = dst->flags & FUSE_BUF_IS_FD;
@@ -224,8 +224,7 @@ static int fuse_bufvec_advance(struct fuse_bufvec *bufv, size_t len)
     return 1;
 }
 
-ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv,
-                      enum fuse_buf_copy_flags flags)
+ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv)
 {
     size_t copied = 0;
 
@@ -249,7 +248,7 @@ ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv,
         dst_len = dst->size - dstv->off;
         len = min_size(src_len, dst_len);
 
-        res = fuse_buf_copy_one(dst, dstv->off, src, srcv->off, len, flags);
+        res = fuse_buf_copy_one(dst, dstv->off, src, srcv->off, len);
         if (res < 0) {
             if (!copied) {
                 return res;

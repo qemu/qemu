@@ -490,16 +490,14 @@ static int fuse_send_data_iov_fallback(struct fuse_session *se,
 
 static int fuse_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
                               struct iovec *iov, int iov_count,
-                              struct fuse_bufvec *buf, unsigned int flags)
+                              struct fuse_bufvec *buf)
 {
     size_t len = fuse_buf_size(buf);
-    (void)flags;
 
     return fuse_send_data_iov_fallback(se, ch, iov, iov_count, buf, len);
 }
 
-int fuse_reply_data(fuse_req_t req, struct fuse_bufvec *bufv,
-                    enum fuse_buf_copy_flags flags)
+int fuse_reply_data(fuse_req_t req, struct fuse_bufvec *bufv)
 {
     struct iovec iov[2];
     struct fuse_out_header out;
@@ -511,7 +509,7 @@ int fuse_reply_data(fuse_req_t req, struct fuse_bufvec *bufv,
     out.unique = req->unique;
     out.error = 0;
 
-    res = fuse_send_data_iov(req->se, req->ch, iov, 1, bufv, flags);
+    res = fuse_send_data_iov(req->se, req->ch, iov, 1, bufv);
     if (res <= 0) {
         fuse_free_req(req);
         return res;
@@ -1969,8 +1967,7 @@ int fuse_lowlevel_notify_delete(struct fuse_session *se, fuse_ino_t parent,
 }
 
 int fuse_lowlevel_notify_store(struct fuse_session *se, fuse_ino_t ino,
-                               off_t offset, struct fuse_bufvec *bufv,
-                               enum fuse_buf_copy_flags flags)
+                               off_t offset, struct fuse_bufvec *bufv)
 {
     struct fuse_out_header out;
     struct fuse_notify_store_out outarg;
@@ -1999,7 +1996,7 @@ int fuse_lowlevel_notify_store(struct fuse_session *se, fuse_ino_t ino,
     iov[1].iov_base = &outarg;
     iov[1].iov_len = sizeof(outarg);
 
-    res = fuse_send_data_iov(se, NULL, iov, 2, bufv, flags);
+    res = fuse_send_data_iov(se, NULL, iov, 2, bufv);
     if (res > 0) {
         res = -res;
     }

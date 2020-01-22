@@ -931,7 +931,7 @@ static void lo_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t offset,
     buf.buf[0].fd = fi->fh;
     buf.buf[0].pos = offset;
 
-    fuse_reply_data(req, &buf, FUSE_BUF_SPLICE_MOVE);
+    fuse_reply_data(req, &buf);
 }
 
 static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
@@ -952,7 +952,7 @@ static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
                  out_buf.buf[0].size, (unsigned long)off);
     }
 
-    res = fuse_buf_copy(&out_buf, in_buf, 0);
+    res = fuse_buf_copy(&out_buf, in_buf);
     if (res < 0) {
         fuse_reply_err(req, -res);
     } else {
