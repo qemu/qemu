@@ -882,14 +882,14 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     for (i = 0; i < p->pages->used; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[i]);
 
-        if (offset > (block->used_length - TARGET_PAGE_SIZE)) {
+        if (offset > (block->used_length - qemu_target_page_size())) {
             error_setg(errp, "multifd: offset too long %" PRIu64
                        " (max " RAM_ADDR_FMT ")",
                        offset, block->max_length);
             return -1;
         }
         p->pages->iov[i].iov_base = block->host + offset;
-        p->pages->iov[i].iov_len = TARGET_PAGE_SIZE;
+        p->pages->iov[i].iov_len = qemu_target_page_size();
     }
 
     return 0;
@@ -964,7 +964,8 @@ static int multifd_send_pages(QEMUFile *f)
     p->packet_num = multifd_send_state->packet_num++;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-    transferred = ((uint64_t) pages->used) * TARGET_PAGE_SIZE + p->packet_len;
+    transferred = ((uint64_t) pages->used) * qemu_target_page_size()
+                + p->packet_len;
     qemu_file_update_transfer(f, transferred);
     ram_counters.multifd_bytes += transferred;
     ram_counters.transferred += transferred;;
@@ -985,7 +986,7 @@ static int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
     if (pages->block == block) {
         pages->offset[pages->used] = offset;
         pages->iov[pages->used].iov_base = block->host + offset;
-        pages->iov[pages->used].iov_len = TARGET_PAGE_SIZE;
+        pages->iov[pages->used].iov_len = qemu_target_page_size();
         pages->used++;
 
         if (pages->used < pages->allocated) {
