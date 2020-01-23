@@ -14,3 +14,4 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   qemu-block-drivers
