@@ -25,5 +25,8 @@ qga/*.json
 # headers
 *.h
 
+# decoding tree specification
+*.decode
+
 # code
 *.c
