@@ -22,6 +22,8 @@
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "internal.h"
+#include "attribs.h"
+#include "insn.h"
 #include "decode.h"
 #include "translate.h"
 #include "printinsn.h"

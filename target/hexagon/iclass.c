@@ -102,12 +102,6 @@ const char *find_iclass_slots(opcode_t opcode, int itype)
         } else {
             return "0123";
         }
-    } else if (GET_ATTRIB(opcode, A_16BIT)) {
-        if (GET_ATTRIB(opcode, A_LOAD) || GET_ATTRIB(opcode, A_STORE)) {
-            return "01";
-        } else {
-            return "0123";
-        }
     } else {
         return iclass_info[itype].slots;
     }

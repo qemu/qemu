@@ -49,11 +49,6 @@
 #define DEF_ENC32(...) /* nothing */
 #endif
 
-#ifndef DEF_ENC16
-#define __SELF_DEF_ENC16
-#define DEF_ENC16(...) /* nothing */
-#endif
-
 #ifndef DEF_PACKED32
 #define __SELF_DEF_PACKED32
 #define DEF_PACKED32(...) /* nothing */
@@ -76,6 +71,7 @@
 
 #include "encode_pp.def"
 #include "encode_subinsn.def"
+#include "allextenc.def"
 
 #ifdef __SELF_DEF_FIELD32
 #undef __SELF_DEF_FIELD32
@@ -105,11 +101,6 @@
 #ifdef __SELF_DEF_ENC32
 #undef __SELF_DEF_ENC32
 #undef DEF_ENC32
-#endif
-
-#ifdef __SELF_DEF_ENC16
-#undef __SELF_DEF_ENC16
-#undef DEF_ENC16
 #endif
 
 #ifdef __SELF_DEF_EXT_SPACE

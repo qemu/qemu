@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "iclass.h"
 #include "opcodes.h"
+#include "genptr.h"
 #include "decode.h"
 #include "insn.h"
 #include "macros.h"
@@ -79,7 +80,7 @@ typedef struct _dectree_table_struct {
 #define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
 #define DECODE_OPINFO(...)                    /* NOTHING */
 
-#include "imported/dectree.odef"
+#include "dectree_generated.h"
 
 #undef DECODE_OPINFO
 #undef DECODE_MATCH_INFO
@@ -123,7 +124,7 @@ typedef struct _dectree_table_struct {
 #define DECODE_LEGACY_MATCH_INFO(...)         /* NOTHING */
 #define DECODE_OPINFO(...)                    /* NOTHING */
 
-#include "imported/dectree.odef"
+#include "dectree_generated.h"
 
 #undef DECODE_OPINFO
 #undef DECODE_MATCH_INFO
@@ -185,7 +186,7 @@ typedef struct {
 #define DECODE_LEGACY_MATCH_INFO(...) /* NOTHING */
 
 static const decode_itable_entry_t decode_itable[XX_LAST_OPCODE] = {
-#include "imported/dectree.odef"
+#include "dectree_generated.h"
 };
 
 #undef DECODE_MATCH_INFO
@@ -195,7 +196,7 @@ static const decode_itable_entry_t decode_itable[XX_LAST_OPCODE] = {
 #define DECODE_LEGACY_MATCH_INFO(...) DECODE_MATCH_INFO_NORMAL(__VA_ARGS__)
 
 static const decode_itable_entry_t decode_legacy_itable[XX_LAST_OPCODE] = {
-#include "imported/dectree.odef"
+#include "dectree_generated.h"
 };
 
 #undef DECODE_OPINFO
