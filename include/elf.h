@@ -1650,6 +1650,7 @@ typedef struct elf64_shdr {
 #define NT_ARM_HW_BREAK 0x402           /* ARM hardware breakpoint registers */
 #define NT_ARM_HW_WATCH 0x403           /* ARM hardware watchpoint registers */
 #define NT_ARM_SYSTEM_CALL      0x404   /* ARM system call number */
+#define NT_ARM_SVE      0x405           /* ARM Scalable Vector Extension regs */
 
 /*
  * Physical entry point into the kernel.

@@ -61,4 +61,7 @@ run-memory-replay: memory-replay run-memory-record
 	   	  $(QEMU_OPTS) memory, \
 	  "$< on $(TARGET_NAME)")
 
-EXTRA_TESTS+=memory-record memory-replay
+run-pauth-3: pauth-3
+pauth-3: CFLAGS += -march=armv8.3-a
+
+EXTRA_TESTS+=memory-record memory-replay pauth-3

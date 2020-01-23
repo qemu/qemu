@@ -877,30 +877,6 @@ static int kvm_arch_put_fpsimd(CPUState *cs)
 }
 
 /*
- * SVE registers are encoded in KVM's memory in an endianness-invariant format.
- * The byte at offset i from the start of the in-memory representation contains
- * the bits [(7 + 8 * i) : (8 * i)] of the register value. As this means the
- * lowest offsets are stored in the lowest memory addresses, then that nearly
- * matches QEMU's representation, which is to use an array of host-endian
- * uint64_t's, where the lower offsets are at the lower indices. To complete
- * the translation we just need to byte swap the uint64_t's on big-endian hosts.
- */
-static uint64_t *sve_bswap64(uint64_t *dst, uint64_t *src, int nr)
-{
-#ifdef HOST_WORDS_BIGENDIAN
-    int i;
-
-    for (i = 0; i < nr; ++i) {
-        dst[i] = bswap64(src[i]);
-    }
-
-    return dst;
-#else
-    return src;
-#endif
-}
-
-/*
  * KVM SVE registers come in slices where ZREGs have a slice size of 2048 bits
  * and PREGS and the FFR have a slice size of 256 bits. However we simply hard
  * code the slice index to zero for now as it's unlikely we'll need more than

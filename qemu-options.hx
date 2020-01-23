@@ -953,7 +953,7 @@ STEXI
 @findex -cdrom
 Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
-using @file{/dev/cdrom} as filename (@pxref{host_drives}).
+using @file{/dev/cdrom} as filename.
 ETEXI
 
 DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,

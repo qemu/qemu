@@ -47,7 +47,7 @@ static void stm32f4xx_syscfg_set_irq(void *opaque, int irq, int level)
     STM32F4xxSyscfgState *s = opaque;
     int icrreg = irq / 4;
     int startbit = (irq & 3) * 4;
-    uint8_t config = config = irq / 16;
+    uint8_t config = irq / 16;
 
     trace_stm32f4xx_syscfg_set_irq(irq / 16, irq % 16, level);
 
