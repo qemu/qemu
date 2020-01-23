@@ -313,37 +313,6 @@ The above, converted to the current supported format:
 
 @section Related binaries
 
-@subsection qemu-nbd --partition (since 4.0.0)
-
-The ``qemu-nbd --partition $digit'' code (also spelled @option{-P})
-can only handle MBR partitions, and has never correctly handled
-logical partitions beyond partition 5.  If you know the offset and
-length of the partition (perhaps by using @code{sfdisk} within the
-guest), you can achieve the effect of exporting just that subset of
-the disk by use of the @option{--image-opts} option with a raw
-blockdev using the @code{offset} and @code{size} parameters layered on
-top of any other existing blockdev. For example, if partition 1 is
-100MiB long starting at 1MiB, the old command:
-
-@code{qemu-nbd -t -P 1 -f qcow2 file.qcow2}
-
-can be rewritten as:
-
-@code{qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.file.driver=file,file.file.filename=file.qcow2}
-
-Alternatively, the @code{nbdkit} project provides a more powerful
-partition filter on top of its nbd plugin, which can be used to select
-an arbitrary MBR or GPT partition on top of any other full-image NBD
-export.  Using this to rewrite the above example results in:
-
-@code{qemu-nbd -t -k /tmp/sock -f qcow2 file.qcow2 &}
-@code{nbdkit -f --filter=partition nbd socket=/tmp/sock partition=1}
-
-Note that if you are exposing the export via /dev/nbd0, it is easier
-to just export the entire image and then mount only /dev/nbd0p1 than
-it is to reinvoke @command{qemu-nbd -c /dev/nbd0} limited to just a
-subset of the image.
-
 @subsection qemu-img convert -n -o (since 4.2.0)
 
 All options specified in @option{-o} are image creation options, so
@@ -400,3 +369,21 @@ trouble after a recent upgrade.
 
 The "autoload" parameter has been ignored since 2.12.0. All bitmaps
 are automatically loaded from qcow2 images.
+
+@section Related binaries
+
+@subsection qemu-nbd --partition (removed in 5.0.0)
+
+The ``qemu-nbd --partition $digit'' code (also spelled @option{-P})
+could only handle MBR partitions, and never correctly handled logical
+partitions beyond partition 5.  Exporting a partition can still be
+done by utilizing the @option{--image-opts} option with a raw blockdev
+using the @code{offset} and @code{size} parameters layered on top of
+any other existing blockdev. For example, if partition 1 is 100MiB
+long starting at 1MiB, the old command:
+
+@code{qemu-nbd -t -P 1 -f qcow2 file.qcow2}
+
+can be rewritten as:
+
+@code{qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.file.driver=file,file.file.filename=file.qcow2}

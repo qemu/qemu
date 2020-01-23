@@ -72,13 +72,6 @@ driver options if ``--image-opts`` is specified.
 
   Export the disk as read-only.
 
-.. option:: -P, --partition=NUM
-
-  Deprecated: Only expose MBR partition *NUM*.  Understands physical
-  partitions 1-4 and logical partition 5. New code should instead use
-  :option:`--image-opts` with the raw driver wrapping a subset of the
-  original image.
-
 .. option:: -B, --bitmap=NAME
 
   If *filename* has a qcow2 persistent bitmap *NAME*, expose
@@ -224,14 +217,14 @@ a 1 megabyte subset of a raw file, using the export name 'subset':
     -t -x subset -p 10810 \
     --image-opts driver=raw,offset=1M,size=1M,file.driver=file,file.filename=file.raw
 
-Serve a read-only copy of just the first MBR partition of a guest
-image over a Unix socket with as many as 5 simultaneous readers, with
-a persistent process forked as a daemon:
+Serve a read-only copy of a guest image over a Unix socket with as
+many as 5 simultaneous readers, with a persistent process forked as a
+daemon:
 
 ::
 
   qemu-nbd --fork --persistent --shared=5 --socket=/path/to/sock \
-    --partition=1 --read-only --format=qcow2 file.qcow2
+    --read-only --format=qcow2 file.qcow2
 
 Expose the guest-visible contents of a qcow2 file via a block device
 /dev/nbd0 (and possibly creating /dev/nbd0p1 and friends for
