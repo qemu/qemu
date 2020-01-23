@@ -2338,6 +2338,7 @@ void qemu_display_help(void)
     int idx;
 
     printf("Available display backend types:\n");
+    printf("none\n");
     for (idx = DISPLAY_TYPE_NONE; idx < DISPLAY_TYPE__MAX; idx++) {
         if (!dpys[idx]) {
             ui_module_load_one(DisplayType_str(idx));
