@@ -751,7 +751,7 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
     do {
         DeviceClass *dc = DEVICE_CLASS(class);
 
-        for (prop = dc->props; prop && prop->name; prop++) {
+        for (prop = dc->props_; prop && prop->name; prop++) {
             object_property_add_alias(source, prop->name,
                                       OBJECT(target), prop->name,
                                       &error_abort);
@@ -954,7 +954,7 @@ static void device_initfn(Object *obj)
 
     class = object_get_class(OBJECT(dev));
     do {
-        for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
+        for (prop = DEVICE_CLASS(class)->props_; prop && prop->name; prop++) {
             qdev_property_add_legacy(dev, prop, &error_abort);
             qdev_property_add_static(dev, prop);
         }
@@ -1013,7 +1013,7 @@ static void device_class_base_init(ObjectClass *class, void *data)
     /* We explicitly look up properties in the superclasses,
      * so do not propagate them to the subclasses.
      */
-    klass->props = NULL;
+    klass->props_ = NULL;
 }
 
 static void device_unparent(Object *obj)
@@ -1063,7 +1063,7 @@ static void device_class_init(ObjectClass *class, void *data)
 
 void device_class_set_props(DeviceClass *dc, Property *props)
 {
-    dc->props = props;
+    dc->props_ = props;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,

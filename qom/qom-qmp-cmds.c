@@ -137,7 +137,7 @@ static ObjectPropertyInfo *make_device_property_info(ObjectClass *klass,
     Property *prop;
 
     do {
-        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
+        for (prop = DEVICE_CLASS(klass)->props_; prop && prop->name; prop++) {
             if (strcmp(name, prop->name) != 0) {
                 continue;
             }

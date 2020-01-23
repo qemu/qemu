@@ -100,7 +100,12 @@ typedef struct DeviceClass {
     DECLARE_BITMAP(categories, DEVICE_CATEGORY_MAX);
     const char *fw_name;
     const char *desc;
-    Property *props;
+
+    /*
+     * The underscore at the end ensures a compile-time error if someone
+     * assigns to dc->props instead of using device_class_set_props.
+     */
+    Property *props_;
 
     /*
      * Can this device be instantiated with -device / device_add?
