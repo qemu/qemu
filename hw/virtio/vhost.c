@@ -547,26 +547,28 @@ static void vhost_region_add_section(struct vhost_dev *dev,
     uintptr_t mrs_host = (uintptr_t)memory_region_get_ram_ptr(section->mr) +
                          section->offset_within_region;
     RAMBlock *mrs_rb = section->mr->ram_block;
-    size_t mrs_page = qemu_ram_pagesize(mrs_rb);
 
     trace_vhost_region_add_section(section->mr->name, mrs_gpa, mrs_size,
                                    mrs_host);
 
-    /* Round the section to it's page size */
-    /* First align the start down to a page boundary */
-    uint64_t alignage = mrs_host & (mrs_page - 1);
-    if (alignage) {
-        mrs_host -= alignage;
-        mrs_size += alignage;
-        mrs_gpa  -= alignage;
+    if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER) {
+        /* Round the section to it's page size */
+        /* First align the start down to a page boundary */
+        size_t mrs_page = qemu_ram_pagesize(mrs_rb);
+        uint64_t alignage = mrs_host & (mrs_page - 1);
+        if (alignage) {
+            mrs_host -= alignage;
+            mrs_size += alignage;
+            mrs_gpa  -= alignage;
+        }
+        /* Now align the size up to a page boundary */
+        alignage = mrs_size & (mrs_page - 1);
+        if (alignage) {
+            mrs_size += mrs_page - alignage;
+        }
+        trace_vhost_region_add_section_aligned(section->mr->name, mrs_gpa,
+                                               mrs_size, mrs_host);
     }
-    /* Now align the size up to a page boundary */
-    alignage = mrs_size & (mrs_page - 1);
-    if (alignage) {
-        mrs_size += mrs_page - alignage;
-    }
-    trace_vhost_region_add_section_aligned(section->mr->name, mrs_gpa, mrs_size,
-                                           mrs_host);
 
     if (dev->n_tmp_sections) {
         /* Since we already have at least one section, lets see if
@@ -590,9 +592,10 @@ static void vhost_region_add_section(struct vhost_dev *dev,
              * match up in the same RAMBlock if they do.
              */
             if (mrs_gpa < prev_gpa_start) {
-                error_report("%s:Section rounded to %"PRIx64
-                             " prior to previous %"PRIx64,
-                             __func__, mrs_gpa, prev_gpa_start);
+                error_report("%s:Section '%s' rounded to %"PRIx64
+                             " prior to previous '%s' %"PRIx64,
+                             __func__, section->mr->name, mrs_gpa,
+                             prev_sec->mr->name, prev_gpa_start);
                 /* A way to cleanly fail here would be better */
                 return;
             }

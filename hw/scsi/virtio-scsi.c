@@ -943,7 +943,13 @@ void virtio_scsi_common_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
+    int i;
 
+    virtio_delete_queue(vs->ctrl_vq);
+    virtio_delete_queue(vs->event_vq);
+    for (i = 0; i < vs->conf.num_queues; i++) {
+        virtio_delete_queue(vs->cmd_vqs[i]);
+    }
     g_free(vs->cmd_vqs);
     virtio_cleanup(vdev);
 }
