@@ -329,7 +329,7 @@ top of any other existing blockdev. For example, if partition 1 is
 
 can be rewritten as:
 
-@code{qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.backing.driver=file,file.backing.filename=file.qcow2}
+@code{qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.file.driver=file,file.file.filename=file.qcow2}
 
 Alternatively, the @code{nbdkit} project provides a more powerful
 partition filter on top of its nbd plugin, which can be used to select
