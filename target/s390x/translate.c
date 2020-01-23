@@ -53,6 +53,89 @@ typedef struct DisasContext DisasContext;
 typedef struct DisasInsn DisasInsn;
 typedef struct DisasFields DisasFields;
 
+/*
+ * Define a structure to hold the decoded fields.  We'll store each inside
+ * an array indexed by an enum.  In order to conserve memory, we'll arrange
+ * for fields that do not exist at the same time to overlap, thus the "C"
+ * for compact.  For checking purposes there is an "O" for original index
+ * as well that will be applied to availability bitmaps.
+ */
+
+enum DisasFieldIndexO {
+    FLD_O_r1,
+    FLD_O_r2,
+    FLD_O_r3,
+    FLD_O_m1,
+    FLD_O_m3,
+    FLD_O_m4,
+    FLD_O_m5,
+    FLD_O_m6,
+    FLD_O_b1,
+    FLD_O_b2,
+    FLD_O_b4,
+    FLD_O_d1,
+    FLD_O_d2,
+    FLD_O_d4,
+    FLD_O_x2,
+    FLD_O_l1,
+    FLD_O_l2,
+    FLD_O_i1,
+    FLD_O_i2,
+    FLD_O_i3,
+    FLD_O_i4,
+    FLD_O_i5,
+    FLD_O_v1,
+    FLD_O_v2,
+    FLD_O_v3,
+    FLD_O_v4,
+};
+
+enum DisasFieldIndexC {
+    FLD_C_r1 = 0,
+    FLD_C_m1 = 0,
+    FLD_C_b1 = 0,
+    FLD_C_i1 = 0,
+    FLD_C_v1 = 0,
+
+    FLD_C_r2 = 1,
+    FLD_C_b2 = 1,
+    FLD_C_i2 = 1,
+
+    FLD_C_r3 = 2,
+    FLD_C_m3 = 2,
+    FLD_C_i3 = 2,
+    FLD_C_v3 = 2,
+
+    FLD_C_m4 = 3,
+    FLD_C_b4 = 3,
+    FLD_C_i4 = 3,
+    FLD_C_l1 = 3,
+    FLD_C_v4 = 3,
+
+    FLD_C_i5 = 4,
+    FLD_C_d1 = 4,
+    FLD_C_m5 = 4,
+
+    FLD_C_d2 = 5,
+    FLD_C_m6 = 5,
+
+    FLD_C_d4 = 6,
+    FLD_C_x2 = 6,
+    FLD_C_l2 = 6,
+    FLD_C_v2 = 6,
+
+    NUM_C_FIELD = 7
+};
+
+struct DisasFields {
+    uint64_t raw_insn;
+    unsigned op:8;
+    unsigned op2:8;
+    unsigned presentC:16;
+    unsigned int presentO;
+    int c[NUM_C_FIELD];
+};
+
 struct DisasContext {
     DisasContextBase base;
     const DisasInsn *insn;
@@ -1004,87 +1087,6 @@ typedef enum {
 #undef F4
 #undef F5
 #undef F6
-
-/* Define a structure to hold the decoded fields.  We'll store each inside
-   an array indexed by an enum.  In order to conserve memory, we'll arrange
-   for fields that do not exist at the same time to overlap, thus the "C"
-   for compact.  For checking purposes there is an "O" for original index
-   as well that will be applied to availability bitmaps.  */
-
-enum DisasFieldIndexO {
-    FLD_O_r1,
-    FLD_O_r2,
-    FLD_O_r3,
-    FLD_O_m1,
-    FLD_O_m3,
-    FLD_O_m4,
-    FLD_O_m5,
-    FLD_O_m6,
-    FLD_O_b1,
-    FLD_O_b2,
-    FLD_O_b4,
-    FLD_O_d1,
-    FLD_O_d2,
-    FLD_O_d4,
-    FLD_O_x2,
-    FLD_O_l1,
-    FLD_O_l2,
-    FLD_O_i1,
-    FLD_O_i2,
-    FLD_O_i3,
-    FLD_O_i4,
-    FLD_O_i5,
-    FLD_O_v1,
-    FLD_O_v2,
-    FLD_O_v3,
-    FLD_O_v4,
-};
-
-enum DisasFieldIndexC {
-    FLD_C_r1 = 0,
-    FLD_C_m1 = 0,
-    FLD_C_b1 = 0,
-    FLD_C_i1 = 0,
-    FLD_C_v1 = 0,
-
-    FLD_C_r2 = 1,
-    FLD_C_b2 = 1,
-    FLD_C_i2 = 1,
-
-    FLD_C_r3 = 2,
-    FLD_C_m3 = 2,
-    FLD_C_i3 = 2,
-    FLD_C_v3 = 2,
-
-    FLD_C_m4 = 3,
-    FLD_C_b4 = 3,
-    FLD_C_i4 = 3,
-    FLD_C_l1 = 3,
-    FLD_C_v4 = 3,
-
-    FLD_C_i5 = 4,
-    FLD_C_d1 = 4,
-    FLD_C_m5 = 4,
-
-    FLD_C_d2 = 5,
-    FLD_C_m6 = 5,
-
-    FLD_C_d4 = 6,
-    FLD_C_x2 = 6,
-    FLD_C_l2 = 6,
-    FLD_C_v2 = 6,
-
-    NUM_C_FIELD = 7
-};
-
-struct DisasFields {
-    uint64_t raw_insn;
-    unsigned op:8;
-    unsigned op2:8;
-    unsigned presentC:16;
-    unsigned int presentO;
-    int c[NUM_C_FIELD];
-};
 
 /* This is the way fields are to be accessed out of DisasFields.  */
 #define have_field(S, F)  have_field1((S), FLD_O_##F)
