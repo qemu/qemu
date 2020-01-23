@@ -139,7 +139,7 @@ struct DisasFields {
 struct DisasContext {
     DisasContextBase base;
     const DisasInsn *insn;
-    DisasFields *fields;
+    DisasFields fields;
     uint64_t ex_value;
     /*
      * During translate_one(), pc_tmp is used to determine the instruction
@@ -1094,14 +1094,14 @@ typedef enum {
 
 static bool have_field1(const DisasContext *s, enum DisasFieldIndexO c)
 {
-    return (s->fields->presentO >> c) & 1;
+    return (s->fields.presentO >> c) & 1;
 }
 
 static int get_field1(const DisasContext *s, enum DisasFieldIndexO o,
                       enum DisasFieldIndexC c)
 {
     assert(have_field1(s, o));
-    return s->fields->c[c];
+    return s->fields.c[c];
 }
 
 /* Describe the layout of each field in each format.  */
@@ -3763,7 +3763,7 @@ static DisasJumpType op_risbg(DisasContext *s, DisasOps *o)
     int pos, len, rot;
 
     /* Adjust the arguments for the specific insn.  */
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0x55: /* risbg */
     case 0x59: /* risbgn */
         i3 &= 63;
@@ -3804,7 +3804,7 @@ static DisasJumpType op_risbg(DisasContext *s, DisasOps *o)
     len = i4 - i3 + 1;
     pos = 63 - i4;
     rot = i5 & 63;
-    if (s->fields->op2 == 0x5d) {
+    if (s->fields.op2 == 0x5d) {
         pos += 32;
     }
 
@@ -3873,7 +3873,7 @@ static DisasJumpType op_rosbg(DisasContext *s, DisasOps *o)
     tcg_gen_rotli_i64(o->in2, o->in2, i5);
 
     /* Operate.  */
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0x55: /* AND */
         tcg_gen_ori_i64(o->in2, o->in2, ~mask);
         tcg_gen_and_i64(o->out, o->out, o->in2);
@@ -4489,7 +4489,7 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_st8(t, o->addr1, get_mem_index(s));
     tcg_temp_free_i64(t);
 
-    if (s->fields->op == 0xac) {
+    if (s->fields.op == 0xac) {
         tcg_gen_andi_i64(psw_mask, psw_mask,
                          (i2 << 56) | 0x00ffffffffffffffull);
     } else {
@@ -6000,7 +6000,7 @@ static void in2_i2_32u_shl(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static void in2_insn(DisasContext *s, DisasOps *o)
 {
-    o->in2 = tcg_const_i64(s->fields->raw_insn);
+    o->in2 = tcg_const_i64(s->fields.raw_insn);
 }
 #define SPEC_in2_insn 0
 #endif
@@ -6299,15 +6299,13 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 {
     const DisasInsn *insn;
     DisasJumpType ret = DISAS_NEXT;
-    DisasFields f;
     DisasOps o = {};
 
     /* Search for the insn in the table.  */
-    insn = extract_insn(env, s, &f);
+    insn = extract_insn(env, s, &s->fields);
 
     /* Set up the strutures we use to communicate with the helpers. */
     s->insn = insn;
-    s->fields = &f;
 
     /* Emit insn_start now that we know the ILEN.  */
     tcg_gen_insn_start(s->base.pc_next, s->cc_op, s->ilen);
@@ -6315,7 +6313,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     /* Not found means unimplemented/illegal opcode.  */
     if (insn == NULL) {
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%02x%02x\n",
-                      f.op, f.op2);
+                      s->fields.op, s->fields.op2);
         gen_illegal_opcode(s);
         return DISAS_NORETURN;
     }
