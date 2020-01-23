@@ -148,25 +148,29 @@ void qemu_log_needs_buffers(void)
  * Allow the user to include %d in their logfile which will be
  * substituted with the current PID. This is useful for debugging many
  * nested linux-user tasks but will result in lots of logs.
+ *
+ * filename may be NULL. In that case, log output is sent to stderr
  */
 void qemu_set_log_filename(const char *filename, Error **errp)
 {
-    char *pidstr;
     g_free(logfilename);
     logfilename = NULL;
 
-    pidstr = strstr(filename, "%");
-    if (pidstr) {
-        /* We only accept one %d, no other format strings */
-        if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
-            error_setg(errp, "Bad logfile format: %s", filename);
-            return;
-        } else {
-            logfilename = g_strdup_printf(filename, getpid());
-        }
-    } else {
-        logfilename = g_strdup(filename);
+    if (filename) {
+            char *pidstr = strstr(filename, "%");
+            if (pidstr) {
+                /* We only accept one %d, no other format strings */
+                if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
+                    error_setg(errp, "Bad logfile format: %s", filename);
+                    return;
+                } else {
+                    logfilename = g_strdup_printf(filename, getpid());
+                }
+            } else {
+                logfilename = g_strdup(filename);
+            }
     }
+
     qemu_log_close();
     qemu_set_log(qemu_loglevel);
 }
