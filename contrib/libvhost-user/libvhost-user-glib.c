@@ -89,7 +89,7 @@ vug_source_new(VugDev *gdev, int fd, GIOCondition cond,
     src->gfd.events = cond;
 
     g_source_add_poll(gsrc, &src->gfd);
-    id = g_source_attach(gsrc, NULL);
+    id = g_source_attach(gsrc, g_main_context_get_thread_default());
     g_assert(id);
 
     return gsrc;
