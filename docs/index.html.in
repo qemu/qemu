@@ -12,6 +12,7 @@
             <li><a href="qemu-ga-ref.html">Guest Agent Protocol Reference</a></li>
             <li><a href="interop/index.html">System Emulation Management and Interoperability Guide</a></li>
             <li><a href="specs/index.html">System Emulation Guest Hardware Specifications</a></li>
+            <li><a href="system/index.html">System Emulation User's Guide</a></li>
         </ul>
     </body>
 </html>
