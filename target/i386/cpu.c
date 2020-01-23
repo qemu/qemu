@@ -2905,6 +2905,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
+                    { "model-id",
+                      "Intel Core Processor (Skylake, IBRS, no TSX)" },
                     { /* end of list */ }
                 }
             },
@@ -3028,6 +3030,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
+                    { "model-id",
+                      "Intel Xeon Processor (Skylake, IBRS, no TSX)" },
                     { /* end of list */ }
                 }
             },
