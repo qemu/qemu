@@ -33,7 +33,7 @@
 /* This can safely be increased if necessary without breaking
  * migration compatibility (as long as it remains greater than 15).
  */
-#define MAX_OR_LINES      32
+#define MAX_OR_LINES      48
 
 typedef struct OrIRQState qemu_or_irq;
 
