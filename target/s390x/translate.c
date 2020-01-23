@@ -6183,8 +6183,7 @@ static void extract_field(DisasFields *o, const DisasField *f, uint64_t insn)
 /* Lookup the insn at the current PC, extracting the operands into O and
    returning the info struct for the insn.  Returns NULL for invalid insn.  */
 
-static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
-                                     DisasFields *f)
+static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
 {
     uint64_t insn, pc = s->base.pc_next;
     int op, op2, ilen;
@@ -6264,13 +6263,14 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
         break;
     }
 
-    memset(f, 0, sizeof(*f));
-    f->raw_insn = insn;
-    f->op = op;
-    f->op2 = op2;
+    memset(&s->fields, 0, sizeof(s->fields));
+    s->fields.raw_insn = insn;
+    s->fields.op = op;
+    s->fields.op2 = op2;
 
     /* Lookup the instruction.  */
     info = lookup_opc(op << 8 | op2);
+    s->insn = info;
 
     /* If we found it, extract the operands.  */
     if (info != NULL) {
@@ -6278,7 +6278,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
         int i;
 
         for (i = 0; i < NUM_C_FIELD; ++i) {
-            extract_field(f, &format_info[fmt].op[i], insn);
+            extract_field(&s->fields, &format_info[fmt].op[i], insn);
         }
     }
     return info;
@@ -6302,10 +6302,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     DisasOps o = {};
 
     /* Search for the insn in the table.  */
-    insn = extract_insn(env, s, &s->fields);
-
-    /* Set up the strutures we use to communicate with the helpers. */
-    s->insn = insn;
+    insn = extract_insn(env, s);
 
     /* Emit insn_start now that we know the ILEN.  */
     tcg_gen_insn_start(s->base.pc_next, s->cc_op, s->ilen);
