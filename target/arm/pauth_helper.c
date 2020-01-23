@@ -89,7 +89,7 @@ static uint64_t pac_sub(uint64_t i)
     uint64_t o = 0;
     int b;
 
-    for (b = 0; b < 64; b += 16) {
+    for (b = 0; b < 64; b += 4) {
         o |= (uint64_t)sub[(i >> b) & 0xf] << b;
     }
     return o;
@@ -104,7 +104,7 @@ static uint64_t pac_inv_sub(uint64_t i)
     uint64_t o = 0;
     int b;
 
-    for (b = 0; b < 64; b += 16) {
+    for (b = 0; b < 64; b += 4) {
         o |= (uint64_t)inv_sub[(i >> b) & 0xf] << b;
     }
     return o;
