@@ -1,0 +1,842 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+DEF_MACRO(fDUMPQ,
+	do {
+		printf(STR ":" #REG ": 0x%016llx\n",REG.ud[0]);
+	} while (0),
+	()
+)
+
+DEF_MACRO(fUSE_LOOKUP_ADDRESS_BY_REV,
+	PROC->arch_proc_options->mmvec_use_full_va_for_lookup,
+	()
+)
+
+DEF_MACRO(fUSE_LOOKUP_ADDRESS,
+	1,
+	()
+)
+
+DEF_MACRO(fNOTQ,
+	({mmqreg_t _ret = {0}; int _i_; for (_i_ = 0; _i_ < fVECSIZE()/64; _i_++) _ret.ud[_i_] = ~VAL.ud[_i_]; _ret;}),
+	()
+)
+
+DEF_MACRO(fGETQBITS,
+	((MASK) & (REG.w[(BITNO)>>5] >> ((BITNO) & 0x1f))),
+	()
+)
+
+DEF_MACRO(fGETQBIT,
+	fGETQBITS(REG,1,1,BITNO),
+	()
+)
+
+DEF_MACRO(fGENMASKW,
+	(((fGETQBIT(QREG,(IDX*4+0)) ? 0xFF : 0x0) << 0)
+	|((fGETQBIT(QREG,(IDX*4+1)) ? 0xFF : 0x0) << 8)
+	|((fGETQBIT(QREG,(IDX*4+2)) ? 0xFF : 0x0) << 16)
+	|((fGETQBIT(QREG,(IDX*4+3)) ? 0xFF : 0x0) << 24)),
+	()
+)
+DEF_MACRO(fGET10BIT,
+	{
+		COE = (((((fGETUBYTE(3,VAL) >> (2 * POS)) & 3) << 8) | fGETUBYTE(POS,VAL)) << 6);
+		COE >>= 6;
+	},
+	()
+)
+
+DEF_MACRO(fVMAX,
+	(X>Y) ? X : Y,
+	()
+)
+
+
+DEF_MACRO(fGETNIBBLE,
+    ( fSXTN(4,8,(SRC >> (4*IDX)) & 0xF) ),
+    ()
+)
+
+DEF_MACRO(fGETCRUMB,
+    ( fSXTN(2,8,(SRC >> (2*IDX)) & 0x3) ),
+    ()
+)
+
+DEF_MACRO(fGETCRUMB_SYMMETRIC,
+    ( (fGETCRUMB(IDX,SRC)>=0 ? (2-fGETCRUMB(IDX,SRC)) : fGETCRUMB(IDX,SRC) ) ),
+    ()
+)
+
+#define ZERO_OFFSET_2B +
+
+DEF_MACRO(fGENMASKH,
+	(((fGETQBIT(QREG,(IDX*2+0)) ? 0xFF : 0x0) << 0)
+	|((fGETQBIT(QREG,(IDX*2+1)) ? 0xFF : 0x0) << 8)),
+	()
+)
+
+DEF_MACRO(fGETMASKW,
+	(VREG.w[IDX] & fGENMASKW((QREG),IDX)),
+	()
+)
+
+DEF_MACRO(fGETMASKH,
+	(VREG.h[IDX] & fGENMASKH((QREG),IDX)),
+	()
+)
+
+DEF_MACRO(fCONDMASK8,
+	(fGETQBIT(QREG,IDX) ? (YESVAL) : (NOVAL)),
+	()
+)
+
+DEF_MACRO(fCONDMASK16,
+	((fGENMASKH(QREG,IDX) & (YESVAL)) | (fGENMASKH(fNOTQ(QREG),IDX) & (NOVAL))),
+	()
+)
+
+DEF_MACRO(fCONDMASK32,
+	((fGENMASKW(QREG,IDX) & (YESVAL)) | (fGENMASKW(fNOTQ(QREG),IDX) & (NOVAL))),
+	()
+)
+
+
+DEF_MACRO(fSETQBITS,
+	do {
+		size4u_t __TMP = (VAL);
+		REG.w[(BITNO)>>5] &= ~((MASK) << ((BITNO) & 0x1f));
+		REG.w[(BITNO)>>5] |= (((__TMP) & (MASK)) << ((BITNO) & 0x1f));
+	} while (0),
+	()
+)
+
+DEF_MACRO(fSETQBIT,
+	fSETQBITS(REG,1,1,BITNO,VAL),
+	()
+)
+
+DEF_MACRO(fVBYTES,
+	(fVECSIZE()),
+	()
+)
+
+DEF_MACRO(fVHALVES,
+	(fVECSIZE()/2),
+	()
+)
+
+DEF_MACRO(fVWORDS,
+	(fVECSIZE()/4),
+	()
+)
+
+DEF_MACRO(fVDWORDS,
+	(fVECSIZE()/8),
+	()
+)
+
+DEF_MACRO(fVALIGN,
+    ( ADDR = ADDR & ~(LOG2_ALIGNMENT-1)),
+    ()
+)
+
+DEF_MACRO(fVLASTBYTE,
+    ( ADDR = ADDR | (LOG2_ALIGNMENT-1)),
+    ()
+)
+
+
+DEF_MACRO(fVELEM,
+    ((fVECSIZE()*8)/WIDTH),
+    ()
+)
+
+DEF_MACRO(fVECLOGSIZE,
+    (mmvec_current_veclogsize(thread)),
+    ()
+)
+
+DEF_MACRO(fVECSIZE,
+    (1<<fVECLOGSIZE()),
+    ()
+)
+
+DEF_MACRO(fSWAPB,
+    {
+		size1u_t tmp = A;
+		A = B;
+		B = tmp;
+	},
+    /* NOTHING */
+)
+
+DEF_MACRO(
+	fVZERO,
+	mmvec_zero_vector(),
+	()
+)
+
+DEF_MACRO(
+    fNEWVREG,
+    ((THREAD2STRUCT->VRegs_updated & (((VRegMask)1)<<VNUM)) ? THREAD2STRUCT->future_VRegs[VNUM] : mmvec_zero_vector()),
+    (A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
+)
+
+DEF_MACRO(
+	fV_AL_CHECK,
+	if ((EA) & (MASK)) {
+		warn("aligning misaligned vector. PC=%08x EA=%08x",thread->Regs[REG_PC],(EA));
+	},
+	()
+)
+DEF_MACRO(fSCATTER_INIT,
+    {
+    mem_vector_scatter_init(thread, insn,   REGION_START, LENGTH, ELEMENT_SIZE);
+	if (EXCEPTION_DETECTED) return;
+    },
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SLOT0ONLY)
+)
+
+DEF_MACRO(fGATHER_INIT,
+    {
+    mem_vector_gather_init(thread, insn,   REGION_START, LENGTH, ELEMENT_SIZE);
+	if (EXCEPTION_DETECTED) return;
+    },
+    (A_LOAD,A_MEMLIKE,A_RESTRICT_SLOT1ONLY)
+)
+
+DEF_MACRO(fSCATTER_FINISH,
+    {
+	if (EXCEPTION_DETECTED) return;
+    mem_vector_scatter_finish(thread, insn, OP);
+    },
+    ()
+)
+
+DEF_MACRO(fGATHER_FINISH,
+    {
+	if (EXCEPTION_DETECTED) return;
+    mem_vector_gather_finish(thread, insn);
+    },
+    ()
+)
+
+
+DEF_MACRO(CHECK_VTCM_PAGE,
+     {
+        int slot = insn->slot;
+        paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
+        pa = pa & ~(ALIGNMENT-1);
+        FLAG = (pa < (thread->mem_access[slot].paddr+LENGTH));
+     },
+    ()
+)
+DEF_MACRO(COUNT_OUT_OF_BOUNDS,
+     {
+        if (!FLAG)
+        {
+               THREAD2STRUCT->vtcm_log.oob_access += SIZE;
+               warn("Scatter/Gather out of bounds of region");
+        }
+     },
+    ()
+)
+
+DEF_MACRO(fLOG_SCATTER_OP,
+    {
+        // Log the size and indicate that the extension ext.c file needs to increment right before memory write
+        THREAD2STRUCT->vtcm_log.op = 1;
+        THREAD2STRUCT->vtcm_log.op_size = SIZE;
+    },
+    ()
+)
+
+
+
+DEF_MACRO(fVLOG_VTCM_WORD_INCREMENT,
+    {
+        int slot = insn->slot;
+        int log_bank = 0;
+        int log_byte =0;
+        paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1));
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
+        for(int i0 = 0; i0 < 4; i0++)
+        {
+            log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high));
+            log_bank |= (log_byte<<i0);
+            LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[4*IDX+i0],4*IDX+i0);
+        }
+        { LOG_VTCM_BANK(pa, log_bank, IDX); }
+    },
+    ()
+)
+
+DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT,
+    {
+        int slot = insn->slot;
+        int log_bank = 0;
+        int log_byte = 0;
+        paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1));
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
+        for(int i0 = 0; i0 < 2; i0++) {
+            log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high));
+            log_bank |= (log_byte<<i0);
+            LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[2*IDX+i0],2*IDX+i0);
+        }
+        { LOG_VTCM_BANK(pa, log_bank,IDX); }
+    },
+    ()
+)
+
+DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT_DV,
+    {
+        int slot = insn->slot;
+        int log_bank = 0;
+        int log_byte = 0;
+        paddr_t pa = thread->mem_access[slot].paddr+(OFFSET & ~(ALIGNMENT-1));
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
+        for(int i0 = 0; i0 < 2; i0++) {
+            log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high));
+            log_bank |= (log_byte<<i0);
+            LOG_VTCM_BYTE(pa+i0,log_byte,INC.ub[2*IDX+i0],2*IDX+i0);
+        }
+        { LOG_VTCM_BANK(pa, log_bank,(2*IDX2+IDX_H));}
+    },
+    ()
+)
+
+
+
+DEF_MACRO(GATHER_FUNCTION,
+{
+        int slot = insn->slot;
+        int i0;
+        paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
+        int log_bank = 0;
+        int log_byte = 0;
+        for(i0 = 0; i0 < ELEMENT_SIZE; i0++)
+        {
+            log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL;
+            log_bank |= (log_byte<<i0);
+            size1u_t B  = sim_mem_read1(thread->system_ptr, thread->threadId, thread->mem_access[slot].paddr+OFFSET+i0);
+            THREAD2STRUCT->tmp_VRegs[0].ub[ELEMENT_SIZE*IDX+i0] = B;
+            LOG_VTCM_BYTE(pa+i0,log_byte,B,ELEMENT_SIZE*IDX+i0);
+        }
+        LOG_VTCM_BANK(pa, log_bank,BANK_IDX);
+},
+()
+)
+
+
+
+DEF_MACRO(fVLOG_VTCM_GATHER_WORD,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 4, IDX, 1);
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, IDX, 1);
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD_DV,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), 1);
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_GATHER_WORDQ,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 4, IDX, fGETQBIT(QsV,4*IDX+i0));
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, IDX, fGETQBIT(QsV,2*IDX+i0));
+    },
+    ()
+)
+
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ_DV,
+    {
+		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), fGETQBIT(QsV,2*IDX+i0));
+    },
+    ()
+)
+
+
+DEF_MACRO(DEBUG_LOG_ADDR,
+    {
+
+        if (thread->processor_ptr->arch_proc_options->mmvec_network_addr_log2)
+        {
+
+            int slot = insn->slot;
+            paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
+        }
+    },
+    ()
+)
+
+
+
+
+
+
+
+DEF_MACRO(SCATTER_OP_WRITE_TO_MEM,
+    {
+        for (int i = 0; i < mmvecx->vtcm_log.size; i+=sizeof(TYPE))
+        {
+            if ( mmvecx->vtcm_log.mask.ub[i] != 0) {
+                TYPE dst = 0;
+                TYPE inc = 0;
+                for(int j = 0; j < sizeof(TYPE); j++) {
+                    dst |= (sim_mem_read1(thread->system_ptr, thread->threadId, mmvecx->vtcm_log.pa[i+j]) << (8*j));
+                    inc |= mmvecx->vtcm_log.data.ub[j+i] << (8*j);
+
+                    mmvecx->vtcm_log.mask.ub[j+i] = 0;
+                    mmvecx->vtcm_log.data.ub[j+i] = 0;
+                    mmvecx->vtcm_log.offsets.ub[j+i] = 0;
+                }
+                dst += inc;
+                for(int j = 0; j < sizeof(TYPE); j++) {
+                    sim_mem_write1(thread->system_ptr,thread->threadId, mmvecx->vtcm_log.pa[i+j], (dst >> (8*j))& 0xFF );
+                }
+        }
+
+    }
+    },
+    ()
+)
+
+DEF_MACRO(SCATTER_FUNCTION,
+{
+        int slot = insn->slot;
+        int i0;
+        paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
+        paddr_t pa_high = thread->mem_access[slot].paddr+LEN;
+        int log_bank = 0;
+        int log_byte = 0;
+        for(i0 = 0; i0 < ELEMENT_SIZE; i0++) {
+            log_byte = ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL;
+            log_bank |= (log_byte<<i0);
+            LOG_VTCM_BYTE(pa+i0,log_byte,IN.ub[ELEMENT_SIZE*IDX+i0],ELEMENT_SIZE*IDX+i0);
+        }
+        LOG_VTCM_BANK(pa, log_bank,BANK_IDX);
+
+},
+()
+)
+
+DEF_MACRO(fVLOG_VTCM_HALFWORD,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, IDX, 1, IN);
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_WORD,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 4, IDX, 1, IN);
+    },
+    ()
+)
+
+DEF_MACRO(fVLOG_VTCM_HALFWORDQ,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, IDX, fGETQBIT(QsV,2*IDX+i0), IN);
+    },
+    ()
+)
+DEF_MACRO(fVLOG_VTCM_WORDQ,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 4, IDX, fGETQBIT(QsV,4*IDX+i0), IN);
+    },
+    ()
+)
+
+
+
+
+
+DEF_MACRO(fVLOG_VTCM_HALFWORD_DV,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), 1, IN);
+    },
+    ()
+)
+
+DEF_MACRO(fVLOG_VTCM_HALFWORDQ_DV,
+    {
+		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), fGETQBIT(QsV,2*IDX+i0), IN);
+    },
+    ()
+)
+
+
+
+
+
+
+DEF_MACRO(fSTORERELEASE,
+    {
+        fV_AL_CHECK(EA,fVECSIZE()-1);
+
+        mem_store_release(thread, insn, fVECSIZE(), EA&~(fVECSIZE()-1), EA, TYPE, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+	(A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fVFETCH_AL,
+    {
+    fV_AL_CHECK(EA,fVECSIZE()-1);
+    mem_fetch_vector(thread, insn, EA&~(fVECSIZE()-1), insn->slot, fVECSIZE());
+    },
+    (A_LOAD,A_MEMLIKE)
+)
+
+
+DEF_MACRO(fLOADMMV_AL,
+    {
+    fV_AL_CHECK(EA,ALIGNMENT-1);
+	thread->last_pkt->double_access_vec = 0;
+    mem_load_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &DST.ub[0], LEN, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_LOAD,A_MEMLIKE)
+)
+
+DEF_MACRO(fLOADMMV,
+	fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST),
+	()
+)
+
+DEF_MACRO(fLOADMMVQ,
+	do {
+		int __i;
+		fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST);
+		fVFOREACH(8,__i) if (!fGETQBIT(QVAL,__i)) DST.b[__i] = 0;
+	} while (0),
+	()
+)
+
+DEF_MACRO(fLOADMMVNQ,
+	do {
+		int __i;
+		fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST);
+		fVFOREACH(8,__i) if (fGETQBIT(QVAL,__i)) DST.b[__i] = 0;
+	} while (0),
+	()
+)
+
+DEF_MACRO(fLOADMMVU_AL,
+    {
+    size4u_t size2 = (EA)&(ALIGNMENT-1);
+    size4u_t size1 = LEN-size2;
+	thread->last_pkt->double_access_vec = 1;
+    mem_load_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &DST.ub[size1], size2, fUSE_LOOKUP_ADDRESS());
+    mem_load_vector_oddva(thread, insn, EA, EA,/* slot */ 0, size1, &DST.ub[0], size1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_LOAD,A_MEMLIKE)
+)
+
+DEF_MACRO(fLOADMMVU,
+	{
+		/* if address happens to be aligned, only do aligned load */
+        thread->last_pkt->pkt_has_vtcm_access = 0;
+        thread->last_pkt->pkt_access_count = 0;
+		if ( (EA & (fVECSIZE()-1)) == 0) {
+            thread->last_pkt->pkt_has_vmemu_access = 0;
+			thread->last_pkt->double_access = 0;
+
+			fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST);
+		} else {
+            thread->last_pkt->pkt_has_vmemu_access = 1;
+			thread->last_pkt->double_access = 1;
+
+			fLOADMMVU_AL(EA,fVECSIZE(),fVECSIZE(),DST);
+		}
+	},
+	()
+)
+
+DEF_MACRO(fSTOREMMV_AL,
+    {
+    fV_AL_CHECK(EA,ALIGNMENT-1);
+    mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMV,
+	fSTOREMMV_AL(EA,fVECSIZE(),fVECSIZE(),SRC),
+	()
+)
+
+DEF_MACRO(fSTOREMMVQ_AL,
+    do {
+	mmvector_t maskvec;
+	int i;
+	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
+	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    } while (0),
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMVQ,
+	fSTOREMMVQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK),
+	()
+)
+
+DEF_MACRO(fSTOREMMVNQ_AL,
+    {
+	mmvector_t maskvec;
+	int i;
+	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
+        fV_AL_CHECK(EA,ALIGNMENT-1);
+	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMVNQ,
+	fSTOREMMVNQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK),
+	()
+)
+
+DEF_MACRO(fSTOREMMVU_AL,
+    {
+    size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
+    size4u_t size2;
+    if (size1>LEN) size1 = LEN;
+    size2 = LEN-size1;
+    mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &SRC.ub[size1], 0, 0, fUSE_LOOKUP_ADDRESS());
+    mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, &SRC.ub[0], 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMVU,
+	{
+        thread->last_pkt->pkt_has_vtcm_access = 0;
+        thread->last_pkt->pkt_access_count = 0;
+		if ( (EA & (fVECSIZE()-1)) == 0) {
+			thread->last_pkt->double_access = 0;
+			fSTOREMMV_AL(EA,fVECSIZE(),fVECSIZE(),SRC);
+		} else {
+			thread->last_pkt->double_access = 1;
+            thread->last_pkt->pkt_has_vmemu_access = 1;
+			fSTOREMMVU_AL(EA,fVECSIZE(),fVECSIZE(),SRC);
+		}
+	},
+	()
+)
+
+DEF_MACRO(fSTOREMMVQU_AL,
+    {
+	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
+	size4u_t size2;
+	mmvector_t maskvec;
+	int i;
+	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
+	if (size1>LEN) size1 = LEN;
+	size2 = LEN-size1;
+	mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(),/* slot */ 1, size2, &SRC.ub[size1], &maskvec.ub[size1], 0, fUSE_LOOKUP_ADDRESS());
+	mem_store_vector_oddva(thread, insn, EA, /* slot */ 0, size1, &SRC.ub[0], &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMVQU,
+	{
+        thread->last_pkt->pkt_has_vtcm_access = 0;
+        thread->last_pkt->pkt_access_count = 0;
+		if ( (EA & (fVECSIZE()-1)) == 0) {
+			thread->last_pkt->double_access = 0;
+			fSTOREMMVQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
+		} else {
+			thread->last_pkt->double_access = 1;
+            thread->last_pkt->pkt_has_vmemu_access = 1;
+			fSTOREMMVQU_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
+		}
+	},
+	()
+)
+
+DEF_MACRO(fSTOREMMVNQU_AL,
+    {
+	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
+	size4u_t size2;
+	mmvector_t maskvec;
+	int i;
+	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
+	if (size1>LEN) size1 = LEN;
+	size2 = LEN-size1;
+	mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &SRC.ub[size1], &maskvec.ub[size1], 1, fUSE_LOOKUP_ADDRESS());
+	mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, &SRC.ub[0], &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    },
+    (A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTOREMMVNQU,
+	{
+        thread->last_pkt->pkt_has_vtcm_access = 0;
+        thread->last_pkt->pkt_access_count = 0;
+		if ( (EA & (fVECSIZE()-1)) == 0) {
+			thread->last_pkt->double_access = 0;
+			fSTOREMMVNQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
+		} else {
+			thread->last_pkt->double_access = 1;
+            thread->last_pkt->pkt_has_vmemu_access = 1;
+			fSTOREMMVNQU_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK);
+		}
+	},
+	()
+)
+
+
+
+
+DEF_MACRO(fVFOREACH,
+    for (VAR = 0; VAR < fVELEM(WIDTH); VAR++),
+    /* NOTHING */
+)
+
+DEF_MACRO(fVARRAY_ELEMENT_ACCESS,
+    ARRAY.v[(INDEX) / (fVECSIZE()/(sizeof(ARRAY.TYPE[0])))].TYPE[(INDEX) % (fVECSIZE()/(sizeof(ARRAY.TYPE[0])))],
+    ()
+)
+
+DEF_MACRO(fVNEWCANCEL,
+	do { THREAD2STRUCT->VRegs_select &= ~(1<<(REGNUM)); } while (0),
+	()
+)
+
+DEF_MACRO(fTMPVDATA,
+	mmvec_vtmp_data(thread),
+	(A_CVI)
+)
+
+DEF_MACRO(fVSATDW,
+    fVSATW( ( ( ((long long)U)<<32 ) | fZXTN(32,64,V) ) ),
+    /* attribs */
+)
+
+DEF_MACRO(fVASL_SATHI,
+    fVSATW(((U)<<1) | ((V)>>31)),
+    /* attribs */
+)
+
+DEF_MACRO(fVUADDSAT,
+	fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U)  + fZXTN(WIDTH, 2*WIDTH, V)),
+	/* attribs */
+)
+
+DEF_MACRO(fVSADDSAT,
+	fVSATN(  WIDTH, fSXTN(WIDTH, 2*WIDTH, U)  + fSXTN(WIDTH, 2*WIDTH, V)),
+	/* attribs */
+)
+
+DEF_MACRO(fVUSUBSAT,
+	fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U)  - fZXTN(WIDTH, 2*WIDTH, V)),
+	/* attribs */
+)
+
+DEF_MACRO(fVSSUBSAT,
+	fVSATN(  WIDTH, fSXTN(WIDTH, 2*WIDTH, U)  - fSXTN(WIDTH, 2*WIDTH, V)),
+	/* attribs */
+)
+
+DEF_MACRO(fVAVGU,
+	((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVAVGURND,
+	((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V)+1)>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVNAVGU,
+	((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVNAVGURNDSAT,
+	fVSATUN(WIDTH,((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V)+1)>>1)),
+	/* attribs */
+)
+
+DEF_MACRO(fVAVGS,
+	((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V))>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVAVGSRND,
+	((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V)+1)>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVNAVGS,
+	((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVNAVGSRND,
+	((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1),
+	/* attribs */
+)
+
+DEF_MACRO(fVNAVGSRNDSAT,
+	fVSATN(WIDTH,((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1)),
+	/* attribs */
+)
+
+
+DEF_MACRO(fVNOROUND,
+	VAL,
+	/* NOTHING */
+)
+DEF_MACRO(fVNOSAT,
+	VAL,
+	/* NOTHING */
+)
+
+DEF_MACRO(fVROUND,
+	((VAL) + (((SHAMT)>0)?(1LL<<((SHAMT)-1)):0)),
+	/* NOTHING */
+)
+
+DEF_MACRO(fCARRY_FROM_ADD32,
+	(((fZXTN(32,64,A)+fZXTN(32,64,B)+C) >> 32) & 1),
+	/* NOTHING */
+)
+
+DEF_MACRO(fUARCH_NOTE_PUMP_4X,
+	,
+	()
+)
+
+DEF_MACRO(fUARCH_NOTE_PUMP_2X,
+	,
+	()
+)
