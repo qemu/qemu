@@ -1476,7 +1476,7 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
     copy_size = MIN(size, dst_size);
 
     memcpy(dst, buf, copy_size);
-    return hw->pcm_ops->put_buffer_out(hw, buf, copy_size);
+    return hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
 }
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
