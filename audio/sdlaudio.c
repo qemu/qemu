@@ -227,7 +227,7 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
 SDL_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                  (hw, size), *size = 0, sdl_unlock)
-SDL_WRAPPER_FUNC(put_buffer_out_nowrite, size_t,
+SDL_WRAPPER_FUNC(put_buffer_out, size_t,
                  (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size),
                  /*nothing*/, sdl_unlock_and_post)
 SDL_WRAPPER_FUNC(write, size_t,
@@ -320,9 +320,12 @@ static void sdl_audio_fini (void *opaque)
 static struct audio_pcm_ops sdl_pcm_ops = {
     .init_out = sdl_init_out,
     .fini_out = sdl_fini_out,
+  /* wrapper for audio_generic_write */
     .write    = sdl_write,
+  /* wrapper for audio_generic_get_buffer_out */
     .get_buffer_out = sdl_get_buffer_out,
-    .put_buffer_out = sdl_put_buffer_out_nowrite,
+  /* wrapper for audio_generic_put_buffer_out */
+    .put_buffer_out = sdl_put_buffer_out,
     .enable_out = sdl_enable_out,
 };
 

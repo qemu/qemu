@@ -382,6 +382,15 @@ static size_t oss_get_available_bytes(OSSVoiceOut *oss)
     return audio_ring_dist(cntinfo.ptr, oss->hw.pos_emul, oss->hw.size_emul);
 }
 
+static void oss_run_buffer_out(HWVoiceOut *hw)
+{
+    OSSVoiceOut *oss = (OSSVoiceOut *)hw;
+
+    if (!oss->mmapped) {
+        audio_generic_run_buffer_out(hw);
+    }
+}
+
 static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
@@ -748,6 +757,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_out = oss_init_out,
     .fini_out = oss_fini_out,
     .write    = oss_write,
+    .run_buffer_out = oss_run_buffer_out,
     .get_buffer_out = oss_get_buffer_out,
     .put_buffer_out = oss_put_buffer_out,
     .enable_out = oss_enable_out,

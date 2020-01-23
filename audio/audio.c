@@ -1097,6 +1097,10 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
         }
     }
 
+    if (hw->pcm_ops->run_buffer_out) {
+        hw->pcm_ops->run_buffer_out(hw);
+    }
+
     return clipped;
 }
 
@@ -1413,6 +1417,28 @@ void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
     hw->pending_emul -= size;
 }
 
+void audio_generic_run_buffer_out(HWVoiceOut *hw)
+{
+    while (hw->pending_emul) {
+        size_t write_len, written;
+        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
+
+        if (start < 0) {
+            start += hw->size_emul;
+        }
+        assert(start >= 0 && start < hw->size_emul);
+
+        write_len = MIN(hw->pending_emul, hw->size_emul - start);
+
+        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
+        hw->pending_emul -= written;
+
+        if (written < write_len) {
+            break;
+        }
+    }
+}
+
 void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     if (unlikely(!hw->buf_emul)) {
@@ -1428,8 +1454,7 @@ void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
     return hw->buf_emul + hw->pos_emul;
 }
 
-size_t audio_generic_put_buffer_out_nowrite(HWVoiceOut *hw, void *buf,
-                                            size_t size)
+size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 {
     assert(buf == hw->buf_emul + hw->pos_emul &&
            size + hw->pending_emul <= hw->size_emul);
@@ -1437,35 +1462,6 @@ size_t audio_generic_put_buffer_out_nowrite(HWVoiceOut *hw, void *buf,
     hw->pending_emul += size;
     hw->pos_emul = (hw->pos_emul + size) % hw->size_emul;
 
-    return size;
-}
-
-size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
-{
-    audio_generic_put_buffer_out_nowrite(hw, buf, size);
-
-    while (hw->pending_emul) {
-        size_t write_len, written;
-        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
-        if (start < 0) {
-            start += hw->size_emul;
-        }
-        assert(start >= 0 && start < hw->size_emul);
-
-        write_len = MIN(hw->pending_emul, hw->size_emul - start);
-
-        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
-        hw->pending_emul -= written;
-
-        if (written < write_len) {
-            break;
-        }
-    }
-
-    /*
-     * fake we have written everything. non-written data remain in pending_emul,
-     * so we do not have to clip them multiple times
-     */
     return size;
 }
 

@@ -411,7 +411,7 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
     }
 COREAUDIO_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                        (hw, size))
-COREAUDIO_WRAPPER_FUNC(put_buffer_out_nowrite, size_t,
+COREAUDIO_WRAPPER_FUNC(put_buffer_out, size_t,
                        (HWVoiceOut *hw, void *buf, size_t size),
                        (hw, buf, size))
 COREAUDIO_WRAPPER_FUNC(write, size_t, (HWVoiceOut *hw, void *buf, size_t size),
@@ -687,9 +687,12 @@ static void coreaudio_audio_fini (void *opaque)
 static struct audio_pcm_ops coreaudio_pcm_ops = {
     .init_out = coreaudio_init_out,
     .fini_out = coreaudio_fini_out,
+  /* wrapper for audio_generic_write */
     .write    = coreaudio_write,
+  /* wrapper for audio_generic_get_buffer_out */
     .get_buffer_out = coreaudio_get_buffer_out,
-    .put_buffer_out = coreaudio_put_buffer_out_nowrite,
+  /* wrapper for audio_generic_put_buffer_out */
+    .put_buffer_out = coreaudio_put_buffer_out,
     .enable_out = coreaudio_enable_out
 };
 
