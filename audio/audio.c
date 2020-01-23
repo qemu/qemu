@@ -1407,7 +1407,8 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
     }
     assert(start >= 0 && start < hw->size_emul);
 
-    *size = MIN(hw->pending_emul, hw->size_emul - start);
+    *size = MIN(*size, hw->pending_emul);
+    *size = MIN(*size, hw->size_emul - start);
     return hw->buf_emul + start;
 }
 
