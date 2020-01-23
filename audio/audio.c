@@ -879,9 +879,9 @@ size_t AUD_read(SWVoiceIn *sw, void *buf, size_t size)
     }
 }
 
-int AUD_get_buffer_size_out (SWVoiceOut *sw)
+int AUD_get_buffer_size_out(SWVoiceOut *sw)
 {
-    return sw->hw->mix_buf->size * sw->hw->info.bytes_per_frame;
+    return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
 void AUD_set_active_out (SWVoiceOut *sw, int on)
