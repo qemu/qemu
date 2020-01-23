@@ -579,14 +579,12 @@ static void oss_enable_out(HWVoiceOut *hw, bool enable)
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
     if (enable) {
-        bool poll_mode = opdo->try_poll;
+        hw->poll_mode = opdo->try_poll;
 
         ldebug("enabling voice\n");
-        if (poll_mode) {
+        if (hw->poll_mode) {
             oss_poll_out(hw);
-            poll_mode = 0;
         }
-        hw->poll_mode = poll_mode;
 
         if (!oss->mmapped) {
             return;
@@ -708,17 +706,15 @@ static void oss_enable_in(HWVoiceIn *hw, bool enable)
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
     if (enable) {
-        bool poll_mode = opdo->try_poll;
+        hw->poll_mode = opdo->try_poll;
 
-        if (poll_mode) {
+        if (hw->poll_mode) {
             oss_poll_in(hw);
-            poll_mode = 0;
         }
-        hw->poll_mode = poll_mode;
     } else {
         if (hw->poll_mode) {
-            hw->poll_mode = 0;
             qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
+            hw->poll_mode = 0;
         }
     }
 }
