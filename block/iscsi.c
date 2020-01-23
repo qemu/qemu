@@ -701,7 +701,7 @@ static int coroutine_fn iscsi_co_block_status(BlockDriverState *bs,
     struct scsi_get_lba_status *lbas = NULL;
     struct scsi_lba_status_descriptor *lbasd = NULL;
     struct IscsiTask iTask;
-    uint64_t lba;
+    uint64_t lba, max_bytes;
     int ret;
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
@@ -721,6 +721,7 @@ static int coroutine_fn iscsi_co_block_status(BlockDriverState *bs,
     }
 
     lba = offset / iscsilun->block_size;
+    max_bytes = (iscsilun->num_blocks - lba) * iscsilun->block_size;
 
     qemu_mutex_lock(&iscsilun->mutex);
 retry:
@@ -764,7 +765,7 @@ retry:
         goto out_unlock;
     }
 
-    *pnum = (int64_t) lbasd->num_blocks * iscsilun->block_size;
+    *pnum = MIN((int64_t) lbasd->num_blocks * iscsilun->block_size, max_bytes);
 
     if (lbasd->provisioning == SCSI_PROVISIONING_TYPE_DEALLOCATED ||
         lbasd->provisioning == SCSI_PROVISIONING_TYPE_ANCHORED) {
