@@ -32,7 +32,6 @@ typedef struct {
     HWVoiceOut hw;
     pa_stream *stream;
     paaudio *g;
-    size_t samples;
 } PAVoiceOut;
 
 typedef struct {
@@ -41,7 +40,6 @@ typedef struct {
     const void *read_data;
     size_t read_length;
     paaudio *g;
-    size_t samples;
 } PAVoiceIn;
 
 static void qpa_conn_fini(PAConnection *c);
@@ -488,7 +486,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
-    hw->samples = pa->samples = audio_buffer_samples(
+    hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo),
         &obt_as, ppdo->buffer_length);
 
@@ -536,7 +534,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
-    hw->samples = pa->samples = audio_buffer_samples(
+    hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo),
         &obt_as, ppdo->buffer_length);
 
