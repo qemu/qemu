@@ -47,6 +47,7 @@ enum {
         /* Name   Num Table */
 DEF_REGMAP(R_16,  16, 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23)
 DEF_REGMAP(R__8,  8,  0, 2, 4, 6, 16, 18, 20, 22)
+DEF_REGMAP(R_8,   8,  0, 1, 2, 3, 4, 5, 6, 7)
 
 #define DECODE_MAPPED_REG(OPNUM, NAME) \
     insn->regno[OPNUM] = DECODE_REGISTER_##NAME[insn->regno[OPNUM]];
@@ -157,6 +158,9 @@ static void decode_ext_init(void)
     int i;
     for (i = EXT_IDX_noext; i < EXT_IDX_noext_AFTER; i++) {
         ext_trees[i] = &dectree_table_DECODE_EXT_EXT_noext;
+    }
+    for (i = EXT_IDX_mmvec; i < EXT_IDX_mmvec_AFTER; i++) {
+        ext_trees[i] = &dectree_table_DECODE_EXT_EXT_mmvec;
     }
 }
 
