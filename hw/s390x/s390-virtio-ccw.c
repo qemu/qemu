@@ -505,6 +505,19 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
 
 static S390CcwMachineClass *current_mc;
 
+/*
+ * Get the class of the s390-ccw-virtio machine that is currently in use.
+ * Note: libvirt is using the "none" machine to probe for the features of the
+ * host CPU, so in case this is called with the "none" machine, the function
+ * returns the TYPE_S390_CCW_MACHINE base class. In this base class, all the
+ * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
+ * below return the correct default value for the "none" machine.
+ *
+ * Attention! Do *not* add additional new wrappers for CPU features (e.g. like
+ * the ri_allowed() wrapper) via this mechanism anymore. CPU features should
+ * be handled via the CPU models, i.e. checking with cpu_model_allowed() during
+ * CPU initialization and s390_has_feat() later should be sufficient.
+ */
 static S390CcwMachineClass *get_machine_class(void)
 {
     if (unlikely(!current_mc)) {
@@ -521,19 +534,16 @@ static S390CcwMachineClass *get_machine_class(void)
 
 bool ri_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->ri_allowed;
 }
 
 bool cpu_model_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->cpu_model_allowed;
 }
 
 bool hpage_1m_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->hpage_1m_allowed;
 }
 
