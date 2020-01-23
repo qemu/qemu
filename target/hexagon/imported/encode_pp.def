@@ -786,9 +786,6 @@ DEF_ENC32(Y6_diag,      ICLASS_CR" 0010  010sssss  PP------  001-----")
 DEF_ENC32(Y6_diag0,     ICLASS_CR" 0010  010sssss  PP-ttttt  010-----")
 DEF_ENC32(Y6_diag1,     ICLASS_CR" 0010  010sssss  PP-ttttt  011-----")
 
-DEF_EXT_SPACE(SILVER_EXT0, ICLASS_CR" 0010 011----- PP------ --------")
-DEF_EXT_SPACE(SILVER_EXT1, ICLASS_CR" 0010 100----- PP------ --------")
-
 DEF_FIELDROW_DESC32(    ICLASS_CR" 0011  --------  PP------  --------","[#3] Cdd=Rss ")
 DEF_ENC32(A4_tfrpcp,    ICLASS_CR" 0011  001sssss  PP------  ---ddddd")
 DEF_ENC32(G4_tfrgpcp,   ICLASS_CR" 0011  000sssss  PP------  ---ddddd")

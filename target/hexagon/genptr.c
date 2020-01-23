@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "tcg/tcg-op.h"
+#include "insn.h"
 #include "opcodes.h"
 #include "translate.h"
 #include "macros.h"

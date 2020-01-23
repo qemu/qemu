@@ -50,8 +50,6 @@ DEF_ATTRIB(ARCHV5, "V5 architecture", "", "")
 DEF_ATTRIB(PACKED, "Packable instruction", "", "")
 DEF_ATTRIB(SUBINSN, "sub-instruction", "", "")
 
-DEF_ATTRIB(16BIT, "16-bit instruction", "", "")
-
 /* Load and Store attributes */
 DEF_ATTRIB(LOAD, "Loads from memory", "", "")
 DEF_ATTRIB(STORE, "Stores to memory", "", "")

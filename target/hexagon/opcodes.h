@@ -18,8 +18,8 @@
 #ifndef OPCODES_H
 #define OPCODES_H
 
+#include "hex_arch_types.h"
 #include "attribs.h"
-#include "insn.h"
 
 typedef enum {
 #define OPCODE(IID) IID
@@ -56,8 +56,6 @@ typedef struct {
 } opcode_encoding_t;
 
 extern opcode_encoding_t opcode_encodings[XX_LAST_OPCODE];
-
-extern semantic_insn_t opcode_genptr[];
 
 extern size4u_t
     opcode_attribs[XX_LAST_OPCODE][(A_ZZ_LASTATTRIB / ATTRIB_WIDTH) + 1];

@@ -137,9 +137,6 @@ opcode_encoding_t opcode_encodings[] = {
 #define DEF_ENC32(OPCODE, ENCSTR) \
     [OPCODE] = { .encoding = ENCSTR },
 
-#define DEF_ENC16(OPCODE, ENCSTR) \
-    [OPCODE] = { .encoding = ENCSTR, .enc_class = HALF },
-
 #define DEF_ENC_SUBINSN(OPCODE, CLASS, ENCSTR) \
     [OPCODE] = { .encoding = ENCSTR, .enc_class = CLASS },
 
@@ -149,7 +146,6 @@ opcode_encoding_t opcode_encodings[] = {
 #include "imported/encode.def"
 
 #undef DEF_ENC32
-#undef DEF_ENC16
 #undef DEF_ENC_SUBINSN
 #undef DEF_EXT_ENC
 };
@@ -161,9 +157,6 @@ void opcode_init(void)
 #define DEF_ENC32(OPCODE, ENCSTR) \
     opcode_encodings[OPCODE].vals = str2val(ENCSTR); \
     opcode_encodings[OPCODE].is_ee = has_ee(ENCSTR);
-
-#define DEF_ENC16(OPCODE, ENCSTR) \
-    opcode_encodings[OPCODE].vals = str2val(ENCSTR);
 
 #define DEF_ENC_SUBINSN(OPCODE, CLASS, ENCSTR) \
     opcode_encodings[OPCODE].vals = str2val(ENCSTR);
@@ -178,7 +171,6 @@ void opcode_init(void)
 
 #undef LEGACY_DEF_ENC32
 #undef DEF_ENC32
-#undef DEF_ENC16
 #undef DEF_ENC_SUBINSN
 #undef DEF_EXT_ENC
 

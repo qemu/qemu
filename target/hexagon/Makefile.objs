@@ -21,6 +21,7 @@ obj-y += \
 #
 GEN_SEMANTICS = gen_semantics
 GEN_SEMANTICS_SRC = $(SRC_PATH)/target/hexagon/gen_semantics.c
+
 IDEF_FILES = \
     $(SRC_PATH)/target/hexagon/imported/allext.idef \
     $(SRC_PATH)/target/hexagon/imported/alu.idef \
@@ -38,7 +39,6 @@ DEF_FILES = \
     $(SRC_PATH)/target/hexagon/imported/macros.def \
     $(SRC_PATH)/target/hexagon/imported/allext_macros.def \
     $(SRC_PATH)/target/hexagon/imported/mmvec/macros.def
-
 
 $(GEN_SEMANTICS): $(GEN_SEMANTICS_SRC) $(IDEF_FILES) $(DEF_FILES)
 	$(CC) $(CFLAGS) $(GEN_SEMANTICS_SRC) -o $(GEN_SEMANTICS)
@@ -78,4 +78,32 @@ $(GENERATED_HEXAGON_FILES): \
                 $(SRC_PATH)/target/hexagon/attribs_def.h, \
 	    "GEN", "Hexagon generated files")
 
-generated-files-y += $(GENERATED_HEXAGON_FILES)
+#
+# Step 3
+# We use a C program to create iset.py which is imported into dectree.py
+# to create the decode tree
+#
+GEN_DECTREE_IMPORT=gen_dectree_import
+GEN_DECTREE_IMPORT_SRC = $(SRC_PATH)/target/hexagon/gen_dectree_import.c
+
+$(GEN_DECTREE_IMPORT): $(GEN_DECTREE_IMPORT_SRC) $(GENERATED_HEXAGON_FILES)
+	$(CC) $(CFLAGS) -I$(BUILD_DIR)/hexagon-linux-user $(GEN_DECTREE_IMPORT_SRC) -o $(GEN_DECTREE_IMPORT)
+
+DECTREE_IMPORT=iset.py
+$(DECTREE_IMPORT): $(GEN_DECTREE_IMPORT)
+	$(call quiet-command, \
+	    $(GEN_DECTREE_IMPORT) $(DECTREE_IMPORT), \
+	    "GEN", $(DECTREE_IMPORT))
+
+#
+# Step 4
+# We use the dectree.py script to generate the decode tree header file
+#
+DECTREE_HEADER=dectree_generated.h
+$(DECTREE_HEADER): $(SRC_PATH)/target/hexagon/dectree.py $(DECTREE_IMPORT)
+	$(call quiet-command, \
+	    $(SRC_PATH)/target/hexagon/dectree.py \
+                $(BUILD_DIR)/hexagon-linux-user, \
+	    "GEN", "Hexagon decode tree")
+
+generated-files-y += $(GENERATED_HEXAGON_FILES) $(DECTREE_HEADER)
