@@ -602,6 +602,13 @@
 # @multifd-compression: Which compression method to use.
 #                       Defaults to none. (Since 5.0)
 #
+# @multifd-zlib-level: Set the compression level to be used in live
+#          migration, the compression level is an integer between 0
+#          and 9, where 0 means no compression, 1 means the best
+#          compression speed, and 9 means best compression ratio which
+#          will consume more CPU.
+#          Defaults to 1. (Since 5.0)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -614,7 +621,8 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle', 'multifd-compression' ] }
+           'max-cpu-throttle', 'multifd-compression',
+           'multifd-zlib-level' ] }
 
 ##
 # @MigrateSetParameters:
@@ -707,6 +715,13 @@
 # @multifd-compression: Which compression method to use.
 #                       Defaults to none. (Since 5.0)
 #
+# @multifd-zlib-level: Set the compression level to be used in live
+#          migration, the compression level is an integer between 0
+#          and 9, where 0 means no compression, 1 means the best
+#          compression speed, and 9 means best compression ratio which
+#          will consume more CPU.
+#          Defaults to 1. (Since 5.0)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -733,7 +748,8 @@
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle': 'int',
-            '*multifd-compression': 'MultiFDCompression' } }
+            '*multifd-compression': 'MultiFDCompression',
+            '*multifd-zlib-level': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -846,6 +862,13 @@
 # @multifd-compression: Which compression method to use.
 #                       Defaults to none. (Since 5.0)
 #
+# @multifd-zlib-level: Set the compression level to be used in live
+#          migration, the compression level is an integer between 0
+#          and 9, where 0 means no compression, 1 means the best
+#          compression speed, and 9 means best compression ratio which
+#          will consume more CPU.
+#          Defaults to 1. (Since 5.0)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -870,7 +893,8 @@
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle': 'uint8',
-            '*multifd-compression': 'MultiFDCompression' } }
+            '*multifd-compression': 'MultiFDCompression',
+            '*multifd-zlib-level': 'uint8' } }
 
 ##
 # @query-migrate-parameters:

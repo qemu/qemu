@@ -1837,6 +1837,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         }
         p->multifd_compression = compress_type;
         break;
+    case MIGRATION_PARAMETER_MULTIFD_ZLIB_LEVEL:
+        p->has_multifd_zlib_level = true;
+        visit_type_int(v, param, &p->multifd_zlib_level, &err);
+        break;
     case MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE:
         p->has_xbzrle_cache_size = true;
         visit_type_size(v, param, &cache_size, &err);
