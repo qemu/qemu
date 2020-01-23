@@ -2,8 +2,6 @@
 #include <sys/prctl.h>
 #include <stdio.h>
 
-asm(".arch armv8.4-a");
-
 #ifndef PR_PAC_RESET_KEYS
 #define PR_PAC_RESET_KEYS  54
 #define PR_PAC_APDAKEY     (1 << 2)

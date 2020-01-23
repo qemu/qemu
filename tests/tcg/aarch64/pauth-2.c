@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-asm(".arch armv8.4-a");
-
 void do_test(uint64_t value)
 {
     uint64_t salt1, salt2;

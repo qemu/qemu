@@ -20,6 +20,7 @@ run-fcvt: fcvt
 # Pauth Tests
 AARCH64_TESTS += pauth-1 pauth-2
 run-pauth-%: QEMU_OPTS += -cpu max
+pauth-%: CFLAGS += -march=armv8.3-a
 
 # Semihosting smoke test for linux-user
 AARCH64_TESTS += semihosting
