@@ -3,6 +3,7 @@ xtensa_ss.add(files(
   'core-dc232b.c',
   'core-dc233c.c',
   'core-de212.c',
+  'core-de233_fpu.c',
   'core-fsf.c',
   'core-sample_controller.c',
   'core-test_kc705_be.c',
