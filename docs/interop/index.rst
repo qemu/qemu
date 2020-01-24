@@ -20,5 +20,6 @@ Contents:
    qemu-ga
    qemu-img
    qemu-nbd
+   qemu-trace-stap
    vhost-user
    vhost-user-gpu
