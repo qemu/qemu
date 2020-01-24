@@ -49,3 +49,6 @@ config TERMINAL3270
 
 config RENESAS_SCI
     bool
+
+config AVR_USART
+    bool
