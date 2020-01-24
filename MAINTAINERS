@@ -985,6 +985,8 @@ S: Maintained
 F: default-configs/avr-softmmu.mak
 F: include/hw/char/avr_usart.h
 F: hw/char/avr_usart.c
+F: include/hw/timer/avr_timer16.h
+F: hw/timer/avr_timer16.c
 
 CRIS Machines
 -------------
