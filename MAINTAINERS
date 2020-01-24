@@ -173,6 +173,7 @@ R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: gdb-xml/avr-cpu.xml
 F: target/avr/
+F: tests/acceptance/machine_avr6.py
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
