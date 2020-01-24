@@ -1028,6 +1028,14 @@ build-manual = $(call quiet-command,CONFDIR="$(qemu_confdir)" sphinx-build $(if 
 manual-deps = $(wildcard $(SRC_PATH)/docs/$1/*.rst) \
               $(wildcard $(SRC_PATH)/docs/$1/*.rst.inc) \
               $(SRC_PATH)/docs/$1/conf.py $(SRC_PATH)/docs/conf.py
+# Macro to write out the rule and dependencies for building manpages
+# Usage: $(call define-manpage-rule,manualname,manpage1 manpage2...[,extradeps])
+# 'extradeps' is optional, and specifies extra files (eg .hx files) that
+# the manual page depends on.
+define define-manpage-rule
+$(call atomic,$(foreach manpage,$2,$(MANUAL_BUILDDIR)/$1/$(manpage)),$(call manual-deps,$1) $3)
+	$(call build-manual,$1,man)
+endef
 
 $(MANUAL_BUILDDIR)/devel/index.html: $(call manual-deps,devel)
 	$(call build-manual,devel,html)
@@ -1041,14 +1049,9 @@ $(MANUAL_BUILDDIR)/specs/index.html: $(call manual-deps,specs)
 $(MANUAL_BUILDDIR)/system/index.html: $(call manual-deps,system)
 	$(call build-manual,system,html)
 
-$(MANUAL_BUILDDIR)/interop/qemu-ga.8: $(call manual-deps,interop)
-	$(call build-manual,interop,man)
+$(call define-manpage-rule,interop,qemu-ga.8 qemu-nbd.8)
 
-$(MANUAL_BUILDDIR)/interop/qemu-nbd.8: $(call manual-deps,interop)
-	$(call build-manual,interop,man)
-
-$(MANUAL_BUILDDIR)/system/qemu-block-drivers.7: $(call manual-deps,system)
-	$(call build-manual,system,man)
+$(call define-manpage-rule,system,qemu-block-drivers.7)
 
 $(MANUAL_BUILDDIR)/index.html: $(SRC_PATH)/docs/index.html.in qemu-version.h
 	@mkdir -p "$(MANUAL_BUILDDIR)"
