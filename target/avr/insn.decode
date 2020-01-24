@@ -74,3 +74,36 @@ FMUL            0000 0011 0 ... 1 ...       @fmul
 FMULS           0000 0011 1 ... 0 ...       @fmul
 FMULSU          0000 0011 1 ... 1 ...       @fmul
 DES             1001 0100 imm:4 1011
+
+#
+# Branch Instructions
+#
+
+# The 22-bit immediate is partially in the opcode word,
+# and partially in the next.  Use append_16 to build the
+# complete 22-bit value.
+%imm_call       4:5 0:1                     !function=append_16
+
+@op_bit         .... .... . bit:3 ....
+@op_bit_imm     .... .. imm:s7 bit:3
+
+RJMP            1100 imm:s12
+IJMP            1001 0100 0000 1001
+EIJMP           1001 0100 0001 1001
+JMP             1001 010 ..... 110 .        imm=%imm_call
+RCALL           1101 imm:s12
+ICALL           1001 0101 0000 1001
+EICALL          1001 0101 0001 1001
+CALL            1001 010 ..... 111 .        imm=%imm_call
+RET             1001 0101 0000 1000
+RETI            1001 0101 0001 1000
+CPSE            0001 00 . ..... ....        @op_rd_rr
+CP              0001 01 . ..... ....        @op_rd_rr
+CPC             0000 01 . ..... ....        @op_rd_rr
+CPI             0011 .... .... ....         @op_rd_imm8
+SBRC            1111 110 rr:5 0 bit:3
+SBRS            1111 111 rr:5 0 bit:3
+SBIC            1001 1001 reg:5 bit:3
+SBIS            1001 1011 reg:5 bit:3
+BRBS            1111 00 ....... ...         @op_bit_imm
+BRBC            1111 01 ....... ...         @op_bit_imm
