@@ -18,6 +18,7 @@ Contents:
    live-block-operations
    pr-helper
    qemu-ga
+   qemu-img
    qemu-nbd
    vhost-user
    vhost-user-gpu

@@ -1834,6 +1834,7 @@ F: block/
 F: hw/block/
 F: include/block/
 F: qemu-img*
+F: docs/interop/qemu-img.rst
 F: qemu-io*
 F: tests/qemu-iotests/
 F: util/qemu-progress.c
