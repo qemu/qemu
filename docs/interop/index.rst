@@ -23,3 +23,4 @@ Contents:
    qemu-trace-stap
    vhost-user
    vhost-user-gpu
+   virtfs-proxy-helper
