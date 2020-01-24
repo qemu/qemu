@@ -8143,6 +8143,10 @@ case "$target_name" in
     mttcg="yes"
     gdb_xml_files="aarch64-core.xml aarch64-fpu.xml arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml arm-m-profile.xml"
   ;;
+  avr)
+    gdb_xml_files="avr-cpu.xml"
+    target_compiler=$cross_cc_avr
+  ;;
   cris)
   ;;
   hppa)
@@ -8386,6 +8390,9 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     if test -n "${cxx}"; then
       disas_config "ARM_A64"
     fi
+  ;;
+  avr)
+    disas_config "AVR"
   ;;
   cris)
     disas_config "CRIS"
