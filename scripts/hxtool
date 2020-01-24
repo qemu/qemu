@@ -7,7 +7,7 @@ hxtoh()
         case $str in
             HXCOMM*)
             ;;
-            STEXI*|ETEXI*) flag=$(($flag^1))
+            STEXI*|ETEXI*|SRST*|ERST*) flag=$(($flag^1))
             ;;
             *)
             test $flag -eq 1 && printf "%s\n" "$str"
@@ -27,12 +27,17 @@ print_texi_heading()
 hxtotexi()
 {
     flag=0
+    rstflag=0
     line=1
     while read -r str; do
         case "$str" in
             HXCOMM*)
             ;;
             STEXI*)
+            if test $rstflag -eq 1 ; then
+                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
             if test $flag -eq 1 ; then
                 printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
                 exit 1
@@ -40,11 +45,37 @@ hxtotexi()
             flag=1
             ;;
             ETEXI*)
+            if test $rstflag -eq 1 ; then
+                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
             if test $flag -ne 1 ; then
                 printf "line %d: syntax error: expected STEXI, found '%s'\n" "$line" "$str" >&2
                 exit 1
             fi
             flag=0
+            ;;
+            SRST*)
+            if test $rstflag -eq 1 ; then
+                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
+            if test $flag -eq 1 ; then
+                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
+            rstflag=1
+            ;;
+            ERST*)
+            if test $flag -eq 1 ; then
+                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
+            if test $rstflag -ne 1 ; then
+                printf "line %d: syntax error: expected SRST, found '%s'\n" "$line" "$str" >&2
+                exit 1
+            fi
+            rstflag=0
             ;;
             DEFHEADING*)
             print_texi_heading "$(expr "$str" : "DEFHEADING(\(.*\))")"
