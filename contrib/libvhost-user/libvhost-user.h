@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <sys/poll.h>
 #include <linux/vhost.h>
+#include <pthread.h>
 #include "standard-headers/linux/virtio_ring.h"
 
 /* Based on qemu/hw/virtio/vhost-user.c */
@@ -326,6 +327,9 @@ typedef struct VuVirtq {
     int err_fd;
     unsigned int enable;
     bool started;
+
+    /* Guest addresses of our ring */
+    struct vhost_vring_addr vra;
 } VuVirtq;
 
 enum VuWatchCondtion {
@@ -355,6 +359,8 @@ struct VuDev {
     VuVirtq *vq;
     VuDevInflightInfo inflight_info;
     int log_call_fd;
+    /* Must be held while using slave_fd */
+    pthread_mutex_t slave_mutex;
     int slave_fd;
     uint64_t log_size;
     uint8_t *log_table;

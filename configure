@@ -5197,6 +5197,19 @@ if compile_prog "" "" ; then
     strchrnul=yes
 fi
 
+#########################################
+# check if we have st_atim
+
+st_atim=no
+cat > $TMPC << EOF
+#include <sys/stat.h>
+#include <stddef.h>
+int main(void) { return offsetof(struct stat, st_atim); }
+EOF
+if compile_prog "" "" ; then
+    st_atim=yes
+fi
+
 ##########################################
 # check if trace backend exists
 
@@ -6894,6 +6907,9 @@ if test "$sem_timedwait" = "yes" ; then
 fi
 if test "$strchrnul" = "yes" ; then
   echo "HAVE_STRCHRNUL=y" >> $config_host_mak
+fi
+if test "$st_atim" = "yes" ; then
+  echo "HAVE_STRUCT_STAT_ST_ATIM=y" >> $config_host_mak
 fi
 if test "$byteswap_h" = "yes" ; then
   echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
