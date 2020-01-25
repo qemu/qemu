@@ -879,7 +879,7 @@ static int get_qlist(QEMUFile *f, void *pv, size_t unused_size,
     /* offset of the QLIST entry in a QLIST element */
     size_t entry_offset = field->start;
     int version_id = field->version_id;
-    void *elm;
+    void *elm, *prev = NULL;
 
     trace_get_qlist(field->name, vmsd->name, vmsd->version_id);
     if (version_id > vmsd->version_id) {
@@ -900,9 +900,13 @@ static int get_qlist(QEMUFile *f, void *pv, size_t unused_size,
             g_free(elm);
             return ret;
         }
-        QLIST_RAW_INSERT_HEAD(pv, elm, entry_offset);
+        if (!prev) {
+            QLIST_RAW_INSERT_HEAD(pv, elm, entry_offset);
+        } else {
+            QLIST_RAW_INSERT_AFTER(pv, prev, elm, entry_offset);
+        }
+        prev = elm;
     }
-    QLIST_RAW_REVERSE(pv, elm, entry_offset);
     trace_get_qlist_end(field->name, vmsd->name);
 
     return ret;
