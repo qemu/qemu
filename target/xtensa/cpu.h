@@ -359,6 +359,7 @@ typedef struct opcode_arg {
     uint32_t raw_imm;
     void *in;
     void *out;
+    uint32_t num_bits;
 } OpcodeArg;
 
 typedef struct DisasContext DisasContext;

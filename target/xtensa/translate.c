@@ -943,10 +943,10 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
         for (opnd = vopnd = 0; opnd < opnds; ++opnd) {
             void **register_file = NULL;
+            xtensa_regfile rf;
 
             if (xtensa_operand_is_register(isa, opc, opnd)) {
-                xtensa_regfile rf = xtensa_operand_regfile(isa, opc, opnd);
-
+                rf = xtensa_operand_regfile(isa, opc, opnd);
                 register_file = dc->config->regfile[rf];
 
                 if (rf == dc->config->a_regfile) {
@@ -972,6 +972,9 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 if (register_file) {
                     arg[vopnd].in = register_file[v];
                     arg[vopnd].out = register_file[v];
+                    arg[vopnd].num_bits = xtensa_regfile_num_bits(isa, rf);
+                } else {
+                    arg[vopnd].num_bits = 32;
                 }
                 ++vopnd;
             }
@@ -1111,8 +1114,15 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         for (i = j = 0; i < n_arg_copy; ++i) {
             if (i == 0 || arg_copy[i].resource != resource) {
                 resource = arg_copy[i].resource;
-                temp = tcg_temp_local_new();
-                tcg_gen_mov_i32(temp, arg_copy[i].arg->in);
+                if (arg_copy[i].arg->num_bits <= 32) {
+                    temp = tcg_temp_local_new_i32();
+                    tcg_gen_mov_i32(temp, arg_copy[i].arg->in);
+                } else if (arg_copy[i].arg->num_bits <= 64) {
+                    temp = tcg_temp_local_new_i64();
+                    tcg_gen_mov_i64(temp, arg_copy[i].arg->in);
+                } else {
+                    g_assert_not_reached();
+                }
                 arg_copy[i].temp = temp;
 
                 if (i != j) {
@@ -1143,7 +1153,13 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     }
 
     for (i = 0; i < n_arg_copy; ++i) {
-        tcg_temp_free(arg_copy[i].temp);
+        if (arg_copy[i].arg->num_bits <= 32) {
+            tcg_temp_free_i32(arg_copy[i].temp);
+        } else if (arg_copy[i].arg->num_bits <= 64) {
+            tcg_temp_free_i64(arg_copy[i].temp);
+        } else {
+            g_assert_not_reached();
+        }
     }
 
     if (dc->base.is_jmp == DISAS_NEXT) {
