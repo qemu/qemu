@@ -98,7 +98,7 @@ static void openrisc_load_kernel(ram_addr_t ram_size,
 
     if (kernel_filename && !qtest_enabled()) {
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &elf_entry, NULL, NULL, 1, EM_OPENRISC,
+                               &elf_entry, NULL, NULL, NULL, 1, EM_OPENRISC,
                                1, 0);
         entry = elf_entry;
         if (kernel_size < 0) {

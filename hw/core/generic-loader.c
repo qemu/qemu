@@ -140,7 +140,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
 
         if (!s->force_raw) {
             size = load_elf_as(s->file, NULL, NULL, NULL, &entry, NULL, NULL,
-                               big_endian, 0, 0, 0, as);
+                               NULL, big_endian, 0, 0, 0, as);
 
             if (size < 0) {
                 size = load_uimage_as(s->file, &entry, NULL, NULL, NULL, NULL,

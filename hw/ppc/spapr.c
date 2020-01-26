@@ -2895,13 +2895,13 @@ static void spapr_machine_init(MachineState *machine)
 
         spapr->kernel_size = load_elf(kernel_filename, NULL,
                                       translate_kernel_address, NULL,
-                                      NULL, &lowaddr, NULL, 1,
+                                      NULL, &lowaddr, NULL, NULL, 1,
                                       PPC_ELF_MACHINE, 0, 0);
         if (spapr->kernel_size == ELF_LOAD_WRONG_ENDIAN) {
             spapr->kernel_size = load_elf(kernel_filename, NULL,
                                           translate_kernel_address, NULL, NULL,
-                                          &lowaddr, NULL, 0, PPC_ELF_MACHINE,
-                                          0, 0);
+                                          &lowaddr, NULL, NULL, 0,
+                                          PPC_ELF_MACHINE, 0, 0);
             spapr->kernel_le = spapr->kernel_size > 0;
         }
         if (spapr->kernel_size < 0) {

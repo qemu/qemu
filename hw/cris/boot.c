@@ -76,7 +76,7 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
        devboard SDK.  */
     image_size = load_elf(li->image_filename, NULL,
                           translate_kernel_address, NULL,
-                          &entry, NULL, &high, 0, EM_CRIS, 0, 0);
+                          &entry, NULL, &high, NULL, 0, EM_CRIS, 0, 0);
     li->entry = entry;
     if (image_size < 0) {
         /* Takes a kimage from the axis devboard SDK.  */

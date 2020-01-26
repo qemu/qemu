@@ -1049,7 +1049,7 @@ void ppce500_init(MachineState *machine)
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, payload_name);
 
     payload_size = load_elf(filename, NULL, NULL, NULL,
-                            &bios_entry, &loadaddr, NULL,
+                            &bios_entry, &loadaddr, NULL, NULL,
                             1, PPC_ELF_MACHINE, 0, 0);
     if (payload_size < 0) {
         /*
