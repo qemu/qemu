@@ -217,6 +217,8 @@ struct PnvMachineState {
     Notifier     powerdown_notifier;
 
     PnvPnor      *pnor;
+
+    hwaddr       fw_load_addr;
 };
 
 #define PNV_FDT_ADDR          0x01000000

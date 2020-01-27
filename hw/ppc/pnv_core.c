@@ -56,6 +56,8 @@ static void pnv_core_cpu_reset(PnvCore *pc, PowerPCCPU *cpu)
     env->nip = 0x10;
     env->msr |= MSR_HVB; /* Hypervisor mode */
 
+    env->spr[SPR_HRMOR] = pc->hrmor;
+
     pcc->intc_reset(pc->chip, cpu);
 }
 
@@ -289,6 +291,7 @@ static void pnv_core_unrealize(DeviceState *dev, Error **errp)
 
 static Property pnv_core_properties[] = {
     DEFINE_PROP_UINT32("pir", PnvCore, pir, 0),
+    DEFINE_PROP_UINT64("hrmor", PnvCore, hrmor, 0),
     DEFINE_PROP_LINK("chip", PnvCore, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),
 };

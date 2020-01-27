@@ -716,7 +716,7 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
-    fw_size = load_image_targphys(fw_filename, FW_LOAD_ADDR, FW_MAX_SIZE);
+    fw_size = load_image_targphys(fw_filename, pnv->fw_load_addr, FW_MAX_SIZE);
     if (fw_size < 0) {
         error_report("Could not load OPAL firmware '%s'", fw_filename);
         exit(1);
@@ -1533,6 +1533,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
     int i, core_hwid;
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
 
     if (!object_class_by_name(typename)) {
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
@@ -1571,6 +1572,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         object_property_set_int(OBJECT(pnv_core),
                                 pcc->core_pir(chip, core_hwid),
                                 "pir", &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), pnv->fw_load_addr,
+                                "hrmor", &error_fatal);
         object_property_set_link(OBJECT(pnv_core), OBJECT(chip), "chip",
                                  &error_abort);
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
@@ -1767,6 +1770,22 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
     pmc->dt_power_mgt = pnv_dt_power_mgt;
 }
 
+static bool pnv_machine_get_hb(Object *obj, Error **errp)
+{
+    PnvMachineState *pnv = PNV_MACHINE(obj);
+
+    return !!pnv->fw_load_addr;
+}
+
+static void pnv_machine_set_hb(Object *obj, bool value, Error **errp)
+{
+    PnvMachineState *pnv = PNV_MACHINE(obj);
+
+    if (value) {
+        pnv->fw_load_addr = 0x8000000;
+    }
+}
+
 static void pnv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1786,6 +1805,13 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->default_ram_size = INITRD_LOAD_ADDR + INITRD_MAX_SIZE;
     ispc->print_info = pnv_pic_print_info;
+
+    object_class_property_add_bool(oc, "hb-mode",
+                                   pnv_machine_get_hb, pnv_machine_set_hb,
+                                   &error_abort);
+    object_class_property_set_description(oc, "hb-mode",
+                              "Use a hostboot like boot loader",
+                              NULL);
 }
 
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
