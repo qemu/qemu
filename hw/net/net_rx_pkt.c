@@ -307,6 +307,20 @@ _net_rx_rss_prepare_tcp(uint8_t *rss_input,
                           &tcphdr->th_dport, sizeof(uint16_t));
 }
 
+static inline void
+_net_rx_rss_prepare_udp(uint8_t *rss_input,
+                        struct NetRxPkt *pkt,
+                        size_t *bytes_written)
+{
+    struct udp_header *udphdr = &pkt->l4hdr_info.hdr.udp;
+
+    _net_rx_rss_add_chunk(rss_input, bytes_written,
+                          &udphdr->uh_sport, sizeof(uint16_t));
+
+    _net_rx_rss_add_chunk(rss_input, bytes_written,
+                          &udphdr->uh_dport, sizeof(uint16_t));
+}
+
 uint32_t
 net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
                          NetRxPktRssType type,
@@ -346,6 +360,34 @@ net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
         assert(pkt->isip6);
         trace_net_rx_pkt_rss_ip6_ex();
         _net_rx_rss_prepare_ip6(&rss_input[0], pkt, true, &rss_length);
+        break;
+    case NetPktRssIpV6TcpEx:
+        assert(pkt->isip6);
+        assert(pkt->istcp);
+        trace_net_rx_pkt_rss_ip6_ex_tcp();
+        _net_rx_rss_prepare_ip6(&rss_input[0], pkt, true, &rss_length);
+        _net_rx_rss_prepare_tcp(&rss_input[0], pkt, &rss_length);
+        break;
+    case NetPktRssIpV4Udp:
+        assert(pkt->isip4);
+        assert(pkt->isudp);
+        trace_net_rx_pkt_rss_ip4_udp();
+        _net_rx_rss_prepare_ip4(&rss_input[0], pkt, &rss_length);
+        _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
+        break;
+    case NetPktRssIpV6Udp:
+        assert(pkt->isip6);
+        assert(pkt->isudp);
+        trace_net_rx_pkt_rss_ip6_udp();
+        _net_rx_rss_prepare_ip6(&rss_input[0], pkt, false, &rss_length);
+        _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
+        break;
+    case NetPktRssIpV6UdpEx:
+        assert(pkt->isip6);
+        assert(pkt->isudp);
+        trace_net_rx_pkt_rss_ip6_ex_udp();
+        _net_rx_rss_prepare_ip6(&rss_input[0], pkt, true, &rss_length);
+        _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
         break;
     default:
         assert(false);
