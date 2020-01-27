@@ -197,24 +197,20 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
-    int r = 0;
     SCCB work_sccb;
 
     hwaddr sccb_len = sizeof(SCCB);
 
     /* first some basic checks on program checks */
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        r = -PGM_PRIVILEGED;
-        goto out;
+        return -PGM_PRIVILEGED;
     }
     if (cpu_physical_memory_is_io(sccb)) {
-        r = -PGM_ADDRESSING;
-        goto out;
+        return -PGM_ADDRESSING;
     }
     if ((sccb & ~0x1fffUL) == 0 || (sccb & ~0x1fffUL) == env->psa
         || (sccb & ~0x7ffffff8UL) != 0) {
-        r = -PGM_SPECIFICATION;
-        goto out;
+        return -PGM_SPECIFICATION;
     }
 
     /*
@@ -226,8 +222,7 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 
     /* Valid sccb sizes */
     if (be16_to_cpu(work_sccb.h.length) < sizeof(SCCBHeader)) {
-        r = -PGM_SPECIFICATION;
-        goto out;
+        return -PGM_SPECIFICATION;
     }
 
     switch (code & SCLP_CMD_CODE_MASK) {
@@ -257,8 +252,7 @@ out_write:
 
     sclp_c->service_interrupt(sclp, sccb);
 
-out:
-    return r;
+    return 0;
 }
 
 static void service_interrupt(SCLPDevice *sclp, uint32_t sccb)

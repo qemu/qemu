@@ -355,7 +355,7 @@ static void gen_addi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
-    const uint8_t enr = get_field(s->fields, m3);
+    const uint8_t enr = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (!valid_vec_element(enr, es)) {
@@ -364,12 +364,12 @@ static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    read_vec_element_i64(tmp, get_field(s->fields, v2), enr, es);
+    read_vec_element_i64(tmp, get_field(s, v2), enr, es);
     tcg_gen_add_i64(o->addr1, o->addr1, tmp);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 0);
 
     tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
-    write_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
+    write_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
@@ -389,22 +389,22 @@ static uint64_t generate_byte_mask(uint8_t mask)
 
 static DisasJumpType op_vgbm(DisasContext *s, DisasOps *o)
 {
-    const uint16_t i2 = get_field(s->fields, i2);
+    const uint16_t i2 = get_field(s, i2);
 
     if (i2 == (i2 & 0xff) * 0x0101) {
         /*
          * Masks for both 64 bit elements of the vector are the same.
          * Trust tcg to produce a good constant loading.
          */
-        gen_gvec_dup64i(get_field(s->fields, v1),
+        gen_gvec_dup64i(get_field(s, v1),
                         generate_byte_mask(i2 & 0xff));
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
 
         tcg_gen_movi_i64(t, generate_byte_mask(i2 >> 8));
-        write_vec_element_i64(t, get_field(s->fields, v1), 0, ES_64);
+        write_vec_element_i64(t, get_field(s, v1), 0, ES_64);
         tcg_gen_movi_i64(t, generate_byte_mask(i2));
-        write_vec_element_i64(t, get_field(s->fields, v1), 1, ES_64);
+        write_vec_element_i64(t, get_field(s, v1), 1, ES_64);
         tcg_temp_free_i64(t);
     }
     return DISAS_NEXT;
@@ -412,10 +412,10 @@ static DisasJumpType op_vgbm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vgm(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     const uint8_t bits = NUM_VEC_ELEMENT_BITS(es);
-    const uint8_t i2 = get_field(s->fields, i2) & (bits - 1);
-    const uint8_t i3 = get_field(s->fields, i3) & (bits - 1);
+    const uint8_t i2 = get_field(s, i2) & (bits - 1);
+    const uint8_t i3 = get_field(s, i3) & (bits - 1);
     uint64_t mask = 0;
     int i;
 
@@ -432,7 +432,7 @@ static DisasJumpType op_vgm(DisasContext *s, DisasOps *o)
         }
     }
 
-    gen_gvec_dupi(es, get_field(s->fields, v1), mask);
+    gen_gvec_dupi(es, get_field(s, v1), mask);
     return DISAS_NEXT;
 }
 
@@ -444,8 +444,8 @@ static DisasJumpType op_vl(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_TEQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
     tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEQ);
-    write_vec_element_i64(t0, get_field(s->fields, v1), 0, ES_64);
-    write_vec_element_i64(t1, get_field(s->fields, v1), 1, ES_64);
+    write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     return DISAS_NEXT;
@@ -453,13 +453,13 @@ static DisasJumpType op_vl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vlr(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_mov(get_field(s->fields, v1), get_field(s->fields, v2));
+    gen_gvec_mov(get_field(s, v1), get_field(s, v2));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (es > ES_64) {
@@ -469,7 +469,7 @@ static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
 
     tmp = tcg_temp_new_i64();
     tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
-    gen_gvec_dup_i64(es, get_field(s->fields, v1), tmp);
+    gen_gvec_dup_i64(es, get_field(s, v1), tmp);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
@@ -477,7 +477,7 @@ static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
 static DisasJumpType op_vle(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
-    const uint8_t enr = get_field(s->fields, m3);
+    const uint8_t enr = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (!valid_vec_element(enr, es)) {
@@ -487,7 +487,7 @@ static DisasJumpType op_vle(DisasContext *s, DisasOps *o)
 
     tmp = tcg_temp_new_i64();
     tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
-    write_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
+    write_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
@@ -495,7 +495,7 @@ static DisasJumpType op_vle(DisasContext *s, DisasOps *o)
 static DisasJumpType op_vlei(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
-    const uint8_t enr = get_field(s->fields, m3);
+    const uint8_t enr = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (!valid_vec_element(enr, es)) {
@@ -503,15 +503,15 @@ static DisasJumpType op_vlei(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    tmp = tcg_const_i64((int16_t)get_field(s->fields, i2));
-    write_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
+    tmp = tcg_const_i64((int16_t)get_field(s, i2));
+    write_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     TCGv_ptr ptr;
 
     if (es > ES_64) {
@@ -520,15 +520,15 @@ static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
     }
 
     /* fast path if we don't need the register content */
-    if (!get_field(s->fields, b2)) {
-        uint8_t enr = get_field(s->fields, d2) & (NUM_VEC_ELEMENTS(es) - 1);
+    if (!get_field(s, b2)) {
+        uint8_t enr = get_field(s, d2) & (NUM_VEC_ELEMENTS(es) - 1);
 
-        read_vec_element_i64(o->out, get_field(s->fields, v3), enr, es);
+        read_vec_element_i64(o->out, get_field(s, v3), enr, es);
         return DISAS_NEXT;
     }
 
     ptr = tcg_temp_new_ptr();
-    get_vec_element_ptr_i64(ptr, get_field(s->fields, v3), o->addr1, es);
+    get_vec_element_ptr_i64(ptr, get_field(s, v3), o->addr1, es);
     switch (es) {
     case ES_8:
         tcg_gen_ld8u_i64(o->out, ptr, 0);
@@ -552,7 +552,7 @@ static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
 {
-    uint8_t es = get_field(s->fields, m3);
+    uint8_t es = get_field(s, m3);
     uint8_t enr;
     TCGv_i64 t;
 
@@ -585,16 +585,16 @@ static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
 
     t = tcg_temp_new_i64();
     tcg_gen_qemu_ld_i64(t, o->addr1, get_mem_index(s), MO_TE | es);
-    zero_vec(get_field(s->fields, v1));
-    write_vec_element_i64(t, get_field(s->fields, v1), enr, es);
+    zero_vec(get_field(s, v1));
+    write_vec_element_i64(t, get_field(s, v1), enr, es);
     tcg_temp_free_i64(t);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vlm(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v3 = get_field(s->fields, v3);
-    uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v3 = get_field(s, v3);
+    uint8_t v1 = get_field(s, v1);
     TCGv_i64 t0, t1;
 
     if (v3 < v1 || (v3 - v1 + 1) > 16) {
@@ -633,12 +633,12 @@ static DisasJumpType op_vlm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vlbb(DisasContext *s, DisasOps *o)
 {
-    const int64_t block_size = (1ull << (get_field(s->fields, m3) + 6));
-    const int v1_offs = vec_full_reg_offset(get_field(s->fields, v1));
+    const int64_t block_size = (1ull << (get_field(s, m3) + 6));
+    const int v1_offs = vec_full_reg_offset(get_field(s, v1));
     TCGv_ptr a0;
     TCGv_i64 bytes;
 
-    if (get_field(s->fields, m3) > 6) {
+    if (get_field(s, m3) > 6) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
@@ -658,7 +658,7 @@ static DisasJumpType op_vlbb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vlvg(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     TCGv_ptr ptr;
 
     if (es > ES_64) {
@@ -667,15 +667,15 @@ static DisasJumpType op_vlvg(DisasContext *s, DisasOps *o)
     }
 
     /* fast path if we don't need the register content */
-    if (!get_field(s->fields, b2)) {
-        uint8_t enr = get_field(s->fields, d2) & (NUM_VEC_ELEMENTS(es) - 1);
+    if (!get_field(s, b2)) {
+        uint8_t enr = get_field(s, d2) & (NUM_VEC_ELEMENTS(es) - 1);
 
-        write_vec_element_i64(o->in2, get_field(s->fields, v1), enr, es);
+        write_vec_element_i64(o->in2, get_field(s, v1), enr, es);
         return DISAS_NEXT;
     }
 
     ptr = tcg_temp_new_ptr();
-    get_vec_element_ptr_i64(ptr, get_field(s->fields, v1), o->addr1, es);
+    get_vec_element_ptr_i64(ptr, get_field(s, v1), o->addr1, es);
     switch (es) {
     case ES_8:
         tcg_gen_st8_i64(o->in2, ptr, 0);
@@ -699,14 +699,14 @@ static DisasJumpType op_vlvg(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vlvgp(DisasContext *s, DisasOps *o)
 {
-    write_vec_element_i64(o->in1, get_field(s->fields, v1), 0, ES_64);
-    write_vec_element_i64(o->in2, get_field(s->fields, v1), 1, ES_64);
+    write_vec_element_i64(o->in1, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(o->in2, get_field(s, v1), 1, ES_64);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vll(DisasContext *s, DisasOps *o)
 {
-    const int v1_offs = vec_full_reg_offset(get_field(s->fields, v1));
+    const int v1_offs = vec_full_reg_offset(get_field(s, v1));
     TCGv_ptr a0 = tcg_temp_new_ptr();
 
     /* convert highest index into an actual length */
@@ -719,10 +719,10 @@ static DisasJumpType op_vll(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vmr(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t v3 = get_field(s->fields, v3);
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t v3 = get_field(s, v3);
+    const uint8_t es = get_field(s, m4);
     int dst_idx, src_idx;
     TCGv_i64 tmp;
 
@@ -732,7 +732,7 @@ static DisasJumpType op_vmr(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    if (s->fields->op2 == 0x61) {
+    if (s->fields.op2 == 0x61) {
         /* iterate backwards to avoid overwriting data we might need later */
         for (dst_idx = NUM_VEC_ELEMENTS(es) - 1; dst_idx >= 0; dst_idx--) {
             src_idx = dst_idx / 2;
@@ -761,10 +761,10 @@ static DisasJumpType op_vmr(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t v3 = get_field(s->fields, v3);
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t v3 = get_field(s, v3);
+    const uint8_t es = get_field(s, m4);
     static gen_helper_gvec_3 * const vpk[3] = {
         gen_helper_gvec_vpk16,
         gen_helper_gvec_vpk32,
@@ -796,9 +796,9 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0x97:
-        if (get_field(s->fields, m5) & 0x1) {
+        if (get_field(s, m5) & 0x1) {
             gen_gvec_3_ptr(v1, v2, v3, cpu_env, 0, vpks_cc[es - 1]);
             set_cc_static(s);
         } else {
@@ -806,7 +806,7 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
         }
         break;
     case 0x95:
-        if (get_field(s->fields, m5) & 0x1) {
+        if (get_field(s, m5) & 0x1) {
             gen_gvec_3_ptr(v1, v2, v3, cpu_env, 0, vpkls_cc[es - 1]);
             set_cc_static(s);
         } else {
@@ -816,7 +816,7 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
     case 0x94:
         /* If sources and destination dont't overlap -> fast path */
         if (v1 != v2 && v1 != v3) {
-            const uint8_t src_es = get_field(s->fields, m4);
+            const uint8_t src_es = get_field(s, m4);
             const uint8_t dst_es = src_es - 1;
             TCGv_i64 tmp = tcg_temp_new_i64();
             int dst_idx, src_idx;
@@ -844,23 +844,23 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vperm(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                   get_field(s->fields, v3), get_field(s->fields, v4),
+    gen_gvec_4_ool(get_field(s, v1), get_field(s, v2),
+                   get_field(s, v3), get_field(s, v4),
                    0, gen_helper_gvec_vperm);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vpdi(DisasContext *s, DisasOps *o)
 {
-    const uint8_t i2 = extract32(get_field(s->fields, m4), 2, 1);
-    const uint8_t i3 = extract32(get_field(s->fields, m4), 0, 1);
+    const uint8_t i2 = extract32(get_field(s, m4), 2, 1);
+    const uint8_t i3 = extract32(get_field(s, m4), 0, 1);
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
 
-    read_vec_element_i64(t0, get_field(s->fields, v2), i2, ES_64);
-    read_vec_element_i64(t1, get_field(s->fields, v3), i3, ES_64);
-    write_vec_element_i64(t0, get_field(s->fields, v1), 0, ES_64);
-    write_vec_element_i64(t1, get_field(s->fields, v1), 1, ES_64);
+    read_vec_element_i64(t0, get_field(s, v2), i2, ES_64);
+    read_vec_element_i64(t1, get_field(s, v3), i3, ES_64);
+    write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
     return DISAS_NEXT;
@@ -868,38 +868,38 @@ static DisasJumpType op_vpdi(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vrep(DisasContext *s, DisasOps *o)
 {
-    const uint8_t enr = get_field(s->fields, i2);
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t enr = get_field(s, i2);
+    const uint8_t es = get_field(s, m4);
 
     if (es > ES_64 || !valid_vec_element(enr, es)) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    tcg_gen_gvec_dup_mem(es, vec_full_reg_offset(get_field(s->fields, v1)),
-                         vec_reg_offset(get_field(s->fields, v3), enr, es),
+    tcg_gen_gvec_dup_mem(es, vec_full_reg_offset(get_field(s, v1)),
+                         vec_reg_offset(get_field(s, v3), enr, es),
                          16, 16);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vrepi(DisasContext *s, DisasOps *o)
 {
-    const int64_t data = (int16_t)get_field(s->fields, i2);
-    const uint8_t es = get_field(s->fields, m3);
+    const int64_t data = (int16_t)get_field(s, i2);
+    const uint8_t es = get_field(s, m3);
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec_dupi(es, get_field(s->fields, v1), data);
+    gen_gvec_dupi(es, get_field(s, v1), data);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
-    const uint8_t enr = get_field(s->fields, m3);
+    const uint8_t enr = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (!valid_vec_element(enr, es)) {
@@ -908,11 +908,11 @@ static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    read_vec_element_i64(tmp, get_field(s->fields, v2), enr, es);
+    read_vec_element_i64(tmp, get_field(s, v2), enr, es);
     tcg_gen_add_i64(o->addr1, o->addr1, tmp);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 0);
 
-    read_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
+    read_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
@@ -920,15 +920,15 @@ static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsel(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_4(bitsel, ES_8, get_field(s->fields, v1),
-                  get_field(s->fields, v4), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_4(bitsel, ES_8, get_field(s, v1),
+                  get_field(s, v4), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vseg(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
     int idx1, idx2;
     TCGv_i64 tmp;
 
@@ -951,10 +951,10 @@ static DisasJumpType op_vseg(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    read_vec_element_i64(tmp, get_field(s->fields, v2), idx1, es | MO_SIGN);
-    write_vec_element_i64(tmp, get_field(s->fields, v1), 0, ES_64);
-    read_vec_element_i64(tmp, get_field(s->fields, v2), idx2, es | MO_SIGN);
-    write_vec_element_i64(tmp, get_field(s->fields, v1), 1, ES_64);
+    read_vec_element_i64(tmp, get_field(s, v2), idx1, es | MO_SIGN);
+    write_vec_element_i64(tmp, get_field(s, v1), 0, ES_64);
+    read_vec_element_i64(tmp, get_field(s, v2), idx2, es | MO_SIGN);
+    write_vec_element_i64(tmp, get_field(s, v1), 1, ES_64);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
@@ -966,10 +966,10 @@ static DisasJumpType op_vst(DisasContext *s, DisasOps *o)
     /* Probe write access before actually modifying memory */
     gen_helper_probe_write_access(cpu_env, o->addr1, tmp);
 
-    read_vec_element_i64(tmp,  get_field(s->fields, v1), 0, ES_64);
+    read_vec_element_i64(tmp,  get_field(s, v1), 0, ES_64);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
-    read_vec_element_i64(tmp,  get_field(s->fields, v1), 1, ES_64);
+    read_vec_element_i64(tmp,  get_field(s, v1), 1, ES_64);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEQ);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
@@ -978,7 +978,7 @@ static DisasJumpType op_vst(DisasContext *s, DisasOps *o)
 static DisasJumpType op_vste(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
-    const uint8_t enr = get_field(s->fields, m3);
+    const uint8_t enr = get_field(s, m3);
     TCGv_i64 tmp;
 
     if (!valid_vec_element(enr, es)) {
@@ -987,7 +987,7 @@ static DisasJumpType op_vste(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    read_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
+    read_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
@@ -995,8 +995,8 @@ static DisasJumpType op_vste(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vstm(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v3 = get_field(s->fields, v3);
-    uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v3 = get_field(s, v3);
+    uint8_t v1 = get_field(s, v1);
     TCGv_i64 tmp;
 
     while (v3 < v1 || (v3 - v1 + 1) > 16) {
@@ -1025,7 +1025,7 @@ static DisasJumpType op_vstm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vstl(DisasContext *s, DisasOps *o)
 {
-    const int v1_offs = vec_full_reg_offset(get_field(s->fields, v1));
+    const int v1_offs = vec_full_reg_offset(get_field(s, v1));
     TCGv_ptr a0 = tcg_temp_new_ptr();
 
     /* convert highest index into an actual length */
@@ -1038,10 +1038,10 @@ static DisasJumpType op_vstl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vup(DisasContext *s, DisasOps *o)
 {
-    const bool logical = s->fields->op2 == 0xd4 || s->fields->op2 == 0xd5;
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t src_es = get_field(s->fields, m3);
+    const bool logical = s->fields.op2 == 0xd4 || s->fields.op2 == 0xd5;
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t src_es = get_field(s, m3);
     const uint8_t dst_es = src_es + 1;
     int dst_idx, src_idx;
     TCGv_i64 tmp;
@@ -1052,7 +1052,7 @@ static DisasJumpType op_vup(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    if (s->fields->op2 == 0xd7 || s->fields->op2 == 0xd5) {
+    if (s->fields.op2 == 0xd7 || s->fields.op2 == 0xd5) {
         /* iterate backwards to avoid overwriting data we might need later */
         for (dst_idx = NUM_VEC_ELEMENTS(dst_es) - 1; dst_idx >= 0; dst_idx--) {
             src_idx = dst_idx;
@@ -1076,18 +1076,18 @@ static DisasJumpType op_vup(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_va(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
 
     if (es > ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     } else if (es == ES_128) {
-        gen_gvec128_3_i64(tcg_gen_add2_i64, get_field(s->fields, v1),
-                          get_field(s->fields, v2), get_field(s->fields, v3));
+        gen_gvec128_3_i64(tcg_gen_add2_i64, get_field(s, v1),
+                          get_field(s, v2), get_field(s, v3));
         return DISAS_NEXT;
     }
-    gen_gvec_fn_3(add, es, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(add, es, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
@@ -1165,7 +1165,7 @@ static void gen_acc2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al,
 
 static DisasJumpType op_vacc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fni8 = gen_acc8_i64, },
         { .fni8 = gen_acc16_i64, },
@@ -1177,12 +1177,12 @@ static DisasJumpType op_vacc(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     } else if (es == ES_128) {
-        gen_gvec128_3_i64(gen_acc2_i64, get_field(s->fields, v1),
-                          get_field(s->fields, v2), get_field(s->fields, v3));
+        gen_gvec128_3_i64(gen_acc2_i64, get_field(s, v1),
+                          get_field(s, v2), get_field(s, v3));
         return DISAS_NEXT;
     }
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -1203,14 +1203,14 @@ static void gen_ac2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 
 static DisasJumpType op_vac(DisasContext *s, DisasOps *o)
 {
-    if (get_field(s->fields, m5) != ES_128) {
+    if (get_field(s, m5) != ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec128_4_i64(gen_ac2_i64, get_field(s->fields, v1),
-                      get_field(s->fields, v2), get_field(s->fields, v3),
-                      get_field(s->fields, v4));
+    gen_gvec128_4_i64(gen_ac2_i64, get_field(s, v1),
+                      get_field(s, v2), get_field(s, v3),
+                      get_field(s, v4));
     return DISAS_NEXT;
 }
 
@@ -1235,28 +1235,28 @@ static void gen_accc2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 
 static DisasJumpType op_vaccc(DisasContext *s, DisasOps *o)
 {
-    if (get_field(s->fields, m5) != ES_128) {
+    if (get_field(s, m5) != ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec128_4_i64(gen_accc2_i64, get_field(s->fields, v1),
-                      get_field(s->fields, v2), get_field(s->fields, v3),
-                      get_field(s->fields, v4));
+    gen_gvec128_4_i64(gen_accc2_i64, get_field(s, v1),
+                      get_field(s, v2), get_field(s, v3),
+                      get_field(s, v4));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vn(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(and, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(and, ES_8, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vnc(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(andc, ES_8, get_field(s->fields, v1),
-                  get_field(s->fields, v2), get_field(s->fields, v3));
+    gen_gvec_fn_3(andc, ES_8, get_field(s, v1),
+                  get_field(s, v2), get_field(s, v3));
     return DISAS_NEXT;
 }
 
@@ -1296,7 +1296,7 @@ static void gen_avg_i64(TCGv_i64 dl, TCGv_i64 al, TCGv_i64 bl)
 
 static DisasJumpType op_vavg(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fno = gen_helper_gvec_vavg8, },
         { .fno = gen_helper_gvec_vavg16, },
@@ -1308,8 +1308,8 @@ static DisasJumpType op_vavg(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -1344,7 +1344,7 @@ static void gen_avgl_i64(TCGv_i64 dl, TCGv_i64 al, TCGv_i64 bl)
 
 static DisasJumpType op_vavgl(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fno = gen_helper_gvec_vavgl8, },
         { .fno = gen_helper_gvec_vavgl16, },
@@ -1356,8 +1356,8 @@ static DisasJumpType op_vavgl(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -1367,13 +1367,13 @@ static DisasJumpType op_vcksm(DisasContext *s, DisasOps *o)
     TCGv_i32 sum = tcg_temp_new_i32();
     int i;
 
-    read_vec_element_i32(sum, get_field(s->fields, v3), 1, ES_32);
+    read_vec_element_i32(sum, get_field(s, v3), 1, ES_32);
     for (i = 0; i < 4; i++) {
-        read_vec_element_i32(tmp, get_field(s->fields, v2), i, ES_32);
+        read_vec_element_i32(tmp, get_field(s, v2), i, ES_32);
         tcg_gen_add2_i32(tmp, sum, sum, sum, tmp, tmp);
     }
-    zero_vec(get_field(s->fields, v1));
-    write_vec_element_i32(sum, get_field(s->fields, v1), 1, ES_32);
+    zero_vec(get_field(s, v1));
+    write_vec_element_i32(sum, get_field(s, v1), 1, ES_32);
 
     tcg_temp_free_i32(tmp);
     tcg_temp_free_i32(sum);
@@ -1382,27 +1382,27 @@ static DisasJumpType op_vcksm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vec(DisasContext *s, DisasOps *o)
 {
-    uint8_t es = get_field(s->fields, m3);
+    uint8_t es = get_field(s, m3);
     const uint8_t enr = NUM_VEC_ELEMENTS(es) / 2 - 1;
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    if (s->fields->op2 == 0xdb) {
+    if (s->fields.op2 == 0xdb) {
         es |= MO_SIGN;
     }
 
     o->in1 = tcg_temp_new_i64();
     o->in2 = tcg_temp_new_i64();
-    read_vec_element_i64(o->in1, get_field(s->fields, v1), enr, es);
-    read_vec_element_i64(o->in2, get_field(s->fields, v2), enr, es);
+    read_vec_element_i64(o->in1, get_field(s, v1), enr, es);
+    read_vec_element_i64(o->in2, get_field(s, v2), enr, es);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     TCGCond cond = s->insn->data;
 
     if (es > ES_64) {
@@ -1411,15 +1411,15 @@ static DisasJumpType op_vc(DisasContext *s, DisasOps *o)
     }
 
     tcg_gen_gvec_cmp(cond, es,
-                     vec_full_reg_offset(get_field(s->fields, v1)),
-                     vec_full_reg_offset(get_field(s->fields, v2)),
-                     vec_full_reg_offset(get_field(s->fields, v3)), 16, 16);
-    if (get_field(s->fields, m5) & 0x1) {
+                     vec_full_reg_offset(get_field(s, v1)),
+                     vec_full_reg_offset(get_field(s, v2)),
+                     vec_full_reg_offset(get_field(s, v3)), 16, 16);
+    if (get_field(s, m5) & 0x1) {
         TCGv_i64 low = tcg_temp_new_i64();
         TCGv_i64 high = tcg_temp_new_i64();
 
-        read_vec_element_i64(high, get_field(s->fields, v1), 0, ES_64);
-        read_vec_element_i64(low, get_field(s->fields, v1), 1, ES_64);
+        read_vec_element_i64(high, get_field(s, v1), 0, ES_64);
+        read_vec_element_i64(low, get_field(s, v1), 1, ES_64);
         gen_op_update2_cc_i64(s, CC_OP_VC, low, high);
 
         tcg_temp_free_i64(low);
@@ -1440,7 +1440,7 @@ static void gen_clz_i64(TCGv_i64 d, TCGv_i64 a)
 
 static DisasJumpType op_vclz(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
     static const GVecGen2 g[4] = {
         { .fno = gen_helper_gvec_vclz8, },
         { .fno = gen_helper_gvec_vclz16, },
@@ -1452,7 +1452,7 @@ static DisasJumpType op_vclz(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    gen_gvec_2(get_field(s, v1), get_field(s, v2), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -1468,7 +1468,7 @@ static void gen_ctz_i64(TCGv_i64 d, TCGv_i64 a)
 
 static DisasJumpType op_vctz(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
     static const GVecGen2 g[4] = {
         { .fno = gen_helper_gvec_vctz8, },
         { .fno = gen_helper_gvec_vctz16, },
@@ -1480,20 +1480,20 @@ static DisasJumpType op_vctz(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    gen_gvec_2(get_field(s, v1), get_field(s, v2), &g[es]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vx(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(xor, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                 get_field(s->fields, v3));
+    gen_gvec_fn_3(xor, ES_8, get_field(s, v1), get_field(s, v2),
+                 get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vgfm(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fno = gen_helper_gvec_vgfm8, },
         { .fno = gen_helper_gvec_vgfm16, },
@@ -1505,14 +1505,14 @@ static DisasJumpType op_vgfm(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vgfma(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m5);
     static const GVecGen4 g[4] = {
         { .fno = gen_helper_gvec_vgfma8, },
         { .fno = gen_helper_gvec_vgfma16, },
@@ -1524,50 +1524,50 @@ static DisasJumpType op_vgfma(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), get_field(s->fields, v4), &g[es]);
+    gen_gvec_4(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), get_field(s, v4), &g[es]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vlc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec_fn_2(neg, es, get_field(s->fields, v1), get_field(s->fields, v2));
+    gen_gvec_fn_2(neg, es, get_field(s, v1), get_field(s, v2));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vlp(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec_fn_2(abs, es, get_field(s->fields, v1), get_field(s->fields, v2));
+    gen_gvec_fn_2(abs, es, get_field(s, v1), get_field(s, v2));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vmx(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t v3 = get_field(s->fields, v3);
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t v3 = get_field(s, v3);
+    const uint8_t es = get_field(s, m4);
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0xff:
         gen_gvec_fn_3(smax, es, v1, v2, v3);
         break;
@@ -1634,7 +1634,7 @@ static void gen_malh_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
 
 static DisasJumpType op_vma(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m5);
     static const GVecGen4 g_vmal[3] = {
         { .fno = gen_helper_gvec_vmal8, },
         { .fno = gen_helper_gvec_vmal16, },
@@ -1677,7 +1677,7 @@ static DisasJumpType op_vma(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0xaa:
         fn = &g_vmal[es];
         break;
@@ -1703,8 +1703,8 @@ static DisasJumpType op_vma(DisasContext *s, DisasOps *o)
         g_assert_not_reached();
     }
 
-    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), get_field(s->fields, v4), fn);
+    gen_gvec_4(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), get_field(s, v4), fn);
     return DISAS_NEXT;
 }
 
@@ -1726,7 +1726,7 @@ static void gen_mlh_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 
 static DisasJumpType op_vm(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g_vmh[3] = {
         { .fno = gen_helper_gvec_vmh8, },
         { .fno = gen_helper_gvec_vmh16, },
@@ -1764,10 +1764,10 @@ static DisasJumpType op_vm(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0xa2:
-        gen_gvec_fn_3(mul, es, get_field(s->fields, v1),
-                      get_field(s->fields, v2), get_field(s->fields, v3));
+        gen_gvec_fn_3(mul, es, get_field(s, v1),
+                      get_field(s, v2), get_field(s, v3));
         return DISAS_NEXT;
     case 0xa3:
         fn = &g_vmh[es];
@@ -1791,49 +1791,49 @@ static DisasJumpType op_vm(DisasContext *s, DisasOps *o)
         g_assert_not_reached();
     }
 
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), fn);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vnn(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(nand, ES_8, get_field(s->fields, v1),
-                  get_field(s->fields, v2), get_field(s->fields, v3));
+    gen_gvec_fn_3(nand, ES_8, get_field(s, v1),
+                  get_field(s, v2), get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vno(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(nor, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(nor, ES_8, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vnx(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(eqv, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(eqv, ES_8, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vo(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(or, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(or, ES_8, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_voc(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_fn_3(orc, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(orc, ES_8, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vpopct(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t es = get_field(s, m3);
     static const GVecGen2 g[4] = {
         { .fno = gen_helper_gvec_vpopct8, },
         { .fno = gen_helper_gvec_vpopct16, },
@@ -1846,7 +1846,7 @@ static DisasJumpType op_vpopct(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    gen_gvec_2(get_field(s, v1), get_field(s, v2), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -1870,7 +1870,7 @@ static void gen_rll_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 
 static DisasJumpType op_verllv(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fno = gen_helper_gvec_verllv8, },
         { .fno = gen_helper_gvec_verllv16, },
@@ -1883,14 +1883,14 @@ static DisasJumpType op_verllv(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_verll(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen2s g[4] = {
         { .fno = gen_helper_gvec_verll8, },
         { .fno = gen_helper_gvec_verll16, },
@@ -1902,7 +1902,7 @@ static DisasJumpType op_verll(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
-    gen_gvec_2s(get_field(s->fields, v1), get_field(s->fields, v3), o->addr1,
+    gen_gvec_2s(get_field(s, v1), get_field(s, v3), o->addr1,
                 &g[es]);
     return DISAS_NEXT;
 }
@@ -1933,8 +1933,8 @@ static void gen_rim_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, int64_t c)
 
 static DisasJumpType op_verim(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m5);
-    const uint8_t i4 = get_field(s->fields, i4) &
+    const uint8_t es = get_field(s, m5);
+    const uint8_t i4 = get_field(s, i4) &
                        (NUM_VEC_ELEMENT_BITS(es) - 1);
     static const GVecGen3i g[4] = {
         { .fno = gen_helper_gvec_verim8, },
@@ -1950,24 +1950,24 @@ static DisasJumpType op_verim(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    gen_gvec_3i(get_field(s->fields, v1), get_field(s->fields, v2),
-                get_field(s->fields, v3), i4, &g[es]);
+    gen_gvec_3i(get_field(s, v1), get_field(s, v2),
+                get_field(s, v3), i4, &g[es]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vesv(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t v3 = get_field(s->fields, v3);
+    const uint8_t es = get_field(s, m4);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t v3 = get_field(s, v3);
 
     if (es > ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0x70:
         gen_gvec_fn_3(shlv, es, v1, v2, v3);
         break;
@@ -1985,11 +1985,11 @@ static DisasJumpType op_vesv(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t d2 = get_field(s->fields, d2) &
+    const uint8_t es = get_field(s, m4);
+    const uint8_t d2 = get_field(s, d2) &
                        (NUM_VEC_ELEMENT_BITS(es) - 1);
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v3 = get_field(s->fields, v3);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v3 = get_field(s, v3);
     TCGv_i32 shift;
 
     if (es > ES_64) {
@@ -1997,8 +1997,8 @@ static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    if (likely(!get_field(s->fields, b2))) {
-        switch (s->fields->op2) {
+    if (likely(!get_field(s, b2))) {
+        switch (s->fields.op2) {
         case 0x30:
             gen_gvec_fn_2i(shli, es, v1, v3, d2);
             break;
@@ -2015,7 +2015,7 @@ static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
         shift = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(shift, o->addr1);
         tcg_gen_andi_i32(shift, shift, NUM_VEC_ELEMENT_BITS(es) - 1);
-        switch (s->fields->op2) {
+        switch (s->fields.op2) {
         case 0x30:
             gen_gvec_fn_2s(shls, es, v1, v3, shift);
             break;
@@ -2037,14 +2037,14 @@ static DisasJumpType op_vsl(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 shift = tcg_temp_new_i64();
 
-    read_vec_element_i64(shift, get_field(s->fields, v3), 7, ES_8);
-    if (s->fields->op2 == 0x74) {
+    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+    if (s->fields.op2 == 0x74) {
         tcg_gen_andi_i64(shift, shift, 0x7);
     } else {
         tcg_gen_andi_i64(shift, shift, 0x78);
     }
 
-    gen_gvec_2i_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
                     shift, 0, gen_helper_gvec_vsl);
     tcg_temp_free_i64(shift);
     return DISAS_NEXT;
@@ -2052,7 +2052,7 @@ static DisasJumpType op_vsl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
 {
-    const uint8_t i4 = get_field(s->fields, i4) & 0xf;
+    const uint8_t i4 = get_field(s, i4) & 0xf;
     const int left_shift = (i4 & 7) * 8;
     const int right_shift = 64 - left_shift;
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -2060,18 +2060,18 @@ static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
     TCGv_i64 t2 = tcg_temp_new_i64();
 
     if ((i4 & 8) == 0) {
-        read_vec_element_i64(t0, get_field(s->fields, v2), 0, ES_64);
-        read_vec_element_i64(t1, get_field(s->fields, v2), 1, ES_64);
-        read_vec_element_i64(t2, get_field(s->fields, v3), 0, ES_64);
+        read_vec_element_i64(t0, get_field(s, v2), 0, ES_64);
+        read_vec_element_i64(t1, get_field(s, v2), 1, ES_64);
+        read_vec_element_i64(t2, get_field(s, v3), 0, ES_64);
     } else {
-        read_vec_element_i64(t0, get_field(s->fields, v2), 1, ES_64);
-        read_vec_element_i64(t1, get_field(s->fields, v3), 0, ES_64);
-        read_vec_element_i64(t2, get_field(s->fields, v3), 1, ES_64);
+        read_vec_element_i64(t0, get_field(s, v2), 1, ES_64);
+        read_vec_element_i64(t1, get_field(s, v3), 0, ES_64);
+        read_vec_element_i64(t2, get_field(s, v3), 1, ES_64);
     }
     tcg_gen_extract2_i64(t0, t1, t0, right_shift);
     tcg_gen_extract2_i64(t1, t2, t1, right_shift);
-    write_vec_element_i64(t0, get_field(s->fields, v1), 0, ES_64);
-    write_vec_element_i64(t1, get_field(s->fields, v1), 1, ES_64);
+    write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -2083,14 +2083,14 @@ static DisasJumpType op_vsra(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 shift = tcg_temp_new_i64();
 
-    read_vec_element_i64(shift, get_field(s->fields, v3), 7, ES_8);
-    if (s->fields->op2 == 0x7e) {
+    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+    if (s->fields.op2 == 0x7e) {
         tcg_gen_andi_i64(shift, shift, 0x7);
     } else {
         tcg_gen_andi_i64(shift, shift, 0x78);
     }
 
-    gen_gvec_2i_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
                     shift, 0, gen_helper_gvec_vsra);
     tcg_temp_free_i64(shift);
     return DISAS_NEXT;
@@ -2100,14 +2100,14 @@ static DisasJumpType op_vsrl(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 shift = tcg_temp_new_i64();
 
-    read_vec_element_i64(shift, get_field(s->fields, v3), 7, ES_8);
-    if (s->fields->op2 == 0x7c) {
+    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+    if (s->fields.op2 == 0x7c) {
         tcg_gen_andi_i64(shift, shift, 0x7);
     } else {
         tcg_gen_andi_i64(shift, shift, 0x78);
     }
 
-    gen_gvec_2i_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
                     shift, 0, gen_helper_gvec_vsrl);
     tcg_temp_free_i64(shift);
     return DISAS_NEXT;
@@ -2115,18 +2115,18 @@ static DisasJumpType op_vsrl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vs(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
 
     if (es > ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     } else if (es == ES_128) {
-        gen_gvec128_3_i64(tcg_gen_sub2_i64, get_field(s->fields, v1),
-                          get_field(s->fields, v2), get_field(s->fields, v3));
+        gen_gvec128_3_i64(tcg_gen_sub2_i64, get_field(s, v1),
+                          get_field(s, v2), get_field(s, v3));
         return DISAS_NEXT;
     }
-    gen_gvec_fn_3(sub, es, get_field(s->fields, v1), get_field(s->fields, v2),
-                  get_field(s->fields, v3));
+    gen_gvec_fn_3(sub, es, get_field(s, v1), get_field(s, v2),
+                  get_field(s, v3));
     return DISAS_NEXT;
 }
 
@@ -2162,7 +2162,7 @@ static void gen_scbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al,
 
 static DisasJumpType op_vscbi(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     static const GVecGen3 g[4] = {
         { .fno = gen_helper_gvec_vscbi8, },
         { .fno = gen_helper_gvec_vscbi16, },
@@ -2174,12 +2174,12 @@ static DisasJumpType op_vscbi(DisasContext *s, DisasOps *o)
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     } else if (es == ES_128) {
-        gen_gvec128_3_i64(gen_scbi2_i64, get_field(s->fields, v1),
-                          get_field(s->fields, v2), get_field(s->fields, v3));
+        gen_gvec128_3_i64(gen_scbi2_i64, get_field(s, v1),
+                          get_field(s, v2), get_field(s, v3));
         return DISAS_NEXT;
     }
-    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), &g[es]);
+    gen_gvec_3(get_field(s, v1), get_field(s, v2),
+               get_field(s, v3), &g[es]);
     return DISAS_NEXT;
 }
 
@@ -2198,14 +2198,14 @@ static void gen_sbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 
 static DisasJumpType op_vsbi(DisasContext *s, DisasOps *o)
 {
-    if (get_field(s->fields, m5) != ES_128) {
+    if (get_field(s, m5) != ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec128_4_i64(gen_sbi2_i64, get_field(s->fields, v1),
-                      get_field(s->fields, v2), get_field(s->fields, v3),
-                      get_field(s->fields, v4));
+    gen_gvec128_4_i64(gen_sbi2_i64, get_field(s, v1),
+                      get_field(s, v2), get_field(s, v3),
+                      get_field(s, v4));
     return DISAS_NEXT;
 }
 
@@ -2225,20 +2225,20 @@ static void gen_sbcbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 
 static DisasJumpType op_vsbcbi(DisasContext *s, DisasOps *o)
 {
-    if (get_field(s->fields, m5) != ES_128) {
+    if (get_field(s, m5) != ES_128) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    gen_gvec128_4_i64(gen_sbcbi2_i64, get_field(s->fields, v1),
-                      get_field(s->fields, v2), get_field(s->fields, v3),
-                      get_field(s->fields, v4));
+    gen_gvec128_4_i64(gen_sbcbi2_i64, get_field(s, v1),
+                      get_field(s, v2), get_field(s, v3),
+                      get_field(s, v4));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vsumg(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     TCGv_i64 sum, tmp;
     uint8_t dst_idx;
 
@@ -2253,12 +2253,12 @@ static DisasJumpType op_vsumg(DisasContext *s, DisasOps *o)
         uint8_t idx = dst_idx * NUM_VEC_ELEMENTS(es) / 2;
         const uint8_t max_idx = idx + NUM_VEC_ELEMENTS(es) / 2 - 1;
 
-        read_vec_element_i64(sum, get_field(s->fields, v3), max_idx, es);
+        read_vec_element_i64(sum, get_field(s, v3), max_idx, es);
         for (; idx <= max_idx; idx++) {
-            read_vec_element_i64(tmp, get_field(s->fields, v2), idx, es);
+            read_vec_element_i64(tmp, get_field(s, v2), idx, es);
             tcg_gen_add_i64(sum, sum, tmp);
         }
-        write_vec_element_i64(sum, get_field(s->fields, v1), dst_idx, ES_64);
+        write_vec_element_i64(sum, get_field(s, v1), dst_idx, ES_64);
     }
     tcg_temp_free_i64(sum);
     tcg_temp_free_i64(tmp);
@@ -2267,7 +2267,7 @@ static DisasJumpType op_vsumg(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsumq(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     const uint8_t max_idx = NUM_VEC_ELEMENTS(es) - 1;
     TCGv_i64 sumh, suml, zero, tmpl;
     uint8_t idx;
@@ -2282,13 +2282,13 @@ static DisasJumpType op_vsumq(DisasContext *s, DisasOps *o)
     zero = tcg_const_i64(0);
     tmpl = tcg_temp_new_i64();
 
-    read_vec_element_i64(suml, get_field(s->fields, v3), max_idx, es);
+    read_vec_element_i64(suml, get_field(s, v3), max_idx, es);
     for (idx = 0; idx <= max_idx; idx++) {
-        read_vec_element_i64(tmpl, get_field(s->fields, v2), idx, es);
+        read_vec_element_i64(tmpl, get_field(s, v2), idx, es);
         tcg_gen_add2_i64(suml, sumh, suml, sumh, tmpl, zero);
     }
-    write_vec_element_i64(sumh, get_field(s->fields, v1), 0, ES_64);
-    write_vec_element_i64(suml, get_field(s->fields, v1), 1, ES_64);
+    write_vec_element_i64(sumh, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(suml, get_field(s, v1), 1, ES_64);
 
     tcg_temp_free_i64(sumh);
     tcg_temp_free_i64(suml);
@@ -2299,7 +2299,7 @@ static DisasJumpType op_vsumq(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsum(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t es = get_field(s, m4);
     TCGv_i32 sum, tmp;
     uint8_t dst_idx;
 
@@ -2314,12 +2314,12 @@ static DisasJumpType op_vsum(DisasContext *s, DisasOps *o)
         uint8_t idx = dst_idx * NUM_VEC_ELEMENTS(es) / 4;
         const uint8_t max_idx = idx + NUM_VEC_ELEMENTS(es) / 4 - 1;
 
-        read_vec_element_i32(sum, get_field(s->fields, v3), max_idx, es);
+        read_vec_element_i32(sum, get_field(s, v3), max_idx, es);
         for (; idx <= max_idx; idx++) {
-            read_vec_element_i32(tmp, get_field(s->fields, v2), idx, es);
+            read_vec_element_i32(tmp, get_field(s, v2), idx, es);
             tcg_gen_add_i32(sum, sum, tmp);
         }
-        write_vec_element_i32(sum, get_field(s->fields, v1), dst_idx, ES_32);
+        write_vec_element_i32(sum, get_field(s, v1), dst_idx, ES_32);
     }
     tcg_temp_free_i32(sum);
     tcg_temp_free_i32(tmp);
@@ -2328,7 +2328,7 @@ static DisasJumpType op_vsum(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vtm(DisasContext *s, DisasOps *o)
 {
-    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
                    cpu_env, 0, gen_helper_gvec_vtm);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -2336,8 +2336,8 @@ static DisasJumpType op_vtm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vfae(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     static gen_helper_gvec_3 * const g[3] = {
         gen_helper_gvec_vfae8,
         gen_helper_gvec_vfae16,
@@ -2354,20 +2354,20 @@ static DisasJumpType op_vfae(DisasContext *s, DisasOps *o)
     }
 
     if (extract32(m5, 0, 1)) {
-        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), cpu_env, m5, g_cc[es]);
         set_cc_static(s);
     } else {
-        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), m5, g[es]);
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), m5, g[es]);
     }
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vfee(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     static gen_helper_gvec_3 * const g[3] = {
         gen_helper_gvec_vfee8,
         gen_helper_gvec_vfee16,
@@ -2385,20 +2385,20 @@ static DisasJumpType op_vfee(DisasContext *s, DisasOps *o)
     }
 
     if (extract32(m5, 0, 1)) {
-        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), cpu_env, m5, g_cc[es]);
         set_cc_static(s);
     } else {
-        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), m5, g[es]);
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), m5, g[es]);
     }
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vfene(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     static gen_helper_gvec_3 * const g[3] = {
         gen_helper_gvec_vfene8,
         gen_helper_gvec_vfene16,
@@ -2416,20 +2416,20 @@ static DisasJumpType op_vfene(DisasContext *s, DisasOps *o)
     }
 
     if (extract32(m5, 0, 1)) {
-        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), cpu_env, m5, g_cc[es]);
         set_cc_static(s);
     } else {
-        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                       get_field(s->fields, v3), m5, g[es]);
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), m5, g[es]);
     }
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vistr(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t es = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     static gen_helper_gvec_2 * const g[3] = {
         gen_helper_gvec_vistr8,
         gen_helper_gvec_vistr16,
@@ -2447,11 +2447,11 @@ static DisasJumpType op_vistr(DisasContext *s, DisasOps *o)
     }
 
     if (extract32(m5, 0, 1)) {
-        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+        gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
                        cpu_env, 0, g_cc[es]);
         set_cc_static(s);
     } else {
-        gen_gvec_2_ool(get_field(s->fields, v1), get_field(s->fields, v2), 0,
+        gen_gvec_2_ool(get_field(s, v1), get_field(s, v2), 0,
                        g[es]);
     }
     return DISAS_NEXT;
@@ -2459,8 +2459,8 @@ static DisasJumpType op_vistr(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vstrc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s->fields, m5);
-    const uint8_t m6 = get_field(s->fields, m6);
+    const uint8_t es = get_field(s, m5);
+    const uint8_t m6 = get_field(s, m6);
     static gen_helper_gvec_4 * const g[3] = {
         gen_helper_gvec_vstrc8,
         gen_helper_gvec_vstrc16,
@@ -2489,23 +2489,23 @@ static DisasJumpType op_vstrc(DisasContext *s, DisasOps *o)
 
     if (extract32(m6, 0, 1)) {
         if (extract32(m6, 2, 1)) {
-            gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                           get_field(s->fields, v3), get_field(s->fields, v4),
+            gen_gvec_4_ptr(get_field(s, v1), get_field(s, v2),
+                           get_field(s, v3), get_field(s, v4),
                            cpu_env, m6, g_cc_rt[es]);
         } else {
-            gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                           get_field(s->fields, v3), get_field(s->fields, v4),
+            gen_gvec_4_ptr(get_field(s, v1), get_field(s, v2),
+                           get_field(s, v3), get_field(s, v4),
                            cpu_env, m6, g_cc[es]);
         }
         set_cc_static(s);
     } else {
         if (extract32(m6, 2, 1)) {
-            gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                           get_field(s->fields, v3), get_field(s->fields, v4),
+            gen_gvec_4_ool(get_field(s, v1), get_field(s, v2),
+                           get_field(s, v3), get_field(s, v4),
                            m6, g_rt[es]);
         } else {
-            gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
-                           get_field(s->fields, v3), get_field(s->fields, v4),
+            gen_gvec_4_ool(get_field(s, v1), get_field(s, v2),
+                           get_field(s, v3), get_field(s, v4),
                            m6, g[es]);
         }
     }
@@ -2514,8 +2514,8 @@ static DisasJumpType op_vstrc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t fpf = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     const bool se = extract32(m5, 3, 1);
     gen_helper_gvec_3_ptr *fn;
 
@@ -2524,7 +2524,7 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0xe3:
         fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
         break;
@@ -2540,26 +2540,26 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
     default:
         g_assert_not_reached();
     }
-    gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                   get_field(s->fields, v3), cpu_env, 0, fn);
+    gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
+                   get_field(s, v3), cpu_env, 0, fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_wfc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m3);
-    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t fpf = get_field(s, m3);
+    const uint8_t m4 = get_field(s, m4);
 
     if (fpf != FPF_LONG || m4) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    if (s->fields->op2 == 0xcb) {
-        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+    if (s->fields.op2 == 0xcb) {
+        gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
                        cpu_env, 0, gen_helper_gvec_wfc64);
     } else {
-        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+        gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
                        cpu_env, 0, gen_helper_gvec_wfk64);
     }
     set_cc_static(s);
@@ -2568,9 +2568,9 @@ static DisasJumpType op_wfc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
-    const uint8_t m6 = get_field(s->fields, m6);
+    const uint8_t fpf = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
+    const uint8_t m6 = get_field(s, m6);
     const bool se = extract32(m5, 3, 1);
     const bool cs = extract32(m6, 0, 1);
     gen_helper_gvec_3_ptr *fn;
@@ -2581,7 +2581,7 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
     }
 
     if (cs) {
-        switch (s->fields->op2) {
+        switch (s->fields.op2) {
         case 0xe8:
             fn = se ? gen_helper_gvec_vfce64s_cc : gen_helper_gvec_vfce64_cc;
             break;
@@ -2595,7 +2595,7 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
             g_assert_not_reached();
         }
     } else {
-        switch (s->fields->op2) {
+        switch (s->fields.op2) {
         case 0xe8:
             fn = se ? gen_helper_gvec_vfce64s : gen_helper_gvec_vfce64;
             break;
@@ -2609,8 +2609,8 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
             g_assert_not_reached();
         }
     }
-    gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                   get_field(s->fields, v3), cpu_env, 0, fn);
+    gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
+                   get_field(s, v3), cpu_env, 0, fn);
     if (cs) {
         set_cc_static(s);
     }
@@ -2619,9 +2619,9 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m3);
-    const uint8_t m4 = get_field(s->fields, m4);
-    const uint8_t erm = get_field(s->fields, m5);
+    const uint8_t fpf = get_field(s, m3);
+    const uint8_t m4 = get_field(s, m4);
+    const uint8_t erm = get_field(s, m5);
     const bool se = extract32(m4, 3, 1);
     gen_helper_gvec_2_ptr *fn;
 
@@ -2630,7 +2630,7 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    switch (s->fields->op2) {
+    switch (s->fields.op2) {
     case 0xc3:
         fn = se ? gen_helper_gvec_vcdg64s : gen_helper_gvec_vcdg64;
         break;
@@ -2652,15 +2652,15 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
     default:
         g_assert_not_reached();
     }
-    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env,
                    deposit32(m4, 4, 4, erm), fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vfll(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m3);
-    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t fpf = get_field(s, m3);
+    const uint8_t m4 = get_field(s, m4);
     gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfll32;
 
     if (fpf != FPF_SHORT || extract32(m4, 0, 3)) {
@@ -2671,15 +2671,15 @@ static DisasJumpType op_vfll(DisasContext *s, DisasOps *o)
     if (extract32(m4, 3, 1)) {
         fn = gen_helper_gvec_vfll32s;
     }
-    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env,
                    0, fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
 {
-    const uint8_t m5 = get_field(s->fields, m5);
-    const uint8_t fpf = get_field(s->fields, m6);
+    const uint8_t m5 = get_field(s, m5);
+    const uint8_t fpf = get_field(s, m6);
     const bool se = extract32(m5, 3, 1);
     gen_helper_gvec_4_ptr *fn;
 
@@ -2688,24 +2688,24 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    if (s->fields->op2 == 0x8f) {
+    if (s->fields.op2 == 0x8f) {
         fn = se ? gen_helper_gvec_vfma64s : gen_helper_gvec_vfma64;
     } else {
         fn = se ? gen_helper_gvec_vfms64s : gen_helper_gvec_vfms64;
     }
-    gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
-                   get_field(s->fields, v3), get_field(s->fields, v4), cpu_env,
+    gen_gvec_4_ptr(get_field(s, v1), get_field(s, v2),
+                   get_field(s, v3), get_field(s, v4), cpu_env,
                    0, fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vfpso(DisasContext *s, DisasOps *o)
 {
-    const uint8_t v1 = get_field(s->fields, v1);
-    const uint8_t v2 = get_field(s->fields, v2);
-    const uint8_t fpf = get_field(s->fields, m3);
-    const uint8_t m4 = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t v2 = get_field(s, v2);
+    const uint8_t fpf = get_field(s, m3);
+    const uint8_t m4 = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     TCGv_i64 tmp;
 
     if (fpf != FPF_LONG || extract32(m4, 0, 3) || m5 > 2) {
@@ -2753,8 +2753,8 @@ static DisasJumpType op_vfpso(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
 {
-    const uint8_t fpf = get_field(s->fields, m3);
-    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t fpf = get_field(s, m3);
+    const uint8_t m4 = get_field(s, m4);
     gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfsq64;
 
     if (fpf != FPF_LONG || extract32(m4, 0, 3)) {
@@ -2765,16 +2765,16 @@ static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
     if (extract32(m4, 3, 1)) {
         fn = gen_helper_gvec_vfsq64s;
     }
-    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env,
                    0, fn);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vftci(DisasContext *s, DisasOps *o)
 {
-    const uint16_t i3 = get_field(s->fields, i3);
-    const uint8_t fpf = get_field(s->fields, m4);
-    const uint8_t m5 = get_field(s->fields, m5);
+    const uint16_t i3 = get_field(s, i3);
+    const uint8_t fpf = get_field(s, m4);
+    const uint8_t m5 = get_field(s, m5);
     gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vftci64;
 
     if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
@@ -2785,8 +2785,7 @@ static DisasJumpType op_vftci(DisasContext *s, DisasOps *o)
     if (extract32(m5, 3, 1)) {
         fn = gen_helper_gvec_vftci64s;
     }
-    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
-                   i3, fn);
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env, i3, fn);
     set_cc_static(s);
     return DISAS_NEXT;
 }

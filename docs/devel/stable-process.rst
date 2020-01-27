@@ -18,8 +18,10 @@ What should go into a stable release?
 -------------------------------------
 
 Generally, the following patches are considered stable material:
-- Patches that fix severe issues, like fixes for CVEs
-- Patches that fix regressions
+
+* Patches that fix severe issues, like fixes for CVEs
+
+* Patches that fix regressions
 
 If you think the patch would be important for users of the current release
 (or for a distribution picking fixes), it is usually a good candidate
