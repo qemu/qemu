@@ -40,7 +40,7 @@ class BootLinuxConsole(Test):
         Extracts a file from a deb package into the test workdir
 
         :param deb: path to the deb archive
-        :param file: path within the deb archive of the file to be extracted
+        :param path: path within the deb archive of the file to be extracted
         :returns: path of the extracted file
         """
         cwd = os.getcwd()
