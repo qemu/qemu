@@ -30,6 +30,7 @@
 #include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_xive.h"
 #include "hw/ppc/pnv_core.h"
+#include "hw/pci-host/pnv_phb3.h"
 #include "hw/pci-host/pnv_phb4.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
@@ -76,6 +77,9 @@ typedef struct Pnv8Chip {
     Pnv8Psi      psi;
     PnvOCC       occ;
     PnvHomer     homer;
+
+#define PNV8_CHIP_PHB3_MAX 4
+    PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
 
     XICSFabric    *xics;
 } Pnv8Chip;

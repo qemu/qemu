@@ -71,6 +71,15 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_PBA_BASE        0x2013f00
 #define PNV_XSCOM_PBA_SIZE        0x40
 
+#define PNV_XSCOM_PBCQ_NEST_BASE  0x2012000
+#define PNV_XSCOM_PBCQ_NEST_SIZE  0x46
+
+#define PNV_XSCOM_PBCQ_PCI_BASE   0x9012000
+#define PNV_XSCOM_PBCQ_PCI_SIZE   0x15
+
+#define PNV_XSCOM_PBCQ_SPCI_BASE  0x9013c00
+#define PNV_XSCOM_PBCQ_SPCI_SIZE  0x5
+
 /*
  * Layout of the XSCOM PCB addresses (POWER 9)
  */
