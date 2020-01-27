@@ -196,7 +196,7 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
     }
 
     top->total_sectors = source->total_sectors;
-    top->opaque = state = g_new0(BDRVBackupTopState, 1);
+    state = top->opaque;
 
     bdrv_ref(target);
     state->target = bdrv_attach_child(top, target, "target", &child_file, errp);
@@ -255,9 +255,6 @@ append_failed:
 void bdrv_backup_top_drop(BlockDriverState *bs)
 {
     BDRVBackupTopState *s = bs->opaque;
-    AioContext *aio_context = bdrv_get_aio_context(bs);
-
-    aio_context_acquire(aio_context);
 
     bdrv_drained_begin(bs);
 
@@ -271,6 +268,4 @@ void bdrv_backup_top_drop(BlockDriverState *bs)
     bdrv_drained_end(bs);
 
     bdrv_unref(bs);
-
-    aio_context_release(aio_context);
 }

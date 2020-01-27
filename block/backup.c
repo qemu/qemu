@@ -135,8 +135,11 @@ static void backup_abort(Job *job)
 static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
+    AioContext *aio_context = bdrv_get_aio_context(s->backup_top);
 
+    aio_context_acquire(aio_context);
     bdrv_backup_top_drop(s->backup_top);
+    aio_context_release(aio_context);
 }
 
 void backup_do_checkpoint(BlockJob *job, Error **errp)

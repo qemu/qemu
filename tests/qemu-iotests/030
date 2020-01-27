@@ -530,6 +530,7 @@ class TestQuorum(iotests.QMPTestCase):
     children = []
     backing = []
 
+    @iotests.skip_if_unsupported(['quorum'])
     def setUp(self):
         opts = ['driver=quorum', 'vote-threshold=2']
 
@@ -560,9 +561,6 @@ class TestQuorum(iotests.QMPTestCase):
             os.remove(img)
 
     def test_stream_quorum(self):
-        if not iotests.supports_quorum():
-            return
-
         self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.children[0]),
                             qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.backing[0]),
                             'image file map matches backing file before streaming')

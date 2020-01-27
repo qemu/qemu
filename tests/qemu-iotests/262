@@ -71,9 +71,9 @@ with iotests.FilePath('img') as img_path, \
     iotests.log(vm_a.qmp('migrate', uri='exec:cat >%s' % (fifo)))
     with iotests.Timeout(3, 'Migration does not complete'):
         # Wait for the source first (which includes setup=setup)
-        vm_a.wait_migration()
+        vm_a.wait_migration('postmigrate')
         # Wait for the destination second (which does not)
-        vm_b.wait_migration()
+        vm_b.wait_migration('running')
 
     iotests.log(vm_a.qmp('query-migrate')['return']['status'])
     iotests.log(vm_b.qmp('query-migrate')['return']['status'])

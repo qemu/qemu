@@ -135,6 +135,8 @@ Pause/resume in RUNNING
 {"return": {}}
 
 Waiting for PENDING state...
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
@@ -186,6 +188,8 @@ Pause/resume in RUNNING
 {"return": {}}
 
 Waiting for PENDING state...
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
@@ -245,6 +249,8 @@ Pause/resume in RUNNING
 {"return": {}}
 
 Waiting for PENDING state...
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"return": [{"current-progress": 4194304, "id": "job0", "status": "pending", "total-progress": 4194304, "type": "backup"}]}
@@ -304,6 +310,8 @@ Pause/resume in RUNNING
 {"return": {}}
 
 Waiting for PENDING state...
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {"return": [{"current-progress": 4194304, "id": "job0", "status": "pending", "total-progress": 4194304, "type": "backup"}]}
