@@ -161,7 +161,7 @@ static void or1k_ompic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = or1k_ompic_properties;
+    device_class_set_props(dc, or1k_ompic_properties);
     dc->realize = or1k_ompic_realize;
     dc->vmsd = &vmstate_or1k_ompic;
 }

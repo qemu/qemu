@@ -293,7 +293,7 @@ static void mps2_scc_class_init(ObjectClass *klass, void *data)
     dc->realize = mps2_scc_realize;
     dc->vmsd = &mps2_scc_vmstate;
     dc->reset = mps2_scc_reset;
-    dc->props = mps2_scc_properties;
+    device_class_set_props(dc, mps2_scc_properties);
 }
 
 static const TypeInfo mps2_scc_info = {

@@ -599,7 +599,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 
     dc->realize = xilinx_axidma_realize,
     dc->reset = xilinx_axidma_reset;
-    dc->props = axidma_properties;
+    device_class_set_props(dc, axidma_properties);
 }
 
 static StreamSlaveClass xilinx_axidma_data_stream_class = {

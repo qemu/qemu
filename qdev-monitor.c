@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "migration/misc.h"
 #include "migration/migration.h"
+#include "qemu/cutils.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -256,6 +257,8 @@ int qdev_device_help(QemuOpts *opts)
     const char *driver;
     ObjectPropertyInfoList *prop_list;
     ObjectPropertyInfoList *prop;
+    GPtrArray *array;
+    int i;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
@@ -285,19 +288,20 @@ int qdev_device_help(QemuOpts *opts)
     } else {
         qemu_printf("There are no options for %s.\n", driver);
     }
+    array = g_ptr_array_new();
     for (prop = prop_list; prop; prop = prop->next) {
-        int len;
-        qemu_printf("  %s=<%s>%n", prop->value->name, prop->value->type, &len);
-        if (prop->value->has_description) {
-            if (len < 24) {
-                qemu_printf("%*s", 24 - len, "");
-            }
-            qemu_printf(" - %s\n", prop->value->description);
-        } else {
-            qemu_printf("\n");
-        }
+        g_ptr_array_add(array,
+                        object_property_help(prop->value->name,
+                                             prop->value->type,
+                                             prop->value->default_value,
+                                             prop->value->description));
     }
-
+    g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
+    for (i = 0; i < array->len; i++) {
+        printf("%s\n", (char *)array->pdata[i]);
+    }
+    g_ptr_array_set_free_func(array, g_free);
+    g_ptr_array_free(array, true);
     qapi_free_ObjectPropertyInfoList(prop_list);
     return 1;
 
@@ -748,7 +752,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     }
     class = object_get_class(OBJECT(dev));
     do {
-        qdev_print_props(mon, dev, DEVICE_CLASS(class)->props, indent);
+        qdev_print_props(mon, dev, DEVICE_CLASS(class)->props_, indent);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     bus_print_dev(dev->parent_bus, mon, dev, indent);

@@ -1292,7 +1292,7 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
                                     &pvs_k->parent_dc_realize);
     dc->reset = pvscsi_reset;
     dc->vmsd = &vmstate_pvscsi;
-    dc->props = pvscsi_properties;
+    device_class_set_props(dc, pvscsi_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     hc->unplug = pvscsi_hot_unplug;
     hc->plug = pvscsi_hotplug;

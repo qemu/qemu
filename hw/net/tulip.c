@@ -1004,7 +1004,7 @@ static void tulip_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x104f;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_pci_tulip;
-    dc->props = tulip_properties;
+    device_class_set_props(dc, tulip_properties);
     dc->reset = tulip_qdev_reset;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }

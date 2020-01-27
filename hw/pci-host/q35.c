@@ -202,7 +202,7 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
 
     hc->root_bus_path = q35_host_root_bus_path;
     dc->realize = q35_host_realize;
-    dc->props = q35_host_props;
+    device_class_set_props(dc, q35_host_props);
     /* Reason: needs to be wired up by pc_q35_init */
     dc->user_creatable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
@@ -682,7 +682,7 @@ static void mch_class_init(ObjectClass *klass, void *data)
     k->realize = mch_realize;
     k->config_write = mch_write_config;
     dc->reset = mch_reset;
-    dc->props = mch_props;
+    device_class_set_props(dc, mch_props);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Host bridge";
     dc->vmsd = &vmstate_mch;

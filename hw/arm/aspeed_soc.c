@@ -449,7 +449,7 @@ static void aspeed_soc_class_init(ObjectClass *oc, void *data)
     dc->realize = aspeed_soc_realize;
     /* Reason: Uses serial_hds and nd_table in realize() directly */
     dc->user_creatable = false;
-    dc->props = aspeed_soc_properties;
+    device_class_set_props(dc, aspeed_soc_properties);
 }
 
 static const TypeInfo aspeed_soc_type_info = {

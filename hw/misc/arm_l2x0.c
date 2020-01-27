@@ -182,7 +182,7 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_l2x0;
-    dc->props = l2x0_properties;
+    device_class_set_props(dc, l2x0_properties);
     dc->reset = l2x0_priv_reset;
 }
 

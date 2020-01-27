@@ -222,7 +222,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
-    dc->props = pcspk_properties;
+    device_class_set_props(dc, pcspk_properties);
     /* Reason: realize sets global pcspk_state */
     /* Reason: pit object link */
     dc->user_creatable = false;

@@ -606,7 +606,7 @@ static void floppy_drive_class_init(ObjectClass *klass, void *data)
     k->realize = floppy_drive_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_FLOPPY_BUS;
-    k->props = floppy_drive_properties;
+    device_class_set_props(k, floppy_drive_properties);
     k->desc = "virtual floppy drive";
 }
 
@@ -2827,7 +2827,7 @@ static void isabus_fdc_class_init(ObjectClass *klass, void *data)
     dc->fw_name = "fdc";
     dc->reset = fdctrl_external_reset_isa;
     dc->vmsd = &vmstate_isa_fdc;
-    dc->props = isa_fdc_properties;
+    device_class_set_props(dc, isa_fdc_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -2880,7 +2880,7 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = sysbus_fdc_properties;
+    device_class_set_props(dc, sysbus_fdc_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -2906,7 +2906,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = sun4m_fdc_properties;
+    device_class_set_props(dc, sun4m_fdc_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 

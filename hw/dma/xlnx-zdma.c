@@ -820,7 +820,7 @@ static void zdma_class_init(ObjectClass *klass, void *data)
 
     dc->reset = zdma_reset;
     dc->realize = zdma_realize;
-    dc->props = zdma_props;
+    device_class_set_props(dc, zdma_props);
     dc->vmsd = &vmstate_zdma;
 }
 

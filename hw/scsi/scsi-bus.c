@@ -1728,7 +1728,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     k->bus_type  = TYPE_SCSI_BUS;
     k->realize   = scsi_qdev_realize;
     k->unrealize = scsi_qdev_unrealize;
-    k->props     = scsi_props;
+    device_class_set_props(k, scsi_props);
 }
 
 static void scsi_dev_instance_init(Object *obj)

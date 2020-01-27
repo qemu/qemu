@@ -146,7 +146,7 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
 
     dc->reset = juart_reset;
     dc->vmsd = &vmstate_lm32_juart;
-    dc->props = lm32_juart_properties;
+    device_class_set_props(dc, lm32_juart_properties);
     dc->realize = lm32_juart_realize;
 }
 

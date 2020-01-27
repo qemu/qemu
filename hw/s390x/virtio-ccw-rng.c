@@ -56,7 +56,7 @@ static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_rng_realize;
-    dc->props = virtio_ccw_rng_properties;
+    device_class_set_props(dc, virtio_ccw_rng_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

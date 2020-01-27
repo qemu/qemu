@@ -281,7 +281,7 @@ static void i2c_slave_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
-    k->props = i2c_props;
+    device_class_set_props(k, i2c_props);
 }
 
 static const TypeInfo i2c_slave_type_info = {

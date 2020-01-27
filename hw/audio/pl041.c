@@ -640,7 +640,7 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->reset = pl041_device_reset;
     dc->vmsd = &vmstate_pl041;
-    dc->props = pl041_device_properties;
+    device_class_set_props(dc, pl041_device_properties);
 }
 
 static const TypeInfo pl041_device_info = {

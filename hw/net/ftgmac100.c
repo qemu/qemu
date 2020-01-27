@@ -1075,7 +1075,7 @@ static void ftgmac100_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_ftgmac100;
     dc->reset = ftgmac100_reset;
-    dc->props = ftgmac100_properties;
+    device_class_set_props(dc, ftgmac100_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->realize = ftgmac100_realize;
     dc->desc = "Faraday FTGMAC100 Gigabit Ethernet emulation";
@@ -1237,7 +1237,7 @@ static void aspeed_mii_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_mii_reset;
     dc->realize = aspeed_mii_realize;
     dc->desc = "Aspeed MII controller";
-    dc->props = aspeed_mii_properties;
+    device_class_set_props(dc, aspeed_mii_properties);
 }
 
 static const TypeInfo aspeed_mii_info = {

@@ -588,7 +588,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, void *data)
     vdc->get_config = vhost_user_gpu_get_config;
     vdc->set_config = vhost_user_gpu_set_config;
 
-    dc->props = vhost_user_gpu_properties;
+    device_class_set_props(dc, vhost_user_gpu_properties);
 }
 
 static const TypeInfo vhost_user_gpu_info = {

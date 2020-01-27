@@ -786,7 +786,7 @@ static void xendev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = xendev_properties;
+    device_class_set_props(dc, xendev_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     /* xen-backend devices can be plugged/unplugged dynamically */
     dc->user_creatable = true;
@@ -824,7 +824,7 @@ static void xen_sysdev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = xen_sysdev_properties;
+    device_class_set_props(dc, xen_sysdev_properties);
     dc->bus_type = TYPE_XENSYSBUS;
 }
 

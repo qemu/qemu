@@ -403,7 +403,7 @@ static void passthru_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "passthrough smartcard";
     dc->vmsd = &passthru_vmstate;
-    dc->props = passthru_card_properties;
+    device_class_set_props(dc, passthru_card_properties);
 }
 
 static const TypeInfo passthru_card_info = {

@@ -1296,7 +1296,7 @@ static void ppc460ex_pcie_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = ppc460ex_pcie_realize;
-    dc->props = ppc460ex_pcie_props;
+    device_class_set_props(dc, ppc460ex_pcie_props);
     dc->hotpluggable = false;
 }
 

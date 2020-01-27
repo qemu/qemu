@@ -116,7 +116,7 @@ static void armsse_cpuid_class_init(ObjectClass *klass, void *data)
      * does not need a reset function or VMState.
      */
 
-    dc->props = armsse_cpuid_props;
+    device_class_set_props(dc, armsse_cpuid_props);
 }
 
 static const TypeInfo armsse_cpuid_info = {

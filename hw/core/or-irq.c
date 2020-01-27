@@ -125,7 +125,7 @@ static void or_irq_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = or_irq_reset;
-    dc->props = or_irq_properties;
+    device_class_set_props(dc, or_irq_properties);
     dc->realize = or_irq_realize;
     dc->vmsd = &vmstate_or_irq;
 

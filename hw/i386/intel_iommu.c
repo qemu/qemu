@@ -3845,7 +3845,7 @@ static void vtd_class_init(ObjectClass *klass, void *data)
 
     dc->reset = vtd_reset;
     dc->vmsd = &vtd_vmstate;
-    dc->props = vtd_properties;
+    device_class_set_props(dc, vtd_properties);
     dc->hotpluggable = false;
     x86_class->realize = vtd_realize;
     x86_class->int_remap = vtd_int_remap;

@@ -1995,7 +1995,7 @@ static void sm501_sysbus_class_init(ObjectClass *klass, void *data)
     dc->realize = sm501_realize_sysbus;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Multimedia Companion";
-    dc->props = sm501_sysbus_properties;
+    device_class_set_props(dc, sm501_sysbus_properties);
     dc->reset = sm501_reset_sysbus;
     dc->vmsd = &vmstate_sm501_sysbus;
 }
@@ -2085,7 +2085,7 @@ static void sm501_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Display Controller";
-    dc->props = sm501_pci_properties;
+    device_class_set_props(dc, sm501_pci_properties);
     dc->reset = sm501_reset_pci;
     dc->hotpluggable = false;
     dc->vmsd = &vmstate_sm501_pci;

@@ -187,9 +187,8 @@ static void nios2_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, nios2_cpu_realizefn,
                                     &ncc->parent_realize);
-    dc->props = nios2_properties;
-    ncc->parent_reset = cc->reset;
-    cc->reset = nios2_cpu_reset;
+    device_class_set_props(dc, nios2_properties);
+    cpu_class_set_parent_reset(cc, nios2_cpu_reset, &ncc->parent_reset);
 
     cc->class_by_name = nios2_cpu_class_by_name;
     cc->has_work = nios2_cpu_has_work;

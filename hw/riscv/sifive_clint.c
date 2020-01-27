@@ -205,7 +205,7 @@ static void sifive_clint_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = sifive_clint_realize;
-    dc->props = sifive_clint_properties;
+    device_class_set_props(dc, sifive_clint_properties);
 }
 
 static const TypeInfo sifive_clint_info = {

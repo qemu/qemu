@@ -335,7 +335,7 @@ static void imx_gpio_class_init(ObjectClass *klass, void *data)
 
     dc->realize = imx_gpio_realize;
     dc->reset = imx_gpio_reset;
-    dc->props = imx_gpio_properties;
+    device_class_set_props(dc, imx_gpio_properties);
     dc->vmsd = &vmstate_imx_gpio;
     dc->desc = "i.MX GPIO controller";
 }

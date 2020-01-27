@@ -364,7 +364,7 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
     k->get_channel_info = pit_get_channel_info_common;
     k->post_load = pit_post_load;
     dc->reset = pit_reset;
-    dc->props = pit_properties;
+    device_class_set_props(dc, pit_properties);
 }
 
 static const TypeInfo pit_info = {

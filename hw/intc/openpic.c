@@ -1628,7 +1628,7 @@ static void openpic_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = openpic_realize;
-    dc->props = openpic_properties;
+    device_class_set_props(dc, openpic_properties);
     dc->reset = openpic_reset;
     dc->vmsd = &vmstate_openpic;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

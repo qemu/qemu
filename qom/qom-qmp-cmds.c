@@ -121,48 +121,6 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
     return ret;
 }
 
-/* Return a DevicePropertyInfo for a qdev property.
- *
- * If a qdev property with the given name does not exist, use the given default
- * type.  If the qdev property info should not be shown, return NULL.
- *
- * The caller must free the return value.
- */
-static ObjectPropertyInfo *make_device_property_info(ObjectClass *klass,
-                                                  const char *name,
-                                                  const char *default_type,
-                                                  const char *description)
-{
-    ObjectPropertyInfo *info;
-    Property *prop;
-
-    do {
-        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
-            if (strcmp(name, prop->name) != 0) {
-                continue;
-            }
-
-            info = g_malloc0(sizeof(*info));
-            info->name = g_strdup(prop->name);
-            info->type = default_type ? g_strdup(default_type)
-                                      : g_strdup(prop->info->name);
-            info->has_description = !!prop->info->description;
-            info->description = g_strdup(prop->info->description);
-            return info;
-        }
-        klass = object_class_get_parent(klass);
-    } while (klass != object_class_by_name(TYPE_DEVICE));
-
-    /* Not a qdev property, use the default type */
-    info = g_malloc0(sizeof(*info));
-    info->name = g_strdup(name);
-    info->type = g_strdup(default_type);
-    info->has_description = !!description;
-    info->description = g_strdup(description);
-
-    return info;
-}
-
 ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
                                                 Error **errp)
 {
@@ -214,11 +172,13 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
             continue;
         }
 
-        info = make_device_property_info(klass, prop->name, prop->type,
-                                         prop->description);
-        if (!info) {
-            continue;
-        }
+        info = g_new0(ObjectPropertyInfo, 1);
+        info->name = g_strdup(prop->name);
+        info->type = g_strdup(prop->type);
+        info->has_description = !!prop->description;
+        info->description = g_strdup(prop->description);
+        info->default_value = qobject_ref(prop->defval);
+        info->has_default_value = !!info->default_value;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;

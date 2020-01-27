@@ -320,7 +320,7 @@ static void mcf_uart_class_init(ObjectClass *oc, void *data)
 
     dc->realize = mcf_uart_realize;
     dc->reset = mcf_uart_reset;
-    dc->props = mcf_uart_properties;
+    device_class_set_props(dc, mcf_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

@@ -175,7 +175,7 @@ static void mips_cpc_class_init(ObjectClass *klass, void *data)
     dc->realize = mips_cpc_realize;
     dc->reset = mips_cpc_reset;
     dc->vmsd = &vmstate_mips_cpc;
-    dc->props = mips_cpc_properties;
+    device_class_set_props(dc, mips_cpc_properties);
 }
 
 static const TypeInfo mips_cpc_info = {

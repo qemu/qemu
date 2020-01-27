@@ -52,7 +52,7 @@ static void ramfb_class_initfn(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->realize = ramfb_realizefn;
-    dc->props = ramfb_properties;
+    device_class_set_props(dc, ramfb_properties);
     dc->desc = "ram framebuffer standalone device";
     dc->user_creatable = true;
 }

@@ -1764,7 +1764,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     dc->desc = "Intel Gigabit Ethernet";
     dc->reset = qdev_e1000_reset;
     dc->vmsd = &vmstate_e1000;
-    dc->props = e1000_properties;
+    device_class_set_props(dc, e1000_properties);
 }
 
 static void e1000_instance_init(Object *obj)

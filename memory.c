@@ -3104,7 +3104,7 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner)
         };
         GArray *fv_address_spaces;
         GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
-        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
+        AccelClass *ac = ACCEL_GET_CLASS(current_accel());
 
         if (ac->has_memory) {
             fvi.ac = ac;

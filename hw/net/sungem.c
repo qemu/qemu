@@ -1429,7 +1429,7 @@ static void sungem_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_sungem;
     dc->reset = sungem_reset;
-    dc->props = sungem_properties;
+    device_class_set_props(dc, sungem_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 

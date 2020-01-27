@@ -304,6 +304,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
         sign = 1;
+        /* fall through */
     case AUDIO_FORMAT_U8:
         mul = 1;
         break;

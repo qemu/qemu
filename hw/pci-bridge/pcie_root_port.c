@@ -174,7 +174,7 @@ static void rp_class_init(ObjectClass *klass, void *data)
     k->exit = rp_exit;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = rp_reset;
-    dc->props = rp_props;
+    device_class_set_props(dc, rp_props);
 }
 
 static const TypeInfo rp_info = {

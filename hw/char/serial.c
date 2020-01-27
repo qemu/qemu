@@ -1044,7 +1044,7 @@ static void serial_class_init(ObjectClass *klass, void* data)
     dc->realize = serial_realize;
     dc->unrealize = serial_unrealize;
     dc->vmsd = &vmstate_serial;
-    dc->props = serial_properties;
+    device_class_set_props(dc, serial_properties);
 }
 
 static const TypeInfo serial_info = {
@@ -1159,7 +1159,7 @@ static void serial_mm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->props = serial_mm_properties;
+    device_class_set_props(dc, serial_mm_properties);
     dc->realize = serial_mm_realize;
 }
 

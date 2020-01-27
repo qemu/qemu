@@ -76,7 +76,7 @@ static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
 
     k->realize = virtio_scsi_pci_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->props = virtio_scsi_pci_properties;
+    device_class_set_props(dc, virtio_scsi_pci_properties);
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_SCSI;
     pcidev_k->revision = 0x00;

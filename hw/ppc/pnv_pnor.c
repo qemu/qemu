@@ -121,7 +121,7 @@ static void pnv_pnor_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pnv_pnor_realize;
-    dc->props = pnv_pnor_properties;
+    device_class_set_props(dc, pnv_pnor_properties);
 }
 
 static const TypeInfo pnv_pnor_info = {

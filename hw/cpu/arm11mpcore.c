@@ -156,7 +156,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = mpcore_priv_realize;
-    dc->props = mpcore_priv_properties;
+    device_class_set_props(dc, mpcore_priv_properties);
 }
 
 static const TypeInfo mpcore_priv_info = {

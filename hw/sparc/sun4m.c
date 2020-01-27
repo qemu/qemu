@@ -761,7 +761,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = prom_properties;
+    device_class_set_props(dc, prom_properties);
     dc->realize = prom_realize;
 }
 
@@ -827,7 +827,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ram_realize;
-    dc->props = ram_properties;
+    device_class_set_props(dc, ram_properties);
 }
 
 static const TypeInfo ram_info = {

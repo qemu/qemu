@@ -417,7 +417,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->props = via_pm_properties;
+    device_class_set_props(dc, via_pm_properties);
 }
 
 static const TypeInfo via_pm_info = {

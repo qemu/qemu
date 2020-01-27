@@ -146,7 +146,7 @@ static void spapr_rng_class_init(ObjectClass *oc, void *data)
 
     dc->realize = spapr_rng_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->props = spapr_rng_properties;
+    device_class_set_props(dc, spapr_rng_properties);
     dc->hotpluggable = false;
 }
 

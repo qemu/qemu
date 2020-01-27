@@ -293,7 +293,7 @@ static void tz_msc_class_init(ObjectClass *klass, void *data)
     dc->realize = tz_msc_realize;
     dc->vmsd = &tz_msc_vmstate;
     dc->reset = tz_msc_reset;
-    dc->props = tz_msc_properties;
+    device_class_set_props(dc, tz_msc_properties);
 }
 
 static const TypeInfo tz_msc_info = {

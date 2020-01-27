@@ -1254,7 +1254,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vdc->set_config = virtio_gpu_set_config;
 
     dc->vmsd = &vmstate_virtio_gpu;
-    dc->props = virtio_gpu_properties;
+    device_class_set_props(dc, virtio_gpu_properties);
 }
 
 static const TypeInfo virtio_gpu_info = {

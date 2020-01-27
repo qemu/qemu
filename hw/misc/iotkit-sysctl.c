@@ -508,7 +508,7 @@ static void iotkit_sysctl_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &iotkit_sysctl_vmstate;
     dc->reset = iotkit_sysctl_reset;
-    dc->props = iotkit_sysctl_props;
+    device_class_set_props(dc, iotkit_sysctl_props);
     dc->realize = iotkit_sysctl_realize;
 }
 

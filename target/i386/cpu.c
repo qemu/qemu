@@ -2905,6 +2905,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
+                    { "model-id",
+                      "Intel Core Processor (Skylake, IBRS, no TSX)" },
                     { /* end of list */ }
                 }
             },
@@ -3028,6 +3030,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
+                    { "model-id",
+                      "Intel Xeon Processor (Skylake, IBRS, no TSX)" },
                     { /* end of list */ }
                 }
             },
@@ -4144,7 +4148,7 @@ static void max_x86_cpu_class_init(ObjectClass *oc, void *data)
     xcc->model_description =
         "Enables all features supported by the accelerator in the current host";
 
-    dc->props = max_x86_cpu_properties;
+    device_class_set_props(dc, max_x86_cpu_properties);
 }
 
 static void max_x86_cpu_initfn(Object *obj)
@@ -6416,6 +6420,19 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                        &cpu->mwait.ecx, &cpu->mwait.edx);
             env->features[FEAT_1_ECX] |= CPUID_EXT_MONITOR;
         }
+        if (kvm_enabled() && cpu->ucode_rev == 0) {
+            cpu->ucode_rev = kvm_arch_get_supported_msr_feature(kvm_state,
+                                                                MSR_IA32_UCODE_REV);
+        }
+    }
+
+    if (cpu->ucode_rev == 0) {
+        /* The default is the same as KVM's.  */
+        if (IS_AMD_CPU(env)) {
+            cpu->ucode_rev = 0x01000065;
+        } else {
+            cpu->ucode_rev = 0x100000000ULL;
+        }
     }
 
     /* mwait extended info: needed for Core compatibility */
@@ -7100,6 +7117,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_UINT32("min-level", X86CPU, env.cpuid_min_level, 0),
     DEFINE_PROP_UINT32("min-xlevel", X86CPU, env.cpuid_min_xlevel, 0),
     DEFINE_PROP_UINT32("min-xlevel2", X86CPU, env.cpuid_min_xlevel2, 0),
+    DEFINE_PROP_UINT64("ucode-rev", X86CPU, ucode_rev, 0),
     DEFINE_PROP_BOOL("full-cpuid-auto-level", X86CPU, full_cpuid_auto_level, true),
     DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor_id),
     DEFINE_PROP_BOOL("cpuid-0xb", X86CPU, enable_cpuid_0xb, true),
@@ -7147,10 +7165,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
                                     &xcc->parent_realize);
     device_class_set_parent_unrealize(dc, x86_cpu_unrealizefn,
                                       &xcc->parent_unrealize);
-    dc->props = x86_cpu_properties;
+    device_class_set_props(dc, x86_cpu_properties);
 
-    xcc->parent_reset = cc->reset;
-    cc->reset = x86_cpu_reset;
+    cpu_class_set_parent_reset(cc, x86_cpu_reset, &xcc->parent_reset);
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
     cc->class_by_name = x86_cpu_class_by_name;

@@ -521,7 +521,7 @@ static void sabre_class_init(ObjectClass *klass, void *data)
 
     dc->realize = sabre_realize;
     dc->reset = sabre_reset;
-    dc->props = sabre_properties;
+    device_class_set_props(dc, sabre_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     sbc->explicit_ofw_unit_address = sabre_ofw_unit_address;

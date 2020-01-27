@@ -178,7 +178,7 @@ static void mips_cps_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = mips_cps_realize;
-    dc->props = mips_cps_properties;
+    device_class_set_props(dc, mips_cps_properties);
 }
 
 static const TypeInfo mips_cps_info = {

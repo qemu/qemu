@@ -561,7 +561,7 @@ static void mips_itu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = mips_itu_properties;
+    device_class_set_props(dc, mips_itu_properties);
     dc->realize = mips_itu_realize;
     dc->reset = mips_itu_reset;
 }

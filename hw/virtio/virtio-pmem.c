@@ -165,7 +165,7 @@ static void virtio_pmem_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_CLASS(klass);
 
-    dc->props = virtio_pmem_properties;
+    device_class_set_props(dc, virtio_pmem_properties);
 
     vdc->realize = virtio_pmem_realize;
     vdc->unrealize = virtio_pmem_unrealize;

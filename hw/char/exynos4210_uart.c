@@ -710,7 +710,7 @@ static void exynos4210_uart_class_init(ObjectClass *klass, void *data)
 
     dc->realize = exynos4210_uart_realize;
     dc->reset = exynos4210_uart_reset;
-    dc->props = exynos4210_uart_properties;
+    device_class_set_props(dc, exynos4210_uart_properties);
     dc->vmsd = &vmstate_exynos4210_uart;
 }
 

@@ -1083,7 +1083,7 @@ static void sl_nand_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_sl_nand_info;
-    dc->props = sl_nand_properties;
+    device_class_set_props(dc, sl_nand_properties);
     dc->realize = sl_nand_realize;
     /* Reason: init() method uses drive_get() */
     dc->user_creatable = false;

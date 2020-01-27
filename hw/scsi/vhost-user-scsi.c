@@ -197,7 +197,7 @@ static void vhost_user_scsi_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
 
-    dc->props = vhost_user_scsi_properties;
+    device_class_set_props(dc, vhost_user_scsi_properties);
     dc->vmsd = &vmstate_vhost_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vhost_user_scsi_realize;

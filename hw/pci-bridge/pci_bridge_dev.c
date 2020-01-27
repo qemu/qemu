@@ -258,7 +258,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     k->is_bridge = true;
     dc->desc = "Standard PCI Bridge";
     dc->reset = qdev_pci_bridge_dev_reset;
-    dc->props = pci_bridge_dev_properties;
+    device_class_set_props(dc, pci_bridge_dev_properties);
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     hc->plug = pci_bridge_dev_plug_cb;

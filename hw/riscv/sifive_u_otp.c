@@ -171,7 +171,7 @@ static void sifive_u_otp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = sifive_u_otp_properties;
+    device_class_set_props(dc, sifive_u_otp_properties);
     dc->realize = sifive_u_otp_realize;
     dc->reset = sifive_u_otp_reset;
 }

@@ -121,7 +121,7 @@ static void iotkit_sysinfo_class_init(ObjectClass *klass, void *data)
      * does not need a reset function or VMState.
      */
 
-    dc->props = iotkit_sysinfo_props;
+    device_class_set_props(dc, iotkit_sysinfo_props);
 }
 
 static const TypeInfo iotkit_sysinfo_info = {

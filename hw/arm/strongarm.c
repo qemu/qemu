@@ -1327,7 +1327,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
     dc->desc = "StrongARM UART controller";
     dc->reset = strongarm_uart_reset;
     dc->vmsd = &vmstate_strongarm_uart_regs;
-    dc->props = strongarm_uart_properties;
+    device_class_set_props(dc, strongarm_uart_properties);
     dc->realize = strongarm_uart_realize;
 }
 

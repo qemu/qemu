@@ -1025,7 +1025,7 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = xilinx_enet_realize;
-    dc->props = xilinx_enet_properties;
+    device_class_set_props(dc, xilinx_enet_properties);
     dc->reset = xilinx_axienet_reset;
 }
 

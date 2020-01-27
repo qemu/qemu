@@ -126,7 +126,7 @@ compile_object() {
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags
+  do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $QEMU_LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -523,10 +523,11 @@ for opt do
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*) QEMU_CFLAGS="$QEMU_CFLAGS $optarg"
+                    QEMU_LDFLAGS="$QEMU_LDFLAGS $optarg"
   ;;
   --extra-cxxflags=*) QEMU_CXXFLAGS="$QEMU_CXXFLAGS $optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="$LDFLAGS $optarg"
+  --extra-ldflags=*) QEMU_LDFLAGS="$QEMU_LDFLAGS $optarg"
                      EXTRA_LDFLAGS="$optarg"
   ;;
   --enable-debug-info) debug_info="yes"
@@ -599,7 +600,6 @@ QEMU_INCLUDES="-iquote . -iquote \$(SRC_PATH) -iquote \$(SRC_PATH)/accel/tcg -iq
 QEMU_INCLUDES="$QEMU_INCLUDES -iquote \$(SRC_PATH)/disas/libvixl"
 if test "$debug_info" = "yes"; then
     CFLAGS="-g $CFLAGS"
-    LDFLAGS="-g $LDFLAGS"
 fi
 
 # running configure in the source tree?
@@ -845,12 +845,12 @@ Darwin)
   LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
-    LDFLAGS="-arch x86_64 $LDFLAGS"
+    QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
   fi
   cocoa="yes"
   audio_drv_list="coreaudio try-sdl"
   audio_possible_drivers="coreaudio sdl"
-  LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
+  QEMU_LDFLAGS="-framework CoreFoundation -framework IOKit $QEMU_LDFLAGS"
   libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
@@ -1025,7 +1025,7 @@ for opt do
   ;;
   --static)
     static="yes"
-    LDFLAGS="-static $LDFLAGS"
+    QEMU_LDFLAGS="-static $QEMU_LDFLAGS"
     QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
   --mandir=*) mandir="$optarg"
@@ -1551,42 +1551,42 @@ done
 case "$cpu" in
     ppc)
            CPU_CFLAGS="-m32"
-           LDFLAGS="-m32 $LDFLAGS"
+           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
            ;;
     ppc64)
            CPU_CFLAGS="-m64"
-           LDFLAGS="-m64 $LDFLAGS"
+           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
            ;;
     sparc)
            CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc"
-           LDFLAGS="-m32 -mv8plus $LDFLAGS"
+           QEMU_LDFLAGS="-m32 -mv8plus $QEMU_LDFLAGS"
            ;;
     sparc64)
            CPU_CFLAGS="-m64 -mcpu=ultrasparc"
-           LDFLAGS="-m64 $LDFLAGS"
+           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
            ;;
     s390)
            CPU_CFLAGS="-m31"
-           LDFLAGS="-m31 $LDFLAGS"
+           QEMU_LDFLAGS="-m31 $QEMU_LDFLAGS"
            ;;
     s390x)
            CPU_CFLAGS="-m64"
-           LDFLAGS="-m64 $LDFLAGS"
+           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
            ;;
     i386)
            CPU_CFLAGS="-m32"
-           LDFLAGS="-m32 $LDFLAGS"
+           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
            ;;
     x86_64)
            # ??? Only extremely old AMD cpus do not have cmpxchg16b.
            # If we truly care, we should simply detect this case at
            # runtime and generate the fallback to serial emulation.
            CPU_CFLAGS="-m64 -mcx16"
-           LDFLAGS="-m64 $LDFLAGS"
+           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
            ;;
     x32)
            CPU_CFLAGS="-mx32"
-           LDFLAGS="-mx32 $LDFLAGS"
+           QEMU_LDFLAGS="-mx32 $QEMU_LDFLAGS"
            ;;
     # No special flags required for other host CPUs
 esac
@@ -1967,6 +1967,7 @@ EOF
     if do_cc $QEMU_CFLAGS -Werror $flag -c -o $TMPO $TMPC &&
        compile_prog "-Werror $flag" ""; then
       QEMU_CFLAGS="$QEMU_CFLAGS $flag"
+      QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
       sp_on=1
       break
     fi
@@ -2051,10 +2052,10 @@ EOF
 
   if compile_prog "-fPIE -DPIE" "-pie"; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
-    LDFLAGS="-pie $LDFLAGS"
+    QEMU_LDFLAGS="-pie $QEMU_LDFLAGS"
     pie="yes"
     if compile_prog "" "-Wl,-z,relro -Wl,-z,now" ; then
-      LDFLAGS="-Wl,-z,relro -Wl,-z,now $LDFLAGS"
+      QEMU_LDFLAGS="-Wl,-z,relro -Wl,-z,now $QEMU_LDFLAGS"
     fi
   else
     if test "$pie" = "yes"; then
@@ -4095,6 +4096,8 @@ if test "$fdt_required" = "yes"; then
       "targets which need it (by specifying a cut down --target-list)."
   fi
   fdt=yes
+elif test "$fdt" != "yes" ; then
+  fdt=no
 fi
 
 if test "$fdt" != "no" ; then
@@ -5854,7 +5857,7 @@ EOF
     hvf='no'
   else
     hvf='yes'
-    LDFLAGS="-framework Hypervisor $LDFLAGS"
+    QEMU_LDFLAGS="-framework Hypervisor $QEMU_LDFLAGS"
   fi
 fi
 
@@ -6088,8 +6091,8 @@ esac
 write_c_skeleton
 
 if test "$gcov" = "yes" ; then
-  CFLAGS="-fprofile-arcs -ftest-coverage -g $CFLAGS"
-  LDFLAGS="-fprofile-arcs -ftest-coverage $LDFLAGS"
+  QEMU_CFLAGS="-fprofile-arcs -ftest-coverage -g $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-fprofile-arcs -ftest-coverage $QEMU_LDFLAGS"
 elif test "$fortify_source" = "yes" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
 elif test "$debug" = "no"; then
@@ -6097,7 +6100,8 @@ elif test "$debug" = "no"; then
 fi
 
 if test "$have_asan" = "yes"; then
-  CFLAGS="-fsanitize=address $CFLAGS"
+  QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
   if test "$have_asan_iface_h" = "no" ; then
       echo "ASAN build enabled, but ASAN header missing." \
            "Without code annotation, the report may be inferior."
@@ -6107,7 +6111,8 @@ if test "$have_asan" = "yes"; then
   fi
 fi
 if test "$have_ubsan" = "yes"; then
-  CFLAGS="-fsanitize=undefined $CFLAGS"
+  QEMU_CFLAGS="-fsanitize=undefined $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
 fi
 
 ##########################################
@@ -6142,7 +6147,7 @@ fi
 
 if test "$solaris" = "no" ; then
     if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
-        LDFLAGS="-Wl,--warn-common $LDFLAGS"
+        QEMU_LDFLAGS="-Wl,--warn-common $QEMU_LDFLAGS"
     fi
 fi
 
@@ -6157,7 +6162,7 @@ fi
 if test "$mingw32" = "yes" ; then
     for flag in --dynamicbase --no-seh --nxcompat; do
         if ld_has $flag ; then
-            LDFLAGS="-Wl,$flag $LDFLAGS"
+            QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
         fi
     done
 fi
@@ -6392,7 +6397,7 @@ EOF
 
     update_cxxflags
 
-    if do_cxx $QEMU_CXXFLAGS -o $TMPE $TMPCXX $TMPO $LDFLAGS; then
+    if do_cxx $QEMU_CXXFLAGS -o $TMPE $TMPCXX $TMPO $QEMU_LDFLAGS; then
         # C++ compiler $cxx works ok with C compiler $cc
         :
     else
@@ -6444,7 +6449,6 @@ echo "Objective-C compiler $objcc"
 echo "ARFLAGS           $ARFLAGS"
 echo "CFLAGS            $CFLAGS"
 echo "QEMU_CFLAGS       $QEMU_CFLAGS"
-echo "LDFLAGS           $LDFLAGS"
 echo "QEMU_LDFLAGS      $QEMU_LDFLAGS"
 echo "make              $make"
 echo "install           $install"
@@ -7502,9 +7506,8 @@ if test "$sparse" = "yes" ; then
   echo "HOST_CC      := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
   echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
 fi
-echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
-echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
+echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "LD_REL_FLAGS=$LD_REL_FLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
@@ -7830,7 +7833,7 @@ if test "$target_bsd_user" = "yes" ; then
 fi
 
 
-# generate QEMU_CFLAGS/LDFLAGS for targets
+# generate QEMU_CFLAGS/QEMU_LDFLAGS for targets
 
 cflags=""
 ldflags=""
@@ -7951,7 +7954,7 @@ if test "$TARGET_ARCH" = "s390x" && test "$target_softmmu" = "yes" && \
     fi
 fi
 
-echo "LDFLAGS+=$ldflags" >> $config_target_mak
+echo "QEMU_LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
 done # for target in $targets

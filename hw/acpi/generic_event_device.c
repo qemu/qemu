@@ -282,7 +282,7 @@ static void acpi_ged_class_init(ObjectClass *class, void *data)
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(class);
 
     dc->desc = "ACPI Generic Event Device";
-    dc->props = acpi_ged_properties;
+    device_class_set_props(dc, acpi_ged_properties);
     dc->vmsd = &vmstate_acpi_ged;
 
     hc->plug = acpi_ged_device_plug_cb;

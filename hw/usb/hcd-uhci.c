@@ -1349,9 +1349,9 @@ static void uhci_data_class_init(ObjectClass *klass, void *data)
     if (!info->unplug) {
         /* uhci controllers in companion setups can't be hotplugged */
         dc->hotpluggable = false;
-        dc->props = uhci_properties_companion;
+        device_class_set_props(dc, uhci_properties_companion);
     } else {
-        dc->props = uhci_properties_standalone;
+        device_class_set_props(dc, uhci_properties_standalone);
     }
     u->info = *info;
 }

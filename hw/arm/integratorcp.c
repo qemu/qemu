@@ -673,7 +673,7 @@ static void core_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = core_properties;
+    device_class_set_props(dc, core_properties);
     dc->realize = integratorcm_realize;
     dc->vmsd = &vmstate_integratorcm;
 }

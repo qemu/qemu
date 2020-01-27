@@ -222,7 +222,7 @@ static void rs6000mc_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = rs6000mc_realize;
     dc->vmsd = &vmstate_rs6000mc;
-    dc->props = rs6000mc_properties;
+    device_class_set_props(dc, rs6000mc_properties);
 }
 
 static const TypeInfo rs6000mc_info = {

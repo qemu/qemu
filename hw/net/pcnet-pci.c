@@ -272,7 +272,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->reset = pci_reset;
     dc->vmsd = &vmstate_pci_pcnet;
-    dc->props = pcnet_properties;
+    device_class_set_props(dc, pcnet_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 

@@ -740,7 +740,7 @@ static void xive_tctx_class_init(ObjectClass *klass, void *data)
     dc->desc = "XIVE Interrupt Thread Context";
     dc->realize = xive_tctx_realize;
     dc->vmsd = &vmstate_xive_tctx;
-    dc->props = xive_tctx_properties;
+    device_class_set_props(dc, xive_tctx_properties);
     /*
      * Reason: part of XIVE interrupt controller, needs to be wired up
      * by xive_tctx_create().
@@ -1192,7 +1192,7 @@ static void xive_source_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc    = "XIVE Interrupt Source";
-    dc->props   = xive_source_properties;
+    device_class_set_props(dc, xive_source_properties);
     dc->realize = xive_source_realize;
     dc->vmsd    = &vmstate_xive_source;
     /*
@@ -1736,7 +1736,7 @@ static void xive_router_class_init(ObjectClass *klass, void *data)
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
 
     dc->desc    = "XIVE Router Engine";
-    dc->props   = xive_router_properties;
+    device_class_set_props(dc, xive_router_properties);
     /* Parent is SysBusDeviceClass. No need to call its realize hook */
     dc->realize = xive_router_realize;
     xnc->notify = xive_router_notify;
@@ -1899,7 +1899,7 @@ static void xive_end_source_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc    = "XIVE END Source";
-    dc->props   = xive_end_source_properties;
+    device_class_set_props(dc, xive_end_source_properties);
     dc->realize = xive_end_source_realize;
     /*
      * Reason: part of XIVE interrupt controller, needs to be wired up,

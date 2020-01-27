@@ -348,6 +348,7 @@ typedef enum X86Seg {
 #define MSR_IA32_SPEC_CTRL              0x48
 #define MSR_VIRT_SSBD                   0xc001011f
 #define MSR_IA32_PRED_CMD               0x49
+#define MSR_IA32_UCODE_REV              0x8b
 #define MSR_IA32_CORE_CAPABILITY        0xcf
 
 #define MSR_IA32_ARCH_CAPABILITIES      0x10a
@@ -1626,6 +1627,8 @@ struct X86CPU {
 
     CPUNegativeOffsetState neg;
     CPUX86State env;
+
+    uint64_t ucode_rev;
 
     uint32_t hyperv_spinlock_attempts;
     char *hyperv_vendor_id;

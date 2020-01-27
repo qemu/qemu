@@ -664,8 +664,6 @@ static void exec_lods(struct CPUX86State *env, struct x86_decode *decode)
     RIP(env) += decode->len;
 }
 
-#define MSR_IA32_UCODE_REV 0x00000017
-
 void simulate_rdmsr(struct CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -681,7 +679,7 @@ void simulate_rdmsr(struct CPUState *cpu)
         val = cpu_get_apic_base(X86_CPU(cpu)->apic_state);
         break;
     case MSR_IA32_UCODE_REV:
-        val = (0x100000000ULL << 32) | 0x100000000ULL;
+        val = x86_cpu->ucode_rev;
         break;
     case MSR_EFER:
         val = rvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER);

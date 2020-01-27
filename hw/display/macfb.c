@@ -437,7 +437,7 @@ static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
     dc->desc = "SysBus Macintosh framebuffer";
     dc->reset = macfb_sysbus_reset;
     dc->vmsd = &vmstate_macfb;
-    dc->props = macfb_sysbus_properties;
+    device_class_set_props(dc, macfb_sysbus_properties);
 }
 
 static void macfb_nubus_class_init(ObjectClass *klass, void *data)
@@ -450,7 +450,7 @@ static void macfb_nubus_class_init(ObjectClass *klass, void *data)
     dc->desc = "Nubus Macintosh framebuffer";
     dc->reset = macfb_nubus_reset;
     dc->vmsd = &vmstate_macfb;
-    dc->props = macfb_nubus_properties;
+    device_class_set_props(dc, macfb_nubus_properties);
 }
 
 static TypeInfo macfb_sysbus_info = {

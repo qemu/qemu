@@ -154,7 +154,7 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
 
     dc->realize = ipmi_isa_realize;
-    dc->props = ipmi_isa_properties;
+    device_class_set_props(dc, ipmi_isa_properties);
 
     iic->get_backend_data = isa_ipmi_kcs_get_backend_data;
     ipmi_kcs_class_init(iic);

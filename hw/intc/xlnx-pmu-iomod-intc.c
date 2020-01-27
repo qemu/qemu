@@ -539,7 +539,7 @@ static void xlnx_pmu_io_intc_class_init(ObjectClass *klass, void *data)
     dc->reset = xlnx_pmu_io_intc_reset;
     dc->realize = xlnx_pmu_io_intc_realize;
     dc->vmsd = &vmstate_xlnx_pmu_io_intc;
-    dc->props = xlnx_pmu_io_intc_properties;
+    device_class_set_props(dc, xlnx_pmu_io_intc_properties);
 }
 
 static const TypeInfo xlnx_pmu_io_intc_info = {

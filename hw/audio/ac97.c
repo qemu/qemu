@@ -1420,7 +1420,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Intel 82801AA AC97 Audio";
     dc->vmsd = &vmstate_ac97;
-    dc->props = ac97_properties;
+    device_class_set_props(dc, ac97_properties);
     dc->reset = ac97_on_reset;
 }
 

@@ -100,7 +100,12 @@ typedef struct DeviceClass {
     DECLARE_BITMAP(categories, DEVICE_CATEGORY_MAX);
     const char *fw_name;
     const char *desc;
-    Property *props;
+
+    /*
+     * The underscore at the end ensures a compile-time error if someone
+     * assigns to dc->props instead of using device_class_set_props.
+     */
+    Property *props_;
 
     /*
      * Can this device be instantiated with -device / device_add?
@@ -258,8 +263,8 @@ struct PropertyInfo {
     const char *description;
     const QEnumLookup *enum_table;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
-    void (*set_default_value)(Object *obj, const Property *prop);
-    void (*create)(Object *obj, Property *prop, Error **errp);
+    void (*set_default_value)(ObjectProperty *op, const Property *prop);
+    void (*create)(ObjectClass *oc, Property *prop, Error **errp);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     ObjectPropertyRelease *release;
@@ -433,6 +438,8 @@ void qdev_machine_init(void);
  */
 void device_reset(DeviceState *dev);
 
+void device_class_set_props(DeviceClass *dc, Property *props);
+
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
                                    DeviceReset *parent_reset);
@@ -456,8 +463,6 @@ extern bool qdev_hotplug;
 extern bool qdev_hot_removed;
 
 char *qdev_get_dev_path(DeviceState *dev);
-
-GSList *qdev_build_hotpluggable_device_list(Object *peripheral);
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp);
 

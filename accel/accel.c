@@ -63,6 +63,11 @@ int accel_init_machine(AccelState *accel, MachineState *ms)
     return ret;
 }
 
+AccelState *current_accel(void)
+{
+    return current_machine->accelerator;
+}
+
 void accel_setup_post(MachineState *ms)
 {
     AccelState *accel = ms->accelerator;

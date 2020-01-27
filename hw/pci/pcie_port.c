@@ -133,7 +133,7 @@ static void pcie_port_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->props = pcie_port_props;
+    device_class_set_props(dc, pcie_port_props);
 }
 
 static const TypeInfo pcie_port_type_info = {
@@ -155,7 +155,7 @@ static void pcie_slot_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
-    dc->props = pcie_slot_props;
+    device_class_set_props(dc, pcie_slot_props);
     hc->pre_plug = pcie_cap_slot_pre_plug_cb;
     hc->plug = pcie_cap_slot_plug_cb;
     hc->unplug = pcie_cap_slot_unplug_cb;

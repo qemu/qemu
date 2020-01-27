@@ -1456,7 +1456,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     uc->unrealize      = ccid_unrealize;
     dc->desc = "CCID Rev 1.1 smartcard reader";
     dc->vmsd = &ccid_vmstate;
-    dc->props = ccid_properties;
+    device_class_set_props(dc, ccid_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     hc->unplug = qdev_simple_device_unplug_cb;
 }
@@ -1478,7 +1478,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_CCID_BUS;
     k->realize = ccid_card_realize;
     k->unrealize = ccid_card_unrealize;
-    k->props = ccid_props;
+    device_class_set_props(k, ccid_props);
 }
 
 static const TypeInfo ccid_card_type_info = {

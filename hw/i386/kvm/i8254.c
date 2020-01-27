@@ -322,7 +322,7 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
     k->set_channel_gate = kvm_pit_set_gate;
     k->get_channel_info = kvm_pit_get_channel_info;
     dc->reset = kvm_pit_reset;
-    dc->props = kvm_pit_properties;
+    device_class_set_props(dc, kvm_pit_properties);
 }
 
 static const TypeInfo kvm_pit_info = {

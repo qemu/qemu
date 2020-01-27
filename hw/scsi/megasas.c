@@ -2511,7 +2511,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     e->osts = info->osts;
     e->product_name = info->product_name;
     e->product_version = info->product_version;
-    dc->props = info->props;
+    device_class_set_props(dc, info->props);
     dc->reset = megasas_scsi_reset;
     dc->vmsd = info->vmsd;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);

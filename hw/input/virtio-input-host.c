@@ -226,7 +226,7 @@ static void virtio_input_host_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd           = &vmstate_virtio_input_host;
-    dc->props          = virtio_input_host_properties;
+    device_class_set_props(dc, virtio_input_host_properties);
     vic->realize       = virtio_input_host_realize;
     vic->unrealize     = virtio_input_host_unrealize;
     vic->handle_status = virtio_input_host_handle_status;

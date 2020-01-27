@@ -1409,7 +1409,7 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "network";
     dc->vmsd = &vmstate_usb_net;
-    dc->props = net_properties;
+    device_class_set_props(dc, net_properties);
 }
 
 static const TypeInfo net_info = {

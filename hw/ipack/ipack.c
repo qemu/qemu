@@ -88,7 +88,7 @@ static void ipack_device_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_IPACK_BUS;
     k->realize = ipack_device_realize;
     k->unrealize = ipack_device_unrealize;
-    k->props = ipack_device_props;
+    device_class_set_props(k, ipack_device_props);
 }
 
 const VMStateDescription vmstate_ipack_device = {

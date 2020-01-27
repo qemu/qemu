@@ -1021,7 +1021,7 @@ static void mac_via_class_init(ObjectClass *oc, void *data)
     dc->realize = mac_via_realize;
     dc->reset = mac_via_reset;
     dc->vmsd = &vmstate_mac_via;
-    dc->props = mac_via_properties;
+    device_class_set_props(dc, mac_via_properties);
 }
 
 static TypeInfo mac_via_info = {

@@ -865,7 +865,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
     dc->reset = escc_reset;
     dc->realize = escc_realize;
     dc->vmsd = &vmstate_escc;
-    dc->props = escc_properties;
+    device_class_set_props(dc, escc_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

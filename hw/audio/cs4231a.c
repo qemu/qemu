@@ -706,7 +706,7 @@ static void cs4231a_class_initfn (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
-    dc->props = cs4231a_properties;
+    device_class_set_props(dc, cs4231a_properties);
 }
 
 static const TypeInfo cs4231a_info = {

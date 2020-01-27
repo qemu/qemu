@@ -153,7 +153,7 @@ static void x86_iommu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = x86_iommu_realize;
-    dc->props = x86_iommu_properties;
+    device_class_set_props(dc, x86_iommu_properties);
 }
 
 bool x86_iommu_ir_supported(X86IOMMUState *s)

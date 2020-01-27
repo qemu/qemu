@@ -566,7 +566,7 @@ static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PXA2xx DMA controller";
     dc->vmsd = &vmstate_pxa2xx_dma;
-    dc->props = pxa2xx_dma_properties;
+    device_class_set_props(dc, pxa2xx_dma_properties);
     dc->realize = pxa2xx_dma_realize;
 }
 

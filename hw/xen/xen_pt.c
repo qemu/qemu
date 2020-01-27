@@ -964,7 +964,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     k->config_write = xen_pt_pci_write_config;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "Assign an host PCI device with Xen";
-    dc->props = xen_pci_passthrough_properties;
+    device_class_set_props(dc, xen_pci_passthrough_properties);
 };
 
 static void xen_pci_passthrough_finalize(Object *obj)

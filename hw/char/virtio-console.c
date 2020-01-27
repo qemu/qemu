@@ -287,7 +287,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     k->set_guest_connected = set_guest_connected;
     k->enable_backend = virtconsole_enable_backend;
     k->guest_writable = guest_writable;
-    dc->props = virtserialport_properties;
+    device_class_set_props(dc, virtserialport_properties);
 }
 
 static const TypeInfo virtserialport_info = {

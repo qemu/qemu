@@ -1886,7 +1886,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
 
-    dc->props = virtio_pci_properties;
+    device_class_set_props(dc, virtio_pci_properties);
     k->realize = virtio_pci_realize;
     k->exit = virtio_pci_exit;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1925,7 +1925,7 @@ static void virtio_pci_generic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = virtio_pci_generic_properties;
+    device_class_set_props(dc, virtio_pci_generic_properties);
 }
 
 static void virtio_pci_transitional_instance_init(Object *obj)

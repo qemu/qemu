@@ -341,7 +341,7 @@ static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
 
     dc->reset = milkymist_vgafb_reset;
     dc->vmsd = &vmstate_milkymist_vgafb;
-    dc->props = milkymist_vgafb_properties;
+    device_class_set_props(dc, milkymist_vgafb_properties);
     dc->realize = milkymist_vgafb_realize;
 }
 

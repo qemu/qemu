@@ -230,7 +230,7 @@ static void lm32_timer_class_init(ObjectClass *klass, void *data)
     dc->realize = lm32_timer_realize;
     dc->reset = timer_reset;
     dc->vmsd = &vmstate_lm32_timer;
-    dc->props = lm32_timer_properties;
+    device_class_set_props(dc, lm32_timer_properties);
 }
 
 static const TypeInfo lm32_timer_info = {

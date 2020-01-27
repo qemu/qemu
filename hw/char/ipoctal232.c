@@ -588,7 +588,7 @@ static void ipoctal_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc    = "GE IP-Octal 232 8-channel RS-232 IndustryPack";
-    dc->props   = ipoctal_properties;
+    device_class_set_props(dc, ipoctal_properties);
     dc->vmsd    = &vmstate_ipoctal;
 }
 

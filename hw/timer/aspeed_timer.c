@@ -283,7 +283,7 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
         if (old_reload || !t->reload) {
             break;
         }
-
+        /* fall through to re-enable */
     case TIMER_REG_STATUS:
         if (timer_enabled(t)) {
             uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -685,7 +685,7 @@ static void timer_class_init(ObjectClass *klass, void *data)
     dc->reset = aspeed_timer_reset;
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
-    dc->props = aspeed_timer_properties;
+    device_class_set_props(dc, aspeed_timer_properties);
 }
 
 static const TypeInfo aspeed_timer_info = {
