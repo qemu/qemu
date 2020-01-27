@@ -919,6 +919,6 @@ all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/qtest/*.d)
--include $(wildcard tests/qtest/qos/*.d)
+-include $(wildcard tests/qtest/libqos/*.d)
 
 endif
