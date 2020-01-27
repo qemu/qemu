@@ -582,7 +582,7 @@ e1000e_rss_calc_hash(E1000ECore *core,
         type = NetPktRssIpV4Tcp;
         break;
     case E1000_MRQ_RSS_TYPE_IPV6TCP:
-        type = NetPktRssIpV6Tcp;
+        type = NetPktRssIpV6TcpEx;
         break;
     case E1000_MRQ_RSS_TYPE_IPV6:
         type = NetPktRssIpV6;
