@@ -135,6 +135,8 @@ config XIVE_SPAPR
     default y
     depends on PSERIES
     select XIVE
+    select PCI
+    select PCIE_PORT
 
 config XIVE_KVM
     bool

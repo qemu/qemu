@@ -20,3 +20,4 @@ common-obj-$(CONFIG_PCI_EXPRESS_GENERIC_BRIDGE) += gpex.o
 common-obj-$(CONFIG_PCI_EXPRESS_XILINX) += xilinx-pcie.o
 
 common-obj-$(CONFIG_PCI_EXPRESS_DESIGNWARE) += designware.o
+obj-$(CONFIG_POWERNV) += pnv_phb4.o pnv_phb4_pec.o
