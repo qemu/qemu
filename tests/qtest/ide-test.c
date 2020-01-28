@@ -445,104 +445,81 @@ static void test_bmdma_trim(void)
     test_bmdma_teardown(qts);
 }
 
-static void test_bmdma_short_prdt(void)
+/*
+ * This test is developed according to the Programming Interface for
+ * Bus Master IDE Controller (Revision 1.0 5/16/94)
+ */
+static void test_bmdma_various_prdts(void)
 {
-    QTestState *qts;
-    QPCIDevice *dev;
-    QPCIBar bmdma_bar, ide_bar;
-    uint8_t status;
+    int sectors = 0;
+    uint32_t size = 0;
 
-    PrdtEntry prdt[] = {
-        {
-            .addr = 0,
-            .size = cpu_to_le32(0x10 | PRDT_EOT),
-        },
-    };
+    for (sectors = 1; sectors <= 256; sectors *= 2) {
+        QTestState *qts = NULL;
+        QPCIDevice *dev = NULL;
+        QPCIBar bmdma_bar, ide_bar;
 
-    qts = test_bmdma_setup();
+        qts = test_bmdma_setup();
+        dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
 
-    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+        for (size = 0; size < 65536; size += 256) {
+            uint32_t req_size = sectors * 512;
+            uint32_t prd_size = size & 0xfffe; /* bit 0 is always set to 0 */
+            uint8_t ret = 0;
+            uint8_t req_status = 0;
+            uint8_t abort_req_status = 0;
+            PrdtEntry prdt[] = {
+                {
+                    .addr = 0,
+                    .size = cpu_to_le32(size | PRDT_EOT),
+                },
+            };
 
-    /* Normal request */
-    status = send_dma_request(qts, CMD_READ_DMA, 0, 1,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, 0);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
+            /* A value of zero in PRD size indicates 64K */
+            if (prd_size == 0) {
+                prd_size = 65536;
+            }
 
-    /* Abort the request before it completes */
-    status = send_dma_request(qts, CMD_READ_DMA | CMDF_ABORT, 0, 1,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, 0);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
-    free_pci_device(dev);
-    test_bmdma_teardown(qts);
-}
+            /*
+             * 1. If PRDs specified a smaller size than the IDE transfer
+             * size, then the Interrupt and Active bits in the Controller
+             * status register are not set (Error Condition).
+             *
+             * 2. If the size of the physical memory regions was equal to
+             * the IDE device transfer size, the Interrupt bit in the
+             * Controller status register is set to 1, Active bit is set to 0.
+             *
+             * 3. If PRDs specified a larger size than the IDE transfer size,
+             * the Interrupt and Active bits in the Controller status register
+             * are both set to 1.
+             */
+            if (prd_size < req_size) {
+                req_status = 0;
+                abort_req_status = 0;
+            } else if (prd_size == req_size) {
+                req_status = BM_STS_INTR;
+                abort_req_status = BM_STS_INTR;
+            } else {
+                req_status = BM_STS_ACTIVE | BM_STS_INTR;
+                abort_req_status = BM_STS_INTR;
+            }
 
-static void test_bmdma_one_sector_short_prdt(void)
-{
-    QTestState *qts;
-    QPCIDevice *dev;
-    QPCIBar bmdma_bar, ide_bar;
-    uint8_t status;
+            /* Test the request */
+            ret = send_dma_request(qts, CMD_READ_DMA, 0, sectors,
+                                   prdt, ARRAY_SIZE(prdt), NULL);
+            g_assert_cmphex(ret, ==, req_status);
+            assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
 
-    /* Read 2 sectors but only give 1 sector in PRDT */
-    PrdtEntry prdt[] = {
-        {
-            .addr = 0,
-            .size = cpu_to_le32(0x200 | PRDT_EOT),
-        },
-    };
+            /* Now test aborting the same request */
+            ret = send_dma_request(qts, CMD_READ_DMA | CMDF_ABORT, 0,
+                                   sectors, prdt, ARRAY_SIZE(prdt), NULL);
+            g_assert_cmphex(ret, ==, abort_req_status);
+            assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
+        }
 
-    qts = test_bmdma_setup();
-
-    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
-
-    /* Normal request */
-    status = send_dma_request(qts, CMD_READ_DMA, 0, 2,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, 0);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
-
-    /* Abort the request before it completes */
-    status = send_dma_request(qts, CMD_READ_DMA | CMDF_ABORT, 0, 2,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, 0);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
-    free_pci_device(dev);
-    test_bmdma_teardown(qts);
-}
-
-static void test_bmdma_long_prdt(void)
-{
-    QTestState *qts;
-    QPCIDevice *dev;
-    QPCIBar bmdma_bar, ide_bar;
-    uint8_t status;
-
-    PrdtEntry prdt[] = {
-        {
-            .addr = 0,
-            .size = cpu_to_le32(0x1000 | PRDT_EOT),
-        },
-    };
-
-    qts = test_bmdma_setup();
-
-    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
-
-    /* Normal request */
-    status = send_dma_request(qts, CMD_READ_DMA, 0, 1,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, BM_STS_ACTIVE | BM_STS_INTR);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
-
-    /* Abort the request before it completes */
-    status = send_dma_request(qts, CMD_READ_DMA | CMDF_ABORT, 0, 1,
-                              prdt, ARRAY_SIZE(prdt), NULL);
-    g_assert_cmphex(status, ==, BM_STS_INTR);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
-    free_pci_device(dev);
-    test_bmdma_teardown(qts);
+        free_pci_device(dev);
+        test_bmdma_teardown(qts);
+    }
 }
 
 static void test_bmdma_no_busmaster(void)
@@ -1066,10 +1043,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
     qtest_add_func("/ide/bmdma/trim", test_bmdma_trim);
-    qtest_add_func("/ide/bmdma/short_prdt", test_bmdma_short_prdt);
-    qtest_add_func("/ide/bmdma/one_sector_short_prdt",
-                   test_bmdma_one_sector_short_prdt);
-    qtest_add_func("/ide/bmdma/long_prdt", test_bmdma_long_prdt);
+    qtest_add_func("/ide/bmdma/various_prdts", test_bmdma_various_prdts);
     qtest_add_func("/ide/bmdma/no_busmaster", test_bmdma_no_busmaster);
 
     qtest_add_func("/ide/flush", test_flush);

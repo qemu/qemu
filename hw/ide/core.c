@@ -849,6 +849,7 @@ static void ide_dma_cb(void *opaque, int ret)
     int64_t sector_num;
     uint64_t offset;
     bool stay_active = false;
+    int32_t prep_size = 0;
 
     if (ret == -EINVAL) {
         ide_dma_error(s);
@@ -863,13 +864,15 @@ static void ide_dma_cb(void *opaque, int ret)
         }
     }
 
-    n = s->io_buffer_size >> 9;
-    if (n > s->nsector) {
-        /* The PRDs were longer than needed for this request. Shorten them so
-         * we don't get a negative remainder. The Active bit must remain set
-         * after the request completes. */
+    if (s->io_buffer_size > s->nsector * 512) {
+        /*
+         * The PRDs were longer than needed for this request.
+         * The Active bit must remain set after the request completes.
+         */
         n = s->nsector;
         stay_active = true;
+    } else {
+        n = s->io_buffer_size >> 9;
     }
 
     sector_num = ide_get_sector(s);
@@ -892,9 +895,20 @@ static void ide_dma_cb(void *opaque, int ret)
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size) < 512) {
-        /* The PRDs were too short. Reset the Active bit, but don't raise an
-         * interrupt. */
+    prep_size = s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size);
+    /* prepare_buf() must succeed and respect the limit */
+    assert(prep_size >= 0 && prep_size <= n * 512);
+
+    /*
+     * Now prep_size stores the number of bytes in the sglist, and
+     * s->io_buffer_size stores the number of bytes described by the PRDs.
+     */
+
+    if (prep_size < n * 512) {
+        /*
+         * The PRDs are too short for this request. Error condition!
+         * Reset the Active bit and don't raise the interrupt.
+         */
         s->status = READY_STAT | SEEK_STAT;
         dma_buf_commit(s, 0);
         goto eot;
