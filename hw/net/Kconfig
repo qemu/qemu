@@ -31,6 +31,9 @@ config TULIP
     depends on PCI
     select NMC93XX_EEPROM
 
+config I82596_COMMON
+    bool
+
 config E1000_PCI
     bool
     default y if PCI_DEVICES
@@ -88,6 +91,10 @@ config STELLARIS_ENET
 config LANCE
     bool
     select PCNET_COMMON
+
+config LASI_82596
+    bool
+    select I82596_COMMON
 
 config SUNHME
     bool

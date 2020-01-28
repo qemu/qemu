@@ -2942,7 +2942,7 @@ static bool trans_st(DisasContext *ctx, arg_ldst *a)
 
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 {
-    MemOp mop = MO_TEUL | MO_ALIGN_16 | a->size;
+    MemOp mop = MO_TE | MO_ALIGN | a->size;
     TCGv_reg zero, dest, ofs;
     TCGv_tl addr;
 
@@ -2958,8 +2958,21 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 
     form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? a->size : 0,
              a->disp, a->sp, a->m, ctx->mmu_idx == MMU_PHYS_IDX);
+
+    /*
+     * For hppa1.1, LDCW is undefined unless aligned mod 16.
+     * However actual hardware succeeds with aligned mod 4.
+     * Detect this case and log a GUEST_ERROR.
+     *
+     * TODO: HPPA64 relaxes the over-alignment requirement
+     * with the ,co completer.
+     */
+    gen_helper_ldc_check(addr);
+
     zero = tcg_const_reg(0);
     tcg_gen_atomic_xchg_reg(dest, addr, zero, ctx->mmu_idx, mop);
+    tcg_temp_free(zero);
+
     if (a->m) {
         save_gpr(ctx, a->b, ofs);
     }

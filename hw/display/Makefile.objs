@@ -40,6 +40,7 @@ common-obj-$(CONFIG_SM501) += sm501.o
 common-obj-$(CONFIG_TCX) += tcx.o
 common-obj-$(CONFIG_CG3) += cg3.o
 common-obj-$(CONFIG_NEXTCUBE) += next-fb.o
+common-obj-$(CONFIG_ARTIST) += artist.o
 
 obj-$(CONFIG_VGA) += vga.o
 

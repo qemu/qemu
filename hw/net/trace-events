@@ -381,3 +381,16 @@ tulip_mii_read(int phy, int reg, uint16_t data) "phy 0x%x, reg 0x%x data 0x%04x"
 tulip_reset(void) ""
 tulip_setup_frame(void) ""
 tulip_setup_filter(int n, uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f) "%d: %02x:%02x:%02x:%02x:%02x:%02x"
+
+# lasi_i82596.c
+lasi_82596_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64" val=0x%04x"
+lasi_82596_mem_writew(uint64_t addr, uint32_t val) "addr=0x%"PRIx64" val=0x%04x"
+
+# i82596.c
+i82596_s_reset(void *s) "%p Reset chip"
+i82596_transmit(uint32_t size, uint32_t addr) "size %u from addr 0x%04x"
+i82596_receive_analysis(const char *s) "%s"
+i82596_receive_packet(size_t sz) "len=%zu"
+i82596_new_mac(const char *id_with_mac) "New MAC for: %s"
+i82596_set_multicast(uint16_t count) "Added %d multicast entries"
+i82596_channel_attention(void *s) "%p: Received CHANNEL ATTENTION"
