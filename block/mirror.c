@@ -103,6 +103,7 @@ struct MirrorOp {
     bool is_pseudo_op;
     bool is_active_write;
     CoQueue waiting_requests;
+    Coroutine *co;
 
     QTAILQ_ENTRY(MirrorOp) next;
 };
@@ -429,6 +430,7 @@ static unsigned mirror_perform(MirrorBlockJob *s, int64_t offset,
     default:
         abort();
     }
+    op->co = co;
 
     QTAILQ_INSERT_TAIL(&s->ops_in_flight, op, next);
     qemu_coroutine_enter(co);
