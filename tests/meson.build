@@ -6,3 +6,5 @@ test('decodetree', sh,
 if 'CONFIG_TCG' in config_host
   subdir('fp')
 endif
+
+subdir('qapi-schema')
