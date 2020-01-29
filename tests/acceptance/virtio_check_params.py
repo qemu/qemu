@@ -79,6 +79,7 @@ class VirtioMaxSegSettingsCheck(Test):
         logger.debug(mt)
         with QEMUMachine(self.qemu_bin) as vm:
             vm.set_machine(mt["name"])
+            vm.add_args('-nodefaults')
             for s in VM_DEV_PARAMS[dev_type_name]:
                 vm.add_args(s)
             try:
