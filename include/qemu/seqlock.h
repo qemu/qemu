@@ -55,11 +55,11 @@ static inline void seqlock_write_lock_impl(QemuSeqLock *sl, QemuLockable *lock)
 #define seqlock_write_lock(sl, lock) \
     seqlock_write_lock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
 
-/* Lock out other writers and update the count.  */
+/* Update the count and release the lock.  */
 static inline void seqlock_write_unlock_impl(QemuSeqLock *sl, QemuLockable *lock)
 {
+    seqlock_write_end(sl);
     qemu_lockable_unlock(lock);
-    seqlock_write_begin(sl);
 }
 #define seqlock_write_unlock(sl, lock) \
     seqlock_write_unlock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
