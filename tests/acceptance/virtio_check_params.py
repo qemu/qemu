@@ -21,6 +21,7 @@
 import sys
 import os
 import re
+import logging
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
@@ -73,6 +74,9 @@ class VirtioMaxSegSettingsCheck(Test):
         return query_ok, props, error
 
     def check_mt(self, mt, dev_type_name):
+        mt['device'] = dev_type_name # Only for the debug() call.
+        logger = logging.getLogger('machine')
+        logger.debug(mt)
         with QEMUMachine(self.qemu_bin) as vm:
             vm.set_machine(mt["name"])
             for s in VM_DEV_PARAMS[dev_type_name]:
