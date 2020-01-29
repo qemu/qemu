@@ -246,9 +246,19 @@ static void dp8393x_put(dp8393xState *s, int width, int offset,
                         uint16_t val)
 {
     if (s->big_endian) {
-        s->data[offset * width + width - 1] = cpu_to_be16(val);
+        if (width == 2) {
+            s->data[offset * 2] = 0;
+            s->data[offset * 2 + 1] = cpu_to_be16(val);
+        } else {
+            s->data[offset] = cpu_to_be16(val);
+        }
     } else {
-        s->data[offset * width] = cpu_to_le16(val);
+        if (width == 2) {
+            s->data[offset * 2] = cpu_to_le16(val);
+            s->data[offset * 2 + 1] = 0;
+        } else {
+            s->data[offset] = cpu_to_le16(val);
+        }
     }
 }
 
@@ -590,7 +600,7 @@ static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
 
     DPRINTF("read 0x%04x from reg %s\n", val, reg_names[reg]);
 
-    return val;
+    return s->big_endian ? val << 16 : val;
 }
 
 static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
@@ -598,13 +608,14 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
 {
     dp8393xState *s = opaque;
     int reg = addr >> s->it_shift;
+    uint32_t val = s->big_endian ? data >> 16 : data;
 
-    DPRINTF("write 0x%04x to reg %s\n", (uint16_t)data, reg_names[reg]);
+    DPRINTF("write 0x%04x to reg %s\n", (uint16_t)val, reg_names[reg]);
 
     switch (reg) {
         /* Command register */
         case SONIC_CR:
-            dp8393x_do_command(s, data);
+            dp8393x_do_command(s, val);
             break;
         /* Prevent write to read-only registers */
         case SONIC_CAP2:
@@ -617,36 +628,36 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
         /* Accept write to some registers only when in reset mode */
         case SONIC_DCR:
             if (s->regs[SONIC_CR] & SONIC_CR_RST) {
-                s->regs[reg] = data & 0xbfff;
+                s->regs[reg] = val & 0xbfff;
             } else {
                 DPRINTF("writing to DCR invalid\n");
             }
             break;
         case SONIC_DCR2:
             if (s->regs[SONIC_CR] & SONIC_CR_RST) {
-                s->regs[reg] = data & 0xf017;
+                s->regs[reg] = val & 0xf017;
             } else {
                 DPRINTF("writing to DCR2 invalid\n");
             }
             break;
         /* 12 lower bytes are Read Only */
         case SONIC_TCR:
-            s->regs[reg] = data & 0xf000;
+            s->regs[reg] = val & 0xf000;
             break;
         /* 9 lower bytes are Read Only */
         case SONIC_RCR:
-            s->regs[reg] = data & 0xffe0;
+            s->regs[reg] = val & 0xffe0;
             break;
         /* Ignore most significant bit */
         case SONIC_IMR:
-            s->regs[reg] = data & 0x7fff;
+            s->regs[reg] = val & 0x7fff;
             dp8393x_update_irq(s);
             break;
         /* Clear bits by writing 1 to them */
         case SONIC_ISR:
-            data &= s->regs[reg];
-            s->regs[reg] &= ~data;
-            if (data & SONIC_ISR_RBE) {
+            val &= s->regs[reg];
+            s->regs[reg] &= ~val;
+            if (val & SONIC_ISR_RBE) {
                 dp8393x_do_read_rra(s);
             }
             dp8393x_update_irq(s);
@@ -659,17 +670,17 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
         case SONIC_REA:
         case SONIC_RRP:
         case SONIC_RWP:
-            s->regs[reg] = data & 0xfffe;
+            s->regs[reg] = val & 0xfffe;
             break;
         /* Invert written value for some registers */
         case SONIC_CRCT:
         case SONIC_FAET:
         case SONIC_MPT:
-            s->regs[reg] = data ^ 0xffff;
+            s->regs[reg] = val ^ 0xffff;
             break;
         /* All other registers have no special contrainst */
         default:
-            s->regs[reg] = data;
+            s->regs[reg] = val;
     }
 
     if (reg == SONIC_WT0 || reg == SONIC_WT1) {
@@ -680,8 +691,8 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps dp8393x_ops = {
     .read = dp8393x_read,
     .write = dp8393x_write,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 2,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
