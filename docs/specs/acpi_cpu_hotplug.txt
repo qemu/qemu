@@ -94,6 +94,8 @@ write access:
                register in QEMU
             2: following writes to 'Command data' register set OST status
                register in QEMU
+            3: following reads from 'Command data' and 'Command data 2' return
+               architecture specific CPU ID value for currently selected CPU.
             other values: reserved
     [0x6-0x7] reserved
     [0x8] Command data: (DWORD access)
