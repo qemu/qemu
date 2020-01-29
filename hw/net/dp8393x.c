@@ -818,6 +818,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     address += rx_len;
     address_space_write(&s->as, address, MEMTXATTRS_UNSPECIFIED,
                         &checksum, 4);
+    address += 4;
     rx_len += 4;
     s->regs[SONIC_CRBA1] = address >> 16;
     s->regs[SONIC_CRBA0] = address & 0xffff;
