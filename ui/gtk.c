@@ -32,6 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
 
