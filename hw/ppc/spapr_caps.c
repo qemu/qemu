@@ -485,11 +485,24 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     uint8_t kvm_val = kvmppc_get_cap_count_cache_flush_assist();
 
     if (tcg_enabled() && val) {
-        /* TODO - for now only allow broken for TCG */
-        error_setg(errp,
-"Requested count cache flush assist capability level not supported by tcg,"
-                   " try appending -machine cap-ccf-assist=off");
+        /* TCG doesn't implement anything here, but allow with a warning */
+        warn_report("TCG doesn't support requested feature, cap-ccf-assist=on");
     } else if (kvm_enabled() && (val > kvm_val)) {
+        uint8_t kvm_ibs = kvmppc_get_cap_safe_indirect_branch();
+
+        if (kvm_ibs == SPAPR_CAP_FIXED_CCD) {
+            /*
+             * If we don't have CCF assist on the host, the assist
+             * instruction is a harmless no-op.  It won't correctly
+             * implement the cache count flush *but* if we have
+             * count-cache-disabled in the host, that flush is
+             * unnnecessary.  So, specifically allow this case.  This
+             * allows us to have better performance on POWER9 DD2.3,
+             * while still working on POWER9 DD2.2 and POWER8 host
+             * cpus.
+             */
+            return;
+        }
         error_setg(errp,
 "Requested count cache flush assist capability level not supported by kvm,"
                    " try appending -machine cap-ccf-assist=off");
