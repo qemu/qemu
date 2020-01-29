@@ -293,7 +293,7 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     addr &= mask;
 
     /* Check reservation */
-    if ((env->reserve_addr & mask) == (addr & mask))  {
+    if ((env->reserve_addr & mask) == addr)  {
         env->reserve_addr = (target_ulong)-1ULL;
     }
 
