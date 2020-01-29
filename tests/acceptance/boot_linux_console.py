@@ -541,7 +541,7 @@ class BootLinuxConsole(Test):
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
-        self.vm.add_args('-vga', 'std',
+        self.vm.add_args('-nodefaults',
                          '-kernel', uncompressed_kernel,
                          '-append', kernel_command_line)
         self.vm.launch()
