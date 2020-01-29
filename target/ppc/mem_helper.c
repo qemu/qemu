@@ -298,7 +298,7 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     }
 
     /* Try fast path translate */
-    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, mmu_idx);
+    haddr = probe_write(env, addr, dcbz_size, mmu_idx, retaddr);
     if (haddr) {
         memset(haddr, 0, dcbz_size);
     } else {
