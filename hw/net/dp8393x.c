@@ -759,20 +759,21 @@ static int dp8393x_receive_filter(dp8393xState *s, const uint8_t * buf,
 }
 
 static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
-                               size_t size)
+                               size_t pkt_size)
 {
     dp8393xState *s = qemu_get_nic_opaque(nc);
     int packet_type;
     uint32_t available, address;
-    int width, rx_len = size;
+    int width, rx_len = pkt_size;
     uint32_t checksum;
+    int size;
 
     width = (s->regs[SONIC_DCR] & SONIC_DCR_DW) ? 2 : 1;
 
     s->regs[SONIC_RCR] &= ~(SONIC_RCR_PRX | SONIC_RCR_LBK | SONIC_RCR_FAER |
         SONIC_RCR_CRCR | SONIC_RCR_LPKT | SONIC_RCR_BC | SONIC_RCR_MC);
 
-    packet_type = dp8393x_receive_filter(s, buf, size);
+    packet_type = dp8393x_receive_filter(s, buf, pkt_size);
     if (packet_type < 0) {
         DPRINTF("packet not for netcard\n");
         return -1;
@@ -868,7 +869,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     /* Done */
     dp8393x_update_irq(s);
 
-    return size;
+    return pkt_size;
 }
 
 static void dp8393x_reset(DeviceState *dev)
