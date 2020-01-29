@@ -768,16 +768,23 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     dp8393xState *s = qemu_get_nic_opaque(nc);
     int packet_type;
     uint32_t available, address;
-    int width, rx_len = pkt_size;
+    int width, rx_len, padded_len;
     uint32_t checksum;
     int size;
-
-    width = (s->regs[SONIC_DCR] & SONIC_DCR_DW) ? 2 : 1;
 
     s->regs[SONIC_RCR] &= ~(SONIC_RCR_PRX | SONIC_RCR_LBK | SONIC_RCR_FAER |
         SONIC_RCR_CRCR | SONIC_RCR_LPKT | SONIC_RCR_BC | SONIC_RCR_MC);
 
-    if (pkt_size + 4 > dp8393x_rbwc(s) * 2) {
+    rx_len = pkt_size + sizeof(checksum);
+    if (s->regs[SONIC_DCR] & SONIC_DCR_DW) {
+        width = 2;
+        padded_len = ((rx_len - 1) | 3) + 1;
+    } else {
+        width = 1;
+        padded_len = ((rx_len - 1) | 1) + 1;
+    }
+
+    if (padded_len > dp8393x_rbwc(s) * 2) {
         DPRINTF("oversize packet, pkt_size is %d\n", pkt_size);
         s->regs[SONIC_ISR] |= SONIC_ISR_RBAE;
         dp8393x_update_irq(s);
@@ -812,22 +819,32 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     s->regs[SONIC_TRBA0] = s->regs[SONIC_CRBA0];
 
     /* Calculate the ethernet checksum */
-    checksum = cpu_to_le32(crc32(0, buf, rx_len));
+    checksum = cpu_to_le32(crc32(0, buf, pkt_size));
 
     /* Put packet into RBA */
     DPRINTF("Receive packet at %08x\n", dp8393x_crba(s));
     address = dp8393x_crba(s);
     address_space_write(&s->as, address, MEMTXATTRS_UNSPECIFIED,
-                        buf, rx_len);
-    address += rx_len;
+                        buf, pkt_size);
+    address += pkt_size;
+
+    /* Put frame checksum into RBA */
     address_space_write(&s->as, address, MEMTXATTRS_UNSPECIFIED,
-                        &checksum, 4);
-    address += 4;
-    rx_len += 4;
+                        &checksum, sizeof(checksum));
+    address += sizeof(checksum);
+
+    /* Pad short packets to keep pointers aligned */
+    if (rx_len < padded_len) {
+        size = padded_len - rx_len;
+        address_space_rw(&s->as, address, MEMTXATTRS_UNSPECIFIED,
+            (uint8_t *)"\xFF\xFF\xFF", size, 1);
+        address += size;
+    }
+
     s->regs[SONIC_CRBA1] = address >> 16;
     s->regs[SONIC_CRBA0] = address & 0xffff;
     available = dp8393x_rbwc(s);
-    available -= rx_len / 2;
+    available -= padded_len >> 1;
     s->regs[SONIC_RBWC1] = available >> 16;
     s->regs[SONIC_RBWC0] = available & 0xffff;
 
