@@ -77,8 +77,12 @@ class VirtioMaxSegSettingsCheck(Test):
             vm.set_machine(mt["name"])
             for s in VM_DEV_PARAMS[dev_type_name]:
                 vm.add_args(s)
-            vm.launch()
-            query_ok, props, error = self.query_virtqueue(vm, dev_type_name)
+            try:
+                vm.launch()
+                query_ok, props, error = self.query_virtqueue(vm, dev_type_name)
+            except:
+                query_ok = False
+                error = sys.exc_info()[0]
 
         if not query_ok:
             self.fail('machine type {0}: {1}'.format(mt['name'], error))
