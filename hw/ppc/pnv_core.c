@@ -325,6 +325,7 @@ static void pnv_core_class_init(ObjectClass *oc, void *data)
     dc->realize = pnv_core_realize;
     dc->unrealize = pnv_core_unrealize;
     device_class_set_props(dc, pnv_core_properties);
+    dc->user_creatable = false;
 }
 
 #define DEFINE_PNV_CORE_TYPE(family, cpu_model) \
@@ -423,6 +424,7 @@ static void pnv_quad_class_init(ObjectClass *oc, void *data)
 
     dc->realize = pnv_quad_realize;
     device_class_set_props(dc, pnv_quad_properties);
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_quad_info = {

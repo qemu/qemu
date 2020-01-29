@@ -762,6 +762,7 @@ static void pnv_lpc_class_init(ObjectClass *klass, void *data)
     dc->realize = pnv_lpc_realize;
     dc->desc = "PowerNV LPC Controller";
     device_class_set_props(dc, pnv_lpc_properties);
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_lpc_info = {

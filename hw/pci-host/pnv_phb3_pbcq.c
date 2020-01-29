@@ -335,6 +335,7 @@ static void pnv_pbcq_class_init(ObjectClass *klass, void *data)
     xdc->dt_xscom = pnv_pbcq_dt_xscom;
 
     dc->realize = pnv_pbcq_realize;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_pbcq_type_info = {

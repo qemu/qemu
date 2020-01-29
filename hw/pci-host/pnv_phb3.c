@@ -1115,6 +1115,7 @@ static void pnv_phb3_class_init(ObjectClass *klass, void *data)
     dc->realize = pnv_phb3_realize;
     device_class_set_props(dc, pnv_phb3_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_phb3_type_info = {
@@ -1168,6 +1169,7 @@ static void pnv_phb3_root_port_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, pnv_phb3_root_port_realize,
                                     &rpc->parent_realize);
+    dc->user_creatable = false;
 
     k->vendor_id = PCI_VENDOR_ID_IBM;
     k->device_id = 0x03dc;

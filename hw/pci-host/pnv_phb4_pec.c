@@ -490,6 +490,7 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_pec_realize;
     device_class_set_props(dc, pnv_pec_properties);
+    dc->user_creatable = false;
 
     pecc->xscom_nest_base = pnv_pec_xscom_nest_base;
     pecc->xscom_pci_base  = pnv_pec_xscom_pci_base;
@@ -568,6 +569,7 @@ static void pnv_pec_stk_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, pnv_pec_stk_properties);
     dc->realize = pnv_pec_stk_realize;
+    dc->user_creatable = false;
 
     /* TODO: reset regs ? */
 }
