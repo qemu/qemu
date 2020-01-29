@@ -84,26 +84,45 @@ static void *probe_contiguous(CPUPPCState *env, target_ulong addr, uint32_t nb,
 
 void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++) {
-        if (needs_byteswap(env)) {
-            env->gpr[reg] = bswap32(cpu_ldl_data_ra(env, addr, GETPC()));
-        } else {
-            env->gpr[reg] = cpu_ldl_data_ra(env, addr, GETPC());
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(env, false);
+    void *host = probe_contiguous(env, addr, (32 - reg) * 4,
+                                  MMU_DATA_LOAD, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; reg < 32; reg++) {
+            env->gpr[reg] = (uint32_t)ldl_be_p(host);
+            host += 4;
         }
-        addr = addr_add(env, addr, 4);
+    } else {
+        /* Slow path -- at least some of the operation requires i/o.  */
+        for (; reg < 32; reg++) {
+            env->gpr[reg] = cpu_ldl_mmuidx_ra(env, addr, mmu_idx, raddr);
+            addr = addr_add(env, addr, 4);
+        }
     }
 }
 
 void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++) {
-        if (needs_byteswap(env)) {
-            cpu_stl_data_ra(env, addr, bswap32((uint32_t)env->gpr[reg]),
-                                                   GETPC());
-        } else {
-            cpu_stl_data_ra(env, addr, (uint32_t)env->gpr[reg], GETPC());
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(env, false);
+    void *host = probe_contiguous(env, addr, (32 - reg) * 4,
+                                  MMU_DATA_STORE, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; reg < 32; reg++) {
+            stl_be_p(host, env->gpr[reg]);
+            host += 4;
         }
-        addr = addr_add(env, addr, 4);
+    } else {
+        /* Slow path -- at least some of the operation requires i/o.  */
+        for (; reg < 32; reg++) {
+            cpu_stl_mmuidx_ra(env, addr, env->gpr[reg], mmu_idx, raddr);
+            addr = addr_add(env, addr, 4);
+        }
     }
 }
 
