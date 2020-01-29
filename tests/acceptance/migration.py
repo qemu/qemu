@@ -41,11 +41,13 @@ class Migration(Test):
         self.assertEqual(src_vm.command('query-status')['status'],'postmigrate')
 
     def do_migrate(self, dest_uri, src_uri=None):
-        source_vm = self.get_vm()
         dest_vm = self.get_vm('-incoming', dest_uri)
+        dest_vm.add_args('-nodefaults')
         dest_vm.launch()
         if src_uri is None:
             src_uri = dest_uri
+        source_vm = self.get_vm()
+        source_vm.add_args('-nodefaults')
         source_vm.launch()
         source_vm.qmp('migrate', uri=src_uri)
         self.assert_migration(source_vm, dest_vm)
