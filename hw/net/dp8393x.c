@@ -158,6 +158,7 @@ typedef struct dp8393xState {
     /* Hardware */
     uint8_t it_shift;
     bool big_endian;
+    bool last_rba_is_full;
     qemu_irq irq;
 #ifdef DEBUG_SONIC
     int irq_level;
@@ -347,12 +348,15 @@ static void dp8393x_do_read_rra(dp8393xState *s)
         s->regs[SONIC_RRP] = s->regs[SONIC_RSA];
     }
 
-    /* Check resource exhaustion */
+    /* Warn the host if CRBA now has the last available resource */
     if (s->regs[SONIC_RRP] == s->regs[SONIC_RWP])
     {
         s->regs[SONIC_ISR] |= SONIC_ISR_RBE;
         dp8393x_update_irq(s);
     }
+
+    /* Allow packet reception */
+    s->last_rba_is_full = false;
 }
 
 static void dp8393x_do_software_reset(dp8393xState *s)
@@ -661,9 +665,6 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
                 dp8393x_do_read_rra(s);
             }
             dp8393x_update_irq(s);
-            if (dp8393x_can_receive(s->nic->ncs)) {
-                qemu_flush_queued_packets(qemu_get_queue(s->nic));
-            }
             break;
         /* The guest is required to store aligned pointers here */
         case SONIC_RSA:
@@ -723,8 +724,6 @@ static int dp8393x_can_receive(NetClientState *nc)
 
     if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
         return 0;
-    if (s->regs[SONIC_ISR] & SONIC_ISR_RBE)
-        return 0;
     return 1;
 }
 
@@ -775,6 +774,10 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     s->regs[SONIC_RCR] &= ~(SONIC_RCR_PRX | SONIC_RCR_LBK | SONIC_RCR_FAER |
         SONIC_RCR_CRCR | SONIC_RCR_LPKT | SONIC_RCR_BC | SONIC_RCR_MC);
 
+    if (s->last_rba_is_full) {
+        return pkt_size;
+    }
+
     rx_len = pkt_size + sizeof(checksum);
     if (s->regs[SONIC_DCR] & SONIC_DCR_DW) {
         width = 2;
@@ -788,8 +791,8 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
         DPRINTF("oversize packet, pkt_size is %d\n", pkt_size);
         s->regs[SONIC_ISR] |= SONIC_ISR_RBAE;
         dp8393x_update_irq(s);
-        dp8393x_do_read_rra(s);
-        return pkt_size;
+        s->regs[SONIC_RCR] |= SONIC_RCR_LPKT;
+        goto done;
     }
 
     packet_type = dp8393x_receive_filter(s, buf, pkt_size);
@@ -903,16 +906,22 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
         s->regs[SONIC_ISR] |= SONIC_ISR_PKTRX;
     }
 
+    dp8393x_update_irq(s);
+
     s->regs[SONIC_RSC] = (s->regs[SONIC_RSC] & 0xff00) |
                          ((s->regs[SONIC_RSC] + 1) & 0x00ff);
 
-    if (s->regs[SONIC_RCR] & SONIC_RCR_LPKT) {
-        /* Read next RRA */
-        dp8393x_do_read_rra(s);
-    }
+done:
 
-    /* Done */
-    dp8393x_update_irq(s);
+    if (s->regs[SONIC_RCR] & SONIC_RCR_LPKT) {
+        if (s->regs[SONIC_RRP] == s->regs[SONIC_RWP]) {
+            /* Stop packet reception */
+            s->last_rba_is_full = true;
+        } else {
+            /* Read next resource */
+            dp8393x_do_read_rra(s);
+        }
+    }
 
     return pkt_size;
 }
