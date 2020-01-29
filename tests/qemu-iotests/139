@@ -344,9 +344,6 @@ class TestBlockdevDel(iotests.QMPTestCase):
 
     @iotests.skip_if_unsupported(['quorum'])
     def testQuorum(self):
-        if not iotests.supports_quorum():
-            return
-
         self.addQuorum('quorum0', 'node0', 'node1')
         # We cannot remove the children of a Quorum device
         self.delBlockDriverState('node0', expect_error = True)
