@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # This test covers what happens when a mirror block job is cancelled
 # in various phases of its existence.
