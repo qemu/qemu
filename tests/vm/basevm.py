@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # VM testing base class
 #
