@@ -515,6 +515,12 @@ union {                                                                 \
              (elm);                                                            \
              (elm) = *QLIST_RAW_NEXT(elm, entry))
 
+#define QLIST_RAW_INSERT_AFTER(head, prev, elem, entry) do {                   \
+        *QLIST_RAW_NEXT(prev, entry) = elem;                                   \
+        *QLIST_RAW_PREVIOUS(elem, entry) = QLIST_RAW_NEXT(prev, entry);        \
+        *QLIST_RAW_NEXT(elem, entry) = NULL;                                   \
+} while (0)
+
 #define QLIST_RAW_INSERT_HEAD(head, elm, entry) do {                           \
         void *first = *QLIST_RAW_FIRST(head);                                  \
         *QLIST_RAW_FIRST(head) = elm;                                          \
@@ -525,19 +531,6 @@ union {                                                                 \
         } else {                                                               \
             *QLIST_RAW_NEXT(elm, entry) = NULL;                                \
         }                                                                      \
-} while (0)
-
-#define QLIST_RAW_REVERSE(head, elm, entry) do {                               \
-        void *iter = *QLIST_RAW_FIRST(head), *prev = NULL, *next;              \
-        while (iter) {                                                         \
-            next = *QLIST_RAW_NEXT(iter, entry);                               \
-            *QLIST_RAW_PREVIOUS(iter, entry) = QLIST_RAW_NEXT(next, entry);    \
-            *QLIST_RAW_NEXT(iter, entry) = prev;                               \
-            prev = iter;                                                       \
-            iter = next;                                                       \
-        }                                                                      \
-        *QLIST_RAW_FIRST(head) = prev;                                         \
-        *QLIST_RAW_PREVIOUS(prev, entry) = QLIST_RAW_FIRST(head);              \
 } while (0)
 
 #endif /* QEMU_SYS_QUEUE_H */
