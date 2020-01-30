@@ -128,6 +128,23 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level);
 bool write_kvmstate_to_list(ARMCPU *cpu);
 
 /**
+ * kvm_arm_cpu_pre_save:
+ * @cpu: ARMCPU
+ *
+ * Called after write_kvmstate_to_list() from cpu_pre_save() to update
+ * the cpreg list with KVM CPU state.
+ */
+void kvm_arm_cpu_pre_save(ARMCPU *cpu);
+
+/**
+ * kvm_arm_cpu_post_load:
+ * @cpu: ARMCPU
+ *
+ * Called from cpu_post_load() to update KVM CPU state from the cpreg list.
+ */
+void kvm_arm_cpu_post_load(ARMCPU *cpu);
+
+/**
  * kvm_arm_reset_vcpu:
  * @cpu: ARMCPU
  *
@@ -292,6 +309,24 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
  */
 int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
+/**
+ * kvm_arm_get_virtual_time:
+ * @cs: CPUState
+ *
+ * Gets the VCPU's virtual counter and stores it in the KVM CPU state.
+ */
+void kvm_arm_get_virtual_time(CPUState *cs);
+
+/**
+ * kvm_arm_put_virtual_time:
+ * @cs: CPUState
+ *
+ * Sets the VCPU's virtual counter to the value stored in the KVM CPU state.
+ */
+void kvm_arm_put_virtual_time(CPUState *cs);
+
+void kvm_arm_vm_state_change(void *opaque, int running, RunState state);
+
 int kvm_arm_vgic_probe(void);
 
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
@@ -339,6 +374,9 @@ static inline void kvm_arm_pmu_set_irq(CPUState *cs, int irq) {}
 static inline void kvm_arm_pmu_init(CPUState *cs) {}
 
 static inline void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map) {}
+
+static inline void kvm_arm_get_virtual_time(CPUState *cs) {}
+static inline void kvm_arm_put_virtual_time(CPUState *cs) {}
 #endif
 
 static inline const char *gic_class_name(void)

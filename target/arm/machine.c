@@ -642,6 +642,12 @@ static int cpu_pre_save(void *opaque)
             /* This should never fail */
             abort();
         }
+
+        /*
+         * kvm_arm_cpu_pre_save() must be called after
+         * write_kvmstate_to_list()
+         */
+        kvm_arm_cpu_pre_save(cpu);
     } else {
         if (!write_cpustate_to_list(cpu, false)) {
             /* This should never fail. */
@@ -744,6 +750,7 @@ static int cpu_post_load(void *opaque, int version_id)
          * we're using it.
          */
         write_list_to_cpustate(cpu);
+        kvm_arm_cpu_post_load(cpu);
     } else {
         if (!write_list_to_cpustate(cpu)) {
             return -1;
