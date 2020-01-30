@@ -428,6 +428,8 @@ static void test_query_cpu_model_expansion(const void *data)
     assert_has_feature_enabled(qts, "cortex-a15", "pmu");
     assert_has_not_feature(qts, "cortex-a15", "aarch64");
 
+    assert_has_not_feature(qts, "max", "kvm-no-adjvtime");
+
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
         assert_has_feature_enabled(qts, "max", "aarch64");
         assert_has_feature_enabled(qts, "max", "sve");
@@ -461,6 +463,8 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
         qtest_quit(qts);
         return;
     }
+
+    assert_has_feature_disabled(qts, "host", "kvm-no-adjvtime");
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
         bool kvm_supports_sve;
