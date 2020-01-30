@@ -2,6 +2,7 @@
 common-obj-y += qdev.o qdev-properties.o
 common-obj-y += bus.o
 common-obj-y += cpu.o
+common-obj-y += resettable.o
 common-obj-y += hotplug.o
 common-obj-y += vmstate-if.o
 # irq.o needed for qdev GPIO handling:
