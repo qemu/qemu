@@ -263,7 +263,7 @@ static void aspeed_machine_init(MachineState *machine)
         amc->i2c_init(bmc);
     }
 
-    for (i = 0; i < ARRAY_SIZE(bmc->soc.sdhci.slots); i++) {
+    for (i = 0; i < bmc->soc.sdhci.num_slots; i++) {
         SDHCIState *sdhci = &bmc->soc.sdhci.slots[i];
         DriveInfo *dinfo = drive_get_next(IF_SD);
         BlockBackend *blk;
