@@ -28,12 +28,16 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type);
  * enter_phase_in_progress:
  * True if we are currently in reset enter phase.
  *
- * Note: This flag is only used to guarantee (using asserts) that the reset
- * API is used correctly. We can use a global variable because we rely on the
+ * exit_phase_in_progress:
+ * count the number of exit phase we are in.
+ *
+ * Note: These flags are only used to guarantee (using asserts) that the reset
+ * API is used correctly. We can use global variables because we rely on the
  * iothread mutex to ensure only one reset operation is in a progress at a
  * given time.
  */
 static bool enter_phase_in_progress;
+static unsigned exit_phase_in_progress;
 
 void resettable_reset(Object *obj, ResetType type)
 {
@@ -65,7 +69,9 @@ void resettable_release_reset(Object *obj, ResetType type)
     trace_resettable_reset_release_begin(obj, type);
     assert(!enter_phase_in_progress);
 
+    exit_phase_in_progress += 1;
     resettable_phase_exit(obj, NULL, type);
+    exit_phase_in_progress -= 1;
 
     trace_resettable_reset_release_end(obj);
 }
@@ -204,6 +210,58 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type)
     }
     s->exit_phase_in_progress = false;
     trace_resettable_phase_exit_end(obj, obj_typename, s->count);
+}
+
+/*
+ * resettable_get_count:
+ * Get the count of the Resettable object @obj. Return 0 if @obj is NULL.
+ */
+static unsigned resettable_get_count(Object *obj)
+{
+    if (obj) {
+        ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
+        return rc->get_state(obj)->count;
+    }
+    return 0;
+}
+
+void resettable_change_parent(Object *obj, Object *newp, Object *oldp)
+{
+    ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
+    ResettableState *s = rc->get_state(obj);
+    unsigned newp_count = resettable_get_count(newp);
+    unsigned oldp_count = resettable_get_count(oldp);
+
+    /*
+     * Ensure we do not change parent when in enter or exit phase.
+     * During these phases, the reset subtree being updated is partly in reset
+     * and partly not in reset (it depends on the actual position in
+     * resettable_child_foreach()s). We are not able to tell in which part is a
+     * leaving or arriving device. Thus we cannot set the reset count of the
+     * moving device to the proper value.
+     */
+    assert(!enter_phase_in_progress && !exit_phase_in_progress);
+    trace_resettable_change_parent(obj, oldp, oldp_count, newp, newp_count);
+
+    /*
+     * At most one of the two 'for' loops will be executed below
+     * in order to cope with the difference between the two counts.
+     */
+    /* if newp is more reset than oldp */
+    for (unsigned i = oldp_count; i < newp_count; i++) {
+        resettable_assert_reset(obj, RESET_TYPE_COLD);
+    }
+    /*
+     * if obj is leaving a bus under reset, we need to ensure
+     * hold phase is not pending.
+     */
+    if (oldp_count && s->hold_phase_pending) {
+        resettable_phase_hold(obj, NULL, RESET_TYPE_COLD);
+    }
+    /* if oldp is more reset than newp */
+    for (unsigned i = newp_count; i < oldp_count; i++) {
+        resettable_release_reset(obj, RESET_TYPE_COLD);
+    }
 }
 
 void resettable_class_set_parent_phases(ResettableClass *rc,
