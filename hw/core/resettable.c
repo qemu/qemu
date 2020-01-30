@@ -264,6 +264,11 @@ void resettable_change_parent(Object *obj, Object *newp, Object *oldp)
     }
 }
 
+void resettable_cold_reset_fn(void *opaque)
+{
+    resettable_reset((Object *) opaque, RESET_TYPE_COLD);
+}
+
 void resettable_class_set_parent_phases(ResettableClass *rc,
                                         ResettableEnterPhase enter,
                                         ResettableHoldPhase hold,

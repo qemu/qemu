@@ -361,6 +361,11 @@ void qbus_reset_all_fn(void *opaque)
     qbus_reset_all(bus);
 }
 
+void device_cold_reset(DeviceState *dev)
+{
+    resettable_reset(OBJECT(dev), RESET_TYPE_COLD);
+}
+
 bool device_is_in_reset(DeviceState *dev)
 {
     return resettable_is_in_reset(OBJECT(dev));
