@@ -3874,7 +3874,7 @@ static DisasJumpType op_rosbg(DisasContext *s, DisasOps *o)
 
     /* Operate.  */
     switch (s->fields.op2) {
-    case 0x55: /* AND */
+    case 0x54: /* AND */
         tcg_gen_ori_i64(o->in2, o->in2, ~mask);
         tcg_gen_and_i64(o->out, o->out, o->in2);
         break;
