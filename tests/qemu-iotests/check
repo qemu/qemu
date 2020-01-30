@@ -846,8 +846,7 @@ do
 
         start=$(_wallclock)
 
-        if [ "$(head -n 1 "$source_iotests/$seq" | sed 's/3$//')" \
-            == "#!/usr/bin/env python" ]; then
+        if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python3" ]; then
             if $python_usable; then
                 run_command="$PYTHON $seq"
             else
