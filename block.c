@@ -668,6 +668,32 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     }
 }
 
+int coroutine_fn bdrv_co_delete_file(BlockDriverState *bs, Error **errp)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    assert(bs != NULL);
+
+    if (!bs->drv) {
+        error_setg(errp, "Block node '%s' is not opened", bs->filename);
+        return -ENOMEDIUM;
+    }
+
+    if (!bs->drv->bdrv_co_delete_file) {
+        error_setg(errp, "Driver '%s' does not support image deletion",
+                   bs->drv->format_name);
+        return -ENOTSUP;
+    }
+
+    ret = bs->drv->bdrv_co_delete_file(bs, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+    }
+
+    return ret;
+}
+
 /**
  * Try to get @bs's logical and physical block size.
  * On success, store them in @bsz struct and return 0.
