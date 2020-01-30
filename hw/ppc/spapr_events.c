@@ -40,6 +40,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/help_option.h"
 #include "qemu/bcd.h"
+#include "qemu/main-loop.h"
 #include "hw/ppc/spapr_ovec.h"
 #include <libfdt.h>
 
@@ -620,6 +621,42 @@ void spapr_hotplug_req_remove_by_count_indexed(SpaprDrcType drc_type,
     drc_id.count_indexed.index = index;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
+}
+
+void spapr_mce_req_event(PowerPCCPU *cpu)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    CPUState *cs = CPU(cpu);
+
+    if (spapr->guest_machine_check_addr == -1) {
+        /*
+         * This implies that we have hit a machine check either when the
+         * guest has not registered FWNMI (i.e., "ibm,nmi-register" not
+         * called) or between system reset and "ibm,nmi-register".
+         * Fall back to the old machine check behavior in such cases.
+         */
+        cs->exception_index = POWERPC_EXCP_MCHECK;
+        ppc_cpu_do_interrupt(cs);
+        return;
+    }
+
+    while (spapr->mc_status != -1) {
+        /*
+         * Check whether the same CPU got machine check error
+         * while still handling the mc error (i.e., before
+         * that CPU called "ibm,nmi-interlock")
+         */
+        if (spapr->mc_status == cpu->vcpu_id) {
+            qemu_system_guest_panicked(NULL);
+            return;
+        }
+        qemu_cond_wait_iothread(&spapr->mc_delivery_cond);
+        /* Meanwhile if the system is reset, then just return */
+        if (spapr->guest_machine_check_addr == -1) {
+            return;
+        }
+    }
+    spapr->mc_status = cpu->vcpu_id;
 }
 
 static void check_exception(PowerPCCPU *cpu, SpaprMachineState *spapr,
