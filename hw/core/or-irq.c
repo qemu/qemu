@@ -58,7 +58,7 @@ static void or_irq_realize(DeviceState *dev, Error **errp)
 {
     qemu_or_irq *s = OR_IRQ(dev);
 
-    assert(s->num_lines < MAX_OR_LINES);
+    assert(s->num_lines <= MAX_OR_LINES);
 
     qdev_init_gpio_in(dev, or_irq_handler, s->num_lines);
 }

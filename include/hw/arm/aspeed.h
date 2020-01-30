@@ -19,6 +19,8 @@ typedef struct AspeedBoardState AspeedBoardState;
 
 typedef struct AspeedMachine {
     MachineState parent_obj;
+
+    bool mmio_exec;
 } AspeedMachine;
 
 #define ASPEED_MACHINE_CLASS(klass) \

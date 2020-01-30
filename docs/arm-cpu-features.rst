@@ -31,7 +31,9 @@ supporting the feature or only supporting the feature under certain
 configurations.  For example, the `aarch64` CPU feature, which, when
 disabled, enables the optional AArch32 CPU feature, is only supported
 when using the KVM accelerator and when running on a host CPU type that
-supports the feature.
+supports the feature.  While `aarch64` currently only works with KVM,
+it could work with TCG.  CPU features that are specific to KVM are
+prefixed with "kvm-" and are described in "KVM VCPU Features".
 
 CPU Feature Probing
 ===================
@@ -170,6 +172,39 @@ than only enabling the two we want.  This isn't the case, because, as
 disabling many SVE vector lengths would be quite verbose, the `sve<N>` CPU
 properties have special semantics (see "SVE CPU Property Parsing
 Semantics").
+
+KVM VCPU Features
+=================
+
+KVM VCPU features are CPU features that are specific to KVM, such as
+paravirt features or features that enable CPU virtualization extensions.
+The features' CPU properties are only available when KVM is enabled and
+are named with the prefix "kvm-".  KVM VCPU features may be probed,
+enabled, and disabled in the same way as other CPU features.  Below is
+the list of KVM VCPU features and their descriptions.
+
+  kvm-no-adjvtime          By default kvm-no-adjvtime is disabled.  This
+                           means that by default the virtual time
+                           adjustment is enabled (vtime is *not not*
+                           adjusted).
+
+                           When virtual time adjustment is enabled each
+                           time the VM transitions back to running state
+                           the VCPU's virtual counter is updated to ensure
+                           stopped time is not counted.  This avoids time
+                           jumps surprising guest OSes and applications,
+                           as long as they use the virtual counter for
+                           timekeeping.  However it has the side effect of
+                           the virtual and physical counters diverging.
+                           All timekeeping based on the virtual counter
+                           will appear to lag behind any timekeeping that
+                           does not subtract VM stopped time.  The guest
+                           may resynchronize its virtual counter with
+                           other time sources as needed.
+
+                           Enable kvm-no-adjvtime to disable virtual time
+                           adjustment, also restoring the legacy (pre-5.0)
+                           behavior.
 
 SVE CPU Properties
 ==================

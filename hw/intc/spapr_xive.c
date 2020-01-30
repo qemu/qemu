@@ -1766,7 +1766,7 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    device_reset(DEVICE(xive));
+    device_legacy_reset(DEVICE(xive));
 
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;

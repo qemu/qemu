@@ -1663,6 +1663,11 @@ static void machvirt_init(MachineState *machine)
             }
         }
 
+        if (vmc->kvm_no_adjvtime &&
+            object_property_find(cpuobj, "kvm-no-adjvtime", NULL)) {
+            object_property_set_bool(cpuobj, true, "kvm-no-adjvtime", NULL);
+        }
+
         if (vmc->no_pmu && object_property_find(cpuobj, "pmu", NULL)) {
             object_property_set_bool(cpuobj, false, "pmu", NULL);
         }
@@ -2153,7 +2158,11 @@ DEFINE_VIRT_MACHINE_AS_LATEST(5, 0)
 
 static void virt_machine_4_2_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
+    virt_machine_5_0_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
+    vmc->kvm_no_adjvtime = true;
 }
 DEFINE_VIRT_MACHINE(4, 2)
 

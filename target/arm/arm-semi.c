@@ -403,6 +403,15 @@ static uint32_t host_closefn(ARMCPU *cpu, GuestFD *gf)
 {
     CPUARMState *env = &cpu->env;
 
+    /*
+     * Only close the underlying host fd if it's one we opened on behalf
+     * of the guest in SYS_OPEN.
+     */
+    if (gf->hostfd == STDIN_FILENO ||
+        gf->hostfd == STDOUT_FILENO ||
+        gf->hostfd == STDERR_FILENO) {
+        return 0;
+    }
     return set_swi_errno(env, close(gf->hostfd));
 }
 
