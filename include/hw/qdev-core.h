@@ -432,11 +432,11 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 void qdev_machine_init(void);
 
 /**
- * @device_reset
+ * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).
  */
-void device_reset(DeviceState *dev);
+void device_legacy_reset(DeviceState *dev);
 
 void device_class_set_props(DeviceClass *dc, Property *props);
 

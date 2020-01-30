@@ -298,7 +298,7 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 
 static int qdev_reset_one(DeviceState *dev, void *opaque)
 {
-    device_reset(dev);
+    device_legacy_reset(dev);
 
     return 0;
 }
@@ -867,7 +867,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
         if (dev->hotplugged) {
-            device_reset(dev);
+            device_legacy_reset(dev);
         }
         dev->pending_deleted_event = false;
 
@@ -1101,7 +1101,7 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
     dc->unrealize = dev_unrealize;
 }
 
-void device_reset(DeviceState *dev)
+void device_legacy_reset(DeviceState *dev)
 {
     DeviceClass *klass = DEVICE_GET_CLASS(dev);
 
