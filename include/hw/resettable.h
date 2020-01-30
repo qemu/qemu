@@ -154,6 +154,17 @@ struct ResettableState {
 };
 
 /**
+ * resettable_state_clear:
+ * Clear the state. It puts the state to the initial (zeroed) state required
+ * to reuse an object. Typically used in realize step of base classes
+ * implementing the interface.
+ */
+static inline void resettable_state_clear(ResettableState *state)
+{
+    memset(state, 0, sizeof(ResettableState));
+}
+
+/**
  * resettable_reset:
  * Trigger a reset on an object @obj of type @type. @obj must implement
  * Resettable interface.

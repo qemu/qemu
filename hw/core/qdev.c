@@ -909,6 +909,12 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
 
+        /*
+         * Clear the reset state, in case the object was previously unrealized
+         * with a dirty state.
+         */
+        resettable_state_clear(&dev->reset);
+
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), true, "realized",
                                          &local_err);
@@ -917,7 +923,14 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
         if (dev->hotplugged) {
-            device_legacy_reset(dev);
+            /*
+             * Reset the device, as well as its subtree which, at this point,
+             * should be realized too.
+             */
+            resettable_assert_reset(OBJECT(dev), RESET_TYPE_COLD);
+            resettable_change_parent(OBJECT(dev), OBJECT(dev->parent_bus),
+                                     NULL);
+            resettable_release_reset(OBJECT(dev), RESET_TYPE_COLD);
         }
         dev->pending_deleted_event = false;
 
