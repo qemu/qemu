@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Very specific tests for adjacent commit/stream block jobs
 #

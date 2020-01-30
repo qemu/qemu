@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Test that snapshots move the throttling configuration to the active
 # layer

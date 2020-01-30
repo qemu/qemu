@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # NBD server - fault injection utility
 #
 # Configuration file syntax:
