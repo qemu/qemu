@@ -355,6 +355,28 @@ void qbus_reset_all_fn(void *opaque)
     qbus_reset_all(bus);
 }
 
+bool device_is_in_reset(DeviceState *dev)
+{
+    return resettable_is_in_reset(OBJECT(dev));
+}
+
+static ResettableState *device_get_reset_state(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    return &dev->reset;
+}
+
+static void device_reset_child_foreach(Object *obj, ResettableChildCallback cb,
+                                       void *opaque, ResetType type)
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *bus;
+
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+        cb(OBJECT(bus), opaque, type);
+    }
+}
+
 /* can be used as ->unplug() callback for the simple cases */
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
@@ -1057,10 +1079,62 @@ device_vmstate_if_get_id(VMStateIf *obj)
     return qdev_get_dev_path(dev);
 }
 
+/**
+ * device_phases_reset:
+ * Transition reset method for devices to allow moving
+ * smoothly from legacy reset method to multi-phases
+ */
+static void device_phases_reset(DeviceState *dev)
+{
+    ResettableClass *rc = RESETTABLE_GET_CLASS(dev);
+
+    if (rc->phases.enter) {
+        rc->phases.enter(OBJECT(dev), RESET_TYPE_COLD);
+    }
+    if (rc->phases.hold) {
+        rc->phases.hold(OBJECT(dev));
+    }
+    if (rc->phases.exit) {
+        rc->phases.exit(OBJECT(dev));
+    }
+}
+
+static void device_transitional_reset(Object *obj)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+
+    /*
+     * This will call either @device_phases_reset (for multi-phases transitioned
+     * devices) or a device's specific method for not-yet transitioned devices.
+     * In both case, it does not reset children.
+     */
+    if (dc->reset) {
+        dc->reset(DEVICE(obj));
+    }
+}
+
+/**
+ * device_get_transitional_reset:
+ * check if the device's class is ready for multi-phase
+ */
+static ResettableTrFunction device_get_transitional_reset(Object *obj)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    if (dc->reset != device_phases_reset) {
+        /*
+         * dc->reset has been overridden by a subclass,
+         * the device is not ready for multi phase yet.
+         */
+        return device_transitional_reset;
+    }
+    return NULL;
+}
+
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     VMStateIfClass *vc = VMSTATE_IF_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = device_unparent;
 
@@ -1073,6 +1147,24 @@ static void device_class_init(ObjectClass *class, void *data)
     dc->hotpluggable = true;
     dc->user_creatable = true;
     vc->get_id = device_vmstate_if_get_id;
+    rc->get_state = device_get_reset_state;
+    rc->child_foreach = device_reset_child_foreach;
+
+    /*
+     * @device_phases_reset is put as the default reset method below, allowing
+     * to do the multi-phase transition from base classes to leaf classes. It
+     * allows a legacy-reset Device class to extend a multi-phases-reset
+     * Device class for the following reason:
+     * + If a base class B has been moved to multi-phase, then it does not
+     *   override this default reset method and may have defined phase methods.
+     * + A child class C (extending class B) which uses
+     *   device_class_set_parent_reset() (or similar means) to override the
+     *   reset method will still work as expected. @device_phases_reset function
+     *   will be registered as the parent reset method and effectively call
+     *   parent reset phases.
+     */
+    dc->reset = device_phases_reset;
+    rc->get_transitional_function = device_get_transitional_reset;
 
     object_class_property_add_bool(class, "realized",
                                    device_get_realized, device_set_realized,
@@ -1157,6 +1249,7 @@ static const TypeInfo device_type_info = {
     .class_size = sizeof(DeviceClass),
     .interfaces = (InterfaceInfo[]) {
         { TYPE_VMSTATE_IF },
+        { TYPE_RESETTABLE_INTERFACE },
         { }
     }
 };
