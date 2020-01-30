@@ -143,7 +143,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* Load OpenBIOS (ELF) */
     if (filename) {
-        bios_size = load_elf(filename, NULL, 0, NULL, NULL, NULL, NULL,
+        bios_size = load_elf(filename, NULL, 0, NULL, NULL, NULL, NULL, NULL,
                              1, PPC_ELF_MACHINE, 0, 0);
         g_free(filename);
     } else {
@@ -166,7 +166,7 @@ static void ppc_heathrow_init(MachineState *machine)
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(kernel_filename, NULL,
                                translate_kernel_address, NULL,
-                               NULL, &lowaddr, NULL, 1, PPC_ELF_MACHINE,
+                               NULL, &lowaddr, NULL, NULL, 1, PPC_ELF_MACHINE,
                                0, 0);
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, kernel_base,

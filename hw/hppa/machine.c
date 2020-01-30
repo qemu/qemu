@@ -155,7 +155,7 @@ static void machine_hppa_init(MachineState *machine)
     }
 
     size = load_elf(firmware_filename, NULL, NULL, NULL,
-                    &firmware_entry, &firmware_low, &firmware_high,
+                    &firmware_entry, &firmware_low, &firmware_high, NULL,
                     true, EM_PARISC, 0, 0);
 
     /* Unfortunately, load_elf sign-extends reading elf32.  */
@@ -184,7 +184,7 @@ static void machine_hppa_init(MachineState *machine)
     /* Load kernel */
     if (kernel_filename) {
         size = load_elf(kernel_filename, NULL, &cpu_hppa_to_phys,
-                        NULL, &kernel_entry, &kernel_low, &kernel_high,
+                        NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
                         true, EM_PARISC, 0, 0);
 
         /* Unfortunately, load_elf sign-extends reading elf32.  */

@@ -297,7 +297,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         uint64_t entry;
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &entry, NULL, NULL,
+                               &entry, NULL, NULL, NULL,
                                1 /* big endian */, EM_SPARC, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_uimage(kernel_filename, NULL, &entry,

@@ -342,7 +342,7 @@ static void q800_init(MachineState *machine)
     if (linux_boot) {
         uint64_t high;
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &elf_entry, NULL, &high, 1,
+                               &elf_entry, NULL, &high, NULL, 1,
                                EM_68K, 0, 0);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);

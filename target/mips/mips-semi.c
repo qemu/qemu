@@ -218,7 +218,7 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
         if (!p) {                               \
             gpr[2] = -1;                        \
             gpr[3] = EFAULT;                    \
-            goto uhi_done;                      \
+            return;                             \
         }                                       \
     } while (0)
 
@@ -228,14 +228,14 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
         if (!p) {                                       \
             gpr[2] = -1;                                \
             gpr[3] = EFAULT;                            \
-            goto uhi_done;                              \
+            return;                                     \
         }                                               \
         p2 = lock_user_string(addr2);                   \
         if (!p2) {                                      \
             unlock_user(p, addr, 0);                    \
             gpr[2] = -1;                                \
             gpr[3] = EFAULT;                            \
-            goto uhi_done;                              \
+            return;                                     \
         }                                               \
     } while (0)
 
@@ -272,7 +272,7 @@ void helper_do_semihosting(CPUMIPSState *env)
         if (gpr[4] < 3) {
             /* ignore closing stdin/stdout/stderr */
             gpr[2] = 0;
-            goto uhi_done;
+            return;
         }
         gpr[2] = close(gpr[4]);
         gpr[3] = errno_mips(errno);
@@ -302,7 +302,7 @@ void helper_do_semihosting(CPUMIPSState *env)
             gpr[2] = fstat(gpr[4], &sbuf);
             gpr[3] = errno_mips(errno);
             if (gpr[2]) {
-                goto uhi_done;
+                return;
             }
             gpr[2] = copy_stat_to_target(env, &sbuf, gpr[5]);
             gpr[3] = errno_mips(errno);
@@ -314,14 +314,14 @@ void helper_do_semihosting(CPUMIPSState *env)
     case UHI_argnlen:
         if (gpr[4] >= semihosting_get_argc()) {
             gpr[2] = -1;
-            goto uhi_done;
+            return;
         }
         gpr[2] = strlen(semihosting_get_arg(gpr[4]));
         break;
     case UHI_argn:
         if (gpr[4] >= semihosting_get_argc()) {
             gpr[2] = -1;
-            goto uhi_done;
+            return;
         }
         gpr[2] = copy_argn_to_target(env, gpr[4], gpr[5]);
         break;
@@ -369,6 +369,5 @@ void helper_do_semihosting(CPUMIPSState *env)
         fprintf(stderr, "Unknown UHI operation %d\n", op);
         abort();
     }
-uhi_done:
     return;
 }

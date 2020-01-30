@@ -260,7 +260,7 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 
 @section System emulator machines
 
-@subsection mips r4k platform (since 4.2)
+@subsection mips r4k platform (since 5.0)
 
 This machine type is very old and unmaintained. Users should use the 'malta'
 machine type instead.

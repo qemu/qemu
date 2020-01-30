@@ -74,7 +74,7 @@ static int64_t load_kernel(void)
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            (uint64_t *)&entry, NULL,
-                           (uint64_t *)&kernel_high, big_endian,
+                           (uint64_t *)&kernel_high, NULL, big_endian,
                            EM_MIPS, 1, 0);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000) {
