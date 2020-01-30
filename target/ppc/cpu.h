@@ -180,7 +180,7 @@ enum {
     POWERPC_EXCP_TRAP          = 0x40,
 };
 
-#define PPC_INPUT(env) (env->bus_model)
+#define PPC_INPUT(env) ((env)->bus_model)
 
 /*****************************************************************************/
 typedef struct opc_handler_t opc_handler_t;
