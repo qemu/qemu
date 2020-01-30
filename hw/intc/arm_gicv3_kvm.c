@@ -336,7 +336,10 @@ static void kvm_arm_gicv3_put(GICv3State *s)
     kvm_gicd_access(s, GICD_CTLR, &reg, true);
 
     if (redist_typer & GICR_TYPER_PLPIS) {
-        /* Set base addresses before LPIs are enabled by GICR_CTLR write */
+        /*
+         * Restore base addresses before LPIs are potentially enabled by
+         * GICR_CTLR write
+         */
         for (ncpu = 0; ncpu < s->num_cpu; ncpu++) {
             GICv3CPUState *c = &s->cpu[ncpu];
 
@@ -347,12 +350,6 @@ static void kvm_arm_gicv3_put(GICv3State *s)
             kvm_gicr_access(s, GICR_PROPBASER + 4, ncpu, &regh, true);
 
             reg64 = c->gicr_pendbaser;
-            if (!(c->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
-                /* Setting PTZ is advised if LPIs are disabled, to reduce
-                 * GIC initialization time.
-                 */
-                reg64 |= GICR_PENDBASER_PTZ;
-            }
             regl = (uint32_t)reg64;
             kvm_gicr_access(s, GICR_PENDBASER, ncpu, &regl, true);
             regh = (uint32_t)(reg64 >> 32);
