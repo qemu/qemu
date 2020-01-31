@@ -916,6 +916,7 @@ static int fv_create_listen_socket(struct fuse_session *se)
     old_umask = umask(0077);
     if (bind(listen_sock, (struct sockaddr *)&un, addr_len) == -1) {
         fuse_log(FUSE_LOG_ERR, "vhost socket bind: %m\n");
+        close(listen_sock);
         umask(old_umask);
         return -1;
     }
@@ -923,6 +924,7 @@ static int fv_create_listen_socket(struct fuse_session *se)
 
     if (listen(listen_sock, 1) == -1) {
         fuse_log(FUSE_LOG_ERR, "vhost socket listen: %m\n");
+        close(listen_sock);
         return -1;
     }
 
