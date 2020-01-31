@@ -41,7 +41,6 @@ extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;
 extern int ctrl_grab;
-extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_shutdown;
 extern int old_param;
