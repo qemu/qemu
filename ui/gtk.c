@@ -2246,8 +2246,12 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     textdomain("qemu");
 
     window_display = gtk_widget_get_display(s->window);
-    s->null_cursor = gdk_cursor_new_for_display(window_display,
-                                                GDK_BLANK_CURSOR);
+    if (s->opts->has_show_cursor && s->opts->show_cursor) {
+        s->null_cursor = NULL; /* default pointer */
+    } else {
+        s->null_cursor = gdk_cursor_new_for_display(window_display,
+                                                    GDK_BLANK_CURSOR);
+    }
 
     s->mouse_mode_notifier.notify = gd_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&s->mouse_mode_notifier);
