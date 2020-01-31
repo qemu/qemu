@@ -132,8 +132,8 @@ trace-events-subdirs += nbd
 trace-events-subdirs += scsi
 endif
 ifeq ($(CONFIG_SOFTMMU),y)
-trace-events-subdirs += chardev
 trace-events-subdirs += audio
+trace-events-subdirs += chardev
 trace-events-subdirs += hw/9pfs
 trace-events-subdirs += hw/acpi
 trace-events-subdirs += hw/alpha
@@ -181,6 +181,7 @@ trace-events-subdirs += migration
 trace-events-subdirs += net
 trace-events-subdirs += ui
 endif
+trace-events-subdirs += hw/core
 trace-events-subdirs += hw/display
 trace-events-subdirs += qapi
 trace-events-subdirs += qom
@@ -193,7 +194,6 @@ trace-events-subdirs += target/riscv
 trace-events-subdirs += target/s390x
 trace-events-subdirs += target/sparc
 trace-events-subdirs += util
-trace-events-subdirs += hw/core
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
 

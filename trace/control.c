@@ -229,9 +229,7 @@ void trace_init_file(const char *file)
     /* If both the simple and the log backends are enabled, "--trace file"
      * only applies to the simple backend; use "-D" for the log backend.
      */
-    if (file) {
-        qemu_set_log_filename(file, &error_fatal);
-    }
+    qemu_set_log_filename(file, &error_fatal);
 #else
     if (file) {
         fprintf(stderr, "error: --trace file=...: "
