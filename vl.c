@@ -1931,6 +1931,16 @@ static void parse_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
+            } else if (strstart(opts, ",show-cursor=", &nextopt)) {
+                opts = nextopt;
+                dpy.has_show_cursor = true;
+                if (strstart(opts, "on", &nextopt)) {
+                    dpy.show_cursor = true;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    dpy.show_cursor = false;
+                } else {
+                    goto invalid_sdl_args;
+                }
             } else if (strstart(opts, ",gl=", &nextopt)) {
                 opts = nextopt;
                 dpy.has_gl = true;
