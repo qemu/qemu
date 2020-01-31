@@ -3562,6 +3562,8 @@ int main(int argc, char **argv, char **envp)
                 no_shutdown = 1;
                 break;
             case QEMU_OPTION_show_cursor:
+                warn_report("The -show-cursor option is deprecated, "
+                            "use -display {sdl,gtk},show-cursor=on instead");
                 dpy.has_show_cursor = true;
                 dpy.show_cursor = true;
                 break;
