@@ -65,7 +65,7 @@ nbd_snapshot_img="nbd:unix:$nbd_unix_socket"
 converted_image=$TEST_IMG.converted
 
 # Use -f raw instead of -f $IMGFMT for the NBD connection
-QEMU_IO_NBD="$QEMU_IO -f raw --cache=$CACHEMODE"
+QEMU_IO_NBD="$QEMU_IO -f raw --cache=$CACHEMODE --aio=$AIOMODE"
 
 echo
 echo "== preparing image =="

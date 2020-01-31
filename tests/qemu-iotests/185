@@ -54,7 +54,7 @@ echo
 qemu_comm_method="qmp"
 
 _launch_qemu \
-    -drive file="${TEST_IMG}.base",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+    -drive file="${TEST_IMG}.base",cache=$CACHEMODE,aio=$AIOMODE,driver=$IMGFMT,id=disk
 h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
 
@@ -125,7 +125,7 @@ echo === Start active commit job and exit qemu ===
 echo
 
 _launch_qemu \
-    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,aio=$AIOMODE,driver=$IMGFMT,id=disk
 h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
 
@@ -147,7 +147,7 @@ echo === Start mirror job and exit qemu ===
 echo
 
 _launch_qemu \
-    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,aio=$AIOMODE,driver=$IMGFMT,id=disk
 h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
 
@@ -172,7 +172,7 @@ echo === Start backup job and exit qemu ===
 echo
 
 _launch_qemu \
-    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,aio=$AIOMODE,driver=$IMGFMT,id=disk
 h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
 
@@ -196,7 +196,7 @@ echo === Start streaming job and exit qemu ===
 echo
 
 _launch_qemu \
-    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,aio=$AIOMODE,driver=$IMGFMT,id=disk
 h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
 

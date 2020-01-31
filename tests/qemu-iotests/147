@@ -24,7 +24,7 @@ import socket
 import stat
 import time
 import iotests
-from iotests import cachemode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_early_pipe
+from iotests import cachemode, aiomode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_early_pipe
 
 NBD_PORT_START      = 32768
 NBD_PORT_END        = NBD_PORT_START + 1024
@@ -134,7 +134,8 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.server.add_drive_raw('if=none,id=nbd-export,' +
                                   'file=%s,' % test_img +
                                   'format=%s,' % imgfmt +
-                                  'cache=%s' % cachemode)
+                                  'cache=%s' % cachemode +
+                                  'aio=%s' % aiomode)
         self.server.launch()
 
     def tearDown(self):

@@ -60,13 +60,13 @@ echo === Starting QEMU VM1 ===
 echo
 
 qemu_comm_method="monitor"
-_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},aio=${AIOMODE},id=disk
 h1=$QEMU_HANDLE
 
 echo
 echo === Starting QEMU VM2 ===
 echo
-_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},id=disk \
+_launch_qemu -drive file="${TEST_IMG}",cache=${CACHEMODE},aio=${AIOMODE},id=disk \
              -incoming "exec: cat '${MIG_FIFO}'"
 h2=$QEMU_HANDLE
 

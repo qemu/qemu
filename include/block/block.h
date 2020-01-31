@@ -51,18 +51,6 @@ typedef enum {
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
 
-    /*
-     * The BDRV_REQ_NO_SERIALISING flag is only valid for reads and means that
-     * we don't want wait_serialising_requests() during the read operation.
-     *
-     * This flag is used for backup copy-on-write operations, when we need to
-     * read old data before write (write notifier triggered). It is okay since
-     * we already waited for other serializing requests in the initiating write
-     * (see bdrv_aligned_pwritev), and it is necessary if the initiating write
-     * is already serializing (without the flag, the read would deadlock
-     * waiting for the serialising write to complete).
-     */
-    BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
     BDRV_REQ_WRITE_COMPRESSED   = 0x20,
 
@@ -126,6 +114,7 @@ typedef struct HDGeometry {
                                       ignoring the format layer */
 #define BDRV_O_NO_IO       0x10000 /* don't initialize for I/O */
 #define BDRV_O_AUTO_RDONLY 0x20000 /* degrade to read-only if opening read-write fails */
+#define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
@@ -300,6 +289,7 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
                        Error **errp);
 
+int bdrv_parse_aio(const char *mode, int *flags);
 int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 BdrvChild *bdrv_open_child(const char *filename,
