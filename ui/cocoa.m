@@ -42,60 +42,10 @@
 #include <Carbon/Carbon.h>
 #include "hw/core/cpu.h"
 
-#ifndef MAC_OS_X_VERSION_10_5
-#define MAC_OS_X_VERSION_10_5 1050
-#endif
-#ifndef MAC_OS_X_VERSION_10_6
-#define MAC_OS_X_VERSION_10_6 1060
-#endif
-#ifndef MAC_OS_X_VERSION_10_9
-#define MAC_OS_X_VERSION_10_9 1090
-#endif
-#ifndef MAC_OS_X_VERSION_10_10
-#define MAC_OS_X_VERSION_10_10 101000
-#endif
-#ifndef MAC_OS_X_VERSION_10_12
-#define MAC_OS_X_VERSION_10_12 101200
-#endif
 #ifndef MAC_OS_X_VERSION_10_13
 #define MAC_OS_X_VERSION_10_13 101300
 #endif
 
-/* macOS 10.12 deprecated many constants, #define the new names for older SDKs */
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
-#define NSEventMaskAny                  NSAnyEventMask
-#define NSEventModifierFlagCapsLock     NSAlphaShiftKeyMask
-#define NSEventModifierFlagShift        NSShiftKeyMask
-#define NSEventModifierFlagCommand      NSCommandKeyMask
-#define NSEventModifierFlagControl      NSControlKeyMask
-#define NSEventModifierFlagOption       NSAlternateKeyMask
-#define NSEventTypeFlagsChanged         NSFlagsChanged
-#define NSEventTypeKeyUp                NSKeyUp
-#define NSEventTypeKeyDown              NSKeyDown
-#define NSEventTypeMouseMoved           NSMouseMoved
-#define NSEventTypeLeftMouseDown        NSLeftMouseDown
-#define NSEventTypeRightMouseDown       NSRightMouseDown
-#define NSEventTypeOtherMouseDown       NSOtherMouseDown
-#define NSEventTypeLeftMouseDragged     NSLeftMouseDragged
-#define NSEventTypeRightMouseDragged    NSRightMouseDragged
-#define NSEventTypeOtherMouseDragged    NSOtherMouseDragged
-#define NSEventTypeLeftMouseUp          NSLeftMouseUp
-#define NSEventTypeRightMouseUp         NSRightMouseUp
-#define NSEventTypeOtherMouseUp         NSOtherMouseUp
-#define NSEventTypeScrollWheel          NSScrollWheel
-#define NSTextAlignmentCenter           NSCenterTextAlignment
-#define NSWindowStyleMaskBorderless     NSBorderlessWindowMask
-#define NSWindowStyleMaskClosable       NSClosableWindowMask
-#define NSWindowStyleMaskMiniaturizable NSMiniaturizableWindowMask
-#define NSWindowStyleMaskTitled         NSTitledWindowMask
-#endif
-/* 10.13 deprecates NSFileHandlingPanelOKButton in favour of
- * NSModalResponseOK, which was introduced in 10.9. Define
- * it for older versions.
- */
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_9
-#define NSModalResponseOK NSFileHandlingPanelOKButton
-#endif
 /* 10.14 deprecates NSOnState and NSOffState in favor of
  * NSControlStateValueOn/Off, which were introduced in 10.13.
  * Define for older versions
@@ -466,11 +416,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
 
     // get CoreGraphic context
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10
-    CGContextRef viewContextRef = [[NSGraphicsContext currentContext] graphicsPort];
-#else
     CGContextRef viewContextRef = [[NSGraphicsContext currentContext] CGContext];
-#endif
 
     CGContextSetInterpolationQuality (viewContextRef, kCGInterpolationNone);
     CGContextSetShouldAntialias (viewContextRef, NO);
@@ -1076,9 +1022,7 @@ QemuCocoaView *cocoaView;
  ------------------------------------------------------
 */
 @interface QemuCocoaAppController : NSObject
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
                                        <NSWindowDelegate, NSApplicationDelegate>
-#endif
 {
 }
 - (void)doToggleFullScreen:(id)sender;
@@ -1127,9 +1071,6 @@ QemuCocoaView *cocoaView;
         [normalWindow setAcceptsMouseMovedEvents:YES];
         [normalWindow setTitle:@"QEMU"];
         [normalWindow setContentView:cocoaView];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
-        [normalWindow useOptimizedDrawing:YES];
-#endif
         [normalWindow makeKeyAndOrderFront:self];
         [normalWindow center];
         [normalWindow setDelegate: self];
