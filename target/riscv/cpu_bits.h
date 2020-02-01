@@ -488,22 +488,25 @@
 #define DEFAULT_RSTVEC      0x1000
 
 /* Exception causes */
-#define EXCP_NONE                          -1 /* sentinel value */
-#define RISCV_EXCP_INST_ADDR_MIS           0x0
-#define RISCV_EXCP_INST_ACCESS_FAULT       0x1
-#define RISCV_EXCP_ILLEGAL_INST            0x2
-#define RISCV_EXCP_BREAKPOINT              0x3
-#define RISCV_EXCP_LOAD_ADDR_MIS           0x4
-#define RISCV_EXCP_LOAD_ACCESS_FAULT       0x5
-#define RISCV_EXCP_STORE_AMO_ADDR_MIS      0x6
-#define RISCV_EXCP_STORE_AMO_ACCESS_FAULT  0x7
-#define RISCV_EXCP_U_ECALL                 0x8
-#define RISCV_EXCP_S_ECALL                 0x9
-#define RISCV_EXCP_H_ECALL                 0xa
-#define RISCV_EXCP_M_ECALL                 0xb
-#define RISCV_EXCP_INST_PAGE_FAULT         0xc /* since: priv-1.10.0 */
-#define RISCV_EXCP_LOAD_PAGE_FAULT         0xd /* since: priv-1.10.0 */
-#define RISCV_EXCP_STORE_PAGE_FAULT        0xf /* since: priv-1.10.0 */
+#define EXCP_NONE                                -1 /* sentinel value */
+#define RISCV_EXCP_INST_ADDR_MIS                 0x0
+#define RISCV_EXCP_INST_ACCESS_FAULT             0x1
+#define RISCV_EXCP_ILLEGAL_INST                  0x2
+#define RISCV_EXCP_BREAKPOINT                    0x3
+#define RISCV_EXCP_LOAD_ADDR_MIS                 0x4
+#define RISCV_EXCP_LOAD_ACCESS_FAULT             0x5
+#define RISCV_EXCP_STORE_AMO_ADDR_MIS            0x6
+#define RISCV_EXCP_STORE_AMO_ACCESS_FAULT        0x7
+#define RISCV_EXCP_U_ECALL                       0x8
+#define RISCV_EXCP_S_ECALL                      0x9
+#define RISCV_EXCP_VS_ECALL                      0xa
+#define RISCV_EXCP_M_ECALL                       0xb
+#define RISCV_EXCP_INST_PAGE_FAULT               0xc /* since: priv-1.10.0 */
+#define RISCV_EXCP_LOAD_PAGE_FAULT               0xd /* since: priv-1.10.0 */
+#define RISCV_EXCP_STORE_PAGE_FAULT              0xf /* since: priv-1.10.0 */
+#define RISCV_EXCP_INST_GUEST_PAGE_FAULT         0x14
+#define RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT       0x15
+#define RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT  0x17
 
 #define RISCV_EXCP_INT_FLAG                0x80000000
 #define RISCV_EXCP_INT_MASK                0x7fffffff

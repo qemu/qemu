@@ -528,13 +528,16 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     static const int ecall_cause_map[] = {
         [PRV_U] = RISCV_EXCP_U_ECALL,
         [PRV_S] = RISCV_EXCP_S_ECALL,
-        [PRV_H] = RISCV_EXCP_H_ECALL,
+        [PRV_H] = RISCV_EXCP_VS_ECALL,
         [PRV_M] = RISCV_EXCP_M_ECALL
     };
 
     if (!async) {
         /* set tval to badaddr for traps with address information */
         switch (cause) {
+        case RISCV_EXCP_INST_GUEST_PAGE_FAULT:
+        case RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT:
+        case RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT:
         case RISCV_EXCP_INST_ADDR_MIS:
         case RISCV_EXCP_INST_ACCESS_FAULT:
         case RISCV_EXCP_LOAD_ADDR_MIS:
@@ -556,7 +559,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
     }
 
-    trace_riscv_trap(env->mhartid, async, cause, env->pc, tval, cause < 16 ?
+    trace_riscv_trap(env->mhartid, async, cause, env->pc, tval, cause < 23 ?
         (async ? riscv_intr_names : riscv_excp_names)[cause] : "(unknown)");
 
     if (env->priv <= PRV_S &&

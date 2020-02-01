@@ -67,6 +67,14 @@ const char * const riscv_excp_names[] = {
     "load_page_fault",
     "reserved",
     "store_page_fault"
+    "reserved",
+    "reserved",
+    "reserved",
+    "reserved",
+    "guest_exec_page_fault",
+    "guest_load_page_fault",
+    "reserved",
+    "guest_store_page_fault"
 };
 
 const char * const riscv_intr_names[] = {
