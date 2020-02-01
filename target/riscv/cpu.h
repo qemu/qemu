@@ -127,6 +127,10 @@ struct CPURISCVState {
 
     target_ulong mip;
 
+#ifdef TARGET_RISCV32
+    target_ulong mstatush;
+#endif
+
     uint32_t miclaim;
 
     target_ulong mie;
@@ -164,6 +168,9 @@ struct CPURISCVState {
     target_ulong vscause;
     target_ulong vstval;
     target_ulong vsatp;
+#ifdef TARGET_RISCV32
+    target_ulong vsstatush;
+#endif
 
     target_ulong mtval2;
     target_ulong mtinst;
@@ -176,6 +183,9 @@ struct CPURISCVState {
     target_ulong stval_hs;
     target_ulong satp_hs;
     target_ulong mstatus_hs;
+#ifdef TARGET_RISCV32
+    target_ulong mstatush_hs;
+#endif
 
     target_ulong scounteren;
     target_ulong mcounteren;
