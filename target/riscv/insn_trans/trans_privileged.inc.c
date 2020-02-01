@@ -58,11 +58,6 @@ static bool trans_sret(DisasContext *ctx, arg_sret *a)
 #endif
 }
 
-static bool trans_hret(DisasContext *ctx, arg_hret *a)
-{
-    return false;
-}
-
 static bool trans_mret(DisasContext *ctx, arg_mret *a)
 {
 #ifndef CONFIG_USER_ONLY
