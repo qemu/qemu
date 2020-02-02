@@ -305,7 +305,7 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
     }
 }
 
-#define HELPER_LD_ATOMIC(name, insn, almask)                                  \
+#define HELPER_LD_ATOMIC(name, insn, almask, do_cast)                         \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
     if (arg & almask) {                                                       \
@@ -316,12 +316,12 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
     }                                                                         \
     env->CP0_LLAddr = do_translate_address(env, arg, 0, GETPC());             \
     env->lladdr = arg;                                                        \
-    env->llval = cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());          \
+    env->llval = do_cast cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());  \
     return env->llval;                                                        \
 }
-HELPER_LD_ATOMIC(ll, ldl, 0x3)
+HELPER_LD_ATOMIC(ll, ldl, 0x3, (target_long)(int32_t))
 #ifdef TARGET_MIPS64
-HELPER_LD_ATOMIC(lld, ldq, 0x7)
+HELPER_LD_ATOMIC(lld, ldq, 0x7, (target_ulong))
 #endif
 #undef HELPER_LD_ATOMIC
 #endif
