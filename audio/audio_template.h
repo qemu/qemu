@@ -276,6 +276,13 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
         goto err1;
     }
 
+    if (s->dev->driver == AUDIODEV_DRIVER_COREAUDIO) {
+#ifdef DAC
+        hw->clip = clip_natural_float_from_stereo;
+#else
+        hw->conv = conv_natural_float_to_stereo;
+#endif
+    } else
 #ifdef DAC
     hw->clip = mixeng_clip
 #else

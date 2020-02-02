@@ -41,6 +41,11 @@ typedef void (f_sample) (void *dst, const struct st_sample *src, int samples);
 extern t_sample *mixeng_conv[2][2][2][3];
 extern f_sample *mixeng_clip[2][2][2][3];
 
+void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
+                                  int samples);
+void clip_natural_float_from_stereo(void *dst, const struct st_sample *src,
+                                    int samples);
+
 void *st_rate_start (int inrate, int outrate);
 void st_rate_flow(void *opaque, st_sample *ibuf, st_sample *obuf,
                   size_t *isamp, size_t *osamp);

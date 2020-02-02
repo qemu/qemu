@@ -471,20 +471,6 @@ static OSStatus audioDeviceIOProc(
     return 0;
 }
 
-static UInt32 coreaudio_get_flags(struct audio_pcm_info *info,
-                                  struct audsettings *as)
-{
-    UInt32 flags = info->sign ? kAudioFormatFlagIsSignedInteger : 0;
-    if (as->endianness) { /* 0 = little, 1 = big */
-        flags |= kAudioFormatFlagIsBigEndian;
-    }
-
-    if (flags == 0) { /* must not be 0 */
-        flags = kAudioFormatFlagsAreAllClear;
-    }
-    return flags;
-}
-
 static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
                               void *drv_opaque)
 {
@@ -496,6 +482,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     Audiodev *dev = drv_opaque;
     AudiodevCoreaudioPerDirectionOptions *cpdo = dev->u.coreaudio.out;
     int frames;
+    struct audsettings fake_as;
 
     /* create mutex */
     err = pthread_mutex_init(&core->mutex, NULL);
@@ -504,6 +491,14 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
+    /*
+     * The canonical audio format for CoreAudio on macOS is float. Currently
+     * there is no generic code for AUDIO_FORMAT_F32 in qemu. Here we select
+     * AUDIO_FORMAT_S32 instead because only the sample size has to match.
+     */
+    fake_as = *as;
+    as = &fake_as;
+    as->fmt = AUDIO_FORMAT_S32;
     audio_pcm_init_info (&hw->info, as);
 
     status = coreaudio_get_voice(&core->outputDeviceID);
@@ -572,15 +567,6 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     /* set Samplerate */
     core->outputStreamBasicDescription.mSampleRate = (Float64) as->freq;
-    core->outputStreamBasicDescription.mFormatID = kAudioFormatLinearPCM;
-    core->outputStreamBasicDescription.mFormatFlags =
-        coreaudio_get_flags(&hw->info, as);
-    core->outputStreamBasicDescription.mBytesPerPacket =
-        core->outputStreamBasicDescription.mBytesPerFrame =
-        hw->info.nchannels * hw->info.bits / 8;
-    core->outputStreamBasicDescription.mFramesPerPacket = 1;
-    core->outputStreamBasicDescription.mChannelsPerFrame = hw->info.nchannels;
-    core->outputStreamBasicDescription.mBitsPerChannel = hw->info.bits;
 
     status = coreaudio_set_streamformat(core->outputDeviceID,
                                         &core->outputStreamBasicDescription);

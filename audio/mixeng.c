@@ -267,6 +267,54 @@ f_sample *mixeng_clip[2][2][2][3] = {
     }
 };
 
+void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
+                                  int samples)
+{
+    float *in = (float *)src;
+#ifndef FLOAT_MIXENG
+    const float scale = UINT_MAX;
+#endif
+
+    while (samples--) {
+#ifdef FLOAT_MIXENG
+        dst->l = *in++;
+        dst->r = *in++;
+#else
+        dst->l = *in++ * scale;
+        dst->r = *in++ * scale;
+#endif
+        dst++;
+    }
+}
+
+void clip_natural_float_from_stereo(void *dst, const struct st_sample *src,
+                                    int samples)
+{
+    float *out = (float *)dst;
+#ifndef FLOAT_MIXENG
+#ifdef RECIPROCAL
+    const float scale = 1.f / UINT_MAX;
+#else
+    const float scale = UINT_MAX;
+#endif
+#endif
+
+    while (samples--) {
+#ifdef FLOAT_MIXENG
+        *out++ = src->l;
+        *out++ = src->r;
+#else
+#ifdef RECIPROCAL
+        *out++ = src->l * scale;
+        *out++ = src->r * scale;
+#else
+        *out++ = src->l / scale;
+        *out++ = src->r / scale;
+#endif
+#endif
+        src++;
+    }
+}
 
 void audio_sample_to_uint64(void *samples, int pos,
                             uint64_t *left, uint64_t *right)
