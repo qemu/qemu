@@ -1076,10 +1076,8 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
     while (live) {
         size_t size, decr, proc;
         void *buf = hw->pcm_ops->get_buffer_out(hw, &size);
-        if (!buf) {
-            /* retrying will likely won't help, drop everything. */
-            hw->mix_buf->pos = (hw->mix_buf->pos + live) % hw->mix_buf->size;
-            return clipped + live;
+        if (!buf || size == 0) {
+            break;
         }
 
         decr = MIN(size / hw->info.bytes_per_frame, live);
