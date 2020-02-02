@@ -218,6 +218,9 @@ static void audio_print_settings (struct audsettings *as)
     case AUDIO_FORMAT_U32:
         AUD_log (NULL, "U32");
         break;
+    case AUDIO_FORMAT_F32:
+        AUD_log (NULL, "F32");
+        break;
     default:
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
@@ -252,6 +255,7 @@ static int audio_validate_settings (struct audsettings *as)
     case AUDIO_FORMAT_U16:
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
+    case AUDIO_FORMAT_F32:
         break;
     default:
         invalid = 1;
@@ -264,24 +268,28 @@ static int audio_validate_settings (struct audsettings *as)
 
 static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *as)
 {
-    int bits = 8, sign = 0;
+    int bits = 8;
+    bool is_signed = false, is_float = false;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U8:
         break;
 
     case AUDIO_FORMAT_S16:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         break;
 
+    case AUDIO_FORMAT_F32:
+        is_float = true;
+        /* fall through */
     case AUDIO_FORMAT_S32:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
@@ -292,33 +300,38 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
     }
     return info->freq == as->freq
         && info->nchannels == as->nchannels
-        && info->sign == sign
+        && info->is_signed == is_signed
+        && info->is_float == is_float
         && info->bits == bits
         && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 {
-    int bits = 8, sign = 0, mul;
+    int bits = 8, mul;
+    bool is_signed = false, is_float = false;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U8:
         mul = 1;
         break;
 
     case AUDIO_FORMAT_S16:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         mul = 2;
         break;
 
+    case AUDIO_FORMAT_F32:
+        is_float = true;
+        /* fall through */
     case AUDIO_FORMAT_S32:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
@@ -331,7 +344,8 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     info->freq = as->freq;
     info->bits = bits;
-    info->sign = sign;
+    info->is_signed = is_signed;
+    info->is_float = is_float;
     info->nchannels = as->nchannels;
     info->bytes_per_frame = as->nchannels * mul;
     info->bytes_per_second = info->freq * info->bytes_per_frame;
@@ -344,7 +358,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
         return;
     }
 
-    if (info->sign) {
+    if (info->is_signed || info->is_float) {
         memset(buf, 0x00, len * info->bytes_per_frame);
     }
     else {
@@ -770,8 +784,9 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
 #ifdef DEBUG_AUDIO
 static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 {
-    dolog ("%s: bits %d, sign %d, freq %d, nchan %d\n",
-           cap, info->bits, info->sign, info->freq, info->nchannels);
+    dolog("%s: bits %d, sign %d, float %d, freq %d, nchan %d\n",
+          cap, info->bits, info->is_signed, info->is_float, info->freq,
+          info->nchannels);
 }
 #endif
 
@@ -1832,11 +1847,15 @@ CaptureVoiceOut *AUD_add_capture(
 
         cap->buf = g_malloc0_n(hw->mix_buf->size, hw->info.bytes_per_frame);
 
-        hw->clip = mixeng_clip
-            [hw->info.nchannels == 2]
-            [hw->info.sign]
-            [hw->info.swap_endianness]
-            [audio_bits_to_index (hw->info.bits)];
+        if (hw->info.is_float) {
+            hw->clip = mixeng_clip_float[hw->info.nchannels == 2];
+        } else {
+            hw->clip = mixeng_clip
+                [hw->info.nchannels == 2]
+                [hw->info.is_signed]
+                [hw->info.swap_endianness]
+                [audio_bits_to_index(hw->info.bits)];
+        }
 
         QLIST_INSERT_HEAD (&s->cap_head, cap, entries);
         QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
@@ -2075,6 +2094,7 @@ int audioformat_bytes_per_sample(AudioFormat fmt)
 
     case AUDIO_FORMAT_U32:
     case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_F32:
         return 4;
 
     case AUDIO_FORMAT__MAX:

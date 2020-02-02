@@ -40,7 +40,8 @@ struct audio_callback {
 
 struct audio_pcm_info {
     int bits;
-    int sign;
+    bool is_signed;
+    bool is_float;
     int freq;
     int nchannels;
     int bytes_per_frame;

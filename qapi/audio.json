@@ -276,7 +276,7 @@
 # Since: 4.0
 ##
 { 'enum': 'AudioFormat',
-  'data': [ 'u8', 's8', 'u16', 's16', 'u32', 's32' ] }
+  'data': [ 'u8', 's8', 'u16', 's16', 'u32', 's32', 'f32' ] }
 
 ##
 # @AudiodevDriver:

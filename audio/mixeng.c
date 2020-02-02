@@ -267,54 +267,76 @@ f_sample *mixeng_clip[2][2][2][3] = {
     }
 };
 
-void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
-                                  int samples)
-{
-    float *in = (float *)src;
-#ifndef FLOAT_MIXENG
-    const float scale = UINT_MAX;
+#ifdef FLOAT_MIXENG
+#define FLOAT_CONV_TO(x) (x)
+#define FLOAT_CONV_FROM(x) (x)
+#else
+static const float float_scale = UINT_MAX;
+#define FLOAT_CONV_TO(x) ((x) * float_scale)
+
+#ifdef RECIPROCAL
+static const float float_scale_reciprocal = 1.f / UINT_MAX;
+#define FLOAT_CONV_FROM(x) ((x) * float_scale_reciprocal)
+#else
+#define FLOAT_CONV_FROM(x) ((x) / float_scale)
+#endif
 #endif
 
+static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
+                                       int samples)
+{
+    float *in = (float *)src;
+
     while (samples--) {
-#ifdef FLOAT_MIXENG
-        dst->l = *in++;
-        dst->r = *in++;
-#else
-        dst->l = *in++ * scale;
-        dst->r = *in++ * scale;
-#endif
+        dst->r = dst->l = FLOAT_CONV_TO(*in++);
         dst++;
     }
 }
 
-void clip_natural_float_from_stereo(void *dst, const struct st_sample *src,
-                                    int samples)
+static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
+                                         int samples)
 {
-    float *out = (float *)dst;
-#ifndef FLOAT_MIXENG
-#ifdef RECIPROCAL
-    const float scale = 1.f / UINT_MAX;
-#else
-    const float scale = UINT_MAX;
-#endif
-#endif
+    float *in = (float *)src;
 
     while (samples--) {
-#ifdef FLOAT_MIXENG
-        *out++ = src->l;
-        *out++ = src->r;
-#else
-#ifdef RECIPROCAL
-        *out++ = src->l * scale;
-        *out++ = src->r * scale;
-#else
-        *out++ = src->l / scale;
-        *out++ = src->r / scale;
-#endif
-#endif
+        dst->l = FLOAT_CONV_TO(*in++);
+        dst->r = FLOAT_CONV_TO(*in++);
+        dst++;
+    }
+}
+
+t_sample *mixeng_conv_float[2] = {
+    conv_natural_float_to_mono,
+    conv_natural_float_to_stereo,
+};
+
+static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
+                                         int samples)
+{
+    float *out = (float *)dst;
+
+    while (samples--) {
+        *out++ = FLOAT_CONV_FROM(src->l) + FLOAT_CONV_FROM(src->r);
         src++;
     }
 }
+
+static void clip_natural_float_from_stereo(
+    void *dst, const struct st_sample *src, int samples)
+{
+    float *out = (float *)dst;
+
+    while (samples--) {
+        *out++ = FLOAT_CONV_FROM(src->l);
+        *out++ = FLOAT_CONV_FROM(src->r);
+        src++;
+    }
+}
+
+f_sample *mixeng_clip_float[2] = {
+    clip_natural_float_from_mono,
+    clip_natural_float_from_stereo,
+};
 
 void audio_sample_to_uint64(void *samples, int pos,
                             uint64_t *left, uint64_t *right)

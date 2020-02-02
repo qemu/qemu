@@ -491,14 +491,9 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    /*
-     * The canonical audio format for CoreAudio on macOS is float. Currently
-     * there is no generic code for AUDIO_FORMAT_F32 in qemu. Here we select
-     * AUDIO_FORMAT_S32 instead because only the sample size has to match.
-     */
     fake_as = *as;
     as = &fake_as;
-    as->fmt = AUDIO_FORMAT_S32;
+    as->fmt = AUDIO_FORMAT_F32;
     audio_pcm_init_info (&hw->info, as);
 
     status = coreaudio_get_voice(&core->outputDeviceID);

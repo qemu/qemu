@@ -277,6 +277,9 @@ static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
     case AUDIO_FORMAT_U32:
         format = endianness ? PA_SAMPLE_S32BE : PA_SAMPLE_S32LE;
         break;
+    case AUDIO_FORMAT_F32:
+        format = endianness ? PA_SAMPLE_FLOAT32BE : PA_SAMPLE_FLOAT32LE;
+        break;
     default:
         dolog ("Internal logic error: Bad audio format %d\n", afmt);
         format = PA_SAMPLE_U8;
@@ -302,6 +305,12 @@ static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
     case PA_SAMPLE_S32LE:
         *endianness = 0;
         return AUDIO_FORMAT_S32;
+    case PA_SAMPLE_FLOAT32BE:
+        *endianness = 1;
+        return AUDIO_FORMAT_F32;
+    case PA_SAMPLE_FLOAT32LE:
+        *endianness = 0;
+        return AUDIO_FORMAT_F32;
     default:
         dolog ("Internal logic error: Bad pa_sample_format %d\n", fmt);
         return AUDIO_FORMAT_U8;

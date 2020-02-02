@@ -77,6 +77,14 @@ static int aud_to_sdlfmt (AudioFormat fmt)
     case AUDIO_FORMAT_U16:
         return AUDIO_U16LSB;
 
+    case AUDIO_FORMAT_S32:
+        return AUDIO_S32LSB;
+
+    /* no unsigned 32-bit support in SDL */
+
+    case AUDIO_FORMAT_F32:
+        return AUDIO_F32LSB;
+
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);
 #ifdef DEBUG_AUDIO
@@ -117,6 +125,26 @@ static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
     case AUDIO_U16MSB:
         *endianness = 1;
         *fmt = AUDIO_FORMAT_U16;
+        break;
+
+    case AUDIO_S32LSB:
+        *endianness = 0;
+        *fmt = AUDIO_FORMAT_S32;
+        break;
+
+    case AUDIO_S32MSB:
+        *endianness = 1;
+        *fmt = AUDIO_FORMAT_S32;
+        break;
+
+    case AUDIO_F32LSB:
+        *endianness = 0;
+        *fmt = AUDIO_FORMAT_F32;
+        break;
+
+    case AUDIO_F32MSB:
+        *endianness = 1;
+        *fmt = AUDIO_FORMAT_F32;
         break;
 
     default:
