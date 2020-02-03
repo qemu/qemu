@@ -34,6 +34,16 @@ class Migration(Test):
         self.assertEqual(dst_vm.command('query-status')['status'], 'running')
         self.assertEqual(src_vm.command('query-status')['status'],'postmigrate')
 
+    def do_migrate(self, dest_uri, src_uri=None):
+        source_vm = self.get_vm()
+        dest_vm = self.get_vm('-incoming', dest_uri)
+        dest_vm.launch()
+        if src_uri is None:
+            src_uri = dest_uri
+        source_vm.launch()
+        source_vm.qmp('migrate', uri=src_uri)
+        self.assert_migration(source_vm, dest_vm)
+
     def _get_free_port(self):
         port = network.find_free_port()
         if port is None:
@@ -42,10 +52,5 @@ class Migration(Test):
 
 
     def test_migration_with_tcp_localhost(self):
-        source_vm = self.get_vm()
         dest_uri = 'tcp:localhost:%u' % self._get_free_port()
-        dest_vm = self.get_vm('-incoming', dest_uri)
-        dest_vm.launch()
-        source_vm.launch()
-        source_vm.qmp('migrate', uri=dest_uri)
-        self.assert_migration(source_vm, dest_vm)
+        self.do_migrate(dest_uri)
