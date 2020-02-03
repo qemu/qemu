@@ -574,8 +574,6 @@ libdaxctl=""
 meson=""
 skip_meson=no
 
-supported_cpu="no"
-supported_os="no"
 bogus_os="no"
 malloc_trim=""
 
@@ -814,35 +812,27 @@ ARCH=
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
   ppc|ppc64|s390x|sparc64|x32|riscv32|riscv64)
-    supported_cpu="yes"
   ;;
   ppc64le)
     ARCH="ppc64"
-    supported_cpu="yes"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
-    supported_cpu="yes"
   ;;
   x86_64|amd64)
     cpu="x86_64"
-    supported_cpu="yes"
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
-    supported_cpu="yes"
   ;;
   aarch64)
     cpu="aarch64"
-    supported_cpu="yes"
   ;;
   mips*)
     cpu="mips"
-    supported_cpu="yes"
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
-    supported_cpu="yes"
   ;;
   *)
     # This will result in either an error or falling back to TCI later
@@ -870,7 +860,6 @@ MINGW32*)
     audio_drv_list=""
   fi
   supported_os="yes"
-  pie="no"
 ;;
 GNU/kFreeBSD)
   bsd="yes"
@@ -888,7 +877,6 @@ FreeBSD)
   libs_qga="-lutil $libs_qga"
   netmap=""  # enable netmap autodetect
   HOST_VARIANT_DIR="freebsd"
-  supported_os="yes"
 ;;
 DragonFly)
   bsd="yes"
@@ -905,7 +893,6 @@ NetBSD)
   audio_possible_drivers="oss sdl"
   oss_lib="-lossaudio"
   HOST_VARIANT_DIR="netbsd"
-  supported_os="yes"
 ;;
 OpenBSD)
   bsd="yes"
@@ -913,7 +900,6 @@ OpenBSD)
   audio_drv_list="try-sdl"
   audio_possible_drivers="sdl"
   HOST_VARIANT_DIR="openbsd"
-  supported_os="yes"
 ;;
 Darwin)
   bsd="yes"
@@ -934,7 +920,6 @@ Darwin)
   # won't work when we're compiling with gcc as a C compiler.
   QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
   HOST_VARIANT_DIR="darwin"
-  supported_os="yes"
 ;;
 SunOS)
   solaris="yes"
@@ -965,7 +950,6 @@ Linux)
   linux_user="yes"
   kvm="yes"
   QEMU_INCLUDES="-isystem ${source_path}/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
-  supported_os="yes"
   libudev="yes"
 ;;
 esac
@@ -5321,8 +5305,6 @@ EOF
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
     QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
-    spice_protocol_version=$($pkg_config --modversion spice-protocol)
-    spice_server_version=$($pkg_config --modversion spice-server)
   else
     if test "$spice" = "yes" ; then
       feature_not_found "spice" \
@@ -6938,225 +6920,6 @@ echo_version() {
 QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
 QEMU_LDFLAGS="$fdt_ldflags $QEMU_LDFLAGS"
 libs_softmmu="$pixman_libs $libs_softmmu"
-
-echo "Install prefix    $prefix"
-echo "BIOS directory    $(eval echo $qemu_datadir)"
-echo "firmware path     $(eval echo $firmwarepath)"
-echo "binary directory  $(eval echo $bindir)"
-echo "library directory $(eval echo $libdir)"
-echo "module directory  $(eval echo $qemu_moddir)"
-echo "libexec directory $(eval echo $libexecdir)"
-echo "include directory $(eval echo $includedir)"
-echo "config directory  $(eval echo $sysconfdir)"
-if test "$mingw32" = "no" ; then
-echo "local state directory   $(eval echo $local_statedir)"
-echo "Manual directory  $(eval echo $mandir)"
-echo "ELF interp prefix $interp_prefix"
-else
-echo "local state directory   queried at runtime"
-echo "Windows SDK       $win_sdk"
-fi
-echo "Build directory   $(pwd)"
-echo "Source path       $source_path"
-echo "GIT binary        $git"
-echo "GIT submodules    $git_submodules"
-echo "C compiler        $cc"
-echo "Host C compiler   $host_cc"
-echo "C++ compiler      $cxx"
-echo "Objective-C compiler $objcc"
-echo "ARFLAGS           $ARFLAGS"
-echo "CFLAGS            $CFLAGS"
-echo "QEMU_CFLAGS       $QEMU_CFLAGS"
-echo "QEMU_LDFLAGS      $QEMU_LDFLAGS"
-echo "make              $make"
-echo "install           $install"
-echo "python            $python ($python_version)"
-if test "$docs" != "no"; then
-    echo "sphinx-build      $sphinx_build"
-fi
-echo "genisoimage       $genisoimage"
-echo "slirp support     $slirp $(echo_version $slirp $slirp_version)"
-if test "$slirp" != "no" ; then
-    echo "smbd              $smbd"
-fi
-echo "module support    $modules"
-echo "alt path mod load $module_upgrades"
-echo "host CPU          $cpu"
-echo "host big endian   $bigendian"
-echo "target list       $target_list"
-echo "gprof enabled     $gprof"
-echo "sparse enabled    $sparse"
-echo "strip binaries    $strip_opt"
-echo "profiler          $profiler"
-echo "static build      $static"
-echo "safe stack        $safe_stack"
-if test "$darwin" = "yes" ; then
-    echo "Cocoa support     $cocoa"
-fi
-echo "SDL support       $sdl $(echo_version $sdl $sdlversion)"
-echo "SDL image support $sdl_image"
-echo "GTK support       $gtk $(echo_version $gtk $gtk_version)"
-echo "GTK GL support    $gtk_gl"
-echo "VTE support       $vte $(echo_version $vte $vteversion)"
-echo "TLS priority      $tls_priority"
-echo "GNUTLS support    $gnutls"
-echo "libgcrypt         $gcrypt"
-if test "$gcrypt" = "yes"
-then
-   echo "  hmac            $gcrypt_hmac"
-   echo "  XTS             $gcrypt_xts"
-fi
-echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
-if test "$nettle" = "yes"
-then
-   echo "  XTS             $nettle_xts"
-fi
-echo "libtasn1          $tasn1"
-echo "PAM               $auth_pam"
-echo "iconv support     $iconv"
-echo "curses support    $curses"
-echo "virgl support     $virglrenderer $(echo_version $virglrenderer $virgl_version)"
-echo "curl support      $curl"
-echo "mingw32 support   $mingw32"
-echo "Audio drivers     $audio_drv_list"
-echo "Block whitelist (rw) $block_drv_rw_whitelist"
-echo "Block whitelist (ro) $block_drv_ro_whitelist"
-echo "VirtFS support    $virtfs"
-echo "Multipath support $mpath"
-echo "VNC support       $vnc"
-if test "$vnc" = "yes" ; then
-    echo "VNC SASL support  $vnc_sasl"
-    echo "VNC JPEG support  $vnc_jpeg"
-    echo "VNC PNG support   $vnc_png"
-fi
-echo "xen support       $xen"
-if test "$xen" = "yes" ; then
-  echo "xen ctrl version  $xen_ctrl_version"
-fi
-echo "brlapi support    $brlapi"
-echo "Documentation     $docs"
-echo "PIE               $pie"
-echo "vde support       $vde"
-echo "netmap support    $netmap"
-echo "Linux AIO support $linux_aio"
-echo "Linux io_uring support $linux_io_uring"
-echo "ATTR/XATTR support $attr"
-echo "Install blobs     $blobs"
-echo "KVM support       $kvm"
-echo "HAX support       $hax"
-echo "HVF support       $hvf"
-echo "WHPX support      $whpx"
-echo "TCG support       $tcg"
-if test "$tcg" = "yes" ; then
-    echo "TCG debug enabled $debug_tcg"
-    echo "TCG interpreter   $tcg_interpreter"
-fi
-echo "malloc trim support $malloc_trim"
-echo "RDMA support      $rdma"
-echo "PVRDMA support    $pvrdma"
-echo "fdt support       $fdt"
-echo "membarrier        $membarrier"
-echo "preadv support    $preadv"
-echo "fdatasync         $fdatasync"
-echo "madvise           $madvise"
-echo "posix_madvise     $posix_madvise"
-echo "posix_memalign    $posix_memalign"
-echo "libcap-ng support $cap_ng"
-echo "vhost-net support $vhost_net"
-echo "vhost-crypto support $vhost_crypto"
-echo "vhost-scsi support $vhost_scsi"
-echo "vhost-vsock support $vhost_vsock"
-echo "vhost-user support $vhost_user"
-echo "vhost-user-fs support $vhost_user_fs"
-echo "vhost-vdpa support $vhost_vdpa"
-echo "Trace backends    $trace_backends"
-if have_backend "simple"; then
-echo "Trace output file $trace_file-<pid>"
-fi
-echo "spice support     $spice $(echo_version $spice $spice_protocol_version/$spice_server_version)"
-echo "rbd support       $rbd"
-echo "xfsctl support    $xfs"
-echo "smartcard support $smartcard"
-echo "libusb            $libusb"
-echo "usb net redir     $usb_redir"
-echo "OpenGL support    $opengl"
-echo "OpenGL dmabufs    $opengl_dmabuf"
-echo "libiscsi support  $libiscsi"
-echo "libnfs support    $libnfs"
-echo "build guest agent $guest_agent"
-echo "QGA VSS support   $guest_agent_with_vss"
-echo "QGA w32 disk info $guest_agent_ntddscsi"
-echo "QGA MSI support   $guest_agent_msi"
-echo "seccomp support   $seccomp"
-echo "coroutine backend $coroutine"
-echo "coroutine pool    $coroutine_pool"
-echo "debug stack usage $debug_stack_usage"
-echo "mutex debugging   $debug_mutex"
-echo "crypto afalg      $crypto_afalg"
-echo "GlusterFS support $glusterfs"
-echo "gcov              $gcov_tool"
-echo "gcov enabled      $gcov"
-echo "TPM support       $tpm"
-echo "libssh support    $libssh"
-echo "QOM debugging     $qom_cast_debug"
-echo "Live block migration $live_block_migration"
-echo "lzo support       $lzo"
-echo "snappy support    $snappy"
-echo "bzip2 support     $bzip2"
-echo "lzfse support     $lzfse"
-echo "zstd support      $zstd"
-echo "NUMA host support $numa"
-echo "libxml2           $libxml2"
-echo "tcmalloc support  $tcmalloc"
-echo "jemalloc support  $jemalloc"
-echo "avx2 optimization $avx2_opt"
-echo "avx512f optimization $avx512f_opt"
-echo "replication support $replication"
-echo "bochs support     $bochs"
-echo "cloop support     $cloop"
-echo "dmg support       $dmg"
-echo "qcow v1 support   $qcow1"
-echo "vdi support       $vdi"
-echo "vvfat support     $vvfat"
-echo "qed support       $qed"
-echo "parallels support $parallels"
-echo "sheepdog support  $sheepdog"
-echo "capstone          $capstone"
-echo "libpmem support   $libpmem"
-echo "libdaxctl support $libdaxctl"
-echo "libudev           $libudev"
-echo "default devices   $default_devices"
-echo "plugin support    $plugins"
-echo "fuzzing support   $fuzzing"
-echo "gdb               $gdb_bin"
-echo "rng-none          $rng_none"
-echo "Linux keyring     $secret_keyring"
-
-if test "$supported_cpu" = "no"; then
-    echo
-    echo "WARNING: SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!"
-    echo
-    echo "CPU host architecture $cpu support is not currently maintained."
-    echo "The QEMU project intends to remove support for this host CPU in"
-    echo "a future release if nobody volunteers to maintain it and to"
-    echo "provide a build host for our continuous integration setup."
-    echo "configure has succeeded and you can continue to build, but"
-    echo "if you care about QEMU on this platform you should contact"
-    echo "us upstream at qemu-devel@nongnu.org."
-fi
-
-if test "$supported_os" = "no"; then
-    echo
-    echo "WARNING: SUPPORT FOR THIS HOST OS WILL GO AWAY IN FUTURE RELEASES!"
-    echo
-    echo "Host OS $targetos support is not currently maintained."
-    echo "The QEMU project intends to remove support for this host OS in"
-    echo "a future release if nobody volunteers to maintain it and to"
-    echo "provide a build host for our continuous integration setup."
-    echo "configure has succeeded and you can continue to build, but"
-    echo "if you care about QEMU on this platform you should contact"
-    echo "us upstream at qemu-devel@nongnu.org."
-fi
 
 config_host_mak="config-host.mak"
 
