@@ -54,7 +54,7 @@ needs_sphinx = '1.3'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'qmp_lexer']
+extensions = ['kerneldoc', 'qmp_lexer', 'hxtool']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -221,3 +221,4 @@ texinfo_documents = [
 # find everything.
 kerneldoc_bin = os.path.join(qemu_docdir, '../scripts/kernel-doc')
 kerneldoc_srctree = os.path.join(qemu_docdir, '..')
+hxtool_srctree = os.path.join(qemu_docdir, '..')

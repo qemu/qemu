@@ -632,7 +632,6 @@ encrypted disk images.
 * disk_images_quickstart::    Quick start for disk image creation
 * disk_images_snapshot_mode:: Snapshot mode
 * vm_snapshots::              VM snapshots
-* qemu_img_invocation::       qemu-img Invocation
 @end menu
 
 @node disk_images_quickstart
@@ -646,7 +645,9 @@ where @var{myimage.img} is the disk image filename and @var{mysize} is its
 size in kilobytes. You can add an @code{M} suffix to give the size in
 megabytes and a @code{G} suffix for gigabytes.
 
-See @ref{qemu_img_invocation} for more information.
+@c When this document is converted to rst we should make this into
+@c a proper linked reference to the qemu-img documentation again:
+See the qemu-img invocation documentation for more information.
 
 @node disk_images_snapshot_mode
 @subsection Snapshot mode
@@ -707,11 +708,6 @@ inserted after a snapshot is done.
 A few device drivers still have incomplete snapshot support so their
 state is not saved or restored properly (in particular USB).
 @end itemize
-
-@node qemu_img_invocation
-@subsection @code{qemu-img} Invocation
-
-@include qemu-img.texi
 
 @node pcsys_network
 @section Network emulation
