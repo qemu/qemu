@@ -485,14 +485,45 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     uint8_t kvm_val = kvmppc_get_cap_count_cache_flush_assist();
 
     if (tcg_enabled() && val) {
-        /* TODO - for now only allow broken for TCG */
-        error_setg(errp,
-"Requested count cache flush assist capability level not supported by tcg,"
-                   " try appending -machine cap-ccf-assist=off");
+        /* TCG doesn't implement anything here, but allow with a warning */
+        warn_report("TCG doesn't support requested feature, cap-ccf-assist=on");
     } else if (kvm_enabled() && (val > kvm_val)) {
+        uint8_t kvm_ibs = kvmppc_get_cap_safe_indirect_branch();
+
+        if (kvm_ibs == SPAPR_CAP_FIXED_CCD) {
+            /*
+             * If we don't have CCF assist on the host, the assist
+             * instruction is a harmless no-op.  It won't correctly
+             * implement the cache count flush *but* if we have
+             * count-cache-disabled in the host, that flush is
+             * unnnecessary.  So, specifically allow this case.  This
+             * allows us to have better performance on POWER9 DD2.3,
+             * while still working on POWER9 DD2.2 and POWER8 host
+             * cpus.
+             */
+            return;
+        }
         error_setg(errp,
 "Requested count cache flush assist capability level not supported by kvm,"
                    " try appending -machine cap-ccf-assist=off");
+    }
+}
+
+static void cap_fwnmi_mce_apply(SpaprMachineState *spapr, uint8_t val,
+                                Error **errp)
+{
+    if (!val) {
+        return; /* Disabled by default */
+    }
+
+    if (tcg_enabled()) {
+        warn_report("Firmware Assisted Non-Maskable Interrupts(FWNMI) not "
+                    "supported in TCG");
+    } else if (kvm_enabled()) {
+        if (kvmppc_set_fwnmi() < 0) {
+            error_setg(errp, "Firmware Assisted Non-Maskable Interrupts(FWNMI) "
+                             "not supported by KVM");
+        }
     }
 }
 
@@ -594,6 +625,15 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_ccf_assist_apply,
+    },
+    [SPAPR_CAP_FWNMI_MCE] = {
+        .name = "fwnmi-mce",
+        .description = "Handle fwnmi machine check exceptions",
+        .index = SPAPR_CAP_FWNMI_MCE,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_fwnmi_mce_apply,
     },
 };
 
@@ -734,6 +774,7 @@ SPAPR_CAP_MIG_STATE(hpt_maxpagesize, SPAPR_CAP_HPT_MAXPAGESIZE);
 SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
+SPAPR_CAP_MIG_STATE(fwnmi, SPAPR_CAP_FWNMI_MCE);
 
 void spapr_caps_init(SpaprMachineState *spapr)
 {

@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "libqos/libqos-spapr.h"
 
 #define MAGIC   0xcafec0de
 #define ADDRESS 0x4000
@@ -54,7 +55,7 @@ static void test_machine(const void *machine)
      */
     if (strcmp(machine, "pseries") == 0) {
         extra_args = "-nodefaults"
-            " -machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken";
+            " -machine " PSERIES_DEFAULT_CAPABILITIES;
     }
 
     qts = qtest_initf("-M %s -accel tcg %s -prom-env 'use-nvramrc?=true' "

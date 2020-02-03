@@ -108,30 +108,6 @@ static void test_pc_boot_order(void)
     test_boot_orders(NULL, read_boot_order_pc, test_cases_pc);
 }
 
-static uint8_t read_m48t59(QTestState *qts, uint64_t addr, uint16_t reg)
-{
-    qtest_writeb(qts, addr, reg & 0xff);
-    qtest_writeb(qts, addr + 1, reg >> 8);
-    return qtest_readb(qts, addr + 3);
-}
-
-static uint64_t read_boot_order_prep(QTestState *qts)
-{
-    return read_m48t59(qts, 0x80000000 + 0x74, 0x34);
-}
-
-static const boot_order_test test_cases_prep[] = {
-    { "", 'c', 'c' },
-    { "-boot c", 'c', 'c' },
-    { "-boot d", 'd', 'd' },
-    {}
-};
-
-static void test_prep_boot_order(void)
-{
-    test_boot_orders("prep", read_boot_order_prep, test_cases_prep);
-}
-
 static uint64_t read_boot_order_pmac(QTestState *qts)
 {
     QFWCFG *fw_cfg = mm_fw_cfg_init(qts, 0xf0000510);
@@ -190,7 +166,6 @@ int main(int argc, char *argv[])
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_add_func("boot-order/pc", test_pc_boot_order);
     } else if (strcmp(arch, "ppc") == 0 || strcmp(arch, "ppc64") == 0) {
-        qtest_add_func("boot-order/prep", test_prep_boot_order);
         qtest_add_func("boot-order/pmac_oldworld",
                        test_pmac_oldworld_boot_order);
         qtest_add_func("boot-order/pmac_newworld",

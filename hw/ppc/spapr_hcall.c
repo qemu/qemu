@@ -1676,6 +1676,18 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     Error *local_err = NULL;
     bool raw_mode_supported = false;
     bool guest_xive;
+    CPUState *cs;
+
+    /* CAS is supposed to be called early when only the boot vCPU is active. */
+    CPU_FOREACH(cs) {
+        if (cs == CPU(cpu)) {
+            continue;
+        }
+        if (!cs->halted) {
+            warn_report("guest has multiple active vCPUs at CAS, which is not allowed");
+            return H_MULTI_THREADS_ACTIVE;
+        }
+    }
 
     cas_pvr = cas_check_pvr(spapr, cpu, &addr, &raw_mode_supported, &local_err);
     if (local_err) {
@@ -1703,7 +1715,15 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     ov_table = addr;
 
     ov1_guest = spapr_ovec_parse_vector(ov_table, 1);
+    if (!ov1_guest) {
+        warn_report("guest didn't provide option vector 1");
+        return H_PARAMETER;
+    }
     ov5_guest = spapr_ovec_parse_vector(ov_table, 5);
+    if (!ov5_guest) {
+        warn_report("guest didn't provide option vector 5");
+        return H_PARAMETER;
+    }
     if (spapr_ovec_test(ov5_guest, OV5_MMU_BOTH)) {
         error_report("guest requested hash and radix MMU, which is invalid.");
         exit(EXIT_FAILURE);

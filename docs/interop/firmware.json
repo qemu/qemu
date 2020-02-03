@@ -27,8 +27,7 @@
 #
 # @openfirmware: The interface is defined by the (historical) IEEE
 #                1275-1994 standard. Examples for firmware projects that
-#                provide this interface are: OpenBIOS, OpenHackWare,
-#                SLOF.
+#                provide this interface are: OpenBIOS and SLOF.
 #
 # @uboot: Firmware interface defined by the U-Boot project.
 #

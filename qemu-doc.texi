@@ -1729,7 +1729,7 @@ differences are mentioned in the following sections.
 @section PowerPC System emulator
 @cindex system emulation (PowerPC)
 
-Use the executable @file{qemu-system-ppc} to simulate a complete PREP
+Use the executable @file{qemu-system-ppc} to simulate a complete 40P (PREP)
 or PowerMac PowerPC system.
 
 QEMU emulates the following PowerMac peripherals:
@@ -1749,7 +1749,7 @@ Non Volatile RAM
 VIA-CUDA with ADB keyboard and mouse.
 @end itemize
 
-QEMU emulates the following PREP peripherals:
+QEMU emulates the following 40P (PREP) peripherals:
 
 @itemize @minus
 @item
@@ -1761,7 +1761,7 @@ PCI VGA compatible card with VESA Bochs Extensions
 @item
 Floppy disk
 @item
-NE2000 network adapters
+PCnet network adapters
 @item
 Serial port
 @item
@@ -1770,12 +1770,9 @@ PREP Non Volatile RAM
 PC compatible keyboard and mouse.
 @end itemize
 
-QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
-@url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
-
 Since version 0.9.1, QEMU uses OpenBIOS @url{https://www.openbios.org/}
-for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
-v2) portable firmware implementation. The goal is to implement a 100%
+for the g3beige and mac99 PowerMac and the 40p machines. OpenBIOS is a free
+(GPL v2) portable firmware implementation. The goal is to implement a 100%
 IEEE 1275-1994 (referred to as Open Firmware) compliant firmware.
 
 @c man begin OPTIONS
@@ -1797,8 +1794,6 @@ qemu-system-ppc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=hd:2,\yaboot' \
  -prom-env 'boot-args=conf=hd:2,\yaboot.conf'
 @end example
-
-These variables are not used by Open Hack'Ware.
 
 @end table
 

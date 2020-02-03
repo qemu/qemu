@@ -217,7 +217,7 @@ void icp_eoi(ICPState *icp, uint32_t xirr)
     }
 }
 
-static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
+void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 {
     ICPState *icp = xics_icp_get(ics->xics, server);
 
@@ -512,7 +512,13 @@ void ics_write_xive(ICSState *ics, int srcno, int server,
 
 static void ics_reject(ICSState *ics, uint32_t nr)
 {
+    ICSStateClass *isc = ICS_GET_CLASS(ics);
     ICSIRQState *irq = ics->irqs + nr - ics->offset;
+
+    if (isc->reject) {
+        isc->reject(ics, nr);
+        return;
+    }
 
     trace_xics_ics_reject(nr, nr - ics->offset);
     if (irq->flags & XICS_FLAGS_IRQ_MSI) {
@@ -524,7 +530,13 @@ static void ics_reject(ICSState *ics, uint32_t nr)
 
 void ics_resend(ICSState *ics)
 {
+    ICSStateClass *isc = ICS_GET_CLASS(ics);
     int i;
+
+    if (isc->resend) {
+        isc->resend(ics);
+        return;
+    }
 
     for (i = 0; i < ics->nr_irqs; i++) {
         /* FIXME: filter by server#? */

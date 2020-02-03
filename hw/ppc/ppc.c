@@ -1490,24 +1490,6 @@ int ppc_dcr_init (CPUPPCState *env, int (*read_error)(int dcrn),
 }
 
 /*****************************************************************************/
-/* Debug port */
-void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
-{
-    addr &= 0xF;
-    switch (addr) {
-    case 0:
-        printf("%c", val);
-        break;
-    case 1:
-        printf("\n");
-        fflush(stdout);
-        break;
-    case 2:
-        printf("Set loglevel to %04" PRIx32 "\n", val);
-        qemu_set_log(val | 0x100);
-        break;
-    }
-}
 
 int ppc_cpu_pir(PowerPCCPU *cpu)
 {

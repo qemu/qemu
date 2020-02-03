@@ -270,12 +270,6 @@ machine type instead.
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.
 
-@subsection prep (PowerPC) (since 3.1)
-
-This machine type uses an unmaintained firmware, broken in lots of ways,
-and unable to start post-2004 operating systems. 40p machine type should be
-used instead.
-
 @subsection spike_v1.9.1 and spike_v1.10 (since 4.1)
 
 The version specific Spike machines have been deprecated in favour of the

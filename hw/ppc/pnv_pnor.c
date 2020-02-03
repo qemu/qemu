@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/loader.h"
@@ -46,7 +47,8 @@ static void pnv_pnor_update(PnvPnor *s, int offset, int size)
     ret = blk_pwrite(s->blk, offset, s->storage + offset,
                      offset_end - offset, 0);
     if (ret < 0) {
-        error_report("Could not update PNOR: %s", strerror(-ret));
+        error_report("Could not update PNOR offset=0x%" PRIx32" : %s", offset,
+                     strerror(-ret));
     }
 }
 
@@ -111,7 +113,7 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
 }
 
 static Property pnv_pnor_properties[] = {
-    DEFINE_PROP_INT64("size", PnvPnor, size, 128 << 20),
+    DEFINE_PROP_INT64("size", PnvPnor, size, 128 * MiB),
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
     DEFINE_PROP_END_OF_LIST(),
 };

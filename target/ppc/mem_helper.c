@@ -56,51 +56,138 @@ static inline target_ulong addr_add(CPUPPCState *env, target_ulong addr,
     }
 }
 
+static void *probe_contiguous(CPUPPCState *env, target_ulong addr, uint32_t nb,
+                              MMUAccessType access_type, int mmu_idx,
+                              uintptr_t raddr)
+{
+    void *host1, *host2;
+    uint32_t nb_pg1, nb_pg2;
+
+    nb_pg1 = -(addr | TARGET_PAGE_MASK);
+    if (likely(nb <= nb_pg1)) {
+        /* The entire operation is on a single page.  */
+        return probe_access(env, addr, nb, access_type, mmu_idx, raddr);
+    }
+
+    /* The operation spans two pages.  */
+    nb_pg2 = nb - nb_pg1;
+    host1 = probe_access(env, addr, nb_pg1, access_type, mmu_idx, raddr);
+    addr = addr_add(env, addr, nb_pg1);
+    host2 = probe_access(env, addr, nb_pg2, access_type, mmu_idx, raddr);
+
+    /* If the two host pages are contiguous, optimize.  */
+    if (host2 == host1 + nb_pg1) {
+        return host1;
+    }
+    return NULL;
+}
+
 void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++) {
-        if (needs_byteswap(env)) {
-            env->gpr[reg] = bswap32(cpu_ldl_data_ra(env, addr, GETPC()));
-        } else {
-            env->gpr[reg] = cpu_ldl_data_ra(env, addr, GETPC());
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(env, false);
+    void *host = probe_contiguous(env, addr, (32 - reg) * 4,
+                                  MMU_DATA_LOAD, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; reg < 32; reg++) {
+            env->gpr[reg] = (uint32_t)ldl_be_p(host);
+            host += 4;
         }
-        addr = addr_add(env, addr, 4);
+    } else {
+        /* Slow path -- at least some of the operation requires i/o.  */
+        for (; reg < 32; reg++) {
+            env->gpr[reg] = cpu_ldl_mmuidx_ra(env, addr, mmu_idx, raddr);
+            addr = addr_add(env, addr, 4);
+        }
     }
 }
 
 void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++) {
-        if (needs_byteswap(env)) {
-            cpu_stl_data_ra(env, addr, bswap32((uint32_t)env->gpr[reg]),
-                                                   GETPC());
-        } else {
-            cpu_stl_data_ra(env, addr, (uint32_t)env->gpr[reg], GETPC());
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(env, false);
+    void *host = probe_contiguous(env, addr, (32 - reg) * 4,
+                                  MMU_DATA_STORE, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; reg < 32; reg++) {
+            stl_be_p(host, env->gpr[reg]);
+            host += 4;
         }
-        addr = addr_add(env, addr, 4);
+    } else {
+        /* Slow path -- at least some of the operation requires i/o.  */
+        for (; reg < 32; reg++) {
+            cpu_stl_mmuidx_ra(env, addr, env->gpr[reg], mmu_idx, raddr);
+            addr = addr_add(env, addr, 4);
+        }
     }
 }
 
 static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
                    uint32_t reg, uintptr_t raddr)
 {
-    int sh;
+    int mmu_idx;
+    void *host;
+    uint32_t val;
 
-    for (; nb > 3; nb -= 4) {
-        env->gpr[reg] = cpu_ldl_data_ra(env, addr, raddr);
-        reg = (reg + 1) % 32;
-        addr = addr_add(env, addr, 4);
+    if (unlikely(nb == 0)) {
+        return;
     }
-    if (unlikely(nb > 0)) {
-        env->gpr[reg] = 0;
-        for (sh = 24; nb > 0; nb--, sh -= 8) {
-            env->gpr[reg] |= cpu_ldub_data_ra(env, addr, raddr) << sh;
-            addr = addr_add(env, addr, 1);
+
+    mmu_idx = cpu_mmu_index(env, false);
+    host = probe_contiguous(env, addr, nb, MMU_DATA_LOAD, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; nb > 3; nb -= 4) {
+            env->gpr[reg] = (uint32_t)ldl_be_p(host);
+            reg = (reg + 1) % 32;
+            host += 4;
+        }
+        switch (nb) {
+        default:
+            return;
+        case 1:
+            val = ldub_p(host) << 24;
+            break;
+        case 2:
+            val = lduw_be_p(host) << 16;
+            break;
+        case 3:
+            val = (lduw_be_p(host) << 16) | (ldub_p(host + 2) << 8);
+            break;
+        }
+    } else {
+        /* Slow path -- at least some of the operation requires i/o.  */
+        for (; nb > 3; nb -= 4) {
+            env->gpr[reg] = cpu_ldl_mmuidx_ra(env, addr, mmu_idx, raddr);
+            reg = (reg + 1) % 32;
+            addr = addr_add(env, addr, 4);
+        }
+        switch (nb) {
+        default:
+            return;
+        case 1:
+            val = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, raddr) << 24;
+            break;
+        case 2:
+            val = cpu_lduw_mmuidx_ra(env, addr, mmu_idx, raddr) << 16;
+            break;
+        case 3:
+            val = cpu_lduw_mmuidx_ra(env, addr, mmu_idx, raddr) << 16;
+            addr = addr_add(env, addr, 2);
+            val |= cpu_ldub_mmuidx_ra(env, addr, mmu_idx, raddr) << 8;
+            break;
         }
     }
+    env->gpr[reg] = val;
 }
 
-void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
+void helper_lsw(CPUPPCState *env, target_ulong addr,
+                uint32_t nb, uint32_t reg)
 {
     do_lsw(env, addr, nb, reg, GETPC());
 }
@@ -130,17 +217,57 @@ void helper_lswx(CPUPPCState *env, target_ulong addr, uint32_t reg,
 void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
                  uint32_t reg)
 {
-    int sh;
+    uintptr_t raddr = GETPC();
+    int mmu_idx;
+    void *host;
+    uint32_t val;
 
-    for (; nb > 3; nb -= 4) {
-        cpu_stl_data_ra(env, addr, env->gpr[reg], GETPC());
-        reg = (reg + 1) % 32;
-        addr = addr_add(env, addr, 4);
+    if (unlikely(nb == 0)) {
+        return;
     }
-    if (unlikely(nb > 0)) {
-        for (sh = 24; nb > 0; nb--, sh -= 8) {
-            cpu_stb_data_ra(env, addr, (env->gpr[reg] >> sh) & 0xFF, GETPC());
-            addr = addr_add(env, addr, 1);
+
+    mmu_idx = cpu_mmu_index(env, false);
+    host = probe_contiguous(env, addr, nb, MMU_DATA_STORE, mmu_idx, raddr);
+
+    if (likely(host)) {
+        /* Fast path -- the entire operation is in RAM at host.  */
+        for (; nb > 3; nb -= 4) {
+            stl_be_p(host, env->gpr[reg]);
+            reg = (reg + 1) % 32;
+            host += 4;
+        }
+        val = env->gpr[reg];
+        switch (nb) {
+        case 1:
+            stb_p(host, val >> 24);
+            break;
+        case 2:
+            stw_be_p(host, val >> 16);
+            break;
+        case 3:
+            stw_be_p(host, val >> 16);
+            stb_p(host + 2, val >> 8);
+            break;
+        }
+    } else {
+        for (; nb > 3; nb -= 4) {
+            cpu_stl_mmuidx_ra(env, addr, env->gpr[reg], mmu_idx, raddr);
+            reg = (reg + 1) % 32;
+            addr = addr_add(env, addr, 4);
+        }
+        val = env->gpr[reg];
+        switch (nb) {
+        case 1:
+            cpu_stb_mmuidx_ra(env, addr, val >> 24, mmu_idx, raddr);
+            break;
+        case 2:
+            cpu_stw_mmuidx_ra(env, addr, val >> 16, mmu_idx, raddr);
+            break;
+        case 3:
+            cpu_stw_mmuidx_ra(env, addr, val >> 16, mmu_idx, raddr);
+            addr = addr_add(env, addr, 2);
+            cpu_stb_mmuidx_ra(env, addr, val >> 8, mmu_idx, raddr);
+            break;
         }
     }
 }
@@ -166,12 +293,12 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     addr &= mask;
 
     /* Check reservation */
-    if ((env->reserve_addr & mask) == (addr & mask))  {
+    if ((env->reserve_addr & mask) == addr)  {
         env->reserve_addr = (target_ulong)-1ULL;
     }
 
     /* Try fast path translate */
-    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, mmu_idx);
+    haddr = probe_write(env, addr, dcbz_size, mmu_idx, retaddr);
     if (haddr) {
         memset(haddr, 0, dcbz_size);
     } else {

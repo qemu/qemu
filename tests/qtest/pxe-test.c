@@ -17,6 +17,7 @@
 #include "qemu-common.h"
 #include "libqtest.h"
 #include "boot-sector.h"
+#include "libqos/libqos-spapr.h"
 
 #define NETNAME "net0"
 
@@ -46,15 +47,15 @@ static testdef_t x86_tests_slow[] = {
 
 static testdef_t ppc64_tests[] = {
     { "pseries", "spapr-vlan",
-      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken,vsmt=8" },
+      "-machine vsmt=8," PSERIES_DEFAULT_CAPABILITIES },
     { "pseries", "virtio-net-pci",
-      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken,vsmt=8" },
+      "-machine vsmt=8," PSERIES_DEFAULT_CAPABILITIES },
     { NULL },
 };
 
 static testdef_t ppc64_tests_slow[] = {
     { "pseries", "e1000",
-      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken,vsmt=8" },
+      "-machine vsmt=8," PSERIES_DEFAULT_CAPABILITIES },
     { NULL },
 };
 

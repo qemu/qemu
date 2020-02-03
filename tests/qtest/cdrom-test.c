@@ -189,7 +189,7 @@ int main(int argc, char **argv)
         add_s390x_tests();
     } else if (g_str_equal(arch, "ppc64")) {
         const char *ppcmachines[] = {
-            "pseries", "mac99", "g3beige", "40p", "prep", NULL
+            "pseries", "mac99", "g3beige", "40p", NULL
         };
         add_cdrom_param_tests(ppcmachines);
     } else if (g_str_equal(arch, "sparc")) {

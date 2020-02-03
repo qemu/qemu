@@ -360,6 +360,7 @@ static void pnv_homer_class_init(ObjectClass *klass, void *data)
     dc->realize = pnv_homer_realize;
     dc->desc = "PowerNV HOMER Memory";
     device_class_set_props(dc, pnv_homer_properties);
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_homer_type_info = {

@@ -72,6 +72,7 @@ void pcie_chassis_del_slot(PCIESlot *s);
 typedef struct PCIERootPortClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_realize;
+    DeviceReset parent_reset;
 
     uint8_t (*aer_vector)(const PCIDevice *dev);
     int (*interrupts_init)(PCIDevice *dev, Error **errp);
