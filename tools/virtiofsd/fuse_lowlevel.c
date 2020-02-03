@@ -1116,6 +1116,10 @@ static void do_read(fuse_req_t req, fuse_ino_t nodeid,
         struct fuse_file_info fi;
 
         arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+        if (!arg) {
+            fuse_reply_err(req, EINVAL);
+            return;
+        }
 
         memset(&fi, 0, sizeof(fi));
         fi.fh = arg->fh;
