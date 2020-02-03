@@ -24,6 +24,16 @@ class Migration(Test):
     def migration_finished(vm):
         return vm.command('query-migrate')['status'] in ('completed', 'failed')
 
+    def assert_migration(self, src_vm, dst_vm):
+        wait.wait_for(self.migration_finished,
+                      timeout=self.timeout,
+                      step=0.1,
+                      args=(src_vm,))
+        self.assertEqual(src_vm.command('query-migrate')['status'], 'completed')
+        self.assertEqual(dst_vm.command('query-migrate')['status'], 'completed')
+        self.assertEqual(dst_vm.command('query-status')['status'], 'running')
+        self.assertEqual(src_vm.command('query-status')['status'],'postmigrate')
+
     def _get_free_port(self):
         port = network.find_free_port()
         if port is None:
@@ -38,13 +48,4 @@ class Migration(Test):
         dest_vm.launch()
         source_vm.launch()
         source_vm.qmp('migrate', uri=dest_uri)
-        wait.wait_for(
-            self.migration_finished,
-            timeout=self.timeout,
-            step=0.1,
-            args=(source_vm,)
-        )
-        self.assertEqual(dest_vm.command('query-migrate')['status'], 'completed')
-        self.assertEqual(source_vm.command('query-migrate')['status'], 'completed')
-        self.assertEqual(dest_vm.command('query-status')['status'], 'running')
-        self.assertEqual(source_vm.command('query-status')['status'], 'postmigrate')
+        self.assert_migration(source_vm, dest_vm)
