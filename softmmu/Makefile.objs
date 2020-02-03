@@ -11,4 +11,4 @@ obj-y += memory_mapping.o
 obj-y += qtest.o
 
 obj-y += vl.o
-vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
+vl.o-cflags := $(SDL_CFLAGS)
