@@ -85,6 +85,8 @@ git:
 # Common first phase for all steps
 before_install:
   - if command -v ccache ; then ccache --zero-stats ; fi
+  - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
+  - echo "=== Using ${JOBS} simultaneous jobs ==="
 
 # Configure step - may be overridden
 before_script:
@@ -93,7 +95,7 @@ before_script:
 
 # Main build & test - rarely overridden - controlled by TEST_CMD
 script:
-  - BUILD_RC=0 && make -j3 || BUILD_RC=$?
+  - BUILD_RC=0 && make -j${JOBS} || BUILD_RC=$?
   - if [ "$BUILD_RC" -eq 0 ] ; then travis_retry ${TEST_CMD} ; else $(exit $BUILD_RC); fi
 after_script:
   - if command -v ccache ; then ccache --show-stats ; fi
@@ -125,7 +127,7 @@ matrix:
       env:
         - BASE_CONFIG="--enable-tools"
         - CONFIG="--disable-user --disable-system"
-        - TEST_CMD="make check-unit check-softfloat -j3"
+        - TEST_CMD="make check-unit check-softfloat -j${JOBS}"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
@@ -160,13 +162,13 @@ matrix:
     - name: "check-unit coroutine=ucontext"
       env:
         - CONFIG="--with-coroutine=ucontext --disable-tcg"
-        - TEST_CMD="make check-unit -j3 V=1"
+        - TEST_CMD="make check-unit -j${JOBS} V=1"
 
 
     - name: "check-unit coroutine=sigaltstack"
       env:
         - CONFIG="--with-coroutine=sigaltstack --disable-tcg"
-        - TEST_CMD="make check-unit -j3 V=1"
+        - TEST_CMD="make check-unit -j${JOBS} V=1"
 
 
     # Check we can build docs and tools (out of tree)
@@ -366,7 +368,7 @@ matrix:
     - name: "GCC check-tcg (user)"
       env:
         - CONFIG="--disable-system --enable-debug-tcg"
-        - TEST_CMD="make -j3 check-tcg V=1"
+        - TEST_CMD="make -j${JOBS} check-tcg V=1"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug-tcg"
 
 
@@ -375,7 +377,7 @@ matrix:
     - name: "GCC plugins check-tcg (user)"
       env:
         - CONFIG="--disable-system --enable-plugins --enable-debug-tcg --target-list-exclude=sparc64-linux-user"
-        - TEST_CMD="make -j3 check-tcg V=1"
+        - TEST_CMD="make -j${JOBS} check-tcg V=1"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug-tcg"
 
 
@@ -383,7 +385,7 @@ matrix:
     - name: "GCC check-tcg (some-softmmu)"
       env:
         - CONFIG="--enable-debug-tcg --target-list=xtensa-softmmu,arm-softmmu,aarch64-softmmu,alpha-softmmu"
-        - TEST_CMD="make -j3 check-tcg V=1"
+        - TEST_CMD="make -j${JOBS} check-tcg V=1"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug-tcg"
 
 
@@ -391,7 +393,7 @@ matrix:
     - name: "GCC plugins check-tcg (some-softmmu)"
       env:
         - CONFIG="--enable-plugins --enable-debug-tcg --target-list=xtensa-softmmu,arm-softmmu,aarch64-softmmu,alpha-softmmu"
-        - TEST_CMD="make -j3 check-tcg V=1"
+        - TEST_CMD="make -j${JOBS} check-tcg V=1"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug-tcg"
 
     - name: "[aarch64] GCC check-tcg"
@@ -500,7 +502,7 @@ matrix:
         - BUILD_DIR="release/build/dir" SRC_DIR="../../.."
         - BASE_CONFIG="--prefix=$PWD/dist"
         - CONFIG="--target-list=x86_64-softmmu,aarch64-softmmu,armeb-linux-user,ppc-linux-user"
-        - TEST_CMD="make install -j3"
+        - TEST_CMD="make install -j${JOBS}"
         - QEMU_VERSION="${TRAVIS_TAG:1}"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       script:
