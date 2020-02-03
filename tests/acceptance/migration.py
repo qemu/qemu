@@ -10,6 +10,7 @@
 # later.  See the COPYING file in the top-level directory.
 
 
+import tempfile
 from avocado_qemu import Test
 
 from avocado.utils import network
@@ -54,3 +55,8 @@ class Migration(Test):
     def test_migration_with_tcp_localhost(self):
         dest_uri = 'tcp:localhost:%u' % self._get_free_port()
         self.do_migrate(dest_uri)
+
+    def test_migration_with_unix(self):
+        with tempfile.TemporaryDirectory(prefix='socket_') as socket_path:
+            dest_uri = 'unix:%s/qemu-test.sock' % socket_path
+            self.do_migrate(dest_uri)
