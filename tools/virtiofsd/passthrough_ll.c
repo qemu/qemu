@@ -232,6 +232,7 @@ static int load_capng(void)
          */
         cap.saved = capng_save_state();
         if (!cap.saved) {
+            pthread_mutex_unlock(&cap.mutex);
             fuse_log(FUSE_LOG_ERR, "capng_save_state (thread)\n");
             return -EINVAL;
         }
