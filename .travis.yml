@@ -165,7 +165,8 @@ matrix:
 
 
     # Check we can build docs and tools (out of tree)
-    - name: "tools and docs"
+    - name: "tools and docs (bionic)"
+      dist: bionic
       env:
         - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
         - BASE_CONFIG="--enable-tools --enable-docs"
