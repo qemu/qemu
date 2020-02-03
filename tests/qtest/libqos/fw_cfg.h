@@ -49,4 +49,6 @@ static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
     io_fw_cfg_uninit(fw_cfg);
 }
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QFWCFG, mm_fw_cfg_uninit)
+
 #endif
