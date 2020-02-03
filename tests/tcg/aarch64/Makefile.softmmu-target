@@ -61,7 +61,13 @@ run-memory-replay: memory-replay run-memory-record
 	   	  $(QEMU_OPTS) memory, \
 	  "$< on $(TARGET_NAME)")
 
-run-pauth-3: pauth-3
-pauth-3: CFLAGS += -march=armv8.3-a
+EXTRA_TESTS+=memory-record memory-replay
 
-EXTRA_TESTS+=memory-record memory-replay pauth-3
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_ARMV8_3),)
+pauth-3: CFLAGS += -march=armv8.3-a
+else
+pauth-3:
+	$(call skip-test, "BUILD of $@", "missing compiler support")
+run-pauth-3:
+	$(call skip-test, "RUN of pauth-3", "not built")
+endif
