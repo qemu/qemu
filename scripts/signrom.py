@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from __future__ import print_function
 #
 # Option ROM signing utility
@@ -44,14 +46,8 @@ fout.write(data)
 
 checksum = 0
 for b in data:
-    # catch Python 2 vs. 3 differences
-    if isinstance(b, int):
-        checksum += b
-    else:
-        checksum += ord(b)
-checksum = (256 - checksum) % 256
+    checksum = (checksum - b) & 255
 
-# Python 3 no longer allows chr(checksum)
 fout.write(struct.pack('B', checksum))
 
 fin.close()
