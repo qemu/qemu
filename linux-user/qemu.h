@@ -386,7 +386,6 @@ void print_syscall_ret(int num, abi_long arg1);
  * --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=0} ---
  */
 void print_taken_signal(int target_signum, const target_siginfo_t *tinfo);
-extern int do_strace;
 
 /* signal.c */
 void process_pending_signals(CPUArchState *cpu_env);

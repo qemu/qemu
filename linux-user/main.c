@@ -61,6 +61,19 @@ unsigned long guest_base;
 int have_guest_base;
 
 /*
+ * Used to implement backwards-compatibility for the `-strace`, and
+ * QEMU_STRACE options. Without this, the QEMU_LOG can be overwritten by
+ * -strace, or vice versa.
+ */
+static bool enable_strace;
+
+/*
+ * The last log mask given by the user in an environment variable or argument.
+ * Used to support command line arguments overriding environment variables.
+ */
+static int last_log_mask;
+
+/*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.
  *
@@ -223,15 +236,11 @@ static void handle_arg_help(const char *arg)
 
 static void handle_arg_log(const char *arg)
 {
-    int mask;
-
-    mask = qemu_str_to_log_mask(arg);
-    if (!mask) {
+    last_log_mask = qemu_str_to_log_mask(arg);
+    if (!last_log_mask) {
         qemu_print_log_usage(stdout);
         exit(EXIT_FAILURE);
     }
-    qemu_log_needs_buffers();
-    qemu_set_log(mask);
 }
 
 static void handle_arg_dfilter(const char *arg)
@@ -375,7 +384,7 @@ static void handle_arg_singlestep(const char *arg)
 
 static void handle_arg_strace(const char *arg)
 {
-    do_strace = 1;
+    enable_strace = true;
 }
 
 static void handle_arg_version(const char *arg)
@@ -629,6 +638,7 @@ int main(int argc, char **argv, char **envp)
     int i;
     int ret;
     int execfd;
+    int log_mask;
     unsigned long max_reserved_va;
 
     error_init(argv[0]);
@@ -660,6 +670,12 @@ int main(int argc, char **argv, char **envp)
     qemu_plugin_add_opts();
 
     optind = parse_args(argc, argv);
+
+    log_mask = last_log_mask | (enable_strace ? LOG_STRACE : 0);
+    if (log_mask) {
+        qemu_log_needs_buffers();
+        qemu_set_log(log_mask);
+    }
 
     if (!trace_init_backends()) {
         exit(1);
