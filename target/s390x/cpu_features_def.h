@@ -17,7 +17,7 @@
 
 #define DEF_FEAT(_FEAT, ...) S390_FEAT_##_FEAT,
 typedef enum {
-    #include "cpu_features_def.inc.h"
+    #include "cpu_features_def.h.inc"
     S390_FEAT_MAX,
 } S390Feat;
 #undef DEF_FEAT
