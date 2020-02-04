@@ -6771,6 +6771,9 @@ fi
 if test "$l2tpv3" = "yes" ; then
   echo "CONFIG_L2TPV3=y" >> $config_host_mak
 fi
+if test "$gprof" = "yes" ; then
+  echo "CONFIG_GPROF=y" >> $config_host_mak
+fi
 if test "$cap_ng" = "yes" ; then
   echo "CONFIG_LIBCAP_NG=y" >> $config_host_mak
 fi
@@ -7951,7 +7954,6 @@ alpha)
 esac
 
 if test "$gprof" = "yes" ; then
-  echo "TARGET_GPROF=y" >> $config_target_mak
   if test "$target_linux_user" = "yes" ; then
     cflags="-p $cflags"
     ldflags="-p $ldflags"
