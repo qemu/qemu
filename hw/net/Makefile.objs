@@ -34,8 +34,8 @@ common-obj-$(CONFIG_SUNHME) += sunhme.o
 common-obj-$(CONFIG_FTGMAC100) += ftgmac100.o
 common-obj-$(CONFIG_SUNGEM) += sungem.o
 
-obj-$(CONFIG_ETRAXFS) += etraxfs_eth.o
-obj-$(CONFIG_COLDFIRE) += mcf_fec.o
+common-obj-$(CONFIG_ETRAXFS) += etraxfs_eth.o
+common-obj-$(CONFIG_COLDFIRE) += mcf_fec.o
 obj-$(CONFIG_MILKYMIST) += milkymist-minimac2.o
 obj-$(CONFIG_PSERIES) += spapr_llan.o
 obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
@@ -45,7 +45,7 @@ common-obj-$(call land,$(CONFIG_VIRTIO_NET),$(CONFIG_VHOST_NET)) += vhost_net.o
 common-obj-$(call lnot,$(call land,$(CONFIG_VIRTIO_NET),$(CONFIG_VHOST_NET))) += vhost_net-stub.o
 common-obj-$(CONFIG_ALL) += vhost_net-stub.o
 
-obj-$(CONFIG_ETSEC) += fsl_etsec/etsec.o fsl_etsec/registers.o \
+common-obj-$(CONFIG_ETSEC) += fsl_etsec/etsec.o fsl_etsec/registers.o \
 			fsl_etsec/rings.o fsl_etsec/miim.o
 
 common-obj-$(CONFIG_ROCKER) += rocker/rocker.o rocker/rocker_fp.o \

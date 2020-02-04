@@ -5,8 +5,8 @@ common-obj-$(CONFIG_ZAURUS) += zaurus.o
 common-obj-$(CONFIG_E500) += mpc8xxx.o
 common-obj-$(CONFIG_GPIO_KEY) += gpio_key.o
 
-obj-$(CONFIG_OMAP) += omap_gpio.o
-obj-$(CONFIG_IMX) += imx_gpio.o
-obj-$(CONFIG_RASPI) += bcm2835_gpio.o
-obj-$(CONFIG_NRF51_SOC) += nrf51_gpio.o
-obj-$(CONFIG_ASPEED_SOC) += aspeed_gpio.o
+common-obj-$(CONFIG_OMAP) += omap_gpio.o
+common-obj-$(CONFIG_IMX) += imx_gpio.o
+common-obj-$(CONFIG_RASPI) += bcm2835_gpio.o
+common-obj-$(CONFIG_NRF51_SOC) += nrf51_gpio.o
+common-obj-$(CONFIG_ASPEED_SOC) += aspeed_gpio.o

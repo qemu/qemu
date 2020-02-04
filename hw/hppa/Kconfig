@@ -12,4 +12,5 @@ config DINO
     select LSI_SCSI_PCI
     select LASI_82596
     select LASIPS2
+    select PARALLEL
     select ARTIST

@@ -12,7 +12,7 @@ common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-hid.o
 common-obj-$(CONFIG_VIRTIO_INPUT_HOST) += virtio-input-host.o
 common-obj-$(CONFIG_VHOST_USER_INPUT) += vhost-user-input.o
 
-obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
-obj-$(CONFIG_PXA2XX) += pxa2xx_keypad.o
-obj-$(CONFIG_TSC210X) += tsc210x.o
-obj-$(CONFIG_LASIPS2) += lasips2.o
+common-obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
+common-obj-$(CONFIG_PXA2XX) += pxa2xx_keypad.o
+common-obj-$(CONFIG_TSC210X) += tsc210x.o
+common-obj-$(CONFIG_LASIPS2) += lasips2.o

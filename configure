@@ -5843,7 +5843,7 @@ fi
 
 ##########################################
 # check for usable AF_ALG environment
-hava_afalg=no
+have_afalg=no
 cat > $TMPC << EOF
 #include <errno.h>
 #include <sys/types.h>

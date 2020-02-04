@@ -14,14 +14,14 @@
  * How to add or update the tests:
  * Contributor:
  * 1. add empty files for new tables, if any, under tests/data/acpi
- * 2. list any changed files in tests/bios-tables-test-allowed-diff.h
+ * 2. list any changed files in tests/qtest/bios-tables-test-allowed-diff.h
  * 3. commit the above *before* making changes that affect the tables
  *
  * Contributor or ACPI Maintainer (steps 4-7 need to be redone to resolve conflicts
  * in binary commit created in step 6):
  *
  * After 1-3 above tests will pass but ignore differences with the expected files.
- * You will also notice that tests/bios-tables-test-allowed-diff.h lists
+ * You will also notice that tests/qtest/bios-tables-test-allowed-diff.h lists
  * a bunch of files. This is your hint that you need to do the below:
  * 4. Run
  *      make check V=1
@@ -40,14 +40,14 @@
  *    in commit log.
  * 7. Before sending patches to the list (Contributor)
  *    or before doing a pull request (Maintainer), make sure
- *    tests/bios-tables-test-allowed-diff.h is empty - this will ensure
+ *    tests/qtest/bios-tables-test-allowed-diff.h is empty - this will ensure
  *    following changes to ACPI tables will be noticed.
  *
  * The resulting patchset/pull request then looks like this:
- * - patch 1: list changed files in tests/bios-tables-test-allowed-diff.h.
+ * - patch 1: list changed files in tests/qtest/bios-tables-test-allowed-diff.h.
  * - patches 2 - n: real changes, may contain multiple patches.
  * - patch n + 1: update golden master binaries and empty
- *   tests/bios-tables-test-allowed-diff.h
+ *   tests/qtest/bios-tables-test-allowed-diff.h
  */
 
 #include "qemu/osdep.h"

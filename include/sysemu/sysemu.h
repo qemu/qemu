@@ -32,7 +32,6 @@ typedef enum {
 } VGAInterfaceType;
 
 extern int vga_interface_type;
-#define xenfb_enabled (vga_interface_type == VGA_XENFB)
 
 extern int graphic_width;
 extern int graphic_height;
@@ -44,7 +43,6 @@ extern int alt_grab;
 extern int ctrl_grab;
 extern int cursor_hide;
 extern int graphic_rotate;
-extern int no_quit;
 extern int no_shutdown;
 extern int old_param;
 extern int boot_menu;

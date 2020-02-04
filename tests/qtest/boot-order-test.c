@@ -110,7 +110,7 @@ static void test_pc_boot_order(void)
 
 static uint64_t read_boot_order_pmac(QTestState *qts)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(qts, 0xf0000510);
+    g_autoptr(QFWCFG) fw_cfg = mm_fw_cfg_init(qts, 0xf0000510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -135,7 +135,7 @@ static void test_pmac_newworld_boot_order(void)
 
 static uint64_t read_boot_order_sun4m(QTestState *qts)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(qts, 0xd00000510ULL);
+    g_autoptr(QFWCFG) fw_cfg = mm_fw_cfg_init(qts, 0xd00000510ULL);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -147,7 +147,7 @@ static void test_sun4m_boot_order(void)
 
 static uint64_t read_boot_order_sun4u(QTestState *qts)
 {
-    QFWCFG *fw_cfg = io_fw_cfg_init(qts, 0x510);
+    g_autoptr(QFWCFG) fw_cfg = io_fw_cfg_init(qts, 0x510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }

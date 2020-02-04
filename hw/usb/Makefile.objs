@@ -13,8 +13,8 @@ common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-$(CONFIG_USB_XHCI_NEC) += hcd-xhci-nec.o
 common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
-obj-$(CONFIG_TUSB6010) += tusb6010.o
-obj-$(CONFIG_IMX)      += chipidea.o
+common-obj-$(CONFIG_TUSB6010) += tusb6010.o
+common-obj-$(CONFIG_IMX)      += chipidea.o
 
 # emulated usb devices
 common-obj-$(CONFIG_USB) += dev-hub.o

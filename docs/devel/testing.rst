@@ -16,8 +16,8 @@ The usual way to run these tests is:
 
   make check
 
-which includes QAPI schema tests, unit tests, and QTests. Different sub-types
-of "make check" tests will be explained below.
+which includes QAPI schema tests, unit tests, QTests and some iotests.
+Different sub-types of "make check" tests will be explained below.
 
 Before running tests, it is best to build QEMU programs first. Some tests
 expect the executables to exist and will fail with obscure messages if they
@@ -79,8 +79,8 @@ QTest cases can be executed with
 
    make check-qtest
 
-The QTest library is implemented by ``tests/libqtest.c`` and the API is defined
-in ``tests/libqtest.h``.
+The QTest library is implemented by ``tests/qtest/libqtest.c`` and the API is
+defined in ``tests/qtest/libqtest.h``.
 
 Consider adding a new QTest case when you are introducing a new virtual
 hardware, or extending one if you are adding functionalities to an existing
@@ -94,20 +94,20 @@ libqos instead of directly calling into libqtest.
 Steps to add a new QTest case are:
 
 1. Create a new source file for the test. (More than one file can be added as
-   necessary.) For example, ``tests/test-foo-device.c``.
+   necessary.) For example, ``tests/qtest/foo-test.c``.
 
 2. Write the test code with the glib and libqtest/libqos API. See also existing
    tests and the library headers for reference.
 
-3. Register the new test in ``tests/Makefile.include``. Add the test executable
-   name to an appropriate ``check-qtest-*-y`` variable. For example:
+3. Register the new test in ``tests/qtest/Makefile.include``. Add the test
+   executable name to an appropriate ``check-qtest-*-y`` variable. For example:
 
-   ``check-qtest-generic-y = tests/test-foo-device$(EXESUF)``
+   ``check-qtest-generic-y = tests/qtest/foo-test$(EXESUF)``
 
 4. Add object dependencies of the executable in the Makefile, including the
    test source file(s) and other interesting objects. For example:
 
-   ``tests/test-foo-device$(EXESUF): tests/test-foo-device.o $(libqos-obj-y)``
+   ``tests/qtest/foo-test$(EXESUF): tests/qtest/foo-test.o $(libqos-obj-y)``
 
 Debugging a QTest failure is slightly harder than the unit test because the
 tests look up QEMU program names in the environment variables, such as
@@ -152,8 +152,9 @@ parser (either fixing a bug or extending/modifying the syntax). To do this:
 check-block
 -----------
 
-``make check-block`` is a legacy command to invoke block layer iotests and is
-rarely used. See "QEMU iotests" section below for more information.
+``make check-block`` runs a subset of the block layer iotests (the tests that
+are in the "auto" group in ``tests/qemu-iotests/group``).
+See the "QEMU iotests" section below for more information.
 
 GCC gcov support
 ----------------
