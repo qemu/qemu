@@ -10,7 +10,7 @@
 #ifndef _SYSCALL_TRACE_H_
 #define _SYSCALL_TRACE_H_
 
-#include "trace-root.h"
+#include "trace/trace-root.h"
 
 /*
  * These helpers just provide a common place for the various

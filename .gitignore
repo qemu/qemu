@@ -146,7 +146,6 @@ docker-src.*
 *~
 *.ast_raw
 *.depend_raw
-trace.h
 trace.c
 trace-ust.h
 trace-ust.h

@@ -159,8 +159,8 @@ generated-files-$(CONFIG_TRACE_UST) += trace-ust-all.c
 
 generated-files-y += module_block.h
 
-TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
-TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
+TRACE_HEADERS = trace/trace-root.h
+TRACE_SOURCES = trace/trace-root.c
 TRACE_DTRACE =
 ifdef CONFIG_TRACE_DTRACE
 TRACE_HEADERS += trace-dtrace-root.h $(trace-events-subdirs:%=%/trace-dtrace.h)
@@ -170,33 +170,37 @@ ifdef CONFIG_TRACE_UST
 TRACE_HEADERS += trace-ust-root.h $(trace-events-subdirs:%=%/trace-ust.h)
 endif
 
-generated-files-y += $(TRACE_HEADERS)
-generated-files-y += $(TRACE_SOURCES)
 generated-files-y += $(BUILD_DIR)/trace-events-all
 generated-files-y += .git-submodule-status
 
 trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
+trace-group-suffix = $(shell echo $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
 
 tracetool-y = $(SRC_PATH)/scripts/tracetool.py
 tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
-%/trace.h: %/trace.h-timestamp
-	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
+define __trace_rules
+TRACE_HEADERS += trace/trace-$2.h
+TRACE_SOURCES += trace/trace-$2.c
+trace-obj-y += trace/trace-$2.o
+trace/trace-$2.h: trace/trace-$2.h-timestamp
+	@cmp $$< $$@ >/dev/null 2>&1 || cp $$< $$@
+trace/trace-$2.h-timestamp: $(SRC_PATH)/$1/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
-		--group=$(call trace-group-name,$@) \
+		--group=$2 \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
-		$< > $@,"GEN","$(@:%-timestamp=%)")
+		$$< > $$@,"GEN","$$(@:%-timestamp=%)")
 
-%/trace.c: %/trace.c-timestamp
-	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
+trace/trace-$2.c: trace/trace-$2.c-timestamp
+	@cmp $$< $$@ >/dev/null 2>&1 || cp $$< $$@
+trace/trace-$2.c-timestamp: $(SRC_PATH)/$1/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
-		--group=$(call trace-group-name,$@) \
+		--group=$2 \
 		--format=c \
 		--backends=$(TRACE_BACKENDS) \
-		$< > $@,"GEN","$(@:%-timestamp=%)")
+		$$< > $$@,"GEN","$$(@:%-timestamp=%)")
+endef
 
 %/trace-ust.h: %/trace-ust.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
@@ -222,18 +226,18 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 %/trace-dtrace.o: %/trace-dtrace.dtrace $(tracetool-y)
 
 
-trace-root.h: trace-root.h-timestamp
+trace/trace-root.h: trace/trace-root.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
+trace/trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(@:%-timestamp=%)")
 
-trace-root.c: trace-root.c-timestamp
+trace/trace-root.c: trace/trace-root.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
+trace/trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=c \
@@ -476,6 +480,12 @@ dummy := $(call unnest-vars,, \
                 common-obj-y \
                 common-obj-m \
                 trace-obj-y)
+
+dummy := $(foreach DIR,$(trace-events-subdirs),$(eval $(call __trace_rules,$(DIR),$(call trace-group-suffix,$(DIR)))))
+
+generated-files-y += $(TRACE_HEADERS)
+generated-files-y += $(TRACE_SOURCES)
+
 
 include $(SRC_PATH)/tests/Makefile.include
 
