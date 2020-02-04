@@ -6,7 +6,6 @@
 # Author: Alex Bennée <alex.bennee@linaro.org>
 #
 
-from __future__ import print_function
 import simpletrace
 import argparse
 import numpy as np

@@ -36,7 +36,6 @@
 # See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 #
 
-from __future__ import print_function
 import os
 import sys
 import base64

@@ -9,7 +9,6 @@
 #
 # For help see docs/devel/tracing.txt
 
-from __future__ import print_function
 import struct
 import inspect
 from tracetool import read_events, Event

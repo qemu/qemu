@@ -32,7 +32,6 @@
 # consuming CPU cycles.  No disk I/O is performed since the ring buffer holds a
 # fixed-size in-memory trace.
 
-from __future__ import print_function
 import sys
 import os
 

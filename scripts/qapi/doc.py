@@ -4,7 +4,6 @@
 # See the COPYING file in the top-level directory.
 """This script produces the documentation of a qapi schema in texinfo format"""
 
-from __future__ import print_function
 import re
 from qapi.gen import QAPIGenDoc, QAPISchemaVisitor
 

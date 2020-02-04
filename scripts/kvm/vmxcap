@@ -10,7 +10,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 
-from __future__ import print_function
 MSR_IA32_VMX_BASIC = 0x480
 MSR_IA32_VMX_PINBASED_CTLS = 0x481
 MSR_IA32_VMX_PROCBASED_CTLS = 0x482
