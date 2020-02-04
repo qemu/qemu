@@ -632,12 +632,14 @@ static void ich9_lpc_get_sci_int(Object *obj, Visitor *v, const char *name,
     visit_type_uint8(v, name, &lpc->sci_gsi, errp);
 }
 
-static void ich9_lpc_add_properties(ICH9LPCState *lpc)
+static void ich9_lpc_initfn(Object *obj)
 {
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+
     static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
-    object_property_add(OBJECT(lpc), ACPI_PM_PROP_SCI_INT, "uint8",
+    object_property_add(obj, ACPI_PM_PROP_SCI_INT, "uint8",
                         ich9_lpc_get_sci_int,
                         NULL, NULL, NULL, NULL);
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
@@ -645,14 +647,7 @@ static void ich9_lpc_add_properties(ICH9LPCState *lpc)
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
                                   &acpi_disable_cmd, OBJ_PROP_FLAG_READ, NULL);
 
-    ich9_pm_add_properties(OBJECT(lpc), &lpc->pm, NULL);
-}
-
-static void ich9_lpc_initfn(Object *obj)
-{
-    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
-
-    ich9_lpc_add_properties(lpc);
+    ich9_pm_add_properties(obj, &lpc->pm, NULL);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
