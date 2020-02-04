@@ -444,17 +444,17 @@ static void piix4_pm_add_propeties(PIIX4PMState *s)
     static const uint16_t sci_int = 9;
 
     object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                  &acpi_enable_cmd, NULL);
+                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ, NULL);
     object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                  &acpi_disable_cmd, NULL);
+                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ, NULL);
     object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK,
-                                  &gpe0_blk, NULL);
+                                  &gpe0_blk, OBJ_PROP_FLAG_READ, NULL);
     object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK_LEN,
-                                  &gpe0_blk_len, NULL);
+                                  &gpe0_blk_len, OBJ_PROP_FLAG_READ, NULL);
     object_property_add_uint16_ptr(OBJECT(s), ACPI_PM_PROP_SCI_INT,
-                                  &sci_int, NULL);
+                                  &sci_int, OBJ_PROP_FLAG_READ, NULL);
     object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_PM_IO_BASE,
-                                  &s->io_base, NULL);
+                                  &s->io_base, OBJ_PROP_FLAG_READ, NULL);
 }
 
 static void piix4_pm_realize(PCIDevice *dev, Error **errp)
