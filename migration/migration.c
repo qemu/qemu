@@ -3341,7 +3341,7 @@ static void *migration_thread(void *opaque)
 
     qemu_savevm_state_setup(s->to_dst_file);
 
-    if (qemu_savevm_nr_failover_devices()) {
+    if (qemu_savevm_state_guest_unplug_pending()) {
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_WAIT_UNPLUG);
 
