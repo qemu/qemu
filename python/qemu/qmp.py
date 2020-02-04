@@ -154,16 +154,23 @@ class QEMUMonitorProtocol:
             return self.__negotiate_capabilities()
         return None
 
-    def accept(self):
+    def accept(self, timeout=15.0):
         """
         Await connection from QMP Monitor and perform capabilities negotiation.
 
+        @param timeout: timeout in seconds (nonnegative float number, or
+                        None). The value passed will set the behavior of the
+                        underneath QMP socket as described in [1]. Default value
+                        is set to 15.0.
         @return QMP greeting dict
         @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
+
+        [1]
+        https://docs.python.org/3/library/socket.html#socket.socket.settimeout
         """
-        self.__sock.settimeout(15)
+        self.__sock.settimeout(timeout)
         self.__sock, _ = self.__sock.accept()
         self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
