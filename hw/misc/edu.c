@@ -396,21 +396,14 @@ static void pci_edu_uninit(PCIDevice *pdev)
     msi_uninit(pdev);
 }
 
-static void edu_obj_uint64(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
-{
-    uint64_t *val = opaque;
-
-    visit_type_uint64(v, name, val, errp);
-}
-
 static void edu_instance_init(Object *obj)
 {
     EduState *edu = EDU(obj);
 
     edu->dma_mask = (1UL << 28) - 1;
-    object_property_add(obj, "dma_mask", "uint64", edu_obj_uint64,
-                    edu_obj_uint64, NULL, &edu->dma_mask, NULL);
+    object_property_add_uint64_ptr(obj, "dma_mask",
+                                   &edu->dma_mask, OBJ_PROP_FLAG_READWRITE,
+                                   NULL);
 }
 
 static void edu_class_init(ObjectClass *class, void *data)

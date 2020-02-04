@@ -1153,22 +1153,6 @@ static void arm_set_pmu(Object *obj, bool value, Error **errp)
     cpu->has_pmu = value;
 }
 
-static void arm_get_init_svtor(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-
-    visit_type_uint32(v, name, &cpu->init_svtor, errp);
-}
-
-static void arm_set_init_svtor(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-
-    visit_type_uint32(v, name, &cpu->init_svtor, errp);
-}
-
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
 {
     /*
@@ -1288,9 +1272,9 @@ void arm_cpu_post_init(Object *obj)
          * a simple DEFINE_PROP_UINT32 for this because we want to permit
          * the property to be set after realize.
          */
-        object_property_add(obj, "init-svtor", "uint32",
-                            arm_get_init_svtor, arm_set_init_svtor,
-                            NULL, NULL, &error_abort);
+        object_property_add_uint32_ptr(obj, "init-svtor",
+                                       &cpu->init_svtor,
+                                       OBJ_PROP_FLAG_READWRITE, &error_abort);
     }
 
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);

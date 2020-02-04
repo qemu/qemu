@@ -357,81 +357,6 @@ static void ich9_pm_set_cpu_hotplug_legacy(Object *obj, bool value,
     s->pm.cpu_hotplug_legacy = value;
 }
 
-static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    uint8_t value = pm->disable_s3;
-
-    visit_type_uint8(v, name, &value, errp);
-}
-
-static void ich9_pm_set_disable_s3(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
-    uint8_t value;
-
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    pm->disable_s3 = value;
-out:
-    error_propagate(errp, local_err);
-}
-
-static void ich9_pm_get_disable_s4(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    uint8_t value = pm->disable_s4;
-
-    visit_type_uint8(v, name, &value, errp);
-}
-
-static void ich9_pm_set_disable_s4(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
-    uint8_t value;
-
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    pm->disable_s4 = value;
-out:
-    error_propagate(errp, local_err);
-}
-
-static void ich9_pm_get_s4_val(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    uint8_t value = pm->s4_val;
-
-    visit_type_uint8(v, name, &value, errp);
-}
-
-static void ich9_pm_set_s4_val(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
-    uint8_t value;
-
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    pm->s4_val = value;
-out:
-    error_propagate(errp, local_err);
-}
-
 static bool ich9_pm_get_enable_tco(Object *obj, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
@@ -468,18 +393,14 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
                              ich9_pm_get_cpu_hotplug_legacy,
                              ich9_pm_set_cpu_hotplug_legacy,
                              NULL);
-    object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "uint8",
-                        ich9_pm_get_disable_s3,
-                        ich9_pm_set_disable_s3,
-                        NULL, pm, NULL);
-    object_property_add(obj, ACPI_PM_PROP_S4_DISABLED, "uint8",
-                        ich9_pm_get_disable_s4,
-                        ich9_pm_set_disable_s4,
-                        NULL, pm, NULL);
-    object_property_add(obj, ACPI_PM_PROP_S4_VAL, "uint8",
-                        ich9_pm_get_s4_val,
-                        ich9_pm_set_s4_val,
-                        NULL, pm, NULL);
+    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_S3_DISABLED,
+                                  &pm->disable_s3, OBJ_PROP_FLAG_READWRITE,
+                                  NULL);
+    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_S4_DISABLED,
+                                  &pm->disable_s4, OBJ_PROP_FLAG_READWRITE,
+                                  NULL);
+    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_S4_VAL,
+                                  &pm->s4_val, OBJ_PROP_FLAG_READWRITE, NULL);
     object_property_add_bool(obj, ACPI_PM_PROP_TCO_ENABLED,
                              ich9_pm_get_enable_tco,
                              ich9_pm_set_enable_tco,
