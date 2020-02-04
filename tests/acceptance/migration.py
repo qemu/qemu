@@ -20,6 +20,9 @@ from avocado.utils.path import find_command
 
 
 class Migration(Test):
+    """
+    :avocado: tags=migration
+    """
 
     timeout = 10
 
