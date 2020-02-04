@@ -118,7 +118,7 @@ static inline void new_pool_l8(TCGContext *s, int rtype, tcg_insn_unit *label,
     new_pool_insert(s, n);
 }
 
-/* To be provided by cpu/tcg-target.inc.c.  */
+/* To be provided by cpu/tcg-target.c.inc.  */
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count);
 
 static int tcg_out_pool_finalize(TCGContext *s)

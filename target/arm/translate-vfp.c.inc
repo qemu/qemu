@@ -27,8 +27,8 @@
  */
 
 /* Include the generated VFP decoder */
-#include "decode-vfp.inc.c"
-#include "decode-vfp-uncond.inc.c"
+#include "decode-vfp.c.inc"
+#include "decode-vfp-uncond.c.inc"
 
 /*
  * The imm8 encodes the sign bit, enough bits to represent an exponent in

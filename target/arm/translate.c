@@ -1176,8 +1176,8 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 #define ARM_CP_RW_BIT   (1 << 20)
 
 /* Include the VFP and Neon decoders */
-#include "translate-vfp.inc.c"
-#include "translate-neon.inc.c"
+#include "translate-vfp.c.inc"
+#include "translate-neon.c.inc"
 
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {
@@ -5217,10 +5217,10 @@ static int t16_pop_list(DisasContext *s, int x)
  * Include the generated decoders.
  */
 
-#include "decode-a32.inc.c"
-#include "decode-a32-uncond.inc.c"
-#include "decode-t32.inc.c"
-#include "decode-t16.inc.c"
+#include "decode-a32.c.inc"
+#include "decode-a32-uncond.c.inc"
+#include "decode-t32.c.inc"
+#include "decode-t16.c.inc"
 
 /* Helpers to swap operands for reverse-subtract.  */
 static void gen_rsb(TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)

@@ -42,7 +42,7 @@ order build,interface,tests,code,documentation,devel-doc,blobs
 # (most common languages first
 #
 filetype code \.c$	# C
-filetype code \.inc.c$	# C
+filetype code \.c.inc$	# C
 filetype code \.C$	# C++
 filetype code \.cpp$	# C++
 filetype code \.c\+\+$	# C++

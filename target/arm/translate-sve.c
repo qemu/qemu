@@ -100,7 +100,7 @@ static inline int msz_dtype(DisasContext *s, int msz)
  * Include the generated decoder.
  */
 
-#include "decode-sve.inc.c"
+#include "decode-sve.c.inc"
 
 /*
  * Implement all of the translator functions referenced by the decoder.

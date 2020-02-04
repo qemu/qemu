@@ -18,7 +18,7 @@
 /ui/shader/texture-blit-frag.h
 /ui/shader/texture-blit-vert.h
 /ui/shader/texture-blit-flip-vert.h
-/ui/input-keymap-*.c
+/ui/input-keymap-*.c.inc
 *-timestamp
 /*-softmmu
 /*-darwin-user
@@ -161,4 +161,4 @@ trace-dtrace-root.h
 trace-dtrace-root.dtrace
 trace-ust-all.h
 trace-ust-all.c
-/target/arm/decode-sve.inc.c
+/target/arm/decode-sve.c.inc

@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory for details.
  */
 
-#include "../tcg-pool.inc.c"
+#include "../tcg-pool.c.inc"
 #include "qemu/bitops.h"
 
 /* We're going to re-use TCGType in setting of the SF bit, which controls
@@ -1542,7 +1542,7 @@ static void tcg_out_cltz(TCGContext *s, TCGType ext, TCGReg d,
 }
 
 #ifdef CONFIG_SOFTMMU
-#include "../tcg-ldst.inc.c"
+#include "../tcg-ldst.c.inc"
 
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     TCGMemOpIdx oi, uintptr_t ra)

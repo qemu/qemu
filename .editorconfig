@@ -22,9 +22,10 @@ indent_style = tab
 indent_size = 8
 file_type_emacs = makefile
 
-[*.{c,h}]
+[*.{c,h,c.inc,h.inc}]
 indent_style = space
 indent_size = 4
+file_type_emacs = c
 
 [*.sh]
 indent_style = space

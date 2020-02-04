@@ -4,8 +4,8 @@ obj-$(CONFIG_SOFTMMU) += machine.o
 
 DECODETREE = $(SRC_PATH)/scripts/decodetree.py
 
-target/hppa/decode.inc.c: $(SRC_PATH)/target/hppa/insns.decode $(DECODETREE)
+target/hppa/decode.c.inc: $(SRC_PATH)/target/hppa/insns.decode $(DECODETREE)
 	$(call quiet-command,\
 	  $(PYTHON) $(DECODETREE) -o $@ $<, "GEN", $(TARGET_DIR)$@)
 
-target/hppa/translate.o: target/hppa/decode.inc.c
+target/hppa/translate.o: target/hppa/decode.c.inc

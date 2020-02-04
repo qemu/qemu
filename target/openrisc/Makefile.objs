@@ -6,10 +6,10 @@ obj-y += gdbstub.o
 
 DECODETREE = $(SRC_PATH)/scripts/decodetree.py
 
-target/openrisc/decode.inc.c: \
+target/openrisc/decode.c.inc: \
   $(SRC_PATH)/target/openrisc/insns.decode $(DECODETREE)
 	$(call quiet-command,\
 	  $(PYTHON) $(DECODETREE) -o $@ $<, "GEN", $(TARGET_DIR)$@)
 
-target/openrisc/translate.o: target/openrisc/decode.inc.c
-target/openrisc/disas.o: target/openrisc/decode.inc.c
+target/openrisc/translate.o: target/openrisc/decode.c.inc
+target/openrisc/disas.o: target/openrisc/decode.c.inc

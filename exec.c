@@ -3659,7 +3659,7 @@ void cpu_physical_memory_unmap(void *buffer, hwaddr len,
 #define TRANSLATE(...)           address_space_translate(as, __VA_ARGS__)
 #define RCU_READ_LOCK(...)       rcu_read_lock()
 #define RCU_READ_UNLOCK(...)     rcu_read_unlock()
-#include "memory_ldst.inc.c"
+#include "memory_ldst.c.inc"
 
 int64_t address_space_cache_init(MemoryRegionCache *cache,
                                  AddressSpace *as,
@@ -3795,7 +3795,7 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
 #define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)
 #define RCU_READ_LOCK()          ((void)0)
 #define RCU_READ_UNLOCK()        ((void)0)
-#include "memory_ldst.inc.c"
+#include "memory_ldst.c.inc"
 
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,

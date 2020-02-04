@@ -21,12 +21,12 @@
 DECODETREE = $(SRC_PATH)/scripts/decodetree.py
 decode-y = $(SRC_PATH)/target/avr/insn.decode
 
-target/avr/decode_insn.inc.c: $(decode-y) $(DECODETREE)
+target/avr/decode_insn.c.inc: $(decode-y) $(DECODETREE)
 	$(call quiet-command, \
 	  $(PYTHON) $(DECODETREE) -o $@ --decode decode_insn --insnwidth 16 $<, \
 	  "GEN", $(TARGET_DIR)$@)
 
-target/avr/translate.o: target/avr/decode_insn.inc.c
+target/avr/translate.o: target/avr/decode_insn.c.inc
 
 obj-y += translate.o cpu.o helper.o
 obj-y += gdbstub.o

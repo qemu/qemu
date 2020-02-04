@@ -14,15 +14,15 @@ decode16-y = $(SRC_PATH)/target/riscv/insn16.decode
 decode16-$(TARGET_RISCV32) += $(SRC_PATH)/target/riscv/insn16-32.decode
 decode16-$(TARGET_RISCV64) += $(SRC_PATH)/target/riscv/insn16-64.decode
 
-target/riscv/decode_insn32.inc.c: $(decode32-y) $(DECODETREE)
+target/riscv/decode_insn32.c.inc: $(decode32-y) $(DECODETREE)
 	$(call quiet-command, \
 	  $(PYTHON) $(DECODETREE) -o $@ --static-decode decode_insn32 \
           $(decode32-y), "GEN", $(TARGET_DIR)$@)
 
-target/riscv/decode_insn16.inc.c: $(decode16-y) $(DECODETREE)
+target/riscv/decode_insn16.c.inc: $(decode16-y) $(DECODETREE)
 	$(call quiet-command, \
 	  $(PYTHON) $(DECODETREE) -o $@ --static-decode decode_insn16 \
           --insnwidth 16 $(decode16-y), "GEN", $(TARGET_DIR)$@)
 
-target/riscv/translate.o: target/riscv/decode_insn32.inc.c \
-	target/riscv/decode_insn16.inc.c
+target/riscv/translate.o: target/riscv/decode_insn32.c.inc \
+	target/riscv/decode_insn16.c.inc
