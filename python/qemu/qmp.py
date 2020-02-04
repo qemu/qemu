@@ -139,6 +139,15 @@ class QEMUMonitorProtocol:
                 raise QMPConnectError("Error while reading from socket")
             self.__sock.settimeout(None)
 
+    def __enter__(self):
+        # Implement context manager enter function.
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        # Implement context manager exit function.
+        self.close()
+        return False
+
     def connect(self, negotiate=True):
         """
         Connect to the QMP Monitor and perform capabilities negotiation.
@@ -265,8 +274,10 @@ class QEMUMonitorProtocol:
         """
         Close the socket and socket file.
         """
-        self.__sock.close()
-        self.__sockfile.close()
+        if self.__sock:
+            self.__sock.close()
+        if self.__sockfile:
+            self.__sockfile.close()
 
     def settimeout(self, timeout):
         """
