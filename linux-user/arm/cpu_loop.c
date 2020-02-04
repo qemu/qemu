@@ -349,8 +349,9 @@ void cpu_loop(CPUARMState *env)
                             env->regs[0] = cpu_get_tls(env);
                             break;
                         default:
-                            gemu_log("qemu: Unsupported ARM syscall: 0x%x\n",
-                                     n);
+                            qemu_log_mask(LOG_UNIMP,
+                                          "qemu: Unsupported ARM syscall: 0x%x\n",
+                                          n);
                             env->regs[0] = -TARGET_ENOSYS;
                             break;
                         }
