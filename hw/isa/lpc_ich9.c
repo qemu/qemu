@@ -629,9 +629,7 @@ static void ich9_lpc_get_sci_int(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
-    uint32_t value = lpc->sci_gsi;
-
-    visit_type_uint32(v, name, &value, errp);
+    visit_type_uint8(v, name, &lpc->sci_gsi, errp);
 }
 
 static void ich9_lpc_add_properties(ICH9LPCState *lpc)
@@ -639,7 +637,7 @@ static void ich9_lpc_add_properties(ICH9LPCState *lpc)
     static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
-    object_property_add(OBJECT(lpc), ACPI_PM_PROP_SCI_INT, "uint32",
+    object_property_add(OBJECT(lpc), ACPI_PM_PROP_SCI_INT, "uint8",
                         ich9_lpc_get_sci_int,
                         NULL, NULL, NULL, NULL);
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
