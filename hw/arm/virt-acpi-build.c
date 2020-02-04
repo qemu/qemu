@@ -236,7 +236,6 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
                              size_mmio_high));
     }
 
-    aml_append(method, aml_name_decl("RBUF", rbuf));
     aml_append(method, aml_return(rbuf));
     aml_append(dev, method);
 
