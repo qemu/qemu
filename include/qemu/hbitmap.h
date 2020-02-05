@@ -304,10 +304,10 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
  * @hb: The HBitmap to operate on
  * @start: The bit to start from.
  * @count: Number of bits to proceed. If @start+@count > bitmap size, the whole
- * bitmap is looked through. You can use UINT64_MAX as @count to search up to
+ * bitmap is looked through. You can use INT64_MAX as @count to search up to
  * the bitmap end.
  */
-int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count);
+int64_t hbitmap_next_zero(const HBitmap *hb, int64_t start, int64_t count);
 
 /* hbitmap_next_dirty_area:
  * @hb: The HBitmap to operate on
@@ -322,8 +322,7 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count);
  * @offset and @bytes appropriately. Otherwise returns false and leaves @offset
  * and @bytes unchanged.
  */
-bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *start,
-                             uint64_t *count);
+bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t *start, int64_t *count);
 
 /**
  * hbitmap_iter_next:

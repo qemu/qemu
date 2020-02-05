@@ -2055,7 +2055,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
         bool next_dirty = !dirty;
 
         if (dirty) {
-            end = bdrv_dirty_bitmap_next_zero(bitmap, begin, UINT64_MAX);
+            end = bdrv_dirty_bitmap_next_zero(bitmap, begin, INT64_MAX);
         } else {
             bdrv_set_dirty_iter(it, begin);
             end = bdrv_dirty_iter_next(it);

@@ -193,7 +193,7 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
     }
 }
 
-int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count)
+int64_t hbitmap_next_zero(const HBitmap *hb, int64_t start, int64_t count)
 {
     size_t pos = (start >> hb->granularity) >> BITS_PER_LEVEL;
     unsigned long *last_lev = hb->levels[HBITMAP_LEVELS - 1];
@@ -201,6 +201,8 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count)
     unsigned start_bit_offset;
     uint64_t end_bit, sz;
     int64_t res;
+
+    assert(start >= 0 && count >= 0);
 
     if (start >= hb->orig_size || count == 0) {
         return -1;
@@ -244,13 +246,14 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count)
     return res;
 }
 
-bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *start,
-                             uint64_t *count)
+bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t *start, int64_t *count)
 {
     HBitmapIter hbi;
     int64_t firt_dirty_off, area_end;
     uint32_t granularity = 1UL << hb->granularity;
     uint64_t end;
+
+    assert(*start >= 0 && *count >= 0);
 
     if (*start >= hb->orig_size || *count == 0) {
         return false;
@@ -834,8 +837,8 @@ bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
  */
 static void hbitmap_sparse_merge(HBitmap *dst, const HBitmap *src)
 {
-    uint64_t offset = 0;
-    uint64_t count = src->orig_size;
+    int64_t offset = 0;
+    int64_t count = src->orig_size;
 
     while (hbitmap_next_dirty_area(src, &offset, &count)) {
         hbitmap_set(dst, offset, count);
