@@ -323,6 +323,7 @@ matrix:
             - python3-pil
             - python3-pip
             - python3.5-venv
+            - rpm2cpio
             - tesseract-ocr
             - tesseract-ocr-eng
 
