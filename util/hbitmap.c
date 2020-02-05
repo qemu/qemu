@@ -905,22 +905,6 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
     return true;
 }
 
-HBitmap *hbitmap_create_meta(HBitmap *hb, int chunk_size)
-{
-    assert(!(chunk_size & (chunk_size - 1)));
-    assert(!hb->meta);
-    hb->meta = hbitmap_alloc(hb->size << hb->granularity,
-                             hb->granularity + ctz32(chunk_size));
-    return hb->meta;
-}
-
-void hbitmap_free_meta(HBitmap *hb)
-{
-    assert(hb->meta);
-    hbitmap_free(hb->meta);
-    hb->meta = NULL;
-}
-
 char *hbitmap_sha256(const HBitmap *bitmap, Error **errp)
 {
     size_t size = bitmap->sizes[HBITMAP_LEVELS - 1] * sizeof(unsigned long);

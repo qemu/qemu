@@ -325,27 +325,6 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count);
 bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *start,
                              uint64_t *count);
 
-/* hbitmap_create_meta:
- * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.
- * The caller owns the created bitmap and must call hbitmap_free_meta(hb) to
- * free it.
- *
- * Currently, we only guarantee that if a bit in the hbitmap is changed it
- * will be reflected in the meta bitmap, but we do not yet guarantee the
- * opposite.
- *
- * @hb: The HBitmap to operate on.
- * @chunk_size: How many bits in @hb does one bit in the meta track.
- */
-HBitmap *hbitmap_create_meta(HBitmap *hb, int chunk_size);
-
-/* hbitmap_free_meta:
- * Free the meta bitmap of @hb.
- *
- * @hb: The HBitmap whose meta bitmap should be freed.
- */
-void hbitmap_free_meta(HBitmap *hb);
-
 /**
  * hbitmap_iter_next:
  * @hbi: HBitmapIter to operate on.
