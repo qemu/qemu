@@ -51,6 +51,22 @@ class BootLinuxConsole(Test):
         os.chdir(cwd)
         return self.workdir + path
 
+    def extract_from_rpm(self, rpm, path):
+        """
+        Extracts a file from an RPM package into the test workdir.
+
+        :param rpm: path to the rpm archive
+        :param path: path within the rpm archive of the file to be extracted
+                     needs to be a relative path (starting with './') because
+                     cpio(1), which is used to extract the file, expects that.
+        :returns: path of the extracted file
+        """
+        cwd = os.getcwd()
+        os.chdir(self.workdir)
+        process.run("rpm2cpio %s | cpio -id %s" % (rpm, path), shell=True)
+        os.chdir(cwd)
+        return os.path.normpath(os.path.join(self.workdir, path))
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
