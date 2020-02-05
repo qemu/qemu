@@ -920,18 +920,19 @@ static void test_hbitmap_next_x_after_truncate(TestHBitmapData *data,
     test_hbitmap_next_x_check(data, 0);
 }
 
-static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
-                                               int64_t offset,
-                                               int64_t count)
+static void test_hbitmap_next_dirty_area_check_limited(TestHBitmapData *data,
+                                                       int64_t offset,
+                                                       int64_t count,
+                                                       int64_t max_dirty)
 {
     int64_t off1, off2;
     int64_t len1 = 0, len2;
     bool ret1, ret2;
     int64_t end;
 
-    off1 = offset;
-    len1 = count;
-    ret1 = hbitmap_next_dirty_area(data->hb, &off1, &len1);
+    ret1 = hbitmap_next_dirty_area(data->hb,
+            offset, count == INT64_MAX ? INT64_MAX : offset + count, max_dirty,
+            &off1, &len1);
 
     end = offset > data->size || data->size - offset < count ? data->size :
                                                                offset + count;
@@ -940,21 +941,25 @@ static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
         ;
     }
 
-    for (len2 = 1; off2 + len2 < end && hbitmap_get(data->hb, off2 + len2);
-         len2++) {
+    for (len2 = 1; (off2 + len2 < end && len2 < max_dirty &&
+                    hbitmap_get(data->hb, off2 + len2)); len2++)
+    {
         ;
     }
 
     ret2 = off2 < end;
-    if (!ret2) {
-        /* leave unchanged */
-        off2 = offset;
-        len2 = count;
-    }
-
     g_assert_cmpint(ret1, ==, ret2);
-    g_assert_cmpint(off1, ==, off2);
-    g_assert_cmpint(len1, ==, len2);
+
+    if (ret2) {
+        g_assert_cmpint(off1, ==, off2);
+        g_assert_cmpint(len1, ==, len2);
+    }
+}
+
+static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
+                                               int64_t offset, int64_t count)
+{
+    test_hbitmap_next_dirty_area_check_limited(data, offset, count, INT64_MAX);
 }
 
 static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
@@ -964,6 +969,7 @@ static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, 0, 1);
     test_hbitmap_next_dirty_area_check(data, L3 - 1, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, 0, INT64_MAX, 1);
 
     hbitmap_set(data->hb, L2, 1);
     test_hbitmap_next_dirty_area_check(data, 0, 1);
@@ -976,6 +982,8 @@ static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_check(data, L2, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, L2, 1);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, 0, INT64_MAX, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 - 1, 2, 1);
 
     hbitmap_set(data->hb, L2 + 5, L1);
     test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
@@ -988,6 +996,8 @@ static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_check(data, L2 + L1, L1);
     test_hbitmap_next_dirty_area_check(data, L2, 0);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 0);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 + 3, INT64_MAX, 3);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 + 3, 7, 10);
 
     hbitmap_set(data->hb, L2 * 2, L3 - L2 * 2);
     test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
@@ -997,6 +1007,9 @@ static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_check(data, L2 + 5 + L1, 5);
     test_hbitmap_next_dirty_area_check(data, L2 * 2 - L1, L1 + 1);
     test_hbitmap_next_dirty_area_check(data, L2 * 2, L2);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, INT64_MAX, 5);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, 10, 5);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, 2, 5);
 
     hbitmap_set(data->hb, 0, L3);
     test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);

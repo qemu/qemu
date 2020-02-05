@@ -324,18 +324,21 @@ int64_t hbitmap_next_zero(const HBitmap *hb, int64_t start, int64_t count);
 
 /* hbitmap_next_dirty_area:
  * @hb: The HBitmap to operate on
- * @start: in-out parameter.
- *         in: the offset to start from
- *         out: (if area found) start of found area
- * @count: in-out parameter.
- *         in: length of requested region
- *         out: length of found area
+ * @start: the offset to start from
+ * @end: end of requested area
+ * @max_dirty_count: limit for out parameter dirty_count
+ * @dirty_start: on success: start of found area
+ * @dirty_count: on success: length of found area
  *
- * If dirty area found within [@start, @start + @count), returns true and sets
- * @offset and @bytes appropriately. Otherwise returns false and leaves @offset
- * and @bytes unchanged.
+ * If dirty area found within [@start, @end), returns true and sets
+ * @dirty_start and @dirty_count appropriately. @dirty_count will not exceed
+ * @max_dirty_count.
+ * If dirty area was not found, returns false and leaves @dirty_start and
+ * @dirty_count unchanged.
  */
-bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t *start, int64_t *count);
+bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t start, int64_t end,
+                             int64_t max_dirty_count,
+                             int64_t *dirty_start, int64_t *dirty_count);
 
 /**
  * hbitmap_iter_next:

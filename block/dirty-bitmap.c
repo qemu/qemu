@@ -873,9 +873,11 @@ int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, int64_t offset,
 }
 
 bool bdrv_dirty_bitmap_next_dirty_area(BdrvDirtyBitmap *bitmap,
-                                       int64_t *offset, int64_t *bytes)
+        int64_t start, int64_t end, int64_t max_dirty_count,
+        int64_t *dirty_start, int64_t *dirty_count)
 {
-    return hbitmap_next_dirty_area(bitmap->bitmap, offset, bytes);
+    return hbitmap_next_dirty_area(bitmap->bitmap, start, end, max_dirty_count,
+                                   dirty_start, dirty_count);
 }
 
 /**
