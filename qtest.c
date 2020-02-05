@@ -27,7 +27,8 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
-#ifdef TARGET_PPC64
+#include "config-devices.h"
+#ifdef CONFIG_PSERIES
 #include "hw/ppc/spapr_rtas.h"
 #endif
 
@@ -628,7 +629,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
 #else
         qtest_sendf(chr, "OK little\n");
 #endif
-#ifdef TARGET_PPC64
+#ifdef CONFIG_PSERIES
     } else if (strcmp(words[0], "rtas") == 0) {
         uint64_t res, args, ret;
         unsigned long nargs, nret;
