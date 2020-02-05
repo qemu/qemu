@@ -297,6 +297,19 @@ void hbitmap_free(HBitmap *hb);
  */
 void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
 
+/*
+ * hbitmap_next_dirty:
+ *
+ * Find next dirty bit within selected range. If not found, return -1.
+ *
+ * @hb: The HBitmap to operate on
+ * @start: The bit to start from.
+ * @count: Number of bits to proceed. If @start+@count > bitmap size, the whole
+ * bitmap is looked through. You can use INT64_MAX as @count to search up to
+ * the bitmap end.
+ */
+int64_t hbitmap_next_dirty(const HBitmap *hb, int64_t start, int64_t count);
+
 /* hbitmap_next_zero:
  *
  * Find next not dirty bit within selected range. If not found, return -1.

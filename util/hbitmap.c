@@ -193,6 +193,30 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
     }
 }
 
+int64_t hbitmap_next_dirty(const HBitmap *hb, int64_t start, int64_t count)
+{
+    HBitmapIter hbi;
+    int64_t first_dirty_off;
+    uint64_t end;
+
+    assert(start >= 0 && count >= 0);
+
+    if (start >= hb->orig_size || count == 0) {
+        return -1;
+    }
+
+    end = count > hb->orig_size - start ? hb->orig_size : start + count;
+
+    hbitmap_iter_init(&hbi, hb, start);
+    first_dirty_off = hbitmap_iter_next(&hbi);
+
+    if (first_dirty_off < 0 || first_dirty_off >= end) {
+        return -1;
+    }
+
+    return MAX(start, first_dirty_off);
+}
+
 int64_t hbitmap_next_zero(const HBitmap *hb, int64_t start, int64_t count)
 {
     size_t pos = (start >> hb->granularity) >> BITS_PER_LEVEL;
@@ -248,40 +272,20 @@ int64_t hbitmap_next_zero(const HBitmap *hb, int64_t start, int64_t count)
 
 bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t *start, int64_t *count)
 {
-    HBitmapIter hbi;
-    int64_t firt_dirty_off, area_end;
-    uint32_t granularity = 1UL << hb->granularity;
-    uint64_t end;
+    int64_t area_start, area_end;
 
-    assert(*start >= 0 && *count >= 0);
-
-    if (*start >= hb->orig_size || *count == 0) {
+    area_start = hbitmap_next_dirty(hb, *start, *count);
+    if (area_start < 0) {
         return false;
     }
 
-    end = *count > hb->orig_size - *start ? hb->orig_size : *start + *count;
-
-    hbitmap_iter_init(&hbi, hb, *start);
-    firt_dirty_off = hbitmap_iter_next(&hbi);
-
-    if (firt_dirty_off < 0 || firt_dirty_off >= end) {
-        return false;
+    area_end = hbitmap_next_zero(hb, area_start, *start + *count - area_start);
+    if (area_end < 0) {
+        area_end = MIN(hb->orig_size, *start + *count);
     }
 
-    if (firt_dirty_off + granularity >= end) {
-        area_end = end;
-    } else {
-        area_end = hbitmap_next_zero(hb, firt_dirty_off + granularity,
-                                     end - firt_dirty_off - granularity);
-        if (area_end < 0) {
-            area_end = end;
-        }
-    }
-
-    if (firt_dirty_off > *start) {
-        *start = firt_dirty_off;
-    }
-    *count = area_end - *start;
+    *start = area_start;
+    *count = area_end - area_start;
 
     return true;
 }
