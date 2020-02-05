@@ -49,7 +49,12 @@ class BootLinuxConsole(Test):
         process.run("ar x %s %s" % (deb, file_path))
         archive.extract(file_path, self.workdir)
         os.chdir(cwd)
-        return self.workdir + path
+        # Return complete path to extracted file.  Because callers to
+        # extract_from_deb() specify 'path' with a leading slash, it is
+        # necessary to use os.path.relpath() as otherwise os.path.join()
+        # interprets it as an absolute path and drops the self.workdir part.
+        return os.path.normpath(os.path.join(self.workdir,
+                                             os.path.relpath(path, '/')))
 
     def extract_from_rpm(self, rpm, path):
         """
