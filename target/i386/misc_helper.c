@@ -229,7 +229,6 @@ void helper_rdmsr(CPUX86State *env)
 #else
 void helper_wrmsr(CPUX86State *env)
 {
-    X86CPU *x86_cpu = env_archcpu(env);
     uint64_t val;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1, GETPC());
@@ -372,9 +371,6 @@ void helper_wrmsr(CPUX86State *env)
         env->msr_bndcfgs = val;
         cpu_sync_bndcs_hflags(env);
         break;
-     case MSR_IA32_UCODE_REV:
-        val = x86_cpu->ucode_rev;
-        break;
     default:
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
             && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
@@ -393,6 +389,7 @@ void helper_wrmsr(CPUX86State *env)
 
 void helper_rdmsr(CPUX86State *env)
 {
+    X86CPU *x86_cpu = env_archcpu(env);
     uint64_t val;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 0, GETPC());
@@ -525,6 +522,9 @@ void helper_rdmsr(CPUX86State *env)
         break;
     case MSR_IA32_BNDCFGS:
         val = env->msr_bndcfgs;
+        break;
+     case MSR_IA32_UCODE_REV:
+        val = x86_cpu->ucode_rev;
         break;
     default:
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
