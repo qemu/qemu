@@ -1955,7 +1955,7 @@ STEXI
 Start in full screen.
 ETEXI
 
-DEF("g", 1, QEMU_OPTION_g ,
+DEF("g", HAS_ARG, QEMU_OPTION_g ,
     "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n",
     QEMU_ARCH_PPC | QEMU_ARCH_SPARC | QEMU_ARCH_M68K)
 STEXI

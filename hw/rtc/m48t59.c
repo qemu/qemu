@@ -35,6 +35,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 #include "m48t59-internal.h"
 #include "migration/vmstate.h"
@@ -192,8 +193,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
     struct tm tm;
     int tmp;
 
-    if (addr > 0x1FF8 && addr < 0x2000)
-	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
+    trace_m48txx_nvram_mem_write(addr, val);
 
     /* check for NVRAM access */
     if ((NVRAM->model == 2 && addr < 0x7f8) ||
@@ -450,8 +450,7 @@ uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
 	}
         break;
     }
-    if (addr > 0x1FF9 && addr < 0x2000)
-       NVRAM_PRINTF("%s: 0x%08x <= 0x%08x\n", __func__, addr, retval);
+    trace_m48txx_nvram_mem_read(addr, retval);
 
     return retval;
 }
@@ -462,7 +461,7 @@ static void NVRAM_writeb(void *opaque, hwaddr addr, uint64_t val,
 {
     M48t59State *NVRAM = opaque;
 
-    NVRAM_PRINTF("%s: 0x%"HWADDR_PRIx" => 0x%"PRIx64"\n", __func__, addr, val);
+    trace_m48txx_nvram_io_write(addr, val);
     switch (addr) {
     case 0:
         NVRAM->addr &= ~0x00FF;
@@ -494,7 +493,7 @@ static uint64_t NVRAM_readb(void *opaque, hwaddr addr, unsigned size)
         retval = -1;
         break;
     }
-    NVRAM_PRINTF("%s: 0x%"HWADDR_PRIx" <= 0x%08x\n", __func__, addr, retval);
+    trace_m48txx_nvram_io_read(addr, retval);
 
     return retval;
 }

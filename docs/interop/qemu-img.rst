@@ -247,7 +247,7 @@ Command description:
   Amends the image format specific *OPTIONS* for the image file
   *FILENAME*. Not all file formats support this operation.
 
-.. option:: bench [-c COUNT] [-d DEPTH] [-f FMT] [--flush-interval=FLUSH_INTERVAL] [-n] [-i AIO] [--no-drain] [-o OFFSET] [--pattern=PATTERN] [-q] [-s BUFFER_SIZE] [-S STEP_SIZE] [-t CACHE] [-w] [-U] FILENAME
+.. option:: bench [-c COUNT] [-d DEPTH] [-f FMT] [--flush-interval=FLUSH_INTERVAL] [-i AIO] [-n] [--no-drain] [-o OFFSET] [--pattern=PATTERN] [-q] [-s BUFFER_SIZE] [-S STEP_SIZE] [-t CACHE] [-w] [-U] FILENAME
 
   Run a simple sequential I/O benchmark on the specified image. If ``-w`` is
   specified, a write test is performed, otherwise a read test is performed.
@@ -264,12 +264,12 @@ Command description:
   ``--no-drain`` is specified, a flush is issued without draining the request
   queue first.
 
+  if ``-i`` is specified, *AIO* option can be used to specify different
+  AIO backends: ``threads``, ``native`` or ``io_uring``.
+
   If ``-n`` is specified, the native AIO backend is used if possible. On
   Linux, this option only works if ``-t none`` or ``-t directsync`` is
   specified as well.
-
-  if ``-i`` is specified, *AIO* option can be used to specify different
-  AIO backends: ``threads``, ``native`` or ``io_uring``.
 
   For write tests, by default a buffer filled with zeros is written. This can be
   overridden with a pattern byte specified by *PATTERN*.
