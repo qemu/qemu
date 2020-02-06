@@ -46,6 +46,8 @@ _require_drivers copy-on-read
 # and generally impossible with external data files
 _unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
 
+_require_devices virtio-blk
+
 do_run_qemu()
 {
     echo Testing: "$@"

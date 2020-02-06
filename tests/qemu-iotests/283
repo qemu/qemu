@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+#
+# Test for backup-top filter permission activation failure
+#
+# Copyright (c) 2019 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+# The test is unrelated to formats, restrict it to qcow2 to avoid extra runs
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+size = 1024 * 1024
+
+""" Test description
+
+When performing a backup, all writes on the source subtree must go through the
+backup-top filter so it can copy all data to the target before it is changed.
+backup-top filter is appended above source node, to achieve this thing, so all
+parents of source node are handled. A configuration with side parents of source
+sub-tree with write permission is unsupported (we'd have append several
+backup-top filter like nodes to handle such parents). The test create an
+example of such configuration and checks that a backup is then not allowed
+(blockdev-backup command should fail).
+
+The configuration:
+
+    ┌────────┐  target  ┌─────────────┐
+    │ target │ ◀─────── │ backup_top  │
+    └────────┘          └─────────────┘
+                            │
+                            │ backing
+                            ▼
+                        ┌─────────────┐
+                        │   source    │
+                        └─────────────┘
+                            │
+                            │ file
+                            ▼
+                        ┌─────────────┐  write perm   ┌───────┐
+                        │    base     │ ◀──────────── │ other │
+                        └─────────────┘               └───────┘
+
+On activation (see .active field of backup-top state in block/backup-top.c),
+backup-top is going to unshare write permission on its source child. Write
+unsharing will be propagated to the "source->base" link and will conflict with
+other node write permission. So permission update will fail and backup job will
+not be started.
+
+Note, that the only thing which prevents backup of running on such
+configuration is default permission propagation scheme. It may be altered by
+different block drivers, so backup will run in invalid configuration. But
+something is better than nothing. Also, before the previous commit (commit
+preceding this test creation), starting backup on such configuration led to
+crash, so current "something" is a lot better, and this test actual goal is
+to check that crash is fixed :)
+"""
+
+vm = iotests.VM()
+vm.launch()
+
+vm.qmp_log('blockdev-add', **{'node-name': 'target', 'driver': 'null-co'})
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'source',
+    'driver': 'blkdebug',
+    'image': {'node-name': 'base', 'driver': 'null-co', 'size': size}
+})
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'other',
+    'driver': 'blkdebug',
+    'image': 'base',
+    'take-child-perms': ['write']
+})
+
+vm.qmp_log('blockdev-backup', sync='full', device='source', target='target')
+
+vm.shutdown()

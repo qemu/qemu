@@ -713,5 +713,19 @@ _require_large_file()
     rm "$TEST_IMG"
 }
 
+# Check that a set of devices is available in the QEMU binary
+#
+_require_devices()
+{
+    available=$($QEMU -M none -device help | \
+                grep ^name | sed -e 's/^name "//' -e 's/".*$//')
+    for device
+    do
+        if ! echo "$available" | grep -q "$device" ; then
+            _notrun "$device not available"
+        fi
+    done
+}
+
 # make sure this script returns success
 true

@@ -1134,4 +1134,5 @@ class TestOrphanedSource(iotests.QMPTestCase):
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
-                 supported_protocols=['file'])
+                 supported_protocols=['file'],
+                 supported_platforms=['linux', 'freebsd', 'netbsd', 'openbsd'])

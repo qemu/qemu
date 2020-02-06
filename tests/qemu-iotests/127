@@ -43,6 +43,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 
+_require_devices virtio-scsi scsi-hd
+
 IMG_SIZE=64K
 
 _make_test_img $IMG_SIZE
