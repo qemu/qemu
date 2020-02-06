@@ -125,6 +125,7 @@ typedef struct {
 NSWindow *normalWindow, *about_window;
 static DisplayChangeListener *dcl;
 static int last_buttons;
+static int cursor_hide = 1;
 
 int gArgc;
 char **gArgv;
@@ -1917,6 +1918,9 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
             [NSApp activateIgnoringOtherApps: YES];
             [(QemuCocoaAppController *)[[NSApplication sharedApplication] delegate] toggleFullScreen: nil];
         });
+    }
+    if (opts->has_show_cursor && opts->show_cursor) {
+        cursor_hide = 0;
     }
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
