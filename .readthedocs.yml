@@ -1,0 +1,20 @@
+# .readthedocs.yml
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Build documentation in the docs/ directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
+
+# We want all the document formats
+formats: all
+
+# For consistency, we require that QEMU's Sphinx extensions
+# run with at least the same minimum version of Python that
+# we require for other Python in our codebase (our conf.py
+# enforces this, and some code needs it.)
+python:
+  version: 3.5
