@@ -100,7 +100,6 @@ static void usage(const char *name)
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
-"  -P, --partition=NUM       only expose partition NUM\n"
 "  -B, --bitmap=NAME         expose a persistent dirty bitmap\n"
 "\n"
 "General purpose options:\n"
@@ -154,96 +153,6 @@ QEMU_COPYRIGHT "\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
     , name);
-}
-
-struct partition_record
-{
-    uint8_t bootable;
-    uint8_t start_head;
-    uint32_t start_cylinder;
-    uint8_t start_sector;
-    uint8_t system;
-    uint8_t end_head;
-    uint8_t end_cylinder;
-    uint8_t end_sector;
-    uint32_t start_sector_abs;
-    uint32_t nb_sectors_abs;
-};
-
-static void read_partition(uint8_t *p, struct partition_record *r)
-{
-    r->bootable = p[0];
-    r->start_head = p[1];
-    r->start_cylinder = p[3] | ((p[2] << 2) & 0x0300);
-    r->start_sector = p[2] & 0x3f;
-    r->system = p[4];
-    r->end_head = p[5];
-    r->end_cylinder = p[7] | ((p[6] << 2) & 0x300);
-    r->end_sector = p[6] & 0x3f;
-
-    r->start_sector_abs = ldl_le_p(p + 8);
-    r->nb_sectors_abs   = ldl_le_p(p + 12);
-}
-
-static int find_partition(BlockBackend *blk, int partition,
-                          uint64_t *offset, uint64_t *size)
-{
-    struct partition_record mbr[4];
-    uint8_t data[MBR_SIZE];
-    int i;
-    int ext_partnum = 4;
-    int ret;
-
-    ret = blk_pread(blk, 0, data, sizeof(data));
-    if (ret < 0) {
-        error_report("error while reading: %s", strerror(-ret));
-        exit(EXIT_FAILURE);
-    }
-
-    if (data[510] != 0x55 || data[511] != 0xaa) {
-        return -EINVAL;
-    }
-
-    for (i = 0; i < 4; i++) {
-        read_partition(&data[446 + 16 * i], &mbr[i]);
-
-        if (!mbr[i].system || !mbr[i].nb_sectors_abs) {
-            continue;
-        }
-
-        if (mbr[i].system == 0xF || mbr[i].system == 0x5) {
-            struct partition_record ext[4];
-            uint8_t data1[MBR_SIZE];
-            int j;
-
-            ret = blk_pread(blk, mbr[i].start_sector_abs * MBR_SIZE,
-                            data1, sizeof(data1));
-            if (ret < 0) {
-                error_report("error while reading: %s", strerror(-ret));
-                exit(EXIT_FAILURE);
-            }
-
-            for (j = 0; j < 4; j++) {
-                read_partition(&data1[446 + 16 * j], &ext[j]);
-                if (!ext[j].system || !ext[j].nb_sectors_abs) {
-                    continue;
-                }
-
-                if ((ext_partnum + j + 1) == partition) {
-                    *offset = (uint64_t)ext[j].start_sector_abs << 9;
-                    *size = (uint64_t)ext[j].nb_sectors_abs << 9;
-                    return 0;
-                }
-            }
-            ext_partnum += 4;
-        } else if ((i + 1) == partition) {
-            *offset = (uint64_t)mbr[i].start_sector_abs << 9;
-            *size = (uint64_t)mbr[i].nb_sectors_abs << 9;
-            return 0;
-        }
-    }
-
-    return -ENOENT;
 }
 
 static void termsig_handler(int signum)
@@ -617,7 +526,7 @@ int main(int argc, char **argv)
     int64_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:B:L";
+    const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:B:L";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -626,7 +535,6 @@ int main(int argc, char **argv)
         { "socket", required_argument, NULL, 'k' },
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
-        { "partition", required_argument, NULL, 'P' },
         { "bitmap", required_argument, NULL, 'B' },
         { "connect", required_argument, NULL, 'c' },
         { "disconnect", no_argument, NULL, 'd' },
@@ -657,7 +565,6 @@ int main(int argc, char **argv)
     int ch;
     int opt_ind = 0;
     int flags = BDRV_O_RDWR;
-    int partition = 0;
     int ret = 0;
     bool seen_cache = false;
     bool seen_discard = false;
@@ -789,15 +696,6 @@ int main(int argc, char **argv)
             readonly = true;
             flags &= ~BDRV_O_RDWR;
             break;
-        case 'P':
-            warn_report("The '-P' option is deprecated; use --image-opts with "
-                        "a raw device wrapper for subset exports instead");
-            if (qemu_strtoi(optarg, NULL, 0, &partition) < 0 ||
-                partition < 1 || partition > 8) {
-                error_report("Invalid partition '%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            break;
         case 'B':
             bitmap = optarg;
             break;
@@ -894,7 +792,7 @@ int main(int argc, char **argv)
             error_report("List mode is incompatible with a file name");
             exit(EXIT_FAILURE);
         }
-        if (export_name || export_description || dev_offset || partition ||
+        if (export_name || export_description || dev_offset ||
             device || disconnect || fmt || sn_id_or_name || bitmap ||
             seen_aio || seen_discard || seen_cache) {
             error_report("List mode is incompatible with per-device settings");
@@ -1157,33 +1055,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     fd_size -= dev_offset;
-
-    if (partition) {
-        uint64_t limit;
-
-        if (dev_offset) {
-            error_report("Cannot request partition and offset together");
-            exit(EXIT_FAILURE);
-        }
-        ret = find_partition(blk, partition, &dev_offset, &limit);
-        if (ret < 0) {
-            error_report("Could not find partition %d: %s", partition,
-                         strerror(-ret));
-            exit(EXIT_FAILURE);
-        }
-        /*
-         * MBR partition limits are (32-bit << 9); this assert lets
-         * the compiler know that we can't overflow 64 bits.
-         */
-        assert(dev_offset + limit >= dev_offset);
-        if (dev_offset + limit > fd_size) {
-            error_report("Discovered partition %d at offset %" PRIu64
-                         " size %" PRIu64 ", but size exceeds file length %"
-                         PRId64, partition, dev_offset, limit, fd_size);
-            exit(EXIT_FAILURE);
-        }
-        fd_size = limit;
-    }
 
     export = nbd_export_new(bs, dev_offset, fd_size, export_name,
                             export_description, bitmap, readonly, shared > 1,

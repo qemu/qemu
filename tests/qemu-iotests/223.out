@@ -50,7 +50,7 @@ exports available: 0
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
 {"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "bitmap":"b2"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "description":"some text", "bitmap":"b2"}}
 {"return": {}}
 exports available: 2
  export: 'n'
@@ -63,6 +63,7 @@ exports available: 2
    base:allocation
    qemu:dirty-bitmap:b
  export: 'n2'
+  description: some text
   size:  4194304
   flags: 0xced ( flush fua trim zeroes df cache fast-zero )
   min block: 1
@@ -130,7 +131,7 @@ exports available: 0
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
 {"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "bitmap":"b2"}}
+{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "description":"some text", "bitmap":"b2"}}
 {"return": {}}
 exports available: 2
  export: 'n'
@@ -143,6 +144,7 @@ exports available: 2
    base:allocation
    qemu:dirty-bitmap:b
  export: 'n2'
+  description: some text
   size:  4194304
   flags: 0xced ( flush fua trim zeroes df cache fast-zero )
   min block: 1

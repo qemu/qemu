@@ -144,6 +144,7 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
 }
 
 void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
+                        bool has_description, const char *description,
                         bool has_writable, bool writable,
                         bool has_bitmap, const char *bitmap, Error **errp)
 {
@@ -164,6 +165,11 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
 
     if (strlen(name) > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "export name '%s' too long", name);
+        return;
+    }
+
+    if (has_description && strlen(description) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "description '%s' too long", description);
         return;
     }
 
@@ -195,7 +201,8 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, len, name, NULL, bitmap, !writable, !writable,
+    exp = nbd_export_new(bs, 0, len, name, description, bitmap,
+                         !writable, !writable,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {
         goto out;
