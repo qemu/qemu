@@ -7,3 +7,4 @@ aspeed_smc_flash_write(int cs, uint64_t addr,  uint32_t size, uint64_t data, int
 aspeed_smc_read(uint64_t addr,  uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
 aspeed_smc_dma_checksum(uint32_t addr, uint32_t data) "0x%08x: 0x%08x"
 aspeed_smc_write(uint64_t addr,  uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
+aspeed_smc_flash_select(int cs, const char *prefix) "CS%d %sselect"

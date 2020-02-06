@@ -639,27 +639,23 @@ static inline int aspeed_smc_flash_is_4byte(const AspeedSMCFlash *fl)
     }
 }
 
-static inline bool aspeed_smc_is_ce_stop_active(const AspeedSMCFlash *fl)
+static void aspeed_smc_flash_do_select(AspeedSMCFlash *fl, bool unselect)
 {
-    const AspeedSMCState *s = fl->controller;
+    AspeedSMCState *s = fl->controller;
 
-    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE;
+    trace_aspeed_smc_flash_select(fl->id, unselect ? "un" : "");
+
+    qemu_set_irq(s->cs_lines[fl->id], unselect);
 }
 
 static void aspeed_smc_flash_select(AspeedSMCFlash *fl)
 {
-    AspeedSMCState *s = fl->controller;
-
-    s->regs[s->r_ctrl0 + fl->id] &= ~CTRL_CE_STOP_ACTIVE;
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    aspeed_smc_flash_do_select(fl, false);
 }
 
 static void aspeed_smc_flash_unselect(AspeedSMCFlash *fl)
 {
-    AspeedSMCState *s = fl->controller;
-
-    s->regs[s->r_ctrl0 + fl->id] |= CTRL_CE_STOP_ACTIVE;
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    aspeed_smc_flash_do_select(fl, true);
 }
 
 static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
@@ -911,13 +907,25 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
     },
 };
 
-static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
+static void aspeed_smc_flash_update_ctrl(AspeedSMCFlash *fl, uint32_t value)
 {
     AspeedSMCState *s = fl->controller;
+    bool unselect;
 
-    s->snoop_index = aspeed_smc_is_ce_stop_active(fl) ? SNOOP_OFF : SNOOP_START;
+    /* User mode selects the CS, other modes unselect */
+    unselect = (value & CTRL_CMD_MODE_MASK) != CTRL_USERMODE;
 
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    /* A change of CTRL_CE_STOP_ACTIVE from 0 to 1, unselects the CS */
+    if (!(s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE) &&
+        value & CTRL_CE_STOP_ACTIVE) {
+        unselect = true;
+    }
+
+    s->regs[s->r_ctrl0 + fl->id] = value;
+
+    s->snoop_index = unselect ? SNOOP_OFF : SNOOP_START;
+
+    aspeed_smc_flash_do_select(fl, unselect);
 }
 
 static void aspeed_smc_reset(DeviceState *d)
@@ -1249,8 +1257,7 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         s->regs[addr] = value;
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
         int cs = addr - s->r_ctrl0;
-        s->regs[addr] = value;
-        aspeed_smc_flash_update_cs(&s->flashes[cs]);
+        aspeed_smc_flash_update_ctrl(&s->flashes[cs], value);
     } else if (addr >= R_SEG_ADDR0 &&
                addr < R_SEG_ADDR0 + s->ctrl->max_slaves) {
         int cs = addr - R_SEG_ADDR0;
