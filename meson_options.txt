@@ -1,2 +1,6 @@
 option('sdl', type : 'feature', value : 'auto')
 option('sdl_image', type : 'feature', value : 'auto')
+option('vnc', type : 'feature', value : 'enabled')
+option('vnc_jpeg', type : 'feature', value : 'auto')
+option('vnc_png', type : 'feature', value : 'auto')
+option('vnc_sasl', type : 'feature', value : 'auto')

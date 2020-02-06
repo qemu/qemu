@@ -306,20 +306,24 @@ if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
                            link_args: config_host['GIO_LIBS'].split())
 endif
+vnc = not_found
 png = not_found
-if 'CONFIG_VNC_PNG' in config_host
-  png = declare_dependency(compile_args: config_host['PNG_CFLAGS'].split(),
-                           link_args: config_host['PNG_LIBS'].split())
-endif
 jpeg = not_found
-if 'CONFIG_VNC_JPEG' in config_host
-  jpeg = declare_dependency(compile_args: config_host['JPEG_CFLAGS'].split(),
-                            link_args: config_host['JPEG_LIBS'].split())
-endif
 sasl = not_found
-if 'CONFIG_VNC_SASL' in config_host
-  sasl = declare_dependency(compile_args: config_host['SASL_CFLAGS'].split(),
-                            link_args: config_host['SASL_LIBS'].split())
+if get_option('vnc').enabled()
+  vnc = declare_dependency() # dummy dependency
+  png = dependency('libpng', required: get_option('vnc_png'),
+                   static: enable_static)
+  jpeg = cc.find_library('jpeg', has_headers: ['jpeglib.h'],
+                         required: get_option('vnc_jpeg'),
+                         static: enable_static)
+  sasl = cc.find_library('sasl2', has_headers: ['sasl/sasl.h'],
+                         required: get_option('vnc_sasl'),
+                         static: enable_static)
+  if sasl.found()
+    sasl = declare_dependency(dependencies: sasl,
+                              compile_args: '-DSTRUCT_IOVEC_DEFINED')
+  endif
 endif
 fdt = not_found
 if 'CONFIG_FDT' in config_host
@@ -377,6 +381,10 @@ endif
 
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
+config_host_data.set('CONFIG_VNC', vnc.found())
+config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
+config_host_data.set('CONFIG_VNC_PNG', png.found())
+config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -1286,11 +1294,11 @@ summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']
 summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
 summary_info += {'VirtFS support':    config_host.has_key('CONFIG_VIRTFS')}
 summary_info += {'Multipath support': config_host.has_key('CONFIG_MPATH')}
-summary_info += {'VNC support':       config_host.has_key('CONFIG_VNC')}
-if config_host.has_key('CONFIG_VNC')
-  summary_info += {'VNC SASL support':  config_host.has_key('CONFIG_VNC_SASL')}
-  summary_info += {'VNC JPEG support':  config_host.has_key('CONFIG_VNC_JPEG')}
-  summary_info += {'VNC PNG support':   config_host.has_key('CONFIG_VNC_PNG')}
+summary_info += {'VNC support':       vnc.found()}
+if vnc.found()
+  summary_info += {'VNC SASL support':  sasl.found()}
+  summary_info += {'VNC JPEG support':  jpeg.found()}
+  summary_info += {'VNC PNG support':   png.found()}
 endif
 summary_info += {'xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
 if config_host.has_key('CONFIG_XEN_BACKEND')

@@ -27,14 +27,12 @@ vnc_ss.add(files(
   'vnc-ws.c',
   'vnc-jobs.c',
 ))
-vnc_ss.add(zlib)
-vnc_ss.add(when: 'CONFIG_VNC_SASL', if_true: [files('vnc-auth-sasl.c'), sasl])
-softmmu_ss.add_all(when: 'CONFIG_VNC', if_true: vnc_ss)
-softmmu_ss.add(when: 'CONFIG_VNC', if_false: files('vnc-stubs.c'))
+vnc_ss.add(zlib, png, jpeg)
+vnc_ss.add(when: sasl, if_true: files('vnc-auth-sasl.c'))
+softmmu_ss.add_all(when: vnc, if_true: vnc_ss)
+softmmu_ss.add(when: vnc, if_false: files('vnc-stubs.c'))
 softmmu_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
 softmmu_ss.add(when: [opengl, 'CONFIG_OPENGL_DMABUF'], if_true: files('egl-headless.c'))
-softmmu_ss.add(when: 'CONFIG_VNC_PNG', if_true: png)
-softmmu_ss.add(when: 'CONFIG_VNC_JPEG', if_true: jpeg)
 
 ui_modules = {}
 

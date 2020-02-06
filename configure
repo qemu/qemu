@@ -426,12 +426,12 @@ sdl="auto"
 sdl_image="auto"
 virtfs=""
 mpath=""
-vnc="yes"
+vnc="enabled"
 sparse="no"
 vde=""
-vnc_sasl=""
-vnc_jpeg=""
-vnc_png=""
+vnc_sasl="auto"
+vnc_jpeg="auto"
+vnc_png="auto"
 xkbcommon=""
 xen=""
 xen_ctrl_version=""
@@ -1157,9 +1157,9 @@ for opt do
   ;;
   --enable-mpath) mpath="yes"
   ;;
-  --disable-vnc) vnc="no"
+  --disable-vnc) vnc="disabled"
   ;;
-  --enable-vnc) vnc="yes"
+  --enable-vnc) vnc="enabled"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -1195,17 +1195,17 @@ for opt do
   ;;
   --disable-strip) strip_opt="no"
   ;;
-  --disable-vnc-sasl) vnc_sasl="no"
+  --disable-vnc-sasl) vnc_sasl="disabled"
   ;;
-  --enable-vnc-sasl) vnc_sasl="yes"
+  --enable-vnc-sasl) vnc_sasl="enabled"
   ;;
-  --disable-vnc-jpeg) vnc_jpeg="no"
+  --disable-vnc-jpeg) vnc_jpeg="disabled"
   ;;
-  --enable-vnc-jpeg) vnc_jpeg="yes"
+  --enable-vnc-jpeg) vnc_jpeg="enabled"
   ;;
-  --disable-vnc-png) vnc_png="no"
+  --disable-vnc-png) vnc_png="disabled"
   ;;
-  --enable-vnc-png) vnc_png="yes"
+  --enable-vnc-png) vnc_png="enabled"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -3426,85 +3426,6 @@ EOF
     if ! compile_prog "" "-libverbs"; then
         QEMU_CFLAGS="$QEMU_CFLAGS -DLEGACY_RDMA_REG_MR"
     fi
-fi
-
-##########################################
-# VNC SASL detection
-if test "$vnc" = "yes" && test "$vnc_sasl" != "no" ; then
-  cat > $TMPC <<EOF
-#include <sasl/sasl.h>
-#include <stdio.h>
-int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
-EOF
-  # Assuming Cyrus-SASL installed in /usr prefix
-  # QEMU defines struct iovec in "qemu/osdep.h",
-  # we don't want libsasl to redefine it in <sasl/sasl.h>.
-  vnc_sasl_cflags="-DSTRUCT_IOVEC_DEFINED"
-  vnc_sasl_libs="-lsasl2"
-  if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
-    vnc_sasl=yes
-    libs_softmmu="$vnc_sasl_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_sasl_cflags"
-  else
-    if test "$vnc_sasl" = "yes" ; then
-      feature_not_found "vnc-sasl" "Install Cyrus SASL devel"
-    fi
-    vnc_sasl=no
-  fi
-fi
-
-##########################################
-# VNC JPEG detection
-if test "$vnc" = "yes" && test "$vnc_jpeg" != "no" ; then
-cat > $TMPC <<EOF
-#include <stdio.h>
-#include <jpeglib.h>
-int main(void) { struct jpeg_compress_struct s; jpeg_create_compress(&s); return 0; }
-EOF
-    vnc_jpeg_cflags=""
-    vnc_jpeg_libs="-ljpeg"
-  if compile_prog "$vnc_jpeg_cflags" "$vnc_jpeg_libs" ; then
-    vnc_jpeg=yes
-    libs_softmmu="$vnc_jpeg_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_jpeg_cflags"
-  else
-    if test "$vnc_jpeg" = "yes" ; then
-      feature_not_found "vnc-jpeg" "Install libjpeg-turbo devel"
-    fi
-    vnc_jpeg=no
-  fi
-fi
-
-##########################################
-# VNC PNG detection
-if test "$vnc" = "yes" && test "$vnc_png" != "no" ; then
-cat > $TMPC <<EOF
-//#include <stdio.h>
-#include <png.h>
-#include <stddef.h>
-int main(void) {
-    png_structp png_ptr;
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    return png_ptr != 0;
-}
-EOF
-  if $pkg_config libpng --exists; then
-    vnc_png_cflags=$($pkg_config libpng --cflags)
-    vnc_png_libs=$($pkg_config libpng --libs)
-  else
-    vnc_png_cflags=""
-    vnc_png_libs="-lpng"
-  fi
-  if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
-    vnc_png=yes
-    libs_softmmu="$vnc_png_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_png_cflags"
-  else
-    if test "$vnc_png" = "yes" ; then
-      feature_not_found "vnc-png" "Install libpng devel"
-    fi
-    vnc_png=no
-  fi
 fi
 
 ##########################################
@@ -6888,24 +6809,6 @@ if test "$audio_win_int" = "yes" ; then
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
-if test "$vnc" = "yes" ; then
-  echo "CONFIG_VNC=y" >> $config_host_mak
-fi
-if test "$vnc_sasl" = "yes" ; then
-  echo "CONFIG_VNC_SASL=y" >> $config_host_mak
-fi
-echo "SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
-echo "SASL_LIBS=$vnc_sasl_libs" >> $config_host_mak
-if test "$vnc_jpeg" = "yes" ; then
-  echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
-fi
-echo "JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
-echo "JPEG_LIBS=$vnc_jpeg_libs" >> $config_host_mak
-if test "$vnc_png" = "yes" ; then
-  echo "CONFIG_VNC_PNG=y" >> $config_host_mak
-fi
-echo "PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
-echo "PNG_LIBS=$vnc_png_libs" >> $config_host_mak
 if test "$xkbcommon" = "yes" ; then
   echo "CONFIG_XKBCOMMON=y" >> $config_host_mak
   echo "XKBCOMMON_CFLAGS=$xkbcommon_cflags" >> $config_host_mak
@@ -8327,6 +8230,7 @@ NINJA=$PWD/ninjatool $meson setup \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
 	-Dsdl=$sdl -Dsdl_image=$sdl_image \
+	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         $cross_arg \
         "$PWD" "$source_path"
 
