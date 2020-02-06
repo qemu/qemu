@@ -1565,9 +1565,11 @@ static bool bdrv_init_padding(BlockDriverState *bs,
         pad->tail = align - pad->tail;
     }
 
-    if ((!pad->head && !pad->tail) || !bytes) {
+    if (!pad->head && !pad->tail) {
         return false;
     }
+
+    assert(bytes); /* Nothing good in aligning zero-length requests */
 
     sum = pad->head + bytes + pad->tail;
     pad->buf_len = (sum > align && pad->head && pad->tail) ? 2 * align : align;
@@ -1704,6 +1706,18 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
     ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
         return ret;
+    }
+
+    if (bytes == 0 && !QEMU_IS_ALIGNED(offset, bs->bl.request_alignment)) {
+        /*
+         * Aligning zero request is nonsense. Even if driver has special meaning
+         * of zero-length (like qcow2_co_pwritev_compressed_part), we can't pass
+         * it to driver due to request_alignment.
+         *
+         * Still, no reason to return an error if someone do unaligned
+         * zero-length read occasionally.
+         */
+        return 0;
     }
 
     bdrv_inc_in_flight(bs);
@@ -2114,6 +2128,18 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
         !QEMU_IS_ALIGNED(offset | bytes, align))
     {
         return -ENOTSUP;
+    }
+
+    if (bytes == 0 && !QEMU_IS_ALIGNED(offset, bs->bl.request_alignment)) {
+        /*
+         * Aligning zero request is nonsense. Even if driver has special meaning
+         * of zero-length (like qcow2_co_pwritev_compressed_part), we can't pass
+         * it to driver due to request_alignment.
+         *
+         * Still, no reason to return an error if someone do unaligned
+         * zero-length write occasionally.
+         */
+        return 0;
     }
 
     bdrv_inc_in_flight(bs);
