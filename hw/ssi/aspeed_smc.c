@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "qemu/units.h"
+#include "trace.h"
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -513,6 +514,8 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
 
     s->ctrl->reg_to_segment(s, new, &seg);
 
+    trace_aspeed_smc_flash_set_segment(cs, new, seg.addr, seg.addr + seg.size);
+
     /* The start address of CS0 is read-only */
     if (cs == 0 && seg.addr != s->ctrl->flash_window_base) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -753,6 +756,8 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
                       __func__, aspeed_smc_flash_mode(fl));
     }
 
+    trace_aspeed_smc_flash_read(fl->id, addr, size, ret,
+                                aspeed_smc_flash_mode(fl));
     return ret;
 }
 
@@ -808,6 +813,9 @@ static bool aspeed_smc_do_snoop(AspeedSMCFlash *fl,  uint64_t data,
     AspeedSMCState *s = fl->controller;
     uint8_t addr_width = aspeed_smc_flash_is_4byte(fl) ? 4 : 3;
 
+    trace_aspeed_smc_do_snoop(fl->id, s->snoop_index, s->snoop_dummies,
+                              (uint8_t) data & 0xff);
+
     if (s->snoop_index == SNOOP_OFF) {
         return false; /* Do nothing */
 
@@ -857,6 +865,9 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedSMCFlash *fl = opaque;
     AspeedSMCState *s = fl->controller;
     int i;
+
+    trace_aspeed_smc_flash_write(fl->id, addr, size, data,
+                                 aspeed_smc_flash_mode(fl));
 
     if (!aspeed_smc_is_writable(fl)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
@@ -972,6 +983,9 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (s->ctrl->has_dma && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 && addr < R_SEG_ADDR0 + s->ctrl->max_slaves) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->ctrl->max_slaves)) {
+
+        trace_aspeed_smc_read(addr, size, s->regs[addr]);
+
         return s->regs[addr];
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
@@ -1091,6 +1105,7 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
                           __func__, s->regs[R_DMA_FLASH_ADDR]);
             return;
         }
+        trace_aspeed_smc_dma_checksum(s->regs[R_DMA_FLASH_ADDR], data);
 
         /*
          * When the DMA is on-going, the DMA registers are updated
@@ -1224,6 +1239,8 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     uint32_t value = data;
 
     addr >>= 2;
+
+    trace_aspeed_smc_write(addr, size, data);
 
     if (addr == s->r_conf ||
         (addr >= s->r_timings &&
