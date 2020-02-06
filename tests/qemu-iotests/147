@@ -134,7 +134,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.server.add_drive_raw('if=none,id=nbd-export,' +
                                   'file=%s,' % test_img +
                                   'format=%s,' % imgfmt +
-                                  'cache=%s' % cachemode +
+                                  'cache=%s,' % cachemode +
                                   'aio=%s' % aiomode)
         self.server.launch()
 
