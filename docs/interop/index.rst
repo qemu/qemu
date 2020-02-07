@@ -24,3 +24,4 @@ Contents:
    vhost-user
    vhost-user-gpu
    virtfs-proxy-helper
+   virtiofsd
