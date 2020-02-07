@@ -7586,12 +7586,9 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
             mask = PL0_RW;
             break;
         case 4:
+        case 5:
             /* min_EL EL2 */
             mask = PL2_RW;
-            break;
-        case 5:
-            /* unallocated encoding, so not possible */
-            assert(false);
             break;
         case 6:
             /* min_EL EL3 */
