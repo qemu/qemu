@@ -1163,16 +1163,18 @@ static MachineClass *find_machine(const char *name, GSList *machines)
 static MachineClass *find_default_machine(GSList *machines)
 {
     GSList *el;
+    MachineClass *default_machineclass = NULL;
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
 
         if (mc->is_default) {
-            return mc;
+            assert(default_machineclass == NULL && "Multiple default machines");
+            default_machineclass = mc;
         }
     }
 
-    return NULL;
+    return default_machineclass;
 }
 
 static int machine_help_func(QemuOpts *opts, MachineState *machine)
