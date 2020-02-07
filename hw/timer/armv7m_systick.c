@@ -216,6 +216,11 @@ static void systick_instance_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &systick_ops, s, "systick", 0xe0);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+}
+
+static void systick_realize(DeviceState *dev, Error **errp)
+{
+    SysTickState *s = SYSTICK(dev);
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, systick_timer_tick, s);
 }
 
@@ -238,6 +243,7 @@ static void systick_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_systick;
     dc->reset = systick_reset;
+    dc->realize = systick_realize;
 }
 
 static const TypeInfo armv7m_systick_info = {
