@@ -116,8 +116,8 @@ static inline int get_a64_user_mem_index(DisasContext *s)
     case ARMMMUIdx_E10_1:
         useridx = ARMMMUIdx_E10_0;
         break;
-    case ARMMMUIdx_S1SE1:
-        useridx = ARMMMUIdx_S1SE0;
+    case ARMMMUIdx_SE10_1:
+        useridx = ARMMMUIdx_SE10_0;
         break;
     case ARMMMUIdx_Stage2:
         g_assert_not_reached();
