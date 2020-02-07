@@ -347,10 +347,14 @@ static void stellaris_gptm_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
+}
+
+static void stellaris_gptm_realize(DeviceState *dev, Error **errp)
+{
+    gptm_state *s = STELLARIS_GPTM(dev);
     s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[0]);
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[1]);
 }
-
 
 /* System controller.  */
 
@@ -1536,6 +1540,7 @@ static void stellaris_gptm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_stellaris_gptm;
+    dc->realize = stellaris_gptm_realize;
 }
 
 static const TypeInfo stellaris_gptm_info = {
