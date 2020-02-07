@@ -313,7 +313,6 @@ static void lm32_uclinux_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "lm32 platform for uClinux and u-boot by Theobroma Systems";
     mc->init = lm32_uclinux_init;
-    mc->is_default = 0;
     mc->default_cpu_type = LM32_CPU_TYPE_NAME("lm32-full");
     mc->default_ram_size = 64 * MiB;
     mc->default_ram_id = "lm32_uclinux.sdram";
