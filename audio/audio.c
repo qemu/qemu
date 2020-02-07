@@ -218,6 +218,9 @@ static void audio_print_settings (struct audsettings *as)
     case AUDIO_FORMAT_U32:
         AUD_log (NULL, "U32");
         break;
+    case AUDIO_FORMAT_F32:
+        AUD_log (NULL, "F32");
+        break;
     default:
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
@@ -252,6 +255,7 @@ static int audio_validate_settings (struct audsettings *as)
     case AUDIO_FORMAT_U16:
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
+    case AUDIO_FORMAT_F32:
         break;
     default:
         invalid = 1;
@@ -264,24 +268,28 @@ static int audio_validate_settings (struct audsettings *as)
 
 static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *as)
 {
-    int bits = 8, sign = 0;
+    int bits = 8;
+    bool is_signed = false, is_float = false;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U8:
         break;
 
     case AUDIO_FORMAT_S16:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         break;
 
+    case AUDIO_FORMAT_F32:
+        is_float = true;
+        /* fall through */
     case AUDIO_FORMAT_S32:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
@@ -292,33 +300,38 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
     }
     return info->freq == as->freq
         && info->nchannels == as->nchannels
-        && info->sign == sign
+        && info->is_signed == is_signed
+        && info->is_float == is_float
         && info->bits == bits
         && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 {
-    int bits = 8, sign = 0, mul;
+    int bits = 8, mul;
+    bool is_signed = false, is_float = false;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U8:
         mul = 1;
         break;
 
     case AUDIO_FORMAT_S16:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         mul = 2;
         break;
 
+    case AUDIO_FORMAT_F32:
+        is_float = true;
+        /* fall through */
     case AUDIO_FORMAT_S32:
-        sign = 1;
+        is_signed = true;
         /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
@@ -331,7 +344,8 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     info->freq = as->freq;
     info->bits = bits;
-    info->sign = sign;
+    info->is_signed = is_signed;
+    info->is_float = is_float;
     info->nchannels = as->nchannels;
     info->bytes_per_frame = as->nchannels * mul;
     info->bytes_per_second = info->freq * info->bytes_per_frame;
@@ -344,7 +358,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
         return;
     }
 
-    if (info->sign) {
+    if (info->is_signed || info->is_float) {
         memset(buf, 0x00, len * info->bytes_per_frame);
     }
     else {
@@ -770,8 +784,9 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
 #ifdef DEBUG_AUDIO
 static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 {
-    dolog ("%s: bits %d, sign %d, freq %d, nchan %d\n",
-           cap, info->bits, info->sign, info->freq, info->nchannels);
+    dolog("%s: bits %d, sign %d, float %d, freq %d, nchan %d\n",
+          cap, info->bits, info->is_signed, info->is_float, info->freq,
+          info->nchannels);
 }
 #endif
 
@@ -879,9 +894,9 @@ size_t AUD_read(SWVoiceIn *sw, void *buf, size_t size)
     }
 }
 
-int AUD_get_buffer_size_out (SWVoiceOut *sw)
+int AUD_get_buffer_size_out(SWVoiceOut *sw)
 {
-    return sw->hw->mix_buf->size * sw->hw->info.bytes_per_frame;
+    return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
 void AUD_set_active_out (SWVoiceOut *sw, int on)
@@ -1076,10 +1091,8 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
     while (live) {
         size_t size, decr, proc;
         void *buf = hw->pcm_ops->get_buffer_out(hw, &size);
-        if (!buf) {
-            /* retrying will likely won't help, drop everything. */
-            hw->mix_buf->pos = (hw->mix_buf->pos + live) % hw->mix_buf->size;
-            return clipped + live;
+        if (!buf || size == 0) {
+            break;
         }
 
         decr = MIN(size / hw->info.bytes_per_frame, live);
@@ -1095,6 +1108,10 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
         if (proc == 0 || proc < decr) {
             break;
         }
+    }
+
+    if (hw->pcm_ops->run_buffer_out) {
+        hw->pcm_ops->run_buffer_out(hw);
     }
 
     return clipped;
@@ -1403,7 +1420,8 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
     }
     assert(start >= 0 && start < hw->size_emul);
 
-    *size = MIN(hw->pending_emul, hw->size_emul - start);
+    *size = MIN(*size, hw->pending_emul);
+    *size = MIN(*size, hw->size_emul - start);
     return hw->buf_emul + start;
 }
 
@@ -1411,6 +1429,28 @@ void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
 {
     assert(size <= hw->pending_emul);
     hw->pending_emul -= size;
+}
+
+void audio_generic_run_buffer_out(HWVoiceOut *hw)
+{
+    while (hw->pending_emul) {
+        size_t write_len, written;
+        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
+
+        if (start < 0) {
+            start += hw->size_emul;
+        }
+        assert(start >= 0 && start < hw->size_emul);
+
+        write_len = MIN(hw->pending_emul, hw->size_emul - start);
+
+        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
+        hw->pending_emul -= written;
+
+        if (written < write_len) {
+            break;
+        }
+    }
 }
 
 void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
@@ -1428,8 +1468,7 @@ void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
     return hw->buf_emul + hw->pos_emul;
 }
 
-size_t audio_generic_put_buffer_out_nowrite(HWVoiceOut *hw, void *buf,
-                                            size_t size)
+size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 {
     assert(buf == hw->buf_emul + hw->pos_emul &&
            size + hw->pending_emul <= hw->size_emul);
@@ -1440,35 +1479,6 @@ size_t audio_generic_put_buffer_out_nowrite(HWVoiceOut *hw, void *buf,
     return size;
 }
 
-size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
-{
-    audio_generic_put_buffer_out_nowrite(hw, buf, size);
-
-    while (hw->pending_emul) {
-        size_t write_len, written;
-        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
-        if (start < 0) {
-            start += hw->size_emul;
-        }
-        assert(start >= 0 && start < hw->size_emul);
-
-        write_len = MIN(hw->pending_emul, hw->size_emul - start);
-
-        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
-        hw->pending_emul -= written;
-
-        if (written < write_len) {
-            break;
-        }
-    }
-
-    /*
-     * fake we have written everything. non-written data remain in pending_emul,
-     * so we do not have to clip them multiple times
-     */
-    return size;
-}
-
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 {
     size_t dst_size, copy_size;
@@ -1476,17 +1486,17 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
     copy_size = MIN(size, dst_size);
 
     memcpy(dst, buf, copy_size);
-    return hw->pcm_ops->put_buffer_out(hw, buf, copy_size);
+    return hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
 }
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
-    size_t dst_size, copy_size;
-    void *dst = hw->pcm_ops->get_buffer_in(hw, &dst_size);
-    copy_size = MIN(size, dst_size);
+    size_t src_size, copy_size;
+    void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);
+    copy_size = MIN(size, src_size);
 
-    memcpy(dst, buf, copy_size);
-    hw->pcm_ops->put_buffer_in(hw, buf, copy_size);
+    memcpy(buf, src, copy_size);
+    hw->pcm_ops->put_buffer_in(hw, src, copy_size);
     return copy_size;
 }
 
@@ -1837,11 +1847,15 @@ CaptureVoiceOut *AUD_add_capture(
 
         cap->buf = g_malloc0_n(hw->mix_buf->size, hw->info.bytes_per_frame);
 
-        hw->clip = mixeng_clip
-            [hw->info.nchannels == 2]
-            [hw->info.sign]
-            [hw->info.swap_endianness]
-            [audio_bits_to_index (hw->info.bits)];
+        if (hw->info.is_float) {
+            hw->clip = mixeng_clip_float[hw->info.nchannels == 2];
+        } else {
+            hw->clip = mixeng_clip
+                [hw->info.nchannels == 2]
+                [hw->info.is_signed]
+                [hw->info.swap_endianness]
+                [audio_bits_to_index(hw->info.bits)];
+        }
 
         QLIST_INSERT_HEAD (&s->cap_head, cap, entries);
         QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
@@ -2080,6 +2094,7 @@ int audioformat_bytes_per_sample(AudioFormat fmt)
 
     case AUDIO_FORMAT_U32:
     case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_F32:
         return 4;
 
     case AUDIO_FORMAT__MAX:

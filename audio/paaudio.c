@@ -32,7 +32,6 @@ typedef struct {
     HWVoiceOut hw;
     pa_stream *stream;
     paaudio *g;
-    size_t samples;
 } PAVoiceOut;
 
 typedef struct {
@@ -41,7 +40,6 @@ typedef struct {
     const void *read_data;
     size_t read_length;
     paaudio *g;
-    size_t samples;
 } PAVoiceIn;
 
 static void qpa_conn_fini(PAConnection *c);
@@ -279,6 +277,9 @@ static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
     case AUDIO_FORMAT_U32:
         format = endianness ? PA_SAMPLE_S32BE : PA_SAMPLE_S32LE;
         break;
+    case AUDIO_FORMAT_F32:
+        format = endianness ? PA_SAMPLE_FLOAT32BE : PA_SAMPLE_FLOAT32LE;
+        break;
     default:
         dolog ("Internal logic error: Bad audio format %d\n", afmt);
         format = PA_SAMPLE_U8;
@@ -304,6 +305,12 @@ static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
     case PA_SAMPLE_S32LE:
         *endianness = 0;
         return AUDIO_FORMAT_S32;
+    case PA_SAMPLE_FLOAT32BE:
+        *endianness = 1;
+        return AUDIO_FORMAT_F32;
+    case PA_SAMPLE_FLOAT32LE:
+        *endianness = 0;
+        return AUDIO_FORMAT_F32;
     default:
         dolog ("Internal logic error: Bad pa_sample_format %d\n", fmt);
         return AUDIO_FORMAT_U8;
@@ -488,7 +495,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
-    hw->samples = pa->samples = audio_buffer_samples(
+    hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo),
         &obt_as, ppdo->buffer_length);
 
@@ -536,7 +543,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
-    hw->samples = pa->samples = audio_buffer_samples(
+    hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo),
         &obt_as, ppdo->buffer_length);
 

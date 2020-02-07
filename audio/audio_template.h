@@ -153,15 +153,23 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     sw->ratio = ((int64_t) sw->info.freq << 32) / sw->hw->info.freq;
 #endif
 
+    if (sw->info.is_float) {
 #ifdef DAC
-    sw->conv = mixeng_conv
+        sw->conv = mixeng_conv_float[sw->info.nchannels == 2];
 #else
-    sw->clip = mixeng_clip
+        sw->clip = mixeng_clip_float[sw->info.nchannels == 2];
 #endif
-        [sw->info.nchannels == 2]
-        [sw->info.sign]
-        [sw->info.swap_endianness]
-        [audio_bits_to_index (sw->info.bits)];
+    } else {
+#ifdef DAC
+        sw->conv = mixeng_conv
+#else
+        sw->clip = mixeng_clip
+#endif
+            [sw->info.nchannels == 2]
+            [sw->info.is_signed]
+            [sw->info.swap_endianness]
+            [audio_bits_to_index(sw->info.bits)];
+    }
 
     sw->name = g_strdup (name);
     err = glue (audio_pcm_sw_alloc_resources_, TYPE) (sw);
@@ -276,15 +284,23 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
         goto err1;
     }
 
+    if (hw->info.is_float) {
 #ifdef DAC
-    hw->clip = mixeng_clip
+        hw->clip = mixeng_clip_float[hw->info.nchannels == 2];
 #else
-    hw->conv = mixeng_conv
+        hw->conv = mixeng_conv_float[hw->info.nchannels == 2];
 #endif
-        [hw->info.nchannels == 2]
-        [hw->info.sign]
-        [hw->info.swap_endianness]
-        [audio_bits_to_index (hw->info.bits)];
+    } else {
+#ifdef DAC
+        hw->clip = mixeng_clip
+#else
+        hw->conv = mixeng_conv
+#endif
+            [hw->info.nchannels == 2]
+            [hw->info.is_signed]
+            [hw->info.swap_endianness]
+            [audio_bits_to_index(hw->info.bits)];
+    }
 
     glue(audio_pcm_hw_alloc_resources_, TYPE)(hw);
 

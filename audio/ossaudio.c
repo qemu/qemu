@@ -382,6 +382,15 @@ static size_t oss_get_available_bytes(OSSVoiceOut *oss)
     return audio_ring_dist(cntinfo.ptr, oss->hw.pos_emul, oss->hw.size_emul);
 }
 
+static void oss_run_buffer_out(HWVoiceOut *hw)
+{
+    OSSVoiceOut *oss = (OSSVoiceOut *)hw;
+
+    if (!oss->mmapped) {
+        audio_generic_run_buffer_out(hw);
+    }
+}
+
 static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
@@ -420,7 +429,7 @@ static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
             size_t to_copy = MIN(len, hw->size_emul - hw->pos_emul);
             memcpy(hw->buf_emul + hw->pos_emul, buf, to_copy);
 
-            hw->pos_emul = (hw->pos_emul + to_copy) % hw->pos_emul;
+            hw->pos_emul = (hw->pos_emul + to_copy) % hw->size_emul;
             buf += to_copy;
             len -= to_copy;
         }
@@ -570,20 +579,18 @@ static void oss_enable_out(HWVoiceOut *hw, bool enable)
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
     if (enable) {
-        bool poll_mode = opdo->try_poll;
+        hw->poll_mode = opdo->try_poll;
 
         ldebug("enabling voice\n");
-        if (poll_mode) {
+        if (hw->poll_mode) {
             oss_poll_out(hw);
-            poll_mode = 0;
         }
-        hw->poll_mode = poll_mode;
 
         if (!oss->mmapped) {
             return;
         }
 
-        audio_pcm_info_clear_buf(&hw->info, hw->buf_emul, hw->mix_buf->size);
+        audio_pcm_info_clear_buf(&hw->info, hw->buf_emul, hw->samples);
         trig = PCM_ENABLE_OUTPUT;
         if (ioctl(oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
             oss_logerr(errno,
@@ -699,17 +706,15 @@ static void oss_enable_in(HWVoiceIn *hw, bool enable)
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
     if (enable) {
-        bool poll_mode = opdo->try_poll;
+        hw->poll_mode = opdo->try_poll;
 
-        if (poll_mode) {
+        if (hw->poll_mode) {
             oss_poll_in(hw);
-            poll_mode = 0;
         }
-        hw->poll_mode = poll_mode;
     } else {
         if (hw->poll_mode) {
-            hw->poll_mode = 0;
             qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
+            hw->poll_mode = 0;
         }
     }
 }
@@ -748,6 +753,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_out = oss_init_out,
     .fini_out = oss_fini_out,
     .write    = oss_write,
+    .run_buffer_out = oss_run_buffer_out,
     .get_buffer_out = oss_get_buffer_out,
     .put_buffer_out = oss_put_buffer_out,
     .enable_out = oss_enable_out,

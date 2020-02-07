@@ -244,6 +244,7 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
         goto fail0;
     }
 
+    ds->first_time = true;
     obt_as.endianness = 0;
     audio_pcm_init_info (&hw->info, &obt_as);
 
