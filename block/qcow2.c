@@ -135,13 +135,16 @@ static ssize_t qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
     s->crypto_header.length = headerlen;
     s->crypto_header.offset = ret;
 
-    /* Zero fill remaining space in cluster so it has predictable
-     * content in case of future spec changes */
+    /*
+     * Zero fill all space in cluster so it has predictable
+     * content, as we may not initialize some regions of the
+     * header (eg only 1 out of 8 key slots will be initialized)
+     */
     clusterlen = size_to_clusters(s, headerlen) * s->cluster_size;
     assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen, false) == 0);
     ret = bdrv_pwrite_zeroes(bs->file,
-                             ret + headerlen,
-                             clusterlen - headerlen, 0);
+                             ret,
+                             clusterlen, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not zero fill encryption header");
         return -1;

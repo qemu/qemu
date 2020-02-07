@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# Test ref count checks on encrypted images
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berrange@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1        # failure is the default!
+
+_cleanup()
+{
+        _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto generic
+_supported_os Linux
+
+
+size=1M
+
+SECRET="secret,id=sec0,data=astrochicken"
+
+IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,encrypt.key-secret=sec0"
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+
+_run_test()
+{
+        IMGOPTSSYNTAX=true
+        OLD_TEST_IMG="$TEST_IMG"
+        TEST_IMG="driver=$IMGFMT,file.filename=$TEST_IMG,encrypt.key-secret=sec0"
+        QEMU_IMG_EXTRA_ARGS="--image-opts --object $SECRET"
+
+        echo
+        echo "== cluster size $csize"
+        echo "== checking image refcounts =="
+        _check_test_img
+
+        echo
+        echo "== writing some data =="
+        $QEMU_IO -c "write -P 0x9 0 1"  $QEMU_IMG_EXTRA_ARGS $TEST_IMG | _filter_qemu_io | _filter_testdir
+        echo
+        echo "== rechecking image refcounts =="
+        _check_test_img
+
+        echo
+        echo "== writing some more data =="
+        $QEMU_IO -c "write -P 0x9 $csize 1" $QEMU_IMG_EXTRA_ARGS $TEST_IMG | _filter_qemu_io | _filter_testdir
+        echo
+        echo "== rechecking image refcounts =="
+        _check_test_img
+
+        TEST_IMG="$OLD_TEST_IMG"
+        QEMU_IMG_EXTRA_ARGS=
+        IMGOPTSSYNTAX=
+}
+
+
+echo
+echo "testing LUKS qcow2 encryption"
+echo
+
+for csize in 512 2048 32768
+do
+  _make_test_img --object $SECRET -o "encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10,cluster_size=$csize" $size
+  _run_test
+  _cleanup_test_img
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
