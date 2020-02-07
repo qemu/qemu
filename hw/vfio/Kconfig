@@ -36,3 +36,8 @@ config VFIO_AP
     default y
     select VFIO
     depends on LINUX && S390_CCW_VIRTIO
+
+config VFIO_IGD
+    bool
+    default y if PC_PCI
+    depends on VFIO_PCI
