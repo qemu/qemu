@@ -81,6 +81,8 @@ typedef struct {
  * @max_cpus: maximum number of CPUs supported. Default: 1
  * @min_cpus: minimum number of CPUs supported. Default: 1
  * @default_cpus: number of CPUs instantiated if none are specified. Default: 1
+ * @is_default:
+ *    If true QEMU will use this machine by default if no '-M' option is given.
  * @get_hotplug_handler: this function is called during bus-less
  *    device hotplug. If defined it returns pointer to an instance
  *    of HotplugHandler object, which handles hotplug operation
@@ -181,7 +183,7 @@ struct MachineClass {
         no_sdcard:1,
         pci_allow_0_address:1,
         legacy_fw_cfg_order:1;
-    int is_default;
+    bool is_default;
     const char *default_machine_opts;
     const char *default_boot_order;
     const char *default_display;

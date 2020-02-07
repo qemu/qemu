@@ -140,7 +140,7 @@ static void puv3_machine_init(MachineClass *mc)
 {
     mc->desc = "PKUnity Version-3 based on UniCore32";
     mc->init = puv3_init;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_cpu_type = UNICORE32_CPU_TYPE_NAME("UniCore-II");
 }
 

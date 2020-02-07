@@ -630,7 +630,7 @@ bool css_migration_enabled(void)
         mc->desc = "VirtIO-ccw based S390 machine v" verstr;                  \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
-            mc->is_default = 1;                                               \
+            mc->is_default = true;                                            \
         }                                                                     \
     }                                                                         \
     static void ccw_machine_##suffix##_instance_init(Object *obj)             \

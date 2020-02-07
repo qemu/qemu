@@ -295,7 +295,7 @@ static void lm32_evr_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "LatticeMico32 EVR32 eval system";
     mc->init = lm32_evr_init;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_cpu_type = LM32_CPU_TYPE_NAME("lm32-full");
     mc->default_ram_size = 64 * MiB;
     mc->default_ram_id = "lm32_evr.sdram";

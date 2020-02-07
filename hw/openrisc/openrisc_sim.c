@@ -176,7 +176,7 @@ static void openrisc_sim_machine_init(MachineClass *mc)
     mc->desc = "or1k simulation";
     mc->init = openrisc_sim_init;
     mc->max_cpus = 2;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
 }
 
