@@ -185,7 +185,7 @@ the list of KVM VCPU features and their descriptions.
 
   kvm-no-adjvtime          By default kvm-no-adjvtime is disabled.  This
                            means that by default the virtual time
-                           adjustment is enabled (vtime is *not not*
+                           adjustment is enabled (vtime is not *not*
                            adjusted).
 
                            When virtual time adjustment is enabled each

@@ -137,17 +137,20 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     }
 
     if (kvm_enabled()) {
-        const char *cpu_type = current_machine->cpu_type;
-        int len = strlen(cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX);
         bool supported = false;
 
         if (!strcmp(model->name, "host") || !strcmp(model->name, "max")) {
             /* These are kvmarm's recommended cpu types */
             supported = true;
-        } else if (strlen(model->name) == len &&
-                   !strncmp(model->name, cpu_type, len)) {
-            /* KVM is enabled and we're using this type, so it works. */
-            supported = true;
+        } else if (current_machine->cpu_type) {
+            const char *cpu_type = current_machine->cpu_type;
+            int len = strlen(cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX);
+
+            if (strlen(model->name) == len &&
+                !strncmp(model->name, cpu_type, len)) {
+                /* KVM is enabled and we're using this type, so it works. */
+                supported = true;
+            }
         }
         if (!supported) {
             error_setg(errp, "We cannot guarantee the CPU type '%s' works "
