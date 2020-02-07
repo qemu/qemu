@@ -4485,6 +4485,12 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+static void spapr_machine_latest_class_options(MachineClass *mc)
+{
+    mc->alias = "pseries";
+    mc->is_default = 1;
+}
+
 #define DEFINE_SPAPR_MACHINE(suffix, verstr, latest)                 \
     static void spapr_machine_##suffix##_class_init(ObjectClass *oc, \
                                                     void *data)      \
@@ -4492,8 +4498,7 @@ static const TypeInfo spapr_machine_info = {
         MachineClass *mc = MACHINE_CLASS(oc);                        \
         spapr_machine_##suffix##_class_options(mc);                  \
         if (latest) {                                                \
-            mc->alias = "pseries";                                   \
-            mc->is_default = 1;                                      \
+            spapr_machine_latest_class_options(mc);                  \
         }                                                            \
     }                                                                \
     static const TypeInfo spapr_machine_##suffix##_info = {          \
