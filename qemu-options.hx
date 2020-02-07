@@ -2428,8 +2428,7 @@ Use @option{model=help} to list the available device types.
 The hardware MAC address can be set with @option{mac=@var{macaddr}}.
 
 The following two example do exactly the same, to show how @option{-nic} can
-be used to shorten the command line length (note that the e1000 is the default
-on i386, so the @option{model=e1000} parameter could even be omitted here, too):
+be used to shorten the command line length:
 @example
 @value{qemu_system} -netdev user,id=n1,ipv6=off -device e1000,netdev=n1,mac=52:54:98:76:54:32
 @value{qemu_system} -nic user,ipv6=off,model=e1000,mac=52:54:98:76:54:32
@@ -2843,9 +2842,12 @@ netdev with ID @var{nd} by using the @option{netdev=@var{nd}} option.
 Legacy option to configure or create an on-board (or machine default) Network
 Interface Card(NIC) and connect it either to the emulated hub with ID 0 (i.e.
 the default hub), or to the netdev @var{nd}.
-The NIC is an e1000 by default on the PC target. Optionally, the MAC address
-can be changed to @var{mac}, the device address set to @var{addr} (PCI cards
-only), and a @var{name} can be assigned for use in monitor commands.
+If @var{model} is omitted, then the default NIC model associated with
+the machine type is used. Note that the default NIC model may change in
+future QEMU releases, so it is highly recommended to always specify a model.
+Optionally, the MAC address can be changed to @var{mac}, the device
+address set to @var{addr} (PCI cards only), and a @var{name} can be
+assigned for use in monitor commands.
 Optionally, for PCI cards, you can specify the number @var{v} of MSI-X vectors
 that the card should have; this option currently only affects virtio cards; set
 @var{v} = 0 to disable MSI-X. If no @option{-net} option is specified, a single
