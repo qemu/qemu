@@ -1968,14 +1968,16 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
 static int gd_refresh_rate_millihz(GtkWidget *window)
 {
 #ifdef GDK_VERSION_3_22
-    GdkDisplay *dpy = gtk_widget_get_display(window);
     GdkWindow *win = gtk_widget_get_window(window);
-    GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
 
-    return gdk_monitor_get_refresh_rate(monitor);
-#else
-    return 0;
+    if (win) {
+        GdkDisplay *dpy = gtk_widget_get_display(window);
+        GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+
+        return gdk_monitor_get_refresh_rate(monitor);
+    }
 #endif
+    return 0;
 }
 
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
