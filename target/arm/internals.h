@@ -1064,7 +1064,7 @@ static inline bool arm_mmu_idx_is_stage1_of_2(ARMMMUIdx mmu_idx)
 static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
                                                const ARMISARegisters *id)
 {
-    uint32_t valid = CPSR_M | CPSR_AIF | CPSR_IL | CPSR_NZCV | CPSR_J;
+    uint32_t valid = CPSR_M | CPSR_AIF | CPSR_IL | CPSR_NZCV;
 
     if ((features >> ARM_FEATURE_V4T) & 1) {
         valid |= CPSR_T;
@@ -1077,6 +1077,9 @@ static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
     }
     if ((features >> ARM_FEATURE_THUMB2) & 1) {
         valid |= CPSR_IT;
+    }
+    if (isar_feature_jazelle(id)) {
+        valid |= CPSR_J;
     }
 
     return valid;
