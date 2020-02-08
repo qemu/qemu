@@ -387,7 +387,14 @@ void HELPER(exception_bkpt_insn)(CPUARMState *env, uint32_t syndrome)
 
 uint32_t HELPER(cpsr_read)(CPUARMState *env)
 {
-    return cpsr_read(env) & ~(CPSR_EXEC | CPSR_RESERVED);
+    /*
+     * We store the ARMv8 PSTATE.SS bit in env->uncached_cpsr.
+     * This is convenient for populating SPSR_ELx, but must be
+     * hidden from aarch32 mode, where it is not visible.
+     *
+     * TODO: ARMv8.4-DIT -- need to move SS somewhere else.
+     */
+    return cpsr_read(env) & ~(CPSR_EXEC | PSTATE_SS);
 }
 
 void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)

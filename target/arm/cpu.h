@@ -1186,12 +1186,6 @@ void pmu_init(ARMCPU *cpu);
 #define CPSR_IT_2_7 (0xfc00U)
 #define CPSR_GE (0xfU << 16)
 #define CPSR_IL (1U << 20)
-/* Note that the RESERVED bits include bit 21, which is PSTATE_SS in
- * an AArch64 SPSR but RES0 in AArch32 SPSR and CPSR. In QEMU we use
- * env->uncached_cpsr bit 21 to store PSTATE.SS when executing in AArch32,
- * where it is live state but not accessible to the AArch32 code.
- */
-#define CPSR_RESERVED (0x7U << 21)
 #define CPSR_J (1U << 24)
 #define CPSR_IT_0_1 (3U << 25)
 #define CPSR_Q (1U << 27)
