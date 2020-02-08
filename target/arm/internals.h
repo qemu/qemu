@@ -1081,6 +1081,9 @@ static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
     if (isar_feature_jazelle(id)) {
         valid |= CPSR_J;
     }
+    if (isar_feature_aa32_pan(id)) {
+        valid |= CPSR_PAN;
+    }
 
     return valid;
 }
@@ -1092,6 +1095,9 @@ static inline uint32_t aarch64_pstate_valid_mask(const ARMISARegisters *id)
     valid = PSTATE_M | PSTATE_DAIF | PSTATE_IL | PSTATE_SS | PSTATE_NZCV;
     if (isar_feature_aa64_bti(id)) {
         valid |= PSTATE_BTYPE;
+    }
+    if (isar_feature_aa64_pan(id)) {
+        valid |= PSTATE_PAN;
     }
 
     return valid;
