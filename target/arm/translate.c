@@ -2734,39 +2734,33 @@ static inline void gen_mulxy(TCGv_i32 t0, TCGv_i32 t1, int x, int y)
 /* Return the mask of PSR bits set by a MSR instruction.  */
 static uint32_t msr_mask(DisasContext *s, int flags, int spsr)
 {
-    uint32_t mask;
+    uint32_t mask = 0;
 
-    mask = 0;
-    if (flags & (1 << 0))
+    if (flags & (1 << 0)) {
         mask |= 0xff;
-    if (flags & (1 << 1))
+    }
+    if (flags & (1 << 1)) {
         mask |= 0xff00;
-    if (flags & (1 << 2))
+    }
+    if (flags & (1 << 2)) {
         mask |= 0xff0000;
-    if (flags & (1 << 3))
+    }
+    if (flags & (1 << 3)) {
         mask |= 0xff000000;
+    }
 
-    /* Mask out undefined bits.  */
-    mask &= ~CPSR_RESERVED;
-    if (!arm_dc_feature(s, ARM_FEATURE_V4T)) {
-        mask &= ~CPSR_T;
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_V5)) {
-        mask &= ~CPSR_Q; /* V5TE in reality*/
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_V6)) {
-        mask &= ~(CPSR_E | CPSR_GE);
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
-        mask &= ~CPSR_IT;
-    }
-    /* Mask out execution state and reserved bits.  */
+    /* Mask out undefined and reserved bits.  */
+    mask &= aarch32_cpsr_valid_mask(s->features, s->isar);
+
+    /* Mask out execution state.  */
     if (!spsr) {
-        mask &= ~(CPSR_EXEC | CPSR_RESERVED);
+        mask &= ~CPSR_EXEC;
     }
+
     /* Mask out privileged bits.  */
-    if (IS_USER(s))
+    if (IS_USER(s)) {
         mask &= CPSR_USER;
+    }
     return mask;
 }
 

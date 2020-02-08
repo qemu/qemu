@@ -1061,6 +1061,27 @@ static inline bool arm_mmu_idx_is_stage1_of_2(ARMMMUIdx mmu_idx)
     }
 }
 
+static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
+                                               const ARMISARegisters *id)
+{
+    uint32_t valid = CPSR_M | CPSR_AIF | CPSR_IL | CPSR_NZCV | CPSR_J;
+
+    if ((features >> ARM_FEATURE_V4T) & 1) {
+        valid |= CPSR_T;
+    }
+    if ((features >> ARM_FEATURE_V5) & 1) {
+        valid |= CPSR_Q; /* V5TE in reality*/
+    }
+    if ((features >> ARM_FEATURE_V6) & 1) {
+        valid |= CPSR_E | CPSR_GE;
+    }
+    if ((features >> ARM_FEATURE_THUMB2) & 1) {
+        valid |= CPSR_IT;
+    }
+
+    return valid;
+}
+
 /*
  * Parameters of a given virtual address, as extracted from the
  * translation control register (TCR) for a given regime.
