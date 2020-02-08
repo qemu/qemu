@@ -34,10 +34,28 @@
 /* Registered machine type (matches RPi Foundation bootloader and U-Boot) */
 #define MACH_TYPE_BCM2708   3138
 
-typedef struct RasPiState {
+typedef struct RaspiMachineState {
+    /*< private >*/
+    MachineState parent_obj;
+    /*< public >*/
     BCM283XState soc;
     MemoryRegion ram;
-} RasPiState;
+} RaspiMachineState;
+
+typedef struct RaspiMachineClass {
+    /*< private >*/
+    MachineClass parent_obj;
+    /*< public >*/
+} RaspiMachineClass;
+
+#define TYPE_RASPI_MACHINE       MACHINE_TYPE_NAME("raspi-common")
+#define RASPI_MACHINE(obj) \
+    OBJECT_CHECK(RaspiMachineState, (obj), TYPE_RASPI_MACHINE)
+
+#define RASPI_MACHINE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(RaspiMachineClass, (klass), TYPE_RASPI_MACHINE)
+#define RASPI_MACHINE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(RaspiMachineClass, (obj), TYPE_RASPI_MACHINE)
 
 /*
  * Board revision codes:
@@ -211,7 +229,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
 
 static void raspi_init(MachineState *machine, uint32_t board_rev)
 {
-    RasPiState *s = g_new0(RasPiState, 1);
+    RaspiMachineState *s = RASPI_MACHINE(machine);
     int version = board_version(board_rev);
     uint64_t ram_size = board_ram_size(board_rev);
     uint32_t vcram_size;
@@ -264,8 +282,10 @@ static void raspi2_init(MachineState *machine)
     raspi_init(machine, 0xa21041);
 }
 
-static void raspi2_machine_init(MachineClass *mc)
+static void raspi2_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Raspberry Pi 2B";
     mc->init = raspi2_init;
     mc->block_default_type = IF_SD;
@@ -278,7 +298,6 @@ static void raspi2_machine_init(MachineClass *mc)
     mc->default_ram_size = 1 * GiB;
     mc->ignore_memory_transaction_failures = true;
 };
-DEFINE_MACHINE("raspi2", raspi2_machine_init)
 
 #ifdef TARGET_AARCH64
 static void raspi3_init(MachineState *machine)
@@ -286,8 +305,10 @@ static void raspi3_init(MachineState *machine)
     raspi_init(machine, 0xa02082);
 }
 
-static void raspi3_machine_init(MachineClass *mc)
+static void raspi3_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Raspberry Pi 3B";
     mc->init = raspi3_init;
     mc->block_default_type = IF_SD;
@@ -299,5 +320,26 @@ static void raspi3_machine_init(MachineClass *mc)
     mc->default_cpus = BCM283X_NCPUS;
     mc->default_ram_size = 1 * GiB;
 }
-DEFINE_MACHINE("raspi3", raspi3_machine_init)
 #endif
+
+static const TypeInfo raspi_machine_types[] = {
+    {
+        .name           = MACHINE_TYPE_NAME("raspi2"),
+        .parent         = TYPE_RASPI_MACHINE,
+        .class_init     = raspi2_machine_class_init,
+#ifdef TARGET_AARCH64
+    }, {
+        .name           = MACHINE_TYPE_NAME("raspi3"),
+        .parent         = TYPE_RASPI_MACHINE,
+        .class_init     = raspi3_machine_class_init,
+#endif
+    }, {
+        .name           = TYPE_RASPI_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .instance_size  = sizeof(RaspiMachineState),
+        .class_size     = sizeof(RaspiMachineClass),
+        .abstract       = true,
+    }
+};
+
+DEFINE_TYPES(raspi_machine_types)
