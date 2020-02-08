@@ -2751,20 +2751,24 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
  *  5. we want to be able to use the TLB for accesses done as part of a
  *     stage1 page table walk, rather than having to walk the stage2 page
  *     table over and over.
+ *  6. we need separate EL1/EL2 mmu_idx for handling the Privileged Access
+ *     Never (PAN) bit within PSTATE.
  *
  * This gives us the following list of cases:
  *
  * NS EL0 EL1&0 stage 1+2 (aka NS PL0)
  * NS EL1 EL1&0 stage 1+2 (aka NS PL1)
+ * NS EL1 EL1&0 stage 1+2 +PAN
  * NS EL0 EL2&0
- * NS EL2 EL2&0
+ * NS EL2 EL2&0 +PAN
  * NS EL2 (aka NS PL2)
  * S EL0 EL1&0 (aka S PL0)
  * S EL1 EL1&0 (not used if EL3 is 32 bit)
+ * S EL1 EL1&0 +PAN
  * S EL3 (aka S PL1)
  * NS EL1&0 stage 2
  *
- * for a total of 9 different mmu_idx.
+ * for a total of 12 different mmu_idx.
  *
  * R profile CPUs have an MPU, but can use the same set of MMU indexes
  * as A profile. They only need to distinguish NS EL0 and NS EL1 (and
@@ -2819,19 +2823,22 @@ typedef enum ARMMMUIdx {
     /*
      * A-profile.
      */
-    ARMMMUIdx_E10_0 =  0 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E20_0 =  1 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_0      =  0 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_0      =  1 | ARM_MMU_IDX_A,
 
-    ARMMMUIdx_E10_1 =  2 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1      =  2 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1_PAN  =  3 | ARM_MMU_IDX_A,
 
-    ARMMMUIdx_E2 =     3 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E20_2 =  4 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E2         =  4 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2      =  5 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2_PAN  =  6 | ARM_MMU_IDX_A,
 
-    ARMMMUIdx_SE10_0 = 5 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE10_1 = 6 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE3 =    7 | ARM_MMU_IDX_A,
+    ARMMMUIdx_SE10_0     = 7 | ARM_MMU_IDX_A,
+    ARMMMUIdx_SE10_1     = 8 | ARM_MMU_IDX_A,
+    ARMMMUIdx_SE10_1_PAN = 9 | ARM_MMU_IDX_A,
+    ARMMMUIdx_SE3        = 10 | ARM_MMU_IDX_A,
 
-    ARMMMUIdx_Stage2 = 8 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Stage2     = 11 | ARM_MMU_IDX_A,
 
     /*
      * These are not allocated TLBs and are used only for AT system
@@ -2839,6 +2846,7 @@ typedef enum ARMMMUIdx {
      */
     ARMMMUIdx_Stage1_E0 = 0 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1 = 1 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_Stage1_E1_PAN = 2 | ARM_MMU_IDX_NOTLB,
 
     /*
      * M-profile.
@@ -2864,10 +2872,13 @@ typedef enum ARMMMUIdxBit {
     TO_CORE_BIT(E10_0),
     TO_CORE_BIT(E20_0),
     TO_CORE_BIT(E10_1),
+    TO_CORE_BIT(E10_1_PAN),
     TO_CORE_BIT(E2),
     TO_CORE_BIT(E20_2),
+    TO_CORE_BIT(E20_2_PAN),
     TO_CORE_BIT(SE10_0),
     TO_CORE_BIT(SE10_1),
+    TO_CORE_BIT(SE10_1_PAN),
     TO_CORE_BIT(SE3),
     TO_CORE_BIT(Stage2),
 
