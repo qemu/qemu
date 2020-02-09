@@ -280,9 +280,13 @@ def gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i):
 ##
 ## Generate the DEF_HELPER prototype for an instruction
 ##     For A2_add: Rd32=add(Rs32,Rt32)
-##     We produce: DEF_HELPER_3(A2_add, s32, env, s32, s32)
+##     We produce:
+##         #ifndef fWRAP_A2_add
+##         DEF_HELPER_3(A2_add, s32, env, s32, s32)
+##         #endif
 ##
 def gen_helper_prototype(f, tag, regs, imms):
+    f.write('#ifndef fWRAP_%s\n' % tag)
     numresults = 0
     numscalarresults = 0
     numscalarreadwrite = 0
@@ -297,7 +301,7 @@ def gen_helper_prototype(f, tag, regs, imms):
 
     if (numscalarresults > 1):
         ## The helper is bogus when there is more than one result
-        f.write('DEF_HELPER_1(%s, void, env)' % tag)
+        f.write('DEF_HELPER_1(%s, void, env)\n' % tag)
     else:
         ## Figure out how many arguments the helper will take
         if (numscalarresults == 0):
@@ -348,7 +352,8 @@ def gen_helper_prototype(f, tag, regs, imms):
         ## Add the arguments for the instruction slot and part1 (if needed)
         if need_slot(tag): f.write(', i32' )
         if need_part1(tag): f.write(' , i32' )
-        f.write(')')
+        f.write(')\n')
+    f.write('#endif\n')
 
 ##
 ## Helpers for gen_tcg_func
@@ -717,6 +722,7 @@ def gen_helper_return_opn(f, regtype, regid, i):
 ## Generate the TCG code to call the helper
 ##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
 ##     We produce:
+##       #ifndef fWRAP_A2_add
 ##       int32_t HELPER(A2_add)(CPUHexagonState *env, int32_t RsV, int32_t RtV)
 ##       {
 ##       uint32_t slot = 4; slot = slot;
@@ -725,8 +731,10 @@ def gen_helper_return_opn(f, regtype, regid, i):
 ##       COUNT_HELPER(A2_add);
 ##       return RdV;
 ##       }
+##       #endif
 ##
 def gen_helper_definition(f, tag, regs, imms):
+    f.write('#ifndef fWRAP_%s\n' % tag)
     numresults = 0
     numscalarresults = 0
     numscalarreadwrite = 0
@@ -838,8 +846,9 @@ def gen_helper_definition(f, tag, regs, imms):
         for regtype,regid,toss,numregs in regs:
             if (is_written(regid)):
                 gen_helper_return_opn(f, regtype, regid, i)
-        f.write("}")
+        f.write("}\n")
         ## End of the helper definition
+    f.write('#endif\n')
 
 ##
 ## Bring it all together in the DEF_QEMU macro

@@ -15,6 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "helper_overrides.h"
+
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 DEF_HELPER_1(debug_start_packet, void, env)
 DEF_HELPER_2(new_value, s32, env, int)
