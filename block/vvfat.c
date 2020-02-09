@@ -3124,17 +3124,10 @@ write_target_commit(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return ret;
 }
 
-static void write_target_close(BlockDriverState *bs) {
-    BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
-    bdrv_unref_child(s->bs, s->qcow);
-    g_free(s->qcow_filename);
-}
-
 static BlockDriver vvfat_write_target = {
     .format_name        = "vvfat_write_target",
     .instance_size      = sizeof(void*),
     .bdrv_co_pwritev    = write_target_commit,
-    .bdrv_close         = write_target_close,
 };
 
 static void vvfat_qcow_options(int *child_flags, QDict *child_options,
