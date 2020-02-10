@@ -2901,6 +2901,9 @@ W: https://cirrus-ci.com/github/qemu/qemu
 
 GitLab Continuous Integration
 M: Thomas Huth <thuth@redhat.com>
+M: Philippe Mathieu-Daudé <philmd@redhat.com>
+M: Alex Bennée <alex.bennee@linaro.org>
+R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Maintained
 F: .gitlab-ci.yml
 
