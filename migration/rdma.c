@@ -3980,13 +3980,13 @@ static void rdma_accept_incoming_migration(void *opaque)
     RDMAContext *rdma = opaque;
     int ret;
     QEMUFile *f;
-    Error *local_err = NULL, **errp = &local_err;
+    Error *local_err = NULL;
 
     trace_qemu_rdma_accept_incoming_migration();
     ret = qemu_rdma_accept(rdma);
 
     if (ret) {
-        ERROR(errp, "RDMA Migration initialization failed!");
+        fprintf(stderr, "RDMA ERROR: Migration initialization failed\n");
         return;
     }
 
@@ -3998,13 +3998,16 @@ static void rdma_accept_incoming_migration(void *opaque)
 
     f = qemu_fopen_rdma(rdma, "rb");
     if (f == NULL) {
-        ERROR(errp, "could not qemu_fopen_rdma!");
+        fprintf(stderr, "RDMA ERROR: could not qemu_fopen_rdma\n");
         qemu_rdma_cleanup(rdma);
         return;
     }
 
     rdma->migration_started_on_destination = 1;
-    migration_fd_process_incoming(f, errp);
+    migration_fd_process_incoming(f, &local_err);
+    if (local_err) {
+        error_reportf_err(local_err, "RDMA ERROR:");
+    }
 }
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
