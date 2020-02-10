@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Tests that "bdrv_drain_all" doesn't drain block jobs
 #

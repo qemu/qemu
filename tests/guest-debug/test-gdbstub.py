@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # This script needs to be run on startup
 # qemu -kernel ${KERNEL} -s -S

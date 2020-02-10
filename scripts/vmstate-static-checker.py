@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Compares vmstate information stored in JSON format, obtained from
 # the -dump-vmstate QEMU command.
@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
 import argparse
 import json
 import sys

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # Mini-Kconfig parser
 #
@@ -10,7 +11,6 @@
 # or, at your option, any later version.  See the COPYING file in
 # the top-level directory.
 
-from __future__ import print_function
 import os
 import sys
 import re

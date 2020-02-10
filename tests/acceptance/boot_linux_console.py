@@ -40,7 +40,7 @@ class BootLinuxConsole(Test):
         Extracts a file from a deb package into the test workdir
 
         :param deb: path to the deb archive
-        :param file: path within the deb archive of the file to be extracted
+        :param path: path within the deb archive of the file to be extracted
         :returns: path of the extracted file
         """
         cwd = os.getcwd()
@@ -49,7 +49,28 @@ class BootLinuxConsole(Test):
         process.run("ar x %s %s" % (deb, file_path))
         archive.extract(file_path, self.workdir)
         os.chdir(cwd)
-        return self.workdir + path
+        # Return complete path to extracted file.  Because callers to
+        # extract_from_deb() specify 'path' with a leading slash, it is
+        # necessary to use os.path.relpath() as otherwise os.path.join()
+        # interprets it as an absolute path and drops the self.workdir part.
+        return os.path.normpath(os.path.join(self.workdir,
+                                             os.path.relpath(path, '/')))
+
+    def extract_from_rpm(self, rpm, path):
+        """
+        Extracts a file from an RPM package into the test workdir.
+
+        :param rpm: path to the rpm archive
+        :param path: path within the rpm archive of the file to be extracted
+                     needs to be a relative path (starting with './') because
+                     cpio(1), which is used to extract the file, expects that.
+        :returns: path of the extracted file
+        """
+        cwd = os.getcwd()
+        os.chdir(self.workdir)
+        process.run("rpm2cpio %s | cpio -id %s" % (rpm, path), shell=True)
+        os.chdir(cwd)
+        return os.path.normpath(os.path.join(self.workdir, path))
 
     def test_x86_64_pc(self):
         """
@@ -304,6 +325,7 @@ class BootLinuxConsole(Test):
         :avocado: tags=arch:arm
         :avocado: tags=machine:emcraft-sf2
         :avocado: tags=endian:little
+        :avocado: tags=u-boot
         """
         uboot_url = ('https://raw.githubusercontent.com/'
                      'Subbaraya-Sundeep/qemu-test-binaries/'
@@ -519,7 +541,7 @@ class BootLinuxConsole(Test):
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
-        self.vm.add_args('-vga', 'std',
+        self.vm.add_args('-nodefaults',
                          '-kernel', uncompressed_kernel,
                          '-append', kernel_command_line)
         self.vm.launch()
@@ -568,3 +590,99 @@ class BootLinuxConsole(Test):
         self.wait_for_console_pattern(console_pattern)
         console_pattern = 'No filesystem could mount root'
         self.wait_for_console_pattern(console_pattern)
+
+    def do_test_advcal_2018(self, day, tar_hash, kernel_name):
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day' + day + '.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        archive.extract(file_path, self.workdir)
+        self.vm.set_console()
+        self.vm.add_args('-kernel',
+                         self.workdir + '/day' + day + '/' + kernel_name)
+        self.vm.launch()
+        self.wait_for_console_pattern('QEMU advent calendar')
+
+    def test_arm_vexpressa9(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:vexpress-a9
+        """
+        tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
+        self.vm.add_args('-dtb', self.workdir + '/day16/vexpress-v2p-ca9.dtb')
+        self.do_test_advcal_2018('16', tar_hash, 'winter.zImage')
+
+    def test_m68k_mcf5208evb(self):
+        """
+        :avocado: tags=arch:m68k
+        :avocado: tags=machine:mcf5208evb
+        """
+        tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
+        self.do_test_advcal_2018('07', tar_hash, 'sanity-clause.elf')
+
+    def test_microblaze_s3adsp1800(self):
+        """
+        :avocado: tags=arch:microblaze
+        :avocado: tags=machine:petalogix-s3adsp1800
+        """
+        tar_hash = '08bf3e3bfb6b6c7ce1e54ab65d54e189f2caf13f'
+        self.do_test_advcal_2018('17', tar_hash, 'ballerina.bin')
+
+    def test_or1k_sim(self):
+        """
+        :avocado: tags=arch:or1k
+        :avocado: tags=machine:or1k-sim
+        """
+        tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
+        self.do_test_advcal_2018('20', tar_hash, 'vmlinux')
+
+    def test_nios2_10m50(self):
+        """
+        :avocado: tags=arch:nios2
+        :avocado: tags=machine:10m50-ghrd
+        """
+        tar_hash = 'e4251141726c412ac0407c5a6bceefbbff018918'
+        self.do_test_advcal_2018('14', tar_hash, 'vmlinux.elf')
+
+    def test_ppc64_e500(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:ppce500
+        """
+        tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
+        self.vm.add_args('-cpu', 'e5500')
+        self.do_test_advcal_2018('19', tar_hash, 'uImage')
+
+    def test_ppc_g3beige(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:g3beige
+        """
+        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
+        self.vm.add_args('-M', 'graphics=off')
+        self.do_test_advcal_2018('15', tar_hash, 'invaders.elf')
+
+    def test_ppc_mac99(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:mac99
+        """
+        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
+        self.vm.add_args('-M', 'graphics=off')
+        self.do_test_advcal_2018('15', tar_hash, 'invaders.elf')
+
+    def test_sparc_ss20(self):
+        """
+        :avocado: tags=arch:sparc
+        :avocado: tags=machine:SS-20
+        """
+        tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
+        self.do_test_advcal_2018('11', tar_hash, 'zImage.elf')
+
+    def test_xtensa_lx60(self):
+        """
+        :avocado: tags=arch:xtensa
+        :avocado: tags=machine:lx60
+        """
+        tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
+        self.vm.add_args('-cpu', 'dc233c')
+        self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')

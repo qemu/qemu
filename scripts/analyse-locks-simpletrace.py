@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Analyse lock events and compute statistics
@@ -6,7 +6,6 @@
 # Author: Alex Bennée <alex.bennee@linaro.org>
 #
 
-from __future__ import print_function
 import simpletrace
 import argparse
 import numpy as np

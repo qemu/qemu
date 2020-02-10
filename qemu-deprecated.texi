@@ -320,14 +320,6 @@ they have no effect when used with @option{-n} to skip image creation.
 Silently ignored options can be confusing, so this combination of
 options will be made an error in future versions.
 
-@section Build system
-
-@subsection Python 2 support (since 4.1.0)
-
-In the future, QEMU will require Python 3 to be available at
-build time.  Support for Python 2 in scripts shipped with QEMU
-is deprecated.
-
 @section Backwards compatibility
 
 @subsection Runnability guarantee of CPU models (since 4.1.0)

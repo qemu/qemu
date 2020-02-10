@@ -1,5 +1,4 @@
-# QEMU Monitor Protocol Python class
-#
+""" QEMU Monitor Protocol Python class """
 # Copyright (C) 2009, 2010 Red Hat Inc.
 #
 # Authors:
@@ -15,29 +14,37 @@ import logging
 
 
 class QMPError(Exception):
-    pass
+    """
+    QMP base exception
+    """
 
 
 class QMPConnectError(QMPError):
-    pass
+    """
+    QMP connection exception
+    """
 
 
 class QMPCapabilitiesError(QMPError):
-    pass
+    """
+    QMP negotiate capabilities exception
+    """
 
 
 class QMPTimeoutError(QMPError):
-    pass
+    """
+    QMP timeout exception
+    """
 
 
-class QEMUMonitorProtocol(object):
+class QEMUMonitorProtocol:
+    """
+    Provide an API to connect to QEMU via QEMU Monitor Protocol (QMP) and then
+    allow to handle commands and events.
+    """
 
     #: Logger object for debugging messages
     logger = logging.getLogger('QMP')
-    #: Socket's error class
-    error = socket.error
-    #: Socket's timeout
-    timeout = socket.timeout
 
     def __init__(self, address, server=False):
         """
@@ -47,7 +54,7 @@ class QEMUMonitorProtocol(object):
                         or a tuple in the form ( address, port ) for a TCP
                         connection
         @param server: server mode listens on the socket (bool)
-        @raise socket.error on socket connection errors
+        @raise OSError on socket connection errors
         @note No connection is established, this is done by the connect() or
               accept() methods
         """
@@ -73,7 +80,7 @@ class QEMUMonitorProtocol(object):
             raise QMPConnectError
         # Greeting seems ok, negotiate capabilities
         resp = self.cmd('qmp_capabilities')
-        if "return" in resp:
+        if resp and "return" in resp:
             return greeting
         raise QMPCapabilitiesError
 
@@ -81,7 +88,7 @@ class QEMUMonitorProtocol(object):
         while True:
             data = self.__sockfile.readline()
             if not data:
-                return
+                return None
             resp = json.loads(data)
             if 'event' in resp:
                 self.logger.debug("<<< %s", resp)
@@ -107,8 +114,8 @@ class QEMUMonitorProtocol(object):
         self.__sock.setblocking(0)
         try:
             self.__json_read()
-        except socket.error as err:
-            if err[0] == errno.EAGAIN:
+        except OSError as err:
+            if err.errno == errno.EAGAIN:
                 # No data available
                 pass
         self.__sock.setblocking(1)
@@ -128,12 +135,21 @@ class QEMUMonitorProtocol(object):
                 raise QMPConnectError("Error while reading from socket")
             self.__sock.settimeout(None)
 
+    def __enter__(self):
+        # Implement context manager enter function.
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        # Implement context manager exit function.
+        self.close()
+        return False
+
     def connect(self, negotiate=True):
         """
         Connect to the QMP Monitor and perform capabilities negotiation.
 
-        @return QMP greeting dict
-        @raise socket.error on socket connection errors
+        @return QMP greeting dict, or None if negotiate is false
+        @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
@@ -141,17 +157,25 @@ class QEMUMonitorProtocol(object):
         self.__sockfile = self.__sock.makefile()
         if negotiate:
             return self.__negotiate_capabilities()
+        return None
 
-    def accept(self):
+    def accept(self, timeout=15.0):
         """
         Await connection from QMP Monitor and perform capabilities negotiation.
 
+        @param timeout: timeout in seconds (nonnegative float number, or
+                        None). The value passed will set the behavior of the
+                        underneath QMP socket as described in [1]. Default value
+                        is set to 15.0.
         @return QMP greeting dict
-        @raise socket.error on socket connection errors
+        @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
+
+        [1]
+        https://docs.python.org/3/library/socket.html#socket.socket.settimeout
         """
-        self.__sock.settimeout(15)
+        self.__sock.settimeout(timeout)
         self.__sock, _ = self.__sock.accept()
         self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
@@ -167,10 +191,10 @@ class QEMUMonitorProtocol(object):
         self.logger.debug(">>> %s", qmp_cmd)
         try:
             self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
-        except socket.error as err:
-            if err[0] == errno.EPIPE:
-                return
-            raise socket.error(err)
+        except OSError as err:
+            if err.errno == errno.EPIPE:
+                return None
+            raise err
         resp = self.__json_read()
         self.logger.debug("<<< %s", resp)
         return resp
@@ -243,14 +267,35 @@ class QEMUMonitorProtocol(object):
         self.__events = []
 
     def close(self):
-        self.__sock.close()
-        self.__sockfile.close()
+        """
+        Close the socket and socket file.
+        """
+        if self.__sock:
+            self.__sock.close()
+        if self.__sockfile:
+            self.__sockfile.close()
 
     def settimeout(self, timeout):
+        """
+        Set the socket timeout.
+
+        @param timeout (float): timeout in seconds, or None.
+        @note This is a wrap around socket.settimeout
+        """
         self.__sock.settimeout(timeout)
 
     def get_sock_fd(self):
+        """
+        Get the socket file descriptor.
+
+        @return The file descriptor number.
+        """
         return self.__sock.fileno()
 
     def is_scm_available(self):
+        """
+        Check if the socket allows for SCM_RIGHTS.
+
+        @return True if SCM_RIGHTS is available, otherwise False.
+        """
         return self.__sock.family == socket.AF_UNIX

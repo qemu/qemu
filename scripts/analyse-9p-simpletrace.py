@@ -1,9 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Pretty print 9p simpletrace log
 # Usage: ./analyse-9p-simpletrace <trace-events> <trace-pid>
 #
 # Author: Harsh Prateek Bora
-from __future__ import print_function
 import os
 import simpletrace
 

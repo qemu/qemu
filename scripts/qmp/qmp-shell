@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Low-level QEMU shell on top of QMP.
 #
@@ -65,7 +65,6 @@
 # which will echo back the properly formatted JSON-compliant QMP that is being
 # sent to QEMU, which is useful for debugging and documentation generation.
 
-from __future__ import print_function
 import json
 import ast
 import readline

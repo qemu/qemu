@@ -1460,6 +1460,12 @@ sub process {
 			}
 		}
 
+# Only allow Python 3 interpreter
+		if ($realline == 1 &&
+			$line =~ /^\+#!\ *\/usr\/bin\/(?:env )?python$/) {
+			ERROR("please use python3 interpreter\n" . $herecurr);
+		}
+
 # Accept git diff extended headers as valid patches
 		if ($line =~ /^(?:rename|copy) (?:from|to) [\w\/\.\-]+\s*$/) {
 			$is_patch = 1;

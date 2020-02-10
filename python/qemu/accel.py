@@ -24,7 +24,8 @@ LOG = logging.getLogger(__name__)
 # support which often includes its 32 bit cousin.
 ADDITIONAL_ARCHES = {
     "x86_64" : "i386",
-    "aarch64" : "armhf"
+    "aarch64" : "armhf",
+    "ppc64le" : "ppc64",
 }
 
 def list_accel(qemu_bin):

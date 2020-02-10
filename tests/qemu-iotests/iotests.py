@@ -1,4 +1,3 @@
-from __future__ import print_function
 # Common utilities and Python wrappers for qemu-iotests
 #
 # Copyright (C) 2012 IBM Corp.

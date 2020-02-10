@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2018 Linaro Limited
 #
 # This library is free software; you can redistribute it and/or
