@@ -1363,8 +1363,20 @@ static void coroutine_fn v9fs_version(void *opaque)
         s->proto_version = V9FS_PROTO_2000L;
     } else {
         v9fs_string_sprintf(&version, "unknown");
+        /* skip min. msize check, reporting invalid version has priority */
+        goto marshal;
     }
 
+    if (s->msize < P9_MIN_MSIZE) {
+        err = -EMSGSIZE;
+        error_report(
+            "9pfs: Client requested msize < minimum msize ("
+            stringify(P9_MIN_MSIZE) ") supported by this server."
+        );
+        goto out;
+    }
+
+marshal:
     err = pdu_marshal(pdu, offset, "ds", s->msize, &version);
     if (err < 0) {
         goto out;
@@ -2422,6 +2434,7 @@ static void coroutine_fn v9fs_readdir(void *opaque)
     int32_t count;
     uint32_t max_count;
     V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
     retval = pdu_unmarshal(pdu, offset, "dqd", &fid,
                            &initial_offset, &max_count);
@@ -2429,6 +2442,14 @@ static void coroutine_fn v9fs_readdir(void *opaque)
         goto out_nofid;
     }
     trace_v9fs_readdir(pdu->tag, pdu->id, fid, initial_offset, max_count);
+
+    /* Enough space for a R_readdir header: size[4] Rreaddir tag[2] count[4] */
+    if (max_count > s->msize - 11) {
+        max_count = s->msize - 11;
+        warn_report_once(
+            "9p: bad client: T_readdir with count > msize - 11"
+        );
+    }
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {

@@ -68,6 +68,11 @@ static void v9fs_memread(P9Req *req, void *addr, size_t len)
     req->r_off += len;
 }
 
+static void v9fs_uint8_read(P9Req *req, uint8_t *val)
+{
+    v9fs_memread(req, val, 1);
+}
+
 static void v9fs_uint16_write(P9Req *req, uint16_t val)
 {
     uint16_t le_val = cpu_to_le16(val);
@@ -101,6 +106,12 @@ static void v9fs_uint32_read(P9Req *req, uint32_t *val)
     le32_to_cpus(val);
 }
 
+static void v9fs_uint64_read(P9Req *req, uint64_t *val)
+{
+    v9fs_memread(req, val, 8);
+    le64_to_cpus(val);
+}
+
 /* len[2] string[len] */
 static uint16_t v9fs_string_size(const char *string)
 {
@@ -130,8 +141,9 @@ static void v9fs_string_read(P9Req *req, uint16_t *len, char **string)
         *len = local_len;
     }
     if (string) {
-        *string = g_malloc(local_len);
+        *string = g_malloc(local_len + 1);
         v9fs_memread(req, *string, local_len);
+        (*string)[local_len] = 0;
     } else {
         v9fs_memskip(req, local_len);
     }
@@ -190,6 +202,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RLOPEN ? "RLOPEN" :
         id == P9_RWRITE ? "RWRITE" :
         id == P9_RFLUSH ? "RFLUSH" :
+        id == P9_RREADDIR ? "READDIR" :
         "<unknown>";
 }
 
@@ -347,6 +360,82 @@ static void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
     v9fs_req_free(req);
 }
 
+/* size[4] Treaddir tag[2] fid[4] offset[8] count[4] */
+static P9Req *v9fs_treaddir(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
+                            uint32_t count, uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p, 4 + 8 + 4, P9_TREADDIR, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, offset);
+    v9fs_uint32_write(req, count);
+    v9fs_req_send(req);
+    return req;
+}
+
+struct V9fsDirent {
+    v9fs_qid qid;
+    uint64_t offset;
+    uint8_t type;
+    char *name;
+    struct V9fsDirent *next;
+};
+
+/* size[4] Rreaddir tag[2] count[4] data[count] */
+static void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
+                          struct V9fsDirent **entries)
+{
+    uint32_t local_count;
+    struct V9fsDirent *e = NULL;
+    uint16_t slen;
+    uint32_t n = 0;
+
+    v9fs_req_recv(req, P9_RREADDIR);
+    v9fs_uint32_read(req, &local_count);
+
+    if (count) {
+        *count = local_count;
+    }
+
+    for (int32_t togo = (int32_t)local_count;
+         togo >= 13 + 8 + 1 + 2;
+         togo -= 13 + 8 + 1 + 2 + slen, ++n)
+    {
+        if (!e) {
+            e = g_malloc(sizeof(struct V9fsDirent));
+            if (entries) {
+                *entries = e;
+            }
+        } else {
+            e = e->next = g_malloc(sizeof(struct V9fsDirent));
+        }
+        e->next = NULL;
+        /* qid[13] offset[8] type[1] name[s] */
+        v9fs_memread(req, &e->qid, 13);
+        v9fs_uint64_read(req, &e->offset);
+        v9fs_uint8_read(req, &e->type);
+        v9fs_string_read(req, &slen, &e->name);
+    }
+
+    if (nentries) {
+        *nentries = n;
+    }
+
+    v9fs_req_free(req);
+}
+
+static void v9fs_free_dirents(struct V9fsDirent *e)
+{
+    struct V9fsDirent *next = NULL;
+
+    for (; e; e = next) {
+        next = e->next;
+        g_free(e->name);
+        g_free(e);
+    }
+}
+
 /* size[4] Tlopen tag[2] fid[4] flags[4] */
 static P9Req *v9fs_tlopen(QVirtio9P *v9p, uint32_t fid, uint32_t flags,
                           uint16_t tag)
@@ -477,6 +566,69 @@ static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
     }
 
     g_free(wqid);
+}
+
+static bool fs_dirents_contain_name(struct V9fsDirent *e, const char* name)
+{
+    for (; e; e = e->next) {
+        if (!strcmp(e->name, name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
+    uint16_t nqid;
+    v9fs_qid qid;
+    uint32_t count, nentries;
+    struct V9fsDirent *entries = NULL;
+    P9Req *req;
+
+    fs_attach(v9p, NULL, t_alloc);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rwalk(req, &nqid, NULL);
+    g_assert_cmpint(nqid, ==, 1);
+
+    req = v9fs_tlopen(v9p, 1, O_DIRECTORY, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlopen(req, &qid, NULL);
+
+    /*
+     * submit count = msize - 11, because 11 is the header size of Rreaddir
+     */
+    req = v9fs_treaddir(v9p, 1, 0, P9_MAX_SIZE - 11, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rreaddir(req, &count, &nentries, &entries);
+
+    /*
+     * Assuming msize (P9_MAX_SIZE) is large enough so we can retrieve all
+     * dir entries with only one readdir request.
+     */
+    g_assert_cmpint(
+        nentries, ==,
+        QTEST_V9FS_SYNTH_READDIR_NFILES + 2 /* "." and ".." */
+    );
+
+    /*
+     * Check all file names exist in returned entries, ignore their order
+     * though.
+     */
+    g_assert_cmpint(fs_dirents_contain_name(entries, "."), ==, true);
+    g_assert_cmpint(fs_dirents_contain_name(entries, ".."), ==, true);
+    for (int i = 0; i < QTEST_V9FS_SYNTH_READDIR_NFILES; ++i) {
+        char *name = g_strdup_printf(QTEST_V9FS_SYNTH_READDIR_FILE, i);
+        g_assert_cmpint(fs_dirents_contain_name(entries, name), ==, true);
+        g_free(name);
+    }
+
+    v9fs_free_dirents(entries);
+    g_free(wnames[0]);
 }
 
 static void fs_walk_no_slash(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -657,6 +809,7 @@ static void register_virtio_9p_test(void)
                  NULL);
     qos_add_test("fs/flush/ignored", "virtio-9p", fs_flush_ignored,
                  NULL);
+    qos_add_test("fs/readdir/basic", "virtio-9p", fs_readdir, NULL);
 }
 
 libqos_init(register_virtio_9p_test);

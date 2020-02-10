@@ -100,6 +100,17 @@ typedef enum P9ProtoVersion {
     V9FS_PROTO_2000L = 0x02,
 } P9ProtoVersion;
 
+/**
+ * @brief Minimum message size supported by this 9pfs server.
+ *
+ * A client establishes a session by sending a Tversion request along with a
+ * 'msize' parameter which suggests the server a maximum message size ever to be
+ * used for communication (for both requests and replies) between client and
+ * server during that session. If client suggests a 'msize' smaller than this
+ * value then session is denied by server with an error response.
+ */
+#define P9_MIN_MSIZE    4096
+
 #define P9_NOTAG    UINT16_MAX
 #define P9_NOFID    UINT32_MAX
 #define P9_MAXWELEM 16
