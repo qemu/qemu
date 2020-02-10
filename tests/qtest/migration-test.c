@@ -1237,7 +1237,8 @@ static void test_migrate_auto_converge(void)
     g_assert_cmpint(percentage, <=, max_pct);
 
     remaining = read_ram_property_int(from, "remaining");
-    g_assert_cmpint(remaining, <, expected_threshold);
+    g_assert_cmpint(remaining, <,
+                    (expected_threshold + expected_threshold / 100));
 
     migrate_continue(from, "pre-switchover");
 
