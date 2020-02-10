@@ -1116,6 +1116,10 @@ static void do_read(fuse_req_t req, fuse_ino_t nodeid,
         struct fuse_file_info fi;
 
         arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+        if (!arg) {
+            fuse_reply_err(req, EINVAL);
+            return;
+        }
 
         memset(&fi, 0, sizeof(fi));
         fi.fh = arg->fh;
@@ -2666,83 +2670,6 @@ int fuse_lowlevel_is_virtio(struct fuse_session *se)
 {
     return !!se->virtio_dev;
 }
-
-#ifdef linux
-int fuse_req_getgroups(fuse_req_t req, int size, gid_t list[])
-{
-    char *buf;
-    size_t bufsize = 1024;
-    char path[128];
-    int ret;
-    int fd;
-    unsigned long pid = req->ctx.pid;
-    char *s;
-
-    sprintf(path, "/proc/%lu/task/%lu/status", pid, pid);
-
-retry:
-    buf = malloc(bufsize);
-    if (buf == NULL) {
-        return -ENOMEM;
-    }
-
-    ret = -EIO;
-    fd = open(path, O_RDONLY);
-    if (fd == -1) {
-        goto out_free;
-    }
-
-    ret = read(fd, buf, bufsize);
-    close(fd);
-    if (ret < 0) {
-        ret = -EIO;
-        goto out_free;
-    }
-
-    if ((size_t)ret == bufsize) {
-        free(buf);
-        bufsize *= 4;
-        goto retry;
-    }
-
-    ret = -EIO;
-    s = strstr(buf, "\nGroups:");
-    if (s == NULL) {
-        goto out_free;
-    }
-
-    s += 8;
-    ret = 0;
-    while (1) {
-        char *end;
-        unsigned long val = strtoul(s, &end, 0);
-        if (end == s) {
-            break;
-        }
-
-        s = end;
-        if (ret < size) {
-            list[ret] = val;
-        }
-        ret++;
-    }
-
-out_free:
-    free(buf);
-    return ret;
-}
-#else /* linux */
-/*
- * This is currently not implemented on other than Linux...
- */
-int fuse_req_getgroups(fuse_req_t req, int size, gid_t list[])
-{
-    (void)req;
-    (void)size;
-    (void)list;
-    return -ENOSYS;
-}
-#endif
 
 void fuse_session_exit(struct fuse_session *se)
 {

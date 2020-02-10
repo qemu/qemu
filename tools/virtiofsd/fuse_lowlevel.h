@@ -1705,27 +1705,6 @@ void *fuse_req_userdata(fuse_req_t req);
 const struct fuse_ctx *fuse_req_ctx(fuse_req_t req);
 
 /**
- * Get the current supplementary group IDs for the specified request
- *
- * Similar to the getgroups(2) system call, except the return value is
- * always the total number of group IDs, even if it is larger than the
- * specified size.
- *
- * The current fuse kernel module in linux (as of 2.6.30) doesn't pass
- * the group list to userspace, hence this function needs to parse
- * "/proc/$TID/task/$TID/status" to get the group IDs.
- *
- * This feature may not be supported on all operating systems.  In
- * such a case this function will return -ENOSYS.
- *
- * @param req request handle
- * @param size size of given array
- * @param list array of group IDs to be filled in
- * @return the total number of supplementary group IDs or -errno on failure
- */
-int fuse_req_getgroups(fuse_req_t req, int size, gid_t list[]);
-
-/**
  * Callback function for an interrupt
  *
  * @param req interrupted request

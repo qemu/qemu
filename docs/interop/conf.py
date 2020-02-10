@@ -27,5 +27,8 @@ man_pages = [
      [], 1),
     ('virtfs-proxy-helper', 'virtfs-proxy-helper',
      u'QEMU 9p virtfs proxy filesystem helper',
-     ['M. Mohan Kumar'], 1)
+     ['M. Mohan Kumar'], 1),
+    ('virtiofsd', 'virtiofsd', u'QEMU virtio-fs shared file system daemon',
+     ['Stefan Hajnoczi <stefanha@redhat.com>',
+      'Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>'], 1),
 ]

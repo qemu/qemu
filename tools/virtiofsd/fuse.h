@@ -1007,26 +1007,6 @@ void fuse_exit(struct fuse *f);
 struct fuse_context *fuse_get_context(void);
 
 /**
- * Get the current supplementary group IDs for the current request
- *
- * Similar to the getgroups(2) system call, except the return value is
- * always the total number of group IDs, even if it is larger than the
- * specified size.
- *
- * The current fuse kernel module in linux (as of 2.6.30) doesn't pass
- * the group list to userspace, hence this function needs to parse
- * "/proc/$TID/task/$TID/status" to get the group IDs.
- *
- * This feature may not be supported on all operating systems.  In
- * such a case this function will return -ENOSYS.
- *
- * @param size size of given array
- * @param list array of group IDs to be filled in
- * @return the total number of supplementary group IDs or -errno on failure
- */
-int fuse_getgroups(int size, gid_t list[]);
-
-/**
  * Check if the current request has already been interrupted
  *
  * @return 1 if the request has been interrupted, 0 otherwise
