@@ -34,7 +34,7 @@ class IbmPrep40pMachine(Test):
                     '7020-40p/P12H0456.IMG')
         bios_hash = '1775face4e6dc27f3a6ed955ef6eb331bf817f03'
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
-        drive_url = ('https://ftp.netbsd.org/pub/NetBSD/NetBSD-archive/'
+        drive_url = ('https://cdn.netbsd.org/pub/NetBSD/NetBSD-archive/'
                      'NetBSD-4.0/prep/installation/floppy/generic_com0.fs')
         drive_hash = 'dbcfc09912e71bd5f0d82c7c1ee43082fb596ceb'
         drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
@@ -66,7 +66,7 @@ class IbmPrep40pMachine(Test):
         :avocado: tags=arch:ppc
         :avocado: tags=machine:40p
         """
-        drive_url = ('https://ftp.netbsd.org/pub/NetBSD/iso/7.1.2/'
+        drive_url = ('https://cdn.netbsd.org/pub/NetBSD/iso/7.1.2/'
                      'NetBSD-7.1.2-prep.iso')
         drive_hash = 'ac6fa2707d888b36d6fa64de6e7fe48e'
         drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash,
