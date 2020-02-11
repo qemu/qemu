@@ -96,12 +96,30 @@ static inline target_ulong hack_stack_ptrs(CPUHexagonState *env,
     return addr;
 }
 
+/* HEX_REG_P3_0 (aka C4) is an alias for the predicate registers */
+static inline target_ulong read_p3_0(CPUHexagonState *env)
+{
+    int32_t control_reg = 0;
+    int i;
+    for (i = NUM_PREGS - 1; i >= 0; i--) {
+        control_reg <<= 8;
+        control_reg |= env->pred[i] & 0xff;
+    }
+    return control_reg;
+}
+
 static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
 {
-    fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n",
-        hexagon_regnames[regnum],
-        regnum < 32 ? hack_stack_ptrs(env, env->gpr[regnum])
-                    : env->gpr[regnum]);
+    target_ulong value;
+
+    if (regnum == HEX_REG_P3_0) {
+        value = read_p3_0(env);
+    } else {
+        value = regnum < 32 ? hack_stack_ptrs(env, env->gpr[regnum])
+                            : env->gpr[regnum];
+    }
+
+    fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n", hexagon_regnames[regnum], value);
 }
 
 static void print_vreg(FILE *f, CPUHexagonState *env, int regnum)

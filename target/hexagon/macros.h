@@ -265,7 +265,6 @@
 #define READ_OREG_s(dest, NUM) \
     READ_REG_READONLY(dest, NUM)
 
-#ifdef QEMU_GENERATE
 #define READ_CREG_s(dest, NUM) \
     do { \
         if ((NUM) + HEX_REG_SA0 == HEX_REG_P3_0) { \
@@ -274,27 +273,7 @@
             READ_REG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
         } \
     } while (0)
-#else
-static inline int32_t read_p3_0(CPUHexagonState *env)
-{
-    int32_t control_reg = 0;
-    int i;
-    for (i = NUM_PREGS - 1; i >= 0; i--) {
-        control_reg <<= 8;
-        control_reg |= env->pred[i] & 0xff;
-    }
-    return control_reg;
-}
 
-#define READ_CREG_s(dest, NUM) \
-    do { \
-        if (NUM == HEX_REG_P3_0) { \
-            dest = read_p3_0(env); \
-        } else { \
-            READ_REG_READONLY(dest, ((NUM) + HEX_REG_SA0)); \
-        } \
-    } while (0)
-#endif
 #define READ_MREG_u(dest, NUM) \
     do { \
         READ_REG_READONLY(dest, ((NUM) + HEX_REG_M0)); \
@@ -303,10 +282,6 @@ static inline int32_t read_p3_0(CPUHexagonState *env)
 #else
 #define READ_REG(NUM) \
     (env->gpr[(NUM)])
-#define READ_MREG(NUM) \
-    (env->gpr[NUM + REG_M])
-#define READ_CSREG(NUM) \
-    (env->gpr[NUM + HEX_REG_CS0])
 #endif
 
 #ifdef QEMU_GENERATE
