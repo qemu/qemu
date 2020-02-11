@@ -509,31 +509,6 @@ static inline void gen_set_usr_fieldi(int field, int x)
     tcg_temp_free(val);
 }
 
-static inline void gen_clrbit(TCGv tmp, TCGv bit)
-{
-    TCGv one = tcg_const_tl(1);
-    TCGv mask = tcg_temp_new();
-
-    tcg_gen_shl_tl(mask, one, bit);
-    tcg_gen_not_tl(mask, mask);
-    tcg_gen_and_tl(tmp, tmp, mask);
-
-    tcg_temp_free(one);
-    tcg_temp_free(mask);
-}
-
-static inline void gen_setbit(TCGv tmp, TCGv bit)
-{
-    TCGv one = tcg_const_tl(1);
-    TCGv mask = tcg_temp_new();
-
-    tcg_gen_shl_tl(mask, one, bit);
-    tcg_gen_or_tl(tmp, tmp, mask);
-
-    tcg_temp_free(one);
-    tcg_temp_free(mask);
-}
-
 static inline void gen_cond_return(TCGv pred, TCGv addr)
 {
     TCGv zero = tcg_const_tl(0);
@@ -541,26 +516,26 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
     tcg_temp_free(zero);
 }
 
-static inline void gen_loop0r(TCGv RsV, TCGv riV, insn_t *insn)
+static inline void gen_loop0r(TCGv RsV, int riV, insn_t *insn)
 {
     TCGv tmp = tcg_temp_new();
     fIMMEXT(riV);
     fPCALIGN(riV);
     /* fWRITE_LOOP_REGS0( fREAD_PC()+riV, RsV); */
-    tcg_gen_add_tl(tmp, hex_gpr[HEX_REG_PC], riV);
+    tcg_gen_addi_tl(tmp, hex_gpr[HEX_REG_PC], riV);
     gen_log_reg_write(HEX_REG_LC0, RsV, insn->slot, 0);
     gen_log_reg_write(HEX_REG_SA0, tmp, insn->slot, 0);
     fSET_LPCFG(0);
     tcg_temp_free(tmp);
 }
 
-static inline void gen_loop1r(TCGv RsV, TCGv riV, insn_t *insn)
+static inline void gen_loop1r(TCGv RsV, int riV, insn_t *insn)
 {
     TCGv tmp = tcg_temp_new();
     fIMMEXT(riV);
     fPCALIGN(riV);
     /* fWRITE_LOOP_REGS1( fREAD_PC()+riV, RsV); */
-    tcg_gen_add_tl(tmp, hex_gpr[HEX_REG_PC], riV);
+    tcg_gen_addi_tl(tmp, hex_gpr[HEX_REG_PC], riV);
     gen_log_reg_write(HEX_REG_LC1, RsV, insn->slot, 0);
     gen_log_reg_write(HEX_REG_SA1, tmp, insn->slot, 0);
     tcg_temp_free(tmp);
@@ -575,6 +550,13 @@ static inline void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
 
     tcg_temp_free(one);
     tcg_temp_free(zero);
+}
+
+static inline void gen_comparei(TCGCond cond, TCGv res, TCGv arg1, int arg2)
+{
+    TCGv tmp = tcg_const_tl(arg2);
+    gen_compare(cond, res, arg1, tmp);
+    tcg_temp_free(tmp);
 }
 
 static inline void gen_compare_i64(TCGCond cond, TCGv res,
@@ -594,14 +576,14 @@ static inline void gen_compare_i64(TCGCond cond, TCGv res,
 }
 
 static inline void gen_cmpnd_cmp_jmp(int pnum, TCGCond cond, bool sense,
-                                     TCGv arg1, TCGv arg2, TCGv pc_off)
+                                     TCGv arg1, TCGv arg2, int pc_off)
 {
     TCGv new_pc = tcg_temp_new();
     TCGv pred = tcg_temp_new();
     TCGv zero = tcg_const_tl(0);
     TCGv one = tcg_const_tl(1);
 
-    tcg_gen_add_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
     gen_compare(cond, pred, arg1, arg2);
     gen_log_pred_write(pnum, pred);
     if (!sense) {
@@ -622,19 +604,26 @@ static inline void gen_cmpnd_cmp_jmp(int pnum, TCGCond cond, bool sense,
     tcg_temp_free(one);
 }
 
-static inline void gen_cmpnd_cmp_n1_jmp(int pnum, TCGCond cond, bool sense,
-                                        TCGv arg, TCGv pc_off)
+static inline void gen_cmpnd_cmpi_jmp(int pnum, TCGCond cond, bool sense,
+                                      TCGv arg1, int arg2, int pc_off)
 {
-    TCGv n1 = tcg_const_tl(-1);
-    gen_cmpnd_cmp_jmp(pnum, cond, sense, arg, n1, pc_off);
-    tcg_temp_free(n1);
+    TCGv tmp = tcg_const_tl(arg2);
+    gen_cmpnd_cmp_jmp(pnum, cond, sense, arg1, tmp, pc_off);
+    tcg_temp_free(tmp);
+
+}
+
+static inline void gen_cmpnd_cmp_n1_jmp(int pnum, TCGCond cond, bool sense,
+                                        TCGv arg, int pc_off)
+{
+    gen_cmpnd_cmpi_jmp(pnum, cond, sense, arg, -1, pc_off);
 }
 
 
-static inline void gen_jump(TCGv pc_off)
+static inline void gen_jump(int pc_off)
 {
     TCGv new_pc = tcg_temp_new();
-    tcg_gen_add_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
     gen_write_new_pc(new_pc);
     tcg_temp_free(new_pc);
 }
@@ -658,17 +647,17 @@ static inline void gen_cond_jumpr(TCGv pred, TCGv dst_pc)
     tcg_temp_free(new_pc);
 }
 
-static inline void gen_cond_jump(TCGv pred, TCGv pc_off)
+static inline void gen_cond_jump(TCGv pred, int pc_off)
 {
     TCGv new_pc = tcg_temp_new();
 
-    tcg_gen_add_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
     gen_cond_jumpr(pred, new_pc);
 
     tcg_temp_free(new_pc);
 }
 
-static inline void gen_call(TCGv pc_off)
+static inline void gen_call(int pc_off)
 {
     gen_log_reg_write(HEX_REG_LR, hex_next_PC, 4, false);
     gen_jump(pc_off);
@@ -773,10 +762,18 @@ static inline void gen_ashiftl_4_4s(TCGv dst, TCGv src, int32_t shift_amt)
     }
 }
 
-static inline void gen_cmp_jumpnv(TCGCond cond, int rnum, TCGv src, TCGv pc_off)
+static inline void gen_cmp_jumpnv(TCGCond cond, int rnum, TCGv src, int pc_off)
 {
     TCGv pred = tcg_temp_new();
     tcg_gen_setcond_tl(cond, pred, hex_new_value[rnum], src);
+    gen_cond_jump(pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static inline void gen_cmpi_jumpnv(TCGCond cond, int rnum, int src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcondi_tl(cond, pred, hex_new_value[rnum], src);
     gen_cond_jump(pred, pc_off);
     tcg_temp_free(pred);
 }

@@ -47,7 +47,7 @@ extern void hexagon_debug(CPUHexagonState *env);
 extern void print_helper_counts(void);
 #endif
 
-extern const char * const hexagon_regnames[];
+extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 
 extern void init_genptr(void);
 

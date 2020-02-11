@@ -46,14 +46,14 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-const char * const hexagon_regnames[] = {
+const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
    "r0", "r1",  "r2",  "r3",  "r4",   "r5",  "r6",  "r7",
    "r8", "r9",  "r10", "r11", "r12",  "r13", "r14", "r15",
   "r16", "r17", "r18", "r19", "r20",  "r21", "r22", "r23",
   "r24", "r25", "r26", "r27", "r28",  "r29", "r30", "r31",
   "sa0", "lc0", "sa1", "lc1", "p3_0", "c5",  "m0",  "m1",
   "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "c14", "c15",
-  "c16", "c17", "c18", "c19", "c20",  "c21", "c22", "c23",
+  "c16", "c17", "c18", "c19", "pkt_cnt",  "insn_cnt", "hvx_cnt", "c23",
   "c24", "c25", "c26", "c27", "c28",  "c29", "c30", "c31",
 };
 
@@ -70,7 +70,7 @@ static inline target_ulong hack_stack_ptrs(CPUHexagonState *env,
     if (first) {
         first = false;
         env->stack_start = env->gpr[HEX_REG_SP];
-        env->gpr[HEX_REG_USR] = 0x560000;
+        env->gpr[HEX_REG_USR] = 0x56000;
 
 #define ADJUST_STACK 0
 #if ADJUST_STACK
@@ -162,21 +162,8 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
     print_reg(f, env, HEX_REG_M1);
     print_reg(f, env, HEX_REG_USR);
     print_reg(f, env, HEX_REG_P3_0);
-#ifdef FIXME
-    /*
-     * LLDB bug swaps gp and ugp
-     * FIXME when the LLDB bug is fixed
-     */
     print_reg(f, env, HEX_REG_GP);
     print_reg(f, env, HEX_REG_UGP);
-#else
-    fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n",
-        hexagon_regnames[HEX_REG_GP],
-        hack_stack_ptrs(env, env->gpr[HEX_REG_UGP]));
-    fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n",
-        hexagon_regnames[HEX_REG_UGP],
-        hack_stack_ptrs(env, env->gpr[HEX_REG_GP]));
-#endif
     print_reg(f, env, HEX_REG_PC);
 #ifdef CONFIG_USER_ONLY
     /*

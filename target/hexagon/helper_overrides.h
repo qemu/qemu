@@ -47,7 +47,7 @@
 #define GET_EA_ap \
     do { \
         fEA_IMM(UiV); \
-        tcg_gen_mov_tl(ReV, UiV); \
+        tcg_gen_movi_tl(ReV, UiV); \
     } while (0)
 #define GET_EA_pr \
     do { \
@@ -132,7 +132,7 @@
         fMUST_IMMEXT(UiV); \
         fEA_IMM(UiV); \
         fLOAD(1, SIZE, SIGN, EA, RES); \
-        tcg_gen_mov_tl(ReV, UiV); \
+        tcg_gen_movi_tl(ReV, UiV); \
     } while (0)
 
 #define fWRAP_L4_loadrub_ap(GENHLPR, SHORTCODE) \
@@ -667,7 +667,7 @@
         { \
             fEA_IMM(UiV); \
             STORE; \
-            tcg_gen_mov_tl(ReV, UiV); \
+            tcg_gen_movi_tl(ReV, UiV); \
         } \
         tcg_temp_free(HALF); \
         tcg_temp_free(BYTE); \
@@ -967,29 +967,29 @@
 #define fWRAP_L4_or_memoph_io(GENHLPR, SHORTCODE) \
     fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_or_tl(tmp, tmp, RtV))
 #define fWRAP_L4_iadd_memopw_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_add_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_addi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_iadd_memopb_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_add_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_addi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_iadd_memoph_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_add_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_addi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_isub_memopw_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_sub_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_subi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_isub_memopb_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_sub_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_subi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_isub_memoph_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_sub_tl(tmp, tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_subi_tl(tmp, tmp, UiV))
 #define fWRAP_L4_iand_memopw_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, gen_clrbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
 #define fWRAP_L4_iand_memopb_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, gen_clrbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
 #define fWRAP_L4_iand_memoph_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, gen_clrbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
 #define fWRAP_L4_ior_memopw_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, gen_setbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
 #define fWRAP_L4_ior_memopb_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, gen_setbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
 #define fWRAP_L4_ior_memoph_io(GENHLPR, SHORTCODE) \
-    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, gen_setbit(tmp, UiV))
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
 
 /* dczeroa clears the 32 byte cache line at the address given */
 #define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
@@ -1004,7 +1004,7 @@
                                            fCAST4_4u(fREAD_FP()))); \
           fWRITE_FP(EA); \
           fFRAMECHECK(EA - uiV, EA); \
-          tcg_gen_sub_tl(RxV, EA, uiV); \
+          tcg_gen_subi_tl(RxV, EA, uiV); \
         } \
         tcg_temp_free_i64(scramble_tmp); \
         tcg_temp_free(tmp); \
@@ -1019,7 +1019,7 @@
                                            fCAST4_4u(fREAD_FP()))); \
           fWRITE_FP(EA); \
           fFRAMECHECK(EA - uiV, EA); \
-          tcg_gen_sub_tl(tmp, EA, uiV); \
+          tcg_gen_subi_tl(tmp, EA, uiV); \
           fWRITE_SP(tmp); \
         } \
         tcg_temp_free_i64(scramble_tmp); \
@@ -1350,53 +1350,53 @@
  *      _t       taken
  */
 #define fWRAP_J4_cmpeqi_tp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_fp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_tp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_fp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_tp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_fp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_tp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqi_fp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_tp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_fp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_tp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_fp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_tp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_fp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_tp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgti_fp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_tp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_fp0_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_tp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_fp0_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_tp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_fp1_jump_nt(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_tp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
 #define fWRAP_J4_cmpgtui_fp1_jump_t(GENHLPR, SHORTCODE) \
-    gen_cmpnd_cmp_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
 #define fWRAP_J4_cmpeqn1_tp0_jump_nt(GENHLPR, SHORTCODE) \
     gen_cmpnd_cmp_n1_jmp(0, TCG_COND_EQ, true, RsV, riV)
 #define fWRAP_J4_cmpeqn1_fp0_jump_nt(GENHLPR, SHORTCODE) \
@@ -1436,7 +1436,7 @@
 #define fWRAP_SA1_cmpeqi(GENHLPR, SHORTCODE) \
     do { \
         TCGv tmp = tcg_temp_new(); \
-        gen_compare(TCG_COND_EQ, tmp, RsV, uiV); \
+        gen_comparei(TCG_COND_EQ, tmp, RsV, uiV); \
         gen_log_pred_write(0, tmp); \
         tcg_temp_free(tmp); \
     } while (0)
@@ -1457,16 +1457,16 @@
 
 /* r0 = sub(#10, r1) */
 #define fWRAP_A2_subri(GENHLPR, SHORTCODE) \
-    tcg_gen_sub_tl(RdV, siV, RsV)
+    tcg_gen_subfi_tl(RdV, siV, RsV)
 
 #define fWRAP_A2_addi(GENHLPR, SHORTCODE) \
-    tcg_gen_add_tl(RdV, RsV, siV)
+    tcg_gen_addi_tl(RdV, RsV, siV)
 
 #define fWRAP_A2_and(GENHLPR, SHORTCODE) \
     tcg_gen_and_tl(RdV, RsV, RtV)
 
 #define fWRAP_A2_andir(GENHLPR, SHORTCODE) \
-    tcg_gen_and_tl(RdV, RsV, siV)
+    tcg_gen_andi_tl(RdV, RsV, siV)
 
 #define fWRAP_A2_xor(GENHLPR, SHORTCODE) \
     tcg_gen_xor_tl(RdV, RsV, RtV)
@@ -1477,7 +1477,7 @@
 #define fWRAP_SA1_tfr(GENHLPR, SHORTCODE) \
     tcg_gen_mov_tl(RdV, RsV)
 #define fWRAP_A2_tfrsi(GENHLPR, SHORTCODE) \
-    tcg_gen_mov_tl(RdV, siV)
+    tcg_gen_movi_tl(RdV, siV)
 #define fWRAP_A2_tfrcrr(GENHLPR, SHORTCODE) \
     tcg_gen_mov_tl(RdV, CsV)
 #define fWRAP_A2_tfrrcr(GENHLPR, SHORTCODE) \
@@ -1506,11 +1506,11 @@
 #define fWRAP_C2_cmpgtup(GENHLPR, SHORTCODE) \
     gen_compare_i64(TCG_COND_GTU, PdV, RssV, RttV)
 #define fWRAP_C2_cmpeqi(GENHLPR, SHORTCODE) \
-    gen_compare(TCG_COND_EQ, PdV, RsV, siV)
+    gen_comparei(TCG_COND_EQ, PdV, RsV, siV)
 #define fWRAP_C2_cmpgti(GENHLPR, SHORTCODE) \
-    gen_compare(TCG_COND_GT, PdV, RsV, siV)
+    gen_comparei(TCG_COND_GT, PdV, RsV, siV)
 #define fWRAP_C2_cmpgtui(GENHLPR, SHORTCODE) \
-    gen_compare(TCG_COND_GTU, PdV, RsV, uiV)
+    gen_comparei(TCG_COND_GTU, PdV, RsV, uiV)
 
 #define fWRAP_SA1_zxtb(GENHLPR, SHORTCODE) \
     tcg_gen_ext8u_tl(RdV, RsV)
@@ -1563,15 +1563,15 @@
 #define fWRAP_J4_cmpgt_t_jumpnv_t(GENHLPR, SHORTCODE) \
     gen_cmp_jumpnv(TCG_COND_GT, NsX, RtV, riV)
 #define fWRAP_J4_cmpeqi_t_jumpnv_nt(GENHLPR, SHORTCODE) \
-    gen_cmp_jumpnv(TCG_COND_EQ, NsX, UiV, riV)
+    gen_cmpi_jumpnv(TCG_COND_EQ, NsX, UiV, riV)
 #define fWRAP_J4_cmpltu_f_jumpnv_t(GENHLPR, SHORTCODE) \
     gen_cmp_jumpnv(TCG_COND_GEU, NsX, RtV, riV)
 #define fWRAP_J4_cmpgtui_t_jumpnv_t(GENHLPR, SHORTCODE) \
-    gen_cmp_jumpnv(TCG_COND_GTU, NsX, UiV, riV)
+    gen_cmpi_jumpnv(TCG_COND_GTU, NsX, UiV, riV)
 #define fWRAP_J4_cmpeq_f_jumpnv_t(GENHLPR, SHORTCODE) \
     gen_cmp_jumpnv(TCG_COND_NE, NsX, RtV, riV)
 #define fWRAP_J4_cmpeqi_f_jumpnv_t(GENHLPR, SHORTCODE) \
-    gen_cmp_jumpnv(TCG_COND_NE, NsX, UiV, riV)
+    gen_cmpi_jumpnv(TCG_COND_NE, NsX, UiV, riV)
 #define fWRAP_J4_cmpgtu_t_jumpnv_t(GENHLPR, SHORTCODE) \
     gen_cmp_jumpnv(TCG_COND_GTU, NsX, RtV, riV)
 #define fWRAP_J4_cmpgtu_f_jumpnv_t(GENHLPR, SHORTCODE) \
@@ -1664,18 +1664,40 @@
 #define fWRAP_A2_combinew(GENHLPR, SHORTCODE) \
     tcg_gen_concat_i32_i64(RddV, RtV, RsV)
 #define fWRAP_A2_combineii(GENHLPR, SHORTCODE) \
-    tcg_gen_concat_i32_i64(RddV, SiV, siV)
+    do { \
+        TCGv tmp_lo = tcg_const_tl(SiV); \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, tmp_hi); \
+        tcg_temp_free(tmp_lo); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
 #define fWRAP_A4_combineri(GENHLPR, SHORTCODE) \
-    tcg_gen_concat_i32_i64(RddV, siV, RsV)
+    do { \
+        TCGv tmp_lo = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, RsV); \
+        tcg_temp_free(tmp_lo); \
+    } while (0)
 #define fWRAP_A4_combineir(GENHLPR, SHORTCODE) \
-    tcg_gen_concat_i32_i64(RddV, RsV, siV)
+    do { \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, RsV, tmp_hi); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
 #define fWRAP_A4_combineii(GENHLPR, SHORTCODE) \
-    tcg_gen_concat_i32_i64(RddV, UiV, siV)
+    do { \
+        TCGv tmp_lo = tcg_const_tl(UiV); \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, tmp_hi); \
+        tcg_temp_free(tmp_lo); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
 
 #define fWRAP_SA1_combine0i(GENHLPR, SHORTCODE) \
     do { \
+        TCGv tmp_lo = tcg_const_tl(uiV); \
         TCGv zero = tcg_const_tl(0); \
-        tcg_gen_concat_i32_i64(RddV, uiV, zero); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, zero); \
+        tcg_temp_free(tmp_lo); \
         tcg_temp_free(zero); \
     } while (0)
 
@@ -1757,14 +1779,16 @@
         TCGv LSB = tcg_temp_new(); \
         TCGv zero = tcg_const_tl(0); \
         TCGv mask = tcg_temp_new(); \
+        TCGv value = tcg_const_tl(siV); \
         VAL; \
-        tcg_gen_movcond_tl(COND, RdV, LSB, zero, siV, zero); \
+        tcg_gen_movcond_tl(COND, RdV, LSB, zero, value, zero); \
         tcg_gen_movi_tl(mask, 1 << insn->slot); \
         tcg_gen_movcond_tl(TCG_COND_EQ, mask, LSB, zero, mask, zero); \
         tcg_gen_or_tl(hex_slot_cancelled, hex_slot_cancelled, mask); \
         tcg_temp_free(LSB); \
         tcg_temp_free(zero); \
         tcg_temp_free(mask); \
+        tcg_temp_free(value); \
     } while (0)
 
 #define fWRAP_C2_cmoveit(GENHLPR, SHORTCODE) \
