@@ -801,6 +801,18 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     translator_loop(&hexagon_tr_ops, &ctx.base, cs, tb, max_insns);
 }
 
+#define NAME_LEN               64
+static char new_value_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
+#if HEX_DEBUG
+static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
+#endif
+static char new_pred_value_names[NUM_PREGS][NAME_LEN];
+static char pred_written_names[NUM_PREGS][NAME_LEN];
+static char store_addr_names[STORES_MAX][NAME_LEN];
+static char store_width_names[STORES_MAX][NAME_LEN];
+static char store_val32_names[STORES_MAX][NAME_LEN];
+static char store_val64_names[STORES_MAX][NAME_LEN];
+
 void hexagon_translate_init(void)
 {
     int i;
@@ -809,21 +821,35 @@ void hexagon_translate_init(void)
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, gpr[i]), hexagon_regnames[i]);
+            offsetof(CPUHexagonState, gpr[i]),
+            hexagon_regnames[i]);
+
+        sprintf(new_value_names[i], "new_%s", hexagon_regnames[i]);
         hex_new_value[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, new_value[i]), "new_value");
+            offsetof(CPUHexagonState, new_value[i]),
+            new_value_names[i]);
+
 #if HEX_DEBUG
+        sprintf(reg_written_names[i], "reg_written_%s", hexagon_regnames[i]);
         hex_reg_written[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, reg_written[i]), "reg_written");
+            offsetof(CPUHexagonState, reg_written[i]),
+            reg_written_names[i]);
 #endif
     }
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, pred[i]), hexagon_prednames[i]);
+            offsetof(CPUHexagonState, pred[i]),
+            hexagon_prednames[i]);
+
+        sprintf(new_pred_value_names[i], "new_pred_%s", hexagon_prednames[i]);
         hex_new_pred_value[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, new_pred_value[i]), "new_pred_value");
+            offsetof(CPUHexagonState, new_pred_value[i]),
+            new_pred_value_names[i]);
+
+        sprintf(pred_written_names[i], "pred_written_%s", hexagon_prednames[i]);
         hex_pred_written[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, pred_written[i]), "pred_written");
+            offsetof(CPUHexagonState, pred_written[i]),
+            pred_written_names[i]);
     }
     hex_next_PC = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, next_PC), "next_PC");
@@ -855,14 +881,25 @@ void hexagon_translate_init(void)
     hex_QRegs_updated = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, QRegs_updated), "QRegs_updated");
     for (i = 0; i < STORES_MAX; i++) {
+        sprintf(store_addr_names[i], "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].va), "store_addr");
+            offsetof(CPUHexagonState, mem_log_stores[i].va),
+            store_addr_names[i]);
+
+        sprintf(store_width_names[i], "store_width_%d", i);
         hex_store_width[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].width), "store_width");
+            offsetof(CPUHexagonState, mem_log_stores[i].width),
+            store_width_names[i]);
+
+        sprintf(store_val32_names[i], "store_val32_%d", i);
         hex_store_val32[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].data32), "store_val32");
+            offsetof(CPUHexagonState, mem_log_stores[i].data32),
+            store_val32_names[i]);
+
+        sprintf(store_val64_names[i], "store_val64_%d", i);
         hex_store_val64[i] = tcg_global_mem_new_i64(cpu_env,
-            offsetof(CPUHexagonState, mem_log_stores[i].data64), "store_val64");
+            offsetof(CPUHexagonState, mem_log_stores[i].data64),
+            store_val64_names[i]);
     }
 
     init_genptr();

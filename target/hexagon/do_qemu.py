@@ -457,8 +457,15 @@ def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
+def gen_helper_decl_imm(f,immlett):
+    f.write("DECL_TCG_IMM(tcgv_%s, %s);\n" % \
+        (imm_name(immlett), imm_name(immlett)))
+
 def gen_helper_call_imm(f,immlett):
-    f.write(", %s" % imm_name(immlett))
+    f.write(", tcgv_%s" % imm_name(immlett))
+
+def gen_helper_free_imm(f,immlett):
+    f.write("FREE_TCG_IMM(tcgv_%s);\n" % imm_name(immlett))
 
 def genptr_dst_write(f,regtype, regid):
     macro = "WRITE_%sREG_%s" % (regtype, regid)
@@ -505,7 +512,10 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
 ##       DECL_RREG_t(RtV, RtN, 2, 0);
 ##       READ_RREG_s(RsV, RsN);
 ##       READ_RREG_t(RtV, RtN);
-##       fWRAP_A2_add(gen_helper_A2_add(RdV, cpu_env, RsV, RtV),
+##       fWRAP_A2_add(
+##       do {
+##       gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
+##       while (0),
 ##       { RdV=RsV+RtV;});
 ##       WRITE_RREG_d(RdN, RdV);
 ##       FREE_RREG_d(RdV);
@@ -539,7 +549,10 @@ def gen_tcg_func(f, tag, regs, imms):
             genptr_src_read_opn(f,regtype,regid)
 
     ## Generate the call to the helper
-    f.write("fWRAP_%s(" % tag)
+    f.write("fWRAP_%s(\n" % tag)
+    f.write("do {\n")
+    for immlett,bits,immshift in imms:
+        gen_helper_decl_imm(f,immlett)
     if need_part1(tag): f.write("PART1_WRAP(")
     if need_slot(tag): f.write("SLOT_WRAP(")
     f.write("gen_helper_%s(" % (tag))
@@ -574,6 +587,10 @@ def gen_tcg_func(f, tag, regs, imms):
     f.write(")")
     if need_slot(tag): f.write(")")
     if need_part1(tag): f.write(")")
+    f.write(";\n")
+    for immlett,bits,immshift in imms:
+        gen_helper_free_imm(f,immlett)
+    f.write("} while (0)")
     f.write(",\n%s);\n" % semdict[tag] )
 
     ## Write all the outputs

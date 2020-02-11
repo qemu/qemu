@@ -136,10 +136,22 @@
     DECL_PAIR(NAME, NUM, X, OFF)
 
 #define DECL_IMM(NAME, X) \
-    TCGv NAME = tcg_const_tl(IMMNO(X))
+    int NAME = IMMNO(X); \
+    do { \
+        NAME = NAME; \
+    } while (0)
+#define DECL_TCG_IMM(TCG_NAME, VAL) \
+    TCGv TCG_NAME = tcg_const_tl(VAL)
 
 #define DECL_EA \
-    TCGv EA = tcg_temp_local_new()
+    TCGv EA; \
+    do { \
+        if (GET_ATTRIB(insn->opcode, A_CONDEXEC)) { \
+            EA = tcg_temp_local_new(); \
+        } else { \
+            EA = tcg_temp_new(); \
+        } \
+    } while (0)
 
 #define LOG_REG_WRITE(RNUM, VAL)\
     do { \
@@ -190,12 +202,6 @@
 
 #define FREE_NEW_OREG_s(NAME)        FREE_REG(NAME)
 
-#define DECL_IMM(NAME, X) \
-    TCGv NAME = tcg_const_tl(IMMNO(X))
-
-#define DECL_EA \
-    TCGv EA = tcg_temp_local_new()
-
 #define FREE_REG_PAIR(NAME) \
     tcg_temp_free_i64(NAME)
 
@@ -208,8 +214,8 @@
 #define FREE_CREG_dd(NAME)           FREE_REG_PAIR(NAME)
 #define FREE_CREG_ss(NAME)           FREE_REG_PAIR(NAME)
 
-#define FREE_IMM(NAME) \
-    tcg_temp_free(NAME)
+#define FREE_IMM(NAME)               /* nothing */
+#define FREE_TCG_IMM(NAME)           tcg_temp_free(NAME)
 
 #define FREE_EA \
     tcg_temp_free(EA)
@@ -720,11 +726,7 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
 #define fIMMEXT(IMM) (IMM = IMM)
 #define fMUST_IMMEXT(IMM) fIMMEXT(IMM)
 
-#ifdef QEMU_GENERATE
-#define fPCALIGN(IMM) tcg_gen_andi_tl(IMM, IMM, ~PCALIGN_MASK)
-#else
 #define fPCALIGN(IMM) IMM = (IMM & ~PCALIGN_MASK)
-#endif
 
 #define fGET_EXTENSION (insn->extension)
 
@@ -923,20 +925,18 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fCAST16S_4S(A) (cast16s_to_4s(A))
 
 #ifdef QEMU_GENERATE
-#define fEA_RI_FUNC(X) \
-    _Generic((X), int : tcg_gen_addi_tl, TCGv_i32 : tcg_gen_add_tl)
-#define fEA_RI(REG, IMM) fEA_RI_FUNC(IMM)(EA, REG, IMM)
+#define fEA_RI(REG, IMM) tcg_gen_addi_tl(EA, REG, IMM)
 #define fEA_RRs(REG, REG2, SCALE) \
     do { \
-        TCGv __tmp = tcg_temp_new(); \
-        tcg_gen_shl_tl(__tmp, REG2, SCALE); \
-        tcg_gen_add_tl(EA, REG, __tmp); \
-        tcg_temp_free(__tmp); \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_shli_tl(tmp, REG2, SCALE); \
+        tcg_gen_add_tl(EA, REG, tmp); \
+        tcg_temp_free(tmp); \
     } while (0)
 #define fEA_IRs(IMM, REG, SCALE) \
     do { \
-        tcg_gen_shl_tl(EA, REG, SCALE); \
-        tcg_gen_add_tl(EA, IMM, EA); \
+        tcg_gen_shli_tl(EA, REG, SCALE); \
+        tcg_gen_addi_tl(EA, EA, IMM); \
     } while (0)
 #else
 #define fEA_RI(REG, IMM) \
@@ -957,7 +957,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #endif
 
 #ifdef QEMU_GENERATE
-#define fEA_IMM(IMM) tcg_gen_mov_tl(EA, IMM)
+#define fEA_IMM(IMM) tcg_gen_movi_tl(EA, IMM)
 #define fEA_REG(REG) tcg_gen_mov_tl(EA, REG)
 static inline void gen_fbrev(TCGv result, TCGv src)
 {
@@ -1014,10 +1014,10 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
     tcg_temp_free(tmp);
 }
 
-#define fEA_BREVR(REG) gen_fbrev(EA, REG)
-#define fEA_GPI(IMM) tcg_gen_add_tl(EA, fREAD_GP(), IMM)
-#define fPM_I(REG, IMM) { tcg_gen_add_tl(REG, REG, IMM); }
-#define fPM_M(REG, MVAL) { tcg_gen_add_tl(REG, REG, MVAL); }
+#define fEA_BREVR(REG)      gen_fbrev(EA, REG)
+#define fEA_GPI(IMM)        tcg_gen_addi_tl(EA, fREAD_GP(), IMM)
+#define fPM_I(REG, IMM)     tcg_gen_addi_tl(REG, REG, IMM)
+#define fPM_M(REG, MVAL)    tcg_gen_add_tl(REG, REG, MVAL)
 #else
 #define fEA_IMM(IMM) EA = IMM
 #define fEA_REG(REG) EA = REG
@@ -1041,7 +1041,9 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 #endif
 #define fPM_CIRI(REG, IMM, MVAL) \
     do { \
-        fcirc_add(REG, siV, MuV); \
+        TCGv tmp = tcg_const_tl(siV); \
+        fcirc_add(REG, tmp, MuV); \
+        tcg_temp_free(tmp); \
     } while (0)
 #define fPM_CIRR(REG, VAL, MVAL) \
     do { \
