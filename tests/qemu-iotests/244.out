@@ -122,4 +122,10 @@ Offset          Length          Mapped to       File
 0               0x100000        0               TEST_DIR/t.qcow2.data
 [{ "start": 0, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 0},
 { "start": 1048576, "length": 66060288, "depth": 0, "zero": true, "data": false}]
+
+=== Copy offloading ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+Images are identical.
+Images are identical.
 *** done
