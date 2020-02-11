@@ -163,17 +163,29 @@
 ##
 # @LostTickPolicy:
 #
-# Policy for handling lost ticks in timer devices.
+# Policy for handling lost ticks in timer devices.  Ticks end up getting
+# lost when, for example, the guest is paused.
 #
-# @discard: throw away the missed tick(s) and continue with future injection
-#           normally.  Guest time may be delayed, unless the OS has explicit
-#           handling of lost ticks
+# @discard: throw away the missed ticks and continue with future injection
+#           normally.  The guest OS will see the timer jump ahead by a
+#           potentially quite significant amount all at once, as if the
+#           intervening chunk of time had simply not existed; needless to
+#           say, such a sudden jump can easily confuse a guest OS which is
+#           not specifically prepared to deal with it.  Assuming the guest
+#           OS can deal correctly with the time jump, the time in the guest
+#           and in the host should now match.
 #
-# @delay: continue to deliver ticks at the normal rate.  Guest time will be
-#         delayed due to the late tick
+# @delay: continue to deliver ticks at the normal rate.  The guest OS will
+#         not notice anything is amiss, as from its point of view time will
+#         have continued to flow normally.  The time in the guest should now
+#         be behind the time in the host by exactly the amount of time during
+#         which ticks have been missed.
 #
-# @slew: deliver ticks at a higher rate to catch up with the missed tick. The
-#        guest time should not be delayed once catchup is complete.
+# @slew: deliver ticks at a higher rate to catch up with the missed ticks.
+#        The guest OS will not notice anything is amiss, as from its point
+#        of view time will have continued to flow normally.  Once the timer
+#        has managed to catch up with all the missing ticks, the time in
+#        the guest and in the host should match.
 #
 # Since: 2.0
 ##
