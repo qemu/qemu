@@ -220,7 +220,7 @@ static void phb3_msi_resend(ICSState *ics)
             if ((msi->rba[i] & (1ull << j)) == 0) {
                 continue;
             }
-            msi->rba[i] &= ~(1u << j);
+            msi->rba[i] &= ~(1ull << j);
             phb3_msi_try_send(msi, i * 64 + j, true);
         }
     }
