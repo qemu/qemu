@@ -1,6 +1,9 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # signal.c
+signal_table_init(int i) "number of unavailable signals: %d"
+signal_do_sigaction_guest(int sig, int max) "target signal %d (MAX %d)"
+signal_do_sigaction_host(int sig, int max) "host signal %d (MAX %d)"
 # */signal.c
 user_setup_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64
 user_setup_rt_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64

@@ -498,18 +498,30 @@ static int core_dump_signal(int sig)
 
 static void signal_table_init(void)
 {
-    int host_sig, target_sig;
+    int host_sig, target_sig, count;
 
     /*
-     * Nasty hack: Reverse SIGRTMIN and SIGRTMAX to avoid overlap with
-     * host libpthread signals.  This assumes no one actually uses SIGRTMAX :-/
+     * Signals are supported starting from TARGET_SIGRTMIN and going up
+     * until we run out of host realtime signals.
+     * glibc at least uses only the lower 2 rt signals and probably
+     * nobody's using the upper ones.
+     * it's why SIGRTMIN (34) is generally greater than __SIGRTMIN (32)
      * To fix this properly we need to do manual signal delivery multiplexed
      * over a single host signal.
+     * Attempts for configure "missing" signals via sigaction will be
+     * silently ignored.
      */
-    host_to_target_signal_table[__SIGRTMIN] = __SIGRTMAX;
-    host_to_target_signal_table[__SIGRTMAX] = __SIGRTMIN;
+    for (host_sig = SIGRTMIN; host_sig <= SIGRTMAX; host_sig++) {
+        target_sig = host_sig - SIGRTMIN + TARGET_SIGRTMIN;
+        if (target_sig <= TARGET_NSIG) {
+            host_to_target_signal_table[host_sig] = target_sig;
+        }
+    }
 
     /* generate signal conversion tables */
+    for (target_sig = 1; target_sig <= TARGET_NSIG; target_sig++) {
+        target_to_host_signal_table[target_sig] = _NSIG; /* poison */
+    }
     for (host_sig = 1; host_sig < _NSIG; host_sig++) {
         if (host_to_target_signal_table[host_sig] == 0) {
             host_to_target_signal_table[host_sig] = host_sig;
@@ -518,6 +530,15 @@ static void signal_table_init(void)
         if (target_sig <= TARGET_NSIG) {
             target_to_host_signal_table[target_sig] = host_sig;
         }
+    }
+
+    if (trace_event_get_state_backends(TRACE_SIGNAL_TABLE_INIT)) {
+        for (target_sig = 1, count = 0; target_sig <= TARGET_NSIG; target_sig++) {
+            if (target_to_host_signal_table[target_sig] == _NSIG) {
+                count++;
+            }
+        }
+        trace_signal_table_init(count);
     }
 }
 
@@ -817,6 +838,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     int host_sig;
     int ret = 0;
 
+    trace_signal_do_sigaction_guest(sig, TARGET_NSIG);
+
     if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
         return -TARGET_EINVAL;
     }
@@ -847,6 +870,23 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
         /* we update the host linux signal state */
         host_sig = target_to_host_signal(sig);
+        trace_signal_do_sigaction_host(host_sig, TARGET_NSIG);
+        if (host_sig > SIGRTMAX) {
+            /* we don't have enough host signals to map all target signals */
+            qemu_log_mask(LOG_UNIMP, "Unsupported target signal #%d, ignored\n",
+                          sig);
+            /*
+             * we don't return an error here because some programs try to
+             * register an handler for all possible rt signals even if they
+             * don't need it.
+             * An error here can abort them whereas there can be no problem
+             * to not have the signal available later.
+             * This is the case for golang,
+             *   See https://github.com/golang/go/issues/33746
+             * So we silently ignore the error.
+             */
+            return 0;
+        }
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
             sigfillset(&act1.sa_mask);
             act1.sa_flags = SA_SIGINFO;
