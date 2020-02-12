@@ -173,6 +173,7 @@ static void pnv_pbcq_pci_xscom_write(void *opaque, hwaddr addr,
     case PBCQ_PCI_BAR2:
         pbcq->pci_regs[reg] = val & 0xfffffffffc000000ull;
         pnv_pbcq_update_map(pbcq);
+        break;
     default:
         phb3_pbcq_error(pbcq, "%s @0x%"HWADDR_PRIx"=%"PRIx64, __func__,
                         addr, val);
