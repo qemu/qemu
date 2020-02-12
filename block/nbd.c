@@ -1528,8 +1528,10 @@ static int nbd_parse_uri(const char *filename, QDict *options)
         goto out;
     }
 
-    p = uri->path ? uri->path : "/";
-    p += strspn(p, "/");
+    p = uri->path ? uri->path : "";
+    if (p[0] == '/') {
+        p++;
+    }
     if (p[0]) {
         qdict_put_str(options, "export", p);
     }
