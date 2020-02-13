@@ -15,16 +15,16 @@
 # @finish-migrate: guest is paused to finish the migration process
 #
 # @inmigrate: guest is paused waiting for an incoming migration.  Note
-# that this state does not tell whether the machine will start at the
-# end of the migration.  This depends on the command-line -S option and
-# any invocation of 'stop' or 'cont' that has happened since QEMU was
-# started.
+#             that this state does not tell whether the machine will start at the
+#             end of the migration.  This depends on the command-line -S option and
+#             any invocation of 'stop' or 'cont' that has happened since QEMU was
+#             started.
 #
 # @internal-error: An internal error that prevents further guest execution
-# has occurred
+#                  has occurred
 #
 # @io-error: the last IOP has failed and the device is configured to pause
-# on I/O errors
+#            on I/O errors
 #
 # @paused: guest has been paused via the 'stop' command
 #
@@ -85,8 +85,8 @@
 # @guest-panic: Guest panicked, and command line turns that into a shutdown
 #
 # @subsystem-reset: Partial guest reset that does not trigger QMP events and
-#                  ignores --no-reboot. This is useful for sanitizing
-#                  hypercalls on s390 that are used during kexec/kdump/boot
+#                   ignores --no-reboot. This is useful for sanitizing
+#                   hypercalls on s390 that are used during kexec/kdump/boot
 #
 ##
 { 'enum': 'ShutdownCause',
@@ -140,13 +140,13 @@
 # about to exit.
 #
 # @guest: If true, the shutdown was triggered by a guest request (such as
-# a guest-initiated ACPI shutdown request or other hardware-specific action)
-# rather than a host request (such as sending qemu a SIGINT). (since 2.10)
+#         a guest-initiated ACPI shutdown request or other hardware-specific action)
+#         rather than a host request (such as sending qemu a SIGINT). (since 2.10)
 #
 # @reason: The @ShutdownCause which resulted in the SHUTDOWN. (since 4.0)
 #
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
-# not exit, and a STOP event will eventually follow the SHUTDOWN event
+#       not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
 # Since: 0.12.0
 #
@@ -180,9 +180,9 @@
 # Emitted when the virtual machine is reset
 #
 # @guest: If true, the reset was triggered by a guest request (such as
-# a guest-initiated ACPI reboot request or other hardware-specific action)
-# rather than a host request (such as the QMP command system_reset).
-# (since 2.10)
+#         a guest-initiated ACPI reboot request or other hardware-specific action)
+#         rather than a host request (such as the QMP command system_reset).
+#         (since 2.10)
 #
 # @reason: The @ShutdownCause of the RESET. (since 4.0)
 #
@@ -283,7 +283,7 @@
 # @action: action that has been taken
 #
 # Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
-# followed respectively by the RESET, SHUTDOWN, or STOP events
+#       followed respectively by the RESET, SHUTDOWN, or STOP events
 #
 # Note: This event is rate-limited.
 #
@@ -441,12 +441,12 @@
 # @disabled-wait: the CPU has entered a disabled wait state
 #
 # @extint-loop: clock comparator or cpu timer interrupt with new PSW enabled
-#              for external interrupts
+#               for external interrupts
 #
 # @pgmint-loop: program interrupt with BAD new PSW
 #
 # @opint-loop: operation exception interrupt with invalid code at the program
-#             interrupt new PSW
+#              interrupt new PSW
 #
 # Since: 2.12
 ##

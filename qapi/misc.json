@@ -14,11 +14,11 @@
 #
 # Arguments:
 #
-# @enable:   An optional list of QMPCapability values to enable.  The
-#            client must not enable any capability that is not
-#            mentioned in the QMP greeting message.  If the field is not
-#            provided, it means no QMP capabilities will be enabled.
-#            (since 2.12)
+# @enable: An optional list of QMPCapability values to enable.  The
+#          client must not enable any capability that is not
+#          mentioned in the QMP greeting message.  If the field is not
+#          provided, it means no QMP capabilities will be enabled.
+#          (since 2.12)
 #
 # Example:
 #
@@ -27,11 +27,11 @@
 # <- { "return": {} }
 #
 # Notes: This command is valid exactly when first connecting: it must be
-# issued before any other command will be accepted, and will fail once the
-# monitor is accepting other commands. (see qemu docs/interop/qmp-spec.txt)
+#        issued before any other command will be accepted, and will fail once the
+#        monitor is accepting other commands. (see qemu docs/interop/qmp-spec.txt)
 #
-# The QMP client needs to explicitly enable QMP capabilities, otherwise
-# all the QMP capabilities will be turned off by default.
+#        The QMP client needs to explicitly enable QMP capabilities, otherwise
+#        all the QMP capabilities will be turned off by default.
 #
 # Since: 0.13
 #
@@ -46,8 +46,8 @@
 # Enumeration of capabilities to be advertised during initial client
 # connection, used for agreeing on particular QMP extension behaviors.
 #
-# @oob:   QMP ability to support out-of-band requests.
-#         (Please refer to qmp-spec.txt for more information on OOB)
+# @oob: QMP ability to support out-of-band requests.
+#       (Please refer to qmp-spec.txt for more information on OOB)
 #
 # Since: 2.12
 #
@@ -60,11 +60,11 @@
 #
 # A three-part version number.
 #
-# @major:  The major version number.
+# @major: The major version number.
 #
-# @minor:  The minor version number.
+# @minor: The minor version number.
 #
-# @micro:  The micro version number.
+# @micro: The micro version number.
 #
 # Since: 2.4
 ##
@@ -77,16 +77,16 @@
 #
 # A description of QEMU's version.
 #
-# @qemu:        The version of QEMU.  By current convention, a micro
-#               version of 50 signifies a development branch.  A micro version
-#               greater than or equal to 90 signifies a release candidate for
-#               the next minor version.  A micro version of less than 50
-#               signifies a stable release.
+# @qemu: The version of QEMU.  By current convention, a micro
+#        version of 50 signifies a development branch.  A micro version
+#        greater than or equal to 90 signifies a release candidate for
+#        the next minor version.  A micro version of less than 50
+#        signifies a stable release.
 #
-# @package:     QEMU will always set this field to an empty string.  Downstream
-#               versions of QEMU should set this to a non-empty string.  The
-#               exact format depends on the downstream however it highly
-#               recommended that a unique name is used.
+# @package: QEMU will always set this field to an empty string.  Downstream
+#           versions of QEMU should set this to a non-empty string.  The
+#           exact format depends on the downstream however it highly
+#           recommended that a unique name is used.
 #
 # Since: 0.14.0
 ##
@@ -98,7 +98,7 @@
 #
 # Returns the current version of QEMU.
 #
-# Returns:  A @VersionInfo object describing the current version of QEMU.
+# Returns: A @VersionInfo object describing the current version of QEMU.
 #
 # Since: 0.14.0
 #
@@ -333,7 +333,7 @@
 # Since: 1.2.0
 #
 # Note: This command is deprecated, because its output doesn't reflect
-# compile-time configuration.  Use query-qmp-schema instead.
+#       compile-time configuration.  Use query-qmp-schema instead.
 #
 # Example:
 #
@@ -387,8 +387,8 @@
 # Returns a list of information about each iothread.
 #
 # Note: this list excludes the QEMU main loop thread, which is not declared
-# using the -object iothread command-line option.  It is always the main thread
-# of the process.
+#       using the -object iothread command-line option.  It is always the main thread
+#       of the process.
 #
 # Returns: a list of @IOThreadInfo for each iothread
 #
@@ -636,9 +636,9 @@
 # Return information about the PCI bus topology of the guest.
 #
 # Returns: a list of @PciInfo for each PCI bus. Each bus is
-# represented by a json-object, which has a key with a json-array of
-# all PCI devices attached to it. Each device is represented by a
-# json-object.
+#          represented by a json-object, which has a key with a json-array of
+#          all PCI devices attached to it. Each device is represented by a
+#          json-object.
 #
 # Since: 0.14.0
 #
@@ -800,10 +800,10 @@
 #
 # Since:  0.14.0
 #
-# Notes:  This function will succeed even if the guest is already in the stopped
-#         state.  In "inmigrate" state, it will ensure that the guest
-#         remains paused once migration finishes, as if the -S option was
-#         passed on the command line.
+# Notes: This function will succeed even if the guest is already in the stopped
+#        state.  In "inmigrate" state, it will ensure that the guest
+#        remains paused once migration finishes, as if the -S option was
+#        passed on the command line.
 #
 # Example:
 #
@@ -859,7 +859,7 @@
 # @filename: the file to save the memory to as binary data
 #
 # @cpu-index: the index of the virtual CPU to use for translating the
-#                       virtual address (defaults to CPU 0)
+#             virtual address (defaults to CPU 0)
 #
 # Returns: Nothing on success
 #
@@ -917,11 +917,11 @@
 #
 # Returns:  If successful, nothing
 #
-# Notes:  This command will succeed if the guest is currently running.  It
-#         will also succeed if the guest is in the "inmigrate" state; in
-#         this case, the effect of the command is to make sure the guest
-#         starts once migration finishes, removing the effect of the -S
-#         command line option if it was passed.
+# Notes: This command will succeed if the guest is currently running.  It
+#        will also succeed if the guest is in the "inmigrate" state; in
+#        this case, the effect of the command is to make sure the guest
+#        starts once migration finishes, removing the effect of the -S
+#        command line option if it was passed.
 #
 # Example:
 #
@@ -967,7 +967,7 @@
 # Returns:  nothing.
 #
 # Note: prior to 4.0, this command does nothing in case the guest
-# isn't suspended.
+#       isn't suspended.
 #
 # Example:
 #
@@ -1081,18 +1081,18 @@
 #          change password command.   Otherwise, this specifies a new server URI
 #          address to listen to for VNC connections.
 #
-# @arg:    If @device is a block device, then this is an optional format to open
-#          the device with.
-#          If @device is 'vnc' and @target is 'password', this is the new VNC
-#          password to set.  See change-vnc-password for additional notes.
+# @arg: If @device is a block device, then this is an optional format to open
+#       the device with.
+#       If @device is 'vnc' and @target is 'password', this is the new VNC
+#       password to set.  See change-vnc-password for additional notes.
 #
 # Returns: Nothing on success.
 #          If @device is not a valid block device, DeviceNotFound
 #
-# Notes:  This interface is deprecated, and it is strongly recommended that you
-#         avoid using it.  For changing block devices, use
-#         blockdev-change-medium; for changing VNC parameters, use
-#         change-vnc-password.
+# Notes: This interface is deprecated, and it is strongly recommended that you
+#        avoid using it.  For changing block devices, use
+#        blockdev-change-medium; for changing VNC parameters, use
+#        change-vnc-password.
 #
 # Since: 0.14.0
 #
@@ -1731,8 +1731,8 @@
 # of the VM are not loaded by this command.
 #
 # @filename: the file to load the state of the devices from as binary
-# data. See xen-save-devices-state.txt for a description of the binary
-# format.
+#            data. See xen-save-devices-state.txt for a description of the binary
+#            format.
 #
 # Since: 2.7
 #

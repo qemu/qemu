@@ -47,9 +47,9 @@
 # Additional arguments depend on the type.
 #
 # TODO: This command effectively bypasses QAPI completely due to its
-# "additional arguments" business.  It shouldn't have been added to
-# the schema in this form.  It should be qapified properly, or
-# replaced by a properly qapified command.
+#       "additional arguments" business.  It shouldn't have been added to
+#       the schema in this form.  It should be qapified properly, or
+#       replaced by a properly qapified command.
 #
 # Since: 0.14.0
 #
@@ -213,7 +213,7 @@
 # @fd: file descriptor of an already opened tap
 #
 # @fds: multiple file descriptors of already opened multiqueue capable
-# tap
+#       tap
 #
 # @script: script to initialize the interface
 #
@@ -232,14 +232,14 @@
 # @vhostfd: file descriptor of an already opened vhost net device
 #
 # @vhostfds: file descriptors of multiple already opened vhost net
-# devices
+#            devices
 #
 # @vhostforce: vhost on for non-MSIX virtio guests
 #
 # @queues: number of queues to be created for multiqueue capable tap
 #
 # @poll-us: maximum number of microseconds that could
-# be spent on busy polling for tap (since 2.7)
+#           be spent on busy polling for tap (since 2.7)
 #
 # Since: 1.2
 ##
@@ -464,7 +464,7 @@
 #
 # Since: 1.2
 #
-# 'l2tpv3' - since 2.1
+#        'l2tpv3' - since 2.1
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -691,7 +691,7 @@
 # Parameters for self-announce timers
 #
 # @initial: Initial delay (in ms) before sending the first GARP/RARP
-#       announcement
+#           announcement
 #
 # @max: Maximum delay (in ms) between GARP/RARP announcement packets
 #
@@ -700,11 +700,11 @@
 # @step: Delay increase (in ms) after each self-announcement attempt
 #
 # @interfaces: An optional list of interface names, which restricts the
-#        announcement to the listed interfaces. (Since 4.1)
+#              announcement to the listed interfaces. (Since 4.1)
 #
 # @id: A name to be used to identify an instance of announce-timers
-#        and to allow it to modified later.  Not for use as
-#        part of the migration parameters. (Since 4.1)
+#      and to allow it to modified later.  Not for use as
+#      part of the migration parameters. (Since 4.1)
 #
 # Since: 4.0
 ##

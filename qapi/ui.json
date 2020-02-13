@@ -18,10 +18,10 @@
 # @password: the new password
 #
 # @connected: how to handle existing clients when changing the
-#                       password.  If nothing is specified, defaults to `keep'
-#                       `fail' to fail the command if clients are connected
-#                       `disconnect' to disconnect existing clients
-#                       `keep' to maintain existing clients
+#             password.  If nothing is specified, defaults to `keep'
+#             `fail' to fail the command if clients are connected
+#             `disconnect' to disconnect existing clients
+#             `keep' to maintain existing clients
 #
 # Returns: Nothing on success
 #          If Spice is not enabled, DeviceNotFound
@@ -591,12 +591,12 @@
 #
 # Change the VNC server password.
 #
-# @password:  the new password to use with VNC authentication
+# @password: the new password to use with VNC authentication
 #
 # Since: 1.1
 #
-# Notes:  An empty password in this command will set the password to the empty
-#         string.  Existing clients are unaffected by executing this command.
+# Notes: An empty password in this command will set the password to the empty
+#        string.  Existing clients are unaffected by executing this command.
 ##
 { 'command': 'change-vnc-password',
   'data': { 'password': 'str' },
@@ -612,7 +612,7 @@
 # @client: client information
 #
 # Note: This event is emitted before any authentication takes place, thus
-# the authentication ID is not provided
+#       the authentication ID is not provided
 #
 # Since: 0.13.0
 #
@@ -915,9 +915,9 @@
 #
 # Pointer motion input event.
 #
-# @axis:   Which axis is referenced by @value.
-# @value:  Pointer position.  For absolute coordinates the
-#          valid range is 0 -> 0x7ffff
+# @axis: Which axis is referenced by @value.
+# @value: Pointer position.  For absolute coordinates the
+#         valid range is 0 -> 0x7ffff
 #
 # Since: 2.0
 ##
@@ -931,10 +931,10 @@
 # Input event union.
 #
 # @type: the input type, one of:
-#  - 'key': Input event of Keyboard
-#  - 'btn': Input event of pointer buttons
-#  - 'rel': Input event of relative pointer motion
-#  - 'abs': Input event of absolute pointer motion
+#        - 'key': Input event of Keyboard
+#        - 'btn': Input event of pointer buttons
+#        - 'rel': Input event of relative pointer motion
+#        - 'abs': Input event of absolute pointer motion
 #
 # Since: 2.0
 ##
@@ -970,9 +970,9 @@
 # Since: 2.6
 #
 # Note: The consoles are visible in the qom tree, under
-# /backend/console[$index]. They have a device link and head property,
-# so it is possible to map which console belongs to which device and
-# display.
+#       /backend/console[$index]. They have a device link and head property,
+#       so it is possible to map which console belongs to which device and
+#       display.
 #
 # Example:
 #

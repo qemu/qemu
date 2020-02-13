@@ -680,7 +680,7 @@
 # 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @none: None (no memory side cache in this proximity domain,
-#              or cache write policy unknown)
+#        or cache write policy unknown)
 #
 # @write-back: Write Back (WB)
 #
@@ -706,7 +706,7 @@
 # @level: the cache level described in this structure.
 #
 # @associativity: the cache associativity,
-#         none/direct-mapped/complex(complex cache indexing).
+#                 none/direct-mapped/complex(complex cache indexing).
 #
 # @policy: the write policy, none/write-back/write-through.
 #
@@ -823,10 +823,10 @@
 # @core-id: core number within die the CPU belongs to# @thread-id: thread number within core the CPU belongs to
 #
 # Note: currently there are 5 properties that could be present
-# but management should be prepared to pass through other
-# properties with device_add command to allow for future
-# interface extension. This also requires the filed names to be kept in
-# sync with the properties passed to -device/device_add.
+#       but management should be prepared to pass through other
+#       properties with device_add command to allow for future
+#       interface extension. This also requires the filed names to be kept in
+#       sync with the properties passed to -device/device_add.
 #
 # Since: 2.7
 ##

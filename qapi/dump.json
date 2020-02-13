@@ -38,8 +38,8 @@
 #          using gdb to process the core file.
 #
 #          IMPORTANT: this option can make QEMU allocate several gigabytes
-#                     of RAM. This can happen for a large guest, or a
-#                     malicious guest pretending to be large.
+#          of RAM. This can happen for a large guest, or a
+#          malicious guest pretending to be large.
 #
 #          Also, paging=true has the following limitations:
 #

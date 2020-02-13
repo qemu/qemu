@@ -262,11 +262,11 @@
 # @tn3270: enable tn3270 protocol on server
 #          sockets (default: false) (Since: 2.10)
 # @websocket: enable websocket protocol on server
-#           sockets (default: false) (Since: 3.1)
+#             sockets (default: false) (Since: 3.1)
 # @reconnect: For a client socket, if a socket is disconnected,
-#          then attempt a reconnect after the given number of seconds.
-#          Setting this to zero disables this function. (default: 0)
-#          (Since: 2.2)
+#             then attempt a reconnect after the given number of seconds.
+#             Setting this to zero disables this function. (default: 0)
+#             (Since: 2.2)
 #
 # Since: 1.4
 ##

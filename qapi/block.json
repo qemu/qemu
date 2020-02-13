@@ -190,12 +190,12 @@
 #
 # Ejects a device from a removable drive.
 #
-# @device:  Block device name (deprecated, use @id instead)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @id:      The name or QOM path of the guest device (since: 2.8)
+# @id: The name or QOM path of the guest device (since: 2.8)
 #
-# @force:   If true, eject regardless of whether the drive is locked.
-#           If not specified, the default value is false.
+# @force: If true, eject regardless of whether the drive is locked.
+#         If not specified, the default value is false.
 #
 # Returns:  Nothing on success
 #
@@ -254,7 +254,7 @@
 #               (Since 5.0)
 #
 # @writable: Whether clients should be able to write to the device via the
-#     NBD connection (default false).
+#            NBD connection (default false).
 #
 # @bitmap: Also export the dirty bitmap reachable from @device, so the
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
@@ -281,10 +281,10 @@
 # Potential additional modes to be added in the future:
 #
 # hide: Just hide export from new clients, leave existing connections as is.
-#       Remove export after all clients are disconnected.
+# Remove export after all clients are disconnected.
 #
 # soft: Hide export from new clients, answer with ESHUTDOWN for all further
-#       requests from existing clients.
+# requests from existing clients.
 #
 # Since: 2.12
 ##
