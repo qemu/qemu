@@ -416,7 +416,7 @@
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
 #
 # Note: This may fail to properly report the current state as a result of
-# some other guest processes having issued an fs freeze/thaw.
+#       some other guest processes having issued an fs freeze/thaw.
 #
 # Since: 0.15.0
 ##
@@ -431,13 +431,13 @@
 # unfreeze.
 #
 # Note: On Windows, the command is implemented with the help of a
-# Volume Shadow-copy Service DLL helper. The frozen state is limited
-# for up to 10 seconds by VSS.
+#       Volume Shadow-copy Service DLL helper. The frozen state is limited
+#       for up to 10 seconds by VSS.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
-# will be thawed. If no filesystems are frozen as a result of this call,
-# then @guest-fsfreeze-status will remain "thawed" and calling
-# @guest-fsfreeze-thaw is not necessary.
+#          will be thawed. If no filesystems are frozen as a result of this call,
+#          then @guest-fsfreeze-status will remain "thawed" and calling
+#          @guest-fsfreeze-thaw is not necessary.
 #
 # Since: 0.15.0
 ##
@@ -455,7 +455,7 @@
 #               Invalid mount points are ignored.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
-# will be thawed.
+#          will be thawed.
 #
 # Since: 2.2
 ##
@@ -511,12 +511,12 @@
 # Discard (or "trim") blocks which are not in use by the filesystem.
 #
 # @minimum:
-#       Minimum contiguous free range to discard, in bytes. Free ranges
-#       smaller than this may be ignored (this is a hint and the guest
-#       may not respect it).  By increasing this value, the fstrim
-#       operation will complete more quickly for filesystems with badly
-#       fragmented free space, although not all blocks will be discarded.
-#       The default value is zero, meaning "discard every free block".
+#           Minimum contiguous free range to discard, in bytes. Free ranges
+#           smaller than this may be ignored (this is a hint and the guest
+#           may not respect it).  By increasing this value, the fstrim
+#           operation will complete more quickly for filesystems with badly
+#           fragmented free space, although not all blocks will be discarded.
+#           The default value is zero, meaning "discard every free block".
 #
 # Returns: A @GuestFilesystemTrimResponse which contains the
 #          status of all trimmed paths. (since 2.4)
@@ -693,7 +693,7 @@
 # @ip-addresses: List of addresses assigned to @name
 #
 # @statistics: various statistic counters related to @name
-# (since 2.11)
+#              (since 2.11)
 #
 # Since: 1.1
 ##
@@ -743,7 +743,7 @@
 # This is a read-only operation.
 #
 # Returns: The list of all VCPUs the guest knows about. Each VCPU is put on the
-# list exactly once, but their order is unspecified.
+#          list exactly once, but their order is unspecified.
 #
 # Since: 1.5
 ##
@@ -937,8 +937,8 @@
 # This is a read-only operation.
 #
 # Returns: The list of all memory blocks the guest knows about.
-# Each memory block is put on the list exactly once, but their order
-# is unspecified.
+#          Each memory block is put on the list exactly once, but their order
+#          is unspecified.
 #
 # Since: 2.3
 ##
@@ -971,9 +971,9 @@
 # @response: the result of memory block operation.
 #
 # @error-code: the error number.
-#               When memory block operation fails, we assign the value of
-#               'errno' to this member, it indicates what goes wrong.
-#               When the operation succeeds, it will be omitted.
+#              When memory block operation fails, we assign the value of
+#              'errno' to this member, it indicates what goes wrong.
+#              When the operation succeeds, it will be omitted.
 #
 # Since: 2.3
 ##
@@ -1040,15 +1040,15 @@
 # @exited: true if process has already terminated.
 # @exitcode: process exit code if it was normally terminated.
 # @signal: signal number (linux) or unhandled exception code
-#       (windows) if the process was abnormally terminated.
+#          (windows) if the process was abnormally terminated.
 # @out-data: base64-encoded stdout of the process
 # @err-data: base64-encoded stderr of the process
-#       Note: @out-data and @err-data are present only
-#       if 'capture-output' was specified for 'guest-exec'
+#            Note: @out-data and @err-data are present only
+#            if 'capture-output' was specified for 'guest-exec'
 # @out-truncated: true if stdout was not fully captured
-#       due to size limitation.
+#                 due to size limitation.
 # @err-truncated: true if stderr was not fully captured
-#       due to size limitation.
+#                 due to size limitation.
 #
 # Since: 2.5
 ##
@@ -1131,8 +1131,8 @@
 
 ##
 # @GuestUser:
-# @user:       Username
-# @domain:     Logon domain (windows only)
+# @user: Username
+# @domain: Logon domain (windows only)
 # @login-time: Time of login of this user on the computer. If multiple
 #              instances of the user are logged in, the earliest login time is
 #              reported. The value is in fractional seconds since epoch time.
@@ -1156,10 +1156,10 @@
 ##
 # @GuestTimezone:
 #
-# @zone:    Timezone name. These values may differ depending on guest/OS and
-#           should only be used for informational purposes.
-# @offset:  Offset to UTC in seconds, negative numbers for time zones west of
-#           GMT, positive numbers for east
+# @zone: Timezone name. These values may differ depending on guest/OS and
+#        should only be used for informational purposes.
+# @offset: Offset to UTC in seconds, negative numbers for time zones west of
+#          GMT, positive numbers for east
 #
 # Since: 2.10
 ##
