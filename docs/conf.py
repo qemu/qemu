@@ -28,6 +28,16 @@
 
 import os
 import sys
+import sphinx
+from sphinx.errors import VersionRequirementError
+
+# Make Sphinx fail cleanly if using an old Python, rather than obscurely
+# failing because some code in one of our extensions doesn't work there.
+# Unfortunately this doesn't display very neatly (there's an unavoidable
+# Python backtrace) but at least the information gets printed...
+if sys.version_info < (3,5):
+    raise VersionRequirementError(
+        "QEMU requires a Sphinx that uses Python 3.5 or better\n")
 
 # The per-manual conf.py will set qemu_docdir for a single-manual build;
 # otherwise set it here if this is an entire-manual-set build.

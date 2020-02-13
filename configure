@@ -4818,11 +4818,19 @@ has_sphinx_build() {
 
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
-  if has makeinfo && has pod2man && has_sphinx_build; then
+  if has_sphinx_build; then
+    sphinx_ok=yes
+  else
+    sphinx_ok=no
+  fi
+  if has makeinfo && has pod2man && test "$sphinx_ok" = "yes"; then
     docs=yes
   else
     if test "$docs" = "yes" ; then
-      feature_not_found "docs" "Install texinfo, Perl/perl-podlators and python-sphinx"
+      if has $sphinx_build && test "$sphinx_ok" != "yes"; then
+        echo "Warning: $sphinx_build exists but it is either too old or uses too old a Python version" >&2
+      fi
+      feature_not_found "docs" "Install texinfo, Perl/perl-podlators and a Python 3 version of python-sphinx"
     fi
     docs=no
   fi
