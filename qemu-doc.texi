@@ -2880,10 +2880,11 @@ lifetime distros will be assumed to ship similar software versions.
 
 For distributions with long-lifetime releases, the project will aim to support
 the most recent major version at all times. Support for the previous major
-version will be dropped 2 years after the new major version is released. For
-the purposes of identifying supported software versions, the project will look
-at RHEL, Debian, Ubuntu LTS, and SLES distros. Other long-lifetime distros will
-be assumed to ship similar software versions.
+version will be dropped 2 years after the new major version is released,
+or when it reaches ``end of life''. For the purposes of identifying
+supported software versions, the project will look at RHEL, Debian,
+Ubuntu LTS, and SLES distros. Other long-lifetime distros will be
+assumed to ship similar software versions.
 
 @section Windows
 
