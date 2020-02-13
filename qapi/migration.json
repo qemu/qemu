@@ -178,8 +178,8 @@
 #                     expected downtime in milliseconds for the guest in last walk
 #                     of the dirty bitmap. (since 1.3)
 #
-# @setup-time: amount of setup time in milliseconds _before_ the
-#              iterations begin but _after_ the QMP command is issued. This is designed
+# @setup-time: amount of setup time in milliseconds *before* the
+#              iterations begin but *after* the QMP command is issued. This is designed
 #              to provide an accounting of any activities (such as RDMA pinning) which
 #              may be expensive, but do not actually occur during the iterative
 #              migration rounds themselves. (since 1.6)
