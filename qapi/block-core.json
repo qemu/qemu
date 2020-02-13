@@ -3235,9 +3235,9 @@
 ##
 # @SshHostKeyCheckMode:
 #
-# @none             Don't check the host key at all
-# @hash             Compare the host key with a given hash
-# @known_hosts      Check the host key against the known_hosts file
+# @none: Don't check the host key at all
+# @hash: Compare the host key with a given hash
+# @known_hosts: Check the host key against the known_hosts file
 #
 # Since: 2.12
 ##
@@ -3247,8 +3247,8 @@
 ##
 # @SshHostKeyCheckHashType:
 #
-# @md5              The given hash is an md5 hash
-# @sha1             The given hash is an sha1 hash
+# @md5: The given hash is an md5 hash
+# @sha1: The given hash is an sha1 hash
 #
 # Since: 2.12
 ##
@@ -3258,8 +3258,8 @@
 ##
 # @SshHostKeyHash:
 #
-# @type             The hash algorithm used for the hash
-# @hash             The expected hash value
+# @type: The hash algorithm used for the hash
+# @hash: The expected hash value
 #
 # Since: 2.12
 ##
@@ -4265,13 +4265,13 @@
 #
 # Driver specific image creation options for file.
 #
-# @filename         Filename for the new image file
-# @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (default: off;
-#                   allowed values: off,
-#                   falloc (if defined CONFIG_POSIX_FALLOCATE),
-#                   full (if defined CONFIG_POSIX))
-# @nocow            Turn off copy-on-write (valid only on btrfs; default: off)
+# @filename: Filename for the new image file
+# @size: Size of the virtual disk in bytes
+# @preallocation: Preallocation mode for the new image (default: off;
+#                 allowed values: off,
+#                 falloc (if defined CONFIG_POSIX_FALLOCATE),
+#                 full (if defined CONFIG_POSIX))
+# @nocow: Turn off copy-on-write (valid only on btrfs; default: off)
 #
 # Since: 2.12
 ##
@@ -4286,12 +4286,12 @@
 #
 # Driver specific image creation options for gluster.
 #
-# @location         Where to store the new image file
-# @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (default: off;
-#                   allowed values: off,
-#                   falloc (if defined CONFIG_GLUSTERFS_FALLOCATE),
-#                   full (if defined CONFIG_GLUSTERFS_ZEROFILL))
+# @location: Where to store the new image file
+# @size: Size of the virtual disk in bytes
+# @preallocation: Preallocation mode for the new image (default: off;
+#                 allowed values: off,
+#                 falloc (if defined CONFIG_GLUSTERFS_FALLOCATE),
+#                 full (if defined CONFIG_GLUSTERFS_ZEROFILL))
 #
 # Since: 2.12
 ##
@@ -4305,11 +4305,11 @@
 #
 # Driver specific image creation options for LUKS.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image
-#                   (since: 4.2)
-#                   (default: off; allowed values: off, metadata, falloc, full)
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @preallocation: Preallocation mode for the new image
+#                 (since: 4.2)
+#                 (default: off; allowed values: off, metadata, falloc, full)
 #
 # Since: 2.12
 ##
@@ -4324,8 +4324,8 @@
 #
 # Driver specific image creation options for NFS.
 #
-# @location         Where to store the new image file
-# @size             Size of the virtual disk in bytes
+# @location: Where to store the new image file
+# @size: Size of the virtual disk in bytes
 #
 # Since: 2.12
 ##
@@ -4338,9 +4338,9 @@
 #
 # Driver specific image creation options for parallels.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @cluster-size     Cluster size in bytes (default: 1 MB)
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @cluster-size: Cluster size in bytes (default: 1 MB)
 #
 # Since: 2.12
 ##
@@ -4354,11 +4354,11 @@
 #
 # Driver specific image creation options for qcow.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @backing-file     File name of the backing file if a backing file
-#                   should be used
-# @encrypt          Encryption options if the image should be encrypted
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @backing-file: File name of the backing file if a backing file
+#                should be used
+# @encrypt: Encryption options if the image should be encrypted
 #
 # Since: 2.12
 ##
@@ -4385,24 +4385,24 @@
 #
 # Driver specific image creation options for qcow2.
 #
-# @file             Node to create the image format on
-# @data-file        Node to use as an external data file in which all guest
-#                   data is stored so that only metadata remains in the qcow2
-#                   file (since: 4.0)
-# @data-file-raw    True if the external data file must stay valid as a
-#                   standalone (read-only) raw image without looking at qcow2
-#                   metadata (default: false; since: 4.0)
-# @size             Size of the virtual disk in bytes
-# @version          Compatibility level (default: v3)
-# @backing-file     File name of the backing file if a backing file
-#                   should be used
-# @backing-fmt      Name of the block driver to use for the backing file
-# @encrypt          Encryption options if the image should be encrypted
-# @cluster-size     qcow2 cluster size in bytes (default: 65536)
-# @preallocation    Preallocation mode for the new image (default: off;
-#                   allowed values: off, falloc, full, metadata)
-# @lazy-refcounts   True if refcounts may be updated lazily (default: off)
-# @refcount-bits    Width of reference counts in bits (default: 16)
+# @file: Node to create the image format on
+# @data-file: Node to use as an external data file in which all guest
+#             data is stored so that only metadata remains in the qcow2
+#             file (since: 4.0)
+# @data-file-raw: True if the external data file must stay valid as a
+#                 standalone (read-only) raw image without looking at qcow2
+#                 metadata (default: false; since: 4.0)
+# @size: Size of the virtual disk in bytes
+# @version: Compatibility level (default: v3)
+# @backing-file: File name of the backing file if a backing file
+#                should be used
+# @backing-fmt: Name of the block driver to use for the backing file
+# @encrypt: Encryption options if the image should be encrypted
+# @cluster-size: qcow2 cluster size in bytes (default: 65536)
+# @preallocation: Preallocation mode for the new image (default: off;
+#                 allowed values: off, falloc, full, metadata)
+# @lazy-refcounts: True if refcounts may be updated lazily (default: off)
+# @refcount-bits: Width of reference counts in bits (default: 16)
 #
 # Since: 2.12
 ##
@@ -4425,13 +4425,13 @@
 #
 # Driver specific image creation options for qed.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @backing-file     File name of the backing file if a backing file
-#                   should be used
-# @backing-fmt      Name of the block driver to use for the backing file
-# @cluster-size     Cluster size in bytes (default: 65536)
-# @table-size       L1/L2 table size (in clusters)
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @backing-file: File name of the backing file if a backing file
+#                should be used
+# @backing-fmt: Name of the block driver to use for the backing file
+# @cluster-size: Cluster size in bytes (default: 65536)
+# @table-size: L1/L2 table size (in clusters)
 #
 # Since: 2.12
 ##
@@ -4448,10 +4448,10 @@
 #
 # Driver specific image creation options for rbd/Ceph.
 #
-# @location         Where to store the new image file. This location cannot
-#                   point to a snapshot.
-# @size             Size of the virtual disk in bytes
-# @cluster-size     RBD object size
+# @location: Where to store the new image file. This location cannot
+#            point to a snapshot.
+# @size: Size of the virtual disk in bytes
+# @cluster-size: RBD object size
 #
 # Since: 2.12
 ##
@@ -4499,23 +4499,23 @@
 #
 # Driver specific image creation options for VMDK.
 #
-# @file         Where to store the new image file. This refers to the image
-#               file for monolithcSparse and streamOptimized format, or the
-#               descriptor file for other formats.
-# @size         Size of the virtual disk in bytes
-# @extents      Where to store the data extents. Required for monolithcFlat,
-#               twoGbMaxExtentSparse and twoGbMaxExtentFlat formats. For
-#               monolithicFlat, only one entry is required; for
-#               twoGbMaxExtent* formats, the number of entries required is
-#               calculated as extent_number = virtual_size / 2GB. Providing
-#               more extents than will be used is an error.
-# @subformat    The subformat of the VMDK image. Default: "monolithicSparse".
-# @backing-file The path of backing file. Default: no backing file is used.
-# @adapter-type The adapter type used to fill in the descriptor. Default: ide.
-# @hwversion    Hardware version. The meaningful options are "4" or "6".
-#               Default: "4".
-# @zeroed-grain Whether to enable zeroed-grain feature for sparse subformats.
-#               Default: false.
+# @file: Where to store the new image file. This refers to the image
+#        file for monolithcSparse and streamOptimized format, or the
+#        descriptor file for other formats.
+# @size: Size of the virtual disk in bytes
+# @extents: Where to store the data extents. Required for monolithcFlat,
+#           twoGbMaxExtentSparse and twoGbMaxExtentFlat formats. For
+#           monolithicFlat, only one entry is required; for
+#           twoGbMaxExtent* formats, the number of entries required is
+#           calculated as extent_number = virtual_size / 2GB. Providing
+#           more extents than will be used is an error.
+# @subformat: The subformat of the VMDK image. Default: "monolithicSparse".
+# @backing-file: The path of backing file. Default: no backing file is used.
+# @adapter-type: The adapter type used to fill in the descriptor. Default: ide.
+# @hwversion: Hardware version. The meaningful options are "4" or "6".
+#             Default: "4".
+# @zeroed-grain: Whether to enable zeroed-grain feature for sparse subformats.
+#                Default: false.
 #
 # Since: 4.0
 ##
@@ -4533,9 +4533,9 @@
 ##
 # @SheepdogRedundancyType:
 #
-# @full             Create a fully replicated vdi with x copies
-# @erasure-coded    Create an erasure coded vdi with x data strips and
-#                   y parity strips
+# @full: Create a fully replicated vdi with x copies
+# @erasure-coded: Create an erasure coded vdi with x data strips and
+#                 y parity strips
 #
 # Since: 2.12
 ##
@@ -4545,7 +4545,7 @@
 ##
 # @SheepdogRedundancyFull:
 #
-# @copies           Number of copies to use (between 1 and 31)
+# @copies: Number of copies to use (between 1 and 31)
 #
 # Since: 2.12
 ##
@@ -4555,8 +4555,8 @@
 ##
 # @SheepdogRedundancyErasureCoded:
 #
-# @data-strips      Number of data strips to use (one of {2,4,8,16})
-# @parity-strips    Number of parity strips to use (between 1 and 15)
+# @data-strips: Number of data strips to use (one of {2,4,8,16})
+# @parity-strips: Number of parity strips to use (between 1 and 15)
 #
 # Since: 2.12
 ##
@@ -4580,13 +4580,13 @@
 #
 # Driver specific image creation options for Sheepdog.
 #
-# @location         Where to store the new image file
-# @size             Size of the virtual disk in bytes
-# @backing-file     File name of a base image
-# @preallocation    Preallocation mode for the new image (default: off;
-#                   allowed values: off, full)
-# @redundancy       Redundancy of the image
-# @object-size      Object size of the image
+# @location: Where to store the new image file
+# @size: Size of the virtual disk in bytes
+# @backing-file: File name of a base image
+# @preallocation: Preallocation mode for the new image (default: off;
+#                 allowed values: off, full)
+# @redundancy: Redundancy of the image
+# @object-size: Object size of the image
 #
 # Since: 2.12
 ##
@@ -4603,8 +4603,8 @@
 #
 # Driver specific image creation options for SSH.
 #
-# @location         Where to store the new image file
-# @size             Size of the virtual disk in bytes
+# @location: Where to store the new image file
+# @size: Size of the virtual disk in bytes
 #
 # Since: 2.12
 ##
@@ -4617,10 +4617,10 @@
 #
 # Driver specific image creation options for VDI.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (default: off;
-#                   allowed values: off, metadata)
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @preallocation: Preallocation mode for the new image (default: off;
+#                 allowed values: off, metadata)
 #
 # Since: 2.12
 ##
@@ -4645,17 +4645,17 @@
 #
 # Driver specific image creation options for vhdx.
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @log-size         Log size in bytes, must be a multiple of 1 MB
-#                   (default: 1 MB)
-# @block-size       Block size in bytes, must be a multiple of 1 MB and not
-#                   larger than 256 MB (default: automatically choose a block
-#                   size depending on the image size)
-# @subformat        vhdx subformat (default: dynamic)
-# @block-state-zero Force use of payload blocks of type 'ZERO'. Non-standard,
-#                   but default.  Do not set to 'off' when using 'qemu-img
-#                   convert' with subformat=dynamic.
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @log-size: Log size in bytes, must be a multiple of 1 MB
+#            (default: 1 MB)
+# @block-size: Block size in bytes, must be a multiple of 1 MB and not
+#              larger than 256 MB (default: automatically choose a block
+#              size depending on the image size)
+# @subformat: vhdx subformat (default: dynamic)
+# @block-state-zero: Force use of payload blocks of type 'ZERO'. Non-standard,
+#                    but default.  Do not set to 'off' when using 'qemu-img
+#                    convert' with subformat=dynamic.
 #
 # Since: 2.12
 ##
@@ -4683,12 +4683,12 @@
 #
 # Driver specific image creation options for vpc (VHD).
 #
-# @file             Node to create the image format on
-# @size             Size of the virtual disk in bytes
-# @subformat        vhdx subformat (default: dynamic)
-# @force-size       Force use of the exact byte size instead of rounding to the
-#                   next size that can be represented in CHS geometry
-#                   (default: false)
+# @file: Node to create the image format on
+# @size: Size of the virtual disk in bytes
+# @subformat: vhdx subformat (default: dynamic)
+# @force-size: Force use of the exact byte size instead of rounding to the
+#              next size that can be represented in CHS geometry
+#              (default: false)
 #
 # Since: 2.12
 ##
@@ -4703,7 +4703,7 @@
 #
 # Options for creating an image format on a given node.
 #
-# @driver           block driver to create the image format
+# @driver: block driver to create the image format
 #
 # Since: 2.12
 ##
