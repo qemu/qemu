@@ -303,7 +303,7 @@ static const USBDescDevice desc_device_high = {
 
 static const USBDescDevice desc_device_super = {
     .bcdUSB                        = 0x0300,
-    .bMaxPacketSize0               = 64,
+    .bMaxPacketSize0               = 9,
     .bNumConfigurations            = 1,
     .confs = (USBDescConfig[]) {
         {

@@ -354,9 +354,7 @@ static USBHostRequest *usb_host_req_alloc(USBHostDevice *s, USBPacket *p,
 
 static void usb_host_req_free(USBHostRequest *r)
 {
-    if (r->host) {
-        QTAILQ_REMOVE(&r->host->requests, r, next);
-    }
+    QTAILQ_REMOVE(&r->host->requests, r, next);
     libusb_free_transfer(r->xfer);
     g_free(r->buffer);
     g_free(r);
@@ -468,12 +466,7 @@ static void usb_host_req_abort(USBHostRequest *r)
             usb_packet_complete(USB_DEVICE(s), r->p);
         }
         r->p = NULL;
-    }
 
-    QTAILQ_REMOVE(&r->host->requests, r, next);
-    r->host = NULL;
-
-    if (inflight) {
         libusb_cancel_transfer(r->xfer);
     }
 }
@@ -962,6 +955,13 @@ static void usb_host_abort_xfers(USBHostDevice *s)
     QTAILQ_FOREACH_SAFE(r, &s->requests, next, rtmp) {
         usb_host_req_abort(r);
     }
+
+    while (QTAILQ_FIRST(&s->requests) != NULL) {
+        struct timeval tv;
+        memset(&tv, 0, sizeof(tv));
+        tv.tv_usec = 2500;
+        libusb_handle_events_timeout(ctx, &tv);
+    }
 }
 
 static int usb_host_close(USBHostDevice *s)
@@ -1011,6 +1011,7 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
     USBHostDevice *s = container_of(n, USBHostDevice, exit);
 
     if (s->dh) {
+        usb_host_abort_xfers(s);
         usb_host_release_interfaces(s);
         libusb_reset_device(s->dh);
         usb_host_attach_kernel(s);
