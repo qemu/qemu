@@ -25,8 +25,9 @@
 #include "internal.h"
 
 # ifdef TARGET_ABI_MIPSO32
+#  define MIPS_SYSCALL_NUMBER_UNUSED -1
 #  define MIPS_SYS(name, args) args,
-static const uint8_t mips_syscall_args[] = {
+static const int8_t mips_syscall_args[] = {
         MIPS_SYS(sys_syscall    , 8)    /* 4000 */
         MIPS_SYS(sys_exit       , 1)
         MIPS_SYS(sys_fork       , 0)
@@ -390,6 +391,80 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_copy_file_range, 6) /* 360 */
         MIPS_SYS(sys_preadv2, 6)
         MIPS_SYS(sys_pwritev2, 6)
+        MIPS_SYS(sys_pkey_mprotect, 4)
+        MIPS_SYS(sys_pkey_alloc, 2)
+        MIPS_SYS(sys_pkey_free, 1)                 /* 365 */
+        MIPS_SYS(sys_statx, 5)
+        MIPS_SYS(sys_rseq, 4)
+        MIPS_SYS(sys_io_pgetevents, 6)
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 370 */
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 375 */
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 380 */
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 385 */
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 390 */
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYSCALL_NUMBER_UNUSED,
+        MIPS_SYS(sys_semget, 3)
+        MIPS_SYS(sys_semctl, 4)
+        MIPS_SYS(sys_shmget, 3)                    /* 395 */
+        MIPS_SYS(sys_shmctl, 3)
+        MIPS_SYS(sys_shmat, 3)
+        MIPS_SYS(sys_shmdt, 1)
+        MIPS_SYS(sys_msgget, 2)
+        MIPS_SYS(sys_msgsnd, 4)                    /* 400 */
+        MIPS_SYS(sys_msgrcv, 5)
+        MIPS_SYS(sys_msgctl, 3)
+        MIPS_SYS(sys_clock_gettime64, 2)
+        MIPS_SYS(sys_clock_settime64, 2)
+        MIPS_SYS(sys_clock_adjtime64, 2)           /* 405 */
+        MIPS_SYS(sys_clock_getres_time64, 2)
+        MIPS_SYS(sys_clock_nanosleep_time64, 4)
+        MIPS_SYS(sys_timer_gettime64, 2)
+        MIPS_SYS(sys_timer_settime64, 4)
+        MIPS_SYS(sys_timerfd_gettime64, 2)         /* 410 */
+        MIPS_SYS(sys_timerfd_settime64, 4)
+        MIPS_SYS(sys_utimensat_time64, 4)
+        MIPS_SYS(sys_pselect6_time64, 6)
+        MIPS_SYS(sys_ppoll_time64, 5)
+        MIPS_SYSCALL_NUMBER_UNUSED,                /* 415 */
+        MIPS_SYS(sys_io_pgetevents_time64, 6)
+        MIPS_SYS(sys_recvmmsg_time64, 5)
+        MIPS_SYS(sys_mq_timedsend_time64, 5)
+        MIPS_SYS(sys_mq_timedreceive_time64, 5)
+        MIPS_SYS(sys_semtimedop_time64, 4)         /* 420 */
+        MIPS_SYS(sys_rt_sigtimedwait_time64, 4)
+        MIPS_SYS(sys_futex_time64, 6)
+        MIPS_SYS(sys_sched_rr_get_interval_time64, 2)
+        MIPS_SYS(sys_pidfd_send_signal, 4)
+        MIPS_SYS(sys_io_uring_setup, 2)            /* 425 */
+        MIPS_SYS(sys_io_uring_enter, 6)
+        MIPS_SYS(sys_io_uring_register, 4)
+        MIPS_SYS(sys_open_tree, 3)
+        MIPS_SYS(sys_move_mount, 5)
+        MIPS_SYS(sys_fsopen, 2)                    /* 430 */
+        MIPS_SYS(sys_fsconfig, 5)
+        MIPS_SYS(sys_fsmount, 3)
+        MIPS_SYS(sys_fspick, 3)
+        MIPS_SYS(sys_pidfd_open, 2)
+        MIPS_SYS(sys_clone3, 2)                    /* 435 */
+
 };
 #  undef MIPS_SYS
 # endif /* O32 */
@@ -447,8 +522,14 @@ void cpu_loop(CPUMIPSState *env)
 # ifdef TARGET_ABI_MIPSO32
             syscall_num = env->active_tc.gpr[2] - 4000;
             if (syscall_num >= sizeof(mips_syscall_args)) {
+                /* syscall_num is larger that any defined for MIPS O32 */
+                ret = -TARGET_ENOSYS;
+            } else if (mips_syscall_args[syscall_num] ==
+                       MIPS_SYSCALL_NUMBER_UNUSED) {
+                /* syscall_num belongs to the range not defined for MIPS O32 */
                 ret = -TARGET_ENOSYS;
             } else {
+                /* syscall_num is valid */
                 int nb_args;
                 abi_ulong sp_reg;
                 abi_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
