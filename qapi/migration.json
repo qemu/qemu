@@ -98,7 +98,7 @@
 ##
 { 'struct': 'CompressionStats',
   'data': {'pages': 'int', 'busy': 'int', 'busy-rate': 'number',
-	   'compressed-size': 'int', 'compression-rate': 'number' } }
+           'compressed-size': 'int', 'compression-rate': 'number' } }
 
 ##
 # @MigrationStatus:
@@ -713,7 +713,7 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-	    '*max-cpu-throttle': 'int' } }
+            '*max-cpu-throttle': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -845,7 +845,7 @@
             '*block-incremental': 'bool' ,
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
-	    '*max-postcopy-bandwidth': 'size',
+            '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle':'uint8'} }
 
 ##

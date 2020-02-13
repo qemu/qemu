@@ -2938,8 +2938,8 @@
             '*pr-manager': 'str',
             '*locking': 'OnOffAuto',
             '*aio': 'BlockdevAioOptions',
-	    '*drop-cache': {'type': 'bool',
-	                    'if': 'defined(CONFIG_LINUX)'},
+            '*drop-cache': {'type': 'bool',
+                            'if': 'defined(CONFIG_LINUX)'},
             '*x-check-cache-dropped': 'bool' },
   'features': [ { 'name': 'dynamic-auto-read-only',
                   'if': 'defined(CONFIG_POSIX)' } ] }
