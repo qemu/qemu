@@ -1965,17 +1965,19 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
  * If available, return the refresh rate of the display in milli-Hertz,
  * else return 0.
  */
-static int gd_refresh_rate_millihz(GtkDisplayState *s)
+static int gd_refresh_rate_millihz(GtkWidget *window)
 {
 #ifdef GDK_VERSION_3_22
-    GdkDisplay *dpy = gtk_widget_get_display(s->window);
-    GdkWindow *win = gtk_widget_get_window(s->window);
-    GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+    GdkWindow *win = gtk_widget_get_window(window);
 
-    return gdk_monitor_get_refresh_rate(monitor);
-#else
-    return 0;
+    if (win) {
+        GdkDisplay *dpy = gtk_widget_get_display(window);
+        GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+
+        return gdk_monitor_get_refresh_rate(monitor);
+    }
 #endif
+    return 0;
 }
 
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
@@ -2045,7 +2047,8 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->gfx.kbd = qkbd_state_init(con);
     vc->gfx.dcl.con = con;
 
-    refresh_rate_millihz = gd_refresh_rate_millihz(s);
+    refresh_rate_millihz = gd_refresh_rate_millihz(vc->window ?
+                                                   vc->window : s->window);
     if (refresh_rate_millihz) {
         vc->gfx.dcl.update_interval = MILLISEC_PER_SEC / refresh_rate_millihz;
     }
@@ -2243,8 +2246,12 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     textdomain("qemu");
 
     window_display = gtk_widget_get_display(s->window);
-    s->null_cursor = gdk_cursor_new_for_display(window_display,
-                                                GDK_BLANK_CURSOR);
+    if (s->opts->has_show_cursor && s->opts->show_cursor) {
+        s->null_cursor = NULL; /* default pointer */
+    } else {
+        s->null_cursor = gdk_cursor_new_for_display(window_display,
+                                                    GDK_BLANK_CURSOR);
+    }
 
     s->mouse_mode_notifier.notify = gd_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&s->mouse_mode_notifier);

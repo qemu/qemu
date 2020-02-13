@@ -168,7 +168,6 @@ int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
 int no_shutdown = 0;
-int cursor_hide = 1;
 int graphic_rotate = 0;
 const char *watchdog;
 QEMUOptionRom option_rom[MAX_OPTION_ROMS];
@@ -1931,6 +1930,16 @@ static void parse_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
+            } else if (strstart(opts, ",show-cursor=", &nextopt)) {
+                opts = nextopt;
+                dpy.has_show_cursor = true;
+                if (strstart(opts, "on", &nextopt)) {
+                    dpy.show_cursor = true;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    dpy.show_cursor = false;
+                } else {
+                    goto invalid_sdl_args;
+                }
             } else if (strstart(opts, ",gl=", &nextopt)) {
                 opts = nextopt;
                 dpy.has_gl = true;
@@ -3553,7 +3562,10 @@ int main(int argc, char **argv, char **envp)
                 no_shutdown = 1;
                 break;
             case QEMU_OPTION_show_cursor:
-                cursor_hide = 0;
+                warn_report("The -show-cursor option is deprecated, "
+                            "use -display {sdl,gtk},show-cursor=on instead");
+                dpy.has_show_cursor = true;
+                dpy.show_cursor = true;
                 break;
             case QEMU_OPTION_uuid:
                 if (qemu_uuid_parse(optarg, &qemu_uuid) < 0) {

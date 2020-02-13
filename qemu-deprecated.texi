@@ -148,6 +148,11 @@ QEMU 5.0 introduced an alternative syntax to specify the size of the translation
 block cache, @option{-accel tcg,tb-size=}.  The new syntax deprecates the
 previously available @option{-tb-size} option.
 
+@subsection -show-cursor option (since 5.0)
+
+Use @option{-display sdl,show-cursor=on} or
+ @option{-display gtk,show-cursor=on} instead.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection change (since 2.5.0)

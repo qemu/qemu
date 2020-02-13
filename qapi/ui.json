@@ -1144,6 +1144,8 @@
 # @type:          Which DisplayType qemu should use.
 # @full-screen:   Start user interface in fullscreen mode (default: off).
 # @window-close:  Allow to quit qemu with window close button (default: on).
+# @show-cursor:   Force showing the mouse cursor (default: off).
+#                 (since: 5.0)
 # @gl:            Enable OpenGL support (default: off).
 #
 # Since: 2.12
@@ -1153,6 +1155,7 @@
   'base'    : { 'type'           : 'DisplayType',
                 '*full-screen'   : 'bool',
                 '*window-close'  : 'bool',
+                '*show-cursor'   : 'bool',
                 '*gl'            : 'DisplayGLMode' },
   'discriminator' : 'type',
   'data'    : { 'gtk'            : 'DisplayGTK',
