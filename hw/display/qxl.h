@@ -144,7 +144,7 @@ typedef struct PCIQXLDevice {
         }                                                               \
     } while (0)
 
-#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V12
+#define QXL_DEFAULT_REVISION (QXL_REVISION_STABLE_V12 + 1)
 
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);

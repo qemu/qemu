@@ -1309,7 +1309,8 @@ static void qxl_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     PCIQXLDevice *qxl = container_of(vga, PCIQXLDevice, vga);
 
     trace_qxl_io_write_vga(qxl->id, qxl_mode_to_string(qxl->mode), addr, val);
-    if (qxl->mode != QXL_MODE_VGA) {
+    if (qxl->mode != QXL_MODE_VGA &&
+        qxl->revision <= QXL_REVISION_STABLE_V12) {
         qxl_destroy_primary(qxl, QXL_SYNC);
         qxl_soft_reset(qxl);
     }
@@ -2119,6 +2120,10 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
         break;
     case 4: /* qxl-4 */
         pci_device_rev = QXL_REVISION_STABLE_V12;
+        io_size = pow2ceil(QXL_IO_RANGE_SIZE);
+        break;
+    case 5: /* qxl-5 */
+        pci_device_rev = QXL_REVISION_STABLE_V12 + 1;
         io_size = pow2ceil(QXL_IO_RANGE_SIZE);
         break;
     default:
