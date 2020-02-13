@@ -246,11 +246,14 @@ qcow2_co_encdec(BlockDriverState *bs, uint64_t host_offset,
         .len = len,
         .func = func,
     };
+    uint64_t sector_size;
 
-    assert(QEMU_IS_ALIGNED(guest_offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(host_offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(len, BDRV_SECTOR_SIZE));
     assert(s->crypto);
+
+    sector_size = qcrypto_block_get_sector_size(s->crypto);
+    assert(QEMU_IS_ALIGNED(guest_offset, sector_size));
+    assert(QEMU_IS_ALIGNED(host_offset, sector_size));
+    assert(QEMU_IS_ALIGNED(len, sector_size));
 
     return len == 0 ? 0 : qcow2_co_process(bs, qcow2_encdec_pool_func, &arg);
 }
@@ -270,7 +273,8 @@ qcow2_co_encdec(BlockDriverState *bs, uint64_t host_offset,
  *        will be written to the underlying storage device at
  *        @host_offset
  *
- * @len - length of the buffer (must be a BDRV_SECTOR_SIZE multiple)
+ * @len - length of the buffer (must be a multiple of the encryption
+ *        sector size)
  *
  * Depending on the encryption method, @host_offset and/or @guest_offset
  * may be used for generating the initialization vector for
