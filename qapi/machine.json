@@ -20,8 +20,6 @@
 #        prefix to produce the corresponding QEMU executable name. This
 #        is true even for "qemu-system-x86_64".
 #
-# ppcemb: dropped in 3.1
-#
 # Since: 3.0
 ##
 { 'enum' : 'SysEmuTarget',

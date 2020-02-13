@@ -446,8 +446,6 @@
 # Available netdev drivers.
 #
 # Since: 2.7
-#
-# 'dump': dropped in 2.12
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
@@ -493,8 +491,6 @@
 # @opts: device type specific properties (legacy)
 #
 # Since: 1.2
-#
-# 'vlan': dropped in 3.0
 ##
 { 'struct': 'NetLegacy',
   'data': {
