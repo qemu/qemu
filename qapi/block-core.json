@@ -550,13 +550,13 @@
 #        For the example above, @bins may be something like [3, 1, 5, 2],
 #        and corresponding histogram looks like:
 #
-#        5|           *
-#        4|           *
-#        3| *         *
-#        2| *         *    *
-#        1| *    *    *    *
-#         +------------------
-#             10   50   100
+# |      5|           *
+# |      4|           *
+# |      3| *         *
+# |      2| *         *    *
+# |      1| *    *    *    *
+# |       +------------------
+# |           10   50   100
 #
 # Since: 4.0
 ##
