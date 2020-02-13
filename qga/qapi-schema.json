@@ -510,8 +510,7 @@
 #
 # Discard (or "trim") blocks which are not in use by the filesystem.
 #
-# @minimum:
-#           Minimum contiguous free range to discard, in bytes. Free ranges
+# @minimum: Minimum contiguous free range to discard, in bytes. Free ranges
 #           smaller than this may be ignored (this is a hint and the guest
 #           may not respect it).  By increasing this value, the fstrim
 #           operation will complete more quickly for filesystems with badly
@@ -546,7 +545,8 @@
 # (or set its status to "shutdown") due to other reasons.
 #
 # The following errors may be returned:
-#          If suspend to disk is not supported, Unsupported
+#
+# - If suspend to disk is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command before
 #        sending commands when the guest resumes
@@ -575,12 +575,14 @@
 #
 # This command does NOT return a response on success. There are two options
 # to check for success:
-#   1. Wait for the SUSPEND QMP event from QEMU
-#   2. Issue the query-status QMP command to confirm the VM status is
-#      "suspended"
+#
+# 1. Wait for the SUSPEND QMP event from QEMU
+# 2. Issue the query-status QMP command to confirm the VM status is
+#    "suspended"
 #
 # The following errors may be returned:
-#          If suspend to ram is not supported, Unsupported
+#
+# - If suspend to ram is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command before
 #        sending commands when the guest resumes
@@ -607,12 +609,14 @@
 #
 # This command does NOT return a response on success. There are two options
 # to check for success:
-#   1. Wait for the SUSPEND QMP event from QEMU
-#   2. Issue the query-status QMP command to confirm the VM status is
-#      "suspended"
+#
+# 1. Wait for the SUSPEND QMP event from QEMU
+# 2. Issue the query-status QMP command to confirm the VM status is
+#    "suspended"
 #
 # The following errors may be returned:
-#          If hybrid suspend is not supported, Unsupported
+#
+# - If hybrid suspend is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command before
 #        sending commands when the guest resumes
@@ -767,18 +771,22 @@
 # Returns: The length of the initial sublist that has been successfully
 #          processed. The guest agent maximizes this value. Possible cases:
 #
-#          - 0:              if the @vcpus list was empty on input. Guest state
-#                            has not been changed. Otherwise,
-#          - Error:          processing the first node of @vcpus failed for the
-#                            reason returned. Guest state has not been changed.
-#                            Otherwise,
-#          - < length(@vcpus): more than zero initial nodes have been processed,
-#                            but not the entire @vcpus list. Guest state has
-#                            changed accordingly. To retrieve the error
-#                            (assuming it persists), repeat the call with the
-#                            successfully processed initial sublist removed.
-#                            Otherwise,
-#          - length(@vcpus): call successful.
+#          - 0:
+#            if the @vcpus list was empty on input. Guest state
+#            has not been changed. Otherwise,
+#          - Error:
+#            processing the first node of @vcpus failed for the
+#            reason returned. Guest state has not been changed.
+#            Otherwise,
+#          - < length(@vcpus):
+#            more than zero initial nodes have been processed,
+#            but not the entire @vcpus list. Guest state has
+#            changed accordingly. To retrieve the error
+#            (assuming it persists), repeat the call with the
+#            successfully processed initial sublist removed.
+#            Otherwise,
+#          - length(@vcpus):
+#            call successful.
 #
 # Since: 1.5
 ##
@@ -1182,35 +1190,35 @@
 # @GuestOSInfo:
 #
 # @kernel-release:
-#     * POSIX: release field returned by uname(2)
-#     * Windows: build number of the OS
+# * POSIX: release field returned by uname(2)
+# * Windows: build number of the OS
 # @kernel-version:
-#     * POSIX: version field returned by uname(2)
-#     * Windows: version number of the OS
+# * POSIX: version field returned by uname(2)
+# * Windows: version number of the OS
 # @machine:
-#     * POSIX: machine field returned by uname(2)
-#     * Windows: one of x86, x86_64, arm, ia64
+# * POSIX: machine field returned by uname(2)
+# * Windows: one of x86, x86_64, arm, ia64
 # @id:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: contains string "mswindows"
+# * POSIX: as defined by os-release(5)
+# * Windows: contains string "mswindows"
 # @name:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: contains string "Microsoft Windows"
+# * POSIX: as defined by os-release(5)
+# * Windows: contains string "Microsoft Windows"
 # @pretty-name:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: product name, e.g. "Microsoft Windows 10 Enterprise"
+# * POSIX: as defined by os-release(5)
+# * Windows: product name, e.g. "Microsoft Windows 10 Enterprise"
 # @version:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: long version string, e.g. "Microsoft Windows Server 2008"
+# * POSIX: as defined by os-release(5)
+# * Windows: long version string, e.g. "Microsoft Windows Server 2008"
 # @version-id:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: short version identifier, e.g. "7" or "20012r2"
+# * POSIX: as defined by os-release(5)
+# * Windows: short version identifier, e.g. "7" or "20012r2"
 # @variant:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: contains string "server" or "client"
+# * POSIX: as defined by os-release(5)
+# * Windows: contains string "server" or "client"
 # @variant-id:
-#     * POSIX: as defined by os-release(5)
-#     * Windows: contains string "server" or "client"
+# * POSIX: as defined by os-release(5)
+# * Windows: contains string "server" or "client"
 #
 # Notes:
 #
