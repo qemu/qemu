@@ -934,6 +934,7 @@
 # Input event union.
 #
 # @type: the input type, one of:
+#
 #        - 'key': Input event of Keyboard
 #        - 'btn': Input event of pointer buttons
 #        - 'rel': Input event of relative pointer motion

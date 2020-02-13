@@ -4757,6 +4757,7 @@
 #
 # Once the tray opens, a DEVICE_TRAY_MOVED event is emitted. There are cases in
 # which no such event will be generated, these include:
+#
 # - if the guest has locked the tray, @force is false and the guest does not
 #   respond to the eject request
 # - if the BlockBackend denoted by @device does not have a guest device attached

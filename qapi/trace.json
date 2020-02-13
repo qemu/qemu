@@ -53,6 +53,7 @@
 # Returns: a list of @TraceEventInfo for the matching events
 #
 #          An event is returned if:
+#
 #          - its name matches the @name pattern, and
 #          - if @vcpu is given, the event has the "vcpu" property.
 #

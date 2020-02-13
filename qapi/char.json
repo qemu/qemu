@@ -133,6 +133,7 @@
 # @data: data to write
 #
 # @format: data encoding (default 'utf8').
+#
 #          - base64: data must be base64 encoded text.  Its binary
 #            decoding gets written.
 #          - utf8: data's UTF-8 encoding is written
@@ -167,6 +168,7 @@
 # @size: how many bytes to read at most
 #
 # @format: data encoding (default 'utf8').
+#
 #          - base64: the data read is returned in base64 encoding.
 #          - utf8: the data read is interpreted as UTF-8.
 #            Bug: can screw up when the buffer contains invalid UTF-8
