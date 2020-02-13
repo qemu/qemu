@@ -509,7 +509,7 @@ void signal_init(void)
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
     for(i = 1; i <= TARGET_NSIG; i++) {
-#ifdef TARGET_GPROF
+#ifdef CONFIG_GPROF
         if (i == SIGPROF) {
             continue;
         }

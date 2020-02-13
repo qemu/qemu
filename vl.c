@@ -3510,7 +3510,7 @@ int main(int argc, char **argv, char **envp)
                             gchar **optname = g_strsplit(typename,
                                                          ACCEL_CLASS_SUFFIX, 0);
                             printf("%s\n", optname[0]);
-                            g_free(optname);
+                            g_strfreev(optname);
                         }
                         g_free(typename);
                     }

@@ -16,7 +16,7 @@ if [ "$#" -ne 0 ]; then
     format_list="$@"
 fi
 
-if grep -q "TARGET_GPROF=y" *-softmmu/config-target.mak 2>/dev/null ; then
+if grep -q "CONFIG_GPROF=y" config-host.mak 2>/dev/null ; then
     echo "GPROF is enabled ==> Not running the qemu-iotests."
     exit 0
 fi
