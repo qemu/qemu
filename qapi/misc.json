@@ -430,12 +430,10 @@
 #
 # Return information about the balloon device.
 #
-# Returns: @BalloonInfo on success
-#
-#          If the balloon driver is enabled but not functional because the KVM
-#          kernel module cannot support it, KvmMissingCap
-#
-#          If no balloon device is present, DeviceNotActive
+# Returns: - @BalloonInfo on success
+#          - If the balloon driver is enabled but not functional because the KVM
+#            kernel module cannot support it, KvmMissingCap
+#          - If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14.0
 #
@@ -492,8 +490,8 @@
 #
 # @bar: the index of the Base Address Register for this region
 #
-# @type: 'io' if the region is a PIO region
-#        'memory' if the region is a MMIO region
+# @type: - 'io' if the region is a PIO region
+#        - 'memory' if the region is a MMIO region
 #
 # @size: memory size
 #
@@ -1004,10 +1002,10 @@
 #
 # @value: the target size of the balloon in bytes
 #
-# Returns: Nothing on success
-#          If the balloon driver is enabled but not functional because the KVM
+# Returns: - Nothing on success
+#          - If the balloon driver is enabled but not functional because the KVM
 #            kernel module cannot support it, KvmMissingCap
-#          If no balloon device is present, DeviceNotActive
+#          - If no balloon device is present, DeviceNotActive
 #
 # Notes: This command just issues a request to the guest.  When it returns,
 #        the balloon size may not have changed.  A guest can change the balloon
@@ -1086,8 +1084,8 @@
 #       If @device is 'vnc' and @target is 'password', this is the new VNC
 #       password to set.  See change-vnc-password for additional notes.
 #
-# Returns: Nothing on success.
-#          If @device is not a valid block device, DeviceNotFound
+# Returns: - Nothing on success.
+#          - If @device is not a valid block device, DeviceNotFound
 #
 # Notes: This interface is deprecated, and it is strongly recommended that you
 #        avoid using it.  For changing block devices, use
@@ -1237,11 +1235,9 @@
 #
 # @opaque: A free-form string that can be used to describe the fd.
 #
-# Returns: @AddfdInfo on success
-#
-#          If file descriptor was not received, FdNotSupplied
-#
-#          If @fdset-id is a negative value, InvalidParameterValue
+# Returns: - @AddfdInfo on success
+#          - If file descriptor was not received, FdNotSupplied
+#          - If @fdset-id is a negative value, InvalidParameterValue
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
@@ -1269,8 +1265,8 @@
 #
 # @fd: The file descriptor that is to be removed.
 #
-# Returns: Nothing on success
-#          If @fdset-id or @fd is not found, FdNotFound
+# Returns: - Nothing on success
+#          - If @fdset-id or @fd is not found, FdNotFound
 #
 # Since: 1.2.0
 #

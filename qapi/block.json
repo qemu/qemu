@@ -115,15 +115,12 @@
 #
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
-# Returns: nothing on success
-#
-#          If @device is not a valid block device, GenericError
-#
-#          If any snapshot matching @name exists, or @name is empty,
-#          GenericError
-#
-#          If the format of the image used does not support it,
-#          BlockFormatFeatureNotSupported
+# Returns: - nothing on success
+#          - If @device is not a valid block device, GenericError
+#          - If any snapshot matching @name exists, or @name is empty,
+#            GenericError
+#          - If the format of the image used does not support it,
+#            BlockFormatFeatureNotSupported
 #
 # Since: 1.7
 #
@@ -154,12 +151,12 @@
 #
 # @name: optional the snapshot's name to be deleted
 #
-# Returns: SnapshotInfo on success
-#          If @device is not a valid block device, GenericError
-#          If snapshot not found, GenericError
-#          If the format of the image used does not support it,
-#          BlockFormatFeatureNotSupported
-#          If @id and @name are both not specified, GenericError
+# Returns: - SnapshotInfo on success
+#          - If @device is not a valid block device, GenericError
+#          - If snapshot not found, GenericError
+#          - If the format of the image used does not support it,
+#            BlockFormatFeatureNotSupported
+#          - If @id and @name are both not specified, GenericError
 #
 # Since: 1.7
 #
@@ -197,10 +194,8 @@
 # @force: If true, eject regardless of whether the drive is locked.
 #         If not specified, the default value is false.
 #
-# Returns:  Nothing on success
-#
-#           If @device is not a valid block device, DeviceNotFound
-#
+# Returns: - Nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 # Notes:    Ejecting a device with no media results in success
 #
 # Since: 0.14.0

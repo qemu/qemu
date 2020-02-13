@@ -96,8 +96,8 @@
 #
 # A union referencing different TPM backend types' configuration options
 #
-# @type: 'passthrough' The configuration options for the TPM passthrough type
-#        'emulator' The configuration options for TPM emulator backend type
+# @type: - 'passthrough' The configuration options for the TPM passthrough type
+#        - 'emulator' The configuration options for TPM emulator backend type
 #
 # Since: 1.5
 ##

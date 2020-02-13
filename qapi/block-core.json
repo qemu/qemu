@@ -1326,8 +1326,8 @@
 #
 # @size:  new image size in bytes
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+# Returns: - nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
 #
@@ -1510,8 +1510,8 @@
 #
 # For the arguments, see the documentation of BlockdevSnapshotSync.
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+# Returns: - nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14.0
 #
@@ -1586,9 +1586,8 @@
 #                when specifying the string or the image chain may
 #                not be able to be reopened again.
 #
-# Returns: Nothing on success
-#
-#          If "device" does not exist or cannot be determined, DeviceNotFound
+# Returns: - Nothing on success
+#          - If "device" does not exist or cannot be determined, DeviceNotFound
 #
 # Since: 2.1
 ##
@@ -1674,9 +1673,9 @@
 #                list without user intervention.
 #                Defaults to true. (Since 3.1)
 #
-# Returns: Nothing on success
-#          If @device does not exist, DeviceNotFound
-#          Any other error returns a GenericError.
+# Returns: - Nothing on success
+#          - If @device does not exist, DeviceNotFound
+#          - Any other error returns a GenericError.
 #
 # Since: 1.3
 #
@@ -1704,8 +1703,8 @@
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, GenericError
+# Returns: - nothing on success
+#          - If @device is not a valid block device, GenericError
 #
 # Since: 1.6
 #
@@ -1730,8 +1729,8 @@
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+# Returns: - nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 2.3
 #
@@ -1925,8 +1924,8 @@
 # format of the mirror image, default is to probe if mode='existing',
 # else the format of the source.
 #
-# Returns: nothing on success
-#          If @device is not a valid block device, GenericError
+# Returns: - nothing on success
+#          - If @device is not a valid block device, GenericError
 #
 # Since: 1.3
 #
@@ -2097,9 +2096,9 @@
 #
 # Create a dirty bitmap with a name on the node, and start tracking the writes.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device or node, DeviceNotFound
-#          If @name is already taken, GenericError with an explanation
+# Returns: - nothing on success
+#          - If @node is not a valid block device or node, DeviceNotFound
+#          - If @name is already taken, GenericError with an explanation
 #
 # Since: 2.4
 #
@@ -2120,10 +2119,10 @@
 # with block-dirty-bitmap-add. If the bitmap is persistent, remove it from its
 # storage too.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device or node, DeviceNotFound
-#          If @name is not found, GenericError with an explanation
-#          if @name is frozen by an operation, GenericError
+# Returns: - nothing on success
+#          - If @node is not a valid block device or node, DeviceNotFound
+#          - If @name is not found, GenericError with an explanation
+#          - if @name is frozen by an operation, GenericError
 #
 # Since: 2.4
 #
@@ -2144,9 +2143,9 @@
 # backup from this point in time forward will only backup clusters
 # modified after this clear operation.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device, DeviceNotFound
-#          If @name is not found, GenericError with an explanation
+# Returns: - nothing on success
+#          - If @node is not a valid block device, DeviceNotFound
+#          - If @name is not found, GenericError with an explanation
 #
 # Since: 2.4
 #
@@ -2165,9 +2164,9 @@
 #
 # Enables a dirty bitmap so that it will begin tracking disk changes.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device, DeviceNotFound
-#          If @name is not found, GenericError with an explanation
+# Returns: - nothing on success
+#          - If @node is not a valid block device, DeviceNotFound
+#          - If @name is not found, GenericError with an explanation
 #
 # Since: 4.0
 #
@@ -2186,9 +2185,9 @@
 #
 # Disables a dirty bitmap so that it will stop tracking disk changes.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device, DeviceNotFound
-#          If @name is not found, GenericError with an explanation
+# Returns: - nothing on success
+#          - If @node is not a valid block device, DeviceNotFound
+#          - If @name is not found, GenericError with an explanation
 #
 # Since: 4.0
 #
@@ -2215,11 +2214,11 @@
 # of the source bitmaps. This can be used to achieve backup checkpoints, or in
 # simpler usages, to copy bitmaps.
 #
-# Returns: nothing on success
-#          If @node is not a valid block device, DeviceNotFound
-#          If any bitmap in @bitmaps or @target is not found, GenericError
-#          If any of the bitmaps have different sizes or granularities,
-#              GenericError
+# Returns: - nothing on success
+#          - If @node is not a valid block device, DeviceNotFound
+#          - If any bitmap in @bitmaps or @target is not found, GenericError
+#          - If any of the bitmaps have different sizes or granularities,
+#            GenericError
 #
 # Since: 4.0
 #
@@ -2251,10 +2250,10 @@
 #
 # Get bitmap SHA256.
 #
-# Returns: BlockDirtyBitmapSha256 on success
-#          If @node is not a valid block device, DeviceNotFound
-#          If @name is not found or if hashing has failed, GenericError with an
-#          explanation
+# Returns: - BlockDirtyBitmapSha256 on success
+#          - If @node is not a valid block device, DeviceNotFound
+#          - If @name is not found or if hashing has failed, GenericError with an
+#            explanation
 #
 # Since: 2.10
 ##
@@ -2371,8 +2370,8 @@
 # the device will be removed from its group and the rest of its
 # members will not be affected. The 'group' parameter is ignored.
 #
-# Returns: Nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+# Returns: - Nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 1.1
 #
@@ -2622,7 +2621,8 @@
 #                list without user intervention.
 #                Defaults to true. (Since 3.1)
 #
-# Returns: Nothing on success. If @device does not exist, DeviceNotFound.
+# Returns: - Nothing on success.
+#          - If @device does not exist, DeviceNotFound.
 #
 # Since: 1.1
 #
@@ -2656,8 +2656,8 @@
 # @speed: the maximum speed, in bytes per second, or 0 for unlimited.
 #         Defaults to 0.
 #
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
+# Returns: - Nothing on success
+#          - If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
@@ -2696,8 +2696,8 @@
 #         abandon the job immediately (even if it is paused) instead of waiting
 #         for the destination to complete its final synchronization (since 1.3)
 #
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
+# Returns: - Nothing on success
+#          - If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
@@ -2720,8 +2720,8 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
+# Returns: - Nothing on success
+#          - If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.3
 ##
@@ -2742,8 +2742,8 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
+# Returns: - Nothing on success
+#          - If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.3
 ##
@@ -2770,8 +2770,8 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# Returns: Nothing on success
-#          If no background operation is active on this device, DeviceNotActive
+# Returns: - Nothing on success
+#          - If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.3
 ##
