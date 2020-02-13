@@ -12,16 +12,16 @@
 #
 # Sets the password of a remote display session.
 #
-# @protocol: `vnc' to modify the VNC server password
-#            `spice' to modify the Spice server password
+# @protocol: 'vnc' to modify the VNC server password
+#            'spice' to modify the Spice server password
 #
 # @password: the new password
 #
 # @connected: how to handle existing clients when changing the
-#             password.  If nothing is specified, defaults to `keep'
-#             `fail' to fail the command if clients are connected
-#             `disconnect' to disconnect existing clients
-#             `keep' to maintain existing clients
+#             password.  If nothing is specified, defaults to 'keep'
+#             'fail' to fail the command if clients are connected
+#             'disconnect' to disconnect existing clients
+#             'keep' to maintain existing clients
 #
 # Returns: Nothing on success
 #          If Spice is not enabled, DeviceNotFound
@@ -43,16 +43,16 @@
 #
 # Expire the password of a remote display server.
 #
-# @protocol: the name of the remote display protocol `vnc' or `spice'
+# @protocol: the name of the remote display protocol 'vnc' or 'spice'
 #
 # @time: when to expire the password.
-#        `now' to expire the password immediately
-#        `never' to cancel password expiration
-#        `+INT' where INT is the number of seconds from now (integer)
-#        `INT' where INT is the absolute time in seconds
+#        'now' to expire the password immediately
+#        'never' to cancel password expiration
+#        '+INT' where INT is the number of seconds from now (integer)
+#        'INT' where INT is the absolute time in seconds
 #
 # Returns: Nothing on success
-#          If @protocol is `spice' and Spice is not active, DeviceNotFound
+#          If @protocol is 'spice' and Spice is not active, DeviceNotFound
 #
 # Since: 0.14.0
 #
