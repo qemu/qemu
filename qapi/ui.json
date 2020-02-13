@@ -949,13 +949,6 @@
 #
 # Send input event(s) to guest.
 #
-# @device: display device to send event(s) to.
-# @head: head to send event(s) to, in case the
-#        display device supports multiple scanouts.
-# @events: List of InputEvent union.
-#
-# Returns: Nothing on success.
-#
 # The @device and @head parameters can be used to send the input event
 # to specific input devices in case (a) multiple input devices of the
 # same kind are added to the virtual machine and (b) you have
@@ -966,6 +959,13 @@
 # specified, both input devices with and without input routing config
 # are admissible, but devices with input routing config take
 # precedence.
+#
+# @device: display device to send event(s) to.
+# @head: head to send event(s) to, in case the
+#        display device supports multiple scanouts.
+# @events: List of InputEvent union.
+#
+# Returns: Nothing on success.
 #
 # Since: 2.6
 #
