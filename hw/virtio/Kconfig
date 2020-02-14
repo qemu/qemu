@@ -9,6 +9,11 @@ config VIRTIO_RNG
     default y
     depends on VIRTIO
 
+config VIRTIO_IOMMU
+    bool
+    default y
+    depends on VIRTIO
+
 config VIRTIO_PCI
     bool
     default y if PCI_DEVICES
