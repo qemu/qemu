@@ -140,7 +140,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     int ret = 0;
     int64_t n = 0; /* bytes */
     void *buf = NULL;
-    int bytes_written = 0;
     int64_t len, base_len;
 
     ret = len = blk_getlength(s->top);
@@ -180,7 +179,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         trace_commit_one_iteration(s, offset, n, ret);
         if (copy) {
             ret = commit_populate(s->top, s->base, offset, n, buf);
-            bytes_written += n;
         }
         if (ret < 0) {
             BlockErrorAction action =
