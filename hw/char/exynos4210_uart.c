@@ -674,8 +674,6 @@ static void exynos4210_uart_init(Object *obj)
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
 
-    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                         exynos4210_uart_timeout_int, s);
     s->wordtime = NANOSECONDS_PER_SECOND * 10 / 9600;
 
     /* memory mapping */
@@ -690,6 +688,9 @@ static void exynos4210_uart_init(Object *obj)
 static void exynos4210_uart_realize(DeviceState *dev, Error **errp)
 {
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
+
+    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                         exynos4210_uart_timeout_int, s);
 
     qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
                              exynos4210_uart_receive, exynos4210_uart_event,

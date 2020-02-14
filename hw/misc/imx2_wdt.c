@@ -29,7 +29,7 @@ static void imx2_wdt_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned int size)
 {
     if (addr == IMX2_WDT_WCR &&
-        (value & (IMX2_WDT_WCR_WDA | IMX2_WDT_WCR_SRS))) {
+        (~value & (IMX2_WDT_WCR_WDA | IMX2_WDT_WCR_SRS))) {
         watchdog_perform_action();
     }
 }
