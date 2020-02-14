@@ -866,6 +866,7 @@ struct ARMCPU {
         uint32_t mvfr1;
         uint32_t mvfr2;
         uint32_t id_dfr0;
+        uint32_t dbgdidr;
         uint64_t id_aa64isar0;
         uint64_t id_aa64isar1;
         uint64_t id_aa64pfr0;
@@ -893,7 +894,6 @@ struct ARMCPU {
     uint32_t id_mmfr4;
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
-    uint32_t dbgdidr;
     uint32_t clidr;
     uint64_t mp_affinity; /* MP ID without feature bits */
     /* The elements of this array are the CCSIDR values for each cache,

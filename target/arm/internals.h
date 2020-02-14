@@ -941,7 +941,7 @@ static inline int arm_num_brps(ARMCPU *cpu)
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, BRPS) + 1;
     } else {
-        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, BRPS) + 1;
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, BRPS) + 1;
     }
 }
 
@@ -955,7 +955,7 @@ static inline int arm_num_wrps(ARMCPU *cpu)
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, WRPS) + 1;
     } else {
-        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, WRPS) + 1;
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, WRPS) + 1;
     }
 }
 
@@ -969,7 +969,7 @@ static inline int arm_num_ctx_cmps(ARMCPU *cpu)
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, CTX_CMPS) + 1;
     } else {
-        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, CTX_CMPS) + 1;
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, CTX_CMPS) + 1;
     }
 }
 
