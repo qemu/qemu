@@ -3325,19 +3325,26 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 extern const uint64_t pred_esz_masks[4];
 
 /*
+ * Naming convention for isar_feature functions:
+ * Functions which test 32-bit ID registers should have _aa32_ in
+ * their name. Functions which test 64-bit ID registers should have
+ * _aa64_ in their name.
+ */
+
+/*
  * 32-bit feature tests via id registers.
  */
-static inline bool isar_feature_thumb_div(const ARMISARegisters *id)
+static inline bool isar_feature_aa32_thumb_div(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) != 0;
 }
 
-static inline bool isar_feature_arm_div(const ARMISARegisters *id)
+static inline bool isar_feature_aa32_arm_div(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) > 1;
 }
 
-static inline bool isar_feature_jazelle(const ARMISARegisters *id)
+static inline bool isar_feature_aa32_jazelle(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_isar1, ID_ISAR1, JAZELLE) != 0;
 }

@@ -1091,7 +1091,7 @@ static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
     if ((features >> ARM_FEATURE_THUMB2) & 1) {
         valid |= CPSR_IT;
     }
-    if (isar_feature_jazelle(id)) {
+    if (isar_feature_aa32_jazelle(id)) {
         valid |= CPSR_J;
     }
     if (isar_feature_aa32_pan(id)) {

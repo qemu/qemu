@@ -42,7 +42,7 @@
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
 #define ENABLE_ARCH_5TE   arm_dc_feature(s, ARM_FEATURE_V5)
-#define ENABLE_ARCH_5J    dc_isar_feature(jazelle, s)
+#define ENABLE_ARCH_5J    dc_isar_feature(aa32_jazelle, s)
 #define ENABLE_ARCH_6     arm_dc_feature(s, ARM_FEATURE_V6)
 #define ENABLE_ARCH_6K    arm_dc_feature(s, ARM_FEATURE_V6K)
 #define ENABLE_ARCH_6T2   arm_dc_feature(s, ARM_FEATURE_THUMB2)
@@ -9845,8 +9845,8 @@ static bool op_div(DisasContext *s, arg_rrr *a, bool u)
     TCGv_i32 t1, t2;
 
     if (s->thumb
-        ? !dc_isar_feature(thumb_div, s)
-        : !dc_isar_feature(arm_div, s)) {
+        ? !dc_isar_feature(aa32_thumb_div, s)
+        : !dc_isar_feature(aa32_arm_div, s)) {
         return false;
     }
 
