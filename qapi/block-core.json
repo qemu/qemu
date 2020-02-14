@@ -1658,6 +1658,9 @@
 #
 # @speed: the maximum speed, in bytes per second
 #
+# @on-error: the action to take on an error. 'ignore' means that the request
+#            should be retried. (default: report; Since: 5.0)
+#
 # @filter-node-name: the node name that should be assigned to the
 #                    filter driver that the commit job inserts into the graph
 #                    above @top. If this option is not given, a node name is
@@ -1694,6 +1697,7 @@
   'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
             '*base': 'str', '*top-node': 'str', '*top': 'str',
             '*backing-file': 'str', '*speed': 'int',
+            '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 
