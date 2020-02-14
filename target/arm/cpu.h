@@ -3531,6 +3531,11 @@ static inline bool isar_feature_aa32_hpd(const ARMISARegisters *id)
     return FIELD_EX32(id->id_mmfr4, ID_MMFR4, HPDS) != 0;
 }
 
+static inline bool isar_feature_aa32_ac2(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, AC2) != 0;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */

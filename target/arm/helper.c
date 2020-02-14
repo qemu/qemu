@@ -6862,6 +6862,27 @@ static const ARMCPRegInfo ats1cp_reginfo[] = {
 };
 #endif
 
+/*
+ * ACTLR2 and HACTLR2 map to ACTLR_EL1[63:32] and
+ * ACTLR_EL2[63:32]. They exist only if the ID_MMFR4.AC2 field
+ * is non-zero, which is never for ARMv7, optionally in ARMv8
+ * and mandatorily for ARMv8.2 and up.
+ * ACTLR2 is banked for S and NS if EL3 is AArch32. Since QEMU's
+ * implementation is RAZ/WI we can ignore this detail, as we
+ * do for ACTLR.
+ */
+static const ARMCPRegInfo actlr2_hactlr2_reginfo[] = {
+    { .name = "ACTLR2", .state = ARM_CP_STATE_AA32,
+      .cp = 15, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 3,
+      .access = PL1_RW, .type = ARM_CP_CONST,
+      .resetvalue = 0 },
+    { .name = "HACTLR2", .state = ARM_CP_STATE_AA32,
+      .cp = 15, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 3,
+      .access = PL2_RW, .type = ARM_CP_CONST,
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -7623,15 +7644,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             REGINFO_SENTINEL
         };
         define_arm_cp_regs(cpu, auxcr_reginfo);
-        if (arm_feature(env, ARM_FEATURE_V8)) {
-            /* HACTLR2 maps to ACTLR_EL2[63:32] and is not in ARMv7 */
-            ARMCPRegInfo hactlr2_reginfo = {
-                .name = "HACTLR2", .state = ARM_CP_STATE_AA32,
-                .cp = 15, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 3,
-                .access = PL2_RW, .type = ARM_CP_CONST,
-                .resetvalue = 0
-            };
-            define_one_arm_cp_reg(cpu, &hactlr2_reginfo);
+        if (cpu_isar_feature(aa32_ac2, cpu)) {
+            define_arm_cp_regs(cpu, actlr2_hactlr2_reginfo);
         }
     }
 
