@@ -594,6 +594,7 @@ done:
         cpu_physical_memory_write(addr, fdt, fdt_size);
     }
     ret = fdt_size;
+    g_free(fdt);
 
 out:
     g_free(pci_map);
