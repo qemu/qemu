@@ -43,6 +43,9 @@
 #define SCB_STATUS_CNA  0x2000 /* CU left active state */
 #define SCB_STATUS_RNR  0x1000 /* RU left active state */
 
+#define SCB_COMMAND_ACK_MASK \
+        (SCB_STATUS_CX | SCB_STATUS_FR | SCB_STATUS_CNA | SCB_STATUS_RNR)
+
 #define CU_IDLE         0
 #define CU_SUSPENDED    1
 #define CU_ACTIVE       2
@@ -348,14 +351,7 @@ static void examine_scb(I82596State *s)
     /* and clear the scb command word */
     set_uint16(s->scb + 2, 0);
 
-    if (command & BIT(31))      /* ACK-CX */
-        s->scb_status &= ~SCB_STATUS_CX;
-    if (command & BIT(30))      /*ACK-FR */
-        s->scb_status &= ~SCB_STATUS_FR;
-    if (command & BIT(29))      /*ACK-CNA */
-        s->scb_status &= ~SCB_STATUS_CNA;
-    if (command & BIT(28))      /*ACK-RNR */
-        s->scb_status &= ~SCB_STATUS_RNR;
+    s->scb_status &= ~(command & SCB_COMMAND_ACK_MASK);
 
     switch (cuc) {
     case 0:     /* no change */
