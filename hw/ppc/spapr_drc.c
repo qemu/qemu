@@ -456,21 +456,29 @@ void spapr_drc_reset(SpaprDrc *drc)
     }
 }
 
-bool spapr_drc_needed(void *opaque)
+bool spapr_drc_transient(SpaprDrc *drc)
 {
-    SpaprDrc *drc = (SpaprDrc *)opaque;
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    /* If no dev is plugged in there is no need to migrate the DRC state */
+    /*
+     * If no dev is plugged in there is no need to migrate the DRC state
+     * nor to reset the DRC at CAS.
+     */
     if (!drc->dev) {
         return false;
     }
 
     /*
-     * We need to migrate the state if it's not equal to the expected
-     * long-term state, which is the same as the coldplugged initial
-     * state */
+     * We need to reset the DRC at CAS or to migrate the DRC state if it's
+     * not equal to the expected long-term state, which is the same as the
+     * coldplugged initial state.
+     */
     return (drc->state != drck->ready_state);
+}
+
+static bool spapr_drc_needed(void *opaque)
+{
+    return spapr_drc_transient(opaque);
 }
 
 static const VMStateDescription vmstate_spapr_drc = {
