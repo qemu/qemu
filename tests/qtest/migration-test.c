@@ -498,11 +498,13 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     const char *arch = qtest_get_arch();
     const char *machine_opts = NULL;
     const char *memory_size;
+    int ret = 0;
 
     if (args->use_shmem) {
         if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
             g_test_skip("/dev/shm is not supported");
-            return -1;
+            ret = -1;
+            goto out;
         }
     }
 
@@ -611,8 +613,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         g_free(shmem_path);
     }
 
+out:
     migrate_start_destroy(args);
-    return 0;
+    return ret;
 }
 
 static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
@@ -1134,6 +1137,8 @@ static void test_validate_uuid(void)
 {
     MigrateStart *args = migrate_start_new();
 
+    g_free(args->opts_source);
+    g_free(args->opts_target);
     args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
     args->opts_target = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
     do_test_validate_uuid(args, false);
@@ -1143,6 +1148,8 @@ static void test_validate_uuid_error(void)
 {
     MigrateStart *args = migrate_start_new();
 
+    g_free(args->opts_source);
+    g_free(args->opts_target);
     args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
     args->opts_target = g_strdup("-uuid 22222222-2222-2222-2222-222222222222");
     args->hide_stderr = true;
@@ -1153,6 +1160,7 @@ static void test_validate_uuid_src_not_set(void)
 {
     MigrateStart *args = migrate_start_new();
 
+    g_free(args->opts_target);
     args->opts_target = g_strdup("-uuid 22222222-2222-2222-2222-222222222222");
     args->hide_stderr = true;
     do_test_validate_uuid(args, false);
@@ -1162,6 +1170,7 @@ static void test_validate_uuid_dst_not_set(void)
 {
     MigrateStart *args = migrate_start_new();
 
+    g_free(args->opts_source);
     args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
     args->hide_stderr = true;
     do_test_validate_uuid(args, false);
@@ -1237,7 +1246,8 @@ static void test_migrate_auto_converge(void)
     g_assert_cmpint(percentage, <=, max_pct);
 
     remaining = read_ram_property_int(from, "remaining");
-    g_assert_cmpint(remaining, <, expected_threshold);
+    g_assert_cmpint(remaining, <,
+                    (expected_threshold + expected_threshold / 100));
 
     migrate_continue(from, "pre-switchover");
 
@@ -1379,6 +1389,7 @@ static void test_multifd_tcp_cancel(void)
                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
     qobject_unref(rsp);
 
+    g_free(uri);
     uri = migrate_get_socket_address(to2, "socket-address");
 
     wait_for_migration_status(from, "cancelled", NULL);
