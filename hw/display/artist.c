@@ -572,7 +572,6 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     buf = &s->vram_buffer[ARTIST_BUFFER_AP];
 
     c1 = false;
-    incy = 1;
 
     if (x2 > x1) {
         dx = x2 - x1;
