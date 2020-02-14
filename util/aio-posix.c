@@ -105,17 +105,18 @@ static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
     }
 }
 
-static int aio_epoll(AioContext *ctx, GPollFD *pfds,
-                     unsigned npfd, int64_t timeout)
+static int aio_epoll(AioContext *ctx, int64_t timeout)
 {
+    GPollFD pfd = {
+        .fd = ctx->epollfd,
+        .events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR,
+    };
     AioHandler *node;
     int i, ret = 0;
     struct epoll_event events[128];
 
-    assert(npfd == 1);
-    assert(pfds[0].fd == ctx->epollfd);
     if (timeout > 0) {
-        ret = qemu_poll_ns(pfds, npfd, timeout);
+        ret = qemu_poll_ns(&pfd, 1, timeout);
     }
     if (timeout <= 0 || ret > 0) {
         ret = epoll_wait(ctx->epollfd, events,
@@ -669,13 +670,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         /* wait until next event */
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
-            AioHandler epoll_handler;
-
-            epoll_handler.pfd.fd = ctx->epollfd;
-            epoll_handler.pfd.events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR;
-            npfd = 0;
-            add_pollfd(&epoll_handler);
-            ret = aio_epoll(ctx, pollfds, npfd, timeout);
+            npfd = 0; /* pollfds[] is not being used */
+            ret = aio_epoll(ctx, timeout);
         } else  {
             ret = qemu_poll_ns(pollfds, npfd, timeout);
         }
