@@ -123,10 +123,10 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->id_pfr1 = 0x00011011;
     cpu->isar.id_dfr0 = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->id_mmfr0 = 0x10101105;
-    cpu->id_mmfr1 = 0x40000000;
-    cpu->id_mmfr2 = 0x01260000;
-    cpu->id_mmfr3 = 0x02102211;
+    cpu->isar.id_mmfr0 = 0x10101105;
+    cpu->isar.id_mmfr1 = 0x40000000;
+    cpu->isar.id_mmfr2 = 0x01260000;
+    cpu->isar.id_mmfr3 = 0x02102211;
     cpu->isar.id_isar0 = 0x02101110;
     cpu->isar.id_isar1 = 0x13112111;
     cpu->isar.id_isar2 = 0x21232042;
@@ -177,10 +177,10 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->id_pfr1 = 0x00011011;
     cpu->isar.id_dfr0 = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->id_mmfr0 = 0x10101105;
-    cpu->id_mmfr1 = 0x40000000;
-    cpu->id_mmfr2 = 0x01260000;
-    cpu->id_mmfr3 = 0x02102211;
+    cpu->isar.id_mmfr0 = 0x10101105;
+    cpu->isar.id_mmfr1 = 0x40000000;
+    cpu->isar.id_mmfr2 = 0x01260000;
+    cpu->isar.id_mmfr3 = 0x02102211;
     cpu->isar.id_isar0 = 0x02101110;
     cpu->isar.id_isar1 = 0x13112111;
     cpu->isar.id_isar2 = 0x21232042;
@@ -230,10 +230,10 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->id_pfr1 = 0x00011011;
     cpu->isar.id_dfr0 = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->id_mmfr0 = 0x10201105;
-    cpu->id_mmfr1 = 0x40000000;
-    cpu->id_mmfr2 = 0x01260000;
-    cpu->id_mmfr3 = 0x02102211;
+    cpu->isar.id_mmfr0 = 0x10201105;
+    cpu->isar.id_mmfr1 = 0x40000000;
+    cpu->isar.id_mmfr2 = 0x01260000;
+    cpu->isar.id_mmfr3 = 0x02102211;
     cpu->isar.id_isar0 = 0x02101110;
     cpu->isar.id_isar1 = 0x13112111;
     cpu->isar.id_isar2 = 0x21232042;
@@ -699,9 +699,9 @@ static void aarch64_max_initfn(Object *obj)
         u = FIELD_DP32(u, ID_ISAR6, SPECRES, 1);
         cpu->isar.id_isar6 = u;
 
-        u = cpu->id_mmfr3;
+        u = cpu->isar.id_mmfr3;
         u = FIELD_DP32(u, ID_MMFR3, PAN, 2); /* ATS1E1 */
-        cpu->id_mmfr3 = u;
+        cpu->isar.id_mmfr3 = u;
 
         u = cpu->isar.id_aa64dfr0;
         u = FIELD_DP64(u, ID_AA64DFR0, PMUVER, 5); /* v8.4-PMU */

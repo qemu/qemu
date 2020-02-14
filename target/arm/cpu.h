@@ -867,6 +867,11 @@ struct ARMCPU {
         uint32_t id_isar4;
         uint32_t id_isar5;
         uint32_t id_isar6;
+        uint32_t id_mmfr0;
+        uint32_t id_mmfr1;
+        uint32_t id_mmfr2;
+        uint32_t id_mmfr3;
+        uint32_t id_mmfr4;
         uint32_t mvfr0;
         uint32_t mvfr1;
         uint32_t mvfr2;
@@ -892,11 +897,6 @@ struct ARMCPU {
     uint64_t pmceid0;
     uint64_t pmceid1;
     uint32_t id_afr0;
-    uint32_t id_mmfr0;
-    uint32_t id_mmfr1;
-    uint32_t id_mmfr2;
-    uint32_t id_mmfr3;
-    uint32_t id_mmfr4;
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
     uint32_t clidr;
@@ -3504,12 +3504,12 @@ static inline bool isar_feature_aa32_vminmaxnm(const ARMISARegisters *id)
 
 static inline bool isar_feature_aa32_pan(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->mvfr0, ID_MMFR3, PAN) != 0;
+    return FIELD_EX32(id->id_mmfr3, ID_MMFR3, PAN) != 0;
 }
 
 static inline bool isar_feature_aa32_ats1e1(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->mvfr0, ID_MMFR3, PAN) >= 2;
+    return FIELD_EX32(id->id_mmfr3, ID_MMFR3, PAN) >= 2;
 }
 
 static inline bool isar_feature_aa32_pmu_8_1(const ARMISARegisters *id)

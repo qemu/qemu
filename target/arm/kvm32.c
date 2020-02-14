@@ -111,6 +111,23 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * Fortunately there is not yet anything in there that affects migration.
      */
 
+    err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr0,
+                          ARM_CP15_REG32(0, 0, 1, 4));
+    err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr1,
+                          ARM_CP15_REG32(0, 0, 1, 5));
+    err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr2,
+                          ARM_CP15_REG32(0, 0, 1, 6));
+    err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr3,
+                          ARM_CP15_REG32(0, 0, 1, 7));
+    if (read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr4,
+                       ARM_CP15_REG32(0, 0, 2, 6))) {
+        /*
+         * Older kernels don't support reading ID_MMFR4 (a new in v8
+         * register); assume it's zero.
+         */
+        ahcf->isar.id_mmfr4 = 0;
+    }
+
     /*
      * There is no way to read DBGDIDR, because currently 32-bit KVM
      * doesn't implement debug at all. Leave it at zero.
