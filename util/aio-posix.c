@@ -35,8 +35,19 @@ struct AioHandler
     void *opaque;
     bool is_external;
     QLIST_ENTRY(AioHandler) node;
+    QLIST_ENTRY(AioHandler) node_ready; /* only used during aio_poll() */
     QLIST_ENTRY(AioHandler) node_deleted;
 };
+
+/* Add a handler to a ready list */
+static void add_ready_handler(AioHandlerList *ready_list,
+                              AioHandler *node,
+                              int revents)
+{
+    QLIST_SAFE_REMOVE(node, node_ready); /* remove from nested parent's list */
+    node->pfd.revents = revents;
+    QLIST_INSERT_HEAD(ready_list, node, node_ready);
+}
 
 #ifdef CONFIG_EPOLL_CREATE1
 
@@ -105,7 +116,8 @@ static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
     }
 }
 
-static int aio_epoll(AioContext *ctx, int64_t timeout)
+static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
+                     int64_t timeout)
 {
     GPollFD pfd = {
         .fd = ctx->epollfd,
@@ -130,11 +142,13 @@ static int aio_epoll(AioContext *ctx, int64_t timeout)
         }
         for (i = 0; i < ret; i++) {
             int ev = events[i].events;
+            int revents = (ev & EPOLLIN ? G_IO_IN : 0) |
+                          (ev & EPOLLOUT ? G_IO_OUT : 0) |
+                          (ev & EPOLLHUP ? G_IO_HUP : 0) |
+                          (ev & EPOLLERR ? G_IO_ERR : 0);
+
             node = events[i].data.ptr;
-            node->pfd.revents = (ev & EPOLLIN ? G_IO_IN : 0) |
-                (ev & EPOLLOUT ? G_IO_OUT : 0) |
-                (ev & EPOLLHUP ? G_IO_HUP : 0) |
-                (ev & EPOLLERR ? G_IO_ERR : 0);
+            add_ready_handler(ready_list, node, revents);
         }
     }
 out:
@@ -172,8 +186,8 @@ static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
 {
 }
 
-static int aio_epoll(AioContext *ctx, GPollFD *pfds,
-                     unsigned npfd, int64_t timeout)
+static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
+                     int64_t timeout)
 {
     assert(false);
 }
@@ -438,35 +452,62 @@ static void aio_free_deleted_handlers(AioContext *ctx)
     qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
 }
 
+static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
+{
+    bool progress = false;
+    int revents;
+
+    revents = node->pfd.revents & node->pfd.events;
+    node->pfd.revents = 0;
+
+    if (!QLIST_IS_INSERTED(node, node_deleted) &&
+        (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
+        aio_node_check(ctx, node->is_external) &&
+        node->io_read) {
+        node->io_read(node->opaque);
+
+        /* aio_notify() does not count as progress */
+        if (node->opaque != &ctx->notifier) {
+            progress = true;
+        }
+    }
+    if (!QLIST_IS_INSERTED(node, node_deleted) &&
+        (revents & (G_IO_OUT | G_IO_ERR)) &&
+        aio_node_check(ctx, node->is_external) &&
+        node->io_write) {
+        node->io_write(node->opaque);
+        progress = true;
+    }
+
+    return progress;
+}
+
+/*
+ * If we have a list of ready handlers then this is more efficient than
+ * scanning all handlers with aio_dispatch_handlers().
+ */
+static bool aio_dispatch_ready_handlers(AioContext *ctx,
+                                        AioHandlerList *ready_list)
+{
+    bool progress = false;
+    AioHandler *node;
+
+    while ((node = QLIST_FIRST(ready_list))) {
+        QLIST_SAFE_REMOVE(node, node_ready);
+        progress = aio_dispatch_handler(ctx, node) || progress;
+    }
+
+    return progress;
+}
+
+/* Slower than aio_dispatch_ready_handlers() but only used via glib */
 static bool aio_dispatch_handlers(AioContext *ctx)
 {
     AioHandler *node, *tmp;
     bool progress = false;
 
     QLIST_FOREACH_SAFE_RCU(node, &ctx->aio_handlers, node, tmp) {
-        int revents;
-
-        revents = node->pfd.revents & node->pfd.events;
-        node->pfd.revents = 0;
-
-        if (!QLIST_IS_INSERTED(node, node_deleted) &&
-            (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
-            aio_node_check(ctx, node->is_external) &&
-            node->io_read) {
-            node->io_read(node->opaque);
-
-            /* aio_notify() does not count as progress */
-            if (node->opaque != &ctx->notifier) {
-                progress = true;
-            }
-        }
-        if (!QLIST_IS_INSERTED(node, node_deleted) &&
-            (revents & (G_IO_OUT | G_IO_ERR)) &&
-            aio_node_check(ctx, node->is_external) &&
-            node->io_write) {
-            node->io_write(node->opaque);
-            progress = true;
-        }
+        progress = aio_dispatch_handler(ctx, node) || progress;
     }
 
     return progress;
@@ -639,6 +680,7 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
 
 bool aio_poll(AioContext *ctx, bool blocking)
 {
+    AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
     AioHandler *node;
     int i;
     int ret = 0;
@@ -689,7 +731,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         /* wait until next event */
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
             npfd = 0; /* pollfds[] is not being used */
-            ret = aio_epoll(ctx, timeout);
+            ret = aio_epoll(ctx, &ready_list, timeout);
         } else  {
             ret = qemu_poll_ns(pollfds, npfd, timeout);
         }
@@ -744,7 +786,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
         for (i = 0; i < npfd; i++) {
-            nodes[i]->pfd.revents = pollfds[i].revents;
+            int revents = pollfds[i].revents;
+
+            if (revents) {
+                add_ready_handler(&ready_list, nodes[i], revents);
+            }
         }
     }
 
@@ -753,7 +799,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress |= aio_bh_poll(ctx);
 
     if (ret > 0) {
-        progress |= aio_dispatch_handlers(ctx);
+        progress |= aio_dispatch_ready_handlers(ctx, &ready_list);
     }
 
     aio_free_deleted_handlers(ctx);
