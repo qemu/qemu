@@ -182,7 +182,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         }
         if (ret < 0) {
             BlockErrorAction action =
-                block_job_error_action(&s->common, false, s->on_error, -ret);
+                block_job_error_action(&s->common, s->on_error, false, -ret);
             if (action == BLOCK_ERROR_ACTION_REPORT) {
                 goto out;
             } else {
