@@ -97,6 +97,9 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         ahcf->isar.id_isar6 = 0;
     }
 
+    err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_dfr0,
+                          ARM_CP15_REG32(0, 0, 1, 2));
+
     err |= read_sys_reg32(fdarray[2], &ahcf->isar.mvfr0,
                           KVM_REG_ARM | KVM_REG_SIZE_U32 |
                           KVM_REG_ARM_VFP | KVM_REG_ARM_VFP_MVFR0);
@@ -106,6 +109,11 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     /*
      * FIXME: There is not yet a way to read MVFR2.
      * Fortunately there is not yet anything in there that affects migration.
+     */
+
+    /*
+     * There is no way to read DBGDIDR, because currently 32-bit KVM
+     * doesn't implement debug at all. Leave it at zero.
      */
 
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
