@@ -865,6 +865,7 @@ struct ARMCPU {
         uint32_t mvfr0;
         uint32_t mvfr1;
         uint32_t mvfr2;
+        uint32_t id_dfr0;
         uint64_t id_aa64isar0;
         uint64_t id_aa64isar1;
         uint64_t id_aa64pfr0;
@@ -880,7 +881,6 @@ struct ARMCPU {
     uint32_t reset_sctlr;
     uint32_t id_pfr0;
     uint32_t id_pfr1;
-    uint32_t id_dfr0;
     uint64_t pmceid0;
     uint64_t pmceid1;
     uint32_t id_afr0;
@@ -3498,6 +3498,13 @@ static inline bool isar_feature_aa32_pan(const ARMISARegisters *id)
 static inline bool isar_feature_aa32_ats1e1(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->mvfr0, ID_MMFR3, PAN) >= 2;
+}
+
+static inline bool isar_feature_aa32_pmu_8_1(const ARMISARegisters *id)
+{
+    /* 0xf means "non-standard IMPDEF PMU" */
+    return FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) >= 4 &&
+        FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
 }
 
 /*
