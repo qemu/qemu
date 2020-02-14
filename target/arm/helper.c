@@ -8858,7 +8858,7 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
         env->elr_el[2] = env->regs[15];
     } else {
         /* CPSR.PAN is normally preserved preserved unless...  */
-        if (cpu_isar_feature(aa64_pan, env_archcpu(env))) {
+        if (cpu_isar_feature(aa32_pan, env_archcpu(env))) {
             switch (new_el) {
             case 3:
                 if (!arm_is_secure_below_el3(env)) {
