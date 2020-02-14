@@ -143,6 +143,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
 
     for (offset = 0; offset < len; offset += n) {
         bool copy;
+        bool error_in_source = true;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -162,11 +163,15 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
             ret = blk_co_pread(s->top, offset, n, buf, 0);
             if (ret >= 0) {
                 ret = blk_co_pwrite(s->base, offset, n, buf, 0);
+                if (ret < 0) {
+                    error_in_source = false;
+                }
             }
         }
         if (ret < 0) {
             BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error, false, -ret);
+                block_job_error_action(&s->common, s->on_error,
+                                       error_in_source, -ret);
             if (action == BLOCK_ERROR_ACTION_REPORT) {
                 goto out;
             } else {
