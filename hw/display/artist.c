@@ -558,7 +558,7 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
                       bool update_start, int skip_pix, int max_pix)
 {
     struct vram_buffer *buf;
-    uint8_t color = artist_get_color(s);
+    uint8_t color;
     int dx, dy, t, e, x, y, incy, diago, horiz;
     bool c1;
     uint8_t *p;
@@ -568,10 +568,6 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     if (update_start) {
         s->vram_start = (x2 << 16) | y2;
     }
-
-    buf = &s->vram_buffer[ARTIST_BUFFER_AP];
-
-    c1 = false;
 
     if (x2 > x1) {
         dx = x2 - x1;
@@ -583,6 +579,8 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     } else {
         dy = y1 - y2;
     }
+
+    c1 = false;
     if (dy > dx) {
         t = y2;
         y2 = x2;
@@ -620,6 +618,8 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     }
     x = x1;
     y = y1;
+    color = artist_get_color(s);
+    buf = &s->vram_buffer[ARTIST_BUFFER_AP];
 
     do {
         if (c1) {
