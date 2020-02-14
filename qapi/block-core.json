@@ -1164,7 +1164,10 @@
 #          for jobs, cancel the job
 #
 # @ignore: ignore the error, only report a QMP event (BLOCK_IO_ERROR
-#          or BLOCK_JOB_ERROR)
+#          or BLOCK_JOB_ERROR). The backup, mirror and commit block jobs retry
+#          the failing request later and may still complete successfully. The
+#          stream block job continues to stream and will complete with an
+#          error.
 #
 # @enospc: same as @stop on ENOSPC, same as @report otherwise.
 #
