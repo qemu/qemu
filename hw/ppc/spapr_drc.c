@@ -456,6 +456,22 @@ void spapr_drc_reset(SpaprDrc *drc)
     }
 }
 
+static bool spapr_drc_unplug_requested_needed(void *opaque)
+{
+    return spapr_drc_unplug_requested(opaque);
+}
+
+static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
+    .name = "spapr_drc/unplug_requested",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_drc_unplug_requested_needed,
+    .fields  = (VMStateField []) {
+        VMSTATE_BOOL(unplug_requested, SpaprDrc),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 bool spapr_drc_transient(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -471,9 +487,10 @@ bool spapr_drc_transient(SpaprDrc *drc)
     /*
      * We need to reset the DRC at CAS or to migrate the DRC state if it's
      * not equal to the expected long-term state, which is the same as the
-     * coldplugged initial state.
+     * coldplugged initial state, or if an unplug request is pending.
      */
-    return (drc->state != drck->ready_state);
+    return drc->state != drck->ready_state ||
+        spapr_drc_unplug_requested(drc);
 }
 
 static bool spapr_drc_needed(void *opaque)
@@ -489,6 +506,10 @@ static const VMStateDescription vmstate_spapr_drc = {
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(state, SpaprDrc),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_drc_unplug_requested,
+        NULL
     }
 };
 
