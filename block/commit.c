@@ -43,27 +43,6 @@ typedef struct CommitBlockJob {
     char *backing_file_str;
 } CommitBlockJob;
 
-static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
-                                        int64_t offset, uint64_t bytes,
-                                        void *buf)
-{
-    int ret = 0;
-
-    assert(bytes < SIZE_MAX);
-
-    ret = blk_co_pread(bs, offset, bytes, buf, 0);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = blk_co_pwrite(base, offset, bytes, buf, 0);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return 0;
-}
-
 static int commit_prepare(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
@@ -178,7 +157,12 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         copy = (ret == 1);
         trace_commit_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = commit_populate(s->top, s->base, offset, n, buf);
+            assert(n < SIZE_MAX);
+
+            ret = blk_co_pread(s->top, offset, n, buf, 0);
+            if (ret >= 0) {
+                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
+            }
         }
         if (ret < 0) {
             BlockErrorAction action =
