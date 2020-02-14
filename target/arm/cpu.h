@@ -3526,6 +3526,11 @@ static inline bool isar_feature_aa32_pmu_8_4(const ARMISARegisters *id)
         FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
 }
 
+static inline bool isar_feature_aa32_hpd(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, HPDS) != 0;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */
