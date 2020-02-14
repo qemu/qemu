@@ -734,15 +734,6 @@ static void draw_line_xy(ARTISTState *s, bool update_start)
         endy = 0;
     }
 
-
-    if (endx < 0) {
-        return;
-    }
-
-    if (endy < 0) {
-        return;
-    }
-
     draw_line(s, startx, starty, endx, endy, false, -1, -1);
 }
 
