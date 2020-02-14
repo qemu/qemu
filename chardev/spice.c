@@ -216,9 +216,7 @@ static void char_spice_finalize(Object *obj)
 
     vmc_unregister_interface(s);
 
-    if (s->next.le_prev) {
-        QLIST_REMOVE(s, next);
-    }
+    QLIST_SAFE_REMOVE(s, next);
 
     g_free((char *)s->sin.subtype);
     g_free((char *)s->sin.portname);
