@@ -579,6 +579,9 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     } else {
         dy = y1 - y2;
     }
+    if (!dx || !dy) {
+        return;
+    }
 
     c1 = false;
     if (dy > dx) {
