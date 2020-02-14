@@ -931,6 +931,48 @@ static inline uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
+/**
+ * arm_num_brps: Return number of implemented breakpoints.
+ * Note that the ID register BRPS field is "number of bps - 1",
+ * and we return the actual number of breakpoints.
+ */
+static inline int arm_num_brps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, BRPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, BRPS) + 1;
+    }
+}
+
+/**
+ * arm_num_wrps: Return number of implemented watchpoints.
+ * Note that the ID register WRPS field is "number of wps - 1",
+ * and we return the actual number of watchpoints.
+ */
+static inline int arm_num_wrps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, WRPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, WRPS) + 1;
+    }
+}
+
+/**
+ * arm_num_ctx_cmps: Return number of implemented context comparators.
+ * Note that the ID register CTX_CMPS field is "number of cmps - 1",
+ * and we return the actual number of comparators.
+ */
+static inline int arm_num_ctx_cmps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, CTX_CMPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->dbgdidr, DBGDIDR, CTX_CMPS) + 1;
+    }
+}
+
 /* Note make_memop_idx reserves 4 bits for mmu_idx, and MO_BSWAP is bit 3.
  * Thus a TCGMemOpIdx, without any MO_ALIGN bits, fits in 8 bits.
  */

@@ -16,8 +16,8 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
 {
     CPUARMState *env = &cpu->env;
     uint64_t bcr = env->cp15.dbgbcr[lbn];
-    int brps = extract32(cpu->dbgdidr, 24, 4);
-    int ctx_cmps = extract32(cpu->dbgdidr, 20, 4);
+    int brps = arm_num_brps(cpu);
+    int ctx_cmps = arm_num_ctx_cmps(cpu);
     int bt;
     uint32_t contextidr;
     uint64_t hcr_el2;
@@ -29,7 +29,7 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
      * case DBGWCR<n>_EL1.LBN must indicate that breakpoint).
      * We choose the former.
      */
-    if (lbn > brps || lbn < (brps - ctx_cmps)) {
+    if (lbn >= brps || lbn < (brps - ctx_cmps)) {
         return false;
     }
 
