@@ -158,6 +158,9 @@ struct {                                                                \
         }                                                               \
 } while (/*CONSTCOND*/0)
 
+/* Is elm in a list? */
+#define QLIST_IS_INSERTED(elm, field) ((elm)->field.le_prev != NULL)
+
 #define QLIST_FOREACH(var, head, field)                                 \
         for ((var) = ((head)->lh_first);                                \
                 (var);                                                  \

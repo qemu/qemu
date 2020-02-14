@@ -42,6 +42,7 @@ void qemu_aio_unref(void *p);
 void qemu_aio_ref(void *p);
 
 typedef struct AioHandler AioHandler;
+typedef QLIST_HEAD(, AioHandler) AioHandlerList;
 typedef void QEMUBHFunc(void *opaque);
 typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
@@ -71,7 +72,10 @@ struct AioContext {
     QemuRecMutex lock;
 
     /* The list of registered AIO handlers.  Protected by ctx->list_lock. */
-    QLIST_HEAD(, AioHandler) aio_handlers;
+    AioHandlerList aio_handlers;
+
+    /* The list of AIO handlers to be deleted.  Protected by ctx->list_lock. */
+    AioHandlerList deleted_aio_handlers;
 
     /* Used to avoid unnecessary event_notifier_set calls in aio_notify;
      * accessed with atomic primitives.  If this field is 0, everything
