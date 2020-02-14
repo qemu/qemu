@@ -3519,6 +3519,13 @@ static inline bool isar_feature_aa32_pmu_8_1(const ARMISARegisters *id)
         FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
 }
 
+static inline bool isar_feature_aa32_pmu_8_4(const ARMISARegisters *id)
+{
+    /* 0xf means "non-standard IMPDEF PMU" */
+    return FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) >= 5 &&
+        FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */
@@ -3704,6 +3711,12 @@ static inline bool isar_feature_aa64_pmu_8_1(const ARMISARegisters *id)
         FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) != 0xf;
 }
 
+static inline bool isar_feature_aa64_pmu_8_4(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) >= 5 &&
+        FIELD_EX32(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) != 0xf;
+}
+
 /*
  * Feature tests for "does this exist in either 32-bit or 64-bit?"
  */
@@ -3720,6 +3733,11 @@ static inline bool isar_feature_any_predinv(const ARMISARegisters *id)
 static inline bool isar_feature_any_pmu_8_1(const ARMISARegisters *id)
 {
     return isar_feature_aa64_pmu_8_1(id) || isar_feature_aa32_pmu_8_1(id);
+}
+
+static inline bool isar_feature_any_pmu_8_4(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_pmu_8_4(id) || isar_feature_aa32_pmu_8_4(id);
 }
 
 /*
