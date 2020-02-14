@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu/iov.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
@@ -54,6 +55,11 @@ typedef struct VirtIOIOMMUInterval {
     uint64_t low;
     uint64_t high;
 } VirtIOIOMMUInterval;
+
+typedef struct VirtIOIOMMUMapping {
+    uint64_t phys_addr;
+    uint32_t flags;
+} VirtIOIOMMUMapping;
 
 static inline uint16_t virtio_iommu_get_bdf(IOMMUDevice *dev)
 {
@@ -301,10 +307,39 @@ static int virtio_iommu_map(VirtIOIOMMU *s,
     uint64_t virt_start = le64_to_cpu(req->virt_start);
     uint64_t virt_end = le64_to_cpu(req->virt_end);
     uint32_t flags = le32_to_cpu(req->flags);
+    VirtIOIOMMUDomain *domain;
+    VirtIOIOMMUInterval *interval;
+    VirtIOIOMMUMapping *mapping;
+
+    if (flags & ~VIRTIO_IOMMU_MAP_F_MASK) {
+        return VIRTIO_IOMMU_S_INVAL;
+    }
+
+    domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
+    if (!domain) {
+        return VIRTIO_IOMMU_S_NOENT;
+    }
+
+    interval = g_malloc0(sizeof(*interval));
+
+    interval->low = virt_start;
+    interval->high = virt_end;
+
+    mapping = g_tree_lookup(domain->mappings, (gpointer)interval);
+    if (mapping) {
+        g_free(interval);
+        return VIRTIO_IOMMU_S_INVAL;
+    }
 
     trace_virtio_iommu_map(domain_id, virt_start, virt_end, phys_start, flags);
 
-    return VIRTIO_IOMMU_S_UNSUPP;
+    mapping = g_malloc0(sizeof(*mapping));
+    mapping->phys_addr = phys_start;
+    mapping->flags = flags;
+
+    g_tree_insert(domain->mappings, interval, mapping);
+
+    return VIRTIO_IOMMU_S_OK;
 }
 
 static int virtio_iommu_unmap(VirtIOIOMMU *s,
@@ -313,10 +348,34 @@ static int virtio_iommu_unmap(VirtIOIOMMU *s,
     uint32_t domain_id = le32_to_cpu(req->domain);
     uint64_t virt_start = le64_to_cpu(req->virt_start);
     uint64_t virt_end = le64_to_cpu(req->virt_end);
+    VirtIOIOMMUMapping *iter_val;
+    VirtIOIOMMUInterval interval, *iter_key;
+    VirtIOIOMMUDomain *domain;
+    int ret = VIRTIO_IOMMU_S_OK;
 
     trace_virtio_iommu_unmap(domain_id, virt_start, virt_end);
 
-    return VIRTIO_IOMMU_S_UNSUPP;
+    domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
+    if (!domain) {
+        return VIRTIO_IOMMU_S_NOENT;
+    }
+    interval.low = virt_start;
+    interval.high = virt_end;
+
+    while (g_tree_lookup_extended(domain->mappings, &interval,
+                                  (void **)&iter_key, (void**)&iter_val)) {
+        uint64_t current_low = iter_key->low;
+        uint64_t current_high = iter_key->high;
+
+        if (interval.low <= current_low && interval.high >= current_high) {
+            g_tree_remove(domain->mappings, iter_key);
+            trace_virtio_iommu_unmap_done(domain_id, current_low, current_high);
+        } else {
+            ret = VIRTIO_IOMMU_S_RANGE;
+            break;
+        }
+    }
+    return ret;
 }
 
 static int virtio_iommu_iov_to_req(struct iovec *iov,
