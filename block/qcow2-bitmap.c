@@ -647,7 +647,6 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
     return bm_list;
 
 broken_dir:
-    ret = -EINVAL;
     error_setg(errp, "Broken bitmap directory");
 
 fail:
