@@ -230,14 +230,14 @@
 # QEMU/KVM software version, but also decided by the hardware that
 # the program is running upon.
 #
-# @version:  version of GIC to be described. Currently, only 2 and 3
-#            are supported.
+# @version: version of GIC to be described. Currently, only 2 and 3
+#           are supported.
 #
 # @emulated: whether current QEMU/hardware supports emulated GIC
 #            device in user space.
 #
-# @kernel:   whether current QEMU/hardware supports hardware
-#            accelerated GIC device in kernel.
+# @kernel: whether current QEMU/hardware supports hardware
+#          accelerated GIC device in kernel.
 #
 # Since: 2.6
 ##

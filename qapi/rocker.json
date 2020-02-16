@@ -140,7 +140,7 @@
 # @ip-dst: IP header destination address
 #
 # Note: optional members may or may not appear in the flow key
-# depending if they're relevant to the flow key.
+#       depending if they're relevant to the flow key.
 #
 # Since: 2.4
 ##
@@ -170,7 +170,7 @@
 # @ip-tos: IP header TOS field
 #
 # Note: optional members may or may not appear in the flow mask
-# depending if they're relevant to the flow mask.
+#       depending if they're relevant to the flow mask.
 #
 # Since: 2.4
 ##
@@ -197,7 +197,7 @@
 # @out-pport: physical output port
 #
 # Note: optional members may or may not appear in the flow action
-# depending if they're relevant to the flow action.
+#       depending if they're relevant to the flow action.
 #
 # Since: 2.4
 ##
@@ -235,7 +235,7 @@
 # @name: switch name
 #
 # @tbl-id: flow table ID.  If tbl-id is not specified, returns
-# flow information for all tables.
+#          flow information for all tables.
 #
 # Returns: rocker OF-DPA flow information
 #
@@ -291,7 +291,7 @@
 # @ttl-check: perform TTL check
 #
 # Note: optional members may or may not appear in the group depending
-# if they're relevant to the group type.
+#       if they're relevant to the group type.
 #
 # Since: 2.4
 ##
@@ -311,7 +311,7 @@
 # @name: switch name
 #
 # @type: group type.  If type is not specified, returns
-# group information for all group types.
+#        group information for all group types.
 #
 # Returns: rocker OF-DPA group information
 #

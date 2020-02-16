@@ -89,7 +89,7 @@
 # @port: port
 #
 # Note: string types are used to allow for possible future hostname or
-# service resolution support.
+#       service resolution support.
 #
 # Since: 2.8
 ##
@@ -104,9 +104,9 @@
 # Captures the address of a socket, which could also be a named file descriptor
 #
 # Note: This type is deprecated in favor of SocketAddress.  The
-# difference between SocketAddressLegacy and SocketAddress is that the
-# latter is a flat union rather than a simple union. Flat is nicer
-# because it avoids nesting on the wire, i.e. that form has fewer {}.
+#       difference between SocketAddressLegacy and SocketAddress is that the
+#       latter is a flat union rather than a simple union. Flat is nicer
+#       because it avoids nesting on the wire, i.e. that form has fewer {}.
 
 #
 # Since: 1.3

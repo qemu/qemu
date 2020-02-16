@@ -132,8 +132,8 @@
 #          Errors depend on the operations of the transaction
 #
 # Note: The transaction aborts on the first failure.  Therefore, there will be
-# information on only one failed operation returned in an error condition, and
-# subsequent actions will not have been attempted.
+#       information on only one failed operation returned in an error condition, and
+#       subsequent actions will not have been attempted.
 #
 # Since: 1.1
 #

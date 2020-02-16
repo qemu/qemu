@@ -115,15 +115,12 @@
 #
 # For the arguments, see the documentation of BlockdevSnapshotInternal.
 #
-# Returns: nothing on success
-#
-#          If @device is not a valid block device, GenericError
-#
-#          If any snapshot matching @name exists, or @name is empty,
-#          GenericError
-#
-#          If the format of the image used does not support it,
-#          BlockFormatFeatureNotSupported
+# Returns: - nothing on success
+#          - If @device is not a valid block device, GenericError
+#          - If any snapshot matching @name exists, or @name is empty,
+#            GenericError
+#          - If the format of the image used does not support it,
+#            BlockFormatFeatureNotSupported
 #
 # Since: 1.7
 #
@@ -154,12 +151,12 @@
 #
 # @name: optional the snapshot's name to be deleted
 #
-# Returns: SnapshotInfo on success
-#          If @device is not a valid block device, GenericError
-#          If snapshot not found, GenericError
-#          If the format of the image used does not support it,
-#          BlockFormatFeatureNotSupported
-#          If @id and @name are both not specified, GenericError
+# Returns: - SnapshotInfo on success
+#          - If @device is not a valid block device, GenericError
+#          - If snapshot not found, GenericError
+#          - If the format of the image used does not support it,
+#            BlockFormatFeatureNotSupported
+#          - If @id and @name are both not specified, GenericError
 #
 # Since: 1.7
 #
@@ -190,17 +187,15 @@
 #
 # Ejects a device from a removable drive.
 #
-# @device:  Block device name (deprecated, use @id instead)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @id:      The name or QOM path of the guest device (since: 2.8)
+# @id: The name or QOM path of the guest device (since: 2.8)
 #
-# @force:   If true, eject regardless of whether the drive is locked.
-#           If not specified, the default value is false.
+# @force: If true, eject regardless of whether the drive is locked.
+#         If not specified, the default value is false.
 #
-# Returns:  Nothing on success
-#
-#           If @device is not a valid block device, DeviceNotFound
-#
+# Returns: - Nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 # Notes:    Ejecting a device with no media results in success
 #
 # Since: 0.14.0
@@ -254,7 +249,7 @@
 #               (Since 5.0)
 #
 # @writable: Whether clients should be able to write to the device via the
-#     NBD connection (default false).
+#            NBD connection (default false).
 #
 # @bitmap: Also export the dirty bitmap reachable from @device, so the
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
@@ -281,10 +276,10 @@
 # Potential additional modes to be added in the future:
 #
 # hide: Just hide export from new clients, leave existing connections as is.
-#       Remove export after all clients are disconnected.
+# Remove export after all clients are disconnected.
 #
 # soft: Hide export from new clients, answer with ESHUTDOWN for all further
-#       requests from existing clients.
+# requests from existing clients.
 #
 # Since: 2.12
 ##

@@ -34,15 +34,15 @@
 # alternate that includes the original type alongside something else.
 #
 # Returns: array of @SchemaInfo, where each element describes an
-# entity in the ABI: command, event, type, ...
+#          entity in the ABI: command, event, type, ...
 #
-# The order of the various SchemaInfo is unspecified; however, all
-# names are guaranteed to be unique (no name will be duplicated with
-# different meta-types).
+#          The order of the various SchemaInfo is unspecified; however, all
+#          names are guaranteed to be unique (no name will be duplicated with
+#          different meta-types).
 #
 # Note: the QAPI schema is also used to help define *internal*
-# interfaces, by defining QAPI types.  These are not part of the QMP
-# wire ABI, and therefore not returned by this command.
+#       interfaces, by defining QAPI types.  These are not part of the QMP
+#       wire ABI, and therefore not returned by this command.
 #
 # Since: 2.5
 ##

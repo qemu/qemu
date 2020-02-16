@@ -28,22 +28,22 @@
 # @normal-bytes: number of normal bytes sent (since 1.2)
 #
 # @dirty-pages-rate: number of pages dirtied by second by the
-#        guest (since 1.3)
+#                    guest (since 1.3)
 #
 # @mbps: throughput in megabits/sec. (since 1.6)
 #
 # @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
 #
 # @postcopy-requests: The number of page requests received from the destination
-#        (since 2.7)
+#                     (since 2.7)
 #
 # @page-size: The number of bytes per page for the various page-based
-#        statistics (since 2.10)
+#             statistics (since 2.10)
 #
 # @multifd-bytes: The number of bytes sent through multifd (since 3.0)
 #
 # @pages-per-second: the number of memory pages transferred per second
-#        (Since 4.0)
+#                    (Since 4.0)
 #
 # Since: 0.14.0
 ##
@@ -98,7 +98,7 @@
 ##
 { 'struct': 'CompressionStats',
   'data': {'pages': 'int', 'busy': 'int', 'busy-rate': 'number',
-	   'compressed-size': 'int', 'compression-rate': 'number' } }
+           'compressed-size': 'int', 'compression-rate': 'number' } }
 
 ##
 # @MigrationStatus:
@@ -131,7 +131,7 @@
 # @pre-switchover: Paused before device serialisation. (since 2.11)
 #
 # @device: During device serialisation when pause-before-switchover is enabled
-#        (since 2.11)
+#          (since 2.11)
 #
 # @wait-unplug: wait for device unplug request by guest OS to be completed.
 #               (since 4.2)
@@ -167,41 +167,41 @@
 #                status is 'active' or 'completed' (since 1.2)
 #
 # @total-time: total amount of milliseconds since migration started.
-#        If migration has ended, it returns the total migration
-#        time. (since 1.2)
+#              If migration has ended, it returns the total migration
+#              time. (since 1.2)
 #
 # @downtime: only present when migration finishes correctly
-#        total downtime in milliseconds for the guest.
-#        (since 1.3)
+#            total downtime in milliseconds for the guest.
+#            (since 1.3)
 #
 # @expected-downtime: only present while migration is active
-#        expected downtime in milliseconds for the guest in last walk
-#        of the dirty bitmap. (since 1.3)
+#                     expected downtime in milliseconds for the guest in last walk
+#                     of the dirty bitmap. (since 1.3)
 #
-# @setup-time: amount of setup time in milliseconds _before_ the
-#        iterations begin but _after_ the QMP command is issued. This is designed
-#        to provide an accounting of any activities (such as RDMA pinning) which
-#        may be expensive, but do not actually occur during the iterative
-#        migration rounds themselves. (since 1.6)
+# @setup-time: amount of setup time in milliseconds *before* the
+#              iterations begin but *after* the QMP command is issued. This is designed
+#              to provide an accounting of any activities (such as RDMA pinning) which
+#              may be expensive, but do not actually occur during the iterative
+#              migration rounds themselves. (since 1.6)
 #
 # @cpu-throttle-percentage: percentage of time guest cpus are being
-#        throttled during auto-converge. This is only present when auto-converge
-#        has started throttling guest cpus. (Since 2.7)
+#                           throttled during auto-converge. This is only present when auto-converge
+#                           has started throttling guest cpus. (Since 2.7)
 #
 # @error-desc: the human readable error description string, when
 #              @status is 'failed'. Clients should not attempt to parse the
 #              error strings. (Since 2.7)
 #
 # @postcopy-blocktime: total time when all vCPU were blocked during postcopy
-#           live migration. This is only present when the postcopy-blocktime
-#           migration capability is enabled. (Since 3.0)
+#                      live migration. This is only present when the postcopy-blocktime
+#                      migration capability is enabled. (Since 3.0)
 #
 # @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU.  This is
-#           only present when the postcopy-blocktime migration capability
-#           is enabled. (Since 3.0)
+#                           only present when the postcopy-blocktime migration capability
+#                           is enabled. (Since 3.0)
 #
 # @compression: migration compression statistics, only returned if compression
-#           feature is on and status is 'active' or 'completed' (Since 3.1)
+#               feature is on and status is 'active' or 'completed' (Since 3.1)
 #
 # @socket-address: Only used for tcp, to know what the real port is (Since 4.0)
 #
@@ -355,54 +355,54 @@
 #          loads, by sending compressed difference of the pages
 #
 # @rdma-pin-all: Controls whether or not the entire VM memory footprint is
-#          mlock()'d on demand or all at once. Refer to docs/rdma.txt for usage.
-#          Disabled by default. (since 2.0)
+#                mlock()'d on demand or all at once. Refer to docs/rdma.txt for usage.
+#                Disabled by default. (since 2.0)
 #
 # @zero-blocks: During storage migration encode blocks of zeroes efficiently. This
-#          essentially saves 1MB of zeroes per block on the wire. Enabling requires
-#          source and target VM to support this feature. To enable it is sufficient
-#          to enable the capability on the source VM. The feature is disabled by
-#          default. (since 1.6)
+#               essentially saves 1MB of zeroes per block on the wire. Enabling requires
+#               source and target VM to support this feature. To enable it is sufficient
+#               to enable the capability on the source VM. The feature is disabled by
+#               default. (since 1.6)
 #
 # @compress: Use multiple compression threads to accelerate live migration.
-#          This feature can help to reduce the migration traffic, by sending
-#          compressed pages. Please note that if compress and xbzrle are both
-#          on, compress only takes effect in the ram bulk stage, after that,
-#          it will be disabled and only xbzrle takes effect, this can help to
-#          minimize migration traffic. The feature is disabled by default.
-#          (since 2.4 )
+#            This feature can help to reduce the migration traffic, by sending
+#            compressed pages. Please note that if compress and xbzrle are both
+#            on, compress only takes effect in the ram bulk stage, after that,
+#            it will be disabled and only xbzrle takes effect, this can help to
+#            minimize migration traffic. The feature is disabled by default.
+#            (since 2.4 )
 #
 # @events: generate events for each migration state change
 #          (since 2.4 )
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down the guest
-#          to speed up convergence of RAM migration. (since 1.6)
+#                 to speed up convergence of RAM migration. (since 1.6)
 #
 # @postcopy-ram: Start executing on the migration target before all of RAM has
-#          been migrated, pulling the remaining pages along as needed. The
-#          capacity must have the same setting on both source and target
-#          or migration will not even start. NOTE: If the migration fails during
-#          postcopy the VM will fail.  (since 2.6)
+#                been migrated, pulling the remaining pages along as needed. The
+#                capacity must have the same setting on both source and target
+#                or migration will not even start. NOTE: If the migration fails during
+#                postcopy the VM will fail.  (since 2.6)
 #
 # @x-colo: If enabled, migration will never end, and the state of the VM on the
-#        primary side will be migrated continuously to the VM on secondary
-#        side, this process is called COarse-Grain LOck Stepping (COLO) for
-#        Non-stop Service. (since 2.8)
+#          primary side will be migrated continuously to the VM on secondary
+#          side, this process is called COarse-Grain LOck Stepping (COLO) for
+#          Non-stop Service. (since 2.8)
 #
 # @release-ram: if enabled, qemu will free the migrated ram pages on the source
-#        during postcopy-ram migration. (since 2.9)
+#               during postcopy-ram migration. (since 2.9)
 #
 # @block: If enabled, QEMU will also migrate the contents of all block
-#          devices.  Default is disabled.  A possible alternative uses
-#          mirror jobs to a builtin NBD server on the destination, which
-#          offers more flexibility.
-#          (Since 2.10)
+#         devices.  Default is disabled.  A possible alternative uses
+#         mirror jobs to a builtin NBD server on the destination, which
+#         offers more flexibility.
+#         (Since 2.10)
 #
 # @return-path: If enabled, migration will use the return path even
 #               for precopy. (since 2.10)
 #
 # @pause-before-switchover: Pause outgoing migration before serialising device
-#          state and before disabling block IO (since 2.11)
+#                           state and before disabling block IO (since 2.11)
 #
 # @multifd: Use more than one fd for migration (since 4.0)
 #
@@ -410,11 +410,11 @@
 #                 (since 2.12)
 #
 # @postcopy-blocktime: Calculate downtime for postcopy live migration
-#                     (since 3.0)
+#                      (since 3.0)
 #
 # @late-block-activate: If enabled, the destination will not activate block
-#           devices (and thus take locks) immediately at the end of migration.
-#           (since 3.0)
+#                       devices (and thus take locks) immediately at the end of migration.
+#                       (since 3.0)
 #
 # @x-ignore-shared: If enabled, QEMU will not migrate shared memory (since 4.0)
 #
@@ -494,24 +494,24 @@
 # Migration parameters enumeration
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the first
-#          announce (Since 4.0)
+#                    announce (Since 4.0)
 #
 # @announce-max: Maximum delay (in milliseconds) between packets in the
-#          announcement (Since 4.0)
+#                announcement (Since 4.0)
 #
 # @announce-rounds: Number of self-announce packets sent after migration
-#          (Since 4.0)
+#                   (Since 4.0)
 #
 # @announce-step: Increase in delay (in milliseconds) between subsequent
-#          packets in the announcement (Since 4.0)
+#                 packets in the announcement (Since 4.0)
 #
 # @compress-level: Set the compression level to be used in live migration,
-#          the compression level is an integer between 0 and 9, where 0 means
-#          no compression, 1 means the best compression speed, and 9 means best
-#          compression ratio which will consume more CPU.
+#                  the compression level is an integer between 0 and 9, where 0 means
+#                  no compression, 1 means the best compression speed, and 9 means best
+#                  compression ratio which will consume more CPU.
 #
 # @compress-threads: Set compression thread count to be used in live migration,
-#          the compression thread count is an integer between 1 and 255.
+#                    the compression thread count is an integer between 1 and 255.
 #
 # @compress-wait-thread: Controls behavior when all compression threads are
 #                        currently busy. If true (default), wait for a free
@@ -519,10 +519,10 @@
 #                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: Set decompression thread count to be used in live
-#          migration, the decompression thread count is an integer between 1
-#          and 255. Usually, decompression is at least 4 times as fast as
-#          compression, so set the decompress-threads to the number about 1/4
-#          of compress-threads is adequate.
+#                      migration, the decompression thread count is an integer between 1
+#                      and 255. Usually, decompression is at least 4 times as fast as
+#                      compression, so set the decompress-threads to the number about 1/4
+#                      of compress-threads is adequate.
 #
 # @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
 #                        when migration auto-converge is activated. The
@@ -560,14 +560,14 @@
 #                  downtime in milliseconds (Since 2.8)
 #
 # @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
-#          periodic mode. (Since 2.8)
+#                      periodic mode. (Since 2.8)
 #
 # @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
+#                     block migration capability is enabled.  When false, the entire
+#                     storage backing chain is migrated into a flattened image at
+#                     the destination; when true, only the active qcow2 layer is
+#                     migrated and the destination must already have access to the
+#                     same backing chain as was used on the source.  (since 2.10)
 #
 # @multifd-channels: Number of channels used to migrate data in
 #                    parallel. This is the same number that the
@@ -580,8 +580,8 @@
 #                     (Since 2.11)
 #
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
-#                     Defaults to 0 (unlimited).  In bytes per second.
-#                     (Since 3.0)
+#                          Defaults to 0 (unlimited).  In bytes per second.
+#                          (Since 3.0)
 #
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
@@ -604,16 +604,16 @@
 # @MigrateSetParameters:
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the first
-#          announce (Since 4.0)
+#                    announce (Since 4.0)
 #
 # @announce-max: Maximum delay (in milliseconds) between packets in the
-#          announcement (Since 4.0)
+#                announcement (Since 4.0)
 #
 # @announce-rounds: Number of self-announce packets sent after migration
-#          (Since 4.0)
+#                   (Since 4.0)
 #
 # @announce-step: Increase in delay (in milliseconds) between subsequent
-#          packets in the announcement (Since 4.0)
+#                 packets in the announcement (Since 4.0)
 #
 # @compress-level: compression level
 #
@@ -665,11 +665,11 @@
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
 # @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
+#                     block migration capability is enabled.  When false, the entire
+#                     storage backing chain is migrated into a flattened image at
+#                     the destination; when true, only the active qcow2 layer is
+#                     migrated and the destination must already have access to the
+#                     same backing chain as was used on the source.  (since 2.10)
 #
 # @multifd-channels: Number of channels used to migrate data in
 #                    parallel. This is the same number that the
@@ -682,8 +682,8 @@
 #                     (Since 2.11)
 #
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
-#                     Defaults to 0 (unlimited).  In bytes per second.
-#                     (Since 3.0)
+#                          Defaults to 0 (unlimited).  In bytes per second.
+#                          (Since 3.0)
 #
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    The default value is 99. (Since 3.1)
@@ -713,7 +713,7 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-	    '*max-cpu-throttle': 'int' } }
+            '*max-cpu-throttle': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -737,16 +737,16 @@
 # The optional members aren't actually optional.
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the
-#          first announce (Since 4.0)
+#                    first announce (Since 4.0)
 #
 # @announce-max: Maximum delay (in milliseconds) between packets in the
-#          announcement (Since 4.0)
+#                announcement (Since 4.0)
 #
 # @announce-rounds: Number of self-announce packets sent after migration
-#          (Since 4.0)
+#                   (Since 4.0)
 #
 # @announce-step: Increase in delay (in milliseconds) between subsequent
-#          packets in the announcement (Since 4.0)
+#                 packets in the announcement (Since 4.0)
 #
 # @compress-level: compression level
 #
@@ -799,11 +799,11 @@
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
 # @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
+#                     block migration capability is enabled.  When false, the entire
+#                     storage backing chain is migrated into a flattened image at
+#                     the destination; when true, only the active qcow2 layer is
+#                     migrated and the destination must already have access to the
+#                     same backing chain as was used on the source.  (since 2.10)
 #
 # @multifd-channels: Number of channels used to migrate data in
 #                    parallel. This is the same number that the
@@ -816,12 +816,12 @@
 #                     (Since 2.11)
 #
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
-#                     Defaults to 0 (unlimited).  In bytes per second.
-#                     (Since 3.0)
+#                          Defaults to 0 (unlimited).  In bytes per second.
+#                          (Since 3.0)
 #
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99.
-#                     (Since 3.1)
+#                    (Since 3.1)
 #
 # Since: 2.4
 ##
@@ -845,7 +845,7 @@
             '*block-incremental': 'bool' ,
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
-	    '*max-postcopy-bandwidth': 'size',
+            '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle':'uint8'} }
 
 ##
@@ -1047,8 +1047,8 @@
 # The reason for a COLO exit.
 #
 # @none: failover has never happened. This state does not occur
-# in the COLO_EXIT event, and is only visible in the result of
-# query-colo-status.
+#        in the COLO_EXIT event, and is only visible in the result of
+#        query-colo-status.
 #
 # @request: COLO exit is due to an external request.
 #
@@ -1281,11 +1281,11 @@
 # of the VM are not saved by this command.
 #
 # @filename: the file to save the state of the devices to as binary
-# data. See xen-save-devices-state.txt for a description of the binary
-# format.
+#            data. See xen-save-devices-state.txt for a description of the binary
+#            format.
 #
 # @live: Optional argument to ask QEMU to treat this command as part of a live
-# migration. Default to true. (since 2.11)
+#        migration. Default to true. (since 2.11)
 #
 # Returns: Nothing on success
 #

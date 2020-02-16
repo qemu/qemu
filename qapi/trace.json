@@ -52,14 +52,15 @@
 #
 # Returns: a list of @TraceEventInfo for the matching events
 #
-# An event is returned if:
-# - its name matches the @name pattern, and
-# - if @vcpu is given, the event has the "vcpu" property.
+#          An event is returned if:
 #
-# Therefore, if @vcpu is given, the operation will only match per-vCPU events,
-# returning their state on the specified vCPU. Special case: if @name is an
-# exact match, @vcpu is given and the event does not have the "vcpu" property,
-# an error is returned.
+#          - its name matches the @name pattern, and
+#          - if @vcpu is given, the event has the "vcpu" property.
+#
+#          Therefore, if @vcpu is given, the operation will only match per-vCPU events,
+#          returning their state on the specified vCPU. Special case: if @name is an
+#          exact match, @vcpu is given and the event does not have the "vcpu" property,
+#          an error is returned.
 #
 # Since: 2.2
 #

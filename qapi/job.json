@@ -214,28 +214,28 @@
 #
 # Information about a job.
 #
-# @id:                  The job identifier
+# @id: The job identifier
 #
-# @type:                The kind of job that is being performed
+# @type: The kind of job that is being performed
 #
-# @status:              Current job state/status
+# @status: Current job state/status
 #
-# @current-progress:    Progress made until now. The unit is arbitrary and the
-#                       value can only meaningfully be used for the ratio of
-#                       @current-progress to @total-progress. The value is
-#                       monotonically increasing.
+# @current-progress: Progress made until now. The unit is arbitrary and the
+#                    value can only meaningfully be used for the ratio of
+#                    @current-progress to @total-progress. The value is
+#                    monotonically increasing.
 #
-# @total-progress:      Estimated @current-progress value at the completion of
-#                       the job. This value can arbitrarily change while the
-#                       job is running, in both directions.
+# @total-progress: Estimated @current-progress value at the completion of
+#                  the job. This value can arbitrarily change while the
+#                  job is running, in both directions.
 #
-# @error:               If this field is present, the job failed; if it is
-#                       still missing in the CONCLUDED state, this indicates
-#                       successful completion.
+# @error: If this field is present, the job failed; if it is
+#         still missing in the CONCLUDED state, this indicates
+#         successful completion.
 #
-#                       The value is a human-readable error message to describe
-#                       the reason for the job failure. It should not be parsed
-#                       by applications.
+#         The value is a human-readable error message to describe
+#         the reason for the job failure. It should not be parsed
+#         by applications.
 #
 # Since: 3.0
 ##
