@@ -997,11 +997,6 @@ struct CPUPPCState {
     /* temporary general purpose registers */
     target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
 
-    /* Floating point execution context */
-    float_status fp_status;
-    /* floating point status and control register */
-    target_ulong fpscr;
-
     /* Next instruction pointer */
     target_ulong nip;
 
@@ -1060,6 +1055,10 @@ struct CPUPPCState {
      * used simultaneously
      */
     float_status vec_status;
+    /* Floating point execution context */
+    float_status fp_status;
+    /* floating point status and control register */
+    target_ulong fpscr;
 
     /* Internal devices resources */
     /* Time base and decrementer */
