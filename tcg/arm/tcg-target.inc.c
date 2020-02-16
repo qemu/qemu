@@ -1745,7 +1745,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 #endif
 }
 
-static tcg_insn_unit *tb_ret_addr;
 static void tcg_out_epilogue(TCGContext *s);
 
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
@@ -1756,14 +1755,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        /* Reuse the zeroing that exists for goto_ptr.  */
-        a0 = args[0];
-        if (a0 == 0) {
-            tcg_out_goto(s, COND_AL, s->code_gen_epilogue);
-        } else {
-            tcg_out_movi32(s, COND_AL, TCG_REG_R0, args[0]);
-            tcg_out_goto(s, COND_AL, tb_ret_addr);
-        }
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R0, args[0]);
+        tcg_out_epilogue(s);
         break;
     case INDEX_op_goto_tb:
         {
@@ -2309,7 +2302,6 @@ static void tcg_target_qemu_prologue(TCGContext *s)
      */
     s->code_gen_epilogue = s->code_ptr;
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R0, 0);
-    tb_ret_addr = s->code_ptr;
     tcg_out_epilogue(s);
 }
 
