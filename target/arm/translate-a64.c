@@ -11169,9 +11169,10 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     case 0x13: /* MUL, PMUL */
         if (!u) { /* MUL */
             gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_mul, size);
-            return;
+        } else {  /* PMUL */
+            gen_gvec_op3_ool(s, is_q, rd, rn, rm, 0, gen_helper_gvec_pmul_b);
         }
-        break;
+        return;
     case 0x12: /* MLA, MLS */
         if (u) {
             gen_gvec_op3(s, is_q, rd, rn, rm, &mls_op[size]);
@@ -11301,11 +11302,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn = fns[size][u];
                 break;
             }
-            case 0x13: /* MUL, PMUL */
-                assert(u); /* PMUL */
-                assert(size == 0);
-                genfn = gen_helper_neon_mul_p8;
-                break;
             case 0x16: /* SQDMULH, SQRDMULH */
             {
                 static NeonGenTwoOpEnvFn * const fns[2][2] = {
