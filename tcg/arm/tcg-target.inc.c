@@ -1746,6 +1746,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 }
 
 static tcg_insn_unit *tb_ret_addr;
+static void tcg_out_epilogue(TCGContext *s);
 
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
@@ -2284,19 +2285,17 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
       + TCG_TARGET_STACK_ALIGN - 1) \
      & -TCG_TARGET_STACK_ALIGN)
 
+#define STACK_ADDEND  (FRAME_SIZE - PUSH_SIZE)
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    int stack_addend;
-
     /* Calling convention requires us to save r4-r11 and lr.  */
     /* stmdb sp!, { r4 - r11, lr } */
     tcg_out32(s, (COND_AL << 28) | 0x092d4ff0);
 
     /* Reserve callee argument and tcg temp space.  */
-    stack_addend = FRAME_SIZE - PUSH_SIZE;
-
     tcg_out_dat_rI(s, COND_AL, ARITH_SUB, TCG_REG_CALL_STACK,
-                   TCG_REG_CALL_STACK, stack_addend, 1);
+                   TCG_REG_CALL_STACK, STACK_ADDEND, 1);
     tcg_set_frame(s, TCG_REG_CALL_STACK, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
@@ -2310,11 +2309,15 @@ static void tcg_target_qemu_prologue(TCGContext *s)
      */
     s->code_gen_epilogue = s->code_ptr;
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R0, 0);
-
-    /* TB epilogue */
     tb_ret_addr = s->code_ptr;
+    tcg_out_epilogue(s);
+}
+
+static void tcg_out_epilogue(TCGContext *s)
+{
+    /* Release local stack frame.  */
     tcg_out_dat_rI(s, COND_AL, ARITH_ADD, TCG_REG_CALL_STACK,
-                   TCG_REG_CALL_STACK, stack_addend, 1);
+                   TCG_REG_CALL_STACK, STACK_ADDEND, 1);
 
     /* ldmia sp!, { r4 - r11, pc } */
     tcg_out32(s, (COND_AL << 28) | 0x08bd8ff0);
