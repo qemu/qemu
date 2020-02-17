@@ -922,7 +922,6 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     inode = lo_find(lo, &e->attr);
     if (inode) {
         close(newfd);
-        newfd = -1;
     } else {
         inode = calloc(1, sizeof(struct lo_inode));
         if (!inode) {
@@ -939,7 +938,6 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
         inode->nlookup = 1;
         inode->fd = newfd;
-        newfd = -1;
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         pthread_mutex_init(&inode->plock_mutex, NULL);
