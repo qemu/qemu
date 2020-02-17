@@ -609,6 +609,54 @@ void monitor_init_globals_core(void)
                                    NULL);
 }
 
+int monitor_init_opts(QemuOpts *opts, Error **errp)
+{
+    Chardev *chr;
+    bool qmp;
+    bool pretty = false;
+    const char *chardev;
+    const char *mode;
+
+    mode = qemu_opt_get(opts, "mode");
+    if (mode == NULL) {
+        mode = "readline";
+    }
+    if (strcmp(mode, "readline") == 0) {
+        qmp = false;
+    } else if (strcmp(mode, "control") == 0) {
+        qmp = true;
+    } else {
+        error_setg(errp, "unknown monitor mode \"%s\"", mode);
+        return -1;
+    }
+
+    if (!qmp && qemu_opt_get(opts, "pretty")) {
+        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
+                    "and will be removed in future versions");
+    }
+    if (qemu_opt_get_bool(opts, "pretty", 0)) {
+        pretty = true;
+    }
+
+    chardev = qemu_opt_get(opts, "chardev");
+    if (!chardev) {
+        error_report("chardev is required");
+        exit(1);
+    }
+    chr = qemu_chr_find(chardev);
+    if (chr == NULL) {
+        error_setg(errp, "chardev \"%s\" not found", chardev);
+        return -1;
+    }
+
+    if (qmp) {
+        monitor_init_qmp(chr, pretty);
+    } else {
+        monitor_init_hmp(chr, true);
+    }
+    return 0;
+}
+
 QemuOptsList qemu_mon_opts = {
     .name = "mon",
     .implied_opt_name = "chardev",

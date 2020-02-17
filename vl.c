@@ -2127,50 +2127,7 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    Chardev *chr;
-    bool qmp;
-    bool pretty = false;
-    const char *chardev;
-    const char *mode;
-
-    mode = qemu_opt_get(opts, "mode");
-    if (mode == NULL) {
-        mode = "readline";
-    }
-    if (strcmp(mode, "readline") == 0) {
-        qmp = false;
-    } else if (strcmp(mode, "control") == 0) {
-        qmp = true;
-    } else {
-        error_setg(errp, "unknown monitor mode \"%s\"", mode);
-        return -1;
-    }
-
-    if (!qmp && qemu_opt_get(opts, "pretty")) {
-        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
-                    "and will be removed in future versions");
-    }
-    if (qemu_opt_get_bool(opts, "pretty", 0)) {
-        pretty = true;
-    }
-
-    chardev = qemu_opt_get(opts, "chardev");
-    if (!chardev) {
-        error_report("chardev is required");
-        exit(1);
-    }
-    chr = qemu_chr_find(chardev);
-    if (chr == NULL) {
-        error_setg(errp, "chardev \"%s\" not found", chardev);
-        return -1;
-    }
-
-    if (qmp) {
-        monitor_init_qmp(chr, pretty);
-    } else {
-        monitor_init_hmp(chr, true);
-    }
-    return 0;
+    return monitor_init_opts(opts, errp);
 }
 
 static void monitor_parse(const char *optarg, const char *mode, bool pretty)

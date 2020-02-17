@@ -10,12 +10,15 @@ typedef struct MonitorHMP MonitorHMP;
 
 #define QMP_REQ_QUEUE_LEN_MAX 8
 
+extern QemuOptsList qemu_mon_opts;
+
 bool monitor_cur_is_qmp(void);
 
 void monitor_init_globals(void);
 void monitor_init_globals_core(void);
 void monitor_init_qmp(Chardev *chr, bool pretty);
 void monitor_init_hmp(Chardev *chr, bool use_readline);
+int monitor_init_opts(QemuOpts *opts, Error **errp);
 void monitor_cleanup(void);
 
 int monitor_suspend(Monitor *mon);
