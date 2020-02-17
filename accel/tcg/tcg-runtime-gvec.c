@@ -24,32 +24,6 @@
 #include "tcg/tcg-gvec-desc.h"
 
 
-/* Virtually all hosts support 16-byte vectors.  Those that don't can emulate
- * them via GCC's generic vector extension.  This turns out to be simpler and
- * more reliable than getting the compiler to autovectorize.
- *
- * In tcg-op-gvec.c, we asserted that both the size and alignment of the data
- * are multiples of 16.
- *
- * When the compiler does not support all of the operations we require, the
- * loops are written so that we can always fall back on the base types.
- */
-#ifdef CONFIG_VECTOR16
-typedef uint8_t vec8 __attribute__((vector_size(16)));
-typedef uint16_t vec16 __attribute__((vector_size(16)));
-typedef uint32_t vec32 __attribute__((vector_size(16)));
-typedef uint64_t vec64 __attribute__((vector_size(16)));
-
-typedef int8_t svec8 __attribute__((vector_size(16)));
-typedef int16_t svec16 __attribute__((vector_size(16)));
-typedef int32_t svec32 __attribute__((vector_size(16)));
-typedef int64_t svec64 __attribute__((vector_size(16)));
-
-#define DUP16(X)  { X, X, X, X, X, X, X, X, X, X, X, X, X, X, X, X }
-#define DUP8(X)   { X, X, X, X, X, X, X, X }
-#define DUP4(X)   { X, X, X, X }
-#define DUP2(X)   { X, X }
-#else
 typedef uint8_t vec8;
 typedef uint16_t vec16;
 typedef uint32_t vec32;
@@ -64,7 +38,6 @@ typedef int64_t svec64;
 #define DUP8(X)   X
 #define DUP4(X)   X
 #define DUP2(X)   X
-#endif /* CONFIG_VECTOR16 */
 
 static inline void clear_high(void *d, intptr_t oprsz, uint32_t desc)
 {
@@ -917,13 +890,7 @@ void HELPER(gvec_sar64v)(void *d, void *a, void *b, uint32_t desc)
     clear_high(d, oprsz, desc);
 }
 
-/* If vectors are enabled, the compiler fills in -1 for true.
-   Otherwise, we must take care of this by hand.  */
-#ifdef CONFIG_VECTOR16
-# define DO_CMP0(X)  X
-#else
-# define DO_CMP0(X)  -(X)
-#endif
+#define DO_CMP0(X)  -(X)
 
 #define DO_CMP1(NAME, TYPE, OP)                                            \
 void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                \
