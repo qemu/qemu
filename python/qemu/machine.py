@@ -342,7 +342,7 @@ class QEMUMachine(object):
         self._load_io_log()
         self._post_shutdown()
 
-    def shutdown(self, has_quit=False):
+    def shutdown(self, has_quit=False, hard=False):
         """
         Terminate the VM and clean up
         """
@@ -354,7 +354,9 @@ class QEMUMachine(object):
             self._console_socket = None
 
         if self.is_running():
-            if self._qmp:
+            if hard:
+                self._popen.kill()
+            elif self._qmp:
                 try:
                     if not has_quit:
                         self._qmp.cmd('quit')
@@ -368,7 +370,8 @@ class QEMUMachine(object):
         self._post_shutdown()
 
         exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0:
+        if exitcode is not None and exitcode < 0 and \
+                not (exitcode == -9 and hard):
             msg = 'qemu received signal %i: %s'
             if self._qemu_full_args:
                 command = ' '.join(self._qemu_full_args)
@@ -377,6 +380,9 @@ class QEMUMachine(object):
             LOG.warning(msg, -exitcode, command)
 
         self._launched = False
+
+    def kill(self):
+        self.shutdown(hard=True)
 
     def set_qmp_monitor(self, enabled=True):
         """
