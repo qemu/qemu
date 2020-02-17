@@ -1080,8 +1080,6 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
         return;
     }
 
-    saverr = ENOMEM;
-
     saverr = lo_change_cred(req, &old);
     if (saverr) {
         goto out;
