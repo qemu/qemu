@@ -192,7 +192,7 @@ int fuse_send_reply_iov_nofree(fuse_req_t req, int error, struct iovec *iov,
 
     if (error <= -1000 || error > 0) {
         fuse_log(FUSE_LOG_ERR, "fuse: bad error value: %i\n", error);
-        error = -ERANGE;
+        out.error = -ERANGE;
     }
 
     iov[0].iov_base = &out;
