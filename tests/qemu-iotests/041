@@ -20,6 +20,7 @@
 
 import time
 import os
+import re
 import iotests
 from iotests import qemu_img, qemu_io
 
@@ -33,6 +34,8 @@ quorum_img2 = os.path.join(iotests.test_dir, 'quorum2.img')
 quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
 quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
 quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
+
+nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
 
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
@@ -892,7 +895,8 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file ]:
+        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file,
+                                 nbd_sock_path ]:
             # Do a try/except because the test may have deleted some images
             try:
                 os.remove(i)
@@ -1031,6 +1035,70 @@ class TestRepairQuorum(iotests.QMPTestCase):
         self.complete_and_wait('job0')
         self.assert_has_block_node("repair0", quorum_repair_img)
         self.vm.assert_block_path('quorum0', '/children.1', 'repair0')
+
+    def test_with_other_parent(self):
+        """
+        Check that we cannot replace a Quorum child when it has other
+        parents.
+        """
+        result = self.vm.qmp('nbd-server-start',
+                             addr={
+                                 'type': 'unix',
+                                 'data': {'path': nbd_sock_path}
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('nbd-server-add', device='img1')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
+                             sync='full', node_name='repair0', replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/desc',
+                        "Cannot replace 'img1' by a node mirrored from "
+                        "'quorum0', because it cannot be guaranteed that doing "
+                        "so would not lead to an abrupt change of visible data")
+
+    def test_with_other_parents_after_mirror_start(self):
+        """
+        The same as test_with_other_parent(), but add the NBD server
+        only when the mirror job is already running.
+        """
+        result = self.vm.qmp('nbd-server-start',
+                             addr={
+                                 'type': 'unix',
+                                 'data': {'path': nbd_sock_path}
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
+                             sync='full', node_name='repair0', replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('nbd-server-add', device='img1')
+        self.assert_qmp(result, 'return', {})
+
+        # The full error message goes to stderr, we will check it later
+        self.complete_and_wait('mirror',
+                               completion_error='Operation not permitted')
+
+        # Should not have been replaced
+        self.vm.assert_block_path('quorum0', '/children.1', 'img1')
+
+        # Check the full error message now
+        self.vm.shutdown()
+        log = self.vm.get_log()
+        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = re.sub(r'^Formatting.*\n', '', log)
+        log = re.sub(r'\n\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        log = re.sub(r'^%s: ' % os.path.basename(iotests.qemu_prog), '', log)
+
+        self.assertEqual(log,
+                         "Can no longer replace 'img1' by 'repair0', because " +
+                         "it can no longer be guaranteed that doing so would " +
+                         "not lead to an abrupt change of visible data")
+
 
 # Test mirroring with a source that does not have any parents (not even a
 # BlockBackend)
