@@ -1198,7 +1198,6 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_child_perm                    = quorum_child_perm,
 
-    .is_filter                          = true,
     .bdrv_recurse_can_replace           = quorum_recurse_can_replace,
 
     .strong_runtime_opts                = quorum_strong_runtime_opts,
