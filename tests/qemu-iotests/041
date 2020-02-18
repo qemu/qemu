@@ -885,7 +885,10 @@ class TestRepairQuorum(iotests.QMPTestCase):
             # Assign a node name to each quorum image in order to manipulate
             # them
             opts = "node-name=img%i" % self.IMAGES.index(i)
-            self.vm = self.vm.add_drive(i, opts)
+            opts += ',driver=%s' % iotests.imgfmt
+            opts += ',file.driver=file'
+            opts += ',file.filename=%s' % i
+            self.vm = self.vm.add_blockdev(opts)
 
         self.vm.launch()
 
