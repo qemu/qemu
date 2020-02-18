@@ -301,6 +301,8 @@
 #define __NR_fspick (__X32_SYSCALL_BIT + 433)
 #define __NR_pidfd_open (__X32_SYSCALL_BIT + 434)
 #define __NR_clone3 (__X32_SYSCALL_BIT + 435)
+#define __NR_openat2 (__X32_SYSCALL_BIT + 437)
+#define __NR_pidfd_getfd (__X32_SYSCALL_BIT + 438)
 #define __NR_rt_sigaction (__X32_SYSCALL_BIT + 512)
 #define __NR_rt_sigreturn (__X32_SYSCALL_BIT + 513)
 #define __NR_ioctl (__X32_SYSCALL_BIT + 514)

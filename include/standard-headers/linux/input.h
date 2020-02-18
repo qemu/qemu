@@ -31,6 +31,7 @@ struct input_event {
 	unsigned long __sec;
 #if defined(__sparc__) && defined(__arch64__)
 	unsigned int __usec;
+	unsigned int __pad;
 #else
 	unsigned long __usec;
 #endif
