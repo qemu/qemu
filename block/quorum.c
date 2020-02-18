@@ -796,23 +796,6 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     return result;
 }
 
-static bool quorum_recurse_is_first_non_filter(BlockDriverState *bs,
-                                               BlockDriverState *candidate)
-{
-    BDRVQuorumState *s = bs->opaque;
-    int i;
-
-    for (i = 0; i < s->num_children; i++) {
-        bool perm = bdrv_recurse_is_first_non_filter(s->children[i]->bs,
-                                                     candidate);
-        if (perm) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static bool quorum_recurse_can_replace(BlockDriverState *bs,
                                        BlockDriverState *to_replace)
 {
@@ -1216,7 +1199,6 @@ static BlockDriver bdrv_quorum = {
     .bdrv_child_perm                    = quorum_child_perm,
 
     .is_filter                          = true,
-    .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
     .bdrv_recurse_can_replace           = quorum_recurse_can_replace,
 
     .strong_runtime_opts                = quorum_strong_runtime_opts,

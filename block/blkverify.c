@@ -268,20 +268,6 @@ static int blkverify_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(s->test_file->bs);
 }
 
-static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
-                                                  BlockDriverState *candidate)
-{
-    BDRVBlkverifyState *s = bs->opaque;
-
-    bool perm = bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
-
-    if (perm) {
-        return true;
-    }
-
-    return bdrv_recurse_is_first_non_filter(s->test_file->bs, candidate);
-}
-
 static bool blkverify_recurse_can_replace(BlockDriverState *bs,
                                           BlockDriverState *to_replace)
 {
@@ -341,7 +327,6 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_co_flush                    = blkverify_co_flush,
 
     .is_filter                        = true,
-    .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,
     .bdrv_recurse_can_replace         = blkverify_recurse_can_replace,
 };
 
