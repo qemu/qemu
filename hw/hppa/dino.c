@@ -85,18 +85,18 @@
 
 #define DINO800_REGS ((DINO_TLTIM - DINO_GMASK) / 4)
 static const uint32_t reg800_keep_bits[DINO800_REGS] = {
-            MAKE_64BIT_MASK(0, 1),
-            MAKE_64BIT_MASK(0, 7),
-            MAKE_64BIT_MASK(0, 7),
-            MAKE_64BIT_MASK(0, 8),
-            MAKE_64BIT_MASK(0, 7),
-            MAKE_64BIT_MASK(0, 9),
-            MAKE_64BIT_MASK(0, 32),
-            MAKE_64BIT_MASK(0, 8),
-            MAKE_64BIT_MASK(0, 30),
-            MAKE_64BIT_MASK(0, 25),
-            MAKE_64BIT_MASK(0, 22),
-            MAKE_64BIT_MASK(0, 9),
+    MAKE_64BIT_MASK(0, 1),  /* GMASK */
+    MAKE_64BIT_MASK(0, 7),  /* PAMR */
+    MAKE_64BIT_MASK(0, 7),  /* PAPR */
+    MAKE_64BIT_MASK(0, 8),  /* DAMODE */
+    MAKE_64BIT_MASK(0, 7),  /* PCICMD */
+    MAKE_64BIT_MASK(0, 9),  /* PCISTS */
+    MAKE_64BIT_MASK(0, 32), /* Undefined */
+    MAKE_64BIT_MASK(0, 8),  /* MLTIM */
+    MAKE_64BIT_MASK(0, 30), /* BRDG_FEAT */
+    MAKE_64BIT_MASK(0, 25), /* PCIROR */
+    MAKE_64BIT_MASK(0, 22), /* PCIWOR */
+    MAKE_64BIT_MASK(0, 9),  /* TLTIM */
 };
 
 typedef struct DinoState {
