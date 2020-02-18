@@ -83,7 +83,7 @@
 #define DINO_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(DinoState, (obj), TYPE_DINO_PCI_HOST_BRIDGE)
 
-#define DINO800_REGS ((DINO_TLTIM - DINO_GMASK) / 4)
+#define DINO800_REGS (1 + (DINO_TLTIM - DINO_GMASK) / 4)
 static const uint32_t reg800_keep_bits[DINO800_REGS] = {
     MAKE_64BIT_MASK(0, 1),  /* GMASK */
     MAKE_64BIT_MASK(0, 7),  /* PAMR */
@@ -96,6 +96,7 @@ static const uint32_t reg800_keep_bits[DINO800_REGS] = {
     MAKE_64BIT_MASK(0, 30), /* BRDG_FEAT */
     MAKE_64BIT_MASK(0, 25), /* PCIROR */
     MAKE_64BIT_MASK(0, 22), /* PCIWOR */
+    MAKE_64BIT_MASK(0, 32), /* Undocumented */
     MAKE_64BIT_MASK(0, 9),  /* TLTIM */
 };
 
