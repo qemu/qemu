@@ -282,6 +282,20 @@ static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
     return bdrv_recurse_is_first_non_filter(s->test_file->bs, candidate);
 }
 
+static bool blkverify_recurse_can_replace(BlockDriverState *bs,
+                                          BlockDriverState *to_replace)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+
+    /*
+     * blkverify quits the whole qemu process if there is a mismatch
+     * between bs->file->bs and s->test_file->bs.  Therefore, we know
+     * know that both must match bs and we can recurse down to either.
+     */
+    return bdrv_recurse_can_replace(bs->file->bs, to_replace) ||
+           bdrv_recurse_can_replace(s->test_file->bs, to_replace);
+}
+
 static void blkverify_refresh_filename(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
@@ -328,6 +342,7 @@ static BlockDriver bdrv_blkverify = {
 
     .is_filter                        = true,
     .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,
+    .bdrv_recurse_can_replace         = blkverify_recurse_can_replace,
 };
 
 static void bdrv_blkverify_init(void)
