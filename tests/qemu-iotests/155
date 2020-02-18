@@ -163,12 +163,7 @@ class MirrorBaseClass(BaseClass):
 
         self.assert_qmp(result, 'return', {})
 
-        self.vm.event_wait('BLOCK_JOB_READY')
-
-        result = self.vm.qmp('block-job-complete', device='mirror-job')
-        self.assert_qmp(result, 'return', {})
-
-        self.vm.event_wait('BLOCK_JOB_COMPLETED')
+        self.complete_and_wait('mirror-job')
 
     def testFull(self):
         self.runMirror('full')
