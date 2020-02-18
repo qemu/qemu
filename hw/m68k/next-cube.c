@@ -734,7 +734,7 @@ void next_irq(void *opaque, int number, int level)
     switch (number) {
     /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */
     case NEXT_FD_I:
-        shift = 7;;
+        shift = 7;
         break;
     case NEXT_KBD_I:
         shift = 3;
