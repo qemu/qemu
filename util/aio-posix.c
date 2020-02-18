@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block.h"
+#include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
@@ -513,6 +514,16 @@ static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
 {
     bool progress = false;
     AioHandler *node;
+
+    /*
+     * Optimization: ->io_poll() handlers often contain RCU read critical
+     * sections and we therefore see many rcu_read_lock() -> rcu_read_unlock()
+     * -> rcu_read_lock() -> ... sequences with expensive memory
+     * synchronization primitives.  Make the entire polling loop an RCU
+     * critical section because nested rcu_read_lock()/rcu_read_unlock() calls
+     * are cheap.
+     */
+    RCU_READ_LOCK_GUARD();
 
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         if (!node->deleted && node->io_poll &&
