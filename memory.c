@@ -794,9 +794,18 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     FlatView *view;
     FlatRange *fr;
     unsigned ioeventfd_nb = 0;
-    MemoryRegionIoeventfd *ioeventfds = NULL;
+    unsigned ioeventfd_max;
+    MemoryRegionIoeventfd *ioeventfds;
     AddrRange tmp;
     unsigned i;
+
+    /*
+     * It is likely that the number of ioeventfds hasn't changed much, so use
+     * the previous size as the starting value, with some headroom to avoid
+     * gratuitous reallocations.
+     */
+    ioeventfd_max = QEMU_ALIGN_UP(as->ioeventfd_nb, 4);
+    ioeventfds = g_new(MemoryRegionIoeventfd, ioeventfd_max);
 
     view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
@@ -806,8 +815,11 @@ static void address_space_update_ioeventfds(AddressSpace *as)
                                              int128_make64(fr->offset_in_region)));
             if (addrrange_intersects(fr->addr, tmp)) {
                 ++ioeventfd_nb;
-                ioeventfds = g_realloc(ioeventfds,
-                                          ioeventfd_nb * sizeof(*ioeventfds));
+                if (ioeventfd_nb > ioeventfd_max) {
+                    ioeventfd_max = MAX(ioeventfd_max * 2, 4);
+                    ioeventfds = g_realloc(ioeventfds,
+                            ioeventfd_max * sizeof(*ioeventfds));
+                }
                 ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
                 ioeventfds[ioeventfd_nb-1].addr = tmp;
             }
