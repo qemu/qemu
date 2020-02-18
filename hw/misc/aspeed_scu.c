@@ -232,8 +232,47 @@ static uint64_t aspeed_scu_read(void *opaque, hwaddr offset, unsigned size)
     return s->regs[reg];
 }
 
-static void aspeed_scu_write(void *opaque, hwaddr offset, uint64_t data,
-                             unsigned size)
+static void aspeed_ast2400_scu_write(void *opaque, hwaddr offset,
+                                     uint64_t data, unsigned size)
+{
+    AspeedSCUState *s = ASPEED_SCU(opaque);
+    int reg = TO_REG(offset);
+
+    if (reg >= ASPEED_SCU_NR_REGS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Out-of-bounds write at offset 0x%" HWADDR_PRIx "\n",
+                      __func__, offset);
+        return;
+    }
+
+    if (reg > PROT_KEY && reg < CPU2_BASE_SEG1 &&
+            !s->regs[PROT_KEY]) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: SCU is locked!\n", __func__);
+    }
+
+    trace_aspeed_scu_write(offset, size, data);
+
+    switch (reg) {
+    case PROT_KEY:
+        s->regs[reg] = (data == ASPEED_SCU_PROT_KEY) ? 1 : 0;
+        return;
+    case SILICON_REV:
+    case FREQ_CNTR_EVAL:
+    case VGA_SCRATCH1 ... VGA_SCRATCH8:
+    case RNG_DATA:
+    case FREE_CNTR4:
+    case FREE_CNTR4_EXT:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Write to read-only offset 0x%" HWADDR_PRIx "\n",
+                      __func__, offset);
+        return;
+    }
+
+    s->regs[reg] = data;
+}
+
+static void aspeed_ast2500_scu_write(void *opaque, hwaddr offset,
+                                     uint64_t data, unsigned size)
 {
     AspeedSCUState *s = ASPEED_SCU(opaque);
     int reg = TO_REG(offset);
@@ -257,25 +296,11 @@ static void aspeed_scu_write(void *opaque, hwaddr offset, uint64_t data,
     case PROT_KEY:
         s->regs[reg] = (data == ASPEED_SCU_PROT_KEY) ? 1 : 0;
         return;
-    case CLK_SEL:
-        s->regs[reg] = data;
-        break;
     case HW_STRAP1:
-        if (ASPEED_IS_AST2500(s->regs[SILICON_REV])) {
-            s->regs[HW_STRAP1] |= data;
-            return;
-        }
-        /* Jump to assignment below */
-        break;
+        s->regs[HW_STRAP1] |= data;
+        return;
     case SILICON_REV:
-        if (ASPEED_IS_AST2500(s->regs[SILICON_REV])) {
-            s->regs[HW_STRAP1] &= ~data;
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: Write to read-only offset 0x%" HWADDR_PRIx "\n",
-                          __func__, offset);
-        }
-        /* Avoid assignment below, we've handled everything */
+        s->regs[HW_STRAP1] &= ~data;
         return;
     case FREQ_CNTR_EVAL:
     case VGA_SCRATCH1 ... VGA_SCRATCH8:
@@ -291,9 +316,18 @@ static void aspeed_scu_write(void *opaque, hwaddr offset, uint64_t data,
     s->regs[reg] = data;
 }
 
-static const MemoryRegionOps aspeed_scu_ops = {
+static const MemoryRegionOps aspeed_ast2400_scu_ops = {
     .read = aspeed_scu_read,
-    .write = aspeed_scu_write,
+    .write = aspeed_ast2400_scu_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .valid.unaligned = false,
+};
+
+static const MemoryRegionOps aspeed_ast2500_scu_ops = {
+    .read = aspeed_scu_read,
+    .write = aspeed_ast2500_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
@@ -469,7 +503,7 @@ static void aspeed_2400_scu_class_init(ObjectClass *klass, void *data)
     asc->calc_hpll = aspeed_2400_scu_calc_hpll;
     asc->apb_divider = 2;
     asc->nr_regs = ASPEED_SCU_NR_REGS;
-    asc->ops = &aspeed_scu_ops;
+    asc->ops = &aspeed_ast2400_scu_ops;
 }
 
 static const TypeInfo aspeed_2400_scu_info = {
@@ -489,7 +523,7 @@ static void aspeed_2500_scu_class_init(ObjectClass *klass, void *data)
     asc->calc_hpll = aspeed_2500_scu_calc_hpll;
     asc->apb_divider = 4;
     asc->nr_regs = ASPEED_SCU_NR_REGS;
-    asc->ops = &aspeed_scu_ops;
+    asc->ops = &aspeed_ast2500_scu_ops;
 }
 
 static const TypeInfo aspeed_2500_scu_info = {
