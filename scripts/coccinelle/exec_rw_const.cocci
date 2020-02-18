@@ -35,6 +35,19 @@ expression E1, E2, E3, E4;
 + address_space_write(E1, E2, E3, V, E4)
 )
 
+// Avoid uses of address_space_rw() with a constant is_write argument.
+@@
+expression E1, E2, E3, E4, E5;
+symbol true, false;
+@@
+(
+- address_space_rw(E1, E2, E3, E4, E5, false)
++ address_space_read(E1, E2, E3, E4, E5)
+|
+- address_space_rw(E1, E2, E3, E4, E5, true)
++ address_space_write(E1, E2, E3, E4, E5)
+)
+
 // Remove useless cast
 @@
 expression E1, E2, E3, E4, E5, E6;
