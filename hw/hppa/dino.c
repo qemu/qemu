@@ -181,7 +181,9 @@ static bool dino_chip_mem_valid(void *opaque, hwaddr addr,
     case DINO_IO_ADDR_EN:
     case DINO_PCI_IO_DATA:
     case DINO_TOC_ADDR:
-    case DINO_GMASK ... DINO_TLTIM:
+    case DINO_GMASK ... DINO_PCISTS:
+    case DINO_MLTIM ... DINO_PCIWOR:
+    case DINO_TLTIM:
         ret = true;
         break;
     case DINO_PCI_IO_DATA + 2:
