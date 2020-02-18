@@ -6234,32 +6234,6 @@ bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
     return false;
 }
 
-/* This function checks if the candidate is the first non filter bs down it's
- * bs chain. Since we don't have pointers to parents it explore all bs chains
- * from the top. Some filters can choose not to pass down the recursion.
- */
-bool bdrv_is_first_non_filter(BlockDriverState *candidate)
-{
-    BlockDriverState *bs;
-    BdrvNextIterator it;
-
-    /* walk down the bs forest recursively */
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        bool perm;
-
-        /* try to recurse in this top level bs */
-        perm = bdrv_recurse_is_first_non_filter(bs, candidate);
-
-        /* candidate is the first non filter */
-        if (perm) {
-            bdrv_next_cleanup(&it);
-            return true;
-        }
-    }
-
-    return false;
-}
-
 BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp)
 {
