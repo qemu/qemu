@@ -118,13 +118,6 @@ static void cor_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 
-static bool cor_recurse_is_first_non_filter(BlockDriverState *bs,
-                                            BlockDriverState *candidate)
-{
-    return bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
-}
-
-
 static BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
 
@@ -142,8 +135,6 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_lock_medium                   = cor_lock_medium,
 
     .bdrv_co_block_status               = bdrv_co_block_status_from_file,
-
-    .bdrv_recurse_is_first_non_filter   = cor_recurse_is_first_non_filter,
 
     .has_variable_length                = true,
     .is_filter                          = true,

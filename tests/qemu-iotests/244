@@ -197,6 +197,20 @@ $QEMU_IO -c 'read -P 0x11 0 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=human "$TEST_IMG" | _filter_testdir
 $QEMU_IMG map --output=json "$TEST_IMG"
 
+echo
+echo "=== Copy offloading ==="
+echo
+
+# Make use of copy offloading if the test host can provide it
+_make_test_img -o "data_file=$TEST_IMG.data" 64M
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
+$QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
+
+# blkdebug doesn't support copy offloading, so this tests the error path
+$QEMU_IMG amend -f $IMGFMT -o "data_file=blkdebug::$TEST_IMG.data" "$TEST_IMG"
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
+$QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

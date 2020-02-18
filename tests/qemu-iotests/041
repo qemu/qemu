@@ -20,6 +20,7 @@
 
 import time
 import os
+import re
 import iotests
 from iotests import qemu_img, qemu_io
 
@@ -33,6 +34,8 @@ quorum_img2 = os.path.join(iotests.test_dir, 'quorum2.img')
 quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
 quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
 quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
+
+nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
 
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
@@ -80,7 +83,6 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.cancel_and_wait(force=True)
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
-        self.vm.shutdown()
 
     def test_cancel_after_ready(self):
         self.assert_no_active_block_jobs()
@@ -200,8 +202,6 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('query-blockstats')
         self.assert_qmp(result, 'return[0]/node-name', 'top')
         self.assert_qmp(result, 'return[0]/backing/node-name', 'base')
-
-        self.vm.shutdown()
 
     def test_medium_not_found(self):
         if iotests.qemu_default_machine != 'pc':
@@ -455,7 +455,6 @@ new_state = "1"
                     self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
-        self.vm.shutdown()
 
     def test_ignore_read(self):
         self.assert_no_active_block_jobs()
@@ -475,7 +474,6 @@ new_state = "1"
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/paused', False)
         self.complete_and_wait()
-        self.vm.shutdown()
 
     def test_large_cluster(self):
         self.assert_no_active_block_jobs()
@@ -540,7 +538,6 @@ new_state = "1"
 
         self.complete_and_wait(wait_ready=False)
         self.assert_no_active_block_jobs()
-        self.vm.shutdown()
 
 class TestWriteErrors(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
@@ -614,7 +611,6 @@ new_state = "1"
                     completed = True
 
         self.assert_no_active_block_jobs()
-        self.vm.shutdown()
 
     def test_ignore_write(self):
         self.assert_no_active_block_jobs()
@@ -631,7 +627,6 @@ new_state = "1"
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/paused', False)
         self.complete_and_wait()
-        self.vm.shutdown()
 
     def test_stop_write(self):
         self.assert_no_active_block_jobs()
@@ -667,7 +662,6 @@ new_state = "1"
 
         self.complete_and_wait(wait_ready=False)
         self.assert_no_active_block_jobs()
-        self.vm.shutdown()
 
 class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
@@ -881,11 +875,14 @@ class TestRepairQuorum(iotests.QMPTestCase):
         # Add each individual quorum images
         for i in self.IMAGES:
             qemu_img('create', '-f', iotests.imgfmt, i,
-                     str(TestSingleDrive.image_len))
+                     str(self.image_len))
             # Assign a node name to each quorum image in order to manipulate
             # them
             opts = "node-name=img%i" % self.IMAGES.index(i)
-            self.vm = self.vm.add_drive(i, opts)
+            opts += ',driver=%s' % iotests.imgfmt
+            opts += ',file.driver=file'
+            opts += ',file.filename=%s' % i
+            self.vm = self.vm.add_blockdev(opts)
 
         self.vm.launch()
 
@@ -898,7 +895,8 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file ]:
+        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file,
+                                 nbd_sock_path ]:
             # Do a try/except because the test may have deleted some images
             try:
                 os.remove(i)
@@ -915,8 +913,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
         self.complete_and_wait(drive="job0")
         self.assert_has_block_node("repair0", quorum_repair_img)
-        # TODO: a better test requiring some QEMU infrastructure will be added
-        #       to check that this file is really driven by quorum
+        self.vm.assert_block_path('quorum0', '/children.1', 'repair0')
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
                         'target image does not match source after mirroring')
@@ -933,7 +930,6 @@ class TestRepairQuorum(iotests.QMPTestCase):
         # here we check that the last registered quorum file has not been
         # swapped out and unref
         self.assert_has_block_node(None, quorum_img3)
-        self.vm.shutdown()
 
     def test_cancel_after_ready(self):
         self.assert_no_active_block_jobs()
@@ -1038,9 +1034,71 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
         self.complete_and_wait('job0')
         self.assert_has_block_node("repair0", quorum_repair_img)
-        # TODO: a better test requiring some QEMU infrastructure will be added
-        #       to check that this file is really driven by quorum
+        self.vm.assert_block_path('quorum0', '/children.1', 'repair0')
+
+    def test_with_other_parent(self):
+        """
+        Check that we cannot replace a Quorum child when it has other
+        parents.
+        """
+        result = self.vm.qmp('nbd-server-start',
+                             addr={
+                                 'type': 'unix',
+                                 'data': {'path': nbd_sock_path}
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('nbd-server-add', device='img1')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
+                             sync='full', node_name='repair0', replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'error/desc',
+                        "Cannot replace 'img1' by a node mirrored from "
+                        "'quorum0', because it cannot be guaranteed that doing "
+                        "so would not lead to an abrupt change of visible data")
+
+    def test_with_other_parents_after_mirror_start(self):
+        """
+        The same as test_with_other_parent(), but add the NBD server
+        only when the mirror job is already running.
+        """
+        result = self.vm.qmp('nbd-server-start',
+                             addr={
+                                 'type': 'unix',
+                                 'data': {'path': nbd_sock_path}
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('drive-mirror', job_id='mirror', device='quorum0',
+                             sync='full', node_name='repair0', replaces='img1',
+                             target=quorum_repair_img, format=iotests.imgfmt)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('nbd-server-add', device='img1')
+        self.assert_qmp(result, 'return', {})
+
+        # The full error message goes to stderr, we will check it later
+        self.complete_and_wait('mirror',
+                               completion_error='Operation not permitted')
+
+        # Should not have been replaced
+        self.vm.assert_block_path('quorum0', '/children.1', 'img1')
+
+        # Check the full error message now
         self.vm.shutdown()
+        log = self.vm.get_log()
+        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = re.sub(r'^Formatting.*\n', '', log)
+        log = re.sub(r'\n\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        log = re.sub(r'^%s: ' % os.path.basename(iotests.qemu_prog), '', log)
+
+        self.assertEqual(log,
+                         "Can no longer replace 'img1' by 'repair0', because " +
+                         "it can no longer be guaranteed that doing so would " +
+                         "not lead to an abrupt change of visible data")
+
 
 # Test mirroring with a source that does not have any parents (not even a
 # BlockBackend)
@@ -1131,6 +1189,52 @@ class TestOrphanedSource(iotests.QMPTestCase):
             self.assertTrue(expect in nodes, '%s disappeared' % expect)
         self.assertFalse('mirror-filter' in nodes,
                          'Mirror filter node did not disappear')
+
+# Test cases for @replaces that do not necessarily involve Quorum
+class TestReplaces(iotests.QMPTestCase):
+    # Each of these test cases needs their own block graph, so do not
+    # create any nodes here
+    def setUp(self):
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for img in (test_img, target_img):
+            try:
+                os.remove(img)
+            except OSError:
+                pass
+
+    @iotests.skip_if_unsupported(['copy-on-read'])
+    def test_replace_filter(self):
+        """
+        Check that we can replace filter nodes.
+        """
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': 'copy-on-read',
+                                 'node-name': 'filter0',
+                                 'file': {
+                                     'driver': 'copy-on-read',
+                                     'node-name': 'filter1',
+                                     'file': {
+                                         'driver': 'null-co'
+                                     }
+                                 }
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add',
+                             node_name='target', driver='null-co')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-mirror', job_id='mirror', device='filter0',
+                             target='target', sync='full', replaces='filter1')
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait('mirror')
+
+        self.vm.assert_block_path('filter0', '/file', 'target')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],

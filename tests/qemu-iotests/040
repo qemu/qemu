@@ -430,6 +430,289 @@ class TestReopenOverlay(ImageCommitTestCase):
     def test_reopen_overlay(self):
         self.run_commit_test(self.img1, self.img0)
 
+class TestErrorHandling(iotests.QMPTestCase):
+    image_len = 2 * 1024 * 1024
+
+    def setUp(self):
+        iotests.create_image(backing_img, self.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x11 0 512k', mid_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x22 0 512k', test_img)
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        self.blkdebug_file = iotests.file_path("blkdebug.conf")
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(mid_img)
+        os.remove(backing_img)
+
+    def blockdev_add(self, **kwargs):
+        result = self.vm.qmp('blockdev-add', **kwargs)
+        self.assert_qmp(result, 'return', {})
+
+    def add_block_nodes(self, base_debug=None, mid_debug=None, top_debug=None):
+        self.blockdev_add(node_name='base-file', driver='file',
+                          filename=backing_img)
+        self.blockdev_add(node_name='mid-file', driver='file',
+                          filename=mid_img)
+        self.blockdev_add(node_name='top-file', driver='file',
+                          filename=test_img)
+
+        if base_debug:
+            self.blockdev_add(node_name='base-dbg', driver='blkdebug',
+                              image='base-file', inject_error=base_debug)
+        if mid_debug:
+            self.blockdev_add(node_name='mid-dbg', driver='blkdebug',
+                              image='mid-file', inject_error=mid_debug)
+        if top_debug:
+            self.blockdev_add(node_name='top-dbg', driver='blkdebug',
+                              image='top-file', inject_error=top_debug)
+
+        self.blockdev_add(node_name='base-fmt', driver='raw',
+                          file=('base-dbg' if base_debug else 'base-file'))
+        self.blockdev_add(node_name='mid-fmt', driver=iotests.imgfmt,
+                          file=('mid-dbg' if mid_debug else 'mid-file'),
+                          backing='base-fmt')
+        self.blockdev_add(node_name='top-fmt', driver=iotests.imgfmt,
+                          file=('top-dbg' if top_debug else 'top-file'),
+                          backing='mid-fmt')
+
+    def run_job(self, expected_events, error_pauses_job=False):
+        match_device = {'data': {'device': 'job0'}}
+        events = [
+            ('BLOCK_JOB_COMPLETED', match_device),
+            ('BLOCK_JOB_CANCELLED', match_device),
+            ('BLOCK_JOB_ERROR', match_device),
+            ('BLOCK_JOB_READY', match_device),
+        ]
+
+        completed = False
+        log = []
+        while not completed:
+            ev = self.vm.events_wait(events, timeout=5.0)
+            if ev['event'] == 'BLOCK_JOB_COMPLETED':
+                completed = True
+            elif ev['event'] == 'BLOCK_JOB_ERROR':
+                if error_pauses_job:
+                    result = self.vm.qmp('block-job-resume', device='job0')
+                    self.assert_qmp(result, 'return', {})
+            elif ev['event'] == 'BLOCK_JOB_READY':
+                result = self.vm.qmp('block-job-complete', device='job0')
+                self.assert_qmp(result, 'return', {})
+            else:
+                self.fail("Unexpected event: %s" % ev)
+            log.append(iotests.filter_qmp_event(ev))
+
+        self.maxDiff = None
+        self.assertEqual(expected_events, log)
+
+    def event_error(self, op, action):
+        return {
+            'event': 'BLOCK_JOB_ERROR',
+            'data': {'action': action, 'device': 'job0', 'operation': op},
+            'timestamp': {'microseconds': 'USECS', 'seconds': 'SECS'}
+        }
+
+    def event_ready(self):
+        return {
+            'event': 'BLOCK_JOB_READY',
+            'data': {'device': 'job0',
+                     'len': 524288,
+                     'offset': 524288,
+                     'speed': 0,
+                     'type': 'commit'},
+            'timestamp': {'microseconds': 'USECS', 'seconds': 'SECS'},
+        }
+
+    def event_completed(self, errmsg=None, active=True):
+        max_len = 524288 if active else self.image_len
+        data = {
+            'device': 'job0',
+            'len': max_len,
+            'offset': 0 if errmsg else max_len,
+            'speed': 0,
+            'type': 'commit'
+        }
+        if errmsg:
+            data['error'] = errmsg
+
+        return {
+            'event': 'BLOCK_JOB_COMPLETED',
+            'data': data,
+            'timestamp': {'microseconds': 'USECS', 'seconds': 'SECS'},
+        }
+
+    def blkdebug_event(self, event, is_raw=False):
+        if event:
+            return [{
+                'event': event,
+                'sector': 512 if is_raw else 1024,
+                'once': True,
+            }]
+        return None
+
+    def prepare_and_start_job(self, on_error, active=True,
+                              top_event=None, mid_event=None, base_event=None):
+
+        top_debug = self.blkdebug_event(top_event)
+        mid_debug = self.blkdebug_event(mid_event)
+        base_debug = self.blkdebug_event(base_event, True)
+
+        self.add_block_nodes(top_debug=top_debug, mid_debug=mid_debug,
+                             base_debug=base_debug)
+
+        result = self.vm.qmp('block-commit', job_id='job0', device='top-fmt',
+                             top_node='top-fmt' if active else 'mid-fmt',
+                             base_node='mid-fmt' if active else 'base-fmt',
+                             on_error=on_error)
+        self.assert_qmp(result, 'return', {})
+
+    def testActiveReadErrorReport(self):
+        self.prepare_and_start_job('report', top_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'report'),
+            self.event_completed('Input/output error')
+        ])
+
+        self.vm.shutdown()
+        self.assertFalse(iotests.compare_images(test_img, mid_img),
+                         'target image matches source after error')
+
+    def testActiveReadErrorStop(self):
+        self.prepare_and_start_job('stop', top_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'stop'),
+            self.event_ready(),
+            self.event_completed()
+        ], error_pauses_job=True)
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, mid_img),
+                        'target image does not match source after commit')
+
+    def testActiveReadErrorIgnore(self):
+        self.prepare_and_start_job('ignore', top_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'ignore'),
+            self.event_ready(),
+            self.event_completed()
+        ])
+
+        # For commit, 'ignore' actually means retry, so this will succeed
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, mid_img),
+                        'target image does not match source after commit')
+
+    def testActiveWriteErrorReport(self):
+        self.prepare_and_start_job('report', mid_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'report'),
+            self.event_completed('Input/output error')
+        ])
+
+        self.vm.shutdown()
+        self.assertFalse(iotests.compare_images(test_img, mid_img),
+                         'target image matches source after error')
+
+    def testActiveWriteErrorStop(self):
+        self.prepare_and_start_job('stop', mid_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'stop'),
+            self.event_ready(),
+            self.event_completed()
+        ], error_pauses_job=True)
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, mid_img),
+                        'target image does not match source after commit')
+
+    def testActiveWriteErrorIgnore(self):
+        self.prepare_and_start_job('ignore', mid_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'ignore'),
+            self.event_ready(),
+            self.event_completed()
+        ])
+
+        # For commit, 'ignore' actually means retry, so this will succeed
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, mid_img),
+                        'target image does not match source after commit')
+
+    def testIntermediateReadErrorReport(self):
+        self.prepare_and_start_job('report', active=False, mid_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'report'),
+            self.event_completed('Input/output error', active=False)
+        ])
+
+        self.vm.shutdown()
+        self.assertFalse(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                         'target image matches source after error')
+
+    def testIntermediateReadErrorStop(self):
+        self.prepare_and_start_job('stop', active=False, mid_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'stop'),
+            self.event_completed(active=False)
+        ], error_pauses_job=True)
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                        'target image does not match source after commit')
+
+    def testIntermediateReadErrorIgnore(self):
+        self.prepare_and_start_job('ignore', active=False, mid_event='read_aio')
+        self.run_job([
+            self.event_error('read', 'ignore'),
+            self.event_completed(active=False)
+        ])
+
+        # For commit, 'ignore' actually means retry, so this will succeed
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                        'target image does not match source after commit')
+
+    def testIntermediateWriteErrorReport(self):
+        self.prepare_and_start_job('report', active=False, base_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'report'),
+            self.event_completed('Input/output error', active=False)
+        ])
+
+        self.vm.shutdown()
+        self.assertFalse(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                         'target image matches source after error')
+
+    def testIntermediateWriteErrorStop(self):
+        self.prepare_and_start_job('stop', active=False, base_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'stop'),
+            self.event_completed(active=False)
+        ], error_pauses_job=True)
+
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                        'target image does not match source after commit')
+
+    def testIntermediateWriteErrorIgnore(self):
+        self.prepare_and_start_job('ignore', active=False, base_event='write_aio')
+        self.run_job([
+            self.event_error('write', 'ignore'),
+            self.event_completed(active=False)
+        ])
+
+        # For commit, 'ignore' actually means retry, so this will succeed
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(mid_img, backing_img, fmt2='raw'),
+                        'target image does not match source after commit')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
                  supported_protocols=['file'])

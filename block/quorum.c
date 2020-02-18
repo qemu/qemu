@@ -796,17 +796,53 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     return result;
 }
 
-static bool quorum_recurse_is_first_non_filter(BlockDriverState *bs,
-                                               BlockDriverState *candidate)
+static bool quorum_recurse_can_replace(BlockDriverState *bs,
+                                       BlockDriverState *to_replace)
 {
     BDRVQuorumState *s = bs->opaque;
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        bool perm = bdrv_recurse_is_first_non_filter(s->children[i]->bs,
-                                                     candidate);
-        if (perm) {
-            return true;
+        /*
+         * We have no idea whether our children show the same data as
+         * this node (@bs).  It is actually highly likely that
+         * @to_replace does not, because replacing a broken child is
+         * one of the main use cases here.
+         *
+         * We do know that the new BDS will match @bs, so replacing
+         * any of our children by it will be safe.  It cannot change
+         * the data this quorum node presents to its parents.
+         *
+         * However, replacing @to_replace by @bs in any of our
+         * children's chains may change visible data somewhere in
+         * there.  We therefore cannot recurse down those chains with
+         * bdrv_recurse_can_replace().
+         * (More formally, bdrv_recurse_can_replace() requires that
+         * @to_replace will be replaced by something matching the @bs
+         * passed to it.  We cannot guarantee that.)
+         *
+         * Thus, we can only check whether any of our immediate
+         * children matches @to_replace.
+         *
+         * (In the future, we might add a function to recurse down a
+         * chain that checks that nothing there cares about a change
+         * in data from the respective child in question.  For
+         * example, most filters do not care when their child's data
+         * suddenly changes, as long as their parents do not care.)
+         */
+        if (s->children[i]->bs == to_replace) {
+            /*
+             * We now have to ensure that there is no other parent
+             * that cares about replacing this child by a node with
+             * potentially different data.
+             * We do so by checking whether there are any other parents
+             * at all, which is stricter than necessary, but also very
+             * simple.  (We may decide to implement something more
+             * complex and permissive when there is an actual need for
+             * it.)
+             */
+            return QLIST_FIRST(&to_replace->parents) == s->children[i] &&
+                QLIST_NEXT(s->children[i], next_parent) == NULL;
         }
     }
 
@@ -1114,6 +1150,23 @@ static char *quorum_dirname(BlockDriverState *bs, Error **errp)
     return NULL;
 }
 
+static void quorum_child_perm(BlockDriverState *bs, BdrvChild *c,
+                              const BdrvChildRole *role,
+                              BlockReopenQueue *reopen_queue,
+                              uint64_t perm, uint64_t shared,
+                              uint64_t *nperm, uint64_t *nshared)
+{
+    *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
+
+    /*
+     * We cannot share RESIZE or WRITE, as this would make the
+     * children differ from each other.
+     */
+    *nshared = (shared & (BLK_PERM_CONSISTENT_READ |
+                          BLK_PERM_WRITE_UNCHANGED))
+             | DEFAULT_PERM_UNCHANGED;
+}
+
 static const char *const quorum_strong_runtime_opts[] = {
     QUORUM_OPT_VOTE_THRESHOLD,
     QUORUM_OPT_BLKVERIFY,
@@ -1143,10 +1196,9 @@ static BlockDriver bdrv_quorum = {
     .bdrv_add_child                     = quorum_add_child,
     .bdrv_del_child                     = quorum_del_child,
 
-    .bdrv_child_perm                    = bdrv_filter_default_perms,
+    .bdrv_child_perm                    = quorum_child_perm,
 
-    .is_filter                          = true,
-    .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
+    .bdrv_recurse_can_replace           = quorum_recurse_can_replace,
 
     .strong_runtime_opts                = quorum_strong_runtime_opts,
 };

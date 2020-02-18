@@ -187,7 +187,7 @@ static void luring_process_completions(LuringState *s)
                     ret = 0;
                 }
             } else {
-                ret = -ENOSPC;;
+                ret = -ENOSPC;
             }
         }
 end:

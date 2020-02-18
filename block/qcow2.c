@@ -2068,8 +2068,6 @@ qcow2_co_preadv_encrypted(BlockDriverState *bs,
         goto fail;
     }
 
-    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
     if (qcow2_co_decrypt(bs,
                          file_cluster_offset + offset_into_cluster(s, offset),
                          offset, buf, bytes) < 0)

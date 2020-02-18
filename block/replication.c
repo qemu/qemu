@@ -306,12 +306,6 @@ out:
     return ret;
 }
 
-static bool replication_recurse_is_first_non_filter(BlockDriverState *bs,
-                                                    BlockDriverState *candidate)
-{
-    return bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
-}
-
 static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
 {
     Error *local_err = NULL;
@@ -699,7 +693,6 @@ static BlockDriver bdrv_replication = {
     .bdrv_co_writev             = replication_co_writev,
 
     .is_filter                  = true,
-    .bdrv_recurse_is_first_non_filter = replication_recurse_is_first_non_filter,
 
     .has_variable_length        = true,
     .strong_runtime_opts        = replication_strong_runtime_opts,

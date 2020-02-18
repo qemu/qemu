@@ -1592,11 +1592,6 @@ static void external_snapshot_prepare(BlkActionState *common,
         }
     }
 
-    if (!bdrv_is_first_non_filter(state->old_bs)) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "snapshot");
-        goto out;
-    }
-
     if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
         BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
         const char *format = s->has_format ? s->format : "qcow2";
@@ -3336,11 +3331,6 @@ void qmp_block_resize(bool has_device, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!bdrv_is_first_non_filter(bs)) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "resize");
-        goto out;
-    }
-
     if (size < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         goto out;
@@ -3471,6 +3461,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
+                      bool has_on_error, BlockdevOnError on_error,
                       bool has_filter_node_name, const char *filter_node_name,
                       bool has_auto_finalize, bool auto_finalize,
                       bool has_auto_dismiss, bool auto_dismiss,
@@ -3481,14 +3472,13 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
     Error *local_err = NULL;
-    /* This will be part of the QMP command, if/when the
-     * BlockdevOnError change for blkmirror makes it in
-     */
-    BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
     int job_flags = JOB_DEFAULT;
 
     if (!has_speed) {
         speed = 0;
+    }
+    if (!has_on_error) {
+        on_error = BLOCKDEV_ON_ERROR_REPORT;
     }
     if (!has_filter_node_name) {
         filter_node_name = NULL;

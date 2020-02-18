@@ -103,6 +103,7 @@ struct MirrorOp {
     bool is_pseudo_op;
     bool is_active_write;
     CoQueue waiting_requests;
+    Coroutine *co;
 
     QTAILQ_ENTRY(MirrorOp) next;
 };
@@ -282,11 +283,14 @@ static int mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
 }
 
 static inline void coroutine_fn
-mirror_wait_for_any_operation(MirrorBlockJob *s, bool active)
+mirror_wait_for_any_operation(MirrorBlockJob *s, MirrorOp *self, bool active)
 {
     MirrorOp *op;
 
     QTAILQ_FOREACH(op, &s->ops_in_flight, next) {
+        if (self == op) {
+            continue;
+        }
         /* Do not wait on pseudo ops, because it may in turn wait on
          * some other operation to start, which may in fact be the
          * caller of this function.  Since there is only one pseudo op
@@ -301,10 +305,10 @@ mirror_wait_for_any_operation(MirrorBlockJob *s, bool active)
 }
 
 static inline void coroutine_fn
-mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s)
+mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s, MirrorOp *self)
 {
     /* Only non-active operations use up in-flight slots */
-    mirror_wait_for_any_operation(s, false);
+    mirror_wait_for_any_operation(s, self, false);
 }
 
 /* Perform a mirror copy operation.
@@ -347,7 +351,7 @@ static void coroutine_fn mirror_co_read(void *opaque)
 
     while (s->buf_free_count < nb_chunks) {
         trace_mirror_yield_in_flight(s, op->offset, s->in_flight);
-        mirror_wait_for_free_in_flight_slot(s);
+        mirror_wait_for_free_in_flight_slot(s, op);
     }
 
     /* Now make a QEMUIOVector taking enough granularity-sized chunks
@@ -429,6 +433,7 @@ static unsigned mirror_perform(MirrorBlockJob *s, int64_t offset,
     default:
         abort();
     }
+    op->co = co;
 
     QTAILQ_INSERT_TAIL(&s->ops_in_flight, op, next);
     qemu_coroutine_enter(co);
@@ -553,7 +558,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
         while (s->in_flight >= MAX_IN_FLIGHT) {
             trace_mirror_yield_in_flight(s, offset, s->in_flight);
-            mirror_wait_for_free_in_flight_slot(s);
+            mirror_wait_for_free_in_flight_slot(s, pseudo_op);
         }
 
         if (s->ret < 0) {
@@ -607,7 +612,7 @@ static void mirror_free_init(MirrorBlockJob *s)
 static void coroutine_fn mirror_wait_for_all_io(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
-        mirror_wait_for_free_in_flight_slot(s);
+        mirror_wait_for_free_in_flight_slot(s, NULL);
     }
 }
 
@@ -695,7 +700,19 @@ static int mirror_exit_common(Job *job)
          * drain potential other users of the BDS before changing the graph. */
         assert(s->in_drain);
         bdrv_drained_begin(target_bs);
-        bdrv_replace_node(to_replace, target_bs, &local_err);
+        /*
+         * Cannot use check_to_replace_node() here, because that would
+         * check for an op blocker on @to_replace, and we have our own
+         * there.
+         */
+        if (bdrv_recurse_can_replace(src, to_replace)) {
+            bdrv_replace_node(to_replace, target_bs, &local_err);
+        } else {
+            error_setg(&local_err, "Can no longer replace '%s' by '%s', "
+                       "because it can no longer be guaranteed that doing so "
+                       "would not lead to an abrupt change of visible data",
+                       to_replace->node_name, target_bs->node_name);
+        }
         bdrv_drained_end(target_bs);
         if (local_err) {
             error_report_err(local_err);
@@ -792,7 +809,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             if (s->in_flight >= MAX_IN_FLIGHT) {
                 trace_mirror_yield(s, UINT64_MAX, s->buf_free_count,
                                    s->in_flight);
-                mirror_wait_for_free_in_flight_slot(s);
+                mirror_wait_for_free_in_flight_slot(s, NULL);
                 continue;
             }
 
@@ -945,7 +962,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         /* Do not start passive operations while there are active
          * writes in progress */
         while (s->in_active_write_counter) {
-            mirror_wait_for_any_operation(s, true);
+            mirror_wait_for_any_operation(s, NULL, true);
         }
 
         if (s->ret < 0) {
@@ -971,7 +988,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, cnt, s->buf_free_count, s->in_flight);
-                mirror_wait_for_free_in_flight_slot(s);
+                mirror_wait_for_free_in_flight_slot(s, NULL);
                 continue;
             } else if (cnt != 0) {
                 delay_ns = mirror_iteration(s);

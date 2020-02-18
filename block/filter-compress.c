@@ -128,13 +128,6 @@ static void compress_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 
-static bool compress_recurse_is_first_non_filter(BlockDriverState *bs,
-                                                 BlockDriverState *candidate)
-{
-    return bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
-}
-
-
 static BlockDriver bdrv_compress = {
     .format_name                        = "compress",
 
@@ -153,8 +146,6 @@ static BlockDriver bdrv_compress = {
     .bdrv_lock_medium                   = compress_lock_medium,
 
     .bdrv_co_block_status               = bdrv_co_block_status_from_file,
-
-    .bdrv_recurse_is_first_non_filter   = compress_recurse_is_first_non_filter,
 
     .has_variable_length                = true,
     .is_filter                          = true,
