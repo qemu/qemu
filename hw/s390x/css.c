@@ -875,7 +875,7 @@ static inline int ida_read_next_idaw(CcwDataStream *cds)
             return -EINVAL; /* channel program check */
         }
         ret = address_space_rw(&address_space_memory, idaw_addr,
-                               MEMTXATTRS_UNSPECIFIED, (void *) &idaw.fmt2,
+                               MEMTXATTRS_UNSPECIFIED, &idaw.fmt2,
                                sizeof(idaw.fmt2), false);
         cds->cda = be64_to_cpu(idaw.fmt2);
     } else {
@@ -884,7 +884,7 @@ static inline int ida_read_next_idaw(CcwDataStream *cds)
             return -EINVAL; /* channel program check */
         }
         ret = address_space_rw(&address_space_memory, idaw_addr,
-                               MEMTXATTRS_UNSPECIFIED, (void *) &idaw.fmt1,
+                               MEMTXATTRS_UNSPECIFIED, &idaw.fmt1,
                                sizeof(idaw.fmt1), false);
         cds->cda = be64_to_cpu(idaw.fmt1);
         if (cds->cda & 0x80000000) {

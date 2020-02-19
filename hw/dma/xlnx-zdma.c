@@ -364,7 +364,7 @@ static uint64_t zdma_update_descr_addr(XlnxZDMA *s, bool type,
     } else {
         addr = zdma_get_regaddr64(s, basereg);
         addr += sizeof(s->dsc_dst);
-        address_space_rw(s->dma_as, addr, s->attr, (void *) &next, 8, false);
+        address_space_rw(s->dma_as, addr, s->attr, &next, 8, false);
         zdma_put_regaddr64(s, basereg, next);
     }
     return next;

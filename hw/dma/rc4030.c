@@ -513,8 +513,8 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     if (i < s->dma_tl_limit / sizeof(entry)) {
         entry_address = (s->dma_tl_base & 0x7fffffff) + i * sizeof(entry);
         if (address_space_read(ret.target_as, entry_address,
-                               MEMTXATTRS_UNSPECIFIED, (unsigned char *)&entry,
-                               sizeof(entry)) == MEMTX_OK) {
+                               MEMTXATTRS_UNSPECIFIED, &entry, sizeof(entry))
+                == MEMTX_OK) {
             ret.translated_addr = entry.frame & ~(DMA_PAGESIZE - 1);
             ret.perm = IOMMU_RW;
         }

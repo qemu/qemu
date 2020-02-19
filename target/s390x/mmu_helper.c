@@ -106,7 +106,7 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
      * We treat them as absolute addresses and don't wrap them.
      */
     if (unlikely(address_space_read(cs->as, gaddr, MEMTXATTRS_UNSPECIFIED,
-                                    (uint8_t *)entry, sizeof(*entry)) !=
+                                    entry, sizeof(*entry)) !=
                  MEMTX_OK)) {
         return false;
     }

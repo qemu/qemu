@@ -327,8 +327,7 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
 
         cmdline_size = strlen(info->kernel_cmdline);
         address_space_write(as, p + 8, MEMTXATTRS_UNSPECIFIED,
-                            (const uint8_t *)info->kernel_cmdline,
-                            cmdline_size + 1);
+                            info->kernel_cmdline, cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
         WRITE_WORD(p, cmdline_size + 2);
         WRITE_WORD(p, 0x54410009);
@@ -420,8 +419,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info,
     }
     s = info->kernel_cmdline;
     if (s) {
-        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
-                            (const uint8_t *)s, strlen(s) + 1);
+        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED, s, strlen(s) + 1);
     } else {
         WRITE_WORD(p, 0);
     }
