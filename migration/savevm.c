@@ -665,6 +665,7 @@ void dump_vmstate_json_to_file(FILE *out_file)
     }
     fprintf(out_file, "\n}\n");
     fclose(out_file);
+    g_slist_free(list);
 }
 
 static uint32_t calculate_new_instance_id(const char *idstr)
