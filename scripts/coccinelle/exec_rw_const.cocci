@@ -19,6 +19,20 @@ expression E1, E2, E3, E4, E5;
 |
 - address_space_rw(E1, E2, E3, E4, E5, 1)
 + address_space_rw(E1, E2, E3, E4, E5, true)
+|
+
+- cpu_physical_memory_rw(E1, E2, E3, 0)
++ cpu_physical_memory_rw(E1, E2, E3, false)
+|
+- cpu_physical_memory_rw(E1, E2, E3, 1)
++ cpu_physical_memory_rw(E1, E2, E3, true)
+|
+
+- cpu_physical_memory_map(E1, E2, 0)
++ cpu_physical_memory_map(E1, E2, false)
+|
+- cpu_physical_memory_map(E1, E2, 1)
++ cpu_physical_memory_map(E1, E2, true)
 )
 
 // Use address_space_write instead of casting to non-const

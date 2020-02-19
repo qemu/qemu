@@ -218,7 +218,7 @@ static void tmu2_start(MilkymistTMU2State *s)
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     fb_len = 2ULL * s->regs[R_TEXHRES] * s->regs[R_TEXVRES];
-    fb = cpu_physical_memory_map(s->regs[R_TEXFBUF], &fb_len, 0);
+    fb = cpu_physical_memory_map(s->regs[R_TEXFBUF], &fb_len, false);
     if (fb == NULL) {
         glDeleteTextures(1, &texture);
         glXMakeContextCurrent(s->dpy, None, None, NULL);
@@ -262,7 +262,7 @@ static void tmu2_start(MilkymistTMU2State *s)
 
     /* Read the QEMU dest. framebuffer into the OpenGL framebuffer */
     fb_len = 2ULL * s->regs[R_DSTHRES] * s->regs[R_DSTVRES];
-    fb = cpu_physical_memory_map(s->regs[R_DSTFBUF], &fb_len, 0);
+    fb = cpu_physical_memory_map(s->regs[R_DSTFBUF], &fb_len, false);
     if (fb == NULL) {
         glDeleteTextures(1, &texture);
         glXMakeContextCurrent(s->dpy, None, None, NULL);
@@ -281,7 +281,7 @@ static void tmu2_start(MilkymistTMU2State *s)
 
     /* Map the texture */
     mesh_len = MESH_MAXSIZE*MESH_MAXSIZE*sizeof(struct vertex);
-    mesh = cpu_physical_memory_map(s->regs[R_VERTICESADDR], &mesh_len, 0);
+    mesh = cpu_physical_memory_map(s->regs[R_VERTICESADDR], &mesh_len, false);
     if (mesh == NULL) {
         glDeleteTextures(1, &texture);
         glXMakeContextCurrent(s->dpy, None, None, NULL);
@@ -298,7 +298,7 @@ static void tmu2_start(MilkymistTMU2State *s)
 
     /* Write back the OpenGL framebuffer to the QEMU framebuffer */
     fb_len = 2ULL * s->regs[R_DSTHRES] * s->regs[R_DSTVRES];
-    fb = cpu_physical_memory_map(s->regs[R_DSTFBUF], &fb_len, 1);
+    fb = cpu_physical_memory_map(s->regs[R_DSTFBUF], &fb_len, true);
     if (fb == NULL) {
         glDeleteTextures(1, &texture);
         glXMakeContextCurrent(s->dpy, None, None, NULL);

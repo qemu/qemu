@@ -376,8 +376,8 @@ static int hax_handle_fastmmio(CPUArchState *env, struct hax_fastmmio *hft)
          *  hft->direction == 2: gpa ==> gpa2
          */
         uint64_t value;
-        cpu_physical_memory_rw(hft->gpa, &value, hft->size, 0);
-        cpu_physical_memory_rw(hft->gpa2, &value, hft->size, 1);
+        cpu_physical_memory_rw(hft->gpa, &value, hft->size, false);
+        cpu_physical_memory_rw(hft->gpa2, &value, hft->size, true);
     }
 
     return 0;

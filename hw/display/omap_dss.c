@@ -632,7 +632,7 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     len = s->rfbi.pixels * 2;
 
     data_addr = s->dispc.l[0].addr[0];
-    data = cpu_physical_memory_map(data_addr, &len, 0);
+    data = cpu_physical_memory_map(data_addr, &len, false);
     if (data && len != s->rfbi.pixels * 2) {
         cpu_physical_memory_unmap(data, len, 0, 0);
         data = NULL;

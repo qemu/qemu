@@ -74,12 +74,12 @@ void cpu_physical_memory_rw(hwaddr addr, void *buf,
 static inline void cpu_physical_memory_read(hwaddr addr,
                                             void *buf, hwaddr len)
 {
-    cpu_physical_memory_rw(addr, buf, len, 0);
+    cpu_physical_memory_rw(addr, buf, len, false);
 }
 static inline void cpu_physical_memory_write(hwaddr addr,
                                              const void *buf, hwaddr len)
 {
-    cpu_physical_memory_rw(addr, (void *)buf, len, 1);
+    cpu_physical_memory_rw(addr, (void *)buf, len, true);
 }
 void *cpu_physical_memory_map(hwaddr addr,
                               hwaddr *plen,
