@@ -1801,8 +1801,6 @@ static void *file_ram_alloc(RAMBlock *block,
                             bool truncate,
                             Error **errp)
 {
-    Error *err = NULL;
-    MachineState *ms = MACHINE(qdev_get_machine());
     void *area;
 
     block->page_size = qemu_fd_getpagesize(fd);
@@ -1856,15 +1854,6 @@ static void *file_ram_alloc(RAMBlock *block,
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
         return NULL;
-    }
-
-    if (mem_prealloc) {
-        os_mem_prealloc(fd, area, memory, ms->smp.cpus, &err);
-        if (err) {
-            error_propagate(errp, err);
-            qemu_ram_munmap(fd, area, memory);
-            return NULL;
-        }
     }
 
     block->fd = fd;

@@ -215,7 +215,7 @@ static bool host_memory_backend_get_prealloc(Object *obj, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
-    return backend->prealloc || backend->force_prealloc;
+    return backend->prealloc;
 }
 
 static void host_memory_backend_set_prealloc(Object *obj, bool value,
@@ -223,14 +223,6 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
 {
     Error *local_err = NULL;
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-
-    if (backend->force_prealloc) {
-        if (value) {
-            error_setg(errp,
-                       "remove -mem-prealloc to use the prealloc property");
-            return;
-        }
-    }
 
     if (!host_memory_backend_mr_inited(backend)) {
         backend->prealloc = value;
@@ -288,8 +280,6 @@ static void host_memory_backend_init(Object *obj)
     /* TODO: convert access to globals to compat properties */
     backend->merge = machine_mem_merge(machine);
     backend->dump = machine_dump_guest_core(machine);
-    backend->prealloc = mem_prealloc;
-    backend->prealloc_threads = 1;
 }
 
 static void host_memory_backend_post_init(Object *obj)

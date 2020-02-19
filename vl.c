@@ -140,7 +140,6 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
-int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
 int nb_nics;
@@ -2883,6 +2882,7 @@ int main(int argc, char **argv, char **envp)
     const char *mem_path = NULL;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
     QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
+    int mem_prealloc = 0; /* force preallocation of physical target memory */
 
     os_set_line_buffering();
 
@@ -3984,6 +3984,7 @@ int main(int argc, char **argv, char **envp)
         val = g_strdup_printf("%d", current_machine->smp.cpus);
         object_register_sugar_prop("memory-backend", "prealloc-threads", val);
         g_free(val);
+        object_register_sugar_prop("memory-backend", "prealloc", "on");
     }
 
     /*
