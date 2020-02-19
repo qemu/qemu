@@ -2828,8 +2828,7 @@ static void configure_accelerators(const char *progname)
     }
 }
 
-static void create_default_memdev(MachineState *ms, const char *path,
-                                  bool prealloc)
+static void create_default_memdev(MachineState *ms, const char *path)
 {
     Object *obj;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -2838,7 +2837,6 @@ static void create_default_memdev(MachineState *ms, const char *path,
     if (path) {
         object_property_set_str(obj, path, "mem-path", &error_fatal);
     }
-    object_property_set_bool(obj, prealloc, "prealloc", &error_fatal);
     object_property_set_int(obj, ms->ram_size, "size", &error_fatal);
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
                               obj, &error_fatal);
@@ -3980,6 +3978,14 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    if (mem_prealloc) {
+        char *val;
+
+        val = g_strdup_printf("%d", current_machine->smp.cpus);
+        object_register_sugar_prop("memory-backend", "prealloc-threads", val);
+        g_free(val);
+    }
+
     /*
      * Get the default machine options from the machine if it is not already
      * specified either by the configuration file or by the command line.
@@ -4307,7 +4313,7 @@ int main(int argc, char **argv, char **envp)
 
     if (machine_class->default_ram_id && current_machine->ram_size &&
         numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
-        create_default_memdev(current_machine, mem_path, mem_prealloc);
+        create_default_memdev(current_machine, mem_path);
     }
     /* do monitor/qmp handling at preconfig state if requested */
     main_loop();
