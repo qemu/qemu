@@ -9,6 +9,18 @@
            --dir .
 */
 
+// Convert to boolean
+@@
+expression E1, E2, E3, E4, E5;
+@@
+(
+- address_space_rw(E1, E2, E3, E4, E5, 0)
++ address_space_rw(E1, E2, E3, E4, E5, false)
+|
+- address_space_rw(E1, E2, E3, E4, E5, 1)
++ address_space_rw(E1, E2, E3, E4, E5, true)
+)
+
 // Use address_space_write instead of casting to non-const
 @@
 type T;
