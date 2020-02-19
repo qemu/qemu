@@ -2655,6 +2655,21 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
         exit(EXIT_FAILURE);
     }
 
+    if (current_machine->ram_memdev_id) {
+        Object *backend;
+        ram_addr_t backend_size;
+
+        backend = object_resolve_path_type(current_machine->ram_memdev_id,
+                                           TYPE_MEMORY_BACKEND, NULL);
+        backend_size = object_property_get_uint(backend, "size",  &error_abort);
+        if (mem_str && backend_size != ram_size) {
+                error_report("Size specified by -m option must match size of "
+                             "explicitly specified 'memory-backend' property");
+                exit(EXIT_FAILURE);
+        }
+        ram_size = backend_size;
+    }
+
     if (!xen_enabled()) {
         /* On 32-bit hosts, QEMU is limited by virtual address space */
         if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
