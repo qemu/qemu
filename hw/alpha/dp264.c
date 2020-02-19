@@ -75,7 +75,7 @@ static void clipper_init(MachineState *machine)
     cpus[0]->env.trap_arg2 = smp_cpus;
 
     /* Init the chipset.  */
-    pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
+    pci_bus = typhoon_init(machine->ram, &isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
@@ -183,6 +183,7 @@ static void clipper_machine_init(MachineClass *mc)
     mc->max_cpus = 4;
     mc->is_default = 1;
     mc->default_cpu_type = ALPHA_CPU_TYPE_NAME("ev67");
+    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("clipper", clipper_machine_init)
