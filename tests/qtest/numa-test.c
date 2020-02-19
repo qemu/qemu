@@ -14,16 +14,16 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 
-static char *make_cli(const char *generic_cli, const char *test_cli)
+static char *make_cli(const GString *generic_cli, const char *test_cli)
 {
-    return g_strdup_printf("%s %s", generic_cli ? generic_cli : "", test_cli);
+    return g_strdup_printf("%s %s", generic_cli->str, test_cli);
 }
 
 static void test_mon_explicit(const void *data)
 {
-    char *s;
-    char *cli;
     QTestState *qts;
+    g_autofree char *s = NULL;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 8 "
                    "-numa node,nodeid=0,cpus=0-3 "
@@ -33,17 +33,15 @@ static void test_mon_explicit(const void *data)
     s = qtest_hmp(qts, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3"));
     g_assert(strstr(s, "node 1 cpus: 4 5 6 7"));
-    g_free(s);
 
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void test_mon_default(const void *data)
 {
-    char *s;
-    char *cli;
     QTestState *qts;
+    g_autofree char *s = NULL;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 8 -numa node -numa node");
     qts = qtest_init(cli);
@@ -51,17 +49,15 @@ static void test_mon_default(const void *data)
     s = qtest_hmp(qts, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 2 4 6"));
     g_assert(strstr(s, "node 1 cpus: 1 3 5 7"));
-    g_free(s);
 
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void test_mon_partial(const void *data)
 {
-    char *s;
-    char *cli;
     QTestState *qts;
+    g_autofree char *s = NULL;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 8 "
                    "-numa node,nodeid=0,cpus=0-1 "
@@ -71,10 +67,8 @@ static void test_mon_partial(const void *data)
     s = qtest_hmp(qts, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3 6 7"));
     g_assert(strstr(s, "node 1 cpus: 4 5"));
-    g_free(s);
 
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static QList *get_cpus(QTestState *qts, QDict **resp)
@@ -87,11 +81,11 @@ static QList *get_cpus(QTestState *qts, QDict **resp)
 
 static void test_query_cpus(const void *data)
 {
-    char *cli;
     QDict *resp;
     QList *cpus;
     QObject *e;
     QTestState *qts;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 8 -numa node,cpus=0-3 -numa node,cpus=4-7");
     qts = qtest_init(cli);
@@ -120,16 +114,15 @@ static void test_query_cpus(const void *data)
 
     qobject_unref(resp);
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void pc_numa_cpu(const void *data)
 {
-    char *cli;
     QDict *resp;
     QList *cpus;
     QObject *e;
     QTestState *qts;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-cpu pentium -smp 8,sockets=2,cores=2,threads=2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -174,16 +167,15 @@ static void pc_numa_cpu(const void *data)
 
     qobject_unref(resp);
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void spapr_numa_cpu(const void *data)
 {
-    char *cli;
     QDict *resp;
     QList *cpus;
     QObject *e;
     QTestState *qts;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 4,cores=4 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -220,16 +212,15 @@ static void spapr_numa_cpu(const void *data)
 
     qobject_unref(resp);
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void aarch64_numa_cpu(const void *data)
 {
-    char *cli;
     QDict *resp;
     QList *cpus;
     QObject *e;
     QTestState *qts;
+    g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-smp 2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -264,7 +255,6 @@ static void aarch64_numa_cpu(const void *data)
 
     qobject_unref(resp);
     qtest_quit(qts);
-    g_free(cli);
 }
 
 static void pc_dynamic_cpu_cfg(const void *data)
@@ -273,9 +263,10 @@ static void pc_dynamic_cpu_cfg(const void *data)
     QDict *resp;
     QList *cpus;
     QTestState *qs;
+    g_autofree char *cli = NULL;
 
-    qs = qtest_initf("%s -nodefaults --preconfig -smp 2",
-                     data ? (char *)data : "");
+    cli = make_cli(data, "-nodefaults --preconfig -smp 2");
+    qs = qtest_init(cli);
 
     /* create 2 numa nodes */
     g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
@@ -329,16 +320,19 @@ static void pc_dynamic_cpu_cfg(const void *data)
 
 static void pc_hmat_build_cfg(const void *data)
 {
-    QTestState *qs = qtest_initf("%s -nodefaults --preconfig -machine hmat=on "
-                     "-smp 2,sockets=2 "
-                     "-m 128M,slots=2,maxmem=1G "
-                     "-object memory-backend-ram,size=64M,id=m0 "
-                     "-object memory-backend-ram,size=64M,id=m1 "
-                     "-numa node,nodeid=0,memdev=m0 "
-                     "-numa node,nodeid=1,memdev=m1,initiator=0 "
-                     "-numa cpu,node-id=0,socket-id=0 "
-                     "-numa cpu,node-id=0,socket-id=1",
-                     data ? (char *)data : "");
+    QTestState *qs;
+    g_autofree char *cli = NULL;
+
+    cli = make_cli(data, "-nodefaults --preconfig -machine hmat=on "
+                         "-smp 2,sockets=2 "
+                         "-m 128M,slots=2,maxmem=1G "
+                         "-object memory-backend-ram,size=64M,id=m0 "
+                         "-object memory-backend-ram,size=64M,id=m1 "
+                         "-numa node,nodeid=0,memdev=m0 "
+                         "-numa node,nodeid=1,memdev=m1,initiator=0 "
+                         "-numa cpu,node-id=0,socket-id=0 "
+                         "-numa cpu,node-id=0,socket-id=1");
+    qs = qtest_init(cli);
 
     /* Fail: Initiator should be less than the number of nodes */
     g_assert_true(qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
@@ -455,13 +449,16 @@ static void pc_hmat_build_cfg(const void *data)
 
 static void pc_hmat_off_cfg(const void *data)
 {
-    QTestState *qs = qtest_initf("%s -nodefaults --preconfig "
-                     "-smp 2,sockets=2 "
-                     "-m 128M,slots=2,maxmem=1G "
-                     "-object memory-backend-ram,size=64M,id=m0 "
-                     "-object memory-backend-ram,size=64M,id=m1 "
-                     "-numa node,nodeid=0,memdev=m0",
-                     data ? (char *)data : "");
+    QTestState *qs;
+    g_autofree char *cli = NULL;
+
+    cli = make_cli(data, "-nodefaults --preconfig "
+                         "-smp 2,sockets=2 "
+                         "-m 128M,slots=2,maxmem=1G "
+                         "-object memory-backend-ram,size=64M,id=m0 "
+                         "-object memory-backend-ram,size=64M,id=m1 "
+                         "-numa node,nodeid=0,memdev=m0");
+    qs = qtest_init(cli);
 
     /*
      * Fail: Enable HMAT with -machine hmat=on
@@ -491,16 +488,19 @@ static void pc_hmat_off_cfg(const void *data)
 
 static void pc_hmat_erange_cfg(const void *data)
 {
-    QTestState *qs = qtest_initf("%s -nodefaults --preconfig -machine hmat=on "
-                     "-smp 2,sockets=2 "
-                     "-m 128M,slots=2,maxmem=1G "
-                     "-object memory-backend-ram,size=64M,id=m0 "
-                     "-object memory-backend-ram,size=64M,id=m1 "
-                     "-numa node,nodeid=0,memdev=m0 "
-                     "-numa node,nodeid=1,memdev=m1,initiator=0 "
-                     "-numa cpu,node-id=0,socket-id=0 "
-                     "-numa cpu,node-id=0,socket-id=1",
-                     data ? (char *)data : "");
+    QTestState *qs;
+    g_autofree char *cli = NULL;
+
+    cli = make_cli(data, "-nodefaults --preconfig -machine hmat=on "
+                         "-smp 2,sockets=2 "
+                         "-m 128M,slots=2,maxmem=1G "
+                         "-object memory-backend-ram,size=64M,id=m0 "
+                         "-object memory-backend-ram,size=64M,id=m1 "
+                         "-numa node,nodeid=0,memdev=m0 "
+                         "-numa node,nodeid=1,memdev=m1,initiator=0 "
+                         "-numa cpu,node-id=0,socket-id=0 "
+                         "-numa cpu,node-id=0,socket-id=1");
+    qs = qtest_init(cli);
 
     /* Can't store the compressed latency */
     g_assert_false(qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
@@ -539,11 +539,11 @@ static void pc_hmat_erange_cfg(const void *data)
 
 int main(int argc, char **argv)
 {
-    const char *args = NULL;
+    g_autoptr(GString) args = g_string_new(NULL);
     const char *arch = qtest_get_arch();
 
-    if (strcmp(arch, "aarch64") == 0) {
-        args = "-machine virt";
+    if (g_str_equal(arch, "aarch64")) {
+        g_string_append(args, " -machine virt");
     }
 
     g_test_init(&argc, &argv, NULL);
