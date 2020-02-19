@@ -40,6 +40,7 @@
 #include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
+#include "qemu/cutils.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2 * MiB)
@@ -137,7 +138,7 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
 
 static void ref405ep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -161,15 +162,21 @@ static void ref405ep_init(MachineState *machine)
     DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
 
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
+
     /* XXX: fix this */
     memory_region_allocate_system_memory(&ram_memories[0], NULL, "ef405ep.ram",
-                                         0x08000000);
+                                         machine->ram_size);
     ram_bases[0] = 0;
-    ram_sizes[0] = 0x08000000;
+    ram_sizes[0] = machine->ram_size;
     memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
-    ram_size = 128 * MiB;
     env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
@@ -227,7 +234,7 @@ static void ref405ep_init(MachineState *machine)
     if (linux_boot) {
         memset(&bd, 0, sizeof(bd));
         bd.bi_memstart = 0x00000000;
-        bd.bi_memsize = ram_size;
+        bd.bi_memsize = machine->ram_size;
         bd.bi_flashstart = -bios_size;
         bd.bi_flashsize = -bios_size;
         bd.bi_flashoffset = 0;
@@ -255,7 +262,7 @@ static void ref405ep_init(MachineState *machine)
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
-                                          ram_size - kernel_base);
+                                          machine->ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
@@ -266,7 +273,7 @@ static void ref405ep_init(MachineState *machine)
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                              ram_size - initrd_base);
+                                              machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
@@ -304,6 +311,7 @@ static void ref405ep_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ref405ep";
     mc->init = ref405ep_init;
+    mc->default_ram_size = 0x08000000;
 }
 
 static const TypeInfo ref405ep_type = {
@@ -408,7 +416,7 @@ static void taihu_cpld_init(MemoryRegion *sysmem, uint32_t base)
 
 static void taihu_405ep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     char *filename;
@@ -425,10 +433,14 @@ static void taihu_405ep_init(MachineState *machine)
     int fl_idx;
     DriveInfo *dinfo;
 
-    /* RAM is soldered to the board so the size cannot be changed */
-    ram_size = 0x08000000;
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
     memory_region_allocate_system_memory(ram, NULL, "taihu_405ep.ram",
-                                         ram_size);
+                                         machine->ram_size);
 
     ram_bases[0] = 0;
     ram_sizes[0] = 0x04000000;
@@ -500,7 +512,7 @@ static void taihu_405ep_init(MachineState *machine)
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
-                                          ram_size - kernel_base);
+                                          machine->ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
@@ -509,7 +521,7 @@ static void taihu_405ep_init(MachineState *machine)
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                              ram_size - initrd_base);
+                                              machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
@@ -533,6 +545,7 @@ static void taihu_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "taihu";
     mc->init = taihu_405ep_init;
+    mc->default_ram_size = 0x08000000;
 }
 
 static const TypeInfo taihu_type = {
