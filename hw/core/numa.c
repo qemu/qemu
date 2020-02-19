@@ -817,20 +817,8 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
         if (!backend) {
             continue;
         }
-        MemoryRegion *seg = host_memory_backend_get_memory(backend);
-
-        if (memory_region_is_mapped(seg)) {
-            char *path = object_get_canonical_path_component(OBJECT(backend));
-            error_report("memory backend %s is used multiple times. Each "
-                         "-numa option must use a different memdev value.",
-                         path);
-            g_free(path);
-            exit(1);
-        }
-
-        host_memory_backend_set_mapped(backend, true);
+        MemoryRegion *seg = machine_consume_memdev(ms, backend);
         memory_region_add_subregion(mr, addr, seg);
-        vmstate_register_ram_global(seg);
         addr += size;
     }
 }
