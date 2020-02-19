@@ -70,7 +70,7 @@ size_t qemu_ram_pagesize(RAMBlock *block);
 size_t qemu_ram_pagesize_largest(void);
 
 void cpu_physical_memory_rw(hwaddr addr, void *buf,
-                            hwaddr len, int is_write);
+                            hwaddr len, bool is_write);
 static inline void cpu_physical_memory_read(hwaddr addr,
                                             void *buf, hwaddr len)
 {
@@ -83,9 +83,9 @@ static inline void cpu_physical_memory_write(hwaddr addr,
 }
 void *cpu_physical_memory_map(hwaddr addr,
                               hwaddr *plen,
-                              int is_write);
+                              bool is_write);
 void cpu_physical_memory_unmap(void *buffer, hwaddr len,
-                               int is_write, hwaddr access_len);
+                               bool is_write, hwaddr access_len);
 void cpu_register_map_client(QEMUBH *bh);
 void cpu_unregister_map_client(QEMUBH *bh);
 

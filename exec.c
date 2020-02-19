@@ -3019,7 +3019,7 @@ MemoryRegion *get_system_io(void)
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        void *ptr, target_ulong len, int is_write)
+                        void *ptr, target_ulong len, bool is_write)
 {
     int flags;
     target_ulong l, page;
@@ -3313,7 +3313,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
 }
 
 void cpu_physical_memory_rw(hwaddr addr, void *buf,
-                            hwaddr len, int is_write)
+                            hwaddr len, bool is_write)
 {
     address_space_rw(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
                      buf, len, is_write);
@@ -3632,14 +3632,14 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 void *cpu_physical_memory_map(hwaddr addr,
                               hwaddr *plen,
-                              int is_write)
+                              bool is_write)
 {
     return address_space_map(&address_space_memory, addr, plen, is_write,
                              MEMTXATTRS_UNSPECIFIED);
 }
 
 void cpu_physical_memory_unmap(void *buffer, hwaddr len,
-                               int is_write, hwaddr access_len)
+                               bool is_write, hwaddr access_len)
 {
     return address_space_unmap(&address_space_memory, buffer, len, is_write, access_len);
 }
@@ -3790,7 +3790,7 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
 
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        void *ptr, target_ulong len, int is_write)
+                        void *ptr, target_ulong len, bool is_write)
 {
     hwaddr phys_addr;
     target_ulong l, page;
