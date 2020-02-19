@@ -52,6 +52,11 @@ QemuOptsList qemu_numa_opts = {
 };
 
 static int have_memdevs;
+bool numa_uses_legacy_mem(void)
+{
+    return !have_memdevs;
+}
+
 static int have_mem;
 static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
@@ -652,6 +657,23 @@ void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
     nodes[i].node_mem = size - usedmem;
 }
 
+static void numa_init_memdev_container(MachineState *ms, MemoryRegion *ram)
+{
+    int i;
+    uint64_t addr = 0;
+
+    for (i = 0; i < ms->numa_state->num_nodes; i++) {
+        uint64_t size = ms->numa_state->nodes[i].node_mem;
+        HostMemoryBackend *backend = ms->numa_state->nodes[i].node_memdev;
+        if (!backend) {
+            continue;
+        }
+        MemoryRegion *seg = machine_consume_memdev(ms, backend);
+        memory_region_add_subregion(ram, addr, seg);
+        addr += size;
+    }
+}
+
 void numa_complete_configuration(MachineState *ms)
 {
     int i;
@@ -734,6 +756,12 @@ void numa_complete_configuration(MachineState *ms)
             exit(1);
         }
 
+        if (!numa_uses_legacy_mem() && mc->default_ram_id) {
+            ms->ram = g_new(MemoryRegion, 1);
+            memory_region_init(ms->ram, OBJECT(ms), mc->default_ram_id,
+                               ram_size);
+            numa_init_memdev_container(ms, ms->ram);
+        }
         /* QEMU needs at least all unique node pair distances to build
          * the whole NUMA distance table. QEMU treats the distance table
          * as symmetric by default, i.e. distance A->B == distance B->A.
@@ -800,27 +828,16 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
                                           const char *name,
                                           uint64_t ram_size)
 {
-    uint64_t addr = 0;
-    int i;
     MachineState *ms = MACHINE(qdev_get_machine());
 
     if (ms->numa_state == NULL ||
-        ms->numa_state->num_nodes == 0 || !have_memdevs) {
+        ms->numa_state->num_nodes == 0 || numa_uses_legacy_mem()) {
         allocate_system_memory_nonnuma(mr, owner, name, ram_size);
         return;
     }
 
     memory_region_init(mr, owner, name, ram_size);
-    for (i = 0; i < ms->numa_state->num_nodes; i++) {
-        uint64_t size = ms->numa_state->nodes[i].node_mem;
-        HostMemoryBackend *backend = ms->numa_state->nodes[i].node_memdev;
-        if (!backend) {
-            continue;
-        }
-        MemoryRegion *seg = machine_consume_memdev(ms, backend);
-        memory_region_add_subregion(mr, addr, seg);
-        addr += size;
-    }
+    numa_init_memdev_container(ms, mr);
 }
 
 static void numa_stat_memory_devices(NumaNodeMem node_mem[])

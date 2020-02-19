@@ -4290,7 +4290,7 @@ int main(int argc, char **argv, char **envp)
     parse_numa_opts(current_machine);
 
     if (machine_class->default_ram_id && current_machine->ram_size &&
-        !current_machine->ram_memdev_id) {
+        numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
         create_default_memdev(current_machine, mem_path, mem_prealloc);
     }
     /* do monitor/qmp handling at preconfig state if requested */
