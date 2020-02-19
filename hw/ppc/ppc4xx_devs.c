@@ -668,21 +668,22 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
 
 /* Fill in consecutive SDRAM banks with 'ram_size' bytes of memory.
  *
- * sdram_bank_sizes[] must be 0-terminated.
+ * sdram_bank_sizes[] must be in descending order, that is sizes[i] > sizes[i+1]
+ * and must be 0-terminated.
  *
  * The 4xx SDRAM controller supports a small number of banks, and each bank
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC. */
-ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
-                               MemoryRegion ram_memories[],
-                               hwaddr ram_bases[],
-                               hwaddr ram_sizes[],
-                               const ram_addr_t sdram_bank_sizes[])
+void ppc4xx_sdram_banks(ram_addr_t ram_size, int nr_banks,
+                        MemoryRegion ram_memories[],
+                        hwaddr ram_bases[], hwaddr ram_sizes[],
+                        const ram_addr_t sdram_bank_sizes[])
 {
     MemoryRegion *ram = g_malloc0(sizeof(*ram));
     ram_addr_t size_left = ram_size;
     ram_addr_t base = 0;
     ram_addr_t bank_size;
+    int last_bank = 0;
     int i;
     int j;
 
@@ -690,7 +691,12 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
         for (j = 0; sdram_bank_sizes[j] != 0; j++) {
             bank_size = sdram_bank_sizes[j];
             if (bank_size <= size_left) {
+                ram_bases[i] = base;
+                ram_sizes[i] = bank_size;
+                base += bank_size;
                 size_left -= bank_size;
+                last_bank = i;
+                break;
             }
         }
         if (!size_left) {
@@ -699,34 +705,32 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
         }
     }
 
-    ram_size -= size_left;
     if (size_left) {
-        error_report("Truncating memory to %" PRId64 " MiB to fit SDRAM"
-                     " controller limits", ram_size / MiB);
+        ram_addr_t used_size = ram_size - size_left;
+        GString *s = g_string_new(NULL);
+
+        for (i = 0; sdram_bank_sizes[i]; i++) {
+            g_string_append_printf(s, "%" PRIi64 "%s",
+                                   sdram_bank_sizes[i] / MiB,
+                                   sdram_bank_sizes[i + 1] ? " ," : "");
+        }
+        error_report("Max %d banks of %s MB DIMM/bank supported",
+            nr_banks, s->str);
+        error_report("Possible valid RAM size: %" PRIi64,
+            used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
+
+        g_string_free(s, true);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "ppc4xx.sdram", ram_size);
 
-    size_left = ram_size;
-    for (i = 0; i < nr_banks && size_left; i++) {
-        for (j = 0; sdram_bank_sizes[j] != 0; j++) {
-            bank_size = sdram_bank_sizes[j];
-
-            if (bank_size <= size_left) {
-                char name[32];
-                snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                memory_region_init_alias(&ram_memories[i], NULL, name, ram,
-                                         base, bank_size);
-                ram_bases[i] = base;
-                ram_sizes[i] = bank_size;
-                base += bank_size;
-                size_left -= bank_size;
-                break;
-            }
-        }
+    for (i = 0; i <= last_bank; i++) {
+        char name[32];
+        snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
+        memory_region_init_alias(&ram_memories[i], NULL, name, ram,
+                                 ram_bases[i], ram_sizes[i]);
     }
-
-    return ram_size;
 }
 
 /*****************************************************************************/
