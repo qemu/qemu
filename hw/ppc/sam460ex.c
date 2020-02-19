@@ -324,7 +324,7 @@ static void sam460ex_init(MachineState *machine)
     /* SDRAM controller */
     /* put all RAM on first bank because board has one slot
      * and firmware only checks that */
-    ppc4xx_sdram_banks(machine->ram_size, 1, ram_memories, ram_bases, ram_sizes,
+    ppc4xx_sdram_banks(machine->ram, 1, ram_memories, ram_bases, ram_sizes,
                        ppc460ex_sdram_bank_sizes);
 
     /* FIXME: does 460EX have ECC interrupts? */
@@ -484,6 +484,7 @@ static void sam460ex_machine_init(MachineClass *mc)
     mc->init = sam460ex_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("460exb");
     mc->default_ram_size = 512 * MiB;
+    mc->default_ram_id = "ppc4xx.sdram";
 }
 
 DEFINE_MACHINE("sam460ex", sam460ex_machine_init)
