@@ -204,8 +204,12 @@ static void aspeed_machine_init(MachineState *machine)
 
     sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
 
+    /*
+     * This will error out if isize is not supported by memory controller.
+     */
     object_property_set_uint(OBJECT(&bmc->soc), ram_size, "ram-size",
-                             &error_abort);
+                             &error_fatal);
+
     object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap1, "hw-strap1",
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap2, "hw-strap2",
@@ -227,13 +231,6 @@ static void aspeed_machine_init(MachineState *machine)
     }
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
                              &error_abort);
-
-    /*
-     * Allocate RAM after the memory controller has checked the size
-     * was valid. If not, a default value is used.
-     */
-    ram_size = object_property_get_uint(OBJECT(&bmc->soc), "ram-size",
-                                        &error_abort);
 
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
     memory_region_add_subregion(&bmc->ram_container, 0, &bmc->ram);
