@@ -326,7 +326,6 @@ typedef int DMAIntFunc(IDEDMA *, int);
 typedef int32_t DMAInt32Func(IDEDMA *, int32_t len);
 typedef void DMAu32Func(IDEDMA *, uint32_t);
 typedef void DMAStopFunc(IDEDMA *, bool);
-typedef void DMARestartFunc(void *, int, RunState);
 
 struct unreported_events {
     bool eject_request;
