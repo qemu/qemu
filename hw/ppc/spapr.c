@@ -2701,12 +2701,14 @@ static void spapr_machine_init(MachineState *machine)
 
     spapr->rma_size = node0_size;
 
-    /* Actually we don't support unbounded RMA anymore since we added
-     * proper emulation of HV mode. The max we can get is 16G which
-     * also happens to be what we configure for PAPR mode so make sure
-     * we don't do anything bigger than that
+    /*
+     * Clamp the RMA size based on machine type.  This is for
+     * migration compatibility with older qemu versions, which limited
+     * the RMA size for complicated and mostly bad reasons.
      */
-    spapr->rma_size = MIN(spapr->rma_size, 0x400000000ull);
+    if (smc->rma_limit) {
+        spapr->rma_size = MIN(spapr->rma_size, smc->rma_limit);
+    }
 
     if (spapr->rma_size > node0_size) {
         error_report("Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")",
@@ -4598,6 +4600,7 @@ static void spapr_machine_4_2_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
     smc->default_caps.caps[SPAPR_CAP_CCF_ASSIST] = SPAPR_CAP_OFF;
     smc->default_caps.caps[SPAPR_CAP_FWNMI_MCE] = SPAPR_CAP_OFF;
+    smc->rma_limit = 16 * GiB;
     mc->nvdimm_supported = false;
 }
 
