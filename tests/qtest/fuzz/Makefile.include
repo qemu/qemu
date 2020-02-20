@@ -6,6 +6,9 @@ fuzz-obj-y += tests/qtest/fuzz/fuzz.o # Fuzzer skeleton
 fuzz-obj-y += tests/qtest/fuzz/fork_fuzz.o
 fuzz-obj-y += tests/qtest/fuzz/qos_fuzz.o
 
+# Targets
+fuzz-obj-y += tests/qtest/fuzz/i440fx_fuzz.o
+
 FUZZ_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
 
 # Linker Script to force coverage-counters into known regions which we can mark
