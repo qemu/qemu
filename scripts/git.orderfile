@@ -22,6 +22,9 @@ Makefile*
 qapi/*.json
 qga/*.json
 
+# semantic patches
+*.cocci
+
 # headers
 *.h
 
