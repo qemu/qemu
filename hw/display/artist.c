@@ -558,20 +558,16 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
                       bool update_start, int skip_pix, int max_pix)
 {
     struct vram_buffer *buf;
-    uint8_t color = artist_get_color(s);
+    uint8_t color;
     int dx, dy, t, e, x, y, incy, diago, horiz;
     bool c1;
     uint8_t *p;
 
+    trace_artist_draw_line(x1, y1, x2, y2);
 
     if (update_start) {
         s->vram_start = (x2 << 16) | y2;
     }
-
-    buf = &s->vram_buffer[ARTIST_BUFFER_AP];
-
-    c1 = false;
-    incy = 1;
 
     if (x2 > x1) {
         dx = x2 - x1;
@@ -583,6 +579,11 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     } else {
         dy = y1 - y2;
     }
+    if (!dx || !dy) {
+        return;
+    }
+
+    c1 = false;
     if (dy > dx) {
         t = y2;
         y2 = x2;
@@ -620,6 +621,8 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     }
     x = x1;
     y = y1;
+    color = artist_get_color(s);
+    buf = &s->vram_buffer[ARTIST_BUFFER_AP];
 
     do {
         if (c1) {
@@ -654,7 +657,6 @@ static void draw_line_pattern_start(ARTISTState *s)
     int endy = artist_get_y(s->blockmove_size);
     int pstart = s->line_pattern_start >> 16;
 
-    trace_artist_draw_line(startx, starty, endx, endy);
     draw_line(s, startx, starty, endx, endy, false, -1, pstart);
     s->line_pattern_skip = pstart;
 }
@@ -668,7 +670,6 @@ static void draw_line_pattern_next(ARTISTState *s)
     int endy = artist_get_y(s->blockmove_size);
     int line_xy = s->line_xy >> 16;
 
-    trace_artist_draw_line(startx, starty, endx, endy);
     draw_line(s, startx, starty, endx, endy, false, s->line_pattern_skip,
               s->line_pattern_skip + line_xy);
     s->line_pattern_skip += line_xy;
@@ -683,7 +684,6 @@ static void draw_line_size(ARTISTState *s, bool update_start)
     int endx = artist_get_x(s->line_size);
     int endy = artist_get_y(s->line_size);
 
-    trace_artist_draw_line(startx, starty, endx, endy);
     draw_line(s, startx, starty, endx, endy, update_start, -1, -1);
 }
 
@@ -734,16 +734,6 @@ static void draw_line_xy(ARTISTState *s, bool update_start)
         endy = 0;
     }
 
-
-    if (endx < 0) {
-        return;
-    }
-
-    if (endy < 0) {
-        return;
-    }
-
-    trace_artist_draw_line(startx, starty, endx, endy);
     draw_line(s, startx, starty, endx, endy, false, -1, -1);
 }
 
@@ -755,7 +745,6 @@ static void draw_line_end(ARTISTState *s, bool update_start)
     int endx = artist_get_x(s->line_end);
     int endy = artist_get_y(s->line_end);
 
-    trace_artist_draw_line(startx, starty, endx, endy);
     draw_line(s, startx, starty, endx, endy, update_start, -1, -1);
 }
 
