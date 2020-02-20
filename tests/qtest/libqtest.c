@@ -37,10 +37,18 @@
 
 
 typedef void (*QTestSendFn)(QTestState *s, const char *buf);
+typedef void (*ExternalSendFn)(void *s, const char *buf);
 typedef GString* (*QTestRecvFn)(QTestState *);
 
 typedef struct QTestClientTransportOps {
     QTestSendFn     send;      /* for sending qtest commands */
+
+    /*
+     * use external_send to send qtest command strings through functions which
+     * do not accept a QTestState as the first parameter.
+     */
+    ExternalSendFn  external_send;
+
     QTestRecvFn     recv_line; /* for receiving qtest command responses */
 } QTestTransportOps;
 
@@ -1078,8 +1086,8 @@ void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 
     bdata = g_base64_encode(data, size);
     qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
-    socket_send(s->fd, bdata, strlen(bdata));
-    socket_send(s->fd, "\n", 1);
+    s->ops.send(s, bdata);
+    s->ops.send(s, "\n");
     qtest_rsp(s, 0);
     g_free(bdata);
 }
@@ -1366,4 +1374,63 @@ static void qtest_client_set_tx_handler(QTestState *s,
 static void qtest_client_set_rx_handler(QTestState *s, QTestRecvFn recv)
 {
     s->ops.recv_line = recv;
+}
+/* A type-safe wrapper for s->send() */
+static void send_wrapper(QTestState *s, const char *buf)
+{
+    s->ops.external_send(s, buf);
+}
+
+static GString *qtest_client_inproc_recv_line(QTestState *s)
+{
+    GString *line;
+    size_t offset;
+    char *eol;
+
+    eol = strchr(s->rx->str, '\n');
+    offset = eol - s->rx->str;
+    line = g_string_new_len(s->rx->str, offset);
+    g_string_erase(s->rx, 0, offset + 1);
+    return line;
+}
+
+QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
+                    void (*send)(void*, const char*))
+{
+    QTestState *qts;
+    qts = g_new0(QTestState, 1);
+    *s = qts; /* Expose qts early on, since the query endianness relies on it */
+    qts->wstatus = 0;
+    for (int i = 0; i < MAX_IRQ; i++) {
+        qts->irq_level[i] = false;
+    }
+
+    qtest_client_set_rx_handler(qts, qtest_client_inproc_recv_line);
+
+    /* send() may not have a matching protoype, so use a type-safe wrapper */
+    qts->ops.external_send = send;
+    qtest_client_set_tx_handler(qts, send_wrapper);
+
+    qts->big_endian = qtest_query_target_endianness(qts);
+
+    /*
+     * Set a dummy path for QTEST_QEMU_BINARY. Doesn't need to exist, but this
+     * way, qtest_get_arch works for inproc qtest.
+     */
+    gchar *bin_path = g_strconcat("/qemu-system-", arch, NULL);
+    setenv("QTEST_QEMU_BINARY", bin_path, 0);
+    g_free(bin_path);
+
+    return qts;
+}
+
+void qtest_client_inproc_recv(void *opaque, const char *str)
+{
+    QTestState *qts = *(QTestState **)opaque;
+
+    if (!qts->rx) {
+        qts->rx = g_string_new(NULL);
+    }
+    g_string_append(qts->rx, str);
+    return;
 }
