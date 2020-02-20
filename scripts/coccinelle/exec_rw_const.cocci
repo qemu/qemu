@@ -42,6 +42,16 @@ type T;
 + address_space_write_rom(E1, E2, E3, E4, E5)
 |
 
+- cpu_physical_memory_rw(E1, (T *)(E2), E3, E4)
++ cpu_physical_memory_rw(E1, E2, E3, E4)
+|
+- cpu_physical_memory_read(E1, (T *)(E2), E3)
++ cpu_physical_memory_read(E1, E2, E3)
+|
+- cpu_physical_memory_write(E1, (T *)(E2), E3)
++ cpu_physical_memory_write(E1, E2, E3)
+|
+
 - dma_memory_read(E1, E2, (T *)(E3), E4)
 + dma_memory_read(E1, E2, E3, E4)
 |
