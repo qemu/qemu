@@ -35,6 +35,15 @@
 #define SOCKET_TIMEOUT 50
 #define SOCKET_MAX_FDS 16
 
+
+typedef void (*QTestSendFn)(QTestState *s, const char *buf);
+typedef GString* (*QTestRecvFn)(QTestState *);
+
+typedef struct QTestClientTransportOps {
+    QTestSendFn     send;      /* for sending qtest commands */
+    QTestRecvFn     recv_line; /* for receiving qtest command responses */
+} QTestTransportOps;
+
 struct QTestState
 {
     int fd;
@@ -45,12 +54,21 @@ struct QTestState
     bool big_endian;
     bool irq_level[MAX_IRQ];
     GString *rx;
+    QTestTransportOps ops;
 };
 
 static GHookList abrt_hooks;
 static struct sigaction sigact_old;
 
 static int qtest_query_target_endianness(QTestState *s);
+
+static void qtest_client_socket_send(QTestState*, const char *buf);
+static void socket_send(int fd, const char *buf, size_t size);
+
+static GString *qtest_client_socket_recv_line(QTestState *);
+
+static void qtest_client_set_tx_handler(QTestState *s, QTestSendFn send);
+static void qtest_client_set_rx_handler(QTestState *s, QTestRecvFn recv);
 
 static int init_socket(const char *socket_path)
 {
@@ -234,6 +252,9 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
+    qtest_client_set_rx_handler(s, qtest_client_socket_recv_line);
+    qtest_client_set_tx_handler(s, qtest_client_socket_send);
+
     qtest_add_abrt_handler(kill_qemu_hook_func, s);
 
     command = g_strdup_printf("exec %s "
@@ -379,13 +400,9 @@ static void socket_send(int fd, const char *buf, size_t size)
     }
 }
 
-static void socket_sendf(int fd, const char *fmt, va_list ap)
+static void qtest_client_socket_send(QTestState *s, const char *buf)
 {
-    gchar *str = g_strdup_vprintf(fmt, ap);
-    size_t size = strlen(str);
-
-    socket_send(fd, str, size);
-    g_free(str);
+    socket_send(s->fd, buf, strlen(buf));
 }
 
 static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
@@ -393,8 +410,11 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    socket_sendf(s->fd, fmt, ap);
+    gchar *str = g_strdup_vprintf(fmt, ap);
     va_end(ap);
+
+    s->ops.send(s, str);
+    g_free(str);
 }
 
 /* Sends a message and file descriptors to the socket.
@@ -431,7 +451,7 @@ static void socket_send_fds(int socket_fd, int *fds, size_t fds_num,
     g_assert_cmpint(ret, >, 0);
 }
 
-static GString *qtest_recv_line(QTestState *s)
+static GString *qtest_client_socket_recv_line(QTestState *s)
 {
     GString *line;
     size_t offset;
@@ -468,7 +488,7 @@ static gchar **qtest_rsp(QTestState *s, int expected_args)
     int i;
 
 redo:
-    line = qtest_recv_line(s);
+    line = s->ops.recv_line(s);
     words = g_strsplit(line->str, " ", 0);
     g_string_free(line, TRUE);
 
@@ -1336,4 +1356,14 @@ void qmp_assert_error_class(QDict *rsp, const char *class)
     g_assert(!qdict_haskey(rsp, "return"));
 
     qobject_unref(rsp);
+}
+
+static void qtest_client_set_tx_handler(QTestState *s,
+                    QTestSendFn send)
+{
+    s->ops.send = send;
+}
+static void qtest_client_set_rx_handler(QTestState *s, QTestRecvFn recv)
+{
+    s->ops.recv_line = recv;
 }
