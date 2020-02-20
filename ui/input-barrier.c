@@ -455,7 +455,7 @@ static gboolean writecmd(InputBarrier *ib, struct barrierMsg *msg)
         break;
     default:
         write_cmd(p, barrierCmdEUnknown, avail);
-        break;;
+        break;
     }
 
     len = MAX_HELLO_LENGTH - avail - sizeof(int);

@@ -1830,6 +1830,11 @@ sub process {
 			ERROR("suspicious ; after while (0)\n" . $herecurr);
 		}
 
+# Check superfluous trailing ';'
+		if ($line =~ /;;$/) {
+			ERROR("superfluous trailing semicolon\n" . $herecurr);
+		}
+
 # Check relative indent for conditionals and blocks.
 		if ($line =~ /\b(?:(?:if|while|for)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
 			my ($s, $c) = ($stat, $cond);

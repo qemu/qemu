@@ -350,7 +350,7 @@ static void create_virtio_regions(VersalVirt *s)
     int i;
 
     for (i = 0; i < NUM_VIRTIO_TRANSPORT; i++) {
-        char *name = g_strdup_printf("virtio%d", i);;
+        char *name = g_strdup_printf("virtio%d", i);
         hwaddr base = MM_TOP_RSVD + i * virtio_mmio_size;
         int irq = VERSAL_RSVD_IRQ_FIRST + i;
         MemoryRegion *mr;

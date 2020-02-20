@@ -27,6 +27,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/bitops.h"
+#include "qemu/log.h"
 
 #include "rocker.h"
 #include "rocker_hw.h"
@@ -207,14 +208,22 @@ static int tx_consume(Rocker *r, DescInfo *info)
 
     if (tlvs[ROCKER_TLV_TX_L3_CSUM_OFF]) {
         tx_l3_csum_off = rocker_tlv_get_le16(tlvs[ROCKER_TLV_TX_L3_CSUM_OFF]);
+        qemu_log_mask(LOG_UNIMP, "rocker %s: L3 not implemented"
+                                 " (cksum off: %u)\n",
+                      __func__, tx_l3_csum_off);
     }
 
     if (tlvs[ROCKER_TLV_TX_TSO_MSS]) {
         tx_tso_mss = rocker_tlv_get_le16(tlvs[ROCKER_TLV_TX_TSO_MSS]);
+        qemu_log_mask(LOG_UNIMP, "rocker %s: TSO not implemented (MSS: %u)\n",
+                      __func__, tx_tso_mss);
     }
 
     if (tlvs[ROCKER_TLV_TX_TSO_HDR_LEN]) {
         tx_tso_hdr_len = rocker_tlv_get_le16(tlvs[ROCKER_TLV_TX_TSO_HDR_LEN]);
+        qemu_log_mask(LOG_UNIMP, "rocker %s: TSO not implemented"
+                                 " (hdr length: %u)\n",
+                      __func__, tx_tso_hdr_len);
     }
 
     rocker_tlv_for_each_nested(tlv_frag, tlvs[ROCKER_TLV_TX_FRAGS], rem) {
@@ -247,12 +256,6 @@ static int tx_consume(Rocker *r, DescInfo *info)
                      iov[iovcnt].iov_len);
 
         iovcnt++;
-    }
-
-    if (iovcnt) {
-        /* XXX perform Tx offloads */
-        /* XXX   silence compiler for now */
-        tx_l3_csum_off += tx_tso_mss = tx_tso_hdr_len = 0;
     }
 
     err = fp_port_eg(r->fp_port[port], iov, iovcnt);

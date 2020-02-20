@@ -490,7 +490,7 @@ static int read_and_process(int fd)
 
 static int accept_all(void)
 {
-    int fd, rc = 0;;
+    int fd, rc = 0;
 
     pthread_rwlock_wrlock(&server.lock);
 

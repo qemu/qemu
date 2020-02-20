@@ -474,7 +474,7 @@ QOSEdgeType qos_graph_edge_get_type(QOSGraphEdge *edge)
     if (!edge) {
         return -1;
     }
-    return edge->type;;
+    return edge->type;
 }
 
 char *qos_graph_edge_get_dest(QOSGraphEdge *edge)
@@ -590,7 +590,7 @@ void qos_add_test(const char *name, const char *interface,
                   QOSTestFunc test_func, QOSGraphTestOptions *opts)
 {
     QOSGraphNode *node;
-    char *test_name = g_strdup_printf("%s-tests/%s", interface, name);;
+    char *test_name = g_strdup_printf("%s-tests/%s", interface, name);
     QOSGraphTestOptions def_opts = { };
 
     if (!opts) {

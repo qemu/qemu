@@ -1631,7 +1631,7 @@ static void ioport_write(void *opaque, hwaddr addr,
     PCIQXLDevice *d = opaque;
     uint32_t io_port = addr;
     qxl_async_io async = QXL_SYNC;
-    uint32_t orig_io_port = io_port;
+    uint32_t orig_io_port;
 
     if (d->guest_bug && io_port != QXL_IO_RESET) {
         return;
