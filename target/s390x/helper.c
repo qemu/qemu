@@ -89,7 +89,7 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
 static inline bool is_special_wait_psw(uint64_t psw_addr)
 {
     /* signal quiesce */
-    return psw_addr == 0xfffUL;
+    return (psw_addr & 0xfffUL) == 0xfffUL;
 }
 
 void s390_handle_wait(S390CPU *cpu)
