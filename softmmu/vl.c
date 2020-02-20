@@ -3782,7 +3782,17 @@ void qemu_init(int argc, char **argv, char **envp)
     set_memory_options(&ram_slots, &maxram_size, machine_class);
 
     os_daemonize();
-    rcu_disable_atfork();
+
+    /*
+     * If QTest is enabled, keep the rcu_atfork enabled, since system processes
+     * may be forked testing purposes (e.g. fork-server based fuzzing) The fork
+     * should happen before a signle cpu instruction is executed, to prevent
+     * deadlocks. See commit 73c6e40, rcu: "completely disable pthread_atfork
+     * callbacks as soon as possible"
+     */
+    if (!qtest_enabled()) {
+        rcu_disable_atfork();
+    }
 
     if (pid_file && !qemu_write_pidfile(pid_file, &err)) {
         error_reportf_err(err, "cannot create PID file: ");
