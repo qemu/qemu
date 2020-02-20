@@ -1,0 +1,2 @@
+obj-y += vl.o
+vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)

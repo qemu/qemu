@@ -160,6 +160,7 @@ obj-y += qapi/
 obj-y += memory.o
 obj-y += memory_mapping.o
 obj-y += migration/ram.o
+obj-y += softmmu/
 LIBS := $(libs_softmmu) $(LIBS)
 
 # Hardware support

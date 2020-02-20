@@ -2031,7 +2031,7 @@ F: include/qemu/main-loop.h
 F: include/sysemu/runstate.h
 F: util/main-loop.c
 F: util/qemu-timer.c
-F: vl.c
+F: softmmu/vl.c
 F: qapi/run-state.json
 
 Human Monitor (HMP)
