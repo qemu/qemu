@@ -2184,6 +2184,14 @@ F: qtest.c
 F: accel/qtest.c
 F: tests/qtest/
 
+Device Fuzzing
+M: Alexander Bulekov <alxndr@bu.edu>
+R: Paolo Bonzini <pbonzini@redhat.com>
+R: Bandan Das <bsd@redhat.com>
+R: Stefan Hajnoczi <stefanha@redhat.com>
+S: Maintained
+F: tests/qtest/fuzz/
+
 Register API
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
