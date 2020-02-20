@@ -1,0 +1,116 @@
+= Fuzzing =
+
+== Introduction ==
+
+This document describes the virtual-device fuzzing infrastructure in QEMU and
+how to use it to implement additional fuzzers.
+
+== Basics ==
+
+Fuzzing operates by passing inputs to an entry point/target function. The
+fuzzer tracks the code coverage triggered by the input. Based on these
+findings, the fuzzer mutates the input and repeats the fuzzing.
+
+To fuzz QEMU, we rely on libfuzzer. Unlike other fuzzers such as AFL, libfuzzer
+is an _in-process_ fuzzer. For the developer, this means that it is their
+responsibility to ensure that state is reset between fuzzing-runs.
+
+== Building the fuzzers ==
+
+NOTE: If possible, build a 32-bit binary. When forking, the 32-bit fuzzer is
+much faster, since the page-map has a smaller size. This is due to the fact that
+AddressSanitizer mmaps ~20TB of memory, as part of its detection. This results
+in a large page-map, and a much slower fork().
+
+To build the fuzzers, install a recent version of clang:
+Configure with (substitute the clang binaries with the version you installed):
+
+    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing
+
+Fuzz targets are built similarly to system/softmmu:
+
+    make i386-softmmu/fuzz
+
+This builds ./i386-softmmu/qemu-fuzz-i386
+
+The first option to this command is: --fuzz_taget=FUZZ_NAME
+To list all of the available fuzzers run qemu-fuzz-i386 with no arguments.
+
+eg:
+    ./i386-softmmu/qemu-fuzz-i386 --fuzz-target=virtio-net-fork-fuzz
+
+Internally, libfuzzer parses all arguments that do not begin with "--".
+Information about these is available by passing -help=1
+
+Now the only thing left to do is wait for the fuzzer to trigger potential
+crashes.
+
+== Adding a new fuzzer ==
+Coverage over virtual devices can be improved by adding additional fuzzers.
+Fuzzers are kept in tests/qtest/fuzz/ and should be added to
+tests/qtest/fuzz/Makefile.include
+
+Fuzzers can rely on both qtest and libqos to communicate with virtual devices.
+
+1. Create a new source file. For example ``tests/qtest/fuzz/foo-device-fuzz.c``.
+
+2. Write the fuzzing code using the libqtest/libqos API. See existing fuzzers
+for reference.
+
+3. Register the fuzzer in ``tests/fuzz/Makefile.include`` by appending the
+corresponding object to fuzz-obj-y
+
+Fuzzers can be more-or-less thought of as special qtest programs which can
+modify the qtest commands and/or qtest command arguments based on inputs
+provided by libfuzzer. Libfuzzer passes a byte array and length. Commonly the
+fuzzer loops over the byte-array interpreting it as a list of qtest commands,
+addresses, or values.
+
+= Implementation Details =
+
+== The Fuzzer's Lifecycle ==
+
+The fuzzer has two entrypoints that libfuzzer calls. libfuzzer provides it's
+own main(), which performs some setup, and calls the entrypoints:
+
+LLVMFuzzerInitialize: called prior to fuzzing. Used to initialize all of the
+necessary state
+
+LLVMFuzzerTestOneInput: called for each fuzzing run. Processes the input and
+resets the state at the end of each run.
+
+In more detail:
+
+LLVMFuzzerInitialize parses the arguments to the fuzzer (must start with two
+dashes, so they are ignored by libfuzzer main()). Currently, the arguments
+select the fuzz target. Then, the qtest client is initialized. If the target
+requires qos, qgraph is set up and the QOM/LIBQOS modules are initialized.
+Then the QGraph is walked and the QEMU cmd_line is determined and saved.
+
+After this, the vl.c:qemu__main is called to set up the guest. There are
+target-specific hooks that can be called before and after qemu_main, for
+additional setup(e.g. PCI setup, or VM snapshotting).
+
+LLVMFuzzerTestOneInput: Uses qtest/qos functions to act based on the fuzz
+input. It is also responsible for manually calling the main loop/main_loop_wait
+to ensure that bottom halves are executed and any cleanup required before the
+next input.
+
+Since the same process is reused for many fuzzing runs, QEMU state needs to
+be reset at the end of each run. There are currently two implemented
+options for resetting state:
+1. Reboot the guest between runs.
+   Pros: Straightforward and fast for simple fuzz targets.
+   Cons: Depending on the device, does not reset all device state. If the
+   device requires some initialization prior to being ready for fuzzing
+   (common for QOS-based targets), this initialization needs to be done after
+   each reboot.
+   Example target: i440fx-qtest-reboot-fuzz
+2. Run each test case in a separate forked process and copy the coverage
+   information back to the parent. This is fairly similar to AFL's "deferred"
+   fork-server mode [3]
+   Pros: Relatively fast. Devices only need to be initialized once. No need
+   to do slow reboots or vmloads.
+   Cons: Not officially supported by libfuzzer. Does not work well for devices
+   that rely on dedicated threads.
+   Example target: virtio-net-fork-fuzz
