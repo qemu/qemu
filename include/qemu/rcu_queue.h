@@ -262,6 +262,53 @@ extern "C" {
          (var) && ((next) = atomic_rcu_read(&(var)->field.tqe_next), 1); \
          (var) = (next))
 
+/*
+ * RCU singly-linked list
+ */
+
+/* Singly-linked list access methods */
+#define QSLIST_EMPTY_RCU(head)      (atomic_read(&(head)->slh_first) == NULL)
+#define QSLIST_FIRST_RCU(head)       atomic_rcu_read(&(head)->slh_first)
+#define QSLIST_NEXT_RCU(elm, field)  atomic_rcu_read(&(elm)->field.sle_next)
+
+/* Singly-linked list functions */
+#define QSLIST_INSERT_HEAD_RCU(head, elm, field) do {           \
+    (elm)->field.sle_next = (head)->slh_first;                  \
+    atomic_rcu_set(&(head)->slh_first, (elm));                  \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_INSERT_AFTER_RCU(head, listelm, elm, field) do {         \
+    (elm)->field.sle_next = (listelm)->field.sle_next;                  \
+    atomic_rcu_set(&(listelm)->field.sle_next, (elm));                  \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_REMOVE_HEAD_RCU(head, field) do {                       \
+    atomic_set(&(head)->slh_first, (head)->slh_first->field.sle_next); \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_REMOVE_RCU(head, elm, type, field) do {              \
+    if ((head)->slh_first == (elm)) {                               \
+        QSLIST_REMOVE_HEAD_RCU((head), field);                      \
+    } else {                                                        \
+        struct type *curr = (head)->slh_first;                      \
+        while (curr->field.sle_next != (elm)) {                     \
+            curr = curr->field.sle_next;                            \
+        }                                                           \
+        atomic_set(&curr->field.sle_next,                           \
+                   curr->field.sle_next->field.sle_next);           \
+    }                                                               \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_FOREACH_RCU(var, head, field)                          \
+    for ((var) = atomic_rcu_read(&(head)->slh_first);                   \
+         (var);                                                         \
+         (var) = atomic_rcu_read(&(var)->field.sle_next))
+
+#define QSLIST_FOREACH_SAFE_RCU(var, head, field, next)                \
+    for ((var) = atomic_rcu_read(&(head)->slh_first);                    \
+         (var) && ((next) = atomic_rcu_read(&(var)->field.sle_next), 1); \
+         (var) = (next))
+
 #ifdef __cplusplus
 }
 #endif
