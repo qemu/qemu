@@ -172,6 +172,7 @@ libqos-usb-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/qtest/libqos/u
 # qos devices:
 libqos-obj-y =  $(libqgraph-obj-y)
 libqos-obj-y += $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
+libqos-obj-y += tests/qtest/libqos/qos_external.o
 libqos-obj-y += tests/qtest/libqos/e1000e.o
 libqos-obj-y += tests/qtest/libqos/i2c.o
 libqos-obj-y += tests/qtest/libqos/i2c-imx.o
