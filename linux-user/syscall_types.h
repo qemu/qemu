@@ -83,6 +83,72 @@ STRUCT(buffmem_desc,
 STRUCT(mixer_info,
        MK_ARRAY(TYPE_CHAR, 16), MK_ARRAY(TYPE_CHAR, 32), TYPE_INT, MK_ARRAY(TYPE_INT, 10))
 
+STRUCT(snd_timer_id,
+       TYPE_INT, /* dev_class */
+       TYPE_INT, /* dev_sclass */
+       TYPE_INT, /* card */
+       TYPE_INT, /* device */
+       TYPE_INT) /* subdevice */
+
+STRUCT(snd_timer_ginfo,
+       MK_STRUCT(STRUCT_snd_timer_id), /* tid */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* card */
+       MK_ARRAY(TYPE_CHAR, 64), /* id */
+       MK_ARRAY(TYPE_CHAR, 80), /* name */
+       TYPE_ULONG, /* reserved0 */
+       TYPE_ULONG, /* resolution */
+       TYPE_ULONG, /* resolution_min */
+       TYPE_ULONG, /* resolution_max */
+       TYPE_INT, /* clients */
+       MK_ARRAY(TYPE_CHAR, 32)) /* reserved */
+
+STRUCT(snd_timer_gparams,
+       MK_STRUCT(STRUCT_snd_timer_id), /* tid */
+       TYPE_ULONG, /* period_num */
+       TYPE_ULONG, /* period_den */
+       MK_ARRAY(TYPE_CHAR, 32)) /* reserved */
+
+STRUCT(snd_timer_gstatus,
+       MK_STRUCT(STRUCT_snd_timer_id), /* tid */
+       TYPE_ULONG, /* resolution */
+       TYPE_ULONG, /* resolution_num */
+       TYPE_ULONG, /* resolution_den */
+       MK_ARRAY(TYPE_CHAR, 32)) /* reserved */
+
+STRUCT(snd_timer_select,
+       MK_STRUCT(STRUCT_snd_timer_id), /* id */
+       MK_ARRAY(TYPE_CHAR, 32)) /* reserved */
+
+STRUCT(snd_timer_info,
+       TYPE_INT, /* flags */
+       TYPE_INT, /* card */
+       MK_ARRAY(TYPE_CHAR, 64), /* id */
+       MK_ARRAY(TYPE_CHAR, 80), /* name */
+       TYPE_ULONG, /* reserved0 */
+       TYPE_ULONG, /* resolution */
+       MK_ARRAY(TYPE_CHAR, 64)) /* reserved */
+
+STRUCT(snd_timer_params,
+       TYPE_INT, /* flags */
+       TYPE_INT, /* ticks */
+       TYPE_INT, /* queue_size */
+       TYPE_INT, /* reserved0 */
+       TYPE_INT, /* filter */
+       MK_ARRAY(TYPE_CHAR, 60)) /* reserved */
+
+STRUCT(timespec,
+       TYPE_LONG, /* tv_sec */
+       TYPE_LONG) /* tv_nsec */
+
+STRUCT(snd_timer_status,
+       MK_STRUCT(STRUCT_timespec), /* tstamp */
+       TYPE_INT, /* resolution */
+       TYPE_INT, /* lost */
+       TYPE_INT, /* overrun */
+       TYPE_INT, /* queue */
+       MK_ARRAY(TYPE_CHAR, 64)) /* reserved */
+
 /* loop device ioctls */
 STRUCT(loop_info,
        TYPE_INT,                 /* lo_number */

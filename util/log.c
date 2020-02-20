@@ -332,6 +332,8 @@ const QEMULogItem qemu_log_items[] = {
 #ifdef CONFIG_PLUGIN
     { CPU_LOG_PLUGIN, "plugin", "output from TCG plugins\n"},
 #endif
+    { LOG_STRACE, "strace",
+      "log every user-mode syscall, its input, and its result" },
     { 0, NULL, NULL },
 };
 

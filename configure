@@ -455,7 +455,7 @@ guest_agent_ntddscsi="no"
 guest_agent_msi=""
 vss_win32_sdk=""
 win_sdk="no"
-want_tools="yes"
+want_tools=""
 libiscsi=""
 libnfs=""
 coroutine=""
@@ -2211,6 +2211,16 @@ if compile_object ; then
     fi
 else
     echo big/little test failed
+fi
+
+##########################################
+# system tools
+if test -z "$want_tools"; then
+    if test "$softmmu" = "no"; then
+        want_tools=no
+    else
+        want_tools=yes
+    fi
 fi
 
 ##########################################
@@ -4133,6 +4143,11 @@ if test "$fdt_required" = "yes"; then
   fdt=yes
 elif test "$fdt" != "yes" ; then
   fdt=no
+fi
+
+# fdt is only required when building softmmu targets
+if test -z "$fdt" -a "$softmmu" != "yes" ; then
+    fdt="no"
 fi
 
 if test "$fdt" != "no" ; then
@@ -6077,6 +6092,11 @@ fi
 
 ##########################################
 # check for slirp
+
+# slirp is only required when building softmmu targets
+if test -z "$slirp" -a "$softmmu" != "yes" ; then
+    slirp="no"
+fi
 
 case "$slirp" in
   "" | yes)

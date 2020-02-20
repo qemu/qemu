@@ -934,7 +934,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
         handler = sa->_sa_handler;
     }
 
-    if (do_strace) {
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_taken_signal(sig, &k->info);
     }
 

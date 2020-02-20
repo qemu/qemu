@@ -62,6 +62,8 @@ static inline bool qemu_log_separate(void)
 #define CPU_LOG_TB_OP_IND  (1 << 16)
 #define CPU_LOG_TB_FPU     (1 << 17)
 #define CPU_LOG_PLUGIN     (1 << 18)
+/* LOG_STRACE is used for user-mode strace logging. */
+#define LOG_STRACE         (1 << 19)
 
 /* Lock output for a series of related logs.  Since this is not needed
  * for a single qemu_log / qemu_log_mask / qemu_log_mask_and_addr, we
