@@ -640,8 +640,8 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
             }
             rba = get_uint32(rbd + 8);
             /* printf("rba is 0x%x\n", rba); */
-            address_space_rw(&address_space_memory, rba,
-                MEMTXATTRS_UNSPECIFIED, (void *)buf, num, 1);
+            address_space_write(&address_space_memory, rba,
+                                MEMTXATTRS_UNSPECIFIED, buf, num);
             rba += num;
             buf += num;
             len -= num;
