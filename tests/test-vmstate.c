@@ -1241,7 +1241,6 @@ static void test_gtree_load_iommu(void)
     TestGTreeIOMMU *orig_iommu = create_iommu();
     QEMUFile *fsave, *fload;
     char eof;
-    int ret;
 
     fsave = open_test_file(true);
     qemu_put_buffer(fsave, iommu_dump, sizeof(iommu_dump));
@@ -1250,10 +1249,8 @@ static void test_gtree_load_iommu(void)
 
     fload = open_test_file(false);
     vmstate_load_state(fload, &vmstate_iommu, dest_iommu, 1);
-    ret = qemu_file_get_error(fload);
     eof = qemu_get_byte(fload);
-    ret = qemu_file_get_error(fload);
-    g_assert(!ret);
+    g_assert(!qemu_file_get_error(fload));
     g_assert_cmpint(orig_iommu->id, ==, dest_iommu->id);
     g_assert_cmpint(eof, ==, QEMU_VM_EOF);
 
@@ -1395,6 +1392,7 @@ static void test_load_qlist(void)
     compare_containers(orig_container, dest_container);
     free_container(orig_container);
     free_container(dest_container);
+    qemu_fclose(fload);
 }
 
 typedef struct TmpTestStruct {
