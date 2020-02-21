@@ -51,6 +51,19 @@ struct ThreadPool;
 struct LinuxAioState;
 struct LuringState;
 
+/*
+ * Each aio_bh_poll() call carves off a slice of the BH list, so that newly
+ * scheduled BHs are not processed until the next aio_bh_poll() call.  All
+ * active aio_bh_poll() calls chain their slices together in a list, so that
+ * nested aio_bh_poll() calls process all scheduled bottom halves.
+ */
+typedef QSLIST_HEAD(, QEMUBH) BHList;
+typedef struct BHListSlice BHListSlice;
+struct BHListSlice {
+    BHList bh_list;
+    QSIMPLEQ_ENTRY(BHListSlice) next;
+};
+
 struct AioContext {
     GSource source;
 
@@ -91,8 +104,11 @@ struct AioContext {
      */
     QemuLockCnt list_lock;
 
-    /* Anchor of the list of Bottom Halves belonging to the context */
-    struct QEMUBH *first_bh;
+    /* Bottom Halves pending aio_bh_poll() processing */
+    BHList bh_list;
+
+    /* Chained BH list slices for each nested aio_bh_poll() call */
+    QSIMPLEQ_HEAD(, BHListSlice) bh_slice_list;
 
     /* Used by aio_notify.
      *
