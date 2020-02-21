@@ -308,13 +308,23 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
         /* Set the slot size to 0 before setting the slot to the desired
          * value. This is needed based on KVM commit 75d61fbc. */
         mem.memory_size = 0;
-        kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
+        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
+        if (ret < 0) {
+            goto err;
+        }
     }
     mem.memory_size = slot->memory_size;
     ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
     slot->old_flags = mem.flags;
+err:
     trace_kvm_set_user_memory(mem.slot, mem.flags, mem.guest_phys_addr,
                               mem.memory_size, mem.userspace_addr, ret);
+    if (ret < 0) {
+        error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
+                     " start=0x%" PRIx64 ", size=0x%" PRIx64 ": %s",
+                     __func__, mem.slot, slot->start_addr,
+                     (uint64_t)mem.memory_size, strerror(errno));
+    }
     return ret;
 }
 
