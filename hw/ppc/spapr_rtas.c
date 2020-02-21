@@ -345,6 +345,13 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)
 {
+    target_ulong msgaddr = rtas_ld(args, 0);
+    char msg[512];
+
+    cpu_physical_memory_read(msgaddr, msg, sizeof(msg) - 1);
+    msg[sizeof(msg) - 1] = 0;
+
+    error_report("OS terminated: %s", msg);
     qemu_system_guest_panicked(NULL);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);

@@ -23,8 +23,6 @@
 #include "qemu/int128.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
-#include "exec/cpu-defs.h"
-#include "cpu-qom.h"
 
 /* #define PPC_EMULATE_32BITS_HYPV */
 
@@ -962,117 +960,88 @@ struct ppc_radix_page_info {
 #define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
 
 struct CPUPPCState {
-    /*
-     * First are the most commonly used resources during translated
-     * code execution
-     */
-    /* general purpose registers */
-    target_ulong gpr[32];
-    /* Storage for GPR MSB, used by the SPE extension */
-    target_ulong gprh[32];
-    /* LR */
+    /* Most commonly used resources during translated code execution first */
+    target_ulong gpr[32];  /* general purpose registers */
+    target_ulong gprh[32]; /* storage for GPR MSB, used by the SPE extension */
     target_ulong lr;
-    /* CTR */
     target_ulong ctr;
-    /* condition register */
-    uint32_t crf[8];
+    uint32_t crf[8];       /* condition register */
 #if defined(TARGET_PPC64)
-    /* CFAR */
     target_ulong cfar;
 #endif
-    /* XER (with SO, OV, CA split out) */
-    target_ulong xer;
+    target_ulong xer;      /* XER (with SO, OV, CA split out) */
     target_ulong so;
     target_ulong ov;
     target_ulong ca;
     target_ulong ov32;
     target_ulong ca32;
-    /* Reservation address */
-    target_ulong reserve_addr;
-    /* Reservation value */
-    target_ulong reserve_val;
+
+    target_ulong reserve_addr; /* Reservation address */
+    target_ulong reserve_val;  /* Reservation value */
     target_ulong reserve_val2;
 
-    /* Those ones are used in supervisor mode only */
-    /* machine state register */
-    target_ulong msr;
-    /* temporary general purpose registers */
-    target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
+    /* These are used in supervisor mode only */
+    target_ulong msr;      /* machine state register */
+    target_ulong tgpr[4];  /* temporary general purpose registers, */
+                           /* used to speed-up TLB assist handlers */
 
-    /* Floating point execution context */
-    float_status fp_status;
-    /* floating point status and control register */
-    target_ulong fpscr;
-
-    /* Next instruction pointer */
-    target_ulong nip;
-
-    /* High part of 128-bit helper return.  */
-    uint64_t retxh;
+    target_ulong nip;      /* next instruction pointer */
+    uint64_t retxh;        /* high part of 128-bit helper return */
 
     /* when a memory exception occurs, the access type is stored here */
     int access_type;
 
-    /* MMU context - only relevant for full system emulation */
 #if !defined(CONFIG_USER_ONLY)
+    /* MMU context, only relevant for full system emulation */
 #if defined(TARGET_PPC64)
-    /* PowerPC 64 SLB area */
-    ppc_slb_t slb[MAX_SLB_ENTRIES];
-    /* tcg TLB needs flush (deferred slb inval instruction typically) */
+    ppc_slb_t slb[MAX_SLB_ENTRIES]; /* PowerPC 64 SLB area */
 #endif
-    /* segment registers */
-    target_ulong sr[32];
-    /* BATs */
-    uint32_t nb_BATs;
+    target_ulong sr[32];   /* segment registers */
+    uint32_t nb_BATs;      /* number of BATs */
     target_ulong DBAT[2][8];
     target_ulong IBAT[2][8];
     /* PowerPC TLB registers (for 4xx, e500 and 60x software driven TLBs) */
-    int32_t nb_tlb;      /* Total number of TLB                              */
+    int32_t nb_tlb;  /* Total number of TLB */
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
-    int nb_ways;     /* Number of ways in the TLB set                        */
-    int last_way;    /* Last used way used to allocate TLB in a LRU way      */
+    int nb_ways;     /* Number of ways in the TLB set */
+    int last_way;    /* Last used way used to allocate TLB in a LRU way */
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
-    int nb_pids;     /* Number of available PID registers                    */
-    int tlb_type;    /* Type of TLB we're dealing with                       */
-    ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed        */
-    /* 403 dedicated access protection registers */
-    target_ulong pb[4];
-    bool tlb_dirty;   /* Set to non-zero when modifying TLB                  */
-    bool kvm_sw_tlb;  /* non-zero if KVM SW TLB API is active                */
+    int nb_pids;     /* Number of available PID registers */
+    int tlb_type;    /* Type of TLB we're dealing with */
+    ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed */
+    target_ulong pb[4]; /* 403 dedicated access protection registers */
+    bool tlb_dirty;  /* Set to non-zero when modifying TLB */
+    bool kvm_sw_tlb; /* non-zero if KVM SW TLB API is active */
     uint32_t tlb_need_flush; /* Delayed flush needed */
 #define TLB_NEED_LOCAL_FLUSH   0x1
 #define TLB_NEED_GLOBAL_FLUSH  0x2
 #endif
 
     /* Other registers */
-    /* Special purpose registers */
-    target_ulong spr[1024];
+    target_ulong spr[1024]; /* special purpose registers */
     ppc_spr_t spr_cb[1024];
-    /* Vector status and control register, minus VSCR_SAT.  */
+    /* Vector status and control register, minus VSCR_SAT */
     uint32_t vscr;
     /* VSX registers (including FP and AVR) */
     ppc_vsr_t vsr[64] QEMU_ALIGNED(16);
-    /* Non-zero if and only if VSCR_SAT should be set.  */
+    /* Non-zero if and only if VSCR_SAT should be set */
     ppc_vsr_t vscr_sat QEMU_ALIGNED(16);
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
-    /*
-     * SPE and Altivec can share a status since they will never be
-     * used simultaneously
-     */
+    /* SPE and Altivec share status as they'll never be used simultaneously */
     float_status vec_status;
+    float_status fp_status; /* Floating point execution context */
+    target_ulong fpscr;     /* Floating point status and control register */
 
     /* Internal devices resources */
-    /* Time base and decrementer */
-    ppc_tb_t *tb_env;
-    /* Device control registers */
-    ppc_dcr_t *dcr_env;
+    ppc_tb_t *tb_env;      /* Time base and decrementer */
+    ppc_dcr_t *dcr_env;    /* Device control registers */
 
     int dcache_line_size;
     int icache_line_size;
 
-    /* Those resources are used during exception processing */
+    /* These resources are used during exception processing */
     /* CPU model definition */
     target_ulong msr_mask;
     powerpc_mmu_t mmu_model;
@@ -1091,58 +1060,49 @@ struct CPUPPCState {
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
     /*
-     * This is the IRQ controller, which is implementation dependent
-     * and only relevant when emulating a complete machine. Note that
-     * this isn't used by recent Book3s compatible CPUs (POWER7 and
-     * newer).
+     * This is the IRQ controller, which is implementation dependent and only
+     * relevant when emulating a complete machine. Note that this isn't used
+     * by recent Book3s compatible CPUs (POWER7 and newer).
      */
     uint32_t irq_input_state;
     void **irq_inputs;
-    /* Exception vectors */
-    target_ulong excp_vectors[POWERPC_EXCP_NB];
+
+    target_ulong excp_vectors[POWERPC_EXCP_NB]; /* Exception vectors */
     target_ulong excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
     hwaddr mpic_iack;
-    /* true when the external proxy facility mode is enabled */
-    bool mpic_proxy;
+    bool mpic_proxy;  /* true if the external proxy facility mode is enabled */
+    bool has_hv_mode; /* set when the processor has an HV mode, thus HV priv */
+                      /* instructions and SPRs are diallowed if MSR:HV is 0 */
     /*
-     * set when the processor has an HV mode, thus HV priv
-     * instructions and SPRs are diallowed if MSR:HV is 0
-     */
-    bool has_hv_mode;
-
-    /*
-     * On P7/P8/P9, set when in PM state, we need to handle resume in
-     * a special way (such as routing some resume causes to 0x100, ie,
-     * sreset), so flag this here.
+     * On P7/P8/P9, set when in PM state so we need to handle resume in a
+     * special way (such as routing some resume causes to 0x100, i.e. sreset).
      */
     bool resume_as_sreset;
 #endif
 
-    /* Those resources are used only in QEMU core */
-    target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
+    /* These resources are used only in QEMU core */
+    target_ulong hflags;      /* hflags is MSR & HFLAGS_MASK */
     target_ulong hflags_nmsr; /* specific hflags, not coming from MSR */
-    int immu_idx;         /* precomputed MMU index to speed up insn access */
-    int dmmu_idx;         /* precomputed MMU index to speed up data accesses */
+    int immu_idx;     /* precomputed MMU index to speed up insn accesses */
+    int dmmu_idx;     /* precomputed MMU index to speed up data accesses */
 
     /* Power management */
     int (*check_pow)(CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
-    void *load_info;    /* Holds boot loading state.  */
+    void *load_info;  /* holds boot loading state */
 #endif
 
     /* booke timers */
 
     /*
-     * Specifies bit locations of the Time Base used to signal a fixed
-     * timer exception on a transition from 0 to 1. (watchdog or
-     * fixed-interval timer)
+     * Specifies bit locations of the Time Base used to signal a fixed timer
+     * exception on a transition from 0 to 1 (watchdog or fixed-interval timer)
      *
-     * 0 selects the least significant bit.
-     * 63 selects the most significant bit.
+     * 0 selects the least significant bit, 63 selects the most significant bit
      */
     uint8_t fit_period[4];
     uint8_t wdt_period[4];
