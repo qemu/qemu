@@ -165,7 +165,7 @@ void fuse_cmdline_help(void)
            "                               enable/disable readirplus\n"
            "                               default: readdirplus except with "
            "cache=none\n"
-           "    -o timeout=<number>        I/O timeout (second)\n"
+           "    -o timeout=<number>        I/O timeout (seconds)\n"
            "                               default: depends on cache= option.\n"
            "    -o writeback|no_writeback  enable/disable writeback cache\n"
            "                               default: no_writeback\n"
