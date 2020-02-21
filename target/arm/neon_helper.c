@@ -615,23 +615,8 @@ NEON_VOP(abd_u32, neon_u32, 1)
     } else { \
         dest = src1 << tmp; \
     }} while (0)
-NEON_VOP(shl_u8, neon_u8, 4)
 NEON_VOP(shl_u16, neon_u16, 2)
-NEON_VOP(shl_u32, neon_u32, 1)
 #undef NEON_FN
-
-uint64_t HELPER(neon_shl_u64)(uint64_t val, uint64_t shiftop)
-{
-    int8_t shift = (int8_t)shiftop;
-    if (shift >= 64 || shift <= -64) {
-        val = 0;
-    } else if (shift < 0) {
-        val >>= -shift;
-    } else {
-        val <<= shift;
-    }
-    return val;
-}
 
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
@@ -645,26 +630,8 @@ uint64_t HELPER(neon_shl_u64)(uint64_t val, uint64_t shiftop)
     } else { \
         dest = src1 << tmp; \
     }} while (0)
-NEON_VOP(shl_s8, neon_s8, 4)
 NEON_VOP(shl_s16, neon_s16, 2)
-NEON_VOP(shl_s32, neon_s32, 1)
 #undef NEON_FN
-
-uint64_t HELPER(neon_shl_s64)(uint64_t valop, uint64_t shiftop)
-{
-    int8_t shift = (int8_t)shiftop;
-    int64_t val = valop;
-    if (shift >= 64) {
-        val = 0;
-    } else if (shift <= -64) {
-        val >>= 63;
-    } else if (shift < 0) {
-        val >>= -shift;
-    } else {
-        val <<= shift;
-    }
-    return val;
-}
 
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
@@ -1161,60 +1128,6 @@ NEON_VOP(sub_u16, neon_u16, 2)
 NEON_VOP(mul_u8, neon_u8, 4)
 NEON_VOP(mul_u16, neon_u16, 2)
 #undef NEON_FN
-
-/* Polynomial multiplication is like integer multiplication except the
-   partial products are XORed, not added.  */
-uint32_t HELPER(neon_mul_p8)(uint32_t op1, uint32_t op2)
-{
-    uint32_t mask;
-    uint32_t result;
-    result = 0;
-    while (op1) {
-        mask = 0;
-        if (op1 & 1)
-            mask |= 0xff;
-        if (op1 & (1 << 8))
-            mask |= (0xff << 8);
-        if (op1 & (1 << 16))
-            mask |= (0xff << 16);
-        if (op1 & (1 << 24))
-            mask |= (0xff << 24);
-        result ^= op2 & mask;
-        op1 = (op1 >> 1) & 0x7f7f7f7f;
-        op2 = (op2 << 1) & 0xfefefefe;
-    }
-    return result;
-}
-
-uint64_t HELPER(neon_mull_p8)(uint32_t op1, uint32_t op2)
-{
-    uint64_t result = 0;
-    uint64_t mask;
-    uint64_t op2ex = op2;
-    op2ex = (op2ex & 0xff) |
-        ((op2ex & 0xff00) << 8) |
-        ((op2ex & 0xff0000) << 16) |
-        ((op2ex & 0xff000000) << 24);
-    while (op1) {
-        mask = 0;
-        if (op1 & 1) {
-            mask |= 0xffff;
-        }
-        if (op1 & (1 << 8)) {
-            mask |= (0xffffU << 16);
-        }
-        if (op1 & (1 << 16)) {
-            mask |= (0xffffULL << 32);
-        }
-        if (op1 & (1 << 24)) {
-            mask |= (0xffffULL << 48);
-        }
-        result ^= op2ex & mask;
-        op1 = (op1 >> 1) & 0x7f7f7f7f;
-        op2ex <<= 1;
-    }
-    return result;
-}
 
 #define NEON_FN(dest, src1, src2) dest = (src1 & src2) ? -1 : 0
 NEON_VOP(tst_u8, neon_u8, 4)
@@ -2206,34 +2119,4 @@ void HELPER(neon_zip16)(void *vd, void *vm)
 
     rm[0] = m0;
     rd[0] = d0;
-}
-
-/* Helper function for 64 bit polynomial multiply case:
- * perform PolynomialMult(op1, op2) and return either the top or
- * bottom half of the 128 bit result.
- */
-uint64_t HELPER(neon_pmull_64_lo)(uint64_t op1, uint64_t op2)
-{
-    int bitnum;
-    uint64_t res = 0;
-
-    for (bitnum = 0; bitnum < 64; bitnum++) {
-        if (op1 & (1ULL << bitnum)) {
-            res ^= op2 << bitnum;
-        }
-    }
-    return res;
-}
-uint64_t HELPER(neon_pmull_64_hi)(uint64_t op1, uint64_t op2)
-{
-    int bitnum;
-    uint64_t res = 0;
-
-    /* bit 0 of op1 can't influence the high 64 bits at all */
-    for (bitnum = 1; bitnum < 64; bitnum++) {
-        if (op1 & (1ULL << bitnum)) {
-            res ^= op2 >> (64 - bitnum);
-        }
-    }
-    return res;
 }

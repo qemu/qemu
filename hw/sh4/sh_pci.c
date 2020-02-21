@@ -67,12 +67,8 @@ static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
         pcic->mbr = val & 0xff000001;
         break;
     case 0x1c8:
-        if ((val & 0xfffc0000) != (pcic->iobr & 0xfffc0000)) {
-            memory_region_del_subregion(get_system_memory(), &pcic->isa);
-            pcic->iobr = val & 0xfffc0001;
-            memory_region_add_subregion(get_system_memory(),
-                                        pcic->iobr & 0xfffc0000, &pcic->isa);
-        }
+        pcic->iobr = val & 0xfffc0001;
+        memory_region_set_alias_offset(&pcic->isa, val & 0xfffc0000);
         break;
     case 0x220:
         pci_data_write(phb->bus, pcic->par, val, 4);
@@ -147,8 +143,7 @@ static void sh_pci_device_realize(DeviceState *dev, Error **errp)
                              get_system_io(), 0, 0x40000);
     sysbus_init_mmio(sbd, &s->memconfig_p4);
     sysbus_init_mmio(sbd, &s->memconfig_a7);
-    s->iobr = 0xfe240000;
-    memory_region_add_subregion(get_system_memory(), s->iobr, &s->isa);
+    memory_region_add_subregion(get_system_memory(), 0xfe240000, &s->isa);
 
     s->dev = pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "sh_pci_host");
 }

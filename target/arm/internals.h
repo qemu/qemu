@@ -931,6 +931,48 @@ static inline uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
+/**
+ * arm_num_brps: Return number of implemented breakpoints.
+ * Note that the ID register BRPS field is "number of bps - 1",
+ * and we return the actual number of breakpoints.
+ */
+static inline int arm_num_brps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, BRPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, BRPS) + 1;
+    }
+}
+
+/**
+ * arm_num_wrps: Return number of implemented watchpoints.
+ * Note that the ID register WRPS field is "number of wps - 1",
+ * and we return the actual number of watchpoints.
+ */
+static inline int arm_num_wrps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, WRPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, WRPS) + 1;
+    }
+}
+
+/**
+ * arm_num_ctx_cmps: Return number of implemented context comparators.
+ * Note that the ID register CTX_CMPS field is "number of cmps - 1",
+ * and we return the actual number of comparators.
+ */
+static inline int arm_num_ctx_cmps(ARMCPU *cpu)
+{
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, CTX_CMPS) + 1;
+    } else {
+        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, CTX_CMPS) + 1;
+    }
+}
+
 /* Note make_memop_idx reserves 4 bits for mmu_idx, and MO_BSWAP is bit 3.
  * Thus a TCGMemOpIdx, without any MO_ALIGN bits, fits in 8 bits.
  */
@@ -1091,7 +1133,7 @@ static inline uint32_t aarch32_cpsr_valid_mask(uint64_t features,
     if ((features >> ARM_FEATURE_THUMB2) & 1) {
         valid |= CPSR_IT;
     }
-    if (isar_feature_jazelle(id)) {
+    if (isar_feature_aa32_jazelle(id)) {
         valid |= CPSR_J;
     }
     if (isar_feature_aa32_pan(id)) {
@@ -1127,15 +1169,12 @@ typedef struct ARMVAParameters {
     unsigned tsz    : 8;
     unsigned select : 1;
     bool tbi        : 1;
-    bool tbid       : 1;
     bool epd        : 1;
     bool hpd        : 1;
     bool using16k   : 1;
     bool using64k   : 1;
 } ARMVAParameters;
 
-ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
-                                        ARMMMUIdx mmu_idx);
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data);
 

@@ -1227,17 +1227,17 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xd44: /* PFR1.  */
         return cpu->id_pfr1;
     case 0xd48: /* DFR0.  */
-        return cpu->id_dfr0;
+        return cpu->isar.id_dfr0;
     case 0xd4c: /* AFR0.  */
         return cpu->id_afr0;
     case 0xd50: /* MMFR0.  */
-        return cpu->id_mmfr0;
+        return cpu->isar.id_mmfr0;
     case 0xd54: /* MMFR1.  */
-        return cpu->id_mmfr1;
+        return cpu->isar.id_mmfr1;
     case 0xd58: /* MMFR2.  */
-        return cpu->id_mmfr2;
+        return cpu->isar.id_mmfr2;
     case 0xd5c: /* MMFR3.  */
-        return cpu->id_mmfr3;
+        return cpu->isar.id_mmfr3;
     case 0xd60: /* ISAR0.  */
         return cpu->isar.id_isar0;
     case 0xd64: /* ISAR1.  */
