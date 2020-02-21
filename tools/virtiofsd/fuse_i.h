@@ -10,7 +10,6 @@
 #define FUSE_I_H
 
 #define FUSE_USE_VERSION 31
-#include "fuse.h"
 #include "fuse_lowlevel.h"
 
 struct fv_VuDev;
@@ -80,21 +79,6 @@ struct fuse_chan {
     int ctr;
     int fd;
     struct fv_QueueInfo *qi;
-};
-
-/**
- * Filesystem module
- *
- * Filesystem modules are registered with the FUSE_REGISTER_MODULE()
- * macro.
- *
- */
-struct fuse_module {
-    char *name;
-    fuse_module_factory_t factory;
-    struct fuse_module *next;
-    struct fusemod_so *so;
-    int ctr;
 };
 
 int fuse_send_reply_iov_nofree(fuse_req_t req, int error, struct iovec *iov,
