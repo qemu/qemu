@@ -42,7 +42,9 @@
 #include "qemu/cutils.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
-                                        BlockDriverState *bs, Error **errp)
+                                        BlockDriverState *bs,
+                                        bool flat,
+                                        Error **errp)
 {
     ImageInfo **p_image_info;
     BlockDriverState *bs0;
@@ -154,6 +156,11 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
             error_propagate(errp, local_err);
             qapi_free_BlockDeviceInfo(info);
             return NULL;
+        }
+
+        /* stop gathering data for flat output */
+        if (flat) {
+            break;
         }
 
         if (bs0->drv && bs0->backing) {
@@ -389,7 +396,7 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 
     if (bs && bs->drv) {
         info->has_inserted = true;
-        info->inserted = bdrv_block_device_info(blk, bs, errp);
+        info->inserted = bdrv_block_device_info(blk, bs, false, errp);
         if (info->inserted == NULL) {
             goto err;
         }
@@ -657,7 +664,7 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
     char *sizing = NULL;
 
     if (!sn) {
-        qemu_printf("%-10s%-20s%7s%20s%15s",
+        qemu_printf("%-10s%-20s%11s%20s%15s",
                     "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
     } else {
         ti = sn->date_sec;
@@ -672,7 +679,7 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
                  (int)(secs % 60),
                  (int)((sn->vm_clock_nsec / 1000000) % 1000));
         sizing = size_to_str(sn->vm_state_size);
-        qemu_printf("%-10s%-20s%7s%20s%15s",
+        qemu_printf("%-10s%-20s%11s%20s%15s",
                     sn->id_str, sn->name,
                     sizing,
                     date_buf,

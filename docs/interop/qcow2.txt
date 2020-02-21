@@ -79,9 +79,9 @@ The first cluster of a qcow2 image contains the file header:
                     Offset into the image file at which the snapshot table
                     starts. Must be aligned to a cluster boundary.
 
-If the version is 3 or higher, the header has the following additional fields.
-For version 2, the values are assumed to be zero, unless specified otherwise
-in the description of a field.
+For version 2, the header is exactly 72 bytes in length, and finishes here.
+For version 3 or higher, the header length is at least 104 bytes, including
+the next fields through header_length.
 
          72 -  79:  incompatible_features
                     Bitmask of incompatible features. An implementation must
@@ -109,7 +109,12 @@ in the description of a field.
                                 An External Data File Name header extension may
                                 be present if this bit is set.
 
-                    Bits 3-63:  Reserved (set to 0)
+                    Bit 3:      Compression type bit.  If this bit is set,
+                                a non-default compression is used for compressed
+                                clusters. The compression_type field must be
+                                present and not zero.
+
+                    Bits 4-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -164,6 +169,57 @@ in the description of a field.
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
                     images, the length is always assumed to be 72 bytes.
+                    For version 3 it's at least 104 bytes and must be a multiple
+                    of 8.
+
+
+=== Additional fields (version 3 and higher) ===
+
+In general, these fields are optional and may be safely ignored by the software,
+as well as filled by zeros (which is equal to field absence), if software needs
+to set field B, but does not care about field A which precedes B. More
+formally, additional fields have the following compatibility rules:
+
+1. If the value of the additional field must not be ignored for correct
+handling of the file, it will be accompanied by a corresponding incompatible
+feature bit.
+
+2. If there are no unrecognized incompatible feature bits set, an unknown
+additional field may be safely ignored other than preserving its value when
+rewriting the image header.
+
+3. An explicit value of 0 will have the same behavior as when the field is not
+present*, if not altered by a specific incompatible bit.
+
+*. A field is considered not present when header_length is less than or equal
+to the field's offset. Also, all additional fields are not present for
+version 2.
+
+              104:  compression_type
+
+                    Defines the compression method used for compressed clusters.
+                    All compressed clusters in an image use the same compression
+                    type.
+
+                    If the incompatible bit "Compression type" is set: the field
+                    must be present and non-zero (which means non-zlib
+                    compression type). Otherwise, this field must not be present
+                    or must be zero (which means zlib).
+
+                    Available compression type values:
+                        0: zlib <https://www.zlib.net/>
+
+
+=== Header padding ===
+
+@header_length must be a multiple of 8, which means that if the end of the last
+additional field is not aligned, some padding is needed. This padding must be
+zeroed, so that if some existing (or future) additional field will fall into
+the padding, it will be interpreted accordingly to point [3.] of the previous
+paragraph, i.e.  in the same manner as when this field is not present.
+
+
+=== Header extensions ===
 
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:

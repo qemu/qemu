@@ -3477,67 +3477,6 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
     return raw_do_pwrite_zeroes(bs, offset, bytes, flags, true);
 }
 
-static int coroutine_fn hdev_co_create_opts(const char *filename, QemuOpts *opts,
-                                            Error **errp)
-{
-    int fd;
-    int ret = 0;
-    struct stat stat_buf;
-    int64_t total_size = 0;
-    bool has_prefix;
-
-    /* This function is used by both protocol block drivers and therefore either
-     * of these prefixes may be given.
-     * The return value has to be stored somewhere, otherwise this is an error
-     * due to -Werror=unused-value. */
-    has_prefix =
-        strstart(filename, "host_device:", &filename) ||
-        strstart(filename, "host_cdrom:" , &filename);
-
-    (void)has_prefix;
-
-    ret = raw_normalize_devicepath(&filename, errp);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* Read out options */
-    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-
-    fd = qemu_open(filename, O_WRONLY | O_BINARY);
-    if (fd < 0) {
-        ret = -errno;
-        error_setg_errno(errp, -ret, "Could not open device");
-        return ret;
-    }
-
-    if (fstat(fd, &stat_buf) < 0) {
-        ret = -errno;
-        error_setg_errno(errp, -ret, "Could not stat device");
-    } else if (!S_ISBLK(stat_buf.st_mode) && !S_ISCHR(stat_buf.st_mode)) {
-        error_setg(errp,
-                   "The given file is neither a block nor a character device");
-        ret = -ENODEV;
-    } else if (lseek(fd, 0, SEEK_END) < total_size) {
-        error_setg(errp, "Device is too small");
-        ret = -ENOSPC;
-    }
-
-    if (!ret && total_size) {
-        uint8_t buf[BDRV_SECTOR_SIZE] = { 0 };
-        int64_t zero_size = MIN(BDRV_SECTOR_SIZE, total_size);
-        if (lseek(fd, 0, SEEK_SET) == -1) {
-            ret = -errno;
-        } else {
-            ret = qemu_write_full(fd, buf, zero_size);
-            ret = ret == zero_size ? 0 : -errno;
-        }
-    }
-    qemu_close(fd);
-    return ret;
-}
-
 static BlockDriver bdrv_host_device = {
     .format_name        = "host_device",
     .protocol_name        = "host_device",
@@ -3550,8 +3489,6 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = hdev_co_create_opts,
-    .create_opts         = &raw_create_opts,
     .mutable_opts        = mutable_opts,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
     .bdrv_co_pwrite_zeroes = hdev_co_pwrite_zeroes,
@@ -3678,8 +3615,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = hdev_co_create_opts,
-    .create_opts         = &raw_create_opts,
     .mutable_opts        = mutable_opts,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
 
@@ -3812,8 +3747,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = hdev_co_create_opts,
-    .create_opts        = &raw_create_opts,
     .mutable_opts       = mutable_opts,
 
     .bdrv_co_preadv         = raw_co_preadv,

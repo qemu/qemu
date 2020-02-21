@@ -532,20 +532,139 @@ out:
     return ret;
 }
 
+/**
+ * Helper function for bdrv_create_file_fallback(): Resize @blk to at
+ * least the given @minimum_size.
+ *
+ * On success, return @blk's actual length.
+ * Otherwise, return -errno.
+ */
+static int64_t create_file_fallback_truncate(BlockBackend *blk,
+                                             int64_t minimum_size, Error **errp)
+{
+    Error *local_err = NULL;
+    int64_t size;
+    int ret;
+
+    ret = blk_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, &local_err);
+    if (ret < 0 && ret != -ENOTSUP) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    size = blk_getlength(blk);
+    if (size < 0) {
+        error_free(local_err);
+        error_setg_errno(errp, -size,
+                         "Failed to inquire the new image file's length");
+        return size;
+    }
+
+    if (size < minimum_size) {
+        /* Need to grow the image, but we failed to do that */
+        error_propagate(errp, local_err);
+        return -ENOTSUP;
+    }
+
+    error_free(local_err);
+    local_err = NULL;
+
+    return size;
+}
+
+/**
+ * Helper function for bdrv_create_file_fallback(): Zero the first
+ * sector to remove any potentially pre-existing image header.
+ */
+static int create_file_fallback_zero_first_sector(BlockBackend *blk,
+                                                  int64_t current_size,
+                                                  Error **errp)
+{
+    int64_t bytes_to_clear;
+    int ret;
+
+    bytes_to_clear = MIN(current_size, BDRV_SECTOR_SIZE);
+    if (bytes_to_clear) {
+        ret = blk_pwrite_zeroes(blk, 0, bytes_to_clear, BDRV_REQ_MAY_UNMAP);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "Failed to clear the new image's first sector");
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+static int bdrv_create_file_fallback(const char *filename, BlockDriver *drv,
+                                     QemuOpts *opts, Error **errp)
+{
+    BlockBackend *blk;
+    QDict *options = qdict_new();
+    int64_t size = 0;
+    char *buf = NULL;
+    PreallocMode prealloc;
+    Error *local_err = NULL;
+    int ret;
+
+    size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                               PREALLOC_MODE_OFF, &local_err);
+    g_free(buf);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    qdict_put_str(options, "driver", drv->format_name);
+
+    blk = blk_new_open(filename, NULL, options,
+                       BDRV_O_RDWR | BDRV_O_RESIZE, errp);
+    if (!blk) {
+        error_prepend(errp, "Protocol driver '%s' does not support image "
+                      "creation, and opening the image failed: ",
+                      drv->format_name);
+        return -EINVAL;
+    }
+
+    size = create_file_fallback_truncate(blk, size, errp);
+    if (size < 0) {
+        ret = size;
+        goto out;
+    }
+
+    ret = create_file_fallback_zero_first_sector(blk, size, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = 0;
+out:
+    blk_unref(blk);
+    return ret;
+}
+
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
 {
     BlockDriver *drv;
-    Error *local_err = NULL;
-    int ret;
 
     drv = bdrv_find_protocol(filename, true, errp);
     if (drv == NULL) {
         return -ENOENT;
     }
 
-    ret = bdrv_create(drv, filename, opts, &local_err);
-    error_propagate(errp, local_err);
-    return ret;
+    if (drv->bdrv_co_create_opts) {
+        return bdrv_create(drv, filename, opts, errp);
+    } else {
+        return bdrv_create_file_fallback(filename, drv, opts, errp);
+    }
 }
 
 /**
@@ -1442,6 +1561,24 @@ QemuOptsList bdrv_runtime_opts = {
         },
         { /* end of list */ }
     },
+};
+
+static QemuOptsList fallback_create_opts = {
+    .name = "fallback-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(fallback_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off)"
+        },
+        { /* end of list */ }
+    }
 };
 
 /*
@@ -4807,14 +4944,15 @@ BlockDriverState *bdrv_find_node(const char *node_name)
 }
 
 /* Put this QMP function here so it can access the static graph_bdrv_states. */
-BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
+BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
+                                           Error **errp)
 {
     BlockDeviceInfoList *list, *entry;
     BlockDriverState *bs;
 
     list = NULL;
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
-        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, errp);
+        BlockDeviceInfo *info = bdrv_block_device_info(NULL, bs, flat, errp);
         if (!info) {
             qapi_free_BlockDeviceInfoList(list);
             return NULL;
@@ -5771,15 +5909,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    if (!proto_drv->create_opts) {
-        error_setg(errp, "Protocol driver '%s' does not support image creation",
-                   proto_drv->format_name);
-        return;
-    }
-
     /* Create parameter list */
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+    if (proto_drv->create_opts) {
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+    } else {
+        create_opts = qemu_opts_append(create_opts, &fallback_create_opts);
+    }
 
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
 

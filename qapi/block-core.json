@@ -1758,6 +1758,9 @@
 #
 # Get the named block driver list
 #
+# @flat: Omit the nested data about backing image ("backing-image" key) if true.
+#        Default is false (Since 5.0)
+#
 # Returns: the list of BlockDeviceInfo
 #
 # Since: 2.0
@@ -1811,7 +1814,9 @@
 #                    } } ] }
 #
 ##
-{ 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
+{ 'command': 'query-named-block-nodes',
+  'returns': [ 'BlockDeviceInfo' ],
+  'data': { '*flat': 'bool' } }
 
 ##
 # @XDbgBlockGraphNodeType:

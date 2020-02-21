@@ -276,6 +276,20 @@ $QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
 
 $QEMU_IMG compare "$TEST_IMG" "$TEST_IMG".orig
 
+echo
+echo '=== -n -B to an image without a backing file ==='
+echo
+
+# Base for the output
+TEST_IMG="$TEST_IMG".base _make_test_img 64M
+
+# Output that does have $TEST_IMG.base set as its (implicit) backing file
+TEST_IMG="$TEST_IMG".orig _make_test_img 64M
+
+# Convert with -n, which should not confuse -B with "target BDS has a
+# backing file"
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -n "$TEST_IMG" "$TEST_IMG".orig
+
 # success, all done
 echo '*** done'
 rm -f $seq.full

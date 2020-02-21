@@ -1,0 +1,14 @@
+QA output created by 259
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+
+--- Testing creation ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=qcow2 size=67108864
+image: TEST_DIR/t.IMGFMT
+file format: qcow2
+virtual size: 64 MiB (67108864 bytes)
+disk size: unavailable
+
+--- Testing creation for which the node would need to grow ---
+qemu-img: TEST_DIR/t.IMGFMT: Could not resize image: Image format driver does not support resize
+Formatting 'TEST_DIR/t.IMGFMT', fmt=qcow2 size=67108864 preallocation=metadata
+*** done

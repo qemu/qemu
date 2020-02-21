@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# Test qemu-img snapshot -l
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq=$(basename "$0")
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+
+_make_test_img 64M
+
+# Should be so long as to take up the whole field width
+sn_name=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+
+# More memory will give us a larger VM state, i.e. one above 1 MB.
+# This way, we get a number with a decimal point.
+qemu_comm_method=monitor _launch_qemu -m 512 "$TEST_IMG"
+
+_send_qemu_cmd $QEMU_HANDLE "savevm $sn_name" '(qemu)'
+_send_qemu_cmd $QEMU_HANDLE 'quit' '(qemu)'
+wait=yes _cleanup_qemu
+
+# Check that all fields are separated by spaces.
+# We first collapse all space sequences into one space each;
+# then we turn every space-separated field into a '.';
+# and finally, we name the '.'s so the output is not just a confusing
+# sequence of dots.
+
+echo 'Output structure:'
+$QEMU_IMG snapshot -l "$TEST_IMG" | tail -n 1 | tr -s ' ' \
+    | sed -e 's/\S\+/./g' \
+    | sed -e 's/\./(snapshot ID)/' \
+          -e 's/\./(snapshot name)/' \
+          -e 's/\./(VM state size value)/' \
+          -e 's/\./(VM state size unit)/' \
+          -e 's/\./(snapshot date)/' \
+          -e 's/\./(snapshot time)/' \
+          -e 's/\./(VM clock)/'
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -1,0 +1,62 @@
+QA output created by 284
+
+testing LUKS qcow2 encryption
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 512
+== checking image refcounts ==
+No errors were found on the image.
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+
+== writing some more data ==
+wrote 1/1 bytes at offset 512
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 2048
+== checking image refcounts ==
+No errors were found on the image.
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+
+== writing some more data ==
+wrote 1/1 bytes at offset 2048
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 32768
+== checking image refcounts ==
+No errors were found on the image.
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+
+== writing some more data ==
+wrote 1/1 bytes at offset 32768
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+*** done

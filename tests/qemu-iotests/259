@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Test qemu-img --backing-chain --image-opts
+# Test generic image creation fallback (by using NBD)
 #
 # Copyright (C) 2019 Red Hat, Inc.
 #
@@ -18,7 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-seq=$(basename "$0")
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
 echo "QA output created by $seq"
 
 status=1	# failure is the default!
@@ -26,7 +29,6 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_IMG.mid"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -34,25 +36,25 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-# Backing files are required...
-_supported_fmt qcow qcow2 vmdk qed
-_supported_proto file
+_supported_fmt raw
+_supported_proto nbd
 _supported_os Linux
-_unsupported_imgopts "subformat=monolithicFlat" \
-                     "subformat=twoGbMaxExtentFlat" \
 
-TEST_IMG="$TEST_IMG.base" _make_test_img 64M
-TEST_IMG="$TEST_IMG.mid" _make_test_img -b "$TEST_IMG.base"
-_make_test_img -b "$TEST_IMG.mid"
+
+_make_test_img 64M
 
 echo
-echo '== qemu-img info --backing-chain =='
-_img_info --backing-chain | _filter_img_info | grep -v 'backing file format'
+echo '--- Testing creation ---'
+
+$QEMU_IMG create -f qcow2 "$TEST_IMG" 64M | _filter_img_create
+$QEMU_IMG info "$TEST_IMG" | _filter_img_info
 
 echo
-echo '== qemu-img info --backing-chain --image-opts =='
-TEST_IMG="driver=$IMGFMT,file.driver=file,file.filename=$TEST_IMG" _img_info --backing-chain --image-opts \
-    | _filter_img_info | grep -v 'backing file format'
+echo '--- Testing creation for which the node would need to grow ---'
+
+# NBD does not support resizing, so this will fail
+$QEMU_IMG create -f qcow2 -o preallocation=metadata "$TEST_IMG" 64M 2>&1 \
+    | _filter_img_create
 
 # success, all done
 echo "*** done"
