@@ -115,6 +115,42 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
 }
 
 
+static ssize_t qcrypto_block_headerlen_hdr_init_func(QCryptoBlock *block,
+        size_t headerlen, void *opaque, Error **errp)
+{
+    size_t *headerlenp = opaque;
+
+    /* Stash away the payload size */
+    *headerlenp = headerlen;
+    return 0;
+}
+
+
+static ssize_t qcrypto_block_headerlen_hdr_write_func(QCryptoBlock *block,
+        size_t offset, const uint8_t *buf, size_t buflen,
+        void *opaque, Error **errp)
+{
+    /* Discard the bytes, we're not actually writing to an image */
+    return buflen;
+}
+
+
+bool
+qcrypto_block_calculate_payload_offset(QCryptoBlockCreateOptions *create_opts,
+                                       const char *optprefix,
+                                       size_t *len,
+                                       Error **errp)
+{
+    /* Fake LUKS creation in order to determine the payload size */
+    g_autoptr(QCryptoBlock) crypto =
+        qcrypto_block_create(create_opts, optprefix,
+                             qcrypto_block_headerlen_hdr_init_func,
+                             qcrypto_block_headerlen_hdr_write_func,
+                             len, errp);
+    return crypto != NULL;
+}
+
+
 QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
                                          Error **errp)
 {
