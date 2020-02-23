@@ -46,7 +46,7 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
     target_ulong pending = env->mip & env->mie &
                                ~(MIP_VSSIP | MIP_VSTIP | MIP_VSEIP);
     target_ulong vspending = (env->mip & env->mie &
-                              (MIP_VSSIP | MIP_VSTIP | MIP_VSEIP)) >> 1;
+                              (MIP_VSSIP | MIP_VSTIP | MIP_VSEIP));
 
     target_ulong mie    = env->priv < PRV_M ||
                           (env->priv == PRV_M && mstatus_mie);
@@ -907,6 +907,13 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
             if (riscv_cpu_virt_enabled(env) && ((hdeleg >> cause) & 1) &&
                 !force_hs_execp) {
+                /*
+                 * See if we need to adjust cause. Yes if its VS mode interrupt
+                 * no if hypervisor has delegated one of hs mode's interrupt
+                 */
+                if (cause == IRQ_VS_TIMER || cause == IRQ_VS_SOFT ||
+                    cause == IRQ_VS_EXT)
+                    cause = cause - 1;
                 /* Trap to VS mode */
             } else if (riscv_cpu_virt_enabled(env)) {
                 /* Trap into HS mode, from virt */
