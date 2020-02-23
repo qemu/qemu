@@ -132,10 +132,17 @@ static bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
     return addr >= low && addr < hi;
 }
 
+static inline void *nvme_addr_to_cmb(NvmeCtrl *n, hwaddr addr)
+{
+    assert(nvme_addr_is_cmb(n, addr));
+
+    return &n->cmbuf[addr - n->ctrl_mem.addr];
+}
+
 static void nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size)
 {
     if (n->bar.cmbsz && nvme_addr_is_cmb(n, addr)) {
-        memcpy(buf, (void *)&n->cmbuf[addr - n->ctrl_mem.addr], size);
+        memcpy(buf, nvme_addr_to_cmb(n, addr), size);
         return;
     }
 
@@ -218,29 +225,91 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
     }
 }
 
+static uint16_t nvme_map_addr_cmb(NvmeCtrl *n, QEMUIOVector *iov, hwaddr addr,
+                                  size_t len)
+{
+    if (!len) {
+        return NVME_SUCCESS;
+    }
+
+    trace_pci_nvme_map_addr_cmb(addr, len);
+
+    if (!nvme_addr_is_cmb(n, addr) || !nvme_addr_is_cmb(n, addr + len - 1)) {
+        return NVME_DATA_TRAS_ERROR;
+    }
+
+    qemu_iovec_add(iov, nvme_addr_to_cmb(n, addr), len);
+
+    return NVME_SUCCESS;
+}
+
+static uint16_t nvme_map_addr(NvmeCtrl *n, QEMUSGList *qsg, QEMUIOVector *iov,
+                              hwaddr addr, size_t len)
+{
+    if (!len) {
+        return NVME_SUCCESS;
+    }
+
+    trace_pci_nvme_map_addr(addr, len);
+
+    if (nvme_addr_is_cmb(n, addr)) {
+        if (qsg && qsg->sg) {
+            return NVME_INVALID_USE_OF_CMB | NVME_DNR;
+        }
+
+        assert(iov);
+
+        if (!iov->iov) {
+            qemu_iovec_init(iov, 1);
+        }
+
+        return nvme_map_addr_cmb(n, iov, addr, len);
+    }
+
+    if (iov && iov->iov) {
+        return NVME_INVALID_USE_OF_CMB | NVME_DNR;
+    }
+
+    assert(qsg);
+
+    if (!qsg->sg) {
+        pci_dma_sglist_init(qsg, &n->parent_obj, 1);
+    }
+
+    qemu_sglist_add(qsg, addr, len);
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
                              uint64_t prp2, uint32_t len, NvmeCtrl *n)
 {
     hwaddr trans_len = n->page_size - (prp1 % n->page_size);
     trans_len = MIN(len, trans_len);
     int num_prps = (len >> n->page_bits) + 1;
+    uint16_t status;
 
     if (unlikely(!prp1)) {
         trace_pci_nvme_err_invalid_prp();
         return NVME_INVALID_FIELD | NVME_DNR;
-    } else if (n->bar.cmbsz && prp1 >= n->ctrl_mem.addr &&
-               prp1 < n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size)) {
-        qsg->nsg = 0;
+    }
+
+    if (nvme_addr_is_cmb(n, prp1)) {
         qemu_iovec_init(iov, num_prps);
-        qemu_iovec_add(iov, (void *)&n->cmbuf[prp1 - n->ctrl_mem.addr], trans_len);
     } else {
         pci_dma_sglist_init(qsg, &n->parent_obj, num_prps);
-        qemu_sglist_add(qsg, prp1, trans_len);
     }
+
+    status = nvme_map_addr(n, qsg, iov, prp1, trans_len);
+    if (status) {
+        goto unmap;
+    }
+
     len -= trans_len;
     if (len) {
         if (unlikely(!prp2)) {
             trace_pci_nvme_err_invalid_prp2_missing();
+            status = NVME_INVALID_FIELD | NVME_DNR;
             goto unmap;
         }
         if (len > n->page_size) {
@@ -257,6 +326,7 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
                 if (i == n->max_prp_ents - 1 && len > n->page_size) {
                     if (unlikely(!prp_ent || prp_ent & (n->page_size - 1))) {
                         trace_pci_nvme_err_invalid_prplist_ent(prp_ent);
+                        status = NVME_INVALID_FIELD | NVME_DNR;
                         goto unmap;
                     }
 
@@ -270,14 +340,14 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
 
                 if (unlikely(!prp_ent || prp_ent & (n->page_size - 1))) {
                     trace_pci_nvme_err_invalid_prplist_ent(prp_ent);
+                    status = NVME_INVALID_FIELD | NVME_DNR;
                     goto unmap;
                 }
 
                 trans_len = MIN(len, n->page_size);
-                if (qsg->nsg){
-                    qemu_sglist_add(qsg, prp_ent, trans_len);
-                } else {
-                    qemu_iovec_add(iov, (void *)&n->cmbuf[prp_ent - n->ctrl_mem.addr], trans_len);
+                status = nvme_map_addr(n, qsg, iov, prp_ent, trans_len);
+                if (status) {
+                    goto unmap;
                 }
                 len -= trans_len;
                 i++;
@@ -285,20 +355,27 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
         } else {
             if (unlikely(prp2 & (n->page_size - 1))) {
                 trace_pci_nvme_err_invalid_prp2_align(prp2);
+                status = NVME_INVALID_FIELD | NVME_DNR;
                 goto unmap;
             }
-            if (qsg->nsg) {
-                qemu_sglist_add(qsg, prp2, len);
-            } else {
-                qemu_iovec_add(iov, (void *)&n->cmbuf[prp2 - n->ctrl_mem.addr], trans_len);
+            status = nvme_map_addr(n, qsg, iov, prp2, len);
+            if (status) {
+                goto unmap;
             }
         }
     }
     return NVME_SUCCESS;
 
- unmap:
-    qemu_sglist_destroy(qsg);
-    return NVME_INVALID_FIELD | NVME_DNR;
+unmap:
+    if (iov && iov->iov) {
+        qemu_iovec_destroy(iov);
+    }
+
+    if (qsg && qsg->sg) {
+        qemu_sglist_destroy(qsg);
+    }
+
+    return status;
 }
 
 static uint16_t nvme_dma_write_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
