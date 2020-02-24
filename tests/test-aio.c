@@ -615,7 +615,8 @@ static void test_source_bh_delete_from_cb(void)
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert(data1.bh == NULL);
 
-    g_assert(!g_main_context_iteration(NULL, false));
+    assert(g_main_context_iteration(NULL, false));
+    assert(!g_main_context_iteration(NULL, false));
 }
 
 static void test_source_bh_delete_from_cb_many(void)

@@ -1,0 +1,18 @@
+QEMU_PROG_FUZZ=qemu-fuzz-$(TARGET_NAME)$(EXESUF)
+
+fuzz-obj-y += tests/qtest/libqtest.o
+fuzz-obj-y += $(libqos-obj-y)
+fuzz-obj-y += tests/qtest/fuzz/fuzz.o # Fuzzer skeleton
+fuzz-obj-y += tests/qtest/fuzz/fork_fuzz.o
+fuzz-obj-y += tests/qtest/fuzz/qos_fuzz.o
+
+# Targets
+fuzz-obj-y += tests/qtest/fuzz/i440fx_fuzz.o
+fuzz-obj-y += tests/qtest/fuzz/virtio_net_fuzz.o
+fuzz-obj-y += tests/qtest/fuzz/virtio_scsi_fuzz.o
+
+FUZZ_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
+
+# Linker Script to force coverage-counters into known regions which we can mark
+# shared
+FUZZ_LDFLAGS += -Xlinker -T$(SRC_PATH)/tests/qtest/fuzz/fork_fuzz.ld

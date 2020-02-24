@@ -2636,10 +2636,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
 static void bdrv_detach_child(BdrvChild *child)
 {
-    if (child->next.le_prev) {
-        QLIST_REMOVE(child, next);
-        child->next.le_prev = NULL;
-    }
+    QLIST_SAFE_REMOVE(child, next);
 
     bdrv_replace_child(child, NULL);
 

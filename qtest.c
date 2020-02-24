@@ -43,6 +43,8 @@ static GString *inbuf;
 static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
 static bool qtest_opened;
+static void (*qtest_server_send)(void*, const char*);
+static void *qtest_server_send_opaque;
 
 #define FMT_timeval "%ld.%06ld"
 
@@ -229,8 +231,10 @@ static void GCC_FMT_ATTR(1, 2) qtest_log_send(const char *fmt, ...)
     va_end(ap);
 }
 
-static void do_qtest_send(CharBackend *chr, const char *str, size_t len)
+static void qtest_server_char_be_send(void *opaque, const char *str)
 {
+    size_t len = strlen(str);
+    CharBackend* chr = (CharBackend *)opaque;
     qemu_chr_fe_write_all(chr, (uint8_t *)str, len);
     if (qtest_log_fp && qtest_opened) {
         fprintf(qtest_log_fp, "%s", str);
@@ -239,7 +243,7 @@ static void do_qtest_send(CharBackend *chr, const char *str, size_t len)
 
 static void qtest_send(CharBackend *chr, const char *str)
 {
-    do_qtest_send(chr, str, strlen(str));
+    qtest_server_send(qtest_server_send_opaque, str);
 }
 
 static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
@@ -784,9 +788,32 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
     qemu_chr_fe_set_echo(&qtest_chr, true);
 
     inbuf = g_string_new("");
+
+    if (!qtest_server_send) {
+        qtest_server_set_send_handler(qtest_server_char_be_send, &qtest_chr);
+    }
+}
+
+void qtest_server_set_send_handler(void (*send)(void*, const char*), void *opaque)
+{
+    qtest_server_send = send;
+    qtest_server_send_opaque = opaque;
 }
 
 bool qtest_driver(void)
 {
     return qtest_chr.chr != NULL;
+}
+
+void qtest_server_inproc_recv(void *dummy, const char *buf)
+{
+    static GString *gstr;
+    if (!gstr) {
+        gstr = g_string_new(NULL);
+    }
+    g_string_append(gstr, buf);
+    if (gstr->str[gstr->len - 1] == '\n') {
+        qtest_process_inbuf(NULL, gstr);
+        g_string_truncate(gstr, 0);
+    }
 }

@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block.h"
+#include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
@@ -31,11 +32,22 @@ struct AioHandler
     AioPollFn *io_poll;
     IOHandler *io_poll_begin;
     IOHandler *io_poll_end;
-    int deleted;
     void *opaque;
     bool is_external;
     QLIST_ENTRY(AioHandler) node;
+    QLIST_ENTRY(AioHandler) node_ready; /* only used during aio_poll() */
+    QLIST_ENTRY(AioHandler) node_deleted;
 };
+
+/* Add a handler to a ready list */
+static void add_ready_handler(AioHandlerList *ready_list,
+                              AioHandler *node,
+                              int revents)
+{
+    QLIST_SAFE_REMOVE(node, node_ready); /* remove from nested parent's list */
+    node->pfd.revents = revents;
+    QLIST_INSERT_HEAD(ready_list, node, node_ready);
+}
 
 #ifdef CONFIG_EPOLL_CREATE1
 
@@ -67,7 +79,7 @@ static bool aio_epoll_try_enable(AioContext *ctx)
 
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         int r;
-        if (node->deleted || !node->pfd.events) {
+        if (QLIST_IS_INSERTED(node, node_deleted) || !node->pfd.events) {
             continue;
         }
         event.events = epoll_events_from_pfd(node->pfd.events);
@@ -104,17 +116,22 @@ static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
     }
 }
 
-static int aio_epoll(AioContext *ctx, GPollFD *pfds,
-                     unsigned npfd, int64_t timeout)
+static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
+                     int64_t timeout)
 {
+    GPollFD pfd = {
+        .fd = ctx->epollfd,
+        .events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR,
+    };
     AioHandler *node;
     int i, ret = 0;
     struct epoll_event events[128];
 
-    assert(npfd == 1);
-    assert(pfds[0].fd == ctx->epollfd);
     if (timeout > 0) {
-        ret = qemu_poll_ns(pfds, npfd, timeout);
+        ret = qemu_poll_ns(&pfd, 1, timeout);
+        if (ret > 0) {
+            timeout = 0;
+        }
     }
     if (timeout <= 0 || ret > 0) {
         ret = epoll_wait(ctx->epollfd, events,
@@ -125,11 +142,13 @@ static int aio_epoll(AioContext *ctx, GPollFD *pfds,
         }
         for (i = 0; i < ret; i++) {
             int ev = events[i].events;
+            int revents = (ev & EPOLLIN ? G_IO_IN : 0) |
+                          (ev & EPOLLOUT ? G_IO_OUT : 0) |
+                          (ev & EPOLLHUP ? G_IO_HUP : 0) |
+                          (ev & EPOLLERR ? G_IO_ERR : 0);
+
             node = events[i].data.ptr;
-            node->pfd.revents = (ev & EPOLLIN ? G_IO_IN : 0) |
-                (ev & EPOLLOUT ? G_IO_OUT : 0) |
-                (ev & EPOLLHUP ? G_IO_HUP : 0) |
-                (ev & EPOLLERR ? G_IO_ERR : 0);
+            add_ready_handler(ready_list, node, revents);
         }
     }
 out:
@@ -167,8 +186,8 @@ static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
 {
 }
 
-static int aio_epoll(AioContext *ctx, GPollFD *pfds,
-                     unsigned npfd, int64_t timeout)
+static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
+                     int64_t timeout)
 {
     assert(false);
 }
@@ -191,9 +210,11 @@ static AioHandler *find_aio_handler(AioContext *ctx, int fd)
     AioHandler *node;
 
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        if (node->pfd.fd == fd)
-            if (!node->deleted)
+        if (node->pfd.fd == fd) {
+            if (!QLIST_IS_INSERTED(node, node_deleted)) {
                 return node;
+            }
+        }
     }
 
     return NULL;
@@ -212,7 +233,7 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
 
     /* If a read is in progress, just mark the node as deleted */
     if (qemu_lockcnt_count(&ctx->list_lock)) {
-        node->deleted = 1;
+        QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
         node->pfd.revents = 0;
         return false;
     }
@@ -354,7 +375,7 @@ static void poll_set_started(AioContext *ctx, bool started)
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         IOHandler *fn;
 
-        if (node->deleted) {
+        if (QLIST_IS_INSERTED(node, node_deleted)) {
             continue;
         }
 
@@ -411,43 +432,82 @@ bool aio_pending(AioContext *ctx)
     return result;
 }
 
+static void aio_free_deleted_handlers(AioContext *ctx)
+{
+    AioHandler *node;
+
+    if (QLIST_EMPTY_RCU(&ctx->deleted_aio_handlers)) {
+        return;
+    }
+    if (!qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
+        return; /* we are nested, let the parent do the freeing */
+    }
+
+    while ((node = QLIST_FIRST_RCU(&ctx->deleted_aio_handlers))) {
+        QLIST_REMOVE(node, node);
+        QLIST_REMOVE(node, node_deleted);
+        g_free(node);
+    }
+
+    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
+}
+
+static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
+{
+    bool progress = false;
+    int revents;
+
+    revents = node->pfd.revents & node->pfd.events;
+    node->pfd.revents = 0;
+
+    if (!QLIST_IS_INSERTED(node, node_deleted) &&
+        (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
+        aio_node_check(ctx, node->is_external) &&
+        node->io_read) {
+        node->io_read(node->opaque);
+
+        /* aio_notify() does not count as progress */
+        if (node->opaque != &ctx->notifier) {
+            progress = true;
+        }
+    }
+    if (!QLIST_IS_INSERTED(node, node_deleted) &&
+        (revents & (G_IO_OUT | G_IO_ERR)) &&
+        aio_node_check(ctx, node->is_external) &&
+        node->io_write) {
+        node->io_write(node->opaque);
+        progress = true;
+    }
+
+    return progress;
+}
+
+/*
+ * If we have a list of ready handlers then this is more efficient than
+ * scanning all handlers with aio_dispatch_handlers().
+ */
+static bool aio_dispatch_ready_handlers(AioContext *ctx,
+                                        AioHandlerList *ready_list)
+{
+    bool progress = false;
+    AioHandler *node;
+
+    while ((node = QLIST_FIRST(ready_list))) {
+        QLIST_SAFE_REMOVE(node, node_ready);
+        progress = aio_dispatch_handler(ctx, node) || progress;
+    }
+
+    return progress;
+}
+
+/* Slower than aio_dispatch_ready_handlers() but only used via glib */
 static bool aio_dispatch_handlers(AioContext *ctx)
 {
     AioHandler *node, *tmp;
     bool progress = false;
 
     QLIST_FOREACH_SAFE_RCU(node, &ctx->aio_handlers, node, tmp) {
-        int revents;
-
-        revents = node->pfd.revents & node->pfd.events;
-        node->pfd.revents = 0;
-
-        if (!node->deleted &&
-            (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
-            aio_node_check(ctx, node->is_external) &&
-            node->io_read) {
-            node->io_read(node->opaque);
-
-            /* aio_notify() does not count as progress */
-            if (node->opaque != &ctx->notifier) {
-                progress = true;
-            }
-        }
-        if (!node->deleted &&
-            (revents & (G_IO_OUT | G_IO_ERR)) &&
-            aio_node_check(ctx, node->is_external) &&
-            node->io_write) {
-            node->io_write(node->opaque);
-            progress = true;
-        }
-
-        if (node->deleted) {
-            if (qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
-                QLIST_REMOVE(node, node);
-                g_free(node);
-                qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
-            }
-        }
+        progress = aio_dispatch_handler(ctx, node) || progress;
     }
 
     return progress;
@@ -458,6 +518,7 @@ void aio_dispatch(AioContext *ctx)
     qemu_lockcnt_inc(&ctx->list_lock);
     aio_bh_poll(ctx);
     aio_dispatch_handlers(ctx);
+    aio_free_deleted_handlers(ctx);
     qemu_lockcnt_dec(&ctx->list_lock);
 
     timerlistgroup_run_timers(&ctx->tlg);
@@ -514,8 +575,18 @@ static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
     bool progress = false;
     AioHandler *node;
 
+    /*
+     * Optimization: ->io_poll() handlers often contain RCU read critical
+     * sections and we therefore see many rcu_read_lock() -> rcu_read_unlock()
+     * -> rcu_read_lock() -> ... sequences with expensive memory
+     * synchronization primitives.  Make the entire polling loop an RCU
+     * critical section because nested rcu_read_lock()/rcu_read_unlock() calls
+     * are cheap.
+     */
+    RCU_READ_LOCK_GUARD();
+
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
-        if (!node->deleted && node->io_poll &&
+        if (!QLIST_IS_INSERTED(node, node_deleted) && node->io_poll &&
             aio_node_check(ctx, node->is_external) &&
             node->io_poll(node->opaque)) {
             /*
@@ -609,6 +680,7 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
 
 bool aio_poll(AioContext *ctx, bool blocking)
 {
+    AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
     AioHandler *node;
     int i;
     int ret = 0;
@@ -649,7 +721,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         if (!aio_epoll_enabled(ctx)) {
             QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
-                if (!node->deleted && node->pfd.events
+                if (!QLIST_IS_INSERTED(node, node_deleted) && node->pfd.events
                     && aio_node_check(ctx, node->is_external)) {
                     add_pollfd(node);
                 }
@@ -658,13 +730,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         /* wait until next event */
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
-            AioHandler epoll_handler;
-
-            epoll_handler.pfd.fd = ctx->epollfd;
-            epoll_handler.pfd.events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR;
-            npfd = 0;
-            add_pollfd(&epoll_handler);
-            ret = aio_epoll(ctx, pollfds, npfd, timeout);
+            npfd = 0; /* pollfds[] is not being used */
+            ret = aio_epoll(ctx, &ready_list, timeout);
         } else  {
             ret = qemu_poll_ns(pollfds, npfd, timeout);
         }
@@ -719,7 +786,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
         for (i = 0; i < npfd; i++) {
-            nodes[i]->pfd.revents = pollfds[i].revents;
+            int revents = pollfds[i].revents;
+
+            if (revents) {
+                add_ready_handler(&ready_list, nodes[i], revents);
+            }
         }
     }
 
@@ -728,8 +799,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress |= aio_bh_poll(ctx);
 
     if (ret > 0) {
-        progress |= aio_dispatch_handlers(ctx);
+        progress |= aio_dispatch_ready_handlers(ctx, &ready_list);
     }
+
+    aio_free_deleted_handlers(ctx);
 
     qemu_lockcnt_dec(&ctx->list_lock);
 

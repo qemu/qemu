@@ -157,52 +157,54 @@ check-qtest-s390x-y += migration-test
 # libqos / qgraph :
 libqgraph-obj-y = tests/qtest/libqos/qgraph.o
 
-libqos-obj-y = $(libqgraph-obj-y) tests/qtest/libqos/pci.o tests/qtest/libqos/fw_cfg.o
-libqos-obj-y += tests/qtest/libqos/malloc.o
-libqos-obj-y += tests/qtest/libqos/libqos.o
-libqos-spapr-obj-y = $(libqos-obj-y) tests/qtest/libqos/malloc-spapr.o
+libqos-core-obj-y = $(libqgraph-obj-y) tests/qtest/libqos/pci.o tests/qtest/libqos/fw_cfg.o
+libqos-core-obj-y += tests/qtest/libqos/malloc.o
+libqos-core-obj-y += tests/qtest/libqos/libqos.o
+libqos-spapr-obj-y = $(libqos-core-obj-y) tests/qtest/libqos/malloc-spapr.o
 libqos-spapr-obj-y += tests/qtest/libqos/libqos-spapr.o
 libqos-spapr-obj-y += tests/qtest/libqos/rtas.o
 libqos-spapr-obj-y += tests/qtest/libqos/pci-spapr.o
-libqos-pc-obj-y = $(libqos-obj-y) tests/qtest/libqos/pci-pc.o
+libqos-pc-obj-y = $(libqos-core-obj-y) tests/qtest/libqos/pci-pc.o
 libqos-pc-obj-y += tests/qtest/libqos/malloc-pc.o tests/qtest/libqos/libqos-pc.o
 libqos-pc-obj-y += tests/qtest/libqos/ahci.o
 libqos-usb-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/qtest/libqos/usb.o
 
 # qos devices:
-qos-test-obj-y = tests/qtest/qos-test.o $(libqgraph-obj-y)
-qos-test-obj-y += $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
-qos-test-obj-y += tests/qtest/libqos/e1000e.o
-qos-test-obj-y += tests/qtest/libqos/i2c.o
-qos-test-obj-y += tests/qtest/libqos/i2c-imx.o
-qos-test-obj-y += tests/qtest/libqos/i2c-omap.o
-qos-test-obj-y += tests/qtest/libqos/sdhci.o
-qos-test-obj-y += tests/qtest/libqos/tpci200.o
-qos-test-obj-y += tests/qtest/libqos/virtio.o
-qos-test-obj-$(CONFIG_VIRTFS) += tests/qtest/libqos/virtio-9p.o
-qos-test-obj-y += tests/qtest/libqos/virtio-balloon.o
-qos-test-obj-y += tests/qtest/libqos/virtio-blk.o
-qos-test-obj-y += tests/qtest/libqos/virtio-mmio.o
-qos-test-obj-y += tests/qtest/libqos/virtio-net.o
-qos-test-obj-y += tests/qtest/libqos/virtio-pci.o
-qos-test-obj-y += tests/qtest/libqos/virtio-pci-modern.o
-qos-test-obj-y += tests/qtest/libqos/virtio-rng.o
-qos-test-obj-y += tests/qtest/libqos/virtio-scsi.o
-qos-test-obj-y += tests/qtest/libqos/virtio-serial.o
+libqos-obj-y =  $(libqgraph-obj-y)
+libqos-obj-y += $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
+libqos-obj-y += tests/qtest/libqos/qos_external.o
+libqos-obj-y += tests/qtest/libqos/e1000e.o
+libqos-obj-y += tests/qtest/libqos/i2c.o
+libqos-obj-y += tests/qtest/libqos/i2c-imx.o
+libqos-obj-y += tests/qtest/libqos/i2c-omap.o
+libqos-obj-y += tests/qtest/libqos/sdhci.o
+libqos-obj-y += tests/qtest/libqos/tpci200.o
+libqos-obj-y += tests/qtest/libqos/virtio.o
+libqos-obj-$(CONFIG_VIRTFS) += tests/qtest/libqos/virtio-9p.o
+libqos-obj-y += tests/qtest/libqos/virtio-balloon.o
+libqos-obj-y += tests/qtest/libqos/virtio-blk.o
+libqos-obj-y += tests/qtest/libqos/virtio-mmio.o
+libqos-obj-y += tests/qtest/libqos/virtio-net.o
+libqos-obj-y += tests/qtest/libqos/virtio-pci.o
+libqos-obj-y += tests/qtest/libqos/virtio-pci-modern.o
+libqos-obj-y += tests/qtest/libqos/virtio-rng.o
+libqos-obj-y += tests/qtest/libqos/virtio-scsi.o
+libqos-obj-y += tests/qtest/libqos/virtio-serial.o
 
 # qos machines:
-qos-test-obj-y += tests/qtest/libqos/aarch64-xlnx-zcu102-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-imx25-pdk-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-n800-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-raspi2-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-sabrelite-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-smdkc210-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-virt-machine.o
-qos-test-obj-y += tests/qtest/libqos/arm-xilinx-zynq-a9-machine.o
-qos-test-obj-y += tests/qtest/libqos/ppc64_pseries-machine.o
-qos-test-obj-y += tests/qtest/libqos/x86_64_pc-machine.o
+libqos-obj-y += tests/qtest/libqos/aarch64-xlnx-zcu102-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-imx25-pdk-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-n800-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-raspi2-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-sabrelite-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-smdkc210-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-virt-machine.o
+libqos-obj-y += tests/qtest/libqos/arm-xilinx-zynq-a9-machine.o
+libqos-obj-y += tests/qtest/libqos/ppc64_pseries-machine.o
+libqos-obj-y += tests/qtest/libqos/x86_64_pc-machine.o
 
 # qos tests:
+qos-test-obj-y += tests/qtest/qos-test.o
 qos-test-obj-y += tests/qtest/ac97-test.o
 qos-test-obj-y += tests/qtest/ds1338-test.o
 qos-test-obj-y += tests/qtest/e1000-test.o
@@ -234,7 +236,7 @@ check-unit-y += tests/test-qgraph$(EXESUF)
 tests/test-qgraph$(EXESUF): tests/test-qgraph.o $(libqgraph-obj-y)
 
 check-qtest-generic-y += qos-test
-tests/qtest/qos-test$(EXESUF): $(qos-test-obj-y)
+tests/qtest/qos-test$(EXESUF): $(qos-test-obj-y) $(libqos-obj-y)
 
 # QTest dependencies:
 tests/qtest/qmp-test$(EXESUF): tests/qtest/qmp-test.o
