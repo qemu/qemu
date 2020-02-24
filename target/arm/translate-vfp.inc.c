@@ -1784,7 +1784,7 @@ static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_dp *a)
     return do_vfp_3op_dp(s, gen_helper_vfp_divd, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
+static bool do_vfm_sp(DisasContext *s, arg_VFMA_sp *a, bool neg_n, bool neg_d)
 {
     /*
      * VFNMA : fd = muladd(-fd,  fn, fm)
@@ -1828,12 +1828,12 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
 
     neon_load_reg32(vn, a->vn);
     neon_load_reg32(vm, a->vm);
-    if (a->o2) {
+    if (neg_n) {
         /* VFNMS, VFMS */
         gen_helper_vfp_negs(vn, vn);
     }
     neon_load_reg32(vd, a->vd);
-    if (a->o1 & 1) {
+    if (neg_d) {
         /* VFNMA, VFNMS */
         gen_helper_vfp_negs(vd, vd);
     }
@@ -1849,7 +1849,27 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
     return true;
 }
 
-static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
+static bool trans_VFMA_sp(DisasContext *s, arg_VFMA_sp *a)
+{
+    return do_vfm_sp(s, a, false, false);
+}
+
+static bool trans_VFMS_sp(DisasContext *s, arg_VFMS_sp *a)
+{
+    return do_vfm_sp(s, a, true, false);
+}
+
+static bool trans_VFNMA_sp(DisasContext *s, arg_VFNMA_sp *a)
+{
+    return do_vfm_sp(s, a, false, true);
+}
+
+static bool trans_VFNMS_sp(DisasContext *s, arg_VFNMS_sp *a)
+{
+    return do_vfm_sp(s, a, true, true);
+}
+
+static bool do_vfm_dp(DisasContext *s, arg_VFMA_dp *a, bool neg_n, bool neg_d)
 {
     /*
      * VFNMA : fd = muladd(-fd,  fn, fm)
@@ -1905,12 +1925,12 @@ static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
 
     neon_load_reg64(vn, a->vn);
     neon_load_reg64(vm, a->vm);
-    if (a->o2) {
+    if (neg_n) {
         /* VFNMS, VFMS */
         gen_helper_vfp_negd(vn, vn);
     }
     neon_load_reg64(vd, a->vd);
-    if (a->o1 & 1) {
+    if (neg_d) {
         /* VFNMA, VFNMS */
         gen_helper_vfp_negd(vd, vd);
     }
@@ -1924,6 +1944,26 @@ static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
     tcg_temp_free_i64(vd);
 
     return true;
+}
+
+static bool trans_VFMA_dp(DisasContext *s, arg_VFMA_dp *a)
+{
+    return do_vfm_dp(s, a, false, false);
+}
+
+static bool trans_VFMS_dp(DisasContext *s, arg_VFMS_dp *a)
+{
+    return do_vfm_dp(s, a, true, false);
+}
+
+static bool trans_VFNMA_dp(DisasContext *s, arg_VFNMA_dp *a)
+{
+    return do_vfm_dp(s, a, false, true);
+}
+
+static bool trans_VFNMS_dp(DisasContext *s, arg_VFNMS_dp *a)
+{
+    return do_vfm_dp(s, a, true, true);
 }
 
 static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
