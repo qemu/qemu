@@ -3142,6 +3142,8 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     int rs = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int o3_opc = extract32(insn, 12, 4);
+    bool r = extract32(insn, 22, 1);
+    bool a = extract32(insn, 23, 1);
     TCGv_i64 tcg_rs, clean_addr;
     AtomicThreeOpFn *fn;
 
@@ -3177,6 +3179,13 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     case 010: /* SWP */
         fn = tcg_gen_atomic_xchg_i64;
         break;
+    case 014: /* LDAPR, LDAPRH, LDAPRB */
+        if (!dc_isar_feature(aa64_rcpc_8_3, s) ||
+            rs != 31 || a != 1 || r != 0) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
     default:
         unallocated_encoding(s);
         return;
@@ -3186,6 +3195,21 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
         gen_check_sp_alignment(s);
     }
     clean_addr = clean_data_tbi(s, cpu_reg_sp(s, rn));
+
+    if (o3_opc == 014) {
+        /*
+         * LDAPR* are a special case because they are a simple load, not a
+         * fetch-and-do-something op.
+         * The architectural consistency requirements here are weaker than
+         * full load-acquire (we only need "load-acquire processor consistent"),
+         * but we choose to implement them as full LDAQ.
+         */
+        do_gpr_ld(s, cpu_reg(s, rt), clean_addr, size, false, false,
+                  true, rt, disas_ldst_compute_iss_sf(size, false, 0), true);
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        return;
+    }
+
     tcg_rs = read_cpu_reg(s, rs, true);
 
     if (o3_opc == 1) { /* LDCLR */
