@@ -1,3 +1,4 @@
+stub-obj-y += arch_type.o
 stub-obj-y += bdrv-next-monitor-owned.o
 stub-obj-y += blk-commit-all.o
 stub-obj-y += blockdev-close-all-bdrv-states.o
