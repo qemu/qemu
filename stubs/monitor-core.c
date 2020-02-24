@@ -5,7 +5,7 @@
 
 __thread Monitor *cur_mon;
 
-void monitor_init_qmp(Chardev *chr, bool pretty)
+void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
 {
 }
 

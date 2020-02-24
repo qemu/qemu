@@ -614,6 +614,7 @@ void monitor_init_globals_core(void)
 int monitor_init(MonitorOptions *opts, Error **errp)
 {
     Chardev *chr;
+    Error *local_err = NULL;
 
     chr = qemu_chr_find(opts->chardev);
     if (chr == NULL) {
@@ -623,7 +624,7 @@ int monitor_init(MonitorOptions *opts, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty);
+        monitor_init_qmp(chr, opts->pretty, &local_err);
         break;
     case MONITOR_MODE_READLINE:
         if (opts->pretty) {
@@ -636,6 +637,10 @@ int monitor_init(MonitorOptions *opts, Error **errp)
         g_assert_not_reached();
     }
 
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
     return 0;
 }
 
