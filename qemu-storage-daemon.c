@@ -70,6 +70,11 @@ static void help(void)
 "             [,driver specific parameters...]\n"
 "                         configure a block backend\n"
 "\n"
+"  --export [type=]nbd,device=<node-name>[,name=<export-name>]\n"
+"           [,writable=on|off][,bitmap=<name>]\n"
+"                         export the specified block node over NBD\n"
+"                         (requires --nbd-server)\n"
+"\n"
 "  --nbd-server addr.type=inet,addr.host=<host>,addr.port=<port>\n"
 "               [,tls-creds=<id>][,tls-authz=<id>]\n"
 "  --nbd-server addr.type=unix,addr.path=<path>\n"
@@ -91,6 +96,7 @@ QEMU_HELP_BOTTOM "\n",
 
 enum {
     OPTION_BLOCKDEV = 256,
+    OPTION_EXPORT,
     OPTION_NBD_SERVER,
     OPTION_OBJECT,
 };
@@ -104,12 +110,24 @@ static QemuOptsList qemu_object_opts = {
     },
 };
 
+static void init_export(BlockExport *export, Error **errp)
+{
+    switch (export->type) {
+    case BLOCK_EXPORT_TYPE_NBD:
+        qmp_nbd_server_add(&export->u.nbd, errp);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void process_options(int argc, char *argv[])
 {
     int c;
 
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
+        {"export", required_argument, NULL, OPTION_EXPORT},
         {"help", no_argument, NULL, 'h'},
         {"nbd-server", required_argument, NULL, OPTION_NBD_SERVER},
         {"object", required_argument, NULL, OPTION_OBJECT},
@@ -154,6 +172,19 @@ static void process_options(int argc, char *argv[])
 
                 qmp_blockdev_add(options, &error_fatal);
                 qapi_free_BlockdevOptions(options);
+                break;
+            }
+        case OPTION_EXPORT:
+            {
+                Visitor *v;
+                BlockExport *export;
+
+                v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
+                visit_type_BlockExport(v, NULL, &export, &error_fatal);
+                visit_free(v);
+
+                init_export(export, &error_fatal);
+                qapi_free_BlockExport(export);
                 break;
             }
         case OPTION_NBD_SERVER:
