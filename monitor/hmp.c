@@ -1399,12 +1399,16 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->common);
 }
 
-void monitor_init_hmp(Chardev *chr, bool use_readline)
+void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
 
+    if (!qemu_chr_fe_init(&mon->common.chr, chr, errp)) {
+        g_free(mon);
+        return;
+    }
+
     monitor_data_init(&mon->common, false, false, false);
-    qemu_chr_fe_init(&mon->common.chr, chr, &error_abort);
 
     mon->use_readline = use_readline;
     if (mon->use_readline) {

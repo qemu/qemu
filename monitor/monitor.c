@@ -631,7 +631,7 @@ int monitor_init(MonitorOptions *opts, Error **errp)
             warn_report("'pretty' is deprecated for HMP monitors, it has no "
                         "effect and will be removed in future versions");
         }
-        monitor_init_hmp(chr, true);
+        monitor_init_hmp(chr, true, &local_err);
         break;
     default:
         g_assert_not_reached();
