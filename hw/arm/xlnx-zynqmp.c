@@ -318,9 +318,9 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         ddr_low_size = XLNX_ZYNQMP_MAX_LOW_RAM_SIZE;
         ddr_high_size = ram_size - XLNX_ZYNQMP_MAX_LOW_RAM_SIZE;
 
-        memory_region_init_alias(&s->ddr_ram_high, NULL,
-                                 "ddr-ram-high", s->ddr_ram,
-                                  ddr_low_size, ddr_high_size);
+        memory_region_init_alias(&s->ddr_ram_high, OBJECT(dev),
+                                 "ddr-ram-high", s->ddr_ram, ddr_low_size,
+                                 ddr_high_size);
         memory_region_add_subregion(get_system_memory(),
                                     XLNX_ZYNQMP_HIGH_RAM_START,
                                     &s->ddr_ram_high);
@@ -330,9 +330,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         ddr_low_size = ram_size;
     }
 
-    memory_region_init_alias(&s->ddr_ram_low, NULL,
-                             "ddr-ram-low", s->ddr_ram,
-                              0, ddr_low_size);
+    memory_region_init_alias(&s->ddr_ram_low, OBJECT(dev), "ddr-ram-low",
+                             s->ddr_ram, 0, ddr_low_size);
     memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram_low);
 
     /* Create the four OCM banks */
