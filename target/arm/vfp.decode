@@ -46,6 +46,14 @@
 
 %vmov_imm 16:4 0:4
 
+@vfp_dnm_s   ................................ vm=%vm_sp vn=%vn_sp vd=%vd_sp
+@vfp_dnm_d   ................................ vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+@vfp_dm_ss   ................................ vm=%vm_sp vd=%vd_sp
+@vfp_dm_dd   ................................ vm=%vm_dp vd=%vd_dp
+@vfp_dm_ds   ................................ vm=%vm_sp vd=%vd_dp
+@vfp_dm_sd   ................................ vm=%vm_dp vd=%vd_sp
+
 # VMOV scalar to general-purpose register; note that this does
 # include some Neon cases.
 VMOV_to_gp   ---- 1110 u:1 1.        1 .... rt:4 1011 ... 1 0000 \
@@ -66,20 +74,15 @@ VDUP         ---- 1110 1 b:1 q:1 0 .... rt:4 1011 . 0 e:1 1 0000 \
              vn=%vn_dp
 
 VMSR_VMRS    ---- 1110 111 l:1 reg:4 rt:4 1010 0001 0000
-VMOV_single  ---- 1110 000 l:1 .... rt:4 1010 . 001 0000 \
-             vn=%vn_sp
+VMOV_single  ---- 1110 000 l:1 .... rt:4 1010 . 001 0000    vn=%vn_sp
 
-VMOV_64_sp   ---- 1100 010 op:1 rt2:4 rt:4 1010 00.1 .... \
-             vm=%vm_sp
-VMOV_64_dp   ---- 1100 010 op:1 rt2:4 rt:4 1011 00.1 .... \
-             vm=%vm_dp
+VMOV_64_sp   ---- 1100 010 op:1 rt2:4 rt:4 1010 00.1 ....   vm=%vm_sp
+VMOV_64_dp   ---- 1100 010 op:1 rt2:4 rt:4 1011 00.1 ....   vm=%vm_dp
 
 # Note that the half-precision variants of VLDR and VSTR are
 # not part of this decodetree at all because they have bits [9:8] == 0b01
-VLDR_VSTR_sp ---- 1101 u:1 .0 l:1 rn:4 .... 1010 imm:8 \
-             vd=%vd_sp
-VLDR_VSTR_dp ---- 1101 u:1 .0 l:1 rn:4 .... 1011 imm:8 \
-             vd=%vd_dp
+VLDR_VSTR_sp ---- 1101 u:1 .0 l:1 rn:4 .... 1010 imm:8      vd=%vd_sp
+VLDR_VSTR_dp ---- 1101 u:1 .0 l:1 rn:4 .... 1011 imm:8      vd=%vd_dp
 
 # We split the load/store multiple up into two patterns to avoid
 # overlap with other insns in the "Advanced SIMD load/store and 64-bit move"
@@ -100,50 +103,32 @@ VLDM_VSTM_dp ---- 1101 0.1 l:1 rn:4 .... 1011 imm:8 \
              vd=%vd_dp p=1 u=0 w=1
 
 # 3-register VFP data-processing; bits [23,21:20,6] identify the operation.
-VMLA_sp      ---- 1110 0.00 .... .... 1010 .0.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VMLA_dp      ---- 1110 0.00 .... .... 1011 .0.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VMLA_sp      ---- 1110 0.00 .... .... 1010 .0.0 ....        @vfp_dnm_s
+VMLA_dp      ---- 1110 0.00 .... .... 1011 .0.0 ....        @vfp_dnm_d
 
-VMLS_sp      ---- 1110 0.00 .... .... 1010 .1.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VMLS_dp      ---- 1110 0.00 .... .... 1011 .1.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VMLS_sp      ---- 1110 0.00 .... .... 1010 .1.0 ....        @vfp_dnm_s
+VMLS_dp      ---- 1110 0.00 .... .... 1011 .1.0 ....        @vfp_dnm_d
 
-VNMLS_sp     ---- 1110 0.01 .... .... 1010 .0.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VNMLS_dp     ---- 1110 0.01 .... .... 1011 .0.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VNMLS_sp     ---- 1110 0.01 .... .... 1010 .0.0 ....        @vfp_dnm_s
+VNMLS_dp     ---- 1110 0.01 .... .... 1011 .0.0 ....        @vfp_dnm_d
 
-VNMLA_sp     ---- 1110 0.01 .... .... 1010 .1.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VNMLA_dp     ---- 1110 0.01 .... .... 1011 .1.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VNMLA_sp     ---- 1110 0.01 .... .... 1010 .1.0 ....        @vfp_dnm_s
+VNMLA_dp     ---- 1110 0.01 .... .... 1011 .1.0 ....        @vfp_dnm_d
 
-VMUL_sp      ---- 1110 0.10 .... .... 1010 .0.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VMUL_dp      ---- 1110 0.10 .... .... 1011 .0.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VMUL_sp      ---- 1110 0.10 .... .... 1010 .0.0 ....        @vfp_dnm_s
+VMUL_dp      ---- 1110 0.10 .... .... 1011 .0.0 ....        @vfp_dnm_d
 
-VNMUL_sp     ---- 1110 0.10 .... .... 1010 .1.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VNMUL_dp     ---- 1110 0.10 .... .... 1011 .1.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VNMUL_sp     ---- 1110 0.10 .... .... 1010 .1.0 ....        @vfp_dnm_s
+VNMUL_dp     ---- 1110 0.10 .... .... 1011 .1.0 ....        @vfp_dnm_d
 
-VADD_sp      ---- 1110 0.11 .... .... 1010 .0.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VADD_dp      ---- 1110 0.11 .... .... 1011 .0.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VADD_sp      ---- 1110 0.11 .... .... 1010 .0.0 ....        @vfp_dnm_s
+VADD_dp      ---- 1110 0.11 .... .... 1011 .0.0 ....        @vfp_dnm_d
 
-VSUB_sp      ---- 1110 0.11 .... .... 1010 .1.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VSUB_dp      ---- 1110 0.11 .... .... 1011 .1.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VSUB_sp      ---- 1110 0.11 .... .... 1010 .1.0 ....        @vfp_dnm_s
+VSUB_dp      ---- 1110 0.11 .... .... 1011 .1.0 ....        @vfp_dnm_d
 
-VDIV_sp      ---- 1110 1.00 .... .... 1010 .0.0 .... \
-             vm=%vm_sp vn=%vn_sp vd=%vd_sp
-VDIV_dp      ---- 1110 1.00 .... .... 1011 .0.0 .... \
-             vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VDIV_sp      ---- 1110 1.00 .... .... 1010 .0.0 ....        @vfp_dnm_s
+VDIV_dp      ---- 1110 1.00 .... .... 1011 .0.0 ....        @vfp_dnm_d
 
 VFM_sp       ---- 1110 1.01 .... .... 1010 . o2:1 . 0 .... \
              vm=%vm_sp vn=%vn_sp vd=%vd_sp o1=1
@@ -159,25 +144,17 @@ VMOV_imm_sp  ---- 1110 1.11 .... .... 1010 0000 .... \
 VMOV_imm_dp  ---- 1110 1.11 .... .... 1011 0000 .... \
              vd=%vd_dp imm=%vmov_imm
 
-VMOV_reg_sp  ---- 1110 1.11 0000 .... 1010 01.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VMOV_reg_dp  ---- 1110 1.11 0000 .... 1011 01.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VMOV_reg_sp  ---- 1110 1.11 0000 .... 1010 01.0 ....        @vfp_dm_ss
+VMOV_reg_dp  ---- 1110 1.11 0000 .... 1011 01.0 ....        @vfp_dm_dd
 
-VABS_sp      ---- 1110 1.11 0000 .... 1010 11.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VABS_dp      ---- 1110 1.11 0000 .... 1011 11.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VABS_sp      ---- 1110 1.11 0000 .... 1010 11.0 ....        @vfp_dm_ss
+VABS_dp      ---- 1110 1.11 0000 .... 1011 11.0 ....        @vfp_dm_dd
 
-VNEG_sp      ---- 1110 1.11 0001 .... 1010 01.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VNEG_dp      ---- 1110 1.11 0001 .... 1011 01.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VNEG_sp      ---- 1110 1.11 0001 .... 1010 01.0 ....        @vfp_dm_ss
+VNEG_dp      ---- 1110 1.11 0001 .... 1011 01.0 ....        @vfp_dm_dd
 
-VSQRT_sp     ---- 1110 1.11 0001 .... 1010 11.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VSQRT_dp     ---- 1110 1.11 0001 .... 1011 11.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VSQRT_sp     ---- 1110 1.11 0001 .... 1010 11.0 ....        @vfp_dm_ss
+VSQRT_dp     ---- 1110 1.11 0001 .... 1011 11.0 ....        @vfp_dm_dd
 
 VCMP_sp      ---- 1110 1.11 010 z:1 .... 1010 e:1 1.0 .... \
              vd=%vd_sp vm=%vm_sp
@@ -190,32 +167,26 @@ VCVT_f32_f16 ---- 1110 1.11 0010 .... 1010 t:1 1.0 .... \
 VCVT_f64_f16 ---- 1110 1.11 0010 .... 1011 t:1 1.0 .... \
              vd=%vd_dp vm=%vm_sp
 
-# VCVTB and VCVTT to f16: Vd format is always vd_sp; Vm format depends on size bit
+# VCVTB and VCVTT to f16: Vd format is always vd_sp;
+# Vm format depends on size bit
 VCVT_f16_f32 ---- 1110 1.11 0011 .... 1010 t:1 1.0 .... \
              vd=%vd_sp vm=%vm_sp
 VCVT_f16_f64 ---- 1110 1.11 0011 .... 1011 t:1 1.0 .... \
              vd=%vd_sp vm=%vm_dp
 
-VRINTR_sp    ---- 1110 1.11 0110 .... 1010 01.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VRINTR_dp    ---- 1110 1.11 0110 .... 1011 01.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VRINTR_sp    ---- 1110 1.11 0110 .... 1010 01.0 ....        @vfp_dm_ss
+VRINTR_dp    ---- 1110 1.11 0110 .... 1011 01.0 ....        @vfp_dm_dd
 
-VRINTZ_sp    ---- 1110 1.11 0110 .... 1010 11.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VRINTZ_dp    ---- 1110 1.11 0110 .... 1011 11.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VRINTZ_sp    ---- 1110 1.11 0110 .... 1010 11.0 ....        @vfp_dm_ss
+VRINTZ_dp    ---- 1110 1.11 0110 .... 1011 11.0 ....        @vfp_dm_dd
 
-VRINTX_sp    ---- 1110 1.11 0111 .... 1010 01.0 .... \
-             vd=%vd_sp vm=%vm_sp
-VRINTX_dp    ---- 1110 1.11 0111 .... 1011 01.0 .... \
-             vd=%vd_dp vm=%vm_dp
+VRINTX_sp    ---- 1110 1.11 0111 .... 1010 01.0 ....        @vfp_dm_ss
+VRINTX_dp    ---- 1110 1.11 0111 .... 1011 01.0 ....        @vfp_dm_dd
 
-# VCVT between single and double: Vm precision depends on size; Vd is its reverse
-VCVT_sp      ---- 1110 1.11 0111 .... 1010 11.0 .... \
-             vd=%vd_dp vm=%vm_sp
-VCVT_dp      ---- 1110 1.11 0111 .... 1011 11.0 .... \
-             vd=%vd_sp vm=%vm_dp
+# VCVT between single and double:
+# Vm precision depends on size; Vd is its reverse
+VCVT_sp      ---- 1110 1.11 0111 .... 1010 11.0 ....        @vfp_dm_ds
+VCVT_dp      ---- 1110 1.11 0111 .... 1011 11.0 ....        @vfp_dm_sd
 
 # VCVT from integer to floating point: Vm always single; Vd depends on size
 VCVT_int_sp  ---- 1110 1.11 1000 .... 1010 s:1 1.0 .... \
@@ -224,8 +195,7 @@ VCVT_int_dp  ---- 1110 1.11 1000 .... 1011 s:1 1.0 .... \
              vd=%vd_dp vm=%vm_sp
 
 # VJCVT is always dp to sp
-VJCVT        ---- 1110 1.11 1001 .... 1011 11.0 .... \
-             vd=%vd_sp vm=%vm_dp
+VJCVT        ---- 1110 1.11 1001 .... 1011 11.0 ....        @vfp_dm_sd
 
 # VCVT between floating-point and fixed-point. The immediate value
 # is in the same format as a Vm single-precision register number.
