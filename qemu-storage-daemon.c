@@ -31,6 +31,10 @@
 #include "crypto/init.h"
 
 #include "qapi/error.h"
+#include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-commands-block-core.h"
+#include "qapi/qobject-input-visitor.h"
+
 #include "qemu-common.h"
 #include "qemu-version.h"
 #include "qemu/config-file.h"
@@ -52,15 +56,27 @@ static void help(void)
 "                         specify tracing options\n"
 "  -V, --version          output version information and exit\n"
 "\n"
+"  --blockdev [driver=]<driver>[,node-name=<N>][,discard=ignore|unmap]\n"
+"             [,cache.direct=on|off][,cache.no-flush=on|off]\n"
+"             [,read-only=on|off][,auto-read-only=on|off]\n"
+"             [,force-share=on|off][,detect-zeroes=on|off|unmap]\n"
+"             [,driver specific parameters...]\n"
+"                         configure a block backend\n"
+"\n"
 QEMU_HELP_BOTTOM "\n",
     error_get_progname());
 }
+
+enum {
+    OPTION_BLOCKDEV = 256,
+};
 
 static void process_options(int argc, char *argv[])
 {
     int c;
 
     static const struct option long_options[] = {
+        {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
         {"help", no_argument, NULL, 'h'},
         {"trace", required_argument, NULL, 'T'},
         {"version", no_argument, NULL, 'V'},
@@ -90,6 +106,21 @@ static void process_options(int argc, char *argv[])
             printf("qemu-storage-daemon version "
                    QEMU_FULL_VERSION "\n" QEMU_COPYRIGHT "\n");
             exit(EXIT_SUCCESS);
+        case OPTION_BLOCKDEV:
+            {
+                Visitor *v;
+                BlockdevOptions *options;
+
+                v = qobject_input_visitor_new_str(optarg, "driver",
+                                                  &error_fatal);
+
+                visit_type_BlockdevOptions(v, NULL, &options, &error_fatal);
+                visit_free(v);
+
+                qmp_blockdev_add(options, &error_fatal);
+                qapi_free_BlockdevOptions(options);
+                break;
+            }
         default:
             g_assert_not_reached();
         }

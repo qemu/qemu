@@ -27,6 +27,13 @@ io-obj-y = io/
 
 endif # CONFIG_SOFTMMU or CONFIG_TOOLS
 
+#######################################################################
+# storage-daemon-obj-y is code used by qemu-storage-daemon (these objects are
+# used for system emulation, too, but specified separately there)
+
+storage-daemon-obj-y = block/
+storage-daemon-obj-y += blockdev.o iothread.o
+
 ######################################################################
 # Target independent part of system emulation. The long term path is to
 # suppress *all* target specific code in case of system emulation, i.e. a
