@@ -2742,7 +2742,7 @@ static inline void *host_from_ram_block_offset(RAMBlock *block,
 }
 
 static inline void *colo_cache_from_block_offset(RAMBlock *block,
-                                                 ram_addr_t offset)
+                             ram_addr_t offset, bool record_bitmap)
 {
     if (!offset_in_ramblock(block, offset)) {
         return NULL;
@@ -2758,7 +2758,8 @@ static inline void *colo_cache_from_block_offset(RAMBlock *block,
     * It help us to decide which pages in ram cache should be flushed
     * into VM's RAM later.
     */
-    if (!test_and_set_bit(offset >> TARGET_PAGE_BITS, block->bmap)) {
+    if (record_bitmap &&
+        !test_and_set_bit(offset >> TARGET_PAGE_BITS, block->bmap)) {
         ram_state->migration_dirty_pages++;
     }
     return block->colo_cache + offset;
@@ -3416,13 +3417,13 @@ static int ram_load_precopy(QEMUFile *f)
             if (migration_incoming_colo_enabled()) {
                 if (migration_incoming_in_colo_state()) {
                     /* In COLO stage, put all pages into cache temporarily */
-                    host = colo_cache_from_block_offset(block, addr);
+                    host = colo_cache_from_block_offset(block, addr, true);
                 } else {
                    /*
                     * In migration stage but before COLO stage,
                     * Put all pages into both cache and SVM's memory.
                     */
-                    host_bak = colo_cache_from_block_offset(block, addr);
+                    host_bak = colo_cache_from_block_offset(block, addr, false);
                 }
             }
             if (!host) {
