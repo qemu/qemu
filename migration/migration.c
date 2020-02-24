@@ -489,11 +489,6 @@ static void process_incoming_migration_co(void *opaque)
             goto fail;
         }
 
-        if (colo_init_ram_cache() < 0) {
-            error_report("Init ram cache failed");
-            goto fail;
-        }
-
         qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
              colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
         mis->have_colo_incoming_thread = true;
