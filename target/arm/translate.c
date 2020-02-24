@@ -10962,53 +10962,18 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 goto illegal_op; /* op0 = 0b11 : unallocated */
             }
 
-            /*
-             * Decode VLLDM and VLSTM first: these are nonstandard because:
-             *  * if there is no FPU then these insns must NOP in
-             *    Secure state and UNDEF in Nonsecure state
-             *  * if there is an FPU then these insns do not have
-             *    the usual behaviour that disas_vfp_insn() provides of
-             *    being controlled by CPACR/NSACR enable bits or the
-             *    lazy-stacking logic.
-             */
-            if (arm_dc_feature(s, ARM_FEATURE_V8) &&
-                (insn & 0xffa00f00) == 0xec200a00) {
-                /* 0b1110_1100_0x1x_xxxx_xxxx_1010_xxxx_xxxx
-                 *  - VLLDM, VLSTM
-                 * We choose to UNDEF if the RAZ bits are non-zero.
-                 */
-                if (!s->v8m_secure || (insn & 0x0040f0ff)) {
+            if (disas_vfp_insn(s, insn)) {
+                if (((insn >> 8) & 0xe) == 10 &&
+                    dc_isar_feature(aa32_fpsp_v2, s)) {
+                    /* FP, and the CPU supports it */
                     goto illegal_op;
+                } else {
+                    /* All other insns: NOCP */
+                    gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                                       syn_uncategorized(),
+                                       default_exception_el(s));
                 }
-
-                if (arm_dc_feature(s, ARM_FEATURE_VFP)) {
-                    uint32_t rn = (insn >> 16) & 0xf;
-                    TCGv_i32 fptr = load_reg(s, rn);
-
-                    if (extract32(insn, 20, 1)) {
-                        gen_helper_v7m_vlldm(cpu_env, fptr);
-                    } else {
-                        gen_helper_v7m_vlstm(cpu_env, fptr);
-                    }
-                    tcg_temp_free_i32(fptr);
-
-                    /* End the TB, because we have updated FP control bits */
-                    s->base.is_jmp = DISAS_UPDATE;
-                }
-                break;
             }
-            if (arm_dc_feature(s, ARM_FEATURE_VFP) &&
-                ((insn >> 8) & 0xe) == 10) {
-                /* FP, and the CPU supports it */
-                if (disas_vfp_insn(s, insn)) {
-                    goto illegal_op;
-                }
-                break;
-            }
-
-            /* All other insns: NOCP */
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP, syn_uncategorized(),
-                               default_exception_el(s));
             break;
         }
         if ((insn & 0xfe000a00) == 0xfc000800
