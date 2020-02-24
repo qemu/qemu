@@ -33,15 +33,19 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-commands-block-core.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 
 #include "qemu-common.h"
 #include "qemu-version.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/help_option.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
+#include "qom/object_interfaces.h"
 
 #include "trace/control.h"
 
@@ -63,12 +67,31 @@ static void help(void)
 "             [,driver specific parameters...]\n"
 "                         configure a block backend\n"
 "\n"
+"  --object help          list object types that can be added\n"
+"  --object <type>,help   list properties for the given object type\n"
+"  --object <type>[,<property>=<value>...]\n"
+"                         create a new object of type <type>, setting\n"
+"                         properties in the order they are specified. Note\n"
+"                         that the 'id' property must be set.\n"
+"                         See the qemu(1) man page for documentation of the\n"
+"                         objects that can be added.\n"
+"\n"
 QEMU_HELP_BOTTOM "\n",
     error_get_progname());
 }
 
 enum {
     OPTION_BLOCKDEV = 256,
+    OPTION_OBJECT,
+};
+
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
 };
 
 static void process_options(int argc, char *argv[])
@@ -78,6 +101,7 @@ static void process_options(int argc, char *argv[])
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
         {"help", no_argument, NULL, 'h'},
+        {"object", required_argument, NULL, OPTION_OBJECT},
         {"trace", required_argument, NULL, 'T'},
         {"version", no_argument, NULL, 'V'},
         {0, 0, 0, 0}
@@ -119,6 +143,29 @@ static void process_options(int argc, char *argv[])
 
                 qmp_blockdev_add(options, &error_fatal);
                 qapi_free_BlockdevOptions(options);
+                break;
+            }
+        case OPTION_OBJECT:
+            {
+                QemuOpts *opts;
+                const char *type;
+                QDict *args;
+                QObject *ret_data = NULL;
+
+                /* FIXME The keyval parser rejects 'help' arguments, so we must
+                 * unconditionall try QemuOpts first. */
+                opts = qemu_opts_parse(&qemu_object_opts,
+                                       optarg, true, &error_fatal);
+                type = qemu_opt_get(opts, "qom-type");
+                if (type && user_creatable_print_help(type, opts)) {
+                    exit(EXIT_SUCCESS);
+                }
+                qemu_opts_del(opts);
+
+                args = keyval_parse(optarg, "qom-type", &error_fatal);
+                qmp_object_add(args, &ret_data, &error_fatal);
+                qobject_unref(args);
+                qobject_unref(ret_data);
                 break;
             }
         default:

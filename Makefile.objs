@@ -31,7 +31,7 @@ endif # CONFIG_SOFTMMU or CONFIG_TOOLS
 # storage-daemon-obj-y is code used by qemu-storage-daemon (these objects are
 # used for system emulation, too, but specified separately there)
 
-storage-daemon-obj-y = block/
+storage-daemon-obj-y = block/ qom/
 storage-daemon-obj-y += blockdev.o iothread.o
 
 ######################################################################
