@@ -28,11 +28,14 @@
 #include <getopt.h>
 
 #include "block/block.h"
+#include "block/nbd.h"
 #include "crypto/init.h"
 
 #include "qapi/error.h"
-#include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-block-core.h"
+#include "qapi/qapi-visit-block.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 
@@ -67,6 +70,12 @@ static void help(void)
 "             [,driver specific parameters...]\n"
 "                         configure a block backend\n"
 "\n"
+"  --nbd-server addr.type=inet,addr.host=<host>,addr.port=<port>\n"
+"               [,tls-creds=<id>][,tls-authz=<id>]\n"
+"  --nbd-server addr.type=unix,addr.path=<path>\n"
+"               [,tls-creds=<id>][,tls-authz=<id>]\n"
+"                         start an NBD server for exporting block nodes\n"
+"\n"
 "  --object help          list object types that can be added\n"
 "  --object <type>,help   list properties for the given object type\n"
 "  --object <type>[,<property>=<value>...]\n"
@@ -82,6 +91,7 @@ QEMU_HELP_BOTTOM "\n",
 
 enum {
     OPTION_BLOCKDEV = 256,
+    OPTION_NBD_SERVER,
     OPTION_OBJECT,
 };
 
@@ -101,6 +111,7 @@ static void process_options(int argc, char *argv[])
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
         {"help", no_argument, NULL, 'h'},
+        {"nbd-server", required_argument, NULL, OPTION_NBD_SERVER},
         {"object", required_argument, NULL, OPTION_OBJECT},
         {"trace", required_argument, NULL, 'T'},
         {"version", no_argument, NULL, 'V'},
@@ -143,6 +154,19 @@ static void process_options(int argc, char *argv[])
 
                 qmp_blockdev_add(options, &error_fatal);
                 qapi_free_BlockdevOptions(options);
+                break;
+            }
+        case OPTION_NBD_SERVER:
+            {
+                Visitor *v;
+                NbdServerOptions *options;
+
+                v = qobject_input_visitor_new_str(optarg, NULL, &error_fatal);
+                visit_type_NbdServerOptions(v, NULL, &options, &error_fatal);
+                visit_free(v);
+
+                nbd_server_start_options(options, &error_fatal);
+                qapi_free_NbdServerOptions(options);
                 break;
             }
         case OPTION_OBJECT:

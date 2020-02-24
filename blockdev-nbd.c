@@ -132,6 +132,11 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
     nbd_server = NULL;
 }
 
+void nbd_server_start_options(NbdServerOptions *arg, Error **errp)
+{
+    nbd_server_start(arg->addr, arg->tls_creds, arg->tls_authz, errp);
+}
+
 void qmp_nbd_server_start(SocketAddressLegacy *addr,
                           bool has_tls_creds, const char *tls_creds,
                           bool has_tls_authz, const char *tls_authz,
