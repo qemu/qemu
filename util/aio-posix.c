@@ -493,7 +493,7 @@ static bool aio_dispatch_ready_handlers(AioContext *ctx,
     AioHandler *node;
 
     while ((node = QLIST_FIRST(ready_list))) {
-        QLIST_SAFE_REMOVE(node, node_ready);
+        QLIST_REMOVE(node, node_ready);
         progress = aio_dispatch_handler(ctx, node) || progress;
     }
 
