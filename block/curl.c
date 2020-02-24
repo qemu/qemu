@@ -216,11 +216,12 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     size_t realsize = size * nmemb;
     const char *header = (char *)ptr;
     const char *end = header + realsize;
-    const char *accept_ranges = "Accept-Ranges:";
+    const char *accept_ranges = "accept-ranges:";
     const char *bytes = "bytes";
 
     if (realsize >= strlen(accept_ranges)
-        && strncmp(header, accept_ranges, strlen(accept_ranges)) == 0) {
+        && g_ascii_strncasecmp(header, accept_ranges,
+                               strlen(accept_ranges)) == 0) {
 
         char *p = strchr(header, ':') + 1;
 
