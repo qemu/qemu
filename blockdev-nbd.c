@@ -148,10 +148,7 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
     qapi_free_SocketAddress(addr_flat);
 }
 
-void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
-                        bool has_description, const char *description,
-                        bool has_writable, bool writable,
-                        bool has_bitmap, const char *bitmap, Error **errp)
+void qmp_nbd_server_add(BlockExportNbd *arg, Error **errp)
 {
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
@@ -164,28 +161,28 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         return;
     }
 
-    if (!has_name) {
-        name = device;
+    if (!arg->has_name) {
+        arg->name = arg->device;
     }
 
-    if (strlen(name) > NBD_MAX_STRING_SIZE) {
-        error_setg(errp, "export name '%s' too long", name);
+    if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name '%s' too long", arg->name);
         return;
     }
 
-    if (has_description && strlen(description) > NBD_MAX_STRING_SIZE) {
-        error_setg(errp, "description '%s' too long", description);
+    if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "description '%s' too long", arg->description);
         return;
     }
 
-    if (nbd_export_find(name)) {
-        error_setg(errp, "NBD server already has export named '%s'", name);
+    if (nbd_export_find(arg->name)) {
+        error_setg(errp, "NBD server already has export named '%s'", arg->name);
         return;
     }
 
-    on_eject_blk = blk_by_name(device);
+    on_eject_blk = blk_by_name(arg->device);
 
-    bs = bdrv_lookup_bs(device, device, errp);
+    bs = bdrv_lookup_bs(arg->device, arg->device, errp);
     if (!bs) {
         return;
     }
@@ -199,15 +196,15 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         goto out;
     }
 
-    if (!has_writable) {
-        writable = false;
+    if (!arg->has_writable) {
+        arg->writable = false;
     }
     if (bdrv_is_read_only(bs)) {
-        writable = false;
+        arg->writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, len, name, description, bitmap,
-                         !writable, !writable,
+    exp = nbd_export_new(bs, 0, len, arg->name, arg->description, arg->bitmap,
+                         !arg->writable, !arg->writable,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {
         goto out;

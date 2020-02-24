@@ -5112,9 +5112,9 @@
             '*tls-authz': 'str'} }
 
 ##
-# @nbd-server-add:
+# @BlockExportNbd:
 #
-# Export a block node to QEMU's embedded NBD server.
+# An NBD block export.
 #
 # @device: The device name or node name of the node to be exported
 #
@@ -5131,14 +5131,24 @@
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
 #          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
 #
+# Since: 5.0
+##
+{ 'struct': 'BlockExportNbd',
+  'data': {'device': 'str', '*name': 'str', '*description': 'str',
+           '*writable': 'bool', '*bitmap': 'str' } }
+
+##
+# @nbd-server-add:
+#
+# Export a block node to QEMU's embedded NBD server.
+#
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
 #
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-add',
-  'data': {'device': 'str', '*name': 'str', '*description': 'str',
-           '*writable': 'bool', '*bitmap': 'str' } }
+  'data': 'BlockExportNbd', 'boxed': true }
 
 ##
 # @NbdServerRemoveMode:
