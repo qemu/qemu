@@ -96,6 +96,7 @@ typedef struct GICState {
     uint16_t priority_mask[GIC_NCPU_VCPU];
     uint16_t running_priority[GIC_NCPU_VCPU];
     uint16_t current_pending[GIC_NCPU_VCPU];
+    uint32_t n_prio_bits;
 
     /* If we present the GICv2 without security extensions to a guest,
      * the guest can configure the GICC_CTLR to configure group 1 binary point

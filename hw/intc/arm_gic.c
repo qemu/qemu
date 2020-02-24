@@ -641,6 +641,23 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
     return ret;
 }
 
+static uint32_t gic_fullprio_mask(GICState *s, int cpu)
+{
+    /*
+     * Return a mask word which clears the unimplemented priority
+     * bits from a priority value for an interrupt. (Not to be
+     * confused with the group priority, whose mask depends on BPR.)
+     */
+    int priBits;
+
+    if (gic_is_vcpu(cpu)) {
+        priBits = GIC_VIRT_MAX_GROUP_PRIO_BITS;
+    } else {
+        priBits = s->n_prio_bits;
+    }
+    return ~0U << (8 - priBits);
+}
+
 void gic_dist_set_priority(GICState *s, int cpu, int irq, uint8_t val,
                       MemTxAttrs attrs)
 {
@@ -650,6 +667,8 @@ void gic_dist_set_priority(GICState *s, int cpu, int irq, uint8_t val,
         }
         val = 0x80 | (val >> 1); /* Non-secure view */
     }
+
+    val &= gic_fullprio_mask(s, cpu);
 
     if (irq < GIC_INTERNAL) {
         s->priority1[irq][cpu] = val;
@@ -669,7 +688,7 @@ static uint32_t gic_dist_get_priority(GICState *s, int cpu, int irq,
         }
         prio = (prio << 1) & 0xff; /* Non-secure view */
     }
-    return prio;
+    return prio & gic_fullprio_mask(s, cpu);
 }
 
 static void gic_set_priority_mask(GICState *s, int cpu, uint8_t pmask,
@@ -684,7 +703,7 @@ static void gic_set_priority_mask(GICState *s, int cpu, uint8_t pmask,
             return;
         }
     }
-    s->priority_mask[cpu] = pmask;
+    s->priority_mask[cpu] = pmask & gic_fullprio_mask(s, cpu);
 }
 
 static uint32_t gic_get_priority_mask(GICState *s, int cpu, MemTxAttrs attrs)
@@ -2052,6 +2071,16 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     if (kvm_enabled() && !kvm_arm_supports_user_irq()) {
         error_setg(errp, "KVM with user space irqchip only works when the "
                          "host kernel supports KVM_CAP_ARM_USER_IRQ");
+        return;
+    }
+
+    if (s->n_prio_bits > GIC_MAX_PRIORITY_BITS ||
+       (s->virt_extn ? s->n_prio_bits < GIC_VIRT_MAX_GROUP_PRIO_BITS :
+        s->n_prio_bits < GIC_MIN_PRIORITY_BITS)) {
+        error_setg(errp, "num-priority-bits cannot be greater than %d"
+                   " or less than %d", GIC_MAX_PRIORITY_BITS,
+                   s->virt_extn ? GIC_VIRT_MAX_GROUP_PRIO_BITS :
+                   GIC_MIN_PRIORITY_BITS);
         return;
     }
 
