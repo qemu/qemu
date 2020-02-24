@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/qdict.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qdev.h"
@@ -240,13 +241,34 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     return prop_list;
 }
 
-void qmp_object_add(const char *type, const char *id,
-                    bool has_props, QObject *props, Error **errp)
+void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
 {
+    QObject *props;
     QDict *pdict;
     Visitor *v;
     Object *obj;
+    const char *type;
+    const char *id;
 
+    type = qdict_get_try_str(qdict, "qom-type");
+    if (!type) {
+        error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
+        return;
+    } else {
+        type = g_strdup(type);
+        qdict_del(qdict, "qom-type");
+    }
+
+    id = qdict_get_try_str(qdict, "id");
+    if (!id) {
+        error_setg(errp, QERR_MISSING_PARAMETER, "id");
+        return;
+    } else {
+        id = g_strdup(id);
+        qdict_del(qdict, "id");
+    }
+
+    props = qdict_get(qdict, "props");
     if (props) {
         pdict = qobject_to(QDict, props);
         if (!pdict) {
@@ -254,17 +276,23 @@ void qmp_object_add(const char *type, const char *id,
             return;
         }
         qobject_ref(pdict);
-    } else {
-        pdict = qdict_new();
+        qdict_del(qdict, "props");
+        qdict_join(qdict, pdict, false);
+        if (qdict_size(pdict) != 0) {
+            error_setg(errp, "Option in 'props' conflicts with top level");
+            qobject_unref(pdict);
+            return;
+        }
+        qobject_unref(pdict);
     }
 
-    v = qobject_input_visitor_new(QOBJECT(pdict));
-    obj = user_creatable_add_type(type, id, pdict, v, errp);
+    v = qobject_input_visitor_new(QOBJECT(qdict));
+    obj = user_creatable_add_type(type, id, qdict, v, errp);
     visit_free(v);
     if (obj) {
         object_unref(obj);
     }
-    qobject_unref(pdict);
+    *ret_data = QOBJECT(qdict_new());
 }
 
 void qmp_object_del(const char *id, Error **errp)

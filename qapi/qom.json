@@ -210,7 +210,12 @@
 #
 # @id: the name of the new object
 #
-# @props: a dictionary of properties to be passed to the backend
+# @props: a dictionary of properties to be passed to the backend. Deprecated
+#         since 5.0, specify the properties on the top level instead. It is an
+#         error to specify the same option both on the top level and in @props.
+#
+# Additional arguments depend on qom-type and are passed to the backend
+# unchanged.
 #
 # Returns: Nothing on success
 #          Error if @qom-type is not a valid class name
@@ -221,12 +226,13 @@
 #
 # -> { "execute": "object-add",
 #      "arguments": { "qom-type": "rng-random", "id": "rng1",
-#                     "props": { "filename": "/dev/hwrng" } } }
+#                     "filename": "/dev/hwrng" } }
 # <- { "return": {} }
 #
 ##
 { 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'},
+  'gen': false } # so we can get the additional arguments
 
 ##
 # @object-del:
