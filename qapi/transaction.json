@@ -5,7 +5,7 @@
 # = Transactions
 ##
 
-{ 'include': 'block.json' }
+{ 'include': 'block-core.json' }
 
 ##
 # @Abort:

@@ -128,7 +128,28 @@ GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-events-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-introspect.c qapi/qapi-introspect.h
 GENERATED_QAPI_FILES += qapi/qapi-doc.texi
 
+# The following list considers only the storage daemon main module. All other
+# modules are currently shared with the main schema, so we don't actually
+# generate additional files.
+
+GENERATED_STORAGE_DAEMON_QAPI_FILES = storage-daemon/qapi/qapi-commands.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-commands.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-emit-events.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-emit-events.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-events.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-events.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-init-commands.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-init-commands.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-introspect.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-introspect.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-types.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-types.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-visit.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-visit.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-doc.texi
+
 generated-files-y += $(GENERATED_QAPI_FILES)
+generated-files-y += $(GENERATED_STORAGE_DAEMON_QAPI_FILES)
 
 generated-files-y += trace/generated-tcg-tracers.h
 
@@ -651,6 +672,17 @@ qapi-gen-timestamp: $(qapi-modules) $(qapi-py)
 		"GEN","$(@:%-timestamp=%)")
 	@>$@
 
+qapi-modules-storage-daemon = \
+	$(SRC_PATH)/storage-daemon/qapi/qapi-schema.json \
+    $(QAPI_MODULES_STORAGE_DAEMON:%=$(SRC_PATH)/qapi/%.json)
+
+$(GENERATED_STORAGE_DAEMON_QAPI_FILES): storage-daemon/qapi/qapi-gen-timestamp ;
+storage-daemon/qapi/qapi-gen-timestamp: $(qapi-modules-storage-daemon) $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
+		-o "storage-daemon/qapi" $<, \
+		"GEN","$(@:%-timestamp=%)")
+	@>$@
+
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qapi-commands.h qga-qapi-init-commands.h)
 $(qga-obj-y): $(QGALIB_GEN)
 
@@ -749,6 +781,7 @@ clean: recurse-clean
 	rm -f trace/generated-tracers-dtrace.h*
 	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 	rm -f qapi-gen-timestamp
+	rm -f storage-daemon/qapi/qapi-gen-timestamp
 	rm -rf qga/qapi-generated
 	rm -f config-all-devices.mak
 

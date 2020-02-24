@@ -31,3 +31,8 @@ obj-y += qapi-events.o
 obj-y += $(QAPI_TARGET_MODULES:%=qapi-commands-%.o)
 obj-y += qapi-commands.o
 obj-y += qapi-init-commands.o
+
+QAPI_MODULES_STORAGE_DAEMON = block-core char common control crypto
+QAPI_MODULES_STORAGE_DAEMON += introspect job qom sockets pragma transaction
+
+storage-daemon-obj-y += $(QAPI_MODULES_STORAGE_DAEMON:%=qapi-commands-%.o)

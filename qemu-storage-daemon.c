@@ -31,13 +31,15 @@
 #include "block/nbd.h"
 #include "chardev/char.h"
 #include "crypto/init.h"
+#include "monitor/monitor.h"
+#include "monitor/monitor-internal.h"
 
 #include "qapi/error.h"
-#include "qapi/qapi-commands-block.h"
-#include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-visit-block.h"
 #include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
 
 #include "qemu-common.h"
@@ -51,12 +53,20 @@
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
 
+#include "storage-daemon/qapi/qapi-commands.h"
+#include "storage-daemon/qapi/qapi-init-commands.h"
+
 #include "sysemu/runstate.h"
 #include "trace/control.h"
 
 static volatile bool exit_requested = false;
 
 void qemu_system_killed(int signal, pid_t pid)
+{
+    exit_requested = true;
+}
+
+void qmp_quit(Error **errp)
 {
     exit_requested = true;
 }
@@ -87,6 +97,9 @@ static void help(void)
 "                         export the specified block node over NBD\n"
 "                         (requires --nbd-server)\n"
 "\n"
+"  --monitor [chardev=]name[,mode=control][,pretty[=on|off]]\n"
+"                         configure a QMP monitor\n"
+"\n"
 "  --nbd-server addr.type=inet,addr.host=<host>,addr.port=<port>\n"
 "               [,tls-creds=<id>][,tls-authz=<id>]\n"
 "  --nbd-server addr.type=unix,addr.path=<path>\n"
@@ -110,6 +123,7 @@ enum {
     OPTION_BLOCKDEV = 256,
     OPTION_CHARDEV,
     OPTION_EXPORT,
+    OPTION_MONITOR,
     OPTION_NBD_SERVER,
     OPTION_OBJECT,
 };
@@ -124,6 +138,17 @@ static QemuOptsList qemu_object_opts = {
         { }
     },
 };
+
+static void init_qmp_commands(void)
+{
+    qmp_init_marshal(&qmp_commands);
+    qmp_register_command(&qmp_commands, "query-qmp-schema",
+                         qmp_query_qmp_schema, QCO_ALLOW_PRECONFIG);
+
+    QTAILQ_INIT(&qmp_cap_negotiation_commands);
+    qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
+                         qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
+}
 
 static void init_export(BlockExport *export, Error **errp)
 {
@@ -145,6 +170,7 @@ static void process_options(int argc, char *argv[])
         {"chardev", required_argument, NULL, OPTION_CHARDEV},
         {"export", required_argument, NULL, OPTION_EXPORT},
         {"help", no_argument, NULL, 'h'},
+        {"monitor", required_argument, NULL, OPTION_MONITOR},
         {"nbd-server", required_argument, NULL, OPTION_NBD_SERVER},
         {"object", required_argument, NULL, OPTION_OBJECT},
         {"trace", required_argument, NULL, 'T'},
@@ -219,6 +245,21 @@ static void process_options(int argc, char *argv[])
                 qapi_free_BlockExport(export);
                 break;
             }
+        case OPTION_MONITOR:
+            {
+                Visitor *v;
+                MonitorOptions *monitor;
+
+                v = qobject_input_visitor_new_str(optarg, "chardev",
+                                                  &error_fatal);
+                visit_type_MonitorOptions(v, NULL, &monitor, &error_fatal);
+                visit_free(v);
+
+                /* TODO Catch duplicate monitor IDs */
+                monitor_init(monitor, false, &error_fatal);
+                qapi_free_MonitorOptions(monitor);
+                break;
+            }
         case OPTION_NBD_SERVER:
             {
                 Visitor *v;
@@ -280,6 +321,8 @@ int main(int argc, char *argv[])
     qemu_add_opts(&qemu_trace_opts);
     qcrypto_init(&error_fatal);
     bdrv_init();
+    monitor_init_globals_core();
+    init_qmp_commands();
 
     if (!trace_init_backends()) {
         return EXIT_FAILURE;
