@@ -7,7 +7,7 @@ util-obj-y += qapi-util.o
 
 QAPI_COMMON_MODULES = audio authz block-core block char common control crypto
 QAPI_COMMON_MODULES += dump error introspect job machine migration misc
-QAPI_COMMON_MODULES += net qdev qom rdma rocker run-state sockets tpm
+QAPI_COMMON_MODULES += net pragma qdev qom rdma rocker run-state sockets tpm
 QAPI_COMMON_MODULES += trace transaction ui
 QAPI_TARGET_MODULES = machine-target misc-target
 QAPI_MODULES = $(QAPI_COMMON_MODULES) $(QAPI_TARGET_MODULES)
