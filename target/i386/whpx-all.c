@@ -905,9 +905,8 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
 
     if ((cpu->interrupt_request & CPU_INTERRUPT_INIT) &&
         !(env->hflags & HF_SMM_MASK)) {
-
+        whpx_cpu_synchronize_state(cpu);
         do_cpu_init(x86_cpu);
-        cpu->vcpu_dirty = true;
         vcpu->interruptable = true;
     }
 
@@ -923,17 +922,13 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
     }
 
     if (cpu->interrupt_request & CPU_INTERRUPT_SIPI) {
-        if (!cpu->vcpu_dirty) {
-            whpx_get_registers(cpu);
-        }
+        whpx_cpu_synchronize_state(cpu);
         do_cpu_sipi(x86_cpu);
     }
 
     if (cpu->interrupt_request & CPU_INTERRUPT_TPR) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_TPR;
-        if (!cpu->vcpu_dirty) {
-            whpx_get_registers(cpu);
-        }
+        whpx_cpu_synchronize_state(cpu);
         apic_handle_tpr_access_report(x86_cpu->apic_state, env->eip,
                                       env->tpr_access_type);
     }
@@ -1125,8 +1120,10 @@ static int whpx_vcpu_run(CPUState *cpu)
 
 static void do_whpx_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
-    whpx_get_registers(cpu);
-    cpu->vcpu_dirty = true;
+    if (!cpu->vcpu_dirty) {
+        whpx_get_registers(cpu);
+        cpu->vcpu_dirty = true;
+    }
 }
 
 static void do_whpx_cpu_synchronize_post_reset(CPUState *cpu,
