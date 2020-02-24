@@ -48,6 +48,8 @@ block-obj-y += filter-compress.o
 
 common-obj-y += stream.o
 
+common-obj-y += qapi-sysemu.o
+
 nfs.o-libs         := $(LIBNFS_LIBS)
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)
 iscsi.o-libs       := $(LIBISCSI_LIBS)
