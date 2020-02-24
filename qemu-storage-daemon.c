@@ -29,6 +29,7 @@
 
 #include "block/block.h"
 #include "block/nbd.h"
+#include "chardev/char.h"
 #include "crypto/init.h"
 
 #include "qapi/error.h"
@@ -78,6 +79,9 @@ static void help(void)
 "             [,driver specific parameters...]\n"
 "                         configure a block backend\n"
 "\n"
+"  --chardev <options>    configure a character device backend\n"
+"                         (see the qemu(1) man page for possible options)\n"
+"\n"
 "  --export [type=]nbd,device=<node-name>[,name=<export-name>]\n"
 "           [,writable=on|off][,bitmap=<name>]\n"
 "                         export the specified block node over NBD\n"
@@ -104,10 +108,13 @@ QEMU_HELP_BOTTOM "\n",
 
 enum {
     OPTION_BLOCKDEV = 256,
+    OPTION_CHARDEV,
     OPTION_EXPORT,
     OPTION_NBD_SERVER,
     OPTION_OBJECT,
 };
+
+extern QemuOptsList qemu_chardev_opts;
 
 static QemuOptsList qemu_object_opts = {
     .name = "object",
@@ -135,6 +142,7 @@ static void process_options(int argc, char *argv[])
 
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
+        {"chardev", required_argument, NULL, OPTION_CHARDEV},
         {"export", required_argument, NULL, OPTION_EXPORT},
         {"help", no_argument, NULL, 'h'},
         {"nbd-server", required_argument, NULL, OPTION_NBD_SERVER},
@@ -180,6 +188,22 @@ static void process_options(int argc, char *argv[])
 
                 qmp_blockdev_add(options, &error_fatal);
                 qapi_free_BlockdevOptions(options);
+                break;
+            }
+        case OPTION_CHARDEV:
+            {
+                /* TODO This interface is not stable until we QAPIfy it */
+                QemuOpts *opts = qemu_opts_parse_noisily(&qemu_chardev_opts,
+                                                         optarg, true);
+                if (opts == NULL) {
+                    exit(EXIT_FAILURE);
+                }
+
+                if (!qemu_chr_new_from_opts(opts, NULL, &error_fatal)) {
+                    /* No error, but NULL returned means help was printed */
+                    exit(EXIT_SUCCESS);
+                }
+                qemu_opts_del(opts);
                 break;
             }
         case OPTION_EXPORT:
