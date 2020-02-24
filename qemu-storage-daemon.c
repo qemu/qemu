@@ -50,7 +50,15 @@
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
 
+#include "sysemu/runstate.h"
 #include "trace/control.h"
+
+static volatile bool exit_requested = false;
+
+void qemu_system_killed(int signal, pid_t pid)
+{
+    exit_requested = true;
+}
 
 static void help(void)
 {
@@ -241,6 +249,7 @@ int main(int argc, char *argv[])
 
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
+    os_setup_signal_handling();
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
@@ -255,6 +264,10 @@ int main(int argc, char *argv[])
 
     qemu_init_main_loop(&error_fatal);
     process_options(argc, argv);
+
+    while (!exit_requested) {
+        main_loop_wait(false);
+    }
 
     return EXIT_SUCCESS;
 }

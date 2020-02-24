@@ -33,6 +33,8 @@ endif # CONFIG_SOFTMMU or CONFIG_TOOLS
 
 storage-daemon-obj-y = block/ qom/
 storage-daemon-obj-y += blockdev.o blockdev-nbd.o iothread.o
+storage-daemon-obj-$(CONFIG_WIN32) += os-win32.o
+storage-daemon-obj-$(CONFIG_POSIX) += os-posix.o
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
