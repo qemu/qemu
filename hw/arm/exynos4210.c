@@ -320,7 +320,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                              &s->irom_mem,
                              0,
                              EXYNOS4210_IROM_SIZE);
-    memory_region_set_readonly(&s->irom_alias_mem, true);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_MIRROR_BASE_ADDR,
                                 &s->irom_alias_mem);
 
