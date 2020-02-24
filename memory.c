@@ -1660,19 +1660,8 @@ void memory_region_init_rom_nomigrate(MemoryRegion *mr,
                                       uint64_t size,
                                       Error **errp)
 {
-    Error *err = NULL;
-    memory_region_init(mr, owner, name, size);
-    mr->ram = true;
+    memory_region_init_ram_shared_nomigrate(mr, owner, name, size, false, errp);
     mr->readonly = true;
-    mr->terminates = true;
-    mr->destructor = memory_region_destructor_ram;
-    mr->ram_block = qemu_ram_alloc(size, false, mr, &err);
-    mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
-    if (err) {
-        mr->size = int128_zero();
-        object_unparent(OBJECT(mr));
-        error_propagate(errp, err);
-    }
 }
 
 void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
