@@ -2652,10 +2652,6 @@ static void gen_neon_dup_high16(TCGv_i32 var)
  */
 static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 {
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
-        return 1;
-    }
-
     /*
      * If the decodetree decoder handles this insn it will always
      * emit code to either execute the insn or generate an appropriate
