@@ -1803,11 +1803,18 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
 
     /*
      * Present in VFPv4 only.
+     * Note that we can't rely on the SIMDFMAC check alone, because
+     * in a Neon-no-VFP core that ID register field will be non-zero.
+     */
+    if (!dc_isar_feature(aa32_simdfmac, s) ||
+        !dc_isar_feature(aa32_fpsp_v2, s)) {
+        return false;
+    }
+    /*
      * In v7A, UNPREDICTABLE with non-zero vector length/stride; from
      * v8A, must UNDEF. We choose to UNDEF for both v7A and v8A.
      */
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP4) ||
-        (s->vec_len != 0 || s->vec_stride != 0)) {
+    if (s->vec_len != 0 || s->vec_stride != 0) {
         return false;
     }
 
@@ -1861,11 +1868,18 @@ static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
 
     /*
      * Present in VFPv4 only.
+     * Note that we can't rely on the SIMDFMAC check alone, because
+     * in a Neon-no-VFP core that ID register field will be non-zero.
+     */
+    if (!dc_isar_feature(aa32_simdfmac, s) ||
+        !dc_isar_feature(aa32_fpdp_v2, s)) {
+        return false;
+    }
+    /*
      * In v7A, UNPREDICTABLE with non-zero vector length/stride; from
      * v8A, must UNDEF. We choose to UNDEF for both v7A and v8A.
      */
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP4) ||
-        (s->vec_len != 0 || s->vec_stride != 0)) {
+    if (s->vec_len != 0 || s->vec_stride != 0) {
         return false;
     }
 
