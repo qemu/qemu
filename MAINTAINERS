@@ -365,8 +365,8 @@ S: Maintained
 F: target/arm/kvm.c
 
 MIPS KVM CPUs
-R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
-S: Orphan
+M: Aleksandar Markovic <aleksandar.m.mail@gmail.com>
+S: Odd Fixes
 F: target/mips/kvm.c
 
 PPC KVM CPUs
