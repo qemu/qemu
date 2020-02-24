@@ -3494,6 +3494,11 @@ static inline bool isar_feature_aa32_fpdp_v3(const ARMISARegisters *id)
     return FIELD_EX32(id->mvfr0, MVFR0, FPDP) >= 2;
 }
 
+static inline bool isar_feature_aa32_vfp(const ARMISARegisters *id)
+{
+    return isar_feature_aa32_fpsp_v2(id) || isar_feature_aa32_fpdp_v2(id);
+}
+
 /*
  * We always set the FP and SIMD FP16 fields to indicate identical
  * levels of support (assuming SIMD is implemented at all), so
@@ -3694,6 +3699,12 @@ static inline bool isar_feature_aa64_dcpop(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_dcpodp(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, DPB) >= 2;
+}
+
+static inline bool isar_feature_aa64_fp_simd(const ARMISARegisters *id)
+{
+    /* We always set the AdvSIMD and FP fields identically.  */
+    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, FP) != 0xf;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)
