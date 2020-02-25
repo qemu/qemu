@@ -230,6 +230,10 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
 
 err_virtio:
     vhost_user_cleanup(&fs->vhost_user);
+    virtio_del_queue(vdev, 0);
+    for (i = 0; i < fs->conf.num_request_queues; i++) {
+        virtio_del_queue(vdev, i + 1);
+    }
     virtio_cleanup(vdev);
     g_free(fs->vhost_dev.vqs);
     return;
@@ -239,6 +243,7 @@ static void vuf_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserFS *fs = VHOST_USER_FS(dev);
+    int i;
 
     /* This will stop vhost backend if appropriate. */
     vuf_set_status(vdev, 0);
@@ -247,6 +252,10 @@ static void vuf_device_unrealize(DeviceState *dev, Error **errp)
 
     vhost_user_cleanup(&fs->vhost_user);
 
+    virtio_del_queue(vdev, 0);
+    for (i = 0; i < fs->conf.num_request_queues; i++) {
+        virtio_del_queue(vdev, i + 1);
+    }
     virtio_cleanup(vdev);
     g_free(fs->vhost_dev.vqs);
     fs->vhost_dev.vqs = NULL;
