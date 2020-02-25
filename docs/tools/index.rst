@@ -9,3 +9,9 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+
+   qemu-img
+   qemu-nbd
+   qemu-trace-stap
+   virtfs-proxy-helper
+   virtiofsd
