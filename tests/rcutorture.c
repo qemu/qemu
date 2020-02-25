@@ -65,8 +65,6 @@
 #include "qemu/rcu.h"
 #include "qemu/thread.h"
 
-long long n_reads = 0LL;
-long n_updates = 0L;
 int nthreadsrunning;
 
 #define GOFLAG_INIT 0
@@ -78,10 +76,19 @@ static volatile int goflag = GOFLAG_INIT;
 #define RCU_READ_RUN 1000
 
 #define NR_THREADS 100
-static QemuMutex counts_mutex;
 static QemuThread threads[NR_THREADS];
 static struct rcu_reader_data *data[NR_THREADS];
 static int n_threads;
+
+/*
+ * Statistical counts
+ *
+ * These are the sum of local counters at the end of a run.
+ * Updates are protected by a mutex.
+ */
+static QemuMutex counts_mutex;
+long long n_reads = 0LL;
+long n_updates = 0L;
 
 static void create_thread(void *(*func)(void *))
 {
@@ -230,8 +237,9 @@ struct rcu_stress {
 struct rcu_stress rcu_stress_array[RCU_STRESS_PIPE_LEN] = { { 0 } };
 struct rcu_stress *rcu_stress_current;
 int rcu_stress_idx;
-
 int n_mberror;
+
+/* Updates protected by counts_mutex */
 long long rcu_stress_count[RCU_STRESS_PIPE_LEN + 1];
 
 
