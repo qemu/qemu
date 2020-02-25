@@ -600,7 +600,7 @@ static int bdrv_create_file_fallback(const char *filename, BlockDriver *drv,
                                      QemuOpts *opts, Error **errp)
 {
     BlockBackend *blk;
-    QDict *options = qdict_new();
+    QDict *options;
     int64_t size = 0;
     char *buf = NULL;
     PreallocMode prealloc;
@@ -623,6 +623,7 @@ static int bdrv_create_file_fallback(const char *filename, BlockDriver *drv,
         return -ENOTSUP;
     }
 
+    options = qdict_new();
     qdict_put_str(options, "driver", drv->format_name);
 
     blk = blk_new_open(filename, NULL, options,
