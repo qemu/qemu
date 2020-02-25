@@ -188,7 +188,7 @@ driver options if ``--image-opts`` is specified.
 
 .. option:: -T, --trace [[enable=]PATTERN][,events=FILE][,file=FILE]
 
-  .. include:: qemu-option-trace.rst.inc
+  .. include:: ../qemu-option-trace.rst.inc
 
 Examples
 --------

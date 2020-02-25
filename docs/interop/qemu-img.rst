@@ -34,7 +34,7 @@ Standard options:
 
 .. option:: -T, --trace [[enable=]PATTERN][,events=FILE][,file=FILE]
 
-  .. include:: qemu-option-trace.rst.inc
+  .. include:: ../qemu-option-trace.rst.inc
 
 The following commands are supported:
 
