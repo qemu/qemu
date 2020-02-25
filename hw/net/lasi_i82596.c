@@ -55,8 +55,9 @@ static void lasi_82596_mem_write(void *opaque, hwaddr addr,
          * Provided for SeaBIOS only. Write MAC of Network card to addr @val.
          * Needed for the PDC_LAN_STATION_ID_READ PDC call.
          */
-        address_space_rw(&address_space_memory, val,
-            MEMTXATTRS_UNSPECIFIED, d->state.conf.macaddr.a, ETH_ALEN, 1);
+        address_space_write(&address_space_memory, val,
+                            MEMTXATTRS_UNSPECIFIED, d->state.conf.macaddr.a,
+                            ETH_ALEN);
         break;
     }
 }

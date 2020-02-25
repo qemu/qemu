@@ -57,7 +57,7 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
     }
 
     size = (hwaddr)linesize * height;
-    data = cpu_physical_memory_map(addr, &size, 0);
+    data = cpu_physical_memory_map(addr, &size, false);
     if (size != (hwaddr)linesize * height) {
         cpu_physical_memory_unmap(data, size, 0, 0);
         return NULL;
