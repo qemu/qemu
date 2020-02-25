@@ -1,6 +1,7 @@
 # The current Travis default is a VM based 16.04 Xenial on GCE
 # Additional builds with specific requirements for a full VM need to
 # be added as additional matrix: entries later on
+os: linux
 dist: xenial
 language: c
 compiler:
@@ -113,7 +114,7 @@ after_script:
   - if command -v ccache ; then ccache --show-stats ; fi
 
 
-matrix:
+jobs:
   include:
     - name: "GCC static (user)"
       env:
@@ -297,8 +298,7 @@ matrix:
         - CONFIG="--target-list=x86_64-softmmu"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       language: python
-      python:
-        - "3.5"
+      python: 3.5
 
 
     - name: "GCC Python 3.6 (x86_64-softmmu)"
@@ -306,8 +306,7 @@ matrix:
         - CONFIG="--target-list=x86_64-softmmu"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       language: python
-      python:
-        - "3.6"
+      python: 3.6
 
 
     # Acceptance (Functional) tests
