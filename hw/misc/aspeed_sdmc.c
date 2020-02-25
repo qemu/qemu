@@ -17,6 +17,9 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qemu/units.h"
+#include "qemu/cutils.h"
+#include "qapi/visitor.h"
 
 /* Protection Key Register */
 #define R_PROT            (0x00 / 4)
@@ -160,14 +163,9 @@ static int ast2400_rambits(AspeedSDMCState *s)
     case 512:
         return ASPEED_SDMC_DRAM_512MB;
     default:
+        g_assert_not_reached();
         break;
     }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 256M",
-                s->ram_size);
-    s->ram_size = 256 << 20;
-    return ASPEED_SDMC_DRAM_256MB;
 }
 
 static int ast2500_rambits(AspeedSDMCState *s)
@@ -182,14 +180,9 @@ static int ast2500_rambits(AspeedSDMCState *s)
     case 1024:
         return ASPEED_SDMC_AST2500_1024MB;
     default:
+        g_assert_not_reached();
         break;
     }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 512M",
-                s->ram_size);
-    s->ram_size = 512 << 20;
-    return ASPEED_SDMC_AST2500_512MB;
 }
 
 static int ast2600_rambits(AspeedSDMCState *s)
@@ -204,14 +197,9 @@ static int ast2600_rambits(AspeedSDMCState *s)
     case 2048:
         return ASPEED_SDMC_AST2600_2048MB;
     default:
+        g_assert_not_reached();
         break;
     }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 1024M",
-                s->ram_size);
-    s->ram_size = 1024 << 20;
-    return ASPEED_SDMC_AST2600_1024MB;
 }
 
 static void aspeed_sdmc_reset(DeviceState *dev)
@@ -223,6 +211,51 @@ static void aspeed_sdmc_reset(DeviceState *dev)
 
     /* Set ram size bit and defaults values */
     s->regs[R_CONF] = asc->compute_conf(s, 0);
+}
+
+static void aspeed_sdmc_get_ram_size(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    AspeedSDMCState *s = ASPEED_SDMC(obj);
+    int64_t value = s->ram_size;
+
+    visit_type_int(v, name, &value, errp);
+}
+
+static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    int i;
+    char *sz;
+    int64_t value;
+    Error *local_err = NULL;
+    AspeedSDMCState *s = ASPEED_SDMC(obj);
+    AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
+
+    visit_type_int(v, name, &value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    for (i = 0; asc->valid_ram_sizes[i]; i++) {
+        if (value == asc->valid_ram_sizes[i]) {
+            s->ram_size = value;
+            return;
+        }
+    }
+
+    sz = size_to_str(value);
+    error_setg(&local_err, "Invalid RAM size %s", sz);
+    g_free(sz);
+    error_propagate(errp, local_err);
+}
+
+static void aspeed_sdmc_initfn(Object *obj)
+{
+    object_property_add(obj, "ram-size", "int",
+                        aspeed_sdmc_get_ram_size, aspeed_sdmc_set_ram_size,
+                        NULL, NULL, NULL);
 }
 
 static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
@@ -249,7 +282,6 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 };
 
 static Property aspeed_sdmc_properties[] = {
-    DEFINE_PROP_UINT64("ram-size", AspeedSDMCState, ram_size, 0),
     DEFINE_PROP_UINT64("max-ram-size", AspeedSDMCState, max_ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -268,6 +300,7 @@ static const TypeInfo aspeed_sdmc_info = {
     .name = TYPE_ASPEED_SDMC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSDMCState),
+    .instance_init = aspeed_sdmc_initfn,
     .class_init = aspeed_sdmc_class_init,
     .class_size = sizeof(AspeedSDMCClass),
     .abstract   = true,
@@ -298,6 +331,9 @@ static void aspeed_2400_sdmc_write(AspeedSDMCState *s, uint32_t reg,
     s->regs[reg] = data;
 }
 
+static const uint64_t
+aspeed_2400_ram_sizes[] = { 64 * MiB, 128 * MiB, 256 * MiB, 512 * MiB, 0};
+
 static void aspeed_2400_sdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -307,6 +343,7 @@ static void aspeed_2400_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 512 << 20;
     asc->compute_conf = aspeed_2400_sdmc_compute_conf;
     asc->write = aspeed_2400_sdmc_write;
+    asc->valid_ram_sizes = aspeed_2400_ram_sizes;
 }
 
 static const TypeInfo aspeed_2400_sdmc_info = {
@@ -351,6 +388,9 @@ static void aspeed_2500_sdmc_write(AspeedSDMCState *s, uint32_t reg,
     s->regs[reg] = data;
 }
 
+static const uint64_t
+aspeed_2500_ram_sizes[] = { 128 * MiB, 256 * MiB, 512 * MiB, 1024 * MiB, 0};
+
 static void aspeed_2500_sdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -360,6 +400,7 @@ static void aspeed_2500_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 1024 << 20;
     asc->compute_conf = aspeed_2500_sdmc_compute_conf;
     asc->write = aspeed_2500_sdmc_write;
+    asc->valid_ram_sizes = aspeed_2500_ram_sizes;
 }
 
 static const TypeInfo aspeed_2500_sdmc_info = {
@@ -404,6 +445,9 @@ static void aspeed_2600_sdmc_write(AspeedSDMCState *s, uint32_t reg,
     s->regs[reg] = data;
 }
 
+static const uint64_t
+aspeed_2600_ram_sizes[] = { 256 * MiB, 512 * MiB, 1024 * MiB, 2048 * MiB, 0};
+
 static void aspeed_2600_sdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -413,6 +457,7 @@ static void aspeed_2600_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 2048 << 20;
     asc->compute_conf = aspeed_2600_sdmc_compute_conf;
     asc->write = aspeed_2600_sdmc_write;
+    asc->valid_ram_sizes = aspeed_2600_ram_sizes;
 }
 
 static const TypeInfo aspeed_2600_sdmc_info = {

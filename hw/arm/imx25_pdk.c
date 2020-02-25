@@ -32,6 +32,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "hw/i2c/i2c.h"
+#include "qemu/cutils.h"
 
 /* Memory map for PDK Emulation Baseboard:
  * 0x00000000-0x7fffffff See i.MX25 SOC fr support
@@ -58,7 +59,6 @@
 
 typedef struct IMX25PDK {
     FslIMX25State soc;
-    MemoryRegion ram;
     MemoryRegion ram_alias;
 } IMX25PDK;
 
@@ -66,6 +66,7 @@ static struct arm_boot_info imx25_pdk_binfo;
 
 static void imx25_pdk_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     IMX25PDK *s = g_new0(IMX25PDK, 1);
     unsigned int ram_size;
     unsigned int alias_offset;
@@ -78,16 +79,14 @@ static void imx25_pdk_init(MachineState *machine)
 
     /* We need to initialize our memory */
     if (machine->ram_size > (FSL_IMX25_SDRAM0_SIZE + FSL_IMX25_SDRAM1_SIZE)) {
-        warn_report("RAM size " RAM_ADDR_FMT " above max supported, "
-                    "reduced to %x", machine->ram_size,
-                    FSL_IMX25_SDRAM0_SIZE + FSL_IMX25_SDRAM1_SIZE);
-        machine->ram_size = FSL_IMX25_SDRAM0_SIZE + FSL_IMX25_SDRAM1_SIZE;
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "imx25.ram",
-                                         machine->ram_size);
     memory_region_add_subregion(get_system_memory(), FSL_IMX25_SDRAM0_ADDR,
-                                &s->ram);
+                                machine->ram);
 
     /* initialize the alias memory if any */
     for (i = 0, ram_size = machine->ram_size, alias_offset = 0;
@@ -107,7 +106,8 @@ static void imx25_pdk_init(MachineState *machine)
 
         if (size < ram[i].size) {
             memory_region_init_alias(&s->ram_alias, NULL, "ram.alias",
-                                     &s->ram, alias_offset, ram[i].size - size);
+                                     machine->ram,
+                                     alias_offset, ram[i].size - size);
             memory_region_add_subregion(get_system_memory(),
                                         ram[i].addr + size, &s->ram_alias);
         }
@@ -135,6 +135,7 @@ static void imx25_pdk_machine_init(MachineClass *mc)
     mc->desc = "ARM i.MX25 PDK board (ARM926)";
     mc->init = imx25_pdk_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_ram_id = "imx25.ram";
 }
 
 DEFINE_MACHINE("imx25-pdk", imx25_pdk_machine_init)

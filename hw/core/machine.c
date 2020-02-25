@@ -26,6 +26,7 @@
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
+#include "migration/vmstate.h"
 
 GlobalProperty hw_compat_4_2[] = {
     { "virtio-blk-device", "queue-size", "128"},
@@ -510,6 +511,22 @@ static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
     }
 }
 
+static char *machine_get_memdev(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->ram_memdev_id);
+}
+
+static void machine_set_memdev(Object *obj, const char *value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    g_free(ms->ram_memdev_id);
+    ms->ram_memdev_id = g_strdup(value);
+}
+
+
 static void machine_init_notify(Notifier *notifier, void *data)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -891,6 +908,14 @@ static void machine_initfn(Object *obj)
                                         "Table (HMAT)", NULL);
     }
 
+    object_property_add_str(obj, "memory-backend",
+                            machine_get_memdev, machine_set_memdev,
+                            &error_abort);
+    object_property_set_description(obj, "memory-backend",
+                                    "Set RAM backend"
+                                    "Valid value is ID of hostmem based backend",
+                                     &error_abort);
+
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
     qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
@@ -1037,9 +1062,32 @@ static void machine_numa_finish_cpu_init(MachineState *machine)
     g_string_free(s, true);
 }
 
+MemoryRegion *machine_consume_memdev(MachineState *machine,
+                                     HostMemoryBackend *backend)
+{
+    MemoryRegion *ret = host_memory_backend_get_memory(backend);
+
+    if (memory_region_is_mapped(ret)) {
+        char *path = object_get_canonical_path_component(OBJECT(backend));
+        error_report("memory backend %s can't be used multiple times.", path);
+        g_free(path);
+        exit(EXIT_FAILURE);
+    }
+    host_memory_backend_set_mapped(backend, true);
+    vmstate_register_ram_global(ret);
+    return ret;
+}
+
 void machine_run_board_init(MachineState *machine)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
+
+    if (machine->ram_memdev_id) {
+        Object *o;
+        o = object_resolve_path_type(machine->ram_memdev_id,
+                                     TYPE_MEMORY_BACKEND, NULL);
+        machine->ram = machine_consume_memdev(machine, MEMORY_BACKEND(o));
+    }
 
     if (machine->numa_state) {
         numa_complete_configuration(machine);

@@ -31,6 +31,7 @@
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
+#include "qemu/cutils.h"
 
 static uint64_t static_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -195,15 +196,21 @@ static void palmte_init(MachineState *machine)
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
     int rom_size, rom_loaded = 0;
-    MemoryRegion *dram = g_new(MemoryRegion, 1);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
-    memory_region_allocate_system_memory(dram, NULL, "omap1.dram",
-                                         palmte_binfo.ram_size);
-    memory_region_add_subregion(address_space_mem, OMAP_EMIFF_BASE, dram);
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
 
-    mpu = omap310_mpu_init(dram, machine->cpu_type);
+    memory_region_add_subregion(address_space_mem, OMAP_EMIFF_BASE,
+                                machine->ram);
+
+    mpu = omap310_mpu_init(machine->ram, machine->cpu_type);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, NULL, "palmte.flash", flash_size,
@@ -265,6 +272,8 @@ static void palmte_machine_init(MachineClass *mc)
     mc->init = palmte_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
+    mc->default_ram_size = 0x02000000;
+    mc->default_ram_id = "omap1.dram";
 }
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)

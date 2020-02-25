@@ -35,39 +35,40 @@
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
+#include "qemu/units.h"
+#include "qemu/cutils.h"
 
 #define DIGIC4_ROM0_BASE      0xf0000000
 #define DIGIC4_ROM1_BASE      0xf8000000
 #define DIGIC4_ROM_MAX_SIZE   0x08000000
 
-typedef struct DigicBoardState {
-    DigicState *digic;
-    MemoryRegion ram;
-} DigicBoardState;
-
 typedef struct DigicBoard {
-    hwaddr ram_size;
-    void (*add_rom0)(DigicBoardState *, hwaddr, const char *);
+    void (*add_rom0)(DigicState *, hwaddr, const char *);
     const char *rom0_def_filename;
-    void (*add_rom1)(DigicBoardState *, hwaddr, const char *);
+    void (*add_rom1)(DigicState *, hwaddr, const char *);
     const char *rom1_def_filename;
 } DigicBoard;
 
-static void digic4_board_init(DigicBoard *board)
+static void digic4_board_init(MachineState *machine, DigicBoard *board)
 {
     Error *err = NULL;
+    DigicState *s = DIGIC(object_new(TYPE_DIGIC));
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    DigicBoardState *s = g_new(DigicBoardState, 1);
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
 
-    s->digic = DIGIC(object_new(TYPE_DIGIC));
-    object_property_set_bool(OBJECT(s->digic), true, "realized", &err);
+    object_property_set_bool(OBJECT(s), true, "realized", &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't realize DIGIC SoC: ");
         exit(1);
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "ram", board->ram_size);
-    memory_region_add_subregion(get_system_memory(), 0, &s->ram);
+    memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     if (board->add_rom0) {
         board->add_rom0(s, DIGIC4_ROM0_BASE, board->rom0_def_filename);
@@ -78,7 +79,7 @@ static void digic4_board_init(DigicBoard *board)
     }
 }
 
-static void digic_load_rom(DigicBoardState *s, hwaddr addr,
+static void digic_load_rom(DigicState *s, hwaddr addr,
                            hwaddr max_size, const char *def_filename)
 {
     target_long rom_size;
@@ -118,7 +119,7 @@ static void digic_load_rom(DigicBoardState *s, hwaddr addr,
  * Samsung K8P3215UQB
  * 64M Bit (4Mx16) Page Mode / Multi-Bank NOR Flash Memory
  */
-static void digic4_add_k8p3215uqb_rom(DigicBoardState *s, hwaddr addr,
+static void digic4_add_k8p3215uqb_rom(DigicState *s, hwaddr addr,
                                       const char *def_filename)
 {
 #define FLASH_K8P3215UQB_SIZE (4 * 1024 * 1024)
@@ -135,14 +136,13 @@ static void digic4_add_k8p3215uqb_rom(DigicBoardState *s, hwaddr addr,
 }
 
 static DigicBoard digic4_board_canon_a1100 = {
-    .ram_size = 64 * 1024 * 1024,
     .add_rom1 = digic4_add_k8p3215uqb_rom,
     .rom1_def_filename = "canon-a1100-rom1.bin",
 };
 
 static void canon_a1100_init(MachineState *machine)
 {
-    digic4_board_init(&digic4_board_canon_a1100);
+    digic4_board_init(machine, &digic4_board_canon_a1100);
 }
 
 static void canon_a1100_machine_init(MachineClass *mc)
@@ -150,6 +150,8 @@ static void canon_a1100_machine_init(MachineClass *mc)
     mc->desc = "Canon PowerShot A1100 IS";
     mc->init = &canon_a1100_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_ram_size = 64 * MiB;
+    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("canon-a1100", canon_a1100_machine_init)

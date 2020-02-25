@@ -860,7 +860,6 @@ static void next_cube_init(MachineState *machine)
 {
     M68kCPU *cpu;
     CPUM68KState *env;
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *mmiomem = g_new(MemoryRegion, 1);
     MemoryRegion *scrmem = g_new(MemoryRegion, 1);
@@ -893,8 +892,7 @@ static void next_cube_init(MachineState *machine)
     memcpy(ns->rtc.ram, rtc_ram2, 32);
 
     /* 64MB RAM starting at 0x04000000  */
-    memory_region_allocate_system_memory(ram, NULL, "next.ram", ram_size);
-    memory_region_add_subregion(sysmem, 0x04000000, ram);
+    memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
 
     /* Framebuffer */
     dev = qdev_create(NULL, TYPE_NEXTFB);
@@ -967,6 +965,7 @@ static void next_machine_class_init(ObjectClass *oc, void *data)
     mc->desc = "NeXT Cube";
     mc->init = next_cube_init;
     mc->default_ram_size = RAM_SIZE;
+    mc->default_ram_id = "next.ram";
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
 }
 

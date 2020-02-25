@@ -777,63 +777,42 @@ static const TypeInfo prom_info = {
 
 typedef struct RamDevice {
     SysBusDevice parent_obj;
-
-    MemoryRegion ram;
-    uint64_t size;
+    HostMemoryBackend *memdev;
 } RamDevice;
 
 /* System RAM */
 static void ram_realize(DeviceState *dev, Error **errp)
 {
     RamDevice *d = SUN4M_RAM(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    MemoryRegion *ram = host_memory_backend_get_memory(d->memdev);
 
-    memory_region_allocate_system_memory(&d->ram, OBJECT(d), "sun4m.ram",
-                                         d->size);
-    sysbus_init_mmio(sbd, &d->ram);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), ram);
 }
 
-static void ram_init(hwaddr addr, ram_addr_t RAM_size,
-                     uint64_t max_mem)
+static void ram_initfn(Object *obj)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
-    RamDevice *d;
-
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > max_mem) {
-        error_report("Too much memory for this machine: %" PRId64 ","
-                     " maximum %" PRId64,
-                     RAM_size / MiB, max_mem / MiB);
-        exit(1);
-    }
-    dev = qdev_create(NULL, "memory");
-    s = SYS_BUS_DEVICE(dev);
-
-    d = SUN4M_RAM(dev);
-    d->size = RAM_size;
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(s, 0, addr);
+    RamDevice *d = SUN4M_RAM(obj);
+    object_property_add_link(obj, "memdev", TYPE_MEMORY_BACKEND,
+                             (Object **)&d->memdev,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_STRONG, &error_abort);
+    object_property_set_description(obj, "memdev", "Set RAM backend"
+                                    "Valid value is ID of a hostmem backend",
+                                     &error_abort);
 }
-
-static Property ram_properties[] = {
-    DEFINE_PROP_UINT64("size", RamDevice, size, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void ram_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ram_realize;
-    device_class_set_props(dc, ram_properties);
 }
 
 static const TypeInfo ram_info = {
     .name          = TYPE_SUN4M_MEMORY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),
+    .instance_init = ram_initfn,
     .class_init    = ram_class_init,
 };
 
@@ -879,6 +858,15 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     SysBusDevice *s;
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
+    Object *ram_memdev = object_resolve_path_type(machine->ram_memdev_id,
+                                                  TYPE_MEMORY_BACKEND, NULL);
+
+    if (machine->ram_size > hwdef->max_mem) {
+        error_report("Too much memory for this machine: %" PRId64 ","
+                     " maximum %" PRId64,
+                     machine->ram_size / MiB, hwdef->max_mem / MiB);
+        exit(1);
+    }
 
     /* init CPUs */
     for(i = 0; i < smp_cpus; i++) {
@@ -888,9 +876,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
+    /* Create and map RAM frontend */
+    dev = qdev_create(NULL, "memory");
+    object_property_set_link(OBJECT(dev), ram_memdev, "memdev", &error_fatal);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
 
-    /* set up devices */
-    ram_init(0, machine->ram_size, hwdef->max_mem);
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
         empty_slot_init(machine->ram_size, hwdef->max_mem - machine->ram_size);
@@ -1078,7 +1069,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)machine->ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_DEPTH, graphic_depth);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_WIDTH, graphic_width);
@@ -1415,6 +1406,7 @@ static void ss5_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss5_type = {
@@ -1434,6 +1426,7 @@ static void ss10_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss10_type = {
@@ -1453,6 +1446,7 @@ static void ss600mp_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss600mp_type = {
@@ -1472,6 +1466,7 @@ static void ss20_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss20_type = {
@@ -1490,6 +1485,7 @@ static void voyager_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo voyager_type = {
@@ -1508,6 +1504,7 @@ static void ss_lx_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss_lx_type = {
@@ -1526,6 +1523,7 @@ static void ss4_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo ss4_type = {
@@ -1544,6 +1542,7 @@ static void scls_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo scls_type = {
@@ -1562,6 +1561,7 @@ static void sbook_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
     mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static const TypeInfo sbook_type = {

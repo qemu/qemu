@@ -56,6 +56,7 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
+#include "sysemu/hostmem.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "chardev/char.h"
@@ -120,8 +121,6 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
-const char *mem_path = NULL;
-int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
 int nb_nics;
@@ -2635,6 +2634,29 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
         exit(EXIT_FAILURE);
     }
 
+    if (current_machine->ram_memdev_id) {
+        Object *backend;
+        ram_addr_t backend_size;
+
+        backend = object_resolve_path_type(current_machine->ram_memdev_id,
+                                           TYPE_MEMORY_BACKEND, NULL);
+        backend_size = object_property_get_uint(backend, "size",  &error_abort);
+        if (mem_str && backend_size != ram_size) {
+                error_report("Size specified by -m option must match size of "
+                             "explicitly specified 'memory-backend' property");
+                exit(EXIT_FAILURE);
+        }
+        ram_size = backend_size;
+    }
+
+    if (!xen_enabled()) {
+        /* On 32-bit hosts, QEMU is limited by virtual address space */
+        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
+            error_report("at most 2047 MB RAM can be simulated");
+            exit(1);
+        }
+    }
+
     loc_pop(&loc);
 }
 
@@ -2786,6 +2808,24 @@ static void configure_accelerators(const char *progname)
     }
 }
 
+static void create_default_memdev(MachineState *ms, const char *path)
+{
+    Object *obj;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    obj = object_new(path ? TYPE_MEMORY_BACKEND_FILE : TYPE_MEMORY_BACKEND_RAM);
+    if (path) {
+        object_property_set_str(obj, path, "mem-path", &error_fatal);
+    }
+    object_property_set_int(obj, ms->ram_size, "size", &error_fatal);
+    object_property_add_child(object_get_objects_root(), mc->default_ram_id,
+                              obj, &error_fatal);
+    user_creatable_complete(USER_CREATABLE(obj), &error_fatal);
+    object_unref(obj);
+    object_property_set_str(OBJECT(ms), mc->default_ram_id, "memory-backend",
+                            &error_fatal);
+}
+
 void qemu_init(int argc, char **argv, char **envp)
 {
     int i;
@@ -2820,8 +2860,10 @@ void qemu_init(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
+    const char *mem_path = NULL;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
     QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
+    int mem_prealloc = 0; /* force preallocation of physical target memory */
 
     os_set_line_buffering();
 
@@ -3779,8 +3821,6 @@ void qemu_init(int argc, char **argv, char **envp)
     machine_class = select_machine();
     object_set_machine_compat_props(machine_class->compat_props);
 
-    set_memory_options(&ram_slots, &maxram_size, machine_class);
-
     os_daemonize();
 
     /*
@@ -3927,6 +3967,15 @@ void qemu_init(int argc, char **argv, char **envp)
                      current_machine->smp.max_cpus,
                      machine_class->name, machine_class->max_cpus);
         exit(1);
+    }
+
+    if (mem_prealloc) {
+        char *val;
+
+        val = g_strdup_printf("%d", current_machine->smp.cpus);
+        object_register_sugar_prop("memory-backend", "prealloc-threads", val);
+        g_free(val);
+        object_register_sugar_prop("memory-backend", "prealloc", "on");
     }
 
     /*
@@ -4092,9 +4141,6 @@ void qemu_init(int argc, char **argv, char **envp)
     machine_opts = qemu_get_machine_opts();
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                      &error_fatal);
-    current_machine->ram_size = ram_size;
-    current_machine->maxram_size = maxram_size;
-    current_machine->ram_slots = ram_slots;
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
@@ -4205,14 +4251,6 @@ void qemu_init(int argc, char **argv, char **envp)
 
     tpm_init();
 
-    if (!xen_enabled()) {
-        /* On 32-bit hosts, QEMU is limited by virtual address space */
-        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
-            error_report("at most 2047 MB RAM can be simulated");
-            exit(1);
-        }
-    }
-
     blk_mig_init();
     ram_mig_init();
     dirty_bitmap_mig_init();
@@ -4257,8 +4295,18 @@ void qemu_init(int argc, char **argv, char **envp)
     if (cpu_option) {
         current_machine->cpu_type = parse_cpu_option(cpu_option);
     }
+
+    set_memory_options(&ram_slots, &maxram_size, machine_class);
+    current_machine->ram_size = ram_size;
+    current_machine->maxram_size = maxram_size;
+    current_machine->ram_slots = ram_slots;
+
     parse_numa_opts(current_machine);
 
+    if (machine_class->default_ram_id && current_machine->ram_size &&
+        numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
+        create_default_memdev(current_machine, mem_path);
+    }
     /* do monitor/qmp handling at preconfig state if requested */
     qemu_main_loop();
 
