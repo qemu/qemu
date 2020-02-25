@@ -831,12 +831,13 @@ static void virtio_crypto_device_unrealize(DeviceState *dev, Error **errp)
 
     max_queues = vcrypto->multiqueue ? vcrypto->max_queues : 1;
     for (i = 0; i < max_queues; i++) {
-        virtio_del_queue(vdev, i);
+        virtio_delete_queue(vcrypto->vqs[i].dataq);
         q = &vcrypto->vqs[i];
         qemu_bh_delete(q->dataq_bh);
     }
 
     g_free(vcrypto->vqs);
+    virtio_delete_queue(vcrypto->ctrl_vq);
 
     virtio_cleanup(vdev);
     cryptodev_backend_set_used(vcrypto->cryptodev, false);
