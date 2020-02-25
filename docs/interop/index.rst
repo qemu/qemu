@@ -18,10 +18,5 @@ Contents:
    live-block-operations
    pr-helper
    qemu-ga
-   qemu-img
-   qemu-nbd
-   qemu-trace-stap
    vhost-user
    vhost-user-gpu
-   virtfs-proxy-helper
-   virtiofsd
