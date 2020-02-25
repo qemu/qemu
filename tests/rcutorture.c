@@ -413,7 +413,8 @@ static void gtest_stress_10_5(void)
 
 static void usage(int argc, char *argv[])
 {
-    fprintf(stderr, "Usage: %s [nreaders [ perf | stress ] ]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [nreaders [ [r|u]perf | stress [duration]]\n",
+            argv[0]);
     exit(-1);
 }
 
