@@ -2794,13 +2794,26 @@ static void tcg_gen_req_mo(TCGBar type)
     }
 }
 
+static inline TCGv plugin_prep_mem_callbacks(TCGv vaddr)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        /* Save a copy of the vaddr for use after a load.  */
+        TCGv temp = tcg_temp_new();
+        tcg_gen_mov_tl(temp, vaddr);
+        return temp;
+    }
+#endif
+    return vaddr;
+}
+
 static inline void plugin_gen_mem_callbacks(TCGv vaddr, uint16_t info)
 {
 #ifdef CONFIG_PLUGIN
-    if (tcg_ctx->plugin_insn == NULL) {
-        return;
+    if (tcg_ctx->plugin_insn != NULL) {
+        plugin_gen_empty_mem_callback(vaddr, info);
+        tcg_temp_free(vaddr);
     }
-    plugin_gen_empty_mem_callback(vaddr, info);
 #endif
 }
 
@@ -2822,6 +2835,7 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
         }
     }
 
+    addr = plugin_prep_mem_callbacks(addr);
     gen_ldst_i32(INDEX_op_qemu_ld_i32, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 
@@ -2868,6 +2882,7 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
         memop &= ~MO_BSWAP;
     }
 
+    addr = plugin_prep_mem_callbacks(addr);
     gen_ldst_i32(INDEX_op_qemu_st_i32, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 
@@ -2905,6 +2920,7 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
         }
     }
 
+    addr = plugin_prep_mem_callbacks(addr);
     gen_ldst_i64(INDEX_op_qemu_ld_i64, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 
@@ -2967,6 +2983,7 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
         memop &= ~MO_BSWAP;
     }
 
+    addr = plugin_prep_mem_callbacks(addr);
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 
