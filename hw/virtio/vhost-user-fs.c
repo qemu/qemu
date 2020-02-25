@@ -209,11 +209,12 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
                 sizeof(struct virtio_fs_config));
 
     /* Hiprio queue */
-    virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
+    fs->hiprio_vq = virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
 
     /* Request queues */
+    fs->req_vqs = g_new(VirtQueue *, fs->conf.num_request_queues);
     for (i = 0; i < fs->conf.num_request_queues; i++) {
-        virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
+        fs->req_vqs[i] = virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
     }
 
     /* 1 high prio queue, plus the number configured */
@@ -230,10 +231,11 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
 
 err_virtio:
     vhost_user_cleanup(&fs->vhost_user);
-    virtio_del_queue(vdev, 0);
+    virtio_delete_queue(fs->hiprio_vq);
     for (i = 0; i < fs->conf.num_request_queues; i++) {
-        virtio_del_queue(vdev, i + 1);
+        virtio_delete_queue(fs->req_vqs[i]);
     }
+    g_free(fs->req_vqs);
     virtio_cleanup(vdev);
     g_free(fs->vhost_dev.vqs);
     return;
@@ -252,10 +254,11 @@ static void vuf_device_unrealize(DeviceState *dev, Error **errp)
 
     vhost_user_cleanup(&fs->vhost_user);
 
-    virtio_del_queue(vdev, 0);
+    virtio_delete_queue(fs->hiprio_vq);
     for (i = 0; i < fs->conf.num_request_queues; i++) {
-        virtio_del_queue(vdev, i + 1);
+        virtio_delete_queue(fs->req_vqs[i]);
     }
+    g_free(fs->req_vqs);
     virtio_cleanup(vdev);
     g_free(fs->vhost_dev.vqs);
     fs->vhost_dev.vqs = NULL;
