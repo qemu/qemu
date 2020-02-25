@@ -686,6 +686,7 @@ F: hw/rtc/twl92230.c
 F: include/hw/display/blizzard.h
 F: include/hw/input/tsc2xxx.h
 F: include/hw/misc/cbus.h
+F: tests/acceptance/machine_arm_n8x0.py
 
 Palm
 M: Andrzej Zaborowski <balrogg@gmail.com>
