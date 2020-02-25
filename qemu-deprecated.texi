@@ -113,15 +113,6 @@ QEMU using implicit generic or board specific splitting rule.
 Use @option{memdev} with @var{memory-backend-ram} backend or @option{mem} (if
 it's supported by used machine type) to define mapping explictly instead.
 
-@subsection -mem-path fallback to RAM (since 4.1)
-Currently if guest RAM allocation from file pointed by @option{mem-path}
-fails, QEMU falls back to allocating from RAM, which might result
-in unpredictable behavior since the backing file specified by the user
-is ignored. In the future, users will be responsible for making sure
-the backing storage specified with @option{-mem-path} can actually provide
-the guest RAM configured with @option{-m} and QEMU will fail to start up if
-RAM allocation is unsuccessful.
-
 @subsection RISC-V -bios (since 4.1)
 
 QEMU 4.1 introduced support for the -bios option in QEMU for RISC-V for the

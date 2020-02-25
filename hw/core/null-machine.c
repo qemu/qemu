@@ -32,11 +32,8 @@ static void machine_none_init(MachineState *mch)
     }
 
     /* RAM at address zero */
-    if (mch->ram_size) {
-        MemoryRegion *ram = g_new(MemoryRegion, 1);
-
-        memory_region_allocate_system_memory(ram, NULL, "ram", mch->ram_size);
-        memory_region_add_subregion(get_system_memory(), 0, ram);
+    if (mch->ram) {
+        memory_region_add_subregion(get_system_memory(), 0, mch->ram);
     }
 
     if (mch->kernel_filename) {
@@ -52,6 +49,7 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->init = machine_none_init;
     mc->max_cpus = 1;
     mc->default_ram_size = 0;
+    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("none", machine_none_machine_init)

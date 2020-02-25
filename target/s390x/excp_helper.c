@@ -393,7 +393,7 @@ static int mchk_store_vregs(CPUS390XState *env, uint64_t mcesao)
     MchkExtSaveArea *sa;
     int i;
 
-    sa = cpu_physical_memory_map(mcesao, &len, 1);
+    sa = cpu_physical_memory_map(mcesao, &len, true);
     if (!sa) {
         return -EFAULT;
     }

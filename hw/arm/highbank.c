@@ -236,7 +236,6 @@ enum cxmachines {
  */
 static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 {
-    ram_addr_t ram_size = machine->ram_size;
     DeviceState *dev = NULL;
     SysBusDevice *busdev;
     qemu_irq pic[128];
@@ -247,7 +246,6 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     qemu_irq cpu_virq[4];
     qemu_irq cpu_vfiq[4];
     MemoryRegion *sysram;
-    MemoryRegion *dram;
     MemoryRegion *sysmem;
     char *sysboot_filename;
 
@@ -290,10 +288,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     }
 
     sysmem = get_system_memory();
-    dram = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(dram, NULL, "highbank.dram", ram_size);
     /* SDRAM at address zero.  */
-    memory_region_add_subregion(sysmem, 0, dram);
+    memory_region_add_subregion(sysmem, 0, machine->ram);
 
     sysram = g_new(MemoryRegion, 1);
     memory_region_init_ram(sysram, NULL, "highbank.sysram", 0x8000,
@@ -387,7 +383,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 
     /* TODO create and connect IDE devices for ide_drive_get() */
 
-    highbank_binfo.ram_size = ram_size;
+    highbank_binfo.ram_size = machine->ram_size;
     /* highbank requires a dtb in order to boot, and the dtb will override
      * the board ID. The following value is ignored, so set it to -1 to be
      * clear that the value is meaningless.
@@ -430,6 +426,7 @@ static void highbank_class_init(ObjectClass *oc, void *data)
     mc->units_per_default_bus = 1;
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_ram_id = "highbank.dram";
 }
 
 static const TypeInfo highbank_type = {
@@ -448,6 +445,7 @@ static void midway_class_init(ObjectClass *oc, void *data)
     mc->units_per_default_bus = 1;
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_ram_id = "highbank.dram";
 }
 
 static const TypeInfo midway_type = {

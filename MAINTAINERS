@@ -404,6 +404,14 @@ S: Supported
 F: target/i386/kvm.c
 F: scripts/kvm/vmxcap
 
+WHPX CPUs
+M: Sunil Muthuswamy <sunilmut@microsoft.com>
+S: Supported
+F: target/i386/whpx-all.c
+F: target/i386/whp-dispatch.h
+F: accel/stubs/whpx-stub.c
+F: include/sysemu/whpx.h
+
 Guest CPU Cores (Xen)
 ---------------------
 X86 Xen CPUs

@@ -50,8 +50,6 @@ extern uint8_t *boot_splash_filedata;
 extern bool enable_mlock;
 extern bool enable_cpu_pm;
 extern QEMUClockType rtc_clock;
-extern const char *mem_path;
-extern int mem_prealloc;
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {

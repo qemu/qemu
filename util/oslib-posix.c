@@ -76,6 +76,10 @@ static MemsetThread *memset_thread;
 static int memset_num_threads;
 static bool memset_thread_failed;
 
+static QemuMutex page_mutex;
+static QemuCond page_cond;
+static bool threads_created_flag;
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -403,6 +407,17 @@ static void *do_touch_pages(void *arg)
     MemsetThread *memset_args = (MemsetThread *)arg;
     sigset_t set, oldset;
 
+    /*
+     * On Linux, the page faults from the loop below can cause mmap_sem
+     * contention with allocation of the thread stacks.  Do not start
+     * clearing until all threads have been created.
+     */
+    qemu_mutex_lock(&page_mutex);
+    while(!threads_created_flag){
+        qemu_cond_wait(&page_cond, &page_mutex);
+    }
+    qemu_mutex_unlock(&page_mutex);
+
     /* unblock SIGBUS */
     sigemptyset(&set);
     sigaddset(&set, SIGBUS);
@@ -451,27 +466,28 @@ static inline int get_memset_num_threads(int smp_cpus)
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                             int smp_cpus)
 {
-    size_t numpages_per_thread;
-    size_t size_per_thread;
+    size_t numpages_per_thread, leftover;
     char *addr = area;
     int i = 0;
 
     memset_thread_failed = false;
+    threads_created_flag = false;
     memset_num_threads = get_memset_num_threads(smp_cpus);
     memset_thread = g_new0(MemsetThread, memset_num_threads);
-    numpages_per_thread = (numpages / memset_num_threads);
-    size_per_thread = (hpagesize * numpages_per_thread);
+    numpages_per_thread = numpages / memset_num_threads;
+    leftover = numpages % memset_num_threads;
     for (i = 0; i < memset_num_threads; i++) {
         memset_thread[i].addr = addr;
-        memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
-                                    numpages : numpages_per_thread;
+        memset_thread[i].numpages = numpages_per_thread + (i < leftover);
         memset_thread[i].hpagesize = hpagesize;
         qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
                            do_touch_pages, &memset_thread[i],
                            QEMU_THREAD_JOINABLE);
-        addr += size_per_thread;
-        numpages -= numpages_per_thread;
+        addr += memset_thread[i].numpages * hpagesize;
     }
+    threads_created_flag = true;
+    qemu_cond_broadcast(&page_cond);
+
     for (i = 0; i < memset_num_threads; i++) {
         qemu_thread_join(&memset_thread[i].pgthread);
     }

@@ -47,7 +47,6 @@
 
 /* Nokia N8x0 support */
 struct n800_s {
-    MemoryRegion sdram;
     struct omap_mpu_state_s *mpu;
 
     struct rfbi_chip_s blizzard;
@@ -1311,13 +1310,19 @@ static void n8x0_init(MachineState *machine,
                       struct arm_boot_info *binfo, int model)
 {
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
-    uint64_t sdram_size = binfo->ram_size;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    memory_region_allocate_system_memory(&s->sdram, NULL, "omap2.dram",
-                                         sdram_size);
-    memory_region_add_subregion(get_system_memory(), OMAP2_Q2_BASE, &s->sdram);
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
 
-    s->mpu = omap2420_mpu_init(&s->sdram, machine->cpu_type);
+    memory_region_add_subregion(get_system_memory(), OMAP2_Q2_BASE,
+                                machine->ram);
+
+    s->mpu = omap2420_mpu_init(machine->ram, machine->cpu_type);
 
     /* Setup peripherals
      *
@@ -1383,9 +1388,8 @@ static void n8x0_init(MachineState *machine,
          *
          * The code above is for loading the `zImage' file from Nokia
          * images.  */
-        load_image_targphys(option_rom[0].name,
-                            OMAP2_Q2_BASE + 0x400000,
-                            sdram_size - 0x400000);
+        load_image_targphys(option_rom[0].name, OMAP2_Q2_BASE + 0x400000,
+                            machine->ram_size - 0x400000);
 
         n800_setup_nolo_tags(nolo_tags);
         cpu_physical_memory_write(OMAP2_SRAM_BASE, nolo_tags, 0x10000);
@@ -1395,16 +1399,12 @@ static void n8x0_init(MachineState *machine,
 
 static struct arm_boot_info n800_binfo = {
     .loader_start = OMAP2_Q2_BASE,
-    /* Actually two chips of 0x4000000 bytes each */
-    .ram_size = 0x08000000,
     .board_id = 0x4f7,
     .atag_board = n800_atag_setup,
 };
 
 static struct arm_boot_info n810_binfo = {
     .loader_start = OMAP2_Q2_BASE,
-    /* Actually two chips of 0x4000000 bytes each */
-    .ram_size = 0x08000000,
     /* 0x60c and 0x6bf (WiMAX Edition) have been assigned but are not
      * used by some older versions of the bootloader and 5555 is used
      * instead (including versions that shipped with many devices).  */
@@ -1431,6 +1431,9 @@ static void n800_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "";
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm1136-r2");
+    /* Actually two chips of 0x4000000 bytes each */
+    mc->default_ram_size = 0x08000000;
+    mc->default_ram_id = "omap2.dram";
 }
 
 static const TypeInfo n800_type = {
@@ -1448,6 +1451,9 @@ static void n810_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "";
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm1136-r2");
+    /* Actually two chips of 0x4000000 bytes each */
+    mc->default_ram_size = 0x08000000;
+    mc->default_ram_id = "omap2.dram";
 }
 
 static const TypeInfo n810_type = {

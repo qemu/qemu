@@ -225,9 +225,8 @@ static void channel_load_g(struct fs_dma_ctrl *ctrl, int c)
 	hwaddr addr = channel_reg(ctrl, c, RW_GROUP);
 
 	/* Load and decode. FIXME: handle endianness.  */
-	cpu_physical_memory_read (addr, 
-				  (void *) &ctrl->channels[c].current_g, 
-				  sizeof ctrl->channels[c].current_g);
+    cpu_physical_memory_read(addr, &ctrl->channels[c].current_g,
+                             sizeof(ctrl->channels[c].current_g));
 }
 
 static void dump_c(int ch, struct dma_descr_context *c)
@@ -257,9 +256,8 @@ static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 	hwaddr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
 	/* Load and decode. FIXME: handle endianness.  */
-	cpu_physical_memory_read (addr, 
-				  (void *) &ctrl->channels[c].current_c, 
-				  sizeof ctrl->channels[c].current_c);
+    cpu_physical_memory_read(addr, &ctrl->channels[c].current_c,
+                             sizeof(ctrl->channels[c].current_c));
 
 	D(dump_c(c, &ctrl->channels[c].current_c));
 	/* I guess this should update the current pos.  */
@@ -275,9 +273,8 @@ static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 
 	/* Load and decode. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
-	cpu_physical_memory_read (addr,
-				  (void *) &ctrl->channels[c].current_d, 
-				  sizeof ctrl->channels[c].current_d);
+    cpu_physical_memory_read(addr, &ctrl->channels[c].current_d,
+                             sizeof(ctrl->channels[c].current_d));
 
 	D(dump_d(c, &ctrl->channels[c].current_d));
 	ctrl->channels[c].regs[RW_DATA] = addr;
@@ -290,9 +287,8 @@ static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
 	/* Encode and store. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
 	D(dump_d(c, &ctrl->channels[c].current_d));
-	cpu_physical_memory_write (addr,
-				  (void *) &ctrl->channels[c].current_c,
-				  sizeof ctrl->channels[c].current_c);
+    cpu_physical_memory_write(addr, &ctrl->channels[c].current_c,
+                              sizeof(ctrl->channels[c].current_c));
 }
 
 static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
@@ -301,9 +297,8 @@ static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
 
 	/* Encode and store. FIXME: handle endianness.  */
 	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
-	cpu_physical_memory_write (addr,
-				  (void *) &ctrl->channels[c].current_d, 
-				  sizeof ctrl->channels[c].current_d);
+    cpu_physical_memory_write(addr, &ctrl->channels[c].current_d,
+                              sizeof(ctrl->channels[c].current_d));
 }
 
 static inline void channel_stop(struct fs_dma_ctrl *ctrl, int c)

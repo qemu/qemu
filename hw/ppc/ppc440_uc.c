@@ -909,8 +909,10 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
 
                     sidx = didx = 0;
                     width = 1 << ((val & DMA0_CR_PW) >> 25);
-                    rptr = cpu_physical_memory_map(dma->ch[chnl].sa, &rlen, 0);
-                    wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen, 1);
+                    rptr = cpu_physical_memory_map(dma->ch[chnl].sa, &rlen,
+                                                   false);
+                    wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen,
+                                                   true);
                     if (rptr && wptr) {
                         if (!(val & DMA0_CR_DEC) &&
                             val & DMA0_CR_SAI && val & DMA0_CR_DAI) {

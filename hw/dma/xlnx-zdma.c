@@ -311,8 +311,7 @@ static bool zdma_load_descriptor(XlnxZDMA *s, uint64_t addr, void *buf)
         return false;
     }
 
-    address_space_rw(s->dma_as, addr, s->attr,
-                     buf, sizeof(XlnxZDMADescr), false);
+    address_space_read(s->dma_as, addr, s->attr, buf, sizeof(XlnxZDMADescr));
     return true;
 }
 
@@ -364,7 +363,7 @@ static uint64_t zdma_update_descr_addr(XlnxZDMA *s, bool type,
     } else {
         addr = zdma_get_regaddr64(s, basereg);
         addr += sizeof(s->dsc_dst);
-        address_space_rw(s->dma_as, addr, s->attr, (void *) &next, 8, false);
+        address_space_read(s->dma_as, addr, s->attr, &next, 8);
         zdma_put_regaddr64(s, basereg, next);
     }
     return next;
@@ -416,8 +415,7 @@ static void zdma_write_dst(XlnxZDMA *s, uint8_t *buf, uint32_t len)
             }
         }
 
-        address_space_rw(s->dma_as, s->dsc_dst.addr, s->attr, buf, dlen,
-                         true);
+        address_space_write(s->dma_as, s->dsc_dst.addr, s->attr, buf, dlen);
         if (burst_type == AXI_BURST_INCR) {
             s->dsc_dst.addr += dlen;
         }
@@ -493,8 +491,7 @@ static void zdma_process_descr(XlnxZDMA *s)
                 len = s->cfg.bus_width / 8;
             }
         } else {
-            address_space_rw(s->dma_as, src_addr, s->attr, s->buf, len,
-                             false);
+            address_space_read(s->dma_as, src_addr, s->attr, s->buf, len);
             if (burst_type == AXI_BURST_INCR) {
                 src_addr += len;
             }

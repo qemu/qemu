@@ -887,6 +887,12 @@ void qmp_device_del(const char *id, Error **errp)
 {
     DeviceState *dev = find_device_state(id, errp);
     if (dev != NULL) {
+        if (dev->pending_deleted_event) {
+            error_setg(errp, "Device %s is already in the "
+                             "process of unplug", id);
+            return;
+        }
+
         qdev_unplug(dev, errp);
     }
 }
