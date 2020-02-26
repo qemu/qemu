@@ -147,6 +147,7 @@ static const TypeInfo pcie_port_type_info = {
 static Property pcie_slot_props[] = {
     DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
     DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
+    DEFINE_PROP_BOOL("hotplug", PCIESlot, hotplug, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
