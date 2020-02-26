@@ -23,11 +23,17 @@
 #include "disas/dis-asm.h"
 #include "target/hexagon/cpu_bits.h"
 
+/*
+ * We will disassemble a packet with up to 4 instructions, so we need
+ * a hefty size buffer.
+ */
+#define PACKET_BUFFER_LEN                   1028
+
 int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
 {
     uint32_t words[PACKET_WORDS_MAX];
     int len, slen;
-    char buf[1028];
+    char buf[PACKET_BUFFER_LEN];
     int status;
     int i;
 
@@ -44,7 +50,7 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
         }
     }
 
-    len = disassemble_hexagon(words, i, buf, 1028);
+    len = disassemble_hexagon(words, i, buf, PACKET_BUFFER_LEN);
     slen = strlen(buf);
     if (buf[slen - 1] == '\n') {
         buf[slen - 1] = '\0';
