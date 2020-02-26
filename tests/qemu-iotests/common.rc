@@ -56,18 +56,30 @@ poke_file()
 # peek_file_le 'test.img' 512 2 => 65534
 peek_file_le()
 {
-    # Wrap in echo $() to strip spaces
-    echo $(od -j"$2" -N"$3" --endian=little -An -vtu"$3" "$1")
+    local val=0 shift=0 byte
+
+    # coreutils' od --endian is not portable, so manually assemble bytes.
+    for byte in $(od -j"$2" -N"$3" -An -v -tu1 "$1"); do
+        val=$(( val | (byte << shift) ))
+        shift=$((shift + 8))
+    done
+    printf %llu $val
 }
 
 # peek_file_be 'test.img' 512 2 => 65279
 peek_file_be()
 {
-    # Wrap in echo $() to strip spaces
-    echo $(od -j"$2" -N"$3" --endian=big -An -vtu"$3" "$1")
+    local val=0 byte
+
+    # coreutils' od --endian is not portable, so manually assemble bytes.
+    for byte in $(od -j"$2" -N"$3" -An -v -tu1 "$1"); do
+        val=$(( (val << 8) | byte ))
+    done
+    printf %llu $val
 }
 
-# peek_file_raw 'test.img' 512 2 => '\xff\xfe'
+# peek_file_raw 'test.img' 512 2 => '\xff\xfe'. Do not use if the raw data
+# is likely to contain \0 or trailing \n.
 peek_file_raw()
 {
     dd if="$1" bs=1 skip="$2" count="$3" status=none
