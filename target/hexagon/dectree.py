@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
 ##
-##  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -18,7 +17,7 @@ from __future__ import print_function
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import cStringIO
+import io
 import re
 
 import sys
@@ -340,7 +339,7 @@ def print_op_info(f):
         print(')', file=f)
 
 if __name__ == '__main__':
-    f = cStringIO.StringIO()
+    f = io.StringIO()
     print_tree(f, dectree_normal)
     print_tree(f, dectree_16bit)
     if subinsn_groupings:

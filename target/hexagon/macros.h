@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MACROS_H
-#define MACROS_H
+#ifndef HEXAGON_MACROS_H
+#define HEXAGON_MACROS_H
 
 #include "cpu.h"
 #include "hex_regs.h"
@@ -1016,9 +1016,9 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 #endif
 #define fPM_CIRI(REG, IMM, MVAL) \
     do { \
-        TCGv tmp = tcg_const_tl(siV); \
-        fcirc_add(REG, tmp, MuV); \
-        tcg_temp_free(tmp); \
+        TCGv tcgv_siV = tcg_const_tl(siV); \
+        fcirc_add(REG, tcgv_siV, MuV); \
+        tcg_temp_free(tcgv_siV); \
     } while (0)
 #define fPM_CIRR(REG, VAL, MVAL) \
     do { \

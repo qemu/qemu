@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
  *  This table represents the mapping from the encoding to the actual values.
  */
 
-#ifndef REGMAP_H
-#define REGMAP_H
+#ifndef HEXAGON_REGMAP_H
+#define HEXAGON_REGMAP_H
 
         /* Name   Num Table */
 DEF_REGMAP(R_16,  16, 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23)

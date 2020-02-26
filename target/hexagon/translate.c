@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 #endif
 TCGv hex_new_pred_value[NUM_PREGS];
-TCGv hex_pred_written[NUM_PREGS];
+TCGv hex_pred_written;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -73,10 +73,11 @@ void gen_exception_debug(void)
 }
 
 #if HEX_DEBUG
+#define PACKET_BUFFER_LEN              1028
 static void print_pkt(packet_t *pkt)
 {
-    char buf[1028];
-    snprint_a_pkt(buf, 128, pkt);
+    char buf[PACKET_BUFFER_LEN];
+    snprint_a_pkt(buf, PACKET_BUFFER_LEN, pkt);
     HEX_DEBUG_LOG("%s", buf);
 }
 #define HEX_DEBUG_PRINT_PKT(pkt)  print_pkt(pkt)
@@ -151,17 +152,17 @@ static void gen_start_packet(DisasContext *ctx, packet_t *pkt)
 #if HEX_DEBUG
     /* Handy place to set a breakpoint before the packet executes */
     gen_helper_debug_start_packet(cpu_env);
+    tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
 #endif
 
     /* Initialize the runtime state for packet semantics */
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
     tcg_gen_movi_tl(hex_slot_cancelled, 0);
-    tcg_gen_movi_tl(hex_branch_taken, 0);
-    tcg_gen_mov_tl(hex_this_PC, hex_gpr[HEX_REG_PC]);
-    tcg_gen_movi_tl(hex_next_PC, next_PC);
-    for (i = 0; i < NUM_PREGS; i++) {
-        tcg_gen_movi_tl(hex_pred_written[i], 0);
+    if (pkt->pkt_has_cof) {
+        tcg_gen_movi_tl(hex_branch_taken, 0);
+        tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
+    tcg_gen_movi_tl(hex_pred_written, 0);
 
     if (pkt->pkt_has_hvx) {
         tcg_gen_movi_tl(hex_VRegs_updated_tmp, 0);
@@ -246,10 +247,6 @@ static void gen_reg_writes(DisasContext *ctx)
         int reg_num = ctx->ctx_reg_log[i];
 
         tcg_gen_mov_tl(hex_gpr[reg_num], hex_new_value[reg_num]);
-#if HEX_DEBUG
-        /* Do this so HELPER(debug_commit_end) will know */
-        tcg_gen_movi_tl(hex_reg_written[reg_num], 1);
-#endif
     }
 }
 
@@ -272,21 +269,24 @@ static void gen_pred_writes(DisasContext *ctx, packet_t *pkt)
      * write of the predicates.
      */
     if (pkt->pkt_has_endloop) {
+        TCGv pred_written = tcg_temp_new();
         for (i = 0; i < ctx->ctx_preg_log_idx; i++) {
             int pred_num = ctx->ctx_preg_log[i];
 
+            tcg_gen_andi_tl(pred_written, hex_pred_written, 1 << pred_num);
             tcg_gen_movcond_tl(TCG_COND_NE, hex_pred[pred_num],
-                               hex_pred_written[pred_num], zero,
+                               pred_written, zero,
                                hex_new_pred_value[pred_num],
                                hex_pred[pred_num]);
         }
+        tcg_temp_free(pred_written);
     } else {
         for (i = 0; i < ctx->ctx_preg_log_idx; i++) {
             int pred_num = ctx->ctx_preg_log[i];
             tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
 #if HEX_DEBUG
             /* Do this so HELPER(debug_commit_end) will know */
-            tcg_gen_movi_tl(hex_pred_written[pred_num], 1);
+            tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pred_num);
 #endif
         }
     }
@@ -523,7 +523,19 @@ static inline void gen_vec_copy(intptr_t dstoff, intptr_t srcoff, size_t size)
     tcg_temp_free_ptr(dst);
 }
 
-static void gen_commit_hvx(DisasContext *ctx)
+static inline bool pkt_has_hvx_store(packet_t *pkt)
+{
+    int i;
+    for (i = 0; i < pkt->num_insns; i++) {
+        int opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CVI) && GET_ATTRIB(opcode, A_STORE)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void gen_commit_hvx(DisasContext *ctx, packet_t *pkt)
 {
     int i;
 
@@ -597,7 +609,9 @@ static void gen_commit_hvx(DisasContext *ctx)
         }
     }
 
-    gen_helper_commit_hvx_stores(cpu_env);
+    if (pkt_has_hvx_store(pkt)) {
+        gen_helper_commit_hvx_stores(cpu_env);
+    }
 }
 
 static void gen_exec_counters(packet_t *pkt)
@@ -640,7 +654,7 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
     process_dczeroa(ctx, pkt);
     end_tb |= process_change_of_flow(ctx, pkt);
     if (pkt->pkt_has_hvx) {
-        gen_commit_hvx(ctx);
+        gen_commit_hvx(ctx, pkt);
     }
     gen_exec_counters(pkt);
 #if HEX_DEBUG
@@ -807,7 +821,6 @@ static char new_value_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 #endif
 static char new_pred_value_names[NUM_PREGS][NAME_LEN];
-static char pred_written_names[NUM_PREGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
 static char store_val32_names[STORES_MAX][NAME_LEN];
@@ -845,12 +858,9 @@ void hexagon_translate_init(void)
         hex_new_pred_value[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, new_pred_value[i]),
             new_pred_value_names[i]);
-
-        sprintf(pred_written_names[i], "pred_written_%s", hexagon_prednames[i]);
-        hex_pred_written[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, pred_written[i]),
-            pred_written_names[i]);
     }
+    hex_pred_written = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, pred_written), "pred_written");
     hex_next_PC = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, next_PC), "next_PC");
     hex_this_PC = tcg_global_mem_new(cpu_env,

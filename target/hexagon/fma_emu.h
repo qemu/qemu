@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FMA_EMU_H
-#define FMA_EMU_H
+#ifndef HEXAGON_FMA_EMU_H
+#define HEXAGON_FMA_EMU_H
 
 extern float internal_fmafx(float a_in, float b_in, float c_in, int scale);
 extern float internal_fmaf(float a_in, float b_in, float c_in);

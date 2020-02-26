@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DECODE_EXT_MMVEC_H
-#define DECODE_EXT_MMVEC_H
+#ifndef HEXAGON_DECODE_EXT_MMVEC_H
+#define HEXAGON_DECODE_EXT_MMVEC_H
 
 extern int mmvec_ext_decode_checks(packet_t *pkt);
 extern const char *mmvec_ext_decode_find_iclass_slots(int opcode);

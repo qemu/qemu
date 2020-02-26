@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
 ##
-##  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -21,10 +20,7 @@ from __future__ import print_function
 import sys
 import re
 import string
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
 import operator
@@ -953,7 +949,7 @@ f.close()
 f = StringIO()
 for tag in tags:
     f.write('OP_ATTRIB(%s,ATTRIBS(%s))\n' % \
-        (tag,string.join(sorted(attribdict[tag]),",")))
+        (tag, ','.join(sorted(attribdict[tag]))))
 realf = open('op_attribs_generated.h', 'wt')
 realf.write(f.getvalue())
 realf.close()

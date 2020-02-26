@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stddef.h>
 #include <math.h>
 #include "qemu/osdep.h"
 #include "qemu.h"
@@ -97,6 +94,10 @@ static inline void log_reg_write(CPUHexagonState *env, int rnum,
     HEX_DEBUG_LOG("\n");
     if (!(env->slot_cancelled & (1 << slot))) {
         env->new_value[rnum] = val;
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        env->reg_written[rnum] = 1;
+#endif
     }
 }
 
@@ -117,11 +118,11 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum,
                   pnum, val, val);
 
     /* Multiple writes to the same preg are and'ed together */
-    if (env->pred_written[pnum]) {
+    if (env->pred_written & (1 << pnum)) {
         env->new_pred_value[pnum] &= val & 0xff;
     } else {
         env->new_pred_value[pnum] = val & 0xff;
-        env->pred_written[pnum] = 1;
+        env->pred_written |= 1 << pnum;
     }
 }
 
@@ -282,6 +283,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
 
     HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n",
                   env->this_PC);
+    HEX_DEBUG_LOG("slot_cancelled = %d\n", env->slot_cancelled);
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         if (env->reg_written[i]) {
@@ -295,7 +297,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     }
 
     for (i = 0; i < NUM_PREGS; i++) {
-        if (env->pred_written[i]) {
+        if (env->pred_written & (1 << i)) {
             if (!pred_printed) {
                 HEX_DEBUG_LOG("Predicates written\n");
                 pred_printed = true;

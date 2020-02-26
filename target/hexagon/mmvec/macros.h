@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MMVEC_MACROS_H
-#define MMVEC_MACROS_H
+#ifndef HEXAGON_MMVEC_MACROS_H
+#define HEXAGON_MMVEC_MACROS_H
 
 #include "mmvec/system_ext_mmvec.h"
 
@@ -49,22 +49,43 @@
     TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
-        uint32_t __offset = new_temp_vreg_offset(ctx, 1); \
-        tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
+        uint32_t offset = new_temp_vreg_offset(ctx, 1); \
+        tcg_gen_addi_ptr(VAR, cpu_env, offset); \
     } while (0)
+
+/*
+ * Certain instructions appear to have readonly operands, but
+ * in reality they do not.
+ *     vdelta instructions overwrite their VuV operand
+ */
+static bool readonly_ok(insn_t *insn)
+{
+    uint32_t opcode = insn->opcode;
+    if (opcode == V6_vdelta ||
+        opcode == V6_vrdelta) {
+        return false;
+    }
+    return true;
+}
+
+#define DECL_VREG_READONLY(VAR, NUM, X, OFF) \
+    TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
+    size1u_t NUM = REGNO(X) + OFF; \
+    if (!readonly_ok(insn)) { \
+        uint32_t offset = new_temp_vreg_offset(ctx, 1); \
+        tcg_gen_addi_ptr(VAR, cpu_env, offset); \
+    }
 
 #define DECL_VREG_d(VAR, NUM, X, OFF) \
     DECL_VREG(VAR, NUM, X, OFF)
 #define DECL_VREG_s(VAR, NUM, X, OFF) \
-    DECL_VREG(VAR, NUM, X, OFF)
-#define DECL_VREG_t(VAR, NUM, X, OFF) \
-    DECL_VREG(VAR, NUM, X, OFF)
+    DECL_VREG_READONLY(VAR, NUM, X, OFF)
 #define DECL_VREG_u(VAR, NUM, X, OFF) \
-    DECL_VREG(VAR, NUM, X, OFF)
+    DECL_VREG_READONLY(VAR, NUM, X, OFF)
 #define DECL_VREG_v(VAR, NUM, X, OFF) \
-    DECL_VREG(VAR, NUM, X, OFF)
+    DECL_VREG_READONLY(VAR, NUM, X, OFF)
 #define DECL_VREG_w(VAR, NUM, X, OFF) \
-    DECL_VREG(VAR, NUM, X, OFF)
+    DECL_VREG_READONLY(VAR, NUM, X, OFF)
 #define DECL_VREG_x(VAR, NUM, X, OFF) \
     DECL_VREG(VAR, NUM, X, OFF)
 #define DECL_VREG_y(VAR, NUM, X, OFF) \
@@ -74,8 +95,8 @@
     TCGv_ptr VAR = tcg_temp_local_new_ptr(); \
     size1u_t NUM = REGNO(X) + OFF; \
     do { \
-        uint32_t __offset = new_temp_vreg_offset(ctx, 2); \
-        tcg_gen_addi_ptr(VAR, cpu_env, __offset); \
+        uint32_t offset = new_temp_vreg_offset(ctx, 2); \
+        tcg_gen_addi_ptr(VAR, cpu_env, offset); \
     } while (0)
 
 #define DECL_VREG_dd(VAR, NUM, X, OFF) \
@@ -136,10 +157,19 @@
 
 #define READ_VREG(VAR, NUM) \
     gen_read_vreg(VAR, NUM, 0)
-#define READ_VREG_s(VAR, NUM)    READ_VREG(VAR, NUM)
-#define READ_VREG_u(VAR, NUM)    READ_VREG(VAR, NUM)
-#define READ_VREG_v(VAR, NUM)    READ_VREG(VAR, NUM)
-#define READ_VREG_w(VAR, NUM)    READ_VREG(VAR, NUM)
+#define READ_VREG_READONLY(VAR, NUM) \
+    do { \
+        if (readonly_ok(insn)) { \
+            gen_read_vreg_readonly(VAR, NUM, 0); \
+        } else { \
+            gen_read_vreg(VAR, NUM, 0); \
+        } \
+    } while (0)
+
+#define READ_VREG_s(VAR, NUM)    READ_VREG_READONLY(VAR, NUM)
+#define READ_VREG_u(VAR, NUM)    READ_VREG_READONLY(VAR, NUM)
+#define READ_VREG_v(VAR, NUM)    READ_VREG_READONLY(VAR, NUM)
+#define READ_VREG_w(VAR, NUM)    READ_VREG_READONLY(VAR, NUM)
 #define READ_VREG_x(VAR, NUM)    READ_VREG(VAR, NUM)
 #define READ_VREG_y(VAR, NUM)    READ_VREG(VAR, NUM)
 
