@@ -23,6 +23,12 @@
   X(HRESULT, WHvGetVirtualProcessorRegisters, (WHV_PARTITION_HANDLE Partition, UINT32 VpIndex, const WHV_REGISTER_NAME* RegisterNames, UINT32 RegisterCount, WHV_REGISTER_VALUE* RegisterValues)) \
   X(HRESULT, WHvSetVirtualProcessorRegisters, (WHV_PARTITION_HANDLE Partition, UINT32 VpIndex, const WHV_REGISTER_NAME* RegisterNames, UINT32 RegisterCount, const WHV_REGISTER_VALUE* RegisterValues)) \
 
+/*
+ * These are supplemental functions that may not be present
+ * on all versions and are not critical for basic functionality.
+ */
+#define LIST_WINHVPLATFORM_FUNCTIONS_SUPPLEMENTAL(X) \
+  X(HRESULT, WHvSuspendPartitionTime, (WHV_PARTITION_HANDLE Partition)) \
 
 #define LIST_WINHVEMULATION_FUNCTIONS(X) \
   X(HRESULT, WHvEmulatorCreateEmulator, (const WHV_EMULATOR_CALLBACKS* Callbacks, WHV_EMULATOR_HANDLE* Emulator)) \
@@ -40,10 +46,12 @@
 /* Define function typedef */
 LIST_WINHVPLATFORM_FUNCTIONS(WHP_DEFINE_TYPE)
 LIST_WINHVEMULATION_FUNCTIONS(WHP_DEFINE_TYPE)
+LIST_WINHVPLATFORM_FUNCTIONS_SUPPLEMENTAL(WHP_DEFINE_TYPE)
 
 struct WHPDispatch {
     LIST_WINHVPLATFORM_FUNCTIONS(WHP_DECLARE_MEMBER)
     LIST_WINHVEMULATION_FUNCTIONS(WHP_DECLARE_MEMBER)
+    LIST_WINHVPLATFORM_FUNCTIONS_SUPPLEMENTAL(WHP_DECLARE_MEMBER)
 };
 
 extern struct WHPDispatch whp_dispatch;
@@ -53,6 +61,7 @@ bool init_whp_dispatch(void);
 typedef enum WHPFunctionList {
     WINHV_PLATFORM_FNS_DEFAULT,
     WINHV_EMULATION_FNS_DEFAULT,
+    WINHV_PLATFORM_FNS_SUPPLEMENTAL
 } WHPFunctionList;
 
 #endif /* WHP_DISPATCH_H */

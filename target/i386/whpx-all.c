@@ -114,7 +114,6 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
     WHvX64RegisterXmmControlStatus,
 
     /* X64 MSRs */
-    WHvX64RegisterTsc,
     WHvX64RegisterEfer,
 #ifdef TARGET_X86_64
     WHvX64RegisterKernelGsBase,
@@ -215,7 +214,44 @@ static SegmentCache whpx_seg_h2q(const WHV_X64_SEGMENT_REGISTER *hs)
     return qs;
 }
 
-static void whpx_set_registers(CPUState *cpu)
+static int whpx_set_tsc(CPUState *cpu)
+{
+    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    WHV_REGISTER_NAME tsc_reg = WHvX64RegisterTsc;
+    WHV_REGISTER_VALUE tsc_val;
+    HRESULT hr;
+    struct whpx_state *whpx = &whpx_global;
+
+    /*
+     * Suspend the partition prior to setting the TSC to reduce the variance
+     * in TSC across vCPUs. When the first vCPU runs post suspend, the
+     * partition is automatically resumed.
+     */
+    if (whp_dispatch.WHvSuspendPartitionTime) {
+
+        /*
+         * Unable to suspend partition while setting TSC is not a fatal
+         * error. It just increases the likelihood of TSC variance between
+         * vCPUs and some guest OS are able to handle that just fine.
+         */
+        hr = whp_dispatch.WHvSuspendPartitionTime(whpx->partition);
+        if (FAILED(hr)) {
+            warn_report("WHPX: Failed to suspend partition, hr=%08lx", hr);
+        }
+    }
+
+    tsc_val.Reg64 = env->tsc;
+    hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &tsc_reg, 1, &tsc_val);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set TSC, hr=%08lx", hr);
+        return -1;
+    }
+
+    return 0;
+}
+
+static void whpx_set_registers(CPUState *cpu, int level)
 {
     struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
@@ -229,6 +265,14 @@ static void whpx_set_registers(CPUState *cpu)
     int v86, r86;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    /*
+     * Following MSRs have side effects on the guest or are too heavy for
+     * runtime. Limit them to full state update.
+     */
+    if (level >= WHPX_SET_RESET_STATE) {
+        whpx_set_tsc(cpu);
+    }
 
     memset(&vcxt, 0, sizeof(struct whpx_register_set));
 
@@ -330,8 +374,6 @@ static void whpx_set_registers(CPUState *cpu)
     idx += 1;
 
     /* MSRs */
-    assert(whpx_register_names[idx] == WHvX64RegisterTsc);
-    vcxt.values[idx++].Reg64 = env->tsc;
     assert(whpx_register_names[idx] == WHvX64RegisterEfer);
     vcxt.values[idx++].Reg64 = env->efer;
 #ifdef TARGET_X86_64
@@ -379,6 +421,25 @@ static void whpx_set_registers(CPUState *cpu)
     return;
 }
 
+static int whpx_get_tsc(CPUState *cpu)
+{
+    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    WHV_REGISTER_NAME tsc_reg = WHvX64RegisterTsc;
+    WHV_REGISTER_VALUE tsc_val;
+    HRESULT hr;
+    struct whpx_state *whpx = &whpx_global;
+
+    hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &tsc_reg, 1, &tsc_val);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get TSC, hr=%08lx", hr);
+        return -1;
+    }
+
+    env->tsc = tsc_val.Reg64;
+    return 0;
+}
+
 static void whpx_get_registers(CPUState *cpu)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -393,6 +454,11 @@ static void whpx_get_registers(CPUState *cpu)
     int i;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    if (!env->tsc_valid) {
+        whpx_get_tsc(cpu);
+        env->tsc_valid = !runstate_is_running();
+    }
 
     hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
         whpx->partition, cpu->cpu_index,
@@ -492,8 +558,6 @@ static void whpx_get_registers(CPUState *cpu)
     idx += 1;
 
     /* MSRs */
-    assert(whpx_register_names[idx] == WHvX64RegisterTsc);
-    env->tsc = vcxt.values[idx++].Reg64;
     assert(whpx_register_names[idx] == WHvX64RegisterEfer);
     env->efer = vcxt.values[idx++].Reg64;
 #ifdef TARGET_X86_64
@@ -896,7 +960,7 @@ static int whpx_vcpu_run(CPUState *cpu)
 
     do {
         if (cpu->vcpu_dirty) {
-            whpx_set_registers(cpu);
+            whpx_set_registers(cpu, WHPX_SET_RUNTIME_STATE);
             cpu->vcpu_dirty = false;
         }
 
@@ -1074,14 +1138,14 @@ static void do_whpx_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 static void do_whpx_cpu_synchronize_post_reset(CPUState *cpu,
                                                run_on_cpu_data arg)
 {
-    whpx_set_registers(cpu);
+    whpx_set_registers(cpu, WHPX_SET_RESET_STATE);
     cpu->vcpu_dirty = false;
 }
 
 static void do_whpx_cpu_synchronize_post_init(CPUState *cpu,
                                               run_on_cpu_data arg)
 {
-    whpx_set_registers(cpu);
+    whpx_set_registers(cpu, WHPX_SET_FULL_STATE);
     cpu->vcpu_dirty = false;
 }
 
@@ -1122,6 +1186,15 @@ void whpx_cpu_synchronize_pre_loadvm(CPUState *cpu)
  */
 
 static Error *whpx_migration_blocker;
+
+static void whpx_cpu_update_state(void *opaque, int running, RunState state)
+{
+    CPUX86State *env = opaque;
+
+    if (running) {
+        env->tsc_valid = false;
+    }
+}
 
 int whpx_init_vcpu(CPUState *cpu)
 {
@@ -1178,6 +1251,7 @@ int whpx_init_vcpu(CPUState *cpu)
 
     cpu->vcpu_dirty = true;
     cpu->hax_vcpu = (struct hax_vcpu_state *)vcpu;
+    qemu_add_vm_change_state_handler(whpx_cpu_update_state, cpu->env_ptr);
 
     return 0;
 }
@@ -1367,6 +1441,10 @@ static bool load_whp_dispatch_fns(HMODULE *handle,
 
     #define WINHV_PLATFORM_DLL "WinHvPlatform.dll"
     #define WINHV_EMULATION_DLL "WinHvEmulation.dll"
+    #define WHP_LOAD_FIELD_OPTIONAL(return_type, function_name, signature) \
+        whp_dispatch.function_name = \
+            (function_name ## _t)GetProcAddress(hLib, #function_name); \
+
     #define WHP_LOAD_FIELD(return_type, function_name, signature) \
         whp_dispatch.function_name = \
             (function_name ## _t)GetProcAddress(hLib, #function_name); \
@@ -1393,6 +1471,11 @@ static bool load_whp_dispatch_fns(HMODULE *handle,
     case WINHV_EMULATION_FNS_DEFAULT:
         WHP_LOAD_LIB(WINHV_EMULATION_DLL, hLib)
         LIST_WINHVEMULATION_FUNCTIONS(WHP_LOAD_FIELD)
+        break;
+
+    case WINHV_PLATFORM_FNS_SUPPLEMENTAL:
+        WHP_LOAD_LIB(WINHV_PLATFORM_DLL, hLib)
+        LIST_WINHVPLATFORM_FUNCTIONS_SUPPLEMENTAL(WHP_LOAD_FIELD_OPTIONAL)
         break;
     }
 
@@ -1554,6 +1637,8 @@ bool init_whp_dispatch(void)
         goto error;
     }
 
+    assert(load_whp_dispatch_fns(&hWinHvPlatform,
+        WINHV_PLATFORM_FNS_SUPPLEMENTAL));
     whp_dispatch_initialized = true;
 
     return true;
