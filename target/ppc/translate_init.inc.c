@@ -8492,44 +8492,6 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x10000;
 }
 
-/*
- * The CPU used to have a "compat" property which set the
- * compatibility mode PVR.  However, this was conceptually broken - it
- * only makes sense on the pseries machine type (otherwise the guest
- * owns the PCR and can control the compatibility mode itself).  It's
- * been replaced with the 'max-cpu-compat' property on the pseries
- * machine type.  For backwards compatibility, pseries specially
- * parses the -cpu parameter and converts old compat= parameters into
- * the appropriate machine parameters.  This stub implementation of
- * the parameter catches any uses on explicitly created CPUs.
- */
-static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
-                                     void *opaque, Error **errp)
-{
-    QNull *null = NULL;
-
-    if (!qtest_enabled()) {
-        warn_report("CPU 'compat' property is deprecated and has no effect; "
-                    "use max-cpu-compat machine property instead");
-    }
-    visit_type_null(v, name, &null, NULL);
-    qobject_unref(null);
-}
-
-static const PropertyInfo ppc_compat_deprecated_propinfo = {
-    .name = "str",
-    .description = "compatibility mode (deprecated)",
-    .get = getset_compat_deprecated,
-    .set = getset_compat_deprecated,
-};
-static Property powerpc_servercpu_properties[] = {
-    {
-        .name = "compat",
-        .info = &ppc_compat_deprecated_propinfo,
-    },
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void init_proc_POWER7(CPUPPCState *env)
 {
     /* Common Registers */
@@ -8611,7 +8573,6 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
-    device_class_set_props(dc, powerpc_servercpu_properties);
     pcc->pvr_match = ppc_pvr_match_power7;
     pcc->pcr_mask = PCR_VEC_DIS | PCR_VSX_DIS | PCR_COMPAT_2_05;
     pcc->pcr_supported = PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
@@ -8776,7 +8737,6 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER8";
     dc->desc = "POWER8";
-    device_class_set_props(dc, powerpc_servercpu_properties);
     pcc->pvr_match = ppc_pvr_match_power8;
     pcc->pcr_mask = PCR_TM_DIS | PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
     pcc->pcr_supported = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05;
@@ -8988,7 +8948,6 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER9";
     dc->desc = "POWER9";
-    device_class_set_props(dc, powerpc_servercpu_properties);
     pcc->pvr_match = ppc_pvr_match_power9;
     pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06 | PCR_COMPAT_2_07;
     pcc->pcr_supported = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 |
@@ -9198,7 +9157,6 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER10";
     dc->desc = "POWER10";
-    device_class_set_props(dc, powerpc_servercpu_properties);
     pcc->pvr_match = ppc_pvr_match_power10;
     pcc->pcr_mask = PCR_COMPAT_2_05 | PCR_COMPAT_2_06 | PCR_COMPAT_2_07 |
                     PCR_COMPAT_3_00;
@@ -10486,6 +10444,8 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
         *s = '\0';
         for (i = 0; inpieces[i]; i++) {
             if (g_str_has_prefix(inpieces[i], "compat=")) {
+                warn_report_once("CPU 'compat' property is deprecated; "
+                    "use max-cpu-compat machine property instead");
                 compat_str = inpieces[i];
                 continue;
             }
