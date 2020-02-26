@@ -3746,7 +3746,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "pfwait.a",
         .translate = translate_nop,
     }, {
-        .name = "pfwait.o",
+        .name = "pfwait.r",
         .translate = translate_nop,
     }, {
         .name = "pitlb",
