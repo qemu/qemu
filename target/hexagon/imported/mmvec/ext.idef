@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,14 +15,11 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/*************************************************************************************
-*
-*
-*
-*     HOYA: MULTI MEDIA INSTRUCITONS
-*
-*
-***************************************************************************************/
+/******************************************************************************
+ *
+ *     HOYA: MULTI MEDIA INSTRUCITONS
+ *
+ ******************************************************************************/
 
 #ifndef EXTINSN
 #define EXTINSN Q6INSN
@@ -286,32 +283,6 @@ MMVEC_EACH_EA(TAG##_nqpred,DESCR,ATTRIB,NT,"if (!Qv4) vmem","=Vs32",fSTOREMMVNQ(
 DEF_CVI_MAPPING(V6_stup0,  "if (Pv4) vmemu(Rt32)=Vs32",  "if (Pv4) vmemu(Rt32+#0)=Vs32")
 DEF_CVI_MAPPING(V6_stunp0, "if (!Pv4) vmemu(Rt32)=Vs32",  "if (!Pv4) vmemu(Rt32+#0)=Vs32")
 
-
-
-#define ZMEM(OP) \
-{\
-	fHIDE(size4s_t stride;)\
-	fHIDE(size4s_t N;)\
-	fHIDE(size4s_t ZN;)\
-	fHIDE(size4s_t win;)\
-	fHIDE(size4s_t width;)\
-	fHIDE(size4s_t EAU=EA;)\
-	N = fVECSIZE();\
-	ZN = 2*N; \
-	stride = (1+(EA&1)) * (N/4);\
-	win = 3*stride;\
-	width = ZN-win;\
-	if (width>N) {\
-		width = N;\
-	}\
-	EA &= ~3;\
-	fHIDE(mmvector_t TMP;)\
-	fHIDE(fLOADZ_LOAD(EA,EAU,width,TMP);)\
-	if ((EA % width) ==0) {\
-		OP(EA,width,ZN,N,TMP);\
-	}\
-	fHIDE(fELSE_CANCELZ();)\
-}\
 
 
 /****************************************************************

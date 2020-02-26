@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRANSLATE_H
-#define TRANSLATE_H
+#ifndef HEXAGON_TRANSLATE_H
+#define HEXAGON_TRANSLATE_H
 
 #include "cpu.h"
 #include "exec/translator.h"
@@ -87,7 +87,7 @@ extern TCGv hex_branch_taken;
 extern TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_new_pred_value[NUM_PREGS];
-extern TCGv hex_pred_written[NUM_PREGS];
+extern TCGv hex_pred_written;
 extern TCGv hex_store_addr[STORES_MAX];
 extern TCGv hex_store_width[STORES_MAX];
 extern TCGv hex_store_val32[STORES_MAX];

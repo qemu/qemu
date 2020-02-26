@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GENPTR_HELPERS_H
-#define GENPTR_HELPERS_H
+#ifndef HEXAGON_GENPTR_HELPERS_H
+#define HEXAGON_GENPTR_HELPERS_H
+
+#include "tcg/tcg.h"
 
 static inline TCGv gen_read_reg(TCGv result, int num)
 {
@@ -58,12 +60,21 @@ static inline void gen_log_reg_write(int rnum, TCGv val, int slot,
         tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
         tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
                            val, hex_new_value[rnum]);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum], slot_mask, zero,
+                           one, hex_reg_written[rnum]);
+#endif
 
         tcg_temp_free(one);
         tcg_temp_free(zero);
         tcg_temp_free(slot_mask);
     } else {
         tcg_gen_mov_tl(hex_new_value[rnum], val);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+#endif
     }
 }
 
@@ -106,20 +117,23 @@ static inline void gen_log_reg_write_pair(int rnum, TCGv_i64 val, int slot,
 static inline void gen_log_pred_write(int pnum, TCGv val)
 {
     TCGv zero = tcg_const_tl(0);
-    TCGv base_val = tcg_temp_local_new();
-    TCGv and_val = tcg_temp_local_new();
+    TCGv base_val = tcg_temp_new();
+    TCGv and_val = tcg_temp_new();
+    TCGv pred_written = tcg_temp_new();
 
     /* Multiple writes to the same preg are and'ed together */
     tcg_gen_andi_tl(base_val, val, 0xff);
     tcg_gen_and_tl(and_val, base_val, hex_new_pred_value[pnum]);
+    tcg_gen_andi_tl(pred_written, hex_pred_written, 1 << pnum);
     tcg_gen_movcond_tl(TCG_COND_NE, hex_new_pred_value[pnum],
-                       hex_pred_written[pnum], zero,
+                       pred_written, zero,
                        and_val, base_val);
-    tcg_gen_movi_tl(hex_pred_written[pnum], 1);
+    tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
 
     tcg_temp_free(zero);
     tcg_temp_free(base_val);
     tcg_temp_free(and_val);
+    tcg_temp_free(pred_written);
 }
 
 static inline void gen_read_p3_0(TCGv control_reg)
@@ -678,14 +692,14 @@ static inline void gen_endloop0(void)
     /*
      *    if (lpcfg == 1) {
      *        hex_new_pred_value[3] = 0xff;
-     *        hex_pred_written[3] = 1;
+     *        hex_pred_written |= 1 << 3;
      *    }
      */
     TCGLabel *label1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
         tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
-        tcg_gen_movi_tl(hex_pred_written[3], 1);
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
     }
     gen_set_label(label1);
 
@@ -861,7 +875,7 @@ static inline void gen_read_qreg(TCGv_ptr var, int num, int vtmp)
     tcg_temp_free_ptr(src);
 }
 
-static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
+static inline void gen_read_vreg_ptr_src(TCGv_ptr ptr_src, int num, int vtmp)
 {
     TCGv zero = tcg_const_tl(0);
     TCGv offset_future =
@@ -872,7 +886,6 @@ static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
         tcg_const_tl(offsetof(CPUHexagonState, tmp_VRegs[num]));
     TCGv offset = tcg_temp_new();
     TCGv_ptr offset_ptr = tcg_temp_new_ptr();
-    TCGv_ptr ptr_src = tcg_temp_new_ptr();
     TCGv new_written = tcg_temp_new();
     TCGv tmp_written = tcg_temp_new();
 
@@ -918,7 +931,6 @@ static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
 
     tcg_gen_ext_i32_ptr(offset_ptr, offset);
     tcg_gen_add_ptr(ptr_src, cpu_env, offset_ptr);
-    gen_memcpy(var, ptr_src, sizeof(mmvector_t));
 
     tcg_temp_free(zero);
     tcg_temp_free(offset_future);
@@ -926,9 +938,24 @@ static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
     tcg_temp_free(offset_tmp_vregs);
     tcg_temp_free(offset);
     tcg_temp_free_ptr(offset_ptr);
-    tcg_temp_free_ptr(ptr_src);
     tcg_temp_free(new_written);
     tcg_temp_free(tmp_written);
+}
+
+static inline void gen_read_vreg_readonly(TCGv_ptr var, int num, int vtmp)
+{
+    TCGv_ptr ptr_src = tcg_temp_new_ptr();
+    gen_read_vreg_ptr_src(ptr_src, num, vtmp);
+    tcg_gen_addi_ptr(var, ptr_src, 0);
+    tcg_temp_free_ptr(ptr_src);
+}
+
+static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
+{
+    TCGv_ptr ptr_src = tcg_temp_new_ptr();
+    gen_read_vreg_ptr_src(ptr_src, num, vtmp);
+    gen_memcpy(var, ptr_src, sizeof(mmvector_t));
+    tcg_temp_free_ptr(ptr_src);
 }
 
 static inline void gen_read_vreg_pair(TCGv_ptr var, int num, int vtmp)

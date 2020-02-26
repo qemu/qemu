@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,9 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include "decode.h"
 #include "opcodes.h"
 #include "insn.h"

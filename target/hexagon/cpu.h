@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -94,7 +94,6 @@ struct CPUHexagonState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
     target_ulong branch_taken;
-    target_ulong this_PC;
     target_ulong next_PC;
 
     /* For comparing with LLDB on target - see hack_stack_ptrs function */
@@ -108,10 +107,11 @@ struct CPUHexagonState {
      * Only used when HEX_DEBUG is on, but unconditionally included
      * to reduce recompile time when turning HEX_DEBUG on/off.
      */
+    target_ulong this_PC;
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 
     target_ulong new_pred_value[NUM_PREGS];
-    target_ulong pred_written[NUM_PREGS];
+    target_ulong pred_written;
 
     struct MemLog mem_log_stores[STORES_MAX];
 

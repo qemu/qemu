@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ATTRIBS_H
-#define ATTRIBS_H 1
+#ifndef HEXAGON_ATTRIBS_H
+#define HEXAGON_ATTRIBS_H
 
 enum {
 #define DEF_ATTRIB(NAME, ...) A_##NAME,

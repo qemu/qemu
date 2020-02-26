@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 /*
  * Hexagon specific structures for linux-user
  */
-#ifndef TARGET_STRUCTS_H
-#define TARGET_STRUCTS_H
+#ifndef HEXAGON_TARGET_STRUCTS_H
+#define HEXAGON_TARGET_STRUCTS_H
 
 struct target_ipc_perm {
     abi_int __key;
