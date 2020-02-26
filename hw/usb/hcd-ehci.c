@@ -1301,7 +1301,6 @@ static void ehci_execute_complete(EHCIQueue *q)
         /* should not be triggerable */
         fprintf(stderr, "USB invalid response %d\n", p->packet.status);
         g_assert_not_reached();
-        break;
     }
 
     /* TODO check 4.12 for splits */
@@ -2105,9 +2104,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
 
         default:
             fprintf(stderr, "Bad state!\n");
-            again = -1;
             g_assert_not_reached();
-            break;
         }
 
         if (again < 0 || itd_count > 16) {
