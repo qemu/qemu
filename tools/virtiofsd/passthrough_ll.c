@@ -2195,34 +2195,30 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
         goto out;
     }
 
+    if (size) {
+        value = malloc(size);
+        if (!value) {
+            goto out_err;
+        }
+    }
+
     sprintf(procname, "%i", inode->fd);
     fd = openat(lo->proc_self_fd, procname, O_RDONLY);
     if (fd < 0) {
         goto out_err;
     }
 
+    ret = fgetxattr(fd, name, value, size);
+    if (ret == -1) {
+        goto out_err;
+    }
     if (size) {
-        value = malloc(size);
-        if (!value) {
-            goto out_err;
-        }
-
-        ret = fgetxattr(fd, name, value, size);
-        if (ret == -1) {
-            goto out_err;
-        }
         saverr = 0;
         if (ret == 0) {
             goto out;
         }
-
         fuse_reply_buf(req, value, ret);
     } else {
-        ret = fgetxattr(fd, name, NULL, 0);
-        if (ret == -1) {
-            goto out_err;
-        }
-
         fuse_reply_xattr(req, ret);
     }
 out_free:
@@ -2238,7 +2234,6 @@ out_free:
 out_err:
     saverr = errno;
 out:
-    lo_inode_put(lo, &inode);
     fuse_reply_err(req, saverr);
     goto out_free;
 }
@@ -2273,34 +2268,30 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         goto out;
     }
 
+    if (size) {
+        value = malloc(size);
+        if (!value) {
+            goto out_err;
+        }
+    }
+
     sprintf(procname, "%i", inode->fd);
     fd = openat(lo->proc_self_fd, procname, O_RDONLY);
     if (fd < 0) {
         goto out_err;
     }
 
+    ret = flistxattr(fd, value, size);
+    if (ret == -1) {
+        goto out_err;
+    }
     if (size) {
-        value = malloc(size);
-        if (!value) {
-            goto out_err;
-        }
-
-        ret = flistxattr(fd, value, size);
-        if (ret == -1) {
-            goto out_err;
-        }
         saverr = 0;
         if (ret == 0) {
             goto out;
         }
-
         fuse_reply_buf(req, value, ret);
     } else {
-        ret = flistxattr(fd, NULL, 0);
-        if (ret == -1) {
-            goto out_err;
-        }
-
         fuse_reply_xattr(req, ret);
     }
 out_free:
@@ -2316,7 +2307,6 @@ out_free:
 out_err:
     saverr = errno;
 out:
-    lo_inode_put(lo, &inode);
     fuse_reply_err(req, saverr);
     goto out_free;
 }
