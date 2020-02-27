@@ -1,7 +1,8 @@
-/* We adjust linker script modification to place all of the stuff that needs to
- * persist across fuzzing runs into a contiguous seciton of memory. Then, it is
+/*
+ * We adjust linker script modification to place all of the stuff that needs to
+ * persist across fuzzing runs into a contiguous section of memory. Then, it is
  * easy to re-map the counter-related memory as shared.
-*/
+ */
 
 SECTIONS
 {
@@ -17,7 +18,8 @@ SECTIONS
   }
   .data.fuzz_ordered :
   {
-      /* Coverage counters. They're not necessary for fuzzing, but are useful
+      /*
+       * Coverage counters. They're not necessary for fuzzing, but are useful
        * for analyzing the fuzzing performance
        */
       __start___llvm_prf_cnts = .;
@@ -32,6 +34,8 @@ SECTIONS
       __FUZZ_COUNTERS_END = .;
   }
 }
-/* Dont overwrite the SECTIONS in the default linker script. Instead insert the
- * above into the default script */
+/*
+ * Don't overwrite the SECTIONS in the default linker script. Instead insert the
+ * above into the default script
+ */
 INSERT AFTER .data;
