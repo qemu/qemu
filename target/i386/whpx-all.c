@@ -1044,38 +1044,32 @@ static int whpx_vcpu_run(CPUState *cpu)
             WHV_REGISTER_VALUE reg_values[5];
             WHV_REGISTER_NAME reg_names[5];
             UINT32 reg_count = 5;
-            UINT64 rip, rax, rcx, rdx, rbx;
+            UINT64 cpuid_fn, rip = 0, rax = 0, rcx = 0, rdx = 0, rbx = 0;
+            X86CPU *x86_cpu = X86_CPU(cpu);
+            CPUX86State *env = &x86_cpu->env;
 
             memset(reg_values, 0, sizeof(reg_values));
 
             rip = vcpu->exit_ctx.VpContext.Rip +
                   vcpu->exit_ctx.VpContext.InstructionLength;
-            switch (vcpu->exit_ctx.CpuidAccess.Rax) {
-            case 1:
-                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
-                /* Advertise that we are running on a hypervisor */
-                rcx =
-                    vcpu->exit_ctx.CpuidAccess.DefaultResultRcx |
-                    CPUID_EXT_HYPERVISOR;
+            cpuid_fn = vcpu->exit_ctx.CpuidAccess.Rax;
 
-                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
-                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
-                break;
+            /*
+             * Ideally, these should be supplied to the hypervisor during VCPU
+             * initialization and it should be able to satisfy this request.
+             * But, currently, WHPX doesn't support setting CPUID values in the
+             * hypervisor once the partition has been setup, which is too late
+             * since VCPUs are realized later. For now, use the values from
+             * QEMU to satisfy these requests, until WHPX adds support for
+             * being able to set these values in the hypervisor at runtime.
+             */
+            cpu_x86_cpuid(env, cpuid_fn, 0, (UINT32 *)&rax, (UINT32 *)&rbx,
+                (UINT32 *)&rcx, (UINT32 *)&rdx);
+            switch (cpuid_fn) {
             case 0x80000001:
-                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
                 /* Remove any support of OSVW */
-                rcx =
-                    vcpu->exit_ctx.CpuidAccess.DefaultResultRcx &
-                    ~CPUID_EXT3_OSVW;
-
-                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
-                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                rcx &= ~CPUID_EXT3_OSVW;
                 break;
-            default:
-                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
-                rcx = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
-                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
-                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
             }
 
             reg_names[0] = WHvX64RegisterRip;
