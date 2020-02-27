@@ -78,13 +78,13 @@ static void s390_cpu_load_normal(CPUState *s)
     S390CPU *cpu = S390_CPU(s);
     uint64_t spsw = ldq_phys(s->as, 0);
 
-    cpu->env.psw.mask = spsw & 0xffffffff80000000ULL;
+    cpu->env.psw.mask = spsw & PSW_MASK_SHORT_CTRL;
     /*
      * Invert short psw indication, so SIE will report a specification
      * exception if it was not set.
      */
     cpu->env.psw.mask ^= PSW_MASK_SHORTPSW;
-    cpu->env.psw.addr = spsw & 0x7fffffffULL;
+    cpu->env.psw.addr = spsw & PSW_MASK_SHORT_ADDR;
 
     s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
 }
@@ -144,8 +144,18 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
     }
 
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
-    if (kvm_enabled() && type != S390_CPU_RESET_NORMAL) {
-        kvm_s390_reset_vcpu(cpu);
+    if (kvm_enabled()) {
+        switch (type) {
+        case S390_CPU_RESET_CLEAR:
+            kvm_s390_reset_vcpu_clear(cpu);
+            break;
+        case S390_CPU_RESET_INITIAL:
+            kvm_s390_reset_vcpu_initial(cpu);
+            break;
+        case S390_CPU_RESET_NORMAL:
+            kvm_s390_reset_vcpu_normal(cpu);
+            break;
+        }
     }
 }
 

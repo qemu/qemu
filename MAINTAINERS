@@ -1259,7 +1259,7 @@ S: Supported
 F: hw/s390x/ipl.*
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
-F: docs/devel/s390-dasd-ipl.txt
+F: docs/devel/s390-dasd-ipl.rst
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
@@ -1570,7 +1570,7 @@ F: hw/s390x/ap-bridge.c
 F: include/hw/s390x/ap-device.h
 F: include/hw/s390x/ap-bridge.h
 F: hw/vfio/ap.c
-F: docs/vfio-ap.txt
+F: docs/system/vfio-ap.rst
 L: qemu-s390x@nongnu.org
 
 vhost
