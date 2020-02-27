@@ -2558,7 +2558,7 @@ static bool object_create_delayed(const char *type, QemuOpts *opts)
 }
 
 
-static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
+static bool set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                                MachineClass *mc)
 {
     uint64_t sz;
@@ -2634,30 +2634,8 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
         exit(EXIT_FAILURE);
     }
 
-    if (current_machine->ram_memdev_id) {
-        Object *backend;
-        ram_addr_t backend_size;
-
-        backend = object_resolve_path_type(current_machine->ram_memdev_id,
-                                           TYPE_MEMORY_BACKEND, NULL);
-        backend_size = object_property_get_uint(backend, "size",  &error_abort);
-        if (mem_str && backend_size != ram_size) {
-                error_report("Size specified by -m option must match size of "
-                             "explicitly specified 'memory-backend' property");
-                exit(EXIT_FAILURE);
-        }
-        ram_size = backend_size;
-    }
-
-    if (!xen_enabled()) {
-        /* On 32-bit hosts, QEMU is limited by virtual address space */
-        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
-            error_report("at most 2047 MB RAM can be simulated");
-            exit(1);
-        }
-    }
-
     loc_pop(&loc);
+    return !!mem_str;
 }
 
 static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
@@ -2861,6 +2839,7 @@ void qemu_init(int argc, char **argv, char **envp)
     bool list_data_dirs = false;
     char *dir, **dirs;
     const char *mem_path = NULL;
+    bool have_custom_ram_size;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
     QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
     int mem_prealloc = 0; /* force preallocation of physical target memory */
@@ -3821,6 +3800,9 @@ void qemu_init(int argc, char **argv, char **envp)
     machine_class = select_machine();
     object_set_machine_compat_props(machine_class->compat_props);
 
+    have_custom_ram_size = set_memory_options(&ram_slots, &maxram_size,
+                                              machine_class);
+
     os_daemonize();
 
     /*
@@ -4296,7 +4278,29 @@ void qemu_init(int argc, char **argv, char **envp)
         current_machine->cpu_type = parse_cpu_option(cpu_option);
     }
 
-    set_memory_options(&ram_slots, &maxram_size, machine_class);
+    if (current_machine->ram_memdev_id) {
+        Object *backend;
+        ram_addr_t backend_size;
+
+        backend = object_resolve_path_type(current_machine->ram_memdev_id,
+                                           TYPE_MEMORY_BACKEND, NULL);
+        backend_size = object_property_get_uint(backend, "size",  &error_abort);
+        if (have_custom_ram_size && backend_size != ram_size) {
+                error_report("Size specified by -m option must match size of "
+                             "explicitly specified 'memory-backend' property");
+                exit(EXIT_FAILURE);
+        }
+        ram_size = backend_size;
+    }
+
+    if (!xen_enabled()) {
+        /* On 32-bit hosts, QEMU is limited by virtual address space */
+        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
+            error_report("at most 2047 MB RAM can be simulated");
+            exit(1);
+        }
+    }
+
     current_machine->ram_size = ram_size;
     current_machine->maxram_size = maxram_size;
     current_machine->ram_slots = ram_slots;
