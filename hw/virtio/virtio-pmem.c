@@ -130,6 +130,7 @@ static void virtio_pmem_unrealize(DeviceState *dev, Error **errp)
     VirtIOPMEM *pmem = VIRTIO_PMEM(dev);
 
     host_memory_backend_set_mapped(pmem->memdev, false);
+    virtio_delete_queue(pmem->rq_vq);
     virtio_cleanup(vdev);
 }
 
