@@ -123,7 +123,7 @@ struct lo_inode {
     pthread_mutex_t plock_mutex;
     GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 
-    bool is_symlink;
+    mode_t filetype;
 };
 
 struct lo_cred {
@@ -695,7 +695,7 @@ static int utimensat_empty(struct lo_data *lo, struct lo_inode *inode,
     struct lo_inode *parent;
     char path[PATH_MAX];
 
-    if (inode->is_symlink) {
+    if (S_ISLNK(inode->filetype)) {
         res = utimensat(inode->fd, "", tv, AT_EMPTY_PATH);
         if (res == -1 && errno == EINVAL) {
             /* Sorry, no race free way to set times on symlink. */
@@ -928,7 +928,8 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
             goto out_err;
         }
 
-        inode->is_symlink = S_ISLNK(e->attr.st_mode);
+        /* cache only filetype */
+        inode->filetype = (e->attr.st_mode & S_IFMT);
 
         /*
          * One for the caller and one for nlookup (released in
@@ -1135,7 +1136,7 @@ static int linkat_empty_nofollow(struct lo_data *lo, struct lo_inode *inode,
     struct lo_inode *parent;
     char path[PATH_MAX];
 
-    if (inode->is_symlink) {
+    if (S_ISLNK(inode->filetype)) {
         res = linkat(inode->fd, "", dfd, name, AT_EMPTY_PATH);
         if (res == -1 && (errno == ENOENT || errno == EINVAL)) {
             /* Sorry, no race free way to hard-link a symlink. */
@@ -2189,12 +2190,6 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     fuse_log(FUSE_LOG_DEBUG, "lo_getxattr(ino=%" PRIu64 ", name=%s size=%zd)\n",
              ino, name, size);
 
-    if (inode->is_symlink) {
-        /* Sorry, no race free way to getxattr on symlink. */
-        saverr = EPERM;
-        goto out;
-    }
-
     if (size) {
         value = malloc(size);
         if (!value) {
@@ -2203,12 +2198,25 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     }
 
     sprintf(procname, "%i", inode->fd);
-    fd = openat(lo->proc_self_fd, procname, O_RDONLY);
-    if (fd < 0) {
-        goto out_err;
+    /*
+     * It is not safe to open() non-regular/non-dir files in file server
+     * unless O_PATH is used, so use that method for regular files/dir
+     * only (as it seems giving less performance overhead).
+     * Otherwise, call fchdir() to avoid open().
+     */
+    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            goto out_err;
+        }
+        ret = fgetxattr(fd, name, value, size);
+    } else {
+        /* fchdir should not fail here */
+        assert(fchdir(lo->proc_self_fd) == 0);
+        ret = getxattr(procname, name, value, size);
+        assert(fchdir(lo->root.fd) == 0);
     }
 
-    ret = fgetxattr(fd, name, value, size);
     if (ret == -1) {
         goto out_err;
     }
@@ -2262,12 +2270,6 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
     fuse_log(FUSE_LOG_DEBUG, "lo_listxattr(ino=%" PRIu64 ", size=%zd)\n", ino,
              size);
 
-    if (inode->is_symlink) {
-        /* Sorry, no race free way to listxattr on symlink. */
-        saverr = EPERM;
-        goto out;
-    }
-
     if (size) {
         value = malloc(size);
         if (!value) {
@@ -2276,12 +2278,19 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
     }
 
     sprintf(procname, "%i", inode->fd);
-    fd = openat(lo->proc_self_fd, procname, O_RDONLY);
-    if (fd < 0) {
-        goto out_err;
+    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            goto out_err;
+        }
+        ret = flistxattr(fd, value, size);
+    } else {
+        /* fchdir should not fail here */
+        assert(fchdir(lo->proc_self_fd) == 0);
+        ret = listxattr(procname, value, size);
+        assert(fchdir(lo->root.fd) == 0);
     }
 
-    ret = flistxattr(fd, value, size);
     if (ret == -1) {
         goto out_err;
     }
@@ -2335,20 +2344,21 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     fuse_log(FUSE_LOG_DEBUG, "lo_setxattr(ino=%" PRIu64
              ", name=%s value=%s size=%zd)\n", ino, name, value, size);
 
-    if (inode->is_symlink) {
-        /* Sorry, no race free way to setxattr on symlink. */
-        saverr = EPERM;
-        goto out;
-    }
-
     sprintf(procname, "%i", inode->fd);
-    fd = openat(lo->proc_self_fd, procname, O_RDWR);
-    if (fd < 0) {
-        saverr = errno;
-        goto out;
+    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            saverr = errno;
+            goto out;
+        }
+        ret = fsetxattr(fd, name, value, size, flags);
+    } else {
+        /* fchdir should not fail here */
+        assert(fchdir(lo->proc_self_fd) == 0);
+        ret = setxattr(procname, name, value, size, flags);
+        assert(fchdir(lo->root.fd) == 0);
     }
 
-    ret = fsetxattr(fd, name, value, size, flags);
     saverr = ret == -1 ? errno : 0;
 
 out:
@@ -2383,20 +2393,21 @@ static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *name)
     fuse_log(FUSE_LOG_DEBUG, "lo_removexattr(ino=%" PRIu64 ", name=%s)\n", ino,
              name);
 
-    if (inode->is_symlink) {
-        /* Sorry, no race free way to setxattr on symlink. */
-        saverr = EPERM;
-        goto out;
-    }
-
     sprintf(procname, "%i", inode->fd);
-    fd = openat(lo->proc_self_fd, procname, O_RDWR);
-    if (fd < 0) {
-        saverr = errno;
-        goto out;
+    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            saverr = errno;
+            goto out;
+        }
+        ret = fremovexattr(fd, name);
+    } else {
+        /* fchdir should not fail here */
+        assert(fchdir(lo->proc_self_fd) == 0);
+        ret = removexattr(procname, name);
+        assert(fchdir(lo->root.fd) == 0);
     }
 
-    ret = fremovexattr(fd, name);
     saverr = ret == -1 ? errno : 0;
 
 out:
@@ -2796,7 +2807,7 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
         exit(1);
     }
 
-    root->is_symlink = false;
+    root->filetype = S_IFDIR;
     root->fd = fd;
     root->key.ino = stat.st_ino;
     root->key.dev = stat.st_dev;

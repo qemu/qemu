@@ -426,6 +426,8 @@ err:
     return ret;
 }
 
+static __thread bool clone_fs_called;
+
 /* Process one FVRequest in a thread pool */
 static void fv_queue_worker(gpointer data, gpointer user_data)
 {
@@ -440,6 +442,17 @@ static void fv_queue_worker(gpointer data, gpointer user_data)
     struct fuse_bufvec *pbufv;
 
     assert(se->bufsize > sizeof(struct fuse_in_header));
+
+    if (!clone_fs_called) {
+        int ret;
+
+        /* unshare FS for xattr operation */
+        ret = unshare(CLONE_FS);
+        /* should not fail */
+        assert(ret == 0);
+
+        clone_fs_called = true;
+    }
 
     /*
      * An element contains one request and the space to send our response
