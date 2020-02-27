@@ -163,6 +163,13 @@ static gint cmp_exec_count(gconstpointer a, gconstpointer b)
     return ea->count > eb->count ? -1 : 1;
 }
 
+static void free_record(gpointer data)
+{
+    InsnExecCount *rec = (InsnExecCount *) data;
+    g_free(rec->insn);
+    g_free(rec);
+}
+
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
     g_autoptr(GString) report = g_string_new("Instruction Classes:\n");
@@ -195,30 +202,31 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
     counts = g_hash_table_get_values(insns);
     if (counts && g_list_next(counts)) {
-        GList *it;
-
         g_string_append_printf(report,"Individual Instructions:\n");
+        counts = g_list_sort(counts, cmp_exec_count);
 
-        it = g_list_sort(counts, cmp_exec_count);
-
-        for (i = 0; i < limit && it->next; i++, it = it->next) {
-            InsnExecCount *rec = (InsnExecCount *) it->data;
-            g_string_append_printf(report, "Instr: %-24s\t(%ld hits)\t(op=%#08x/%s)\n",
+        for (i = 0; i < limit && g_list_next(counts);
+             i++, counts = g_list_next(counts)) {
+            InsnExecCount *rec = (InsnExecCount *) counts->data;
+            g_string_append_printf(report,
+                                   "Instr: %-24s\t(%ld hits)\t(op=%#08x/%s)\n",
                                    rec->insn,
                                    rec->count,
                                    rec->opcode,
                                    rec->class ?
                                    rec->class->class : "un-categorised");
         }
-        g_list_free(it);
+        g_list_free(counts);
     }
+
+    g_hash_table_destroy(insns);
 
     qemu_plugin_outs(report->str);
 }
 
 static void plugin_init(void)
 {
-    insns = g_hash_table_new(NULL, g_direct_equal);
+    insns = g_hash_table_new_full(NULL, g_direct_equal, NULL, &free_record);
 }
 
 static void vcpu_insn_exec_before(unsigned int cpu_index, void *udata)

@@ -344,8 +344,8 @@ enum {
 #define GET_C_LW_IMM(inst)          ((extract32(inst, 6, 1) << 2) \
                                     | (extract32(inst, 10, 3) << 3) \
                                     | (extract32(inst, 5, 1) << 6))
-#define GET_C_LD_IMM(inst)          ((extract32(inst, 10, 3) << 3) \
-                                    | (extract32(inst, 5, 2) << 6))
+#define GET_C_LD_IMM(inst)          ((extract16(inst, 10, 3) << 3) \
+                                    | (extract16(inst, 5, 2) << 6))
 #define GET_C_J_IMM(inst)           ((extract32(inst, 3, 3) << 1) \
                                     | (extract32(inst, 11, 1) << 4) \
                                     | (extract32(inst, 2, 1) << 5) \
@@ -363,7 +363,7 @@ enum {
 #define GET_C_RD(inst)              GET_RD(inst)
 #define GET_C_RS1(inst)             GET_RD(inst)
 #define GET_C_RS2(inst)             extract32(inst, 2, 5)
-#define GET_C_RS1S(inst)            (8 + extract32(inst, 7, 3))
-#define GET_C_RS2S(inst)            (8 + extract32(inst, 2, 3))
+#define GET_C_RS1S(inst)            (8 + extract16(inst, 7, 3))
+#define GET_C_RS2S(inst)            (8 + extract16(inst, 2, 3))
 
 #endif

@@ -125,9 +125,9 @@ $QEMU_IO -c "write -P 0xcc $offset $data_size" "json:{\
 sizeB=$($QEMU_IMG info --output=json "$TEST_IMG" |
         sed -n '/"actual-size":/ s/[^0-9]//gp')
 
-if [ $sizeA -le $sizeB ]
+if [ $sizeA -lt $sizeB ]
 then
-    echo "Compression ERROR"
+    echo "Compression ERROR ($sizeA < $sizeB)"
 fi
 
 $QEMU_IMG check --output=json "$TEST_IMG" |
