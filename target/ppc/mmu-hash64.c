@@ -784,11 +784,41 @@ static target_ulong rmls_limit(PowerPCCPU *cpu)
     return rma_sizes[rmls];
 }
 
+static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong lpcr = env->spr[SPR_LPCR];
+    uint32_t vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
+    target_ulong vsid = SLB_VSID_VRMA | ((vrmasd << 4) & SLB_VSID_LLP_MASK);
+    int i;
+
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const PPCHash64SegmentPageSizes *sps = &cpu->hash64_opts->sps[i];
+
+        if (!sps->page_shift) {
+            break;
+        }
+
+        if ((vsid & SLB_VSID_LLP_MASK) == sps->slb_enc) {
+            slb->esid = SLB_ESID_V;
+            slb->vsid = vsid;
+            slb->sps = sps;
+            return 0;
+        }
+    }
+
+    error_report("Bad page size encoding in LPCR[VRMASD]; LPCR=0x"
+                 TARGET_FMT_lx"\n", lpcr);
+
+    return -1;
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
+    ppc_slb_t vrma_slbe;
     ppc_slb_t *slb;
     unsigned apshift;
     hwaddr ptex;
@@ -827,8 +857,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             }
         } else if (ppc_hash64_use_vrma(env)) {
             /* Emulated VRMA mode */
-            slb = &env->vrma_slb;
-            if (!slb->sps) {
+            slb = &vrma_slbe;
+            if (build_vrma_slbe(cpu, slb) != 0) {
                 /* Invalid VRMA setup, machine check */
                 cs->exception_index = POWERPC_EXCP_MCHECK;
                 env->error_code = 0;
@@ -976,6 +1006,7 @@ skip_slb_search:
 hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 {
     CPUPPCState *env = &cpu->env;
+    ppc_slb_t vrma_slbe;
     ppc_slb_t *slb;
     hwaddr ptex, raddr;
     ppc_hash_pte64_t pte;
@@ -997,8 +1028,8 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
             return raddr | env->spr[SPR_HRMOR];
         } else if (ppc_hash64_use_vrma(env)) {
             /* Emulated VRMA mode */
-            slb = &env->vrma_slb;
-            if (!slb->sps) {
+            slb = &vrma_slbe;
+            if (build_vrma_slbe(cpu, slb) != 0) {
                 return -1;
             }
         } else {
@@ -1037,65 +1068,12 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
-static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
-{
-    CPUPPCState *env = &cpu->env;
-    const PPCHash64SegmentPageSizes *sps = NULL;
-    target_ulong esid, vsid, lpcr;
-    ppc_slb_t *slb = &env->vrma_slb;
-    uint32_t vrmasd;
-    int i;
-
-    /* First clear it */
-    slb->esid = slb->vsid = 0;
-    slb->sps = NULL;
-
-    /* Is VRMA enabled ? */
-    if (!ppc_hash64_use_vrma(env)) {
-        return;
-    }
-
-    /*
-     * Make one up. Mostly ignore the ESID which will not be needed
-     * for translation
-     */
-    lpcr = env->spr[SPR_LPCR];
-    vsid = SLB_VSID_VRMA;
-    vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
-    vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
-    esid = SLB_ESID_V;
-
-    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const PPCHash64SegmentPageSizes *sps1 = &cpu->hash64_opts->sps[i];
-
-        if (!sps1->page_shift) {
-            break;
-        }
-
-        if ((vsid & SLB_VSID_LLP_MASK) == sps1->slb_enc) {
-            sps = sps1;
-            break;
-        }
-    }
-
-    if (!sps) {
-        error_report("Bad page size encoding esid 0x"TARGET_FMT_lx
-                     " vsid 0x"TARGET_FMT_lx, esid, vsid);
-        return;
-    }
-
-    slb->vsid = vsid;
-    slb->esid = esid;
-    slb->sps = sps;
-}
-
 void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    ppc_hash64_update_vrma(cpu);
 }
 
 void helper_store_lpcr(CPUPPCState *env, target_ulong val)
