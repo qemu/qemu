@@ -35,6 +35,7 @@ void spapr_nvdimm_validate_opts(NVDIMMDevice *nvdimm, uint64_t size,
 {
     char *uuidstr = NULL;
     QemuUUID uuid;
+    int ret;
 
     if (size % SPAPR_MINIMUM_SCM_BLOCK_SIZE) {
         error_setg(errp, "NVDIMM memory size excluding the label area"
@@ -43,8 +44,10 @@ void spapr_nvdimm_validate_opts(NVDIMMDevice *nvdimm, uint64_t size,
         return;
     }
 
-    uuidstr = object_property_get_str(OBJECT(nvdimm), NVDIMM_UUID_PROP, NULL);
-    qemu_uuid_parse(uuidstr, &uuid);
+    uuidstr = object_property_get_str(OBJECT(nvdimm), NVDIMM_UUID_PROP,
+                                      &error_abort);
+    ret = qemu_uuid_parse(uuidstr, &uuid);
+    g_assert(!ret);
     g_free(uuidstr);
 
     if (qemu_uuid_is_null(&uuid)) {
