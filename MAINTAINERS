@@ -216,6 +216,7 @@ F: target/mips/
 F: default-configs/*mips*
 F: disas/*mips*
 F: docs/system/cpu-models-mips.texi
+F: docs/system/cpu-models-mips.rst.inc
 F: hw/intc/mips_gic.c
 F: hw/mips/
 F: hw/misc/mips_*
@@ -321,6 +322,7 @@ F: tests/tcg/x86_64/
 F: hw/i386/
 F: disas/i386.c
 F: docs/system/cpu-models-x86.texi
+F: docs/system/cpu-models-x86.rst.inc
 T: git https://github.com/ehabkost/qemu.git x86-next
 
 Xtensa TCG CPUs
