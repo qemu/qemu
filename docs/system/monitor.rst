@@ -14,8 +14,16 @@ You can use it to:
 
 -  Inspect the VM state without an external debugger.
 
+Commands
+~~~~~~~~
+
+The following commands are available:
+
+.. hxtool-doc:: hmp-commands.hx
+
 ..
-  The commands section goes here once it's converted from Texinfo to RST.
+  TODO: convert and reference hmp-commands-info.hx
+
 
 Integer expressions
 ~~~~~~~~~~~~~~~~~~~
