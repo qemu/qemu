@@ -787,6 +787,7 @@ distclean: clean
 	$(call clean-manual,specs)
 	$(call clean-manual,system)
 	$(call clean-manual,tools)
+	$(call clean-manual,user)
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -845,6 +846,7 @@ install-sphinxdocs: sphinxdocs
 	$(call install-manual,specs)
 	$(call install-manual,system)
 	$(call install-manual,tools)
+	$(call install-manual,user)
 
 install-doc: $(DOCS) install-sphinxdocs
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
@@ -1039,7 +1041,8 @@ sphinxdocs: $(MANUAL_BUILDDIR)/devel/index.html \
             $(MANUAL_BUILDDIR)/interop/index.html \
             $(MANUAL_BUILDDIR)/specs/index.html \
             $(MANUAL_BUILDDIR)/system/index.html \
-            $(MANUAL_BUILDDIR)/tools/index.html
+            $(MANUAL_BUILDDIR)/tools/index.html \
+            $(MANUAL_BUILDDIR)/user/index.html
 
 # Canned command to build a single manual
 # Arguments: $1 = manual name, $2 = Sphinx builder ('html' or 'man')
@@ -1073,6 +1076,9 @@ $(MANUAL_BUILDDIR)/system/index.html: $(call manual-deps,system)
 
 $(MANUAL_BUILDDIR)/tools/index.html: $(call manual-deps,tools) $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/docs/qemu-option-trace.rst.inc
 	$(call build-manual,tools,html)
+
+$(MANUAL_BUILDDIR)/user/index.html: $(call manual-deps,user)
+	$(call build-manual,user,html)
 
 $(call define-manpage-rule,interop,qemu-ga.8)
 
