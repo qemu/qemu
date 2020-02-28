@@ -36,8 +36,8 @@
 
 @menu
 * Introduction::
-* QEMU PC System emulator::
-* QEMU System emulator for non PC targets::
+* QEMU System emulator::
+* QEMU System emulator targets::
 * System requirements::
 * Security::
 * Implementation notes::
@@ -127,19 +127,16 @@ accelerator is required to use more than one host CPU for emulation.
 
 @end itemize
 
-
-@node QEMU PC System emulator
-@chapter QEMU PC System emulator
-@cindex system emulation (PC)
+@node QEMU System emulator
+@chapter QEMU System emulator
+@cindex system emulation
 
 @menu
-* pcsys_introduction:: Introduction
-* pcsys_quickstart::   Quick Start
+* pcsys_quickstart::   Quick start
 * sec_invocation::     Invocation
 * pcsys_keys::         Keys in the graphical frontends
 * mux_keys::           Keys in the character backend multiplexer
 * pcsys_monitor::      QEMU Monitor
-* cpu_models_x86::     Supported CPU model configurations on x86 hosts
 * disk_images::        Disk Images
 * pcsys_network::      Network emulation
 * pcsys_usb::          USB emulation
@@ -150,13 +147,57 @@ accelerator is required to use more than one host CPU for emulation.
 * gdb_usage::          GDB usage
 @end menu
 
-@node pcsys_introduction
-@section Introduction
+@include docs/system/quickstart.texi
+@include docs/system/invocation.texi
+@include docs/system/keys.texi
+@include docs/system/mux-chardev.texi
+@include docs/system/monitor.texi
+@include docs/system/images.texi
+@include docs/system/net.texi
+@include docs/system/usb.texi
+@include docs/system/ivshmem.texi
+@include docs/system/linuxboot.texi
+@include docs/system/vnc-security.texi
+@include docs/system/tls.texi
+@include docs/system/gdb.texi
+
+@node QEMU System emulator targets
+@chapter QEMU System emulator targets
+@cindex system emulation (PC)
+
+QEMU is a generic emulator and it emulates many machines. Most of the
+options are similar for all machines. Specific information about the
+various targets are mentioned in the following sections.
+
+@menu
+* x86 (PC) System emulator::
+* PowerPC System emulator::
+* Sparc32 System emulator::
+* Sparc64 System emulator::
+* MIPS System emulator::
+* ARM System emulator::
+* ColdFire System emulator::
+* Cris System emulator::
+* Microblaze System emulator::
+* SH4 System emulator::
+* Xtensa System emulator::
+@end menu
+
+@node x86 (PC) System emulator
+@section x86 (PC) System emulator
+@cindex system emulation (PC)
+
+@menu
+* pcsys_devices::      Peripherals
+* cpu_models_x86::     Supported CPU model configurations on x86 hosts
+@end menu
+
+@node pcsys_devices
+@subsection Peripherals
 
 @c man begin DESCRIPTION
 
-The QEMU PC System emulator simulates the
-following peripherals:
+The QEMU PC System emulator simulates the following peripherals:
 
 @itemize @minus
 @item
@@ -222,40 +263,9 @@ CS4231A is the chip used in Windows Sound System and GUSMAX products
 
 @c man end
 
-@include docs/system/quickstart.texi
-@include docs/system/invocation.texi
-@include docs/system/keys.texi
-@include docs/system/mux-chardev.texi
-@include docs/system/monitor.texi
+@lowersections
 @include docs/system/cpu-models-x86.texi
-@include docs/system/images.texi
-@include docs/system/net.texi
-@include docs/system/usb.texi
-@include docs/system/ivshmem.texi
-@include docs/system/linuxboot.texi
-@include docs/system/vnc-security.texi
-@include docs/system/tls.texi
-@include docs/system/gdb.texi
-
-@node QEMU System emulator for non PC targets
-@chapter QEMU System emulator for non PC targets
-
-QEMU is a generic emulator and it emulates many non PC
-machines. Most of the options are similar to the PC emulator. The
-differences are mentioned in the following sections.
-
-@menu
-* PowerPC System emulator::
-* Sparc32 System emulator::
-* Sparc64 System emulator::
-* MIPS System emulator::
-* ARM System emulator::
-* ColdFire System emulator::
-* Cris System emulator::
-* Microblaze System emulator::
-* SH4 System emulator::
-* Xtensa System emulator::
-@end menu
+@raisesections
 
 @node PowerPC System emulator
 @section PowerPC System emulator
