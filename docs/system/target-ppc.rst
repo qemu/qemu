@@ -43,19 +43,5 @@ the g3beige and mac99 PowerMac and the 40p machines. OpenBIOS is a free
 (GPL v2) portable firmware implementation. The goal is to implement a
 100% IEEE 1275-1994 (referred to as Open Firmware) compliant firmware.
 
-The following options are specific to the PowerPC emulation:
-
-``-g WxH[xDEPTH]``
-   Set the initial VGA graphic mode. The default is 800x600x32.
-
-``-prom-env string``
-   Set OpenBIOS variables in NVRAM, for example:
-
-   ::
-
-      qemu-system-ppc -prom-env 'auto-boot?=false' \
-       -prom-env 'boot-device=hd:2,\yaboot' \
-       -prom-env 'boot-args=conf=hd:2,\yaboot.conf'
-
 More information is available at
 http://perso.magic.fr/l_indien/qemu-ppc/.

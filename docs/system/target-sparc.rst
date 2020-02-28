@@ -60,22 +60,3 @@ QEMU web site. There are still issues with NetBSD and OpenBSD, but most
 kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
-
-The following options are specific to the Sparc32 emulation:
-
-``-g WxHx[xDEPTH]``
-   Set the initial graphics mode. For TCX, the default is 1024x768x8
-   with the option of 1024x768x24. For cgthree, the default is
-   1024x768x8 with the option of 1152x900x8 for people who wish to use
-   OBP.
-
-``-prom-env string``
-   Set OpenBIOS variables in NVRAM, for example:
-
-   ::
-
-      qemu-system-sparc -prom-env 'auto-boot?=false' \
-       -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
-
-``-M [SS-4|SS-5|SS-10|SS-20|SS-600MP|LX|Voyager|SPARCClassic] [|SPARCbook]``
-   Set the emulated machine type. Default is SS-5.

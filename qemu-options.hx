@@ -1962,6 +1962,13 @@ STEXI
 @item -g @var{width}x@var{height}[x@var{depth}]
 @findex -g
 Set the initial graphical resolution and depth (PPC, SPARC only).
+
+For PPC the default is 800x600x32.
+
+For SPARC with the TCX graphics device, the default is 1024x768x8 with the
+option of 1024x768x24. For cgthree, the default is 1024x768x8 with the option
+of 1152x900x8 for people who wish to use OBP.
+
 ETEXI
 
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
@@ -4107,6 +4114,18 @@ STEXI
 @item -prom-env @var{variable}=@var{value}
 @findex -prom-env
 Set OpenBIOS nvram @var{variable} to given @var{value} (PPC, SPARC only).
+
+@example
+qemu-system-sparc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
+@end example
+
+@example
+qemu-system-ppc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=hd:2,\yaboot' \
+ -prom-env 'boot-args=conf=hd:2,\yaboot.conf'
+@end example
+
 ETEXI
 DEF("semihosting", 0, QEMU_OPTION_semihosting,
     "-semihosting    semihosting mode\n",

@@ -64,32 +64,5 @@ most kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
 
-@c man begin OPTIONS
-
-The following options are specific to the Sparc32 emulation:
-
-@table @option
-
-@item -g @var{W}x@var{H}x[x@var{DEPTH}]
-
-Set the initial graphics mode. For TCX, the default is 1024x768x8 with the
-option of 1024x768x24. For cgthree, the default is 1024x768x8 with the option
-of 1152x900x8 for people who wish to use OBP.
-
-@item -prom-env @var{string}
-
-Set OpenBIOS variables in NVRAM, for example:
-
-@example
-qemu-system-sparc -prom-env 'auto-boot?=false' \
- -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
-@end example
-
-@item -M [SS-4|SS-5|SS-10|SS-20|SS-600MP|LX|Voyager|SPARCClassic] [|SPARCbook]
-
-Set the emulated machine type. Default is SS-5.
-
-@end table
-
 @c man end
 

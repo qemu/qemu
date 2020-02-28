@@ -35,15 +35,3 @@ QEMU emulates the following peripherals:
 -  2 PCI IDE interfaces with hard disk and CD-ROM support
 
 -  Floppy disk
-
-The following options are specific to the Sparc64 emulation:
-
-``-prom-env string``
-   Set OpenBIOS variables in NVRAM, for example:
-
-   ::
-
-      qemu-system-sparc64 -prom-env 'auto-boot?=false'
-
-``-M [sun4u|sun4v|niagara]``
-   Set the emulated machine type. The default is sun4u.

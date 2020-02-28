@@ -36,25 +36,3 @@ PC-compatible serial ports
 Floppy disk
 @end itemize
 
-@c man begin OPTIONS
-
-The following options are specific to the Sparc64 emulation:
-
-@table @option
-
-@item -prom-env @var{string}
-
-Set OpenBIOS variables in NVRAM, for example:
-
-@example
-qemu-system-sparc64 -prom-env 'auto-boot?=false'
-@end example
-
-@item -M [sun4u|sun4v|niagara]
-
-Set the emulated machine type. The default is sun4u.
-
-@end table
-
-@c man end
-
