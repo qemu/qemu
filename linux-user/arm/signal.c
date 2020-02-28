@@ -346,7 +346,7 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     setup_sigcontext(&uc->tuc_mcontext, env, set->sig[0]);
     /* Save coprocessor signal frame.  */
     regspace = uc->tuc_regspace;
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
+    if (cpu_isar_feature(aa32_vfp_simd, env_archcpu(env))) {
         regspace = setup_sigframe_v2_vfp(regspace, env);
     }
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
@@ -671,7 +671,7 @@ static int do_sigframe_return_v2(CPUARMState *env,
 
     /* Restore coprocessor signal frame */
     regspace = uc->tuc_regspace;
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
+    if (cpu_isar_feature(aa32_vfp_simd, env_archcpu(env))) {
         regspace = restore_sigframe_v2_vfp(env, regspace);
         if (!regspace) {
             return 1;

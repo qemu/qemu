@@ -357,6 +357,7 @@ static Property arm_gic_common_properties[] = {
     DEFINE_PROP_BOOL("has-security-extensions", GICState, security_extn, 0),
     /* True if the GIC should implement the virtualization extensions */
     DEFINE_PROP_BOOL("has-virtualization-extensions", GICState, virt_extn, 0),
+    DEFINE_PROP_UINT32("num-priority-bits", GICState, n_prio_bits, 8),
     DEFINE_PROP_END_OF_LIST(),
 };
 

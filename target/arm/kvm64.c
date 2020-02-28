@@ -649,7 +649,6 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * feature bits.
      */
     set_feature(&features, ARM_FEATURE_V8);
-    set_feature(&features, ARM_FEATURE_VFP4);
     set_feature(&features, ARM_FEATURE_NEON);
     set_feature(&features, ARM_FEATURE_AARCH64);
     set_feature(&features, ARM_FEATURE_PMU);

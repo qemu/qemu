@@ -2646,35 +2646,6 @@ static void gen_neon_dup_high16(TCGv_i32 var)
     tcg_temp_free_i32(tmp);
 }
 
-/*
- * Disassemble a VFP instruction.  Returns nonzero if an error occurred
- * (ie. an undefined instruction).
- */
-static int disas_vfp_insn(DisasContext *s, uint32_t insn)
-{
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
-        return 1;
-    }
-
-    /*
-     * If the decodetree decoder handles this insn it will always
-     * emit code to either execute the insn or generate an appropriate
-     * exception; so we don't need to ever return non-zero to tell
-     * the calling code to emit an UNDEF exception.
-     */
-    if (extract32(insn, 28, 4) == 0xf) {
-        if (disas_vfp_uncond(s, insn)) {
-            return 0;
-        }
-    } else {
-        if (disas_vfp(s, insn)) {
-            return 0;
-        }
-    }
-    /* If the decodetree decoder didn't handle this insn, it must be UNDEF */
-    return 1;
-}
-
 static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
 {
 #ifndef CONFIG_USER_ONLY
@@ -5150,7 +5121,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             break;
         case NEON_3R_VFM_VQRDMLSH:
-            if (!arm_dc_feature(s, ARM_FEATURE_VFP4)) {
+            if (!dc_isar_feature(aa32_simdfmac, s)) {
                 return 1;
             }
             break;
@@ -10782,7 +10753,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         ARCH(5);
 
         /* Unconditional instructions.  */
-        if (disas_a32_uncond(s, insn)) {
+        /* TODO: Perhaps merge these into one decodetree output file.  */
+        if (disas_a32_uncond(s, insn) ||
+            disas_vfp_uncond(s, insn)) {
             return;
         }
         /* fall back to legacy decoder */
@@ -10805,13 +10778,6 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             }
 
             if (disas_neon_ls_insn(s, insn)) {
-                goto illegal_op;
-            }
-            return;
-        }
-        if ((insn & 0x0f000e10) == 0x0e000a00) {
-            /* VFP.  */
-            if (disas_vfp_insn(s, insn)) {
                 goto illegal_op;
             }
             return;
@@ -10846,7 +10812,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         arm_skip_unless(s, cond);
     }
 
-    if (disas_a32(s, insn)) {
+    /* TODO: Perhaps merge these into one decodetree output file.  */
+    if (disas_a32(s, insn) ||
+        disas_vfp(s, insn)) {
         return;
     }
     /* fall back to legacy decoder */
@@ -10856,11 +10824,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
     case 0xd:
     case 0xe:
         if (((insn >> 8) & 0xe) == 10) {
-            /* VFP.  */
-            if (disas_vfp_insn(s, insn)) {
-                goto illegal_op;
-            }
-        } else if (disas_coproc_insn(s, insn)) {
+            /* VFP, but failed disas_vfp.  */
+            goto illegal_op;
+        }
+        if (disas_coproc_insn(s, insn)) {
             /* Coprocessor.  */
             goto illegal_op;
         }
@@ -10949,7 +10916,14 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         ARCH(6T2);
     }
 
-    if (disas_t32(s, insn)) {
+    /*
+     * TODO: Perhaps merge these into one decodetree output file.
+     * Note disas_vfp is written for a32 with cond field in the
+     * top nibble.  The t32 encoding requires 0xe in the top nibble.
+     */
+    if (disas_t32(s, insn) ||
+        disas_vfp_uncond(s, insn) ||
+        ((insn >> 28) == 0xe && disas_vfp(s, insn))) {
         return;
     }
     /* fall back to legacy decoder */
@@ -10966,53 +10940,16 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 goto illegal_op; /* op0 = 0b11 : unallocated */
             }
 
-            /*
-             * Decode VLLDM and VLSTM first: these are nonstandard because:
-             *  * if there is no FPU then these insns must NOP in
-             *    Secure state and UNDEF in Nonsecure state
-             *  * if there is an FPU then these insns do not have
-             *    the usual behaviour that disas_vfp_insn() provides of
-             *    being controlled by CPACR/NSACR enable bits or the
-             *    lazy-stacking logic.
-             */
-            if (arm_dc_feature(s, ARM_FEATURE_V8) &&
-                (insn & 0xffa00f00) == 0xec200a00) {
-                /* 0b1110_1100_0x1x_xxxx_xxxx_1010_xxxx_xxxx
-                 *  - VLLDM, VLSTM
-                 * We choose to UNDEF if the RAZ bits are non-zero.
-                 */
-                if (!s->v8m_secure || (insn & 0x0040f0ff)) {
-                    goto illegal_op;
-                }
-
-                if (arm_dc_feature(s, ARM_FEATURE_VFP)) {
-                    uint32_t rn = (insn >> 16) & 0xf;
-                    TCGv_i32 fptr = load_reg(s, rn);
-
-                    if (extract32(insn, 20, 1)) {
-                        gen_helper_v7m_vlldm(cpu_env, fptr);
-                    } else {
-                        gen_helper_v7m_vlstm(cpu_env, fptr);
-                    }
-                    tcg_temp_free_i32(fptr);
-
-                    /* End the TB, because we have updated FP control bits */
-                    s->base.is_jmp = DISAS_UPDATE;
-                }
-                break;
-            }
-            if (arm_dc_feature(s, ARM_FEATURE_VFP) &&
-                ((insn >> 8) & 0xe) == 10) {
+            if (((insn >> 8) & 0xe) == 10 &&
+                dc_isar_feature(aa32_fpsp_v2, s)) {
                 /* FP, and the CPU supports it */
-                if (disas_vfp_insn(s, insn)) {
-                    goto illegal_op;
-                }
-                break;
+                goto illegal_op;
+            } else {
+                /* All other insns: NOCP */
+                gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                                   syn_uncategorized(),
+                                   default_exception_el(s));
             }
-
-            /* All other insns: NOCP */
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP, syn_uncategorized(),
-                               default_exception_el(s));
             break;
         }
         if ((insn & 0xfe000a00) == 0xfc000800
@@ -11034,9 +10971,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 goto illegal_op;
             }
         } else if (((insn >> 8) & 0xe) == 10) {
-            if (disas_vfp_insn(s, insn)) {
-                goto illegal_op;
-            }
+            /* VFP, but failed disas_vfp.  */
+            goto illegal_op;
         } else {
             if (insn & (1 << 28))
                 goto illegal_op;

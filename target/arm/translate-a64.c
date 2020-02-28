@@ -3142,6 +3142,8 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     int rs = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int o3_opc = extract32(insn, 12, 4);
+    bool r = extract32(insn, 22, 1);
+    bool a = extract32(insn, 23, 1);
     TCGv_i64 tcg_rs, clean_addr;
     AtomicThreeOpFn *fn;
 
@@ -3177,6 +3179,13 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     case 010: /* SWP */
         fn = tcg_gen_atomic_xchg_i64;
         break;
+    case 014: /* LDAPR, LDAPRH, LDAPRB */
+        if (!dc_isar_feature(aa64_rcpc_8_3, s) ||
+            rs != 31 || a != 1 || r != 0) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
     default:
         unallocated_encoding(s);
         return;
@@ -3186,6 +3195,21 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
         gen_check_sp_alignment(s);
     }
     clean_addr = clean_data_tbi(s, cpu_reg_sp(s, rn));
+
+    if (o3_opc == 014) {
+        /*
+         * LDAPR* are a special case because they are a simple load, not a
+         * fetch-and-do-something op.
+         * The architectural consistency requirements here are weaker than
+         * full load-acquire (we only need "load-acquire processor consistent"),
+         * but we choose to implement them as full LDAQ.
+         */
+        do_gpr_ld(s, cpu_reg(s, rt), clean_addr, size, false, false,
+                  true, rt, disas_ldst_compute_iss_sf(size, false, 0), true);
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        return;
+    }
+
     tcg_rs = read_cpu_reg(s, rs, true);
 
     if (o3_opc == 1) { /* LDCLR */
@@ -3256,6 +3280,88 @@ static void disas_ldst_pac(DisasContext *s, uint32_t insn,
 
     if (is_wback) {
         tcg_gen_mov_i64(cpu_reg_sp(s, rn), dirty_addr);
+    }
+}
+
+/*
+ * LDAPR/STLR (unscaled immediate)
+ *
+ *  31  30            24    22  21       12    10    5     0
+ * +------+-------------+-----+---+--------+-----+----+-----+
+ * | size | 0 1 1 0 0 1 | opc | 0 |  imm9  | 0 0 | Rn |  Rt |
+ * +------+-------------+-----+---+--------+-----+----+-----+
+ *
+ * Rt: source or destination register
+ * Rn: base register
+ * imm9: unscaled immediate offset
+ * opc: 00: STLUR*, 01/10/11: various LDAPUR*
+ * size: size of load/store
+ */
+static void disas_ldst_ldapr_stlr(DisasContext *s, uint32_t insn)
+{
+    int rt = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int offset = sextract32(insn, 12, 9);
+    int opc = extract32(insn, 22, 2);
+    int size = extract32(insn, 30, 2);
+    TCGv_i64 clean_addr, dirty_addr;
+    bool is_store = false;
+    bool is_signed = false;
+    bool extend = false;
+    bool iss_sf;
+
+    if (!dc_isar_feature(aa64_rcpc_8_4, s)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opc) {
+    case 0: /* STLURB */
+        is_store = true;
+        break;
+    case 1: /* LDAPUR* */
+        break;
+    case 2: /* LDAPURS* 64-bit variant */
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_signed = true;
+        break;
+    case 3: /* LDAPURS* 32-bit variant */
+        if (size > 1) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_signed = true;
+        extend = true; /* zero-extend 32->64 after signed load */
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    iss_sf = disas_ldst_compute_iss_sf(size, is_signed, opc);
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    dirty_addr = read_cpu_reg_sp(s, rn, 1);
+    tcg_gen_addi_i64(dirty_addr, dirty_addr, offset);
+    clean_addr = clean_data_tbi(s, dirty_addr);
+
+    if (is_store) {
+        /* Store-Release semantics */
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        do_gpr_st(s, cpu_reg(s, rt), clean_addr, size, true, rt, iss_sf, true);
+    } else {
+        /*
+         * Load-AcquirePC semantics; we implement as the slightly more
+         * restrictive Load-Acquire.
+         */
+        do_gpr_ld(s, cpu_reg(s, rt), clean_addr, size, is_signed, extend,
+                  true, rt, iss_sf, true);
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
     }
 }
 
@@ -3609,6 +3715,14 @@ static void disas_ldst(DisasContext *s, uint32_t insn)
         break;
     case 0x0d: /* AdvSIMD load/store single structure */
         disas_ldst_single_struct(s, insn);
+        break;
+    case 0x19: /* LDAPR/STLR (unscaled immediate) */
+        if (extract32(insn, 10, 2) != 0 ||
+            extract32(insn, 21, 1) != 0) {
+            unallocated_encoding(s);
+            break;
+        }
+        disas_ldst_ldapr_stlr(s, insn);
         break;
     default:
         unallocated_encoding(s);

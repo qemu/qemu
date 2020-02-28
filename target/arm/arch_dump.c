@@ -363,9 +363,11 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, void *opaque)
 {
     struct arm_note note;
-    CPUARMState *env = &ARM_CPU(cs)->env;
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     DumpState *s = opaque;
-    int ret, i, fpvalid = !!arm_feature(env, ARM_FEATURE_VFP);
+    int ret, i;
+    bool fpvalid = cpu_isar_feature(aa32_vfp_simd, cpu);
 
     arm_note_init(&note, s, "CORE", 5, NT_PRSTATUS, sizeof(note.prstatus));
 
@@ -444,7 +446,6 @@ int cpu_get_dump_info(ArchDumpInfo *info,
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
     ARMCPU *cpu = ARM_CPU(first_cpu);
-    CPUARMState *env = &cpu->env;
     size_t note_size;
 
     if (class == ELFCLASS64) {
@@ -452,12 +453,12 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
         note_size += AARCH64_PRFPREG_NOTE_SIZE;
 #ifdef TARGET_AARCH64
         if (cpu_isar_feature(aa64_sve, cpu)) {
-            note_size += AARCH64_SVE_NOTE_SIZE(env);
+            note_size += AARCH64_SVE_NOTE_SIZE(&cpu->env);
         }
 #endif
     } else {
         note_size = ARM_PRSTATUS_NOTE_SIZE;
-        if (arm_feature(env, ARM_FEATURE_VFP)) {
+        if (cpu_isar_feature(aa32_vfp_simd, cpu)) {
             note_size += ARM_VFP_NOTE_SIZE;
         }
     }
