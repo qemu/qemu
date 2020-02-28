@@ -448,7 +448,17 @@ cache, size is 10KB, policy is write-back, the cache Line size is 8 bytes:
 
 ETEXI
 SRST
-``-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``; \ ``-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``; \ ``-numa dist,src=source,dst=destination,val=distance``; \ ``-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]``; \ ``-numa hmat-lb,initiator=node,target=node,hierarchy=hierarchy,data-type=tpye[,latency=lat][,bandwidth=bw]``; \ ``-numa hmat-cache,node-id=node,size=size,level=level[,associativity=str][,policy=str][,line=size]``
+``-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``
+  \ 
+``-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``
+  \
+``-numa dist,src=source,dst=destination,val=distance``
+  \ 
+``-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]``
+  \ 
+``-numa hmat-lb,initiator=node,target=node,hierarchy=hierarchy,data-type=tpye[,latency=lat][,bandwidth=bw]``
+  \ 
+``-numa hmat-cache,node-id=node,size=size,level=level[,associativity=str][,policy=str][,line=size]``
     Define a NUMA node and assign RAM and VCPUs to it. Set the NUMA
     distance from a source node to a destination node. Set the ACPI
     Heterogeneous Memory Attributes for the given nodes.
@@ -687,7 +697,9 @@ driver=@var{driver},property=@var{prop},value=@var{value}.  The
 longhand syntax works even when @var{driver} contains a dot.
 ETEXI
 SRST
-``-global driver.prop=value``; \ ``-global driver=driver,property=property,value=value``
+``-global driver.prop=value``
+  \ 
+``-global driver=driver,property=property,value=value``
     Set default value of driver's property prop to value, e.g.:
 
     .. parsed-literal::
@@ -788,7 +800,7 @@ SRST
     it. This only effects when boot priority is changed by bootindex
     options. The default is non-strict boot.
 
-    ::
+    .. parsed-literal::
 
         # try to boot from network first, then from hard disk
         |qemu_system_x86| -boot order=nc
@@ -1618,7 +1630,9 @@ STEXI
 Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}).
 ETEXI
 SRST
-``-fda file``; \ ``-fdb file``
+``-fda file``
+  \
+``-fdb file``
     Use file as floppy disk 0/1 image (see
     :ref:`disk_005fimages`).
 ERST
@@ -1641,7 +1655,13 @@ STEXI
 Use @var{file} as hard disk 0, 1, 2 or 3 image (@pxref{disk_images}).
 ETEXI
 SRST
-``-hda file``; \ ``-hdb file``; \ ``-hdc file``; \ ``-hdd file``
+``-hda file``
+  \
+``-hdb file``
+  \ 
+``-hdc file``
+  \ 
+``-hdd file``
     Use file as hard disk 0, 1, 2 or 3 image (see
     :ref:`disk_005fimages`).
 ERST
@@ -2295,15 +2315,15 @@ SRST
         the ``write-cache`` option of block guest devices (as in
         ``-device``). The modes correspond to the following settings:
 
-        ::
-
-            �            │ cache.writeback   cache.direct   cache.no-flush
-            ─────────────┼─────────────────────────────────────────────────
-            writeback    │ on                off            off
-            none         │ on                on             off
-            writethrough │ off               off            off
-            directsync   │ off               on             off
-            unsafe       │ on                off            on
+        =============  ===============   ============   ==============
+        \              cache.writeback   cache.direct   cache.no-flush
+        =============  ===============   ============   ==============
+        writeback      on                off            off
+        none           on                on             off
+        writethrough   off               off            off
+        directsync     off               on             off
+        unsafe         on                off            on
+        =============  ===============   ============   ==============
 
         The default mode is ``cache=writeback``.
 
@@ -2594,7 +2614,13 @@ Specifies the tag name to be used by the guest to mount this export point.
 
 ETEXI
 SRST
-``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``; \ ``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly]``; \ ``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly]``; \ ``-fsdev synth,id=id[,readonly]``
+``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``
+  \ 
+``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly]``
+  \
+``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly]``
+  \
+``-fsdev synth,id=id[,readonly]``
     Define a new file system device. Valid options are:
 
     ``local``
@@ -2791,7 +2817,13 @@ would still return entries from other devices).
 @end table
 ETEXI
 SRST
-``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``; \ ``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly]``; \ ``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly]``; \ ``-virtfs synth,mount_tag=mount_tag``
+``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``
+  \ 
+``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly]``
+  \ 
+``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly]``
+  \
+``-virtfs synth,mount_tag=mount_tag``
     Define a new filesystem device and expose it to the guest using a
     virtio-9p-device. The general form of a Virtual File system
     pass-through options are:
@@ -3568,7 +3600,7 @@ of 1152x900x8 for people who wish to use OBP.
 
 ETEXI
 SRST
-``-g widthxheight[xdepth]``
+``-g`` *width*\ ``x``\ *height*\ ``[x``\ *depth*\ ``]``
     Set the initial graphical resolution and depth (PPC, SPARC only).
 
     For PPC the default is 800x600x32.
@@ -4847,7 +4879,7 @@ SRST
         For example, to redirect host X11 connection from screen 1 to
         guest screen 0, use the following:
 
-        ::
+        .. parsed-literal::
 
             # on the host
             |qemu_system| -nic user,hostfwd=tcp:127.0.0.1:6001-:6000
@@ -4857,7 +4889,7 @@ SRST
         To redirect telnet connections from host port 5555 to telnet
         port on the guest, use the following:
 
-        ::
+        .. parsed-literal::
 
             # on the host
             |qemu_system| -nic user,hostfwd=tcp::5555-:23
@@ -4875,7 +4907,7 @@ SRST
         You can either use a chardev directly and have that one used
         throughout QEMU's lifetime, like in the following example:
 
-        ::
+        .. parsed-literal::
 
             # open 10.10.1.1:4321 on bootup, connect 10.0.2.100:1234 to it whenever
             # the guest accesses it
@@ -4885,7 +4917,7 @@ SRST
         by the guest, so that QEMU behaves similar to an inetd process
         for that virtual server:
 
-        ::
+        .. parsed-literal::
 
             # call "netcat 10.10.1.1 4321" on every TCP connection to 10.0.2.100:1234
             # and connect the TCP stream to its stdin/stdout
@@ -4912,12 +4944,12 @@ SRST
 
     Examples:
 
-    ::
+    .. parsed-literal::
 
         #launch a QEMU instance with the default network script
         |qemu_system| linux.img -nic tap
 
-    ::
+    .. parsed-literal::
 
         #launch a QEMU instance with two NICs, each one connected
         #to a TAP device
@@ -4925,7 +4957,7 @@ SRST
                 -netdev tap,id=nd0,ifname=tap0 -device e1000,netdev=nd0 \
                 -netdev tap,id=nd1,ifname=tap1 -device rtl8139,netdev=nd1
 
-    ::
+    .. parsed-literal::
 
         #launch a QEMU instance with the default network helper to
         #connect a TAP device to bridge br0
@@ -4942,13 +4974,13 @@ SRST
 
     Examples:
 
-    ::
+    .. parsed-literal::
 
         #launch a QEMU instance with the default network helper to
         #connect a TAP device to bridge br0
         |qemu_system| linux.img -netdev bridge,id=n1 -device virtio-net,netdev=n1
 
-    ::
+    .. parsed-literal::
 
         #launch a QEMU instance with the default network helper to
         #connect a TAP device to bridge qemubr0
@@ -4964,7 +4996,7 @@ SRST
 
     Example:
 
-    ::
+    .. parsed-literal::
 
         # launch a first QEMU instance
         |qemu_system| linux.img \
@@ -4991,7 +5023,7 @@ SRST
 
     Example:
 
-    ::
+    .. parsed-literal::
 
         # launch one QEMU instance
         |qemu_system| linux.img \
@@ -5008,7 +5040,7 @@ SRST
 
     Example (User Mode Linux compat.):
 
-    ::
+    .. parsed-literal::
 
         # launch QEMU instance (note mcast address selected is UML's default)
         |qemu_system| linux.img \
@@ -5074,7 +5106,7 @@ SRST
     For example, to attach a VM running on host 4.3.2.1 via L2TPv3 to
     the bridge br-lan on the remote Linux host 1.2.3.4:
 
-    ::
+    .. parsed-literal::
 
         # Setup tunnel on linux host using raw ip as encapsulation
         # on 1.2.3.4
@@ -5102,7 +5134,7 @@ SRST
 
     Example:
 
-    ::
+    .. parsed-literal::
 
         # launch vde switch
         vde_switch -F -sock /tmp/myswitch
@@ -5731,7 +5763,9 @@ The available backends are:
 
     ``path`` specifies the path to the tty. ``path`` is required.
 
-``-chardev parallel,id=id,path=path``; \ ``-chardev parport,id=id,path=path``
+``-chardev parallel,id=id,path=path``
+  \
+``-chardev parport,id=id,path=path``
     ``parallel`` is only available on Linux, FreeBSD and DragonFlyBSD
     hosts.
 
@@ -6569,6 +6603,7 @@ utilization will be incorrect, not taking into account guest idle time.
 ETEXI
 SRST
 ``-overcommit mem-lock=on|off``
+  \ 
 ``-overcommit cpu-pm=on|off``
     Run qemu with hints about host resource overcommit. The default is
     to assume that host overcommits all resources.
@@ -6607,7 +6642,7 @@ SRST
     use case. The latter is allowing to start QEMU from within gdb and
     establish the connection via a pipe:
 
-    ::
+    .. parsed-literal::
 
         (gdb) target remote | exec |qemu_system| -gdb stdio ...
 ERST
@@ -7196,7 +7231,9 @@ be used to change settings (such as migration parameters) prior to issuing
 the migrate_incoming to allow the migration to begin.
 ETEXI
 SRST
-``-incoming tcp:[host]:port[,to=maxport][,ipv4][,ipv6]``; \ ``-incoming rdma:host:port[,ipv4][,ipv6]``
+``-incoming tcp:[host]:port[,to=maxport][,ipv4][,ipv6]``
+  \ 
+``-incoming rdma:host:port[,ipv4][,ipv6]``
     Prepare for incoming migration, listen on a given tcp port.
 
 ``-incoming unix:socketpath``
@@ -7537,27 +7574,8 @@ HXCOMM HX does not support conditional compilation of text.
 ETEXI
 SRST
 ``-trace [[enable=]pattern][,events=file][,file=file]``
-    Specify tracing options.
+  .. include:: ../qemu-option-trace.rst.inc
 
-    ``[enable=]pattern``
-        Immediately enable events matching pattern (either event name or
-        a globbing pattern). This option is only available if QEMU has
-        been compiled with the simple, log or ftrace tracing backend. To
-        specify multiple events or patterns, specify the ``-trace``
-        option multiple times.
-
-        Use ``-trace help`` to print a list of names of trace points.
-
-    ``events=file``
-        Immediately enable events listed in file. The file must contain
-        one event name (as listed in the ``trace-events-all`` file) per
-        line; globbing patterns are accepted too. This option is only
-        available if QEMU has been compiled with the simple, log or
-        ftrace tracing backend.
-
-    ``file=file``
-        Log output traces to file. This option is only available if QEMU
-        has been compiled with the simple tracing backend.
 ERST
 DEF("plugin", HAS_ARG, QEMU_OPTION_plugin,
     "-plugin [file=]<file>[,arg=<string>]\n"
@@ -8749,7 +8767,7 @@ SRST
         which specify the queue number of cryptodev backend, the default
         of queues is 1.
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                [...] \
@@ -8768,7 +8786,7 @@ SRST
         specify the queue number of cryptodev backend for multiqueue
         vhost-user, the default of queues is 1.
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                [...] \
@@ -8778,6 +8796,7 @@ SRST
                [...]
 
     ``-object secret,id=id,data=string,format=raw|base64[,keyid=secretid,iv=string]``
+      \ 
     ``-object secret,id=id,file=filename,format=raw|base64[,keyid=secretid,iv=string]``
         Defines a secret to store a password, encryption key, or some
         other sensitive data. The sensitive data can either be passed
@@ -8805,7 +8824,7 @@ SRST
 
         The simplest (insecure) usage is to provide the secret inline
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| -object secret,id=sec0,data=letmein,format=raw
 
@@ -8849,7 +8868,7 @@ SRST
         ``key.b64`` and specify that to be used to decrypt the user
         password. Pass the contents of ``iv.b64`` to the second secret
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                  -object secret,id=secmaster0,format=base64,file=key.b64 \
@@ -8898,7 +8917,7 @@ SRST
 
         e.g to launch a SEV guest
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system_x86| \
                  ......
@@ -8919,7 +8938,7 @@ SRST
         An example authorization object to validate a x509 distinguished
         name would look like:
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                  ...
@@ -8970,7 +8989,7 @@ SRST
         An example authorization object to validate a SASL username
         would look like:
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                  ...
@@ -8989,7 +9008,7 @@ SRST
         An example authorization object to validate a TLS x509
         distinguished name would look like:
 
-        ::
+        .. parsed-literal::
 
              # |qemu_system| \
                  ...

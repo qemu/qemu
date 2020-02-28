@@ -10,6 +10,8 @@ Invocation
 disk_image is a raw hard disk image for IDE hard disk 0. Some targets do
 not need a disk image.
 
+.. hxtool-doc:: qemu-options.hx
+
 Device URL Syntax
 ~~~~~~~~~~~~~~~~~
 
