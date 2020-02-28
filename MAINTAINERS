@@ -2142,6 +2142,11 @@ F: python/qemu/*py
 F: scripts/*.py
 F: tests/*.py
 
+Benchmark util
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
+S: Maintained
+F: scripts/simplebench/
+
 QAPI
 M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
