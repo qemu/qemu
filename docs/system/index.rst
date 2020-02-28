@@ -13,6 +13,6 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-
+   managed-startup
    security
    vfio-ap
