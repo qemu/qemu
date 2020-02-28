@@ -21,9 +21,7 @@ The following commands are available:
 
 .. hxtool-doc:: hmp-commands.hx
 
-..
-  TODO: convert and reference hmp-commands-info.hx
-
+.. hxtool-doc:: hmp-commands-info.hx
 
 Integer expressions
 ~~~~~~~~~~~~~~~~~~~
