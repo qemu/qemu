@@ -38,7 +38,6 @@
 * Introduction::
 * QEMU System emulator::
 * QEMU System emulator targets::
-* System requirements::
 * Security::
 * Implementation notes::
 * Deprecated features::
@@ -190,6 +189,7 @@ various targets are mentioned in the following sections.
 @menu
 * pcsys_devices::      Peripherals
 * cpu_models_x86::     Supported CPU model configurations on x86 hosts
+* pcsys_req::          OS requirements
 @end menu
 
 @node pcsys_devices
@@ -266,6 +266,13 @@ CS4231A is the chip used in Windows Sound System and GUSMAX products
 @lowersections
 @include docs/system/cpu-models-x86.texi
 @raisesections
+
+@node pcsys_req
+@subsection OS requirements
+
+On x86_64 hosts, the default set of CPU features enabled by the KVM accelerator
+require the host to be running Linux v4.5 or newer.  Red Hat Enterprise Linux
+7 is also supported, since the required functionality was backported.
 
 @node PowerPC System emulator
 @section PowerPC System emulator
@@ -1037,19 +1044,6 @@ so should only be used with trusted guest OS.
 @end table
 
 @c man end
-
-@node System requirements
-@chapter System requirements
-
-@section KVM kernel module
-
-On x86_64 hosts, the default set of CPU features enabled by the KVM accelerator
-require the host to be running Linux v4.5 or newer.
-
-The OpteronG[345] CPU models require KVM support for RDTSCP, which was
-added with Linux 4.5 which is supported by the major distros. And even
-if RHEL7 has kernel 3.10, KVM there has the required functionality there
-to make it close to a 4.5 or newer kernel.
 
 @include docs/security.texi
 
