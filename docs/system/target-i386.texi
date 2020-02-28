@@ -1,6 +1,5 @@
 @node x86 (PC) System emulator
 @section x86 (PC) System emulator
-@cindex system emulation (PC)
 
 @menu
 * pcsys_devices::      Peripherals

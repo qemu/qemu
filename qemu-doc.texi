@@ -62,17 +62,14 @@
 QEMU is a FAST! processor emulator using dynamic translation to
 achieve good emulation speed.
 
-@cindex operating modes
 QEMU has two operating modes:
 
 @itemize
-@cindex system emulation
 @item Full system emulation. In this mode, QEMU emulates a full system (for
 example a PC), including one or several processors and various
 peripherals. It can be used to launch different Operating Systems
 without rebooting the PC or to debug system code.
 
-@cindex user mode emulation
 @item User mode emulation. In this mode, QEMU can launch
 processes compiled for one CPU on another CPU. It can be used to
 launch the Wine Windows API emulator (@url{https://www.winehq.org}) or
@@ -127,7 +124,6 @@ accelerator is required to use more than one host CPU for emulation.
 
 @node QEMU System emulator
 @chapter QEMU System emulator
-@cindex system emulation
 
 @menu
 * pcsys_quickstart::   Quick start
@@ -163,7 +159,6 @@ accelerator is required to use more than one host CPU for emulation.
 
 @node QEMU System emulator targets
 @chapter QEMU System emulator targets
-@cindex system emulation (PC)
 
 QEMU is a generic emulator and it emulates many machines. Most of the
 options are similar for all machines. Specific information about the
@@ -200,46 +195,7 @@ various targets are mentioned in the following sections.
 
 @node Index
 @appendix Index
-@menu
-* Concept Index::
-* Function Index::
-* Keystroke Index::
-* Program Index::
-* Data Type Index::
-* Variable Index::
-@end menu
 
-@node Concept Index
-@section Concept Index
-This is the main index. Should we combine all keywords in one index? TODO
-@printindex cp
-
-@node Function Index
-@section Function Index
-This index could be used for command line options and monitor functions.
 @printindex fn
-
-@node Keystroke Index
-@section Keystroke Index
-
-This is a list of all keystrokes which have a special function
-in system emulation.
-
-@printindex ky
-
-@node Program Index
-@section Program Index
-@printindex pg
-
-@node Data Type Index
-@section Data Type Index
-
-This index could be used for qdev device names and options.
-
-@printindex tp
-
-@node Variable Index
-@section Variable Index
-@printindex vr
 
 @bye

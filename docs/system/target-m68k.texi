@@ -1,7 +1,5 @@
 @node ColdFire System emulator
 @section ColdFire System emulator
-@cindex system emulation (ColdFire)
-@cindex system emulation (M68K)
 
 Use the executable @file{qemu-system-m68k} to simulate a ColdFire machine.
 The emulator is able to boot a uClinux kernel.

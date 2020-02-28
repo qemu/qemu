@@ -1,6 +1,5 @@
 @node PowerPC System emulator
 @section PowerPC System emulator
-@cindex system emulation (PowerPC)
 
 Use the executable @file{qemu-system-ppc} to simulate a complete 40P (PREP)
 or PowerMac PowerPC system.

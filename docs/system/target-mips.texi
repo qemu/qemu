@@ -1,6 +1,5 @@
 @node MIPS System emulator
 @section MIPS System emulator
-@cindex system emulation (MIPS)
 
 @menu
 * recommendations_cpu_models_MIPS:: Supported CPU model configurations on MIPS hosts
@@ -126,7 +125,6 @@ MIPSnet network emulation
 
 @node nanoMIPS System emulator
 @subsection nanoMIPS System emulator
-@cindex system emulation (nanoMIPS)
 
 Executable @file{qemu-system-mipsel} also covers simulation of
 32-bit nanoMIPS system in little endian mode:

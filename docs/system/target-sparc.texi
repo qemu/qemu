@@ -1,6 +1,5 @@
 @node Sparc32 System emulator
 @section Sparc32 System emulator
-@cindex system emulation (Sparc32)
 
 Use the executable @file{qemu-system-sparc} to simulate the following
 Sun4m architecture machines:

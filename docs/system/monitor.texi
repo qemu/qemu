@@ -1,6 +1,5 @@
 @node pcsys_monitor
 @section QEMU Monitor
-@cindex QEMU monitor
 
 The QEMU monitor is used to give complex commands to the QEMU
 emulator. You can use it to:

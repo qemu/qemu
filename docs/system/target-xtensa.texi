@@ -1,6 +1,5 @@
 @node Xtensa System emulator
 @section Xtensa System emulator
-@cindex system emulation (Xtensa)
 
 Two executables cover simulation of both Xtensa endian options,
 @file{qemu-system-xtensa} and @file{qemu-system-xtensaeb}.

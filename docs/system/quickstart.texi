@@ -1,6 +1,5 @@
 @node pcsys_quickstart
 @section Quick Start
-@cindex quick start
 
 Download and uncompress a PC hard disk image with Linux installed (e.g.
 @file{linux.img}) and type:

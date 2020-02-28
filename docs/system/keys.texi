@@ -10,23 +10,18 @@ then the modifier is Ctrl-Alt-Shift (instead of Ctrl-Alt) and if you use
 
 @table @key
 @item Ctrl-Alt-f
-@kindex Ctrl-Alt-f
 Toggle full screen
 
 @item Ctrl-Alt-+
-@kindex Ctrl-Alt-+
 Enlarge the screen
 
 @item Ctrl-Alt--
-@kindex Ctrl-Alt--
 Shrink the screen
 
 @item Ctrl-Alt-u
-@kindex Ctrl-Alt-u
 Restore the screen's un-scaled dimensions
 
 @item Ctrl-Alt-n
-@kindex Ctrl-Alt-n
 Switch to virtual console 'n'. Standard console mappings are:
 @table @emph
 @item 1
@@ -38,14 +33,9 @@ Serial port
 @end table
 
 @item Ctrl-Alt
-@kindex Ctrl-Alt
 Toggle mouse and keyboard grab.
 @end table
 
-@kindex Ctrl-Up
-@kindex Ctrl-Down
-@kindex Ctrl-PageUp
-@kindex Ctrl-PageDown
 In the virtual consoles, you can use @key{Ctrl-Up}, @key{Ctrl-Down},
 @key{Ctrl-PageUp} and @key{Ctrl-PageDown} to move in the back log.
 

@@ -12,26 +12,19 @@ you're using the default.
 
 @table @key
 @item Ctrl-a h
-@kindex Ctrl-a h
 Print this help
 @item Ctrl-a x
-@kindex Ctrl-a x
 Exit emulator
 @item Ctrl-a s
-@kindex Ctrl-a s
 Save disk data back to file (if -snapshot)
 @item Ctrl-a t
-@kindex Ctrl-a t
 Toggle console timestamps
 @item Ctrl-a b
-@kindex Ctrl-a b
 Send break (magic sysrq in Linux)
 @item Ctrl-a c
-@kindex Ctrl-a c
 Rotate between the frontends connected to the multiplexer (usually
 this switches between the monitor and the console)
 @item Ctrl-a Ctrl-a
-@kindex Ctrl-a Ctrl-a
 Send the escape character to the frontend
 @end table
 @c man end
