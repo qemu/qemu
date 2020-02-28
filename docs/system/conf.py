@@ -17,6 +17,8 @@ html_theme_options['description'] = u'System Emulation User''s Guide'
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
+    ('qemu-manpage', 'qemu', u'QEMU User Documentation',
+     ['Fabrice Bellard'], 1),
     ('qemu-block-drivers', 'qemu-block-drivers',
      u'QEMU block drivers reference',
      ['Fabrice Bellard and the QEMU Project developers'], 7),
