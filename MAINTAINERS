@@ -2234,7 +2234,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: trace/
 F: trace-events
-F: qemu-option-trace.texi
+F: docs/system/qemu-option-trace.texi
 F: scripts/tracetool.py
 F: scripts/tracetool/
 F: scripts/qemu-trace-stap*
@@ -2804,7 +2804,8 @@ F: contrib/gitdm/*
 
 Incompatible changes
 R: libvir-list@redhat.com
-F: qemu-deprecated.texi
+F: docs/system/deprecated.texi
+F: docs/system/deprecated.rst
 
 Build System
 ------------

@@ -4221,7 +4221,7 @@ HXCOMM This line is not accurate, as some sub-options are backend-specific but
 HXCOMM HX does not support conditional compilation of text.
 @item -trace [[enable=]@var{pattern}][,events=@var{file}][,file=@var{file}]
 @findex -trace
-@include qemu-option-trace.texi
+@include docs/system/qemu-option-trace.texi
 ETEXI
 DEF("plugin", HAS_ARG, QEMU_OPTION_plugin,
     "-plugin [file=]<file>[,arg=<string>]\n"

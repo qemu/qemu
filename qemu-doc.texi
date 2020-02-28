@@ -189,9 +189,9 @@ various targets are mentioned in the following sections.
 @include docs/system/target-m68k.texi
 @include docs/system/target-xtensa.texi
 
-@include docs/security.texi
+@include docs/system/security.texi
 
-@include qemu-deprecated.texi
+@include docs/system/deprecated.texi
 
 @include docs/system/build-platforms.texi
 

@@ -1110,7 +1110,7 @@ docs/interop/qemu-ga-qapi.texi: qga/qapi-generated/qga-qapi-doc.texi
 	@cp -p $< $@
 
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
-qemu.1: qemu-option-trace.texi
+qemu.1: docs/system/qemu-option-trace.texi
 docs/system/qemu-cpu-models.7: docs/system/qemu-cpu-models.texi docs/system/cpu-models-x86.texi docs/system/cpu-models-mips.texi
 
 html: qemu-doc.html docs/interop/qemu-qmp-ref.html docs/interop/qemu-ga-ref.html sphinxdocs
@@ -1120,8 +1120,7 @@ txt: qemu-doc.txt docs/interop/qemu-qmp-ref.txt docs/interop/qemu-ga-ref.txt
 
 qemu-doc.html qemu-doc.info qemu-doc.pdf qemu-doc.txt: \
 	qemu-options.texi \
-	qemu-option-trace.texi \
-	qemu-deprecated.texi qemu-monitor.texi \
+	qemu-monitor.texi \
 	qemu-monitor-info.texi \
         docs/system/quickstart.texi \
         docs/system/invocation.texi \
@@ -1140,7 +1139,8 @@ qemu-doc.html qemu-doc.info qemu-doc.pdf qemu-doc.txt: \
         docs/system/build-platforms.texi \
         docs/system/license.texi \
 	docs/system/cpu-models-x86.texi docs/system/cpu-models-mips.texi \
-	docs/security.texi
+	docs/system/deprecated.texi docs/system/qemu-option-trace.texi \
+	docs/system/security.texi
 
 docs/interop/qemu-ga-ref.dvi docs/interop/qemu-ga-ref.html \
     docs/interop/qemu-ga-ref.info docs/interop/qemu-ga-ref.pdf \
