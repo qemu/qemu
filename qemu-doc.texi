@@ -148,7 +148,6 @@ accelerator is required to use more than one host CPU for emulation.
 * vnc_security::       VNC security
 * network_tls::        TLS setup for network services
 * gdb_usage::          GDB usage
-* pcsys_os_specific::  Target OS specific information
 @end menu
 
 @node pcsys_introduction
@@ -1604,101 +1603,6 @@ sending: "qemu.sstep=0x5"
 received: "OK"
 @end example
 @end table
-
-@node pcsys_os_specific
-@section Target OS specific information
-
-@subsection Linux
-
-To have access to SVGA graphic modes under X11, use the @code{vesa} or
-the @code{cirrus} X11 driver. For optimal performances, use 16 bit
-color depth in the guest and the host OS.
-
-When using a 2.6 guest Linux kernel, you should add the option
-@code{clock=pit} on the kernel command line because the 2.6 Linux
-kernels make very strict real time clock checks by default that QEMU
-cannot simulate exactly.
-
-When using a 2.6 guest Linux kernel, verify that the 4G/4G patch is
-not activated because QEMU is slower with this patch. The QEMU
-Accelerator Module is also much slower in this case. Earlier Fedora
-Core 3 Linux kernel (< 2.6.9-1.724_FC3) were known to incorporate this
-patch by default. Newer kernels don't have it.
-
-@subsection Windows
-
-If you have a slow host, using Windows 95 is better as it gives the
-best speed. Windows 2000 is also a good choice.
-
-@subsubsection SVGA graphic modes support
-
-QEMU emulates a Cirrus Logic GD5446 Video
-card. All Windows versions starting from Windows 95 should recognize
-and use this graphic card. For optimal performances, use 16 bit color
-depth in the guest and the host OS.
-
-If you are using Windows XP as guest OS and if you want to use high
-resolution modes which the Cirrus Logic BIOS does not support (i.e. >=
-1280x1024x16), then you should use the VESA VBE virtual graphic card
-(option @option{-std-vga}).
-
-@subsubsection CPU usage reduction
-
-Windows 9x does not correctly use the CPU HLT
-instruction. The result is that it takes host CPU cycles even when
-idle. You can install the utility from
-@url{https://web.archive.org/web/20060212132151/http://www.user.cityline.ru/~maxamn/amnhltm.zip}
-to solve this problem. Note that no such tool is needed for NT, 2000 or XP.
-
-@subsubsection Windows 2000 disk full problem
-
-Windows 2000 has a bug which gives a disk full problem during its
-installation. When installing it, use the @option{-win2k-hack} QEMU
-option to enable a specific workaround. After Windows 2000 is
-installed, you no longer need this option (this option slows down the
-IDE transfers).
-
-@subsubsection Windows 2000 shutdown
-
-Windows 2000 cannot automatically shutdown in QEMU although Windows 98
-can. It comes from the fact that Windows 2000 does not automatically
-use the APM driver provided by the BIOS.
-
-In order to correct that, do the following (thanks to Struan
-Bartlett): go to the Control Panel => Add/Remove Hardware & Next =>
-Add/Troubleshoot a device => Add a new device & Next => No, select the
-hardware from a list & Next => NT Apm/Legacy Support & Next => Next
-(again) a few times. Now the driver is installed and Windows 2000 now
-correctly instructs QEMU to shutdown at the appropriate moment.
-
-@subsubsection Share a directory between Unix and Windows
-
-See @ref{sec_invocation} about the help of the option
-@option{'-netdev user,smb=...'}.
-
-@subsubsection Windows XP security problem
-
-Some releases of Windows XP install correctly but give a security
-error when booting:
-@example
-A problem is preventing Windows from accurately checking the
-license for this computer. Error code: 0x800703e6.
-@end example
-
-The workaround is to install a service pack for XP after a boot in safe
-mode. Then reboot, and the problem should go away. Since there is no
-network while in safe mode, its recommended to download the full
-installation of SP1 or SP2 and transfer that via an ISO or using the
-vvfat block device ("-hdb fat:directory_which_holds_the_SP").
-
-@subsection MS-DOS and FreeDOS
-
-@subsubsection CPU usage reduction
-
-DOS does not correctly use the CPU HLT instruction. The result is that
-it takes host CPU cycles even when idle. You can install the utility from
-@url{https://web.archive.org/web/20051222085335/http://www.vmware.com/software/dosidle210.zip}
-to solve this problem.
 
 @node QEMU System emulator for non PC targets
 @chapter QEMU System emulator for non PC targets
