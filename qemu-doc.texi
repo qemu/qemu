@@ -39,7 +39,6 @@
 * QEMU System emulator::
 * QEMU System emulator targets::
 * Security::
-* Implementation notes::
 * Deprecated features::
 * Recently removed features::
 * Supported build platforms::
@@ -144,6 +143,7 @@ accelerator is required to use more than one host CPU for emulation.
 * vnc_security::       VNC security
 * network_tls::        TLS setup for network services
 * gdb_usage::          GDB usage
+* managed_startup::    Managed startup options
 @end menu
 
 @include docs/system/quickstart.texi
@@ -159,6 +159,7 @@ accelerator is required to use more than one host CPU for emulation.
 @include docs/system/vnc-security.texi
 @include docs/system/tls.texi
 @include docs/system/gdb.texi
+@include docs/system/managed-startup.texi
 
 @node QEMU System emulator targets
 @chapter QEMU System emulator targets
@@ -189,8 +190,6 @@ various targets are mentioned in the following sections.
 @include docs/system/target-xtensa.texi
 
 @include docs/security.texi
-
-@include qemu-tech.texi
 
 @include qemu-deprecated.texi
 

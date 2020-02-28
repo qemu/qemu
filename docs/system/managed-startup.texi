@@ -1,11 +1,4 @@
-@node Implementation notes
-@appendix Implementation notes
-
-@menu
-* Managed start up options::
-@end menu
-
-@node Managed start up options
+@node managed_startup
 @section Managed start up options
 
 In system mode emulation, it's possible to create a VM in a paused state using
