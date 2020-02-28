@@ -1,0 +1,27 @@
+@node direct_linux_boot
+@section Direct Linux Boot
+
+This section explains how to launch a Linux kernel inside QEMU without
+having to make a full bootable image. It is very useful for fast Linux
+kernel testing.
+
+The syntax is:
+@example
+@value{qemu_system} -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
+@end example
+
+Use @option{-kernel} to provide the Linux kernel image and
+@option{-append} to give the kernel command line arguments. The
+@option{-initrd} option can be used to provide an INITRD image.
+
+If you do not need graphical output, you can disable it and redirect
+the virtual serial port and the QEMU monitor to the console with the
+@option{-nographic} option. The typical command line is:
+@example
+@value{qemu_system} -kernel bzImage -hda rootdisk.img \
+                 -append "root=/dev/hda console=ttyS0" -nographic
+@end example
+
+Use @key{Ctrl-a c} to switch between the serial console and the
+monitor (@pxref{pcsys_keys}).
+

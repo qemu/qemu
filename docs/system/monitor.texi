@@ -1,0 +1,35 @@
+@node pcsys_monitor
+@section QEMU Monitor
+@cindex QEMU monitor
+
+The QEMU monitor is used to give complex commands to the QEMU
+emulator. You can use it to:
+
+@itemize @minus
+
+@item
+Remove or insert removable media images
+(such as CD-ROM or floppies).
+
+@item
+Freeze/unfreeze the Virtual Machine (VM) and save or restore its state
+from a disk file.
+
+@item Inspect the VM state without an external debugger.
+
+@end itemize
+
+@subsection Commands
+
+The following commands are available:
+
+@include qemu-monitor.texi
+
+@include qemu-monitor-info.texi
+
+@subsection Integer expressions
+
+The monitor understands integers expressions for every integer
+argument. You can use register names to get the value of specifics
+CPU registers by prefixing them with @emph{$}.
+

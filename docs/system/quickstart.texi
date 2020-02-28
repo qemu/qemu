@@ -1,0 +1,13 @@
+@node pcsys_quickstart
+@section Quick Start
+@cindex quick start
+
+Download and uncompress a hard disk image with Linux installed (e.g.
+@file{linux.img}) and type:
+
+@example
+@value{qemu_system} linux.img
+@end example
+
+Linux should boot and give you a prompt.
+

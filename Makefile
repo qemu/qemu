@@ -1123,6 +1123,22 @@ qemu-doc.html qemu-doc.info qemu-doc.pdf qemu-doc.txt: \
 	qemu-tech.texi qemu-option-trace.texi \
 	qemu-deprecated.texi qemu-monitor.texi \
 	qemu-monitor-info.texi \
+        docs/system/quickstart.texi \
+        docs/system/invocation.texi \
+        docs/system/keys.texi \
+        docs/system/mux-chardev.texi \
+        docs/system/monitor.texi \
+        docs/system/cpu-models-x86.texi \
+        docs/system/images.texi \
+        docs/system/net.texi \
+        docs/system/usb.texi \
+        docs/system/ivshmem.texi \
+        docs/system/linuxboot.texi \
+        docs/system/vnc-security.texi \
+        docs/system/tls.texi \
+        docs/system/gdb.texi \
+        docs/system/build-platforms.texi \
+        docs/system/license.texi \
 	docs/system/cpu-models-x86.texi docs/system/cpu-models-mips.texi \
 	docs/security.texi
 
