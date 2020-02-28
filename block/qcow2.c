@@ -1884,6 +1884,11 @@ fail:
 static void qcow2_reopen_commit(BDRVReopenState *state)
 {
     qcow2_update_options_commit(state->bs, state->opaque);
+    g_free(state->opaque);
+}
+
+static void qcow2_reopen_commit_post(BDRVReopenState *state)
+{
     if (state->flags & BDRV_O_RDWR) {
         Error *local_err = NULL;
 
@@ -1898,7 +1903,6 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
                               bdrv_get_node_name(state->bs));
         }
     }
-    g_free(state->opaque);
 }
 
 static void qcow2_reopen_abort(BDRVReopenState *state)
@@ -5534,6 +5538,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_close         = qcow2_close,
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
     .bdrv_reopen_commit   = qcow2_reopen_commit,
+    .bdrv_reopen_commit_post = qcow2_reopen_commit_post,
     .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_join_options    = qcow2_join_options,
     .bdrv_child_perm      = bdrv_format_default_perms,
