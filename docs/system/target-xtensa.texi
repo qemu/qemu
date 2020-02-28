@@ -1,0 +1,56 @@
+@node Xtensa System emulator
+@section Xtensa System emulator
+@cindex system emulation (Xtensa)
+
+Two executables cover simulation of both Xtensa endian options,
+@file{qemu-system-xtensa} and @file{qemu-system-xtensaeb}.
+Two different machine types are emulated:
+
+@itemize @minus
+@item
+Xtensa emulator pseudo board "sim"
+@item
+Avnet LX60/LX110/LX200 board
+@end itemize
+
+The sim pseudo board emulation provides an environment similar
+to one provided by the proprietary Tensilica ISS.
+It supports:
+
+@itemize @minus
+@item
+A range of Xtensa CPUs, default is the DC232B
+@item
+Console and filesystem access via semihosting calls
+@end itemize
+
+The Avnet LX60/LX110/LX200 emulation supports:
+
+@itemize @minus
+@item
+A range of Xtensa CPUs, default is the DC232B
+@item
+16550 UART
+@item
+OpenCores 10/100 Mbps Ethernet MAC
+@end itemize
+
+@c man begin OPTIONS
+
+The following options are specific to the Xtensa emulation:
+
+@table @option
+
+@item -semihosting
+Enable semihosting syscall emulation.
+
+Xtensa semihosting provides basic file IO calls, such as open/read/write/seek/select.
+Tensilica baremetal libc for ISS and linux platform "sim" use this interface.
+
+Note that this allows guest direct access to the host filesystem,
+so should only be used with trusted guest OS.
+
+@end table
+
+@c man end
+

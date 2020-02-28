@@ -1,0 +1,61 @@
+@node Sparc64 System emulator
+@section Sparc64 System emulator
+@cindex system emulation (Sparc64)
+
+Use the executable @file{qemu-system-sparc64} to simulate a Sun4u
+(UltraSPARC PC-like machine), Sun4v (T1 PC-like machine), or generic
+Niagara (T1) machine. The Sun4u emulator is mostly complete, being
+able to run Linux, NetBSD and OpenBSD in headless (-nographic) mode. The
+Sun4v emulator is still a work in progress.
+
+The Niagara T1 emulator makes use of firmware and OS binaries supplied in the S10image/ directory
+of the OpenSPARC T1 project @url{http://download.oracle.com/technetwork/systems/opensparc/OpenSPARCT1_Arch.1.5.tar.bz2}
+and is able to boot the disk.s10hw2 Solaris image.
+@example
+qemu-system-sparc64 -M niagara -L /path-to/S10image/ \
+                    -nographic -m 256 \
+                    -drive if=pflash,readonly=on,file=/S10image/disk.s10hw2
+@end example
+
+
+QEMU emulates the following peripherals:
+
+@itemize @minus
+@item
+UltraSparc IIi APB PCI Bridge
+@item
+PCI VGA compatible card with VESA Bochs Extensions
+@item
+PS/2 mouse and keyboard
+@item
+Non Volatile RAM M48T59
+@item
+PC-compatible serial ports
+@item
+2 PCI IDE interfaces with hard disk and CD-ROM support
+@item
+Floppy disk
+@end itemize
+
+@c man begin OPTIONS
+
+The following options are specific to the Sparc64 emulation:
+
+@table @option
+
+@item -prom-env @var{string}
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-sparc64 -prom-env 'auto-boot?=false'
+@end example
+
+@item -M [sun4u|sun4v|niagara]
+
+Set the emulated machine type. The default is sun4u.
+
+@end table
+
+@c man end
+

@@ -1,0 +1,152 @@
+@node MIPS System emulator
+@section MIPS System emulator
+@cindex system emulation (MIPS)
+
+@menu
+* recommendations_cpu_models_MIPS:: Supported CPU model configurations on MIPS hosts
+* nanoMIPS System emulator ::
+@end menu
+
+Four executables cover simulation of 32 and 64-bit MIPS systems in
+both endian options, @file{qemu-system-mips}, @file{qemu-system-mipsel}
+@file{qemu-system-mips64} and @file{qemu-system-mips64el}.
+Five different machine types are emulated:
+
+@itemize @minus
+@item
+A generic ISA PC-like machine "mips"
+@item
+The MIPS Malta prototype board "malta"
+@item
+An ACER Pica "pica61". This machine needs the 64-bit emulator.
+@item
+MIPS emulator pseudo board "mipssim"
+@item
+A MIPS Magnum R4000 machine "magnum". This machine needs the 64-bit emulator.
+@end itemize
+
+The generic emulation is supported by Debian 'Etch' and is able to
+install Debian into a virtual disk image. The following devices are
+emulated:
+
+@itemize @minus
+@item
+A range of MIPS CPUs, default is the 24Kf
+@item
+PC style serial port
+@item
+PC style IDE disk
+@item
+NE2000 network card
+@end itemize
+
+The Malta emulation supports the following devices:
+
+@itemize @minus
+@item
+Core board with MIPS 24Kf CPU and Galileo system controller
+@item
+PIIX4 PCI/USB/SMbus controller
+@item
+The Multi-I/O chip's serial device
+@item
+PCI network cards (PCnet32 and others)
+@item
+Malta FPGA serial device
+@item
+Cirrus (default) or any other PCI VGA graphics card
+@end itemize
+
+The Boston board emulation supports the following devices:
+
+@itemize @minus
+@item
+Xilinx FPGA, which includes a PCIe root port and an UART
+@item
+Intel EG20T PCH connects the I/O peripherals, but only the SATA bus is emulated
+@end itemize
+
+The ACER Pica emulation supports:
+
+@itemize @minus
+@item
+MIPS R4000 CPU
+@item
+PC-style IRQ and DMA controllers
+@item
+PC Keyboard
+@item
+IDE controller
+@end itemize
+
+The MIPS Magnum R4000 emulation supports:
+
+@itemize @minus
+@item
+MIPS R4000 CPU
+@item
+PC-style IRQ controller
+@item
+PC Keyboard
+@item
+SCSI controller
+@item
+G364 framebuffer
+@end itemize
+
+The Fulong 2E emulation supports:
+
+@itemize @minus
+@item
+Loongson 2E CPU
+@item
+Bonito64 system controller as North Bridge
+@item
+VT82C686 chipset as South Bridge
+@item
+RTL8139D as a network card chipset
+@end itemize
+
+The mipssim pseudo board emulation provides an environment similar
+to what the proprietary MIPS emulator uses for running Linux.
+It supports:
+
+@itemize @minus
+@item
+A range of MIPS CPUs, default is the 24Kf
+@item
+PC style serial port
+@item
+MIPSnet network emulation
+@end itemize
+
+@lowersections
+@include docs/system/cpu-models-mips.texi
+@raisesections
+
+@node nanoMIPS System emulator
+@subsection nanoMIPS System emulator
+@cindex system emulation (nanoMIPS)
+
+Executable @file{qemu-system-mipsel} also covers simulation of
+32-bit nanoMIPS system in little endian mode:
+
+@itemize @minus
+@item
+nanoMIPS I7200 CPU
+@end itemize
+
+Example of @file{qemu-system-mipsel} usage for nanoMIPS is shown below:
+
+Download @code{<disk_image_file>} from @url{https://mipsdistros.mips.com/LinuxDistro/nanomips/buildroot/index.html}.
+
+Download @code{<kernel_image_file>} from @url{https://mipsdistros.mips.com/LinuxDistro/nanomips/kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/index.html}.
+
+Start system emulation of Malta board with nanoMIPS I7200 CPU:
+@example
+qemu-system-mipsel -cpu I7200 -kernel @code{<kernel_image_file>} \
+    -M malta -serial stdio -m @code{<memory_size>} -hda @code{<disk_image_file>} \
+    -append "mem=256m@@0x0 rw console=ttyS0 vga=cirrus vesa=0x111 root=/dev/sda"
+@end example
+
+

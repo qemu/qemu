@@ -1,0 +1,264 @@
+@node ARM System emulator
+@section ARM System emulator
+@cindex system emulation (ARM)
+
+Use the executable @file{qemu-system-arm} to simulate a ARM
+machine. The ARM Integrator/CP board is emulated with the following
+devices:
+
+@itemize @minus
+@item
+ARM926E, ARM1026E, ARM946E, ARM1136 or Cortex-A8 CPU
+@item
+Two PL011 UARTs
+@item
+SMC 91c111 Ethernet adapter
+@item
+PL110 LCD controller
+@item
+PL050 KMI with PS/2 keyboard and mouse.
+@item
+PL181 MultiMedia Card Interface with SD card.
+@end itemize
+
+The ARM Versatile baseboard is emulated with the following devices:
+
+@itemize @minus
+@item
+ARM926E, ARM1136 or Cortex-A8 CPU
+@item
+PL190 Vectored Interrupt Controller
+@item
+Four PL011 UARTs
+@item
+SMC 91c111 Ethernet adapter
+@item
+PL110 LCD controller
+@item
+PL050 KMI with PS/2 keyboard and mouse.
+@item
+PCI host bridge.  Note the emulated PCI bridge only provides access to
+PCI memory space.  It does not provide access to PCI IO space.
+This means some devices (eg. ne2k_pci NIC) are not usable, and others
+(eg. rtl8139 NIC) are only usable when the guest drivers use the memory
+mapped control registers.
+@item
+PCI OHCI USB controller.
+@item
+LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices.
+@item
+PL181 MultiMedia Card Interface with SD card.
+@end itemize
+
+Several variants of the ARM RealView baseboard are emulated,
+including the EB, PB-A8 and PBX-A9.  Due to interactions with the
+bootloader, only certain Linux kernel configurations work out
+of the box on these boards.
+
+Kernels for the PB-A8 board should have CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+enabled in the kernel, and expect 512M RAM.  Kernels for The PBX-A9 board
+should have CONFIG_SPARSEMEM enabled, CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+disabled and expect 1024M RAM.
+
+The following devices are emulated:
+
+@itemize @minus
+@item
+ARM926E, ARM1136, ARM11MPCore, Cortex-A8 or Cortex-A9 MPCore CPU
+@item
+ARM AMBA Generic/Distributed Interrupt Controller
+@item
+Four PL011 UARTs
+@item
+SMC 91c111 or SMSC LAN9118 Ethernet adapter
+@item
+PL110 LCD controller
+@item
+PL050 KMI with PS/2 keyboard and mouse
+@item
+PCI host bridge
+@item
+PCI OHCI USB controller
+@item
+LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices
+@item
+PL181 MultiMedia Card Interface with SD card.
+@end itemize
+
+The XScale-based clamshell PDA models ("Spitz", "Akita", "Borzoi"
+and "Terrier") emulation includes the following peripherals:
+
+@itemize @minus
+@item
+Intel PXA270 System-on-chip (ARM V5TE core)
+@item
+NAND Flash memory
+@item
+IBM/Hitachi DSCM microdrive in a PXA PCMCIA slot - not in "Akita"
+@item
+On-chip OHCI USB controller
+@item
+On-chip LCD controller
+@item
+On-chip Real Time Clock
+@item
+TI ADS7846 touchscreen controller on SSP bus
+@item
+Maxim MAX1111 analog-digital converter on I@math{^2}C bus
+@item
+GPIO-connected keyboard controller and LEDs
+@item
+Secure Digital card connected to PXA MMC/SD host
+@item
+Three on-chip UARTs
+@item
+WM8750 audio CODEC on I@math{^2}C and I@math{^2}S busses
+@end itemize
+
+The Palm Tungsten|E PDA (codename "Cheetah") emulation includes the
+following elements:
+
+@itemize @minus
+@item
+Texas Instruments OMAP310 System-on-chip (ARM 925T core)
+@item
+ROM and RAM memories (ROM firmware image can be loaded with -option-rom)
+@item
+On-chip LCD controller
+@item
+On-chip Real Time Clock
+@item
+TI TSC2102i touchscreen controller / analog-digital converter / Audio
+CODEC, connected through MicroWire and I@math{^2}S busses
+@item
+GPIO-connected matrix keypad
+@item
+Secure Digital card connected to OMAP MMC/SD host
+@item
+Three on-chip UARTs
+@end itemize
+
+Nokia N800 and N810 internet tablets (known also as RX-34 and RX-44 / 48)
+emulation supports the following elements:
+
+@itemize @minus
+@item
+Texas Instruments OMAP2420 System-on-chip (ARM 1136 core)
+@item
+RAM and non-volatile OneNAND Flash memories
+@item
+Display connected to EPSON remote framebuffer chip and OMAP on-chip
+display controller and a LS041y3 MIPI DBI-C controller
+@item
+TI TSC2301 (in N800) and TI TSC2005 (in N810) touchscreen controllers
+driven through SPI bus
+@item
+National Semiconductor LM8323-controlled qwerty keyboard driven
+through I@math{^2}C bus
+@item
+Secure Digital card connected to OMAP MMC/SD host
+@item
+Three OMAP on-chip UARTs and on-chip STI debugging console
+@item
+Mentor Graphics "Inventra" dual-role USB controller embedded in a TI
+TUSB6010 chip - only USB host mode is supported
+@item
+TI TMP105 temperature sensor driven through I@math{^2}C bus
+@item
+TI TWL92230C power management companion with an RTC on I@math{^2}C bus
+@item
+Nokia RETU and TAHVO multi-purpose chips with an RTC, connected
+through CBUS
+@end itemize
+
+The Luminary Micro Stellaris LM3S811EVB emulation includes the following
+devices:
+
+@itemize @minus
+@item
+Cortex-M3 CPU core.
+@item
+64k Flash and 8k SRAM.
+@item
+Timers, UARTs, ADC and I@math{^2}C interface.
+@item
+OSRAM Pictiva 96x16 OLED with SSD0303 controller on I@math{^2}C bus.
+@end itemize
+
+The Luminary Micro Stellaris LM3S6965EVB emulation includes the following
+devices:
+
+@itemize @minus
+@item
+Cortex-M3 CPU core.
+@item
+256k Flash and 64k SRAM.
+@item
+Timers, UARTs, ADC, I@math{^2}C and SSI interfaces.
+@item
+OSRAM Pictiva 128x64 OLED with SSD0323 controller connected via SSI.
+@end itemize
+
+The Freecom MusicPal internet radio emulation includes the following
+elements:
+
+@itemize @minus
+@item
+Marvell MV88W8618 ARM core.
+@item
+32 MB RAM, 256 KB SRAM, 8 MB flash.
+@item
+Up to 2 16550 UARTs
+@item
+MV88W8xx8 Ethernet controller
+@item
+MV88W8618 audio controller, WM8750 CODEC and mixer
+@item
+128×64 display with brightness control
+@item
+2 buttons, 2 navigation wheels with button function
+@end itemize
+
+The Siemens SX1 models v1 and v2 (default) basic emulation.
+The emulation includes the following elements:
+
+@itemize @minus
+@item
+Texas Instruments OMAP310 System-on-chip (ARM 925T core)
+@item
+ROM and RAM memories (ROM firmware image can be loaded with -pflash)
+V1
+1 Flash of 16MB and 1 Flash of 8MB
+V2
+1 Flash of 32MB
+@item
+On-chip LCD controller
+@item
+On-chip Real Time Clock
+@item
+Secure Digital card connected to OMAP MMC/SD host
+@item
+Three on-chip UARTs
+@end itemize
+
+A Linux 2.6 test image is available on the QEMU web site. More
+information is available in the QEMU mailing-list archive.
+
+@c man begin OPTIONS
+
+The following options are specific to the ARM emulation:
+
+@table @option
+
+@item -semihosting
+Enable semihosting syscall emulation.
+
+On ARM this implements the "Angel" interface.
+
+Note that this allows guest direct access to the host filesystem,
+so should only be used with trusted guest OS.
+
+@end table
+
+@c man end
+
