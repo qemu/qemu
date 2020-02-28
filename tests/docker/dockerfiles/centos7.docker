@@ -33,6 +33,7 @@ ENV PACKAGES \
     tar \
     vte-devel \
     xen-devel \
-    zlib-devel
+    zlib-devel \
+    libzstd-devel
 RUN yum install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt

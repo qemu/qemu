@@ -449,6 +449,7 @@ lzo=""
 snappy=""
 bzip2=""
 lzfse=""
+zstd=""
 guest_agent=""
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
@@ -1371,6 +1372,10 @@ for opt do
   ;;
   --disable-lzfse) lzfse="no"
   ;;
+  --disable-zstd) zstd="no"
+  ;;
+  --enable-zstd) zstd="yes"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1829,6 +1834,8 @@ disabled with --disable-FEATURE, default is enabled if available:
                   (for reading bzip2-compressed dmg images)
   lzfse           support of lzfse compression library
                   (for reading lzfse-compressed dmg images)
+  zstd            support for zstd compression library
+                  (for migration compression)
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
@@ -2450,6 +2457,24 @@ EOF
             feature_not_found "lzfse" "Install lzfse devel"
         fi
         lzfse="no"
+    fi
+fi
+
+##########################################
+# zstd check
+
+if test "$zstd" != "no" ; then
+    if $pkg_config --exist libzstd ; then
+        zstd_cflags="$($pkg_config --cflags libzstd)"
+        zstd_libs="$($pkg_config --libs libzstd)"
+        LIBS="$zstd_libs $LIBS"
+        QEMU_CFLAGS="$QEMU_CFLAGS $zstd_cflags"
+        zstd="yes"
+    else
+        if test "$zstd" = "yes" ; then
+            feature_not_found "libzstd" "Install libzstd devel"
+        fi
+        zstd="no"
     fi
 fi
 
@@ -6668,6 +6693,7 @@ echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "lzfse support     $lzfse"
+echo "zstd support      $zstd"
 echo "NUMA host support $numa"
 echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
@@ -7240,6 +7266,10 @@ fi
 if test "$lzfse" = "yes" ; then
   echo "CONFIG_LZFSE=y" >> $config_host_mak
   echo "LZFSE_LIBS=-llzfse" >> $config_host_mak
+fi
+
+if test "$zstd" = "yes" ; then
+  echo "CONFIG_ZSTD=y" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then

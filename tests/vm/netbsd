@@ -49,6 +49,9 @@ class NetBSDVM(basevm.BaseVM):
         "SDL2",
         "gtk3+",
         "libxkbcommon",
+
+        # libs: migration
+        "zstd",
     ]
 
     BUILD_SCRIPT = """
