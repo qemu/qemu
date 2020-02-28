@@ -19,14 +19,3 @@ The AN5206 emulation includes the following devices:
 -  MCF5206 ColdFire V2 Microprocessor.
 
 -  Two on-chip UARTs.
-
-The following options are specific to the ColdFire emulation:
-
-``-semihosting``
-   Enable semihosting syscall emulation.
-
-   On M68K this implements the \"ColdFire GDB\" interface used by
-   libgloss.
-
-   Note that this allows guest direct access to the host filesystem, so
-   should only be used with trusted guest OS.

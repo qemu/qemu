@@ -215,13 +215,3 @@ emulation includes the following elements:
 
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
-
-The following options are specific to the ARM emulation:
-
-``-semihosting``
-   Enable semihosting syscall emulation.
-
-   On ARM this implements the \"Angel\" interface.
-
-   Note that this allows guest direct access to the host filesystem, so
-   should only be used with trusted guest OS.

@@ -4116,6 +4116,12 @@ STEXI
 @item -semihosting
 @findex -semihosting
 Enable semihosting mode (ARM, M68K, Xtensa, MIPS, Nios II only).
+
+Note that this allows guest direct access to the host filesystem, so
+should only be used with a trusted guest OS.
+
+See the -semihosting-config option documentation for further information
+about the facilities this enables.
 ETEXI
 DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
     "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]\n" \
@@ -4126,6 +4132,18 @@ STEXI
 @item -semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]
 @findex -semihosting-config
 Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II only).
+
+Note that this allows guest direct access to the host filesystem, so
+should only be used with a trusted guest OS.
+
+On Arm this implements the standard semihosting API, version 2.0.
+
+On M68K this implements the "ColdFire GDB" interface used by libgloss.
+
+Xtensa semihosting provides basic file IO calls, such as
+open/read/write/seek/select. Tensilica baremetal libc for ISS and
+linux platform "sim" use this interface.
+
 @table @option
 @item target=@code{native|gdb|auto}
 Defines where the semihosting calls will be addressed, to QEMU (@code{native})

@@ -23,22 +23,3 @@ MCF5206 ColdFire V2 Microprocessor.
 @item
 Two on-chip UARTs.
 @end itemize
-
-@c man begin OPTIONS
-
-The following options are specific to the ColdFire emulation:
-
-@table @option
-
-@item -semihosting
-Enable semihosting syscall emulation.
-
-On M68K this implements the "ColdFire GDB" interface used by libgloss.
-
-Note that this allows guest direct access to the host filesystem,
-so should only be used with trusted guest OS.
-
-@end table
-
-@c man end
-

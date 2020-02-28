@@ -243,21 +243,3 @@ Three on-chip UARTs
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
 
-@c man begin OPTIONS
-
-The following options are specific to the ARM emulation:
-
-@table @option
-
-@item -semihosting
-Enable semihosting syscall emulation.
-
-On ARM this implements the "Angel" interface.
-
-Note that this allows guest direct access to the host filesystem,
-so should only be used with trusted guest OS.
-
-@end table
-
-@c man end
-
