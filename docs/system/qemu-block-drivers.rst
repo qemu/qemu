@@ -3,8 +3,6 @@
 QEMU block drivers reference
 ============================
 
-.. |qemu_system| replace:: qemu-system-x86_64
-
 Synopsis
 --------
 

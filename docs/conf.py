@@ -132,6 +132,12 @@ suppress_warnings = ["ref.option"]
 # style document building; our Makefile always sets the variable.
 confdir = os.getenv('CONFDIR', "/etc/qemu")
 rst_epilog = ".. |CONFDIR| replace:: ``" + confdir + "``\n"
+# We slurp in the defs.rst.inc and literally include it into rst_epilog,
+# because Sphinx's include:: directive doesn't work with absolute paths
+# and there isn't any one single relative path that will work for all
+# documents and for both via-make and direct sphinx-build invocation.
+with open(os.path.join(qemu_docdir, 'defs.rst.inc')) as f:
+    rst_epilog += f.read()
 
 # -- Options for HTML output ----------------------------------------------
 
