@@ -14,4 +14,5 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   security
    vfio-ap
