@@ -139,7 +139,7 @@ accelerator is required to use more than one host CPU for emulation.
 * pcsys_keys::         Keys in the graphical frontends
 * mux_keys::           Keys in the character backend multiplexer
 * pcsys_monitor::      QEMU Monitor
-* cpu_models::         CPU models
+* cpu_models_x86::     Supported CPU model configurations on x86 hosts
 * disk_images::        Disk Images
 * pcsys_network::      Network emulation
 * pcsys_other_devs::   Other Devices
@@ -614,10 +614,7 @@ The monitor understands integers expressions for every integer
 argument. You can use register names to get the value of specifics
 CPU registers by prefixing them with @emph{$}.
 
-@node cpu_models
-@section CPU models
-
-@include docs/qemu-cpu-models.texi
+@include docs/system/cpu-models-x86.texi
 
 @node disk_images
 @section Disk Images
@@ -1864,6 +1861,7 @@ Set the emulated machine type. The default is sun4u.
 @cindex system emulation (MIPS)
 
 @menu
+* recommendations_cpu_models_MIPS:: Supported CPU model configurations on MIPS hosts
 * nanoMIPS System emulator ::
 @end menu
 
@@ -1979,6 +1977,10 @@ PC style serial port
 @item
 MIPSnet network emulation
 @end itemize
+
+@lowersections
+@include docs/system/cpu-models-mips.texi
+@raisesections
 
 @node nanoMIPS System emulator
 @subsection nanoMIPS System emulator

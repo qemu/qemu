@@ -1,16 +1,5 @@
-@c man begin SYNOPSIS
-QEMU / KVM CPU model configuration
-@c man end
-
-@set qemu_system_x86 qemu-system-x86_64
-
-@c man begin DESCRIPTION
-
-@menu
-* recommendations_cpu_models_x86::  Recommendations for KVM CPU model configuration on x86 hosts
-* recommendations_cpu_models_MIPS:: Supported CPU model configurations on MIPS hosts
-* cpu_model_syntax_apps::           Syntax for configuring CPU models
-@end menu
+@node cpu_models_x86
+@section Recommendations for KVM CPU model configuration on x86 hosts
 
 QEMU / KVM virtualization supports two ways to configure CPU models
 
@@ -45,9 +34,6 @@ stepping, etc will precisely match the host CPU, as they would with "Host
 passthrough", but gives much of the benefit of passthrough, while making
 live migration safe.
 
-@node recommendations_cpu_models_x86
-@subsection Recommendations for KVM CPU model configuration on x86 hosts
-
 The information that follows provides recommendations for configuring
 CPU models on x86 hosts. The goals are to maximise performance, while
 protecting guest OS against various CPU hardware flaws, and optionally
@@ -60,10 +46,11 @@ enabling live migration between hosts with heterogeneous CPU models.
 * important_cpu_features_amd_x86::       Important CPU features for AMD x86 hosts
 * default_cpu_models_x86::               Default x86 CPU models
 * other_non_recommended_cpu_models_x86:: Other non-recommended x86 CPUs
+* cpu_model_syntax_apps::                Syntax for configuring CPU models
 @end menu
 
 @node preferred_cpu_models_intel_x86
-@subsubsection Preferred CPU models for Intel x86 hosts
+@subsection Preferred CPU models for Intel x86 hosts
 
 The following CPU models are preferred for use on Intel hosts. Administrators /
 applications are recommended to use the CPU model that matches the generation
@@ -136,7 +123,7 @@ Intel Celeron_4x0 (Conroe/Merom Class Core 2, 2006)
 @end table
 
 @node important_cpu_features_intel_x86
-@subsubsection Important CPU features for Intel x86 hosts
+@subsection Important CPU features for Intel x86 hosts
 
 The following are important CPU features that should be used on Intel x86
 hosts, when available in the host CPU. Some of them require explicit
@@ -218,7 +205,7 @@ can be used for guest CPUs.
 
 
 @node preferred_cpu_models_amd_x86
-@subsubsection Preferred CPU models for AMD x86 hosts
+@subsection Preferred CPU models for AMD x86 hosts
 
 The following CPU models are preferred for use on Intel hosts. Administrators /
 applications are recommended to use the CPU model that matches the generation
@@ -260,7 +247,7 @@ AMD Opteron 240 (Gen 1 Class Opteron, 2004)
 @end table
 
 @node important_cpu_features_amd_x86
-@subsubsection Important CPU features for AMD x86 hosts
+@subsection Important CPU features for AMD x86 hosts
 
 The following are important CPU features that should be used on AMD x86
 hosts, when available in the host CPU. Some of them require explicit
@@ -349,7 +336,7 @@ Note that not all CPU hardware will support this feature.
 
 
 @node default_cpu_models_x86
-@subsubsection Default x86 CPU models
+@subsection Default x86 CPU models
 
 The default QEMU CPU models are designed such that they can run on all hosts.
 If an application does not wish to do perform any host compatibility checks
@@ -372,7 +359,7 @@ qemu64 is used for x86_64 guests and qemu32 is used for i686 guests, when no
 
 
 @node other_non_recommended_cpu_models_x86
-@subsubsection Other non-recommended x86 CPUs
+@subsection Other non-recommended x86 CPUs
 
 The following CPUs models are compatible with most AMD and Intel x86 hosts, but
 their usage is discouraged, as they expose a very limited featureset, which
@@ -403,177 +390,13 @@ hardware assisted virtualization, that should thus not be required for
 running virtual machines.
 @end table
 
-@node recommendations_cpu_models_MIPS
-@subsection Supported CPU model configurations on MIPS hosts
-
-QEMU supports variety of MIPS CPU models:
-
-@menu
-* cpu_models_MIPS32::               Supported CPU models for MIPS32 hosts
-* cpu_models_MIPS64::               Supported CPU models for MIPS64 hosts
-* cpu_models_nanoMIPS::             Supported CPU models for nanoMIPS hosts
-* preferred_cpu_models_MIPS::       Preferred CPU models for MIPS hosts
-@end menu
-
-@node cpu_models_MIPS32
-@subsubsection Supported CPU models for MIPS32 hosts
-
-The following CPU models are supported for use on MIPS32 hosts. Administrators /
-applications are recommended to use the CPU model that matches the generation
-of the host CPUs in use. In a deployment with a mixture of host CPU models
-between machines, if live migration compatibility is required, use the newest
-CPU model that is compatible across all desired hosts.
-
-@table @option
-@item @code{mips32r6-generic}
-
-MIPS32 Processor (Release 6, 2015)
-
-
-@item @code{P5600}
-
-MIPS32 Processor (P5600, 2014)
-
-
-@item @code{M14K}
-@item @code{M14Kc}
-
-MIPS32 Processor (M14K, 2009)
-
-
-@item @code{74Kf}
-
-MIPS32 Processor (74K, 2007)
-
-
-@item @code{34Kf}
-
-MIPS32 Processor (34K, 2006)
-
-
-@item @code{24Kc}
-@item @code{24KEc}
-@item @code{24Kf}
-
-MIPS32 Processor (24K, 2003)
-
-
-@item @code{4Kc}
-@item @code{4Km}
-@item @code{4KEcR1}
-@item @code{4KEmR1}
-@item @code{4KEc}
-@item @code{4KEm}
-
-MIPS32 Processor (4K, 1999)
-@end table
-
-@node cpu_models_MIPS64
-@subsubsection Supported CPU models for MIPS64 hosts
-
-The following CPU models are supported for use on MIPS64 hosts. Administrators /
-applications are recommended to use the CPU model that matches the generation
-of the host CPUs in use. In a deployment with a mixture of host CPU models
-between machines, if live migration compatibility is required, use the newest
-CPU model that is compatible across all desired hosts.
-
-@table @option
-@item @code{I6400}
-
-MIPS64 Processor (Release 6, 2014)
-
-
-@item @code{Loongson-2F}
-
-MIPS64 Processor (Loongson 2, 2008)
-
-
-@item @code{Loongson-2E}
-
-MIPS64 Processor (Loongson 2, 2006)
-
-
-@item @code{mips64dspr2}
-
-MIPS64 Processor (Release 2, 2006)
-
-
-@item @code{MIPS64R2-generic}
-@item @code{5KEc}
-@item @code{5KEf}
-
-MIPS64 Processor (Release 2, 2002)
-
-
-@item @code{20Kc}
-
-MIPS64 Processor (20K, 2000)
-
-
-@item @code{5Kc}
-@item @code{5Kf}
-
-MIPS64 Processor (5K, 1999)
-
-
-@item @code{VR5432}
-
-MIPS64 Processor (VR, 1998)
-
-
-@item @code{R4000}
-
-MIPS64 Processor (MIPS III, 1991)
-@end table
-
-@node cpu_models_nanoMIPS
-@subsubsection Supported CPU models for nanoMIPS hosts
-
-The following CPU models are supported for use on nanoMIPS hosts. Administrators /
-applications are recommended to use the CPU model that matches the generation
-of the host CPUs in use. In a deployment with a mixture of host CPU models
-between machines, if live migration compatibility is required, use the newest
-CPU model that is compatible across all desired hosts.
-
-@table @option
-@item @code{I7200}
-
-MIPS I7200 (nanoMIPS, 2018)
-
-@end table
-
-@node preferred_cpu_models_MIPS
-@subsubsection Preferred CPU models for MIPS hosts
-
-The following CPU models are preferred for use on different MIPS hosts:
-
-@table @option
-@item @code{MIPS III}
-R4000
-
-@item @code{MIPS32R2}
-34Kf
-
-@item @code{MIPS64R6}
-I6400
-
-@item @code{nanoMIPS}
-I7200
-@end table
-
 @node cpu_model_syntax_apps
 @subsection Syntax for configuring CPU models
 
 The example below illustrate the approach to configuring the various
-CPU models / features in QEMU and libvirt
+CPU models / features in QEMU and libvirt.
 
-@menu
-* cpu_model_syntax_qemu::    QEMU command line
-* cpu_model_syntax_libvirt:: Libvirt guest XML
-@end menu
-
-@node cpu_model_syntax_qemu
-@subsubsection QEMU command line
+QEMU command line:
 
 @table @option
 
@@ -603,8 +426,8 @@ With feature customization:
 
 @end table
 
-@node cpu_model_syntax_libvirt
-@subsubsection Libvirt guest XML
+
+Libvirt guest XML:
 
 @table @option
 
@@ -657,21 +480,3 @@ With feature customization:
 @end example
 
 @end table
-
-@c man end
-
-@ignore
-
-@setfilename qemu-cpu-models
-@settitle QEMU / KVM CPU model configuration
-
-@c man begin SEEALSO
-The HTML documentation of QEMU for more precise information and Linux
-user mode emulator invocation.
-@c man end
-
-@c man begin AUTHOR
-Daniel P. Berrange
-@c man end
-
-@end ignore
