@@ -1089,8 +1089,26 @@ static void xen_device_event(void *opaque)
     }
 }
 
+void xen_device_set_event_channel_context(XenDevice *xendev,
+                                          XenEventChannel *channel,
+                                          AioContext *ctx,
+                                          Error **errp)
+{
+    if (!channel) {
+        error_setg(errp, "bad channel");
+        return;
+    }
+
+    if (channel->ctx)
+        aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), true,
+                           NULL, NULL, NULL, NULL);
+
+    channel->ctx = ctx;
+    aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), true,
+                       xen_device_event, NULL, xen_device_poll, channel);
+}
+
 XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
-                                               AioContext *ctx,
                                                unsigned int port,
                                                XenEventHandler handler,
                                                void *opaque, Error **errp)
@@ -1116,9 +1134,10 @@ XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
     channel->handler = handler;
     channel->opaque = opaque;
 
-    channel->ctx = ctx;
-    aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), true,
-                       xen_device_event, NULL, xen_device_poll, channel);
+    /* Only reason for failure is a NULL channel */
+    xen_device_set_event_channel_context(xendev, channel,
+                                         qemu_get_aio_context(),
+                                         &error_abort);
 
     QLIST_INSERT_HEAD(&xendev->event_channels, channel, list);
 

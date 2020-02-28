@@ -685,12 +685,24 @@ void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
         return;
     }
 
+    xendev = dataplane->xendev;
+
     aio_context_acquire(dataplane->ctx);
+    if (dataplane->event_channel) {
+        /* Only reason for failure is a NULL channel */
+        xen_device_set_event_channel_context(xendev, dataplane->event_channel,
+                                             qemu_get_aio_context(),
+                                             &error_abort);
+    }
     /* Xen doesn't have multiple users for nodes, so this can't fail */
     blk_set_aio_context(dataplane->blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(dataplane->ctx);
 
-    xendev = dataplane->xendev;
+    /*
+     * Now that the context has been moved onto the main thread, cancel
+     * further processing.
+     */
+    qemu_bh_cancel(dataplane->bh);
 
     if (dataplane->event_channel) {
         Error *local_err = NULL;
@@ -807,7 +819,7 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     }
 
     dataplane->event_channel =
-        xen_device_bind_event_channel(xendev, dataplane->ctx, event_channel,
+        xen_device_bind_event_channel(xendev, event_channel,
                                       xen_block_dataplane_event, dataplane,
                                       &local_err);
     if (local_err) {
@@ -818,7 +830,11 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     aio_context_acquire(dataplane->ctx);
     /* If other users keep the BlockBackend in the iothread, that's ok */
     blk_set_aio_context(dataplane->blk, dataplane->ctx, NULL);
+    /* Only reason for failure is a NULL channel */
+    xen_device_set_event_channel_context(xendev, dataplane->event_channel,
+                                         dataplane->ctx, &error_abort);
     aio_context_release(dataplane->ctx);
+
     return;
 
 stop:
