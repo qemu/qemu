@@ -70,7 +70,7 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
                               MAXCONNECT, NSENDBUF, NRECVBUF, NTIMEOUT, NULL);
     g_free(openname);
     if (s->file == INVALID_HANDLE_VALUE) {
-        error_setg(errp, "Failed CreateNamedPipe (%lu)", GetLastError());
+        error_setg_win32(errp, GetLastError(), "Failed CreateNamedPipe");
         s->file = NULL;
         goto fail;
     }
