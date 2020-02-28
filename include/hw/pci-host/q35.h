@@ -33,6 +33,7 @@
 #include "hw/pci-host/pam.h"
 #include "hw/i386/intel_iommu.h"
 #include "qemu/units.h"
+#include "qemu/range.h"
 
 #define TYPE_Q35_HOST_DEVICE "q35-pcihost"
 #define Q35_HOST_DEVICE(obj) \
