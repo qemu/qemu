@@ -1,9 +1,0 @@
-@node License
-@appendix License
-
-QEMU is a trademark of Fabrice Bellard.
-
-QEMU is released under the
-@url{https://www.gnu.org/licenses/gpl-2.0.txt,GNU General Public License},
-version 2. Parts of QEMU have specific licenses, see file
-@url{https://git.qemu.org/?p=qemu.git;a=blob_plain;f=LICENSE,LICENSE}.
