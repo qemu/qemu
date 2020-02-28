@@ -16,3 +16,4 @@ Contents:
    managed-startup
    security
    vfio-ap
+   deprecated
