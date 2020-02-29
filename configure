@@ -1421,6 +1421,11 @@ for opt do
   ;;
   --enable-avx2) avx2_opt="yes"
   ;;
+  --disable-avx512f) avx512f_opt="no"
+  ;;
+  --enable-avx512f) avx512f_opt="yes"
+  ;;
+
   --enable-glusterfs) glusterfs="yes"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
@@ -1857,6 +1862,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
   avx2            AVX2 optimization support
+  avx512f         AVX512F optimization support
   replication     replication support
   opengl          opengl support
   virglrenderer   virgl rendering support
@@ -5574,6 +5580,36 @@ EOF
   fi
 fi
 
+##########################################
+# avx512f optimization requirement check
+#
+# There is no point enabling this if cpuid.h is not usable,
+# since we won't be able to select the new routines.
+# by default, it is turned off.
+# if user explicitly want to enable it, check environment
+
+if test "$cpuid_h" = "yes" && test "$avx512f_opt" = "yes"; then
+  cat > $TMPC << EOF
+#pragma GCC push_options
+#pragma GCC target("avx512f")
+#include <cpuid.h>
+#include <immintrin.h>
+static int bar(void *a) {
+    __m512i x = *(__m512i *)a;
+    return _mm512_test_epi64_mask(x, x);
+}
+int main(int argc, char *argv[])
+{
+	return bar(argv[0]);
+}
+EOF
+  if ! compile_object "" ; then
+    avx512f_opt="no"
+  fi
+else
+  avx512f_opt="no"
+fi
+
 ########################################
 # check if __[u]int128_t is usable.
 
@@ -6717,6 +6753,7 @@ echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
 echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
+echo "avx512f optimization $avx512f_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "bochs support     $bochs"
@@ -7266,6 +7303,10 @@ fi
 
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
+fi
+
+if test "$avx512f_opt" = "yes" ; then
+  echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
 if test "$lzo" = "yes" ; then
