@@ -63,11 +63,11 @@ buffer_zero_int(const void *buf, size_t len)
     }
 }
 
-#if defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
+#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
 /* Do not use push_options pragmas unnecessarily, because clang
  * does not support them.
  */
-#ifdef CONFIG_AVX2_OPT
+#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
 #pragma GCC push_options
 #pragma GCC target("sse2")
 #endif
@@ -104,7 +104,7 @@ buffer_zero_sse2(const void *buf, size_t len)
 
     return _mm_movemask_epi8(_mm_cmpeq_epi8(t, zero)) == 0xFFFF;
 }
-#ifdef CONFIG_AVX2_OPT
+#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
 #pragma GCC pop_options
 #endif
 
@@ -187,18 +187,54 @@ buffer_zero_avx2(const void *buf, size_t len)
 #pragma GCC pop_options
 #endif /* CONFIG_AVX2_OPT */
 
+#ifdef CONFIG_AVX512F_OPT
+#pragma GCC push_options
+#pragma GCC target("avx512f")
+#include <immintrin.h>
+
+static bool
+buffer_zero_avx512(const void *buf, size_t len)
+{
+    /* Begin with an unaligned head of 64 bytes.  */
+    __m512i t = _mm512_loadu_si512(buf);
+    __m512i *p = (__m512i *)(((uintptr_t)buf + 5 * 64) & -64);
+    __m512i *e = (__m512i *)(((uintptr_t)buf + len) & -64);
+
+    /* Loop over 64-byte aligned blocks of 256.  */
+    while (p <= e) {
+        __builtin_prefetch(p);
+        if (unlikely(_mm512_test_epi64_mask(t, t))) {
+            return false;
+        }
+        t = p[-4] | p[-3] | p[-2] | p[-1];
+        p += 4;
+    }
+
+    t |= _mm512_loadu_si512(buf + len - 4 * 64);
+    t |= _mm512_loadu_si512(buf + len - 3 * 64);
+    t |= _mm512_loadu_si512(buf + len - 2 * 64);
+    t |= _mm512_loadu_si512(buf + len - 1 * 64);
+
+    return !_mm512_test_epi64_mask(t, t);
+
+}
+#pragma GCC pop_options
+#endif
+
+
 /* Note that for test_buffer_is_zero_next_accel, the most preferred
  * ISA must have the least significant bit.
  */
-#define CACHE_AVX2    1
-#define CACHE_SSE4    2
-#define CACHE_SSE2    4
+#define CACHE_AVX512F 1
+#define CACHE_AVX2    2
+#define CACHE_SSE4    4
+#define CACHE_SSE2    8
 
 /* Make sure that these variables are appropriately initialized when
  * SSE2 is enabled on the compiler command-line, but the compiler is
  * too old to support CONFIG_AVX2_OPT.
  */
-#ifdef CONFIG_AVX2_OPT
+#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
 # define INIT_CACHE 0
 # define INIT_ACCEL buffer_zero_int
 #else
@@ -211,6 +247,7 @@ buffer_zero_avx2(const void *buf, size_t len)
 
 static unsigned cpuid_cache = INIT_CACHE;
 static bool (*buffer_accel)(const void *, size_t) = INIT_ACCEL;
+static int length_to_accel = 64;
 
 static void init_accel(unsigned cache)
 {
@@ -226,10 +263,16 @@ static void init_accel(unsigned cache)
         fn = buffer_zero_avx2;
     }
 #endif
+#ifdef CONFIG_AVX512F_OPT
+    if (cache & CACHE_AVX512F) {
+        fn = buffer_zero_avx512;
+        length_to_accel = 256;
+    }
+#endif
     buffer_accel = fn;
 }
 
-#ifdef CONFIG_AVX2_OPT
+#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
 #include "qemu/cpuid.h"
 
 static void __attribute__((constructor)) init_cpuid_cache(void)
@@ -252,8 +295,16 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
             int bv;
             __asm("xgetbv" : "=a"(bv), "=d"(d) : "c"(0));
             __cpuid_count(7, 0, a, b, c, d);
-            if ((bv & 6) == 6 && (b & bit_AVX2)) {
+            if ((bv & 0x6) == 0x6 && (b & bit_AVX2)) {
                 cache |= CACHE_AVX2;
+            }
+            /* 0xe6:
+            *  XCR0[7:5] = 111b (OPMASK state, upper 256-bit of ZMM0-ZMM15
+            *                    and ZMM16-ZMM31 state are enabled by OS)
+            *  XCR0[2:1] = 11b (XMM state and YMM state are enabled by OS)
+            */
+            if ((bv & 0xe6) == 0xe6 && (b & bit_AVX512F)) {
+                cache |= CACHE_AVX512F;
             }
         }
     }
@@ -277,7 +328,7 @@ bool test_buffer_is_zero_next_accel(void)
 
 static bool select_accel_fn(const void *buf, size_t len)
 {
-    if (likely(len >= 64)) {
+    if (likely(len >= length_to_accel)) {
         return buffer_accel(buf, len);
     }
     return buffer_zero_int(buf, len);
