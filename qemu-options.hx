@@ -2330,7 +2330,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                Linux kernel 3.3+ as well as most routers can talk\n"
     "                L2TPv3. This transport allows connecting a VM to a VM,\n"
     "                VM to a router and even VM to Host. It is a nearly-universal\n"
-    "                standard (RFC3391). Note - this implementation uses static\n"
+    "                standard (RFC3931). Note - this implementation uses static\n"
     "                pre-configured tunnels (same as the Linux kernel).\n"
     "                use 'src=' to specify source address\n"
     "                use 'dst=' to specify destination address\n"
@@ -2737,7 +2737,7 @@ Example (send packets from host's 1.2.3.4):
 @end example
 
 @item -netdev l2tpv3,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]
-Configure a L2TPv3 pseudowire host network backend. L2TPv3 (RFC3391) is a
+Configure a L2TPv3 pseudowire host network backend. L2TPv3 (RFC3931) is a
 popular protocol to transport Ethernet (and other Layer 2) data frames between
 two systems. It is present in routers, firewalls and the Linux kernel
 (from version 3.3 onwards).
