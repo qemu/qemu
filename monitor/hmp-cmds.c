@@ -2842,7 +2842,6 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
     const char *name = qdict_get_str(qdict, "name");
     uint8_t type = qdict_get_try_int(qdict, "type", 9);
     Error *err = NULL;
-    bool set = false;
 
     list = qmp_query_rocker_of_dpa_groups(name, type != 9, type, &err);
     if (err != NULL) {
@@ -2854,6 +2853,7 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
 
     for (g = list; g; g = g->next) {
         RockerOfDpaGroup *group = g->value;
+        bool set = false;
 
         monitor_printf(mon, "0x%08x", group->id);
 
@@ -2898,13 +2898,10 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
 
         if (group->has_set_eth_dst) {
             if (!set) {
-                set = true;
                 monitor_printf(mon, " set");
             }
             monitor_printf(mon, " dst %s", group->set_eth_dst);
         }
-
-        set = false;
 
         if (group->has_ttl_check && group->ttl_check) {
             monitor_printf(mon, " check TTL");
