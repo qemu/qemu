@@ -108,41 +108,12 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
 
 static char *hax_vm_devfs_string(int vm_id)
 {
-    char *name;
-
-    if (vm_id > MAX_VM_ID) {
-        fprintf(stderr, "Too big VM id\n");
-        return NULL;
-    }
-
-#define HAX_VM_DEVFS "/dev/hax_vm/vmxx"
-    name = g_strdup(HAX_VM_DEVFS);
-    if (!name) {
-        return NULL;
-    }
-
-    snprintf(name, sizeof HAX_VM_DEVFS, "/dev/hax_vm/vm%02d", vm_id);
-    return name;
+    return g_strdup_printf("/dev/hax_vm/vm%02d", vm_id);
 }
 
 static char *hax_vcpu_devfs_string(int vm_id, int vcpu_id)
 {
-    char *name;
-
-    if (vm_id > MAX_VM_ID || vcpu_id > MAX_VCPU_ID) {
-        fprintf(stderr, "Too big vm id %x or vcpu id %x\n", vm_id, vcpu_id);
-        return NULL;
-    }
-
-#define HAX_VCPU_DEVFS "/dev/hax_vmxx/vcpuxx"
-    name = g_strdup(HAX_VCPU_DEVFS);
-    if (!name) {
-        return NULL;
-    }
-
-    snprintf(name, sizeof HAX_VCPU_DEVFS, "/dev/hax_vm%02d/vcpu%02d",
-             vm_id, vcpu_id);
-    return name;
+    return g_strdup_printf("/dev/hax_vm%02d/vcpu%02d", vm_id, vcpu_id);
 }
 
 int hax_host_create_vm(struct hax_state *hax, int *vmid)
