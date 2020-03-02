@@ -132,7 +132,7 @@ static void petalogix_s3adsp1800_machine_init(MachineClass *mc)
 {
     mc->desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800";
     mc->init = petalogix_s3adsp1800_init;
-    mc->is_default = 1;
+    mc->is_default = true;
 }
 
 DEFINE_MACHINE("petalogix-s3adsp1800", petalogix_s3adsp1800_machine_init)

@@ -219,7 +219,6 @@ static void milkymist_machine_init(MachineClass *mc)
 {
     mc->desc = "Milkymist One";
     mc->init = milkymist_init;
-    mc->is_default = 0;
     mc->default_cpu_type = LM32_CPU_TYPE_NAME("lm32-full");
     mc->default_ram_size = 128 * MiB;
     mc->default_ram_id = "milkymist.sdram";

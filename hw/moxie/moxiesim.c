@@ -150,7 +150,7 @@ static void moxiesim_machine_init(MachineClass *mc)
 {
     mc->desc = "Moxie simulator platform";
     mc->init = moxiesim_init;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_cpu_type = MOXIE_CPU_TYPE_NAME("MoxieLite");
 }
 

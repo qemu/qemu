@@ -216,7 +216,6 @@ static void petalogix_ml605_machine_init(MachineClass *mc)
 {
     mc->desc = "PetaLogix linux refdesign for xilinx ml605 little endian";
     mc->init = petalogix_ml605_init;
-    mc->is_default = 0;
 }
 
 DEFINE_MACHINE("petalogix-ml605", petalogix_ml605_machine_init)

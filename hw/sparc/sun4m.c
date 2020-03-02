@@ -1402,7 +1402,7 @@ static void ss5_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sun4m platform, SPARCstation 5";
     mc->init = ss5_init;
     mc->block_default_type = IF_SCSI;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     mc->default_display = "tcx";

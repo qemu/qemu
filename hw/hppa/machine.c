@@ -290,7 +290,7 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = HPPA_MAX_CPUS;
     mc->default_cpus = 1;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
     mc->default_ram_id = "ram";

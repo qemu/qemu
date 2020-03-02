@@ -4560,7 +4560,7 @@ static const TypeInfo spapr_machine_info = {
 static void spapr_machine_latest_class_options(MachineClass *mc)
 {
     mc->alias = "pseries";
-    mc->is_default = 1;
+    mc->is_default = true;
 }
 
 #define DEFINE_SPAPR_MACHINE(suffix, verstr, latest)                 \
