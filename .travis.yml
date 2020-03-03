@@ -273,6 +273,7 @@ jobs:
 
     - name: "OSX Xcode 10.3"
       env:
+        - BASE_CONFIG="--disable-docs --enable-tools"
         - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode10.3
