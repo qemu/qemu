@@ -313,6 +313,7 @@ jobs:
 
     # Acceptance (Functional) tests
     - name: "GCC check-acceptance"
+      dist: bionic
       env:
         - CONFIG="--target-list=aarch64-softmmu,alpha-softmmu,arm-softmmu,m68k-softmmu,microblaze-softmmu,mips-softmmu,mips64el-softmmu,nios2-softmmu,or1k-softmmu,ppc-softmmu,ppc64-softmmu,s390x-softmmu,sparc-softmmu,x86_64-softmmu,xtensa-softmmu"
         - TEST_CMD="make check-acceptance"
@@ -323,7 +324,9 @@ jobs:
           packages:
             - python3-pil
             - python3-pip
-            - python3.5-venv
+            - python3-numpy
+            - python3-opencv
+            - python3-venv
             - rpm2cpio
             - tesseract-ocr
             - tesseract-ocr-eng
