@@ -48,7 +48,7 @@ typedef struct MIPSCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    DeviceReset parent_reset;
     const struct mips_def_t *cpu_def;
 } MIPSCPUClass;
 

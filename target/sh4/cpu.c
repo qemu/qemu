@@ -47,14 +47,14 @@ static bool superh_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-/* CPUClass::reset() */
-static void superh_cpu_reset(CPUState *s)
+static void superh_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     SuperHCPU *cpu = SUPERH_CPU(s);
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
     CPUSH4State *env = &cpu->env;
 
-    scc->parent_reset(s);
+    scc->parent_reset(dev);
 
     memset(env, 0, offsetof(CPUSH4State, end_reset_fields));
 
@@ -214,7 +214,7 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_realize(dc, superh_cpu_realizefn,
                                     &scc->parent_realize);
 
-    cpu_class_set_parent_reset(cc, superh_cpu_reset, &scc->parent_reset);
+    device_class_set_parent_reset(dc, superh_cpu_reset, &scc->parent_reset);
 
     cc->class_by_name = superh_cpu_class_by_name;
     cc->has_work = superh_cpu_has_work;

@@ -239,27 +239,16 @@ void cpu_dump_statistics(CPUState *cpu, int flags)
     }
 }
 
-void cpu_class_set_parent_reset(CPUClass *cc,
-                                void (*child_reset)(CPUState *cpu),
-                                void (**parent_reset)(CPUState *cpu))
-{
-    *parent_reset = cc->reset;
-    cc->reset = child_reset;
-}
-
 void cpu_reset(CPUState *cpu)
 {
-    CPUClass *klass = CPU_GET_CLASS(cpu);
-
-    if (klass->reset != NULL) {
-        (*klass->reset)(cpu);
-    }
+    device_cold_reset(DEVICE(cpu));
 
     trace_guest_cpu_reset(cpu);
 }
 
-static void cpu_common_reset(CPUState *cpu)
+static void cpu_common_reset(DeviceState *dev)
 {
+    CPUState *cpu = CPU(dev);
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
@@ -419,7 +408,6 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     CPUClass *k = CPU_CLASS(klass);
 
     k->parse_features = cpu_common_parse_features;
-    k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
     k->has_work = cpu_common_has_work;
     k->get_paging_enabled = cpu_common_get_paging_enabled;
@@ -440,6 +428,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     dc->realize = cpu_common_realizefn;
     dc->unrealize = cpu_common_unrealizefn;
+    dc->reset = cpu_common_reset;
     device_class_set_props(dc, cpu_common_props);
     /*
      * Reason: CPUs still need special care by board code: wiring up

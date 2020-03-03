@@ -5983,9 +5983,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     }
 }
 
-/* CPUClass::reset() */
-static void x86_cpu_reset(CPUState *s)
+static void x86_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     X86CPU *cpu = X86_CPU(s);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
@@ -5993,7 +5993,7 @@ static void x86_cpu_reset(CPUState *s)
     uint64_t xcr0;
     int i;
 
-    xcc->parent_reset(s);
+    xcc->parent_reset(dev);
 
     memset(env, 0, offsetof(CPUX86State, end_reset_fields));
 
@@ -7297,7 +7297,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
                                       &xcc->parent_unrealize);
     device_class_set_props(dc, x86_cpu_properties);
 
-    cpu_class_set_parent_reset(cc, x86_cpu_reset, &xcc->parent_reset);
+    device_class_set_parent_reset(dc, x86_cpu_reset, &xcc->parent_reset);
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
     cc->class_by_name = x86_cpu_class_by_name;

@@ -28,14 +28,14 @@
 
 //#define DEBUG_FEATURES
 
-/* CPUClass::reset() */
-static void sparc_cpu_reset(CPUState *s)
+static void sparc_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     SPARCCPU *cpu = SPARC_CPU(s);
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(cpu);
     CPUSPARCState *env = &cpu->env;
 
-    scc->parent_reset(s);
+    scc->parent_reset(dev);
 
     memset(env, 0, offsetof(CPUSPARCState, end_reset_fields));
     env->cwp = 0;
@@ -859,7 +859,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
                                     &scc->parent_realize);
     device_class_set_props(dc, sparc_cpu_properties);
 
-    cpu_class_set_parent_reset(cc, sparc_cpu_reset, &scc->parent_reset);
+    device_class_set_parent_reset(dc, sparc_cpu_reset, &scc->parent_reset);
 
     cc->class_by_name = sparc_cpu_class_by_name;
     cc->parse_features = sparc_cpu_parse_features;

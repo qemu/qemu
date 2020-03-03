@@ -99,14 +99,14 @@ static bool lm32_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-/* CPUClass::reset() */
-static void lm32_cpu_reset(CPUState *s)
+static void lm32_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     LM32CPU *cpu = LM32_CPU(s);
     LM32CPUClass *lcc = LM32_CPU_GET_CLASS(cpu);
     CPULM32State *env = &cpu->env;
 
-    lcc->parent_reset(s);
+    lcc->parent_reset(dev);
 
     /* reset cpu state */
     memset(env, 0, offsetof(CPULM32State, end_reset_fields));
@@ -218,7 +218,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, lm32_cpu_realizefn,
                                     &lcc->parent_realize);
-    cpu_class_set_parent_reset(cc, lm32_cpu_reset, &lcc->parent_reset);
+    device_class_set_parent_reset(dc, lm32_cpu_reset, &lcc->parent_reset);
 
     cc->class_by_name = lm32_cpu_class_by_name;
     cc->has_work = lm32_cpu_has_work;
