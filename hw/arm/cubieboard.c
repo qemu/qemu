@@ -54,6 +54,9 @@ static void cubieboard_init(MachineState *machine)
     }
 
     a10 = AW_A10(object_new(TYPE_AW_A10));
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(a10),
+                              &error_abort);
+    object_unref(OBJECT(a10));
 
     object_property_set_int(OBJECT(&a10->emac), 1, "phy-addr", &err);
     if (err != NULL) {
