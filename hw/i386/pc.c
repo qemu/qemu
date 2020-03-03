@@ -1505,7 +1505,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     int idx;
     CPUState *cs;
     CPUArchId *cpu_slot;
-    X86CPUTopoInfo topo;
+    X86CPUTopoIDs topo_ids;
     X86CPU *cpu = X86_CPU(dev);
     CPUX86State *env = &cpu->env;
     MachineState *ms = MACHINE(hotplug_dev);
@@ -1571,12 +1571,12 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
             return;
         }
 
-        topo.pkg_id = cpu->socket_id;
-        topo.die_id = cpu->die_id;
-        topo.core_id = cpu->core_id;
-        topo.smt_id = cpu->thread_id;
+        topo_ids.pkg_id = cpu->socket_id;
+        topo_ids.die_id = cpu->die_id;
+        topo_ids.core_id = cpu->core_id;
+        topo_ids.smt_id = cpu->thread_id;
         cpu->apic_id = apicid_from_topo_ids(x86ms->smp_dies, smp_cores,
-                                            smp_threads, &topo);
+                                            smp_threads, &topo_ids);
     }
 
     cpu_slot = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, &idx);
@@ -1584,11 +1584,11 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         MachineState *ms = MACHINE(pcms);
 
         x86_topo_ids_from_apicid(cpu->apic_id, x86ms->smp_dies,
-                                 smp_cores, smp_threads, &topo);
+                                 smp_cores, smp_threads, &topo_ids);
         error_setg(errp,
             "Invalid CPU [socket: %u, die: %u, core: %u, thread: %u] with"
             " APIC ID %" PRIu32 ", valid index range 0:%d",
-            topo.pkg_id, topo.die_id, topo.core_id, topo.smt_id,
+            topo_ids.pkg_id, topo_ids.die_id, topo_ids.core_id, topo_ids.smt_id,
             cpu->apic_id, ms->possible_cpus->len - 1);
         return;
     }
@@ -1606,34 +1606,37 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
      * once -smp refactoring is complete and there will be CPU private
      * CPUState::nr_cores and CPUState::nr_threads fields instead of globals */
     x86_topo_ids_from_apicid(cpu->apic_id, x86ms->smp_dies,
-                             smp_cores, smp_threads, &topo);
-    if (cpu->socket_id != -1 && cpu->socket_id != topo.pkg_id) {
+                             smp_cores, smp_threads, &topo_ids);
+    if (cpu->socket_id != -1 && cpu->socket_id != topo_ids.pkg_id) {
         error_setg(errp, "property socket-id: %u doesn't match set apic-id:"
-            " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id, topo.pkg_id);
+            " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id,
+            topo_ids.pkg_id);
         return;
     }
-    cpu->socket_id = topo.pkg_id;
+    cpu->socket_id = topo_ids.pkg_id;
 
-    if (cpu->die_id != -1 && cpu->die_id != topo.die_id) {
+    if (cpu->die_id != -1 && cpu->die_id != topo_ids.die_id) {
         error_setg(errp, "property die-id: %u doesn't match set apic-id:"
-            " 0x%x (die-id: %u)", cpu->die_id, cpu->apic_id, topo.die_id);
+            " 0x%x (die-id: %u)", cpu->die_id, cpu->apic_id, topo_ids.die_id);
         return;
     }
-    cpu->die_id = topo.die_id;
+    cpu->die_id = topo_ids.die_id;
 
-    if (cpu->core_id != -1 && cpu->core_id != topo.core_id) {
+    if (cpu->core_id != -1 && cpu->core_id != topo_ids.core_id) {
         error_setg(errp, "property core-id: %u doesn't match set apic-id:"
-            " 0x%x (core-id: %u)", cpu->core_id, cpu->apic_id, topo.core_id);
+            " 0x%x (core-id: %u)", cpu->core_id, cpu->apic_id,
+            topo_ids.core_id);
         return;
     }
-    cpu->core_id = topo.core_id;
+    cpu->core_id = topo_ids.core_id;
 
-    if (cpu->thread_id != -1 && cpu->thread_id != topo.smt_id) {
+    if (cpu->thread_id != -1 && cpu->thread_id != topo_ids.smt_id) {
         error_setg(errp, "property thread-id: %u doesn't match set apic-id:"
-            " 0x%x (thread-id: %u)", cpu->thread_id, cpu->apic_id, topo.smt_id);
+            " 0x%x (thread-id: %u)", cpu->thread_id, cpu->apic_id,
+            topo_ids.smt_id);
         return;
     }
-    cpu->thread_id = topo.smt_id;
+    cpu->thread_id = topo_ids.smt_id;
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX) &&
         !kvm_hv_vpindex_settable()) {

@@ -143,14 +143,14 @@ x86_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 
 int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-   X86CPUTopoInfo topo;
+   X86CPUTopoIDs topo_ids;
    X86MachineState *x86ms = X86_MACHINE(ms);
 
    assert(idx < ms->possible_cpus->len);
    x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
                             x86ms->smp_dies, ms->smp.cores,
-                            ms->smp.threads, &topo);
-   return topo.pkg_id % ms->numa_state->num_nodes;
+                            ms->smp.threads, &topo_ids);
+   return topo_ids.pkg_id % ms->numa_state->num_nodes;
 }
 
 const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
@@ -172,7 +172,7 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
     for (i = 0; i < ms->possible_cpus->len; i++) {
-        X86CPUTopoInfo topo;
+        X86CPUTopoIDs topo_ids;
 
         ms->possible_cpus->cpus[i].type = ms->cpu_type;
         ms->possible_cpus->cpus[i].vcpus_count = 1;
@@ -180,17 +180,17 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
             x86_cpu_apic_id_from_index(x86ms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
                                  x86ms->smp_dies, ms->smp.cores,
-                                 ms->smp.threads, &topo);
+                                 ms->smp.threads, &topo_ids);
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
-        ms->possible_cpus->cpus[i].props.socket_id = topo.pkg_id;
+        ms->possible_cpus->cpus[i].props.socket_id = topo_ids.pkg_id;
         if (x86ms->smp_dies > 1) {
             ms->possible_cpus->cpus[i].props.has_die_id = true;
-            ms->possible_cpus->cpus[i].props.die_id = topo.die_id;
+            ms->possible_cpus->cpus[i].props.die_id = topo_ids.die_id;
         }
         ms->possible_cpus->cpus[i].props.has_core_id = true;
-        ms->possible_cpus->cpus[i].props.core_id = topo.core_id;
+        ms->possible_cpus->cpus[i].props.core_id = topo_ids.core_id;
         ms->possible_cpus->cpus[i].props.has_thread_id = true;
-        ms->possible_cpus->cpus[i].props.thread_id = topo.smt_id;
+        ms->possible_cpus->cpus[i].props.thread_id = topo_ids.smt_id;
     }
     return ms->possible_cpus;
 }
