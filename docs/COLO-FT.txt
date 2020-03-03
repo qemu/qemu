@@ -145,81 +145,189 @@ The diagram just shows the main qmp command, you can get the detail
 in test procedure.
 
 == Test procedure ==
-1. Startup qemu
-Primary:
-# qemu-system-x86_64 -accel kvm -m 2048 -smp 2 -qmp stdio -name primary \
-  -device piix3-usb-uhci -vnc :7 \
-  -device usb-tablet -netdev tap,id=hn0,vhost=off \
-  -device virtio-net-pci,id=net-pci0,netdev=hn0 \
-  -drive if=virtio,id=primary-disk0,driver=quorum,read-pattern=fifo,vote-threshold=1,\
-         children.0.file.filename=1.raw,\
-         children.0.driver=raw -S
-Secondary:
-# qemu-system-x86_64 -accel kvm -m 2048 -smp 2 -qmp stdio -name secondary \
-  -device piix3-usb-uhci -vnc :7 \
-  -device usb-tablet -netdev tap,id=hn0,vhost=off \
-  -device virtio-net-pci,id=net-pci0,netdev=hn0 \
-  -drive if=none,id=secondary-disk0,file.filename=1.raw,driver=raw,node-name=node0 \
-  -drive if=virtio,id=active-disk0,driver=replication,mode=secondary,\
-         file.driver=qcow2,top-id=active-disk0,\
-         file.file.filename=/mnt/ramfs/active_disk.img,\
-         file.backing.driver=qcow2,\
-         file.backing.file.filename=/mnt/ramfs/hidden_disk.img,\
-         file.backing.backing=secondary-disk0 \
-  -incoming tcp:0:8888
+Note: Here we are running both instances on the same host for testing,
+change the IP Addresses if you want to run it on two hosts. Initally
+127.0.0.1 is the Primary Host and 127.0.0.2 is the Secondary Host.
 
-2. On Secondary VM's QEMU monitor, issue command
+== Startup qemu ==
+1. Primary:
+Note: Initally, $imagefolder/primary.qcow2 needs to be copied to all hosts.
+You don't need to change any IP's here, because 0.0.0.0 listens on any
+interface. The chardev's with 127.0.0.1 IP's loopback to the local qemu
+instance.
+
+# imagefolder="/mnt/vms/colo-test-primary"
+
+# qemu-system-x86_64 -enable-kvm -cpu qemu64,+kvmclock -m 512 -smp 1 -qmp stdio \
+   -device piix3-usb-uhci -device usb-tablet -name primary \
+   -netdev tap,id=hn0,vhost=off,helper=/usr/lib/qemu/qemu-bridge-helper \
+   -device rtl8139,id=e0,netdev=hn0 \
+   -chardev socket,id=mirror0,host=0.0.0.0,port=9003,server,nowait \
+   -chardev socket,id=compare1,host=0.0.0.0,port=9004,server,wait \
+   -chardev socket,id=compare0,host=127.0.0.1,port=9001,server,nowait \
+   -chardev socket,id=compare0-0,host=127.0.0.1,port=9001 \
+   -chardev socket,id=compare_out,host=127.0.0.1,port=9005,server,nowait \
+   -chardev socket,id=compare_out0,host=127.0.0.1,port=9005 \
+   -object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0 \
+   -object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out \
+   -object filter-redirector,netdev=hn0,id=redire1,queue=rx,outdev=compare0 \
+   -object iothread,id=iothread1 \
+   -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,\
+outdev=compare_out0,iothread=iothread1 \
+   -drive if=ide,id=colo-disk0,driver=quorum,read-pattern=fifo,vote-threshold=1,\
+children.0.file.filename=$imagefolder/primary.qcow2,children.0.driver=qcow2 -S
+
+2. Secondary:
+Note: Active and hidden images need to be created only once and the
+size should be the same as primary.qcow2. Again, you don't need to change
+any IP's here, except for the $primary_ip variable.
+
+# imagefolder="/mnt/vms/colo-test-secondary"
+# primary_ip=127.0.0.1
+
+# qemu-img create -f qcow2 $imagefolder/secondary-active.qcow2 10G
+
+# qemu-img create -f qcow2 $imagefolder/secondary-hidden.qcow2 10G
+
+# qemu-system-x86_64 -enable-kvm -cpu qemu64,+kvmclock -m 512 -smp 1 -qmp stdio \
+   -device piix3-usb-uhci -device usb-tablet -name secondary \
+   -netdev tap,id=hn0,vhost=off,helper=/usr/lib/qemu/qemu-bridge-helper \
+   -device rtl8139,id=e0,netdev=hn0 \
+   -chardev socket,id=red0,host=$primary_ip,port=9003,reconnect=1 \
+   -chardev socket,id=red1,host=$primary_ip,port=9004,reconnect=1 \
+   -object filter-redirector,id=f1,netdev=hn0,queue=tx,indev=red0 \
+   -object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1 \
+   -object filter-rewriter,id=rew0,netdev=hn0,queue=all \
+   -drive if=none,id=parent0,file.filename=$imagefolder/primary.qcow2,driver=qcow2 \
+   -drive if=none,id=childs0,driver=replication,mode=secondary,file.driver=qcow2,\
+top-id=colo-disk0,file.file.filename=$imagefolder/secondary-active.qcow2,\
+file.backing.driver=qcow2,file.backing.file.filename=$imagefolder/secondary-hidden.qcow2,\
+file.backing.backing=parent0 \
+   -drive if=ide,id=colo-disk0,driver=quorum,read-pattern=fifo,vote-threshold=1,\
+children.0=childs0 \
+   -incoming tcp:0.0.0.0:9998
+
+
+3. On Secondary VM's QEMU monitor, issue command
 {'execute':'qmp_capabilities'}
-{ 'execute': 'nbd-server-start',
-  'arguments': {'addr': {'type': 'inet', 'data': {'host': 'xx.xx.xx.xx', 'port': '8889'} } }
-}
-{'execute': 'nbd-server-add', 'arguments': {'device': 'secondary-disk0', 'writable': true } }
+{'execute': 'nbd-server-start', 'arguments': {'addr': {'type': 'inet', 'data': {'host': '0.0.0.0', 'port': '9999'} } } }
+{'execute': 'nbd-server-add', 'arguments': {'device': 'parent0', 'writable': true } }
 
 Note:
   a. The qmp command nbd-server-start and nbd-server-add must be run
      before running the qmp command migrate on primary QEMU
   b. Active disk, hidden disk and nbd target's length should be the
      same.
-  c. It is better to put active disk and hidden disk in ramdisk.
+  c. It is better to put active disk and hidden disk in ramdisk. They
+     will be merged into the parent disk on failover.
 
-3. On Primary VM's QEMU monitor, issue command:
+4. On Primary VM's QEMU monitor, issue command:
 {'execute':'qmp_capabilities'}
-{ 'execute': 'human-monitor-command',
-  'arguments': {'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=xx.xx.xx.xx,file.port=8889,file.export=secondary-disk0,node-name=nbd_client0'}}
-{ 'execute':'x-blockdev-change', 'arguments':{'parent': 'primary-disk0', 'node': 'nbd_client0' } }
-{ 'execute': 'migrate-set-capabilities',
-      'arguments': {'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
-{ 'execute': 'migrate', 'arguments': {'uri': 'tcp:xx.xx.xx.xx:8888' } }
+{'execute': 'human-monitor-command', 'arguments': {'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0'}}
+{'execute': 'x-blockdev-change', 'arguments':{'parent': 'colo-disk0', 'node': 'replication0' } }
+{'execute': 'migrate-set-capabilities', 'arguments': {'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
+{'execute': 'migrate', 'arguments': {'uri': 'tcp:127.0.0.2:9998' } }
 
   Note:
   a. There should be only one NBD Client for each primary disk.
-  b. xx.xx.xx.xx is the secondary physical machine's hostname or IP
-  c. The qmp command line must be run after running qmp command line in
+  b. The qmp command line must be run after running qmp command line in
      secondary qemu.
 
-4. After the above steps, you will see, whenever you make changes to PVM, SVM will be synced.
+5. After the above steps, you will see, whenever you make changes to PVM, SVM will be synced.
 You can issue command '{ "execute": "migrate-set-parameters" , "arguments":{ "x-checkpoint-delay": 2000 } }'
-to change the checkpoint period time
+to change the idle checkpoint period time
 
-5. Failover test
-You can kill Primary VM and run 'x_colo_lost_heartbeat' in Secondary VM's
-monitor at the same time, then SVM will failover and client will not detect this
-change.
+6. Failover test
+You can kill one of the VMs and Failover on the surviving VM:
 
-Before issuing '{ "execute": "x-colo-lost-heartbeat" }' command, we have to
-issue block related command to stop block replication.
-Primary:
-  Remove the nbd child from the quorum:
-  { 'execute': 'x-blockdev-change', 'arguments': {'parent': 'colo-disk0', 'child': 'children.1'}}
-  { 'execute': 'human-monitor-command','arguments': {'command-line': 'drive_del blk-buddy0'}}
-  Note: there is no qmp command to remove the blockdev now
+If you killed the Secondary, then follow "Primary Failover". After that,
+if you want to resume the replication, follow "Primary resume replication"
 
-Secondary:
-  The primary host is down, so we should do the following thing:
-  { 'execute': 'nbd-server-stop' }
+If you killed the Primary, then follow "Secondary Failover". After that,
+if you want to resume the replication, follow "Secondary resume replication"
+
+== Primary Failover ==
+The Secondary died, resume on the Primary
+
+{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'child': 'children.1'} }
+{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_del replication0' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'comp0' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'iothread1' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'm0' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'redire0' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'redire1' } }
+{'execute': 'x-colo-lost-heartbeat' }
+
+== Secondary Failover ==
+The Primary died, resume on the Secondary and prepare to become the new Primary
+
+{'execute': 'nbd-server-stop'}
+{'execute': 'x-colo-lost-heartbeat'}
+
+{'execute': 'object-del', 'arguments':{ 'id': 'f2' } }
+{'execute': 'object-del', 'arguments':{ 'id': 'f1' } }
+{'execute': 'chardev-remove', 'arguments':{ 'id': 'red1' } }
+{'execute': 'chardev-remove', 'arguments':{ 'id': 'red0' } }
+
+{'execute': 'chardev-add', 'arguments':{ 'id': 'mirror0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '0.0.0.0', 'port': '9003' } }, 'server': true } } } }
+{'execute': 'chardev-add', 'arguments':{ 'id': 'compare1', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '0.0.0.0', 'port': '9004' } }, 'server': true } } } }
+{'execute': 'chardev-add', 'arguments':{ 'id': 'compare0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9001' } }, 'server': true } } } }
+{'execute': 'chardev-add', 'arguments':{ 'id': 'compare0-0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9001' } }, 'server': false } } } }
+{'execute': 'chardev-add', 'arguments':{ 'id': 'compare_out', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9005' } }, 'server': true } } } }
+{'execute': 'chardev-add', 'arguments':{ 'id': 'compare_out0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9005' } }, 'server': false } } } }
+
+== Primary resume replication ==
+Resume replication after new Secondary is up.
+
+Start the new Secondary (Steps 2 and 3 above), then on the Primary:
+{'execute': 'drive-mirror', 'arguments':{ 'device': 'colo-disk0', 'job-id': 'resync', 'target': 'nbd://127.0.0.2:9999/parent0', 'mode': 'existing', 'format': 'raw', 'sync': 'full'} }
+
+Wait until disk is synced, then:
+{'execute': 'stop'}
+{'execute': 'block-job-cancel', 'arguments':{ 'device': 'resync'} }
+
+{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0'}}
+{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'node': 'replication0' } }
+
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-mirror', 'id': 'm0', 'props': { 'netdev': 'hn0', 'queue': 'tx', 'outdev': 'mirror0' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire0', 'props': { 'netdev': 'hn0', 'queue': 'rx', 'indev': 'compare_out' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire1', 'props': { 'netdev': 'hn0', 'queue': 'rx', 'outdev': 'compare0' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'iothread', 'id': 'iothread1' } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'colo-compare', 'id': 'comp0', 'props': { 'primary_in': 'compare0-0', 'secondary_in': 'compare1', 'outdev': 'compare_out0', 'iothread': 'iothread1' } } }
+
+{'execute': 'migrate-set-capabilities', 'arguments':{ 'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
+{'execute': 'migrate', 'arguments':{ 'uri': 'tcp:127.0.0.2:9998' } }
+
+Note:
+If this Primary previously was a Secondary, then we need to insert the
+filters before the filter-rewriter by using the
+"'insert': 'before', 'position': 'id=rew0'" Options. See below.
+
+== Secondary resume replication ==
+Become Primary and resume replication after new Secondary is up. Note
+that now 127.0.0.1 is the Secondary and 127.0.0.2 is the Primary.
+
+Start the new Secondary (Steps 2 and 3 above, but with primary_ip=127.0.0.2),
+then on the old Secondary:
+{'execute': 'drive-mirror', 'arguments':{ 'device': 'colo-disk0', 'job-id': 'resync', 'target': 'nbd://127.0.0.1:9999/parent0', 'mode': 'existing', 'format': 'raw', 'sync': 'full'} }
+
+Wait until disk is synced, then:
+{'execute': 'stop'}
+{'execute': 'block-job-cancel', 'arguments':{ 'device': 'resync' } }
+
+{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.1,file.port=9999,file.export=parent0,node-name=replication0'}}
+{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'node': 'replication0' } }
+
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-mirror', 'id': 'm0', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'tx', 'outdev': 'mirror0' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire0', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'rx', 'indev': 'compare_out' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire1', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'rx', 'outdev': 'compare0' } } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'iothread', 'id': 'iothread1' } }
+{'execute': 'object-add', 'arguments':{ 'qom-type': 'colo-compare', 'id': 'comp0', 'props': { 'primary_in': 'compare0-0', 'secondary_in': 'compare1', 'outdev': 'compare_out0', 'iothread': 'iothread1' } } }
+
+{'execute': 'migrate-set-capabilities', 'arguments':{ 'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
+{'execute': 'migrate', 'arguments':{ 'uri': 'tcp:127.0.0.1:9998' } }
 
 == TODO ==
-1. Support continuous VM replication.
-2. Support shared storage.
-3. Develop the heartbeat part.
-4. Reduce checkpoint VM’s downtime while doing checkpoint.
+1. Support shared storage.
+2. Develop the heartbeat part.
+3. Reduce checkpoint VM’s downtime while doing checkpoint.

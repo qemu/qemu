@@ -92,9 +92,13 @@ net_rx_pkt_l3_csum_validate_csum(size_t l3hdr_off, uint32_t csl, uint32_t cntr, 
 
 net_rx_pkt_rss_ip4(void) "Calculating IPv4 RSS  hash"
 net_rx_pkt_rss_ip4_tcp(void) "Calculating IPv4/TCP RSS  hash"
+net_rx_pkt_rss_ip4_udp(void) "Calculating IPv4/UDP RSS  hash"
 net_rx_pkt_rss_ip6_tcp(void) "Calculating IPv6/TCP RSS  hash"
+net_rx_pkt_rss_ip6_udp(void) "Calculating IPv6/UDP RSS  hash"
 net_rx_pkt_rss_ip6(void) "Calculating IPv6 RSS  hash"
 net_rx_pkt_rss_ip6_ex(void) "Calculating IPv6/EX RSS  hash"
+net_rx_pkt_rss_ip6_ex_tcp(void) "Calculating IPv6/EX/TCP RSS  hash"
+net_rx_pkt_rss_ip6_ex_udp(void) "Calculating IPv6/EX/UDP RSS  hash"
 net_rx_pkt_rss_hash(size_t rss_length, uint32_t rss_hash) "RSS hash for %zu bytes: 0x%X"
 net_rx_pkt_rss_add_chunk(void* ptr, size_t size, size_t input_offset) "Add RSS chunk %p, %zu bytes, RSS input offset %zu bytes"
 
