@@ -936,6 +936,17 @@ do
     fi
 done
 
+# Check for ancillary tools used in testing
+genisoimage=
+for binary in genisoimage
+do
+    if has $binary
+    then
+        genisoimage=$(command -v "$binary")
+        break
+    fi
+done
+
 : ${smbd=${SMBD-/usr/sbin/smbd}}
 
 # Default objcc to clang if available, otherwise use CC
@@ -6567,6 +6578,7 @@ echo "python            $python ($python_version)"
 if test "$docs" != "no"; then
     echo "sphinx-build      $sphinx_build"
 fi
+echo "genisoimage       $genisoimage"
 echo "slirp support     $slirp $(echo_version $slirp $slirp_version)"
 if test "$slirp" != "no" ; then
     echo "smbd              $smbd"
@@ -7616,6 +7628,7 @@ echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
 echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "SPHINX_BUILD=$sphinx_build" >> $config_host_mak
+echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
   echo "IASL=$iasl" >> $config_host_mak
