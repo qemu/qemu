@@ -8551,7 +8551,7 @@ static bool trans_MRS_v7m(DisasContext *s, arg_MRS_v7m *a)
 
 static bool trans_MSR_v7m(DisasContext *s, arg_MSR_v7m *a)
 {
-    TCGv_i32 addr, reg, el;
+    TCGv_i32 addr, reg;
 
     if (!arm_dc_feature(s, ARM_FEATURE_M)) {
         return false;
@@ -8561,9 +8561,8 @@ static bool trans_MSR_v7m(DisasContext *s, arg_MSR_v7m *a)
     gen_helper_v7m_msr(cpu_env, addr, reg);
     tcg_temp_free_i32(addr);
     tcg_temp_free_i32(reg);
-    el = tcg_const_i32(s->current_el);
-    gen_helper_rebuild_hflags_m32(cpu_env, el);
-    tcg_temp_free_i32(el);
+    /* If we wrote to CONTROL, the EL might have changed */
+    gen_helper_rebuild_hflags_m32_newel(cpu_env);
     gen_lookup_tb(s);
     return true;
 }
