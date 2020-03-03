@@ -227,7 +227,8 @@ type_init(sifive_clint_register_types)
  * Create CLINT device.
  */
 DeviceState *sifive_clint_create(hwaddr addr, hwaddr size, uint32_t num_harts,
-    uint32_t sip_base, uint32_t timecmp_base, uint32_t time_base)
+    uint32_t sip_base, uint32_t timecmp_base, uint32_t time_base,
+    bool provide_rdtime)
 {
     int i;
     for (i = 0; i < num_harts; i++) {
@@ -235,6 +236,9 @@ DeviceState *sifive_clint_create(hwaddr addr, hwaddr size, uint32_t num_harts,
         CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
         if (!env) {
             continue;
+        }
+        if (provide_rdtime) {
+            riscv_cpu_set_rdtime_fn(env, cpu_riscv_read_rtc);
         }
         env->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                   &sifive_clint_timer_cb, cpu);
