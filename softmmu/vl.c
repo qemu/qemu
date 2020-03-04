@@ -2801,6 +2801,9 @@ static void create_default_memdev(MachineState *ms, const char *path)
     object_property_set_int(obj, ms->ram_size, "size", &error_fatal);
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
                               obj, &error_fatal);
+    /* Ensure backend's memory region name is equal to mc->default_ram_id */
+    object_property_set_bool(obj, false, "x-use-canonical-path-for-ramblock-id",
+                             &error_fatal);
     user_creatable_complete(USER_CREATABLE(obj), &error_fatal);
     object_unref(obj);
     object_property_set_str(OBJECT(ms), mc->default_ram_id, "memory-backend",
