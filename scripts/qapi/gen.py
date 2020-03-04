@@ -22,7 +22,7 @@ from qapi.common import *
 from qapi.schema import QAPISchemaVisitor
 
 
-class QAPIGen(object):
+class QAPIGen:
 
     def __init__(self, fname):
         self.fname = fname

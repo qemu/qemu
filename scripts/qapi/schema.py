@@ -24,7 +24,7 @@ from qapi.expr import check_exprs
 from qapi.parser import QAPISchemaParser
 
 
-class QAPISchemaEntity(object):
+class QAPISchemaEntity:
     meta = None
 
     def __init__(self, name, info, doc, ifcond=None, features=None):
@@ -89,7 +89,7 @@ class QAPISchemaEntity(object):
         return "%s '%s'" % (self.meta, self.name)
 
 
-class QAPISchemaVisitor(object):
+class QAPISchemaVisitor:
     def visit_begin(self, schema):
         pass
 
@@ -135,7 +135,7 @@ class QAPISchemaVisitor(object):
         pass
 
 
-class QAPISchemaModule(object):
+class QAPISchemaModule:
     def __init__(self, name):
         self.name = name
         self._entity_list = []
@@ -441,7 +441,7 @@ class QAPISchemaObjectType(QAPISchemaType):
                                        self.features)
 
 
-class QAPISchemaMember(object):
+class QAPISchemaMember:
     """ Represents object members, enum members and features """
     role = 'member'
 
@@ -519,7 +519,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
                                         self.describe)
 
 
-class QAPISchemaObjectTypeVariants(object):
+class QAPISchemaObjectTypeVariants:
     def __init__(self, tag_name, info, tag_member, variants):
         # Flat unions pass tag_name but not tag_member.
         # Simple unions and alternates pass tag_member but not tag_name.
@@ -787,7 +787,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
                             self.arg_type, self.boxed)
 
 
-class QAPISchema(object):
+class QAPISchema:
     def __init__(self, fname):
         self.fname = fname
         parser = QAPISchemaParser(fname)

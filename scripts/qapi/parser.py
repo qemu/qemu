@@ -23,7 +23,7 @@ from qapi.error import QAPIParseError, QAPISemError
 from qapi.source import QAPISourceInfo
 
 
-class QAPISchemaParser(object):
+class QAPISchemaParser:
 
     def __init__(self, fname, previously_included=None, incl_info=None):
         previously_included = previously_included or set()
@@ -293,7 +293,7 @@ class QAPISchemaParser(object):
         raise QAPIParseError(self, "documentation comment must end with '##'")
 
 
-class QAPIDoc(object):
+class QAPIDoc:
     """
     A documentation comment block, either definition or free-form
 
@@ -312,7 +312,7 @@ class QAPIDoc(object):
     Free-form documentation blocks consist only of a body section.
     """
 
-    class Section(object):
+    class Section:
         def __init__(self, name=None):
             # optional section name (argument/member or section name)
             self.name = name
