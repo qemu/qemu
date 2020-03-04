@@ -15,7 +15,6 @@
 import errno
 import os
 import re
-import sys
 from contextlib import contextmanager
 
 from qapi.common import *
@@ -54,10 +53,7 @@ class QAPIGen:
                 if e.errno != errno.EEXIST:
                     raise
         fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
-        if sys.version_info[0] >= 3:
-            f = open(fd, 'r+', encoding='utf-8')
-        else:
-            f = os.fdopen(fd, 'r+')
+        f = open(fd, 'r+', encoding='utf-8')
         text = self.get_content()
         oldtext = f.read(len(text) + 1)
         if text != oldtext:

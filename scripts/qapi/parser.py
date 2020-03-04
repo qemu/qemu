@@ -16,7 +16,6 @@
 
 import os
 import re
-import sys
 from collections import OrderedDict
 
 from qapi.error import QAPIParseError, QAPISemError
@@ -30,10 +29,7 @@ class QAPISchemaParser:
         previously_included.add(os.path.abspath(fname))
 
         try:
-            if sys.version_info[0] >= 3:
-                fp = open(fname, 'r', encoding='utf-8')
-            else:
-                fp = open(fname, 'r')
+            fp = open(fname, 'r', encoding='utf-8')
             self.src = fp.read()
         except IOError as e:
             raise QAPISemError(incl_info or QAPISourceInfo(None, None, None),
