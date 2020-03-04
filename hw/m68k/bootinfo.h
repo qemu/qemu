@@ -14,7 +14,7 @@
 struct bi_record {
     uint16_t tag;        /* tag ID */
     uint16_t size;       /* size of record */
-    uint32_t data[0];    /* data */
+    uint32_t data[];     /* data */
 };
 
 /* machine independent tags */

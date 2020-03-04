@@ -626,7 +626,7 @@ static const uint32_t oid_supported_list[] =
 struct rndis_response {
     QTAILQ_ENTRY(rndis_response) entries;
     uint32_t length;
-    uint8_t buf[0];
+    uint8_t buf[];
 };
 
 typedef struct USBNetState {

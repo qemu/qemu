@@ -24,7 +24,7 @@ struct omap_l4_s {
     MemoryRegion *address_space;
     hwaddr base;
     int ta_num;
-    struct omap_target_agent_s ta[0];
+    struct omap_target_agent_s ta[];
 };
 
 struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,

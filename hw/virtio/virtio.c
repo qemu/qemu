@@ -54,7 +54,7 @@ typedef struct VRingAvail
 {
     uint16_t flags;
     uint16_t idx;
-    uint16_t ring[0];
+    uint16_t ring[];
 } VRingAvail;
 
 typedef struct VRingUsedElem
@@ -67,7 +67,7 @@ typedef struct VRingUsed
 {
     uint16_t flags;
     uint16_t idx;
-    VRingUsedElem ring[0];
+    VRingUsedElem ring[];
 } VRingUsed;
 
 typedef struct VRingMemoryRegionCaches {

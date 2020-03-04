@@ -286,7 +286,7 @@ typedef struct VuVirtqInflight {
     uint16_t used_idx;
 
     /* Used to track the state of each descriptor in descriptor table */
-    VuDescStateSplit desc[0];
+    VuDescStateSplit desc[];
 } VuVirtqInflight;
 
 typedef struct VuVirtqInflightDesc {

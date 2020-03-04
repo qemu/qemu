@@ -227,7 +227,7 @@ typedef struct QEMU_PACKED CCID_Parameter {
 typedef struct QEMU_PACKED CCID_DataBlock {
     CCID_BULK_IN b;
     uint8_t      bChainParameter;
-    uint8_t      abData[0];
+    uint8_t      abData[];
 } CCID_DataBlock;
 
 /* 6.1.4 PC_to_RDR_XfrBlock */
@@ -235,7 +235,7 @@ typedef struct QEMU_PACKED CCID_XferBlock {
     CCID_Header  hdr;
     uint8_t      bBWI; /* Block Waiting Timeout */
     uint16_t     wLevelParameter; /* XXX currently unused */
-    uint8_t      abData[0];
+    uint8_t      abData[];
 } CCID_XferBlock;
 
 typedef struct QEMU_PACKED CCID_IccPowerOn {

@@ -203,7 +203,7 @@ typedef struct XenPTMSIX {
     uint64_t mmio_base_addr;
     MemoryRegion mmio;
     void *phys_iomem_base;
-    XenPTMSIXEntry msix_entry[0];
+    XenPTMSIXEntry msix_entry[];
 } XenPTMSIX;
 
 struct XenPCIPassthroughState {

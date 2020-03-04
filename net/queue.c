@@ -46,7 +46,7 @@ struct NetPacket {
     unsigned flags;
     int size;
     NetPacketSent *sent_cb;
-    uint8_t data[0];
+    uint8_t data[];
 };
 
 struct NetQueue {

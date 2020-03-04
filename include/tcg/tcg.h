@@ -267,7 +267,7 @@ struct TCGLabel {
 typedef struct TCGPool {
     struct TCGPool *next;
     int size;
-    uint8_t data[0] __attribute__ ((aligned));
+    uint8_t data[] __attribute__ ((aligned));
 } TCGPool;
 
 #define TCG_POOL_CHUNK_SIZE 32768

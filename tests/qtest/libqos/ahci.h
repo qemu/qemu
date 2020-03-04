@@ -351,7 +351,7 @@ typedef struct AHCIQState {
 typedef struct FIS {
     uint8_t fis_type;
     uint8_t flags;
-    char data[0];
+    char data[];
 } __attribute__((__packed__)) FIS;
 
 /**

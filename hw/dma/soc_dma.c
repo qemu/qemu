@@ -80,7 +80,7 @@ struct dma_s {
     } *memmap;
     int memmap_size;
 
-    struct soc_dma_ch_s ch[0];
+    struct soc_dma_ch_s ch[];
 };
 
 static void soc_dma_ch_schedule(struct soc_dma_ch_s *ch, int delay_bytes)

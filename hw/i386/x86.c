@@ -328,7 +328,7 @@ struct setup_data {
     uint64_t next;
     uint32_t type;
     uint32_t len;
-    uint8_t data[0];
+    uint8_t data[];
 } __attribute__((packed));
 
 
