@@ -152,7 +152,7 @@ typedef struct AcpiSerialPortConsoleRedirection
  */
 struct AcpiRsdtDescriptorRev1 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
-    uint32_t table_offset_entry[0];  /* Array of pointers to other */
+    uint32_t table_offset_entry[];  /* Array of pointers to other */
     /* ACPI tables */
 } QEMU_PACKED;
 typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
@@ -162,7 +162,7 @@ typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
  */
 struct AcpiXsdtDescriptorRev2 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
-    uint64_t table_offset_entry[0];  /* Array of pointers to other */
+    uint64_t table_offset_entry[];  /* Array of pointers to other */
     /* ACPI tables */
 } QEMU_PACKED;
 typedef struct AcpiXsdtDescriptorRev2 AcpiXsdtDescriptorRev2;

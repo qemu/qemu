@@ -31,7 +31,7 @@
 typedef struct OprtnsCommand {
     EventBufferHeader header;
     MDMSU message_unit;
-    char data[0];
+    char data[];
 } QEMU_PACKED OprtnsCommand;
 
 /* max size for line-mode data in 4K SCCB page */
