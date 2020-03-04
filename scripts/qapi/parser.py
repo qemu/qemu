@@ -282,8 +282,7 @@ class QAPISchemaParser:
                 doc.end_comment()
                 self.accept()
                 return doc
-            else:
-                doc.append(self.val)
+            doc.append(self.val)
             self.accept(False)
 
         raise QAPIParseError(self, "documentation comment must end with '##'")
@@ -492,7 +491,7 @@ class QAPIDoc:
             raise QAPIParseError(self._parser,
                                  "'%s' can't follow '%s' section"
                                  % (name, self.sections[0].name))
-        elif self._is_section_tag(name):
+        if self._is_section_tag(name):
             line = line[len(name)+1:]
             self._start_section(name[:-1])
 
@@ -556,7 +555,6 @@ class QAPIDoc:
             raise QAPISemError(feature.info,
                                "feature '%s' lacks documentation"
                                % feature.name)
-            self.features[feature.name] = QAPIDoc.ArgSection(feature.name)
         self.features[feature.name].connect(feature)
 
     def check_expr(self, expr):

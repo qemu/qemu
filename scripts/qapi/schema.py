@@ -19,7 +19,7 @@ import re
 from collections import OrderedDict
 
 from qapi.common import c_name, pointer_suffix
-from qapi.error import QAPIError, QAPIParseError, QAPISemError
+from qapi.error import QAPIError, QAPISemError
 from qapi.expr import check_exprs
 from qapi.parser import QAPISchemaParser
 
@@ -96,14 +96,14 @@ class QAPISchemaVisitor:
     def visit_end(self):
         pass
 
-    def visit_module(self, fname):
+    def visit_module(self, name):
         pass
 
     def visit_needed(self, entity):
         # Default to visiting everything
         return True
 
-    def visit_include(self, fname, info):
+    def visit_include(self, name, info):
         pass
 
     def visit_builtin_type(self, name, info, json_type):
@@ -576,7 +576,7 @@ class QAPISchemaObjectTypeVariants:
             assert self.tag_member.ifcond == []
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
-            cases = set([v.name for v in self.variants])
+            cases = {v.name for v in self.variants}
             for m in self.tag_member.type.members:
                 if m.name not in cases:
                     v = QAPISchemaObjectTypeVariant(m.name, self.info,
@@ -848,7 +848,7 @@ class QAPISchema:
 
     def _make_module(self, fname):
         name = self._module_name(fname)
-        if not name in self._module_dict:
+        if name not in self._module_dict:
             self._module_dict[name] = QAPISchemaModule(name)
         return self._module_dict[name]
 
@@ -1097,7 +1097,6 @@ class QAPISchema:
 
     def visit(self, visitor):
         visitor.visit_begin(self)
-        module = None
         for mod in self._module_dict.values():
             mod.visit(visitor)
         visitor.visit_end()

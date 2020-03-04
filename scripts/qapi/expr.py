@@ -35,7 +35,6 @@ def check_name_is_str(name, info, source):
 def check_name_str(name, info, source,
                    allow_optional=False, enum_member=False,
                    permit_upper=False):
-    global valid_name
     membername = name
 
     if allow_optional and name.startswith('*'):
@@ -249,7 +248,7 @@ def check_union(expr, info):
 def check_alternate(expr, info):
     members = expr['data']
 
-    if len(members) == 0:
+    if not members:
         raise QAPISemError(info, "'data' must not be empty")
     for (key, value) in members.items():
         source = "'data' member '%s'" % key

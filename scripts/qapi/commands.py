@@ -274,7 +274,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                       c_prefix=c_name(self._prefix, protect=False)))
+                             c_prefix=c_name(self._prefix, protect=False)))
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-commands.h"

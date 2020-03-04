@@ -10,8 +10,6 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-import string
-
 from qapi.common import *
 from qapi.gen import QAPISchemaMonolithicCVisitor
 from qapi.schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,

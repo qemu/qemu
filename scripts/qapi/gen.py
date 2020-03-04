@@ -45,10 +45,10 @@ class QAPIGen:
 
     def write(self, output_dir):
         pathname = os.path.join(output_dir, self.fname)
-        dir = os.path.dirname(pathname)
-        if dir:
+        odir = os.path.dirname(pathname)
+        if odir:
             try:
-                os.makedirs(dir)
+                os.makedirs(odir)
             except os.error as e:
                 if e.errno != errno.EEXIST:
                     raise
@@ -260,6 +260,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             (genc, genh) = self._module[name]
             genc.write(output_dir)
             genh.write(output_dir)
+
+    def _begin_system_module(self, name):
+        pass
 
     def _begin_user_module(self, name):
         pass
