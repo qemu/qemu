@@ -9,6 +9,7 @@
  */
 
 #include "libc.h"
+#include "helper.h"
 #include "s390-arch.h"
 #include "s390-ccw.h"
 #include "cio.h"
@@ -22,7 +23,7 @@ QemuIplParameters qipl;
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 static bool have_iplb;
 static uint16_t cutype;
-LowCore const *lowcore; /* Yes, this *is* a pointer to address 0 */
+LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
 
 #define LOADPARM_PROMPT "PROMPT  "
 #define LOADPARM_EMPTY  "        "
@@ -40,6 +41,11 @@ void write_subsystem_identification(void)
 
     *schid = blk_schid;
     *zeroes = 0;
+}
+
+void write_iplb_location(void)
+{
+    lowcore->ptr_iplb = ptr2u32(&iplb);
 }
 
 void panic(const char *string)
