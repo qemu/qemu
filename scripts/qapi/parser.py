@@ -320,7 +320,7 @@ class QAPIDoc:
 
     class ArgSection(Section):
         def __init__(self, name):
-            QAPIDoc.Section.__init__(self, name)
+            super().__init__(name)
             self.member = None
 
         def connect(self, member):

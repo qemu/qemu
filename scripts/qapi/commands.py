@@ -237,8 +237,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
     def __init__(self, prefix):
-        QAPISchemaModularCVisitor.__init__(
-            self, prefix, 'qapi-commands',
+        super().__init__(
+            prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__)
         self._regy = QAPIGenCCode(None)
         self._visited_ret_types = {}

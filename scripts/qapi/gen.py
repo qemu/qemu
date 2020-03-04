@@ -82,7 +82,7 @@ def _wrap_ifcond(ifcond, before, after):
 class QAPIGenCCode(QAPIGen):
 
     def __init__(self, fname):
-        QAPIGen.__init__(self, fname)
+        super().__init__(fname)
         self._start_if = None
 
     def start_if(self, ifcond):
@@ -102,13 +102,13 @@ class QAPIGenCCode(QAPIGen):
 
     def get_content(self):
         assert self._start_if is None
-        return QAPIGen.get_content(self)
+        return super().get_content()
 
 
 class QAPIGenC(QAPIGenCCode):
 
     def __init__(self, fname, blurb, pydoc):
-        QAPIGenCCode.__init__(self, fname)
+        super().__init__(fname)
         self._blurb = blurb
         self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
                                                   re.MULTILINE))
@@ -141,7 +141,7 @@ char qapi_dummy_%(name)s;
 class QAPIGenH(QAPIGenC):
 
     def _top(self):
-        return QAPIGenC._top(self) + guardstart(self.fname)
+        return super()._top() + guardstart(self.fname)
 
     def _bottom(self):
         return guardend(self.fname)
@@ -176,7 +176,7 @@ def ifcontext(ifcond, *args):
 class QAPIGenDoc(QAPIGen):
 
     def _top(self):
-        return (QAPIGen._top(self)
+        return (super()._top()
                 + '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n')
 
 
