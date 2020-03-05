@@ -361,12 +361,13 @@ void aio_set_event_notifier_poll(AioContext *ctx,
                     (IOHandler *)io_poll_end);
 }
 
-static void poll_set_started(AioContext *ctx, bool started)
+static bool poll_set_started(AioContext *ctx, bool started)
 {
     AioHandler *node;
+    bool progress = false;
 
     if (started == ctx->poll_started) {
-        return;
+        return false;
     }
 
     ctx->poll_started = started;
@@ -388,8 +389,15 @@ static void poll_set_started(AioContext *ctx, bool started)
         if (fn) {
             fn(node->opaque);
         }
+
+        /* Poll one last time in case ->io_poll_end() raced with the event */
+        if (!started) {
+            progress = node->io_poll(node->opaque) || progress;
+        }
     }
     qemu_lockcnt_dec(&ctx->list_lock);
+
+    return progress;
 }
 
 
@@ -670,12 +678,12 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
         }
     }
 
-    poll_set_started(ctx, false);
+    if (poll_set_started(ctx, false)) {
+        *timeout = 0;
+        return true;
+    }
 
-    /* Even if we don't run busy polling, try polling once in case it can make
-     * progress and the caller will be able to avoid ppoll(2)/epoll_wait(2).
-     */
-    return run_poll_handlers_once(ctx, timeout);
+    return false;
 }
 
 bool aio_poll(AioContext *ctx, bool blocking)
