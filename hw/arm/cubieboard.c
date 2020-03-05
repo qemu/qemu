@@ -68,8 +68,8 @@ static void cubieboard_init(MachineState *machine)
 
 static void cubieboard_machine_init(MachineClass *mc)
 {
-    mc->desc = "cubietech cubieboard (Cortex-A9)";
-    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->desc = "cubietech cubieboard (Cortex-A8)";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
     mc->init = cubieboard_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
