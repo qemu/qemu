@@ -1885,6 +1885,8 @@ L: qemu-block@nongnu.org
 S: Supported
 F: util/async.c
 F: util/aio-*.c
+F: util/aio-*.h
+F: util/fdmon-*.c
 F: block/io.c
 F: migration/block*
 F: include/block/aio.h

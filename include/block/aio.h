@@ -52,6 +52,38 @@ struct ThreadPool;
 struct LinuxAioState;
 struct LuringState;
 
+/* Callbacks for file descriptor monitoring implementations */
+typedef struct {
+    /*
+     * update:
+     * @ctx: the AioContext
+     * @node: the handler
+     * @is_new: is the file descriptor already being monitored?
+     *
+     * Add/remove/modify a monitored file descriptor.  There are three cases:
+     * 1. node->pfd.events == 0 means remove the file descriptor.
+     * 2. !is_new means modify an already monitored file descriptor.
+     * 3. is_new means add a new file descriptor.
+     *
+     * Called with ctx->list_lock acquired.
+     */
+    void (*update)(AioContext *ctx, AioHandler *node, bool is_new);
+
+    /*
+     * wait:
+     * @ctx: the AioContext
+     * @ready_list: list for handlers that become ready
+     * @timeout: maximum duration to wait, in nanoseconds
+     *
+     * Wait for file descriptors to become ready and place them on ready_list.
+     *
+     * Called with ctx->list_lock incremented but not locked.
+     *
+     * Returns: number of ready file descriptors.
+     */
+    int (*wait)(AioContext *ctx, AioHandlerList *ready_list, int64_t timeout);
+} FDMonOps;
+
 /*
  * Each aio_bh_poll() call carves off a slice of the BH list, so that newly
  * scheduled BHs are not processed until the next aio_bh_poll() call.  All
@@ -173,8 +205,8 @@ struct AioContext {
 
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
-    bool epoll_enabled;
-    bool epoll_available;
+
+    const FDMonOps *fdmon_ops;
 };
 
 /**

@@ -20,190 +20,16 @@
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
 #include "trace.h"
-#ifdef CONFIG_EPOLL_CREATE1
-#include <sys/epoll.h>
-#endif
+#include "aio-posix.h"
 
-struct AioHandler
-{
-    GPollFD pfd;
-    IOHandler *io_read;
-    IOHandler *io_write;
-    AioPollFn *io_poll;
-    IOHandler *io_poll_begin;
-    IOHandler *io_poll_end;
-    void *opaque;
-    bool is_external;
-    QLIST_ENTRY(AioHandler) node;
-    QLIST_ENTRY(AioHandler) node_ready; /* only used during aio_poll() */
-    QLIST_ENTRY(AioHandler) node_deleted;
-};
-
-/* Add a handler to a ready list */
-static void add_ready_handler(AioHandlerList *ready_list,
-                              AioHandler *node,
-                              int revents)
+void aio_add_ready_handler(AioHandlerList *ready_list,
+                           AioHandler *node,
+                           int revents)
 {
     QLIST_SAFE_REMOVE(node, node_ready); /* remove from nested parent's list */
     node->pfd.revents = revents;
     QLIST_INSERT_HEAD(ready_list, node, node_ready);
 }
-
-#ifdef CONFIG_EPOLL_CREATE1
-
-/* The fd number threshold to switch to epoll */
-#define EPOLL_ENABLE_THRESHOLD 64
-
-static void aio_epoll_disable(AioContext *ctx)
-{
-    ctx->epoll_enabled = false;
-    if (!ctx->epoll_available) {
-        return;
-    }
-    ctx->epoll_available = false;
-    close(ctx->epollfd);
-}
-
-static inline int epoll_events_from_pfd(int pfd_events)
-{
-    return (pfd_events & G_IO_IN ? EPOLLIN : 0) |
-           (pfd_events & G_IO_OUT ? EPOLLOUT : 0) |
-           (pfd_events & G_IO_HUP ? EPOLLHUP : 0) |
-           (pfd_events & G_IO_ERR ? EPOLLERR : 0);
-}
-
-static bool aio_epoll_try_enable(AioContext *ctx)
-{
-    AioHandler *node;
-    struct epoll_event event;
-
-    QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
-        int r;
-        if (QLIST_IS_INSERTED(node, node_deleted) || !node->pfd.events) {
-            continue;
-        }
-        event.events = epoll_events_from_pfd(node->pfd.events);
-        event.data.ptr = node;
-        r = epoll_ctl(ctx->epollfd, EPOLL_CTL_ADD, node->pfd.fd, &event);
-        if (r) {
-            return false;
-        }
-    }
-    ctx->epoll_enabled = true;
-    return true;
-}
-
-static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
-{
-    struct epoll_event event;
-    int r;
-    int ctl;
-
-    if (!ctx->epoll_enabled) {
-        return;
-    }
-    if (!node->pfd.events) {
-        ctl = EPOLL_CTL_DEL;
-    } else {
-        event.data.ptr = node;
-        event.events = epoll_events_from_pfd(node->pfd.events);
-        ctl = is_new ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
-    }
-
-    r = epoll_ctl(ctx->epollfd, ctl, node->pfd.fd, &event);
-    if (r) {
-        aio_epoll_disable(ctx);
-    }
-}
-
-static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
-                     int64_t timeout)
-{
-    GPollFD pfd = {
-        .fd = ctx->epollfd,
-        .events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR,
-    };
-    AioHandler *node;
-    int i, ret = 0;
-    struct epoll_event events[128];
-
-    if (timeout > 0) {
-        ret = qemu_poll_ns(&pfd, 1, timeout);
-        if (ret > 0) {
-            timeout = 0;
-        }
-    }
-    if (timeout <= 0 || ret > 0) {
-        ret = epoll_wait(ctx->epollfd, events,
-                         ARRAY_SIZE(events),
-                         timeout);
-        if (ret <= 0) {
-            goto out;
-        }
-        for (i = 0; i < ret; i++) {
-            int ev = events[i].events;
-            int revents = (ev & EPOLLIN ? G_IO_IN : 0) |
-                          (ev & EPOLLOUT ? G_IO_OUT : 0) |
-                          (ev & EPOLLHUP ? G_IO_HUP : 0) |
-                          (ev & EPOLLERR ? G_IO_ERR : 0);
-
-            node = events[i].data.ptr;
-            add_ready_handler(ready_list, node, revents);
-        }
-    }
-out:
-    return ret;
-}
-
-static bool aio_epoll_enabled(AioContext *ctx)
-{
-    /* Fall back to ppoll when external clients are disabled. */
-    return !aio_external_disabled(ctx) && ctx->epoll_enabled;
-}
-
-static bool aio_epoll_check_poll(AioContext *ctx, GPollFD *pfds,
-                                 unsigned npfd, int64_t timeout)
-{
-    if (!ctx->epoll_available) {
-        return false;
-    }
-    if (aio_epoll_enabled(ctx)) {
-        return true;
-    }
-    if (npfd >= EPOLL_ENABLE_THRESHOLD) {
-        if (aio_epoll_try_enable(ctx)) {
-            return true;
-        } else {
-            aio_epoll_disable(ctx);
-        }
-    }
-    return false;
-}
-
-#else
-
-static void aio_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
-{
-}
-
-static int aio_epoll(AioContext *ctx, AioHandlerList *ready_list,
-                     int64_t timeout)
-{
-    assert(false);
-}
-
-static bool aio_epoll_enabled(AioContext *ctx)
-{
-    return false;
-}
-
-static bool aio_epoll_check_poll(AioContext *ctx, GPollFD *pfds,
-                          unsigned npfd, int64_t timeout)
-{
-    return false;
-}
-
-#endif
 
 static AioHandler *find_aio_handler(AioContext *ctx, int fd)
 {
@@ -314,10 +140,10 @@ void aio_set_fd_handler(AioContext *ctx,
                atomic_read(&ctx->poll_disable_cnt) + poll_disable_change);
 
     if (new_node) {
-        aio_epoll_update(ctx, new_node, is_new);
+        ctx->fdmon_ops->update(ctx, new_node, is_new);
     } else if (node) {
         /* Unregister deleted fd_handler */
-        aio_epoll_update(ctx, node, false);
+        ctx->fdmon_ops->update(ctx, node, false);
     }
     qemu_lockcnt_unlock(&ctx->list_lock);
     aio_notify(ctx);
@@ -532,52 +358,6 @@ void aio_dispatch(AioContext *ctx)
     timerlistgroup_run_timers(&ctx->tlg);
 }
 
-/* These thread-local variables are used only in a small part of aio_poll
- * around the call to the poll() system call.  In particular they are not
- * used while aio_poll is performing callbacks, which makes it much easier
- * to think about reentrancy!
- *
- * Stack-allocated arrays would be perfect but they have size limitations;
- * heap allocation is expensive enough that we want to reuse arrays across
- * calls to aio_poll().  And because poll() has to be called without holding
- * any lock, the arrays cannot be stored in AioContext.  Thread-local data
- * has none of the disadvantages of these three options.
- */
-static __thread GPollFD *pollfds;
-static __thread AioHandler **nodes;
-static __thread unsigned npfd, nalloc;
-static __thread Notifier pollfds_cleanup_notifier;
-
-static void pollfds_cleanup(Notifier *n, void *unused)
-{
-    g_assert(npfd == 0);
-    g_free(pollfds);
-    g_free(nodes);
-    nalloc = 0;
-}
-
-static void add_pollfd(AioHandler *node)
-{
-    if (npfd == nalloc) {
-        if (nalloc == 0) {
-            pollfds_cleanup_notifier.notify = pollfds_cleanup;
-            qemu_thread_atexit_add(&pollfds_cleanup_notifier);
-            nalloc = 8;
-        } else {
-            g_assert(nalloc <= INT_MAX);
-            nalloc *= 2;
-        }
-        pollfds = g_renew(GPollFD, pollfds, nalloc);
-        nodes = g_renew(AioHandler *, nodes, nalloc);
-    }
-    nodes[npfd] = node;
-    pollfds[npfd] = (GPollFD) {
-        .fd = node->pfd.fd,
-        .events = node->pfd.events,
-    };
-    npfd++;
-}
-
 static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
 {
     bool progress = false;
@@ -689,8 +469,6 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
-    AioHandler *node;
-    int i;
     int ret = 0;
     bool progress;
     int64_t timeout;
@@ -723,26 +501,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * system call---a single round of run_poll_handlers_once suffices.
      */
     if (timeout || atomic_read(&ctx->poll_disable_cnt)) {
-        assert(npfd == 0);
-
-        /* fill pollfds */
-
-        if (!aio_epoll_enabled(ctx)) {
-            QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
-                if (!QLIST_IS_INSERTED(node, node_deleted) && node->pfd.events
-                    && aio_node_check(ctx, node->is_external)) {
-                    add_pollfd(node);
-                }
-            }
-        }
-
-        /* wait until next event */
-        if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
-            npfd = 0; /* pollfds[] is not being used */
-            ret = aio_epoll(ctx, &ready_list, timeout);
-        } else  {
-            ret = qemu_poll_ns(pollfds, npfd, timeout);
-        }
+        ret = ctx->fdmon_ops->wait(ctx, &ready_list, timeout);
     }
 
     if (blocking) {
@@ -791,19 +550,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         }
     }
 
-    /* if we have any readable fds, dispatch event */
-    if (ret > 0) {
-        for (i = 0; i < npfd; i++) {
-            int revents = pollfds[i].revents;
-
-            if (revents) {
-                add_ready_handler(&ready_list, nodes[i], revents);
-            }
-        }
-    }
-
-    npfd = 0;
-
     progress |= aio_bh_poll(ctx);
 
     if (ret > 0) {
@@ -821,23 +567,15 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
 void aio_context_setup(AioContext *ctx)
 {
-#ifdef CONFIG_EPOLL_CREATE1
-    assert(!ctx->epollfd);
-    ctx->epollfd = epoll_create1(EPOLL_CLOEXEC);
-    if (ctx->epollfd == -1) {
-        fprintf(stderr, "Failed to create epoll instance: %s", strerror(errno));
-        ctx->epoll_available = false;
-    } else {
-        ctx->epoll_available = true;
-    }
-#endif
+    ctx->fdmon_ops = &fdmon_poll_ops;
+    ctx->epollfd = -1;
+
+    fdmon_epoll_setup(ctx);
 }
 
 void aio_context_destroy(AioContext *ctx)
 {
-#ifdef CONFIG_EPOLL_CREATE1
-    aio_epoll_disable(ctx);
-#endif
+    fdmon_epoll_disable(ctx);
 }
 
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
