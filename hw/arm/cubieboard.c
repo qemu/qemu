@@ -33,6 +33,13 @@ static void cubieboard_init(MachineState *machine)
     AwA10State *a10;
     Error *err = NULL;
 
+    /* This board has fixed size RAM (512MiB or 1GiB) */
+    if (machine->ram_size != 512 * MiB &&
+        machine->ram_size != 1 * GiB) {
+        error_report("This machine can only be used with 512MiB or 1GiB RAM");
+        exit(1);
+    }
+
     /* Only allow Cortex-A8 for this board */
     if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a8")) != 0) {
         error_report("This board can only be used with cortex-a8 CPU");
@@ -78,6 +85,7 @@ static void cubieboard_machine_init(MachineClass *mc)
 {
     mc->desc = "cubietech cubieboard (Cortex-A8)";
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+    mc->default_ram_size = 1 * GiB;
     mc->init = cubieboard_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
