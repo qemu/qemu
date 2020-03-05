@@ -29,7 +29,7 @@ int main()
     }
 
     perc = (float) count / (float) (TESTS * 2);
-    printf("Ptr Check: %0.2f%%", perc * 100.0);
+    printf("Ptr Check: %0.2f%%\n", perc * 100.0);
     assert(perc > 0.95);
     return 0;
 }
