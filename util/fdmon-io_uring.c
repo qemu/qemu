@@ -288,9 +288,15 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
     return process_cq_ring(ctx, ready_list);
 }
 
+static bool fdmon_io_uring_need_wait(AioContext *ctx)
+{
+    return io_uring_cq_ready(&ctx->fdmon_io_uring);
+}
+
 static const FDMonOps fdmon_io_uring_ops = {
     .update = fdmon_io_uring_update,
     .wait = fdmon_io_uring_wait,
+    .need_wait = fdmon_io_uring_need_wait,
 };
 
 bool fdmon_io_uring_setup(AioContext *ctx)

@@ -100,6 +100,7 @@ out:
 static const FDMonOps fdmon_epoll_ops = {
     .update = fdmon_epoll_update,
     .wait = fdmon_epoll_wait,
+    .need_wait = aio_poll_disabled,
 };
 
 static bool fdmon_epoll_try_enable(AioContext *ctx)

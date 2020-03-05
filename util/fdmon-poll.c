@@ -103,4 +103,5 @@ static void fdmon_poll_update(AioContext *ctx,
 const FDMonOps fdmon_poll_ops = {
     .update = fdmon_poll_update,
     .wait = fdmon_poll_wait,
+    .need_wait = aio_poll_disabled,
 };

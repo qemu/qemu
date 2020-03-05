@@ -22,6 +22,11 @@
 #include "trace.h"
 #include "aio-posix.h"
 
+bool aio_poll_disabled(AioContext *ctx)
+{
+    return atomic_read(&ctx->poll_disable_cnt);
+}
+
 void aio_add_ready_handler(AioHandlerList *ready_list,
                            AioHandler *node,
                            int revents)
@@ -423,7 +428,7 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns, int64_t *timeout)
         elapsed_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time;
         max_ns = qemu_soonest_timeout(*timeout, max_ns);
         assert(!(max_ns && progress));
-    } while (elapsed_time < max_ns && !atomic_read(&ctx->poll_disable_cnt));
+    } while (elapsed_time < max_ns && !ctx->fdmon_ops->need_wait(ctx));
 
     /* If time has passed with no successful polling, adjust *timeout to
      * keep the same ending time.
@@ -451,7 +456,7 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
 {
     int64_t max_ns = qemu_soonest_timeout(*timeout, ctx->poll_ns);
 
-    if (max_ns && !atomic_read(&ctx->poll_disable_cnt)) {
+    if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
         poll_set_started(ctx, true);
 
         if (run_poll_handlers(ctx, max_ns, timeout)) {
@@ -501,7 +506,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* If polling is allowed, non-blocking aio_poll does not need the
      * system call---a single round of run_poll_handlers_once suffices.
      */
-    if (timeout || atomic_read(&ctx->poll_disable_cnt)) {
+    if (timeout || ctx->fdmon_ops->need_wait(ctx)) {
         ret = ctx->fdmon_ops->wait(ctx, &ready_list, timeout);
     }
 

@@ -55,6 +55,9 @@ struct ThreadPool;
 struct LinuxAioState;
 struct LuringState;
 
+/* Is polling disabled? */
+bool aio_poll_disabled(AioContext *ctx);
+
 /* Callbacks for file descriptor monitoring implementations */
 typedef struct {
     /*
@@ -84,6 +87,22 @@ typedef struct {
      * Returns: number of ready file descriptors.
      */
     int (*wait)(AioContext *ctx, AioHandlerList *ready_list, int64_t timeout);
+
+    /*
+     * need_wait:
+     * @ctx: the AioContext
+     *
+     * Tell aio_poll() when to stop userspace polling early because ->wait()
+     * has fds ready.
+     *
+     * File descriptor monitoring implementations that cannot poll fd readiness
+     * from userspace should use aio_poll_disabled() here.  This ensures that
+     * file descriptors are not starved by handlers that frequently make
+     * progress via userspace polling.
+     *
+     * Returns: true if ->wait() should be called, false otherwise.
+     */
+    bool (*need_wait)(AioContext *ctx);
 } FDMonOps;
 
 /*
