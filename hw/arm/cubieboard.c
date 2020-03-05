@@ -30,8 +30,16 @@ static struct arm_boot_info cubieboard_binfo = {
 
 static void cubieboard_init(MachineState *machine)
 {
-    AwA10State *a10 = AW_A10(object_new(TYPE_AW_A10));
+    AwA10State *a10;
     Error *err = NULL;
+
+    /* Only allow Cortex-A8 for this board */
+    if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a8")) != 0) {
+        error_report("This board can only be used with cortex-a8 CPU");
+        exit(1);
+    }
+
+    a10 = AW_A10(object_new(TYPE_AW_A10));
 
     object_property_set_int(OBJECT(&a10->emac), 1, "phy-addr", &err);
     if (err != NULL) {
