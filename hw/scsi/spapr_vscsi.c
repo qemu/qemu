@@ -671,8 +671,8 @@ static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
      */
     rsp->req_lim_delta = cpu_to_be32(VSCSI_REQ_LIMIT-2);
     rsp->tag = tag;
-    rsp->max_it_iu_len = cpu_to_be32(sizeof(union srp_iu));
-    rsp->max_ti_iu_len = cpu_to_be32(sizeof(union srp_iu));
+    rsp->max_it_iu_len = cpu_to_be32(SRP_MAX_IU_LEN);
+    rsp->max_ti_iu_len = cpu_to_be32(SRP_MAX_IU_LEN);
     /* direct and indirect */
     rsp->buf_fmt = cpu_to_be16(SRP_BUF_FORMAT_DIRECT | SRP_BUF_FORMAT_INDIRECT);
 
@@ -1088,7 +1088,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
      * in our 256 bytes IUs. If not we'll have to increase the size
      * of the structure.
      */
-    if (crq->s.IU_length > sizeof(union viosrp_iu)) {
+    if (crq->s.IU_length > SRP_MAX_IU_LEN) {
         fprintf(stderr, "VSCSI: SRP IU too long (%d bytes) !\n",
                 crq->s.IU_length);
         vscsi_put_req(req);
