@@ -1255,6 +1255,11 @@ endif
 		$(foreach t, $(TARGET_DIRS), \
 		$(call print-help-run,$(t)/all,Build for $(t));) \
 		echo '')
+	@$(if $(TOOLS), \
+		echo 'Tools targets:'; \
+		$(foreach t, $(TOOLS), \
+		$(call print-help-run,$(t),Build $(shell basename $(t)) tool);) \
+		echo '')
 	@echo  'Cleaning targets:'
 	$(call print-help,clean,Remove most generated files but keep the config)
 ifdef CONFIG_GCOV
