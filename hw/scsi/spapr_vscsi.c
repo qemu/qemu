@@ -66,7 +66,7 @@ typedef union vscsi_crq {
 
 typedef struct vscsi_req {
     vscsi_crq               crq;
-    union viosrp_iu         iu;
+    uint8_t                 viosrp_iu_buf[SRP_MAX_IU_LEN];
 
     /* SCSI request tracking */
     SCSIRequest             *sreq;
@@ -99,7 +99,7 @@ typedef struct {
 
 static union viosrp_iu *req_iu(vscsi_req *req)
 {
-    return &req->iu;
+    return (union viosrp_iu *)req->viosrp_iu_buf;
 }
 
 static struct vscsi_req *vscsi_get_req(VSCSIState *s)
@@ -183,7 +183,7 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
 
     /* First copy the SRP */
     rc = spapr_vio_dma_write(&s->vdev, req->crq.s.IU_data_ptr,
-                             &req->iu, length);
+                             &req->viosrp_iu_buf, length);
     if (rc) {
         fprintf(stderr, "vscsi_send_iu: DMA write failure !\n");
     }
@@ -602,7 +602,7 @@ static const VMStateDescription vmstate_spapr_vscsi_req = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(crq.raw, vscsi_req),
-        VMSTATE_BUFFER(iu.srp.reserved, vscsi_req),
+        VMSTATE_BUFFER(viosrp_iu_buf, vscsi_req),
         VMSTATE_UINT32(qtag, vscsi_req),
         VMSTATE_BOOL(active, vscsi_req),
         VMSTATE_UINT32(data_len, vscsi_req),
@@ -1103,7 +1103,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     }
 
     /* XXX Handle failure differently ? */
-    if (spapr_vio_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->iu,
+    if (spapr_vio_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->viosrp_iu_buf,
                            crq->s.IU_length)) {
         fprintf(stderr, "vscsi_got_payload: DMA read failure !\n");
         vscsi_put_req(req);
