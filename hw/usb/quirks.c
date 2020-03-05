@@ -22,10 +22,10 @@ static bool usb_id_match(const struct usb_device_id *ids,
                          uint8_t interface_protocol) {
     int i;
 
-    for (i = 0; ids[i].vendor_id != -1; i++) {
+    for (i = 0; ids[i].terminating_entry == 0; i++) {
         if (ids[i].vendor_id  == vendor_id &&
             ids[i].product_id == product_id &&
-            (ids[i].interface_class == -1 ||
+            (ids[i].interface_protocol_used == 0 ||
              (ids[i].interface_class == interface_class &&
               ids[i].interface_subclass == interface_subclass &&
               ids[i].interface_protocol == interface_protocol))) {
