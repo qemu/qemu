@@ -301,6 +301,7 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
                 return smmu_pci_bus;
             }
         }
+        smmu_pci_bus = NULL;
     }
     return smmu_pci_bus;
 }
