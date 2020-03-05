@@ -91,7 +91,7 @@ typedef struct TPMState {
     TPMPPI ppi;
 } TPMState;
 
-#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
+#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS_ISA)
 
 #define DEBUG_TIS 0
 
@@ -1008,7 +1008,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tpm_tis_info = {
-    .name = TYPE_TPM_TIS,
+    .name = TYPE_TPM_TIS_ISA,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(TPMState),
     .instance_init = tpm_tis_initfn,
