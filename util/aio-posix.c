@@ -139,12 +139,7 @@ void aio_set_fd_handler(AioContext *ctx,
     atomic_set(&ctx->poll_disable_cnt,
                atomic_read(&ctx->poll_disable_cnt) + poll_disable_change);
 
-    if (new_node) {
-        ctx->fdmon_ops->update(ctx, new_node, is_new);
-    } else if (node) {
-        /* Unregister deleted fd_handler */
-        ctx->fdmon_ops->update(ctx, node, false);
-    }
+    ctx->fdmon_ops->update(ctx, node, new_node);
     qemu_lockcnt_unlock(&ctx->list_lock);
     aio_notify(ctx);
 

@@ -57,17 +57,16 @@ typedef struct {
     /*
      * update:
      * @ctx: the AioContext
-     * @node: the handler
-     * @is_new: is the file descriptor already being monitored?
+     * @old_node: the existing handler or NULL if this file descriptor is being
+     *            monitored for the first time
+     * @new_node: the new handler or NULL if this file descriptor is being
+     *            removed
      *
-     * Add/remove/modify a monitored file descriptor.  There are three cases:
-     * 1. node->pfd.events == 0 means remove the file descriptor.
-     * 2. !is_new means modify an already monitored file descriptor.
-     * 3. is_new means add a new file descriptor.
+     * Add/remove/modify a monitored file descriptor.
      *
      * Called with ctx->list_lock acquired.
      */
-    void (*update)(AioContext *ctx, AioHandler *node, bool is_new);
+    void (*update)(AioContext *ctx, AioHandler *old_node, AioHandler *new_node);
 
     /*
      * wait:

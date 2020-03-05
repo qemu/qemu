@@ -93,7 +93,9 @@ static int fdmon_poll_wait(AioContext *ctx, AioHandlerList *ready_list,
     return ret;
 }
 
-static void fdmon_poll_update(AioContext *ctx, AioHandler *node, bool is_new)
+static void fdmon_poll_update(AioContext *ctx,
+                              AioHandler *old_node,
+                              AioHandler *new_node)
 {
     /* Do nothing, AioHandler already contains the state we'll need */
 }

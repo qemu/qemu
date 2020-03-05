@@ -30,21 +30,24 @@ static inline int epoll_events_from_pfd(int pfd_events)
            (pfd_events & G_IO_ERR ? EPOLLERR : 0);
 }
 
-static void fdmon_epoll_update(AioContext *ctx, AioHandler *node, bool is_new)
+static void fdmon_epoll_update(AioContext *ctx,
+                               AioHandler *old_node,
+                               AioHandler *new_node)
 {
-    struct epoll_event event;
+    struct epoll_event event = {
+        .data.ptr = new_node,
+        .events = new_node ? epoll_events_from_pfd(new_node->pfd.events) : 0,
+    };
     int r;
-    int ctl;
 
-    if (!node->pfd.events) {
-        ctl = EPOLL_CTL_DEL;
+    if (!new_node) {
+        r = epoll_ctl(ctx->epollfd, EPOLL_CTL_DEL, old_node->pfd.fd, &event);
+    } else if (!old_node) {
+        r = epoll_ctl(ctx->epollfd, EPOLL_CTL_ADD, new_node->pfd.fd, &event);
     } else {
-        event.data.ptr = node;
-        event.events = epoll_events_from_pfd(node->pfd.events);
-        ctl = is_new ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
+        r = epoll_ctl(ctx->epollfd, EPOLL_CTL_MOD, new_node->pfd.fd, &event);
     }
 
-    r = epoll_ctl(ctx->epollfd, ctl, node->pfd.fd, &event);
     if (r) {
         fdmon_epoll_disable(ctx);
     }
