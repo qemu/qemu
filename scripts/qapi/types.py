@@ -241,8 +241,8 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
 class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 
     def __init__(self, prefix):
-        QAPISchemaModularCVisitor.__init__(
-            self, prefix, 'qapi-types', ' * Schema-defined QAPI types',
+        super().__init__(
+            prefix, 'qapi-types', ' * Schema-defined QAPI types',
             ' * Built-in QAPI types', __doc__)
 
     def _begin_system_module(self, name):

@@ -19,12 +19,12 @@ import re
 from collections import OrderedDict
 
 from qapi.common import c_name, pointer_suffix
-from qapi.error import QAPIError, QAPIParseError, QAPISemError
+from qapi.error import QAPIError, QAPISemError
 from qapi.expr import check_exprs
 from qapi.parser import QAPISchemaParser
 
 
-class QAPISchemaEntity(object):
+class QAPISchemaEntity:
     meta = None
 
     def __init__(self, name, info, doc, ifcond=None, features=None):
@@ -89,21 +89,21 @@ class QAPISchemaEntity(object):
         return "%s '%s'" % (self.meta, self.name)
 
 
-class QAPISchemaVisitor(object):
+class QAPISchemaVisitor:
     def visit_begin(self, schema):
         pass
 
     def visit_end(self):
         pass
 
-    def visit_module(self, fname):
+    def visit_module(self, name):
         pass
 
     def visit_needed(self, entity):
         # Default to visiting everything
         return True
 
-    def visit_include(self, fname, info):
+    def visit_include(self, name, info):
         pass
 
     def visit_builtin_type(self, name, info, json_type):
@@ -135,7 +135,7 @@ class QAPISchemaVisitor(object):
         pass
 
 
-class QAPISchemaModule(object):
+class QAPISchemaModule:
     def __init__(self, name):
         self.name = name
         self._entity_list = []
@@ -152,11 +152,11 @@ class QAPISchemaModule(object):
 
 class QAPISchemaInclude(QAPISchemaEntity):
     def __init__(self, sub_module, info):
-        QAPISchemaEntity.__init__(self, None, info, None)
+        super().__init__(None, info, None)
         self._sub_module = sub_module
 
     def visit(self, visitor):
-        QAPISchemaEntity.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_include(self._sub_module.name, self.info)
 
 
@@ -202,7 +202,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     meta = 'built-in'
 
     def __init__(self, name, json_type, c_type):
-        QAPISchemaType.__init__(self, name, None, None)
+        super().__init__(name, None, None)
         assert not c_type or isinstance(c_type, str)
         assert json_type in ('string', 'number', 'int', 'boolean', 'null',
                              'value')
@@ -227,7 +227,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
         return self.json_type()
 
     def visit(self, visitor):
-        QAPISchemaType.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_builtin_type(self.name, self.info, self.json_type())
 
 
@@ -235,7 +235,7 @@ class QAPISchemaEnumType(QAPISchemaType):
     meta = 'enum'
 
     def __init__(self, name, info, doc, ifcond, members, prefix):
-        QAPISchemaType.__init__(self, name, info, doc, ifcond)
+        super().__init__(name, info, doc, ifcond)
         for m in members:
             assert isinstance(m, QAPISchemaEnumMember)
             m.set_defined_in(name)
@@ -244,7 +244,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         self.prefix = prefix
 
     def check(self, schema):
-        QAPISchemaType.check(self, schema)
+        super().check(schema)
         seen = {}
         for m in self.members:
             m.check_clash(self.info, seen)
@@ -269,7 +269,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         return 'string'
 
     def visit(self, visitor):
-        QAPISchemaType.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
                                 self.members, self.prefix)
 
@@ -278,13 +278,13 @@ class QAPISchemaArrayType(QAPISchemaType):
     meta = 'array'
 
     def __init__(self, name, info, element_type):
-        QAPISchemaType.__init__(self, name, info, None, None)
+        super().__init__(name, info, None, None)
         assert isinstance(element_type, str)
         self._element_type_name = element_type
         self.element_type = None
 
     def check(self, schema):
-        QAPISchemaType.check(self, schema)
+        super().check(schema)
         self.element_type = schema.resolve_type(
             self._element_type_name, self.info,
             self.info and self.info.defn_meta)
@@ -314,7 +314,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         return 'array of ' + elt_doc_type
 
     def visit(self, visitor):
-        QAPISchemaType.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_array_type(self.name, self.info, self.ifcond,
                                  self.element_type)
 
@@ -329,7 +329,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
-        QAPISchemaType.__init__(self, name, info, doc, ifcond, features)
+        super().__init__(name, info, doc, ifcond, features)
         self.meta = 'union' if variants else 'struct'
         assert base is None or isinstance(base, str)
         for m in local_members:
@@ -356,7 +356,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             raise QAPISemError(self.info,
                                "object %s contains itself" % self.name)
 
-        QAPISchemaType.check(self, schema)
+        super().check(schema)
         assert self._checked and self.members is None
 
         seen = OrderedDict()
@@ -419,7 +419,7 @@ class QAPISchemaObjectType(QAPISchemaType):
 
     def c_name(self):
         assert self.name != 'q_empty'
-        return QAPISchemaType.c_name(self)
+        return super().c_name()
 
     def c_type(self):
         assert not self.is_implicit()
@@ -432,7 +432,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         return 'object'
 
     def visit(self, visitor):
-        QAPISchemaType.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_object_type(self.name, self.info, self.ifcond,
                                   self.base, self.local_members, self.variants,
                                   self.features)
@@ -441,7 +441,7 @@ class QAPISchemaObjectType(QAPISchemaType):
                                        self.features)
 
 
-class QAPISchemaMember(object):
+class QAPISchemaMember:
     """ Represents object members, enum members and features """
     role = 'member'
 
@@ -506,7 +506,7 @@ class QAPISchemaFeature(QAPISchemaMember):
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
     def __init__(self, name, info, typ, optional, ifcond=None):
-        QAPISchemaMember.__init__(self, name, info, ifcond)
+        super().__init__(name, info, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
@@ -519,7 +519,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
                                         self.describe)
 
 
-class QAPISchemaObjectTypeVariants(object):
+class QAPISchemaObjectTypeVariants:
     def __init__(self, tag_name, info, tag_member, variants):
         # Flat unions pass tag_name but not tag_member.
         # Simple unions and alternates pass tag_member but not tag_name.
@@ -576,7 +576,7 @@ class QAPISchemaObjectTypeVariants(object):
             assert self.tag_member.ifcond == []
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
-            cases = set([v.name for v in self.variants])
+            cases = {v.name for v in self.variants}
             for m in self.tag_member.type.members:
                 if m.name not in cases:
                     v = QAPISchemaObjectTypeVariant(m.name, self.info,
@@ -614,15 +614,14 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
     def __init__(self, name, info, typ, ifcond=None):
-        QAPISchemaObjectTypeMember.__init__(self, name, info, typ,
-                                            False, ifcond)
+        super().__init__(name, info, typ, False, ifcond)
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
     meta = 'alternate'
 
     def __init__(self, name, info, doc, ifcond, variants):
-        QAPISchemaType.__init__(self, name, info, doc, ifcond)
+        super().__init__(name, info, doc, ifcond)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
         assert variants.tag_member
         variants.set_defined_in(name)
@@ -630,7 +629,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         self.variants = variants
 
     def check(self, schema):
-        QAPISchemaType.check(self, schema)
+        super().check(schema)
         self.variants.tag_member.check(schema)
         # Not calling self.variants.check_clash(), because there's nothing
         # to clash with
@@ -680,7 +679,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         return 'value'
 
     def visit(self, visitor):
-        QAPISchemaType.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_alternate_type(self.name, self.info, self.ifcond,
                                      self.variants)
 
@@ -691,7 +690,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
                  gen, success_response, boxed, allow_oob, allow_preconfig,
                  features):
-        QAPISchemaEntity.__init__(self, name, info, doc, ifcond, features)
+        super().__init__(name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
         self._arg_type_name = arg_type
@@ -705,7 +704,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.allow_preconfig = allow_preconfig
 
     def check(self, schema):
-        QAPISchemaEntity.check(self, schema)
+        super().check(schema)
         if self._arg_type_name:
             self.arg_type = schema.resolve_type(
                 self._arg_type_name, self.info, "command's 'data'")
@@ -740,7 +739,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
                 self.arg_type.connect_doc(doc)
 
     def visit(self, visitor):
-        QAPISchemaEntity.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_command(self.name, self.info, self.ifcond,
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
@@ -753,14 +752,14 @@ class QAPISchemaEvent(QAPISchemaEntity):
     meta = 'event'
 
     def __init__(self, name, info, doc, ifcond, arg_type, boxed):
-        QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
+        super().__init__(name, info, doc, ifcond)
         assert not arg_type or isinstance(arg_type, str)
         self._arg_type_name = arg_type
         self.arg_type = None
         self.boxed = boxed
 
     def check(self, schema):
-        QAPISchemaEntity.check(self, schema)
+        super().check(schema)
         if self._arg_type_name:
             self.arg_type = schema.resolve_type(
                 self._arg_type_name, self.info, "event's 'data'")
@@ -782,12 +781,12 @@ class QAPISchemaEvent(QAPISchemaEntity):
                 self.arg_type.connect_doc(doc)
 
     def visit(self, visitor):
-        QAPISchemaEntity.visit(self, visitor)
+        super().visit(visitor)
         visitor.visit_event(self.name, self.info, self.ifcond,
                             self.arg_type, self.boxed)
 
 
-class QAPISchema(object):
+class QAPISchema:
     def __init__(self, fname):
         self.fname = fname
         parser = QAPISchemaParser(fname)
@@ -849,7 +848,7 @@ class QAPISchema(object):
 
     def _make_module(self, fname):
         name = self._module_name(fname)
-        if not name in self._module_dict:
+        if name not in self._module_dict:
             self._module_dict[name] = QAPISchemaModule(name)
         return self._module_dict[name]
 
@@ -1098,7 +1097,6 @@ class QAPISchema(object):
 
     def visit(self, visitor):
         visitor.visit_begin(self)
-        module = None
         for mod in self._module_dict.values():
             mod.visit(visitor)
         visitor.visit_end()

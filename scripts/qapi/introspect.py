@@ -10,8 +10,6 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-import string
-
 from qapi.common import *
 from qapi.gen import QAPISchemaMonolithicCVisitor
 from qapi.schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
@@ -76,8 +74,8 @@ def to_c_string(string):
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def __init__(self, prefix, unmask):
-        QAPISchemaMonolithicCVisitor.__init__(
-            self, prefix, 'qapi-introspect',
+        super().__init__(
+            prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema = None
