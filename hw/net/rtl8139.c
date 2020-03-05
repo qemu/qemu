@@ -808,11 +808,11 @@ static int rtl8139_can_receive(NetClientState *nc)
         /* ??? Flow control not implemented in c+ mode.
            This is a hack to work around slirp deficiencies anyway.  */
         return 1;
-    } else {
-        avail = MOD2(s->RxBufferSize + s->RxBufPtr - s->RxBufAddr,
-                     s->RxBufferSize);
-        return (avail == 0 || avail >= 1514 || (s->IntrMask & RxOverflow));
     }
+
+    avail = MOD2(s->RxBufferSize + s->RxBufPtr - s->RxBufAddr,
+                 s->RxBufferSize);
+    return avail == 0 || avail >= 1514 || (s->IntrMask & RxOverflow);
 }
 
 static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
