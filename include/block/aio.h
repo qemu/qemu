@@ -14,6 +14,9 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
@@ -95,6 +98,8 @@ struct BHListSlice {
     BHList bh_list;
     QSIMPLEQ_ENTRY(BHListSlice) next;
 };
+
+typedef QSLIST_HEAD(, AioHandler) AioHandlerSList;
 
 struct AioContext {
     GSource source;
@@ -181,6 +186,10 @@ struct AioContext {
      * locking.
      */
     struct LuringState *linux_io_uring;
+
+    /* State for file descriptor monitoring using Linux io_uring */
+    struct io_uring fdmon_io_uring;
+    AioHandlerSList submit_list;
 #endif
 
     /* TimerLists for calling timers - one per clock type.  Has its own

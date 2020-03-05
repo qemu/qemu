@@ -57,10 +57,16 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
         g_source_remove_poll(&ctx->source, &node->pfd);
     }
 
+    node->pfd.revents = 0;
+
+    /* If the fd monitor has already marked it deleted, leave it alone */
+    if (QLIST_IS_INSERTED(node, node_deleted)) {
+        return false;
+    }
+
     /* If a read is in progress, just mark the node as deleted */
     if (qemu_lockcnt_count(&ctx->list_lock)) {
         QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
-        node->pfd.revents = 0;
         return false;
     }
     /* Otherwise, delete it for real.  We can't just mark it as
@@ -126,9 +132,6 @@ void aio_set_fd_handler(AioContext *ctx,
 
         QLIST_INSERT_HEAD_RCU(&ctx->aio_handlers, new_node, node);
     }
-    if (node) {
-        deleted = aio_remove_fd_handler(ctx, node);
-    }
 
     /* No need to order poll_disable_cnt writes against other updates;
      * the counter is only used to avoid wasting time and latency on
@@ -140,6 +143,9 @@ void aio_set_fd_handler(AioContext *ctx,
                atomic_read(&ctx->poll_disable_cnt) + poll_disable_change);
 
     ctx->fdmon_ops->update(ctx, node, new_node);
+    if (node) {
+        deleted = aio_remove_fd_handler(ctx, node);
+    }
     qemu_lockcnt_unlock(&ctx->list_lock);
     aio_notify(ctx);
 
@@ -565,11 +571,17 @@ void aio_context_setup(AioContext *ctx)
     ctx->fdmon_ops = &fdmon_poll_ops;
     ctx->epollfd = -1;
 
+    /* Use the fastest fd monitoring implementation if available */
+    if (fdmon_io_uring_setup(ctx)) {
+        return;
+    }
+
     fdmon_epoll_setup(ctx);
 }
 
 void aio_context_destroy(AioContext *ctx)
 {
+    fdmon_io_uring_destroy(ctx);
     fdmon_epoll_disable(ctx);
 }
 

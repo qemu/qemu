@@ -27,10 +27,14 @@ struct AioHandler {
     IOHandler *io_poll_begin;
     IOHandler *io_poll_end;
     void *opaque;
-    bool is_external;
     QLIST_ENTRY(AioHandler) node;
     QLIST_ENTRY(AioHandler) node_ready; /* only used during aio_poll() */
     QLIST_ENTRY(AioHandler) node_deleted;
+#ifdef CONFIG_LINUX_IO_URING
+    QSLIST_ENTRY(AioHandler) node_submitted;
+    unsigned flags; /* see fdmon-io_uring.c */
+#endif
+    bool is_external;
 };
 
 /* Add a handler to a ready list */
@@ -57,5 +61,19 @@ static inline void fdmon_epoll_disable(AioContext *ctx)
 {
 }
 #endif /* !CONFIG_EPOLL_CREATE1 */
+
+#ifdef CONFIG_LINUX_IO_URING
+bool fdmon_io_uring_setup(AioContext *ctx);
+void fdmon_io_uring_destroy(AioContext *ctx);
+#else
+static inline bool fdmon_io_uring_setup(AioContext *ctx)
+{
+    return false;
+}
+
+static inline void fdmon_io_uring_destroy(AioContext *ctx)
+{
+}
+#endif /* !CONFIG_LINUX_IO_URING */
 
 #endif /* AIO_POSIX_H */

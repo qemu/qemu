@@ -4093,6 +4093,11 @@ if test "$linux_io_uring" != "no" ; then
     linux_io_uring_cflags=$($pkg_config --cflags liburing)
     linux_io_uring_libs=$($pkg_config --libs liburing)
     linux_io_uring=yes
+
+    # io_uring is used in libqemuutil.a where per-file -libs variables are not
+    # seen by programs linking the archive.  It's not ideal, but just add the
+    # library dependency globally.
+    LIBS="$linux_io_uring_libs $LIBS"
   else
     if test "$linux_io_uring" = "yes" ; then
       feature_not_found "linux io_uring" "Install liburing devel"
