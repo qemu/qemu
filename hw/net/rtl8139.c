@@ -799,10 +799,12 @@ static int rtl8139_can_receive(NetClientState *nc)
     int avail;
 
     /* Receive (drop) packets if card is disabled.  */
-    if (!s->clock_enabled)
-      return 1;
-    if (!rtl8139_receiver_enabled(s))
-      return 1;
+    if (!s->clock_enabled) {
+        return 1;
+    }
+    if (!rtl8139_receiver_enabled(s)) {
+        return 1;
+    }
 
     if (rtl8139_cp_receiver_enabled(s) && rtl8139_cp_rx_valid(s)) {
         /* ??? Flow control not implemented in c+ mode.
