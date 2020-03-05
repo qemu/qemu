@@ -562,18 +562,18 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
     ftgmac100_update_irq(s);
 }
 
-static int ftgmac100_can_receive(NetClientState *nc)
+static bool ftgmac100_can_receive(NetClientState *nc)
 {
     FTGMAC100State *s = FTGMAC100(qemu_get_nic_opaque(nc));
     FTGMAC100Desc bd;
 
     if ((s->maccr & (FTGMAC100_MACCR_RXDMA_EN | FTGMAC100_MACCR_RXMAC_EN))
          != (FTGMAC100_MACCR_RXDMA_EN | FTGMAC100_MACCR_RXMAC_EN)) {
-        return 0;
+        return false;
     }
 
     if (ftgmac100_read_bd(&bd, s->rx_descriptor)) {
-        return 0;
+        return false;
     }
     return !(bd.des0 & FTGMAC100_RXDES0_RXPKT_RDY);
 }

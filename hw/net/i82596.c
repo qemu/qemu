@@ -470,23 +470,23 @@ void i82596_h_reset(void *opaque)
     i82596_s_reset(s);
 }
 
-int i82596_can_receive(NetClientState *nc)
+bool i82596_can_receive(NetClientState *nc)
 {
     I82596State *s = qemu_get_nic_opaque(nc);
 
     if (s->rx_status == RX_SUSPENDED) {
-        return 0;
+        return false;
     }
 
     if (!s->lnkst) {
-        return 0;
+        return false;
     }
 
     if (USE_TIMER && !timer_pending(s->flush_queue_timer)) {
-        return 1;
+        return true;
     }
 
-    return 1;
+    return true;
 }
 
 #define MIN_BUF_SIZE 60

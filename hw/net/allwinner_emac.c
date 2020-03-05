@@ -178,7 +178,7 @@ static uint32_t fifo8_pop_word(Fifo8 *fifo)
     return ret;
 }
 
-static int aw_emac_can_receive(NetClientState *nc)
+static bool aw_emac_can_receive(NetClientState *nc)
 {
     AwEmacState *s = qemu_get_nic_opaque(nc);
 

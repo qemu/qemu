@@ -667,7 +667,7 @@ static void smc91c111_writefn(void *opaque, hwaddr addr,
     }
 }
 
-static int smc91c111_can_receive_nc(NetClientState *nc)
+static bool smc91c111_can_receive_nc(NetClientState *nc)
 {
     smc91c111_state *s = qemu_get_nic_opaque(nc);
 

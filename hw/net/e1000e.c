@@ -199,7 +199,7 @@ static const MemoryRegionOps io_ops = {
     },
 };
 
-static int
+static bool
 e1000e_nc_can_receive(NetClientState *nc)
 {
     E1000EState *s = qemu_get_nic_opaque(nc);
