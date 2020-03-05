@@ -395,7 +395,7 @@ static void allwinner_sun8i_emac_flush_desc(FrameDescriptor *desc,
     cpu_physical_memory_write(phys_addr, desc, sizeof(*desc));
 }
 
-static int allwinner_sun8i_emac_can_receive(NetClientState *nc)
+static bool allwinner_sun8i_emac_can_receive(NetClientState *nc)
 {
     AwSun8iEmacState *s = qemu_get_nic_opaque(nc);
     FrameDescriptor desc;

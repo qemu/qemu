@@ -733,21 +733,21 @@ uint64_t can_sja_mem_read(CanSJA1000State *s, hwaddr addr, unsigned size)
     return temp;
 }
 
-int can_sja_can_receive(CanBusClientState *client)
+bool can_sja_can_receive(CanBusClientState *client)
 {
     CanSJA1000State *s = container_of(client, CanSJA1000State, bus_client);
 
     if (s->clock & 0x80) { /* PeliCAN Mode */
         if (s->mode & 0x01) { /* reset mode. */
-            return 0;
+            return false;
         }
     } else { /* BasicCAN mode */
         if (s->control & 0x01) {
-            return 0;
+            return false;
         }
     }
 
-    return 1; /* always return 1, when operation mode */
+    return true; /* always return true, when operation mode */
 }
 
 ssize_t can_sja_receive(CanBusClientState *client, const qemu_can_frame *frames,

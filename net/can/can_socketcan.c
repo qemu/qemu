@@ -110,9 +110,9 @@ static void can_host_socketcan_read(void *opaque)
     }
 }
 
-static int can_host_socketcan_can_receive(CanBusClientState *client)
+static bool can_host_socketcan_can_receive(CanBusClientState *client)
 {
-    return 1;
+    return true;
 }
 
 static ssize_t can_host_socketcan_receive(CanBusClientState *client,

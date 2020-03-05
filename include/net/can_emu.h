@@ -83,7 +83,7 @@ typedef struct CanBusClientState CanBusClientState;
 typedef struct CanBusState CanBusState;
 
 typedef struct CanBusClientInfo {
-    int (*can_receive)(CanBusClientState *);
+    bool (*can_receive)(CanBusClientState *);
     ssize_t (*receive)(CanBusClientState *,
         const struct qemu_can_frame *frames, size_t frames_cnt);
 } CanBusClientInfo;

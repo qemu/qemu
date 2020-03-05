@@ -137,7 +137,7 @@ void can_sja_disconnect(CanSJA1000State *s);
 
 int can_sja_init(CanSJA1000State *s, qemu_irq irq);
 
-int can_sja_can_receive(CanBusClientState *client);
+bool can_sja_can_receive(CanBusClientState *client);
 
 ssize_t can_sja_receive(CanBusClientState *client,
                         const qemu_can_frame *frames, size_t frames_cnt);
