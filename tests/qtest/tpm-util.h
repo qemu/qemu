@@ -15,6 +15,11 @@
 
 #include "io/channel-socket.h"
 
+extern uint64_t tpm_tis_base_addr;
+
+#define TIS_REG(LOCTY, REG) \
+    (tpm_tis_base_addr + ((LOCTY) << 12) + REG)
+
 typedef void (tx_func)(QTestState *s,
                        const unsigned char *req, size_t req_size,
                        unsigned char *rsp, size_t rsp_size);
@@ -44,7 +49,8 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
                                    SocketAddress *src_tpm_addr,
                                    SocketAddress *dst_tpm_addr,
                                    const char *miguri,
-                                   const char *ifmodel);
+                                   const char *ifmodel,
+                                   const char *machine_options);
 
 void tpm_util_wait_for_migration_complete(QTestState *who);
 

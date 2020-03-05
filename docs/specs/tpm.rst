@@ -18,8 +18,14 @@ The TIS interface makes a memory mapped IO region in the area
 0xfed40000-0xfed44fff available to the guest operating system.
 
 QEMU files related to TPM TIS interface:
- - ``hw/tpm/tpm_tis.c``
+ - ``hw/tpm/tpm_tis_common.c``
+ - ``hw/tpm/tpm_tis_isa.c``
+ - ``hw/tpm/tpm_tis_sysbus.c``
  - ``hw/tpm/tpm_tis.h``
+
+Both an ISA device and a sysbus device are available. The former is
+used with pc/q35 machine while the latter can be instantiated in the
+ARM virt machine.
 
 CRB interface
 -------------
@@ -324,6 +330,23 @@ In case a pSeries machine is emulated, use the following command line:
     -device spapr-vscsi,id=scsi0,reg=0x00002000 \
     -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x3,drive=drive-virtio-disk0,id=virtio-disk0 \
     -drive file=test.img,format=raw,if=none,id=drive-virtio-disk0
+
+In case an ARM virt machine is emulated, use the following command line:
+
+.. code-block:: console
+
+  qemu-system-aarch64 -machine virt,gic-version=3,accel=kvm \
+    -cpu host -m 4G \
+    -nographic -no-acpi \
+    -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis-device,tpmdev=tpm0 \
+    -device virtio-blk-pci,drive=drv0 \
+    -drive format=qcow2,file=hda.qcow2,if=none,id=drv0 \
+    -drive if=pflash,format=raw,file=flash0.img,readonly \
+    -drive if=pflash,format=raw,file=flash1.img
+
+  On ARM, ACPI boot with TPM is not yet supported.
 
 In case SeaBIOS is used as firmware, it should show the TPM menu item
 after entering the menu with 'ESC'.

@@ -1,5 +1,5 @@
 /*
- * QTest testcase for ISA TPM TIS
+ * QTest testcase for SYSBUS TPM TIS
  *
  * Copyright (c) 2018 Red Hat, Inc.
  * Copyright (c) 2018 IBM Corporation
@@ -15,21 +15,27 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "hw/acpi/tpm.h"
 #include "io/channel-socket.h"
 #include "libqtest-single.h"
 #include "qemu/module.h"
 #include "tpm-emu.h"
+#include "tpm-util.h"
 #include "tpm-tis-util.h"
 
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
+/*
+ * As the Sysbus tpm-tis-device is instantiated on the ARM virt
+ * platform bus and it is the only sysbus device dynamically
+ * instantiated, it gets plugged at its base address
+ */
+uint64_t tpm_tis_base_addr = 0xc000000;
 
 int main(int argc, char **argv)
 {
-    int ret;
-    char *args, *tmp_path = g_dir_make_tmp("qemu-tpm-tis-test.XXXXXX", NULL);
+    char *tmp_path = g_dir_make_tmp("qemu-tpm-tis-device-test.XXXXXX", NULL);
     GThread *thread;
     TestState test;
+    char *args;
+    int ret;
 
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);
@@ -45,9 +51,10 @@ int main(int argc, char **argv)
     tpm_emu_test_wait_cond(&test);
 
     args = g_strdup_printf(
+        "-machine virt,gic-version=max -accel tcg "
         "-chardev socket,id=chr,path=%s "
         "-tpmdev emulator,id=dev,chardev=chr "
-        "-device tpm-tis,tpmdev=dev",
+        "-device tpm-tis-device,tpmdev=dev",
         test.addr->u.q_unix.path);
     qtest_start(args);
 

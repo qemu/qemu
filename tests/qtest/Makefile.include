@@ -54,8 +54,8 @@ check-qtest-i386-y += q35-test
 check-qtest-i386-y += vmgenid-test
 check-qtest-i386-$(CONFIG_TPM_CRB) += tpm-crb-swtpm-test
 check-qtest-i386-$(CONFIG_TPM_CRB) += tpm-crb-test
-check-qtest-i386-$(CONFIG_TPM_TIS) += tpm-tis-swtpm-test
-check-qtest-i386-$(CONFIG_TPM_TIS) += tpm-tis-test
+check-qtest-i386-$(CONFIG_TPM_TIS_ISA) += tpm-tis-swtpm-test
+check-qtest-i386-$(CONFIG_TPM_TIS_ISA) += tpm-tis-test
 check-qtest-i386-$(CONFIG_SLIRP) += test-netfilter
 check-qtest-i386-$(CONFIG_POSIX) += test-filter-mirror
 check-qtest-i386-$(CONFIG_RTL8139_PCI) += test-filter-redirector
@@ -130,6 +130,8 @@ check-qtest-arm-y += hexloader-test
 check-qtest-arm-$(CONFIG_PFLASH_CFI02) += pflash-cfi02-test
 
 check-qtest-aarch64-y += arm-cpu-features
+check-qtest-aarch64-$(CONFIG_TPM_TIS_SYSBUS) += tpm-tis-device-test
+check-qtest-aarch64-$(CONFIG_TPM_TIS_SYSBUS) += tpm-tis-device-swtpm-test
 check-qtest-aarch64-y += numa-test
 check-qtest-aarch64-y += boot-serial-test
 check-qtest-aarch64-y += migration-test
@@ -302,7 +304,10 @@ tests/qtest/tpm-crb-swtpm-test$(EXESUF): tests/qtest/tpm-crb-swtpm-test.o tests/
 tests/qtest/tpm-crb-test$(EXESUF): tests/qtest/tpm-crb-test.o tests/qtest/tpm-emu.o $(test-io-obj-y)
 tests/qtest/tpm-tis-swtpm-test$(EXESUF): tests/qtest/tpm-tis-swtpm-test.o tests/qtest/tpm-emu.o \
 	tests/qtest/tpm-util.o tests/qtest/tpm-tests.o $(test-io-obj-y)
-tests/qtest/tpm-tis-test$(EXESUF): tests/qtest/tpm-tis-test.o tests/qtest/tpm-emu.o $(test-io-obj-y)
+tests/qtest/tpm-tis-device-swtpm-test$(EXESUF): tests/qtest/tpm-tis-device-swtpm-test.o tests/qtest/tpm-emu.o \
+	tests/qtest/tpm-util.o tests/qtest/tpm-tests.o $(test-io-obj-y)
+tests/qtest/tpm-tis-test$(EXESUF): tests/qtest/tpm-tis-test.o tests/qtest/tpm-tis-util.o tests/qtest/tpm-emu.o $(test-io-obj-y)
+tests/qtest/tpm-tis-device-test$(EXESUF): tests/qtest/tpm-tis-device-test.o tests/qtest/tpm-tis-util.o tests/qtest/tpm-emu.o $(test-io-obj-y)
 
 # QTest rules
 
