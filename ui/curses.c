@@ -529,7 +529,7 @@ static void font_setup(void)
      * Control characters are normally non-printable, but VGA does have
      * well-known glyphs for them.
      */
-    static uint16_t control_characters[0x20] = {
+    static const uint16_t control_characters[0x20] = {
       0x0020,
       0x263a,
       0x263b,
