@@ -55,6 +55,8 @@
 #define VSCSI_MAX_SECTORS       4096
 #define VSCSI_REQ_LIMIT         24
 
+/* Maximum size of a IU payload */
+#define SRP_MAX_IU_DATA_LEN     (SRP_MAX_IU_LEN - sizeof(union srp_iu))
 #define SRP_RSP_SENSE_DATA_LEN  18
 
 #define SRP_REPORT_LUNS_WLUN    0xc10100000000000ULL
@@ -181,6 +183,8 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
 {
     long rc, rc1;
 
+    assert(length <= SRP_MAX_IU_LEN);
+
     /* First copy the SRP */
     rc = spapr_vio_dma_write(&s->vdev, req->crq.s.IU_data_ptr,
                              &req->viosrp_iu_buf, length);
@@ -266,10 +270,12 @@ static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
     if (status) {
         iu->srp.rsp.sol_not = (sol_not & 0x04) >> 2;
         if (req->senselen) {
+            int sense_data_len = MIN(req->senselen, SRP_MAX_IU_DATA_LEN);
+
             iu->srp.rsp.flags |= SRP_RSP_FLAG_SNSVALID;
-            iu->srp.rsp.sense_data_len = cpu_to_be32(req->senselen);
-            memcpy(iu->srp.rsp.data, req->sense, req->senselen);
-            total_len += req->senselen;
+            iu->srp.rsp.sense_data_len = cpu_to_be32(sense_data_len);
+            memcpy(iu->srp.rsp.data, req->sense, sense_data_len);
+            total_len += sense_data_len;
         }
     } else {
         iu->srp.rsp.sol_not = (sol_not & 0x02) >> 1;
@@ -896,6 +902,7 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
     }
 
     /* Compose the response here as  */
+    QEMU_BUILD_BUG_ON(SRP_MAX_IU_DATA_LEN < 4);
     memset(iu, 0, sizeof(struct srp_rsp) + 4);
     iu->srp.rsp.opcode = SRP_RSP;
     iu->srp.rsp.req_lim_delta = cpu_to_be32(1);
