@@ -19,6 +19,7 @@
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/arm/allwinner-a10.h"
@@ -30,8 +31,29 @@ static struct arm_boot_info cubieboard_binfo = {
 
 static void cubieboard_init(MachineState *machine)
 {
-    AwA10State *a10 = AW_A10(object_new(TYPE_AW_A10));
+    AwA10State *a10;
     Error *err = NULL;
+
+    /* BIOS is not supported by this board */
+    if (bios_name) {
+        error_report("BIOS not supported for this machine");
+        exit(1);
+    }
+
+    /* This board has fixed size RAM (512MiB or 1GiB) */
+    if (machine->ram_size != 512 * MiB &&
+        machine->ram_size != 1 * GiB) {
+        error_report("This machine can only be used with 512MiB or 1GiB RAM");
+        exit(1);
+    }
+
+    /* Only allow Cortex-A8 for this board */
+    if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a8")) != 0) {
+        error_report("This board can only be used with cortex-a8 CPU");
+        exit(1);
+    }
+
+    a10 = AW_A10(object_new(TYPE_AW_A10));
 
     object_property_set_int(OBJECT(&a10->emac), 1, "phy-addr", &err);
     if (err != NULL) {
@@ -68,8 +90,9 @@ static void cubieboard_init(MachineState *machine)
 
 static void cubieboard_machine_init(MachineClass *mc)
 {
-    mc->desc = "cubietech cubieboard (Cortex-A9)";
-    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->desc = "cubietech cubieboard (Cortex-A8)";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+    mc->default_ram_size = 1 * GiB;
     mc->init = cubieboard_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;

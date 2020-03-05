@@ -783,6 +783,12 @@ static inline ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
     }
 }
 
+static inline ARMMMUIdx core_to_aa64_mmu_idx(int mmu_idx)
+{
+    /* AArch64 is always a-profile. */
+    return mmu_idx | ARM_MMU_IDX_A;
+}
+
 int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx);
 
 /*
