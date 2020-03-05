@@ -194,6 +194,29 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
     }
 }
 
+static void versal_create_admas(Versal *s, qemu_irq *pic)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.adma); i++) {
+        char *name = g_strdup_printf("adma%d", i);
+        DeviceState *dev;
+        MemoryRegion *mr;
+
+        dev = qdev_create(NULL, "xlnx.zdma");
+        s->lpd.iou.adma[i] = SYS_BUS_DEVICE(dev);
+        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        qdev_init_nofail(dev);
+
+        mr = sysbus_mmio_get_region(s->lpd.iou.adma[i], 0);
+        memory_region_add_subregion(&s->mr_ps,
+                                    MM_ADMA_CH0 + i * MM_ADMA_CH0_SIZE, mr);
+
+        sysbus_connect_irq(s->lpd.iou.adma[i], 0, pic[VERSAL_ADMA_IRQ_0 + i]);
+        g_free(name);
+    }
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -275,6 +298,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_apu_gic(s, pic);
     versal_create_uarts(s, pic);
     versal_create_gems(s, pic);
+    versal_create_admas(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 
