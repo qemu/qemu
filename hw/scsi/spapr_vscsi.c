@@ -261,9 +261,9 @@ static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
     if (status) {
         iu->srp.rsp.sol_not = (sol_not & 0x04) >> 2;
         if (req->senselen) {
-            req->iu.srp.rsp.flags |= SRP_RSP_FLAG_SNSVALID;
-            req->iu.srp.rsp.sense_data_len = cpu_to_be32(req->senselen);
-            memcpy(req->iu.srp.rsp.data, req->sense, req->senselen);
+            iu->srp.rsp.flags |= SRP_RSP_FLAG_SNSVALID;
+            iu->srp.rsp.sense_data_len = cpu_to_be32(req->senselen);
+            memcpy(iu->srp.rsp.data, req->sense, req->senselen);
             total_len += req->senselen;
         }
     } else {
