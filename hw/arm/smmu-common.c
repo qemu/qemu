@@ -290,20 +290,21 @@ inline int smmu_ptw(SMMUTransCfg *cfg, dma_addr_t iova, IOMMUAccessFlags perm,
 SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
 {
     SMMUPciBus *smmu_pci_bus = s->smmu_pcibus_by_bus_num[bus_num];
+    GHashTableIter iter;
 
-    if (!smmu_pci_bus) {
-        GHashTableIter iter;
-
-        g_hash_table_iter_init(&iter, s->smmu_pcibus_by_busptr);
-        while (g_hash_table_iter_next(&iter, NULL, (void **)&smmu_pci_bus)) {
-            if (pci_bus_num(smmu_pci_bus->bus) == bus_num) {
-                s->smmu_pcibus_by_bus_num[bus_num] = smmu_pci_bus;
-                return smmu_pci_bus;
-            }
-        }
-        smmu_pci_bus = NULL;
+    if (smmu_pci_bus) {
+        return smmu_pci_bus;
     }
-    return smmu_pci_bus;
+
+    g_hash_table_iter_init(&iter, s->smmu_pcibus_by_busptr);
+    while (g_hash_table_iter_next(&iter, NULL, (void **)&smmu_pci_bus)) {
+        if (pci_bus_num(smmu_pci_bus->bus) == bus_num) {
+            s->smmu_pcibus_by_bus_num[bus_num] = smmu_pci_bus;
+            return smmu_pci_bus;
+        }
+    }
+
+    return NULL;
 }
 
 static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
