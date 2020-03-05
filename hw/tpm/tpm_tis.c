@@ -65,7 +65,6 @@ typedef struct TPMLocality {
 } TPMLocality;
 
 typedef struct TPMState {
-    ISADevice busdev;
     MemoryRegion mmio;
 
     unsigned char buffer[TPM_TIS_BUFFER_MAX];
@@ -91,7 +90,15 @@ typedef struct TPMState {
     TPMPPI ppi;
 } TPMState;
 
-#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS_ISA)
+typedef struct TPMStateISA {
+    /*< private >*/
+    ISADevice parent_obj;
+
+    /*< public >*/
+    TPMState state; /* not a QOM object */
+} TPMStateISA;
+
+#define TPM_TIS_ISA(obj) OBJECT_CHECK(TPMStateISA, (obj), TYPE_TPM_TIS_ISA)
 
 #define DEBUG_TIS 0
 
@@ -281,9 +288,8 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_request_completed(TPMIf *ti, int ret)
+static void tpm_tis_request_completed(TPMState *s, int ret)
 {
-    TPMState *s = TPM(ti);
     uint8_t locty = s->cmd.locty;
     uint8_t l;
 
@@ -338,7 +344,7 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
 }
 
 #ifdef DEBUG_TIS
-static void tpm_tis_dump_state(void *opaque, hwaddr addr)
+static void tpm_tis_dump_state(TPMState *s, hwaddr addr)
 {
     static const unsigned regs[] = {
         TPM_TIS_REG_ACCESS,
@@ -353,7 +359,6 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
     int idx;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     hwaddr base = addr & ~0xfff;
-    TPMState *s = opaque;
 
     printf("tpm_tis: active locality      : %d\n"
            "tpm_tis: state of locality %d : %d\n"
@@ -363,7 +368,7 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
 
     for (idx = 0; regs[idx] != 0xfff; idx++) {
         printf("tpm_tis: 0x%04x : 0x%08x\n", regs[idx],
-               (int)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
+               (int)tpm_tis_mmio_read(s, base + regs[idx], 4));
     }
 
     printf("tpm_tis: r/w offset    : %d\n"
@@ -488,7 +493,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         break;
 #ifdef DEBUG_TIS
     case TPM_TIS_REG_DEBUG:
-        tpm_tis_dump_state(opaque, addr);
+        tpm_tis_dump_state(s, addr);
         break;
 #endif
     }
@@ -835,10 +840,8 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
 /*
  * Get the TPMVersion of the backend device being used
  */
-static enum TPMVersion tpm_tis_get_tpm_version(TPMIf *ti)
+static enum TPMVersion tpm_tis_get_tpm_version(TPMState *s)
 {
-    TPMState *s = TPM(ti);
-
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return TPM_VERSION_UNSPEC;
     }
@@ -850,9 +853,8 @@ static enum TPMVersion tpm_tis_get_tpm_version(TPMIf *ti)
  * This function is called when the machine starts, resets or due to
  * S3 resume.
  */
-static void tpm_tis_reset(DeviceState *dev)
+static void tpm_tis_reset(TPMState *s)
 {
-    TPMState *s = TPM(dev);
     int c;
 
     s->be_tpm_version = tpm_backend_get_tpm_version(s->be_driver);
@@ -896,15 +898,14 @@ static void tpm_tis_reset(DeviceState *dev)
 
 /* persistent state handling */
 
-static int tpm_tis_pre_save(void *opaque)
+static int tpm_tis_pre_save(TPMState *s)
 {
-    TPMState *s = opaque;
     uint8_t locty = s->active_locty;
 
     trace_tpm_tis_pre_save(locty, s->rw_offset);
 
     if (DEBUG_TIS) {
-        tpm_tis_dump_state(opaque, 0);
+        tpm_tis_dump_state(s, 0);
     }
 
     /*
@@ -929,34 +930,78 @@ static const VMStateDescription vmstate_locty = {
     }
 };
 
-static const VMStateDescription vmstate_tpm_tis = {
+/* ISA */
+
+static int tpm_tis_pre_save_isa(void *opaque)
+{
+    TPMStateISA *isadev = opaque;
+
+    return tpm_tis_pre_save(&isadev->state);
+}
+
+static const VMStateDescription vmstate_tpm_tis_isa = {
     .name = "tpm-tis",
     .version_id = 0,
-    .pre_save  = tpm_tis_pre_save,
+    .pre_save  = tpm_tis_pre_save_isa,
     .fields = (VMStateField[]) {
-        VMSTATE_BUFFER(buffer, TPMState),
-        VMSTATE_UINT16(rw_offset, TPMState),
-        VMSTATE_UINT8(active_locty, TPMState),
-        VMSTATE_UINT8(aborting_locty, TPMState),
-        VMSTATE_UINT8(next_locty, TPMState),
+        VMSTATE_BUFFER(state.buffer, TPMStateISA),
+        VMSTATE_UINT16(state.rw_offset, TPMStateISA),
+        VMSTATE_UINT8(state.active_locty, TPMStateISA),
+        VMSTATE_UINT8(state.aborting_locty, TPMStateISA),
+        VMSTATE_UINT8(state.next_locty, TPMStateISA),
 
-        VMSTATE_STRUCT_ARRAY(loc, TPMState, TPM_TIS_NUM_LOCALITIES, 0,
+        VMSTATE_STRUCT_ARRAY(state.loc, TPMStateISA, TPM_TIS_NUM_LOCALITIES, 0,
                              vmstate_locty, TPMLocality),
 
         VMSTATE_END_OF_LIST()
     }
 };
 
-static Property tpm_tis_properties[] = {
-    DEFINE_PROP_UINT32("irq", TPMState, irq_num, TPM_TIS_IRQ),
-    DEFINE_PROP_TPMBE("tpmdev", TPMState, be_driver),
-    DEFINE_PROP_BOOL("ppi", TPMState, ppi_enabled, true),
+static void tpm_tis_isa_request_completed(TPMIf *ti, int ret)
+{
+    TPMStateISA *isadev = TPM_TIS_ISA(ti);
+    TPMState *s = &isadev->state;
+
+    tpm_tis_request_completed(s, ret);
+}
+
+static enum TPMVersion tpm_tis_isa_get_tpm_version(TPMIf *ti)
+{
+    TPMStateISA *isadev = TPM_TIS_ISA(ti);
+    TPMState *s = &isadev->state;
+
+    return tpm_tis_get_tpm_version(s);
+}
+
+static void tpm_tis_isa_reset(DeviceState *dev)
+{
+    TPMStateISA *isadev = TPM_TIS_ISA(dev);
+    TPMState *s = &isadev->state;
+
+    return tpm_tis_reset(s);
+}
+
+static Property tpm_tis_isa_properties[] = {
+    DEFINE_PROP_UINT32("irq", TPMStateISA, state.irq_num, TPM_TIS_IRQ),
+    DEFINE_PROP_TPMBE("tpmdev", TPMStateISA, state.be_driver),
+    DEFINE_PROP_BOOL("ppi", TPMStateISA, state.ppi_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
+static void tpm_tis_isa_initfn(Object *obj)
 {
-    TPMState *s = TPM(dev);
+    TPMStateISA *isadev = TPM_TIS_ISA(obj);
+    TPMState *s = &isadev->state;
+
+    memory_region_init_io(&s->mmio, obj, &tpm_tis_memory_ops,
+                          s, "tpm-tis-mmio",
+                          TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
+}
+
+static void tpm_tis_isa_realizefn(DeviceState *dev, Error **errp)
+{
+    TPMStateISA *isadev = TPM_TIS_ISA(dev);
+    TPMState *s = &isadev->state;
 
     if (!tpm_find()) {
         error_setg(errp, "at most one TPM device is permitted");
@@ -973,55 +1018,46 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    isa_init_irq(&s->busdev, &s->irq, s->irq_num);
+    isa_init_irq(ISA_DEVICE(dev), &s->irq, s->irq_num);
 
     memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
                                 TPM_TIS_ADDR_BASE, &s->mmio);
 
     if (s->ppi_enabled) {
         tpm_ppi_init(&s->ppi, isa_address_space(ISA_DEVICE(dev)),
-                     TPM_PPI_ADDR_BASE, OBJECT(s));
+                     TPM_PPI_ADDR_BASE, OBJECT(dev));
     }
 }
 
-static void tpm_tis_initfn(Object *obj)
-{
-    TPMState *s = TPM(obj);
-
-    memory_region_init_io(&s->mmio, OBJECT(s), &tpm_tis_memory_ops,
-                          s, "tpm-tis-mmio",
-                          TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
-}
-
-static void tpm_tis_class_init(ObjectClass *klass, void *data)
+static void tpm_tis_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
-    dc->realize = tpm_tis_realizefn;
-    device_class_set_props(dc, tpm_tis_properties);
-    dc->reset = tpm_tis_reset;
-    dc->vmsd  = &vmstate_tpm_tis;
+    device_class_set_props(dc, tpm_tis_isa_properties);
+    dc->vmsd  = &vmstate_tpm_tis_isa;
     tc->model = TPM_MODEL_TPM_TIS;
-    tc->get_version = tpm_tis_get_tpm_version;
-    tc->request_completed = tpm_tis_request_completed;
+    dc->realize = tpm_tis_isa_realizefn;
+    dc->reset = tpm_tis_isa_reset;
+    tc->request_completed = tpm_tis_isa_request_completed;
+    tc->get_version = tpm_tis_isa_get_tpm_version;
 }
 
-static const TypeInfo tpm_tis_info = {
+static const TypeInfo tpm_tis_isa_info = {
     .name = TYPE_TPM_TIS_ISA,
     .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(TPMState),
-    .instance_init = tpm_tis_initfn,
-    .class_init  = tpm_tis_class_init,
+    .instance_size = sizeof(TPMStateISA),
+    .instance_init = tpm_tis_isa_initfn,
+    .class_init  = tpm_tis_isa_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_TPM_IF },
         { }
     }
 };
 
-static void tpm_tis_register(void)
+static void tpm_tis_isa_register(void)
 {
-    type_register_static(&tpm_tis_info);
+    type_register_static(&tpm_tis_isa_info);
 }
 
-type_init(tpm_tis_register)
+type_init(tpm_tis_isa_register)
