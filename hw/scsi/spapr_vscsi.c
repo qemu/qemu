@@ -839,9 +839,7 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
     uint64_t tag = iu->srp.rsp.tag;
     uint8_t sol_not = iu->srp.cmd.sol_not;
 
-    fprintf(stderr, "vscsi_process_tsk_mgmt %02x\n",
-            iu->srp.tsk_mgmt.tsk_mgmt_func);
-
+    trace_spapr_vscsi_process_tsk_mgmt(iu->srp.tsk_mgmt.tsk_mgmt_func);
     d = vscsi_device_find(&s->bus,
                           be64_to_cpu(req_iu(req)->srp.tsk_mgmt.lun), &lun);
     if (!d) {

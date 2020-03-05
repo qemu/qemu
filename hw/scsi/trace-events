@@ -227,6 +227,7 @@ spapr_vscsi_command_complete_status(uint32_t status) "Command complete err=%"PRI
 spapr_vscsi_save_request(uint32_t qtag, unsigned desc, unsigned offset) "saving tag=%"PRIu32", current desc#%u, offset=0x%x"
 spapr_vscsi_load_request(uint32_t qtag, unsigned desc, unsigned offset) "restoring tag=%"PRIu32", current desc#%u, offset=0x%x"
 spapr_vscsi_process_login(void) "Got login, sending response !"
+spapr_vscsi_process_tsk_mgmt(uint8_t func) "tsk_mgmt_func 0x%02x"
 spapr_vscsi_queue_cmd_no_drive(uint64_t lun) "Command for lun 0x%08" PRIx64 " with no drive"
 spapr_vscsi_queue_cmd(uint32_t qtag, unsigned cdb, const char *cmd, int lun, int ret) "Queued command tag 0x%"PRIx32" CMD 0x%x=%s LUN %d ret: %d"
 spapr_vscsi_do_crq(unsigned c0, unsigned c1) "crq: %02x %02x ..."
