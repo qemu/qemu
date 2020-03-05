@@ -19,9 +19,6 @@
 #include "tpm-util.h"
 #include "qapi/qmp/qdict.h"
 
-#define TIS_REG(LOCTY, REG) \
-    (TPM_TIS_ADDR_BASE + ((LOCTY) << 12) + REG)
-
 void tpm_util_crb_transfer(QTestState *s,
                            const unsigned char *req, size_t req_size,
                            unsigned char *rsp, size_t rsp_size)

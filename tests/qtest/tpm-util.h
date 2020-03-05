@@ -15,6 +15,11 @@
 
 #include "io/channel-socket.h"
 
+extern uint64_t tpm_tis_base_addr;
+
+#define TIS_REG(LOCTY, REG) \
+    (tpm_tis_base_addr + ((LOCTY) << 12) + REG)
+
 typedef void (tx_func)(QTestState *s,
                        const unsigned char *req, size_t req_size,
                        unsigned char *rsp, size_t rsp_size);

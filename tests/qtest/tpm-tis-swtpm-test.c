@@ -18,6 +18,9 @@
 #include "libqtest.h"
 #include "qemu/module.h"
 #include "tpm-tests.h"
+#include "hw/acpi/tpm.h"
+
+uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
 
 typedef struct TestState {
     char *src_tpm_path;
