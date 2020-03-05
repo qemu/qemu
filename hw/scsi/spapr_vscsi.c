@@ -97,6 +97,11 @@ typedef struct {
     vscsi_req reqs[VSCSI_REQ_LIMIT];
 } VSCSIState;
 
+static union viosrp_iu *req_iu(vscsi_req *req)
+{
+    return &req->iu;
+}
+
 static struct vscsi_req *vscsi_get_req(VSCSIState *s)
 {
     vscsi_req *req;
@@ -121,7 +126,7 @@ static struct vscsi_req *vscsi_find_req(VSCSIState *s, uint64_t srp_tag)
 
     for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
         req = &s->reqs[i];
-        if (req->iu.srp.cmd.tag == srp_tag) {
+        if (req_iu(req)->srp.cmd.tag == srp_tag) {
             return req;
         }
     }
@@ -188,7 +193,7 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
     req->crq.s.reserved = 0x00;
     req->crq.s.timeout = cpu_to_be16(0x0000);
     req->crq.s.IU_length = cpu_to_be16(length);
-    req->crq.s.IU_data_ptr = req->iu.srp.rsp.tag; /* right byte order */
+    req->crq.s.IU_data_ptr = req_iu(req)->srp.rsp.tag; /* right byte order */
 
     if (rc == 0) {
         req->crq.s.status = VIOSRP_OK;
@@ -224,7 +229,7 @@ static void vscsi_makeup_sense(VSCSIState *s, vscsi_req *req,
 static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
                           uint8_t status, int32_t res_in, int32_t res_out)
 {
-    union viosrp_iu *iu = &req->iu;
+    union viosrp_iu *iu = req_iu(req);
     uint64_t tag = iu->srp.rsp.tag;
     int total_len = sizeof(iu->srp.rsp);
     uint8_t sol_not = iu->srp.cmd.sol_not;
@@ -285,7 +290,7 @@ static int vscsi_fetch_desc(VSCSIState *s, struct vscsi_req *req,
                             unsigned n, unsigned buf_offset,
                             struct srp_direct_buf *ret)
 {
-    struct srp_cmd *cmd = &req->iu.srp.cmd;
+    struct srp_cmd *cmd = &req_iu(req)->srp.cmd;
 
     switch (req->dma_fmt) {
     case SRP_NO_DATA_DESC: {
@@ -473,7 +478,7 @@ static int data_out_desc_size(struct srp_cmd *cmd)
 
 static int vscsi_preprocess_desc(vscsi_req *req)
 {
-    struct srp_cmd *cmd = &req->iu.srp.cmd;
+    struct srp_cmd *cmd = &req_iu(req)->srp.cmd;
 
     req->cdb_offset = cmd->add_cdb_len & ~3;
 
@@ -655,7 +660,7 @@ static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
 static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
 {
-    union viosrp_iu *iu = &req->iu;
+    union viosrp_iu *iu = req_iu(req);
     struct srp_login_rsp *rsp = &iu->srp.login_rsp;
     uint64_t tag = iu->srp.rsp.tag;
 
@@ -681,7 +686,7 @@ static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
 
 static void vscsi_inquiry_no_target(VSCSIState *s, vscsi_req *req)
 {
-    uint8_t *cdb = req->iu.srp.cmd.cdb;
+    uint8_t *cdb = req_iu(req)->srp.cmd.cdb;
     uint8_t resp_data[36];
     int rc, len, alen;
 
@@ -770,7 +775,7 @@ static void vscsi_report_luns(VSCSIState *s, vscsi_req *req)
 
 static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 {
-    union srp_iu *srp = &req->iu.srp;
+    union srp_iu *srp = &req_iu(req)->srp;
     SCSIDevice *sdev;
     int n, lun;
 
@@ -821,7 +826,7 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 
 static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 {
-    union viosrp_iu *iu = &req->iu;
+    union viosrp_iu *iu = req_iu(req);
     vscsi_req *tmpreq;
     int i, lun = 0, resp = SRP_TSK_MGMT_COMPLETE;
     SCSIDevice *d;
@@ -831,7 +836,8 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
     fprintf(stderr, "vscsi_process_tsk_mgmt %02x\n",
             iu->srp.tsk_mgmt.tsk_mgmt_func);
 
-    d = vscsi_device_find(&s->bus, be64_to_cpu(req->iu.srp.tsk_mgmt.lun), &lun);
+    d = vscsi_device_find(&s->bus,
+                          be64_to_cpu(req_iu(req)->srp.tsk_mgmt.lun), &lun);
     if (!d) {
         resp = SRP_TSK_MGMT_FIELDS_INVALID;
     } else {
@@ -842,7 +848,7 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
                 break;
             }
 
-            tmpreq = vscsi_find_req(s, req->iu.srp.tsk_mgmt.task_tag);
+            tmpreq = vscsi_find_req(s, req_iu(req)->srp.tsk_mgmt.task_tag);
             if (tmpreq && tmpreq->sreq) {
                 assert(tmpreq->sreq->hba_private);
                 scsi_req_cancel(tmpreq->sreq);
@@ -867,7 +873,8 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 
             for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
                 tmpreq = &s->reqs[i];
-                if (tmpreq->iu.srp.cmd.lun != req->iu.srp.tsk_mgmt.lun) {
+                if (req_iu(tmpreq)->srp.cmd.lun
+                        != req_iu(req)->srp.tsk_mgmt.lun) {
                     continue;
                 }
                 if (!tmpreq->active || !tmpreq->sreq) {
@@ -911,7 +918,7 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 
 static int vscsi_handle_srp_req(VSCSIState *s, vscsi_req *req)
 {
-    union srp_iu *srp = &req->iu.srp;
+    union srp_iu *srp = &req_iu(req)->srp;
     int done = 1;
     uint8_t opcode = srp->rsp.opcode;
 
@@ -948,7 +955,7 @@ static int vscsi_send_adapter_info(VSCSIState *s, vscsi_req *req)
     struct mad_adapter_info_data info;
     int rc;
 
-    sinfo = &req->iu.mad.adapter_info;
+    sinfo = &req_iu(req)->mad.adapter_info;
 
 #if 0 /* What for ? */
     rc = spapr_vio_dma_read(&s->vdev, be64_to_cpu(sinfo->buffer),
@@ -984,7 +991,7 @@ static int vscsi_send_capabilities(VSCSIState *s, vscsi_req *req)
     uint64_t buffer;
     int rc;
 
-    vcap = &req->iu.mad.capabilities;
+    vcap = &req_iu(req)->mad.capabilities;
     req_len = len = be16_to_cpu(vcap->common.length);
     buffer = be64_to_cpu(vcap->buffer);
     if (len > sizeof(cap)) {
@@ -1029,7 +1036,7 @@ static int vscsi_send_capabilities(VSCSIState *s, vscsi_req *req)
 
 static int vscsi_handle_mad_req(VSCSIState *s, vscsi_req *req)
 {
-    union mad_iu *mad = &req->iu.mad;
+    union mad_iu *mad = &req_iu(req)->mad;
     bool request_handled = false;
     uint64_t retlen = 0;
 
