@@ -119,7 +119,6 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     DeviceState *mst_irq;
     DriveInfo *dinfo;
     int i;
-    int be;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
     /* Setup CPU & memory */
@@ -130,11 +129,6 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    be = 1;
-#else
-    be = 0;
-#endif
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
         dinfo = drive_get(IF_PFLASH, 0, i);
@@ -142,7 +136,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
                                    i ? "mainstone.flash1" : "mainstone.flash0",
                                    MAINSTONE_FLASH,
                                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                                   sector_len, 4, 0, 0, 0, 0, be)) {
+                                   sector_len, 4, 0, 0, 0, 0, 0)) {
             error_report("Error registering flash memory");
             exit(1);
         }
