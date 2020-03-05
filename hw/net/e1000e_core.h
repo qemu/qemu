@@ -143,7 +143,7 @@ e1000e_core_set_link_status(E1000ECore *core);
 void
 e1000e_core_pci_uninit(E1000ECore *core);
 
-int
+bool
 e1000e_can_receive(E1000ECore *core);
 
 ssize_t
