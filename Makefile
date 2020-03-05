@@ -1235,50 +1235,52 @@ endif
 include $(SRC_PATH)/tests/docker/Makefile.include
 include $(SRC_PATH)/tests/vm/Makefile.include
 
+print-help-run = printf "  %-30s - %s\\n" "$1" "$2"
+print-help = $(quiet-@)$(call print-help-run,$1,$2)
+
 .PHONY: help
 help:
 	@echo  'Generic targets:'
-	@echo  '  all             - Build all'
+	$(call print-help,all,Build all)
 ifdef CONFIG_MODULES
-	@echo  '  modules         - Build all modules'
+	$(call print-help,modules,Build all modules)
 endif
-	@echo  '  dir/file.o      - Build specified target only'
-	@echo  '  install         - Install QEMU, documentation and tools'
-	@echo  '  ctags/TAGS      - Generate tags file for editors'
-	@echo  '  cscope          - Generate cscope index'
+	$(call print-help,dir/file.o,Build specified target only)
+	$(call print-help,install,Install QEMU, documentation and tools)
+	$(call print-help,ctags/TAGS,Generate tags file for editors)
+	$(call print-help,cscope,Generate cscope index)
 	@echo  ''
 	@$(if $(TARGET_DIRS), \
 		echo 'Architecture specific targets:'; \
 		$(foreach t, $(TARGET_DIRS), \
-		printf "  %-30s - Build for %s\\n" $(t)/all $(t);) \
+		$(call print-help-run,$(t)/all,Build for $(t));) \
 		echo '')
 	@echo  'Cleaning targets:'
-	@echo  '  clean           - Remove most generated files but keep the config'
+	$(call print-help,clean,Remove most generated files but keep the config)
 ifdef CONFIG_GCOV
-	@echo  '  clean-coverage  - Remove coverage files'
+	$(call print-help,clean-coverage,Remove coverage files)
 endif
-	@echo  '  distclean       - Remove all generated files'
-	@echo  '  dist            - Build a distributable tarball'
+	$(call print-help,distclean,Remove all generated files)
+	$(call print-help,dist,Build a distributable tarball)
 	@echo  ''
 	@echo  'Test targets:'
-	@echo  '  check           - Run all tests (check-help for details)'
-	@echo  '  docker          - Help about targets running tests inside containers'
-	@echo  '  vm-help         - Help about targets running tests inside VM'
+	$(call print-help,check,Run all tests (check-help for details))
+	$(call print-help,docker,Help about targets running tests inside containers)
+	$(call print-help,vm-help,Help about targets running tests inside VM)
 	@echo  ''
 	@echo  'Documentation targets:'
-	@echo  '  html info pdf txt'
-	@echo  '                  - Build documentation in specified format'
+	$(call print-help,html info pdf txt,Build documentation in specified format)
 ifdef CONFIG_GCOV
-	@echo  '  coverage-report - Create code coverage report'
+	$(call print-help,coverage-report,Create code coverage report)
 endif
 	@echo  ''
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'
-	@echo  '  installer       - Build NSIS-based installer for QEMU'
+	$(call print-help,installer,Build NSIS-based installer for QEMU)
 ifdef QEMU_GA_MSI_ENABLED
-	@echo  '  msi             - Build MSI-based installer for qemu-ga'
+	$(call print-help,msi,Build MSI-based installer for qemu-ga)
 endif
 	@echo  ''
 endif
-	@echo  '  $(MAKE) [targets]      (quiet build, default)'
-	@echo  '  $(MAKE) V=1 [targets]  (verbose build)'
+	$(call print-help,$(MAKE) [targets],(quiet build, default))
+	$(call print-help,$(MAKE) V=1 [targets],(verbose build))
