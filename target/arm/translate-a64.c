@@ -14300,7 +14300,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
     core_mmu_idx = FIELD_EX32(tb_flags, TBFLAG_ANY, MMUIDX);
-    dc->mmu_idx = core_to_arm_mmu_idx(env, core_mmu_idx);
+    dc->mmu_idx = core_to_aa64_mmu_idx(core_mmu_idx);
     dc->tbii = FIELD_EX32(tb_flags, TBFLAG_A64, TBII);
     dc->tbid = FIELD_EX32(tb_flags, TBFLAG_A64, TBID);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
