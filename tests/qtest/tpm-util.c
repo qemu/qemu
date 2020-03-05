@@ -258,23 +258,27 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
                                    SocketAddress *src_tpm_addr,
                                    SocketAddress *dst_tpm_addr,
                                    const char *miguri,
-                                   const char *ifmodel)
+                                   const char *ifmodel,
+                                   const char *machine_options)
 {
     char *src_qemu_args, *dst_qemu_args;
 
     src_qemu_args = g_strdup_printf(
+        "%s "
         "-chardev socket,id=chr,path=%s "
         "-tpmdev emulator,id=dev,chardev=chr "
         "-device %s,tpmdev=dev ",
-        src_tpm_addr->u.q_unix.path, ifmodel);
+        machine_options ? : "", src_tpm_addr->u.q_unix.path, ifmodel);
 
     *src_qemu = qtest_init(src_qemu_args);
 
     dst_qemu_args = g_strdup_printf(
+        "%s "
         "-chardev socket,id=chr,path=%s "
         "-tpmdev emulator,id=dev,chardev=chr "
         "-device %s,tpmdev=dev "
         "-incoming %s",
+        machine_options ? : "",
         dst_tpm_addr->u.q_unix.path,
         ifmodel, miguri);
 
