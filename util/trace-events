@@ -5,6 +5,8 @@ run_poll_handlers_begin(void *ctx, int64_t max_ns, int64_t timeout) "ctx %p max_
 run_poll_handlers_end(void *ctx, bool progress, int64_t timeout) "ctx %p progress %d new timeout %"PRId64
 poll_shrink(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
 poll_grow(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
+poll_add(void *ctx, void *node, int fd, unsigned revents) "ctx %p node %p fd %d revents 0x%x"
+poll_remove(void *ctx, void *node, int fd) "ctx %p node %p fd %d"
 
 # async.c
 aio_co_schedule(void *ctx, void *co) "ctx %p co %p"

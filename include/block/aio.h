@@ -227,6 +227,14 @@ struct AioContext {
     int64_t poll_grow;      /* polling time growth factor */
     int64_t poll_shrink;    /* polling time shrink factor */
 
+    /*
+     * List of handlers participating in userspace polling.  Protected by
+     * ctx->list_lock.  Iterated and modified mostly by the event loop thread
+     * from aio_poll() with ctx->list_lock incremented.  aio_set_fd_handler()
+     * only touches the list to delete nodes if ctx->list_lock's count is zero.
+     */
+    AioHandlerList poll_aio_handlers;
+
     /* Are we in polling mode or monitoring file descriptors? */
     bool poll_started;
 
