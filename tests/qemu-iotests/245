@@ -970,8 +970,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assertEqual(self.get_node('hd1'), None)
         self.assert_qmp(self.get_node('hd2'), 'ro', True)
 
-    # We don't allow setting a backing file that uses a different AioContext
-    def test_iothreads(self):
+    def run_test_iothreads(self, iothread_a, iothread_b, errmsg = None):
         opts = hd_opts(0)
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
@@ -986,20 +985,48 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         result = self.vm.qmp('object-add', qom_type='iothread', id='iothread1')
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('x-blockdev-set-iothread', node_name='hd0', iothread='iothread0')
+        result = self.vm.qmp('device_add', driver='virtio-scsi', id='scsi0',
+                             iothread=iothread_a)
         self.assert_qmp(result, 'return', {})
 
-        self.reopen(opts, {'backing': 'hd2'}, "Cannot use a new backing file with a different AioContext")
-
-        result = self.vm.qmp('x-blockdev-set-iothread', node_name='hd2', iothread='iothread1')
+        result = self.vm.qmp('device_add', driver='virtio-scsi', id='scsi1',
+                             iothread=iothread_b)
         self.assert_qmp(result, 'return', {})
 
-        self.reopen(opts, {'backing': 'hd2'}, "Cannot use a new backing file with a different AioContext")
+        if iothread_a:
+            result = self.vm.qmp('device_add', driver='scsi-hd', drive='hd0',
+                                 share_rw=True, bus="scsi0.0")
+            self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('x-blockdev-set-iothread', node_name='hd2', iothread='iothread0')
-        self.assert_qmp(result, 'return', {})
+        if iothread_b:
+            result = self.vm.qmp('device_add', driver='scsi-hd', drive='hd2',
+                                 share_rw=True, bus="scsi1.0")
+            self.assert_qmp(result, 'return', {})
 
-        self.reopen(opts, {'backing': 'hd2'})
+        # Attaching the backing file may or may not work
+        self.reopen(opts, {'backing': 'hd2'}, errmsg)
+
+        # But removing the backing file should always work
+        self.reopen(opts, {'backing': None})
+
+        self.vm.shutdown()
+
+    # We don't allow setting a backing file that uses a different AioContext if
+    # neither of them can switch to the other AioContext
+    def test_iothreads_error(self):
+        self.run_test_iothreads('iothread0', 'iothread1',
+                                "Cannot use a new backing file with a different AioContext")
+
+    def test_iothreads_compatible_users(self):
+        self.run_test_iothreads('iothread0', 'iothread0')
+
+    def test_iothreads_switch_backing(self):
+        self.run_test_iothreads('iothread0', None,
+                                "Cannot use a new backing file with a different AioContext")
+
+    def test_iothreads_switch_overlay(self):
+        self.run_test_iothreads(None, 'iothread0',
+                                "Cannot use a new backing file with a different AioContext")
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["qcow2"],
