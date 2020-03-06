@@ -15,3 +15,4 @@ Welcome to QEMU's documentation!
    specs/index
    system/index
    tools/index
+   user/index

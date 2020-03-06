@@ -46,9 +46,6 @@
 !/qapi/qapi-visit-core.c
 /qapi/qapi-visit.[ch]
 /qapi/qapi-doc.texi
-/qemu-doc.html
-/qemu-doc.info
-/qemu-doc.txt
 /qemu-edid
 /qemu-img
 /qemu-nbd

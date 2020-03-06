@@ -12,7 +12,25 @@ or Hypervisor.Framework.
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   qemu-block-drivers
+   quickstart
+   invocation
+   keys
+   mux-chardev
+   monitor
+   images
+   net
+   usb
+   ivshmem
+   linuxboot
+   vnc-security
+   tls
+   gdb
+   managed-startup
+   targets
+   security
    vfio-ap
+   deprecated
+   build-platforms
+   license

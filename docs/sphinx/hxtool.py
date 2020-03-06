@@ -60,8 +60,9 @@ def parse_defheading(file, lnum, line):
     # empty we ignore the directive -- these are used only to add
     # blank lines in the plain-text content of the --help output.
     #
-    # Return the heading text
-    match = re.match(r'DEFHEADING\((.*)\)', line)
+    # Return the heading text. We strip out any trailing ':' for
+    # consistency with other headings in the rST documentation.
+    match = re.match(r'DEFHEADING\((.*?):?\)', line)
     if match is None:
         serror(file, lnum, "Invalid DEFHEADING line")
     return match.group(1)
@@ -72,8 +73,9 @@ def parse_archheading(file, lnum, line):
     # though note that the 'some string' could be the empty string.
     # As with DEFHEADING, empty string ARCHHEADINGs will be ignored.
     #
-    # Return the heading text
-    match = re.match(r'ARCHHEADING\((.*),.*\)', line)
+    # Return the heading text. We strip out any trailing ':' for
+    # consistency with other headings in the rST documentation.
+    match = re.match(r'ARCHHEADING\((.*?):?,.*\)', line)
     if match is None:
         serror(file, lnum, "Invalid ARCHHEADING line")
     return match.group(1)

@@ -5,9 +5,6 @@ HXCOMM DEF(command, args, callback, arg_string, help) is used to construct
 HXCOMM monitor commands
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
-STEXI
-@table @option
-ETEXI
 
     {
         .name       = "help|?",
@@ -18,11 +15,10 @@ ETEXI
         .flags      = "p",
     },
 
-STEXI
-@item help or ? [@var{cmd}]
-@findex help
-Show the help for all commands or just for command @var{cmd}.
-ETEXI
+SRST
+``help`` or ``?`` [*cmd*]
+  Show the help for all commands or just for command *cmd*.
+ERST
 
     {
         .name       = "commit",
@@ -32,16 +28,16 @@ ETEXI
         .cmd        = hmp_commit,
     },
 
-STEXI
-@item commit
-@findex commit
-Commit changes to the disk images (if -snapshot is used) or backing files.
-If the backing file is smaller than the snapshot, then the backing file will be
-resized to be the same size as the snapshot.  If the snapshot is smaller than
-the backing file, the backing file will not be truncated.  If you want the
-backing file to match the size of the smaller snapshot, you can safely truncate
-it yourself once the commit operation successfully completes.
-ETEXI
+SRST
+``commit``
+  Commit changes to the disk images (if -snapshot is used) or backing files.
+  If the backing file is smaller than the snapshot, then the backing file
+  will be resized to be the same size as the snapshot.  If the snapshot is
+  smaller than the backing file, the backing file will not be truncated.
+  If you want the backing file to match the size of the smaller snapshot,
+  you can safely truncate it yourself once the commit operation successfully
+  completes.
+ERST
 
     {
         .name       = "q|quit",
@@ -51,11 +47,10 @@ ETEXI
         .cmd        = hmp_quit,
     },
 
-STEXI
-@item q or quit
-@findex quit
-Quit the emulator.
-ETEXI
+SRST
+``q`` or ``quit``
+  Quit the emulator.
+ERST
 
     {
         .name       = "exit_preconfig",
@@ -66,15 +61,14 @@ ETEXI
         .flags      = "p",
     },
 
-STEXI
-@item exit_preconfig
-@findex exit_preconfig
-This command makes QEMU exit the preconfig state and proceed with
-VM initialization using configuration data provided on the command line
-and via the QMP monitor during the preconfig state. The command is only
-available during the preconfig state (i.e. when the --preconfig command
-line option was in use).
-ETEXI
+SRST
+``exit_preconfig``
+  This command makes QEMU exit the preconfig state and proceed with
+  VM initialization using configuration data provided on the command line
+  and via the QMP monitor during the preconfig state. The command is only
+  available during the preconfig state (i.e. when the --preconfig command
+  line option was in use).
+ERST
 
     {
         .name       = "block_resize",
@@ -84,14 +78,13 @@ ETEXI
         .cmd        = hmp_block_resize,
     },
 
-STEXI
-@item block_resize
-@findex block_resize
-Resize a block image while a guest is running.  Usually requires guest
-action to see the updated size.  Resize to a lower size is supported,
-but should be used with extreme caution.  Note that this command only
-resizes image files, it can not resize block devices like LVM volumes.
-ETEXI
+SRST
+``block_resize``
+  Resize a block image while a guest is running.  Usually requires guest
+  action to see the updated size.  Resize to a lower size is supported,
+  but should be used with extreme caution.  Note that this command only
+  resizes image files, it can not resize block devices like LVM volumes.
+ERST
 
     {
         .name       = "block_stream",
@@ -101,11 +94,10 @@ ETEXI
         .cmd        = hmp_block_stream,
     },
 
-STEXI
-@item block_stream
-@findex block_stream
-Copy data from a backing file into a block device.
-ETEXI
+SRST
+``block_stream``
+  Copy data from a backing file into a block device.
+ERST
 
     {
         .name       = "block_job_set_speed",
@@ -115,11 +107,10 @@ ETEXI
         .cmd        = hmp_block_job_set_speed,
     },
 
-STEXI
-@item block_job_set_speed
-@findex block_job_set_speed
-Set maximum speed for a background block operation.
-ETEXI
+SRST
+``block_job_set_speed``
+  Set maximum speed for a background block operation.
+ERST
 
     {
         .name       = "block_job_cancel",
@@ -131,11 +122,10 @@ ETEXI
         .cmd        = hmp_block_job_cancel,
     },
 
-STEXI
-@item block_job_cancel
-@findex block_job_cancel
-Stop an active background block operation (streaming, mirroring).
-ETEXI
+SRST
+``block_job_cancel``
+  Stop an active background block operation (streaming, mirroring).
+ERST
 
     {
         .name       = "block_job_complete",
@@ -145,12 +135,11 @@ ETEXI
         .cmd        = hmp_block_job_complete,
     },
 
-STEXI
-@item block_job_complete
-@findex block_job_complete
-Manually trigger completion of an active background block operation.
-For mirroring, this will switch the device to the destination path.
-ETEXI
+SRST
+``block_job_complete``
+  Manually trigger completion of an active background block operation.
+  For mirroring, this will switch the device to the destination path.
+ERST
 
     {
         .name       = "block_job_pause",
@@ -160,11 +149,10 @@ ETEXI
         .cmd        = hmp_block_job_pause,
     },
 
-STEXI
-@item block_job_pause
-@findex block_job_pause
-Pause an active block streaming operation.
-ETEXI
+SRST
+``block_job_pause``
+  Pause an active block streaming operation.
+ERST
 
     {
         .name       = "block_job_resume",
@@ -174,11 +162,10 @@ ETEXI
         .cmd        = hmp_block_job_resume,
     },
 
-STEXI
-@item block_job_resume
-@findex block_job_resume
-Resume a paused block streaming operation.
-ETEXI
+SRST
+``block_job_resume``
+  Resume a paused block streaming operation.
+ERST
 
     {
         .name       = "eject",
@@ -188,11 +175,10 @@ ETEXI
         .cmd        = hmp_eject,
     },
 
-STEXI
-@item eject [-f] @var{device}
-@findex eject
-Eject a removable medium (use -f to force it).
-ETEXI
+SRST
+``eject [-f]`` *device*
+  Eject a removable medium (use -f to force it).
+ERST
 
     {
         .name       = "drive_del",
@@ -202,16 +188,15 @@ ETEXI
         .cmd        = hmp_drive_del,
     },
 
-STEXI
-@item drive_del @var{device}
-@findex drive_del
-Remove host block device.  The result is that guest generated IO is no longer
-submitted against the host device underlying the disk.  Once a drive has
-been deleted, the QEMU Block layer returns -EIO which results in IO
-errors in the guest for applications that are reading/writing to the device.
-These errors are always reported to the guest, regardless of the drive's error
-actions (drive options rerror, werror).
-ETEXI
+SRST
+``drive_del`` *device*
+  Remove host block device.  The result is that guest generated IO is no longer
+  submitted against the host device underlying the disk.  Once a drive has
+  been deleted, the QEMU Block layer returns -EIO which results in IO
+  errors in the guest for applications that are reading/writing to the device.
+  These errors are always reported to the guest, regardless of the drive's error
+  actions (drive options rerror, werror).
+ERST
 
     {
         .name       = "change",
@@ -221,56 +206,45 @@ ETEXI
         .cmd        = hmp_change,
     },
 
-STEXI
-@item change @var{device} @var{setting}
-@findex change
-Change the configuration of a device.
+SRST
+``change`` *device* *setting*
+  Change the configuration of a device.
 
-@table @option
-@item change @var{diskdevice} @var{filename} [@var{format} [@var{read-only-mode}]]
-Change the medium for a removable disk device to point to @var{filename}. eg
+  ``change`` *diskdevice* *filename* [*format* [*read-only-mode*]]
+    Change the medium for a removable disk device to point to *filename*. eg::
 
-@example
-(qemu) change ide1-cd0 /path/to/some.iso
-@end example
+      (qemu) change ide1-cd0 /path/to/some.iso
 
-@var{format} is optional.
+    *format* is optional.
 
-@var{read-only-mode} may be used to change the read-only status of the device.
-It accepts the following values:
+    *read-only-mode* may be used to change the read-only status of the device.
+    It accepts the following values:
 
-@table @var
-@item retain
-Retains the current status; this is the default.
+    retain
+      Retains the current status; this is the default.
 
-@item read-only
-Makes the device read-only.
+    read-only
+      Makes the device read-only.
 
-@item read-write
-Makes the device writable.
-@end table
+    read-write
+      Makes the device writable.
 
-@item change vnc @var{display},@var{options}
-Change the configuration of the VNC server. The valid syntax for @var{display}
-and @var{options} are described at @ref{sec_invocation}. eg
+  ``change vnc`` *display*,\ *options*
+    Change the configuration of the VNC server. The valid syntax for *display*
+    and *options* are described at :ref:`sec_005finvocation`. eg::
 
-@example
-(qemu) change vnc localhost:1
-@end example
+      (qemu) change vnc localhost:1
 
-@item change vnc password [@var{password}]
+  ``change vnc password`` [*password*]
 
-Change the password associated with the VNC server. If the new password is not
-supplied, the monitor will prompt for it to be entered. VNC passwords are only
-significant up to 8 letters. eg
+    Change the password associated with the VNC server. If the new password
+    is not supplied, the monitor will prompt for it to be entered. VNC
+    passwords are only significant up to 8 letters. eg::
 
-@example
-(qemu) change vnc password
-Password: ********
-@end example
+      (qemu) change vnc password
+      Password: ********
 
-@end table
-ETEXI
+ERST
 
     {
         .name       = "screendump",
@@ -281,11 +255,10 @@ ETEXI
         .cmd        = hmp_screendump,
     },
 
-STEXI
-@item screendump @var{filename}
-@findex screendump
-Save screen into PPM image @var{filename}.
-ETEXI
+SRST
+``screendump`` *filename*
+  Save screen into PPM image *filename*.
+ERST
 
     {
         .name       = "logfile",
@@ -295,11 +268,10 @@ ETEXI
         .cmd        = hmp_logfile,
     },
 
-STEXI
-@item logfile @var{filename}
-@findex logfile
-Output logs to @var{filename}.
-ETEXI
+SRST
+``logfile`` *filename*
+  Output logs to *filename*.
+ERST
 
     {
         .name       = "trace-event",
@@ -311,11 +283,10 @@ ETEXI
         .command_completion = trace_event_completion,
     },
 
-STEXI
-@item trace-event
-@findex trace-event
-changes status of a trace event
-ETEXI
+SRST
+``trace-event``
+  changes status of a trace event
+ERST
 
 #if defined(CONFIG_TRACE_SIMPLE)
     {
@@ -326,11 +297,11 @@ ETEXI
         .cmd        = hmp_trace_file,
     },
 
-STEXI
-@item trace-file on|off|flush
-@findex trace-file
-Open, close, or flush the trace file.  If no argument is given, the status of the trace file is displayed.
-ETEXI
+SRST
+``trace-file on|off|flush``
+  Open, close, or flush the trace file.  If no argument is given, the
+  status of the trace file is displayed.
+ERST
 #endif
 
     {
@@ -341,11 +312,10 @@ ETEXI
         .cmd        = hmp_log,
     },
 
-STEXI
-@item log @var{item1}[,...]
-@findex log
-Activate logging of the specified items.
-ETEXI
+SRST
+``log`` *item1*\ [,...]
+  Activate logging of the specified items.
+ERST
 
     {
         .name       = "savevm",
@@ -355,17 +325,16 @@ ETEXI
         .cmd        = hmp_savevm,
     },
 
-STEXI
-@item savevm @var{tag}
-@findex savevm
-Create a snapshot of the whole virtual machine. If @var{tag} is
-provided, it is used as human readable identifier. If there is already
-a snapshot with the same tag, it is replaced. More info at
-@ref{vm_snapshots}.
+SRST
+``savevm`` *tag*
+  Create a snapshot of the whole virtual machine. If *tag* is
+  provided, it is used as human readable identifier. If there is already
+  a snapshot with the same tag, it is replaced. More info at
+  :ref:`vm_005fsnapshots`.
 
-Since 4.0, savevm stopped allowing the snapshot id to be set, accepting
-only @var{tag} as parameter.
-ETEXI
+  Since 4.0, savevm stopped allowing the snapshot id to be set, accepting
+  only *tag* as parameter.
+ERST
 
     {
         .name       = "loadvm",
@@ -376,14 +345,13 @@ ETEXI
         .command_completion = loadvm_completion,
     },
 
-STEXI
-@item loadvm @var{tag}
-@findex loadvm
-Set the whole virtual machine to the snapshot identified by the tag
-@var{tag}.
+SRST
+``loadvm`` *tag*
+  Set the whole virtual machine to the snapshot identified by the tag
+  *tag*.
 
-Since 4.0, loadvm stopped accepting snapshot id as parameter.
-ETEXI
+  Since 4.0, loadvm stopped accepting snapshot id as parameter.
+ERST
 
     {
         .name       = "delvm",
@@ -394,14 +362,13 @@ ETEXI
         .command_completion = delvm_completion,
     },
 
-STEXI
-@item delvm @var{tag}
-@findex delvm
-Delete the snapshot identified by @var{tag}.
+SRST
+``delvm`` *tag*
+  Delete the snapshot identified by *tag*.
 
-Since 4.0, delvm stopped deleting snapshots by snapshot id, accepting
-only @var{tag} as parameter.
-ETEXI
+  Since 4.0, delvm stopped deleting snapshots by snapshot id, accepting
+  only *tag* as parameter.
+ERST
 
     {
         .name       = "singlestep",
@@ -411,12 +378,11 @@ ETEXI
         .cmd        = hmp_singlestep,
     },
 
-STEXI
-@item singlestep [off]
-@findex singlestep
-Run the emulation in single step mode.
-If called with option off, the emulation returns to normal mode.
-ETEXI
+SRST
+``singlestep [off]``
+  Run the emulation in single step mode.
+  If called with option off, the emulation returns to normal mode.
+ERST
 
     {
         .name       = "stop",
@@ -426,11 +392,10 @@ ETEXI
         .cmd        = hmp_stop,
     },
 
-STEXI
-@item stop
-@findex stop
-Stop emulation.
-ETEXI
+SRST
+``stop``
+  Stop emulation.
+ERST
 
     {
         .name       = "c|cont",
@@ -440,11 +405,10 @@ ETEXI
         .cmd        = hmp_cont,
     },
 
-STEXI
-@item c or cont
-@findex cont
-Resume emulation.
-ETEXI
+SRST
+``c`` or ``cont``
+  Resume emulation.
+ERST
 
     {
         .name       = "system_wakeup",
@@ -454,11 +418,10 @@ ETEXI
         .cmd        = hmp_system_wakeup,
     },
 
-STEXI
-@item system_wakeup
-@findex system_wakeup
-Wakeup guest from suspend.
-ETEXI
+SRST
+``system_wakeup``
+  Wakeup guest from suspend.
+ERST
 
     {
         .name       = "gdbserver",
@@ -468,11 +431,10 @@ ETEXI
         .cmd        = hmp_gdbserver,
     },
 
-STEXI
-@item gdbserver [@var{port}]
-@findex gdbserver
-Start gdbserver session (default @var{port}=1234)
-ETEXI
+SRST
+``gdbserver`` [*port*]
+  Start gdbserver session (default *port*\=1234)
+ERST
 
     {
         .name       = "x",
@@ -482,11 +444,10 @@ ETEXI
         .cmd        = hmp_memory_dump,
     },
 
-STEXI
-@item x/fmt @var{addr}
-@findex x
-Virtual memory dump starting at @var{addr}.
-ETEXI
+SRST
+``x/``\ *fmt* *addr*
+  Virtual memory dump starting at *addr*.
+ERST
 
     {
         .name       = "xp",
@@ -496,64 +457,54 @@ ETEXI
         .cmd        = hmp_physical_memory_dump,
     },
 
-STEXI
-@item xp /@var{fmt} @var{addr}
-@findex xp
-Physical memory dump starting at @var{addr}.
+SRST
+``xp /``\ *fmt* *addr*
+  Physical memory dump starting at *addr*.
 
-@var{fmt} is a format which tells the command how to format the
-data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
+  *fmt* is a format which tells the command how to format the
+  data. Its syntax is: ``/{count}{format}{size}``
 
-@table @var
-@item count
-is the number of items to be dumped.
+  *count*
+    is the number of items to be dumped.
+  *format*
+    can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
+    c (char) or i (asm instruction).
+  *size*
+    can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
+    ``h`` or ``w`` can be specified with the ``i`` format to
+    respectively select 16 or 32 bit code instruction size.
 
-@item format
-can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
-c (char) or i (asm instruction).
+  Examples:
 
-@item size
-can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
-@code{h} or @code{w} can be specified with the @code{i} format to
-respectively select 16 or 32 bit code instruction size.
+  Dump 10 instructions at the current instruction pointer::
 
-@end table
+    (qemu) x/10i $eip
+    0x90107063:  ret
+    0x90107064:  sti
+    0x90107065:  lea    0x0(%esi,1),%esi
+    0x90107069:  lea    0x0(%edi,1),%edi
+    0x90107070:  ret
+    0x90107071:  jmp    0x90107080
+    0x90107073:  nop
+    0x90107074:  nop
+    0x90107075:  nop
+    0x90107076:  nop
 
-Examples:
-@itemize
-@item
-Dump 10 instructions at the current instruction pointer:
-@example
-(qemu) x/10i $eip
-0x90107063:  ret
-0x90107064:  sti
-0x90107065:  lea    0x0(%esi,1),%esi
-0x90107069:  lea    0x0(%edi,1),%edi
-0x90107070:  ret
-0x90107071:  jmp    0x90107080
-0x90107073:  nop
-0x90107074:  nop
-0x90107075:  nop
-0x90107076:  nop
-@end example
+  Dump 80 16 bit values at the start of the video memory::
 
-@item
-Dump 80 16 bit values at the start of the video memory.
-@smallexample
-(qemu) xp/80hx 0xb8000
-0x000b8000: 0x0b50 0x0b6c 0x0b65 0x0b78 0x0b38 0x0b36 0x0b2f 0x0b42
-0x000b8010: 0x0b6f 0x0b63 0x0b68 0x0b73 0x0b20 0x0b56 0x0b47 0x0b41
-0x000b8020: 0x0b42 0x0b69 0x0b6f 0x0b73 0x0b20 0x0b63 0x0b75 0x0b72
-0x000b8030: 0x0b72 0x0b65 0x0b6e 0x0b74 0x0b2d 0x0b63 0x0b76 0x0b73
-0x000b8040: 0x0b20 0x0b30 0x0b35 0x0b20 0x0b4e 0x0b6f 0x0b76 0x0b20
-0x000b8050: 0x0b32 0x0b30 0x0b30 0x0b33 0x0720 0x0720 0x0720 0x0720
-0x000b8060: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
-0x000b8070: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
-0x000b8080: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
-0x000b8090: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
-@end smallexample
-@end itemize
-ETEXI
+    (qemu) xp/80hx 0xb8000
+    0x000b8000: 0x0b50 0x0b6c 0x0b65 0x0b78 0x0b38 0x0b36 0x0b2f 0x0b42
+    0x000b8010: 0x0b6f 0x0b63 0x0b68 0x0b73 0x0b20 0x0b56 0x0b47 0x0b41
+    0x000b8020: 0x0b42 0x0b69 0x0b6f 0x0b73 0x0b20 0x0b63 0x0b75 0x0b72
+    0x000b8030: 0x0b72 0x0b65 0x0b6e 0x0b74 0x0b2d 0x0b63 0x0b76 0x0b73
+    0x000b8040: 0x0b20 0x0b30 0x0b35 0x0b20 0x0b4e 0x0b6f 0x0b76 0x0b20
+    0x000b8050: 0x0b32 0x0b30 0x0b30 0x0b33 0x0720 0x0720 0x0720 0x0720
+    0x000b8060: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+    0x000b8070: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+    0x000b8080: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+    0x000b8090: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+
+ERST
 
     {
         .name       = "gpa2hva",
@@ -563,12 +514,11 @@ ETEXI
         .cmd        = hmp_gpa2hva,
     },
 
-STEXI
-@item gpa2hva @var{addr}
-@findex gpa2hva
-Print the host virtual address at which the guest's physical address @var{addr}
-is mapped.
-ETEXI
+SRST
+``gpa2hva`` *addr*
+  Print the host virtual address at which the guest's physical address *addr*
+  is mapped.
+ERST
 
 #ifdef CONFIG_LINUX
     {
@@ -580,12 +530,11 @@ ETEXI
     },
 #endif
 
-STEXI
-@item gpa2hpa @var{addr}
-@findex gpa2hpa
-Print the host physical address at which the guest's physical address @var{addr}
-is mapped.
-ETEXI
+SRST
+``gpa2hpa`` *addr*
+  Print the host physical address at which the guest's physical address *addr*
+  is mapped.
+ERST
 
     {
         .name       = "gva2gpa",
@@ -595,12 +544,11 @@ ETEXI
         .cmd        = hmp_gva2gpa,
     },
 
-STEXI
-@item gva2gpa @var{addr}
-@findex gva2gpa
-Print the guest physical address at which the guest's virtual address @var{addr}
-is mapped based on the mapping for the current CPU.
-ETEXI
+SRST
+``gva2gpa`` *addr*
+  Print the guest physical address at which the guest's virtual address *addr*
+  is mapped based on the mapping for the current CPU.
+ERST
 
     {
         .name       = "p|print",
@@ -610,12 +558,11 @@ ETEXI
         .cmd        = do_print,
     },
 
-STEXI
-@item p or print/@var{fmt} @var{expr}
-@findex print
-Print expression value. Only the @var{format} part of @var{fmt} is
-used.
-ETEXI
+SRST
+``p`` or ``print/``\ *fmt* *expr*
+  Print expression value. Only the *format* part of *fmt* is
+  used.
+ERST
 
     {
         .name       = "i",
@@ -625,11 +572,10 @@ ETEXI
         .cmd        = hmp_ioport_read,
     },
 
-STEXI
-@item i/@var{fmt} @var{addr} [.@var{index}]
-@findex i
-Read I/O port.
-ETEXI
+SRST
+``i/``\ *fmt* *addr* [.\ *index*\ ]
+  Read I/O port.
+ERST
 
     {
         .name       = "o",
@@ -639,11 +585,10 @@ ETEXI
         .cmd        = hmp_ioport_write,
     },
 
-STEXI
-@item o/@var{fmt} @var{addr} @var{val}
-@findex o
-Write to I/O port.
-ETEXI
+SRST
+``o/``\ *fmt* *addr* *val*
+  Write to I/O port.
+ERST
 
     {
         .name       = "sendkey",
@@ -654,19 +599,17 @@ ETEXI
         .command_completion = sendkey_completion,
     },
 
-STEXI
-@item sendkey @var{keys}
-@findex sendkey
-Send @var{keys} to the guest. @var{keys} could be the name of the
-key or the raw value in hexadecimal format. Use @code{-} to press
-several keys simultaneously. Example:
-@example
-sendkey ctrl-alt-f1
-@end example
+SRST
+``sendkey`` *keys*
+  Send *keys* to the guest. *keys* could be the name of the
+  key or the raw value in hexadecimal format. Use ``-`` to press
+  several keys simultaneously. Example::
 
-This command is useful to send keys that your graphical user interface
-intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
-ETEXI
+    sendkey ctrl-alt-f1
+
+  This command is useful to send keys that your graphical user interface
+  intercepts at low level, such as ``ctrl-alt-f1`` in X Window.
+ERST
     {
         .name       = "sync-profile",
         .args_type  = "op:s?",
@@ -676,12 +619,11 @@ ETEXI
         .cmd        = hmp_sync_profile,
     },
 
-STEXI
-@item sync-profile [on|off|reset]
-@findex sync-profile
-Enable, disable or reset synchronization profiling. With no arguments, prints
-whether profiling is on or off.
-ETEXI
+SRST
+``sync-profile [on|off|reset]``
+  Enable, disable or reset synchronization profiling. With no arguments, prints
+  whether profiling is on or off.
+ERST
 
     {
         .name       = "system_reset",
@@ -691,11 +633,10 @@ ETEXI
         .cmd        = hmp_system_reset,
     },
 
-STEXI
-@item system_reset
-@findex system_reset
-Reset the system.
-ETEXI
+SRST
+``system_reset``
+  Reset the system.
+ERST
 
     {
         .name       = "system_powerdown",
@@ -705,11 +646,10 @@ ETEXI
         .cmd        = hmp_system_powerdown,
     },
 
-STEXI
-@item system_powerdown
-@findex system_powerdown
-Power down the system (if supported).
-ETEXI
+SRST
+``system_powerdown``
+  Power down the system (if supported).
+ERST
 
     {
         .name       = "sum",
@@ -719,11 +659,10 @@ ETEXI
         .cmd        = hmp_sum,
     },
 
-STEXI
-@item sum @var{addr} @var{size}
-@findex sum
-Compute the checksum of a memory region.
-ETEXI
+SRST
+``sum`` *addr* *size*
+  Compute the checksum of a memory region.
+ERST
 
     {
         .name       = "device_add",
@@ -734,11 +673,10 @@ ETEXI
         .command_completion = device_add_completion,
     },
 
-STEXI
-@item device_add @var{config}
-@findex device_add
-Add device.
-ETEXI
+SRST
+``device_add`` *config*
+  Add device.
+ERST
 
     {
         .name       = "device_del",
@@ -749,12 +687,11 @@ ETEXI
         .command_completion = device_del_completion,
     },
 
-STEXI
-@item device_del @var{id}
-@findex device_del
-Remove device @var{id}. @var{id} may be a short ID
-or a QOM object path.
-ETEXI
+SRST
+``device_del`` *id*
+  Remove device *id*. *id* may be a short ID
+  or a QOM object path.
+ERST
 
     {
         .name       = "cpu",
@@ -764,11 +701,10 @@ ETEXI
         .cmd        = hmp_cpu,
     },
 
-STEXI
-@item cpu @var{index}
-@findex cpu
-Set the default CPU.
-ETEXI
+SRST
+``cpu`` *index*
+  Set the default CPU.
+ERST
 
     {
         .name       = "mouse_move",
@@ -778,12 +714,11 @@ ETEXI
         .cmd        = hmp_mouse_move,
     },
 
-STEXI
-@item mouse_move @var{dx} @var{dy} [@var{dz}]
-@findex mouse_move
-Move the active mouse to the specified coordinates @var{dx} @var{dy}
-with optional scroll axis @var{dz}.
-ETEXI
+SRST
+``mouse_move`` *dx* *dy* [*dz*]
+  Move the active mouse to the specified coordinates *dx* *dy*
+  with optional scroll axis *dz*.
+ERST
 
     {
         .name       = "mouse_button",
@@ -793,11 +728,10 @@ ETEXI
         .cmd        = hmp_mouse_button,
     },
 
-STEXI
-@item mouse_button @var{val}
-@findex mouse_button
-Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
-ETEXI
+SRST
+``mouse_button`` *val*
+  Change the active mouse button state *val* (1=L, 2=M, 4=R).
+ERST
 
     {
         .name       = "mouse_set",
@@ -807,15 +741,14 @@ ETEXI
         .cmd        = hmp_mouse_set,
     },
 
-STEXI
-@item mouse_set @var{index}
-@findex mouse_set
-Set which mouse device receives events at given @var{index}, index
-can be obtained with
-@example
-info mice
-@end example
-ETEXI
+SRST
+``mouse_set`` *index*
+  Set which mouse device receives events at given *index*, index
+  can be obtained with::
+
+    info mice
+
+ERST
 
     {
         .name       = "wavcapture",
@@ -824,20 +757,18 @@ ETEXI
         .help       = "capture audio to a wave file (default frequency=44100 bits=16 channels=2)",
         .cmd        = hmp_wavcapture,
     },
-STEXI
-@item wavcapture @var{filename} @var{audiodev} [@var{frequency} [@var{bits} [@var{channels}]]]
-@findex wavcapture
-Capture audio into @var{filename} from @var{audiodev}, using sample rate
-@var{frequency} bits per sample @var{bits} and number of channels
-@var{channels}.
+SRST
+``wavcapture`` *filename* *audiodev* [*frequency* [*bits* [*channels*]]]
+  Capture audio into *filename* from *audiodev*, using sample rate
+  *frequency* bits per sample *bits* and number of channels
+  *channels*.
 
-Defaults:
-@itemize @minus
-@item Sample rate = 44100 Hz - CD quality
-@item Bits = 16
-@item Number of channels = 2 - Stereo
-@end itemize
-ETEXI
+  Defaults:
+
+  - Sample rate = 44100 Hz - CD quality
+  - Bits = 16
+  - Number of channels = 2 - Stereo
+ERST
 
     {
         .name       = "stopcapture",
@@ -846,14 +777,13 @@ ETEXI
         .help       = "stop capture",
         .cmd        = hmp_stopcapture,
     },
-STEXI
-@item stopcapture @var{index}
-@findex stopcapture
-Stop capture with a given @var{index}, index can be obtained with
-@example
-info capture
-@end example
-ETEXI
+SRST
+``stopcapture`` *index*
+  Stop capture with a given *index*, index can be obtained with::
+
+    info capture
+
+ERST
 
     {
         .name       = "memsave",
@@ -863,11 +793,10 @@ ETEXI
         .cmd        = hmp_memsave,
     },
 
-STEXI
-@item memsave @var{addr} @var{size} @var{file}
-@findex memsave
-save to disk virtual memory dump starting at @var{addr} of size @var{size}.
-ETEXI
+SRST
+``memsave`` *addr* *size* *file*
+  save to disk virtual memory dump starting at *addr* of size *size*.
+ERST
 
     {
         .name       = "pmemsave",
@@ -877,11 +806,10 @@ ETEXI
         .cmd        = hmp_pmemsave,
     },
 
-STEXI
-@item pmemsave @var{addr} @var{size} @var{file}
-@findex pmemsave
-save to disk physical memory dump starting at @var{addr} of size @var{size}.
-ETEXI
+SRST
+``pmemsave`` *addr* *size* *file*
+  save to disk physical memory dump starting at *addr* of size *size*.
+ERST
 
     {
         .name       = "boot_set",
@@ -891,15 +819,14 @@ ETEXI
         .cmd        = hmp_boot_set,
     },
 
-STEXI
-@item boot_set @var{bootdevicelist}
-@findex boot_set
-Define new values for the boot device list. Those values will override
-the values specified on the command line through the @code{-boot} option.
+SRST
+``boot_set`` *bootdevicelist*
+  Define new values for the boot device list. Those values will override
+  the values specified on the command line through the ``-boot`` option.
 
-The values that can be specified here depend on the machine type, but are
-the same that can be specified in the @code{-boot} command line option.
-ETEXI
+  The values that can be specified here depend on the machine type, but are
+  the same that can be specified in the ``-boot`` command line option.
+ERST
 
     {
         .name       = "nmi",
@@ -908,12 +835,10 @@ ETEXI
         .help       = "inject an NMI",
         .cmd        = hmp_nmi,
     },
-STEXI
-@item nmi @var{cpu}
-@findex nmi
-Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
-
-ETEXI
+SRST
+``nmi`` *cpu*
+  Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
+ERST
 
     {
         .name       = "ringbuf_write",
@@ -924,13 +849,11 @@ ETEXI
         .command_completion = ringbuf_write_completion,
     },
 
-STEXI
-@item ringbuf_write @var{device} @var{data}
-@findex ringbuf_write
-Write @var{data} to ring buffer character device @var{device}.
-@var{data} must be a UTF-8 string.
-
-ETEXI
+SRST
+``ringbuf_write`` *device* *data*
+  Write *data* to ring buffer character device *device*.
+  *data* must be a UTF-8 string.
+ERST
 
     {
         .name       = "ringbuf_read",
@@ -941,18 +864,16 @@ ETEXI
         .command_completion = ringbuf_write_completion,
     },
 
-STEXI
-@item ringbuf_read @var{device}
-@findex ringbuf_read
-Read and print up to @var{size} bytes from ring buffer character
-device @var{device}.
-Certain non-printable characters are printed \uXXXX, where XXXX is the
-character code in hexadecimal.  Character \ is printed \\.
-Bug: can screw up when the buffer contains invalid UTF-8 sequences,
-NUL characters, after the ring buffer lost data, and when reading
-stops because the size limit is reached.
-
-ETEXI
+SRST
+``ringbuf_read`` *device*
+  Read and print up to *size* bytes from ring buffer character
+  device *device*.
+  Certain non-printable characters are printed ``\uXXXX``, where ``XXXX`` is the
+  character code in hexadecimal.  Character ``\`` is printed ``\\``.
+  Bug: can screw up when the buffer contains invalid UTF-8 sequences,
+  NUL characters, after the ring buffer lost data, and when reading
+  stops because the size limit is reached.
+ERST
 
     {
         .name       = "announce_self",
@@ -962,16 +883,15 @@ ETEXI
         .cmd        = hmp_announce_self,
     },
 
-STEXI
-@item announce_self
-@findex announce_self
-Trigger a round of GARP/RARP broadcasts; this is useful for explicitly updating the
-network infrastructure after a reconfiguration or some forms of migration.
-The timings of the round are set by the migration announce parameters.
-An optional comma separated @var{interfaces} list restricts the announce to the
-named set of interfaces. An optional @var{id} can be used to start a separate announce
-timer and to change the parameters of it later.
-ETEXI
+SRST
+``announce_self``
+  Trigger a round of GARP/RARP broadcasts; this is useful for explicitly
+  updating the network infrastructure after a reconfiguration or some forms
+  of migration. The timings of the round are set by the migration announce
+  parameters. An optional comma separated *interfaces* list restricts the
+  announce to the named set of interfaces. An optional *id* can be used to
+  start a separate announce timer and to change the parameters of it later.
+ERST
 
     {
         .name       = "migrate",
@@ -987,13 +907,15 @@ ETEXI
     },
 
 
-STEXI
-@item migrate [-d] [-b] [-i] @var{uri}
-@findex migrate
-Migrate to @var{uri} (using -d to not wait for completion).
-	-b for migration with full copy of disk
-	-i for migration with incremental copy of disk (base image is shared)
-ETEXI
+SRST
+``migrate [-d] [-b] [-i]`` *uri*
+  Migrate to *uri* (using -d to not wait for completion).
+
+  ``-b``
+    for migration with full copy of disk
+  ``-i``
+    for migration with incremental copy of disk (base image is shared)
+ERST
 
     {
         .name       = "migrate_cancel",
@@ -1003,11 +925,10 @@ ETEXI
         .cmd        = hmp_migrate_cancel,
     },
 
-STEXI
-@item migrate_cancel
-@findex migrate_cancel
-Cancel the current VM migration.
-ETEXI
+SRST
+``migrate_cancel``
+  Cancel the current VM migration.
+ERST
 
     {
         .name       = "migrate_continue",
@@ -1016,11 +937,10 @@ ETEXI
         .help       = "Continue migration from the given paused state",
         .cmd        = hmp_migrate_continue,
     },
-STEXI
-@item migrate_continue @var{state}
-@findex migrate_continue
-Continue migration from the paused state @var{state}
-ETEXI
+SRST
+``migrate_continue`` *state*
+  Continue migration from the paused state *state*
+ERST
 
     {
         .name       = "migrate_incoming",
@@ -1030,12 +950,11 @@ ETEXI
         .cmd        = hmp_migrate_incoming,
     },
 
-STEXI
-@item migrate_incoming @var{uri}
-@findex migrate_incoming
-Continue an incoming migration using the @var{uri} (that has the same syntax
-as the -incoming option).
-ETEXI
+SRST
+``migrate_incoming`` *uri*
+  Continue an incoming migration using the *uri* (that has the same syntax
+  as the ``-incoming`` option).
+ERST
 
     {
         .name       = "migrate_recover",
@@ -1045,11 +964,10 @@ ETEXI
         .cmd        = hmp_migrate_recover,
     },
 
-STEXI
-@item migrate_recover @var{uri}
-@findex migrate_recover
-Continue a paused incoming postcopy migration using the @var{uri}.
-ETEXI
+SRST
+``migrate_recover`` *uri*
+  Continue a paused incoming postcopy migration using the *uri*.
+ERST
 
     {
         .name       = "migrate_pause",
@@ -1059,11 +977,10 @@ ETEXI
         .cmd        = hmp_migrate_pause,
     },
 
-STEXI
-@item migrate_pause
-@findex migrate_pause
-Pause an ongoing migration.  Currently it only supports postcopy.
-ETEXI
+SRST
+``migrate_pause``
+  Pause an ongoing migration.  Currently it only supports postcopy.
+ERST
 
     {
         .name       = "migrate_set_cache_size",
@@ -1078,11 +995,10 @@ ETEXI
         .cmd        = hmp_migrate_set_cache_size,
     },
 
-STEXI
-@item migrate_set_cache_size @var{value}
-@findex migrate_set_cache_size
-Set cache size to @var{value} (in bytes) for xbzrle migrations.
-ETEXI
+SRST
+``migrate_set_cache_size`` *value*
+  Set cache size to *value* (in bytes) for xbzrle migrations.
+ERST
 
     {
         .name       = "migrate_set_speed",
@@ -1093,11 +1009,10 @@ ETEXI
         .cmd        = hmp_migrate_set_speed,
     },
 
-STEXI
-@item migrate_set_speed @var{value}
-@findex migrate_set_speed
-Set maximum speed to @var{value} (in bytes) for migrations.
-ETEXI
+SRST
+``migrate_set_speed`` *value*
+  Set maximum speed to *value* (in bytes) for migrations.
+ERST
 
     {
         .name       = "migrate_set_downtime",
@@ -1107,11 +1022,10 @@ ETEXI
         .cmd        = hmp_migrate_set_downtime,
     },
 
-STEXI
-@item migrate_set_downtime @var{second}
-@findex migrate_set_downtime
-Set maximum tolerated downtime (in seconds) for migration.
-ETEXI
+SRST
+``migrate_set_downtime`` *second*
+  Set maximum tolerated downtime (in seconds) for migration.
+ERST
 
     {
         .name       = "migrate_set_capability",
@@ -1122,11 +1036,10 @@ ETEXI
         .command_completion = migrate_set_capability_completion,
     },
 
-STEXI
-@item migrate_set_capability @var{capability} @var{state}
-@findex migrate_set_capability
-Enable/Disable the usage of a capability @var{capability} for migration.
-ETEXI
+SRST
+``migrate_set_capability`` *capability* *state*
+  Enable/Disable the usage of a capability *capability* for migration.
+ERST
 
     {
         .name       = "migrate_set_parameter",
@@ -1137,11 +1050,10 @@ ETEXI
         .command_completion = migrate_set_parameter_completion,
     },
 
-STEXI
-@item migrate_set_parameter @var{parameter} @var{value}
-@findex migrate_set_parameter
-Set the parameter @var{parameter} for migration.
-ETEXI
+SRST
+``migrate_set_parameter`` *parameter* *value*
+  Set the parameter *parameter* for migration.
+ERST
 
     {
         .name       = "migrate_start_postcopy",
@@ -1154,12 +1066,11 @@ ETEXI
         .cmd        = hmp_migrate_start_postcopy,
     },
 
-STEXI
-@item migrate_start_postcopy
-@findex migrate_start_postcopy
-Switch in-progress migration to postcopy mode. Ignored after the end of
-migration (or once already in postcopy).
-ETEXI
+SRST
+``migrate_start_postcopy``
+  Switch in-progress migration to postcopy mode. Ignored after the end of
+  migration (or once already in postcopy).
+ERST
 
     {
         .name       = "x_colo_lost_heartbeat",
@@ -1170,11 +1081,10 @@ ETEXI
         .cmd = hmp_x_colo_lost_heartbeat,
     },
 
-STEXI
-@item x_colo_lost_heartbeat
-@findex x_colo_lost_heartbeat
-Tell COLO that heartbeat is lost, a failover or takeover is needed.
-ETEXI
+SRST
+``x_colo_lost_heartbeat``
+  Tell COLO that heartbeat is lost, a failover or takeover is needed.
+ERST
 
     {
         .name       = "client_migrate_info",
@@ -1184,13 +1094,12 @@ ETEXI
         .cmd        = hmp_client_migrate_info,
     },
 
-STEXI
-@item client_migrate_info @var{protocol} @var{hostname} @var{port} @var{tls-port} @var{cert-subject}
-@findex client_migrate_info
-Set migration information for remote display.  This makes the server
-ask the client to automatically reconnect using the new parameters
-once migration finished successfully.  Only implemented for SPICE.
-ETEXI
+SRST
+``client_migrate_info`` *protocol* *hostname* *port* *tls-port* *cert-subject*
+  Set migration information for remote display.  This makes the server
+  ask the client to automatically reconnect using the new parameters
+  once migration finished successfully.  Only implemented for SPICE.
+ERST
 
     {
         .name       = "dump-guest-memory",
@@ -1209,24 +1118,34 @@ ETEXI
         .cmd        = hmp_dump_guest_memory,
     },
 
-STEXI
-@item dump-guest-memory [-p] @var{filename} @var{begin} @var{length}
-@item dump-guest-memory [-z|-l|-s|-w] @var{filename}
-@findex dump-guest-memory
-Dump guest memory to @var{protocol}. The file can be processed with crash or
-gdb. Without -z|-l|-s|-w, the dump format is ELF.
-        -p: do paging to get guest's memory mapping.
-        -z: dump in kdump-compressed format, with zlib compression.
-        -l: dump in kdump-compressed format, with lzo compression.
-        -s: dump in kdump-compressed format, with snappy compression.
-        -w: dump in Windows crashdump format (can be used instead of ELF-dump converting),
-            for Windows x64 guests with vmcoreinfo driver only
-  filename: dump file name.
-     begin: the starting physical address. It's optional, and should be
-            specified together with length.
-    length: the memory size, in bytes. It's optional, and should be specified
-            together with begin.
-ETEXI
+SRST
+``dump-guest-memory [-p]`` *filename* *begin* *length*
+  \ 
+``dump-guest-memory [-z|-l|-s|-w]`` *filename*
+  Dump guest memory to *protocol*. The file can be processed with crash or
+  gdb. Without ``-z|-l|-s|-w``, the dump format is ELF.
+
+  ``-p``
+    do paging to get guest's memory mapping.
+  ``-z``
+    dump in kdump-compressed format, with zlib compression.
+  ``-l``
+    dump in kdump-compressed format, with lzo compression.
+  ``-s``
+    dump in kdump-compressed format, with snappy compression.
+  ``-w``
+    dump in Windows crashdump format (can be used instead of ELF-dump converting),
+    for Windows x64 guests with vmcoreinfo driver only
+  *filename*
+    dump file name.
+  *begin*
+    the starting physical address. It's optional, and should be
+    specified together with *length*.
+  *length*
+    the memory size, in bytes. It's optional, and should be specified
+    together with *begin*.
+
+ERST
 
 #if defined(TARGET_S390X)
     {
@@ -1238,11 +1157,10 @@ ETEXI
     },
 #endif
 
-STEXI
-@item dump-skeys @var{filename}
-@findex dump-skeys
-Save guest storage keys to a file.
-ETEXI
+SRST
+``dump-skeys`` *filename*
+  Save guest storage keys to a file.
+ERST
 
 #if defined(TARGET_S390X)
     {
@@ -1254,11 +1172,10 @@ ETEXI
     },
 #endif
 
-STEXI
-@item migration_mode @var{mode}
-@findex migration_mode
-Enables or disables migration mode.
-ETEXI
+SRST
+``migration_mode`` *mode*
+  Enables or disables migration mode.
+ERST
 
     {
         .name       = "snapshot_blkdev",
@@ -1275,11 +1192,10 @@ ETEXI
         .cmd        = hmp_snapshot_blkdev,
     },
 
-STEXI
-@item snapshot_blkdev
-@findex snapshot_blkdev
-Snapshot device, using snapshot file as target if provided
-ETEXI
+SRST
+``snapshot_blkdev``
+  Snapshot device, using snapshot file as target if provided
+ERST
 
     {
         .name       = "snapshot_blkdev_internal",
@@ -1291,11 +1207,10 @@ ETEXI
         .cmd        = hmp_snapshot_blkdev_internal,
     },
 
-STEXI
-@item snapshot_blkdev_internal
-@findex snapshot_blkdev_internal
-Take an internal snapshot on device if it support
-ETEXI
+SRST
+``snapshot_blkdev_internal``
+  Take an internal snapshot on device if it support
+ERST
 
     {
         .name       = "snapshot_delete_blkdev_internal",
@@ -1309,11 +1224,10 @@ ETEXI
         .cmd        = hmp_snapshot_delete_blkdev_internal,
     },
 
-STEXI
-@item snapshot_delete_blkdev_internal
-@findex snapshot_delete_blkdev_internal
-Delete an internal snapshot on device if it support
-ETEXI
+SRST
+``snapshot_delete_blkdev_internal``
+  Delete an internal snapshot on device if it support
+ERST
 
     {
         .name       = "drive_mirror",
@@ -1329,12 +1243,11 @@ ETEXI
                       "so that the result does not need a backing file.\n\t\t\t",
         .cmd        = hmp_drive_mirror,
     },
-STEXI
-@item drive_mirror
-@findex drive_mirror
-Start mirroring a block device's writes to a new destination,
-using the specified target.
-ETEXI
+SRST
+``drive_mirror``
+  Start mirroring a block device's writes to a new destination,
+  using the specified target.
+ERST
 
     {
         .name       = "drive_backup",
@@ -1352,11 +1265,10 @@ ETEXI
                       "(if the target format supports it).\n\t\t\t",
         .cmd        = hmp_drive_backup,
     },
-STEXI
-@item drive_backup
-@findex drive_backup
-Start a point-in-time copy of a block device to a specificed target.
-ETEXI
+SRST
+``drive_backup``
+  Start a point-in-time copy of a block device to a specificed target.
+ERST
 
     {
         .name       = "drive_add",
@@ -1370,11 +1282,10 @@ ETEXI
         .cmd        = hmp_drive_add,
     },
 
-STEXI
-@item drive_add
-@findex drive_add
-Add drive to PCI storage controller.
-ETEXI
+SRST
+``drive_add``
+  Add drive to PCI storage controller.
+ERST
 
     {
         .name       = "pcie_aer_inject_error",
@@ -1394,11 +1305,10 @@ ETEXI
         .cmd        = hmp_pcie_aer_inject_error,
     },
 
-STEXI
-@item pcie_aer_inject_error
-@findex pcie_aer_inject_error
-Inject PCIe AER error
-ETEXI
+SRST
+``pcie_aer_inject_error``
+  Inject PCIe AER error
+ERST
 
     {
         .name       = "netdev_add",
@@ -1409,11 +1319,10 @@ ETEXI
         .command_completion = netdev_add_completion,
     },
 
-STEXI
-@item netdev_add
-@findex netdev_add
-Add host network device.
-ETEXI
+SRST
+``netdev_add``
+  Add host network device.
+ERST
 
     {
         .name       = "netdev_del",
@@ -1424,11 +1333,10 @@ ETEXI
         .command_completion = netdev_del_completion,
     },
 
-STEXI
-@item netdev_del
-@findex netdev_del
-Remove host network device.
-ETEXI
+SRST
+``netdev_del``
+  Remove host network device.
+ERST
 
     {
         .name       = "object_add",
@@ -1439,11 +1347,10 @@ ETEXI
         .command_completion = object_add_completion,
     },
 
-STEXI
-@item object_add
-@findex object_add
-Create QOM object.
-ETEXI
+SRST
+``object_add``
+  Create QOM object.
+ERST
 
     {
         .name       = "object_del",
@@ -1454,11 +1361,10 @@ ETEXI
         .command_completion = object_del_completion,
     },
 
-STEXI
-@item object_del
-@findex object_del
-Destroy QOM object.
-ETEXI
+SRST
+``object_del``
+  Destroy QOM object.
+ERST
 
 #ifdef CONFIG_SLIRP
     {
@@ -1469,11 +1375,10 @@ ETEXI
         .cmd        = hmp_hostfwd_add,
     },
 #endif
-STEXI
-@item hostfwd_add
-@findex hostfwd_add
-Redirect TCP or UDP connections from host to guest (requires -net user).
-ETEXI
+SRST
+``hostfwd_add``
+  Redirect TCP or UDP connections from host to guest (requires -net user).
+ERST
 
 #ifdef CONFIG_SLIRP
     {
@@ -1485,11 +1390,10 @@ ETEXI
     },
 
 #endif
-STEXI
-@item hostfwd_remove
-@findex hostfwd_remove
-Remove host-to-guest TCP or UDP redirection.
-ETEXI
+SRST
+``hostfwd_remove``
+  Remove host-to-guest TCP or UDP redirection.
+ERST
 
     {
         .name       = "balloon",
@@ -1499,11 +1403,10 @@ ETEXI
         .cmd        = hmp_balloon,
     },
 
-STEXI
-@item balloon @var{value}
-@findex balloon
-Request VM to change its memory allocation to @var{value} (in MB).
-ETEXI
+SRST
+``balloon`` *value*
+  Request VM to change its memory allocation to *value* (in MB).
+ERST
 
     {
         .name       = "set_link",
@@ -1514,11 +1417,10 @@ ETEXI
         .command_completion = set_link_completion,
     },
 
-STEXI
-@item set_link @var{name} [on|off]
-@findex set_link
-Switch link @var{name} on (i.e. up) or off (i.e. down).
-ETEXI
+SRST
+``set_link`` *name* ``[on|off]``
+  Switch link *name* on (i.e. up) or off (i.e. down).
+ERST
 
     {
         .name       = "watchdog_action",
@@ -1529,11 +1431,10 @@ ETEXI
         .command_completion = watchdog_action_completion,
     },
 
-STEXI
-@item watchdog_action
-@findex watchdog_action
-Change watchdog action.
-ETEXI
+SRST
+``watchdog_action``
+  Change watchdog action.
+ERST
 
     {
         .name       = "acl_show",
@@ -1543,14 +1444,13 @@ ETEXI
         .cmd        = hmp_acl_show,
     },
 
-STEXI
-@item acl_show @var{aclname}
-@findex acl_show
-List all the matching rules in the access control list, and the default
-policy. There are currently two named access control lists,
-@var{vnc.x509dname} and @var{vnc.username} matching on the x509 client
-certificate distinguished name, and SASL username respectively.
-ETEXI
+SRST
+``acl_show`` *aclname*
+  List all the matching rules in the access control list, and the default
+  policy. There are currently two named access control lists,
+  *vnc.x509dname* and *vnc.username* matching on the x509 client
+  certificate distinguished name, and SASL username respectively.
+ERST
 
     {
         .name       = "acl_policy",
@@ -1560,13 +1460,12 @@ ETEXI
         .cmd        = hmp_acl_policy,
     },
 
-STEXI
-@item acl_policy @var{aclname} @code{allow|deny}
-@findex acl_policy
-Set the default access control list policy, used in the event that
-none of the explicit rules match. The default policy at startup is
-always @code{deny}.
-ETEXI
+SRST
+``acl_policy`` *aclname* ``allow|deny``
+  Set the default access control list policy, used in the event that
+  none of the explicit rules match. The default policy at startup is
+  always ``deny``.
+ERST
 
     {
         .name       = "acl_add",
@@ -1576,16 +1475,15 @@ ETEXI
         .cmd        = hmp_acl_add,
     },
 
-STEXI
-@item acl_add @var{aclname} @var{match} @code{allow|deny} [@var{index}]
-@findex acl_add
-Add a match rule to the access control list, allowing or denying access.
-The match will normally be an exact username or x509 distinguished name,
-but can optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to
-allow all users in the @code{EXAMPLE.COM} kerberos realm. The match will
-normally be appended to the end of the ACL, but can be inserted
-earlier in the list if the optional @var{index} parameter is supplied.
-ETEXI
+SRST
+``acl_add`` *aclname* *match* ``allow|deny`` [*index*]
+  Add a match rule to the access control list, allowing or denying access.
+  The match will normally be an exact username or x509 distinguished name,
+  but can optionally include wildcard globs. eg ``*@EXAMPLE.COM`` to
+  allow all users in the ``EXAMPLE.COM`` kerberos realm. The match will
+  normally be appended to the end of the ACL, but can be inserted
+  earlier in the list if the optional *index* parameter is supplied.
+ERST
 
     {
         .name       = "acl_remove",
@@ -1595,11 +1493,10 @@ ETEXI
         .cmd        = hmp_acl_remove,
     },
 
-STEXI
-@item acl_remove @var{aclname} @var{match}
-@findex acl_remove
-Remove the specified match rule from the access control list.
-ETEXI
+SRST
+``acl_remove`` *aclname* *match*
+  Remove the specified match rule from the access control list.
+ERST
 
     {
         .name       = "acl_reset",
@@ -1609,12 +1506,11 @@ ETEXI
         .cmd        = hmp_acl_reset,
     },
 
-STEXI
-@item acl_reset @var{aclname}
-@findex acl_reset
-Remove all matches from the access control list, and set the default
-policy back to @code{deny}.
-ETEXI
+SRST
+``acl_reset`` *aclname*
+  Remove all matches from the access control list, and set the default
+  policy back to ``deny``.
+ERST
 
     {
         .name       = "nbd_server_start",
@@ -1623,14 +1519,13 @@ ETEXI
         .help       = "serve block devices on the given host and port",
         .cmd        = hmp_nbd_server_start,
     },
-STEXI
-@item nbd_server_start @var{host}:@var{port}
-@findex nbd_server_start
-Start an NBD server on the given host and/or port.  If the @option{-a}
-option is included, all of the virtual machine's block devices that
-have an inserted media on them are automatically exported; in this case,
-the @option{-w} option makes the devices writable too.
-ETEXI
+SRST
+``nbd_server_start`` *host*:*port*
+  Start an NBD server on the given host and/or port.  If the ``-a``
+  option is included, all of the virtual machine's block devices that
+  have an inserted media on them are automatically exported; in this case,
+  the ``-w`` option makes the devices writable too.
+ERST
 
     {
         .name       = "nbd_server_add",
@@ -1639,14 +1534,13 @@ ETEXI
         .help       = "export a block device via NBD",
         .cmd        = hmp_nbd_server_add,
     },
-STEXI
-@item nbd_server_add @var{device} [ @var{name} ]
-@findex nbd_server_add
-Export a block device through QEMU's NBD server, which must be started
-beforehand with @command{nbd_server_start}.  The @option{-w} option makes the
-exported device writable too.  The export name is controlled by @var{name},
-defaulting to @var{device}.
-ETEXI
+SRST
+``nbd_server_add`` *device* [ *name* ]
+  Export a block device through QEMU's NBD server, which must be started
+  beforehand with ``nbd_server_start``.  The ``-w`` option makes the
+  exported device writable too.  The export name is controlled by *name*,
+  defaulting to *device*.
+ERST
 
     {
         .name       = "nbd_server_remove",
@@ -1655,15 +1549,14 @@ ETEXI
         .help       = "remove an export previously exposed via NBD",
         .cmd        = hmp_nbd_server_remove,
     },
-STEXI
-@item nbd_server_remove [-f] @var{name}
-@findex nbd_server_remove
-Stop exporting a block device through QEMU's NBD server, which was
-previously started with @command{nbd_server_add}.  The @option{-f}
-option forces the server to drop the export immediately even if
-clients are connected; otherwise the command fails unless there are no
-clients.
-ETEXI
+SRST
+``nbd_server_remove [-f]`` *name*
+  Stop exporting a block device through QEMU's NBD server, which was
+  previously started with ``nbd_server_add``.  The ``-f``
+  option forces the server to drop the export immediately even if
+  clients are connected; otherwise the command fails unless there are no
+  clients.
+ERST
 
     {
         .name       = "nbd_server_stop",
@@ -1672,11 +1565,10 @@ ETEXI
         .help       = "stop serving block devices using the NBD protocol",
         .cmd        = hmp_nbd_server_stop,
     },
-STEXI
-@item nbd_server_stop
-@findex nbd_server_stop
-Stop the QEMU embedded NBD server.
-ETEXI
+SRST
+``nbd_server_stop``
+  Stop the QEMU embedded NBD server.
+ERST
 
 
 #if defined(TARGET_I386)
@@ -1690,11 +1582,10 @@ ETEXI
     },
 
 #endif
-STEXI
-@item mce @var{cpu} @var{bank} @var{status} @var{mcgstatus} @var{addr} @var{misc}
-@findex mce (x86)
-Inject an MCE on the given CPU (x86 only).
-ETEXI
+SRST
+``mce`` *cpu* *bank* *status* *mcgstatus* *addr* *misc*
+  Inject an MCE on the given CPU (x86 only).
+ERST
 
     {
         .name       = "getfd",
@@ -1704,13 +1595,12 @@ ETEXI
         .cmd        = hmp_getfd,
     },
 
-STEXI
-@item getfd @var{fdname}
-@findex getfd
-If a file descriptor is passed alongside this command using the SCM_RIGHTS
-mechanism on unix sockets, it is stored using the name @var{fdname} for
-later use by other monitor commands.
-ETEXI
+SRST
+``getfd`` *fdname*
+  If a file descriptor is passed alongside this command using the SCM_RIGHTS
+  mechanism on unix sockets, it is stored using the name *fdname* for
+  later use by other monitor commands.
+ERST
 
     {
         .name       = "closefd",
@@ -1720,13 +1610,12 @@ ETEXI
         .cmd        = hmp_closefd,
     },
 
-STEXI
-@item closefd @var{fdname}
-@findex closefd
-Close the file descriptor previously assigned to @var{fdname} using the
-@code{getfd} command. This is only needed if the file descriptor was never
-used by another monitor command.
-ETEXI
+SRST
+``closefd`` *fdname*
+  Close the file descriptor previously assigned to *fdname* using the
+  ``getfd`` command. This is only needed if the file descriptor was never
+  used by another monitor command.
+ERST
 
     {
         .name       = "block_passwd",
@@ -1736,13 +1625,12 @@ ETEXI
         .cmd        = hmp_block_passwd,
     },
 
-STEXI
-@item block_passwd @var{device} @var{password}
-@findex block_passwd
-Set the encrypted device @var{device} password to @var{password}
+SRST
+``block_passwd`` *device* *password*
+  Set the encrypted device *device* password to *password*
 
-This command is now obsolete and will always return an error since 2.10
-ETEXI
+  This command is now obsolete and will always return an error since 2.10
+ERST
 
     {
         .name       = "block_set_io_throttle",
@@ -1752,12 +1640,12 @@ ETEXI
         .cmd        = hmp_block_set_io_throttle,
     },
 
-STEXI
-@item block_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
-@findex block_set_io_throttle
-Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}.
-@var{device} can be a block device name, a qdev ID or a QOM path.
-ETEXI
+SRST
+``block_set_io_throttle`` *device* *bps* *bps_rd* *bps_wr* *iops* *iops_rd* *iops_wr*
+  Change I/O throttle limits for a block drive to
+  *bps* *bps_rd* *bps_wr* *iops* *iops_rd* *iops_wr*.
+  *device* can be a block device name, a qdev ID or a QOM path.
+ERST
 
     {
         .name       = "set_password",
@@ -1767,16 +1655,15 @@ ETEXI
         .cmd        = hmp_set_password,
     },
 
-STEXI
-@item set_password [ vnc | spice ] password [ action-if-connected ]
-@findex set_password
-Change spice/vnc password.  Use zero to make the password stay valid
-forever.  @var{action-if-connected} specifies what should happen in
-case a connection is established: @var{fail} makes the password change
-fail.  @var{disconnect} changes the password and disconnects the
-client.  @var{keep} changes the password and keeps the connection up.
-@var{keep} is the default.
-ETEXI
+SRST
+``set_password [ vnc | spice ] password [ action-if-connected ]``
+  Change spice/vnc password.  Use zero to make the password stay valid
+  forever.  *action-if-connected* specifies what should happen in
+  case a connection is established: *fail* makes the password change
+  fail.  *disconnect* changes the password and disconnects the
+  client.  *keep* changes the password and keeps the connection up.
+  *keep* is the default.
+ERST
 
     {
         .name       = "expire_password",
@@ -1786,28 +1673,22 @@ ETEXI
         .cmd        = hmp_expire_password,
     },
 
-STEXI
-@item expire_password [ vnc | spice ] expire-time
-@findex expire_password
-Specify when a password for spice/vnc becomes
-invalid. @var{expire-time} accepts:
+SRST
+``expire_password [ vnc | spice ]`` *expire-time*
+  Specify when a password for spice/vnc becomes
+  invalid. *expire-time* accepts:
 
-@table @var
-@item now
-Invalidate password instantly.
+  ``now``
+    Invalidate password instantly.
+  ``never``
+    Password stays valid forever.
+  ``+``\ *nsec*
+    Password stays valid for *nsec* seconds starting now.
+  *nsec*
+    Password is invalidated at the given time.  *nsec* are the seconds
+    passed since 1970, i.e. unix epoch.
 
-@item never
-Password stays valid forever.
-
-@item +nsec
-Password stays valid for @var{nsec} seconds starting now.
-
-@item nsec
-Password is invalidated at the given time.  @var{nsec} are the seconds
-passed since 1970, i.e. unix epoch.
-
-@end table
-ETEXI
+ERST
 
     {
         .name       = "chardev-add",
@@ -1818,12 +1699,10 @@ ETEXI
         .command_completion = chardev_add_completion,
     },
 
-STEXI
-@item chardev-add args
-@findex chardev-add
-chardev-add accepts the same parameters as the -chardev command line switch.
-
-ETEXI
+SRST
+``chardev-add`` *args*
+  chardev-add accepts the same parameters as the -chardev command line switch.
+ERST
 
     {
         .name       = "chardev-change",
@@ -1833,13 +1712,11 @@ ETEXI
         .cmd        = hmp_chardev_change,
     },
 
-STEXI
-@item chardev-change args
-@findex chardev-change
-chardev-change accepts existing chardev @var{id} and then the same arguments
-as the -chardev command line switch (except for "id").
-
-ETEXI
+SRST
+``chardev-change`` *args*
+  chardev-change accepts existing chardev *id* and then the same arguments
+  as the -chardev command line switch (except for "id").
+ERST
 
     {
         .name       = "chardev-remove",
@@ -1850,12 +1727,10 @@ ETEXI
         .command_completion = chardev_remove_completion,
     },
 
-STEXI
-@item chardev-remove id
-@findex chardev-remove
-Removes the chardev @var{id}.
-
-ETEXI
+SRST
+``chardev-remove`` *id*
+  Removes the chardev *id*.
+ERST
 
     {
         .name       = "chardev-send-break",
@@ -1866,12 +1741,10 @@ ETEXI
         .command_completion = chardev_remove_completion,
     },
 
-STEXI
-@item chardev-send-break id
-@findex chardev-send-break
-Send a break on the chardev @var{id}.
-
-ETEXI
+SRST
+``chardev-send-break`` *id*
+  Send a break on the chardev *id*.
+ERST
 
     {
         .name       = "qemu-io",
@@ -1883,12 +1756,10 @@ ETEXI
         .cmd        = hmp_qemu_io,
     },
 
-STEXI
-@item qemu-io @var{device} @var{command}
-@findex qemu-io
-Executes a qemu-io command on the given block device.
-
-ETEXI
+SRST
+``qemu-io`` *device* *command*
+  Executes a qemu-io command on the given block device.
+ERST
 
     {
         .name       = "cpu-add",
@@ -1898,13 +1769,12 @@ ETEXI
         .cmd        = hmp_cpu_add,
     },
 
-STEXI
-@item cpu-add @var{id}
-@findex cpu-add
-Add CPU with id @var{id}.  This command is deprecated, please
-+use @code{device_add} instead. For details, refer to
-'docs/cpu-hotplug.rst'.
-ETEXI
+SRST
+``cpu-add`` *id*
+  Add CPU with id *id*.  This command is deprecated, please
+  +use ``device_add`` instead. For details, refer to
+  'docs/cpu-hotplug.rst'.
+ERST
 
     {
         .name       = "qom-list",
@@ -1915,10 +1785,10 @@ ETEXI
         .flags      = "p",
     },
 
-STEXI
-@item qom-list [@var{path}]
-Print QOM properties of object at location @var{path}
-ETEXI
+SRST
+``qom-list`` [*path*]
+  Print QOM properties of object at location *path*
+ERST
 
     {
         .name       = "qom-set",
@@ -1929,10 +1799,10 @@ ETEXI
         .flags      = "p",
     },
 
-STEXI
-@item qom-set @var{path} @var{property} @var{value}
-Set QOM property @var{property} of object at location @var{path} to value @var{value}
-ETEXI
+SRST
+``qom-set`` *path* *property* *value*
+  Set QOM property *property* of object at location *path* to value *value*
+ERST
 
     {
         .name       = "info",
@@ -1944,6 +1814,3 @@ ETEXI
         .flags      = "p",
     },
 
-STEXI
-@end table
-ETEXI

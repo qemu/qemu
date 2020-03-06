@@ -38,8 +38,8 @@ There are two basic configurations:
   Interrupts are message-signaled (MSI-X).  vectors=N configures the
   number of vectors to use.
 
-For more details on ivshmem device properties, see The QEMU Emulator
-User Documentation (qemu-doc.*).
+For more details on ivshmem device properties, see the QEMU Emulator
+user documentation.
 
 
 == The ivshmem PCI device's guest interface ==
