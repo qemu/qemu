@@ -120,7 +120,10 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     QOSGraphNode *path;
     QOSGraphEdge *edge;
 
-    /* etype set to QEDGE_CONSUMED_BY so that machine can add to the command line */
+    /*
+     * etype set to QEDGE_CONSUMED_BY so that machine can add to the command
+     * line
+     */
     QOSEdgeType etype = QEDGE_CONSUMED_BY;
 
     /* twice QOS_PATH_MAX_ELEMENT_SIZE since each edge can have its arg */
