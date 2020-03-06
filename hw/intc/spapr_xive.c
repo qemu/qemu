@@ -677,8 +677,8 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
     uint64_t timas[2 * 2];
     /* Interrupt number ranges for the IPIs */
     uint32_t lisn_ranges[] = {
-        cpu_to_be32(0),
-        cpu_to_be32(nr_servers),
+        cpu_to_be32(SPAPR_IRQ_IPI),
+        cpu_to_be32(SPAPR_IRQ_IPI + nr_servers),
     };
     /*
      * EQ size - the sizes of pages supported by the system 4K, 64K,
