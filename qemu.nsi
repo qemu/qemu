@@ -177,9 +177,20 @@ SectionEnd
 !ifdef CONFIG_DOCUMENTATION
 Section "Documentation" SectionDoc
     SetOutPath "$INSTDIR"
-    File "${BINDIR}\qemu-doc.html"
+    File "${BINDIR}\index.html"
+    SetOutPath "$INSTDIR\interop"
+    FILE /r "${BINDIR}\interop\*.*"
+    SetOutPath "$INSTDIR\specs"
+    FILE /r "${BINDIR}\specs\*.*"
+    SetOutPath "$INSTDIR\system"
+    FILE /r "${BINDIR}\system\*.*"
+    SetOutPath "$INSTDIR\tools"
+    FILE /r "${BINDIR}\tools\*.*"
+    SetOutPath "$INSTDIR\user"
+    FILE /r "${BINDIR}\user\*.*"
+    SetOutPath "$INSTDIR"
     CreateDirectory "$SMPROGRAMS\${PRODUCT}"
-    CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\index.html" "" "$INSTDIR\index.html" 0
 SectionEnd
 !endif
 
@@ -227,7 +238,12 @@ Section "Uninstall"
     Delete "$INSTDIR\qemu-io.exe"
     Delete "$INSTDIR\qemu.exe"
     Delete "$INSTDIR\qemu-system-*.exe"
-    Delete "$INSTDIR\qemu-doc.html"
+    Delete "$INSTDIR\index.html"
+    RMDir /r "$INSTDIR\interop"
+    RMDir /r "$INSTDIR\specs"
+    RMDir /r "$INSTDIR\system"
+    RMDir /r "$INSTDIR\tools"
+    RMDir /r "$INSTDIR\user"
     RMDir /r "$INSTDIR\keymaps"
     RMDir /r "$INSTDIR\share"
     ; Remove generated files
