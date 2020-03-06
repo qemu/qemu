@@ -10,9 +10,9 @@ Welcome to QEMU's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   interop/index
-   devel/index
-   specs/index
    system/index
-   tools/index
    user/index
+   tools/index
+   interop/index
+   specs/index
+   devel/index
