@@ -46,7 +46,9 @@ block-obj-y += aio_task.o
 block-obj-y += backup-top.o
 block-obj-y += filter-compress.o
 
-common-obj-y += stream.o
+block-obj-y += stream.o
+
+common-obj-y += qapi-sysemu.o
 
 nfs.o-libs         := $(LIBNFS_LIBS)
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)

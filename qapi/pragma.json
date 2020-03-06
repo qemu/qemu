@@ -1,0 +1,24 @@
+{ 'pragma': { 'doc-required': true } }
+
+# Whitelists to permit QAPI rule violations; think twice before you
+# add to them!
+{ 'pragma': {
+    # Commands allowed to return a non-dictionary:
+    'returns-whitelist': [
+        'human-monitor-command',
+        'qom-get',
+        'query-migrate-cache-size',
+        'query-tpm-models',
+        'query-tpm-types',
+        'ringbuf-read' ],
+    'name-case-whitelist': [
+        'ACPISlotType',             # DIMM, visible through query-acpi-ospm-status
+        'CpuInfoMIPS',              # PC, visible through query-cpu
+        'CpuInfoTricore',           # PC, visible through query-cpu
+        'BlockdevVmdkSubformat',    # all members, to match VMDK spec spellings
+        'BlockdevVmdkAdapterType',  # legacyESX, to match VMDK spec spellings
+        'QapiErrorClass',           # all members, visible through errors
+        'UuidInfo',                 # UUID, visible through query-uuid
+        'X86CPURegister32',         # all members, visible indirectly through qom-get
+        'CpuInfo'                   # CPU, visible through query-cpu
+    ] } }

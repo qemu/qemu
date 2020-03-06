@@ -1,3 +1,4 @@
+stub-obj-y += arch_type.o
 stub-obj-y += bdrv-next-monitor-owned.o
 stub-obj-y += blk-commit-all.o
 stub-obj-y += blockdev-close-all-bdrv-states.o
@@ -18,6 +19,7 @@ stub-obj-y += machine-init-done.o
 stub-obj-y += migr-blocker.o
 stub-obj-y += change-state-handler.o
 stub-obj-y += monitor.o
+stub-obj-y += monitor-core.o
 stub-obj-y += notify-event.o
 stub-obj-y += qtest.o
 stub-obj-y += replay.o

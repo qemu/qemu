@@ -162,4 +162,11 @@ void user_creatable_del(const char *id, Error **errp);
  */
 void user_creatable_cleanup(void);
 
+/**
+ * qmp_object_add:
+ *
+ * QMP command handler for object-add. See the QAPI schema for documentation.
+ */
+void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp);
+
 #endif

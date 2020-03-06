@@ -216,3 +216,40 @@
 # <- { "return": {} }
 ##
 { 'command': 'quit' }
+
+##
+# @MonitorMode:
+#
+# An enumeration of monitor modes.
+#
+# @readline: HMP monitor (human-oriented command line interface)
+#
+# @control: QMP monitor (JSON-based machine interface)
+#
+# Since: 5.0
+##
+{ 'enum': 'MonitorMode', 'data': [ 'readline', 'control' ] }
+
+##
+# @MonitorOptions:
+#
+# Options to be used for adding a new monitor.
+#
+# @id:          Name of the monitor
+#
+# @mode:        Selects the monitor mode (default: readline in the system
+#               emulator, control in qemu-storage-daemon)
+#
+# @pretty:      Enables pretty printing (QMP only)
+#
+# @chardev:     Name of a character device to expose the monitor on
+#
+# Since: 5.0
+##
+{ 'struct': 'MonitorOptions',
+  'data': {
+      '*id': 'str',
+      '*mode': 'MonitorMode',
+      '*pretty': 'bool',
+      'chardev': 'str'
+  } }

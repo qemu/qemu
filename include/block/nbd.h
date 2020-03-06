@@ -353,6 +353,7 @@ void nbd_client_put(NBDClient *client);
 
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       const char *tls_authz, Error **errp);
+void nbd_server_start_options(NbdServerOptions *arg, Error **errp);
 
 /* nbd_read
  * Reads @size bytes from @ioc. Returns 0 on success.

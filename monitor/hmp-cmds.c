@@ -2341,6 +2341,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     Error *local_err = NULL;
     BlockInfoList *block_list, *info;
     SocketAddress *addr;
+    BlockExportNbd export;
 
     if (writable && !all) {
         error_setg(&local_err, "-w only valid together with -a");
@@ -2373,8 +2374,13 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
             continue;
         }
 
-        qmp_nbd_server_add(info->value->device, false, NULL, false, NULL,
-                           true, writable, false, NULL, &local_err);
+        export = (BlockExportNbd) {
+            .device         = info->value->device,
+            .has_writable   = true,
+            .writable       = writable,
+        };
+
+        qmp_nbd_server_add(&export, &local_err);
 
         if (local_err != NULL) {
             qmp_nbd_server_stop(NULL);
@@ -2395,8 +2401,15 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
-    qmp_nbd_server_add(device, !!name, name, false, NULL, true, writable,
-                       false, NULL, &local_err);
+    BlockExportNbd export = {
+        .device         = (char *) device,
+        .has_name       = !!name,
+        .name           = (char *) name,
+        .has_writable   = true,
+        .writable       = writable,
+    };
+
+    qmp_nbd_server_add(&export, &local_err);
     hmp_handle_error(mon, local_err);
 }
 

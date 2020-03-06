@@ -61,23 +61,6 @@
   'data': ['144', '288', '120', 'none', 'auto']}
 
 ##
-# @BlockdevSnapshotInternal:
-#
-# @device: the device name or node-name of a root node to generate the snapshot
-#          from
-#
-# @name: the name of the internal snapshot to be created
-#
-# Notes: In transaction, if @name is empty, or any snapshot matching @name
-#        exists, the operation will fail. Only some image formats support it,
-#        for example, qcow2, rbd, and sheepdog.
-#
-# Since: 1.7
-##
-{ 'struct': 'BlockdevSnapshotInternal',
-  'data': { 'device': 'str', 'name': 'str' } }
-
-##
 # @PRManagerInfo:
 #
 # Information about a persistent reservation manager
@@ -103,84 +86,6 @@
 ##
 { 'command': 'query-pr-managers', 'returns': ['PRManagerInfo'],
   'allow-preconfig': true }
-
-
-##
-# @blockdev-snapshot-internal-sync:
-#
-# Synchronously take an internal snapshot of a block device, when the
-# format of the image used supports it. If the name is an empty
-# string, or a snapshot with name already exists, the operation will
-# fail.
-#
-# For the arguments, see the documentation of BlockdevSnapshotInternal.
-#
-# Returns: - nothing on success
-#          - If @device is not a valid block device, GenericError
-#          - If any snapshot matching @name exists, or @name is empty,
-#            GenericError
-#          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
-#
-# Since: 1.7
-#
-# Example:
-#
-# -> { "execute": "blockdev-snapshot-internal-sync",
-#      "arguments": { "device": "ide-hd0",
-#                     "name": "snapshot0" }
-#    }
-# <- { "return": {} }
-#
-##
-{ 'command': 'blockdev-snapshot-internal-sync',
-  'data': 'BlockdevSnapshotInternal' }
-
-##
-# @blockdev-snapshot-delete-internal-sync:
-#
-# Synchronously delete an internal snapshot of a block device, when the format
-# of the image used support it. The snapshot is identified by name or id or
-# both. One of the name or id is required. Return SnapshotInfo for the
-# successfully deleted snapshot.
-#
-# @device: the device name or node-name of a root node to delete the snapshot
-#          from
-#
-# @id: optional the snapshot's ID to be deleted
-#
-# @name: optional the snapshot's name to be deleted
-#
-# Returns: - SnapshotInfo on success
-#          - If @device is not a valid block device, GenericError
-#          - If snapshot not found, GenericError
-#          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
-#          - If @id and @name are both not specified, GenericError
-#
-# Since: 1.7
-#
-# Example:
-#
-# -> { "execute": "blockdev-snapshot-delete-internal-sync",
-#      "arguments": { "device": "ide-hd0",
-#                     "name": "snapshot0" }
-#    }
-# <- { "return": {
-#                    "id": "1",
-#                    "name": "snapshot0",
-#                    "vm-state-size": 0,
-#                    "date-sec": 1000012,
-#                    "date-nsec": 10,
-#                    "vm-clock-sec": 100,
-#                    "vm-clock-nsec": 20
-#      }
-#    }
-#
-##
-{ 'command': 'blockdev-snapshot-delete-internal-sync',
-  'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
-  'returns': 'SnapshotInfo' }
 
 ##
 # @eject:
@@ -211,109 +116,246 @@
             '*force': 'bool' } }
 
 ##
-# @nbd-server-start:
+# @blockdev-open-tray:
 #
-# Start an NBD server listening on the given host and port.  Block
-# devices can then be exported using @nbd-server-add.  The NBD
-# server will present them as named exports; for example, another
-# QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
+# Opens a block device's tray. If there is a block driver state tree inserted as
+# a medium, it will become inaccessible to the guest (but it will remain
+# associated to the block device, so closing the tray will make it accessible
+# again).
 #
-# @addr: Address on which to listen.
-# @tls-creds: ID of the TLS credentials object (since 2.6).
-# @tls-authz: ID of the QAuthZ authorization object used to validate
-#             the client's x509 distinguished name. This object is
-#             is only resolved at time of use, so can be deleted and
-#             recreated on the fly while the NBD server is active.
-#             If missing, it will default to denying access (since 4.0).
+# If the tray was already open before, this will be a no-op.
 #
-# Returns: error if the server is already running.
+# Once the tray opens, a DEVICE_TRAY_MOVED event is emitted. There are cases in
+# which no such event will be generated, these include:
 #
-# Since: 1.3.0
+# - if the guest has locked the tray, @force is false and the guest does not
+#   respond to the eject request
+# - if the BlockBackend denoted by @device does not have a guest device attached
+#   to it
+# - if the guest device does not have an actual tray
+#
+# @device: Block device name (deprecated, use @id instead)
+#
+# @id: The name or QOM path of the guest device (since: 2.8)
+#
+# @force: if false (the default), an eject request will be sent to
+#         the guest if it has locked the tray (and the tray will not be opened
+#         immediately); if true, the tray will be opened regardless of whether
+#         it is locked
+#
+# Since: 2.5
+#
+# Example:
+#
+# -> { "execute": "blockdev-open-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751016,
+#                     "microseconds": 716996 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": true } }
+#
+# <- { "return": {} }
+#
 ##
-{ 'command': 'nbd-server-start',
-  'data': { 'addr': 'SocketAddressLegacy',
-            '*tls-creds': 'str',
-            '*tls-authz': 'str'} }
+{ 'command': 'blockdev-open-tray',
+  'data': { '*device': 'str',
+            '*id': 'str',
+            '*force': 'bool' } }
 
 ##
-# @nbd-server-add:
+# @blockdev-close-tray:
 #
-# Export a block node to QEMU's embedded NBD server.
+# Closes a block device's tray. If there is a block driver state tree associated
+# with the block device (which is currently ejected), that tree will be loaded
+# as the medium.
 #
-# @device: The device name or node name of the node to be exported
+# If the tray was already closed before, this will be a no-op.
 #
-# @name: Export name. If unspecified, the @device parameter is used as the
-#        export name. (Since 2.12)
+# @device: Block device name (deprecated, use @id instead)
 #
-# @description: Free-form description of the export, up to 4096 bytes.
-#               (Since 5.0)
+# @id: The name or QOM path of the guest device (since: 2.8)
 #
-# @writable: Whether clients should be able to write to the device via the
-#            NBD connection (default false).
+# Since: 2.5
 #
-# @bitmap: Also export the dirty bitmap reachable from @device, so the
-#          NBD client can use NBD_OPT_SET_META_CONTEXT with
-#          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
+# Example:
 #
-# Returns: error if the server is not running, or export with the same name
-#          already exists.
+# -> { "execute": "blockdev-close-tray",
+#      "arguments": { "id": "ide0-1-0" } }
 #
-# Since: 1.3.0
+# <- { "timestamp": { "seconds": 1418751345,
+#                     "microseconds": 272147 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": false } }
+#
+# <- { "return": {} }
+#
 ##
-{ 'command': 'nbd-server-add',
-  'data': {'device': 'str', '*name': 'str', '*description': 'str',
-           '*writable': 'bool', '*bitmap': 'str' } }
+{ 'command': 'blockdev-close-tray',
+  'data': { '*device': 'str',
+            '*id': 'str' } }
 
 ##
-# @NbdServerRemoveMode:
+# @blockdev-remove-medium:
 #
-# Mode for removing an NBD export.
+# Removes a medium (a block driver state tree) from a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device).
 #
-# @safe: Remove export if there are no existing connections, fail otherwise.
+# If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# @hard: Drop all connections immediately and remove export.
-#
-# Potential additional modes to be added in the future:
-#
-# hide: Just hide export from new clients, leave existing connections as is.
-# Remove export after all clients are disconnected.
-#
-# soft: Hide export from new clients, answer with ESHUTDOWN for all further
-# requests from existing clients.
+# @id: The name or QOM path of the guest device
 #
 # Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "blockdev-remove-medium",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "error": { "class": "GenericError",
+#                 "desc": "Tray of device 'ide0-1-0' is not open" } }
+#
+# -> { "execute": "blockdev-open-tray",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "timestamp": { "seconds": 1418751627,
+#                     "microseconds": 549958 },
+#      "event": "DEVICE_TRAY_MOVED",
+#      "data": { "device": "ide1-cd0",
+#                "id": "ide0-1-0",
+#                "tray-open": true } }
+#
+# <- { "return": {} }
+#
+# -> { "execute": "blockdev-remove-medium",
+#      "arguments": { "id": "ide0-1-0" } }
+#
+# <- { "return": {} }
+#
 ##
-{'enum': 'NbdServerRemoveMode', 'data': ['safe', 'hard']}
+{ 'command': 'blockdev-remove-medium',
+  'data': { 'id': 'str' } }
 
 ##
-# @nbd-server-remove:
+# @blockdev-insert-medium:
 #
-# Remove NBD export by name.
+# Inserts a medium (a block driver state tree) into a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device) and there must be no medium inserted already.
 #
-# @name: Export name.
+# @id: The name or QOM path of the guest device
 #
-# @mode: Mode of command operation. See @NbdServerRemoveMode description.
-#        Default is 'safe'.
-#
-# Returns: error if
-#            - the server is not running
-#            - export is not found
-#            - mode is 'safe' and there are existing connections
+# @node-name: name of a node in the block driver state graph
 #
 # Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "blockdev-add",
+#      "arguments": {
+#          "node-name": "node0",
+#          "driver": "raw",
+#          "file": { "driver": "file",
+#                    "filename": "fedora.iso" } } }
+# <- { "return": {} }
+#
+# -> { "execute": "blockdev-insert-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "node-name": "node0" } }
+#
+# <- { "return": {} }
+#
 ##
-{ 'command': 'nbd-server-remove',
-  'data': {'name': 'str', '*mode': 'NbdServerRemoveMode'} }
+{ 'command': 'blockdev-insert-medium',
+  'data': { 'id': 'str',
+            'node-name': 'str'} }
+
 
 ##
-# @nbd-server-stop:
+# @BlockdevChangeReadOnlyMode:
 #
-# Stop QEMU's embedded NBD server, and unregister all devices previously
-# added via @nbd-server-add.
+# Specifies the new read-only mode of a block device subject to the
+# @blockdev-change-medium command.
 #
-# Since: 1.3.0
+# @retain: Retains the current read-only mode
+#
+# @read-only: Makes the device read-only
+#
+# @read-write: Makes the device writable
+#
+# Since: 2.3
+#
 ##
-{ 'command': 'nbd-server-stop' }
+{ 'enum': 'BlockdevChangeReadOnlyMode',
+  'data': ['retain', 'read-only', 'read-write'] }
+
+
+##
+# @blockdev-change-medium:
+#
+# Changes the medium inserted into a block device by ejecting the current medium
+# and loading a new image file which is inserted as the new medium (this command
+# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
+# and blockdev-close-tray).
+#
+# @device: Block device name (deprecated, use @id instead)
+#
+# @id: The name or QOM path of the guest device
+#      (since: 2.8)
+#
+# @filename: filename of the new image to be loaded
+#
+# @format: format to open the new image with (defaults to
+#          the probed format)
+#
+# @read-only-mode: change the read-only mode of the device; defaults
+#                  to 'retain'
+#
+# Since: 2.5
+#
+# Examples:
+#
+# 1. Change a removable medium
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "ide0-1-0",
+#                     "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+#                     "format": "raw" } }
+# <- { "return": {} }
+#
+# 2. Load a read-only medium into a writable drive
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "retain" } }
+#
+# <- { "error":
+#      { "class": "GenericError",
+#        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
+#
+# -> { "execute": "blockdev-change-medium",
+#      "arguments": { "id": "floppyA",
+#                     "filename": "/srv/images/ro.img",
+#                     "format": "raw",
+#                     "read-only-mode": "read-only" } }
+#
+# <- { "return": {} }
+#
+##
+{ 'command': 'blockdev-change-medium',
+  'data': { '*device': 'str',
+            '*id': 'str',
+            'filename': 'str',
+            '*format': 'str',
+            '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
+
 
 ##
 # @DEVICE_TRAY_MOVED:
@@ -369,85 +411,145 @@
   'data': { 'id': 'str', 'connected': 'bool' } }
 
 ##
-# @QuorumOpType:
+# @block_set_io_throttle:
 #
-# An enumeration of the quorum operation types
+# Change I/O throttle limits for a block drive.
 #
-# @read: read operation
+# Since QEMU 2.4, each device with I/O limits is member of a throttle
+# group.
 #
-# @write: write operation
+# If two or more devices are members of the same group, the limits
+# will apply to the combined I/O of the whole group in a round-robin
+# fashion. Therefore, setting new I/O limits to a device will affect
+# the whole group.
 #
-# @flush: flush operation
+# The name of the group can be specified using the 'group' parameter.
+# If the parameter is unset, it is assumed to be the current group of
+# that device. If it's not in any group yet, the name of the device
+# will be used as the name for its group.
 #
-# Since: 2.6
-##
-{ 'enum': 'QuorumOpType',
-  'data': [ 'read', 'write', 'flush' ] }
-
-##
-# @QUORUM_FAILURE:
+# The 'group' parameter can also be used to move a device to a
+# different group. In this case the limits specified in the parameters
+# will be applied to the new group only.
 #
-# Emitted by the Quorum block driver if it fails to establish a quorum
+# I/O limits can be disabled by setting all of them to 0. In this case
+# the device will be removed from its group and the rest of its
+# members will not be affected. The 'group' parameter is ignored.
 #
-# @reference: device name if defined else node name
+# Returns: - Nothing on success
+#          - If @device is not a valid block device, DeviceNotFound
 #
-# @sector-num: number of the first sector of the failed read operation
-#
-# @sectors-count: failed read operation sector count
-#
-# Note: This event is rate-limited.
-#
-# Since: 2.0
-#
-# Example:
-#
-# <- { "event": "QUORUM_FAILURE",
-#      "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-#
-##
-{ 'event': 'QUORUM_FAILURE',
-  'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
-
-##
-# @QUORUM_REPORT_BAD:
-#
-# Emitted to report a corruption of a Quorum file
-#
-# @type: quorum operation type (Since 2.6)
-#
-# @error: error message. Only present on failure. This field
-#         contains a human-readable error message. There are no semantics other
-#         than that the block layer reported an error and clients should not
-#         try to interpret the error string.
-#
-# @node-name: the graph node name of the block driver state
-#
-# @sector-num: number of the first sector of the failed read operation
-#
-# @sectors-count: failed read operation sector count
-#
-# Note: This event is rate-limited.
-#
-# Since: 2.0
+# Since: 1.1
 #
 # Example:
 #
-# 1. Read operation
+# -> { "execute": "block_set_io_throttle",
+#      "arguments": { "id": "virtio-blk-pci0/virtio-backend",
+#                     "bps": 0,
+#                     "bps_rd": 0,
+#                     "bps_wr": 0,
+#                     "iops": 512,
+#                     "iops_rd": 0,
+#                     "iops_wr": 0,
+#                     "bps_max": 0,
+#                     "bps_rd_max": 0,
+#                     "bps_wr_max": 0,
+#                     "iops_max": 0,
+#                     "iops_rd_max": 0,
+#                     "iops_wr_max": 0,
+#                     "bps_max_length": 0,
+#                     "iops_size": 0 } }
+# <- { "return": {} }
 #
-# { "event": "QUORUM_REPORT_BAD",
-#      "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
-#                "type": "read" },
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-#
-# 2. Flush operation
-#
-# { "event": "QUORUM_REPORT_BAD",
-#      "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
-#                "type": "flush", "error": "Broken pipe" },
-#      "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
-#
+# -> { "execute": "block_set_io_throttle",
+#      "arguments": { "id": "ide0-1-0",
+#                     "bps": 1000000,
+#                     "bps_rd": 0,
+#                     "bps_wr": 0,
+#                     "iops": 0,
+#                     "iops_rd": 0,
+#                     "iops_wr": 0,
+#                     "bps_max": 8000000,
+#                     "bps_rd_max": 0,
+#                     "bps_wr_max": 0,
+#                     "iops_max": 0,
+#                     "iops_rd_max": 0,
+#                     "iops_wr_max": 0,
+#                     "bps_max_length": 60,
+#                     "iops_size": 0 } }
+# <- { "return": {} }
 ##
-{ 'event': 'QUORUM_REPORT_BAD',
-  'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
-            'sector-num': 'int', 'sectors-count': 'int' } }
+{ 'command': 'block_set_io_throttle', 'boxed': true,
+  'data': 'BlockIOThrottle' }
+
+##
+# @block-latency-histogram-set:
+#
+# Manage read, write and flush latency histograms for the device.
+#
+# If only @id parameter is specified, remove all present latency histograms
+# for the device. Otherwise, add/reset some of (or all) latency histograms.
+#
+# @id: The name or QOM path of the guest device.
+#
+# @boundaries: list of interval boundary values (see description in
+#              BlockLatencyHistogramInfo definition). If specified, all
+#              latency histograms are removed, and empty ones created for all
+#              io types with intervals corresponding to @boundaries (except for
+#              io types, for which specific boundaries are set through the
+#              following parameters).
+#
+# @boundaries-read: list of interval boundary values for read latency
+#                   histogram. If specified, old read latency histogram is
+#                   removed, and empty one created with intervals
+#                   corresponding to @boundaries-read. The parameter has higher
+#                   priority then @boundaries.
+#
+# @boundaries-write: list of interval boundary values for write latency
+#                    histogram.
+#
+# @boundaries-flush: list of interval boundary values for flush latency
+#                    histogram.
+#
+# Returns: error if device is not found or any boundary arrays are invalid.
+#
+# Since: 4.0
+#
+# Example: set new histograms for all io types with intervals
+# [0, 10), [10, 50), [50, 100), [100, +inf):
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries": [10, 50, 100] } }
+# <- { "return": {} }
+#
+# Example: set new histogram only for write, other histograms will remain
+# not changed (or not created):
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries-write": [10, 50, 100] } }
+# <- { "return": {} }
+#
+# Example: set new histograms with the following intervals:
+#   read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
+#   write: [0, 1000), [1000, 5000), [5000, +inf)
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries": [10, 50, 100],
+#                     "boundaries-write": [1000, 5000] } }
+# <- { "return": {} }
+#
+# Example: remove all latency histograms:
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "id": "drive0" } }
+# <- { "return": {} }
+##
+{ 'command': 'block-latency-histogram-set',
+  'data': {'id': 'str',
+           '*boundaries': ['uint64'],
+           '*boundaries-read': ['uint64'],
+           '*boundaries-write': ['uint64'],
+           '*boundaries-flush': ['uint64'] } }

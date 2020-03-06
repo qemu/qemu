@@ -18,6 +18,7 @@
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qom/object_interfaces.h"
 #include "hw/xen/xen_common.h"
 #include "hw/block/xen_blkif.h"
 #include "hw/qdev-properties.h"
@@ -858,10 +859,18 @@ static XenBlockIOThread *xen_block_iothread_create(const char *id,
 {
     XenBlockIOThread *iothread = g_new(XenBlockIOThread, 1);
     Error *local_err = NULL;
+    QDict *opts;
+    QObject *ret_data;
 
     iothread->id = g_strdup(id);
 
-    qmp_object_add(TYPE_IOTHREAD, id, false, NULL, &local_err);
+    opts = qdict_new();
+    qdict_put_str(opts, "qom-type", TYPE_IOTHREAD);
+    qdict_put_str(opts, "id", id);
+    qmp_object_add(opts, &ret_data, &local_err);
+    qobject_unref(opts);
+    qobject_unref(ret_data);
+
     if (local_err) {
         error_propagate(errp, local_err);
 

@@ -30,6 +30,7 @@ _cleanup()
 {
 	_cleanup_test_img
     rm "$TEST_DIR/blkdebug.conf"
+    rm -f "$TEST_IMG.data_file"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -216,6 +217,58 @@ EOF
 # block is actually written back
 _make_test_img 64M
 $QEMU_IO -c "write 0 1M" -c "write 0 1M" "$BLKDBG_TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
+echo === Avoid freeing preallocated zero clusters on failure ===
+echo
+
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
+[inject-error]
+event = "write_aio"
+errno = "5"
+once = "on"
+EOF
+
+_make_test_img $CLUSTER_SIZE
+# Create a preallocated zero cluster
+$QEMU_IO -c "write 0 $CLUSTER_SIZE" -c "write -z 0 $CLUSTER_SIZE" "$TEST_IMG" \
+    | _filter_qemu_io
+# Try to overwrite it (prompting an I/O error from blkdebug), thus
+# triggering the alloc abort code
+$QEMU_IO -c "write 0 $CLUSTER_SIZE" "$BLKDBG_TEST_IMG" | _filter_qemu_io
+
+_check_test_img
+
+echo
+echo === Avoid freeing external data clusters on failure ===
+echo
+
+# Similar test as the last one, except we test what happens when there
+# is an error when writing to an external data file instead of when
+# writing to a preallocated zero cluster
+_make_test_img -o "data_file=$TEST_IMG.data_file" $CLUSTER_SIZE
+
+# Put blkdebug above the data-file, and a raw node on top of that so
+# that blkdebug will see a write_aio event and emit an error
+$QEMU_IO -c "write 0 $CLUSTER_SIZE" \
+    "json:{
+         'driver': 'qcow2',
+         'file': { 'driver': 'file', 'filename': '$TEST_IMG' },
+         'data-file': {
+             'driver': 'raw',
+             'file': {
+                 'driver': 'blkdebug',
+                 'config': '$TEST_DIR/blkdebug.conf',
+                 'image': {
+                     'driver': 'file',
+                     'filename': '$TEST_IMG.data_file'
+                 }
+             }
+         }
+     }" \
+    | _filter_qemu_io
+
 _check_test_img
 
 # success, all done

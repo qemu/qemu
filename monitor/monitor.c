@@ -25,7 +25,9 @@
 #include "qemu/osdep.h"
 #include "monitor-internal.h"
 #include "qapi/error.h"
+#include "qapi/opts-visitor.h"
 #include "qapi/qapi-emit-events.h"
+#include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
@@ -609,50 +611,68 @@ void monitor_init_globals_core(void)
                                    NULL);
 }
 
-int monitor_init_opts(QemuOpts *opts, Error **errp)
+int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 {
     Chardev *chr;
-    bool qmp;
-    bool pretty = false;
-    const char *chardev;
-    const char *mode;
+    Error *local_err = NULL;
 
-    mode = qemu_opt_get(opts, "mode");
-    if (mode == NULL) {
-        mode = "readline";
-    }
-    if (strcmp(mode, "readline") == 0) {
-        qmp = false;
-    } else if (strcmp(mode, "control") == 0) {
-        qmp = true;
-    } else {
-        error_setg(errp, "unknown monitor mode \"%s\"", mode);
-        return -1;
-    }
-
-    if (!qmp && qemu_opt_get(opts, "pretty")) {
-        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
-                    "and will be removed in future versions");
-    }
-    if (qemu_opt_get_bool(opts, "pretty", 0)) {
-        pretty = true;
-    }
-
-    chardev = qemu_opt_get(opts, "chardev");
-    if (!chardev) {
-        error_report("chardev is required");
-        exit(1);
-    }
-    chr = qemu_chr_find(chardev);
+    chr = qemu_chr_find(opts->chardev);
     if (chr == NULL) {
-        error_setg(errp, "chardev \"%s\" not found", chardev);
+        error_setg(errp, "chardev \"%s\" not found", opts->chardev);
         return -1;
     }
 
-    if (qmp) {
-        monitor_init_qmp(chr, pretty);
-    } else {
-        monitor_init_hmp(chr, true);
+    if (!opts->has_mode) {
+        opts->mode = allow_hmp ? MONITOR_MODE_READLINE : MONITOR_MODE_CONTROL;
+    }
+
+    switch (opts->mode) {
+    case MONITOR_MODE_CONTROL:
+        monitor_init_qmp(chr, opts->pretty, &local_err);
+        break;
+    case MONITOR_MODE_READLINE:
+        if (!allow_hmp) {
+            error_setg(errp, "Only QMP is supported");
+            return -1;
+        }
+        if (opts->pretty) {
+            warn_report("'pretty' is deprecated for HMP monitors, it has no "
+                        "effect and will be removed in future versions");
+        }
+        monitor_init_hmp(chr, true, &local_err);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
+    return 0;
+}
+
+int monitor_init_opts(QemuOpts *opts, Error **errp)
+{
+    Visitor *v;
+    MonitorOptions *options;
+    Error *local_err = NULL;
+
+    v = opts_visitor_new(opts);
+    visit_type_MonitorOptions(v, NULL, &options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        goto out;
+    }
+
+    monitor_init(options, true, &local_err);
+    qapi_free_MonitorOptions(options);
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
     }
     return 0;
 }

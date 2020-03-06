@@ -128,7 +128,28 @@ GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-events-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-introspect.c qapi/qapi-introspect.h
 GENERATED_QAPI_FILES += qapi/qapi-doc.texi
 
+# The following list considers only the storage daemon main module. All other
+# modules are currently shared with the main schema, so we don't actually
+# generate additional files.
+
+GENERATED_STORAGE_DAEMON_QAPI_FILES = storage-daemon/qapi/qapi-commands.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-commands.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-emit-events.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-emit-events.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-events.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-events.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-init-commands.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-init-commands.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-introspect.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-introspect.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-types.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-types.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-visit.h
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-visit.c
+GENERATED_STORAGE_DAEMON_QAPI_FILES += storage-daemon/qapi/qapi-doc.texi
+
 generated-files-y += $(GENERATED_QAPI_FILES)
+generated-files-y += $(GENERATED_STORAGE_DAEMON_QAPI_FILES)
 
 generated-files-y += trace/generated-tcg-tracers.h
 
@@ -450,6 +471,8 @@ dummy := $(call unnest-vars,, \
                 qga-vss-dll-obj-y \
                 block-obj-y \
                 block-obj-m \
+                storage-daemon-obj-y \
+                storage-daemon-obj-m \
                 crypto-obj-y \
                 qom-obj-y \
                 io-obj-y \
@@ -482,6 +505,7 @@ TARGET_DIRS_RULES := $(foreach t, all fuzz clean install, $(addsuffix /$(t), $(T
 SOFTMMU_ALL_RULES=$(filter %-softmmu/all, $(TARGET_DIRS_RULES))
 $(SOFTMMU_ALL_RULES): $(authz-obj-y)
 $(SOFTMMU_ALL_RULES): $(block-obj-y)
+$(SOFTMMU_ALL_RULES): $(storage-daemon-obj-y)
 $(SOFTMMU_ALL_RULES): $(chardev-obj-y)
 $(SOFTMMU_ALL_RULES): $(crypto-obj-y)
 $(SOFTMMU_ALL_RULES): $(io-obj-y)
@@ -586,6 +610,7 @@ qemu-img.o: qemu-img-cmds.h
 qemu-img$(EXESUF): qemu-img.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 qemu-nbd$(EXESUF): qemu-nbd.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 qemu-io$(EXESUF): qemu-io.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-storage-daemon$(EXESUF): qemu-storage-daemon.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(chardev-obj-y) $(io-obj-y) $(qom-obj-y) $(storage-daemon-obj-y) $(COMMON_LDADDS)
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o $(COMMON_LDADDS)
 
@@ -644,6 +669,17 @@ $(GENERATED_QAPI_FILES): qapi-gen-timestamp ;
 qapi-gen-timestamp: $(qapi-modules) $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
 		-o "qapi" -b $<, \
+		"GEN","$(@:%-timestamp=%)")
+	@>$@
+
+qapi-modules-storage-daemon = \
+	$(SRC_PATH)/storage-daemon/qapi/qapi-schema.json \
+    $(QAPI_MODULES_STORAGE_DAEMON:%=$(SRC_PATH)/qapi/%.json)
+
+$(GENERATED_STORAGE_DAEMON_QAPI_FILES): storage-daemon/qapi/qapi-gen-timestamp ;
+storage-daemon/qapi/qapi-gen-timestamp: $(qapi-modules-storage-daemon) $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
+		-o "storage-daemon/qapi" $<, \
 		"GEN","$(@:%-timestamp=%)")
 	@>$@
 
@@ -745,6 +781,7 @@ clean: recurse-clean
 	rm -f trace/generated-tracers-dtrace.h*
 	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 	rm -f qapi-gen-timestamp
+	rm -f storage-daemon/qapi/qapi-gen-timestamp
 	rm -rf qga/qapi-generated
 	rm -f config-all-devices.mak
 

@@ -1,0 +1,26 @@
+# -*- Mode: Python -*-
+
+# Note that modules are shared with the QEMU main schema under the assumption
+# that the storage daemon schema is a subset of the main schema. For the shared
+# modules, no code is generated here, but we reuse the code files generated
+# from the main schema.
+#
+# If you wish to extend the storage daemon schema to contain things that are
+# not in the main schema, be aware that array types of types defined in shared
+# modules are only generated if an array of the respective type is already used
+# in the main schema. Therefore, if you use such arrays, you may need to define
+# the array type in the main schema, even if it is unused outside of the
+# storage daemon.
+
+{ 'include': '../../qapi/pragma.json' }
+
+{ 'include': '../../qapi/block-core.json' }
+{ 'include': '../../qapi/char.json' }
+{ 'include': '../../qapi/common.json' }
+{ 'include': '../../qapi/control.json' }
+{ 'include': '../../qapi/crypto.json' }
+{ 'include': '../../qapi/introspect.json' }
+{ 'include': '../../qapi/job.json' }
+{ 'include': '../../qapi/qom.json' }
+{ 'include': '../../qapi/sockets.json' }
+{ 'include': '../../qapi/transaction.json' }

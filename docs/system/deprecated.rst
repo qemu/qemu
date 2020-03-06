@@ -190,6 +190,11 @@ Use ``migrate-set-parameters`` instead.
 
 Use ``migrate-set-parameters`` and ``query-migrate-parameters`` instead.
 
+``object-add`` option ``props`` (since 5.0)
+'''''''''''''''''''''''''''''''''''''''''''
+
+Specify the properties for the object as top-level arguments instead.
+
 ``query-block`` result field ``dirty-bitmaps[i].status`` (since 4.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
