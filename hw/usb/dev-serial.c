@@ -98,6 +98,7 @@ do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct {
     USBDevice dev;
+    USBEndpoint *intr;
     uint8_t recv_buf[RECV_BUF];
     uint16_t recv_ptr;
     uint16_t recv_used;
@@ -153,7 +154,7 @@ static const USBDescDevice desc_device = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
             .bMaxPower             = 50,
             .nif = 1,
             .ifs = &desc_iface0,
@@ -459,6 +460,8 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
         memcpy(s->recv_buf + start, buf, size);
     }
     s->recv_used += size;
+
+    usb_wakeup(s->intr, 0);
 }
 
 static void usb_serial_event(void *opaque, QEMUChrEvent event)
@@ -513,6 +516,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
     if (qemu_chr_fe_backend_open(&s->cs) && !dev->attached) {
         usb_device_attach(dev, &error_abort);
     }
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
 }
 
 static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
