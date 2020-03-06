@@ -3787,6 +3787,29 @@ static void bdrv_reopen_perm(BlockReopenQueue *q, BlockDriverState *bs,
     *shared = cumulative_shared_perms;
 }
 
+static bool bdrv_reopen_can_attach(BlockDriverState *parent,
+                                   BdrvChild *child,
+                                   BlockDriverState *new_child,
+                                   Error **errp)
+{
+    AioContext *parent_ctx = bdrv_get_aio_context(parent);
+    AioContext *child_ctx = bdrv_get_aio_context(new_child);
+    GSList *ignore;
+    bool ret;
+
+    ignore = g_slist_prepend(NULL, child);
+    ret = bdrv_can_set_aio_context(new_child, parent_ctx, &ignore, NULL);
+    g_slist_free(ignore);
+    if (ret) {
+        return ret;
+    }
+
+    ignore = g_slist_prepend(NULL, child);
+    ret = bdrv_can_set_aio_context(parent, child_ctx, &ignore, errp);
+    g_slist_free(ignore);
+    return ret;
+}
+
 /*
  * Take a BDRVReopenState and check if the value of 'backing' in the
  * reopen_state->options QDict is valid or not.
@@ -3838,14 +3861,11 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
     }
 
     /*
-     * TODO: before removing the x- prefix from x-blockdev-reopen we
-     * should move the new backing file into the right AioContext
-     * instead of returning an error.
+     * Check AioContext compatibility so that the bdrv_set_backing_hd() call in
+     * bdrv_reopen_commit() won't fail.
      */
     if (new_backing_bs) {
-        if (bdrv_get_aio_context(new_backing_bs) != bdrv_get_aio_context(bs)) {
-            error_setg(errp, "Cannot use a new backing file "
-                       "with a different AioContext");
+        if (!bdrv_reopen_can_attach(bs, bs->backing, new_backing_bs, errp)) {
             return -EINVAL;
         }
     }

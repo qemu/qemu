@@ -1015,18 +1015,16 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     # neither of them can switch to the other AioContext
     def test_iothreads_error(self):
         self.run_test_iothreads('iothread0', 'iothread1',
-                                "Cannot use a new backing file with a different AioContext")
+                                "Cannot change iothread of active block backend")
 
     def test_iothreads_compatible_users(self):
         self.run_test_iothreads('iothread0', 'iothread0')
 
     def test_iothreads_switch_backing(self):
-        self.run_test_iothreads('iothread0', None,
-                                "Cannot use a new backing file with a different AioContext")
+        self.run_test_iothreads('iothread0', None)
 
     def test_iothreads_switch_overlay(self):
-        self.run_test_iothreads(None, 'iothread0',
-                                "Cannot use a new backing file with a different AioContext")
+        self.run_test_iothreads(None, 'iothread0')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["qcow2"],
