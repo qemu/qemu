@@ -16,6 +16,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide.h"
+#include "hw/ide/pci.h"
 #include "hw/timer/i8254.h"
 #include "hw/isa/superio.h"
 #include "hw/dma/i8257.h"
@@ -101,9 +102,12 @@ static void clipper_init(MachineState *machine)
     /* IDE disk setup.  */
     {
         DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+        PCIDevice *pci_dev;
+
         ide_drive_get(hd, ARRAY_SIZE(hd));
 
-        pci_cmd646_ide_init(pci_bus, hd, 0);
+        pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
+        pci_ide_create_devs(pci_dev, hd);
     }
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,
