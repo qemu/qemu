@@ -301,8 +301,6 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
         ide_register_restart_cb(&d->bus[i]);
     }
     g_free(irq);
-
-    vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 }
 
 static void pci_cmd646_ide_exitfn(PCIDevice *dev)
@@ -339,6 +337,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     dc->reset = cmd646_reset;
+    dc->vmsd = &vmstate_ide_pci;
     k->realize = pci_cmd646_ide_realize;
     k->exit = pci_cmd646_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_CMD;
