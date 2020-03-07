@@ -207,9 +207,9 @@ static void cmd646_set_irq(void *opaque, int channel, int level)
     cmd646_update_irq(pd);
 }
 
-static void cmd646_reset(void *opaque)
+static void cmd646_reset(DeviceState *dev)
 {
-    PCIIDEState *d = opaque;
+    PCIIDEState *d = PCI_IDE(dev);
     unsigned int i;
 
     for (i = 0; i < 2; i++) {
@@ -303,7 +303,6 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     g_free(irq);
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
-    qemu_register_reset(cmd646_reset, d);
 }
 
 static void pci_cmd646_ide_exitfn(PCIDevice *dev)
@@ -339,6 +338,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->reset = cmd646_reset;
     k->realize = pci_cmd646_ide_realize;
     k->exit = pci_cmd646_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_CMD;
