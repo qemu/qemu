@@ -316,7 +316,7 @@ static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
     float *out = (float *)dst;
 
     while (samples--) {
-        *out++ = CLIP_NATURAL_FLOAT(src->l) + CLIP_NATURAL_FLOAT(src->r);
+        *out++ = CLIP_NATURAL_FLOAT(src->l + src->r);
         src++;
     }
 }
