@@ -66,6 +66,7 @@
 #include "qemu/option.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
+#include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"

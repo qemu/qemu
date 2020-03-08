@@ -48,7 +48,7 @@ common-obj-y += dump/
 common-obj-y += job-qmp.o
 common-obj-y += monitor/
 common-obj-y += net/
-common-obj-y += qdev-monitor.o device-hotplug.o
+common-obj-y += qdev-monitor.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 

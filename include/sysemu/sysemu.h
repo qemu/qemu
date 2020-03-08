@@ -63,9 +63,6 @@ extern int nb_option_roms;
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 
-/* generic hotplug */
-void hmp_drive_add(Monitor *mon, const QDict *qdict);
-
 /* pcie aer error injection */
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
