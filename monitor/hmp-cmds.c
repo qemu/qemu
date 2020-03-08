@@ -48,7 +48,6 @@
 #include "qom/object_interfaces.h"
 #include "ui/console.h"
 #include "block/qapi.h"
-#include "qemu-io.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "exec/ramlist.h"
@@ -1312,32 +1311,12 @@ void hmp_set_link(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_block_passwd(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_str(qdict, "device");
-    const char *password = qdict_get_str(qdict, "password");
-    Error *err = NULL;
-
-    qmp_block_passwd(true, device, false, NULL, password, &err);
-    hmp_handle_error(mon, err);
-}
-
 void hmp_balloon(Monitor *mon, const QDict *qdict)
 {
     int64_t value = qdict_get_int(qdict, "value");
     Error *err = NULL;
 
     qmp_balloon(value, &err);
-    hmp_handle_error(mon, err);
-}
-
-void hmp_block_resize(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_str(qdict, "device");
-    int64_t size = qdict_get_int(qdict, "size");
-    Error *err = NULL;
-
-    qmp_block_resize(true, device, false, NULL, size, &err);
     hmp_handle_error(mon, err);
 }
 
@@ -1840,15 +1819,6 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_eject(Monitor *mon, const QDict *qdict)
-{
-    bool force = qdict_get_try_bool(qdict, "force", false);
-    const char *device = qdict_get_str(qdict, "device");
-    Error *err = NULL;
-
-    qmp_eject(true, device, false, NULL, true, force, &err);
-    hmp_handle_error(mon, err);
-}
 
 #ifdef CONFIG_VNC
 static void hmp_change_read_arg(void *opaque, const char *password,
@@ -1904,49 +1874,6 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     }
 
     hmp_handle_error(mon, err);
-}
-
-void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    char *device = (char *) qdict_get_str(qdict, "device");
-    BlockIOThrottle throttle = {
-        .bps = qdict_get_int(qdict, "bps"),
-        .bps_rd = qdict_get_int(qdict, "bps_rd"),
-        .bps_wr = qdict_get_int(qdict, "bps_wr"),
-        .iops = qdict_get_int(qdict, "iops"),
-        .iops_rd = qdict_get_int(qdict, "iops_rd"),
-        .iops_wr = qdict_get_int(qdict, "iops_wr"),
-    };
-
-    /* qmp_block_set_io_throttle has separate parameters for the
-     * (deprecated) block device name and the qdev ID but the HMP
-     * version has only one, so we must decide which one to pass. */
-    if (blk_by_name(device)) {
-        throttle.has_device = true;
-        throttle.device = device;
-    } else {
-        throttle.has_id = true;
-        throttle.id = device;
-    }
-
-    qmp_block_set_io_throttle(&throttle, &err);
-    hmp_handle_error(mon, err);
-}
-
-void hmp_block_stream(Monitor *mon, const QDict *qdict)
-{
-    Error *error = NULL;
-    const char *device = qdict_get_str(qdict, "device");
-    const char *base = qdict_get_try_str(qdict, "base");
-    int64_t speed = qdict_get_try_int(qdict, "speed", 0);
-
-    qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
-                     false, NULL, qdict_haskey(qdict, "speed"), speed, true,
-                     BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
-                     &error);
-
-    hmp_handle_error(mon, error);
 }
 
 typedef struct HMPMigrationStatus
@@ -2239,70 +2166,6 @@ void hmp_chardev_send_break(Monitor *mon, const QDict *qdict)
 
     qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);
     hmp_handle_error(mon, local_err);
-}
-
-void hmp_qemu_io(Monitor *mon, const QDict *qdict)
-{
-    BlockBackend *blk;
-    BlockBackend *local_blk = NULL;
-    bool qdev = qdict_get_try_bool(qdict, "qdev", false);
-    const char* device = qdict_get_str(qdict, "device");
-    const char* command = qdict_get_str(qdict, "command");
-    Error *err = NULL;
-    int ret;
-
-    if (qdev) {
-        blk = blk_by_qdev_id(device, &err);
-        if (!blk) {
-            goto fail;
-        }
-    } else {
-        blk = blk_by_name(device);
-        if (!blk) {
-            BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
-            if (bs) {
-                blk = local_blk = blk_new(bdrv_get_aio_context(bs),
-                                          0, BLK_PERM_ALL);
-                ret = blk_insert_bs(blk, bs, &err);
-                if (ret < 0) {
-                    goto fail;
-                }
-            } else {
-                goto fail;
-            }
-        }
-    }
-
-    /*
-     * Notably absent: Proper permission management. This is sad, but it seems
-     * almost impossible to achieve without changing the semantics and thereby
-     * limiting the use cases of the qemu-io HMP command.
-     *
-     * In an ideal world we would unconditionally create a new BlockBackend for
-     * qemuio_command(), but we have commands like 'reopen' and want them to
-     * take effect on the exact BlockBackend whose name the user passed instead
-     * of just on a temporary copy of it.
-     *
-     * Another problem is that deleting the temporary BlockBackend involves
-     * draining all requests on it first, but some qemu-iotests cases want to
-     * issue multiple aio_read/write requests and expect them to complete in
-     * the background while the monitor has already returned.
-     *
-     * This is also what prevents us from saving the original permissions and
-     * restoring them later: We can't revoke permissions until all requests
-     * have completed, and we don't know when that is nor can we really let
-     * anything else run before we have revoken them to avoid race conditions.
-     *
-     * What happens now is that command() in qemu-io-cmds.c can extend the
-     * permissions if necessary for the qemu-io command. And they simply stay
-     * extended, possibly resulting in a read-only guest device keeping write
-     * permissions. Ugly, but it appears to be the lesser evil.
-     */
-    qemuio_command(blk, command);
-
-fail:
-    blk_unref(local_blk);
-    hmp_handle_error(mon, err);
 }
 
 void hmp_object_del(Monitor *mon, const QDict *qdict)
