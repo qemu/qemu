@@ -45,9 +45,11 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
+#include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
+#include "block/nbd.h"
 #include "block/block_int.h"
 #include "block/block-hmp-cmds.h"
 
@@ -351,5 +353,104 @@ void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
 
     qmp_blockdev_snapshot_delete_internal_sync(device, !!id, id,
                                                true, name, &err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
+{
+    const char *uri = qdict_get_str(qdict, "uri");
+    bool writable = qdict_get_try_bool(qdict, "writable", false);
+    bool all = qdict_get_try_bool(qdict, "all", false);
+    Error *local_err = NULL;
+    BlockInfoList *block_list, *info;
+    SocketAddress *addr;
+    BlockExportNbd export;
+
+    if (writable && !all) {
+        error_setg(&local_err, "-w only valid together with -a");
+        goto exit;
+    }
+
+    /* First check if the address is valid and start the server.  */
+    addr = socket_parse(uri, &local_err);
+    if (local_err != NULL) {
+        goto exit;
+    }
+
+    nbd_server_start(addr, NULL, NULL, &local_err);
+    qapi_free_SocketAddress(addr);
+    if (local_err != NULL) {
+        goto exit;
+    }
+
+    if (!all) {
+        return;
+    }
+
+    /* Then try adding all block devices.  If one fails, close all and
+     * exit.
+     */
+    block_list = qmp_query_block(NULL);
+
+    for (info = block_list; info; info = info->next) {
+        if (!info->value->has_inserted) {
+            continue;
+        }
+
+        export = (BlockExportNbd) {
+            .device         = info->value->device,
+            .has_writable   = true,
+            .writable       = writable,
+        };
+
+        qmp_nbd_server_add(&export, &local_err);
+
+        if (local_err != NULL) {
+            qmp_nbd_server_stop(NULL);
+            break;
+        }
+    }
+
+    qapi_free_BlockInfoList(block_list);
+
+exit:
+    hmp_handle_error(mon, local_err);
+}
+
+void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    const char *name = qdict_get_try_str(qdict, "name");
+    bool writable = qdict_get_try_bool(qdict, "writable", false);
+    Error *local_err = NULL;
+
+    BlockExportNbd export = {
+        .device         = (char *) device,
+        .has_name       = !!name,
+        .name           = (char *) name,
+        .has_writable   = true,
+        .writable       = writable,
+    };
+
+    qmp_nbd_server_add(&export, &local_err);
+    hmp_handle_error(mon, local_err);
+}
+
+void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
+{
+    const char *name = qdict_get_str(qdict, "name");
+    bool force = qdict_get_try_bool(qdict, "force", false);
+    Error *err = NULL;
+
+    /* Rely on NBD_SERVER_REMOVE_MODE_SAFE being the default */
+    qmp_nbd_server_remove(name, force, NBD_SERVER_REMOVE_MODE_HARD, &err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_nbd_server_stop(&err);
     hmp_handle_error(mon, err);
 }

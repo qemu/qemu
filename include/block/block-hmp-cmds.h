@@ -33,4 +33,9 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict);
 void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict);
 void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict);
 
+void hmp_nbd_server_start(Monitor *mon, const QDict *qdict);
+void hmp_nbd_server_add(Monitor *mon, const QDict *qdict);
+void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict);
+void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict);
+
 #endif
