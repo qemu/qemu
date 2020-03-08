@@ -83,10 +83,9 @@ static inline int64_t glue (conv_, ET) (IN_T v)
 
 static inline IN_T glue (clip_, ET) (int64_t v)
 {
-    if (v >= 0x7f000000) {
+    if (v >= 0x7fffffffLL) {
         return IN_MAX;
-    }
-    else if (v < -2147483648LL) {
+    } else if (v < -2147483648LL) {
         return IN_MIN;
     }
 
