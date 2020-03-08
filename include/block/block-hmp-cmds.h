@@ -3,10 +3,13 @@
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
  * Copyright (c) 2020 Red Hat, Inc.
+ * Copyright IBM, Corp. 2011
  *
- * This work is licensed under the terms of the GNU GPL, version 2.
- * or (at your option) any later version.
- * See the COPYING file in the top-level directory.
+ * Authors:
+ *  Anthony Liguori   <aliguori@us.ibm.com>
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2.  See
+ * the COPYING file in the top-level directory.
  */
 
 #ifndef BLOCK_HMP_COMMANDS_H
@@ -16,5 +19,8 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 void hmp_commit(Monitor *mon, const QDict *qdict);
 void hmp_drive_del(Monitor *mon, const QDict *qdict);
+
+void hmp_drive_mirror(Monitor *mon, const QDict *qdict);
+void hmp_drive_backup(Monitor *mon, const QDict *qdict);
 
 #endif
