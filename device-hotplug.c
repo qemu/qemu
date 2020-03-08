@@ -34,42 +34,35 @@
 #include "monitor/monitor.h"
 #include "block/block_int.h"
 
-static DriveInfo *add_init_drive(const char *optstr)
+
+void hmp_drive_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     DriveInfo *dinfo;
     QemuOpts *opts;
     MachineClass *mc;
+    const char *optstr = qdict_get_str(qdict, "opts");
+    bool node = qdict_get_try_bool(qdict, "node", false);
+
+    if (node) {
+        hmp_drive_add_node(mon, optstr);
+        return;
+    }
 
     opts = drive_def(optstr);
     if (!opts)
-        return NULL;
+        return;
 
     mc = MACHINE_GET_CLASS(current_machine);
     dinfo = drive_new(opts, mc->block_default_type, &err);
     if (err) {
         error_report_err(err);
         qemu_opts_del(opts);
-        return NULL;
-    }
-
-    return dinfo;
-}
-
-void hmp_drive_add(Monitor *mon, const QDict *qdict)
-{
-    DriveInfo *dinfo = NULL;
-    const char *opts = qdict_get_str(qdict, "opts");
-    bool node = qdict_get_try_bool(qdict, "node", false);
-
-    if (node) {
-        hmp_drive_add_node(mon, opts);
-        return;
-    }
-
-    dinfo = add_init_drive(opts);
-    if (!dinfo) {
         goto err;
+    }
+
+    if (!dinfo) {
+        return;
     }
 
     switch (dinfo->type) {
