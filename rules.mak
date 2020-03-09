@@ -435,3 +435,6 @@ sentinel = .$(subst $(SPACE),_,$(subst /,_,$1)).sentinel.
 atomic = $(eval $1: $(call sentinel,$1) ; @:) \
          $(call sentinel,$1) : $2 ; @touch $$@ \
          $(foreach t,$1,$(if $(wildcard $t),,$(shell rm -f $(call sentinel,$1))))
+
+print-%:
+	@echo '$*=$($*)'
