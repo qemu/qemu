@@ -302,13 +302,14 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
                            OPEN_EXISTING,
                            FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, NULL);
     if (c->handle == INVALID_HANDLE_VALUE) {
-        g_critical("error opening path %s: %s", newpath,
-                   g_win32_error_message(GetLastError()));
+        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+        g_critical("error opening path %s: %s", newpath, emsg);
         return false;
     }
 
     if (method == GA_CHANNEL_ISA_SERIAL && !SetCommTimeouts(c->handle,&comTimeOut)) {
-        g_critical("error setting timeout for com port: %lu",GetLastError());
+        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+        g_critical("error setting timeout for com port: %s", emsg);
         CloseHandle(c->handle);
         return false;
     }
