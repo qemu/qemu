@@ -57,8 +57,4 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
 DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type,
                      Error **errp);
 
-/* device-hotplug */
-
-void hmp_commit(Monitor *mon, const QDict *qdict);
-void hmp_drive_del(Monitor *mon, const QDict *qdict);
 #endif
