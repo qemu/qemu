@@ -399,7 +399,7 @@ Syntax:
                   'data': ALTERNATIVES,
                   '*if': COND }
     ALTERNATIVES = { ALTERNATIVE, ... }
-    ALTERNATIVE = STRING : TYPE-REF
+    ALTERNATIVE = STRING : STRING
                 | STRING : { 'type': STRING, '*if': COND }
 
 Member 'alternate' names the alternate type.
