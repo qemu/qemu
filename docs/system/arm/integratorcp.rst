@@ -1,7 +1,7 @@
 Integrator/CP (``integratorcp``)
 ================================
 
-The ARM Integrator/CP board is emulated with the following devices:
+The Arm Integrator/CP board is emulated with the following devices:
 
 -  ARM926E, ARM1026E, ARM946E, ARM1136 or Cortex-A8 CPU
 

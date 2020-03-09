@@ -1,7 +1,7 @@
 Arm Versatile boards (``versatileab``, ``versatilepb``)
 =======================================================
 
-The ARM Versatile baseboard is emulated with the following devices:
+The Arm Versatile baseboard is emulated with the following devices:
 
 -  ARM926E, ARM1136 or Cortex-A8 CPU
 

@@ -4,7 +4,7 @@ Freecom MusicPal (``musicpal``)
 The Freecom MusicPal internet radio emulation includes the following
 elements:
 
--  Marvell MV88W8618 ARM core.
+-  Marvell MV88W8618 Arm core.
 
 -  32 MB RAM, 256 KB SRAM, 8 MB flash.
 

@@ -4,7 +4,7 @@ Nokia N800 and N810 tablets (``n800``, ``n810``)
 Nokia N800 and N810 internet tablets (known also as RX-34 and RX-44 /
 48) emulation supports the following elements:
 
--  Texas Instruments OMAP2420 System-on-chip (ARM 1136 core)
+-  Texas Instruments OMAP2420 System-on-chip (ARM1136 core)
 
 -  RAM and non-volatile OneNAND Flash memories
 

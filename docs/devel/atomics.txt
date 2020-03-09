@@ -87,7 +87,7 @@ Sequentially consistent loads and stores can be done using:
     atomic_xchg(ptr, val) for stores
 
 However, they are quite expensive on some platforms, notably POWER and
-ARM.  Therefore, qemu/atomic.h provides two primitives with slightly
+Arm.  Therefore, qemu/atomic.h provides two primitives with slightly
 weaker constraints:
 
     typeof(*ptr) atomic_mb_read(ptr)

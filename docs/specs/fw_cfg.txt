@@ -82,7 +82,7 @@ Selector Register IOport: 0x510
 Data Register IOport:     0x511
 DMA Address IOport:       0x514
 
-=== ARM Register Locations ===
+=== Arm Register Locations ===
 
 Selector Register address: Base + 8 (2 bytes)
 Data Register address:     Base + 0 (8 bytes)

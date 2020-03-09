@@ -5,9 +5,9 @@ CPU features are optional features that a CPU of supporting type may
 choose to implement or not.  In QEMU, optional CPU features have
 corresponding boolean CPU proprieties that, when enabled, indicate
 that the feature is implemented, and, conversely, when disabled,
-indicate that it is not implemented. An example of an ARM CPU feature
+indicate that it is not implemented. An example of an Arm CPU feature
 is the Performance Monitoring Unit (PMU).  CPU types such as the
-Cortex-A15 and the Cortex-A57, which respectively implement ARM
+Cortex-A15 and the Cortex-A57, which respectively implement Arm
 architecture reference manuals ARMv7-A and ARMv8-A, may both optionally
 implement PMUs.  For example, if a user wants to use a Cortex-A15 without
 a PMU, then the `-cpu` parameter should contain `pmu=off` on the QEMU

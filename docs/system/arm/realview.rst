@@ -1,7 +1,7 @@
 Arm Realview boards (``realview-eb``, ``realview-eb-mpcore``, ``realview-pb-a8``, ``realview-pbx-a9``)
 ======================================================================================================
 
-Several variants of the ARM RealView baseboard are emulated, including
+Several variants of the Arm RealView baseboard are emulated, including
 the EB, PB-A8 and PBX-A9. Due to interactions with the bootloader, only
 certain Linux kernel configurations work out of the box on these boards.
 
@@ -14,7 +14,7 @@ The following devices are emulated:
 
 -  ARM926E, ARM1136, ARM11MPCore, Cortex-A8 or Cortex-A9 MPCore CPU
 
--  ARM AMBA Generic/Distributed Interrupt Controller
+-  Arm AMBA Generic/Distributed Interrupt Controller
 
 -  Four PL011 UARTs
 

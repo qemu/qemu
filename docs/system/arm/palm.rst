@@ -4,7 +4,7 @@ Palm Tungsten|E PDA (``cheetah``)
 The Palm Tungsten|E PDA (codename \"Cheetah\") emulation includes the
 following elements:
 
--  Texas Instruments OMAP310 System-on-chip (ARM 925T core)
+-  Texas Instruments OMAP310 System-on-chip (ARM925T core)
 
 -  ROM and RAM memories (ROM firmware image can be loaded with
    -option-rom)

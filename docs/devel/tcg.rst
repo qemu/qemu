@@ -83,7 +83,7 @@ memory until the end of the translation block.  This is done for internal
 emulation state that is rarely accessed directly by the program and/or changes
 very often throughout the execution of a translation block---this includes
 condition codes on x86, delay slots on SPARC, conditional execution on
-ARM, and so on.  This state is stored for each target instruction, and
+Arm, and so on.  This state is stored for each target instruction, and
 looked up on exceptions.
 
 MMU emulation

@@ -4,7 +4,7 @@ Sharp XScale-based PDA models (``akita``, ``borzoi``, ``spitz``, ``terrier``)
 The XScale-based clamshell PDA models (\"Spitz\", \"Akita\", \"Borzoi\"
 and \"Terrier\") emulation includes the following peripherals:
 
--  Intel PXA270 System-on-chip (ARM V5TE core)
+-  Intel PXA270 System-on-chip (ARMv5TE core)
 
 -  NAND Flash memory
 
