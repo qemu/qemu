@@ -4298,6 +4298,11 @@ void qemu_init(int argc, char **argv, char **envp)
 
         backend = object_resolve_path_type(current_machine->ram_memdev_id,
                                            TYPE_MEMORY_BACKEND, NULL);
+        if (!backend) {
+            error_report("Memory backend '%s' not found",
+                         current_machine->ram_memdev_id);
+            exit(EXIT_FAILURE);
+        }
         backend_size = object_property_get_uint(backend, "size",  &error_abort);
         if (have_custom_ram_size && backend_size != ram_size) {
                 error_report("Size specified by -m option must match size of "
