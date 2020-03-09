@@ -17,6 +17,7 @@ RUN apt update && \
         libbz2-dev \
         liblzo2-dev \
         librdmacm-dev \
+        libsasl2-dev \
         libsnappy-dev \
         libvte-dev
 
