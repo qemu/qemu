@@ -8,3 +8,5 @@ obj-$(TARGET_I386) += vm86.o
 obj-$(TARGET_ARM) += arm/nwfpe/
 obj-$(TARGET_ARM) += arm/semihost.o
 obj-$(TARGET_AARCH64) += arm/semihost.o
+
+obj-$(TARGET_ALPHA) += alpha/

@@ -1,0 +1,5 @@
+generated-files-y += linux-user/alpha/syscall_nr.h
+
+syshdr := $(SRC_PATH)/linux-user/alpha/syscallhdr.sh
+%/syscall_nr.h: $(SRC_PATH)/linux-user/alpha/syscall.tbl $(syshdr)
+	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI),"GEN","$@")
