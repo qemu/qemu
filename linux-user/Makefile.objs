@@ -19,4 +19,5 @@ obj-$(TARGET_S390X) += s390x/
 obj-$(TARGET_SH4) += sh4/
 obj-$(TARGET_SPARC) += sparc/
 obj-$(TARGET_SPARC64) += $(TARGET_ABI_DIR)/
+obj-$(TARGET_X86_64) += x86_64/
 obj-$(TARGET_XTENSA) += xtensa/
