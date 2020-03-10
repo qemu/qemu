@@ -16,4 +16,6 @@ obj-$(TARGET_PPC) += ppc/
 obj-$(TARGET_PPC64) += ppc/
 obj-$(TARGET_S390X) += s390x/
 obj-$(TARGET_SH4) += sh4/
+obj-$(TARGET_SPARC) += sparc/
+obj-$(TARGET_SPARC64) += $(TARGET_ABI_DIR)/
 obj-$(TARGET_XTENSA) += xtensa/
