@@ -10,3 +10,4 @@ obj-$(TARGET_ARM) += arm/semihost.o
 obj-$(TARGET_AARCH64) += arm/semihost.o
 
 obj-$(TARGET_ALPHA) += alpha/
+obj-$(TARGET_HPPA) += hppa/

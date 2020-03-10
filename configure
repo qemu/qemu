@@ -1889,7 +1889,7 @@ rm -f */config-devices.mak.d
 
 # Remove syscall_nr.h to be sure they will be regenerated in the build
 # directory, not in the source directory
-for arch in alpha ; do
+for arch in alpha hppa ; do
     # remove the file if it has been generated in the source directory
     rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
     # remove the dependency files
@@ -7814,6 +7814,7 @@ case "$target_name" in
   ;;
   hppa)
     mttcg="yes"
+    TARGET_SYSTBL_ABI=common,32
   ;;
   lm32)
   ;;
