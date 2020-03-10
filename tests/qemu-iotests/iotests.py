@@ -624,7 +624,10 @@ class VM(qtest.QEMUQtestMachine):
                         if use_log:
                             log('Job failed: %s' % (j['error']))
             elif status == 'ready':
-                self.qmp_log('job-complete', id=job)
+                if use_log:
+                    self.qmp_log('job-complete', id=job)
+                else:
+                    self.qmp('job-complete', id=job)
             elif status == 'pending' and not auto_finalize:
                 if pre_finalize:
                     pre_finalize()
