@@ -2449,6 +2449,7 @@ F: linux-user/
 F: default-configs/*-linux-user.mak
 F: scripts/qemu-binfmt-conf.sh
 F: scripts/update-syscalltbl.sh
+F: scripts/update-mips-syscall-args.sh
 
 Tiny Code Generator (TCG)
 -------------------------
