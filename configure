@@ -1890,7 +1890,7 @@ rm -f */config-devices.mak.d
 # Remove syscall_nr.h to be sure they will be regenerated in the build
 # directory, not in the source directory
 for arch in alpha hppa m68k xtensa sh4 microblaze arm ppc s390x sparc sparc64 \
-    ; do
+    i386 ; do
     # remove the file if it has been generated in the source directory
     rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
     # remove the dependency files
@@ -7788,6 +7788,7 @@ case "$target_name" in
   i386)
     mttcg="yes"
 	gdb_xml_files="i386-32bit.xml"
+    TARGET_SYSTBL_ABI=i386
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
