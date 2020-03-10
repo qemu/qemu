@@ -49,11 +49,14 @@ target_img = os.path.join(iotests.test_dir, 'target.' + iotests.imgfmt)
 #                           chain opened right away. If False, blockdev-add
 #                           opens it without a backing file and job completion
 #                           is supposed to open the backing chain.
+# use_iothread: If True, an iothread is configured for the virtio-blk device
+#               that uses the image being mirrored
 
 class BaseClass(iotests.QMPTestCase):
     target_blockdev_backing = None
     target_real_backing = None
     target_open_with_backing = True
+    use_iothread = False
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, back0_img, '1440K')
@@ -69,7 +72,16 @@ class BaseClass(iotests.QMPTestCase):
                     'file': {'driver': 'file',
                              'filename': source_img}}
         self.vm.add_blockdev(self.vm.qmp_to_opts(blockdev))
-        self.vm.add_device('virtio-blk,id=qdev0,drive=source')
+
+        if self.use_iothread:
+            self.vm.add_object('iothread,id=iothread0')
+            iothread = ",iothread=iothread0"
+        else:
+            iothread = ""
+
+        self.vm.add_device('virtio-scsi%s' % iothread)
+        self.vm.add_device('scsi-hd,id=qdev0,drive=source')
+
         self.vm.launch()
 
         self.assertIntactSourceBackingChain()
@@ -182,24 +194,21 @@ class MirrorBaseClass(BaseClass):
     def testFull(self):
         self.runMirror('full')
 
-        node = self.findBlockNode('target',
-                                  '/machine/peripheral/qdev0/virtio-backend')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, None)
         self.assertIntactSourceBackingChain()
 
     def testTop(self):
         self.runMirror('top')
 
-        node = self.findBlockNode('target',
-                                  '/machine/peripheral/qdev0/virtio-backend')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, back2_img)
         self.assertIntactSourceBackingChain()
 
     def testNone(self):
         self.runMirror('none')
 
-        node = self.findBlockNode('target',
-                                  '/machine/peripheral/qdev0/virtio-backend')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, source_img)
         self.assertIntactSourceBackingChain()
 
@@ -252,6 +261,9 @@ class TestBlockdevMirrorReopen(MirrorBaseClass):
                                  backing="backing")
             self.assert_qmp(result, 'return', {})
 
+class TestBlockdevMirrorReopenIothread(TestBlockdevMirrorReopen):
+    use_iothread = True
+
 # Attach the backing chain only during completion, with blockdev-snapshot
 class TestBlockdevMirrorSnapshot(MirrorBaseClass):
     cmd = 'blockdev-mirror'
@@ -268,6 +280,9 @@ class TestBlockdevMirrorSnapshot(MirrorBaseClass):
                                  overlay="target")
             self.assert_qmp(result, 'return', {})
 
+class TestBlockdevMirrorSnapshotIothread(TestBlockdevMirrorSnapshot):
+    use_iothread = True
+
 class TestCommit(BaseClass):
     existing = False
 
@@ -283,8 +298,7 @@ class TestCommit(BaseClass):
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 
-        node = self.findBlockNode(None,
-                                  '/machine/peripheral/qdev0/virtio-backend')
+        node = self.findBlockNode(None, 'qdev0')
         self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
                         back1_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
