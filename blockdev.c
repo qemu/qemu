@@ -1470,9 +1470,7 @@ static void external_snapshot_prepare(BlkActionState *common,
                              DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
     AioContext *aio_context;
-    AioContext *old_context;
     uint64_t perm, shared;
-    int ret;
 
     /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
      * purpose but a different set of parameters */
@@ -1605,20 +1603,6 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     if (!state->new_bs->drv->supports_backing) {
         error_setg(errp, "The overlay does not support backing images");
-        goto out;
-    }
-
-    /* Honor bdrv_try_set_aio_context() context acquisition requirements. */
-    old_context = bdrv_get_aio_context(state->new_bs);
-    aio_context_release(aio_context);
-    aio_context_acquire(old_context);
-
-    ret = bdrv_try_set_aio_context(state->new_bs, aio_context, errp);
-
-    aio_context_release(old_context);
-    aio_context_acquire(aio_context);
-
-    if (ret < 0) {
         goto out;
     }
 

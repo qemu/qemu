@@ -4365,6 +4365,7 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
     bdrv_ref(from);
 
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    assert(bdrv_get_aio_context(from) == bdrv_get_aio_context(to));
     bdrv_drained_begin(from);
 
     /* Put all parents into @list and calculate their cumulative permissions */
