@@ -538,6 +538,30 @@ static bool is_virtio_scsi_device(IplParameterBlock *iplb)
     return is_virtio_ccw_device_of_type(iplb, VIRTIO_ID_SCSI);
 }
 
+static void update_machine_ipl_properties(IplParameterBlock *iplb)
+{
+    Object *machine = qdev_get_machine();
+    Error *err = NULL;
+
+    /* Sync loadparm */
+    if (iplb->flags & DIAG308_FLAGS_LP_VALID) {
+        uint8_t *ebcdic_loadparm = iplb->loadparm;
+        char ascii_loadparm[8];
+        int i;
+
+        for (i = 0; i < 8 && ebcdic_loadparm[i]; i++) {
+            ascii_loadparm[i] = ebcdic2ascii[(uint8_t) ebcdic_loadparm[i]];
+        }
+        ascii_loadparm[i] = 0;
+        object_property_set_str(machine, ascii_loadparm, "loadparm", &err);
+    } else {
+        object_property_set_str(machine, "", "loadparm", &err);
+    }
+    if (err) {
+        warn_report_err(err);
+    }
+}
+
 void s390_ipl_update_diag308(IplParameterBlock *iplb)
 {
     S390IPLState *ipl = get_ipl_device();
@@ -545,6 +569,7 @@ void s390_ipl_update_diag308(IplParameterBlock *iplb)
     ipl->iplb = *iplb;
     ipl->iplb_valid = true;
     ipl->netboot = is_virtio_net_device(iplb);
+    update_machine_ipl_properties(iplb);
 }
 
 IplParameterBlock *s390_ipl_get_iplb(void)

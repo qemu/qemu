@@ -173,16 +173,16 @@ static inline bool iplb_valid_len(IplParameterBlock *iplb)
     return be32_to_cpu(iplb->len) <= sizeof(IplParameterBlock);
 }
 
-static inline bool iplb_valid_ccw(IplParameterBlock *iplb)
+static inline bool iplb_valid(IplParameterBlock *iplb)
 {
-    return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_CCW_LEN &&
-           iplb->pbt == S390_IPL_TYPE_CCW;
-}
-
-static inline bool iplb_valid_fcp(IplParameterBlock *iplb)
-{
-    return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_FCP_LEN &&
-           iplb->pbt == S390_IPL_TYPE_FCP;
+    switch (iplb->pbt) {
+    case S390_IPL_TYPE_FCP:
+        return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_FCP_LEN;
+    case S390_IPL_TYPE_CCW:
+        return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_CCW_LEN;
+    default:
+        return false;
+    }
 }
 
 #endif

@@ -36,7 +36,13 @@ typedef struct LowCore {
     /* prefix area: defined by architecture */
     PSWLegacy       ipl_psw;                  /* 0x000 */
     uint32_t        ccw1[2];                  /* 0x008 */
-    uint32_t        ccw2[2];                  /* 0x010 */
+    union {
+        uint32_t        ccw2[2];                  /* 0x010 */
+        struct {
+            uint32_t reserved10;
+            uint32_t ptr_iplb;
+        };
+    };
     uint8_t         pad1[0x80 - 0x18];        /* 0x018 */
     uint32_t        ext_params;               /* 0x080 */
     uint16_t        cpu_addr;                 /* 0x084 */
@@ -85,7 +91,7 @@ typedef struct LowCore {
     PSW             io_new_psw;               /* 0x1f0 */
 } __attribute__((packed, aligned(8192))) LowCore;
 
-extern LowCore const *lowcore;
+extern LowCore *lowcore;
 
 static inline void set_prefix(uint32_t address)
 {
