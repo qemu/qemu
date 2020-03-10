@@ -1872,8 +1872,6 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  bool *tighten_restrictions, Error **errp);
 static void bdrv_child_abort_perm_update(BdrvChild *c);
 static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
-static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
-                                     uint64_t *shared_perm);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
@@ -2097,8 +2095,8 @@ static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
     }
 }
 
-static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
-                                     uint64_t *shared_perm)
+void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
+                              uint64_t *shared_perm)
 {
     BdrvChild *c;
     uint64_t cumulative_perms = 0;
