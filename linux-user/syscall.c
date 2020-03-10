@@ -11830,8 +11830,14 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
         return ret;
 #endif
+#if defined(TARGET_NR_sync_file_range2) || \
+    defined(TARGET_NR_arm_sync_file_range)
 #if defined(TARGET_NR_sync_file_range2)
     case TARGET_NR_sync_file_range2:
+#endif
+#if defined(TARGET_NR_arm_sync_file_range)
+    case TARGET_NR_arm_sync_file_range:
+#endif
         /* This is like sync_file_range but the arguments are reordered */
 #if TARGET_ABI_BITS == 32
         ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),

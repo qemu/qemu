@@ -5,11 +5,10 @@ obj-y = main.o syscall.o strace.o mmap.o signal.o \
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_I386) += vm86.o
-obj-$(TARGET_ARM) += arm/nwfpe/
-obj-$(TARGET_ARM) += arm/semihost.o
 obj-$(TARGET_AARCH64) += arm/semihost.o
 
 obj-$(TARGET_ALPHA) += alpha/
+obj-$(TARGET_ARM) += arm/
 obj-$(TARGET_HPPA) += hppa/
 obj-$(TARGET_M68K) += m68k/
 obj-$(TARGET_MICROBLAZE) += microblaze/
