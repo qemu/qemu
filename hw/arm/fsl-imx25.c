@@ -81,6 +81,12 @@ static void fsl_imx25_init(Object *obj)
         sysbus_init_child_obj(obj, "sdhc[*]", &s->esdhc[i], sizeof(s->esdhc[i]),
                               TYPE_IMX_USDHC);
     }
+
+    for (i = 0; i < FSL_IMX25_NUM_USBS; i++) {
+        sysbus_init_child_obj(obj, "usb[*]", &s->usb[i], sizeof(s->usb[i]),
+                              TYPE_CHIPIDEA);
+    }
+
 }
 
 static void fsl_imx25_realize(DeviceState *dev, Error **errp)
@@ -276,6 +282,24 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->esdhc[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->avic),
                                             esdhc_table[i].irq));
+    }
+
+    /* USB */
+    for (i = 0; i < FSL_IMX25_NUM_USBS; i++) {
+        static const struct {
+            hwaddr addr;
+            unsigned int irq;
+        } usb_table[FSL_IMX25_NUM_USBS] = {
+            { FSL_IMX25_USB1_ADDR, FSL_IMX25_USB1_IRQ },
+            { FSL_IMX25_USB2_ADDR, FSL_IMX25_USB2_IRQ },
+        };
+
+        object_property_set_bool(OBJECT(&s->usb[i]), true, "realized",
+                                 &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->usb[i]), 0, usb_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->usb[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->avic),
+                                            usb_table[i].irq));
     }
 
     /* initialize 2 x 16 KB ROM */
