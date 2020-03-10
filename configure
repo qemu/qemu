@@ -405,6 +405,7 @@ EXESUF=""
 DSOSUF=".so"
 LDFLAGS_SHARED="-shared"
 modules="no"
+module_upgrades="no"
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
 datadir="\${prefix}/share"
@@ -1031,6 +1032,10 @@ for opt do
   ;;
   --disable-modules)
       modules="no"
+  ;;
+  --disable-module-upgrades) module_upgrades="no"
+  ;;
+  --enable-module-upgrades) module_upgrades="yes"
   ;;
   --cpu=*)
   ;;
@@ -1791,6 +1796,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   guest-agent-msi build guest agent Windows MSI installation package
   pie             Position Independent Executables
   modules         modules support (non-Windows)
+  module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   sparse          sparse checker
@@ -2053,6 +2059,11 @@ fi
 # Our module code doesn't support Windows
 if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
   error_exit "Modules are not available for Windows"
+fi
+
+# module_upgrades is only reasonable if modules are enabled
+if test "$modules" = "no" && test "$module_upgrades" = "yes" ; then
+  error_exit "Can't enable module-upgrades as Modules are not enabled"
 fi
 
 # Static linking is not possible with modules or PIE
@@ -6626,6 +6637,7 @@ if test "$slirp" != "no" ; then
     echo "smbd              $smbd"
 fi
 echo "module support    $modules"
+echo "alt path mod load $module_upgrades"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -6979,6 +6991,9 @@ if test "$modules" = "yes"; then
   # like as an symbol. So prefix it with an underscore
   echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
+fi
+if test "$module_upgrades" = "yes"; then
+  echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
 fi
 if test "$have_x11" = "yes" && test "$need_x11" = "yes"; then
   echo "CONFIG_X11=y" >> $config_host_mak

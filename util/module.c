@@ -19,6 +19,9 @@
 #endif
 #include "qemu/queue.h"
 #include "qemu/module.h"
+#ifdef CONFIG_MODULE_UPGRADES
+#include "qemu-version.h"
+#endif
 
 typedef struct ModuleEntry
 {
@@ -170,6 +173,9 @@ bool module_load_one(const char *prefix, const char *lib_name)
 #ifdef CONFIG_MODULES
     char *fname = NULL;
     char *exec_dir;
+#ifdef CONFIG_MODULE_UPGRADES
+    char *version_dir;
+#endif
     const char *search_dir;
     char *dirs[4];
     char *module_name;
@@ -201,6 +207,14 @@ bool module_load_one(const char *prefix, const char *lib_name)
     dirs[n_dirs++] = g_strdup_printf("%s", CONFIG_QEMU_MODDIR);
     dirs[n_dirs++] = g_strdup_printf("%s/..", exec_dir ? : "");
     dirs[n_dirs++] = g_strdup_printf("%s", exec_dir ? : "");
+
+#ifdef CONFIG_MODULE_UPGRADES
+    version_dir = g_strcanon(g_strdup(QEMU_PKGVERSION),
+                             G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS "+-.~",
+                             '_');
+    dirs[n_dirs++] = g_strdup_printf("/var/run/qemu/%s", version_dir);
+#endif
+
     assert(n_dirs <= ARRAY_SIZE(dirs));
 
     g_free(exec_dir);
