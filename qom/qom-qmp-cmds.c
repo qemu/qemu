@@ -247,26 +247,22 @@ void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
     QDict *pdict;
     Visitor *v;
     Object *obj;
-    const char *type;
-    const char *id;
+    g_autofree char *type = NULL;
+    g_autofree char *id = NULL;
 
-    type = qdict_get_try_str(qdict, "qom-type");
+    type = g_strdup(qdict_get_try_str(qdict, "qom-type"));
     if (!type) {
         error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
         return;
-    } else {
-        type = g_strdup(type);
-        qdict_del(qdict, "qom-type");
     }
+    qdict_del(qdict, "qom-type");
 
-    id = qdict_get_try_str(qdict, "id");
+    id = g_strdup(qdict_get_try_str(qdict, "id"));
     if (!id) {
         error_setg(errp, QERR_MISSING_PARAMETER, "id");
         return;
-    } else {
-        id = g_strdup(id);
-        qdict_del(qdict, "id");
     }
+    qdict_del(qdict, "id");
 
     props = qdict_get(qdict, "props");
     if (props) {
