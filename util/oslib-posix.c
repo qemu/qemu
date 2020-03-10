@@ -466,9 +466,16 @@ static inline int get_memset_num_threads(int smp_cpus)
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                             int smp_cpus)
 {
+    static gsize initialized = 0;
     size_t numpages_per_thread, leftover;
     char *addr = area;
     int i = 0;
+
+    if (g_once_init_enter(&initialized)) {
+        qemu_mutex_init(&page_mutex);
+        qemu_cond_init(&page_cond);
+        g_once_init_leave(&initialized, 1);
+    }
 
     memset_thread_failed = false;
     threads_created_flag = false;
