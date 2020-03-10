@@ -190,7 +190,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
      */
     newcpu->env.tb_env->tb_offset = callcpu->env.tb_env->tb_offset;
 
-    spapr_cpu_set_entry_state(newcpu, start, r3);
+    spapr_cpu_set_entry_state(newcpu, start, 0, r3, 0);
 
     qemu_cpu_kick(CPU(newcpu));
 
