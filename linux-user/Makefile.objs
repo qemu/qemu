@@ -11,3 +11,4 @@ obj-$(TARGET_AARCH64) += arm/semihost.o
 
 obj-$(TARGET_ALPHA) += alpha/
 obj-$(TARGET_HPPA) += hppa/
+obj-$(TARGET_M68K) += m68k/
