@@ -1472,6 +1472,12 @@
 #
 # For the arguments, see the documentation of BlockdevSnapshot.
 #
+# Features:
+# @allow-write-only-overlay: If present, the check whether this operation is safe
+#                            was relaxed so that it can be used to change
+#                            backing file of a destination of a blockdev-mirror.
+#                            (since 5.0)
+#
 # Since: 2.5
 #
 # Example:
@@ -1492,7 +1498,8 @@
 #
 ##
 { 'command': 'blockdev-snapshot',
-  'data': 'BlockdevSnapshot' }
+  'data': 'BlockdevSnapshot',
+  'features': [ 'allow-write-only-overlay' ] }
 
 ##
 # @change-backing-file:
