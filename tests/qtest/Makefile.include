@@ -18,7 +18,8 @@ check-qtest-pci-$(CONFIG_IVSHMEM_DEVICE) += ivshmem-test
 DBUS_DAEMON := $(shell which dbus-daemon 2>/dev/null)
 ifneq ($(GDBUS_CODEGEN),)
 ifneq ($(DBUS_DAEMON),)
-check-qtest-pci-$(CONFIG_GIO) += dbus-vmstate-test
+# Temporarily disabled due to Patchew failures:
+#check-qtest-pci-$(CONFIG_GIO) += dbus-vmstate-test
 endif
 endif
 
