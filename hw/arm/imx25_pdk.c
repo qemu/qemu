@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "hw/qdev-properties.h"
 #include "hw/arm/fsl-imx25.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
@@ -119,6 +120,21 @@ static void imx25_pdk_init(MachineState *machine)
     imx25_pdk_binfo.loader_start = FSL_IMX25_SDRAM0_ADDR;
     imx25_pdk_binfo.board_id = 1771,
     imx25_pdk_binfo.nb_cpus = 1;
+
+    for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
+        BusState *bus;
+        DeviceState *carddev;
+        DriveInfo *di;
+        BlockBackend *blk;
+
+        di = drive_get_next(IF_SD);
+        blk = di ? blk_by_legacy_dinfo(di) : NULL;
+        bus = qdev_get_child_bus(DEVICE(&s->soc.esdhc[i]), "sd-bus");
+        carddev = qdev_create(bus, TYPE_SD_CARD);
+        qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+        object_property_set_bool(OBJECT(carddev), true,
+                                 "realized", &error_fatal);
+    }
 
     /*
      * We test explicitly for qtest here as it is not done (yet?) in

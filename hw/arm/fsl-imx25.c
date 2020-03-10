@@ -31,6 +31,8 @@
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
 
+#define IMX25_ESDHC_CAPABILITIES     0x07e20000
+
 static void fsl_imx25_init(Object *obj)
 {
     FslIMX25State *s = FSL_IMX25(obj);
@@ -73,6 +75,11 @@ static void fsl_imx25_init(Object *obj)
     for (i = 0; i < FSL_IMX25_NUM_GPIOS; i++) {
         sysbus_init_child_obj(obj, "gpio[*]", &s->gpio[i], sizeof(s->gpio[i]),
                               TYPE_IMX_GPIO);
+    }
+
+    for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
+        sysbus_init_child_obj(obj, "sdhc[*]", &s->esdhc[i], sizeof(s->esdhc[i]),
+                              TYPE_IMX_USDHC);
     }
 }
 
@@ -244,6 +251,31 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->avic),
                                             gpio_table[i].irq));
+    }
+
+    /* Initialize all SDHC */
+    for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
+        static const struct {
+            hwaddr addr;
+            unsigned int irq;
+        } esdhc_table[FSL_IMX25_NUM_ESDHCS] = {
+            { FSL_IMX25_ESDHC1_ADDR, FSL_IMX25_ESDHC1_IRQ },
+            { FSL_IMX25_ESDHC2_ADDR, FSL_IMX25_ESDHC2_IRQ },
+        };
+
+        object_property_set_uint(OBJECT(&s->esdhc[i]), 2, "sd-spec-version",
+                                 &err);
+        object_property_set_uint(OBJECT(&s->esdhc[i]), IMX25_ESDHC_CAPABILITIES,
+                                 "capareg", &err);
+        object_property_set_bool(OBJECT(&s->esdhc[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->esdhc[i]), 0, esdhc_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->esdhc[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->avic),
+                                            esdhc_table[i].irq));
     }
 
     /* initialize 2 x 16 KB ROM */
