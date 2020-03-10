@@ -14,6 +14,7 @@ obj-$(TARGET_I386) += i386/
 obj-$(TARGET_M68K) += m68k/
 obj-$(TARGET_MICROBLAZE) += microblaze/
 obj-$(TARGET_MIPS) += mips/
+obj-$(TARGET_MIPS64) += mips64/
 obj-$(TARGET_PPC) += ppc/
 obj-$(TARGET_PPC64) += ppc/
 obj-$(TARGET_S390X) += s390x/
