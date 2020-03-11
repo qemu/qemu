@@ -44,6 +44,7 @@
 #include "hw/misc/allwinner-h3-sysctrl.h"
 #include "hw/misc/allwinner-sid.h"
 #include "hw/sd/allwinner-sdhost.h"
+#include "hw/net/allwinner-sun8i-emac.h"
 #include "target/arm/cpu.h"
 
 /**
@@ -77,6 +78,7 @@ enum {
     AW_H3_UART1,
     AW_H3_UART2,
     AW_H3_UART3,
+    AW_H3_EMAC,
     AW_H3_GIC_DIST,
     AW_H3_GIC_CPU,
     AW_H3_GIC_HYP,
@@ -120,6 +122,7 @@ typedef struct AwH3State {
     AwH3SysCtrlState sysctrl;
     AwSidState sid;
     AwSdHostState mmc0;
+    AwSun8iEmacState emac;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;

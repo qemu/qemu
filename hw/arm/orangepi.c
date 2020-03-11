@@ -77,6 +77,9 @@ static void orangepi_init(MachineState *machine)
         warn_report("Security Identifier value does not include H3 prefix");
     }
 
+    /* Setup EMAC properties */
+    object_property_set_int(OBJECT(&h3->emac), 1, "phy-addr", &error_abort);
+
     /* Mark H3 object realized */
     object_property_set_bool(OBJECT(h3), true, "realized", &error_abort);
 

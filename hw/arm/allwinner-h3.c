@@ -54,6 +54,7 @@ const hwaddr allwinner_h3_memmap[] = {
     [AW_H3_UART1]      = 0x01c28400,
     [AW_H3_UART2]      = 0x01c28800,
     [AW_H3_UART3]      = 0x01c28c00,
+    [AW_H3_EMAC]       = 0x01c30000,
     [AW_H3_GIC_DIST]   = 0x01c81000,
     [AW_H3_GIC_CPU]    = 0x01c82000,
     [AW_H3_GIC_HYP]    = 0x01c84000,
@@ -106,7 +107,6 @@ struct AwH3Unimplemented {
     { "twi1",      0x01c2b000, 1 * KiB },
     { "twi2",      0x01c2b400, 1 * KiB },
     { "scr",       0x01c2c400, 1 * KiB },
-    { "emac",      0x01c30000, 64 * KiB },
     { "gpu",       0x01c40000, 64 * KiB },
     { "hstmr",     0x01c60000, 4 * KiB },
     { "dramcom",   0x01c62000, 4 * KiB },
@@ -162,6 +162,7 @@ enum {
     AW_H3_GIC_SPI_OHCI2     = 77,
     AW_H3_GIC_SPI_EHCI3     = 78,
     AW_H3_GIC_SPI_OHCI3     = 79,
+    AW_H3_GIC_SPI_EMAC      = 82
 };
 
 /* Allwinner H3 general constants */
@@ -207,6 +208,9 @@ static void allwinner_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
                           TYPE_AW_SDHOST_SUN5I);
+
+    sysbus_init_child_obj(obj, "emac", &s->emac, sizeof(s->emac),
+                          TYPE_AW_SUN8I_EMAC);
 }
 
 static void allwinner_h3_realize(DeviceState *dev, Error **errp)
@@ -336,6 +340,16 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
                               "sd-bus", &error_abort);
+
+    /* EMAC */
+    if (nd_table[0].used) {
+        qemu_check_nic_model(&nd_table[0], TYPE_AW_SUN8I_EMAC);
+        qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
+    }
+    qdev_init_nofail(DEVICE(&s->emac));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_H3_EMAC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_EMAC));
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, s->memmap[AW_H3_EHCI0],
