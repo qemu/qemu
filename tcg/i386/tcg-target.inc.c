@@ -3391,12 +3391,15 @@ static void expand_vec_sari(TCGType type, unsigned vece,
 
     case MO_64:
         if (imm <= 32) {
-            /* We can emulate a small sign extend by performing an arithmetic
+            /*
+             * We can emulate a small sign extend by performing an arithmetic
              * 32-bit shift and overwriting the high half of a 64-bit logical
-             * shift (note that the ISA says shift of 32 is valid).
+             * shift.  Note that the ISA says shift of 32 is valid, but TCG
+             * does not, so we have to bound the smaller shift -- we get the
+             * same result in the high half either way.
              */
             t1 = tcg_temp_new_vec(type);
-            tcg_gen_sari_vec(MO_32, t1, v1, imm);
+            tcg_gen_sari_vec(MO_32, t1, v1, MIN(imm, 31));
             tcg_gen_shri_vec(MO_64, v0, v1, imm);
             vec_gen_4(INDEX_op_x86_blend_vec, type, MO_32,
                       tcgv_vec_arg(v0), tcgv_vec_arg(v0),
