@@ -39,6 +39,7 @@
 #include "hw/arm/boot.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/arm_gic.h"
+#include "hw/misc/allwinner-h3-ccu.h"
 #include "target/arm/cpu.h"
 
 /**
@@ -55,6 +56,7 @@ enum {
     AW_H3_SRAM_A1,
     AW_H3_SRAM_A2,
     AW_H3_SRAM_C,
+    AW_H3_CCU,
     AW_H3_PIT,
     AW_H3_UART0,
     AW_H3_UART1,
@@ -97,6 +99,7 @@ typedef struct AwH3State {
     ARMCPU cpus[AW_H3_NUM_CPUS];
     const hwaddr *memmap;
     AwA10PITState timer;
+    AwH3ClockCtlState ccu;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;

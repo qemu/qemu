@@ -36,6 +36,7 @@ const hwaddr allwinner_h3_memmap[] = {
     [AW_H3_SRAM_A1]    = 0x00000000,
     [AW_H3_SRAM_A2]    = 0x00044000,
     [AW_H3_SRAM_C]     = 0x00010000,
+    [AW_H3_CCU]        = 0x01c20000,
     [AW_H3_PIT]        = 0x01c20c00,
     [AW_H3_UART0]      = 0x01c28000,
     [AW_H3_UART1]      = 0x01c28400,
@@ -77,7 +78,6 @@ struct AwH3Unimplemented {
     { "usb2-phy",  0x01c1c000, 4 * KiB },
     { "usb3-phy",  0x01c1d000, 4 * KiB },
     { "smc",       0x01c1e000, 4 * KiB },
-    { "ccu",       0x01c20000, 1 * KiB },
     { "pio",       0x01c20800, 1 * KiB },
     { "owa",       0x01c21000, 1 * KiB },
     { "pwm",       0x01c21400, 1 * KiB },
@@ -172,6 +172,9 @@ static void allwinner_h3_init(Object *obj)
                               "clk0-freq", &error_abort);
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
                               "clk1-freq", &error_abort);
+
+    sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
+                          TYPE_AW_H3_CCU);
 }
 
 static void allwinner_h3_realize(DeviceState *dev, Error **errp)
@@ -276,6 +279,10 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
                                 &s->sram_a2);
     memory_region_add_subregion(get_system_memory(), s->memmap[AW_H3_SRAM_C],
                                 &s->sram_c);
+
+    /* Clock Control Unit */
+    qdev_init_nofail(DEVICE(&s->ccu));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_H3_CCU]);
 
     /* UART0. For future clocktree API: All UARTS are connected to APB2_CLK. */
     serial_mm_init(get_system_memory(), s->memmap[AW_H3_UART0], 2,
