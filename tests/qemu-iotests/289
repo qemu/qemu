@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+#
+# qcow2 v3-exclusive error path testing
+# (026 tests paths common to v2 and v3)
+#
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm "$TEST_DIR/blkdebug.conf"
+    rm -f "$TEST_IMG.data_file"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt qcow2
+_supported_proto file
+# This is a v3-exclusive test;
+# As for data_file, error paths often very much depend on whether
+# there is an external data file or not; so we create one exactly when
+# we want to test it
+_unsupported_imgopts 'compat=0.10' data_file
+
+echo
+echo === Avoid freeing external data clusters on failure ===
+echo
+
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
+[inject-error]
+event = "write_aio"
+errno = "5"
+once = "on"
+EOF
+
+# Test what happens when there is an error when writing to an external
+# data file instead of when writing to a preallocated zero cluster
+_make_test_img -o "data_file=$TEST_IMG.data_file" 64k
+
+# Put blkdebug above the data-file, and a raw node on top of that so
+# that blkdebug will see a write_aio event and emit an error.  This
+# will then trigger the alloc abort code, which we want to test here.
+$QEMU_IO -c "write 0 64k" \
+    "json:{
+         'driver': 'qcow2',
+         'file': { 'driver': 'file', 'filename': '$TEST_IMG' },
+         'data-file': {
+             'driver': 'raw',
+             'file': {
+                 'driver': 'blkdebug',
+                 'config': '$TEST_DIR/blkdebug.conf',
+                 'image': {
+                     'driver': 'file',
+                     'filename': '$TEST_IMG.data_file'
+                 }
+             }
+         }
+     }" \
+    | _filter_qemu_io
+
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
