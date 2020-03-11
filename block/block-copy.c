@@ -70,16 +70,19 @@ void block_copy_state_free(BlockCopyState *s)
     g_free(s);
 }
 
+static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
+{
+    return MIN_NON_ZERO(INT_MAX,
+                        MIN_NON_ZERO(source->bs->bl.max_transfer,
+                                     target->bs->bl.max_transfer));
+}
+
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size,
                                      BdrvRequestFlags write_flags, Error **errp)
 {
     BlockCopyState *s;
     BdrvDirtyBitmap *copy_bitmap;
-    uint32_t max_transfer =
-            MIN_NON_ZERO(INT_MAX,
-                         MIN_NON_ZERO(source->bs->bl.max_transfer,
-                                      target->bs->bl.max_transfer));
 
     copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
                                            errp);
@@ -99,7 +102,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .mem = shres_create(BLOCK_COPY_MAX_MEM),
     };
 
-    if (max_transfer < cluster_size) {
+    if (block_copy_max_transfer(source, target) < cluster_size) {
         /*
          * copy_range does not respect max_transfer. We don't want to bother
          * with requests smaller than block-copy cluster size, so fallback to
@@ -114,12 +117,11 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         s->copy_size = cluster_size;
     } else {
         /*
-         * copy_range does not respect max_transfer (it's a TODO), so we factor
-         * that in here.
+         * We enable copy-range, but keep small copy_size, until first
+         * successful copy_range (look at block_copy_do_copy).
          */
         s->use_copy_range = true;
-        s->copy_size = MIN(MAX(cluster_size, BLOCK_COPY_MAX_COPY_RANGE),
-                           QEMU_ALIGN_DOWN(max_transfer, cluster_size));
+        s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
     }
 
     QLIST_INIT(&s->inflight_reqs);
@@ -172,6 +174,22 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
             s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
             /* Fallback to read+write with allocated buffer */
         } else {
+            if (s->use_copy_range) {
+                /*
+                 * Successful copy-range. Now increase copy_size.  copy_range
+                 * does not respect max_transfer (it's a TODO), so we factor
+                 * that in here.
+                 *
+                 * Note: we double-check s->use_copy_range for the case when
+                 * parallel block-copy request unsets it during previous
+                 * bdrv_co_copy_range call.
+                 */
+                s->copy_size =
+                        MIN(MAX(s->cluster_size, BLOCK_COPY_MAX_COPY_RANGE),
+                            QEMU_ALIGN_DOWN(block_copy_max_transfer(s->source,
+                                                                    s->target),
+                                            s->cluster_size));
+            }
             goto out;
         }
     }
@@ -179,7 +197,10 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
     /*
      * In case of failed copy_range request above, we may proceed with buffered
      * request larger than BLOCK_COPY_MAX_BUFFER. Still, further requests will
-     * be properly limited, so don't care too much.
+     * be properly limited, so don't care too much. Moreover the most likely
+     * case (copy_range is unsupported for the configuration, so the very first
+     * copy_range request fails) is handled by setting large copy_size only
+     * after first successful copy_range.
      */
 
     bounce_buffer = qemu_blockalign(s->source->bs, nbytes);
