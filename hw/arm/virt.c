@@ -1543,33 +1543,79 @@ static void virt_set_memmap(VirtMachineState *vms)
  */
 static void finalize_gic_version(VirtMachineState *vms)
 {
-    if (vms->gic_version == VIRT_GIC_VERSION_HOST ||
-        vms->gic_version == VIRT_GIC_VERSION_MAX) {
-        if (!kvm_enabled()) {
-            if (vms->gic_version == VIRT_GIC_VERSION_HOST) {
-                error_report("gic-version=host requires KVM");
-                exit(1);
-            } else {
-                /* "max": currently means 3 for TCG */
-                vms->gic_version = VIRT_GIC_VERSION_3;
-            }
-        } else {
-            int probe_bitmap = kvm_arm_vgic_probe();
+    if (kvm_enabled()) {
+        int probe_bitmap;
 
-            if (!probe_bitmap) {
+        if (!kvm_irqchip_in_kernel()) {
+            switch (vms->gic_version) {
+            case VIRT_GIC_VERSION_HOST:
+                warn_report(
+                    "gic-version=host not relevant with kernel-irqchip=off "
+                     "as only userspace GICv2 is supported. Using v2 ...");
+                return;
+            case VIRT_GIC_VERSION_MAX:
+            case VIRT_GIC_VERSION_NOSEL:
+                vms->gic_version = VIRT_GIC_VERSION_2;
+                return;
+            case VIRT_GIC_VERSION_2:
+                return;
+            case VIRT_GIC_VERSION_3:
                 error_report(
-                    "Unable to determine GIC version supported by host");
+                    "gic-version=3 is not supported with kernel-irqchip=off");
                 exit(1);
-            } else {
-                if (probe_bitmap & KVM_ARM_VGIC_V3) {
-                    vms->gic_version = VIRT_GIC_VERSION_3;
-                } else {
-                    vms->gic_version = VIRT_GIC_VERSION_2;
-                }
             }
         }
-    } else if (vms->gic_version == VIRT_GIC_VERSION_NOSEL) {
+
+        probe_bitmap = kvm_arm_vgic_probe();
+        if (!probe_bitmap) {
+            error_report("Unable to determine GIC version supported by host");
+            exit(1);
+        }
+
+        switch (vms->gic_version) {
+        case VIRT_GIC_VERSION_HOST:
+        case VIRT_GIC_VERSION_MAX:
+            if (probe_bitmap & KVM_ARM_VGIC_V3) {
+                vms->gic_version = VIRT_GIC_VERSION_3;
+            } else {
+                vms->gic_version = VIRT_GIC_VERSION_2;
+            }
+            return;
+        case VIRT_GIC_VERSION_NOSEL:
+            vms->gic_version = VIRT_GIC_VERSION_2;
+            break;
+        case VIRT_GIC_VERSION_2:
+        case VIRT_GIC_VERSION_3:
+            break;
+        }
+
+        /* Check chosen version is effectively supported by the host */
+        if (vms->gic_version == VIRT_GIC_VERSION_2 &&
+            !(probe_bitmap & KVM_ARM_VGIC_V2)) {
+            error_report("host does not support in-kernel GICv2 emulation");
+            exit(1);
+        } else if (vms->gic_version == VIRT_GIC_VERSION_3 &&
+                   !(probe_bitmap & KVM_ARM_VGIC_V3)) {
+            error_report("host does not support in-kernel GICv3 emulation");
+            exit(1);
+        }
+        return;
+    }
+
+    /* TCG mode */
+    switch (vms->gic_version) {
+    case VIRT_GIC_VERSION_NOSEL:
         vms->gic_version = VIRT_GIC_VERSION_2;
+        break;
+    case VIRT_GIC_VERSION_MAX:
+        vms->gic_version = VIRT_GIC_VERSION_3;
+        break;
+    case VIRT_GIC_VERSION_HOST:
+        error_report("gic-version=host requires KVM");
+        exit(1);
+    case VIRT_GIC_VERSION_2:
+    case VIRT_GIC_VERSION_3:
+        break;
     }
 }
 
