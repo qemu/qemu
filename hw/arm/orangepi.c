@@ -65,6 +65,14 @@ static void orangepi_init(MachineState *machine)
     object_property_set_int(OBJECT(h3), 24 * 1000 * 1000, "clk1-freq",
                             &error_abort);
 
+    /* Setup SID properties. Currently using a default fixed SID identifier. */
+    if (qemu_uuid_is_null(&h3->sid.identifier)) {
+        qdev_prop_set_string(DEVICE(h3), "identifier",
+                             "02c00081-1111-2222-3333-000044556677");
+    } else if (ldl_be_p(&h3->sid.identifier.data[0]) != 0x02c00081) {
+        warn_report("Security Identifier value does not include H3 prefix");
+    }
+
     /* Mark H3 object realized */
     object_property_set_bool(OBJECT(h3), true, "realized", &error_abort);
 
