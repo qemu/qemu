@@ -19,8 +19,8 @@
 #include "qemu/co-shared-resource.h"
 
 typedef struct BlockCopyInFlightReq {
-    int64_t start_byte;
-    int64_t end_byte;
+    int64_t start;
+    int64_t bytes;
     QLIST_ENTRY(BlockCopyInFlightReq) list;
     CoQueue wait_queue; /* coroutines blocked on this request */
 } BlockCopyInFlightReq;
@@ -85,7 +85,7 @@ void block_copy_state_free(BlockCopyState *s);
 int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
-int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
+int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
                             bool *error_is_read);
 
 #endif /* BLOCK_COPY_H */
