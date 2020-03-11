@@ -127,15 +127,18 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     return s;
 }
 
-void block_copy_set_callbacks(
+void block_copy_set_progress_callback(
         BlockCopyState *s,
         ProgressBytesCallbackFunc progress_bytes_callback,
-        ProgressResetCallbackFunc progress_reset_callback,
         void *progress_opaque)
 {
     s->progress_bytes_callback = progress_bytes_callback;
-    s->progress_reset_callback = progress_reset_callback;
     s->progress_opaque = progress_opaque;
+}
+
+void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
+{
+    s->progress = pm;
 }
 
 /*
@@ -269,7 +272,9 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
 
     if (!ret) {
         bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
-        s->progress_reset_callback(s->progress_opaque);
+        progress_set_remaining(s->progress,
+                               bdrv_get_dirty_count(s->copy_bitmap) +
+                               s->in_flight_bytes);
     }
 
     *count = bytes;
@@ -331,15 +336,18 @@ int coroutine_fn block_copy(BlockCopyState *s,
         trace_block_copy_process(s, start);
 
         bdrv_reset_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
+        s->in_flight_bytes += chunk_end - start;
 
         co_get_from_shres(s->mem, chunk_end - start);
         ret = block_copy_do_copy(s, start, chunk_end, error_is_read);
         co_put_to_shres(s->mem, chunk_end - start);
+        s->in_flight_bytes -= chunk_end - start;
         if (ret < 0) {
             bdrv_set_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
             break;
         }
 
+        progress_work_done(s->progress, chunk_end - start);
         s->progress_bytes_callback(chunk_end - start, s->progress_opaque);
         start = chunk_end;
         ret = 0;

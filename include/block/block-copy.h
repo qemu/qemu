@@ -26,7 +26,6 @@ typedef struct BlockCopyInFlightReq {
 } BlockCopyInFlightReq;
 
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
-typedef void (*ProgressResetCallbackFunc)(void *opaque);
 typedef struct BlockCopyState {
     /*
      * BdrvChild objects are not owned or managed by block-copy. They are
@@ -36,6 +35,7 @@ typedef struct BlockCopyState {
     BdrvChild *source;
     BdrvChild *target;
     BdrvDirtyBitmap *copy_bitmap;
+    int64_t in_flight_bytes;
     int64_t cluster_size;
     bool use_copy_range;
     int64_t copy_size;
@@ -60,15 +60,9 @@ typedef struct BlockCopyState {
      */
     bool skip_unallocated;
 
+    ProgressMeter *progress;
     /* progress_bytes_callback: called when some copying progress is done. */
     ProgressBytesCallbackFunc progress_bytes_callback;
-
-    /*
-     * progress_reset_callback: called when some bytes reset from copy_bitmap
-     * (see @skip_unallocated above). The callee is assumed to recalculate how
-     * many bytes remain based on the dirty bit count of copy_bitmap.
-     */
-    ProgressResetCallbackFunc progress_reset_callback;
     void *progress_opaque;
 
     SharedResource *mem;
@@ -79,11 +73,12 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      BdrvRequestFlags write_flags,
                                      Error **errp);
 
-void block_copy_set_callbacks(
+void block_copy_set_progress_callback(
         BlockCopyState *s,
         ProgressBytesCallbackFunc progress_bytes_callback,
-        ProgressResetCallbackFunc progress_reset_callback,
         void *progress_opaque);
+
+void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm);
 
 void block_copy_state_free(BlockCopyState *s);
 
