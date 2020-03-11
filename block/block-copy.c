@@ -24,6 +24,55 @@
 #define BLOCK_COPY_MAX_BUFFER (1 * MiB)
 #define BLOCK_COPY_MAX_MEM (128 * MiB)
 
+typedef struct BlockCopyInFlightReq {
+    int64_t offset;
+    int64_t bytes;
+    QLIST_ENTRY(BlockCopyInFlightReq) list;
+    CoQueue wait_queue; /* coroutines blocked on this request */
+} BlockCopyInFlightReq;
+
+typedef struct BlockCopyState {
+    /*
+     * BdrvChild objects are not owned or managed by block-copy. They are
+     * provided by block-copy user and user is responsible for appropriate
+     * permissions on these children.
+     */
+    BdrvChild *source;
+    BdrvChild *target;
+    BdrvDirtyBitmap *copy_bitmap;
+    int64_t in_flight_bytes;
+    int64_t cluster_size;
+    bool use_copy_range;
+    int64_t copy_size;
+    uint64_t len;
+    QLIST_HEAD(, BlockCopyInFlightReq) inflight_reqs;
+
+    BdrvRequestFlags write_flags;
+
+    /*
+     * skip_unallocated:
+     *
+     * Used by sync=top jobs, which first scan the source node for unallocated
+     * areas and clear them in the copy_bitmap.  During this process, the bitmap
+     * is thus not fully initialized: It may still have bits set for areas that
+     * are unallocated and should actually not be copied.
+     *
+     * This is indicated by skip_unallocated.
+     *
+     * In this case, block_copy() will query the source’s allocation status,
+     * skip unallocated regions, clear them in the copy_bitmap, and invoke
+     * block_copy_reset_unallocated() every time it does.
+     */
+    bool skip_unallocated;
+
+    ProgressMeter *progress;
+    /* progress_bytes_callback: called when some copying progress is done. */
+    ProgressBytesCallbackFunc progress_bytes_callback;
+    void *progress_opaque;
+
+    SharedResource *mem;
+} BlockCopyState;
+
 static BlockCopyInFlightReq *find_conflicting_inflight_req(BlockCopyState *s,
                                                            int64_t offset,
                                                            int64_t bytes)
@@ -516,4 +565,14 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
     } while (ret > 0);
 
     return ret;
+}
+
+BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
+{
+    return s->copy_bitmap;
+}
+
+void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)
+{
+    s->skip_unallocated = skip;
 }

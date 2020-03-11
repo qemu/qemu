@@ -102,7 +102,7 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
 
     if (ret < 0 && job->bitmap_mode == BITMAP_SYNC_MODE_ALWAYS) {
         /* If we failed and synced, merge in the bits we didn't copy: */
-        bdrv_dirty_bitmap_merge_internal(bm, job->bcs->copy_bitmap,
+        bdrv_dirty_bitmap_merge_internal(bm, block_copy_dirty_bitmap(job->bcs),
                                          NULL, true);
     }
 }
@@ -145,7 +145,8 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
         return;
     }
 
-    bdrv_set_dirty_bitmap(backup_job->bcs->copy_bitmap, 0, backup_job->len);
+    bdrv_set_dirty_bitmap(block_copy_dirty_bitmap(backup_job->bcs), 0,
+                          backup_job->len);
 }
 
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
@@ -190,7 +191,7 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
     BdrvDirtyBitmapIter *bdbi;
     int ret = 0;
 
-    bdbi = bdrv_dirty_iter_new(job->bcs->copy_bitmap);
+    bdbi = bdrv_dirty_iter_new(block_copy_dirty_bitmap(job->bcs));
     while ((offset = bdrv_dirty_iter_next(bdbi)) != -1) {
         do {
             if (yield_and_check(job)) {
@@ -210,14 +211,14 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
     return ret;
 }
 
-static void backup_init_copy_bitmap(BackupBlockJob *job)
+static void backup_init_bcs_bitmap(BackupBlockJob *job)
 {
     bool ret;
     uint64_t estimate;
+    BdrvDirtyBitmap *bcs_bitmap = block_copy_dirty_bitmap(job->bcs);
 
     if (job->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
-        ret = bdrv_dirty_bitmap_merge_internal(job->bcs->copy_bitmap,
-                                               job->sync_bitmap,
+        ret = bdrv_dirty_bitmap_merge_internal(bcs_bitmap, job->sync_bitmap,
                                                NULL, true);
         assert(ret);
     } else {
@@ -226,12 +227,12 @@ static void backup_init_copy_bitmap(BackupBlockJob *job)
              * We can't hog the coroutine to initialize this thoroughly.
              * Set a flag and resume work when we are able to yield safely.
              */
-            job->bcs->skip_unallocated = true;
+            block_copy_set_skip_unallocated(job->bcs, true);
         }
-        bdrv_set_dirty_bitmap(job->bcs->copy_bitmap, 0, job->len);
+        bdrv_set_dirty_bitmap(bcs_bitmap, 0, job->len);
     }
 
-    estimate = bdrv_get_dirty_count(job->bcs->copy_bitmap);
+    estimate = bdrv_get_dirty_count(bcs_bitmap);
     job_progress_set_remaining(&job->common.job, estimate);
 }
 
@@ -240,7 +241,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     int ret = 0;
 
-    backup_init_copy_bitmap(s);
+    backup_init_bcs_bitmap(s);
 
     if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
         int64_t offset = 0;
@@ -259,12 +260,12 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
 
             offset += count;
         }
-        s->bcs->skip_unallocated = false;
+        block_copy_set_skip_unallocated(s->bcs, false);
     }
 
     if (s->sync_mode == MIRROR_SYNC_MODE_NONE) {
         /*
-         * All bits are set in copy_bitmap to allow any cluster to be copied.
+         * All bits are set in bcs bitmap to allow any cluster to be copied.
          * This does not actually require them to be copied.
          */
         while (!job_is_cancelled(job)) {
