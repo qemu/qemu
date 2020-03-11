@@ -68,6 +68,7 @@ undocumented; you can get a complete list by running
 ``qemu-system-aarch64 --machine help``.
 
 .. toctree::
+   :maxdepth: 1
 
    arm/integratorcp
    arm/versatile
@@ -78,6 +79,7 @@ undocumented; you can get a complete list by running
    arm/stellaris
    arm/musicpal
    arm/sx1
+   arm/orangepi
 
 Arm CPU features
 ================
