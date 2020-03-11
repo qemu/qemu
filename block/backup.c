@@ -57,15 +57,6 @@ static void backup_progress_bytes_callback(int64_t bytes, void *opaque)
     BackupBlockJob *s = opaque;
 
     s->bytes_read += bytes;
-    job_progress_update(&s->common.job, bytes);
-}
-
-static void backup_progress_reset_callback(void *opaque)
-{
-    BackupBlockJob *s = opaque;
-    uint64_t estimate = bdrv_get_dirty_count(s->bcs->copy_bitmap);
-
-    job_progress_set_remaining(&s->common.job, estimate);
 }
 
 static int coroutine_fn backup_do_cow(BackupBlockJob *job,
@@ -464,8 +455,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->cluster_size = cluster_size;
     job->len = len;
 
-    block_copy_set_callbacks(bcs, backup_progress_bytes_callback,
-                             backup_progress_reset_callback, job);
+    block_copy_set_progress_callback(bcs, backup_progress_bytes_callback, job);
+    block_copy_set_progress_meter(bcs, &job->common.job.progress);
 
     /* Required permissions are already taken by backup-top target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
