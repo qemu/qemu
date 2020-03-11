@@ -1554,11 +1554,18 @@ static void finalize_gic_version(VirtMachineState *vms)
                 vms->gic_version = VIRT_GIC_VERSION_3;
             }
         } else {
-            vms->gic_version = kvm_arm_vgic_probe();
-            if (!vms->gic_version) {
+            int probe_bitmap = kvm_arm_vgic_probe();
+
+            if (!probe_bitmap) {
                 error_report(
                     "Unable to determine GIC version supported by host");
                 exit(1);
+            } else {
+                if (probe_bitmap & KVM_ARM_VGIC_V3) {
+                    vms->gic_version = VIRT_GIC_VERSION_3;
+                } else {
+                    vms->gic_version = VIRT_GIC_VERSION_2;
+                }
             }
         }
     } else if (vms->gic_version == VIRT_GIC_VERSION_NOSEL) {

@@ -15,6 +15,9 @@
 #include "exec/memory.h"
 #include "qemu/error-report.h"
 
+#define KVM_ARM_VGIC_V2   (1 << 0)
+#define KVM_ARM_VGIC_V3   (1 << 1)
+
 /**
  * kvm_arm_vcpu_init:
  * @cs: CPUState
