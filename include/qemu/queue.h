@@ -142,6 +142,8 @@ struct {                                                                \
                 (elm)->field.le_next->field.le_prev =                   \
                     (elm)->field.le_prev;                               \
         *(elm)->field.le_prev = (elm)->field.le_next;                   \
+        (elm)->field.le_next = NULL;                                    \
+        (elm)->field.le_prev = NULL;                                    \
 } while (/*CONSTCOND*/0)
 
 /*
@@ -225,12 +227,15 @@ struct {                                                                \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_REMOVE_HEAD(head, field) do {                             \
-        (head)->slh_first = (head)->slh_first->field.sle_next;          \
+        typeof((head)->slh_first) elm = (head)->slh_first;               \
+        (head)->slh_first = elm->field.sle_next;                         \
+        elm->field.sle_next = NULL;                                      \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_REMOVE_AFTER(slistelm, field) do {                       \
-        (slistelm)->field.sle_next =                                    \
-            QSLIST_NEXT(QSLIST_NEXT((slistelm), field), field);         \
+        typeof(slistelm) next = (slistelm)->field.sle_next;             \
+        (slistelm)->field.sle_next = next->field.sle_next;              \
+        next->field.sle_next = NULL;                                    \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_REMOVE(head, elm, type, field) do {                      \
@@ -241,6 +246,7 @@ struct {                                                                \
         while (curelm->field.sle_next != (elm))                         \
             curelm = curelm->field.sle_next;                            \
         curelm->field.sle_next = curelm->field.sle_next->field.sle_next; \
+        (elm)->field.sle_next = NULL;                                   \
     }                                                                   \
 } while (/*CONSTCOND*/0)
 
@@ -304,8 +310,10 @@ struct {                                                                \
 } while (/*CONSTCOND*/0)
 
 #define QSIMPLEQ_REMOVE_HEAD(head, field) do {                          \
-    if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL)\
+    typeof((head)->sqh_first) elm = (head)->sqh_first;                  \
+    if (((head)->sqh_first = elm->field.sqe_next) == NULL)              \
         (head)->sqh_last = &(head)->sqh_first;                          \
+    elm->field.sqe_next = NULL;                                         \
 } while (/*CONSTCOND*/0)
 
 #define QSIMPLEQ_SPLIT_AFTER(head, elm, field, removed) do {            \
@@ -329,6 +337,7 @@ struct {                                                                \
         if ((curelm->field.sqe_next =                                   \
             curelm->field.sqe_next->field.sqe_next) == NULL)            \
                 (head)->sqh_last = &(curelm)->field.sqe_next;           \
+        (elm)->field.sqe_next = NULL;                                   \
     }                                                                   \
 } while (/*CONSTCOND*/0)
 
@@ -446,6 +455,8 @@ union {                                                                 \
             (head)->tqh_circ.tql_prev = (elm)->field.tqe_circ.tql_prev; \
         (elm)->field.tqe_circ.tql_prev->tql_next = (elm)->field.tqe_next; \
         (elm)->field.tqe_circ.tql_prev = NULL;                          \
+        (elm)->field.tqe_circ.tql_next = NULL;                          \
+        (elm)->field.tqe_next = NULL;                                   \
 } while (/*CONSTCOND*/0)
 
 /* remove @left, @right and all elements in between from @head */

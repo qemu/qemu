@@ -14,6 +14,9 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
@@ -52,6 +55,56 @@ struct ThreadPool;
 struct LinuxAioState;
 struct LuringState;
 
+/* Is polling disabled? */
+bool aio_poll_disabled(AioContext *ctx);
+
+/* Callbacks for file descriptor monitoring implementations */
+typedef struct {
+    /*
+     * update:
+     * @ctx: the AioContext
+     * @old_node: the existing handler or NULL if this file descriptor is being
+     *            monitored for the first time
+     * @new_node: the new handler or NULL if this file descriptor is being
+     *            removed
+     *
+     * Add/remove/modify a monitored file descriptor.
+     *
+     * Called with ctx->list_lock acquired.
+     */
+    void (*update)(AioContext *ctx, AioHandler *old_node, AioHandler *new_node);
+
+    /*
+     * wait:
+     * @ctx: the AioContext
+     * @ready_list: list for handlers that become ready
+     * @timeout: maximum duration to wait, in nanoseconds
+     *
+     * Wait for file descriptors to become ready and place them on ready_list.
+     *
+     * Called with ctx->list_lock incremented but not locked.
+     *
+     * Returns: number of ready file descriptors.
+     */
+    int (*wait)(AioContext *ctx, AioHandlerList *ready_list, int64_t timeout);
+
+    /*
+     * need_wait:
+     * @ctx: the AioContext
+     *
+     * Tell aio_poll() when to stop userspace polling early because ->wait()
+     * has fds ready.
+     *
+     * File descriptor monitoring implementations that cannot poll fd readiness
+     * from userspace should use aio_poll_disabled() here.  This ensures that
+     * file descriptors are not starved by handlers that frequently make
+     * progress via userspace polling.
+     *
+     * Returns: true if ->wait() should be called, false otherwise.
+     */
+    bool (*need_wait)(AioContext *ctx);
+} FDMonOps;
+
 /*
  * Each aio_bh_poll() call carves off a slice of the BH list, so that newly
  * scheduled BHs are not processed until the next aio_bh_poll() call.  All
@@ -64,6 +117,8 @@ struct BHListSlice {
     BHList bh_list;
     QSIMPLEQ_ENTRY(BHListSlice) next;
 };
+
+typedef QSLIST_HEAD(, AioHandler) AioHandlerSList;
 
 struct AioContext {
     GSource source;
@@ -150,6 +205,10 @@ struct AioContext {
      * locking.
      */
     struct LuringState *linux_io_uring;
+
+    /* State for file descriptor monitoring using Linux io_uring */
+    struct io_uring fdmon_io_uring;
+    AioHandlerSList submit_list;
 #endif
 
     /* TimerLists for calling timers - one per clock type.  Has its own
@@ -168,13 +227,21 @@ struct AioContext {
     int64_t poll_grow;      /* polling time growth factor */
     int64_t poll_shrink;    /* polling time shrink factor */
 
+    /*
+     * List of handlers participating in userspace polling.  Protected by
+     * ctx->list_lock.  Iterated and modified mostly by the event loop thread
+     * from aio_poll() with ctx->list_lock incremented.  aio_set_fd_handler()
+     * only touches the list to delete nodes if ctx->list_lock's count is zero.
+     */
+    AioHandlerList poll_aio_handlers;
+
     /* Are we in polling mode or monitoring file descriptors? */
     bool poll_started;
 
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
-    bool epoll_enabled;
-    bool epoll_available;
+
+    const FDMonOps *fdmon_ops;
 };
 
 /**
