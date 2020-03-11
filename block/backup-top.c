@@ -38,6 +38,7 @@ typedef struct BDRVBackupTopState {
     BlockCopyState *bcs;
     BdrvChild *target;
     bool active;
+    int64_t cluster_size;
 } BDRVBackupTopState;
 
 static coroutine_fn int backup_top_co_preadv(
@@ -57,8 +58,8 @@ static coroutine_fn int backup_top_cbw(BlockDriverState *bs, uint64_t offset,
         return 0;
     }
 
-    off = QEMU_ALIGN_DOWN(offset, s->bcs->cluster_size);
-    end = QEMU_ALIGN_UP(offset + bytes, s->bcs->cluster_size);
+    off = QEMU_ALIGN_DOWN(offset, s->cluster_size);
+    end = QEMU_ALIGN_UP(offset + bytes, s->cluster_size);
 
     return block_copy(s->bcs, off, end - off, NULL);
 }
@@ -238,6 +239,7 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
         goto fail;
     }
 
+    state->cluster_size = cluster_size;
     state->bcs = block_copy_state_new(top->backing, state->target,
                                       cluster_size, write_flags, &local_err);
     if (local_err) {

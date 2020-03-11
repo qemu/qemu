@@ -1,0 +1,30 @@
+QA output created by 288
+== measure 1G image file ==
+
+required size: 1075810304
+fully allocated size: 1075810304
+
+== create 1G image file (size should be no greater than measured) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+image file size in bytes: 1075810304
+
+== modified 1G image file (size should be no greater than measured) ==
+
+wrote 1024/1024 bytes at offset 65536
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+image file size in bytes: 1075810304
+
+== measure preallocation=falloc 1G image file ==
+
+required size: 1075810304
+fully allocated size: 1075810304
+
+== measure with input image file ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+wrote 1024/1024 bytes at offset 65536
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 1075810304
+fully allocated size: 1075810304
+*** done

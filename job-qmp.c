@@ -143,8 +143,8 @@ static JobInfo *job_query_single(Job *job, Error **errp)
         .id                 = g_strdup(job->id),
         .type               = job_type(job),
         .status             = job->status,
-        .current_progress   = job->progress_current,
-        .total_progress     = job->progress_total,
+        .current_progress   = job->progress.current,
+        .total_progress     = job->progress.total,
         .has_error          = !!job->err,
         .error              = job->err ? \
                               g_strdup(error_get_pretty(job->err)) : NULL,

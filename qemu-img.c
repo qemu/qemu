@@ -817,6 +817,8 @@ static int img_check(int argc, char **argv)
                     check->corruptions_fixed);
         }
 
+        qapi_free_ImageCheck(check);
+        check = g_new0(ImageCheck, 1);
         ret = collect_image_check(bs, check, filename, fmt, 0);
 
         check->leaks_fixed          = leaks_fixed;
@@ -882,9 +884,9 @@ static void run_block_job(BlockJob *job, Error **errp)
     do {
         float progress = 0.0f;
         aio_poll(aio_context, true);
-        if (job->job.progress_total) {
-            progress = (float)job->job.progress_current /
-                       job->job.progress_total * 100.f;
+        if (job->job.progress.total) {
+            progress = (float)job->job.progress.current /
+                       job->job.progress.total * 100.f;
         }
         qemu_progress_print(progress, 0);
     } while (!job_is_ready(&job->job) && !job_is_completed(&job->job));
@@ -4932,10 +4934,8 @@ static int img_measure(int argc, char **argv)
         filename = argv[optind];
     }
 
-    if (!filename &&
-        (object_opts || image_opts || fmt || snapshot_name || sn_opts)) {
-        error_report("--object, --image-opts, -f, and -l "
-                     "require a filename argument.");
+    if (!filename && (image_opts || fmt || snapshot_name || sn_opts)) {
+        error_report("--image-opts, -f, and -l require a filename argument.");
         goto out;
     }
     if (filename && img_size != UINT64_MAX) {
