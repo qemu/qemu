@@ -2146,7 +2146,8 @@ static void virt_instance_init(Object *obj)
                         virt_set_gic_version, NULL);
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
-                                    "Valid values are 2, 3 and host", NULL);
+                                    "Valid values are 2, 3, host and max",
+                                    NULL);
 
     vms->highmem_ecam = !vmc->no_highmem_ecam;
 
