@@ -369,17 +369,17 @@ void job_unref(Job *job)
 
 void job_progress_update(Job *job, uint64_t done)
 {
-    job->progress_current += done;
+    progress_work_done(&job->progress, done);
 }
 
 void job_progress_set_remaining(Job *job, uint64_t remaining)
 {
-    job->progress_total = job->progress_current + remaining;
+    progress_set_remaining(&job->progress, remaining);
 }
 
 void job_progress_increase_remaining(Job *job, uint64_t delta)
 {
-    job->progress_total += delta;
+    progress_increase_remaining(&job->progress, delta);
 }
 
 void job_event_cancelled(Job *job)

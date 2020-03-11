@@ -299,8 +299,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->device    = g_strdup(job->job.id);
     info->busy      = atomic_read(&job->job.busy);
     info->paused    = job->job.pause_count > 0;
-    info->offset    = job->job.progress_current;
-    info->len       = job->job.progress_total;
+    info->offset    = job->job.progress.current;
+    info->len       = job->job.progress.total;
     info->speed     = job->speed;
     info->io_status = job->iostatus;
     info->ready     = job_is_ready(&job->job),
@@ -330,8 +330,8 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
 
     qapi_event_send_block_job_cancelled(job_type(&job->job),
                                         job->job.id,
-                                        job->job.progress_total,
-                                        job->job.progress_current,
+                                        job->job.progress.total,
+                                        job->job.progress.current,
                                         job->speed);
 }
 
@@ -350,8 +350,8 @@ static void block_job_event_completed(Notifier *n, void *opaque)
 
     qapi_event_send_block_job_completed(job_type(&job->job),
                                         job->job.id,
-                                        job->job.progress_total,
-                                        job->job.progress_current,
+                                        job->job.progress.total,
+                                        job->job.progress.current,
                                         job->speed,
                                         !!msg,
                                         msg);
@@ -379,8 +379,8 @@ static void block_job_event_ready(Notifier *n, void *opaque)
 
     qapi_event_send_block_job_ready(job_type(&job->job),
                                     job->job.id,
-                                    job->job.progress_total,
-                                    job->job.progress_current,
+                                    job->job.progress.total,
+                                    job->job.progress.current,
                                     job->speed);
 }
 
