@@ -155,7 +155,7 @@ void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
  */
 static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
                                            int64_t start, int64_t end,
-                                           bool *error_is_read)
+                                           bool zeroes, bool *error_is_read)
 {
     int ret;
     int nbytes = MIN(end, s->len) - start;
@@ -164,6 +164,18 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end, s->cluster_size));
     assert(end < s->len || end == QEMU_ALIGN_UP(s->len, s->cluster_size));
+
+    if (zeroes) {
+        ret = bdrv_co_pwrite_zeroes(s->target, start, nbytes, s->write_flags &
+                                    ~BDRV_REQ_WRITE_COMPRESSED);
+        if (ret < 0) {
+            trace_block_copy_write_zeroes_fail(s, start, ret);
+            if (error_is_read) {
+                *error_is_read = false;
+            }
+        }
+        return ret;
+    }
 
     if (s->use_copy_range) {
         ret = bdrv_co_copy_range(s->source, start, s->target, start, nbytes,
@@ -227,6 +239,38 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
 out:
     qemu_vfree(bounce_buffer);
 
+    return ret;
+}
+
+static int block_copy_block_status(BlockCopyState *s, int64_t offset,
+                                   int64_t bytes, int64_t *pnum)
+{
+    int64_t num;
+    BlockDriverState *base;
+    int ret;
+
+    if (s->skip_unallocated && s->source->bs->backing) {
+        base = s->source->bs->backing->bs;
+    } else {
+        base = NULL;
+    }
+
+    ret = bdrv_block_status_above(s->source->bs, base, offset, bytes, &num,
+                                  NULL, NULL);
+    if (ret < 0 || num < s->cluster_size) {
+        /*
+         * On error or if failed to obtain large enough chunk just fallback to
+         * copy one cluster.
+         */
+        num = s->cluster_size;
+        ret = BDRV_BLOCK_ALLOCATED | BDRV_BLOCK_DATA;
+    } else if (offset + num == s->len) {
+        num = QEMU_ALIGN_UP(num, s->cluster_size);
+    } else {
+        num = QEMU_ALIGN_DOWN(num, s->cluster_size);
+    }
+
+    *pnum = num;
     return ret;
 }
 
@@ -308,7 +352,6 @@ int coroutine_fn block_copy(BlockCopyState *s,
 {
     int ret = 0;
     int64_t end = bytes + start; /* bytes */
-    int64_t status_bytes;
     BlockCopyInFlightReq req;
 
     /*
@@ -325,7 +368,7 @@ int coroutine_fn block_copy(BlockCopyState *s,
     block_copy_inflight_req_begin(s, &req, start, end);
 
     while (start < end) {
-        int64_t next_zero, chunk_end;
+        int64_t next_zero, chunk_end, status_bytes;
 
         if (!bdrv_dirty_bitmap_get(s->copy_bitmap, start)) {
             trace_block_copy_skip(s, start);
@@ -343,16 +386,19 @@ int coroutine_fn block_copy(BlockCopyState *s,
             chunk_end = next_zero;
         }
 
-        if (s->skip_unallocated) {
-            ret = block_copy_reset_unallocated(s, start, &status_bytes);
-            if (ret == 0) {
-                trace_block_copy_skip_range(s, start, status_bytes);
-                start += status_bytes;
-                continue;
-            }
-            /* Clamp to known allocated region */
-            chunk_end = MIN(chunk_end, start + status_bytes);
+        ret = block_copy_block_status(s, start, chunk_end - start,
+                                      &status_bytes);
+        if (s->skip_unallocated && !(ret & BDRV_BLOCK_ALLOCATED)) {
+            bdrv_reset_dirty_bitmap(s->copy_bitmap, start, status_bytes);
+            progress_set_remaining(s->progress,
+                                   bdrv_get_dirty_count(s->copy_bitmap) +
+                                   s->in_flight_bytes);
+            trace_block_copy_skip_range(s, start, status_bytes);
+            start += status_bytes;
+            continue;
         }
+
+        chunk_end = MIN(chunk_end, start + status_bytes);
 
         trace_block_copy_process(s, start);
 
@@ -360,7 +406,8 @@ int coroutine_fn block_copy(BlockCopyState *s,
         s->in_flight_bytes += chunk_end - start;
 
         co_get_from_shres(s->mem, chunk_end - start);
-        ret = block_copy_do_copy(s, start, chunk_end, error_is_read);
+        ret = block_copy_do_copy(s, start, chunk_end, ret & BDRV_BLOCK_ZERO,
+                                 error_is_read);
         co_put_to_shres(s->mem, chunk_end - start);
         s->in_flight_bytes -= chunk_end - start;
         if (ret < 0) {
