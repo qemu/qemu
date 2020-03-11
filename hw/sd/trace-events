@@ -1,5 +1,12 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# allwinner-sdhost.c
+allwinner_sdhost_set_inserted(bool inserted) "inserted %u"
+allwinner_sdhost_process_desc(uint64_t desc_addr, uint32_t desc_size, bool is_write, uint32_t max_bytes) "desc_addr 0x%" PRIx64 " desc_size %" PRIu32 " is_write %u max_bytes %" PRIu32
+allwinner_sdhost_read(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_sdhost_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_sdhost_update_irq(uint32_t irq) "IRQ bits 0x%" PRIx32
+
 # bcm2835_sdhost.c
 bcm2835_sdhost_read(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 bcm2835_sdhost_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"

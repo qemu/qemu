@@ -38,6 +38,7 @@ const hwaddr allwinner_h3_memmap[] = {
     [AW_H3_SRAM_A2]    = 0x00044000,
     [AW_H3_SRAM_C]     = 0x00010000,
     [AW_H3_SYSCTRL]    = 0x01c00000,
+    [AW_H3_MMC0]       = 0x01c0f000,
     [AW_H3_SID]        = 0x01c14000,
     [AW_H3_EHCI0]      = 0x01c1a000,
     [AW_H3_OHCI0]      = 0x01c1a400,
@@ -76,7 +77,6 @@ struct AwH3Unimplemented {
     { "lcd0",      0x01c0c000, 4 * KiB },
     { "lcd1",      0x01c0d000, 4 * KiB },
     { "ve",        0x01c0e000, 4 * KiB },
-    { "mmc0",      0x01c0f000, 4 * KiB },
     { "mmc1",      0x01c10000, 4 * KiB },
     { "mmc2",      0x01c11000, 4 * KiB },
     { "crypto",    0x01c15000, 4 * KiB },
@@ -153,6 +153,7 @@ enum {
     AW_H3_GIC_SPI_UART3     =  3,
     AW_H3_GIC_SPI_TIMER0    = 18,
     AW_H3_GIC_SPI_TIMER1    = 19,
+    AW_H3_GIC_SPI_MMC0      = 60,
     AW_H3_GIC_SPI_EHCI0     = 72,
     AW_H3_GIC_SPI_OHCI0     = 73,
     AW_H3_GIC_SPI_EHCI1     = 74,
@@ -203,6 +204,9 @@ static void allwinner_h3_init(Object *obj)
                           TYPE_AW_SID);
     object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
                               "identifier", &error_abort);
+
+    sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
+                          TYPE_AW_SDHOST_SUN5I);
 }
 
 static void allwinner_h3_realize(DeviceState *dev, Error **errp)
@@ -323,6 +327,15 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
     /* Security Identifier */
     qdev_init_nofail(DEVICE(&s->sid));
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_H3_SID]);
+
+    /* SD/MMC */
+    qdev_init_nofail(DEVICE(&s->mmc0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, s->memmap[AW_H3_MMC0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_MMC0));
+
+    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+                              "sd-bus", &error_abort);
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, s->memmap[AW_H3_EHCI0],

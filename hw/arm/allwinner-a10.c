@@ -27,6 +27,7 @@
 #include "hw/boards.h"
 #include "hw/usb/hcd-ohci.h"
 
+#define AW_A10_MMC0_BASE        0x01c0f000
 #define AW_A10_PIC_REG_BASE     0x01c20400
 #define AW_A10_PIT_REG_BASE     0x01c20c00
 #define AW_A10_UART0_REG_BASE   0x01c28000
@@ -64,6 +65,9 @@ static void aw_a10_init(Object *obj)
                                   sizeof(s->ohci[i]), TYPE_SYSBUS_OHCI);
         }
     }
+
+    sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
+                          TYPE_AW_SDHOST_SUN4I);
 }
 
 static void aw_a10_realize(DeviceState *dev, Error **errp)
@@ -164,6 +168,13 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
                                qdev_get_gpio_in(dev, 64 + i));
         }
     }
+
+    /* SD/MMC */
+    qdev_init_nofail(DEVICE(&s->mmc0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, AW_A10_MMC0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0, qdev_get_gpio_in(dev, 32));
+    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+                              "sd-bus", &error_abort);
 }
 
 static void aw_a10_class_init(ObjectClass *oc, void *data)

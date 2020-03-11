@@ -43,6 +43,7 @@
 #include "hw/misc/allwinner-cpucfg.h"
 #include "hw/misc/allwinner-h3-sysctrl.h"
 #include "hw/misc/allwinner-sid.h"
+#include "hw/sd/allwinner-sdhost.h"
 #include "target/arm/cpu.h"
 
 /**
@@ -60,6 +61,7 @@ enum {
     AW_H3_SRAM_A2,
     AW_H3_SRAM_C,
     AW_H3_SYSCTRL,
+    AW_H3_MMC0,
     AW_H3_SID,
     AW_H3_EHCI0,
     AW_H3_OHCI0,
@@ -117,6 +119,7 @@ typedef struct AwH3State {
     AwCpuCfgState cpucfg;
     AwH3SysCtrlState sysctrl;
     AwSidState sid;
+    AwSdHostState mmc0;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;

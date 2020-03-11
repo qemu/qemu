@@ -306,6 +306,7 @@ config ALLWINNER_H3
     select UNIMP
     select USB_OHCI
     select USB_EHCI_SYSBUS
+    select SD
 
 config RASPI
     bool
