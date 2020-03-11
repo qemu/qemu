@@ -103,12 +103,8 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
 {
     Object *cpu = NULL;
     Error *local_err = NULL;
-    CPUX86State *env = NULL;
 
     cpu = object_new(MACHINE(x86ms)->cpu_type);
-
-    env = &X86_CPU(cpu)->env;
-    env->nr_dies = x86ms->smp_dies;
 
     object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
