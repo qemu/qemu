@@ -8,7 +8,7 @@ time different targets can share large amounts of code.  For example,
 a POWER and an x86 board can run the same code to emulate a PCI network
 card, even though the boards use different PCI host bridges, and they
 can run the same code to emulate a SCSI disk while using different
-SCSI adapters.  ARM, s390 and x86 boards can all present a virtio-blk
+SCSI adapters.  Arm, s390 and x86 boards can all present a virtio-blk
 disk to their guests, but with three different virtio guest interfaces.
 
 Each QEMU target enables a subset of the boards, devices and buses that

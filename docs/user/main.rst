@@ -35,7 +35,7 @@ QEMU user space emulation has the following notable features:
    On Linux, QEMU can emulate the ``clone`` syscall and create a real
    host thread (with a separate virtual CPU) for each emulated thread.
    Note that not all targets currently emulate atomic operations
-   correctly. x86 and ARM use a global lock in order to preserve their
+   correctly. x86 and Arm use a global lock in order to preserve their
    semantics.
 
 QEMU was conceived so that ultimately it can emulate itself. Although it
@@ -173,11 +173,11 @@ Other binaries
 user mode (Alpha)
 ``qemu-alpha`` TODO.
 
-user mode (ARM)
+user mode (Arm)
 ``qemu-armeb`` TODO.
 
-user mode (ARM)
-``qemu-arm`` is also capable of running ARM \"Angel\" semihosted ELF
+user mode (Arm)
+``qemu-arm`` is also capable of running Arm \"Angel\" semihosted ELF
 binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
 configurations), and arm-uclinux bFLT format binaries.
 

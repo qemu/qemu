@@ -302,7 +302,7 @@ way QEMU defines the view of memory that a device or CPU has.
 or bus fabric.)
 
 Each CPU has an AddressSpace. Some kinds of CPU have more than
-one AddressSpace (for instance ARM guest CPUs have an AddressSpace
+one AddressSpace (for instance Arm guest CPUs have an AddressSpace
 for the Secure world and one for NonSecure if they implement TrustZone).
 Devices which can do DMA-type operations should generally have an
 AddressSpace. There is also a "system address space" which typically

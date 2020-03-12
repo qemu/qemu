@@ -25,7 +25,7 @@ QEMU files related to TPM TIS interface:
 
 Both an ISA device and a sysbus device are available. The former is
 used with pc/q35 machine while the latter can be instantiated in the
-ARM virt machine.
+Arm virt machine.
 
 CRB interface
 -------------
@@ -331,7 +331,7 @@ In case a pSeries machine is emulated, use the following command line:
     -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x3,drive=drive-virtio-disk0,id=virtio-disk0 \
     -drive file=test.img,format=raw,if=none,id=drive-virtio-disk0
 
-In case an ARM virt machine is emulated, use the following command line:
+In case an Arm virt machine is emulated, use the following command line:
 
 .. code-block:: console
 
@@ -346,7 +346,7 @@ In case an ARM virt machine is emulated, use the following command line:
     -drive if=pflash,format=raw,file=flash0.img,readonly \
     -drive if=pflash,format=raw,file=flash1.img
 
-  On ARM, ACPI boot with TPM is not yet supported.
+  On Arm, ACPI boot with TPM is not yet supported.
 
 In case SeaBIOS is used as firmware, it should show the TPM menu item
 after entering the menu with 'ESC'.

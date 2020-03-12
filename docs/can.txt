@@ -13,7 +13,7 @@ controller is implemented.
 
 The PCI addon card hardware has been selected as the first CAN
 interface to implement because such device can be easily connected
-to systems with different CPU architectures (x86, PowerPC, ARM, etc.).
+to systems with different CPU architectures (x86, PowerPC, Arm, etc.).
 
 The project has been initially started in frame of RTEMS GSoC 2013
 slot by Jin Yang under our mentoring  The initial idea was to provide generic

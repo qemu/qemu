@@ -227,7 +227,7 @@ minimise contention.
 (Current solution)
 
 MMIO access automatically serialises hardware emulation by way of the
-BQL. Currently ARM targets serialise all ARM_CP_IO register accesses
+BQL. Currently Arm targets serialise all ARM_CP_IO register accesses
 and also defer the reset/startup of vCPUs to the vCPU context by way
 of async_run_on_cpu().
 
@@ -268,7 +268,7 @@ ordered backends this could become a NOP.
 Aside from explicit standalone memory barrier instructions there are
 also implicit memory ordering semantics which comes with each guest
 memory access instruction. For example all x86 load/stores come with
-fairly strong guarantees of sequential consistency where as ARM has
+fairly strong guarantees of sequential consistency whereas Arm has
 special variants of load/store instructions that imply acquire/release
 semantics.
 
@@ -317,7 +317,7 @@ x86 cmpxchg instruction.
 
 The second type offer a pair of load/store instructions which offer a
 guarantee that a region of memory has not been touched between the
-load and store instructions. An example of this is ARM's ldrex/strex
+load and store instructions. An example of this is Arm's ldrex/strex
 pair where the strex instruction will return a flag indicating a
 successful store only if no other CPU has accessed the memory region
 since the ldrex.
@@ -339,7 +339,7 @@ CURRENT OPEN QUESTIONS:
 
 The TCG provides a number of atomic helpers (tcg_gen_atomic_*) which
 can be used directly or combined to emulate other instructions like
-ARM's ldrex/strex instructions. While they are susceptible to the ABA
+Arm's ldrex/strex instructions. While they are susceptible to the ABA
 problem so far common guests have not implemented patterns where
 this may be a problem - typically presenting a locking ABI which
 assumes cmpxchg like semantics.

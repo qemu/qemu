@@ -1,7 +1,3 @@
-..
-  The contents of this file must be kept in sync with qemu-option-trace.texi
-  until all the users of the texi file have been converted to rst and
-  the texi file can be removed.
 
 Specify tracing options.
 

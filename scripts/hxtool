@@ -7,7 +7,7 @@ hxtoh()
         case $str in
             HXCOMM*)
             ;;
-            STEXI*|ETEXI*|SRST*|ERST*) flag=$(($flag^1))
+            SRST*|ERST*) flag=$(($flag^1))
             ;;
             *)
             test $flag -eq 1 && printf "%s\n" "$str"
@@ -16,84 +16,8 @@ hxtoh()
     done
 }
 
-print_texi_heading()
-{
-    if test "$*" != ""; then
-        title="$*"
-        printf "@subsection %s\n" "${title%:}"
-    fi
-}
-
-hxtotexi()
-{
-    flag=0
-    rstflag=0
-    line=1
-    while read -r str; do
-        case "$str" in
-            HXCOMM*)
-            ;;
-            STEXI*)
-            if test $rstflag -eq 1 ; then
-                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            if test $flag -eq 1 ; then
-                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            flag=1
-            ;;
-            ETEXI*)
-            if test $rstflag -eq 1 ; then
-                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            if test $flag -ne 1 ; then
-                printf "line %d: syntax error: expected STEXI, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            flag=0
-            ;;
-            SRST*)
-            if test $rstflag -eq 1 ; then
-                printf "line %d: syntax error: expected ERST, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            if test $flag -eq 1 ; then
-                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            rstflag=1
-            ;;
-            ERST*)
-            if test $flag -eq 1 ; then
-                printf "line %d: syntax error: expected ETEXI, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            if test $rstflag -ne 1 ; then
-                printf "line %d: syntax error: expected SRST, found '%s'\n" "$line" "$str" >&2
-                exit 1
-            fi
-            rstflag=0
-            ;;
-            DEFHEADING*)
-            print_texi_heading "$(expr "$str" : "DEFHEADING(\(.*\))")"
-            ;;
-            ARCHHEADING*)
-            print_texi_heading "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
-            ;;
-            *)
-            test $flag -eq 1 && printf '%s\n' "$str"
-            ;;
-        esac
-        line=$((line+1))
-    done
-}
-
 case "$1" in
 "-h") hxtoh ;;
-"-t") hxtotexi ;;
 *) exit 1 ;;
 esac
 
