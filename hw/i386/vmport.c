@@ -44,9 +44,12 @@
 #define VMPORT_MAGIC   0x564D5868
 
 /* Compatibility flags for migration */
-#define VMPORT_COMPAT_READ_SET_EAX_BIT      0
-#define VMPORT_COMPAT_READ_SET_EAX          \
+#define VMPORT_COMPAT_READ_SET_EAX_BIT              0
+#define VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT    1
+#define VMPORT_COMPAT_READ_SET_EAX              \
     (1 << VMPORT_COMPAT_READ_SET_EAX_BIT)
+#define VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD    \
+    (1 << VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT)
 
 #define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
 
@@ -87,17 +90,23 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC) {
-        goto out;
+        goto err;
     }
 
     command = env->regs[R_ECX];
     trace_vmport_command(command);
     if (command >= VMPORT_ENTRIES || !s->func[command]) {
         qemu_log_mask(LOG_UNIMP, "vmport: unknown command %x\n", command);
-        goto out;
+        goto err;
     }
 
     eax = s->func[command](s->opaque[command], addr);
+    goto out;
+
+err:
+    if (s->compat_flags & VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD) {
+        eax = UINT32_MAX;
+    }
 
 out:
     /*
@@ -168,6 +177,8 @@ static Property vmport_properties[] = {
     /* Used to enforce compatibility for migration */
     DEFINE_PROP_BIT("x-read-set-eax", VMPortState, compat_flags,
                     VMPORT_COMPAT_READ_SET_EAX_BIT, true),
+    DEFINE_PROP_BIT("x-signal-unsupported-cmd", VMPortState, compat_flags,
+                    VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
