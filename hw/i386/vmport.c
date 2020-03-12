@@ -176,7 +176,14 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 
 static uint32_t vmport_cmd_get_vcpu_info(void *opaque, uint32_t addr)
 {
-    return 1 << VCPU_INFO_RESERVED_BIT;
+    X86CPU *cpu = X86_CPU(current_cpu);
+    uint32_t ret = 0;
+
+    if (cpu->env.features[FEAT_1_ECX] & CPUID_EXT_X2APIC) {
+        ret |= 1 << VCPU_INFO_LEGACY_X2APIC_BIT;
+    }
+
+    return ret;
 }
 
 static const MemoryRegionOps vmport_ops = {
