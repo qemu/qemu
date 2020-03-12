@@ -60,6 +60,8 @@ typedef struct VMPortState {
     VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
 
+    uint32_t vmware_vmx_version;
+
     uint32_t compat_flags;
 } VMPortState;
 
@@ -138,7 +140,7 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
     X86CPU *cpu = X86_CPU(current_cpu);
 
     cpu->env.regs[R_EBX] = VMPORT_MAGIC;
-    return 6;
+    return port_state->vmware_vmx_version;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
@@ -179,6 +181,11 @@ static Property vmport_properties[] = {
                     VMPORT_COMPAT_READ_SET_EAX_BIT, true),
     DEFINE_PROP_BIT("x-signal-unsupported-cmd", VMPortState, compat_flags,
                     VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT, true),
+
+    /* Default value taken from open-vm-tools code VERSION_MAGIC definition */
+    DEFINE_PROP_UINT32("vmware-vmx-version", VMPortState,
+                       vmware_vmx_version, 6),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 
