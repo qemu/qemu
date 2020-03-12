@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "qemu/units.h"
+#include "trace.h"
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -513,6 +514,8 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
 
     s->ctrl->reg_to_segment(s, new, &seg);
 
+    trace_aspeed_smc_flash_set_segment(cs, new, seg.addr, seg.addr + seg.size);
+
     /* The start address of CS0 is read-only */
     if (cs == 0 && seg.addr != s->ctrl->flash_window_base) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -636,27 +639,23 @@ static inline int aspeed_smc_flash_is_4byte(const AspeedSMCFlash *fl)
     }
 }
 
-static inline bool aspeed_smc_is_ce_stop_active(const AspeedSMCFlash *fl)
+static void aspeed_smc_flash_do_select(AspeedSMCFlash *fl, bool unselect)
 {
-    const AspeedSMCState *s = fl->controller;
+    AspeedSMCState *s = fl->controller;
 
-    return s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE;
+    trace_aspeed_smc_flash_select(fl->id, unselect ? "un" : "");
+
+    qemu_set_irq(s->cs_lines[fl->id], unselect);
 }
 
 static void aspeed_smc_flash_select(AspeedSMCFlash *fl)
 {
-    AspeedSMCState *s = fl->controller;
-
-    s->regs[s->r_ctrl0 + fl->id] &= ~CTRL_CE_STOP_ACTIVE;
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    aspeed_smc_flash_do_select(fl, false);
 }
 
 static void aspeed_smc_flash_unselect(AspeedSMCFlash *fl)
 {
-    AspeedSMCState *s = fl->controller;
-
-    s->regs[s->r_ctrl0 + fl->id] |= CTRL_CE_STOP_ACTIVE;
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    aspeed_smc_flash_do_select(fl, true);
 }
 
 static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
@@ -753,6 +752,8 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
                       __func__, aspeed_smc_flash_mode(fl));
     }
 
+    trace_aspeed_smc_flash_read(fl->id, addr, size, ret,
+                                aspeed_smc_flash_mode(fl));
     return ret;
 }
 
@@ -808,6 +809,9 @@ static bool aspeed_smc_do_snoop(AspeedSMCFlash *fl,  uint64_t data,
     AspeedSMCState *s = fl->controller;
     uint8_t addr_width = aspeed_smc_flash_is_4byte(fl) ? 4 : 3;
 
+    trace_aspeed_smc_do_snoop(fl->id, s->snoop_index, s->snoop_dummies,
+                              (uint8_t) data & 0xff);
+
     if (s->snoop_index == SNOOP_OFF) {
         return false; /* Do nothing */
 
@@ -858,6 +862,9 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedSMCState *s = fl->controller;
     int i;
 
+    trace_aspeed_smc_flash_write(fl->id, addr, size, data,
+                                 aspeed_smc_flash_mode(fl));
+
     if (!aspeed_smc_is_writable(fl)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
@@ -900,13 +907,25 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
     },
 };
 
-static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
+static void aspeed_smc_flash_update_ctrl(AspeedSMCFlash *fl, uint32_t value)
 {
     AspeedSMCState *s = fl->controller;
+    bool unselect;
 
-    s->snoop_index = aspeed_smc_is_ce_stop_active(fl) ? SNOOP_OFF : SNOOP_START;
+    /* User mode selects the CS, other modes unselect */
+    unselect = (value & CTRL_CMD_MODE_MASK) != CTRL_USERMODE;
 
-    qemu_set_irq(s->cs_lines[fl->id], aspeed_smc_is_ce_stop_active(fl));
+    /* A change of CTRL_CE_STOP_ACTIVE from 0 to 1, unselects the CS */
+    if (!(s->regs[s->r_ctrl0 + fl->id] & CTRL_CE_STOP_ACTIVE) &&
+        value & CTRL_CE_STOP_ACTIVE) {
+        unselect = true;
+    }
+
+    s->regs[s->r_ctrl0 + fl->id] = value;
+
+    s->snoop_index = unselect ? SNOOP_OFF : SNOOP_START;
+
+    aspeed_smc_flash_do_select(fl, unselect);
 }
 
 static void aspeed_smc_reset(DeviceState *d)
@@ -972,6 +991,9 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (s->ctrl->has_dma && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 && addr < R_SEG_ADDR0 + s->ctrl->max_slaves) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->ctrl->max_slaves)) {
+
+        trace_aspeed_smc_read(addr, size, s->regs[addr]);
+
         return s->regs[addr];
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
@@ -1091,6 +1113,7 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
                           __func__, s->regs[R_DMA_FLASH_ADDR]);
             return;
         }
+        trace_aspeed_smc_dma_checksum(s->regs[R_DMA_FLASH_ADDR], data);
 
         /*
          * When the DMA is on-going, the DMA registers are updated
@@ -1225,6 +1248,8 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
 
     addr >>= 2;
 
+    trace_aspeed_smc_write(addr, size, data);
+
     if (addr == s->r_conf ||
         (addr >= s->r_timings &&
          addr < s->r_timings + s->ctrl->nregs_timings) ||
@@ -1232,8 +1257,7 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         s->regs[addr] = value;
     } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
         int cs = addr - s->r_ctrl0;
-        s->regs[addr] = value;
-        aspeed_smc_flash_update_cs(&s->flashes[cs]);
+        aspeed_smc_flash_update_ctrl(&s->flashes[cs], value);
     } else if (addr >= R_SEG_ADDR0 &&
                addr < R_SEG_ADDR0 + s->ctrl->max_slaves) {
         int cs = addr - R_SEG_ADDR0;

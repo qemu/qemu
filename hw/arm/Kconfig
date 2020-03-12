@@ -297,6 +297,18 @@ config ALLWINNER_A10
     select SERIAL
     select UNIMP
 
+config ALLWINNER_H3
+    bool
+    select ALLWINNER_A10_PIT
+    select ALLWINNER_SUN8I_EMAC
+    select SERIAL
+    select ARM_TIMER
+    select ARM_GIC
+    select UNIMP
+    select USB_OHCI
+    select USB_EHCI_SYSBUS
+    select SD
+
 config RASPI
     bool
     select FRAMEBUFFER

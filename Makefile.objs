@@ -175,6 +175,7 @@ trace-events-subdirs += hw/scsi
 trace-events-subdirs += hw/sd
 trace-events-subdirs += hw/sparc
 trace-events-subdirs += hw/sparc64
+trace-events-subdirs += hw/ssi
 trace-events-subdirs += hw/timer
 trace-events-subdirs += hw/tpm
 trace-events-subdirs += hw/usb

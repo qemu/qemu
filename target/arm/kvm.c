@@ -874,15 +874,17 @@ int kvm_arch_irqchip_create(KVMState *s)
 
 int kvm_arm_vgic_probe(void)
 {
+    int val = 0;
+
     if (kvm_create_device(kvm_state,
                           KVM_DEV_TYPE_ARM_VGIC_V3, true) == 0) {
-        return 3;
-    } else if (kvm_create_device(kvm_state,
-                                 KVM_DEV_TYPE_ARM_VGIC_V2, true) == 0) {
-        return 2;
-    } else {
-        return 0;
+        val |= KVM_ARM_VGIC_V3;
     }
+    if (kvm_create_device(kvm_state,
+                          KVM_DEV_TYPE_ARM_VGIC_V2, true) == 0) {
+        val |= KVM_ARM_VGIC_V2;
+    }
+    return val;
 }
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level)
