@@ -21,6 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/*
+ * Guest code that interacts with this virtual device can be found
+ * in VMware open-vm-tools open-source project:
+ * https://github.com/vmware/open-vm-tools
+ */
+
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "sysemu/hw_accel.h"
