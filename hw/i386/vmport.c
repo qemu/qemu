@@ -32,6 +32,7 @@
 #include "hw/isa/isa.h"
 #include "hw/i386/vmport.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/log.h"
 #include "cpu.h"
@@ -43,12 +44,15 @@
 #define VMPORT_COMPAT_READ_SET_EAX_BIT              0
 #define VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT    1
 #define VMPORT_COMPAT_REPORT_VMX_TYPE_BIT           2
+#define VMPORT_COMPAT_CMDS_V2_BIT                   3
 #define VMPORT_COMPAT_READ_SET_EAX              \
     (1 << VMPORT_COMPAT_READ_SET_EAX_BIT)
 #define VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD    \
     (1 << VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT)
 #define VMPORT_COMPAT_REPORT_VMX_TYPE           \
     (1 << VMPORT_COMPAT_REPORT_VMX_TYPE_BIT)
+#define VMPORT_COMPAT_CMDS_V2                   \
+    (1 << VMPORT_COMPAT_CMDS_V2_BIT)
 
 #define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
 
@@ -143,6 +147,18 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
     return port_state->vmware_vmx_version;
 }
 
+static uint32_t vmport_cmd_get_bios_uuid(void *opaque, uint32_t addr)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    uint32_t *uuid_parts = (uint32_t *)(qemu_uuid.data);
+
+    cpu->env.regs[R_EAX] = le32_to_cpu(uuid_parts[0]);
+    cpu->env.regs[R_EBX] = le32_to_cpu(uuid_parts[1]);
+    cpu->env.regs[R_ECX] = le32_to_cpu(uuid_parts[2]);
+    cpu->env.regs[R_EDX] = le32_to_cpu(uuid_parts[3]);
+    return cpu->env.regs[R_EAX];
+}
+
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
@@ -170,9 +186,13 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &s->io, 0x5658);
 
     port_state = s;
+
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
+    if (s->compat_flags & VMPORT_COMPAT_CMDS_V2) {
+        vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
+    }
 }
 
 static Property vmport_properties[] = {
@@ -183,6 +203,8 @@ static Property vmport_properties[] = {
                     VMPORT_COMPAT_SIGNAL_UNSUPPORTED_CMD_BIT, true),
     DEFINE_PROP_BIT("x-report-vmx-type", VMPortState, compat_flags,
                     VMPORT_COMPAT_REPORT_VMX_TYPE_BIT, true),
+    DEFINE_PROP_BIT("x-cmds-v2", VMPortState, compat_flags,
+                    VMPORT_COMPAT_CMDS_V2_BIT, true),
 
     /* Default value taken from open-vm-tools code VERSION_MAGIC definition */
     DEFINE_PROP_UINT32("vmware-vmx-version", VMPortState,
