@@ -30,6 +30,7 @@
 #include "hw/qdev-properties.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
+#include "qemu/log.h"
 
 /*
  * VIAs: There are two in every machine,
@@ -381,8 +382,10 @@ static void via2_irq_request(void *opaque, int irq, int level)
 static void pram_update(MacVIAState *m)
 {
     if (m->blk) {
-        blk_pwrite(m->blk, 0, m->mos6522_via1.PRAM,
-                   sizeof(m->mos6522_via1.PRAM), 0);
+        if (blk_pwrite(m->blk, 0, m->mos6522_via1.PRAM,
+                       sizeof(m->mos6522_via1.PRAM), 0) < 0) {
+            qemu_log("pram_update: cannot write to file\n");
+        }
     }
 }
 
