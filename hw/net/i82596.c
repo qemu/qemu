@@ -497,7 +497,8 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
     uint32_t rfd_p;
     uint32_t rbd;
     uint16_t is_broadcast = 0;
-    size_t len = sz;
+    size_t len = sz; /* length of data for guest (including CRC) */
+    size_t bufsz = sz; /* length of data in buf */
     uint32_t crc;
     uint8_t *crc_ptr;
     uint8_t buf1[MIN_BUF_SIZE + VLAN_HLEN];
@@ -591,6 +592,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
         if (len < MIN_BUF_SIZE) {
             len = MIN_BUF_SIZE;
         }
+        bufsz = len;
     }
 
     /* Calculate the ethernet checksum (4 bytes) */
@@ -623,6 +625,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
         while (len) {
             uint16_t buffer_size, num;
             uint32_t rba;
+            size_t bufcount, crccount;
 
             /* printf("Receive: rbd is %08x\n", rbd); */
             buffer_size = get_uint16(rbd + 12);
@@ -635,14 +638,37 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
             }
             rba = get_uint32(rbd + 8);
             /* printf("rba is 0x%x\n", rba); */
-            address_space_write(&address_space_memory, rba,
-                                MEMTXATTRS_UNSPECIFIED, buf, num);
-            rba += num;
-            buf += num;
-            len -= num;
-            if (len == 0) { /* copy crc */
-                address_space_write(&address_space_memory, rba - 4,
-                                    MEMTXATTRS_UNSPECIFIED, crc_ptr, 4);
+            /*
+             * Calculate how many bytes we want from buf[] and how many
+             * from the CRC.
+             */
+            if ((len - num) >= 4) {
+                /* The whole guest buffer, we haven't hit the CRC yet */
+                bufcount = num;
+            } else {
+                /* All that's left of buf[] */
+                bufcount = len - 4;
+            }
+            crccount = num - bufcount;
+
+            if (bufcount > 0) {
+                /* Still some of the actual data buffer to transfer */
+                assert(bufsz >= bufcount);
+                bufsz -= bufcount;
+                address_space_write(&address_space_memory, rba,
+                                    MEMTXATTRS_UNSPECIFIED, buf, bufcount);
+                rba += bufcount;
+                buf += bufcount;
+                len -= bufcount;
+            }
+
+            /* Write as much of the CRC as fits */
+            if (crccount > 0) {
+                address_space_write(&address_space_memory, rba,
+                                    MEMTXATTRS_UNSPECIFIED, crc_ptr, crccount);
+                rba += crccount;
+                crc_ptr += crccount;
+                len -= crccount;
             }
 
             num |= 0x4000; /* set F BIT */
