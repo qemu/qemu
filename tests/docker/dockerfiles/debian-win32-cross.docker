@@ -9,7 +9,7 @@ MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
 ENV TARGET i686
 
-ENV PATH $PATH:/usr/lib/mxe/usr/$TARGET-w64-mingw32.shared/bin
+ENV PATH $PATH:/usr/lib/mxe/usr/bin:/usr/lib/mxe/usr/$TARGET-w64-mingw32.shared/bin
 
 ENV PKG_CONFIG_PATH \
     $PKG_CONFIG_PATH:/usr/lib/mxe/usr/$TARGET-w64-mingw32.shared/lib/pkgconfig
