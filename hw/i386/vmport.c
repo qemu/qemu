@@ -30,10 +30,10 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
+#include "hw/i386/vmport.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/log.h"
-#include "vmport.h"
 #include "cpu.h"
 #include "trace.h"
 

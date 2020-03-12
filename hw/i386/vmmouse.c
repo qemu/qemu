@@ -25,10 +25,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "ui/console.h"
+#include "hw/i386/vmport.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "vmport.h"
 #include "cpu.h"
 
 /* debug only vmmouse */
