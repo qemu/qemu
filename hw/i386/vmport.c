@@ -54,6 +54,13 @@
 #define VMPORT_COMPAT_CMDS_V2                   \
     (1 << VMPORT_COMPAT_CMDS_V2_BIT)
 
+/* vCPU features reported by CMD_GET_VCPU_INFO */
+#define VCPU_INFO_SLC64_BIT             0
+#define VCPU_INFO_SYNC_VTSCS_BIT        1
+#define VCPU_INFO_HV_REPLAY_OK_BIT      2
+#define VCPU_INFO_LEGACY_X2APIC_BIT     3
+#define VCPU_INFO_RESERVED_BIT          31
+
 #define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
 
 typedef struct VMPortState {
@@ -167,6 +174,11 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
     return ram_size;
 }
 
+static uint32_t vmport_cmd_get_vcpu_info(void *opaque, uint32_t addr)
+{
+    return 1 << VCPU_INFO_RESERVED_BIT;
+}
+
 static const MemoryRegionOps vmport_ops = {
     .read = vmport_ioport_read,
     .write = vmport_ioport_write,
@@ -192,6 +204,8 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
     if (s->compat_flags & VMPORT_COMPAT_CMDS_V2) {
         vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
+        vmport_register(VMPORT_CMD_GET_VCPU_INFO, vmport_cmd_get_vcpu_info,
+                        NULL);
     }
 }
 
