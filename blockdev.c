@@ -1470,8 +1470,7 @@ static void external_snapshot_prepare(BlkActionState *common,
                              DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
     AioContext *aio_context;
-    AioContext *old_context;
-    int ret;
+    uint64_t perm, shared;
 
     /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
      * purpose but a different set of parameters */
@@ -1586,13 +1585,14 @@ static void external_snapshot_prepare(BlkActionState *common,
         goto out;
     }
 
-    if (bdrv_has_blk(state->new_bs)) {
+    /*
+     * Allow attaching a backing file to an overlay that's already in use only
+     * if the parents don't assume that they are already seeing a valid image.
+     * (Specifically, allow it as a mirror target, which is write-only access.)
+     */
+    bdrv_get_cumulative_perm(state->new_bs, &perm, &shared);
+    if (perm & BLK_PERM_CONSISTENT_READ) {
         error_setg(errp, "The overlay is already in use");
-        goto out;
-    }
-
-    if (bdrv_op_is_blocked(state->new_bs, BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,
-                           errp)) {
         goto out;
     }
 
@@ -1603,20 +1603,6 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     if (!state->new_bs->drv->supports_backing) {
         error_setg(errp, "The overlay does not support backing images");
-        goto out;
-    }
-
-    /* Honor bdrv_try_set_aio_context() context acquisition requirements. */
-    old_context = bdrv_get_aio_context(state->new_bs);
-    aio_context_release(aio_context);
-    aio_context_acquire(old_context);
-
-    ret = bdrv_try_set_aio_context(state->new_bs, aio_context, errp);
-
-    aio_context_release(old_context);
-    aio_context_acquire(aio_context);
-
-    if (ret < 0) {
         goto out;
     }
 

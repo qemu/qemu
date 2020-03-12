@@ -82,7 +82,7 @@ Formatting 'TEST_DIR/12-snapshot-v0.IMGFMT', fmt=IMGFMT size=134217728 backing_f
 === Invalid command - cannot create a snapshot using a file BDS ===
 
 { 'execute': 'blockdev-snapshot', 'arguments': { 'node':'virtio0', 'overlay':'file_12' } }
-{"error": {"class": "GenericError", "desc": "The overlay does not support backing images"}}
+{"error": {"class": "GenericError", "desc": "The overlay is already in use"}}
 
 === Invalid command - snapshot node used as active layer ===
 
@@ -96,7 +96,7 @@ Formatting 'TEST_DIR/12-snapshot-v0.IMGFMT', fmt=IMGFMT size=134217728 backing_f
 === Invalid command - snapshot node used as backing hd ===
 
 { 'execute': 'blockdev-snapshot', 'arguments': { 'node': 'virtio0', 'overlay':'snap_11' } }
-{"error": {"class": "GenericError", "desc": "Node 'snap_11' is busy: node is used as backing hd of 'snap_12'"}}
+{"error": {"class": "GenericError", "desc": "The overlay is already in use"}}
 
 === Invalid command - snapshot node has a backing image ===
 
