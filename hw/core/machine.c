@@ -45,6 +45,7 @@ GlobalProperty hw_compat_4_2[] = {
     { "fw_cfg", "acpi-mr-restore", "false" },
     { "vmport", "x-read-set-eax", "off" },
     { "vmport", "x-signal-unsupported-cmd", "off" },
+    { "vmport", "x-report-vmx-type", "off" },
 };
 const size_t hw_compat_4_2_len = G_N_ELEMENTS(hw_compat_4_2);
 
