@@ -43,6 +43,11 @@
 #define VMPORT_ENTRIES 0x2c
 #define VMPORT_MAGIC   0x564D5868
 
+/* Compatibility flags for migration */
+#define VMPORT_COMPAT_READ_SET_EAX_BIT      0
+#define VMPORT_COMPAT_READ_SET_EAX          \
+    (1 << VMPORT_COMPAT_READ_SET_EAX_BIT)
+
 #define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
 
 typedef struct VMPortState {
@@ -51,6 +56,8 @@ typedef struct VMPortState {
     MemoryRegion io;
     VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
+
+    uint32_t compat_flags;
 } VMPortState;
 
 static VMPortState *port_state;
@@ -80,17 +87,33 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC) {
-        return eax;
+        goto out;
     }
 
     command = env->regs[R_ECX];
     trace_vmport_command(command);
     if (command >= VMPORT_ENTRIES || !s->func[command]) {
         qemu_log_mask(LOG_UNIMP, "vmport: unknown command %x\n", command);
-        return eax;
+        goto out;
     }
 
-    return s->func[command](s->opaque[command], addr);
+    eax = s->func[command](s->opaque[command], addr);
+
+out:
+    /*
+     * The call above to cpu_synchronize_state() gets vCPU registers values
+     * to QEMU but also cause QEMU to write QEMU vCPU registers values to
+     * vCPU implementation (e.g. Accelerator such as KVM) just before
+     * resuming guest.
+     *
+     * Therefore, in order to make IOPort return value propagate to
+     * guest EAX, we need to explicitly update QEMU EAX register value.
+     */
+    if (s->compat_flags & VMPORT_COMPAT_READ_SET_EAX) {
+        cpu->env.regs[R_EAX] = eax;
+    }
+
+    return eax;
 }
 
 static void vmport_ioport_write(void *opaque, hwaddr addr,
@@ -142,6 +165,9 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property vmport_properties[] = {
+    /* Used to enforce compatibility for migration */
+    DEFINE_PROP_BIT("x-read-set-eax", VMPortState, compat_flags,
+                    VMPORT_COMPAT_READ_SET_EAX_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
