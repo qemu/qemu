@@ -838,10 +838,8 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
 void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
 {
     BlockJobInfoList *list;
-    Error *err = NULL;
 
-    list = qmp_query_block_jobs(&err);
-    assert(!err);
+    list = qmp_query_block_jobs(&error_abort);
 
     if (!list) {
         monitor_printf(mon, "No active jobs\n");

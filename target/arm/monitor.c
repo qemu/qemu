@@ -206,9 +206,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
             return NULL;
         }
     } else {
-        Error *err = NULL;
-        arm_cpu_finalize_features(ARM_CPU(obj), &err);
-        assert(err == NULL);
+        arm_cpu_finalize_features(ARM_CPU(obj), &error_abort);
     }
 
     expansion_info = g_new0(CpuModelExpansionInfo, 1);
@@ -221,12 +219,10 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     while ((name = cpu_model_advertised_features[i++]) != NULL) {
         ObjectProperty *prop = object_property_find(obj, name, NULL);
         if (prop) {
-            Error *err = NULL;
             QObject *value;
 
             assert(prop->get);
-            value = object_property_get_qobject(obj, name, &err);
-            assert(!err);
+            value = object_property_get_qobject(obj, name, &error_abort);
 
             qdict_put_obj(qdict_out, name, value);
         }
