@@ -3789,6 +3789,22 @@ void qemu_init(int argc, char **argv, char **envp)
      */
     loc_set_none();
 
+    /*
+     * Check for -cpu help and -device help before we call select_machine(),
+     * which will return an error if the architecture has no default machine
+     * type and the user did not specify one, so that the user doesn't need
+     * to say '-cpu help -machine something'.
+     */
+    if (cpu_option && is_help_option(cpu_option)) {
+        list_cpus(cpu_option);
+        exit(0);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                          device_help_func, NULL, NULL)) {
+        exit(0);
+    }
+
     user_register_global_props();
 
     replay_configure(icount_opts);
@@ -3875,11 +3891,6 @@ void qemu_init(int argc, char **argv, char **envp)
 
     if (machine_class->hw_version) {
         qemu_set_hw_version(machine_class->hw_version);
-    }
-
-    if (cpu_option && is_help_option(cpu_option)) {
-        list_cpus(cpu_option);
-        exit(0);
     }
 
     if (!trace_init_backends()) {
@@ -4111,11 +4122,6 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_opts_foreach(qemu_find_opts("fsdev"),
                       fsdev_init_func, NULL, &error_fatal);
 #endif
-
-    if (qemu_opts_foreach(qemu_find_opts("device"),
-                          device_help_func, NULL, NULL)) {
-        exit(0);
-    }
 
     /*
      * Note: we need to create block backends before
