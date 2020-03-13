@@ -540,6 +540,10 @@
 #                      compression, so set the decompress-threads to the number about 1/4
 #                      of compress-threads is adequate.
 #
+# @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
+#                              to trigger throttling. It is expressed as percentage.
+#                              The default value is 50. (Since 5.0)
+#
 # @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
 #                        when migration auto-converge is activated. The
 #                        default value is 20. (Since 2.7)
@@ -625,7 +629,7 @@
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
            'compress-level', 'compress-threads', 'decompress-threads',
-           'compress-wait-thread',
+           'compress-wait-thread', 'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
@@ -659,6 +663,10 @@
 #                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
+#
+# @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
+#                              to trigger throttling. It is expressed as percentage.
+#                              The default value is 50. (Since 5.0)
 #
 # @cpu-throttle-initial: Initial percentage of time guest cpus are
 #                        throttled when migration auto-converge is activated.
@@ -752,6 +760,7 @@
             '*compress-threads': 'int',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'int',
+            '*throttle-trigger-threshold': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'StrOrNull',
@@ -812,6 +821,10 @@
 #                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
+#
+# @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
+#                              to trigger throttling. It is expressed as percentage.
+#                              The default value is 50. (Since 5.0)
 #
 # @cpu-throttle-initial: Initial percentage of time guest cpus are
 #                        throttled when migration auto-converge is activated.
@@ -905,6 +918,7 @@
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
+            '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
             '*tls-creds': 'str',

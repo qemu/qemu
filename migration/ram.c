@@ -896,11 +896,38 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     }
 }
 
+static void migration_trigger_throttle(RAMState *rs)
+{
+    MigrationState *s = migrate_get_current();
+    uint64_t threshold = s->parameters.throttle_trigger_threshold;
+
+    uint64_t bytes_xfer_period = ram_counters.transferred - rs->bytes_xfer_prev;
+    uint64_t bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
+    uint64_t bytes_dirty_threshold = bytes_xfer_period * threshold / 100;
+
+    /* During block migration the auto-converge logic incorrectly detects
+     * that ram migration makes no progress. Avoid this by disabling the
+     * throttling logic during the bulk phase of block migration. */
+    if (migrate_auto_converge() && !blk_mig_bulk_active()) {
+        /* The following detection logic can be refined later. For now:
+           Check to see if the ratio between dirtied bytes and the approx.
+           amount of bytes that just got transferred since the last time
+           we were in this routine reaches the threshold. If that happens
+           twice, start or increase throttling. */
+
+        if ((bytes_dirty_period > bytes_dirty_threshold) &&
+            (++rs->dirty_rate_high_cnt >= 2)) {
+            trace_migration_throttle();
+            rs->dirty_rate_high_cnt = 0;
+            mig_throttle_guest_down();
+        }
+    }
+}
+
 static void migration_bitmap_sync(RAMState *rs)
 {
     RAMBlock *block;
     int64_t end_time;
-    uint64_t bytes_xfer_now;
 
     ram_counters.dirty_sync_count++;
 
@@ -927,26 +954,7 @@ static void migration_bitmap_sync(RAMState *rs)
 
     /* more than 1 second = 1000 millisecons */
     if (end_time > rs->time_last_bitmap_sync + 1000) {
-        bytes_xfer_now = ram_counters.transferred;
-
-        /* During block migration the auto-converge logic incorrectly detects
-         * that ram migration makes no progress. Avoid this by disabling the
-         * throttling logic during the bulk phase of block migration. */
-        if (migrate_auto_converge() && !blk_mig_bulk_active()) {
-            /* The following detection logic can be refined later. For now:
-               Check to see if the dirtied bytes is 50% more than the approx.
-               amount of bytes that just got transferred since the last time we
-               were in this routine. If that happens twice, start or increase
-               throttling */
-
-            if ((rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
-                   (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
-                (++rs->dirty_rate_high_cnt >= 2)) {
-                    trace_migration_throttle();
-                    rs->dirty_rate_high_cnt = 0;
-                    mig_throttle_guest_down();
-            }
-        }
+        migration_trigger_throttle(rs);
 
         migration_update_rates(rs, end_time);
 
@@ -955,7 +963,7 @@ static void migration_bitmap_sync(RAMState *rs)
         /* reset period counters */
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;
-        rs->bytes_xfer_prev = bytes_xfer_now;
+        rs->bytes_xfer_prev = ram_counters.transferred;
     }
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(ram_counters.dirty_sync_count);
@@ -2734,7 +2742,7 @@ static inline void *host_from_ram_block_offset(RAMBlock *block,
 }
 
 static inline void *colo_cache_from_block_offset(RAMBlock *block,
-                                                 ram_addr_t offset)
+                             ram_addr_t offset, bool record_bitmap)
 {
     if (!offset_in_ramblock(block, offset)) {
         return NULL;
@@ -2750,7 +2758,8 @@ static inline void *colo_cache_from_block_offset(RAMBlock *block,
     * It help us to decide which pages in ram cache should be flushed
     * into VM's RAM later.
     */
-    if (!test_and_set_bit(offset >> TARGET_PAGE_BITS, block->bmap)) {
+    if (record_bitmap &&
+        !test_and_set_bit(offset >> TARGET_PAGE_BITS, block->bmap)) {
         ram_state->migration_dirty_pages++;
     }
     return block->colo_cache + offset;
@@ -2986,7 +2995,6 @@ int colo_init_ram_cache(void)
                 }
                 return -errno;
             }
-            memcpy(block->colo_cache, block->host, block->used_length);
         }
     }
 
@@ -3000,17 +3008,34 @@ int colo_init_ram_cache(void)
 
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             unsigned long pages = block->max_length >> TARGET_PAGE_BITS;
-
             block->bmap = bitmap_new(pages);
-            bitmap_set(block->bmap, 0, pages);
         }
     }
-    ram_state = g_new0(RAMState, 1);
-    ram_state->migration_dirty_pages = 0;
-    qemu_mutex_init(&ram_state->bitmap_mutex);
-    memory_global_dirty_log_start();
 
+    ram_state_init(&ram_state);
     return 0;
+}
+
+/* TODO: duplicated with ram_init_bitmaps */
+void colo_incoming_start_dirty_log(void)
+{
+    RAMBlock *block = NULL;
+    /* For memory_global_dirty_log_start below. */
+    qemu_mutex_lock_iothread();
+    qemu_mutex_lock_ramlist();
+
+    memory_global_dirty_log_sync();
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            ramblock_sync_dirty_bitmap(ram_state, block);
+            /* Discard this dirty bitmap record */
+            bitmap_zero(block->bmap, block->max_length >> TARGET_PAGE_BITS);
+        }
+        memory_global_dirty_log_start();
+    }
+    ram_state->migration_dirty_pages = 0;
+    qemu_mutex_unlock_ramlist();
+    qemu_mutex_unlock_iothread();
 }
 
 /* It is need to hold the global lock to call this helper */
@@ -3032,9 +3057,7 @@ void colo_release_ram_cache(void)
             }
         }
     }
-    qemu_mutex_destroy(&ram_state->bitmap_mutex);
-    g_free(ram_state);
-    ram_state = NULL;
+    ram_state_cleanup(&ram_state);
 }
 
 /**
@@ -3348,7 +3371,7 @@ static int ram_load_precopy(QEMUFile *f)
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr, total_ram_bytes;
-        void *host = NULL;
+        void *host = NULL, *host_bak = NULL;
         uint8_t ch;
 
         /*
@@ -3379,20 +3402,35 @@ static int ram_load_precopy(QEMUFile *f)
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
             RAMBlock *block = ram_block_from_stream(f, flags);
 
+            host = host_from_ram_block_offset(block, addr);
             /*
-             * After going into COLO, we should load the Page into colo_cache.
+             * After going into COLO stage, we should not load the page
+             * into SVM's memory directly, we put them into colo_cache firstly.
+             * NOTE: We need to keep a copy of SVM's ram in colo_cache.
+             * Previously, we copied all these memory in preparing stage of COLO
+             * while we need to stop VM, which is a time-consuming process.
+             * Here we optimize it by a trick, back-up every page while in
+             * migration process while COLO is enabled, though it affects the
+             * speed of the migration, but it obviously reduce the downtime of
+             * back-up all SVM'S memory in COLO preparing stage.
              */
-            if (migration_incoming_in_colo_state()) {
-                host = colo_cache_from_block_offset(block, addr);
-            } else {
-                host = host_from_ram_block_offset(block, addr);
+            if (migration_incoming_colo_enabled()) {
+                if (migration_incoming_in_colo_state()) {
+                    /* In COLO stage, put all pages into cache temporarily */
+                    host = colo_cache_from_block_offset(block, addr, true);
+                } else {
+                   /*
+                    * In migration stage but before COLO stage,
+                    * Put all pages into both cache and SVM's memory.
+                    */
+                    host_bak = colo_cache_from_block_offset(block, addr, false);
+                }
             }
             if (!host) {
                 error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
                 break;
             }
-
             if (!migration_incoming_in_colo_state()) {
                 ramblock_recv_bitmap_set(block, host);
             }
@@ -3505,6 +3543,9 @@ static int ram_load_precopy(QEMUFile *f)
         }
         if (!ret) {
             ret = qemu_file_get_error(f);
+        }
+        if (!ret && host_bak) {
+            memcpy(host_bak, host, TARGET_PAGE_SIZE);
         }
     }
 
