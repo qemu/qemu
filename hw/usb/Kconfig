@@ -91,3 +91,8 @@ config USB_STORAGE_MTP
     bool
     default y
     depends on USB
+
+config IMX_USBPHY
+    bool
+    default y
+    depends on USB
