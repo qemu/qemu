@@ -113,10 +113,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
     }
 
     level = (d->config[0x70] & 0x80) || (d->config[0x78] & 0x80);
-    n = pci_get_byte(d->config + PCI_INTERRUPT_LINE);
-    if (n) {
-        qemu_set_irq(isa_get_irq(NULL, n), level);
-    }
+    qemu_set_irq(isa_get_irq(NULL, 14 + n), level);
 }
 
 static void via_ide_reset(DeviceState *dev)
