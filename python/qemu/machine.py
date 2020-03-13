@@ -359,6 +359,7 @@ class QEMUMachine(object):
                     if not has_quit:
                         self._qmp.cmd('quit')
                     self._qmp.close()
+                    self._popen.wait(timeout=3)
                 except:
                     self._popen.kill()
             self._popen.wait()
