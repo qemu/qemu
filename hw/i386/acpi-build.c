@@ -2512,6 +2512,34 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);
 }
+
+/*
+ * Windows ACPI Emulated Devices Table
+ * (Version 1.0 - April 6, 2009)
+ * Spec: http://download.microsoft.com/download/7/E/7/7E7662CF-CBEA-470B-A97E-CE7CE0D98DC2/WAET.docx
+ *
+ * Helpful to speedup Windows guests and ignored by others.
+ */
+static void
+build_waet(GArray *table_data, BIOSLinker *linker)
+{
+    int waet_start = table_data->len;
+
+    /* WAET header */
+    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+    /*
+     * Set "ACPI PM timer good" flag.
+     *
+     * Tells Windows guests that our ACPI PM timer is reliable in the
+     * sense that guest can read it only once to obtain a reliable value.
+     * Which avoids costly VMExits caused by guest re-reading it unnecessarily.
+     */
+    build_append_int_noprefix(table_data, 1 << 1 /* ACPI PM timer good */, 4);
+
+    build_header(linker, table_data, (void *)(table_data->data + waet_start),
+                 "WAET", table_data->len - waet_start, 1, NULL, NULL);
+}
+
 /*
  *   IVRS table as specified in AMD IOMMU Specification v2.62, Section 5.2
  *   accessible here http://support.amd.com/TechDocs/48882_IOMMU.pdf
@@ -2858,6 +2886,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
                           machine->nvdimms_state, machine->ram_slots);
     }
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_waet(tables_blob, tables->linker);
 
     /* Add tables supplied by user (if any) */
     for (u = acpi_table_first(); u; u = acpi_table_next(u)) {
