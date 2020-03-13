@@ -925,7 +925,7 @@ class QMPTestCase(unittest.TestCase):
         self.assert_qmp(event, 'data/type', 'mirror')
 
     def pause_wait(self, job_id='job0'):
-        with Timeout(1, "Timeout waiting for job to pause"):
+        with Timeout(3, "Timeout waiting for job to pause"):
             while True:
                 result = self.vm.qmp('query-block-jobs')
                 found = False
