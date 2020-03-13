@@ -30,11 +30,14 @@ import logging
 import atexit
 import io
 from collections import OrderedDict
+import faulthandler
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qtest
 
 assert sys.version_info >= (3,6)
+
+faulthandler.enable()
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
