@@ -7314,6 +7314,38 @@ static void translate_sub_s(DisasContext *dc, const OpcodeArg arg[],
     }
 }
 
+static void translate_mkdadj_d(DisasContext *dc, const OpcodeArg arg[],
+                               const uint32_t par[])
+{
+    gen_helper_mkdadj_d(arg[0].out, cpu_env, arg[0].in, arg[1].in);
+}
+
+static void translate_mkdadj_s(DisasContext *dc, const OpcodeArg arg[],
+                               const uint32_t par[])
+{
+    OpcodeArg arg32[2];
+
+    get_f32_o1_i2(arg, arg32, 0, 0, 1);
+    gen_helper_mkdadj_s(arg32[0].out, cpu_env, arg32[0].in, arg32[1].in);
+    put_f32_o1_i2(arg, arg32, 0, 0, 1);
+}
+
+static void translate_mksadj_d(DisasContext *dc, const OpcodeArg arg[],
+                               const uint32_t par[])
+{
+    gen_helper_mksadj_d(arg[0].out, cpu_env, arg[1].in);
+}
+
+static void translate_mksadj_s(DisasContext *dc, const OpcodeArg arg[],
+                               const uint32_t par[])
+{
+    OpcodeArg arg32[2];
+
+    get_f32_o1_i1(arg, arg32, 0, 1);
+    gen_helper_mksadj_s(arg32[0].out, cpu_env, arg32[1].in);
+    put_f32_o1_i1(arg, arg32, 0, 1);
+}
+
 static void translate_wur_fpu_fcr(DisasContext *dc, const OpcodeArg arg[],
                                   const uint32_t par[])
 {
@@ -7350,6 +7382,22 @@ static const XtensaOpcodeOps fpu_ops[] = {
         .translate = translate_add_s,
         .coprocessor = 0x1,
     }, {
+        .name = "addexp.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "addexp.s",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "addexpm.d",
+        .translate = translate_mov_s,
+        .coprocessor = 0x1,
+    }, {
+        .name = "addexpm.s",
+        .translate = translate_mov_s,
+        .coprocessor = 0x1,
+    }, {
         .name = "ceil.d",
         .translate = translate_ftoi_d,
         .par = (const uint32_t[]){float_round_up, false},
@@ -7374,6 +7422,22 @@ static const XtensaOpcodeOps fpu_ops[] = {
     }, {
         .name = "cvts.d",
         .translate = translate_cvts_d,
+        .coprocessor = 0x1,
+    }, {
+        .name = "div0.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "div0.s",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "divn.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "divn.s",
+        .translate = translate_nop,
         .coprocessor = 0x1,
     }, {
         .name = "float.d",
@@ -7476,6 +7540,30 @@ static const XtensaOpcodeOps fpu_ops[] = {
         .translate = translate_madd_s,
         .coprocessor = 0x1,
     }, {
+        .name = "maddn.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "maddn.s",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "mkdadj.d",
+        .translate = translate_mkdadj_d,
+        .coprocessor = 0x1,
+    }, {
+        .name = "mkdadj.s",
+        .translate = translate_mkdadj_s,
+        .coprocessor = 0x1,
+    }, {
+        .name = "mksadj.d",
+        .translate = translate_mksadj_d,
+        .coprocessor = 0x1,
+    }, {
+        .name = "mksadj.s",
+        .translate = translate_mksadj_s,
+        .coprocessor = 0x1,
+    }, {
         .name = "mov.d",
         .translate = translate_mov_d,
         .coprocessor = 0x1,
@@ -7566,6 +7654,14 @@ static const XtensaOpcodeOps fpu_ops[] = {
     }, {
         .name = "neg.s",
         .translate = translate_neg_s,
+        .coprocessor = 0x1,
+    }, {
+        .name = "nexp01.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "nexp01.s",
+        .translate = translate_nop,
         .coprocessor = 0x1,
     }, {
         .name = "oeq.d",
@@ -7659,6 +7755,14 @@ static const XtensaOpcodeOps fpu_ops[] = {
         .translate = translate_ldstx_d,
         .par = (const uint32_t[]){true, true, true},
         .op_flags = XTENSA_OP_STORE,
+        .coprocessor = 0x1,
+    }, {
+        .name = "sqrt0.d",
+        .translate = translate_nop,
+        .coprocessor = 0x1,
+    }, {
+        .name = "sqrt0.s",
+        .translate = translate_nop,
         .coprocessor = 0x1,
     }, {
         .name = "ssi",

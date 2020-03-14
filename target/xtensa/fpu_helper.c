@@ -231,6 +231,30 @@ float32 HELPER(msub_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
                           &env->fp_status);
 }
 
+float64 HELPER(mkdadj_d)(CPUXtensaState *env, float64 a, float64 b)
+{
+    set_use_first_nan(true, &env->fp_status);
+    return float64_div(b, a, &env->fp_status);
+}
+
+float32 HELPER(mkdadj_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    return float32_div(b, a, &env->fp_status);
+}
+
+float64 HELPER(mksadj_d)(CPUXtensaState *env, float64 v)
+{
+    set_use_first_nan(true, &env->fp_status);
+    return float64_sqrt(v, &env->fp_status);
+}
+
+float32 HELPER(mksadj_s)(CPUXtensaState *env, float32 v)
+{
+    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    return float32_sqrt(v, &env->fp_status);
+}
+
 uint32_t HELPER(ftoi_d)(CPUXtensaState *env, float64 v,
                         uint32_t rounding_mode, uint32_t scale)
 {
