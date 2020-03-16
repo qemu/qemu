@@ -88,14 +88,14 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
-QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                     bool allow_oob)
 {
     Error *err = NULL;
     bool oob;
     const char *command;
     QDict *args;
-    QmpCommand *cmd;
+    const QmpCommand *cmd;
     QDict *dict;
     QObject *id;
     QObject *ret = NULL;

@@ -359,7 +359,7 @@ static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 }
 
 /* disable commands that aren't safe for fsfreeze */
-static void ga_disable_non_whitelisted(QmpCommand *cmd, void *opaque)
+static void ga_disable_non_whitelisted(const QmpCommand *cmd, void *opaque)
 {
     bool whitelisted = false;
     int i = 0;
@@ -378,7 +378,7 @@ static void ga_disable_non_whitelisted(QmpCommand *cmd, void *opaque)
 }
 
 /* [re-]enable all commands, except those explicitly blacklisted by user */
-static void ga_enable_non_blacklisted(QmpCommand *cmd, void *opaque)
+static void ga_enable_non_blacklisted(const QmpCommand *cmd, void *opaque)
 {
     GList *blacklist = opaque;
     const char *name = qmp_command_name(cmd);
@@ -918,7 +918,7 @@ int64_t ga_get_fd_handle(GAState *s, Error **errp)
     return handle;
 }
 
-static void ga_print_cmd(QmpCommand *cmd, void *opaque)
+static void ga_print_cmd(const QmpCommand *cmd, void *opaque)
 {
     printf("%s\n", qmp_command_name(cmd));
 }
