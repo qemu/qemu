@@ -837,7 +837,7 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
 
     env->gpr[3] = rtas_addr + RTAS_ERROR_LOG_OFFSET;
     env->msr = msr;
-    env->nip = spapr->guest_machine_check_addr;
+    env->nip = spapr->fwnmi_machine_check_addr;
 
     g_free(ext_elog);
 }
@@ -849,7 +849,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
     int ret;
     Error *local_err = NULL;
 
-    if (spapr->guest_machine_check_addr == -1) {
+    if (spapr->fwnmi_machine_check_addr == -1) {
         /*
          * This implies that we have hit a machine check either when the
          * guest has not registered FWNMI (i.e., "ibm,nmi-register" not
@@ -861,19 +861,19 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         return;
     }
 
-    while (spapr->mc_status != -1) {
+    while (spapr->fwnmi_machine_check_interlock != -1) {
         /*
          * Check whether the same CPU got machine check error
          * while still handling the mc error (i.e., before
          * that CPU called "ibm,nmi-interlock")
          */
-        if (spapr->mc_status == cpu->vcpu_id) {
+        if (spapr->fwnmi_machine_check_interlock == cpu->vcpu_id) {
             qemu_system_guest_panicked(NULL);
             return;
         }
-        qemu_cond_wait_iothread(&spapr->mc_delivery_cond);
+        qemu_cond_wait_iothread(&spapr->fwnmi_machine_check_interlock_cond);
         /* Meanwhile if the system is reset, then just return */
-        if (spapr->guest_machine_check_addr == -1) {
+        if (spapr->fwnmi_machine_check_addr == -1) {
             return;
         }
     }
@@ -889,7 +889,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         warn_report("Received a fwnmi while migration was in progress");
     }
 
-    spapr->mc_status = cpu->vcpu_id;
+    spapr->fwnmi_machine_check_interlock = cpu->vcpu_id;
     spapr_mce_dispatch_elog(cpu, recovered);
 }
 

@@ -415,7 +415,7 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
 {
     hwaddr rtas_addr;
 
-    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI_MCE) == SPAPR_CAP_OFF) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_OFF) {
         rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
         return;
     }
@@ -426,7 +426,8 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
         return;
     }
 
-    spapr->guest_machine_check_addr = rtas_ld(args, 1);
+    spapr->fwnmi_machine_check_addr = rtas_ld(args, 1);
+
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
@@ -436,18 +437,18 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
                                    target_ulong args,
                                    uint32_t nret, target_ulong rets)
 {
-    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI_MCE) == SPAPR_CAP_OFF) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_OFF) {
         rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
         return;
     }
 
-    if (spapr->guest_machine_check_addr == -1) {
+    if (spapr->fwnmi_machine_check_addr == -1) {
         /* NMI register not called */
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    if (spapr->mc_status != cpu->vcpu_id) {
+    if (spapr->fwnmi_machine_check_interlock != cpu->vcpu_id) {
         /* The vCPU that hit the NMI should invoke "ibm,nmi-interlock" */
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
@@ -455,10 +456,10 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
 
     /*
      * vCPU issuing "ibm,nmi-interlock" is done with NMI handling,
-     * hence unset mc_status.
+     * hence unset fwnmi_machine_check_interlock.
      */
-    spapr->mc_status = -1;
-    qemu_cond_signal(&spapr->mc_delivery_cond);
+    spapr->fwnmi_machine_check_interlock = -1;
+    qemu_cond_signal(&spapr->fwnmi_machine_check_interlock_cond);
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     migrate_del_blocker(spapr->fwnmi_migration_blocker);
 }

@@ -13,6 +13,6 @@ void qtest_spapr_shutdown(QOSState *qs);
     "cap-sbbc=broken,"                           \
     "cap-ibs=broken,"                            \
     "cap-ccf-assist=off,"                        \
-    "cap-fwnmi-mce=off"
+    "cap-fwnmi=off"
 
 #endif

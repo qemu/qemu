@@ -79,10 +79,10 @@ typedef enum {
 #define SPAPR_CAP_LARGE_DECREMENTER     0x08
 /* Count Cache Flush Assist HW Instruction */
 #define SPAPR_CAP_CCF_ASSIST            0x09
-/* FWNMI machine check handling */
-#define SPAPR_CAP_FWNMI_MCE             0x0A
+/* Implements PAPR FWNMI option */
+#define SPAPR_CAP_FWNMI                 0x0A
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_FWNMI_MCE + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_FWNMI + 1)
 
 /*
  * Capability Values
@@ -192,14 +192,21 @@ struct SpaprMachineState {
      * occurs during the unplug process. */
     QTAILQ_HEAD(, SpaprDimmState) pending_dimm_unplugs;
 
-    /* State related to "ibm,nmi-register" and "ibm,nmi-interlock" calls */
-    target_ulong guest_machine_check_addr;
-    /*
-     * mc_status is set to -1 if mc is not in progress, else is set to the CPU
-     * handling the mc.
+    /* State related to FWNMI option */
+
+    /* Machine Check Notification Routine address
+     * registered by "ibm,nmi-register" RTAS call.
      */
-    int mc_status;
-    QemuCond mc_delivery_cond;
+    target_ulong fwnmi_machine_check_addr;
+
+    /* Machine Check FWNMI synchronization, fwnmi_machine_check_interlock is
+     * set to -1 if a FWNMI machine check is not in progress, else is set to
+     * the CPU that was delivered the machine check, and is set back to -1
+     * when that CPU makes an "ibm,nmi-interlock" RTAS call. The cond is used
+     * to synchronize other CPUs.
+     */
+    int fwnmi_machine_check_interlock;
+    QemuCond fwnmi_machine_check_interlock_cond;
 
     /*< public >*/
     char *kvm_type;
