@@ -360,15 +360,16 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
 {
-    int first_len, len;
+    const int max_packet_size = desc_iface0.eps[0].wMaxPacketSize;
+    int packet_len;
     uint8_t header[2];
 
-    first_len = RECV_BUF - s->recv_ptr;
-    len = p->iov.size;
-    if (len <= 2) {
+    packet_len = p->iov.size;
+    if (packet_len <= 2) {
         p->status = USB_RET_NAK;
         return;
     }
+
     header[0] = usb_get_modem_lines(s) | 1;
     /* We do not have the uart details */
     /* handle serial break */
@@ -380,24 +381,34 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
     } else {
         header[1] = 0;
     }
-    len -= 2;
-    if (len > s->recv_used) {
-        len = s->recv_used;
-    }
-    if (!len) {
+
+    if (!s->recv_used) {
         p->status = USB_RET_NAK;
         return;
     }
-    if (first_len > len) {
-        first_len = len;
+
+    while (s->recv_used && packet_len > 2) {
+        int first_len, len;
+
+        len = MIN(packet_len, max_packet_size);
+        len -= 2;
+        if (len > s->recv_used) {
+            len = s->recv_used;
+        }
+
+        first_len = RECV_BUF - s->recv_ptr;
+        if (first_len > len) {
+            first_len = len;
+        }
+        usb_packet_copy(p, header, 2);
+        usb_packet_copy(p, s->recv_buf + s->recv_ptr, first_len);
+        if (len > first_len) {
+            usb_packet_copy(p, s->recv_buf, len - first_len);
+        }
+        s->recv_used -= len;
+        s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
+        packet_len -= len + 2;
     }
-    usb_packet_copy(p, header, 2);
-    usb_packet_copy(p, s->recv_buf + s->recv_ptr, first_len);
-    if (len > first_len) {
-        usb_packet_copy(p, s->recv_buf, len - first_len);
-    }
-    s->recv_used -= len;
-    s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
 
     return;
 }
