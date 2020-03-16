@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/pci/pci.h"
 #include "cpu.h"
 #include "qemu/cutils.h"
