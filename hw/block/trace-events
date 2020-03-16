@@ -134,3 +134,19 @@ xen_block_blockdev_add(char *str) "%s"
 xen_block_blockdev_del(const char *node_name) "%s"
 xen_block_device_create(unsigned int number) "%u"
 xen_block_device_destroy(unsigned int number) "%u"
+
+# m25p80.c
+m25p80_flash_erase(void *s, int offset, uint32_t len) "[%p] offset = 0x%"PRIx32", len = %u"
+m25p80_programming_zero_to_one(void *s, uint32_t addr, uint8_t prev, uint8_t data) "[%p] programming zero to one! addr=0x%"PRIx32"  0x%"PRIx8" -> 0x%"PRIx8
+m25p80_reset_done(void *s) "[%p] Reset done."
+m25p80_command_decoded(void *s, uint32_t cmd) "[%p] new command:0x%"PRIx32
+m25p80_complete_collecting(void *s, uint32_t cmd, int n, uint8_t ear, uint32_t cur_addr) "[%p] decode cmd: 0x%"PRIx32" len %d ear 0x%"PRIx8" addr 0x%"PRIx32
+m25p80_populated_jedec(void *s) "[%p] populated jedec code"
+m25p80_chip_erase(void *s) "[%p] chip erase"
+m25p80_select(void *s, const char *what) "[%p] %sselect"
+m25p80_page_program(void *s, uint32_t addr, uint8_t tx) "[%p] page program cur_addr=0x%"PRIx32" data=0x%"PRIx8
+m25p80_transfer(void *s, uint8_t state, uint32_t len, uint8_t needed, uint32_t pos, uint32_t cur_addr, uint8_t t) "[%p] Transfer state 0x%"PRIx8" len 0x%"PRIx32" needed 0x%"PRIx8" pos 0x%"PRIx32" addr 0x%"PRIx32" tx 0x%"PRIx8
+m25p80_read_byte(void *s, uint32_t addr, uint8_t v) "[%p] Read byte 0x%"PRIx32"=0x%"PRIx8
+m25p80_read_data(void *s, uint32_t pos, uint8_t v) "[%p] Read data 0x%"PRIx32"=0x%"PRIx8
+m25p80_binding(void *s) "[%p] Binding to IF_MTD drive"
+m25p80_binding_no_bdrv(void *s) "[%p] No BDRV - binding to RAM"
