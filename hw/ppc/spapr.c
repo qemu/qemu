@@ -3385,7 +3385,7 @@ static void spapr_machine_finalizefn(Object *obj)
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
     cpu_synchronize_state(cs);
-    ppc_cpu_do_system_reset(cs);
+    ppc_cpu_do_system_reset(cs, -1);
 }
 
 static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
