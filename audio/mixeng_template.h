@@ -41,32 +41,31 @@ static inline mixeng_real glue (conv_, ET) (IN_T v)
 
 #ifdef RECIPROCAL
 #ifdef SIGNED
-    return nv * (1.f / (mixeng_real) (IN_MAX - IN_MIN));
+    return nv * (2.f / ((mixeng_real)IN_MAX - IN_MIN));
 #else
-    return (nv - HALF) * (1.f / (mixeng_real) IN_MAX);
+    return (nv - HALF) * (2.f / (mixeng_real)IN_MAX);
 #endif
 #else  /* !RECIPROCAL */
 #ifdef SIGNED
-    return nv / (mixeng_real) ((mixeng_real) IN_MAX - IN_MIN);
+    return nv / (((mixeng_real)IN_MAX - IN_MIN) / 2.f);
 #else
-    return (nv - HALF) / (mixeng_real) IN_MAX;
+    return (nv - HALF) / ((mixeng_real)IN_MAX / 2.f);
 #endif
 #endif
 }
 
 static inline IN_T glue (clip_, ET) (mixeng_real v)
 {
-    if (v >= 0.5) {
+    if (v >= 1.f) {
         return IN_MAX;
-    }
-    else if (v < -0.5) {
+    } else if (v < -1.f) {
         return IN_MIN;
     }
 
 #ifdef SIGNED
-    return ENDIAN_CONVERT ((IN_T) (v * ((mixeng_real) IN_MAX - IN_MIN)));
+    return ENDIAN_CONVERT((IN_T)(v * (((mixeng_real)IN_MAX - IN_MIN) / 2.f)));
 #else
-    return ENDIAN_CONVERT ((IN_T) ((v * IN_MAX) + HALF));
+    return ENDIAN_CONVERT((IN_T)((v * ((mixeng_real)IN_MAX / 2.f)) + HALF));
 #endif
 }
 
@@ -84,10 +83,9 @@ static inline int64_t glue (conv_, ET) (IN_T v)
 
 static inline IN_T glue (clip_, ET) (int64_t v)
 {
-    if (v >= 0x7f000000) {
+    if (v >= 0x7fffffffLL) {
         return IN_MAX;
-    }
-    else if (v < -2147483648LL) {
+    } else if (v < -2147483648LL) {
         return IN_MIN;
     }
 

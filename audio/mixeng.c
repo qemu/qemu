@@ -268,17 +268,17 @@ f_sample *mixeng_clip[2][2][2][3] = {
 };
 
 #ifdef FLOAT_MIXENG
-#define FLOAT_CONV_TO(x) (x)
-#define FLOAT_CONV_FROM(x) (x)
+#define CONV_NATURAL_FLOAT(x) (x)
+#define CLIP_NATURAL_FLOAT(x) (x)
 #else
-static const float float_scale = UINT_MAX;
-#define FLOAT_CONV_TO(x) ((x) * float_scale)
+static const float float_scale = UINT_MAX / 2.f;
+#define CONV_NATURAL_FLOAT(x) ((x) * float_scale)
 
 #ifdef RECIPROCAL
-static const float float_scale_reciprocal = 1.f / UINT_MAX;
-#define FLOAT_CONV_FROM(x) ((x) * float_scale_reciprocal)
+static const float float_scale_reciprocal = 2.f / UINT_MAX;
+#define CLIP_NATURAL_FLOAT(x) ((x) * float_scale_reciprocal)
 #else
-#define FLOAT_CONV_FROM(x) ((x) / float_scale)
+#define CLIP_NATURAL_FLOAT(x) ((x) / float_scale)
 #endif
 #endif
 
@@ -288,7 +288,7 @@ static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
     float *in = (float *)src;
 
     while (samples--) {
-        dst->r = dst->l = FLOAT_CONV_TO(*in++);
+        dst->r = dst->l = CONV_NATURAL_FLOAT(*in++);
         dst++;
     }
 }
@@ -299,8 +299,8 @@ static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
     float *in = (float *)src;
 
     while (samples--) {
-        dst->l = FLOAT_CONV_TO(*in++);
-        dst->r = FLOAT_CONV_TO(*in++);
+        dst->l = CONV_NATURAL_FLOAT(*in++);
+        dst->r = CONV_NATURAL_FLOAT(*in++);
         dst++;
     }
 }
@@ -316,7 +316,7 @@ static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
     float *out = (float *)dst;
 
     while (samples--) {
-        *out++ = FLOAT_CONV_FROM(src->l) + FLOAT_CONV_FROM(src->r);
+        *out++ = CLIP_NATURAL_FLOAT(src->l + src->r);
         src++;
     }
 }
@@ -327,8 +327,8 @@ static void clip_natural_float_from_stereo(
     float *out = (float *)dst;
 
     while (samples--) {
-        *out++ = FLOAT_CONV_FROM(src->l);
-        *out++ = FLOAT_CONV_FROM(src->r);
+        *out++ = CLIP_NATURAL_FLOAT(src->l);
+        *out++ = CLIP_NATURAL_FLOAT(src->r);
         src++;
     }
 }

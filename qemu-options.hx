@@ -551,7 +551,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "                in|out.frequency= frequency to use with fixed settings\n"
     "                in|out.channels= number of channels to use with fixed settings\n"
     "                in|out.format= sample format to use with fixed settings\n"
-    "                valid values: s8, s16, s32, u8, u16, u32\n"
+    "                valid values: s8, s16, s32, u8, u16, u32, f32\n"
     "                in|out.voices= number of voices to use\n"
     "                in|out.buffer-length= length of buffer in microseconds\n"
     "-audiodev none,id=id,[,prop[=value][,...]]\n"
@@ -647,7 +647,7 @@ SRST
     ``in|out.format=format``
         Specify the sample format to use when using fixed-settings.
         Valid values are: ``s8``, ``s16``, ``s32``, ``u8``, ``u16``,
-        ``u32``. Default is ``s16``.
+        ``u32``, ``f32``. Default is ``s16``.
 
     ``in|out.voices=voices``
         Specify the number of voices to use. Default is 1.

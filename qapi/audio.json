@@ -273,6 +273,20 @@
 #
 # An enumeration of possible audio formats.
 #
+# @u8: unsigned 8 bit integer
+#
+# @s8: signed 8 bit integer
+#
+# @u16: unsigned 16 bit integer
+#
+# @s16: signed 16 bit integer
+#
+# @u32: unsigned 32 bit integer
+#
+# @s32: signed 32 bit integer
+#
+# @f32: single precision floating-point (since 5.0)
+#
 # Since: 4.0
 ##
 { 'enum': 'AudioFormat',
