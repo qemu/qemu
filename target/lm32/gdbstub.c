@@ -22,7 +22,7 @@
 #include "exec/gdbstub.h"
 #include "hw/lm32/lm32_pic.h"
 
-int lm32_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int lm32_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     LM32CPU *cpu = LM32_CPU(cs);
     CPULM32State *env = &cpu->env;

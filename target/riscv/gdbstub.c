@@ -270,7 +270,7 @@ static int csr_register_map[] = {
     CSR_MHCOUNTEREN,
 };
 
-int riscv_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
@@ -301,14 +301,14 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int riscv_gdb_get_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
+static int riscv_gdb_get_fpu(CPURISCVState *env, GByteArray *buf, int n)
 {
     if (n < 32) {
         if (env->misa & RVD) {
-            return gdb_get_reg64(mem_buf, env->fpr[n]);
+            return gdb_get_reg64(buf, env->fpr[n]);
         }
         if (env->misa & RVF) {
-            return gdb_get_reg32(mem_buf, env->fpr[n]);
+            return gdb_get_reg32(buf, env->fpr[n]);
         }
     /* there is hole between ft11 and fflags in fpu.xml */
     } else if (n < 36 && n > 32) {
@@ -322,7 +322,7 @@ static int riscv_gdb_get_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
         result = riscv_csrrw_debug(env, n - 33 + csr_register_map[8], &val,
                                    0, 0);
         if (result == 0) {
-            return gdb_get_regl(mem_buf, val);
+            return gdb_get_regl(buf, val);
         }
     }
     return 0;
@@ -351,7 +351,7 @@ static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int riscv_gdb_get_csr(CPURISCVState *env, uint8_t *mem_buf, int n)
+static int riscv_gdb_get_csr(CPURISCVState *env, GByteArray *buf, int n)
 {
     if (n < ARRAY_SIZE(csr_register_map)) {
         target_ulong val = 0;
@@ -359,7 +359,7 @@ static int riscv_gdb_get_csr(CPURISCVState *env, uint8_t *mem_buf, int n)
 
         result = riscv_csrrw_debug(env, csr_register_map[n], &val, 0, 0);
         if (result == 0) {
-            return gdb_get_regl(mem_buf, val);
+            return gdb_get_regl(buf, val);
         }
     }
     return 0;
@@ -379,13 +379,13 @@ static int riscv_gdb_set_csr(CPURISCVState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int riscv_gdb_get_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
+static int riscv_gdb_get_virtual(CPURISCVState *cs, GByteArray *buf, int n)
 {
     if (n == 0) {
 #ifdef CONFIG_USER_ONLY
-        return gdb_get_regl(mem_buf, 0);
+        return gdb_get_regl(buf, 0);
 #else
-        return gdb_get_regl(mem_buf, cs->priv);
+        return gdb_get_regl(buf, cs->priv);
 #endif
     }
     return 0;

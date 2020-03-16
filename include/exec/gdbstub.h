@@ -68,51 +68,74 @@ void gdb_signalled(CPUArchState *, int);
 void gdbserver_fork(CPUState *);
 #endif
 /* Get or set a register.  Returns the size of the register.  */
-typedef int (*gdb_reg_cb)(CPUArchState *env, uint8_t *buf, int reg);
+typedef int (*gdb_get_reg_cb)(CPUArchState *env, GByteArray *buf, int reg);
+typedef int (*gdb_set_reg_cb)(CPUArchState *env, uint8_t *buf, int reg);
 void gdb_register_coprocessor(CPUState *cpu,
-                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                              gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos);
 
-/* The GDB remote protocol transfers values in target byte order.  This means
- * we can use the raw memory access routines to access the value buffer.
- * Conveniently, these also handle the case where the buffer is mis-aligned.
+/*
+ * The GDB remote protocol transfers values in target byte order. As
+ * the gdbstub may be batching up several register values we always
+ * append to the array.
  */
 
-static inline int gdb_get_reg8(uint8_t *mem_buf, uint8_t val)
+static inline int gdb_get_reg8(GByteArray *buf, uint8_t val)
 {
-    stb_p(mem_buf, val);
+    g_byte_array_append(buf, &val, 1);
     return 1;
 }
 
-static inline int gdb_get_reg16(uint8_t *mem_buf, uint16_t val)
+static inline int gdb_get_reg16(GByteArray *buf, uint16_t val)
 {
-    stw_p(mem_buf, val);
+    uint16_t to_word = tswap16(val);
+    g_byte_array_append(buf, (uint8_t *) &to_word, 2);
     return 2;
 }
 
-static inline int gdb_get_reg32(uint8_t *mem_buf, uint32_t val)
+static inline int gdb_get_reg32(GByteArray *buf, uint32_t val)
 {
-    stl_p(mem_buf, val);
+    uint32_t to_long = tswap32(val);
+    g_byte_array_append(buf, (uint8_t *) &to_long, 4);
     return 4;
 }
 
-static inline int gdb_get_reg64(uint8_t *mem_buf, uint64_t val)
+static inline int gdb_get_reg64(GByteArray *buf, uint64_t val)
 {
-    stq_p(mem_buf, val);
+    uint64_t to_quad = tswap64(val);
+    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
     return 8;
 }
 
-static inline int gdb_get_reg128(uint8_t *mem_buf, uint64_t val_hi,
+static inline int gdb_get_reg128(GByteArray *buf, uint64_t val_hi,
                                  uint64_t val_lo)
 {
+    uint64_t to_quad;
 #ifdef TARGET_WORDS_BIGENDIAN
-    stq_p(mem_buf, val_hi);
-    stq_p(mem_buf + 8, val_lo);
+    to_quad = tswap64(val_hi);
+    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+    to_quad = tswap64(val_lo);
+    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
 #else
-    stq_p(mem_buf, val_lo);
-    stq_p(mem_buf + 8, val_hi);
+    to_quad = tswap64(val_lo);
+    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+    to_quad = tswap64(val_hi);
+    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
 #endif
     return 16;
+}
+
+/**
+ * gdb_get_reg_ptr: get pointer to start of last element
+ * @len: length of element
+ *
+ * This is a helper function to extract the pointer to the last
+ * element for additional processing. Some front-ends do additional
+ * dynamic swapping of the elements based on CPU state.
+ */
+static inline uint8_t * gdb_get_reg_ptr(GByteArray *buf, int len)
+{
+    return buf->data + buf->len - len;
 }
 
 #if TARGET_LONG_BITS == 64

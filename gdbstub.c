@@ -319,8 +319,8 @@ static int gdb_signal_to_target (int sig)
 typedef struct GDBRegisterState {
     int base_reg;
     int num_regs;
-    gdb_reg_cb get_reg;
-    gdb_reg_cb set_reg;
+    gdb_get_reg_cb get_reg;
+    gdb_set_reg_cb set_reg;
     const char *xml;
     struct GDBRegisterState *next;
 } GDBRegisterState;
@@ -905,19 +905,19 @@ static const char *get_feature_xml(const char *p, const char **newp,
     return name ? xml_builtin[i][1] : NULL;
 }
 
-static int gdb_read_register(CPUState *cpu, uint8_t *mem_buf, int reg)
+static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cc->gdb_read_register(cpu, mem_buf, reg);
+        return cc->gdb_read_register(cpu, buf, reg);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
         if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
-            return r->get_reg(env, mem_buf, reg - r->base_reg);
+            return r->get_reg(env, buf, reg - r->base_reg);
         }
     }
     return 0;
@@ -948,7 +948,7 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
  */
 
 void gdb_register_coprocessor(CPUState *cpu,
-                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                              gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos)
 {
     GDBRegisterState *s;
@@ -1739,7 +1739,7 @@ static void handle_get_reg(GdbCmdContext *gdb_ctx, void *user_ctx)
     }
 
     reg_size = gdb_read_register(gdbserver_state.g_cpu,
-                                 gdbserver_state.mem_buf->data,
+                                 gdbserver_state.mem_buf,
                                  gdb_ctx->params[0].val_ull);
     if (!reg_size) {
         put_packet("E14");
@@ -1832,14 +1832,14 @@ static void handle_read_all_regs(GdbCmdContext *gdb_ctx, void *user_ctx)
     target_ulong addr, len;
 
     cpu_synchronize_state(gdbserver_state.g_cpu);
+    g_byte_array_set_size(gdbserver_state.mem_buf, 0);
     len = 0;
     for (addr = 0; addr < gdbserver_state.g_cpu->gdb_num_g_regs; addr++) {
         len += gdb_read_register(gdbserver_state.g_cpu,
-                                 gdbserver_state.mem_buf->data + len,
+                                 gdbserver_state.mem_buf,
                                  addr);
     }
-    /* FIXME: This is after the fact sizing */
-    g_byte_array_set_size(gdbserver_state.mem_buf, len);
+    g_assert(len == gdbserver_state.mem_buf->len);
 
     memtohex(gdbserver_state.str_buf, gdbserver_state.mem_buf->data, len);
     put_strbuf();

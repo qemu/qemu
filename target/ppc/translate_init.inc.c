@@ -9857,7 +9857,7 @@ static int gdb_find_spr_idx(CPUPPCState *env, int n)
     return -1;
 }
 
-static int gdb_get_spr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+static int gdb_get_spr_reg(CPUPPCState *env, GByteArray *buf, int n)
 {
     int reg;
     int len;
@@ -9868,8 +9868,8 @@ static int gdb_get_spr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     }
 
     len = TARGET_LONG_SIZE;
-    stn_p(mem_buf, len, env->spr[reg]);
-    ppc_maybe_bswap_register(env, mem_buf, len);
+    gdb_get_regl(buf, env->spr[reg]);
+    ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, len), len);
     return len;
 }
 
@@ -9891,15 +9891,18 @@ static int gdb_set_spr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 }
 #endif
 
-static int gdb_get_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+static int gdb_get_float_reg(CPUPPCState *env, GByteArray *buf, int n)
 {
+    uint8_t *mem_buf;
     if (n < 32) {
-        stfq_p(mem_buf, *cpu_fpr_ptr(env, n));
+        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n));
+        mem_buf = gdb_get_reg_ptr(buf, 8);
         ppc_maybe_bswap_register(env, mem_buf, 8);
         return 8;
     }
     if (n == 32) {
-        stl_p(mem_buf, env->fpscr);
+        gdb_get_reg32(buf, env->fpscr);
+        mem_buf = gdb_get_reg_ptr(buf, 4);
         ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
@@ -9921,28 +9924,31 @@ static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+static int gdb_get_avr_reg(CPUPPCState *env, GByteArray *buf, int n)
 {
+    uint8_t *mem_buf;
+
     if (n < 32) {
         ppc_avr_t *avr = cpu_avr_ptr(env, n);
         if (!avr_need_swap(env)) {
-            stq_p(mem_buf, avr->u64[0]);
-            stq_p(mem_buf + 8, avr->u64[1]);
+            gdb_get_reg128(buf, avr->u64[0] , avr->u64[1]);
         } else {
-            stq_p(mem_buf, avr->u64[1]);
-            stq_p(mem_buf + 8, avr->u64[0]);
+            gdb_get_reg128(buf, avr->u64[1] , avr->u64[0]);
         }
+        mem_buf = gdb_get_reg_ptr(buf, 16);
         ppc_maybe_bswap_register(env, mem_buf, 8);
         ppc_maybe_bswap_register(env, mem_buf + 8, 8);
         return 16;
     }
     if (n == 32) {
-        stl_p(mem_buf, helper_mfvscr(env));
+        gdb_get_reg32(buf, helper_mfvscr(env));
+        mem_buf = gdb_get_reg_ptr(buf, 4);
         ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
     if (n == 33) {
-        stl_p(mem_buf, (uint32_t)env->spr[SPR_VRSAVE]);
+        gdb_get_reg32(buf, (uint32_t)env->spr[SPR_VRSAVE]);
+        mem_buf = gdb_get_reg_ptr(buf, 4);
         ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }
@@ -9977,25 +9983,25 @@ static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_get_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+static int gdb_get_spe_reg(CPUPPCState *env, GByteArray *buf, int n)
 {
     if (n < 32) {
 #if defined(TARGET_PPC64)
-        stl_p(mem_buf, env->gpr[n] >> 32);
-        ppc_maybe_bswap_register(env, mem_buf, 4);
+        gdb_get_reg32(buf, env->gpr[n] >> 32);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
 #else
-        stl_p(mem_buf, env->gprh[n]);
+        gdb_get_reg32(buf, env->gprh[n]);
 #endif
         return 4;
     }
     if (n == 32) {
-        stq_p(mem_buf, env->spe_acc);
-        ppc_maybe_bswap_register(env, mem_buf, 8);
+        gdb_get_reg64(buf, env->spe_acc);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
         return 8;
     }
     if (n == 33) {
-        stl_p(mem_buf, env->spe_fscr);
-        ppc_maybe_bswap_register(env, mem_buf, 4);
+        gdb_get_reg32(buf, env->spe_fscr);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
         return 4;
     }
     return 0;
@@ -10030,11 +10036,11 @@ static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_get_vsx_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+static int gdb_get_vsx_reg(CPUPPCState *env, GByteArray *buf, int n)
 {
     if (n < 32) {
-        stq_p(mem_buf, *cpu_vsrl_ptr(env, n));
-        ppc_maybe_bswap_register(env, mem_buf, 8);
+        gdb_get_reg64(buf, *cpu_vsrl_ptr(env, n));
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
         return 8;
     }
     return 0;

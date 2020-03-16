@@ -114,10 +114,11 @@ void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
  * the FP regs zero size when talking to a newer gdb.
  */
 
-int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+    uint8_t *mem_buf;
     int r = ppc_gdb_register_len(n);
 
     if (!r) {
@@ -126,17 +127,17 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     if (n < 32) {
         /* gprs */
-        gdb_get_regl(mem_buf, env->gpr[n]);
+        gdb_get_regl(buf, env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
-        stfq_p(mem_buf, *cpu_fpr_ptr(env, n - 32));
+        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n - 32));
     } else {
         switch (n) {
         case 64:
-            gdb_get_regl(mem_buf, env->nip);
+            gdb_get_regl(buf, env->nip);
             break;
         case 65:
-            gdb_get_regl(mem_buf, env->msr);
+            gdb_get_regl(buf, env->msr);
             break;
         case 66:
             {
@@ -145,31 +146,33 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
                 for (i = 0; i < 8; i++) {
                     cr |= env->crf[i] << (32 - ((i + 1) * 4));
                 }
-                gdb_get_reg32(mem_buf, cr);
+                gdb_get_reg32(buf, cr);
                 break;
             }
         case 67:
-            gdb_get_regl(mem_buf, env->lr);
+            gdb_get_regl(buf, env->lr);
             break;
         case 68:
-            gdb_get_regl(mem_buf, env->ctr);
+            gdb_get_regl(buf, env->ctr);
             break;
         case 69:
-            gdb_get_reg32(mem_buf, env->xer);
+            gdb_get_reg32(buf, env->xer);
             break;
         case 70:
-            gdb_get_reg32(mem_buf, env->fpscr);
+            gdb_get_reg32(buf, env->fpscr);
             break;
         }
     }
+    mem_buf = buf->data + buf->len - r;
     ppc_maybe_bswap_register(env, mem_buf, r);
     return r;
 }
 
-int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+    uint8_t *mem_buf;
     int r = ppc_gdb_register_len_apple(n);
 
     if (!r) {
@@ -178,21 +181,21 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
 
     if (n < 32) {
         /* gprs */
-        gdb_get_reg64(mem_buf, env->gpr[n]);
+        gdb_get_reg64(buf, env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
-        stfq_p(mem_buf, *cpu_fpr_ptr(env, n - 32));
+        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n - 32));
     } else if (n < 96) {
         /* Altivec */
-        stq_p(mem_buf, n - 64);
-        stq_p(mem_buf + 8, 0);
+        gdb_get_reg64(buf, n - 64);
+        gdb_get_reg64(buf, 0);
     } else {
         switch (n) {
         case 64 + 32:
-            gdb_get_reg64(mem_buf, env->nip);
+            gdb_get_reg64(buf, env->nip);
             break;
         case 65 + 32:
-            gdb_get_reg64(mem_buf, env->msr);
+            gdb_get_reg64(buf, env->msr);
             break;
         case 66 + 32:
             {
@@ -201,23 +204,24 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
                 for (i = 0; i < 8; i++) {
                     cr |= env->crf[i] << (32 - ((i + 1) * 4));
                 }
-                gdb_get_reg32(mem_buf, cr);
+                gdb_get_reg32(buf, cr);
                 break;
             }
         case 67 + 32:
-            gdb_get_reg64(mem_buf, env->lr);
+            gdb_get_reg64(buf, env->lr);
             break;
         case 68 + 32:
-            gdb_get_reg64(mem_buf, env->ctr);
+            gdb_get_reg64(buf, env->ctr);
             break;
         case 69 + 32:
-            gdb_get_reg32(mem_buf, env->xer);
+            gdb_get_reg32(buf, env->xer);
             break;
         case 70 + 32:
-            gdb_get_reg64(mem_buf, env->fpscr);
+            gdb_get_reg64(buf, env->fpscr);
             break;
         }
     }
+    mem_buf = buf->data + buf->len - r;
     ppc_maybe_bswap_register(env, mem_buf, r);
     return r;
 }
