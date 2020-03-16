@@ -50,6 +50,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 #define QEMU_LOCK_FUNC(x) ((QemuLockUnlockFunc *)    \
     QEMU_GENERIC(x,                                  \
                  (QemuMutex *, qemu_mutex_lock),     \
+                 (QemuRecMutex *, qemu_rec_mutex_lock), \
                  (CoMutex *, qemu_co_mutex_lock),    \
                  (QemuSpin *, qemu_spin_lock),       \
                  unknown_lock_type))
@@ -57,6 +58,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 #define QEMU_UNLOCK_FUNC(x) ((QemuLockUnlockFunc *)  \
     QEMU_GENERIC(x,                                  \
                  (QemuMutex *, qemu_mutex_unlock),   \
+                 (QemuRecMutex *, qemu_rec_mutex_unlock), \
                  (CoMutex *, qemu_co_mutex_unlock),  \
                  (QemuSpin *, qemu_spin_unlock),     \
                  unknown_lock_type))
@@ -73,7 +75,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 
 /* QEMU_MAKE_LOCKABLE - Make a polymorphic QemuLockable
  *
- * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
+ * @x: a lock object (currently one of QemuMutex, QemuRecMutex, CoMutex, QemuSpin).
  *
  * Returns a QemuLockable object that can be passed around
  * to a function that can operate with locks of any kind, or
@@ -86,7 +88,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 
 /* QEMU_MAKE_LOCKABLE_NONNULL - Make a polymorphic QemuLockable
  *
- * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
+ * @x: a lock object (currently one of QemuMutex, QemuRecMutex, CoMutex, QemuSpin).
  *
  * Returns a QemuLockable object that can be passed around
  * to a function that can operate with locks of any kind.
