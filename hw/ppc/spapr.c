@@ -951,7 +951,29 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
     _FDT(fdt_setprop(fdt, rtas, "ibm,max-associativity-domains",
                      maxdomains, sizeof(maxdomains)));
 
-    _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size", RTAS_SIZE));
+    /*
+     * FWNMI reserves RTAS_ERROR_LOG_MAX for the machine check error log,
+     * and 16 bytes per CPU for system reset error log plus an extra 8 bytes.
+     *
+     * The system reset requirements are driven by existing Linux and PowerVM
+     * implementation which (contrary to PAPR) saves r3 in the error log
+     * structure like machine check, so Linux expects to find the saved r3
+     * value at the address in r3 upon FWNMI-enabled sreset interrupt (and
+     * does not look at the error value).
+     *
+     * System reset interrupts are not subject to interlock like machine
+     * check, so this memory area could be corrupted if the sreset is
+     * interrupted by a machine check (or vice versa) if it was shared. To
+     * prevent this, system reset uses per-CPU areas for the sreset save
+     * area. A system reset that interrupts a system reset handler could
+     * still overwrite this area, but Linux doesn't try to recover in that
+     * case anyway.
+     *
+     * The extra 8 bytes is required because Linux's FWNMI error log check
+     * is off-by-one.
+     */
+    _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size", RTAS_ERROR_LOG_MAX +
+			  ms->smp.max_cpus * sizeof(uint64_t)*2 + sizeof(uint64_t)));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-error-log-max",
                           RTAS_ERROR_LOG_MAX));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-event-scan-rate",
@@ -3384,8 +3406,28 @@ static void spapr_machine_finalizefn(Object *obj)
 
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
     cpu_synchronize_state(cs);
-    ppc_cpu_do_system_reset(cs, -1);
+    /* If FWNMI is inactive, addr will be -1, which will deliver to 0x100 */
+    if (spapr->fwnmi_system_reset_addr != -1) {
+        uint64_t rtas_addr, addr;
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+
+        /* get rtas addr from fdt */
+        rtas_addr = spapr_get_rtas_addr();
+        if (!rtas_addr) {
+            qemu_system_guest_panicked(NULL);
+            return;
+        }
+
+        addr = rtas_addr + RTAS_ERROR_LOG_MAX + cs->cpu_index * sizeof(uint64_t)*2;
+        stq_be_phys(&address_space_memory, addr, env->gpr[3]);
+        stq_be_phys(&address_space_memory, addr + sizeof(uint64_t), 0);
+        env->gpr[3] = addr;
+    }
+    ppc_cpu_do_system_reset(cs, spapr->fwnmi_system_reset_addr);
 }
 
 static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
