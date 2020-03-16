@@ -2760,10 +2760,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 
     if (bs->backing) {
         bdrv_unref_child(bs, bs->backing);
+        bs->backing = NULL;
     }
 
     if (!backing_hd) {
-        bs->backing = NULL;
         goto out;
     }
 
