@@ -29,7 +29,7 @@ do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define RECV_BUF 384
+#define RECV_BUF (512 - (2 * 8))
 
 /* Commands */
 #define FTDI_RESET		0
