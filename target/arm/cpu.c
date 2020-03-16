@@ -195,9 +195,10 @@ static void arm_cpu_reset(CPUState *s)
         env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 2, 3);
         /* and to the SVE instructions */
         env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 16, 2, 3);
-        /* with maximum vector length */
-        env->vfp.zcr_el[1] = cpu_isar_feature(aa64_sve, cpu) ?
-                             cpu->sve_max_vq - 1 : 0;
+        /* with reasonable vector length */
+        if (cpu_isar_feature(aa64_sve, cpu)) {
+            env->vfp.zcr_el[1] = MIN(cpu->sve_max_vq - 1, 3);
+        }
         /*
          * Enable TBI0 and TBI1.  While the real kernel only enables TBI0,
          * turning on both here will produce smaller code and otherwise
