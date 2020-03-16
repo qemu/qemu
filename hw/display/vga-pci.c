@@ -249,8 +249,8 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 
     /* mmio bar for vga register access */
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_MMIO)) {
-        memory_region_init(&d->mmio, NULL, "vga.mmio",
-                           PCI_VGA_MMIO_SIZE);
+        memory_region_init_io(&d->mmio, OBJECT(dev), &unassigned_io_ops, NULL,
+                              "vga.mmio", PCI_VGA_MMIO_SIZE);
 
         if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
             qext = true;
@@ -285,8 +285,8 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
     s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);
 
     /* mmio bar */
-    memory_region_init(&d->mmio, OBJECT(dev), "vga.mmio",
-                       PCI_VGA_MMIO_SIZE);
+    memory_region_init_io(&d->mmio, OBJECT(dev), &unassigned_io_ops, NULL,
+                          "vga.mmio", PCI_VGA_MMIO_SIZE);
 
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
         qext = true;
