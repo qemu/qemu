@@ -106,4 +106,69 @@ static inline void qemu_lockable_unlock(QemuLockable *x)
     x->unlock(x->object);
 }
 
+static inline QemuLockable *qemu_lockable_auto_lock(QemuLockable *x)
+{
+    qemu_lockable_lock(x);
+    return x;
+}
+
+static inline void qemu_lockable_auto_unlock(QemuLockable *x)
+{
+    if (x) {
+        qemu_lockable_unlock(x);
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuLockable, qemu_lockable_auto_unlock)
+
+#define WITH_QEMU_LOCK_GUARD_(x, var) \
+    for (g_autoptr(QemuLockable) var = \
+                qemu_lockable_auto_lock(QEMU_MAKE_LOCKABLE_NONNULL((x))); \
+         var; \
+         qemu_lockable_auto_unlock(var), var = NULL)
+
+/**
+ * WITH_QEMU_LOCK_GUARD - Lock a lock object for scope
+ *
+ * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
+ *
+ * This macro defines a lock scope such that entering the scope takes the lock
+ * and leaving the scope releases the lock.  Return statements are allowed
+ * within the scope and release the lock.  Break and continue statements leave
+ * the scope early and release the lock.
+ *
+ *   WITH_QEMU_LOCK_GUARD(&mutex) {
+ *       ...
+ *       if (error) {
+ *           return; <-- mutex is automatically unlocked
+ *       }
+ *
+ *       if (early_exit) {
+ *           break;  <-- leave this scope early
+ *       }
+ *       ...
+ *   }
+ */
+#define WITH_QEMU_LOCK_GUARD(x) \
+    WITH_QEMU_LOCK_GUARD_((x), qemu_lockable_auto##__COUNTER__)
+
+/**
+ * QEMU_LOCK_GUARD - Lock an object until the end of the scope
+ *
+ * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
+ *
+ * This macro takes a lock until the end of the scope.  Return statements
+ * release the lock.
+ *
+ *   ... <-- mutex not locked
+ *   QEMU_LOCK_GUARD(&mutex); <-- mutex locked from here onwards
+ *   ...
+ *   if (error) {
+ *       return; <-- mutex is automatically unlocked
+ *   }
+ */
+#define QEMU_LOCK_GUARD(x) \
+    g_autoptr(QemuLockable) qemu_lockable_auto##__COUNTER__ = \
+            qemu_lockable_auto_lock(QEMU_MAKE_LOCKABLE((x)))
+
 #endif
