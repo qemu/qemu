@@ -46,7 +46,7 @@ class QEMUMonitorProtocol:
     #: Logger object for debugging messages
     logger = logging.getLogger('QMP')
 
-    def __init__(self, address, server=False):
+    def __init__(self, address, server=False, nickname=None):
         """
         Create a QEMUMonitorProtocol class.
 
@@ -62,6 +62,9 @@ class QEMUMonitorProtocol:
         self.__address = address
         self.__sock = self.__get_sock()
         self.__sockfile = None
+        self._nickname = nickname
+        if self._nickname:
+            self.logger = logging.getLogger('QMP').getChild(self._nickname)
         if server:
             self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
