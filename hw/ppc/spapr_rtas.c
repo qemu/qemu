@@ -461,8 +461,18 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
     }
 
     if (spapr->fwnmi_machine_check_interlock != cpu->vcpu_id) {
-        /* The vCPU that hit the NMI should invoke "ibm,nmi-interlock" */
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        /*
+	 * The vCPU that hit the NMI should invoke "ibm,nmi-interlock"
+         * This should be PARAM_ERROR, but Linux calls "ibm,nmi-interlock"
+	 * for system reset interrupts, despite them not being interlocked.
+	 * PowerVM silently ignores this and returns success here. Returning
+	 * failure causes Linux to print the error "FWNMI: nmi-interlock
+	 * failed: -3", although no other apparent ill effects, this is a
+	 * regression for the user when enabling FWNMI. So for now, match
+	 * PowerVM. When most Linux clients are fixed, this could be
+	 * changed.
+	 */
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
         return;
     }
 
