@@ -2130,7 +2130,7 @@ static void handle_query_supported(GdbCmdContext *gdb_ctx, void *user_ctx)
         gdbserver_state.multiprocess = true;
     }
 
-    g_string_append(gdbserver_state.str_buf, ";multiprocess+");
+    g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
     put_strbuf();
 }
 
