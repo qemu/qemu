@@ -1026,9 +1026,9 @@ static int do_vm_stop(RunState state, bool send_stop)
     int ret = 0;
 
     if (runstate_is_running()) {
+        runstate_set(state);
         cpu_disable_ticks();
         pause_all_vcpus();
-        runstate_set(state);
         vm_state_notify(0, state);
         if (send_stop) {
             qapi_event_send_stop();
@@ -1898,6 +1898,10 @@ void cpu_resume(CPUState *cpu)
 void resume_all_vcpus(void)
 {
     CPUState *cpu;
+
+    if (!runstate_is_running()) {
+        return;
+    }
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     CPU_FOREACH(cpu) {
