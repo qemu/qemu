@@ -785,27 +785,12 @@ static uint32_t spapr_mce_get_elog_type(PowerPCCPU *cpu, bool recovered,
 static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
-    uint64_t rtas_addr;
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    target_ulong msr = 0;
+    uint64_t rtas_addr;
     struct rtas_error_log log;
     struct mc_extended_log *ext_elog;
     uint32_t summary;
-
-    /*
-     * Properly set bits in MSR before we invoke the handler.
-     * SRR0/1, DAR and DSISR are properly set by KVM
-     */
-    if (!(*pcc->interrupts_big_endian)(cpu)) {
-        msr |= (1ULL << MSR_LE);
-    }
-
-    if (env->msr & (1ULL << MSR_SF)) {
-        msr |= (1ULL << MSR_SF);
-    }
-
-    msr |= (1ULL << MSR_ME);
 
     ext_elog = g_malloc0(sizeof(*ext_elog));
     summary = spapr_mce_get_elog_type(cpu, recovered, ext_elog);
@@ -834,12 +819,11 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
     cpu_physical_memory_write(rtas_addr + RTAS_ERROR_LOG_OFFSET +
                               sizeof(env->gpr[3]) + sizeof(log), ext_elog,
                               sizeof(*ext_elog));
+    g_free(ext_elog);
 
     env->gpr[3] = rtas_addr + RTAS_ERROR_LOG_OFFSET;
-    env->msr = msr;
-    env->nip = spapr->fwnmi_machine_check_addr;
 
-    g_free(ext_elog);
+    ppc_cpu_do_fwnmi_machine_check(cs, spapr->fwnmi_machine_check_addr);
 }
 
 void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
