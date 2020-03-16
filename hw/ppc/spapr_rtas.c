@@ -414,6 +414,7 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
                                   uint32_t nret, target_ulong rets)
 {
     hwaddr rtas_addr;
+    target_ulong sreset_addr, mce_addr;
 
     if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_OFF) {
         rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
@@ -426,7 +427,18 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
         return;
     }
 
-    spapr->fwnmi_machine_check_addr = rtas_ld(args, 1);
+    sreset_addr = rtas_ld(args, 0);
+    mce_addr = rtas_ld(args, 1);
+
+    /* PAPR requires these are in the first 32M of memory and within RMA */
+    if (sreset_addr >= 32 * MiB || sreset_addr >= spapr->rma_size ||
+           mce_addr >= 32 * MiB ||    mce_addr >= spapr->rma_size) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    spapr->fwnmi_system_reset_addr = sreset_addr;
+    spapr->fwnmi_machine_check_addr = mce_addr;
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }

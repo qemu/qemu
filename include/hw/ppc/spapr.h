@@ -194,9 +194,10 @@ struct SpaprMachineState {
 
     /* State related to FWNMI option */
 
-    /* Machine Check Notification Routine address
+    /* System Reset and Machine Check Notification Routine addresses
      * registered by "ibm,nmi-register" RTAS call.
      */
+    target_ulong fwnmi_system_reset_addr;
     target_ulong fwnmi_machine_check_addr;
 
     /* Machine Check FWNMI synchronization, fwnmi_machine_check_interlock is

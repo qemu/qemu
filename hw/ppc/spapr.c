@@ -1688,6 +1688,7 @@ static void spapr_machine_reset(MachineState *machine)
 
     spapr->cas_reboot = false;
 
+    spapr->fwnmi_system_reset_addr = -1;
     spapr->fwnmi_machine_check_addr = -1;
     spapr->fwnmi_machine_check_interlock = -1;
 
@@ -2007,6 +2008,7 @@ static const VMStateDescription vmstate_spapr_fwnmi = {
     .needed = spapr_fwnmi_needed,
     .pre_save = spapr_fwnmi_pre_save,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT64(fwnmi_system_reset_addr, SpaprMachineState),
         VMSTATE_UINT64(fwnmi_machine_check_addr, SpaprMachineState),
         VMSTATE_INT32(fwnmi_machine_check_interlock, SpaprMachineState),
         VMSTATE_END_OF_LIST()
