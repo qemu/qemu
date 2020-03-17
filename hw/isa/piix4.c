@@ -35,6 +35,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide.h"
+#include "hw/ide/pci.h"
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
@@ -256,9 +257,10 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
         *isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
     }
 
+    pci = pci_create_simple(pci_bus, devfn + 1, "piix4-ide");
     hd = g_new(DriveInfo *, ide_drives);
     ide_drive_get(hd, ide_drives);
-    pci_piix4_ide_init(pci_bus, hd, devfn + 1);
+    pci_ide_create_devs(pci, hd);
     g_free(hd);
 
     pci_create_simple(pci_bus, devfn + 2, "piix4-usb-uhci");
