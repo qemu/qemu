@@ -1060,6 +1060,15 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         }
         return -1;
     }
+
+    if (is_netdev) {
+        NetClientState *nc;
+
+        nc = qemu_find_netdev(netdev->id);
+        assert(nc);
+        nc->is_netdev = true;
+    }
+
     return 0;
 }
 
@@ -1172,34 +1181,12 @@ void netdev_add(QemuOpts *opts, Error **errp)
 
 void qmp_netdev_add(Netdev *netdev, Error **errp)
 {
-    Error *local_err = NULL;
-    QemuOptsList *opts_list;
-    QemuOpts *opts;
-
-    opts_list = qemu_find_opts_err("netdev", &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    opts = qemu_opts_create(opts_list, netdev->id, 1, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    net_client_init1(netdev, true, &local_err);
-    if (local_err) {
-        qemu_opts_del(opts);
-        goto out;
-    }
-
-out:
-    error_propagate(errp, local_err);
+    net_client_init1(netdev, true, errp);
 }
 
 void qmp_netdev_del(const char *id, Error **errp)
 {
     NetClientState *nc;
-    QemuOpts *opts;
 
     nc = qemu_find_netdev(id);
     if (!nc) {
@@ -1208,14 +1195,12 @@ void qmp_netdev_del(const char *id, Error **errp)
         return;
     }
 
-    opts = qemu_opts_find(qemu_find_opts_err("netdev", NULL), id);
-    if (!opts) {
+    if (!nc->is_netdev) {
         error_setg(errp, "Device '%s' is not a netdev", id);
         return;
     }
 
     qemu_del_net_client(nc);
-    qemu_opts_del(opts);
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)

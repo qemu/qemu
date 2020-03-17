@@ -98,6 +98,7 @@ struct NetClientState {
     unsigned rxfilter_notify_enabled:1;
     int vring_enable;
     int vnet_hdr_len;
+    bool is_netdev;
     QTAILQ_HEAD(, NetFilterState) filters;
 };
 
