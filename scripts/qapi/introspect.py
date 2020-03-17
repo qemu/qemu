@@ -193,8 +193,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._gen_qlit('[' + element + ']', 'array', {'element-type': element},
                        ifcond, None)
 
-    def visit_object_type_flat(self, name, info, ifcond, members, variants,
-                               features):
+    def visit_object_type_flat(self, name, info, ifcond, features,
+                               members, variants):
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
@@ -209,9 +209,9 @@ const QLitObject %(c_name)s = %(c_string)s;
                            for m in variants.variants]},
                        ifcond, features)
 
-    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+    def visit_command(self, name, info, ifcond, features,
+                      arg_type, ret_type, gen, success_response, boxed,
+                      allow_oob, allow_preconfig):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         obj = {'arg-type': self._use_type(arg_type),

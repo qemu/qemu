@@ -115,20 +115,20 @@ class QAPISchemaVisitor:
     def visit_array_type(self, name, info, ifcond, element_type):
         pass
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants,
-                          features):
+    def visit_object_type(self, name, info, ifcond, features,
+                          base, members, variants):
         pass
 
-    def visit_object_type_flat(self, name, info, ifcond, members, variants,
-                               features):
+    def visit_object_type_flat(self, name, info, ifcond, features,
+                               members, variants):
         pass
 
     def visit_alternate_type(self, name, info, ifcond, features, variants):
         pass
 
-    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+    def visit_command(self, name, info, ifcond, features,
+                      arg_type, ret_type, gen, success_response, boxed,
+                      allow_oob, allow_preconfig):
         pass
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
@@ -436,12 +436,12 @@ class QAPISchemaObjectType(QAPISchemaType):
 
     def visit(self, visitor):
         super().visit(visitor)
-        visitor.visit_object_type(self.name, self.info, self.ifcond,
-                                  self.base, self.local_members, self.variants,
-                                  self.features)
-        visitor.visit_object_type_flat(self.name, self.info, self.ifcond,
-                                       self.members, self.variants,
-                                       self.features)
+        visitor.visit_object_type(
+            self.name, self.info, self.ifcond, self.features,
+            self.base, self.local_members, self.variants)
+        visitor.visit_object_type_flat(
+            self.name, self.info, self.ifcond, self.features,
+            self.members, self.variants)
 
 
 class QAPISchemaMember:
@@ -745,12 +745,10 @@ class QAPISchemaCommand(QAPISchemaEntity):
 
     def visit(self, visitor):
         super().visit(visitor)
-        visitor.visit_command(self.name, self.info, self.ifcond,
-                              self.arg_type, self.ret_type,
-                              self.gen, self.success_response,
-                              self.boxed, self.allow_oob,
-                              self.allow_preconfig,
-                              self.features)
+        visitor.visit_command(
+            self.name, self.info, self.ifcond, self.features,
+            self.arg_type, self.ret_type, self.gen, self.success_response,
+            self.boxed, self.allow_oob, self.allow_preconfig)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
