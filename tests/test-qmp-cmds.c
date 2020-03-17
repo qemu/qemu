@@ -145,34 +145,55 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
 }
 
 
+static QObject *do_qmp_dispatch(QDict *req, bool allow_oob)
+{
+    QDict *resp;
+    QObject *ret;
+
+    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), allow_oob);
+    g_assert(resp && !qdict_haskey(resp, "error"));
+    ret = qdict_get(resp, "return");
+    g_assert(ret);
+
+    qobject_ref(ret);
+    qobject_unref(resp);
+    return ret;
+}
+
+static void do_qmp_dispatch_error(QDict *req, bool allow_oob, ErrorClass cls)
+{
+    QDict *resp;
+
+    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), allow_oob);
+    g_assert(resp && qdict_haskey(resp, "error"));
+
+    qobject_unref(resp);
+}
+
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
     QDict *req = qdict_new();
-    QDict *resp;
+    QObject *ret;
 
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
+    ret = do_qmp_dispatch(req, false);
 
-    qobject_unref(resp);
+    qobject_unref(ret);
     qobject_unref(req);
 }
 
 static void test_dispatch_cmd_oob(void)
 {
     QDict *req = qdict_new();
-    QDict *resp;
+    QObject *ret;
 
     qdict_put_str(req, "exec-oob", "test-flags-command");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), true);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
+    ret = do_qmp_dispatch(req, true);
 
-    qobject_unref(resp);
+    qobject_unref(ret);
     qobject_unref(req);
 }
 
@@ -181,15 +202,11 @@ static void test_dispatch_cmd_failure(void)
 {
     QDict *req = qdict_new();
     QDict *args = qdict_new();
-    QDict *resp;
 
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
+    do_qmp_dispatch_error(req, false, ERROR_CLASS_GENERIC_ERROR);
 
-    qobject_unref(resp);
     qobject_unref(req);
 
     /* check that with extra arguments it throws an error */
@@ -199,11 +216,8 @@ static void test_dispatch_cmd_failure(void)
 
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
+    do_qmp_dispatch_error(req, false, ERROR_CLASS_GENERIC_ERROR);
 
-    qobject_unref(resp);
     qobject_unref(req);
 }
 
@@ -216,20 +230,6 @@ static void test_dispatch_cmd_success_response(void)
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req), false);
     g_assert_null(resp);
     qobject_unref(req);
-}
-
-static QObject *test_qmp_dispatch(QDict *req)
-{
-    QDict *resp;
-    QObject *ret;
-
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), false);
-    assert(resp && !qdict_haskey(resp, "error"));
-    ret = qdict_get(resp, "return");
-    assert(ret);
-    qobject_ref(ret);
-    qobject_unref(resp);
-    return ret;
 }
 
 /* test commands that involve both input parameters and return values */
@@ -254,7 +254,7 @@ static void test_dispatch_cmd_io(void)
     qdict_put(req, "arguments", args);
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    ret = qobject_to(QDict, test_qmp_dispatch(req));
+    ret = qobject_to(QDict, do_qmp_dispatch(req, false));
 
     assert(!strcmp(qdict_get_str(ret, "string0"), "blah1"));
     ret_dict = qdict_get_qdict(ret, "dict1");
@@ -275,7 +275,7 @@ static void test_dispatch_cmd_io(void)
     qdict_put(req, "arguments", args3);
     qdict_put_str(req, "execute", "guest-get-time");
 
-    ret3 = qobject_to(QNum, test_qmp_dispatch(req));
+    ret3 = qobject_to(QNum, do_qmp_dispatch(req, false));
     g_assert(qnum_get_try_int(ret3, &val));
     g_assert_cmpint(val, ==, 66);
     qobject_unref(ret3);
