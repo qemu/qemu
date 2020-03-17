@@ -53,10 +53,14 @@
 # @Enum:
 # @one: The _one_ {and only}
 #
+# Features:
+# @enum-feat: Also _one_ {and only}
+#
 # @two is undocumented
 ##
 { 'enum': 'Enum', 'data':
   [ { 'name': 'one', 'if': 'defined(IFONE)' }, 'two' ],
+  'features': [ 'enum-feat' ],
   'if': 'defined(IFCOND)' }
 
 ##
@@ -86,24 +90,34 @@
 
 ##
 # @Object:
+# Features:
+# @union-feat1: a feature
 ##
 { 'union': 'Object',
+  'features': [ 'union-feat1' ],
   'base': 'Base',
   'discriminator': 'base1',
   'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
 
 ##
 # @SugaredUnion:
+# Features:
+# @union-feat2: a feature
 ##
 { 'union': 'SugaredUnion',
+  'features': [ 'union-feat2' ],
   'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
 
 ##
 # @Alternate:
 # @i: an integer
 # @b is undocumented
+#
+# Features:
+# @alt-feat: a feature
 ##
 { 'alternate': 'Alternate',
+  'features': [ 'alt-feat' ],
   'data': { 'i': 'int', 'b': 'bool' } }
 
 ##
@@ -160,6 +174,9 @@
 
 ##
 # @EVT-BOXED:
+# Features:
+# @feat3: a feature
 ##
 { 'event': 'EVT-BOXED',  'boxed': true,
+  'features': [ 'feat3' ],
   'data': 'Object' }

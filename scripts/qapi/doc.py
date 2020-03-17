@@ -243,7 +243,7 @@ class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
     def write(self, output_dir):
         self._gen.write(output_dir)
 
-    def visit_enum_type(self, name, info, ifcond, members, prefix):
+    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         doc = self.cur_doc
         self._gen.add(texi_type('Enum', doc, ifcond,
                                 texi_members(doc, 'Values',
@@ -257,7 +257,7 @@ class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
         self._gen.add(texi_type('Object', doc, ifcond,
                                 texi_members(doc, 'Members', base, variants)))
 
-    def visit_alternate_type(self, name, info, ifcond, variants):
+    def visit_alternate_type(self, name, info, ifcond, features, variants):
         doc = self.cur_doc
         self._gen.add(texi_type('Alternate', doc, ifcond,
                                 texi_members(doc, 'Members')))
@@ -270,7 +270,7 @@ class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
                                texi_arguments(doc,
                                               arg_type if boxed else None)))
 
-    def visit_event(self, name, info, ifcond, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         doc = self.cur_doc
         self._gen.add(texi_msg('Event', doc, ifcond,
                                texi_arguments(doc,

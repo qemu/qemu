@@ -252,7 +252,7 @@
     'bar': { 'type': ['TestIfEnum'], 'if': 'defined(TEST_IF_EVT_BAR)' } },
   'if': 'defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)' }
 
-# test 'features' for structs
+# test 'features'
 
 { 'struct': 'FeatureStruct0',
   'data': { 'foo': 'int' },
@@ -281,7 +281,22 @@
   'data': { 'foo': 'int' },
   'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
                                               'defined(TEST_IF_COND_2)'] } ] }
-{ 'command': 'test-features',
+
+{ 'enum': 'FeatureEnum1',
+  'data': [ 'eins', 'zwei', 'drei' ],
+  'features': [ 'feature1' ] }
+
+{ 'union': 'FeatureUnion1',
+  'base': { 'tag': 'FeatureEnum1' },
+  'discriminator': 'tag',
+  'data': { 'eins': 'FeatureStruct1' },
+  'features': [ 'feature1' ] }
+
+{ 'alternate': 'FeatureAlternate1',
+  'data': { 'eins': 'FeatureStruct1' },
+  'features': [ 'feature1' ] }
+
+{ 'command': 'test-features0',
   'data': { 'fs0': 'FeatureStruct0',
             'fs1': 'FeatureStruct1',
             'fs2': 'FeatureStruct2',
@@ -289,12 +304,9 @@
             'fs4': 'FeatureStruct4',
             'cfs1': 'CondFeatureStruct1',
             'cfs2': 'CondFeatureStruct2',
-            'cfs3': 'CondFeatureStruct3' } }
-
-# test 'features' for command
-
-{ 'command': 'test-command-features0',
+            'cfs3': 'CondFeatureStruct3' },
   'features': [] }
+
 { 'command': 'test-command-features1',
   'features': [ 'feature1' ] }
 { 'command': 'test-command-features3',
@@ -308,3 +320,6 @@
 { 'command': 'test-command-cond-features3',
   'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
                                               'defined(TEST_IF_COND_2)'] } ] }
+
+{ 'event': 'TEST-EVENT-FEATURES1',
+  'features': [ 'feature1' ] }

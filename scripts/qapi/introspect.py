@@ -144,7 +144,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
-    def _gen_qlit(self, name, mtype, obj, ifcond):
+    def _gen_qlit(self, name, mtype, obj, ifcond, features):
         extra = {}
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
@@ -154,6 +154,8 @@ const QLitObject %(c_name)s = %(c_string)s;
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
+        if features:
+            obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
         if ifcond:
             extra['if'] = ifcond
         if extra:
@@ -178,18 +180,18 @@ const QLitObject %(c_name)s = %(c_string)s;
                 {'if': variant.ifcond})
 
     def visit_builtin_type(self, name, info, json_type):
-        self._gen_qlit(name, 'builtin', {'json-type': json_type}, [])
+        self._gen_qlit(name, 'builtin', {'json-type': json_type}, [], None)
 
-    def visit_enum_type(self, name, info, ifcond, members, prefix):
+    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         self._gen_qlit(name, 'enum',
                        {'values':
                         [(m.name, {'if': m.ifcond}) for m in members]},
-                       ifcond)
+                       ifcond, features)
 
     def visit_array_type(self, name, info, ifcond, element_type):
         element = self._use_type(element_type)
         self._gen_qlit('[' + element + ']', 'array', {'element-type': element},
-                       ifcond)
+                       ifcond, None)
 
     def visit_object_type_flat(self, name, info, ifcond, members, variants,
                                features):
@@ -197,16 +199,15 @@ const QLitObject %(c_name)s = %(c_string)s;
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
                                           variants.variants))
-        if features:
-            obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
 
-        self._gen_qlit(name, 'object', obj, ifcond)
+        self._gen_qlit(name, 'object', obj, ifcond, features)
 
-    def visit_alternate_type(self, name, info, ifcond, variants):
+    def visit_alternate_type(self, name, info, ifcond, features, variants):
         self._gen_qlit(name, 'alternate',
                        {'members': [
                            ({'type': self._use_type(m.type)}, {'if': m.ifcond})
-                           for m in variants.variants]}, ifcond)
+                           for m in variants.variants]},
+                       ifcond, features)
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig,
@@ -217,16 +218,12 @@ const QLitObject %(c_name)s = %(c_string)s;
                'ret-type': self._use_type(ret_type)}
         if allow_oob:
             obj['allow-oob'] = allow_oob
+        self._gen_qlit(name, 'command', obj, ifcond, features)
 
-        if features:
-            obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
-
-        self._gen_qlit(name, 'command', obj, ifcond)
-
-    def visit_event(self, name, info, ifcond, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
         self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)},
-                       ifcond)
+                       ifcond, features)
 
 
 def gen_introspect(schema, output_dir, prefix, opt_unmask):

@@ -109,7 +109,7 @@ class QAPISchemaVisitor:
     def visit_builtin_type(self, name, info, json_type):
         pass
 
-    def visit_enum_type(self, name, info, ifcond, members, prefix):
+    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         pass
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -123,7 +123,7 @@ class QAPISchemaVisitor:
                                features):
         pass
 
-    def visit_alternate_type(self, name, info, ifcond, variants):
+    def visit_alternate_type(self, name, info, ifcond, features, variants):
         pass
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
@@ -131,7 +131,7 @@ class QAPISchemaVisitor:
                       features):
         pass
 
-    def visit_event(self, name, info, ifcond, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         pass
 
 
@@ -234,8 +234,8 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 class QAPISchemaEnumType(QAPISchemaType):
     meta = 'enum'
 
-    def __init__(self, name, info, doc, ifcond, members, prefix):
-        super().__init__(name, info, doc, ifcond)
+    def __init__(self, name, info, doc, ifcond, features, members, prefix):
+        super().__init__(name, info, doc, ifcond, features)
         for m in members:
             assert isinstance(m, QAPISchemaEnumMember)
             m.set_defined_in(name)
@@ -271,15 +271,16 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def visit(self, visitor):
         super().visit(visitor)
-        visitor.visit_enum_type(self.name, self.info, self.ifcond,
-                                self.members, self.prefix)
+        visitor.visit_enum_type(
+            self.name, self.info, self.ifcond, self.features,
+            self.members, self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
     meta = 'array'
 
     def __init__(self, name, info, element_type):
-        super().__init__(name, info, None, None)
+        super().__init__(name, info, None)
         assert isinstance(element_type, str)
         self._element_type_name = element_type
         self.element_type = None
@@ -325,8 +326,8 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 
 class QAPISchemaObjectType(QAPISchemaType):
-    def __init__(self, name, info, doc, ifcond,
-                 base, local_members, variants, features):
+    def __init__(self, name, info, doc, ifcond, features,
+                 base, local_members, variants):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
@@ -622,8 +623,8 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
 class QAPISchemaAlternateType(QAPISchemaType):
     meta = 'alternate'
 
-    def __init__(self, name, info, doc, ifcond, variants):
-        super().__init__(name, info, doc, ifcond)
+    def __init__(self, name, info, doc, ifcond, features, variants):
+        super().__init__(name, info, doc, ifcond, features)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
         assert variants.tag_member
         variants.set_defined_in(name)
@@ -683,16 +684,16 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def visit(self, visitor):
         super().visit(visitor)
-        visitor.visit_alternate_type(self.name, self.info, self.ifcond,
-                                     self.variants)
+        visitor.visit_alternate_type(
+            self.name, self.info, self.ifcond, self.features, self.variants)
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
     meta = 'command'
 
-    def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
-                 gen, success_response, boxed, allow_oob, allow_preconfig,
-                 features):
+    def __init__(self, name, info, doc, ifcond, features,
+                 arg_type, ret_type,
+                 gen, success_response, boxed, allow_oob, allow_preconfig):
         super().__init__(name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -755,8 +756,8 @@ class QAPISchemaCommand(QAPISchemaEntity):
 class QAPISchemaEvent(QAPISchemaEntity):
     meta = 'event'
 
-    def __init__(self, name, info, doc, ifcond, arg_type, boxed):
-        super().__init__(name, info, doc, ifcond)
+    def __init__(self, name, info, doc, ifcond, features, arg_type, boxed):
+        super().__init__(name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         self._arg_type_name = arg_type
         self.arg_type = None
@@ -787,8 +788,9 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
     def visit(self, visitor):
         super().visit(visitor)
-        visitor.visit_event(self.name, self.info, self.ifcond,
-                            self.arg_type, self.boxed)
+        visitor.visit_event(
+            self.name, self.info, self.ifcond, self.features,
+            self.arg_type, self.boxed)
 
 
 class QAPISchema:
@@ -893,7 +895,7 @@ class QAPISchema:
                   ('null',   'null',    'QNull' + pointer_suffix)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType(
-            'q_empty', None, None, None, None, [], None, [])
+            'q_empty', None, None, None, None, None, [], None)
         self._def_entity(self.the_empty_object_type)
 
         qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
@@ -901,10 +903,11 @@ class QAPISchema:
         qtype_values = self._make_enum_members(
             [{'name': n} for n in qtypes], None)
 
-        self._def_entity(QAPISchemaEnumType('QType', None, None, None,
+        self._def_entity(QAPISchemaEnumType('QType', None, None, None, None,
                                             qtype_values, 'QTYPE'))
 
-    def _make_features(self, features, info):
+    def _make_features(self, expr, info):
+        features = expr.get('features', [])
         return [QAPISchemaFeature(f['name'], info, f.get('if'))
                 for f in features]
 
@@ -916,7 +919,8 @@ class QAPISchema:
         # See also QAPISchemaObjectTypeMember.describe()
         name = name + 'Kind'    # reserved by check_defn_name_str()
         self._def_entity(QAPISchemaEnumType(
-            name, info, None, ifcond, self._make_enum_members(values, info),
+            name, info, None, ifcond, None,
+            self._make_enum_members(values, info),
             None))
         return name
 
@@ -944,8 +948,8 @@ class QAPISchema:
             # TODO kill simple unions or implement the disjunction
             assert (ifcond or []) == typ._ifcond # pylint: disable=protected-access
         else:
-            self._def_entity(QAPISchemaObjectType(name, info, None, ifcond,
-                                                  None, members, None, []))
+            self._def_entity(QAPISchemaObjectType(
+                name, info, None, ifcond, None, None, members, None))
         return name
 
     def _def_enum_type(self, expr, info, doc):
@@ -953,8 +957,9 @@ class QAPISchema:
         data = expr['data']
         prefix = expr.get('prefix')
         ifcond = expr.get('if')
+        features = self._make_features(expr, info)
         self._def_entity(QAPISchemaEnumType(
-            name, info, doc, ifcond,
+            name, info, doc, ifcond, features,
             self._make_enum_members(data, info), prefix))
 
     def _make_member(self, name, typ, ifcond, info):
@@ -976,12 +981,11 @@ class QAPISchema:
         base = expr.get('base')
         data = expr['data']
         ifcond = expr.get('if')
-        features = expr.get('features', [])
+        features = self._make_features(expr, info)
         self._def_entity(QAPISchemaObjectType(
-            name, info, doc, ifcond, base,
+            name, info, doc, ifcond, features, base,
             self._make_members(data, info),
-            None,
-            self._make_features(features, info)))
+            None))
 
     def _make_variant(self, case, typ, ifcond, info):
         return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
@@ -1000,6 +1004,7 @@ class QAPISchema:
         data = expr['data']
         base = expr.get('base')
         ifcond = expr.get('if')
+        features = self._make_features(expr, info)
         tag_name = expr.get('discriminator')
         tag_member = None
         if isinstance(base, dict):
@@ -1020,21 +1025,22 @@ class QAPISchema:
             tag_member = QAPISchemaObjectTypeMember('type', info, typ, False)
             members = [tag_member]
         self._def_entity(
-            QAPISchemaObjectType(name, info, doc, ifcond, base, members,
+            QAPISchemaObjectType(name, info, doc, ifcond, features,
+                                 base, members,
                                  QAPISchemaObjectTypeVariants(
-                                     tag_name, info, tag_member, variants),
-                                 []))
+                                     tag_name, info, tag_member, variants)))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
+        features = self._make_features(expr, info)
         variants = [self._make_variant(key, value['type'], value.get('if'),
                                        info)
                     for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', info, 'QType', False)
         self._def_entity(
-            QAPISchemaAlternateType(name, info, doc, ifcond,
+            QAPISchemaAlternateType(name, info, doc, ifcond, features,
                                     QAPISchemaObjectTypeVariants(
                                         None, info, tag_member, variants)))
 
@@ -1048,27 +1054,31 @@ class QAPISchema:
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
         ifcond = expr.get('if')
-        features = expr.get('features', [])
+        features = self._make_features(expr, info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, ifcond, 'arg', self._make_members(data, info))
+                name, info, ifcond,
+                'arg', self._make_members(data, info))
         if isinstance(rets, list):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
-        self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, data, rets,
+        self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, features,
+                                           data, rets,
                                            gen, success_response,
-                                           boxed, allow_oob, allow_preconfig,
-                                           self._make_features(features, info)))
+                                           boxed, allow_oob, allow_preconfig))
 
     def _def_event(self, expr, info, doc):
         name = expr['event']
         data = expr.get('data')
         boxed = expr.get('boxed', False)
         ifcond = expr.get('if')
+        features = self._make_features(expr, info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, ifcond, 'arg', self._make_members(data, info))
-        self._def_entity(QAPISchemaEvent(name, info, doc, ifcond, data, boxed))
+                name, info, ifcond,
+                'arg', self._make_members(data, info))
+        self._def_entity(QAPISchemaEvent(name, info, doc, ifcond, features,
+                                         data, boxed))
 
     def _def_exprs(self, exprs):
         for expr_elem in exprs:

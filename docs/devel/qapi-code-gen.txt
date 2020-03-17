@@ -172,7 +172,8 @@ Syntax:
     ENUM = { 'enum': STRING,
              'data': [ ENUM-VALUE, ... ],
              '*prefix': STRING,
-             '*if': COND }
+             '*if': COND,
+             '*features': FEATURES }
     ENUM-VALUE = STRING
                | { 'name': STRING, '*if': COND }
 
@@ -206,6 +207,9 @@ the job satisfactorily.
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
+
+The optional 'features' member specifies features.  See "Features"
+below for more on this.
 
 
 === Type references and array types ===
@@ -279,12 +283,14 @@ below for more on this.
 Syntax:
     UNION = { 'union': STRING,
               'data': BRANCHES,
-              '*if': COND }
+              '*if': COND,
+              '*features': FEATURES }
           | { 'union': STRING,
               'data': BRANCHES,
               'base': ( MEMBERS | STRING ),
               'discriminator': STRING,
-              '*if': COND }
+              '*if': COND,
+              '*features': FEATURES }
     BRANCHES = { BRANCH, ... }
     BRANCH = STRING : TYPE-REF
            | STRING : { 'type': TYPE-REF, '*if': COND }
@@ -391,13 +397,17 @@ is identical on the wire to:
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
 
+The optional 'features' member specifies features.  See "Features"
+below for more on this.
+
 
 === Alternate types ===
 
 Syntax:
     ALTERNATE = { 'alternate': STRING,
                   'data': ALTERNATIVES,
-                  '*if': COND }
+                  '*if': COND,
+                  '*features': FEATURES }
     ALTERNATIVES = { ALTERNATIVE, ... }
     ALTERNATIVE = STRING : STRING
                 | STRING : { 'type': STRING, '*if': COND }
@@ -440,6 +450,9 @@ following example objects:
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
+
+The optional 'features' member specifies features.  See "Features"
+below for more on this.
 
 
 === Commands ===
@@ -584,6 +597,9 @@ started with --preconfig.
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
 
+The optional 'features' member specifies features.  See "Features"
+below for more on this.
+
 
 === Events ===
 
@@ -595,7 +611,8 @@ Syntax:
               'data': STRING,
               'boxed': true,
               )
-              '*if': COND }
+              '*if': COND,
+              '*features': FEATURES }
 
 Member 'event' names the event.  This is the event name used in the
 Client JSON Protocol.
@@ -627,6 +644,9 @@ complex type.  See section "Code generated for events" for examples.
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
+
+The optional 'features' member specifies features.  See "Features"
+below for more on this.
 
 
 === Features ===
@@ -966,8 +986,9 @@ schema, along with the SchemaInfo type.  This text attempts to give an
 overview how things work.  For details you need to consult the QAPI
 schema.
 
-SchemaInfo objects have common members "name", "meta-type", and
-additional variant members depending on the value of meta-type.
+SchemaInfo objects have common members "name", "meta-type",
+"features", and additional variant members depending on the value of
+meta-type.
 
 Each SchemaInfo object describes a wire ABI entity of a certain
 meta-type: a command, event or one of several kinds of type.
@@ -980,19 +1001,21 @@ not.  Therefore, the SchemaInfo for types have auto-generated
 meaningless names.  For readability, the examples in this section use
 meaningful type names instead.
 
+Optional member "features" exposes the entity's feature strings as a
+JSON array of strings.
+
 To examine a type, start with a command or event using it, then follow
 references by name.
 
 QAPI schema definitions not reachable that way are omitted.
 
 The SchemaInfo for a command has meta-type "command", and variant
-members "arg-type", "ret-type", "allow-oob", and "features".  On the
-wire, the "arguments" member of a client's "execute" command must
-conform to the object type named by "arg-type".  The "return" member
-that the server passes in a success response conforms to the type
-named by "ret-type".  When "allow-oob" is true, it means the command
-supports out-of-band execution.  It defaults to false.  "features"
-exposes the command's feature strings as a JSON array of strings.
+members "arg-type", "ret-type" and "allow-oob".  On the wire, the
+"arguments" member of a client's "execute" command must conform to the
+object type named by "arg-type".  The "return" member that the server
+passes in a success response conforms to the type named by "ret-type".
+When "allow-oob" is true, it means the command supports out-of-band
+execution.  It defaults to false.
 
 If the command takes no arguments, "arg-type" names an object type
 without members.  Likewise, if the command returns nothing, "ret-type"
@@ -1027,8 +1050,7 @@ Example: the SchemaInfo for EVENT_C from section Events
 
 The SchemaInfo for struct and union types has meta-type "object".
 
-The SchemaInfo for a struct type has variant members "members" and
-"features".
+The SchemaInfo for a struct type has variant member "members".
 
 The SchemaInfo for a union type additionally has variant members "tag"
 and "variants".

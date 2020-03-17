@@ -15,6 +15,7 @@ enum Enum
         if ['defined(IFONE)']
     member two
     if ['defined(IFCOND)']
+    feature enum-feat
 object Base
     member base1: Enum optional=False
 object Variant1
@@ -28,6 +29,7 @@ object Object
     case one: Variant1
     case two: Variant2
         if ['IFTWO']
+    feature union-feat1
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False
 object q_obj_Variant2-wrapper
@@ -42,10 +44,12 @@ object SugaredUnion
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
         if ['IFTWO']
+    feature union-feat2
 alternate Alternate
     tag type
     case i: int
     case b: bool
+    feature alt-feat
 object q_obj_cmd-arg
     member arg1: int optional=False
     member arg2: str optional=True
@@ -60,6 +64,7 @@ command cmd-boxed Object -> None
     feature cmd-feat2
 event EVT-BOXED Object
     boxed=True
+    feature feat3
 doc freeform
     body=
 = Section
@@ -112,6 +117,8 @@ doc symbol=Enum
 The _one_ {and only}
     arg=two
 
+    feature=enum-feat
+Also _one_ {and only}
     section=None
 @two is undocumented
 doc symbol=Base
@@ -134,11 +141,15 @@ doc symbol=Variant2
 doc symbol=Object
     body=
 
+    feature=union-feat1
+a feature
 doc symbol=SugaredUnion
     body=
 
     arg=type
 
+    feature=union-feat2
+a feature
 doc symbol=Alternate
     body=
 
@@ -147,6 +158,8 @@ an integer
 @b is undocumented
     arg=b
 
+    feature=alt-feat
+a feature
 doc freeform
     body=
 == Another subsection
@@ -197,3 +210,5 @@ another feature
 doc symbol=EVT-BOXED
     body=
 
+    feature=feat3
+a feature
