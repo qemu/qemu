@@ -2,6 +2,7 @@
 #define HW_IDE_PCI_H
 
 #include "hw/ide/internal.h"
+#include "hw/pci/pci.h"
 
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02

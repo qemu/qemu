@@ -2,7 +2,6 @@
 #define HW_IDE_H
 
 #include "hw/isa/isa.h"
-#include "hw/pci/pci.h"
 #include "exec/memory.h"
 
 #define MAX_IDE_DEVS	2
