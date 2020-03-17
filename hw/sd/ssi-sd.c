@@ -255,13 +255,25 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
     carddev = qdev_create(BUS(&s->sdbus), TYPE_SD_CARD);
     if (dinfo) {
         qdev_prop_set_drive(carddev, "drive", blk_by_legacy_dinfo(dinfo), &err);
+        if (err) {
+            goto fail;
+        }
     }
+
     object_property_set_bool(OBJECT(carddev), true, "spi", &err);
+    if (err) {
+        goto fail;
+    }
+
     object_property_set_bool(OBJECT(carddev), true, "realized", &err);
     if (err) {
-        error_setg(errp, "failed to init SD card: %s", error_get_pretty(err));
-        return;
+        goto fail;
     }
+
+    return;
+
+fail:
+    error_propagate_prepend(errp, err, "failed to init SD card: ");
 }
 
 static void ssi_sd_reset(DeviceState *dev)
