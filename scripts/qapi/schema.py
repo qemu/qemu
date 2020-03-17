@@ -338,7 +338,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             assert isinstance(m, QAPISchemaObjectTypeMember)
             m.set_defined_in(name)
         if variants is not None:
-            assert isinstance(variants, QAPISchemaObjectTypeVariants)
+            assert isinstance(variants, QAPISchemaVariants)
             variants.set_defined_in(name)
         self._base_name = base
         self.base = None
@@ -449,7 +449,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def __init__(self, name, info, doc, ifcond, features, variants):
         super().__init__(name, info, doc, ifcond, features)
-        assert isinstance(variants, QAPISchemaObjectTypeVariants)
+        assert isinstance(variants, QAPISchemaVariants)
         assert variants.tag_member
         variants.set_defined_in(name)
         variants.tag_member.set_defined_in(self.name)
@@ -512,7 +512,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
             self.name, self.info, self.ifcond, self.features, self.variants)
 
 
-class QAPISchemaObjectTypeVariants:
+class QAPISchemaVariants:
     def __init__(self, tag_name, info, tag_member, variants):
         # Flat unions pass tag_name but not tag_member.
         # Simple unions and alternates pass tag_member but not tag_name.
@@ -522,7 +522,7 @@ class QAPISchemaObjectTypeVariants:
         assert (isinstance(tag_name, str) or
                 isinstance(tag_member, QAPISchemaObjectTypeMember))
         for v in variants:
-            assert isinstance(v, QAPISchemaObjectTypeVariant)
+            assert isinstance(v, QAPISchemaVariant)
         self._tag_name = tag_name
         self.info = info
         self.tag_member = tag_member
@@ -572,8 +572,8 @@ class QAPISchemaObjectTypeVariants:
             cases = {v.name for v in self.variants}
             for m in self.tag_member.type.members:
                 if m.name not in cases:
-                    v = QAPISchemaObjectTypeVariant(m.name, self.info,
-                                                    'q_empty', m.ifcond)
+                    v = QAPISchemaVariant(m.name, self.info,
+                                          'q_empty', m.ifcond)
                     v.set_defined_in(self.tag_member.defined_in)
                     self.variants.append(v)
         if not self.variants:
@@ -681,7 +681,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
                                         self.describe)
 
 
-class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
+class QAPISchemaVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
     def __init__(self, name, info, typ, ifcond=None):
@@ -987,7 +987,7 @@ class QAPISchema:
             None))
 
     def _make_variant(self, case, typ, ifcond, info):
-        return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
+        return QAPISchemaVariant(case, info, typ, ifcond)
 
     def _make_simple_variant(self, case, typ, ifcond, info):
         if isinstance(typ, list):
@@ -996,7 +996,7 @@ class QAPISchema:
         typ = self._make_implicit_object_type(
             typ, info, self.lookup_type(typ),
             'wrapper', [self._make_member('data', typ, None, info)])
-        return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
+        return QAPISchemaVariant(case, info, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):
         name = expr['union']
@@ -1026,7 +1026,7 @@ class QAPISchema:
         self._def_entity(
             QAPISchemaObjectType(name, info, doc, ifcond, features,
                                  base, members,
-                                 QAPISchemaObjectTypeVariants(
+                                 QAPISchemaVariants(
                                      tag_name, info, tag_member, variants)))
 
     def _def_alternate_type(self, expr, info, doc):
@@ -1040,7 +1040,7 @@ class QAPISchema:
         tag_member = QAPISchemaObjectTypeMember('type', info, 'QType', False)
         self._def_entity(
             QAPISchemaAlternateType(name, info, doc, ifcond, features,
-                                    QAPISchemaObjectTypeVariants(
+                                    QAPISchemaVariants(
                                         None, info, tag_member, variants)))
 
     def _def_command(self, expr, info, doc):
