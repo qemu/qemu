@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp-event.h"
@@ -124,17 +125,13 @@ static void event_prepare(TestEventData *data,
     /* Global variable test_event_data was used to pass the expectation, so
        test cases can't be executed at same time. */
     g_mutex_lock(&test_event_lock);
-
-    data->expect = qdict_new();
     test_event_data = data;
 }
 
 static void event_teardown(TestEventData *data,
                            const void *unused)
 {
-    qobject_unref(data->expect);
     test_event_data = NULL;
-
     g_mutex_unlock(&test_event_lock);
 }
 
@@ -152,90 +149,54 @@ static void event_test_add(const char *testpath,
 static void test_event_a(TestEventData *data,
                          const void *unused)
 {
-    QDict *d;
-    d = data->expect;
-    qdict_put_str(d, "event", "EVENT_A");
+    data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_A' }");
     qapi_event_send_event_a();
+    qobject_unref(data->expect);
 }
 
 static void test_event_b(TestEventData *data,
                          const void *unused)
 {
-    QDict *d;
-    d = data->expect;
-    qdict_put_str(d, "event", "EVENT_B");
+    data->expect = qdict_from_jsonf_nofail("{ 'event': 'EVENT_B' }");
     qapi_event_send_event_b();
+    qobject_unref(data->expect);
 }
 
 static void test_event_c(TestEventData *data,
                          const void *unused)
 {
-    QDict *d, *d_data, *d_b;
+    UserDefOne b = { .integer = 2, .string = (char *)"test1" };
 
-    UserDefOne b;
-    b.integer = 2;
-    b.string = g_strdup("test1");
-    b.has_enum1 = false;
-
-    d_b = qdict_new();
-    qdict_put_int(d_b, "integer", 2);
-    qdict_put_str(d_b, "string", "test1");
-
-    d_data = qdict_new();
-    qdict_put_int(d_data, "a", 1);
-    qdict_put(d_data, "b", d_b);
-    qdict_put_str(d_data, "c", "test2");
-
-    d = data->expect;
-    qdict_put_str(d, "event", "EVENT_C");
-    qdict_put(d, "data", d_data);
-
+    data->expect = qdict_from_jsonf_nofail(
+        "{ 'event': 'EVENT_C', 'data': {"
+        " 'a': 1, 'b': { 'integer': 2, 'string': 'test1' }, 'c': 'test2' } }");
     qapi_event_send_event_c(true, 1, true, &b, "test2");
-
-    g_free(b.string);
+    qobject_unref(data->expect);
 }
 
 /* Complex type */
 static void test_event_d(TestEventData *data,
                          const void *unused)
 {
-    UserDefOne struct1;
-    EventStructOne a;
-    QDict *d, *d_data, *d_a, *d_struct1;
+    UserDefOne struct1 = {
+        .integer = 2, .string = (char *)"test1",
+        .has_enum1 = true, .enum1 = ENUM_ONE_VALUE1,
+    };
+    EventStructOne a = {
+        .struct1 = &struct1,
+        .string = (char *)"test2",
+        .has_enum2 = true,
+        .enum2 = ENUM_ONE_VALUE2,
+    };
 
-    struct1.integer = 2;
-    struct1.string = g_strdup("test1");
-    struct1.has_enum1 = true;
-    struct1.enum1 = ENUM_ONE_VALUE1;
-
-    a.struct1 = &struct1;
-    a.string = g_strdup("test2");
-    a.has_enum2 = true;
-    a.enum2 = ENUM_ONE_VALUE2;
-
-    d_struct1 = qdict_new();
-    qdict_put_int(d_struct1, "integer", 2);
-    qdict_put_str(d_struct1, "string", "test1");
-    qdict_put_str(d_struct1, "enum1", "value1");
-
-    d_a = qdict_new();
-    qdict_put(d_a, "struct1", d_struct1);
-    qdict_put_str(d_a, "string", "test2");
-    qdict_put_str(d_a, "enum2", "value2");
-
-    d_data = qdict_new();
-    qdict_put(d_data, "a", d_a);
-    qdict_put_str(d_data, "b", "test3");
-    qdict_put_str(d_data, "enum3", "value3");
-
-    d = data->expect;
-    qdict_put_str(d, "event", "EVENT_D");
-    qdict_put(d, "data", d_data);
-
+    data->expect = qdict_from_jsonf_nofail(
+        "{ 'event': 'EVENT_D', 'data': {"
+        " 'a': {"
+        "  'struct1': { 'integer': 2, 'string': 'test1', 'enum1': 'value1' },"
+        "  'string': 'test2', 'enum2': 'value2' },"
+        " 'b': 'test3', 'enum3': 'value3' } }");
     qapi_event_send_event_d(&a, "test3", false, NULL, true, ENUM_ONE_VALUE3);
-
-    g_free(struct1.string);
-    g_free(a.string);
+    qobject_unref(data->expect);
 }
 
 int main(int argc, char **argv)
