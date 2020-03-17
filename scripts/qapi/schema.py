@@ -252,9 +252,8 @@ class QAPISchemaEnumType(QAPISchemaType):
     def connect_doc(self, doc=None):
         super().connect_doc(doc)
         doc = doc or self.doc
-        if doc:
-            for m in self.members:
-                doc.connect_member(m)
+        for m in self.members:
+            m.connect_doc(doc)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
@@ -396,11 +395,10 @@ class QAPISchemaObjectType(QAPISchemaType):
     def connect_doc(self, doc=None):
         super().connect_doc(doc)
         doc = doc or self.doc
-        if doc:
-            if self.base and self.base.is_implicit():
-                self.base.connect_doc(doc)
-            for m in self.local_members:
-                doc.connect_member(m)
+        if self.base and self.base.is_implicit():
+            self.base.connect_doc(doc)
+        for m in self.local_members:
+            m.connect_doc(doc)
 
     @property
     def ifcond(self):
@@ -496,9 +494,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def connect_doc(self, doc=None):
         super().connect_doc(doc)
         doc = doc or self.doc
-        if doc:
-            for v in self.variants.variants:
-                doc.connect_member(v)
+        for v in self.variants.variants:
+            v.connect_doc(doc)
 
     def c_type(self):
         return c_name(self.name) + pointer_suffix
@@ -626,6 +623,10 @@ class QAPISchemaMember:
                 "%s collides with %s"
                 % (self.describe(info), seen[cname].describe(info)))
         seen[cname] = self
+
+    def connect_doc(self, doc):
+        if doc:
+            doc.connect_member(self)
 
     def describe(self, info):
         role = self.role
