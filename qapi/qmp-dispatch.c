@@ -19,20 +19,13 @@
 #include "sysemu/runstate.h"
 #include "qapi/qmp/qbool.h"
 
-static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
+static QDict *qmp_dispatch_check_obj(QDict *dict, bool allow_oob,
                                      Error **errp)
 {
     const char *exec_key = NULL;
     const QDictEntry *ent;
     const char *arg_name;
     const QObject *arg_obj;
-    QDict *dict;
-
-    dict = qobject_to(QDict, request);
-    if (!dict) {
-        error_setg(errp, "QMP input must be a JSON object");
-        return NULL;
-    }
 
     for (ent = qdict_first(dict); ent;
          ent = qdict_next(dict, ent)) {
@@ -103,13 +96,21 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
     const char *command;
     QDict *args;
     QmpCommand *cmd;
-    QDict *dict = qobject_to(QDict, request);
-    QObject *id = dict ? qdict_get(dict, "id") : NULL;
+    QDict *dict;
+    QObject *id;
     QObject *ret = NULL;
     QDict *rsp = NULL;
 
-    dict = qmp_dispatch_check_obj(request, allow_oob, &err);
+    dict = qobject_to(QDict, request);
     if (!dict) {
+        id = NULL;
+        error_setg(&err, "QMP input must be a JSON object");
+        goto out;
+    }
+
+    id = qdict_get(dict, "id");
+
+    if (!qmp_dispatch_check_obj(dict, allow_oob, &err)) {
         goto out;
     }
 
