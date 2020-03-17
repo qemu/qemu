@@ -65,7 +65,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
  * In C++ it would be different, but then C++ wouldn't need QemuLockable
  * either...
  */
-#define QEMU_MAKE_LOCKABLE_(x) qemu_make_lockable((x), &(QemuLockable) {    \
+#define QEMU_MAKE_LOCKABLE_(x) (&(QemuLockable) {     \
         .object = (x),                               \
         .lock = QEMU_LOCK_FUNC(x),                   \
         .unlock = QEMU_UNLOCK_FUNC(x),               \
@@ -76,9 +76,22 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
  * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
  *
  * Returns a QemuLockable object that can be passed around
- * to a function that can operate with locks of any kind.
+ * to a function that can operate with locks of any kind, or
+ * NULL if @x is %NULL.
  */
 #define QEMU_MAKE_LOCKABLE(x)                        \
+    QEMU_GENERIC(x,                                  \
+                 (QemuLockable *, (x)),              \
+                 qemu_make_lockable((x), QEMU_MAKE_LOCKABLE_(x)))
+
+/* QEMU_MAKE_LOCKABLE_NONNULL - Make a polymorphic QemuLockable
+ *
+ * @x: a lock object (currently one of QemuMutex, CoMutex, QemuSpin).
+ *
+ * Returns a QemuLockable object that can be passed around
+ * to a function that can operate with locks of any kind.
+ */
+#define QEMU_MAKE_LOCKABLE_NONNULL(x)                \
     QEMU_GENERIC(x,                                  \
                  (QemuLockable *, (x)),              \
                  QEMU_MAKE_LOCKABLE_(x))
