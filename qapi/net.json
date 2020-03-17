@@ -39,17 +39,7 @@
 #
 # Add a network backend.
 #
-# @type: the type of network backend. Possible values are listed in
-#        NetClientDriver (excluding 'none' and 'nic')
-#
-# @id: the name of the new network backend
-#
 # Additional arguments depend on the type.
-#
-# TODO: This command effectively bypasses QAPI completely due to its
-#       "additional arguments" business.  It shouldn't have been added to
-#       the schema in this form.  It should be qapified properly, or
-#       replaced by a properly qapified command.
 #
 # Since: 0.14.0
 #
@@ -64,9 +54,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'netdev_add',
-  'data': {'type': 'str', 'id': 'str'},
-  'gen': false }                # so we can get the additional arguments
+{ 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true }
 
 ##
 # @netdev_del:

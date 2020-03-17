@@ -1170,7 +1170,7 @@ void netdev_add(QemuOpts *opts, Error **errp)
     net_client_init(opts, true, errp);
 }
 
-void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
+void qmp_netdev_add(Netdev *netdev, Error **errp)
 {
     Error *local_err = NULL;
     QemuOptsList *opts_list;
@@ -1181,12 +1181,12 @@ void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
         goto out;
     }
 
-    opts = qemu_opts_from_qdict(opts_list, qdict, &local_err);
+    opts = qemu_opts_create(opts_list, netdev->id, 1, &local_err);
     if (local_err) {
         goto out;
     }
 
-    netdev_add(opts, &local_err);
+    net_client_init1(netdev, true, &local_err);
     if (local_err) {
         qemu_opts_del(opts);
         goto out;
