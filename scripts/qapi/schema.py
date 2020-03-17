@@ -444,82 +444,72 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.members, self.variants)
 
 
-class QAPISchemaMember:
-    """ Represents object members, enum members and features """
-    role = 'member'
+class QAPISchemaAlternateType(QAPISchemaType):
+    meta = 'alternate'
 
-    def __init__(self, name, info, ifcond=None):
-        assert isinstance(name, str)
-        self.name = name
-        self.info = info
-        self.ifcond = ifcond or []
-        self.defined_in = None
-
-    def set_defined_in(self, name):
-        assert not self.defined_in
-        self.defined_in = name
-
-    def check_clash(self, info, seen):
-        cname = c_name(self.name)
-        if cname in seen:
-            raise QAPISemError(
-                info,
-                "%s collides with %s"
-                % (self.describe(info), seen[cname].describe(info)))
-        seen[cname] = self
-
-    def describe(self, info):
-        role = self.role
-        defined_in = self.defined_in
-        assert defined_in
-
-        if defined_in.startswith('q_obj_'):
-            # See QAPISchema._make_implicit_object_type() - reverse the
-            # mapping there to create a nice human-readable description
-            defined_in = defined_in[6:]
-            if defined_in.endswith('-arg'):
-                # Implicit type created for a command's dict 'data'
-                assert role == 'member'
-                role = 'parameter'
-            elif defined_in.endswith('-base'):
-                # Implicit type created for a flat union's dict 'base'
-                role = 'base ' + role
-            else:
-                # Implicit type created for a simple union's branch
-                assert defined_in.endswith('-wrapper')
-                # Unreachable and not implemented
-                assert False
-        elif defined_in.endswith('Kind'):
-            # See QAPISchema._make_implicit_enum_type()
-            # Implicit enum created for simple union's branches
-            assert role == 'value'
-            role = 'branch'
-        elif defined_in != info.defn_name:
-            return "%s '%s' of type '%s'" % (role, self.name, defined_in)
-        return "%s '%s'" % (role, self.name)
-
-
-class QAPISchemaEnumMember(QAPISchemaMember):
-    role = 'value'
-
-
-class QAPISchemaFeature(QAPISchemaMember):
-    role = 'feature'
-
-
-class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, info, typ, optional, ifcond=None):
-        super().__init__(name, info, ifcond)
-        assert isinstance(typ, str)
-        assert isinstance(optional, bool)
-        self._type_name = typ
-        self.type = None
-        self.optional = optional
+    def __init__(self, name, info, doc, ifcond, features, variants):
+        super().__init__(name, info, doc, ifcond, features)
+        assert isinstance(variants, QAPISchemaObjectTypeVariants)
+        assert variants.tag_member
+        variants.set_defined_in(name)
+        variants.tag_member.set_defined_in(self.name)
+        self.variants = variants
 
     def check(self, schema):
-        assert self.defined_in
-        self.type = schema.resolve_type(self._type_name, self.info,
-                                        self.describe)
+        super().check(schema)
+        self.variants.tag_member.check(schema)
+        # Not calling self.variants.check_clash(), because there's nothing
+        # to clash with
+        self.variants.check(schema, {})
+        # Alternate branch names have no relation to the tag enum values;
+        # so we have to check for potential name collisions ourselves.
+        seen = {}
+        types_seen = {}
+        for v in self.variants.variants:
+            v.check_clash(self.info, seen)
+            qtype = v.type.alternate_qtype()
+            if not qtype:
+                raise QAPISemError(
+                    self.info,
+                    "%s cannot use %s"
+                    % (v.describe(self.info), v.type.describe()))
+            conflicting = set([qtype])
+            if qtype == 'QTYPE_QSTRING':
+                if isinstance(v.type, QAPISchemaEnumType):
+                    for m in v.type.members:
+                        if m.name in ['on', 'off']:
+                            conflicting.add('QTYPE_QBOOL')
+                        if re.match(r'[-+0-9.]', m.name):
+                            # lazy, could be tightened
+                            conflicting.add('QTYPE_QNUM')
+                else:
+                    conflicting.add('QTYPE_QNUM')
+                    conflicting.add('QTYPE_QBOOL')
+            for qt in conflicting:
+                if qt in types_seen:
+                    raise QAPISemError(
+                        self.info,
+                        "%s can't be distinguished from '%s'"
+                        % (v.describe(self.info), types_seen[qt]))
+                types_seen[qt] = v.name
+
+    def connect_doc(self, doc=None):
+        super().connect_doc(doc)
+        doc = doc or self.doc
+        if doc:
+            for v in self.variants.variants:
+                doc.connect_member(v)
+
+    def c_type(self):
+        return c_name(self.name) + pointer_suffix
+
+    def json_type(self):
+        return 'value'
+
+    def visit(self, visitor):
+        super().visit(visitor)
+        visitor.visit_alternate_type(
+            self.name, self.info, self.ifcond, self.features, self.variants)
 
 
 class QAPISchemaObjectTypeVariants:
@@ -613,79 +603,89 @@ class QAPISchemaObjectTypeVariants:
             v.type.check_clash(info, dict(seen))
 
 
+class QAPISchemaMember:
+    """ Represents object members, enum members and features """
+    role = 'member'
+
+    def __init__(self, name, info, ifcond=None):
+        assert isinstance(name, str)
+        self.name = name
+        self.info = info
+        self.ifcond = ifcond or []
+        self.defined_in = None
+
+    def set_defined_in(self, name):
+        assert not self.defined_in
+        self.defined_in = name
+
+    def check_clash(self, info, seen):
+        cname = c_name(self.name)
+        if cname in seen:
+            raise QAPISemError(
+                info,
+                "%s collides with %s"
+                % (self.describe(info), seen[cname].describe(info)))
+        seen[cname] = self
+
+    def describe(self, info):
+        role = self.role
+        defined_in = self.defined_in
+        assert defined_in
+
+        if defined_in.startswith('q_obj_'):
+            # See QAPISchema._make_implicit_object_type() - reverse the
+            # mapping there to create a nice human-readable description
+            defined_in = defined_in[6:]
+            if defined_in.endswith('-arg'):
+                # Implicit type created for a command's dict 'data'
+                assert role == 'member'
+                role = 'parameter'
+            elif defined_in.endswith('-base'):
+                # Implicit type created for a flat union's dict 'base'
+                role = 'base ' + role
+            else:
+                # Implicit type created for a simple union's branch
+                assert defined_in.endswith('-wrapper')
+                # Unreachable and not implemented
+                assert False
+        elif defined_in.endswith('Kind'):
+            # See QAPISchema._make_implicit_enum_type()
+            # Implicit enum created for simple union's branches
+            assert role == 'value'
+            role = 'branch'
+        elif defined_in != info.defn_name:
+            return "%s '%s' of type '%s'" % (role, self.name, defined_in)
+        return "%s '%s'" % (role, self.name)
+
+
+class QAPISchemaEnumMember(QAPISchemaMember):
+    role = 'value'
+
+
+class QAPISchemaFeature(QAPISchemaMember):
+    role = 'feature'
+
+
+class QAPISchemaObjectTypeMember(QAPISchemaMember):
+    def __init__(self, name, info, typ, optional, ifcond=None):
+        super().__init__(name, info, ifcond)
+        assert isinstance(typ, str)
+        assert isinstance(optional, bool)
+        self._type_name = typ
+        self.type = None
+        self.optional = optional
+
+    def check(self, schema):
+        assert self.defined_in
+        self.type = schema.resolve_type(self._type_name, self.info,
+                                        self.describe)
+
+
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
     def __init__(self, name, info, typ, ifcond=None):
         super().__init__(name, info, typ, False, ifcond)
-
-
-class QAPISchemaAlternateType(QAPISchemaType):
-    meta = 'alternate'
-
-    def __init__(self, name, info, doc, ifcond, features, variants):
-        super().__init__(name, info, doc, ifcond, features)
-        assert isinstance(variants, QAPISchemaObjectTypeVariants)
-        assert variants.tag_member
-        variants.set_defined_in(name)
-        variants.tag_member.set_defined_in(self.name)
-        self.variants = variants
-
-    def check(self, schema):
-        super().check(schema)
-        self.variants.tag_member.check(schema)
-        # Not calling self.variants.check_clash(), because there's nothing
-        # to clash with
-        self.variants.check(schema, {})
-        # Alternate branch names have no relation to the tag enum values;
-        # so we have to check for potential name collisions ourselves.
-        seen = {}
-        types_seen = {}
-        for v in self.variants.variants:
-            v.check_clash(self.info, seen)
-            qtype = v.type.alternate_qtype()
-            if not qtype:
-                raise QAPISemError(
-                    self.info,
-                    "%s cannot use %s"
-                    % (v.describe(self.info), v.type.describe()))
-            conflicting = set([qtype])
-            if qtype == 'QTYPE_QSTRING':
-                if isinstance(v.type, QAPISchemaEnumType):
-                    for m in v.type.members:
-                        if m.name in ['on', 'off']:
-                            conflicting.add('QTYPE_QBOOL')
-                        if re.match(r'[-+0-9.]', m.name):
-                            # lazy, could be tightened
-                            conflicting.add('QTYPE_QNUM')
-                else:
-                    conflicting.add('QTYPE_QNUM')
-                    conflicting.add('QTYPE_QBOOL')
-            for qt in conflicting:
-                if qt in types_seen:
-                    raise QAPISemError(
-                        self.info,
-                        "%s can't be distinguished from '%s'"
-                        % (v.describe(self.info), types_seen[qt]))
-                types_seen[qt] = v.name
-
-    def connect_doc(self, doc=None):
-        super().connect_doc(doc)
-        doc = doc or self.doc
-        if doc:
-            for v in self.variants.variants:
-                doc.connect_member(v)
-
-    def c_type(self):
-        return c_name(self.name) + pointer_suffix
-
-    def json_type(self):
-        return 'value'
-
-    def visit(self, visitor):
-        super().visit(visitor)
-        visitor.visit_alternate_type(
-            self.name, self.info, self.ifcond, self.features, self.variants)
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
