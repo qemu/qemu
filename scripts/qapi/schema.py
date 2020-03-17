@@ -53,13 +53,13 @@ class QAPISchemaEntity:
         seen = {}
         for f in self.features:
             f.check_clash(self.info, seen)
-            if self.doc:
-                self.doc.connect_feature(f)
-
         self._checked = True
 
     def connect_doc(self, doc=None):
-        pass
+        doc = doc or self.doc
+        if doc:
+            for f in self.features:
+                doc.connect_feature(f)
 
     def check_doc(self):
         if self.doc:
@@ -250,6 +250,7 @@ class QAPISchemaEnumType(QAPISchemaType):
             m.check_clash(self.info, seen)
 
     def connect_doc(self, doc=None):
+        super().connect_doc(doc)
         doc = doc or self.doc
         if doc:
             for m in self.members:
@@ -392,6 +393,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             m.check_clash(info, seen)
 
     def connect_doc(self, doc=None):
+        super().connect_doc(doc)
         doc = doc or self.doc
         if doc:
             if self.base and self.base.is_implicit():
@@ -667,6 +669,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
                 types_seen[qt] = v.name
 
     def connect_doc(self, doc=None):
+        super().connect_doc(doc)
         doc = doc or self.doc
         if doc:
             for v in self.variants.variants:
@@ -733,6 +736,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
                         % self.ret_type.describe())
 
     def connect_doc(self, doc=None):
+        super().connect_doc(doc)
         doc = doc or self.doc
         if doc:
             if self.arg_type and self.arg_type.is_implicit():
@@ -775,6 +779,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
                     % self.arg_type.describe())
 
     def connect_doc(self, doc=None):
+        super().connect_doc(doc)
         doc = doc or self.doc
         if doc:
             if self.arg_type and self.arg_type.is_implicit():
