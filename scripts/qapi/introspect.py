@@ -16,7 +16,7 @@ from qapi.schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
                          QAPISchemaType)
 
 
-def to_qlit(obj, level=0, suppress_first_indent=False):
+def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
 
     def indent(level):
         return level * 4 * ' '
@@ -30,7 +30,7 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
             ret += indent(level) + '/* %s */\n' % comment
         if ifcond:
             ret += gen_if(ifcond)
-        ret += to_qlit(ifobj, level)
+        ret += _tree_to_qlit(ifobj, level)
         if ifcond:
             ret += '\n' + gen_endif(ifcond)
         return ret
@@ -43,7 +43,7 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
     elif isinstance(obj, str):
         ret += 'QLIT_QSTR(' + to_c_string(obj) + ')'
     elif isinstance(obj, list):
-        elts = [to_qlit(elt, level + 1).strip('\n')
+        elts = [_tree_to_qlit(elt, level + 1).strip('\n')
                 for elt in obj]
         elts.append(indent(level + 1) + "{}")
         ret += 'QLIT_QLIST(((QLitObject[]) {\n'
@@ -53,7 +53,8 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
         elts = []
         for key, value in sorted(obj.items()):
             elts.append(indent(level + 1) + '{ %s, %s }' %
-                        (to_c_string(key), to_qlit(value, level + 1, True)))
+                        (to_c_string(key),
+                         _tree_to_qlit(value, level + 1, True)))
         elts.append(indent(level + 1) + '{}')
         ret += 'QLIT_QDICT(((QLitDictEntry[]) {\n'
         ret += ',\n'.join(elts) + '\n'
@@ -79,7 +80,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema = None
-        self._qlits = []
+        self._trees = []
         self._used_types = []
         self._name_map = {}
         self._genc.add(mcgen('''
@@ -108,9 +109,9 @@ extern const QLitObject %(c_name)s;
 const QLitObject %(c_name)s = %(c_string)s;
 ''',
                              c_name=c_name(name),
-                             c_string=to_qlit(self._qlits)))
+                             c_string=_tree_to_qlit(self._trees)))
         self._schema = None
-        self._qlits = []
+        self._trees = []
         self._used_types = []
         self._name_map = {}
 
@@ -144,7 +145,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
-    def _gen_qlit(self, name, mtype, obj, ifcond, features):
+    def _gen_tree(self, name, mtype, obj, ifcond, features):
         extra = {}
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
@@ -159,9 +160,9 @@ const QLitObject %(c_name)s = %(c_string)s;
         if ifcond:
             extra['if'] = ifcond
         if extra:
-            self._qlits.append((obj, extra))
+            self._trees.append((obj, extra))
         else:
-            self._qlits.append(obj)
+            self._trees.append(obj)
 
     def _gen_member(self, member):
         ret = {'name': member.name, 'type': self._use_type(member.type)}
@@ -180,17 +181,17 @@ const QLitObject %(c_name)s = %(c_string)s;
                 {'if': variant.ifcond})
 
     def visit_builtin_type(self, name, info, json_type):
-        self._gen_qlit(name, 'builtin', {'json-type': json_type}, [], None)
+        self._gen_tree(name, 'builtin', {'json-type': json_type}, [], None)
 
     def visit_enum_type(self, name, info, ifcond, features, members, prefix):
-        self._gen_qlit(name, 'enum',
+        self._gen_tree(name, 'enum',
                        {'values':
                         [(m.name, {'if': m.ifcond}) for m in members]},
                        ifcond, features)
 
     def visit_array_type(self, name, info, ifcond, element_type):
         element = self._use_type(element_type)
-        self._gen_qlit('[' + element + ']', 'array', {'element-type': element},
+        self._gen_tree('[' + element + ']', 'array', {'element-type': element},
                        ifcond, None)
 
     def visit_object_type_flat(self, name, info, ifcond, features,
@@ -200,10 +201,10 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj.update(self._gen_variants(variants.tag_member.name,
                                           variants.variants))
 
-        self._gen_qlit(name, 'object', obj, ifcond, features)
+        self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name, info, ifcond, features, variants):
-        self._gen_qlit(name, 'alternate',
+        self._gen_tree(name, 'alternate',
                        {'members': [
                            ({'type': self._use_type(m.type)}, {'if': m.ifcond})
                            for m in variants.variants]},
@@ -218,11 +219,11 @@ const QLitObject %(c_name)s = %(c_string)s;
                'ret-type': self._use_type(ret_type)}
         if allow_oob:
             obj['allow-oob'] = allow_oob
-        self._gen_qlit(name, 'command', obj, ifcond, features)
+        self._gen_tree(name, 'command', obj, ifcond, features)
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
-        self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)},
+        self._gen_tree(name, 'event', {'arg-type': self._use_type(arg_type)},
                        ifcond, features)
 
 
