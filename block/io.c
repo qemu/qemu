@@ -1399,7 +1399,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
             if (!(flags & BDRV_REQ_PREFETCH)) {
                 qemu_iovec_from_buf(qiov, qiov_offset + progress,
                                     bounce_buffer + skip_bytes,
-                                    pnum - skip_bytes);
+                                    MIN(pnum - skip_bytes, bytes - progress));
             }
         } else if (!(flags & BDRV_REQ_PREFETCH)) {
             /* Read directly into the destination */
