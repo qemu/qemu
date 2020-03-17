@@ -297,7 +297,7 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
-# @encryption_key_missing: Deprecated; always false
+# @encryption_key_missing: always false
 #
 # @detect_zeroes: detect and optimize zero writes (Since 2.1)
 #
@@ -363,13 +363,19 @@
 # @dirty-bitmaps: dirty bitmaps information (only present if node
 #                 has one or more dirty bitmaps) (Since 4.2)
 #
+# Features:
+# @deprecated: Member @encryption_key_missing is deprecated.  It is
+#     always false.
+#
 # Since: 0.14.0
 #
 ##
 { 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
-            'encrypted': 'bool', 'encryption_key_missing': 'bool',
+            'encrypted': 'bool',
+            'encryption_key_missing': { 'type': 'bool',
+                                        'features': [ 'deprecated' ] },
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
@@ -475,7 +481,7 @@
 #
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
-# @status: Deprecated in favor of @recording and @locked. (since 2.4)
+# @status: current status of the dirty bitmap (since 2.4)
 #
 # @recording: true if the bitmap is recording new writes from the guest.
 #             Replaces `active` and `disabled` statuses. (since 4.0)
@@ -492,11 +498,17 @@
 #                @busy to be false. This bitmap cannot be used. To remove
 #                it, use @block-dirty-bitmap-remove. (Since 4.0)
 #
+# Features:
+# @deprecated: Member @status is deprecated.  Use @recording and
+#     @locked instead.
+#
 # Since: 1.3
 ##
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
-           'recording': 'bool', 'busy': 'bool', 'status': 'DirtyBitmapStatus',
+           'recording': 'bool', 'busy': 'bool',
+           'status': { 'type': 'DirtyBitmapStatus',
+                       'features': [ 'deprecated' ] },
            'persistent': 'bool', '*inconsistent': 'bool' } }
 
 ##
@@ -587,7 +599,6 @@
 #
 # @dirty-bitmaps: dirty bitmaps information (only present if the
 #                 driver has one or more dirty bitmaps) (Since 2.0)
-#                 Deprecated in 4.2; see BlockDeviceInfo instead.
 #
 # @io-status: @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
@@ -597,13 +608,18 @@
 # @inserted: @BlockDeviceInfo describing the device if media is
 #            present
 #
+# Features:
+# @deprecated: Member @dirty-bitmaps is deprecated.  Use @inserted
+#     member @dirty-bitmaps instead.
+#
 # Since:  0.14.0
 ##
 { 'struct': 'BlockInfo',
   'data': {'device': 'str', '*qdev': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
            '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
-           '*dirty-bitmaps': ['BlockDirtyInfo'] } }
+           '*dirty-bitmaps': { 'type': ['BlockDirtyInfo'],
+                               'features': [ 'deprecated' ] } } }
 
 ##
 # @BlockMeasureInfo:
@@ -1551,7 +1567,7 @@
 # @base: Same as @base-node, except that it is a file name rather than a node
 #        name. This must be the exact filename string that was used to open the
 #        node; other strings, even if addressing the same file, are not
-#        accepted (deprecated, use @base-node instead)
+#        accepted
 #
 # @top-node: The node name of the backing image within the image chain
 #            which contains the topmost data to be committed down. If
@@ -1560,7 +1576,7 @@
 # @top: Same as @top-node, except that it is a file name rather than a node
 #       name. This must be the exact filename string that was used to open the
 #       node; other strings, even if addressing the same file, are not
-#       accepted (deprecated, use @base-node instead)
+#       accepted
 #
 # @backing-file: The backing file string to write into the overlay
 #                image of 'top'.  If 'top' is the active layer,
@@ -1614,6 +1630,10 @@
 #                list without user intervention.
 #                Defaults to true. (Since 3.1)
 #
+# Features:
+# @deprecated: Members @base and @top are deprecated.  Use @base-node
+#     and @top-node instead.
+#
 # Returns: - Nothing on success
 #          - If @device does not exist, DeviceNotFound
 #          - Any other error returns a GenericError.
@@ -1630,7 +1650,9 @@
 ##
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
-            '*base': 'str', '*top-node': 'str', '*top': 'str',
+            '*base': { 'type': 'str', 'features': [ 'deprecated' ] },
+            '*top-node': 'str',
+            '*top': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*backing-file': 'str', '*speed': 'int',
             '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
@@ -2296,7 +2318,7 @@
 #
 # A set of parameters describing block throttling.
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
@@ -2364,10 +2386,14 @@
 #
 # @group: throttle group name (Since 2.4)
 #
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
+#
 # Since: 1.1
 ##
 { 'struct': 'BlockIOThrottle',
-  'data': { '*device': 'str', '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
+            '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
             'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
