@@ -21,6 +21,7 @@ object Base
 object Variant1
     member var1: str optional=False
         if ['defined(IFSTR)']
+        feature member-feat
     feature variant1-feat
 object Variant2
 object Object
@@ -135,6 +136,8 @@ Another paragraph (but no @var: line)
 
     feature=variant1-feat
 a feature
+    feature=member-feat
+a member feature
 doc symbol=Variant2
     body=
 

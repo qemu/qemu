@@ -234,7 +234,9 @@ Syntax:
                '*features': FEATURES }
     MEMBERS = { MEMBER, ... }
     MEMBER = STRING : TYPE-REF
-           | STRING : { 'type': TYPE-REF, '*if': COND }
+           | STRING : { 'type': TYPE-REF,
+                        '*if': COND,
+                        '*features': FEATURES }
 
 Member 'struct' names the struct type.
 

@@ -668,18 +668,31 @@ class QAPISchemaFeature(QAPISchemaMember):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, info, typ, optional, ifcond=None):
+    def __init__(self, name, info, typ, optional, ifcond=None, features=None):
         super().__init__(name, info, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
+        for f in features or []:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_defined_in(name)
         self._type_name = typ
         self.type = None
         self.optional = optional
+        self.features = features or []
 
     def check(self, schema):
         assert self.defined_in
         self.type = schema.resolve_type(self._type_name, self.info,
                                         self.describe)
+        seen = {}
+        for f in self.features:
+            f.check_clash(self.info, seen)
+
+    def connect_doc(self, doc):
+        super().connect_doc(doc)
+        if doc:
+            for f in self.features:
+                doc.connect_feature(f)
 
 
 class QAPISchemaVariant(QAPISchemaObjectTypeMember):
@@ -962,7 +975,7 @@ class QAPISchema:
             name, info, doc, ifcond, features,
             self._make_enum_members(data, info), prefix))
 
-    def _make_member(self, name, typ, ifcond, info):
+    def _make_member(self, name, typ, ifcond, features, info):
         optional = False
         if name.startswith('*'):
             name = name[1:]
@@ -970,10 +983,12 @@ class QAPISchema:
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, info, typ, optional, ifcond)
+        return QAPISchemaObjectTypeMember(name, info, typ, optional, ifcond,
+                                          self._make_features(features, info))
 
     def _make_members(self, data, info):
-        return [self._make_member(key, value['type'], value.get('if'), info)
+        return [self._make_member(key, value['type'], value.get('if'),
+                                  value.get('features'), info)
                 for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
@@ -996,7 +1011,7 @@ class QAPISchema:
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
             typ, info, self.lookup_type(typ),
-            'wrapper', [self._make_member('data', typ, None, info)])
+            'wrapper', [self._make_member('data', typ, None, None, info)])
         return QAPISchemaVariant(case, info, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):

@@ -173,7 +173,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
             obj['default'] = None
-        return _make_tree(obj, member.ifcond, None)
+        return _make_tree(obj, member.ifcond, member.features)
 
     def _gen_variants(self, tag_name, variants):
         return {'tag': tag_name,

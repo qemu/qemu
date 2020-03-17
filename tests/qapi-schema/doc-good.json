@@ -78,10 +78,13 @@
 #
 # Features:
 # @variant1-feat: a feature
+# @member-feat: a member feature
 ##
 { 'struct': 'Variant1',
   'features': [ 'variant1-feat' ],
-  'data': { 'var1': { 'type': 'str', 'if': 'defined(IFSTR)' } } }
+  'data': { 'var1': { 'type': 'str',
+                      'features': [ 'member-feat' ],
+                      'if': 'defined(IFSTR)' } } }
 
 ##
 # @Variant2:

@@ -359,6 +359,7 @@ object FeatureStruct0
     member foo: int optional=False
 object FeatureStruct1
     member foo: int optional=False
+        feature member-feature1
     feature feature1
 object FeatureStruct2
     member foo: int optional=False

@@ -167,8 +167,9 @@ def check_type(value, info, source,
                        allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
-        check_keys(arg, info, key_source, ['type'], ['if'])
+        check_keys(arg, info, key_source, ['type'], ['if', 'features'])
         check_if(arg, info, key_source)
+        check_features(arg.get('features'), info)
         check_type(arg['type'], info, key_source, allow_array=True)
 
 

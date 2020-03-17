@@ -206,11 +206,15 @@
 #           Future extension: if present and non-null, the parameter
 #           is optional, and defaults to this value.
 #
+# @features: names of features associated with the member, in no
+#            particular order.  (since 5.0)
+#
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoObjectMember',
-  'data': { 'name': 'str', 'type': 'str', '*default': 'any' } }
+  'data': { 'name': 'str', 'type': 'str', '*default': 'any',
 # @default's type must be null or match @type
+            '*features': [ 'str' ] } }
 
 ##
 # @SchemaInfoObjectVariant:

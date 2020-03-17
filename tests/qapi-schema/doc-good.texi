@@ -132,6 +132,8 @@ Not documented
 @table @asis
 @item @code{variant1-feat}
 a feature
+@item @code{member-feat}
+a member feature
 @end table
 
 @end deftp
