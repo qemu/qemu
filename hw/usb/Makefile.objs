@@ -61,3 +61,5 @@ common-obj-$(CONFIG_XEN) += xen-usb.o
 xen-usb.o-cflags := $(LIBUSB_CFLAGS)
 xen-usb.o-libs := $(LIBUSB_LIBS)
 endif
+
+common-obj-$(CONFIG_IMX_USBPHY) += imx-usb-phy.o

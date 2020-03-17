@@ -373,6 +373,7 @@ config FSL_IMX6
     select IMX
     select IMX_FEC
     select IMX_I2C
+    select IMX_USBPHY
     select SDHCI
 
 config ASPEED_SOC
