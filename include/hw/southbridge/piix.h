@@ -68,7 +68,6 @@ extern PCIDevice *piix4_dev;
 
 PIIX3State *piix3_create(PCIBus *pci_bus, ISABus **isa_bus);
 
-DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
-                          I2CBus **smbus, size_t ide_buses);
+DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus);
 
 #endif

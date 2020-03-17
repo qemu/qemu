@@ -15,7 +15,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "hw/rtc/mc146818rtc.h"
-#include "hw/ide.h"
 #include "hw/ide/pci.h"
 #include "hw/timer/i8254.h"
 #include "hw/isa/superio.h"
@@ -58,6 +57,7 @@ static void clipper_init(MachineState *machine)
     const char *initrd_filename = machine->initrd_filename;
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
+    PCIDevice *pci_dev;
     ISABus *isa_bus;
     qemu_irq rtc_irq;
     long size, i;
@@ -100,15 +100,8 @@ static void clipper_init(MachineState *machine)
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
-    {
-        DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-        PCIDevice *pci_dev;
-
-        ide_drive_get(hd, ARRAY_SIZE(hd));
-
-        pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
-        pci_ide_create_devs(pci_dev, hd);
-    }
+    pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
+    pci_ide_create_devs(pci_dev);
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,
        but one explicitly written for the emulation, we might as

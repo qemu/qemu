@@ -241,11 +241,8 @@ static void piix4_register_types(void)
 
 type_init(piix4_register_types)
 
-DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
-                          I2CBus **smbus, size_t ide_buses)
+DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
 {
-    size_t ide_drives = ide_buses * MAX_IDE_DEVS;
-    DriveInfo **hd;
     PCIDevice *pci;
     DeviceState *dev;
     int devfn = PCI_DEVFN(10, 0);
@@ -258,10 +255,7 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
     }
 
     pci = pci_create_simple(pci_bus, devfn + 1, "piix4-ide");
-    hd = g_new(DriveInfo *, ide_drives);
-    ide_drive_get(hd, ide_drives);
-    pci_ide_create_devs(pci, hd);
-    g_free(hd);
+    pci_ide_create_devs(pci);
 
     pci_create_simple(pci_bus, devfn + 2, "piix4-usb-uhci");
     if (smbus) {
