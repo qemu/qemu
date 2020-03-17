@@ -38,7 +38,6 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
 #include "net/net.h"
-#include "hw/ide.h"
 #include "hw/ide/pci.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"

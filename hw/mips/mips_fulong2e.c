@@ -36,7 +36,6 @@
 #include "audio/audio.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
-#include "hw/ide.h"
 #include "hw/ide/pci.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
