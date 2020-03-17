@@ -16,6 +16,18 @@ from qapi.schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
                          QAPISchemaType)
 
 
+def _make_tree(obj, ifcond, features, extra=None):
+    if extra is None:
+        extra = {}
+    if ifcond:
+        extra['if'] = ifcond
+    if features:
+        obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
+    if extra:
+        return (obj, extra)
+    return obj
+
+
 def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
 
     def indent(level):
@@ -146,47 +158,38 @@ const QLitObject %(c_name)s = %(c_string)s;
         return self._name(typ.name)
 
     def _gen_tree(self, name, mtype, obj, ifcond, features):
-        extra = {}
+        extra = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
                 # Output a comment to make it easy to map masked names
                 # back to the source when reading the generated output.
-                extra['comment'] = '"%s" = %s' % (self._name(name), name)
+                extra = {'comment': '"%s" = %s' % (self._name(name), name)}
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        if features:
-            obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
-        if ifcond:
-            extra['if'] = ifcond
-        if extra:
-            self._trees.append((obj, extra))
-        else:
-            self._trees.append(obj)
+        self._trees.append(_make_tree(obj, ifcond, features, extra))
 
     def _gen_member(self, member):
-        ret = {'name': member.name, 'type': self._use_type(member.type)}
+        obj = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
-            ret['default'] = None
-        if member.ifcond:
-            ret = (ret, {'if': member.ifcond})
-        return ret
+            obj['default'] = None
+        return _make_tree(obj, member.ifcond, None)
 
     def _gen_variants(self, tag_name, variants):
         return {'tag': tag_name,
                 'variants': [self._gen_variant(v) for v in variants]}
 
     def _gen_variant(self, variant):
-        return ({'case': variant.name, 'type': self._use_type(variant.type)},
-                {'if': variant.ifcond})
+        obj = {'case': variant.name, 'type': self._use_type(variant.type)}
+        return _make_tree(obj, variant.ifcond, None)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_tree(name, 'builtin', {'json-type': json_type}, [], None)
 
     def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         self._gen_tree(name, 'enum',
-                       {'values':
-                        [(m.name, {'if': m.ifcond}) for m in members]},
+                       {'values': [_make_tree(m.name, m.ifcond, None)
+                                   for m in members]},
                        ifcond, features)
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -206,7 +209,8 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_alternate_type(self, name, info, ifcond, features, variants):
         self._gen_tree(name, 'alternate',
                        {'members': [
-                           ({'type': self._use_type(m.type)}, {'if': m.ifcond})
+                           _make_tree({'type': self._use_type(m.type)},
+                                      m.ifcond, None)
                            for m in variants.variants]},
                        ifcond, features)
 
