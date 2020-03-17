@@ -988,9 +988,9 @@ The SchemaInfo for a command has meta-type "command", and variant
 members "arg-type", "ret-type" and "allow-oob".  On the wire, the
 "arguments" member of a client's "execute" command must conform to the
 object type named by "arg-type".  The "return" member that the server
-passes in a success response conforms to the type named by
-"ret-type".  When "allow-oob" is set, it means the command supports
-out-of-band execution.
+passes in a success response conforms to the type named by "ret-type".
+When "allow-oob" is true, it means the command supports out-of-band
+execution.  It defaults to false.
 
 If the command takes no arguments, "arg-type" names an object type
 without members.  Likewise, if the command returns nothing, "ret-type"
