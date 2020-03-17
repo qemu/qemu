@@ -1,0 +1,63 @@
+docker-opensbi:
+ stage: build
+ rules: # Only run this job when the Dockerfile is modified
+ - changes:
+   - .gitlab-ci-opensbi.yml
+   - .gitlab-ci.d/opensbi/Dockerfile
+   when: always
+ image: docker:19.03.1
+ services:
+ - docker:19.03.1-dind
+ variables:
+  GIT_DEPTH: 3
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:opensbi-cross-build
+  # We don't use TLS
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+ before_script:
+ - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+ script:
+ - docker pull $IMAGE_TAG || true
+ - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+                                        --tag $IMAGE_TAG .gitlab-ci.d/opensbi
+ - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+ - docker push $IMAGE_TAG
+
+build-opensbi:
+ rules: # Only run this job when ...
+ - changes: # ... roms/opensbi/ is modified (submodule updated)
+   - roms/opensbi/*
+   when: always
+ - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
+   when: always
+ - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
+   when: always
+ artifacts:
+   paths: # 'artifacts.zip' will contains the following files:
+   - pc-bios/opensbi-riscv32-sifive_u-fw_jump.bin
+   - pc-bios/opensbi-riscv32-virt-fw_jump.bin
+   - pc-bios/opensbi-riscv64-sifive_u-fw_jump.bin
+   - pc-bios/opensbi-riscv64-virt-fw_jump.bin
+   - opensbi32-virt-stdout.log
+   - opensbi32-virt-stderr.log
+   - opensbi64-virt-stdout.log
+   - opensbi64-virt-stderr.log
+   - opensbi32-sifive_u-stdout.log
+   - opensbi32-sifive_u-stderr.log
+   - opensbi64-sifive_u-stdout.log
+   - opensbi64-sifive_u-stderr.log
+ image: $CI_REGISTRY_IMAGE:opensbi-cross-build
+ variables:
+   GIT_DEPTH: 3
+ script: # Clone the required submodules and build OpenSBI
+ - git submodule update --init roms/opensbi
+ - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
+ - echo "=== Using ${JOBS} simultaneous jobs ==="
+ - make -j${JOBS} -C roms/opensbi clean
+ - make -j${JOBS} -C roms opensbi32-virt 2>&1 1>opensbi32-virt-stdout.log | tee -a opensbi32-virt-stderr.log >&2
+ - make -j${JOBS} -C roms/opensbi clean
+ - make -j${JOBS} -C roms opensbi64-virt 2>&1 1>opensbi64-virt-stdout.log | tee -a opensbi64-virt-stderr.log >&2
+ - make -j${JOBS} -C roms/opensbi clean
+ - make -j${JOBS} -C roms opensbi32-sifive_u 2>&1 1>opensbi32-sifive_u-stdout.log | tee -a opensbi32-sifive_u-stderr.log >&2
+ - make -j${JOBS} -C roms/opensbi clean
+ - make -j${JOBS} -C roms opensbi64-sifive_u 2>&1 1>opensbi64-sifive_u-stdout.log | tee -a opensbi64-sifive_u-stderr.log >&2
