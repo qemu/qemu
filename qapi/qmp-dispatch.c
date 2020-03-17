@@ -162,7 +162,11 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
         g_assert(!ret);
         return NULL;
     } else if (!ret) {
-        /* TODO turn into assertion */
+        /*
+         * When the command's schema has no 'returns', cmd->fn()
+         * leaves @ret null.  The QMP spec calls for an empty object
+         * then; supply it.
+         */
         ret = QOBJECT(qdict_new());
     }
 
