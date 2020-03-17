@@ -39,6 +39,7 @@
 #include "hw/usb.h"
 #include "net/net.h"
 #include "hw/ide.h"
+#include "hw/ide/pci.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
 #include "hw/kvm/clock.h"
@@ -242,11 +243,10 @@ static void pc_init1(MachineState *machine,
     ide_drive_get(hd, ARRAY_SIZE(hd));
     if (pcmc->pci_enabled) {
         PCIDevice *dev;
-        if (xen_enabled()) {
-            dev = pci_piix3_xen_ide_init(pci_bus, hd, piix3_devfn + 1);
-        } else {
-            dev = pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
-        }
+
+        dev = pci_create_simple(pci_bus, piix3_devfn + 1,
+                                xen_enabled() ? "piix3-ide-xen" : "piix3-ide");
+        pci_ide_create_devs(dev, hd);
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
         pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);

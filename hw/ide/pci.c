@@ -476,6 +476,7 @@ const VMStateDescription vmstate_ide_pci = {
     }
 };
 
+/* hd_table must contain 4 block drivers */
 void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
 {
     PCIIDEState *d = PCI_IDE(dev);
