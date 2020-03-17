@@ -642,13 +642,8 @@ that previously resulted in an error).  QMP clients may still need to
 know whether the extension is available.
 
 For this purpose, a list of features can be specified for a command or
-struct type.  This is exposed to the client as a list of strings,
-where each string signals that this build of QEMU shows a certain
-behaviour.
-
-Each member of the 'features' array defines a feature.  It can either
-be { 'name': STRING, '*if': COND }, or STRING, which is shorthand for
-{ 'name': STRING }.
+struct type.  Each list member can either be { 'name': STRING, '*if':
+COND }, or STRING, which is shorthand for { 'name': STRING }.
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
@@ -658,6 +653,12 @@ Example:
 { 'struct': 'TestType',
   'data': { 'number': 'int' },
   'features': [ 'allow-negative-numbers' ] }
+
+The feature strings are exposed to clients in introspection, as
+explained in section "Client JSON Protocol introspection".
+
+Intended use is to have each feature string signal that this build of
+QEMU shows a certain behaviour.
 
 
 === Naming rules and reserved names ===
@@ -965,7 +966,7 @@ schema, along with the SchemaInfo type.  This text attempts to give an
 overview how things work.  For details you need to consult the QAPI
 schema.
 
-SchemaInfo objects have common members "name" and "meta-type", and
+SchemaInfo objects have common members "name", "meta-type", and
 additional variant members depending on the value of meta-type.
 
 Each SchemaInfo object describes a wire ABI entity of a certain
@@ -985,12 +986,13 @@ references by name.
 QAPI schema definitions not reachable that way are omitted.
 
 The SchemaInfo for a command has meta-type "command", and variant
-members "arg-type", "ret-type" and "allow-oob".  On the wire, the
-"arguments" member of a client's "execute" command must conform to the
-object type named by "arg-type".  The "return" member that the server
-passes in a success response conforms to the type named by "ret-type".
-When "allow-oob" is true, it means the command supports out-of-band
-execution.  It defaults to false.
+members "arg-type", "ret-type", "allow-oob", and "features".  On the
+wire, the "arguments" member of a client's "execute" command must
+conform to the object type named by "arg-type".  The "return" member
+that the server passes in a success response conforms to the type
+named by "ret-type".  When "allow-oob" is true, it means the command
+supports out-of-band execution.  It defaults to false.  "features"
+exposes the command's feature strings as a JSON array of strings.
 
 If the command takes no arguments, "arg-type" names an object type
 without members.  Likewise, if the command returns nothing, "ret-type"
@@ -1025,7 +1027,8 @@ Example: the SchemaInfo for EVENT_C from section Events
 
 The SchemaInfo for struct and union types has meta-type "object".
 
-The SchemaInfo for a struct type has variant member "members".
+The SchemaInfo for a struct type has variant members "members" and
+"features".
 
 The SchemaInfo for a union type additionally has variant members "tag"
 and "variants".
@@ -1046,6 +1049,16 @@ Example: the SchemaInfo for MyType from section Struct types
           { "name": "member1", "type": "str" },
           { "name": "member2", "type": "int" },
           { "name": "member3", "type": "str", "default": null } ] }
+
+"features" exposes the command's feature strings as a JSON array of
+strings.
+
+Example: the SchemaInfo for TestType from section Features:
+
+    { "name": "TestType", "meta-type": "object",
+      "members": [
+          { "name": "number", "type": "int" } ],
+      "features": ["allow-negative-numbers"] }
 
 "tag" is the name of the common member serving as type tag.
 "variants" is a JSON array describing the object's variant members.
