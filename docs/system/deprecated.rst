@@ -180,27 +180,67 @@ QEMU Machine Protocol (QMP) commands
 
 Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
+``blockdev-open-tray``, ``blockdev-close-tray`` argument ``device`` (since 2.8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use argument ``id`` instead.
+
+``eject`` argument ``device`` (since 2.8.0)
+'''''''''''''''''''''''''''''''''''''''''''
+
+Use argument ``id`` instead.
+
+``blockdev-change-medium`` argument ``device`` (since 2.8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use argument ``id`` instead.
+
+``block_set_io_throttle`` argument ``device`` (since 2.8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use argument ``id`` instead.
+
 ``migrate_set_downtime`` and ``migrate_set_speed`` (since 2.8.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use ``migrate-set-parameters`` instead.
+
+``query-named-block-nodes`` result ``encryption_key_missing`` (since 2.10.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Always false.
+
+``query-block`` result ``inserted.encryption_key_missing`` (since 2.10.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Always false.
+
+``blockdev-add`` empty string argument ``backing`` (since 2.10.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use argument value ``null`` instead.
 
 ``migrate-set-cache-size`` and ``query-migrate-cache-size`` (since 2.11.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use ``migrate-set-parameters`` and ``query-migrate-parameters`` instead.
 
+``block-commit`` arguments ``base`` and ``top`` (since 3.1.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use arguments ``base-node`` and ``top-node`` instead.
+
 ``object-add`` option ``props`` (since 5.0)
 '''''''''''''''''''''''''''''''''''''''''''
 
 Specify the properties for the object as top-level arguments instead.
 
-``query-block`` result field ``dirty-bitmaps[i].status`` (since 4.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (since 4.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
-the query-block command is deprecated. Two new boolean fields,
-``recording`` and ``busy`` effectively replace it.
+these commands is deprecated. Two new boolean fields, ``recording`` and
+``busy`` effectively replace it.
 
 ``query-block`` result field ``dirty-bitmaps`` (Since 4.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
