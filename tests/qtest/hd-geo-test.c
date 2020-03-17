@@ -421,7 +421,7 @@ static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
     char *raw_path = strdup(template);
     char *qcow2_path = strdup(template);
     char cmd[100 + 2 * PATH_MAX];
-    uint8_t buf[512];
+    uint8_t buf[512] = {};
     int i, ret, fd, offset;
     uint64_t qcow2_size = sectors * 512;
     uint8_t status, parttype, head, sector, cyl;
@@ -457,8 +457,8 @@ static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
         buf[offset + 0x6] = sector;
         buf[offset + 0x7] = cyl;
 
-        (*(uint32_t *)&buf[offset + 0x8]) = cpu_to_le32(mbr[i].start_sect);
-        (*(uint32_t *)&buf[offset + 0xc]) = cpu_to_le32(mbr[i].nr_sects);
+        stl_le_p(&buf[offset + 0x8], mbr[i].start_sect);
+        stl_le_p(&buf[offset + 0xc], mbr[i].nr_sects);
 
         offset += 0x10;
     }
