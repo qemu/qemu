@@ -625,36 +625,21 @@ static const MemoryRegionOps ich9_rst_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
-static void ich9_lpc_get_sci_int(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
-{
-    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
-    uint32_t value = lpc->sci_gsi;
-
-    visit_type_uint32(v, name, &value, errp);
-}
-
-static void ich9_lpc_add_properties(ICH9LPCState *lpc)
-{
-    static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
-    static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
-
-    object_property_add(OBJECT(lpc), ACPI_PM_PROP_SCI_INT, "uint32",
-                        ich9_lpc_get_sci_int,
-                        NULL, NULL, NULL, NULL);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                  &acpi_enable_cmd, NULL);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                  &acpi_disable_cmd, NULL);
-
-    ich9_pm_add_properties(OBJECT(lpc), &lpc->pm, NULL);
-}
-
 static void ich9_lpc_initfn(Object *obj)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
 
-    ich9_lpc_add_properties(lpc);
+    static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
+    static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
+
+    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_SCI_INT,
+                                  &lpc->sci_gsi, OBJ_PROP_FLAG_READ, NULL);
+    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ, NULL);
+    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ, NULL);
+
+    ich9_pm_add_properties(obj, &lpc->pm, NULL);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)

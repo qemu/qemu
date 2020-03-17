@@ -405,6 +405,7 @@ EXESUF=""
 DSOSUF=".so"
 LDFLAGS_SHARED="-shared"
 modules="no"
+module_upgrades="no"
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
 datadir="\${prefix}/share"
@@ -899,7 +900,7 @@ Linux)
   linux="yes"
   linux_user="yes"
   kvm="yes"
-  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
+  QEMU_INCLUDES="-isystem \$(SRC_PATH)/linux-headers -isystem $PWD/linux-headers $QEMU_INCLUDES"
   supported_os="yes"
   libudev="yes"
 ;;
@@ -1031,6 +1032,10 @@ for opt do
   ;;
   --disable-modules)
       modules="no"
+  ;;
+  --disable-module-upgrades) module_upgrades="no"
+  ;;
+  --enable-module-upgrades) module_upgrades="yes"
   ;;
   --cpu=*)
   ;;
@@ -1421,6 +1426,11 @@ for opt do
   ;;
   --enable-avx2) avx2_opt="yes"
   ;;
+  --disable-avx512f) avx512f_opt="no"
+  ;;
+  --enable-avx512f) avx512f_opt="yes"
+  ;;
+
   --enable-glusterfs) glusterfs="yes"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
@@ -1786,6 +1796,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   guest-agent-msi build guest agent Windows MSI installation package
   pie             Position Independent Executables
   modules         modules support (non-Windows)
+  module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   sparse          sparse checker
@@ -1857,6 +1868,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
   avx2            AVX2 optimization support
+  avx512f         AVX512F optimization support
   replication     replication support
   opengl          opengl support
   virglrenderer   virgl rendering support
@@ -2047,6 +2059,11 @@ fi
 # Our module code doesn't support Windows
 if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
   error_exit "Modules are not available for Windows"
+fi
+
+# module_upgrades is only reasonable if modules are enabled
+if test "$modules" = "no" && test "$module_upgrades" = "yes" ; then
+  error_exit "Can't enable module-upgrades as Modules are not enabled"
 fi
 
 # Static linking is not possible with modules or PIE
@@ -3350,7 +3367,9 @@ if test "$vnc" = "yes" && test "$vnc_sasl" != "no" ; then
 int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
 EOF
   # Assuming Cyrus-SASL installed in /usr prefix
-  vnc_sasl_cflags=""
+  # QEMU defines struct iovec in "qemu/osdep.h",
+  # we don't want libsasl to redefine it in <sasl/sasl.h>.
+  vnc_sasl_cflags="-DSTRUCT_IOVEC_DEFINED"
   vnc_sasl_libs="-lsasl2"
   if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
     vnc_sasl=yes
@@ -5574,6 +5593,36 @@ EOF
   fi
 fi
 
+##########################################
+# avx512f optimization requirement check
+#
+# There is no point enabling this if cpuid.h is not usable,
+# since we won't be able to select the new routines.
+# by default, it is turned off.
+# if user explicitly want to enable it, check environment
+
+if test "$cpuid_h" = "yes" && test "$avx512f_opt" = "yes"; then
+  cat > $TMPC << EOF
+#pragma GCC push_options
+#pragma GCC target("avx512f")
+#include <cpuid.h>
+#include <immintrin.h>
+static int bar(void *a) {
+    __m512i x = *(__m512i *)a;
+    return _mm512_test_epi64_mask(x, x);
+}
+int main(int argc, char *argv[])
+{
+	return bar(argv[0]);
+}
+EOF
+  if ! compile_object "" ; then
+    avx512f_opt="no"
+  fi
+else
+  avx512f_opt="no"
+fi
+
 ########################################
 # check if __[u]int128_t is usable.
 
@@ -6590,6 +6639,7 @@ if test "$slirp" != "no" ; then
     echo "smbd              $smbd"
 fi
 echo "module support    $modules"
+echo "alt path mod load $module_upgrades"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -6717,6 +6767,7 @@ echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
 echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
+echo "avx512f optimization $avx512f_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "bochs support     $bochs"
@@ -6942,6 +6993,9 @@ if test "$modules" = "yes"; then
   # like as an symbol. So prefix it with an underscore
   echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
+fi
+if test "$module_upgrades" = "yes"; then
+  echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
 fi
 if test "$have_x11" = "yes" && test "$need_x11" = "yes"; then
   echo "CONFIG_X11=y" >> $config_host_mak
@@ -7266,6 +7320,10 @@ fi
 
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
+fi
+
+if test "$avx512f_opt" = "yes" ; then
+  echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
 if test "$lzo" = "yes" ; then

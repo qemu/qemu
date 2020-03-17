@@ -553,7 +553,7 @@ static void i8257_realize(DeviceState *dev, Error **errp)
     I8257State *d = I8257(dev);
     int i;
 
-    memory_region_init_io(&d->channel_io, NULL, &channel_io_ops, d,
+    memory_region_init_io(&d->channel_io, OBJECT(dev), &channel_io_ops, d,
                           "dma-chan", 8 << d->dshift);
     memory_region_add_subregion(isa_address_space_io(isa),
                                 d->base, &d->channel_io);

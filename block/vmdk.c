@@ -187,7 +187,7 @@ typedef struct VmdkMetaData {
 typedef struct VmdkGrainMarker {
     uint64_t lba;
     uint32_t size;
-    uint8_t  data[0];
+    uint8_t  data[];
 } QEMU_PACKED VmdkGrainMarker;
 
 enum {

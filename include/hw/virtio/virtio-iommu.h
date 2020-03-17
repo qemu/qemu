@@ -41,7 +41,7 @@ typedef struct IOMMUDevice {
 
 typedef struct IOMMUPciBus {
     PCIBus       *bus;
-    IOMMUDevice  *pbdev[0]; /* Parent array is sparse, so dynamically alloc */
+    IOMMUDevice  *pbdev[]; /* Parent array is sparse, so dynamically alloc */
 } IOMMUPciBus;
 
 typedef struct VirtIOIOMMU {

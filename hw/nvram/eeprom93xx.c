@@ -86,7 +86,7 @@ struct _eeprom_t {
     uint8_t  addrbits;
     uint16_t size;
     uint16_t data;
-    uint16_t contents[0];
+    uint16_t contents[];
 };
 
 /* Code for saving and restoring of EEPROM state. */

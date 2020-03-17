@@ -3094,6 +3094,12 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     uint16_t mask, source_id;
     uint8_t bus, bus_max, bus_min;
 
+    if (index >= iommu->intr_size) {
+        error_report_once("%s: index too large: ind=0x%x",
+                          __func__, index);
+        return -VTD_FR_IR_INDEX_OVER;
+    }
+
     addr = iommu->intr_root + index * sizeof(*entry);
     if (dma_memory_read(&address_space_memory, addr, entry,
                         sizeof(*entry))) {

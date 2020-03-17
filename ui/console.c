@@ -1299,8 +1299,8 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG,
                              &error_abort);
-    object_property_add_uint32_ptr(obj, "head",
-                                   &s->head, &error_abort);
+    object_property_add_uint32_ptr(obj, "head", &s->head,
+                                   OBJ_PROP_FLAG_READ, &error_abort);
 
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {

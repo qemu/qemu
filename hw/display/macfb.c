@@ -362,8 +362,8 @@ static void macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
         return;
     }
 
-    memory_region_init_io(&s->mem_ctrl, NULL, &macfb_ctrl_ops, s, "macfb-ctrl",
-                          0x1000);
+    memory_region_init_io(&s->mem_ctrl, OBJECT(dev), &macfb_ctrl_ops, s,
+                          "macfb-ctrl", 0x1000);
 
     memory_region_init_ram_nomigrate(&s->mem_vram, OBJECT(s), "macfb-vram",
                                      MACFB_VRAM_SIZE, errp);

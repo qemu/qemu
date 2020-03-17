@@ -85,7 +85,7 @@ typedef struct SMMUDevice {
 
 typedef struct SMMUPciBus {
     PCIBus       *bus;
-    SMMUDevice   *pbdev[0]; /* Parent array is sparse, so dynamically alloc */
+    SMMUDevice   *pbdev[]; /* Parent array is sparse, so dynamically alloc */
 } SMMUPciBus;
 
 typedef struct SMMUIOTLBKey {

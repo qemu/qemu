@@ -29,7 +29,7 @@ asm (".code32"); /* this code will be executed in protected mode */
 
 #define RSDP_SIGNATURE          0x2052545020445352LL /* "RSD PTR " */
 #define RSDP_AREA_ADDR          0x000E0000
-#define RSDP_AREA_SIZE          2048
+#define RSDP_AREA_SIZE          0x00020000
 #define EBDA_BASE_ADDR          0x0000040E
 #define EBDA_SIZE               1024
 

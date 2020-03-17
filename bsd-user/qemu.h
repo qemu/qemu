@@ -95,7 +95,7 @@ typedef struct TaskState {
     struct sigqueue *first_free; /* first free siginfo queue entry */
     int signal_pending; /* non zero if a signal may be pending */
 
-    uint8_t stack[0];
+    uint8_t stack[];
 } __attribute__((aligned(16))) TaskState;
 
 void init_task_state(TaskState *ts);

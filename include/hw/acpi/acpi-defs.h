@@ -152,7 +152,7 @@ typedef struct AcpiSerialPortConsoleRedirection
  */
 struct AcpiRsdtDescriptorRev1 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
-    uint32_t table_offset_entry[0];  /* Array of pointers to other */
+    uint32_t table_offset_entry[];  /* Array of pointers to other */
     /* ACPI tables */
 } QEMU_PACKED;
 typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
@@ -162,7 +162,7 @@ typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
  */
 struct AcpiXsdtDescriptorRev2 {
     ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
-    uint64_t table_offset_entry[0];  /* Array of pointers to other */
+    uint64_t table_offset_entry[];  /* Array of pointers to other */
     /* ACPI tables */
 } QEMU_PACKED;
 typedef struct AcpiXsdtDescriptorRev2 AcpiXsdtDescriptorRev2;
@@ -518,7 +518,7 @@ struct AcpiDmarDeviceScope {
     struct {
         uint8_t device;
         uint8_t function;
-    } path[0];
+    } path[];
 } QEMU_PACKED;
 typedef struct AcpiDmarDeviceScope AcpiDmarDeviceScope;
 
@@ -530,7 +530,7 @@ struct AcpiDmarHardwareUnit {
     uint8_t reserved;
     uint16_t pci_segment;   /* The PCI Segment associated with this unit */
     uint64_t address;   /* Base address of remapping hardware register-set */
-    AcpiDmarDeviceScope scope[0];
+    AcpiDmarDeviceScope scope[];
 } QEMU_PACKED;
 typedef struct AcpiDmarHardwareUnit AcpiDmarHardwareUnit;
 
@@ -541,7 +541,7 @@ struct AcpiDmarRootPortATS {
     uint8_t flags;
     uint8_t reserved;
     uint16_t pci_segment;
-    AcpiDmarDeviceScope scope[0];
+    AcpiDmarDeviceScope scope[];
 } QEMU_PACKED;
 typedef struct AcpiDmarRootPortATS AcpiDmarRootPortATS;
 
@@ -604,7 +604,7 @@ typedef struct AcpiIortMemoryAccess AcpiIortMemoryAccess;
 struct AcpiIortItsGroup {
     ACPI_IORT_NODE_HEADER_DEF
     uint32_t its_count;
-    uint32_t identifiers[0];
+    uint32_t identifiers[];
 } QEMU_PACKED;
 typedef struct AcpiIortItsGroup AcpiIortItsGroup;
 
@@ -621,7 +621,7 @@ struct AcpiIortSmmu3 {
     uint32_t pri_gsiv;
     uint32_t gerr_gsiv;
     uint32_t sync_gsiv;
-    AcpiIortIdMapping id_mapping_array[0];
+    AcpiIortIdMapping id_mapping_array[];
 } QEMU_PACKED;
 typedef struct AcpiIortSmmu3 AcpiIortSmmu3;
 
@@ -630,7 +630,7 @@ struct AcpiIortRC {
     AcpiIortMemoryAccess memory_properties;
     uint32_t ats_attribute;
     uint32_t pci_segment_number;
-    AcpiIortIdMapping id_mapping_array[0];
+    AcpiIortIdMapping id_mapping_array[];
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 

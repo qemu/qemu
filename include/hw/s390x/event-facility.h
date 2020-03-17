@@ -122,7 +122,7 @@ typedef struct MDBO {
 
 typedef struct MDB {
     MdbHeader header;
-    MDBO mdbo[0];
+    MDBO mdbo[];
 } QEMU_PACKED MDB;
 
 typedef struct SclpMsg {

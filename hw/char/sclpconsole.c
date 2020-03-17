@@ -25,7 +25,7 @@
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;
-    char data[0];
+    char data[];
 } QEMU_PACKED ASCIIConsoleData;
 
 /* max size for ASCII data in 4K SCCB page */

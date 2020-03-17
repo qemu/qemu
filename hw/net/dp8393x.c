@@ -986,13 +986,12 @@ static void dp8393x_realize(DeviceState *dev, Error **errp)
 
     s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);
 
-    memory_region_init_ram(&s->prom, OBJECT(dev),
-                           "dp8393x-prom", SONIC_PROM_SIZE, &local_err);
+    memory_region_init_rom(&s->prom, OBJECT(dev), "dp8393x-prom",
+                           SONIC_PROM_SIZE, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
-    memory_region_set_readonly(&s->prom, true);
     prom = memory_region_get_ram_ptr(&s->prom);
     checksum = 0;
     for (i = 0; i < 6; i++) {

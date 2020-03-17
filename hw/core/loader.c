@@ -1119,19 +1119,26 @@ static void rom_reset(void *unused)
 {
     Rom *rom;
 
-    /*
-     * We don't need to fill in the RAM with ROM data because we'll fill
-     * the data in during the next incoming migration in all cases.  Note
-     * that some of those RAMs can actually be modified by the guest on ARM
-     * so this is probably the only right thing to do here.
-     */
-    if (runstate_check(RUN_STATE_INMIGRATE))
-        return;
-
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
             continue;
         }
+        /*
+         * We don't need to fill in the RAM with ROM data because we'll fill
+         * the data in during the next incoming migration in all cases.  Note
+         * that some of those RAMs can actually be modified by the guest.
+         */
+        if (runstate_check(RUN_STATE_INMIGRATE)) {
+            if (rom->data && rom->isrom) {
+                /*
+                 * Free it so that a rom_reset after migration doesn't
+                 * overwrite a potentially modified 'rom'.
+                 */
+                rom_free_data(rom);
+            }
+            continue;
+        }
+
         if (rom->data == NULL) {
             continue;
         }

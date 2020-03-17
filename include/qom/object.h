@@ -1664,69 +1664,101 @@ ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
                                   void (*get)(Object *, struct tm *, Error **),
                                   Error **errp);
 
+typedef enum {
+    /* Automatically add a getter to the property */
+    OBJ_PROP_FLAG_READ = 1 << 0,
+    /* Automatically add a setter to the property */
+    OBJ_PROP_FLAG_WRITE = 1 << 1,
+    /* Automatically add a getter and a setter to the property */
+    OBJ_PROP_FLAG_READWRITE = (OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE),
+} ObjectPropertyFlags;
+
 /**
  * object_property_add_uint8_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint8'.
  */
 void object_property_add_uint8_ptr(Object *obj, const char *name,
-                                   const uint8_t *v, Error **errp);
+                                   const uint8_t *v, ObjectPropertyFlags flags,
+                                   Error **errp);
+
 ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
                                          const char *name,
-                                         const uint8_t *v, Error **errp);
+                                         const uint8_t *v,
+                                         ObjectPropertyFlags flags,
+                                         Error **errp);
 
 /**
  * object_property_add_uint16_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint16'.
  */
 void object_property_add_uint16_ptr(Object *obj, const char *name,
-                                    const uint16_t *v, Error **errp);
+                                    const uint16_t *v,
+                                    ObjectPropertyFlags flags,
+                                    Error **errp);
+
 ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
                                           const char *name,
-                                          const uint16_t *v, Error **errp);
+                                          const uint16_t *v,
+                                          ObjectPropertyFlags flags,
+                                          Error **errp);
 
 /**
  * object_property_add_uint32_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint32'.
  */
 void object_property_add_uint32_ptr(Object *obj, const char *name,
-                                    const uint32_t *v, Error **errp);
+                                    const uint32_t *v,
+                                    ObjectPropertyFlags flags,
+                                    Error **errp);
+
 ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
                                           const char *name,
-                                          const uint32_t *v, Error **errp);
+                                          const uint32_t *v,
+                                          ObjectPropertyFlags flags,
+                                          Error **errp);
 
 /**
  * object_property_add_uint64_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint64'.
  */
 void object_property_add_uint64_ptr(Object *obj, const char *name,
-                                    const uint64_t *v, Error **errp);
+                                    const uint64_t *v,
+                                    ObjectPropertyFlags flags,
+                                    Error **Errp);
+
 ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
                                           const char *name,
-                                          const uint64_t *v, Error **errp);
+                                          const uint64_t *v,
+                                          ObjectPropertyFlags flags,
+                                          Error **Errp);
 
 /**
  * object_property_add_alias:

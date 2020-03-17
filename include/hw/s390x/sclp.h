@@ -132,7 +132,7 @@ typedef struct ReadInfo {
     uint16_t highest_cpu;
     uint8_t  _reserved5[124 - 122];     /* 122-123 */
     uint32_t hmfai;
-    struct CPUEntry entries[0];
+    struct CPUEntry entries[];
 } QEMU_PACKED ReadInfo;
 
 typedef struct ReadCpuInfo {
@@ -142,7 +142,7 @@ typedef struct ReadCpuInfo {
     uint16_t nr_standby;            /* 12-13 */
     uint16_t offset_standby;        /* 14-15 */
     uint8_t reserved0[24-16];       /* 16-23 */
-    struct CPUEntry entries[0];
+    struct CPUEntry entries[];
 } QEMU_PACKED ReadCpuInfo;
 
 typedef struct ReadStorageElementInfo {
@@ -151,7 +151,7 @@ typedef struct ReadStorageElementInfo {
     uint16_t assigned;
     uint16_t standby;
     uint8_t _reserved0[16 - 14]; /* 14-15 */
-    uint32_t entries[0];
+    uint32_t entries[];
 } QEMU_PACKED ReadStorageElementInfo;
 
 typedef struct AttachStorageElement {
@@ -159,7 +159,7 @@ typedef struct AttachStorageElement {
     uint8_t _reserved0[10 - 8];  /* 8-9 */
     uint16_t assigned;
     uint8_t _reserved1[16 - 12]; /* 12-15 */
-    uint32_t entries[0];
+    uint32_t entries[];
 } QEMU_PACKED AttachStorageElement;
 
 typedef struct AssignStorage {

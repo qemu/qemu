@@ -49,10 +49,15 @@ mixture of host CPU models between machines, if live migration
 compatibility is required, use the newest CPU model that is compatible
 across all desired hosts.
 
-``Skylake-Server``, ``Skylake-Server-IBRS``
+``Cascadelake-Server``, ``Cascadelake-Server-noTSX``
+    Intel Xeon Processor (Cascade Lake, 2019), with "stepping" levels 6
+    or 7 only.  (The Cascade Lake Xeon processor with *stepping 5 is
+    vulnerable to MDS variants*.)
+
+``Skylake-Server``, ``Skylake-Server-IBRS``, ``Skylake-Server-IBRS-noTSX``
     Intel Xeon Processor (Skylake, 2016)
 
-``Skylake-Client``, ``Skylake-Client-IBRS``
+``Skylake-Client``, ``Skylake-Client-IBRS``, ``Skylake-Client-noTSX-IBRS}``
     Intel Core Processor (Skylake, 2015)
 
 ``Broadwell``, ``Broadwell-IBRS``, ``Broadwell-noTSX``, ``Broadwell-noTSX-IBRS``
@@ -147,6 +152,54 @@ features are included if using "Host passthrough" or "Host model".
 
   Requires the host CPU microcode to support this feature before it
   can be used for guest CPUs.
+
+``mds-no``
+  Recommended to inform the guest OS that the host is *not* vulnerable
+  to any of the MDS variants ([MFBDS] CVE-2018-12130, [MLPDS]
+  CVE-2018-12127, [MSBDS] CVE-2018-12126).
+
+  This is an MSR (Model-Specific Register) feature rather than a CPUID feature,
+  so it will not appear in the Linux ``/proc/cpuinfo`` in the host or
+  guest.  Instead, the host kernel uses it to populate the MDS
+  vulnerability file in ``sysfs``.
+
+  So it should only be enabled for VMs if the host reports @code{Not
+  affected} in the ``/sys/devices/system/cpu/vulnerabilities/mds`` file.
+
+``taa-no``
+  Recommended to inform that the guest that the host is ``not``
+  vulnerable to CVE-2019-11135, TSX Asynchronous Abort (TAA).
+
+  This too is an MSR feature, so it does not show up in the Linux
+  ``/proc/cpuinfo`` in the host or guest.
+
+  It should only be enabled for VMs if the host reports ``Not affected``
+  in the ``/sys/devices/system/cpu/vulnerabilities/tsx_async_abort``
+  file.
+
+``tsx-ctrl``
+  Recommended to inform the guest that it can disable the Intel TSX
+  (Transactional Synchronization Extensions) feature; or, if the
+  processor is vulnerable, use the Intel VERW instruction (a
+  processor-level instruction that performs checks on memory access) as
+  a mitigation for the TAA vulnerability.  (For details, refer to
+  Intel's `deep dive into MDS
+  <https://software.intel.com/security-software-guidance/insights/deep-dive-intel-analysis-microarchitectural-data-sampling>`_.)
+
+  Expose this to the guest OS if and only if: (a) the host has TSX
+  enabled; *and* (b) the guest has ``rtm`` CPU flag enabled.
+
+  By disabling TSX, KVM-based guests can avoid paying the price of
+  mitigating TSX-based attacks.
+
+  Note that ``tsx-ctrl`` too is an MSR feature, so it does not show
+  up in the Linux ``/proc/cpuinfo`` in the host or guest.
+
+  To validate that Intel TSX is indeed disabled for the guest, there are
+  two ways: (a) check for the *absence* of ``rtm`` in the guest's
+  ``/proc/cpuinfo``; or (b) the
+  ``/sys/devices/system/cpu/vulnerabilities/tsx_async_abort`` file in
+  the guest should report ``Mitigation: TSX disabled``.
 
 
 Preferred CPU models for AMD x86 hosts

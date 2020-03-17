@@ -186,7 +186,7 @@ static int32_t *VIB_TABLE;
 
 /* envelope output curve table */
 /* attack + decay + OFF */
-static int32_t ENV_CURVE[2*EG_ENT+1];
+static int32_t *ENV_CURVE;
 
 /* multiple table */
 #define ML 2
@@ -1090,6 +1090,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	OPL->clock = clock;
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
+    ENV_CURVE = g_new(int32_t, 2 * EG_ENT + 1);
 	/* init grobal tables */
 	OPL_initialize(OPL);
 	/* reset chip */
@@ -1127,6 +1128,7 @@ void OPLDestroy(FM_OPL *OPL)
 #endif
 	OPL_UnLockTable();
 	free(OPL);
+    g_free(ENV_CURVE);
 }
 
 /* ----------  Option handlers ----------       */

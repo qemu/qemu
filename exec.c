@@ -1315,7 +1315,7 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               unsigned client)
 {
     DirtyMemoryBlocks *blocks;
-    unsigned long end, page;
+    unsigned long end, page, start_page;
     bool dirty = false;
     RAMBlock *ramblock;
     uint64_t mr_offset, mr_size;
@@ -1325,7 +1325,8 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
     }
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
-    page = start >> TARGET_PAGE_BITS;
+    start_page = start >> TARGET_PAGE_BITS;
+    page = start_page;
 
     WITH_RCU_READ_LOCK_GUARD() {
         blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
@@ -1345,8 +1346,8 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
             page += num;
         }
 
-        mr_offset = (ram_addr_t)(page << TARGET_PAGE_BITS) - ramblock->offset;
-        mr_size = (end - page) << TARGET_PAGE_BITS;
+        mr_offset = (ram_addr_t)(start_page << TARGET_PAGE_BITS) - ramblock->offset;
+        mr_size = (end - start_page) << TARGET_PAGE_BITS;
         memory_region_clear_dirty_bitmap(ramblock->mr, mr_offset, mr_size);
     }
 

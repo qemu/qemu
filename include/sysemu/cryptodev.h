@@ -143,7 +143,7 @@ typedef struct CryptoDevBackendSymOpInfo {
     uint8_t *dst;
     uint8_t *aad_data;
     uint8_t *digest_result;
-    uint8_t data[0];
+    uint8_t data[];
 } CryptoDevBackendSymOpInfo;
 
 typedef struct CryptoDevBackendClass {
