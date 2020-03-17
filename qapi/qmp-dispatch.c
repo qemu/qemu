@@ -106,7 +106,7 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
     QDict *dict = qobject_to(QDict, request);
     QObject *id = dict ? qdict_get(dict, "id") : NULL;
     QObject *ret = NULL;
-    QDict *rsp;
+    QDict *rsp = NULL;
 
     dict = qmp_dispatch_check_obj(request, allow_oob, &err);
     if (!dict) {
@@ -151,31 +151,32 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
         args = qdict_get_qdict(dict, "arguments");
         qobject_ref(args);
     }
-
     cmd->fn(args, &ret, &err);
+    qobject_unref(args);
     if (err) {
-        ;
-    } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
+        goto out;
+    }
+
+    if (cmd->options & QCO_NO_SUCCESS_RESP) {
         g_assert(!ret);
+        return NULL;
     } else if (!ret) {
         /* TODO turn into assertion */
         ret = QOBJECT(qdict_new());
     }
 
-    qobject_unref(args);
+    rsp = qdict_new();
+    qdict_put_obj(rsp, "return", ret);
 
 out:
     if (err) {
+        assert(!rsp);
         rsp = qmp_error_response(err);
-    } else if (ret) {
-        rsp = qdict_new();
-        qdict_put_obj(rsp, "return", ret);
-    } else {
-        /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
-        rsp = NULL;
     }
 
-    if (rsp && id) {
+    assert(rsp);
+
+    if (id) {
         qdict_put_obj(rsp, "id", qobject_ref(id));
     }
 
