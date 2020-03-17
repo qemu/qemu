@@ -904,8 +904,9 @@ class QAPISchema:
         self._def_entity(QAPISchemaEnumType('QType', None, None, None, None,
                                             qtype_values, 'QTYPE'))
 
-    def _make_features(self, expr, info):
-        features = expr.get('features', [])
+    def _make_features(self, features, info):
+        if features is None:
+            return []
         return [QAPISchemaFeature(f['name'], info, f.get('if'))
                 for f in features]
 
@@ -955,7 +956,7 @@ class QAPISchema:
         data = expr['data']
         prefix = expr.get('prefix')
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaEnumType(
             name, info, doc, ifcond, features,
             self._make_enum_members(data, info), prefix))
@@ -979,7 +980,7 @@ class QAPISchema:
         base = expr.get('base')
         data = expr['data']
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaObjectType(
             name, info, doc, ifcond, features, base,
             self._make_members(data, info),
@@ -1002,7 +1003,7 @@ class QAPISchema:
         data = expr['data']
         base = expr.get('base')
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         tag_name = expr.get('discriminator')
         tag_member = None
         if isinstance(base, dict):
@@ -1032,7 +1033,7 @@ class QAPISchema:
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         variants = [self._make_variant(key, value['type'], value.get('if'),
                                        info)
                     for (key, value) in data.items()]
@@ -1052,7 +1053,7 @@ class QAPISchema:
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, ifcond,
@@ -1070,7 +1071,7 @@ class QAPISchema:
         data = expr.get('data')
         boxed = expr.get('boxed', False)
         ifcond = expr.get('if')
-        features = self._make_features(expr, info)
+        features = self._make_features(expr.get('features'), info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, ifcond,
