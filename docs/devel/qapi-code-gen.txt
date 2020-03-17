@@ -683,6 +683,12 @@ Intended use is to have each feature string signal that this build of
 QEMU shows a certain behaviour.
 
 
+==== Special features ====
+
+Feature "deprecated" marks a command, event, or struct member as
+deprecated.  It is not supported elsewhere so far.
+
+
 === Naming rules and reserved names ===
 
 All names must begin with a letter, and contain only ASCII letters,

@@ -242,6 +242,7 @@ qapi-schema += event-case.json
 qapi-schema += event-member-invalid-dict.json
 qapi-schema += event-nest-struct.json
 qapi-schema += features-bad-type.json
+qapi-schema += features-deprecated-type.json
 qapi-schema += features-duplicate-name.json
 qapi-schema += features-if-invalid.json
 qapi-schema += features-missing-name.json

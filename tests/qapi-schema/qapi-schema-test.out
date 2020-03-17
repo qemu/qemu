@@ -359,7 +359,7 @@ object FeatureStruct0
     member foo: int optional=False
 object FeatureStruct1
     member foo: int optional=False
-        feature member-feature1
+        feature deprecated
     feature feature1
 object FeatureStruct2
     member foo: int optional=False
@@ -419,7 +419,7 @@ command test-features0 q_obj_test-features0-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
 command test-command-features1 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    feature feature1
+    feature deprecated
 command test-command-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     feature feature1
@@ -440,7 +440,7 @@ command test-command-cond-features3 None -> None
         if ['defined(TEST_IF_COND_1)', 'defined(TEST_IF_COND_2)']
 event TEST-EVENT-FEATURES1 None
     boxed=False
-    feature feature1
+    feature deprecated
 module include/sub-module.json
 include sub-sub-module.json
 object SecondArrayRef
