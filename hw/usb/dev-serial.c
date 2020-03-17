@@ -29,7 +29,7 @@ do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define RECV_BUF 384
+#define RECV_BUF (512 - (2 * 8))
 
 /* Commands */
 #define FTDI_RESET		0
@@ -332,7 +332,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case DeviceInVendor | FTDI_GET_MDM_ST:
         data[0] = usb_get_modem_lines(s) | 1;
-        data[1] = 0;
+        data[1] = FTDI_THRE | FTDI_TEMT;
         p->actual_length = 2;
         break;
     case DeviceOutVendor | FTDI_SET_EVENT_CHR:
@@ -358,13 +358,67 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
+static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
+{
+    const int max_packet_size = desc_iface0.eps[0].wMaxPacketSize;
+    int packet_len;
+    uint8_t header[2];
+
+    packet_len = p->iov.size;
+    if (packet_len <= 2) {
+        p->status = USB_RET_NAK;
+        return;
+    }
+
+    header[0] = usb_get_modem_lines(s) | 1;
+    /* We do not have the uart details */
+    /* handle serial break */
+    if (s->event_trigger && s->event_trigger & FTDI_BI) {
+        s->event_trigger &= ~FTDI_BI;
+        header[1] = FTDI_BI;
+        usb_packet_copy(p, header, 2);
+        return;
+    } else {
+        header[1] = 0;
+    }
+
+    if (!s->recv_used) {
+        p->status = USB_RET_NAK;
+        return;
+    }
+
+    while (s->recv_used && packet_len > 2) {
+        int first_len, len;
+
+        len = MIN(packet_len, max_packet_size);
+        len -= 2;
+        if (len > s->recv_used) {
+            len = s->recv_used;
+        }
+
+        first_len = RECV_BUF - s->recv_ptr;
+        if (first_len > len) {
+            first_len = len;
+        }
+        usb_packet_copy(p, header, 2);
+        usb_packet_copy(p, s->recv_buf + s->recv_ptr, first_len);
+        if (len > first_len) {
+            usb_packet_copy(p, s->recv_buf, len - first_len);
+        }
+        s->recv_used -= len;
+        s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
+        packet_len -= len + 2;
+    }
+
+    return;
+}
+
 static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = (USBSerialState *)dev;
     uint8_t devep = p->ep->nr;
     struct iovec *iov;
-    uint8_t header[2];
-    int i, first_len, len;
+    int i;
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -382,38 +436,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         if (devep != 1)
             goto fail;
-        first_len = RECV_BUF - s->recv_ptr;
-        len = p->iov.size;
-        if (len <= 2) {
-            p->status = USB_RET_NAK;
-            break;
-        }
-        header[0] = usb_get_modem_lines(s) | 1;
-        /* We do not have the uart details */
-        /* handle serial break */
-        if (s->event_trigger && s->event_trigger & FTDI_BI) {
-            s->event_trigger &= ~FTDI_BI;
-            header[1] = FTDI_BI;
-            usb_packet_copy(p, header, 2);
-            break;
-        } else {
-            header[1] = 0;
-        }
-        len -= 2;
-        if (len > s->recv_used)
-            len = s->recv_used;
-        if (!len) {
-            p->status = USB_RET_NAK;
-            break;
-        }
-        if (first_len > len)
-            first_len = len;
-        usb_packet_copy(p, header, 2);
-        usb_packet_copy(p, s->recv_buf + s->recv_ptr, first_len);
-        if (len > first_len)
-            usb_packet_copy(p, s->recv_buf, len - first_len);
-        s->recv_used -= len;
-        s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
+        usb_serial_token_in(s, p);
         break;
 
     default:
