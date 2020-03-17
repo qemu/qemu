@@ -28,72 +28,8 @@ typedef struct TestEventData {
     QDict *expect;
 } TestEventData;
 
-typedef struct QDictCmpData {
-    QDict *expect;
-    bool result;
-} QDictCmpData;
-
 TestEventData *test_event_data;
 static GMutex test_event_lock;
-
-/* Only compares bool, int, string */
-static
-void qdict_cmp_do_simple(const char *key, QObject *obj1, void *opaque)
-
-{
-    QObject *obj2;
-    QDictCmpData d_new, *d = opaque;
-    int64_t val1, val2;
-
-    if (!d->result) {
-        return;
-    }
-
-    obj2 = qdict_get(d->expect, key);
-    if (!obj2) {
-        d->result = false;
-        return;
-    }
-
-    if (qobject_type(obj1) != qobject_type(obj2)) {
-        d->result = false;
-        return;
-    }
-
-    switch (qobject_type(obj1)) {
-    case QTYPE_QBOOL:
-        d->result = (qbool_get_bool(qobject_to(QBool, obj1)) ==
-                     qbool_get_bool(qobject_to(QBool, obj2)));
-        return;
-    case QTYPE_QNUM:
-        g_assert(qnum_get_try_int(qobject_to(QNum, obj1), &val1));
-        g_assert(qnum_get_try_int(qobject_to(QNum, obj2), &val2));
-        d->result = val1 == val2;
-        return;
-    case QTYPE_QSTRING:
-        d->result = g_strcmp0(qstring_get_str(qobject_to(QString, obj1)),
-                              qstring_get_str(qobject_to(QString, obj2))) == 0;
-        return;
-    case QTYPE_QDICT:
-        d_new.expect = qobject_to(QDict, obj2);
-        d_new.result = true;
-        qdict_iter(qobject_to(QDict, obj1), qdict_cmp_do_simple, &d_new);
-        d->result = d_new.result;
-        return;
-    default:
-        abort();
-    }
-}
-
-static bool qdict_cmp_simple(QDict *a, QDict *b)
-{
-    QDictCmpData d;
-
-    d.expect = b;
-    d.result = true;
-    qdict_iter(a, qdict_cmp_do_simple, &d);
-    return d.result;
-}
 
 void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 {
@@ -115,7 +51,7 @@ void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 
     qdict_del(d, "timestamp");
 
-    g_assert(qdict_cmp_simple(d, test_event_data->expect));
+    g_assert(qobject_is_equal(QOBJECT(d), QOBJECT(test_event_data->expect)));
 
 }
 
