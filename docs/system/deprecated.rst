@@ -289,6 +289,13 @@ The RISC-V no MMU cpus have been depcreated. The two CPUs: ``rv32imacu-nommu`` a
 ``rv64imacu-nommu`` should no longer be used. Instead the MMU status can be specified
 via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
+``compat`` property of server class POWER CPUs (since 5.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``compat`` property used to set backwards compatibility modes for
+the processor has been deprecated. The ``max-cpu-compat`` property of
+the ``pseries`` machine type should be used instead.
+
 System emulator devices
 -----------------------
 

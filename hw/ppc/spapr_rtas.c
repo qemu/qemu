@@ -190,7 +190,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
      */
     newcpu->env.tb_env->tb_offset = callcpu->env.tb_env->tb_offset;
 
-    spapr_cpu_set_entry_state(newcpu, start, r3);
+    spapr_cpu_set_entry_state(newcpu, start, 0, r3, 0);
 
     qemu_cpu_kick(CPU(newcpu));
 
@@ -414,8 +414,9 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
                                   uint32_t nret, target_ulong rets)
 {
     hwaddr rtas_addr;
+    target_ulong sreset_addr, mce_addr;
 
-    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI_MCE) == SPAPR_CAP_OFF) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_OFF) {
         rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
         return;
     }
@@ -426,7 +427,19 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
         return;
     }
 
-    spapr->guest_machine_check_addr = rtas_ld(args, 1);
+    sreset_addr = rtas_ld(args, 0);
+    mce_addr = rtas_ld(args, 1);
+
+    /* PAPR requires these are in the first 32M of memory and within RMA */
+    if (sreset_addr >= 32 * MiB || sreset_addr >= spapr->rma_size ||
+           mce_addr >= 32 * MiB ||    mce_addr >= spapr->rma_size) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    spapr->fwnmi_system_reset_addr = sreset_addr;
+    spapr->fwnmi_machine_check_addr = mce_addr;
+
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
@@ -436,29 +449,39 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
                                    target_ulong args,
                                    uint32_t nret, target_ulong rets)
 {
-    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI_MCE) == SPAPR_CAP_OFF) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI) == SPAPR_CAP_OFF) {
         rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
         return;
     }
 
-    if (spapr->guest_machine_check_addr == -1) {
+    if (spapr->fwnmi_machine_check_addr == -1) {
         /* NMI register not called */
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    if (spapr->mc_status != cpu->vcpu_id) {
-        /* The vCPU that hit the NMI should invoke "ibm,nmi-interlock" */
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+    if (spapr->fwnmi_machine_check_interlock != cpu->vcpu_id) {
+        /*
+	 * The vCPU that hit the NMI should invoke "ibm,nmi-interlock"
+         * This should be PARAM_ERROR, but Linux calls "ibm,nmi-interlock"
+	 * for system reset interrupts, despite them not being interlocked.
+	 * PowerVM silently ignores this and returns success here. Returning
+	 * failure causes Linux to print the error "FWNMI: nmi-interlock
+	 * failed: -3", although no other apparent ill effects, this is a
+	 * regression for the user when enabling FWNMI. So for now, match
+	 * PowerVM. When most Linux clients are fixed, this could be
+	 * changed.
+	 */
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
         return;
     }
 
     /*
      * vCPU issuing "ibm,nmi-interlock" is done with NMI handling,
-     * hence unset mc_status.
+     * hence unset fwnmi_machine_check_interlock.
      */
-    spapr->mc_status = -1;
-    qemu_cond_signal(&spapr->mc_delivery_cond);
+    spapr->fwnmi_machine_check_interlock = -1;
+    qemu_cond_signal(&spapr->fwnmi_machine_check_interlock_cond);
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     migrate_del_blocker(spapr->fwnmi_migration_blocker);
 }

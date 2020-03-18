@@ -200,8 +200,8 @@ SpaprOptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector)
     return ov;
 }
 
-int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
-                           SpaprOptionVector *ov, const char *name)
+int spapr_dt_ovec(void *fdt, int fdt_offset,
+                  SpaprOptionVector *ov, const char *name)
 {
     uint8_t vec[OV_MAXBYTES + 1];
     uint16_t vec_len;

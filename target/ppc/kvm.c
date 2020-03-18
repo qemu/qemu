@@ -2113,7 +2113,7 @@ void kvmppc_error_append_smt_possible_hint(Error *const *errp)
 
 
 #ifdef TARGET_PPC64
-uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
+uint64_t kvmppc_vrma_limit(unsigned int hash_shift)
 {
     struct kvm_ppc_smmu_info info;
     long rampagesize, best_page_shift;
@@ -2140,8 +2140,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
         }
     }
 
-    return MIN(current_size,
-               1ULL << (best_page_shift + hash_shift - 7));
+    return 1ULL << (best_page_shift + hash_shift - 7);
 }
 #endif
 

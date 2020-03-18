@@ -509,17 +509,14 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
-static void cap_fwnmi_mce_apply(SpaprMachineState *spapr, uint8_t val,
+static void cap_fwnmi_apply(SpaprMachineState *spapr, uint8_t val,
                                 Error **errp)
 {
     if (!val) {
         return; /* Disabled by default */
     }
 
-    if (tcg_enabled()) {
-        warn_report("Firmware Assisted Non-Maskable Interrupts(FWNMI) not "
-                    "supported in TCG");
-    } else if (kvm_enabled()) {
+    if (kvm_enabled()) {
         if (kvmppc_set_fwnmi() < 0) {
             error_setg(errp, "Firmware Assisted Non-Maskable Interrupts(FWNMI) "
                              "not supported by KVM");
@@ -626,14 +623,14 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_ccf_assist_apply,
     },
-    [SPAPR_CAP_FWNMI_MCE] = {
-        .name = "fwnmi-mce",
-        .description = "Handle fwnmi machine check exceptions",
-        .index = SPAPR_CAP_FWNMI_MCE,
+    [SPAPR_CAP_FWNMI] = {
+        .name = "fwnmi",
+        .description = "Implements PAPR FWNMI option",
+        .index = SPAPR_CAP_FWNMI,
         .get = spapr_cap_get_bool,
         .set = spapr_cap_set_bool,
         .type = "bool",
-        .apply = cap_fwnmi_mce_apply,
+        .apply = cap_fwnmi_apply,
     },
 };
 
@@ -774,7 +771,7 @@ SPAPR_CAP_MIG_STATE(hpt_maxpagesize, SPAPR_CAP_HPT_MAXPAGESIZE);
 SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
-SPAPR_CAP_MIG_STATE(fwnmi, SPAPR_CAP_FWNMI_MCE);
+SPAPR_CAP_MIG_STATE(fwnmi, SPAPR_CAP_FWNMI);
 
 void spapr_caps_init(SpaprMachineState *spapr)
 {

@@ -79,10 +79,10 @@ typedef enum {
 #define SPAPR_CAP_LARGE_DECREMENTER     0x08
 /* Count Cache Flush Assist HW Instruction */
 #define SPAPR_CAP_CCF_ASSIST            0x09
-/* FWNMI machine check handling */
-#define SPAPR_CAP_FWNMI_MCE             0x0A
+/* Implements PAPR FWNMI option */
+#define SPAPR_CAP_FWNMI                 0x0A
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_FWNMI_MCE + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_FWNMI + 1)
 
 /*
  * Capability Values
@@ -126,6 +126,7 @@ struct SpaprMachineClass {
     bool pre_4_1_migration; /* don't migrate hpt-max-page-size */
     bool linux_pci_probe;
     bool smp_threads_vsmt; /* set VSMT to smp_threads by default */
+    hwaddr rma_limit;          /* clamp the RMA to this size */
 
     void (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
@@ -156,7 +157,6 @@ struct SpaprMachineState {
     SpaprPendingHpt *pending_hpt; /* in-progress resize */
 
     hwaddr rma_size;
-    int vrma_adjust;
     uint32_t fdt_size;
     uint32_t fdt_initial_size;
     void *fdt_blob;
@@ -192,14 +192,22 @@ struct SpaprMachineState {
      * occurs during the unplug process. */
     QTAILQ_HEAD(, SpaprDimmState) pending_dimm_unplugs;
 
-    /* State related to "ibm,nmi-register" and "ibm,nmi-interlock" calls */
-    target_ulong guest_machine_check_addr;
-    /*
-     * mc_status is set to -1 if mc is not in progress, else is set to the CPU
-     * handling the mc.
+    /* State related to FWNMI option */
+
+    /* System Reset and Machine Check Notification Routine addresses
+     * registered by "ibm,nmi-register" RTAS call.
      */
-    int mc_status;
-    QemuCond mc_delivery_cond;
+    target_ulong fwnmi_system_reset_addr;
+    target_ulong fwnmi_machine_check_addr;
+
+    /* Machine Check FWNMI synchronization, fwnmi_machine_check_interlock is
+     * set to -1 if a FWNMI machine check is not in progress, else is set to
+     * the CPU that was delivered the machine check, and is set back to -1
+     * when that CPU makes an "ibm,nmi-interlock" RTAS call. The cond is used
+     * to synchronize other CPUs.
+     */
+    int fwnmi_machine_check_interlock;
+    QemuCond fwnmi_machine_check_interlock_cond;
 
     /*< public >*/
     char *kvm_type;
@@ -736,6 +744,7 @@ void spapr_load_rtas(SpaprMachineState *spapr, void *fdt, hwaddr addr);
 #define SPAPR_IS_PCI_LIOBN(liobn)   (!!((liobn) & 0x80000000))
 #define SPAPR_PCI_DMA_WINDOW_NUM(liobn) ((liobn) & 0xff)
 
+#define RTAS_SIZE               2048
 #define RTAS_ERROR_LOG_MAX      2048
 
 /* Offset from rtas-base where error log is placed */
@@ -795,7 +804,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space);
 void spapr_events_init(SpaprMachineState *sm);
 void spapr_dt_events(SpaprMachineState *sm, void *fdt);
 void close_htab_fd(SpaprMachineState *spapr);
-void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr);
+void spapr_setup_hpt(SpaprMachineState *spapr);
 void spapr_free_hpt(SpaprMachineState *spapr);
 SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(SpaprTceTable *tcet,
@@ -824,6 +833,7 @@ int spapr_hpt_shift_for_ramsize(uint64_t ramsize);
 void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
                           Error **errp);
 void spapr_clear_pending_events(SpaprMachineState *spapr);
+void spapr_clear_pending_hotplug_events(SpaprMachineState *spapr);
 int spapr_max_server_number(SpaprMachineState *spapr);
 void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
                       uint64_t pte0, uint64_t pte1);

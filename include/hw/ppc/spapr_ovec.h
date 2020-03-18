@@ -72,8 +72,8 @@ void spapr_ovec_set(SpaprOptionVector *ov, long bitnr);
 void spapr_ovec_clear(SpaprOptionVector *ov, long bitnr);
 bool spapr_ovec_test(SpaprOptionVector *ov, long bitnr);
 SpaprOptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector);
-int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
-                           SpaprOptionVector *ov, const char *name);
+int spapr_dt_ovec(void *fdt, int fdt_offset,
+                  SpaprOptionVector *ov, const char *name);
 
 /* migration */
 extern const VMStateDescription vmstate_spapr_ovec;

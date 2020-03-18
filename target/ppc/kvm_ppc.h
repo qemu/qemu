@@ -47,7 +47,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
                               int *pfd, bool need_vfio);
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
-uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
+uint64_t kvmppc_vrma_limit(unsigned int hash_shift);
 bool kvmppc_has_cap_spapr_vfio(void);
 #endif /* !CONFIG_USER_ONLY */
 bool kvmppc_has_cap_epr(void);
@@ -255,10 +255,9 @@ static inline int kvmppc_reset_htab(int shift_hint)
     return 0;
 }
 
-static inline uint64_t kvmppc_rma_size(uint64_t current_size,
-                                       unsigned int hash_shift)
+static inline uint64_t kvmppc_vrma_limit(unsigned int hash_shift)
 {
-    return ram_size;
+    g_assert_not_reached();
 }
 
 static inline bool kvmppc_hpt_needs_host_contiguous_pages(void)

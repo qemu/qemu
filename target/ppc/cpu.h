@@ -24,8 +24,6 @@
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
 
-/* #define PPC_EMULATE_32BITS_HYPV */
-
 #define TCG_GUEST_DEFAULT_MO 0
 
 #define TARGET_PAGE_BITS_64K 16
@@ -300,13 +298,12 @@ typedef struct ppc_v3_pate_t {
 #define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
 #define MSR_TAG  62 /* Tag-active mode (POWERx ?)                            */
 #define MSR_ISF  61 /* Sixty-four-bit interrupt mode on 630                  */
-#define MSR_SHV  60 /* hypervisor state                               hflags */
+#define MSR_HV   60 /* hypervisor state                               hflags */
 #define MSR_TS0  34 /* Transactional state, 2 bits (Book3s)                  */
 #define MSR_TS1  33
 #define MSR_TM   32 /* Transactional Memory Available (Book3s)               */
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
-#define MSR_THV  29 /* hypervisor state for 32 bits PowerPC           hflags */
 #define MSR_GS   28 /* guest state for BookE                                 */
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
 #define MSR_VR   25 /* altivec available                            x hflags */
@@ -401,10 +398,13 @@ typedef struct ppc_v3_pate_t {
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
-#define msr_shv  ((env->msr >> MSR_SHV)  & 1)
+#if defined(TARGET_PPC64)
+#define msr_hv   ((env->msr >> MSR_HV)   & 1)
+#else
+#define msr_hv   (0)
+#endif
 #define msr_cm   ((env->msr >> MSR_CM)   & 1)
 #define msr_icm  ((env->msr >> MSR_ICM)  & 1)
-#define msr_thv  ((env->msr >> MSR_THV)  & 1)
 #define msr_gs   ((env->msr >> MSR_GS)   & 1)
 #define msr_ucle ((env->msr >> MSR_UCLE) & 1)
 #define msr_vr   ((env->msr >> MSR_VR)   & 1)
@@ -449,16 +449,9 @@ typedef struct ppc_v3_pate_t {
 
 /* Hypervisor bit is more specific */
 #if defined(TARGET_PPC64)
-#define MSR_HVB (1ULL << MSR_SHV)
-#define msr_hv  msr_shv
-#else
-#if defined(PPC_EMULATE_32BITS_HYPV)
-#define MSR_HVB (1ULL << MSR_THV)
-#define msr_hv  msr_thv
+#define MSR_HVB (1ULL << MSR_HV)
 #else
 #define MSR_HVB (0ULL)
-#define msr_hv  (0)
-#endif
 #endif
 
 /* DSISR */
@@ -1051,10 +1044,6 @@ struct CPUPPCState {
     uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
-#if defined(TARGET_PPC64)
-    ppc_slb_t vrma_slb;
-    target_ulong rmls;
-#endif
 
     int error_code;
     uint32_t pending_interrupts;
@@ -1231,7 +1220,8 @@ int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 int ppc32_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, void *opaque);
 #ifndef CONFIG_USER_ONLY
-void ppc_cpu_do_system_reset(CPUState *cs);
+void ppc_cpu_do_system_reset(CPUState *cs, target_ulong vector);
+void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector);
 extern const VMStateDescription vmstate_ppc_cpu;
 #endif
 

@@ -1458,7 +1458,7 @@ static void spapr_check_setup_free_hpt(SpaprMachineState *spapr,
         spapr_free_hpt(spapr);
     } else if (!(patbe_new & PATE1_GR)) {
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
-        spapr_setup_hpt_and_vrma(spapr);
+        spapr_setup_hpt(spapr);
     }
     return;
 }
@@ -1640,7 +1640,7 @@ static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
     return best_compat;
 }
 
-static bool spapr_transient_dev_before_cas(void)
+static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
 {
     Object *drc_container;
     ObjectProperty *prop;
@@ -1658,10 +1658,11 @@ static bool spapr_transient_dev_before_cas(void)
                                                           prop->name, NULL));
 
         if (spapr_drc_transient(drc)) {
-            return true;
+            spapr_drc_reset(drc);
         }
     }
-    return false;
+
+    spapr_clear_pending_hotplug_events(spapr);
 }
 
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
@@ -1834,9 +1835,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     spapr_irq_update_active_intc(spapr);
 
-    if (spapr_transient_dev_before_cas()) {
-        spapr->cas_reboot = true;
-    }
+    spapr_handle_transient_dev_before_cas(spapr);
 
     if (!spapr->cas_reboot) {
         void *fdt;
@@ -1846,7 +1845,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
          * (because the guest isn't going to use radix) then set it up here. */
         if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
             /* legacy hash or new hash: */
-            spapr_setup_hpt_and_vrma(spapr);
+            spapr_setup_hpt(spapr);
         }
 
         if (fdt_bufsize < sizeof(hdr)) {

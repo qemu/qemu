@@ -786,27 +786,11 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(cpu);
-    uint64_t rtas_addr;
     CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    target_ulong msr = 0;
+    uint64_t rtas_addr;
     struct rtas_error_log log;
     struct mc_extended_log *ext_elog;
     uint32_t summary;
-
-    /*
-     * Properly set bits in MSR before we invoke the handler.
-     * SRR0/1, DAR and DSISR are properly set by KVM
-     */
-    if (!(*pcc->interrupts_big_endian)(cpu)) {
-        msr |= (1ULL << MSR_LE);
-    }
-
-    if (env->msr & (1ULL << MSR_SF)) {
-        msr |= (1ULL << MSR_SF);
-    }
-
-    msr |= (1ULL << MSR_ME);
 
     ext_elog = g_malloc0(sizeof(*ext_elog));
     summary = spapr_mce_get_elog_type(cpu, recovered, ext_elog);
@@ -823,8 +807,7 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
     /* get rtas addr from fdt */
     rtas_addr = spapr_get_rtas_addr();
     if (!rtas_addr) {
-        /* Unable to fetch rtas_addr. Hence reset the guest */
-        ppc_cpu_do_system_reset(cs);
+        qemu_system_guest_panicked(NULL);
         g_free(ext_elog);
         return;
     }
@@ -836,12 +819,11 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
     cpu_physical_memory_write(rtas_addr + RTAS_ERROR_LOG_OFFSET +
                               sizeof(env->gpr[3]) + sizeof(log), ext_elog,
                               sizeof(*ext_elog));
+    g_free(ext_elog);
 
     env->gpr[3] = rtas_addr + RTAS_ERROR_LOG_OFFSET;
-    env->msr = msr;
-    env->nip = spapr->guest_machine_check_addr;
 
-    g_free(ext_elog);
+    ppc_cpu_do_fwnmi_machine_check(cs, spapr->fwnmi_machine_check_addr);
 }
 
 void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
@@ -851,7 +833,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
     int ret;
     Error *local_err = NULL;
 
-    if (spapr->guest_machine_check_addr == -1) {
+    if (spapr->fwnmi_machine_check_addr == -1) {
         /*
          * This implies that we have hit a machine check either when the
          * guest has not registered FWNMI (i.e., "ibm,nmi-register" not
@@ -863,19 +845,19 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         return;
     }
 
-    while (spapr->mc_status != -1) {
+    while (spapr->fwnmi_machine_check_interlock != -1) {
         /*
          * Check whether the same CPU got machine check error
          * while still handling the mc error (i.e., before
          * that CPU called "ibm,nmi-interlock")
          */
-        if (spapr->mc_status == cpu->vcpu_id) {
+        if (spapr->fwnmi_machine_check_interlock == cpu->vcpu_id) {
             qemu_system_guest_panicked(NULL);
             return;
         }
-        qemu_cond_wait_iothread(&spapr->mc_delivery_cond);
+        qemu_cond_wait_iothread(&spapr->fwnmi_machine_check_interlock_cond);
         /* Meanwhile if the system is reset, then just return */
-        if (spapr->guest_machine_check_addr == -1) {
+        if (spapr->fwnmi_machine_check_addr == -1) {
             return;
         }
     }
@@ -891,7 +873,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         warn_report("Received a fwnmi while migration was in progress");
     }
 
-    spapr->mc_status = cpu->vcpu_id;
+    spapr->fwnmi_machine_check_interlock = cpu->vcpu_id;
     spapr_mce_dispatch_elog(cpu, recovered);
 }
 
@@ -980,6 +962,19 @@ void spapr_clear_pending_events(SpaprMachineState *spapr)
         QTAILQ_REMOVE(&spapr->pending_events, entry, next);
         g_free(entry->extended_log);
         g_free(entry);
+    }
+}
+
+void spapr_clear_pending_hotplug_events(SpaprMachineState *spapr)
+{
+    SpaprEventLogEntry *entry = NULL, *next_entry;
+
+    QTAILQ_FOREACH_SAFE(entry, &spapr->pending_events, next, next_entry) {
+        if (spapr_event_log_entry_type(entry) == RTAS_LOG_TYPE_HOTPLUG) {
+            QTAILQ_REMOVE(&spapr->pending_events, entry, next);
+            g_free(entry->extended_log);
+            g_free(entry);
+        }
     }
 }
 
