@@ -100,20 +100,29 @@ void helper_slbia(CPUPPCState *env)
     PowerPCCPU *cpu = env_archcpu(env);
     int n;
 
+    /*
+     * slbia must always flush all TLB (which is equivalent to ERAT in ppc
+     * architecture). Matching on SLB_ESID_V is not good enough, because slbmte
+     * can overwrite a valid SLB without flushing its lookaside information.
+     *
+     * It would be possible to keep the TLB in synch with the SLB by flushing
+     * when a valid entry is overwritten by slbmte, and therefore slbia would
+     * not have to flush unless it evicts a valid SLB entry. However it is
+     * expected that slbmte is more common than slbia, and slbia is usually
+     * going to evict valid SLB entries, so that tradeoff is unlikely to be a
+     * good one.
+     */
+
     /* XXX: Warning: slbia never invalidates the first segment */
     for (n = 1; n < cpu->hash64_opts->slb_size; n++) {
         ppc_slb_t *slb = &env->slb[n];
 
         if (slb->esid & SLB_ESID_V) {
             slb->esid &= ~SLB_ESID_V;
-            /*
-             * XXX: given the fact that segment size is 256 MB or 1TB,
-             *      and we still don't have a tlb_flush_mask(env, n, mask)
-             *      in QEMU, we just invalidate all TLBs
-             */
-            env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         }
     }
+
+    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
 }
 
 static void __helper_slbie(CPUPPCState *env, target_ulong addr,
