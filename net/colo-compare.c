@@ -48,7 +48,6 @@ static NotifierList colo_compare_notifiers =
 #define COLO_COMPARE_FREE_PRIMARY     0x01
 #define COLO_COMPARE_FREE_SECONDARY   0x02
 
-/* TODO: Should be configurable */
 #define REGULAR_PACKET_CHECK_MS 3000
 #define DEFAULT_TIME_OUT_MS 3000
 
@@ -94,6 +93,7 @@ typedef struct CompareState {
     SocketReadState notify_rs;
     bool vnet_hdr;
     uint32_t compare_timeout;
+    uint32_t expired_scan_cycle;
 
     /*
      * Record the connection that through the NIC
@@ -823,7 +823,7 @@ static void check_old_packet_regular(void *opaque)
     /* if have old packet we will notify checkpoint */
     colo_old_packet_check(s);
     timer_mod(s->packet_check_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
-                REGULAR_PACKET_CHECK_MS);
+              s->expired_scan_cycle);
 }
 
 /* Public API, Used for COLO frame to notify compare event */
@@ -853,7 +853,7 @@ static void colo_compare_timer_init(CompareState *s)
                                 SCALE_MS, check_old_packet_regular,
                                 s);
     timer_mod(s->packet_check_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
-                    REGULAR_PACKET_CHECK_MS);
+              s->expired_scan_cycle);
 }
 
 static void colo_compare_timer_del(CompareState *s)
@@ -1018,6 +1018,39 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void compare_get_expired_scan_cycle(Object *obj, Visitor *v,
+                                           const char *name, void *opaque,
+                                           Error **errp)
+{
+    CompareState *s = COLO_COMPARE(obj);
+    uint32_t value = s->expired_scan_cycle;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,
+                                           const char *name, void *opaque,
+                                           Error **errp)
+{
+    CompareState *s = COLO_COMPARE(obj);
+    Error *local_err = NULL;
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    if (!value) {
+        error_setg(&local_err, "Property '%s.%s' requires a positive value",
+                   object_get_typename(obj), name);
+        goto out;
+    }
+    s->expired_scan_cycle = value;
+
+out:
+    error_propagate(errp, local_err);
+}
+
 static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 {
     CompareState *s = container_of(pri_rs, CompareState, pri_rs);
@@ -1129,6 +1162,11 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         s->compare_timeout = DEFAULT_TIME_OUT_MS;
     }
 
+    if (!s->expired_scan_cycle) {
+        /* Set default value to 3000 MS */
+        s->expired_scan_cycle = REGULAR_PACKET_CHECK_MS;
+    }
+
     if (find_and_check_chardev(&chr, s->pri_indev, errp) ||
         !qemu_chr_fe_init(&s->chr_pri_in, chr, errp)) {
         return;
@@ -1227,6 +1265,10 @@ static void colo_compare_init(Object *obj)
     object_property_add(obj, "compare_timeout", "uint32",
                         compare_get_timeout,
                         compare_set_timeout, NULL, NULL, NULL);
+
+    object_property_add(obj, "expired_scan_cycle", "uint32",
+                        compare_get_expired_scan_cycle,
+                        compare_set_expired_scan_cycle, NULL, NULL, NULL);
 
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
