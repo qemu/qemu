@@ -195,8 +195,8 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, int flags);
 
 hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
-int crisv10_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
-int cris_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int crisv10_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
+int cris_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int cris_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV

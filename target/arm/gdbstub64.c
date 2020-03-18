@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int aarch64_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;

@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;

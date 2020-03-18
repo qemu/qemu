@@ -22,7 +22,7 @@
 #include "internal.h"
 #include "exec/gdbstub.h"
 
-int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;

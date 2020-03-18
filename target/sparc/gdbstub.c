@@ -27,7 +27,7 @@
 #define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
 #endif
 
-int sparc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;

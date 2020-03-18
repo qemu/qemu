@@ -124,7 +124,7 @@ static void nios2_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
 }
 
-static int nios2_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);
