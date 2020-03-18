@@ -30,7 +30,6 @@ Contents:
    managed-startup
    targets
    security
-   vfio-ap
    deprecated
    build-platforms
    license

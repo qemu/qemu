@@ -101,7 +101,8 @@ F: include/hw/watchdog/wdt_diag288.h
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 F: target/s390x/
-F: docs/vfio-ap.txt
+F: docs/system/target-s390x.rst
+F: docs/system/s390x/
 F: tests/migration/s390x/
 K: ^Subject:.*(?i)s390x?
 T: git https://github.com/cohuck/qemu.git s390-next
@@ -1611,7 +1612,7 @@ F: hw/s390x/ap-bridge.c
 F: include/hw/s390x/ap-device.h
 F: include/hw/s390x/ap-bridge.h
 F: hw/vfio/ap.c
-F: docs/system/vfio-ap.rst
+F: docs/system/s390x/vfio-ap.rst
 L: qemu-s390x@nongnu.org
 
 vhost
