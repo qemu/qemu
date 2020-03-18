@@ -243,6 +243,14 @@ struct rtas_event_log_v6_mc {
 #define RTAS_LOG_V6_MC_TLB_PARITY                        1
 #define RTAS_LOG_V6_MC_TLB_MULTIHIT                      2
 #define RTAS_LOG_V6_MC_TLB_INDETERMINATE                 3
+/*
+ * Per PAPR,
+ * For UE error type, set bit 1 of sub_err_type to indicate effective addr is
+ * provided. For other error types (SLB/ERAT/TLB), set bit 0 to indicate
+ * same.
+ */
+#define RTAS_LOG_V6_MC_UE_EA_ADDR_PROVIDED               0x40
+#define RTAS_LOG_V6_MC_EA_ADDR_PROVIDED                  0x80
     uint8_t reserved_1[6];
     uint64_t effective_address;
     uint64_t logical_address;
@@ -726,6 +734,22 @@ void spapr_hotplug_req_remove_by_count_indexed(SpaprDrcType drc_type,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
 }
 
+static void spapr_mc_set_ea_provided_flag(struct mc_extended_log *ext_elog)
+{
+    switch (ext_elog->mc.error_type) {
+    case RTAS_LOG_V6_MC_TYPE_UE:
+        ext_elog->mc.sub_err_type |= RTAS_LOG_V6_MC_UE_EA_ADDR_PROVIDED;
+        break;
+    case RTAS_LOG_V6_MC_TYPE_SLB:
+    case RTAS_LOG_V6_MC_TYPE_ERAT:
+    case RTAS_LOG_V6_MC_TYPE_TLB:
+        ext_elog->mc.sub_err_type |= RTAS_LOG_V6_MC_EA_ADDR_PROVIDED;
+        break;
+    default:
+        break;
+    }
+}
+
 static uint32_t spapr_mce_get_elog_type(PowerPCCPU *cpu, bool recovered,
                                         struct mc_extended_log *ext_elog)
 {
@@ -751,6 +775,7 @@ static uint32_t spapr_mce_get_elog_type(PowerPCCPU *cpu, bool recovered,
             ext_elog->mc.sub_err_type = mc_derror_table[i].error_subtype;
             if (mc_derror_table[i].dar_valid) {
                 ext_elog->mc.effective_address = cpu_to_be64(env->spr[SPR_DAR]);
+                spapr_mc_set_ea_provided_flag(ext_elog);
             }
 
             summary |= mc_derror_table[i].initiator
@@ -769,6 +794,7 @@ static uint32_t spapr_mce_get_elog_type(PowerPCCPU *cpu, bool recovered,
             ext_elog->mc.sub_err_type = mc_ierror_table[i].error_subtype;
             if (mc_ierror_table[i].nip_valid) {
                 ext_elog->mc.effective_address = cpu_to_be64(env->nip);
+                spapr_mc_set_ea_provided_flag(ext_elog);
             }
 
             summary |= mc_ierror_table[i].initiator
