@@ -5765,58 +5765,6 @@ if  test "$plugins" = "yes" &&
 fi
 
 ########################################
-# See if 16-byte vector operations are supported.
-# Even without a vector unit the compiler may expand these.
-# There is a bug in old GCC for PPC that crashes here.
-# Unfortunately it's the system compiler for Centos 7.
-
-cat > $TMPC << EOF
-typedef unsigned char U1 __attribute__((vector_size(16)));
-typedef unsigned short U2 __attribute__((vector_size(16)));
-typedef unsigned int U4 __attribute__((vector_size(16)));
-typedef unsigned long long U8 __attribute__((vector_size(16)));
-typedef signed char S1 __attribute__((vector_size(16)));
-typedef signed short S2 __attribute__((vector_size(16)));
-typedef signed int S4 __attribute__((vector_size(16)));
-typedef signed long long S8 __attribute__((vector_size(16)));
-static U1 a1, b1;
-static U2 a2, b2;
-static U4 a4, b4;
-static U8 a8, b8;
-static S1 c1;
-static S2 c2;
-static S4 c4;
-static S8 c8;
-static int i;
-void helper(void *d, void *a, int shift, int i);
-void helper(void *d, void *a, int shift, int i)
-{
-  *(U1 *)(d + i) = *(U1 *)(a + i) << shift;
-  *(U2 *)(d + i) = *(U2 *)(a + i) << shift;
-  *(U4 *)(d + i) = *(U4 *)(a + i) << shift;
-  *(U8 *)(d + i) = *(U8 *)(a + i) << shift;
-}
-int main(void)
-{
-  a1 += b1; a2 += b2; a4 += b4; a8 += b8;
-  a1 -= b1; a2 -= b2; a4 -= b4; a8 -= b8;
-  a1 *= b1; a2 *= b2; a4 *= b4; a8 *= b8;
-  a1 &= b1; a2 &= b2; a4 &= b4; a8 &= b8;
-  a1 |= b1; a2 |= b2; a4 |= b4; a8 |= b8;
-  a1 ^= b1; a2 ^= b2; a4 ^= b4; a8 ^= b8;
-  a1 <<= i; a2 <<= i; a4 <<= i; a8 <<= i;
-  a1 >>= i; a2 >>= i; a4 >>= i; a8 >>= i;
-  c1 >>= i; c2 >>= i; c4 >>= i; c8 >>= i;
-  return 0;
-}
-EOF
-
-vector16=no
-if compile_prog "" "" ; then
-  vector16=yes
-fi
-
-########################################
 # See if __attribute__((alias)) is supported.
 # This false for Xcode 9, but has been remedied for Xcode 10.
 # Unfortunately, travis uses Xcode 9 by default.
@@ -7444,10 +7392,6 @@ fi
 
 if test "$atomic64" = "yes" ; then
   echo "CONFIG_ATOMIC64=y" >> $config_host_mak
-fi
-
-if test "$vector16" = "yes" ; then
-  echo "CONFIG_VECTOR16=y" >> $config_host_mak
 fi
 
 if test "$attralias" = "yes" ; then
