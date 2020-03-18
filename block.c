@@ -363,6 +363,7 @@ char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp)
 
 void bdrv_register(BlockDriver *bdrv)
 {
+    assert(bdrv->format_name);
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
