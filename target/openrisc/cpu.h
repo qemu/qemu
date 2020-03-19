@@ -48,7 +48,7 @@ typedef struct OpenRISCCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    DeviceReset parent_reset;
 } OpenRISCCPUClass;
 
 #define TARGET_INSN_START_EXTRA_WORDS 1

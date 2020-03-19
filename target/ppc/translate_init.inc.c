@@ -10663,16 +10663,16 @@ static bool ppc_cpu_has_work(CPUState *cs)
     return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
-/* CPUClass::reset() */
-static void ppc_cpu_reset(CPUState *s)
+static void ppc_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     PowerPCCPU *cpu = POWERPC_CPU(s);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
     int i;
 
-    pcc->parent_reset(s);
+    pcc->parent_reset(dev);
 
     msr = (target_ulong)0;
     msr |= (target_ulong)MSR_HVB;
@@ -10879,7 +10879,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     device_class_set_props(dc, ppc_cpu_properties);
 
-    cpu_class_set_parent_reset(cc, ppc_cpu_reset, &pcc->parent_reset);
+    device_class_set_parent_reset(dc, ppc_cpu_reset, &pcc->parent_reset);
 
     cc->class_by_name = ppc_cpu_class_by_name;
     pcc->parent_parse_features = cc->parse_features;

@@ -69,7 +69,7 @@ typedef struct MoxieCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    DeviceReset parent_reset;
 } MoxieCPUClass;
 
 /**

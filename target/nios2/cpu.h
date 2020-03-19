@@ -50,7 +50,7 @@ typedef struct Nios2CPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    DeviceReset parent_reset;
 } Nios2CPUClass;
 
 #define TARGET_HAS_ICE 1

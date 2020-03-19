@@ -21,6 +21,7 @@
 #include "exec/hwaddr.h"
 #include "qemu/notify.h"
 
+#include "hw/i386/topology.h"
 #include "hw/boards.h"
 #include "hw/nmi.h"
 #include "hw/isa/isa.h"
@@ -81,6 +82,8 @@ typedef struct {
     OBJECT_GET_CLASS(X86MachineClass, obj, TYPE_X86_MACHINE)
 #define X86_MACHINE_CLASS(class) \
     OBJECT_CLASS_CHECK(X86MachineClass, class, TYPE_X86_MACHINE)
+
+void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 
 uint32_t x86_cpu_apic_id_from_index(X86MachineState *pcms,
                                     unsigned int cpu_index);

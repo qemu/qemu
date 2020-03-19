@@ -118,7 +118,7 @@ typedef struct TileGXCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    DeviceReset parent_reset;
 } TileGXCPUClass;
 
 /**

@@ -35,13 +35,14 @@ static bool moxie_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-static void moxie_cpu_reset(CPUState *s)
+static void moxie_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     MoxieCPU *cpu = MOXIE_CPU(s);
     MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(cpu);
     CPUMoxieState *env = &cpu->env;
 
-    mcc->parent_reset(s);
+    mcc->parent_reset(dev);
 
     memset(env, 0, offsetof(CPUMoxieState, end_reset_fields));
     env->pc = 0x1000;
@@ -101,7 +102,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, moxie_cpu_realizefn,
                                     &mcc->parent_realize);
-    cpu_class_set_parent_reset(cc, moxie_cpu_reset, &mcc->parent_reset);
+    device_class_set_parent_reset(dc, moxie_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = moxie_cpu_class_by_name;
 

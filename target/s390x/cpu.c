@@ -96,8 +96,9 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
+    DeviceState *dev = DEVICE(s);
 
-    scc->parent_reset(s);
+    scc->parent_reset(dev);
     cpu->env.sigp_order = 0;
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 
@@ -450,8 +451,9 @@ static Property s390x_cpu_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static void s390_cpu_reset_full(CPUState *s)
+static void s390_cpu_reset_full(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     return s390_cpu_reset(s, S390_CPU_RESET_CLEAR);
 }
 
@@ -466,7 +468,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, s390x_cpu_properties);
     dc->user_creatable = true;
 
-    cpu_class_set_parent_reset(cc, s390_cpu_reset_full, &scc->parent_reset);
+    device_class_set_parent_reset(dc, s390_cpu_reset_full, &scc->parent_reset);
 #if !defined(CONFIG_USER_ONLY)
     scc->load_normal = s390_cpu_load_normal;
 #endif

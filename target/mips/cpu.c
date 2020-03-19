@@ -96,14 +96,14 @@ static bool mips_cpu_has_work(CPUState *cs)
     return has_work;
 }
 
-/* CPUClass::reset() */
-static void mips_cpu_reset(CPUState *s)
+static void mips_cpu_reset(DeviceState *dev)
 {
+    CPUState *s = CPU(dev);
     MIPSCPU *cpu = MIPS_CPU(s);
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
     CPUMIPSState *env = &cpu->env;
 
-    mcc->parent_reset(s);
+    mcc->parent_reset(dev);
 
     memset(env, 0, offsetof(CPUMIPSState, end_reset_fields));
 
@@ -189,7 +189,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     device_class_set_parent_realize(dc, mips_cpu_realizefn,
                                     &mcc->parent_realize);
-    cpu_class_set_parent_reset(cc, mips_cpu_reset, &mcc->parent_reset);
+    device_class_set_parent_reset(dc, mips_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;
