@@ -29,6 +29,7 @@
 
 # Command line options:
 #   --dry-run : run the tools, but don't actually do the upload
+#   --docker : create and work inside a docker container
 #   --update-tools-only : update the cached copy of the tools, but don't run them
 #   --tokenfile : file to read Coverity token from
 #   --version ver : specify version being analyzed (default: ask git)
@@ -36,6 +37,8 @@
 #   --srcdir : QEMU source tree to analyze (default: current working dir)
 #   --results-tarball : path to copy the results tarball to (default: don't
 #                       copy it anywhere, just upload it)
+#   --src-tarball : tarball to untar into src dir (default: none); this
+#                   is intended mainly for internal use by the Docker support
 #
 # User-specifiable environment variables:
 #  COVERITY_TOKEN -- Coverity token
@@ -125,6 +128,7 @@ update_coverity_tools () {
 # Check user-provided environment variables and arguments
 DRYRUN=no
 UPDATE_ONLY=no
+DOCKER=no
 
 while [ "$#" -ge 1 ]; do
     case "$1" in
@@ -181,6 +185,19 @@ while [ "$#" -ge 1 ]; do
             RESULTSTARBALL="$1"
             shift
             ;;
+        --src-tarball)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--src-tarball needs an argument"
+                exit 1
+            fi
+            SRCTARBALL="$1"
+            shift
+            ;;
+        --docker)
+            DOCKER=yes
+            shift
+            ;;
         *)
             echo "Unexpected argument '$1'"
             exit 1
@@ -212,6 +229,10 @@ PROJTOKEN="$COVERITY_TOKEN"
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
+if [ "$UPDATE_ONLY" = yes ] && [ "$DOCKER" = yes ]; then
+    echo "Combining --docker and --update-only is not supported"
+    exit 1
+fi
 
 if [ "$UPDATE_ONLY" = yes ]; then
     # Just do the tools update; we don't need to check whether
@@ -221,7 +242,16 @@ if [ "$UPDATE_ONLY" = yes ]; then
     exit 0
 fi
 
+if [ ! -e "$SRCDIR" ]; then
+    mkdir "$SRCDIR"
+fi
+
 cd "$SRCDIR"
+
+if [ ! -z "$SRCTARBALL" ]; then
+    echo "Untarring source tarball into $SRCDIR..."
+    tar xvf "$SRCTARBALL"
+fi
 
 echo "Checking this is a QEMU source tree..."
 if ! [ -e "$SRCDIR/VERSION" ]; then
@@ -241,6 +271,66 @@ fi
 if [ -z "$COVERITY_EMAIL" ]; then
     COVERITY_EMAIL="$(git config user.email)"
 fi
+
+# Run ourselves inside docker if that's what the user wants
+if [ "$DOCKER" = yes ]; then
+    # build docker container including the coverity-scan tools
+    # Put the Coverity token into a temporary file that only
+    # we have read access to, and then pass it to docker build
+    # using --secret. This requires at least Docker 18.09.
+    # Mostly what we are trying to do here is ensure we don't leak
+    # the token into the Docker image.
+    umask 077
+    SECRETDIR=$(mktemp -d)
+    if [ -z "$SECRETDIR" ]; then
+        echo "Failed to create temporary directory"
+        exit 1
+    fi
+    trap 'rm -rf "$SECRETDIR"' INT TERM EXIT
+    echo "Created temporary directory $SECRETDIR"
+    SECRET="$SECRETDIR/token"
+    echo "$COVERITY_TOKEN" > "$SECRET"
+    echo "Building docker container..."
+    # TODO: This re-downloads the tools every time, rather than
+    # caching and reusing the image produced with the downloaded tools.
+    # Not sure why.
+    # TODO: how do you get 'docker build' to print the output of the
+    # commands it is running to its stdout? This would be useful for debug.
+    DOCKER_BUILDKIT=1 docker build -t coverity-scanner \
+                   --secret id=coverity.token,src="$SECRET" \
+                   -f scripts/coverity-scan/coverity-scan.docker \
+                   scripts/coverity-scan
+    echo "Archiving sources to be analyzed..."
+    ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
+    if [ "$DRYRUN" = yes ]; then
+        DRYRUNARG=--dry-run
+    fi
+    echo "Running scanner..."
+    # If we need to capture the output tarball, get the inner run to
+    # save it to the secrets directory so we can copy it out before the
+    # directory is cleaned up.
+    if [ ! -z "$RESULTSTARBALL" ]; then
+        RTARGS="--results-tarball /work/cov-int.tar.xz"
+    else
+        RTARGS=""
+    fi
+    # Arrange for this docker run to get access to the sources with -v.
+    # We pass through all the configuration from the outer script to the inner.
+    export COVERITY_EMAIL COVERITY_BUILD_CMD
+    docker run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
+           -v "$SECRETDIR:/work" coverity-scanner \
+           ./run-coverity-scan --version "$VERSION" \
+           --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
+           --srcdir /qemu --src-tarball /work/qemu-sources.tgz $RTARGS
+    if [ ! -z "$RESULTSTARBALL" ]; then
+        echo "Copying results tarball to $RESULTSTARBALL..."
+        cp "$SECRETDIR/cov-int.tar.xz" "$RESULTSTARBALL"
+    fi
+    echo "Docker work complete."
+    exit 0
+fi
+
+# Otherwise, continue with the full build and upload process.
 
 check_upload_permissions
 
