@@ -20,6 +20,8 @@ check-help:
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
 	@echo " $(MAKE) check-clean          Clean the tests and related data"
 	@echo
+	@echo " $(MAKE) get-vm-images        Downloads all images used by acceptance tests, according to configured targets (~350 MB each, 1.5 GB max)"
+	@echo
 	@echo
 	@echo "The variable SPEED can be set to control the gtester speed setting."
 	@echo "Default options are -k and (for $(MAKE) V=1) --verbose; they can be"
@@ -890,7 +892,21 @@ $(TESTS_RESULTS_DIR):
 
 check-venv: $(TESTS_VENV_DIR)
 
-check-acceptance: check-venv $(TESTS_RESULTS_DIR)
+FEDORA_31_ARCHES_CANDIDATES=$(patsubst ppc64,ppc64le,$(TARGETS))
+FEDORA_31_ARCHES := x86_64 aarch64 ppc64le s390x
+FEDORA_31_DOWNLOAD=$(filter $(FEDORA_31_ARCHES),$(FEDORA_31_ARCHES_CANDIDATES))
+
+# download one specific Fedora 31 image
+get-vm-image-fedora-31-%: check-venv
+	$(call quiet-command, \
+             $(TESTS_VENV_DIR)/bin/python -m avocado vmimage get \
+             --distro=fedora --distro-version=31 --arch=$*, \
+	"AVOCADO", "Downloading acceptance tests VM image for $*")
+
+# download all vm images, according to defined targets
+get-vm-images: check-venv $(patsubst %,get-vm-image-fedora-31-%, $(FEDORA_31_DOWNLOAD))
+
+check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
 	$(call quiet-command, \
             $(TESTS_VENV_DIR)/bin/python -m avocado \
             --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
@@ -901,7 +917,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
 
 # Consolidated targets
 
-.PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean
+.PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean get-vm-images
 check-qapi-schema: check-tests/qapi-schema/frontend check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 ifeq ($(CONFIG_TOOLS),y)
