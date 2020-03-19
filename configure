@@ -3855,6 +3855,26 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     fi
 fi
 
+# Silence clang warnings triggered by glib < 2.57.2
+cat > $TMPC << EOF
+#include <glib.h>
+typedef struct Foo {
+    int i;
+} Foo;
+static void foo_free(Foo *f)
+{
+    g_free(f);
+}
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free);
+int main(void) { return 0; }
+EOF
+if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
+    if cc_has_warning_flag "-Wno-unused-function"; then
+        glib_cflags="$glib_cflags -Wno-unused-function"
+        CFLAGS="$CFLAGS -Wno-unused-function"
+    fi
+fi
+
 #########################################
 # zlib check
 

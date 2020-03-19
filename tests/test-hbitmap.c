@@ -22,7 +22,6 @@
 
 typedef struct TestHBitmapData {
     HBitmap       *hb;
-    HBitmap       *meta;
     unsigned long *bits;
     size_t         size;
     size_t         old_size;
@@ -94,14 +93,6 @@ static void hbitmap_test_init(TestHBitmapData *data,
     }
 }
 
-static void hbitmap_test_init_meta(TestHBitmapData *data,
-                                   uint64_t size, int granularity,
-                                   int meta_chunk)
-{
-    hbitmap_test_init(data, size, granularity);
-    data->meta = hbitmap_create_meta(data->hb, meta_chunk);
-}
-
 static inline size_t hbitmap_test_array_size(size_t bits)
 {
     size_t n = DIV_ROUND_UP(bits, BITS_PER_LONG);
@@ -144,9 +135,6 @@ static void hbitmap_test_teardown(TestHBitmapData *data,
                                   const void *unused)
 {
     if (data->hb) {
-        if (data->meta) {
-            hbitmap_free_meta(data->hb);
-        }
         hbitmap_free(data->hb);
         data->hb = NULL;
     }
@@ -648,96 +636,6 @@ static void test_hbitmap_truncate_shrink_large(TestHBitmapData *data,
     hbitmap_test_truncate(data, size, -diff, 0);
 }
 
-static void hbitmap_check_meta(TestHBitmapData *data,
-                               int64_t start, int count)
-{
-    int64_t i;
-
-    for (i = 0; i < data->size; i++) {
-        if (i >= start && i < start + count) {
-            g_assert(hbitmap_get(data->meta, i));
-        } else {
-            g_assert(!hbitmap_get(data->meta, i));
-        }
-    }
-}
-
-static void hbitmap_test_meta(TestHBitmapData *data,
-                              int64_t start, int count,
-                              int64_t check_start, int check_count)
-{
-    hbitmap_reset_all(data->hb);
-    hbitmap_reset_all(data->meta);
-
-    /* Test "unset" -> "unset" will not update meta. */
-    hbitmap_reset(data->hb, start, count);
-    hbitmap_check_meta(data, 0, 0);
-
-    /* Test "unset" -> "set" will update meta */
-    hbitmap_set(data->hb, start, count);
-    hbitmap_check_meta(data, check_start, check_count);
-
-    /* Test "set" -> "set" will not update meta */
-    hbitmap_reset_all(data->meta);
-    hbitmap_set(data->hb, start, count);
-    hbitmap_check_meta(data, 0, 0);
-
-    /* Test "set" -> "unset" will update meta */
-    hbitmap_reset_all(data->meta);
-    hbitmap_reset(data->hb, start, count);
-    hbitmap_check_meta(data, check_start, check_count);
-}
-
-static void hbitmap_test_meta_do(TestHBitmapData *data, int chunk_size)
-{
-    uint64_t size = chunk_size * 100;
-    hbitmap_test_init_meta(data, size, 0, chunk_size);
-
-    hbitmap_test_meta(data, 0, 1, 0, chunk_size);
-    hbitmap_test_meta(data, 0, chunk_size, 0, chunk_size);
-    hbitmap_test_meta(data, chunk_size - 1, 1, 0, chunk_size);
-    hbitmap_test_meta(data, chunk_size - 1, 2, 0, chunk_size * 2);
-    hbitmap_test_meta(data, chunk_size - 1, chunk_size + 1, 0, chunk_size * 2);
-    hbitmap_test_meta(data, chunk_size - 1, chunk_size + 2, 0, chunk_size * 3);
-    hbitmap_test_meta(data, 7 * chunk_size - 1, chunk_size + 2,
-                      6 * chunk_size, chunk_size * 3);
-    hbitmap_test_meta(data, size - 1, 1, size - chunk_size, chunk_size);
-    hbitmap_test_meta(data, 0, size, 0, size);
-}
-
-static void test_hbitmap_meta_byte(TestHBitmapData *data, const void *unused)
-{
-    hbitmap_test_meta_do(data, BITS_PER_BYTE);
-}
-
-static void test_hbitmap_meta_word(TestHBitmapData *data, const void *unused)
-{
-    hbitmap_test_meta_do(data, BITS_PER_LONG);
-}
-
-static void test_hbitmap_meta_sector(TestHBitmapData *data, const void *unused)
-{
-    hbitmap_test_meta_do(data, BDRV_SECTOR_SIZE * BITS_PER_BYTE);
-}
-
-/**
- * Create an HBitmap and test set/unset.
- */
-static void test_hbitmap_meta_one(TestHBitmapData *data, const void *unused)
-{
-    int i;
-    int64_t offsets[] = {
-        0, 1, L1 - 1, L1, L1 + 1, L2 - 1, L2, L2 + 1, L3 - 1, L3, L3 + 1
-    };
-
-    hbitmap_test_init_meta(data, L3 * 2, 0, 1);
-    for (i = 0; i < ARRAY_SIZE(offsets); i++) {
-        hbitmap_test_meta(data, offsets[i], 1, offsets[i], 1);
-        hbitmap_test_meta(data, offsets[i], L1, offsets[i], L1);
-        hbitmap_test_meta(data, offsets[i], L2, offsets[i], L2);
-    }
-}
-
 static void test_hbitmap_serialize_align(TestHBitmapData *data,
                                          const void *unused)
 {
@@ -748,13 +646,6 @@ static void test_hbitmap_serialize_align(TestHBitmapData *data,
 
     r = hbitmap_serialization_align(data->hb);
     g_assert_cmpint(r, ==, 64 << 3);
-}
-
-static void test_hbitmap_meta_zero(TestHBitmapData *data, const void *unused)
-{
-    hbitmap_test_init_meta(data, 0, 0, 1);
-
-    hbitmap_check_meta(data, 0, 0);
 }
 
 static void hbitmap_test_serialize_range(TestHBitmapData *data,
@@ -925,106 +816,123 @@ static void test_hbitmap_iter_and_reset(TestHBitmapData *data,
     hbitmap_iter_next(&hbi);
 }
 
-static void test_hbitmap_next_zero_check_range(TestHBitmapData *data,
-                                               uint64_t start,
-                                               uint64_t count)
+static void test_hbitmap_next_x_check_range(TestHBitmapData *data,
+                                            int64_t start,
+                                            int64_t count)
 {
-    int64_t ret1 = hbitmap_next_zero(data->hb, start, count);
-    int64_t ret2 = start;
+    int64_t next_zero = hbitmap_next_zero(data->hb, start, count);
+    int64_t next_dirty = hbitmap_next_dirty(data->hb, start, count);
+    int64_t next;
     int64_t end = start >= data->size || data->size - start < count ?
                 data->size : start + count;
+    bool first_bit = hbitmap_get(data->hb, start);
 
-    for ( ; ret2 < end && hbitmap_get(data->hb, ret2); ret2++) {
+    for (next = start;
+         next < end && hbitmap_get(data->hb, next) == first_bit;
+         next++)
+    {
         ;
     }
-    if (ret2 == end) {
-        ret2 = -1;
+
+    if (next == end) {
+        next = -1;
     }
 
-    g_assert_cmpint(ret1, ==, ret2);
+    g_assert_cmpint(next_dirty, ==, first_bit ? start : next);
+    g_assert_cmpint(next_zero, ==, first_bit ? next : start);
 }
 
-static void test_hbitmap_next_zero_check(TestHBitmapData *data, int64_t start)
+static void test_hbitmap_next_x_check(TestHBitmapData *data, int64_t start)
 {
-    test_hbitmap_next_zero_check_range(data, start, UINT64_MAX);
+    test_hbitmap_next_x_check_range(data, start, INT64_MAX);
 }
 
-static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
+static void test_hbitmap_next_x_do(TestHBitmapData *data, int granularity)
 {
     hbitmap_test_init(data, L3, granularity);
-    test_hbitmap_next_zero_check(data, 0);
-    test_hbitmap_next_zero_check(data, L3 - 1);
-    test_hbitmap_next_zero_check_range(data, 0, 1);
-    test_hbitmap_next_zero_check_range(data, L3 - 1, 1);
+    test_hbitmap_next_x_check(data, 0);
+    test_hbitmap_next_x_check(data, L3 - 1);
+    test_hbitmap_next_x_check_range(data, 0, 1);
+    test_hbitmap_next_x_check_range(data, L3 - 1, 1);
 
     hbitmap_set(data->hb, L2, 1);
-    test_hbitmap_next_zero_check(data, 0);
-    test_hbitmap_next_zero_check(data, L2 - 1);
-    test_hbitmap_next_zero_check(data, L2);
-    test_hbitmap_next_zero_check(data, L2 + 1);
-    test_hbitmap_next_zero_check_range(data, 0, 1);
-    test_hbitmap_next_zero_check_range(data, 0, L2);
-    test_hbitmap_next_zero_check_range(data, L2 - 1, 1);
-    test_hbitmap_next_zero_check_range(data, L2 - 1, 2);
-    test_hbitmap_next_zero_check_range(data, L2, 1);
-    test_hbitmap_next_zero_check_range(data, L2 + 1, 1);
+    test_hbitmap_next_x_check(data, 0);
+    test_hbitmap_next_x_check(data, L2 - 1);
+    test_hbitmap_next_x_check(data, L2);
+    test_hbitmap_next_x_check(data, L2 + 1);
+    test_hbitmap_next_x_check_range(data, 0, 1);
+    test_hbitmap_next_x_check_range(data, 0, L2);
+    test_hbitmap_next_x_check_range(data, L2 - 1, 1);
+    test_hbitmap_next_x_check_range(data, L2 - 1, 2);
+    test_hbitmap_next_x_check_range(data, L2, 1);
+    test_hbitmap_next_x_check_range(data, L2 + 1, 1);
 
     hbitmap_set(data->hb, L2 + 5, L1);
-    test_hbitmap_next_zero_check(data, 0);
-    test_hbitmap_next_zero_check(data, L2 + 1);
-    test_hbitmap_next_zero_check(data, L2 + 2);
-    test_hbitmap_next_zero_check(data, L2 + 5);
-    test_hbitmap_next_zero_check(data, L2 + L1 - 1);
-    test_hbitmap_next_zero_check(data, L2 + L1);
-    test_hbitmap_next_zero_check_range(data, L2, 6);
-    test_hbitmap_next_zero_check_range(data, L2 + 1, 3);
-    test_hbitmap_next_zero_check_range(data, L2 + 4, L1);
-    test_hbitmap_next_zero_check_range(data, L2 + 5, L1);
+    test_hbitmap_next_x_check(data, 0);
+    test_hbitmap_next_x_check(data, L2 - L1);
+    test_hbitmap_next_x_check(data, L2 + 1);
+    test_hbitmap_next_x_check(data, L2 + 2);
+    test_hbitmap_next_x_check(data, L2 + 5);
+    test_hbitmap_next_x_check(data, L2 + L1 - 1);
+    test_hbitmap_next_x_check(data, L2 + L1);
+    test_hbitmap_next_x_check(data, L2 + L1 + 1);
+    test_hbitmap_next_x_check_range(data, L2 - 2, L1);
+    test_hbitmap_next_x_check_range(data, L2, 4);
+    test_hbitmap_next_x_check_range(data, L2, 6);
+    test_hbitmap_next_x_check_range(data, L2 + 1, 3);
+    test_hbitmap_next_x_check_range(data, L2 + 4, L1);
+    test_hbitmap_next_x_check_range(data, L2 + 5, L1);
+    test_hbitmap_next_x_check_range(data, L2 + 5 + L1 - 1, 1);
+    test_hbitmap_next_x_check_range(data, L2 + 5 + L1, 1);
+    test_hbitmap_next_x_check_range(data, L2 + 5 + L1 + 1, 1);
 
     hbitmap_set(data->hb, L2 * 2, L3 - L2 * 2);
-    test_hbitmap_next_zero_check(data, L2 * 2 - L1);
-    test_hbitmap_next_zero_check(data, L2 * 2 - 2);
-    test_hbitmap_next_zero_check(data, L2 * 2 - 1);
-    test_hbitmap_next_zero_check(data, L2 * 2);
-    test_hbitmap_next_zero_check(data, L3 - 1);
-    test_hbitmap_next_zero_check_range(data, L2 * 2 - L1, L1 + 1);
-    test_hbitmap_next_zero_check_range(data, L2 * 2, L2);
+    test_hbitmap_next_x_check(data, L2 * 2 - L1);
+    test_hbitmap_next_x_check(data, L2 * 2 - 2);
+    test_hbitmap_next_x_check(data, L2 * 2 - 1);
+    test_hbitmap_next_x_check(data, L2 * 2);
+    test_hbitmap_next_x_check(data, L2 * 2 + 1);
+    test_hbitmap_next_x_check(data, L2 * 2 + L1);
+    test_hbitmap_next_x_check(data, L3 - 1);
+    test_hbitmap_next_x_check_range(data, L2 * 2 - L1, L1 + 1);
+    test_hbitmap_next_x_check_range(data, L2 * 2, L2);
 
     hbitmap_set(data->hb, 0, L3);
-    test_hbitmap_next_zero_check(data, 0);
+    test_hbitmap_next_x_check(data, 0);
 }
 
-static void test_hbitmap_next_zero_0(TestHBitmapData *data, const void *unused)
+static void test_hbitmap_next_x_0(TestHBitmapData *data, const void *unused)
 {
-    test_hbitmap_next_zero_do(data, 0);
+    test_hbitmap_next_x_do(data, 0);
 }
 
-static void test_hbitmap_next_zero_4(TestHBitmapData *data, const void *unused)
+static void test_hbitmap_next_x_4(TestHBitmapData *data, const void *unused)
 {
-    test_hbitmap_next_zero_do(data, 4);
+    test_hbitmap_next_x_do(data, 4);
 }
 
-static void test_hbitmap_next_zero_after_truncate(TestHBitmapData *data,
-                                                  const void *unused)
+static void test_hbitmap_next_x_after_truncate(TestHBitmapData *data,
+                                               const void *unused)
 {
     hbitmap_test_init(data, L1, 0);
     hbitmap_test_truncate_impl(data, L1 * 2);
     hbitmap_set(data->hb, 0, L1);
-    test_hbitmap_next_zero_check(data, 0);
+    test_hbitmap_next_x_check(data, 0);
 }
 
-static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
-                                               uint64_t offset,
-                                               uint64_t count)
+static void test_hbitmap_next_dirty_area_check_limited(TestHBitmapData *data,
+                                                       int64_t offset,
+                                                       int64_t count,
+                                                       int64_t max_dirty)
 {
-    uint64_t off1, off2;
-    uint64_t len1 = 0, len2;
+    int64_t off1, off2;
+    int64_t len1 = 0, len2;
     bool ret1, ret2;
     int64_t end;
 
-    off1 = offset;
-    len1 = count;
-    ret1 = hbitmap_next_dirty_area(data->hb, &off1, &len1);
+    ret1 = hbitmap_next_dirty_area(data->hb,
+            offset, count == INT64_MAX ? INT64_MAX : offset + count, max_dirty,
+            &off1, &len1);
 
     end = offset > data->size || data->size - offset < count ? data->size :
                                                                offset + count;
@@ -1033,45 +941,52 @@ static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
         ;
     }
 
-    for (len2 = 1; off2 + len2 < end && hbitmap_get(data->hb, off2 + len2);
-         len2++) {
+    for (len2 = 1; (off2 + len2 < end && len2 < max_dirty &&
+                    hbitmap_get(data->hb, off2 + len2)); len2++)
+    {
         ;
     }
 
     ret2 = off2 < end;
-    if (!ret2) {
-        /* leave unchanged */
-        off2 = offset;
-        len2 = count;
-    }
-
     g_assert_cmpint(ret1, ==, ret2);
-    g_assert_cmpint(off1, ==, off2);
-    g_assert_cmpint(len1, ==, len2);
+
+    if (ret2) {
+        g_assert_cmpint(off1, ==, off2);
+        g_assert_cmpint(len1, ==, len2);
+    }
+}
+
+static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
+                                               int64_t offset, int64_t count)
+{
+    test_hbitmap_next_dirty_area_check_limited(data, offset, count, INT64_MAX);
 }
 
 static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
                                             int granularity)
 {
     hbitmap_test_init(data, L3, granularity);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, 0, 1);
     test_hbitmap_next_dirty_area_check(data, L3 - 1, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, 0, INT64_MAX, 1);
 
     hbitmap_set(data->hb, L2, 1);
     test_hbitmap_next_dirty_area_check(data, 0, 1);
     test_hbitmap_next_dirty_area_check(data, 0, L2);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
-    test_hbitmap_next_dirty_area_check(data, L2 - 1, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, L2 - 1, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, L2 - 1, 1);
     test_hbitmap_next_dirty_area_check(data, L2 - 1, 2);
     test_hbitmap_next_dirty_area_check(data, L2 - 1, 3);
-    test_hbitmap_next_dirty_area_check(data, L2, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, L2, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, L2, 1);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, 0, INT64_MAX, 1);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 - 1, 2, 1);
 
     hbitmap_set(data->hb, L2 + 5, L1);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, L2 - 2, 8);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 5);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 3);
@@ -1081,18 +996,23 @@ static void test_hbitmap_next_dirty_area_do(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_check(data, L2 + L1, L1);
     test_hbitmap_next_dirty_area_check(data, L2, 0);
     test_hbitmap_next_dirty_area_check(data, L2 + 1, 0);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 + 3, INT64_MAX, 3);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 + 3, 7, 10);
 
     hbitmap_set(data->hb, L2 * 2, L3 - L2 * 2);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
-    test_hbitmap_next_dirty_area_check(data, L2, UINT64_MAX);
-    test_hbitmap_next_dirty_area_check(data, L2 + 1, UINT64_MAX);
-    test_hbitmap_next_dirty_area_check(data, L2 + 5 + L1 - 1, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, L2, INT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, L2 + 1, INT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, L2 + 5 + L1 - 1, INT64_MAX);
     test_hbitmap_next_dirty_area_check(data, L2 + 5 + L1, 5);
     test_hbitmap_next_dirty_area_check(data, L2 * 2 - L1, L1 + 1);
     test_hbitmap_next_dirty_area_check(data, L2 * 2, L2);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, INT64_MAX, 5);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, 10, 5);
+    test_hbitmap_next_dirty_area_check_limited(data, L2 * 2 + 1, 2, 5);
 
     hbitmap_set(data->hb, 0, L3);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
 }
 
 static void test_hbitmap_next_dirty_area_0(TestHBitmapData *data,
@@ -1119,7 +1039,7 @@ static void test_hbitmap_next_dirty_area_after_truncate(TestHBitmapData *data,
     hbitmap_test_init(data, L1, 0);
     hbitmap_test_truncate_impl(data, L1 * 2);
     hbitmap_set(data->hb, L1 + 1, 1);
-    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
+    test_hbitmap_next_dirty_area_check(data, 0, INT64_MAX);
 }
 
 int main(int argc, char **argv)
@@ -1165,12 +1085,6 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/truncate/shrink/large",
                      test_hbitmap_truncate_shrink_large);
 
-    hbitmap_test_add("/hbitmap/meta/zero", test_hbitmap_meta_zero);
-    hbitmap_test_add("/hbitmap/meta/one", test_hbitmap_meta_one);
-    hbitmap_test_add("/hbitmap/meta/byte", test_hbitmap_meta_byte);
-    hbitmap_test_add("/hbitmap/meta/word", test_hbitmap_meta_word);
-    hbitmap_test_add("/hbitmap/meta/sector", test_hbitmap_meta_sector);
-
     hbitmap_test_add("/hbitmap/serialize/align",
                      test_hbitmap_serialize_align);
     hbitmap_test_add("/hbitmap/serialize/basic",
@@ -1183,12 +1097,12 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/iter/iter_and_reset",
                      test_hbitmap_iter_and_reset);
 
-    hbitmap_test_add("/hbitmap/next_zero/next_zero_0",
-                     test_hbitmap_next_zero_0);
-    hbitmap_test_add("/hbitmap/next_zero/next_zero_4",
-                     test_hbitmap_next_zero_4);
-    hbitmap_test_add("/hbitmap/next_zero/next_zero_after_truncate",
-                     test_hbitmap_next_zero_after_truncate);
+    hbitmap_test_add("/hbitmap/next_zero/next_x_0",
+                     test_hbitmap_next_x_0);
+    hbitmap_test_add("/hbitmap/next_zero/next_x_4",
+                     test_hbitmap_next_x_4);
+    hbitmap_test_add("/hbitmap/next_zero/next_x_after_truncate",
+                     test_hbitmap_next_x_after_truncate);
 
     hbitmap_test_add("/hbitmap/next_dirty_area/next_dirty_area_0",
                      test_hbitmap_next_dirty_area_0);
