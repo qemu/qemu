@@ -476,17 +476,20 @@ const VMStateDescription vmstate_ide_pci = {
     }
 };
 
-void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
+/* hd_table must contain 4 block drivers */
+void pci_ide_create_devs(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
+    DriveInfo *hd_table[2 * MAX_IDE_DEVS];
     static const int bus[4]  = { 0, 0, 1, 1 };
     static const int unit[4] = { 0, 1, 0, 1 };
     int i;
 
+    ide_drive_get(hd_table, ARRAY_SIZE(hd_table));
     for (i = 0; i < 4; i++) {
-        if (hd_table[i] == NULL)
-            continue;
-        ide_create_drive(d->bus+bus[i], unit[i], hd_table[i]);
+        if (hd_table[i]) {
+            ide_create_drive(d->bus + bus[i], unit[i], hd_table[i]);
+        }
     }
 }
 

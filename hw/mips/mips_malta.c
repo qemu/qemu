@@ -1403,7 +1403,7 @@ void mips_malta_init(MachineState *machine)
     pci_bus = gt64120_register(s->i8259);
 
     /* Southbridge */
-    dev = piix4_create(pci_bus, &isa_bus, &smbus, MAX_IDE_BUS);
+    dev = piix4_create(pci_bus, &isa_bus, &smbus);
 
     /* Interrupt controller */
     qdev_connect_gpio_out_named(dev, "intr", 0, i8259_irq);
