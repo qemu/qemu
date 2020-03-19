@@ -43,6 +43,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/balloon.h"
 #include "hw/s390x/pv.h"
 #include <linux/kvm.h>
 #include "migration/blocker.h"
@@ -329,6 +330,7 @@ static void s390_machine_unprotect(S390CcwMachineState *ms)
     ms->pv = false;
     migrate_del_blocker(pv_mig_blocker);
     error_free_or_abort(&pv_mig_blocker);
+    qemu_balloon_inhibit(false);
 }
 
 static int s390_machine_protect(S390CcwMachineState *ms)
@@ -336,10 +338,18 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     Error *local_err = NULL;
     int rc;
 
+   /*
+    * Ballooning on protected VMs needs support in the guest for
+    * sharing and unsharing balloon pages. Block ballooning for
+    * now, until we have a solution to make at least Linux guests
+    * either support it or fail gracefully.
+    */
+    qemu_balloon_inhibit(true);
     error_setg(&pv_mig_blocker,
                "protected VMs are currently not migrateable.");
     rc = migrate_add_blocker(pv_mig_blocker, &local_err);
     if (rc) {
+        qemu_balloon_inhibit(false);
         error_report_err(local_err);
         error_free_or_abort(&pv_mig_blocker);
         return rc;
@@ -348,6 +358,7 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     /* Create SE VM */
     rc = s390_pv_vm_enable();
     if (rc) {
+        qemu_balloon_inhibit(false);
         error_report_err(local_err);
         migrate_del_blocker(pv_mig_blocker);
         error_free_or_abort(&pv_mig_blocker);
