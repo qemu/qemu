@@ -67,7 +67,7 @@ extern QemuCondTimedWaitFunc qemu_cond_timedwait_func;
 #define qemu_cond_wait(c, m)                                            \
             qemu_cond_wait_impl(c, m, __FILE__, __LINE__);
 #define qemu_cond_timedwait(c, m, ms)                                   \
-            qemu_cond_wait_impl(c, m, ms, __FILE__, __LINE__);
+            qemu_cond_timedwait_impl(c, m, ms, __FILE__, __LINE__);
 #else
 #define qemu_mutex_lock(m) ({                                           \
             QemuMutexLockFunc _f = atomic_read(&qemu_mutex_lock_func);  \
