@@ -562,6 +562,7 @@ static uint16_t full_GEN15_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_9,
     S390_FEAT_GROUP_MSA_EXT_9_PCKMO,
     S390_FEAT_ETOKEN,
+    S390_FEAT_UNPACK,
 };
 
 /* Default features (in order of release)
