@@ -872,13 +872,13 @@
 #       If @device is 'vnc' and @target is 'password', this is the new VNC
 #       password to set.  See change-vnc-password for additional notes.
 #
+# Features:
+# @deprecated: This command is deprecated.  For changing block
+#     devices, use 'blockdev-change-medium' instead; for changing VNC
+#     parameters, use 'change-vnc-password' instead.
+#
 # Returns: - Nothing on success.
 #          - If @device is not a valid block device, DeviceNotFound
-#
-# Notes: This interface is deprecated, and it is strongly recommended that you
-#        avoid using it.  For changing block devices, use
-#        blockdev-change-medium; for changing VNC parameters, use
-#        change-vnc-password.
 #
 # Since: 0.14.0
 #
@@ -900,7 +900,8 @@
 #
 ##
 { 'command': 'change',
-  'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
+  'data': {'device': 'str', 'target': 'str', '*arg': 'str'},
+  'features': [ 'deprecated' ] }
 
 ##
 # @xen-set-global-dirty-log:

@@ -98,6 +98,7 @@ struct NetClientState {
     unsigned rxfilter_notify_enabled:1;
     int vring_enable;
     int vnet_hdr_len;
+    bool is_netdev;
     QTAILQ_HEAD(, NetFilterState) filters;
 };
 
@@ -203,7 +204,6 @@ void net_cleanup(void);
 void hmp_host_net_add(Monitor *mon, const QDict *qdict);
 void hmp_host_net_remove(Monitor *mon, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
-void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp);
 
 int net_hub_id_for_client(NetClientState *nc, int *id);
 NetClientState *net_hub_port_find(int hub_id);

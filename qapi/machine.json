@@ -184,8 +184,11 @@
 # This command causes vCPU threads to exit to userspace, which causes
 # a small interruption to guest CPU execution. This will have a negative
 # impact on realtime guests and other latency sensitive guest workloads.
-# It is recommended to use @query-cpus-fast instead of this command to
-# avoid the vCPU interruption.
+#
+# Features:
+# @deprecated: This command is deprecated, because it interferes with
+#     the guest.  Use 'query-cpus-fast' instead to avoid the vCPU
+#     interruption.
 #
 # Returns: a list of @CpuInfo for each virtual CPU
 #
@@ -216,12 +219,9 @@
 #       ]
 #    }
 #
-# Notes: This interface is deprecated (since 2.12.0), and it is strongly
-#        recommended that you avoid using it. Use @query-cpus-fast to
-#        obtain information about virtual CPUs.
-#
 ##
-{ 'command': 'query-cpus', 'returns': ['CpuInfo'] }
+{ 'command': 'query-cpus', 'returns': ['CpuInfo'],
+  'features': [ 'deprecated' ] }
 
 ##
 # @CpuInfoFast:
@@ -237,11 +237,13 @@
 # @props: properties describing to which node/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
-# @arch: base architecture of the cpu; deprecated since 3.0.0 in favor
-#        of @target
+# @arch: base architecture of the cpu
 #
 # @target: the QEMU system emulation target, which determines which
 #          additional fields will be listed (since 3.0)
+#
+# Features:
+# @deprecated: Member @arch is deprecated.  Use @target instead.
 #
 # Since: 2.12
 #
@@ -251,7 +253,8 @@
                       'qom-path'     : 'str',
                       'thread-id'    : 'int',
                       '*props'       : 'CpuInstanceProperties',
-                      'arch'         : 'CpuInfoArch',
+                      'arch'         : { 'type': 'CpuInfoArch',
+                                         'features': [ 'deprecated' ] },
                       'target'       : 'SysEmuTarget' },
   'discriminator' : 'target',
   'data'          : { 's390x'        : 'CpuInfoS390' } }
@@ -307,13 +310,13 @@
 #
 # @id: ID of CPU to be created, valid values [0..max_cpus)
 #
+# Features:
+# @deprecated: This command is deprecated.  Use `device_add` instead.
+#     See the `query-hotpluggable-cpus` command for details.
+#
 # Returns: Nothing on success
 #
 # Since: 1.5
-#
-# Note: This command is deprecated.  The `device_add` command should be
-#       used instead.  See the `query-hotpluggable-cpus` command for
-#       details.
 #
 # Example:
 #
@@ -321,7 +324,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'cpu-add', 'data': {'id': 'int'} }
+{ 'command': 'cpu-add', 'data': {'id': 'int'},
+  'features': [ 'deprecated' ] }
 
 ##
 # @MachineInfo:

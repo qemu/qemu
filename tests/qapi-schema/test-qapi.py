@@ -30,7 +30,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
     def visit_include(self, name, info):
         print('include %s' % name)
 
-    def visit_enum_type(self, name, info, ifcond, members, prefix):
+    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         print('enum %s' % name)
         if prefix:
             print('    prefix %s' % prefix)
@@ -38,6 +38,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    member %s' % m.name)
             self._print_if(m.ifcond, indent=8)
         self._print_if(ifcond)
+        self._print_features(features)
 
     def visit_array_type(self, name, info, ifcond, element_type):
         if not info:
@@ -45,8 +46,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('array %s %s' % (name, element_type.name))
         self._print_if(ifcond)
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants,
-                          features):
+    def visit_object_type(self, name, info, ifcond, features,
+                          base, members, variants):
         print('object %s' % name)
         if base:
             print('    base %s' % base.name)
@@ -54,18 +55,20 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    member %s: %s optional=%s'
                   % (m.name, m.type.name, m.optional))
             self._print_if(m.ifcond, 8)
+            self._print_features(m.features, indent=8)
         self._print_variants(variants)
         self._print_if(ifcond)
         self._print_features(features)
 
-    def visit_alternate_type(self, name, info, ifcond, variants):
+    def visit_alternate_type(self, name, info, ifcond, features, variants):
         print('alternate %s' % name)
         self._print_variants(variants)
         self._print_if(ifcond)
+        self._print_features(features)
 
-    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+    def visit_command(self, name, info, ifcond, features,
+                      arg_type, ret_type, gen, success_response, boxed,
+                      allow_oob, allow_preconfig):
         print('command %s %s -> %s'
               % (name, arg_type and arg_type.name,
                  ret_type and ret_type.name))
@@ -74,10 +77,11 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         self._print_if(ifcond)
         self._print_features(features)
 
-    def visit_event(self, name, info, ifcond, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         print('event %s %s' % (name, arg_type and arg_type.name))
         print('    boxed=%s' % boxed)
         self._print_if(ifcond)
+        self._print_features(features)
 
     @staticmethod
     def _print_variants(variants):
@@ -93,11 +97,11 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('%sif %s' % (' ' * indent, ifcond))
 
     @classmethod
-    def _print_features(cls, features):
+    def _print_features(cls, features, indent=4):
         if features:
             for f in features:
-                print('    feature %s' % f.name)
-                cls._print_if(f.ifcond, 8)
+                print('%sfeature %s' % (' ' * indent, f.name))
+                cls._print_if(f.ifcond, indent + 4)
 
 
 def test_frontend(fname):

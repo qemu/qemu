@@ -174,12 +174,14 @@
 #
 # Return information on QMP events.
 #
+# Features:
+# @deprecated: This command is deprecated, because its output doesn't
+#     reflect compile-time configuration.  Use 'query-qmp-schema'
+#     instead.
+#
 # Returns: A list of @EventInfo.
 #
 # Since: 1.2.0
-#
-# Note: This command is deprecated, because its output doesn't reflect
-#       compile-time configuration.  Use query-qmp-schema instead.
 #
 # Example:
 #
@@ -198,7 +200,8 @@
 # Note: This example has been shortened as the real response is too long.
 #
 ##
-{ 'command': 'query-events', 'returns': ['EventInfo'] }
+{ 'command': 'query-events', 'returns': ['EventInfo'],
+  'features': [ 'deprecated' ] }
 
 ##
 # @quit:

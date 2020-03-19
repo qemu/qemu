@@ -89,12 +89,18 @@
 #
 # @meta-type: the entity's meta type, inherited from @base.
 #
+# @features: names of features associated with the entity, in no
+#            particular order.
+#            (since 4.1 for object types, 4.2 for commands, 5.0 for
+#            the rest)
+#
 # Additional members depend on the value of @meta-type.
 #
 # Since: 2.5
 ##
 { 'union': 'SchemaInfo',
-  'base': { 'name': 'str', 'meta-type': 'SchemaMetaType' },
+  'base': { 'name': 'str', 'meta-type': 'SchemaMetaType',
+            '*features': [ 'str' ] },
   'discriminator': 'meta-type',
   'data': {
       'builtin': 'SchemaInfoBuiltin',
@@ -174,9 +180,6 @@
 #            and may even differ from the order of the values of the
 #            enum type of the @tag.
 #
-# @features: names of features associated with the type, in no particular
-#            order. (since: 4.1)
-#
 # Values of this type are JSON object on the wire.
 #
 # Since: 2.5
@@ -184,8 +187,7 @@
 { 'struct': 'SchemaInfoObject',
   'data': { 'members': [ 'SchemaInfoObjectMember' ],
             '*tag': 'str',
-            '*variants': [ 'SchemaInfoObjectVariant' ],
-            '*features': [ 'str' ] } }
+            '*variants': [ 'SchemaInfoObjectVariant' ] } }
 
 ##
 # @SchemaInfoObjectMember:
@@ -204,11 +206,15 @@
 #           Future extension: if present and non-null, the parameter
 #           is optional, and defaults to this value.
 #
+# @features: names of features associated with the member, in no
+#            particular order.  (since 5.0)
+#
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoObjectMember',
-  'data': { 'name': 'str', 'type': 'str', '*default': 'any' } }
+  'data': { 'name': 'str', 'type': 'str', '*default': 'any',
 # @default's type must be null or match @type
+            '*features': [ 'str' ] } }
 
 ##
 # @SchemaInfoObjectVariant:
@@ -266,17 +272,13 @@
 # @allow-oob: whether the command allows out-of-band execution,
 #             defaults to false (Since: 2.12)
 #
-# @features: names of features associated with the command, in no particular
-#            order. (since 4.2)
-#
 # TODO: @success-response (currently irrelevant, because it's QGA, not QMP)
 #
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoCommand',
   'data': { 'arg-type': 'str', 'ret-type': 'str',
-            '*allow-oob': 'bool',
-            '*features': [ 'str' ] } }
+            '*allow-oob': 'bool' } }
 
 ##
 # @SchemaInfoEvent:

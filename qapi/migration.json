@@ -1210,9 +1210,11 @@
 #
 # @value: maximum downtime in seconds
 #
-# Returns: nothing on success
+# Features:
+# @deprecated: This command is deprecated.  Use
+#     'migrate-set-parameters' instead.
 #
-# Notes: This command is deprecated in favor of 'migrate-set-parameters'
+# Returns: nothing on success
 #
 # Since: 0.14.0
 #
@@ -1222,7 +1224,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
+{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'},
+  'features': [ 'deprecated' ] }
 
 ##
 # @migrate_set_speed:
@@ -1231,9 +1234,11 @@
 #
 # @value: maximum speed in bytes per second.
 #
-# Returns: nothing on success
+# Features:
+# @deprecated: This command is deprecated.  Use
+#     'migrate-set-parameters' instead.
 #
-# Notes: This command is deprecated in favor of 'migrate-set-parameters'
+# Returns: nothing on success
 #
 # Since: 0.14.0
 #
@@ -1243,7 +1248,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
+{ 'command': 'migrate_set_speed', 'data': {'value': 'int'},
+  'features': [ 'deprecated' ] }
 
 ##
 # @migrate-set-cache-size:
@@ -1252,12 +1258,14 @@
 #
 # @value: cache size in bytes
 #
+# Features:
+# @deprecated: This command is deprecated.  Use
+#     'migrate-set-parameters' instead.
+#
 # The size will be rounded down to the nearest power of 2.
 # The cache size can be modified before and during ongoing migration
 #
 # Returns: nothing on success
-#
-# Notes: This command is deprecated in favor of 'migrate-set-parameters'
 #
 # Since: 1.2
 #
@@ -1268,16 +1276,19 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate-set-cache-size', 'data': {'value': 'int'} }
+{ 'command': 'migrate-set-cache-size', 'data': {'value': 'int'},
+  'features': [ 'deprecated' ] }
 
 ##
 # @query-migrate-cache-size:
 #
 # Query migration XBZRLE cache size
 #
-# Returns: XBZRLE cache size in bytes
+# Features:
+# @deprecated: This command is deprecated.  Use
+#     'query-migrate-parameters' instead.
 #
-# Notes: This command is deprecated in favor of 'query-migrate-parameters'
+# Returns: XBZRLE cache size in bytes
 #
 # Since: 1.2
 #
@@ -1287,7 +1298,8 @@
 # <- { "return": 67108864 }
 #
 ##
-{ 'command': 'query-migrate-cache-size', 'returns': 'int' }
+{ 'command': 'query-migrate-cache-size', 'returns': 'int',
+  'features': [ 'deprecated' ] }
 
 ##
 # @migrate:

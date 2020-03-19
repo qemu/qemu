@@ -101,7 +101,7 @@ VersionInfo *qmp_query_version(Error **errp)
     return info;
 }
 
-static void query_commands_cb(QmpCommand *cmd, void *opaque)
+static void query_commands_cb(const QmpCommand *cmd, void *opaque)
 {
     CommandInfoList *info, **list = opaque;
 

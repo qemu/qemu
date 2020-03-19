@@ -167,8 +167,9 @@ def check_type(value, info, source,
                        allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
-        check_keys(arg, info, key_source, ['type'], ['if'])
+        check_keys(arg, info, key_source, ['type'], ['if', 'features'])
         check_if(arg, info, key_source)
+        check_features(arg.get('features'), info)
         check_type(arg['type'], info, key_source, allow_array=True)
 
 
@@ -219,7 +220,6 @@ def check_struct(expr, info):
 
     check_type(members, info, "'data'", allow_dict=name)
     check_type(expr.get('base'), info, "'base'")
-    check_features(expr.get('features'), info)
 
 
 def check_union(expr, info):
@@ -267,7 +267,6 @@ def check_command(expr, info):
         raise QAPISemError(info, "'boxed': true requires 'data'")
     check_type(args, info, "'data'", allow_dict=not boxed)
     check_type(rets, info, "'returns'", allow_array=True)
-    check_features(expr.get('features'), info)
 
 
 def check_event(expr, info):
@@ -319,18 +318,18 @@ def check_exprs(exprs):
 
         if meta == 'enum':
             check_keys(expr, info, meta,
-                       ['enum', 'data'], ['if', 'prefix'])
+                       ['enum', 'data'], ['if', 'features', 'prefix'])
             check_enum(expr, info)
         elif meta == 'union':
             check_keys(expr, info, meta,
                        ['union', 'data'],
-                       ['base', 'discriminator', 'if'])
+                       ['base', 'discriminator', 'if', 'features'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             check_union(expr, info)
         elif meta == 'alternate':
             check_keys(expr, info, meta,
-                       ['alternate', 'data'], ['if'])
+                       ['alternate', 'data'], ['if', 'features'])
             normalize_members(expr['data'])
             check_alternate(expr, info)
         elif meta == 'struct':
@@ -348,13 +347,14 @@ def check_exprs(exprs):
             check_command(expr, info)
         elif meta == 'event':
             check_keys(expr, info, meta,
-                       ['event'], ['data', 'boxed', 'if'])
+                       ['event'], ['data', 'boxed', 'if', 'features'])
             normalize_members(expr.get('data'))
             check_event(expr, info)
         else:
             assert False, 'unexpected meta type'
 
         check_if(expr, info, meta)
+        check_features(expr.get('features'), info)
         check_flags(expr, info)
 
     return exprs

@@ -90,14 +90,17 @@
 ##
 # @eject:
 #
-# Ejects a device from a removable drive.
+# Ejects the medium from a removable drive.
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
 # @force: If true, eject regardless of whether the drive is locked.
 #         If not specified, the default value is false.
+#
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Returns: - Nothing on success
 #          - If @device is not a valid block device, DeviceNotFound
@@ -111,7 +114,7 @@
 # <- { "return": {} }
 ##
 { 'command': 'eject',
-  'data': { '*device': 'str',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*id': 'str',
             '*force': 'bool' } }
 
@@ -134,7 +137,7 @@
 #   to it
 # - if the guest device does not have an actual tray
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
@@ -142,6 +145,9 @@
 #         the guest if it has locked the tray (and the tray will not be opened
 #         immediately); if true, the tray will be opened regardless of whether
 #         it is locked
+#
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
 #
@@ -161,7 +167,7 @@
 #
 ##
 { 'command': 'blockdev-open-tray',
-  'data': { '*device': 'str',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*id': 'str',
             '*force': 'bool' } }
 
@@ -174,9 +180,12 @@
 #
 # If the tray was already closed before, this will be a no-op.
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
+#
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
 #
@@ -196,7 +205,7 @@
 #
 ##
 { 'command': 'blockdev-close-tray',
-  'data': { '*device': 'str',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*id': 'str' } }
 
 ##
@@ -303,7 +312,7 @@
 # combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
 # and blockdev-close-tray).
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device
 #      (since: 2.8)
@@ -315,6 +324,9 @@
 #
 # @read-only-mode: change the read-only mode of the device; defaults
 #                  to 'retain'
+#
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Since: 2.5
 #
@@ -350,7 +362,7 @@
 #
 ##
 { 'command': 'blockdev-change-medium',
-  'data': { '*device': 'str',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*id': 'str',
             'filename': 'str',
             '*format': 'str',

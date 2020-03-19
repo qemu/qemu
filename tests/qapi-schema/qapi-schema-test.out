@@ -359,6 +359,7 @@ object FeatureStruct0
     member foo: int optional=False
 object FeatureStruct1
     member foo: int optional=False
+        feature deprecated
     feature feature1
 object FeatureStruct2
     member foo: int optional=False
@@ -387,7 +388,25 @@ object CondFeatureStruct3
     member foo: int optional=False
     feature feature1
         if ['defined(TEST_IF_COND_1)', 'defined(TEST_IF_COND_2)']
-object q_obj_test-features-arg
+enum FeatureEnum1
+    member eins
+    member zwei
+    member drei
+    feature feature1
+object q_obj_FeatureUnion1-base
+    member tag: FeatureEnum1 optional=False
+object FeatureUnion1
+    base q_obj_FeatureUnion1-base
+    tag tag
+    case eins: FeatureStruct1
+    case zwei: q_empty
+    case drei: q_empty
+    feature feature1
+alternate FeatureAlternate1
+    tag type
+    case eins: FeatureStruct1
+    feature feature1
+object q_obj_test-features0-arg
     member fs0: FeatureStruct0 optional=False
     member fs1: FeatureStruct1 optional=False
     member fs2: FeatureStruct2 optional=False
@@ -396,13 +415,11 @@ object q_obj_test-features-arg
     member cfs1: CondFeatureStruct1 optional=False
     member cfs2: CondFeatureStruct2 optional=False
     member cfs3: CondFeatureStruct3 optional=False
-command test-features q_obj_test-features-arg -> None
-    gen=True success_response=True boxed=False oob=False preconfig=False
-command test-command-features0 None -> None
+command test-features0 q_obj_test-features0-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
 command test-command-features1 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    feature feature1
+    feature deprecated
 command test-command-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     feature feature1
@@ -421,6 +438,9 @@ command test-command-cond-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     feature feature1
         if ['defined(TEST_IF_COND_1)', 'defined(TEST_IF_COND_2)']
+event TEST-EVENT-FEATURES1 None
+    boxed=False
+    feature deprecated
 module include/sub-module.json
 include sub-sub-module.json
 object SecondArrayRef

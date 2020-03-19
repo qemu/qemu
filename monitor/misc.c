@@ -247,8 +247,6 @@ static void monitor_init_qmp_commands(void)
                          qmp_query_qmp_schema, QCO_ALLOW_PRECONFIG);
     qmp_register_command(&qmp_commands, "device_add", qmp_device_add,
                          QCO_NO_OPTIONS);
-    qmp_register_command(&qmp_commands, "netdev_add", qmp_netdev_add,
-                         QCO_NO_OPTIONS);
     qmp_register_command(&qmp_commands, "object-add", qmp_object_add,
                          QCO_NO_OPTIONS);
 
@@ -2037,13 +2035,11 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
     count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_DRIVER_NIC,
                                          MAX_QUEUE_NUM);
     for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
-        QemuOpts *opts;
         const char *name = ncs[i]->name;
         if (strncmp(str, name, len)) {
             continue;
         }
-        opts = qemu_opts_find(qemu_find_opts_err("netdev", NULL), name);
-        if (opts) {
+        if (ncs[i]->is_netdev) {
             readline_add_completion(rs, name);
         }
     }
