@@ -482,10 +482,15 @@ done:
  * the guest's SEEK_ constants.  */
 int ga_parse_whence(GuestFileWhence *whence, Error **errp)
 {
-    /* Exploit the fact that we picked values to match QGA_SEEK_*. */
+    /*
+     * Exploit the fact that we picked values to match QGA_SEEK_*;
+     * however, we have to use a temporary variable since the union
+     * members may have different size.
+     */
     if (whence->type == QTYPE_QSTRING) {
+        int value = whence->u.name;
         whence->type = QTYPE_QNUM;
-        whence->u.value = whence->u.name;
+        whence->u.value = value;
     }
     switch (whence->u.value) {
     case QGA_SEEK_SET:
