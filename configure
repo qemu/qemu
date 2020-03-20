@@ -1903,6 +1903,18 @@ fi
 # Remove old dependency files to make sure that they get properly regenerated
 rm -f */config-devices.mak.d
 
+# Remove syscall_nr.h to be sure they will be regenerated in the build
+# directory, not in the source directory
+for arch in alpha hppa m68k xtensa sh4 microblaze arm ppc s390x sparc sparc64 \
+    i386 x86_64 mips mips64 ; do
+    # remove the file if it has been generated in the source directory
+    rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
+    # remove the dependency files
+    find . -name "*.d" \
+           -exec grep -q "${source_path}/linux-user/${arch}/syscall_nr.h" {} \; \
+           -exec rm {} \;
+done
+
 if test -z "$python"
 then
     error_exit "Python not found. Use --python=/path/to/python"
@@ -7813,17 +7825,21 @@ case "$target_name" in
   i386)
     mttcg="yes"
 	gdb_xml_files="i386-32bit.xml"
+    TARGET_SYSTBL_ABI=i386
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
+    TARGET_SYSTBL_ABI=common,64
     mttcg="yes"
 	gdb_xml_files="i386-64bit.xml"
   ;;
   alpha)
     mttcg="yes"
+    TARGET_SYSTBL_ABI=common
   ;;
   arm|armeb)
     TARGET_ARCH=arm
+    TARGET_SYSTBL_ABI=common,oabi
     bflt="yes"
     mttcg="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
@@ -7839,15 +7855,18 @@ case "$target_name" in
   ;;
   hppa)
     mttcg="yes"
+    TARGET_SYSTBL_ABI=common,32
   ;;
   lm32)
   ;;
   m68k)
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml m68k-fp.xml"
+    TARGET_SYSTBL_ABI=common
   ;;
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
+    TARGET_SYSTBL_ABI=common
     bflt="yes"
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
@@ -7855,6 +7874,7 @@ case "$target_name" in
     mttcg="yes"
     TARGET_ARCH=mips
     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=o32
   ;;
   mipsn32|mipsn32el)
     mttcg="yes"
@@ -7862,12 +7882,14 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
     echo "TARGET_ABI32=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=n32
   ;;
   mips64|mips64el)
     mttcg="yes"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=n64
   ;;
   moxie)
   ;;
@@ -7879,10 +7901,12 @@ case "$target_name" in
   ;;
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
+    TARGET_SYSTBL_ABI=common,nospu,32
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
+    TARGET_SYSTBL_ABI=common,nospu,64
     mttcg=yes
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
   ;;
@@ -7890,6 +7914,7 @@ case "$target_name" in
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
+    TARGET_SYSTBL_ABI=common,nospu,64
     mttcg=yes
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
   ;;
@@ -7897,6 +7922,7 @@ case "$target_name" in
     TARGET_ARCH=ppc64
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
+    TARGET_SYSTBL_ABI=common,nospu,32
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
   ;;
@@ -7920,20 +7946,25 @@ case "$target_name" in
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
+    TARGET_SYSTBL_ABI=common
     bflt="yes"
   ;;
   sparc)
+    TARGET_SYSTBL_ABI=common,32
   ;;
   sparc64)
     TARGET_BASE_ARCH=sparc
+    TARGET_SYSTBL_ABI=common,64
   ;;
   sparc32plus)
     TARGET_ARCH=sparc64
     TARGET_BASE_ARCH=sparc
     TARGET_ABI_DIR=sparc
+    TARGET_SYSTBL_ABI=common,32
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   s390x)
+    TARGET_SYSTBL_ABI=common,64
     mttcg=yes
     gdb_xml_files="s390x-core64.xml s390-acr.xml s390-fpr.xml s390-vx.xml s390-cr.xml s390-virt.xml s390-gs.xml"
   ;;
@@ -7945,6 +7976,7 @@ case "$target_name" in
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
+    TARGET_SYSTBL_ABI=common
     bflt="yes"
     mttcg="yes"
   ;;
@@ -7973,6 +8005,9 @@ fi
 echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
 if [ "$HOST_VARIANT_DIR" != "" ]; then
     echo "HOST_VARIANT_DIR=$HOST_VARIANT_DIR" >> $config_target_mak
+fi
+if [ "$TARGET_SYSTBL_ABI" != "" ]; then
+    echo "TARGET_SYSTBL_ABI=$TARGET_SYSTBL_ABI" >> $config_target_mak
 fi
 
 if supported_xen_target $target; then

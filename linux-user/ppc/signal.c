@@ -588,7 +588,7 @@ sigsegv:
 
 }
 
-#if !defined(TARGET_PPC64)
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
 long do_sigreturn(CPUPPCState *env)
 {
     struct target_sigcontext *sc = NULL;

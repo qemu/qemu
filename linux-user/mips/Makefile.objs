@@ -1,0 +1,5 @@
+generated-files-y += linux-user/mips/syscall_nr.h
+
+syshdr := $(SRC_PATH)/linux-user/mips/syscallhdr.sh
+%/syscall_nr.h: $(SRC_PATH)/linux-user/mips/syscall_o32.tbl $(syshdr)
+	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI) "" 4000,"GEN","$@")
