@@ -282,6 +282,11 @@ class QAPISchemaParser:
                 doc.end_comment()
                 self.accept()
                 return doc
+            if self.val.startswith('# ='):
+                if doc.symbol:
+                    raise QAPIParseError(
+                        self,
+                        "unexpected '=' markup in definition documentation")
             doc.append(self.val)
             self.accept(False)
 
