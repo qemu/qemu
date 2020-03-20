@@ -1,0 +1,11 @@
+obj-y += translate.o op_helper.o helper.o cpu.o gdbstub.o disas.o
+
+DECODETREE = $(SRC_PATH)/scripts/decodetree.py
+
+target/rx/decode.inc.c: \
+  $(SRC_PATH)/target/rx/insns.decode $(DECODETREE)
+	$(call quiet-command,\
+	  $(PYTHON) $(DECODETREE) --varinsnwidth 32 -o $@ $<, "GEN", $(TARGET_DIR)$@)
+
+target/rx/translate.o: target/rx/decode.inc.c
+target/rx/disas.o: target/rx/decode.inc.c

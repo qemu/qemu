@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2019 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.rx.core">
+  <reg name="r0" bitsize="32" type="data_ptr"/>
+  <reg name="r1" bitsize="32" type="uint32"/>
+  <reg name="r2" bitsize="32" type="uint32"/>
+  <reg name="r3" bitsize="32" type="uint32"/>
+  <reg name="r4" bitsize="32" type="uint32"/>
+  <reg name="r5" bitsize="32" type="uint32"/>
+  <reg name="r6" bitsize="32" type="uint32"/>
+  <reg name="r7" bitsize="32" type="uint32"/>
+  <reg name="r8" bitsize="32" type="uint32"/>
+  <reg name="r9" bitsize="32" type="uint32"/>
+  <reg name="r10" bitsize="32" type="uint32"/>
+  <reg name="r11" bitsize="32" type="uint32"/>
+  <reg name="r12" bitsize="32" type="uint32"/>
+  <reg name="r13" bitsize="32" type="uint32"/>
+  <reg name="r14" bitsize="32" type="uint32"/>
+  <reg name="r15" bitsize="32" type="uint32"/>
+
+  <flags id="psw_flags" size="4">
+    <field name="C" start="0" end="0"/>
+    <field name="Z" start="1" end="1"/>
+    <field name="S" start="2" end="2"/>
+    <field name="O" start="3" end="3"/>
+    <field name="I" start="16" end="16"/>
+    <field name="U" start="17" end="17"/>
+    <field name="PM" start="20" end="20"/>
+    <field name="IPL" start="24" end="27"/>
+  </flags>
+
+  <flags id="fpsw_flags" size="4">
+    <field name="RM" start="0" end="1"/>
+    <field name="CV" start="2" end="2"/>
+    <field name="CO" start="3" end="3"/>
+    <field name="CZ" start="4" end="4"/>
+    <field name="CU" start="5" end="5"/>
+    <field name="CX" start="6" end="6"/>
+    <field name="CE" start="7" end="7"/>
+    <field name="DN" start="8" end="8"/>
+    <field name="EV" start="10" end="10"/>
+    <field name="EO" start="11" end="11"/>
+    <field name="EZ" start="12" end="12"/>
+    <field name="EU" start="13" end="13"/>
+    <field name="EX" start="14" end="14"/>
+    <field name="FV" start="26" end="26"/>
+    <field name="FO" start="27" end="27"/>
+    <field name="FZ" start="28" end="28"/>
+    <field name="FU" start="29" end="29"/>
+    <field name="FX" start="30" end="30"/>
+    <field name="FS" start="31" end="31"/>
+  </flags>
+
+  <reg name="usp" bitsize="32" type="data_ptr"/>
+  <reg name="isp" bitsize="32" type="data_ptr"/>
+  <reg name="psw" bitsize="32" type="psw_flags"/>
+  <reg name="pc" bitsize="32" type="code_ptr"/>
+  <reg name="intb" bitsize="32" type="data_ptr"/>
+  <reg name="bpsw" bitsize="32" type="psw_flags"/>
+  <reg name="bpc" bitsize="32" type="code_ptr"/>
+  <reg name="fintv" bitsize="32" type="code_ptr"/>
+  <reg name="fpsw" bitsize="32" type="fpsw_flags"/>
+  <reg name="acc" bitsize="64" type="uint64"/>
+</feature>
