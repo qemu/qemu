@@ -64,6 +64,7 @@ typedef struct {
     unsigned smp_dies;
 
     OnOffAuto smm;
+    OnOffAuto acpi;
 
     /*
      * Address space used by IOAPIC device. All IOAPIC interrupts
@@ -74,6 +75,7 @@ typedef struct {
 
 #define X86_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define X86_MACHINE_SMM              "smm"
+#define X86_MACHINE_ACPI             "acpi"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 #define X86_MACHINE(obj) \
@@ -104,6 +106,7 @@ void x86_load_linux(X86MachineState *x86ms,
                     bool linuxboot_dma_enabled);
 
 bool x86_machine_is_smm_enabled(X86MachineState *x86ms);
+bool x86_machine_is_acpi_enabled(X86MachineState *x86ms);
 
 /* Global System Interrupts */
 

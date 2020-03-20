@@ -131,6 +131,7 @@ typedef struct {
     bool highmem_ecam;
     bool its;
     bool virt;
+    OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;
     uint16_t virtio_iommu_bdf;
@@ -163,6 +164,7 @@ typedef struct {
     OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
 
 void virt_acpi_setup(VirtMachineState *vms);
+bool virt_is_acpi_enabled(VirtMachineState *vms);
 
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
