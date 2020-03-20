@@ -69,7 +69,8 @@ event EVT-BOXED Object
 doc freeform
     body=
 = Section
-
+doc freeform
+    body=
 == Subsection
 
 *strong* _with emphasis_

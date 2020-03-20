@@ -52,8 +52,8 @@ class QAPISchemaParser:
             info = self.info
             if self.tok == '#':
                 self.reject_expr_doc(cur_doc)
-                cur_doc = self.get_doc(info)
-                self.docs.append(cur_doc)
+                for cur_doc in self.get_doc(info):
+                    self.docs.append(cur_doc)
                 continue
 
             expr = self.get_expr(False)
@@ -270,7 +270,8 @@ class QAPISchemaParser:
             raise QAPIParseError(
                 self, "junk after '##' at start of documentation comment")
 
-        doc = QAPIDoc(self, info)
+        docs = []
+        cur_doc = QAPIDoc(self, info)
         self.accept(False)
         while self.tok == '#':
             if self.val.startswith('##'):
@@ -279,15 +280,20 @@ class QAPISchemaParser:
                     raise QAPIParseError(
                         self,
                         "junk after '##' at end of documentation comment")
-                doc.end_comment()
+                cur_doc.end_comment()
+                docs.append(cur_doc)
                 self.accept()
-                return doc
+                return docs
             if self.val.startswith('# ='):
-                if doc.symbol:
+                if cur_doc.symbol:
                     raise QAPIParseError(
                         self,
                         "unexpected '=' markup in definition documentation")
-            doc.append(self.val)
+                if cur_doc.body.text:
+                    cur_doc.end_comment()
+                    docs.append(cur_doc)
+                    cur_doc = QAPIDoc(self, info)
+            cur_doc.append(self.val)
             self.accept(False)
 
         raise QAPIParseError(self, "documentation comment must end with '##'")
@@ -316,7 +322,6 @@ class QAPIDoc:
         def __init__(self, name=None):
             # optional section name (argument/member or section name)
             self.name = name
-            # the list of lines for this section
             self.text = ''
 
         def append(self, line):
