@@ -12,7 +12,7 @@ config VIRTIO_RNG
 config VIRTIO_IOMMU
     bool
     default y
-    depends on VIRTIO
+    depends on PCI && VIRTIO
 
 config VIRTIO_PCI
     bool
