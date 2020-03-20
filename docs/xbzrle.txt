@@ -92,6 +92,11 @@ Usage
 power of 2. The cache default value is 64MBytes. (on source only)
     {qemu} migrate_set_cache_size 256m
 
+Commit 73af8dd8d7 "migration: Make xbzrle_cache_size a migration parameter"
+(v2.11.0) deprecated migrate-set-cache-size, therefore, the new parameter
+is recommended.
+    {qemu} migrate_set_parameter xbzrle-cache-size 256m
+
 4. Start outgoing migration
     {qemu} migrate -d tcp:destination.host:4444
     {qemu} info migrate
@@ -108,7 +113,7 @@ power of 2. The cache default value is 64MBytes. (on source only)
     xbzrle transferred: I kbytes
     xbzrle pages: J pages
     xbzrle cache miss: K
-    xbzrle overflow : L
+    xbzrle overflow: L
 
 xbzrle cache-miss: the number of cache misses to date - high cache-miss rate
 indicates that the cache size is set too low.
