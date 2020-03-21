@@ -377,35 +377,42 @@ static void ah_cache_init(void)
                                     destroy_ah_hash_key, destroy_ah_hast_data);
 }
 
+#ifdef LEGACY_RDMA_REG_MR
 static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
-                                struct ibv_sge *dsge, struct ibv_sge *ssge,
-                                uint8_t num_sge, uint64_t *total_length)
+                                struct ibv_sge *sge, uint8_t num_sge,
+                                uint64_t *total_length)
 {
     RdmaRmMR *mr;
-    int ssge_idx;
+    int idx;
 
-    for (ssge_idx = 0; ssge_idx < num_sge; ssge_idx++) {
-        mr = rdma_rm_get_mr(rdma_dev_res, ssge[ssge_idx].lkey);
+    for (idx = 0; idx < num_sge; idx++) {
+        mr = rdma_rm_get_mr(rdma_dev_res, sge[idx].lkey);
         if (unlikely(!mr)) {
-            rdma_error_report("Invalid lkey 0x%x", ssge[ssge_idx].lkey);
-            return VENDOR_ERR_INVLKEY | ssge[ssge_idx].lkey;
+            rdma_error_report("Invalid lkey 0x%x", sge[idx].lkey);
+            return VENDOR_ERR_INVLKEY | sge[idx].lkey;
         }
 
-#ifdef LEGACY_RDMA_REG_MR
-        dsge->addr = (uintptr_t)mr->virt + ssge[ssge_idx].addr - mr->start;
-#else
-        dsge->addr = ssge[ssge_idx].addr;
-#endif
-        dsge->length = ssge[ssge_idx].length;
-        dsge->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
+        sge[idx].addr = (uintptr_t)mr->virt + sge[idx].addr - mr->start;
+        sge[idx].lkey = rdma_backend_mr_lkey(&mr->backend_mr);
 
-        *total_length += dsge->length;
-
-        dsge++;
+        *total_length += sge[idx].length;
     }
 
     return 0;
 }
+#else
+static inline int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
+                                       struct ibv_sge *sge, uint8_t num_sge,
+                                       uint64_t *total_length)
+{
+    int idx;
+
+    for (idx = 0; idx < num_sge; idx++) {
+        *total_length += sge[idx].length;
+    }
+    return 0;
+}
+#endif
 
 static void trace_mad_message(const char *title, char *buf, int len)
 {
@@ -484,7 +491,6 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
                             void *ctx)
 {
     BackendCtx *bctx;
-    struct ibv_sge new_sge[MAX_SGE];
     uint32_t bctx_id;
     int rc;
     struct ibv_send_wr wr = {}, *bad_wr;
@@ -518,7 +524,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
 
     rdma_protected_gslist_append_int32(&qp->cqe_ctx_list, bctx_id);
 
-    rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge,
+    rc = build_host_sge_array(backend_dev->rdma_dev_res, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.tx_len);
     if (rc) {
         complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
@@ -538,7 +544,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     wr.num_sge = num_sge;
     wr.opcode = IBV_WR_SEND;
     wr.send_flags = IBV_SEND_SIGNALED;
-    wr.sg_list = new_sge;
+    wr.sg_list = sge;
     wr.wr_id = bctx_id;
 
     rc = ibv_post_send(qp->ibqp, &wr, &bad_wr);
@@ -601,7 +607,6 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
                             struct ibv_sge *sge, uint32_t num_sge, void *ctx)
 {
     BackendCtx *bctx;
-    struct ibv_sge new_sge[MAX_SGE];
     uint32_t bctx_id;
     int rc;
     struct ibv_recv_wr wr = {}, *bad_wr;
@@ -635,7 +640,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
 
     rdma_protected_gslist_append_int32(&qp->cqe_ctx_list, bctx_id);
 
-    rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge,
+    rc = build_host_sge_array(backend_dev->rdma_dev_res, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.rx_bufs_len);
     if (rc) {
         complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
@@ -643,7 +648,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     }
 
     wr.num_sge = num_sge;
-    wr.sg_list = new_sge;
+    wr.sg_list = sge;
     wr.wr_id = bctx_id;
     rc = ibv_post_recv(qp->ibqp, &wr, &bad_wr);
     if (rc) {
@@ -671,7 +676,6 @@ void rdma_backend_post_srq_recv(RdmaBackendDev *backend_dev,
                                 uint32_t num_sge, void *ctx)
 {
     BackendCtx *bctx;
-    struct ibv_sge new_sge[MAX_SGE];
     uint32_t bctx_id;
     int rc;
     struct ibv_recv_wr wr = {}, *bad_wr;
@@ -688,7 +692,7 @@ void rdma_backend_post_srq_recv(RdmaBackendDev *backend_dev,
 
     rdma_protected_gslist_append_int32(&srq->cqe_ctx_list, bctx_id);
 
-    rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge,
+    rc = build_host_sge_array(backend_dev->rdma_dev_res, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.rx_bufs_len);
     if (rc) {
         complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
@@ -696,7 +700,7 @@ void rdma_backend_post_srq_recv(RdmaBackendDev *backend_dev,
     }
 
     wr.num_sge = num_sge;
-    wr.sg_list = new_sge;
+    wr.sg_list = sge;
     wr.wr_id = bctx_id;
     rc = ibv_post_srq_recv(srq->ibsrq, &wr, &bad_wr);
     if (rc) {
@@ -739,13 +743,8 @@ void rdma_backend_destroy_pd(RdmaBackendPD *pd)
     }
 }
 
-#ifdef LEGACY_RDMA_REG_MR
-int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, void *addr,
-                           size_t length, int access)
-#else
 int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, void *addr,
                            size_t length, uint64_t guest_start, int access)
-#endif
 {
 #ifdef LEGACY_RDMA_REG_MR
     mr->ibmr = ibv_reg_mr(pd->ibpd, addr, length, access);
