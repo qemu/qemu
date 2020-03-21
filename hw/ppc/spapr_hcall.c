@@ -1726,6 +1726,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     }
     ov5_guest = spapr_ovec_parse_vector(ov_table, 5);
     if (!ov5_guest) {
+        spapr_ovec_cleanup(ov1_guest);
         warn_report("guest didn't provide option vector 5");
         return H_PARAMETER;
     }
