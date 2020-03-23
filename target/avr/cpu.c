@@ -78,8 +78,6 @@ static void avr_cpu_reset(DeviceState *ds)
     env->skip = 0;
 
     memset(env->r, 0, sizeof(env->r));
-
-    tlb_flush(cs);
 }
 
 static void avr_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
