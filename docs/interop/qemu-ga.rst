@@ -36,13 +36,14 @@ Options
 .. option:: -m, --method=METHOD
 
   Transport method: one of ``unix-listen``, ``virtio-serial``, or
-  ``isa-serial`` (``virtio-serial`` is the default).
+  ``isa-serial``, or ``vsock-listen`` (``virtio-serial`` is the default).
 
 .. option:: -p, --path=PATH
 
   Device/socket path (the default for virtio-serial is
   ``/dev/virtio-ports/org.qemu.guest_agent.0``,
-  the default for isa-serial is ``/dev/ttyS0``)
+  the default for isa-serial is ``/dev/ttyS0``). Socket addresses for
+  vsock-listen are written as ``<cid>:<port>``.
 
 .. option:: -l, --logfile=PATH
 
