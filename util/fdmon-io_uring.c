@@ -290,7 +290,18 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
 
 static bool fdmon_io_uring_need_wait(AioContext *ctx)
 {
-    return io_uring_cq_ready(&ctx->fdmon_io_uring);
+    /* Have io_uring events completed? */
+    if (io_uring_cq_ready(&ctx->fdmon_io_uring)) {
+        return true;
+    }
+
+    /* Do we need to submit new io_uring sqes? */
+    if (!QSLIST_EMPTY_RCU(&ctx->submit_list)) {
+        return true;
+    }
+
+    /* Are we falling back to fdmon-poll? */
+    return atomic_read(&ctx->external_disable_cnt);
 }
 
 static const FDMonOps fdmon_io_uring_ops = {
