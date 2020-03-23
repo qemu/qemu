@@ -1910,9 +1910,9 @@ for arch in alpha hppa m68k xtensa sh4 microblaze arm ppc s390x sparc sparc64 \
     # remove the file if it has been generated in the source directory
     rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
     # remove the dependency files
-    find . -name "*.d" \
-           -exec grep -q "${source_path}/linux-user/${arch}/syscall_nr.h" {} \; \
-           -exec rm {} \;
+    test -d ${arch}-linux-user && find ${arch}-linux-user -type f -name "*.d" \
+         -exec grep -q "${source_path}/linux-user/${arch}/syscall_nr.h" {} \; \
+         -exec rm {} \;
 done
 
 if test -z "$python"
