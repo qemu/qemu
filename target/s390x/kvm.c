@@ -321,6 +321,11 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
     cap_hpage_1m = 1;
 }
 
+int kvm_s390_get_hpage_1m(void)
+{
+    return cap_hpage_1m;
+}
+
 static void ccw_machine_class_foreach(ObjectClass *oc, void *opaque)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
