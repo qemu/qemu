@@ -7422,7 +7422,7 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
                              int imm5)
 {
     int size = ctz32(imm5);
-    int index = imm5 >> (size + 1);
+    int index;
 
     if (size > 3 || (size == 3 && !is_q)) {
         unallocated_encoding(s);
@@ -7433,6 +7433,7 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
         return;
     }
 
+    index = imm5 >> (size + 1);
     tcg_gen_gvec_dup_mem(size, vec_full_reg_offset(s, rd),
                          vec_reg_offset(s, rn, index, size),
                          is_q ? 16 : 8, vec_full_reg_size(s));
@@ -10404,6 +10405,9 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     int immh = extract32(insn, 19, 4);
     bool is_u = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
+
+    /* data_proc_simd[] has sent immh == 0 to disas_simd_mod_imm. */
+    assert(immh != 0);
 
     switch (opcode) {
     case 0x08: /* SRI */

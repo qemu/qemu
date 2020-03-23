@@ -364,6 +364,8 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED26_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = true,
+        .dma_flash_mask    = 0x0FFFFFFC,
+        .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
@@ -379,7 +381,9 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi1,
         .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = false,
+        .has_dma           = true,
+        .dma_flash_mask    = 0x0FFFFFFC,
+        .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
@@ -395,7 +399,9 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi2,
         .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = false,
+        .has_dma           = true,
+        .dma_flash_mask    = 0x0FFFFFFC,
+        .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
@@ -1135,6 +1141,11 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
     MemTxResult result;
     uint32_t data;
 
+    trace_aspeed_smc_dma_rw(s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE ?
+                            "write" : "read",
+                            s->regs[R_DMA_FLASH_ADDR],
+                            s->regs[R_DMA_DRAM_ADDR],
+                            s->regs[R_DMA_LEN]);
     while (s->regs[R_DMA_LEN]) {
         if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
             data = address_space_ldl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],

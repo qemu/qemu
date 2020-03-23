@@ -8,7 +8,8 @@
  * ARM Local Timer IRQ Copyright (c) 2019. Zoltán Baldaszti
  * Added basic IRQ_TIMER interrupt support
  *
- * This code is licensed under the GNU GPLv2 and later.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  */
 
 #ifndef BCM2836_CONTROL_H

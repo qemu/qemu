@@ -1,11 +1,13 @@
 /*
  * Raspberry Pi emulation (c) 2012 Gregory Estrade
- * This code is licensed under the GNU GPLv2 and later.
  *
  * This file models the system mailboxes, which are used for
  * communication with low-bandwidth GPU peripherals. Refs:
  *   https://github.com/raspberrypi/firmware/wiki/Mailboxes
  *   https://github.com/raspberrypi/firmware/wiki/Accessing-mailboxes
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  */
 
 #include "qemu/osdep.h"
