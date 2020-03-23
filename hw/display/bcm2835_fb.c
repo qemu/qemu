@@ -1,7 +1,6 @@
 /*
  * Raspberry Pi emulation (c) 2012 Gregory Estrade
  * Refactoring for Pi2 Copyright (c) 2015, Microsoft. Written by Andrew Baumann.
- * This code is licensed under the GNU GPLv2 and later.
  *
  * Heavily based on milkymist-vgafb.c, copyright terms below:
  *  QEMU model of the Milkymist VGA framebuffer.
