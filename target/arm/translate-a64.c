@@ -10405,6 +10405,9 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     bool is_u = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
 
+    /* data_proc_simd[] has sent immh == 0 to disas_simd_mod_imm. */
+    assert(immh != 0);
+
     switch (opcode) {
     case 0x08: /* SRI */
         if (!is_u) {
