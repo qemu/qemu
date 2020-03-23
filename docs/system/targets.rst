@@ -17,3 +17,4 @@ Contents:
    target-arm
    target-m68k
    target-xtensa
+   target-s390x

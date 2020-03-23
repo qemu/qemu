@@ -546,7 +546,7 @@ static void update_machine_ipl_properties(IplParameterBlock *iplb)
     /* Sync loadparm */
     if (iplb->flags & DIAG308_FLAGS_LP_VALID) {
         uint8_t *ebcdic_loadparm = iplb->loadparm;
-        char ascii_loadparm[8];
+        char ascii_loadparm[9];
         int i;
 
         for (i = 0; i < 8 && ebcdic_loadparm[i]; i++) {
