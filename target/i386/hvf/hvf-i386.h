@@ -21,8 +21,6 @@
 #include "x86.h"
 
 #define HVF_MAX_VCPU 0x10
-#define MAX_VM_ID 0x40
-#define MAX_VCPU_ID 0x40
 
 extern struct hvf_state hvf_global;
 

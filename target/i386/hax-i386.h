@@ -41,8 +41,6 @@ struct hax_state {
 };
 
 #define HAX_MAX_VCPU 0x10
-#define MAX_VM_ID 0x40
-#define MAX_VCPU_ID 0x40
 
 struct hax_vm {
     hax_fd fd;
