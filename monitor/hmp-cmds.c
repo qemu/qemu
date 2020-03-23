@@ -729,10 +729,11 @@ static void hmp_info_vnc_servers(Monitor *mon, VncServerInfo2List *server)
 
 void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 {
-    VncInfo2List *info2l;
+    VncInfo2List *info2l, *info2l_head;
     Error *err = NULL;
 
     info2l = qmp_query_vnc_servers(&err);
+    info2l_head = info2l;
     if (err) {
         hmp_handle_error(mon, &err);
         return;
@@ -761,7 +762,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
         info2l = info2l->next;
     }
 
-    qapi_free_VncInfo2List(info2l);
+    qapi_free_VncInfo2List(info2l_head);
 
 }
 #endif
