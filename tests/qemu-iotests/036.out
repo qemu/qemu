@@ -58,7 +58,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 
@@ -86,7 +86,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 *** done
