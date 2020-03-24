@@ -2823,8 +2823,15 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
-    /* Feature table */
-    if (s->qcow_version >= 3) {
+    /*
+     * Feature table.  A mere 8 feature names occupies 392 bytes, and
+     * when coupled with the v3 minimum header of 104 bytes plus the
+     * 8-byte end-of-extension marker, that would leave only 8 bytes
+     * for a backing file name in an image with 512-byte clusters.
+     * Thus, we choose to omit this header for cluster sizes 4k and
+     * smaller.
+     */
+    if (s->qcow_version >= 3 && s->cluster_size > 4096) {
         static const Qcow2Feature features[] = {
             {
                 .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,

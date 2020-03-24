@@ -44,8 +44,10 @@ _supported_os Linux
 # Conversion between different compat versions can only really work
 # with refcount_bits=16;
 # we have explicit tests for data_file here, but the whole test does
-# not work with it
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
+# not work with it;
+# we have explicit tests for various cluster sizes, the remaining tests
+# require the default 64k cluster
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file cluster_size
 
 echo
 echo "=== Testing version downgrade with zero expansion ==="

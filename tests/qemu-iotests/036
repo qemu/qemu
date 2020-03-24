@@ -44,8 +44,10 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 # Only qcow2v3 and later supports feature bits;
-# qcow2.py does not support external data files
-_unsupported_imgopts 'compat=0.10' data_file
+# qcow2.py does not support external data files;
+# this test requires a cluster size large enough for the feature table
+_unsupported_imgopts 'compat=0.10' data_file \
+		     'cluster_size=\(512\|1024\|2048\|4096\)'
 
 echo
 echo === Image with unknown incompatible feature bit ===
