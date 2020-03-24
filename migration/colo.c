@@ -93,6 +93,7 @@ static void secondary_vm_do_failover(void)
     replication_stop_all(true, &local_err);
     if (local_err) {
         error_report_err(local_err);
+        local_err = NULL;
     }
 
     /* Notify all filters of all NIC to do checkpoint */
