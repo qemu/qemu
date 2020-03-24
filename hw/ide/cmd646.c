@@ -249,8 +249,8 @@ static void cmd646_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
 static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
+    DeviceState *ds = DEVICE(dev);
     uint8_t *pci_conf = dev->config;
-    qemu_irq *irq;
     int i;
 
     pci_conf[PCI_CLASS_PROG] = 0x8f;
@@ -291,16 +291,15 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     /* TODO: RST# value should be 0 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1
 
-    irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
+    qdev_init_gpio_in(ds, cmd646_set_irq, 2);
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(dev), i, 2);
-        ide_init2(&d->bus[i], irq[i]);
+        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), ds, i, 2);
+        ide_init2(&d->bus[i], qdev_get_gpio_in(ds, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
         ide_register_restart_cb(&d->bus[i]);
     }
-    g_free(irq);
 }
 
 static void pci_cmd646_ide_exitfn(PCIDevice *dev)
