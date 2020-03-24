@@ -26,7 +26,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 magic                     0x514649fb
@@ -84,7 +84,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 magic                     0x514649fb
@@ -140,7 +140,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -195,7 +195,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 magic                     0x514649fb
@@ -264,7 +264,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 read 65536/65536 bytes at offset 44040192
@@ -298,7 +298,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -327,7 +327,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    192
+length                    288
 data                      <binary>
 
 read 131072/131072 bytes at offset 0

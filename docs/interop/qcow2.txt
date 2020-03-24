@@ -143,7 +143,8 @@ the next fields through header_length.
                                 bit is unset, the bitmaps extension data must be
                                 considered inconsistent.
 
-                    Bit 1:      If this bit is set, the external data file can
+                    Bit 1:      Raw external data bit
+                                If this bit is set, the external data file can
                                 be read as a consistent standalone raw image
                                 without looking at the qcow2 metadata.
 

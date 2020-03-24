@@ -2825,7 +2825,7 @@ int qcow2_update_header(BlockDriverState *bs)
 
     /* Feature table */
     if (s->qcow_version >= 3) {
-        Qcow2Feature features[] = {
+        static const Qcow2Feature features[] = {
             {
                 .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
                 .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
@@ -2845,6 +2845,16 @@ int qcow2_update_header(BlockDriverState *bs)
                 .type = QCOW2_FEAT_TYPE_COMPATIBLE,
                 .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
                 .name = "lazy refcounts",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_AUTOCLEAR,
+                .bit  = QCOW2_AUTOCLEAR_BITMAPS_BITNR,
+                .name = "bitmaps",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_AUTOCLEAR,
+                .bit  = QCOW2_AUTOCLEAR_DATA_FILE_RAW_BITNR,
+                .name = "raw external data",
             },
         };
 
