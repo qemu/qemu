@@ -678,6 +678,7 @@ static int mirror_exit_common(Job *job)
             bdrv_set_backing_hd(target_bs, backing, &local_err);
             if (local_err) {
                 error_report_err(local_err);
+                local_err = NULL;
                 ret = -EPERM;
             }
         }
