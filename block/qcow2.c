@@ -177,7 +177,7 @@ static ssize_t qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
 }
 
 
-/* 
+/*
  * read qcow2 extension and fill bs
  * start reading from start_offset
  * finish reading upon magic of value 0 or when end_offset reached
@@ -3255,7 +3255,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
      * inconsistency later.
      *
      * We do need a refcount table because growing the refcount table means
-     * allocating two new refcount blocks - the seconds of which would be at
+     * allocating two new refcount blocks - the second of which would be at
      * 2 GB for 64k clusters, and we don't want to have a 2 GB initial file
      * size for any qcow2 image.
      */
@@ -3500,7 +3500,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    /* Want a backing file? There you go.*/
+    /* Want a backing file? There you go. */
     if (qcow2_opts->has_backing_file) {
         const char *backing_format = NULL;
 
