@@ -41,8 +41,10 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 # With an external data file, data clusters are not refcounted
-# (and so qemu-img check does not check their refcount)
-_unsupported_imgopts data_file
+# (so qemu-img check would not do much);
+# we want to modify the refcounts, so we need them to have a specific
+# format (namely u16)
+_unsupported_imgopts data_file 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 echo
 echo '=== Check on an image with a multiple of 2^32 clusters ==='
@@ -64,6 +66,41 @@ poke_file "$TEST_IMG" $((2048 + 8)) "\x00\x80\x00\x00\x00\x00\x00\x00"
 # But starting from 4.0, qemu-img does this check, and instead of "Cannot
 # allocate memory", we have an error showing that l2 entry is invalid.
 _check_test_img
+
+echo
+echo '=== Check leaks-fixed/corruptions-fixed report'
+echo
+
+# After leaks and corruptions were fixed, those numbers should be
+# reported by qemu-img check
+_make_test_img 64k
+
+# Allocate data cluster
+$QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
+
+reftable_ofs=$(peek_file_be "$TEST_IMG" 48 8)
+refblock_ofs=$(peek_file_be "$TEST_IMG" $reftable_ofs 8)
+
+# Introduce a leak: Make the image header's refcount 2
+poke_file_be "$TEST_IMG" "$refblock_ofs" 2 2
+
+l1_ofs=$(peek_file_be "$TEST_IMG" 40 8)
+
+# Introduce a corruption: Drop the COPIED flag from the (first) L1 entry
+l1_entry=$(peek_file_be "$TEST_IMG" $l1_ofs 8)
+l1_entry=$((l1_entry & ~(1 << 63)))
+poke_file_be "$TEST_IMG" $l1_ofs 8 $l1_entry
+
+echo
+# Should print the number of corruptions and leaks fixed
+# (Filter out all JSON fields (recognizable by their four-space
+# indentation), but keep the "-fixed" fields (by removing two spaces
+# from their indentation))
+# (Also filter out the L1 entry, because why not)
+_check_test_img -r all --output=json \
+    | sed -e 's/^  \(.*\)-fixed"/\1-fixed"/' \
+          -e '/^    /d' \
+          -e "s/\\([^0-9a-f]\\)$(printf %x $l1_entry)\\([^0-9a-f]\\)/\1L1_ENTRY_VALUE\2/"
 
 # success, all done
 echo "*** done"
