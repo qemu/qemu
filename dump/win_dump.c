@@ -304,13 +304,11 @@ static void restore_context(WinDumpHeader64 *h,
                             struct saved_context *saved_ctx)
 {
     int i;
-    Error *err = NULL;
 
     for (i = 0; i < h->NumberProcessors; i++) {
         if (cpu_memory_rw_debug(first_cpu, saved_ctx[i].addr,
                 (uint8_t *)&saved_ctx[i].ctx, sizeof(WinContext), 1)) {
-            error_setg(&err, "win-dump: failed to restore CPU #%d context", i);
-            warn_report_err(err);
+            warn_report("win-dump: failed to restore CPU #%d context", i);
         }
     }
 }
