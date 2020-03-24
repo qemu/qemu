@@ -5529,6 +5529,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 {
     uint32_t opc, shift_max;
     TCGv_i64 t0, t1;
+    TCGCond cond;
 
     opc = MASK_LMI(ctx->opcode);
     switch (opc) {
@@ -5862,14 +5863,39 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 
     case OPC_SEQU_CP2:
     case OPC_SEQ_CP2:
+        cond = TCG_COND_EQ;
+        goto do_cc_cond;
+        break;
     case OPC_SLTU_CP2:
+        cond = TCG_COND_LTU;
+        goto do_cc_cond;
+        break;
     case OPC_SLT_CP2:
+        cond = TCG_COND_LT;
+        goto do_cc_cond;
+        break;
     case OPC_SLEU_CP2:
+        cond = TCG_COND_LEU;
+        goto do_cc_cond;
+        break;
     case OPC_SLE_CP2:
-        /*
-         * ??? Document is unclear: Set FCC[CC].  Does that mean the
-         * FD field is the CC field?
-         */
+        cond = TCG_COND_LE;
+    do_cc_cond:
+        {
+            int cc = (ctx->opcode >> 8) & 0x7;
+            TCGv_i64 t64 = tcg_temp_new_i64();
+            TCGv_i32 t32 = tcg_temp_new_i32();
+
+            tcg_gen_setcond_i64(cond, t64, t0, t1);
+            tcg_gen_extrl_i64_i32(t32, t64);
+            tcg_gen_deposit_i32(fpu_fcr31, fpu_fcr31, t32,
+                                get_fp_bit(cc), 1);
+
+            tcg_temp_free_i32(t32);
+            tcg_temp_free_i64(t64);
+        }
+        goto no_rd;
+        break;
     default:
         MIPS_INVAL("loongson_cp2");
         generate_exception_end(ctx, EXCP_RI);
@@ -5878,6 +5904,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 
     gen_store_fpr64(ctx, t0, rd);
 
+no_rd:
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
 }
