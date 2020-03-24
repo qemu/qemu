@@ -240,37 +240,6 @@ $QEMU_IO -c "write 0 $CLUSTER_SIZE" "$BLKDBG_TEST_IMG" | _filter_qemu_io
 
 _check_test_img
 
-echo
-echo === Avoid freeing external data clusters on failure ===
-echo
-
-# Similar test as the last one, except we test what happens when there
-# is an error when writing to an external data file instead of when
-# writing to a preallocated zero cluster
-_make_test_img -o "data_file=$TEST_IMG.data_file" $CLUSTER_SIZE
-
-# Put blkdebug above the data-file, and a raw node on top of that so
-# that blkdebug will see a write_aio event and emit an error
-$QEMU_IO -c "write 0 $CLUSTER_SIZE" \
-    "json:{
-         'driver': 'qcow2',
-         'file': { 'driver': 'file', 'filename': '$TEST_IMG' },
-         'data-file': {
-             'driver': 'raw',
-             'file': {
-                 'driver': 'blkdebug',
-                 'config': '$TEST_DIR/blkdebug.conf',
-                 'image': {
-                     'driver': 'file',
-                     'filename': '$TEST_IMG.data_file'
-                 }
-             }
-         }
-     }" \
-    | _filter_qemu_io
-
-_check_test_img
-
 # success, all done
 echo "*** done"
 rm -f $seq.full

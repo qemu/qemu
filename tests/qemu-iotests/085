@@ -39,6 +39,7 @@ SNAPSHOTS=10
 _cleanup()
 {
     _cleanup_qemu
+    _cleanup_test_img
     for i in $(seq 1 ${SNAPSHOTS})
     do
         _rm_test_img "${TEST_DIR}/${i}-${snapshot_virt0}"

@@ -363,6 +363,7 @@ char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp)
 
 void bdrv_register(BlockDriver *bdrv)
 {
+    assert(bdrv->format_name);
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
@@ -2759,10 +2760,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 
     if (bs->backing) {
         bdrv_unref_child(bs, bs->backing);
+        bs->backing = NULL;
     }
 
     if (!backing_hd) {
-        bs->backing = NULL;
         goto out;
     }
 

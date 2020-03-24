@@ -26,6 +26,12 @@ echo "QA output created by $seq"
 
 status=1	# failure is the default!
 
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
