@@ -112,7 +112,6 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    level = (d->config[0x70] & 0x80) || (d->config[0x78] & 0x80);
     qemu_set_irq(isa_get_irq(NULL, 14 + n), level);
 }
 
