@@ -155,6 +155,8 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     cmd->fn(args, &ret, &err);
     qobject_unref(args);
     if (err) {
+        /* or assert(!ret) after reviewing all handlers: */
+        qobject_unref(ret);
         goto out;
     }
 
