@@ -833,12 +833,27 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
     /* get rtas addr from fdt */
     rtas_addr = spapr_get_rtas_addr();
     if (!rtas_addr) {
-        error_report(
+        if (!recovered) {
+            error_report(
 "FWNMI: Unable to deliver machine check to guest: rtas_addr not found.");
-        qemu_system_guest_panicked(NULL);
+            qemu_system_guest_panicked(NULL);
+        } else {
+            warn_report(
+"FWNMI: Unable to deliver machine check to guest: rtas_addr not found. "
+"Machine check recovered.");
+        }
         g_free(ext_elog);
         return;
     }
+
+    /*
+     * By taking the interlock, we assume that the MCE will be
+     * delivered to the guest. CAUTION: don't add anything that could
+     * prevent the MCE to be delivered after this line, otherwise the
+     * guest won't be able to release the interlock and ultimately
+     * hang/crash?
+     */
+    spapr->fwnmi_machine_check_interlock = cpu->vcpu_id;
 
     stq_be_phys(&address_space_memory, rtas_addr + RTAS_ERROR_LOG_OFFSET,
                 env->gpr[3]);
@@ -876,9 +891,15 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
          * that CPU called "ibm,nmi-interlock")
          */
         if (spapr->fwnmi_machine_check_interlock == cpu->vcpu_id) {
-            error_report(
+            if (!recovered) {
+                error_report(
 "FWNMI: Unable to deliver machine check to guest: nested machine check.");
-            qemu_system_guest_panicked(NULL);
+                qemu_system_guest_panicked(NULL);
+            } else {
+                warn_report(
+"FWNMI: Unable to deliver machine check to guest: nested machine check. "
+"Machine check recovered.");
+            }
             return;
         }
         qemu_cond_wait_iothread(&spapr->fwnmi_machine_check_interlock_cond);
@@ -906,7 +927,6 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         warn_report("Received a fwnmi while migration was in progress");
     }
 
-    spapr->fwnmi_machine_check_interlock = cpu->vcpu_id;
     spapr_mce_dispatch_elog(cpu, recovered);
 }
 
