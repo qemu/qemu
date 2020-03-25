@@ -833,6 +833,8 @@ static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
     /* get rtas addr from fdt */
     rtas_addr = spapr_get_rtas_addr();
     if (!rtas_addr) {
+        error_report(
+"FWNMI: Unable to deliver machine check to guest: rtas_addr not found.");
         qemu_system_guest_panicked(NULL);
         g_free(ext_elog);
         return;
@@ -874,6 +876,8 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
          * that CPU called "ibm,nmi-interlock")
          */
         if (spapr->fwnmi_machine_check_interlock == cpu->vcpu_id) {
+            error_report(
+"FWNMI: Unable to deliver machine check to guest: nested machine check.");
             qemu_system_guest_panicked(NULL);
             return;
         }
