@@ -860,17 +860,13 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
     Error *local_err = NULL;
 
     if (spapr->fwnmi_machine_check_addr == -1) {
-        /*
-         * This implies that we have hit a machine check either when the
-         * guest has not registered FWNMI (i.e., "ibm,nmi-register" not
-         * called) or between system reset and "ibm,nmi-register".
-         * Fall back to the old machine check behavior in such cases.
-         */
+        /* Non-FWNMI case, deliver it like an architected CPU interrupt. */
         cs->exception_index = POWERPC_EXCP_MCHECK;
         ppc_cpu_do_interrupt(cs);
         return;
     }
 
+    /* Wait for FWNMI interlock. */
     while (spapr->fwnmi_machine_check_interlock != -1) {
         /*
          * Check whether the same CPU got machine check error
@@ -882,8 +878,13 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
             return;
         }
         qemu_cond_wait_iothread(&spapr->fwnmi_machine_check_interlock_cond);
-        /* Meanwhile if the system is reset, then just return */
         if (spapr->fwnmi_machine_check_addr == -1) {
+            /*
+             * If the machine was reset while waiting for the interlock,
+             * abort the delivery. The machine check applies to a context
+             * that no longer exists, so it wouldn't make sense to deliver
+             * it now.
+             */
             return;
         }
     }
@@ -894,7 +895,9 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
          * We don't want to abort so we let the migration to continue.
          * In a rare case, the machine check handler will run on the target.
          * Though this is not preferable, it is better than aborting
-         * the migration or killing the VM.
+         * the migration or killing the VM. It is okay to call
+         * migrate_del_blocker on a blocker that was not added (which the
+         * nmi-interlock handler would do when it's called after this).
          */
         warn_report("Received a fwnmi while migration was in progress");
     }
