@@ -2837,6 +2837,7 @@ static void spapr_machine_init(MachineState *machine)
     if ((!kvm_enabled() || kvmppc_has_cap_mmu_radix()) &&
         ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00, 0,
                               spapr->max_compat_pvr)) {
+        spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_300);
         /* KVM and TCG always allow GTSE with radix... */
         spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
     }

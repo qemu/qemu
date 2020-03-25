@@ -1739,9 +1739,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         exit(EXIT_FAILURE);
     }
 
-    /* The radix/hash bit in byte 24 requires special handling: */
     guest_radix = spapr_ovec_test(ov5_guest, OV5_MMU_RADIX_300);
-    spapr_ovec_clear(ov5_guest, OV5_MMU_RADIX_300);
 
     guest_xive = spapr_ovec_test(ov5_guest, OV5_XIVE_EXPLOIT);
 
@@ -1786,14 +1784,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     /* full range of negotiated ov5 capabilities */
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);
-    /* Now that processing is finished, set the radix/hash bit for the
-     * guest if it requested a valid mode; otherwise terminate the boot. */
+
     if (guest_radix) {
         if (kvm_enabled() && !kvmppc_has_cap_mmu_radix()) {
             error_report("Guest requested unavailable MMU mode (radix).");
             exit(EXIT_FAILURE);
         }
-        spapr_ovec_set(spapr->ov5_cas, OV5_MMU_RADIX_300);
     } else {
         if (kvm_enabled() && kvmppc_has_cap_mmu_radix()
             && !kvmppc_has_cap_mmu_hash_v3()) {
