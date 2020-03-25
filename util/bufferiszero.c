@@ -158,27 +158,19 @@ buffer_zero_avx2(const void *buf, size_t len)
     __m256i *p = (__m256i *)(((uintptr_t)buf + 5 * 32) & -32);
     __m256i *e = (__m256i *)(((uintptr_t)buf + len) & -32);
 
-    if (likely(p <= e)) {
-        /* Loop over 32-byte aligned blocks of 128.  */
-        do {
-            __builtin_prefetch(p);
-            if (unlikely(!_mm256_testz_si256(t, t))) {
-                return false;
-            }
-            t = p[-4] | p[-3] | p[-2] | p[-1];
-            p += 4;
-        } while (p <= e);
-    } else {
-        t |= _mm256_loadu_si256(buf + 32);
-        if (len <= 128) {
-            goto last2;
+    /* Loop over 32-byte aligned blocks of 128.  */
+    while (p <= e) {
+        __builtin_prefetch(p);
+        if (unlikely(!_mm256_testz_si256(t, t))) {
+            return false;
         }
-    }
+        t = p[-4] | p[-3] | p[-2] | p[-1];
+        p += 4;
+    } ;
 
     /* Finish the last block of 128 unaligned.  */
     t |= _mm256_loadu_si256(buf + len - 4 * 32);
     t |= _mm256_loadu_si256(buf + len - 3 * 32);
- last2:
     t |= _mm256_loadu_si256(buf + len - 2 * 32);
     t |= _mm256_loadu_si256(buf + len - 1 * 32);
 
@@ -263,7 +255,7 @@ static void init_accel(unsigned cache)
     }
     if (cache & CACHE_AVX2) {
         fn = buffer_zero_avx2;
-        length_to_accel = 64;
+        length_to_accel = 128;
     }
 #endif
 #ifdef CONFIG_AVX512F_OPT
