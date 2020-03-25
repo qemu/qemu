@@ -1676,7 +1676,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     target_ulong fdt_bufsize = args[2];
     target_ulong ov_table;
     uint32_t cas_pvr;
-    SpaprOptionVector *ov1_guest, *ov5_guest, *ov5_cas_old;
+    SpaprOptionVector *ov1_guest, *ov5_guest;
     bool guest_radix;
     Error *local_err = NULL;
     bool raw_mode_supported = false;
@@ -1782,22 +1782,10 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      * by LoPAPR 1.1, 14.5.4.8, which QEMU doesn't implement, we don't need
      * to worry about this for now.
      */
-    ov5_cas_old = spapr_ovec_clone(spapr->ov5_cas);
-
-    /* also clear the radix/hash bit from the current ov5_cas bits to
-     * be in sync with the newly ov5 bits. Else the radix bit will be
-     * seen as being removed and this will generate a reset loop
-     */
-    spapr_ovec_clear(ov5_cas_old, OV5_MMU_RADIX_300);
 
     /* full range of negotiated ov5 capabilities */
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);
-    /* capabilities that have been added since CAS-generated guest reset.
-     * if capabilities have since been removed, generate another reset
-     */
-    spapr->cas_reboot = !spapr_ovec_subset(ov5_cas_old, spapr->ov5_cas);
-    spapr_ovec_cleanup(ov5_cas_old);
     /* Now that processing is finished, set the radix/hash bit for the
      * guest if it requested a valid mode; otherwise terminate the boot. */
     if (guest_radix) {
