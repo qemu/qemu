@@ -3385,13 +3385,13 @@ static void spapr_machine_finalizefn(Object *obj)
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
 
     cpu_synchronize_state(cs);
     /* If FWNMI is inactive, addr will be -1, which will deliver to 0x100 */
     if (spapr->fwnmi_system_reset_addr != -1) {
         uint64_t rtas_addr, addr;
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
 
         /* get rtas addr from fdt */
         rtas_addr = spapr_get_rtas_addr();
@@ -3405,7 +3405,10 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
         stq_be_phys(&address_space_memory, addr + sizeof(uint64_t), 0);
         env->gpr[3] = addr;
     }
-    ppc_cpu_do_system_reset(cs, spapr->fwnmi_system_reset_addr);
+    ppc_cpu_do_system_reset(cs);
+    if (spapr->fwnmi_system_reset_addr != -1) {
+        env->nip = spapr->fwnmi_system_reset_addr;
+    }
 }
 
 static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
