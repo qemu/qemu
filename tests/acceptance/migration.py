@@ -70,8 +70,8 @@ class Migration(Test):
 
     @skipUnless(find_command('nc', default=False), "'nc' command not found")
     def test_migration_with_exec(self):
-        """
-        The test works for both netcat-traditional and netcat-openbsd packages
-        """
+        """The test works for both netcat-traditional and netcat-openbsd packages."""
         free_port = self._get_free_port()
         dest_uri = 'exec:nc -l localhost %u' % free_port
+        src_uri = 'exec:nc localhost %u' % free_port
+        self.do_migrate(dest_uri, src_uri)
