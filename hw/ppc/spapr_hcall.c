@@ -1678,6 +1678,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     bool raw_mode_supported = false;
     bool guest_xive;
     CPUState *cs;
+    void *fdt;
 
     /* CAS is supposed to be called early when only the boot vCPU is active. */
     CPU_FOREACH(cs) {
@@ -1818,27 +1819,21 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     spapr_handle_transient_dev_before_cas(spapr);
 
-    if (!spapr->cas_reboot) {
-        void *fdt;
-
-        /* If spapr_machine_reset() did not set up a HPT but one is necessary
-         * (because the guest isn't going to use radix) then set it up here. */
-        if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
-            /* legacy hash or new hash: */
-            spapr_setup_hpt(spapr);
-        }
-
-        fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
-
-        g_free(spapr->fdt_blob);
-        spapr->fdt_size = fdt_totalsize(fdt);
-        spapr->fdt_initial_size = spapr->fdt_size;
-        spapr->fdt_blob = fdt;
+    /*
+     * If spapr_machine_reset() did not set up a HPT but one is necessary
+     * (because the guest isn't going to use radix) then set it up here.
+     */
+    if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
+        /* legacy hash or new hash: */
+        spapr_setup_hpt(spapr);
     }
 
-    if (spapr->cas_reboot) {
-        qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);
-    }
+    fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = fdt_totalsize(fdt);
+    spapr->fdt_initial_size = spapr->fdt_size;
+    spapr->fdt_blob = fdt;
 
     return H_SUCCESS;
 }
