@@ -33,7 +33,7 @@
 
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) \
 static void generate_##TAG(CPUHexagonState *env, DisasContext *ctx, \
-                           insn_t *insn) \
+                           insn_t *insn, packet_t *pkt) \
 { \
     GENFN \
 }

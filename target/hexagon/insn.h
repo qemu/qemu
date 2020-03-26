@@ -27,10 +27,12 @@
 #define IMMEDS_MAX 2
 
 struct Instruction;
+struct Packet;
 
 typedef void (*semantic_insn_t)(CPUHexagonState *env,
                                 DisasContext *ctx,
-                                struct Instruction *insn);
+                                struct Instruction *insn,
+                                struct Packet *pkt);
 
 struct Instruction {
     semantic_insn_t generate;            /* pointer to genptr routine */
