@@ -102,6 +102,7 @@ struct MirrorOp {
 
     bool is_pseudo_op;
     bool is_active_write;
+    bool is_in_flight;
     CoQueue waiting_requests;
     Coroutine *co;
 
@@ -293,7 +294,9 @@ mirror_wait_for_any_operation(MirrorBlockJob *s, bool active)
          * caller of this function.  Since there is only one pseudo op
          * at any given time, we will always find some real operation
          * to wait on. */
-        if (!op->is_pseudo_op && op->is_active_write == active) {
+        if (!op->is_pseudo_op && op->is_in_flight &&
+            op->is_active_write == active)
+        {
             qemu_co_queue_wait(&op->waiting_requests, NULL);
             return;
         }
@@ -367,6 +370,7 @@ static void coroutine_fn mirror_co_read(void *opaque)
     /* Copy the dirty cluster.  */
     s->in_flight++;
     s->bytes_in_flight += op->bytes;
+    op->is_in_flight = true;
     trace_mirror_one_iteration(s, op->offset, op->bytes);
 
     ret = bdrv_co_preadv(s->mirror_top_bs->backing, op->offset, op->bytes,
@@ -382,6 +386,7 @@ static void coroutine_fn mirror_co_zero(void *opaque)
     op->s->in_flight++;
     op->s->bytes_in_flight += op->bytes;
     *op->bytes_handled = op->bytes;
+    op->is_in_flight = true;
 
     ret = blk_co_pwrite_zeroes(op->s->target, op->offset, op->bytes,
                                op->s->unmap ? BDRV_REQ_MAY_UNMAP : 0);
@@ -396,6 +401,7 @@ static void coroutine_fn mirror_co_discard(void *opaque)
     op->s->in_flight++;
     op->s->bytes_in_flight += op->bytes;
     *op->bytes_handled = op->bytes;
+    op->is_in_flight = true;
 
     ret = blk_co_pdiscard(op->s->target, op->offset, op->bytes);
     mirror_write_complete(op, ret);
@@ -1319,6 +1325,7 @@ static MirrorOp *coroutine_fn active_write_prepare(MirrorBlockJob *s,
         .offset             = offset,
         .bytes              = bytes,
         .is_active_write    = true,
+        .is_in_flight       = true,
     };
     qemu_co_queue_init(&op->waiting_requests);
     QTAILQ_INSERT_TAIL(&s->ops_in_flight, op, next);
