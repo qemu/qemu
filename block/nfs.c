@@ -662,7 +662,9 @@ out:
     return ret;
 }
 
-static int coroutine_fn nfs_file_co_create_opts(const char *url, QemuOpts *opts,
+static int coroutine_fn nfs_file_co_create_opts(BlockDriver *drv,
+                                                const char *url,
+                                                QemuOpts *opts,
                                                 Error **errp)
 {
     BlockdevCreateOptions *create_options;

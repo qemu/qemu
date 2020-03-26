@@ -601,7 +601,8 @@ fail:
     return ret;
 }
 
-static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
+static int coroutine_fn block_crypto_co_create_opts_luks(BlockDriver *drv,
+                                                         const char *filename,
                                                          QemuOpts *opts,
                                                          Error **errp)
 {

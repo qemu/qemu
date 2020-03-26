@@ -483,7 +483,8 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     CreateCo *cco = opaque;
     assert(cco->drv);
 
-    ret = cco->drv->bdrv_co_create_opts(cco->filename, cco->opts, &local_err);
+    ret = cco->drv->bdrv_co_create_opts(cco->drv,
+                                        cco->filename, cco->opts, &local_err);
     error_propagate(&cco->err, local_err);
     cco->ret = ret;
 }

@@ -963,7 +963,9 @@ fail:
     return ret;
 }
 
-static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
+static int coroutine_fn ssh_co_create_opts(BlockDriver *drv,
+                                           const char *filename,
+                                           QemuOpts *opts,
                                            Error **errp)
 {
     BlockdevCreateOptions *create_options;

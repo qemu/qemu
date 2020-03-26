@@ -2405,7 +2405,9 @@ out:
     return result;
 }
 
-static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
+static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
+                                           const char *filename,
+                                           QemuOpts *opts,
                                            Error **errp)
 {
     BlockdevCreateOptions options;

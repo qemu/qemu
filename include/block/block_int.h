@@ -135,7 +135,8 @@ struct BlockDriver {
     void (*bdrv_close)(BlockDriverState *bs);
     int coroutine_fn (*bdrv_co_create)(BlockdevCreateOptions *opts,
                                        Error **errp);
-    int coroutine_fn (*bdrv_co_create_opts)(const char *filename,
+    int coroutine_fn (*bdrv_co_create_opts)(BlockDriver *drv,
+                                            const char *filename,
                                             QemuOpts *opts,
                                             Error **errp);
     int (*bdrv_make_empty)(BlockDriverState *bs);
