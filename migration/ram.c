@@ -980,6 +980,7 @@ static void migration_bitmap_sync_precopy(RAMState *rs)
      */
     if (precopy_notify(PRECOPY_NOTIFY_BEFORE_BITMAP_SYNC, &local_err)) {
         error_report_err(local_err);
+        local_err = NULL;
     }
 
     migration_bitmap_sync(rs);

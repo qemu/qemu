@@ -303,7 +303,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->cache_miss);
         monitor_printf(mon, "xbzrle cache miss rate: %0.2f\n",
                        info->xbzrle_cache->cache_miss_rate);
-        monitor_printf(mon, "xbzrle overflow : %" PRIu64 "\n",
+        monitor_printf(mon, "xbzrle overflow: %" PRIu64 "\n",
                        info->xbzrle_cache->overflow);
     }
 
@@ -459,9 +459,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH),
             params->max_postcopy_bandwidth);
-        monitor_printf(mon, " %s: '%s'\n",
+        monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
-            params->has_tls_authz ? params->tls_authz : "");
+            params->tls_authz);
     }
 
     qapi_free_MigrationParameters(params);
@@ -527,10 +527,11 @@ static void hmp_info_vnc_servers(Monitor *mon, VncServerInfo2List *server)
 
 void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 {
-    VncInfo2List *info2l;
+    VncInfo2List *info2l, *info2l_head;
     Error *err = NULL;
 
     info2l = qmp_query_vnc_servers(&err);
+    info2l_head = info2l;
     if (err) {
         hmp_handle_error(mon, err);
         return;
@@ -559,7 +560,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
         info2l = info2l->next;
     }
 
-    qapi_free_VncInfo2List(info2l);
+    qapi_free_VncInfo2List(info2l_head);
 
 }
 #endif
@@ -1261,6 +1262,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD:
         p->has_throttle_trigger_threshold = true;
         visit_type_int(v, param, &p->throttle_trigger_threshold, &err);
+        break;
     case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
         p->has_cpu_throttle_initial = true;
         visit_type_int(v, param, &p->cpu_throttle_initial, &err);
