@@ -4137,6 +4137,9 @@ void qemu_init(int argc, char **argv, char **envp)
     machine_opts = qemu_get_machine_opts();
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                      &error_fatal);
+    current_machine->ram_size = ram_size;
+    current_machine->maxram_size = maxram_size;
+    current_machine->ram_slots = ram_slots;
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
@@ -4319,10 +4322,6 @@ void qemu_init(int argc, char **argv, char **envp)
             exit(1);
         }
     }
-
-    current_machine->ram_size = ram_size;
-    current_machine->maxram_size = maxram_size;
-    current_machine->ram_slots = ram_slots;
 
     parse_numa_opts(current_machine);
 
