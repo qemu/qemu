@@ -419,7 +419,9 @@ static int raw_has_zero_init_truncate(BlockDriverState *bs)
     return bdrv_has_zero_init_truncate(bs->file->bs);
 }
 
-static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
+static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
+                                           const char *filename,
+                                           QemuOpts *opts,
                                            Error **errp)
 {
     return bdrv_create_file(filename, opts, errp);

@@ -483,7 +483,8 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     CreateCo *cco = opaque;
     assert(cco->drv);
 
-    ret = cco->drv->bdrv_co_create_opts(cco->filename, cco->opts, &local_err);
+    ret = cco->drv->bdrv_co_create_opts(cco->drv,
+                                        cco->filename, cco->opts, &local_err);
     error_propagate(&cco->err, local_err);
     cco->ret = ret;
 }
@@ -597,8 +598,15 @@ static int create_file_fallback_zero_first_sector(BlockBackend *blk,
     return 0;
 }
 
-static int bdrv_create_file_fallback(const char *filename, BlockDriver *drv,
-                                     QemuOpts *opts, Error **errp)
+/**
+ * Simple implementation of bdrv_co_create_opts for protocol drivers
+ * which only support creation via opening a file
+ * (usually existing raw storage device)
+ */
+int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
+                                            const char *filename,
+                                            QemuOpts *opts,
+                                            Error **errp)
 {
     BlockBackend *blk;
     QDict *options;
@@ -662,11 +670,7 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
         return -ENOENT;
     }
 
-    if (drv->bdrv_co_create_opts) {
-        return bdrv_create(drv, filename, opts, errp);
-    } else {
-        return bdrv_create_file_fallback(filename, drv, opts, errp);
-    }
+    return bdrv_create(drv, filename, opts, errp);
 }
 
 int coroutine_fn bdrv_co_delete_file(BlockDriverState *bs, Error **errp)
@@ -1591,9 +1595,9 @@ QemuOptsList bdrv_runtime_opts = {
     },
 };
 
-static QemuOptsList fallback_create_opts = {
-    .name = "fallback-create-opts",
-    .head = QTAILQ_HEAD_INITIALIZER(fallback_create_opts.head),
+QemuOptsList bdrv_create_opts_simple = {
+    .name = "simple-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(bdrv_create_opts_simple.head),
     .desc = {
         {
             .name = BLOCK_OPT_SIZE,
@@ -5962,13 +5966,15 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
+    if (!proto_drv->create_opts) {
+        error_setg(errp, "Protocol driver '%s' does not support image creation",
+                   proto_drv->format_name);
+        return;
+    }
+
     /* Create parameter list */
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    if (proto_drv->create_opts) {
-        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
-    } else {
-        create_opts = qemu_opts_append(create_opts, &fallback_create_opts);
-    }
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
 

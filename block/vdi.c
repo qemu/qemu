@@ -896,7 +896,9 @@ static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
     return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
 }
 
-static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
+static int coroutine_fn vdi_co_create_opts(BlockDriver *drv,
+                                           const char *filename,
+                                           QemuOpts *opts,
                                            Error **errp)
 {
     QDict *qdict = NULL;

@@ -2046,7 +2046,8 @@ delete_and_exit:
     return ret;
 }
 
-static int coroutine_fn vhdx_co_create_opts(const char *filename,
+static int coroutine_fn vhdx_co_create_opts(BlockDriver *drv,
+                                            const char *filename,
                                             QemuOpts *opts,
                                             Error **errp)
 {

@@ -609,7 +609,8 @@ exit:
     goto out;
 }
 
-static int coroutine_fn parallels_co_create_opts(const char *filename,
+static int coroutine_fn parallels_co_create_opts(BlockDriver *drv,
+                                                 const char *filename,
                                                  QemuOpts *opts,
                                                  Error **errp)
 {
