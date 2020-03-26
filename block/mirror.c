@@ -283,14 +283,11 @@ static int mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
 }
 
 static inline void coroutine_fn
-mirror_wait_for_any_operation(MirrorBlockJob *s, MirrorOp *self, bool active)
+mirror_wait_for_any_operation(MirrorBlockJob *s, bool active)
 {
     MirrorOp *op;
 
     QTAILQ_FOREACH(op, &s->ops_in_flight, next) {
-        if (self == op) {
-            continue;
-        }
         /* Do not wait on pseudo ops, because it may in turn wait on
          * some other operation to start, which may in fact be the
          * caller of this function.  Since there is only one pseudo op
@@ -305,10 +302,10 @@ mirror_wait_for_any_operation(MirrorBlockJob *s, MirrorOp *self, bool active)
 }
 
 static inline void coroutine_fn
-mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s, MirrorOp *self)
+mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s)
 {
     /* Only non-active operations use up in-flight slots */
-    mirror_wait_for_any_operation(s, self, false);
+    mirror_wait_for_any_operation(s, false);
 }
 
 /* Perform a mirror copy operation.
@@ -351,7 +348,7 @@ static void coroutine_fn mirror_co_read(void *opaque)
 
     while (s->buf_free_count < nb_chunks) {
         trace_mirror_yield_in_flight(s, op->offset, s->in_flight);
-        mirror_wait_for_free_in_flight_slot(s, op);
+        mirror_wait_for_free_in_flight_slot(s);
     }
 
     /* Now make a QEMUIOVector taking enough granularity-sized chunks
@@ -558,7 +555,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
         while (s->in_flight >= MAX_IN_FLIGHT) {
             trace_mirror_yield_in_flight(s, offset, s->in_flight);
-            mirror_wait_for_free_in_flight_slot(s, pseudo_op);
+            mirror_wait_for_free_in_flight_slot(s);
         }
 
         if (s->ret < 0) {
@@ -612,7 +609,7 @@ static void mirror_free_init(MirrorBlockJob *s)
 static void coroutine_fn mirror_wait_for_all_io(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
-        mirror_wait_for_free_in_flight_slot(s, NULL);
+        mirror_wait_for_free_in_flight_slot(s);
     }
 }
 
@@ -810,7 +807,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             if (s->in_flight >= MAX_IN_FLIGHT) {
                 trace_mirror_yield(s, UINT64_MAX, s->buf_free_count,
                                    s->in_flight);
-                mirror_wait_for_free_in_flight_slot(s, NULL);
+                mirror_wait_for_free_in_flight_slot(s);
                 continue;
             }
 
@@ -963,7 +960,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         /* Do not start passive operations while there are active
          * writes in progress */
         while (s->in_active_write_counter) {
-            mirror_wait_for_any_operation(s, NULL, true);
+            mirror_wait_for_any_operation(s, true);
         }
 
         if (s->ret < 0) {
@@ -989,7 +986,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, cnt, s->buf_free_count, s->in_flight);
-                mirror_wait_for_free_in_flight_slot(s, NULL);
+                mirror_wait_for_free_in_flight_slot(s);
                 continue;
             } else if (cnt != 0) {
                 delay_ns = mirror_iteration(s);
