@@ -389,14 +389,71 @@
 #endif
 
 #ifdef QEMU_GENERATE
-#define MEM_LOAD1s(DST, VA)       tcg_gen_qemu_ld8s(DST, VA, ctx->mem_idx)
-#define MEM_LOAD1u(DST, VA)       tcg_gen_qemu_ld8u(DST, VA, ctx->mem_idx)
-#define MEM_LOAD2s(DST, VA)       tcg_gen_qemu_ld16s(DST, VA, ctx->mem_idx)
-#define MEM_LOAD2u(DST, VA)       tcg_gen_qemu_ld16u(DST, VA, ctx->mem_idx)
-#define MEM_LOAD4s(DST, VA)       tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx)
-#define MEM_LOAD4u(DST, VA)       tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx)
-#define MEM_LOAD8s(DST, VA)       tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx)
-#define MEM_LOAD8u(DST, VA)       tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx)
+/*
+ * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
+ *
+ * Slot 1 store with slot 0 load
+ * A slot 1 store operation with a slot 0 load operation can appear in a packet.
+ * The packet attribute :mem_noshuf inhibits the instruction reordering that
+ * would otherwise be done by the assembler. For example:
+ *     {
+ *         memw(R5) = R2 // slot 1 store
+ *         R3 = memh(R6) // slot 0 load
+ *     }:mem_noshuf
+ * Unlike most packetized operations, these memory operations are not executed
+ * in parallel (Section 3.3.1). Instead, the store instruction in Slot 1
+ * effectively executes first, followed by the load instruction in Slot 0. If
+ * the addresses of the two operations are overlapping, the load will receive
+ * the newly stored data. This feature is supported in processor versions
+ * V65 or greater.
+ *
+ *
+ * For qemu, we look for a load in slot 0 when there is  a store in slot 1
+ * in the same packet.  When we see this, we call a helper that merges the
+ * bytes from the store buffer with the value loaded from memory.
+ */
+#define CHECK_NOSHUF(DST, VA, SZ, SIGN) \
+    do { \
+        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
+            gen_helper_merge_inflight_store##SZ##SIGN(DST, cpu_env, VA, DST); \
+        } \
+    } while (0)
+
+#define MEM_LOAD1s(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld8s(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 1, s); \
+    } while (0)
+#define MEM_LOAD1u(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld8u(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 1, u); \
+    } while (0)
+#define MEM_LOAD2s(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld16s(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 2, s); \
+    } while (0)
+#define MEM_LOAD2u(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld16u(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 2, u); \
+    } while (0)
+#define MEM_LOAD4s(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 4, s); \
+    } while (0)
+#define MEM_LOAD4u(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 4, u); \
+    } while (0)
+#define MEM_LOAD8u(DST, VA) \
+    do { \
+        tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx); \
+        CHECK_NOSHUF(DST, VA, 8, u); \
+    } while (0)
 
 #define MEM_STORE1_FUNC(X) \
     _Generic((X), int : gen_store1i, TCGv_i32 : gen_store1)
@@ -419,69 +476,6 @@
     MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
 
 #else
-/*
- * These should never be executed, but they are needed so the helpers will
- * compile.  All the instructions with loads must be implemented under
- * QEMU_GENERATE.
- */
-static inline uint8_t mem_load1(CPUHexagonState *env, target_ulong vaddr)
-{
-    printf("ERROR: mem_load1\n");
-    g_assert_not_reached();
-}
-
-static inline uint16_t mem_load2(CPUHexagonState *env, target_ulong vadd)
-{
-    printf("ERROR: mem_load2\n");
-    g_assert_not_reached();
-}
-
-static inline uint32_t mem_load4(CPUHexagonState *env, target_ulong vaddr)
-{
-    printf("ERROR: mem_load4\n");
-    g_assert_not_reached();
-}
-
-static inline uint64_t mem_load8(CPUHexagonState *env, target_ulong vaddr)
-{
-    printf("ERROR: mem_load8\n");
-    g_assert_not_reached();
-}
-
-static inline
-uint32_t mem_load_locked4(CPUHexagonState *env, target_ulong vaddr)
-{
-    printf("ERROR: load_locked4\n");
-    g_assert_not_reached();
-    return 0;
-}
-
-static inline
-uint64_t mem_load_locked8(CPUHexagonState *env, target_ulong vaddr)
-{
-    printf("ERROR: load_locked8\n");
-    g_assert_not_reached();
-    return 0;
-}
-
-static inline
-uint8_t mem_store_conditional(CPUHexagonState *env,
-                              target_ulong vaddr, uint32_t src, int size)
-{
-    printf("ERROR: store conditional\n");
-    g_assert_not_reached();
-    return 0;
-}
-
-#define MEM_LOAD1s(VA) ((size1s_t)mem_load1(env, VA))
-#define MEM_LOAD1u(VA) ((size1u_t)mem_load1(env, VA))
-#define MEM_LOAD2s(VA) ((size2s_t)mem_load2(env, VA))
-#define MEM_LOAD2u(VA) ((size2u_t)mem_load2(env, VA))
-#define MEM_LOAD4s(VA) ((size4s_t)mem_load4(env, VA))
-#define MEM_LOAD4u(VA) ((size4u_t)mem_load4(env, VA))
-#define MEM_LOAD8s(VA) ((size8s_t)mem_load8(env, VA))
-#define MEM_LOAD8u(VA) ((size8u_t)mem_load8(env, VA))
-
 #define MEM_STORE1(VA, DATA, SLOT) log_store32(env, VA, DATA, 1, SLOT)
 #define MEM_STORE2(VA, DATA, SLOT) log_store32(env, VA, DATA, 2, SLOT)
 #define MEM_STORE4(VA, DATA, SLOT) log_store32(env, VA, DATA, 4, SLOT)

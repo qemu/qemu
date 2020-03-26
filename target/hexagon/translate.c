@@ -218,14 +218,15 @@ static void mark_implicit_writes(DisasContext *ctx, insn_t *insn)
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
 }
 
-static void gen_insn(CPUHexagonState *env, DisasContext *ctx, insn_t *insn)
+static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
+                     insn_t *insn, packet_t *pkt)
 {
     if (insn->generate) {
         bool is_gather_store = is_gather_store_insn(insn);
         if (is_gather_store) {
             tcg_gen_movi_tl(hex_is_gather_store_insn, 1);
         }
-        insn->generate(env, ctx, insn);
+        insn->generate(env, ctx, insn, pkt);
         mark_implicit_writes(ctx, insn);
         if (is_gather_store) {
             tcg_gen_movi_tl(hex_is_gather_store_insn, 0);
@@ -694,7 +695,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         HEX_DEBUG_PRINT_PKT(&pkt);
         gen_start_packet(ctx, &pkt);
         for (i = 0; i < pkt.num_insns; i++) {
-            gen_insn(env, ctx, &pkt.insn[i]);
+            gen_insn(env, ctx, &pkt.insn[i], &pkt);
         }
         gen_commit_packet(ctx, &pkt);
         ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;

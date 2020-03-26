@@ -451,6 +451,68 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     return PeV;
 }
 
+/*
+ * Handle mem_noshuf
+ *
+ * This occurs when there is a load that might need data forwarded
+ * from an inflight store in slot 1.  Note that the load and store
+ * might have different sizes, so we can't simply compare the
+ * addresses.  We merge only the bytes that overlap (if any).
+ */
+static int64_t merge_bytes(CPUHexagonState *env, target_ulong load_addr,
+                           int64_t load_data, uint32_t load_width)
+{
+    /* Don't do anything if slot 1 was cancelled */
+    if (env->slot_cancelled & (1 << 1)) {
+        return load_data;
+    }
+
+    int store_width = env->mem_log_stores[1].width;
+    target_ulong store_addr = env->mem_log_stores[1].va;
+    union {
+        uint8_t bytes[8];
+        uint32_t data32;
+        uint64_t data64;
+    } retdata, storedata;
+    int bigmask = ((-load_width) & (-store_width));
+    if ((load_addr & bigmask) != (store_addr & bigmask)) {
+        /* no overlap */
+        return load_data;
+    }
+    retdata.data64 = load_data;
+
+    if (store_width == 1 || store_width == 2 || store_width == 4) {
+        storedata.data32 = env->mem_log_stores[1].data32;
+    } else if (store_width == 8) {
+        storedata.data64 = env->mem_log_stores[1].data64;
+    } else {
+        g_assert_not_reached();
+    }
+    int i, j;
+    i = store_addr & (load_width - 1);
+    j = load_addr & (store_width - 1);
+    while ((i < load_width) && (j < store_width)) {
+        retdata.bytes[i] = storedata.bytes[j];
+        i++;
+        j++;
+    }
+    return retdata.data64;
+}
+
+#define MERGE_INFLIGHT(NAME, RET, IN_TYPE, OUT_TYPE, SIZE) \
+RET HELPER(NAME)(CPUHexagonState *env, int32_t addr, IN_TYPE data) \
+{ \
+    return (OUT_TYPE)merge_bytes(env, addr, data, SIZE); \
+}
+
+MERGE_INFLIGHT(merge_inflight_store1s, int32_t, int32_t,  int8_t,  1)
+MERGE_INFLIGHT(merge_inflight_store1u, int32_t, int32_t, uint8_t,  1)
+MERGE_INFLIGHT(merge_inflight_store2s, int32_t, int32_t,  int16_t, 2)
+MERGE_INFLIGHT(merge_inflight_store2u, int32_t, int32_t, uint16_t, 2)
+MERGE_INFLIGHT(merge_inflight_store4s, int32_t, int32_t,  int32_t, 4)
+MERGE_INFLIGHT(merge_inflight_store4u, int32_t, int32_t, uint32_t, 4)
+MERGE_INFLIGHT(merge_inflight_store8u, int64_t, int64_t,  int64_t, 8)
+
 /* Helpful for printing intermediate values within instructions */
 void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
 {

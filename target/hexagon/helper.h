@@ -29,6 +29,13 @@ DEF_HELPER_2(sfinvsqrta_val, s32, env, s32)
 DEF_HELPER_2(sfinvsqrta_pred, s32, env, s32)
 DEF_HELPER_4(vacsh_val, s64, env, s64, s64, s64)
 DEF_HELPER_4(vacsh_pred, s32, env, s64, s64, s64)
+DEF_HELPER_3(merge_inflight_store1s, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store1u, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store2s, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store2u, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store4s, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store4u, s32, env, s32, s32)
+DEF_HELPER_3(merge_inflight_store8u, s64, env, s32, s64)
 
 #define DEF_QEMU(TAG, SHORTCODE, HELPER, GENFN, HELPFN) HELPER
 #include "qemu_def_generated.h"
