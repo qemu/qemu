@@ -2002,7 +2002,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         iscsilun->cluster_size = iscsilun->bl.opt_unmap_gran *
             iscsilun->block_size;
         if (iscsilun->lbprz) {
-            ret = iscsi_allocmap_init(iscsilun, bs->open_flags);
+            ret = iscsi_allocmap_init(iscsilun, flags);
         }
     }
 

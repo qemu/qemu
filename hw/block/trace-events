@@ -37,7 +37,7 @@ nvme_rw(const char *verb, uint32_t blk_count, uint64_t byte_count, uint64_t lba)
 nvme_create_sq(uint64_t addr, uint16_t sqid, uint16_t cqid, uint16_t qsize, uint16_t qflags) "create submission queue, addr=0x%"PRIx64", sqid=%"PRIu16", cqid=%"PRIu16", qsize=%"PRIu16", qflags=%"PRIu16""
 nvme_create_cq(uint64_t addr, uint16_t cqid, uint16_t vector, uint16_t size, uint16_t qflags, int ien) "create completion queue, addr=0x%"PRIx64", cqid=%"PRIu16", vector=%"PRIu16", qsize=%"PRIu16", qflags=%"PRIu16", ien=%d"
 nvme_del_sq(uint16_t qid) "deleting submission queue sqid=%"PRIu16""
-nvme_del_cq(uint16_t cqid) "deleted completion queue, sqid=%"PRIu16""
+nvme_del_cq(uint16_t cqid) "deleted completion queue, cqid=%"PRIu16""
 nvme_identify_ctrl(void) "identify controller"
 nvme_identify_ns(uint16_t ns) "identify namespace, nsid=%"PRIu16""
 nvme_identify_nslist(uint16_t ns) "identify namespace list, nsid=%"PRIu16""

@@ -2617,6 +2617,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
             error_propagate(errp, local_err);
             g_free(child);
             bdrv_abort_perm_update(child_bs);
+            bdrv_unref(child_bs);
             return NULL;
         }
     }
