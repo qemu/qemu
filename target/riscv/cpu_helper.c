@@ -435,7 +435,7 @@ restart:
             hwaddr vbase;
 
             /* Do the second stage translation on the base PTE address. */
-            get_physical_address(env, &vbase, &vbase_prot, base, access_type,
+            get_physical_address(env, &vbase, &vbase_prot, base, MMU_DATA_LOAD,
                                  mmu_idx, false, true);
 
             pte_addr = vbase + idx * ptesize;
