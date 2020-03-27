@@ -288,7 +288,7 @@ static void add_machine_test_case(const char *mname)
     char *path, *args;
 
     /* Ignore blacklisted machines */
-    if (g_str_equal("xenfv", mname) || g_str_equal("xenpv", mname)) {
+    if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
         return;
     }
 

@@ -15,35 +15,6 @@
 #include "qemu/cutils.h"
 #include "libqtest.h"
 
-static const char *blacklist_x86[] = {
-    "xenfv", "xenpv", NULL
-};
-
-static const struct {
-    const char *arch;
-    const char **machine;
-} blacklists[] = {
-    { "i386", blacklist_x86 },
-    { "x86_64", blacklist_x86 },
-};
-
-static bool is_blacklisted(const char *arch, const char *mach)
-{
-    int i;
-    const char **p;
-
-    for (i = 0; i < ARRAY_SIZE(blacklists); i++) {
-        if (!strcmp(blacklists[i].arch, arch)) {
-            for (p = blacklists[i].machine; *p; p++) {
-                if (!strcmp(*p, mach)) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
 static void test_properties(QTestState *qts, const char *path, bool recurse)
 {
     char *child_path;
@@ -108,13 +79,16 @@ static void test_machine(gconstpointer data)
 
 static void add_machine_test_case(const char *mname)
 {
-    const char *arch = qtest_get_arch();
+    char *path;
 
-    if (!is_blacklisted(arch, mname)) {
-        char *path = g_strdup_printf("qom/%s", mname);
-        qtest_add_data_func(path, g_strdup(mname), test_machine);
-        g_free(path);
+    /* Ignore blacklisted machines that have known problems */
+    if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
+        return;
     }
+
+    path = g_strdup_printf("qom/%s", mname);
+    qtest_add_data_func(path, g_strdup(mname), test_machine);
+    g_free(path);
 }
 
 int main(int argc, char **argv)
