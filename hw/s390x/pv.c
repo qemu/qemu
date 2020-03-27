@@ -23,7 +23,11 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
         .cmd = cmd,
         .data = (uint64_t)data,
     };
-    int rc = kvm_vm_ioctl(kvm_state, KVM_S390_PV_COMMAND, &pv_cmd);
+    int rc;
+
+    do {
+        rc = kvm_vm_ioctl(kvm_state, KVM_S390_PV_COMMAND, &pv_cmd);
+    } while (rc == -EINTR);
 
     if (rc) {
         error_report("KVM PV command %d (%s) failed: header rc %x rrc %x "
