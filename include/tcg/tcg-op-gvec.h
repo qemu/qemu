@@ -320,6 +320,12 @@ void tcg_gen_gvec_dup_i32(unsigned vece, uint32_t dofs, uint32_t s,
 void tcg_gen_gvec_dup_i64(unsigned vece, uint32_t dofs, uint32_t s,
                           uint32_t m, TCGv_i64);
 
+#if TARGET_LONG_BITS == 64
+# define tcg_gen_gvec_dup_tl  tcg_gen_gvec_dup_i64
+#else
+# define tcg_gen_gvec_dup_tl  tcg_gen_gvec_dup_i32
+#endif
+
 void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
                        int64_t shift, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_shri(unsigned vece, uint32_t dofs, uint32_t aofs,
