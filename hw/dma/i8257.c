@@ -292,12 +292,6 @@ static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
     return val;
 }
 
-static IsaDmaTransferMode i8257_dma_get_transfer_mode(IsaDma *obj, int nchan)
-{
-    I8257State *d = I8257(obj);
-    return (d->regs[nchan & 3].mode >> 2) & 3;
-}
-
 static bool i8257_dma_has_autoinitialization(IsaDma *obj, int nchan)
 {
     I8257State *d = I8257(obj);
@@ -400,12 +394,21 @@ static void i8257_dma_register_channel(IsaDma *obj, int nchan,
     r->opaque = opaque;
 }
 
+static bool i8257_is_verify_transfer(I8257Regs *r)
+{
+    return (r->mode & 0x0c) == 0;
+}
+
 static int i8257_dma_read_memory(IsaDma *obj, int nchan, void *buf, int pos,
                                  int len)
 {
     I8257State *d = I8257(obj);
     I8257Regs *r = &d->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+
+    if (i8257_is_verify_transfer(r)) {
+        return len;
+    }
 
     if (r->mode & 0x20) {
         int i;
@@ -430,6 +433,10 @@ static int i8257_dma_write_memory(IsaDma *obj, int nchan, void *buf, int pos,
     I8257State *s = I8257(obj);
     I8257Regs *r = &s->regs[nchan & 3];
     hwaddr addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+
+    if (i8257_is_verify_transfer(r)) {
+        return len;
+    }
 
     if (r->mode & 0x20) {
         int i;
@@ -597,7 +604,6 @@ static void i8257_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_i8257;
     device_class_set_props(dc, i8257_properties);
 
-    idc->get_transfer_mode = i8257_dma_get_transfer_mode;
     idc->has_autoinitialization = i8257_dma_has_autoinitialization;
     idc->read_memory = i8257_dma_read_memory;
     idc->write_memory = i8257_dma_write_memory;
