@@ -167,6 +167,8 @@ static inline void macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
 
 static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
     uint64_t val;
 
     /* BUG, should take considering overlap.. */
@@ -176,6 +178,7 @@ static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
    val = rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
    if (val & (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
                VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)) {
+        env->hflags &= ~HF_INHIBIT_IRQ_MASK;
         wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY,
                val & ~(VMCS_INTERRUPTIBILITY_STI_BLOCKING |
                VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING));
