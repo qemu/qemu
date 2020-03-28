@@ -502,7 +502,7 @@ static void clear_vec_high(DisasContext *s, bool is_q, int rd)
         tcg_temp_free_i64(tcg_zero);
     }
     if (vsz > 16) {
-        tcg_gen_gvec_dup8i(ofs + 16, vsz - 16, vsz - 16, 0);
+        tcg_gen_gvec_dup_imm(MO_64, ofs + 16, vsz - 16, vsz - 16, 0);
     }
 }
 
@@ -7785,8 +7785,8 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
 
     if (!((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9)) {
         /* MOVI or MVNI, with MVNI negation handled above.  */
-        tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), is_q ? 16 : 8,
-                            vec_full_reg_size(s), imm);
+        tcg_gen_gvec_dup_imm(MO_64, vec_full_reg_offset(s, rd), is_q ? 16 : 8,
+                             vec_full_reg_size(s), imm);
     } else {
         /* ORR or BIC, with BIC negation to AND handled above.  */
         if (is_neg) {
@@ -10214,8 +10214,8 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
         if (is_u) {
             if (shift == 8 << size) {
                 /* Shift count the same size as element size produces zero.  */
-                tcg_gen_gvec_dup8i(vec_full_reg_offset(s, rd),
-                                   is_q ? 16 : 8, vec_full_reg_size(s), 0);
+                tcg_gen_gvec_dup_imm(size, vec_full_reg_offset(s, rd),
+                                     is_q ? 16 : 8, vec_full_reg_size(s), 0);
             } else {
                 gen_gvec_fn2i(s, is_q, rd, rn, shift, tcg_gen_gvec_shri, size);
             }
