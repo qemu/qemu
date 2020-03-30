@@ -13,7 +13,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "cpu.h"
 #include "hw/irq.h"
@@ -1183,9 +1182,7 @@ static void dcr_write_pcie(void *opaque, int dcrn, uint32_t val)
     case PEGPL_CFGMSK:
         s->cfg_mask = val;
         size = ~(val & 0xfffffffe) + 1;
-        qemu_mutex_lock_iothread();
         pcie_host_mmcfg_update(PCIE_HOST_BRIDGE(s), val & 1, s->cfg_base, size);
-        qemu_mutex_unlock_iothread();
         break;
     case PEGPL_MSGBAH:
         s->msg_base = ((uint64_t)val << 32) | (s->msg_base & 0xffffffff);
