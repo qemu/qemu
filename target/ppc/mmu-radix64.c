@@ -229,12 +229,13 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
     int page_size, prot, fault_cause = 0;
     ppc_v3_pate_t pate;
+    bool relocation;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
+    relocation = ((rwx == 2) && (msr_ir == 1)) || ((rwx != 2) && (msr_dr == 1));
     /* HV or virtual hypervisor Real Mode Access */
-    if ((msr_hv || cpu->vhyp) &&
-        (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0)))) {
+    if (!relocation && (msr_hv || cpu->vhyp)) {
         /* In real mode top 4 effective addr bits (mostly) ignored */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
 
