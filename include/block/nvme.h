@@ -15,6 +15,13 @@ typedef struct NvmeBar {
     uint64_t    acq;
     uint32_t    cmbloc;
     uint32_t    cmbsz;
+    uint8_t     padding[3520]; /* not used by QEMU */
+    uint32_t    pmrcap;
+    uint32_t    pmrctl;
+    uint32_t    pmrsts;
+    uint32_t    pmrebs;
+    uint32_t    pmrswtp;
+    uint32_t    pmrmsc;
 } NvmeBar;
 
 enum NvmeCapShift {
@@ -27,6 +34,7 @@ enum NvmeCapShift {
     CAP_CSS_SHIFT      = 37,
     CAP_MPSMIN_SHIFT   = 48,
     CAP_MPSMAX_SHIFT   = 52,
+    CAP_PMR_SHIFT      = 56,
 };
 
 enum NvmeCapMask {
@@ -39,6 +47,7 @@ enum NvmeCapMask {
     CAP_CSS_MASK       = 0xff,
     CAP_MPSMIN_MASK    = 0xf,
     CAP_MPSMAX_MASK    = 0xf,
+    CAP_PMR_MASK       = 0x1,
 };
 
 #define NVME_CAP_MQES(cap)  (((cap) >> CAP_MQES_SHIFT)   & CAP_MQES_MASK)
@@ -69,6 +78,8 @@ enum NvmeCapMask {
                                                            << CAP_MPSMIN_SHIFT)
 #define NVME_CAP_SET_MPSMAX(cap, val) (cap |= (uint64_t)(val & CAP_MPSMAX_MASK)\
                                                             << CAP_MPSMAX_SHIFT)
+#define NVME_CAP_SET_PMRS(cap, val) (cap |= (uint64_t)(val & CAP_PMR_MASK)\
+                                                            << CAP_PMR_SHIFT)
 
 enum NvmeCcShift {
     CC_EN_SHIFT     = 0,
@@ -204,6 +215,167 @@ enum NvmeCmbszMask {
 
 #define NVME_CMBSZ_GETSIZE(cmbsz) \
     (NVME_CMBSZ_SZ(cmbsz) * (1 << (12 + 4 * NVME_CMBSZ_SZU(cmbsz))))
+
+enum NvmePmrcapShift {
+    PMRCAP_RDS_SHIFT      = 3,
+    PMRCAP_WDS_SHIFT      = 4,
+    PMRCAP_BIR_SHIFT      = 5,
+    PMRCAP_PMRTU_SHIFT    = 8,
+    PMRCAP_PMRWBM_SHIFT   = 10,
+    PMRCAP_PMRTO_SHIFT    = 16,
+    PMRCAP_CMSS_SHIFT     = 24,
+};
+
+enum NvmePmrcapMask {
+    PMRCAP_RDS_MASK      = 0x1,
+    PMRCAP_WDS_MASK      = 0x1,
+    PMRCAP_BIR_MASK      = 0x7,
+    PMRCAP_PMRTU_MASK    = 0x3,
+    PMRCAP_PMRWBM_MASK   = 0xf,
+    PMRCAP_PMRTO_MASK    = 0xff,
+    PMRCAP_CMSS_MASK     = 0x1,
+};
+
+#define NVME_PMRCAP_RDS(pmrcap)    \
+    ((pmrcap >> PMRCAP_RDS_SHIFT)   & PMRCAP_RDS_MASK)
+#define NVME_PMRCAP_WDS(pmrcap)    \
+    ((pmrcap >> PMRCAP_WDS_SHIFT)   & PMRCAP_WDS_MASK)
+#define NVME_PMRCAP_BIR(pmrcap)    \
+    ((pmrcap >> PMRCAP_BIR_SHIFT)   & PMRCAP_BIR_MASK)
+#define NVME_PMRCAP_PMRTU(pmrcap)    \
+    ((pmrcap >> PMRCAP_PMRTU_SHIFT)   & PMRCAP_PMRTU_MASK)
+#define NVME_PMRCAP_PMRWBM(pmrcap)    \
+    ((pmrcap >> PMRCAP_PMRWBM_SHIFT)   & PMRCAP_PMRWBM_MASK)
+#define NVME_PMRCAP_PMRTO(pmrcap)    \
+    ((pmrcap >> PMRCAP_PMRTO_SHIFT)   & PMRCAP_PMRTO_MASK)
+#define NVME_PMRCAP_CMSS(pmrcap)    \
+    ((pmrcap >> PMRCAP_CMSS_SHIFT)   & PMRCAP_CMSS_MASK)
+
+#define NVME_PMRCAP_SET_RDS(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_RDS_MASK) << PMRCAP_RDS_SHIFT)
+#define NVME_PMRCAP_SET_WDS(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_WDS_MASK) << PMRCAP_WDS_SHIFT)
+#define NVME_PMRCAP_SET_BIR(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_BIR_MASK) << PMRCAP_BIR_SHIFT)
+#define NVME_PMRCAP_SET_PMRTU(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_PMRTU_MASK) << PMRCAP_PMRTU_SHIFT)
+#define NVME_PMRCAP_SET_PMRWBM(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_PMRWBM_MASK) << PMRCAP_PMRWBM_SHIFT)
+#define NVME_PMRCAP_SET_PMRTO(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_PMRTO_MASK) << PMRCAP_PMRTO_SHIFT)
+#define NVME_PMRCAP_SET_CMSS(pmrcap, val)   \
+    (pmrcap |= (uint64_t)(val & PMRCAP_CMSS_MASK) << PMRCAP_CMSS_SHIFT)
+
+enum NvmePmrctlShift {
+    PMRCTL_EN_SHIFT   = 0,
+};
+
+enum NvmePmrctlMask {
+    PMRCTL_EN_MASK   = 0x1,
+};
+
+#define NVME_PMRCTL_EN(pmrctl)  ((pmrctl >> PMRCTL_EN_SHIFT)   & PMRCTL_EN_MASK)
+
+#define NVME_PMRCTL_SET_EN(pmrctl, val)   \
+    (pmrctl |= (uint64_t)(val & PMRCTL_EN_MASK) << PMRCTL_EN_SHIFT)
+
+enum NvmePmrstsShift {
+    PMRSTS_ERR_SHIFT    = 0,
+    PMRSTS_NRDY_SHIFT   = 8,
+    PMRSTS_HSTS_SHIFT   = 9,
+    PMRSTS_CBAI_SHIFT   = 12,
+};
+
+enum NvmePmrstsMask {
+    PMRSTS_ERR_MASK    = 0xff,
+    PMRSTS_NRDY_MASK   = 0x1,
+    PMRSTS_HSTS_MASK   = 0x7,
+    PMRSTS_CBAI_MASK   = 0x1,
+};
+
+#define NVME_PMRSTS_ERR(pmrsts)     \
+    ((pmrsts >> PMRSTS_ERR_SHIFT)   & PMRSTS_ERR_MASK)
+#define NVME_PMRSTS_NRDY(pmrsts)    \
+    ((pmrsts >> PMRSTS_NRDY_SHIFT)   & PMRSTS_NRDY_MASK)
+#define NVME_PMRSTS_HSTS(pmrsts)    \
+    ((pmrsts >> PMRSTS_HSTS_SHIFT)   & PMRSTS_HSTS_MASK)
+#define NVME_PMRSTS_CBAI(pmrsts)    \
+    ((pmrsts >> PMRSTS_CBAI_SHIFT)   & PMRSTS_CBAI_MASK)
+
+#define NVME_PMRSTS_SET_ERR(pmrsts, val)   \
+    (pmrsts |= (uint64_t)(val & PMRSTS_ERR_MASK) << PMRSTS_ERR_SHIFT)
+#define NVME_PMRSTS_SET_NRDY(pmrsts, val)   \
+    (pmrsts |= (uint64_t)(val & PMRSTS_NRDY_MASK) << PMRSTS_NRDY_SHIFT)
+#define NVME_PMRSTS_SET_HSTS(pmrsts, val)   \
+    (pmrsts |= (uint64_t)(val & PMRSTS_HSTS_MASK) << PMRSTS_HSTS_SHIFT)
+#define NVME_PMRSTS_SET_CBAI(pmrsts, val)   \
+    (pmrsts |= (uint64_t)(val & PMRSTS_CBAI_MASK) << PMRSTS_CBAI_SHIFT)
+
+enum NvmePmrebsShift {
+    PMREBS_PMRSZU_SHIFT   = 0,
+    PMREBS_RBB_SHIFT      = 4,
+    PMREBS_PMRWBZ_SHIFT   = 8,
+};
+
+enum NvmePmrebsMask {
+    PMREBS_PMRSZU_MASK   = 0xf,
+    PMREBS_RBB_MASK      = 0x1,
+    PMREBS_PMRWBZ_MASK   = 0xffffff,
+};
+
+#define NVME_PMREBS_PMRSZU(pmrebs)  \
+    ((pmrebs >> PMREBS_PMRSZU_SHIFT)   & PMREBS_PMRSZU_MASK)
+#define NVME_PMREBS_RBB(pmrebs)     \
+    ((pmrebs >> PMREBS_RBB_SHIFT)   & PMREBS_RBB_MASK)
+#define NVME_PMREBS_PMRWBZ(pmrebs)  \
+    ((pmrebs >> PMREBS_PMRWBZ_SHIFT)   & PMREBS_PMRWBZ_MASK)
+
+#define NVME_PMREBS_SET_PMRSZU(pmrebs, val)   \
+    (pmrebs |= (uint64_t)(val & PMREBS_PMRSZU_MASK) << PMREBS_PMRSZU_SHIFT)
+#define NVME_PMREBS_SET_RBB(pmrebs, val)   \
+    (pmrebs |= (uint64_t)(val & PMREBS_RBB_MASK) << PMREBS_RBB_SHIFT)
+#define NVME_PMREBS_SET_PMRWBZ(pmrebs, val)   \
+    (pmrebs |= (uint64_t)(val & PMREBS_PMRWBZ_MASK) << PMREBS_PMRWBZ_SHIFT)
+
+enum NvmePmrswtpShift {
+    PMRSWTP_PMRSWTU_SHIFT   = 0,
+    PMRSWTP_PMRSWTV_SHIFT   = 8,
+};
+
+enum NvmePmrswtpMask {
+    PMRSWTP_PMRSWTU_MASK   = 0xf,
+    PMRSWTP_PMRSWTV_MASK   = 0xffffff,
+};
+
+#define NVME_PMRSWTP_PMRSWTU(pmrswtp)   \
+    ((pmrswtp >> PMRSWTP_PMRSWTU_SHIFT)   & PMRSWTP_PMRSWTU_MASK)
+#define NVME_PMRSWTP_PMRSWTV(pmrswtp)   \
+    ((pmrswtp >> PMRSWTP_PMRSWTV_SHIFT)   & PMRSWTP_PMRSWTV_MASK)
+
+#define NVME_PMRSWTP_SET_PMRSWTU(pmrswtp, val)   \
+    (pmrswtp |= (uint64_t)(val & PMRSWTP_PMRSWTU_MASK) << PMRSWTP_PMRSWTU_SHIFT)
+#define NVME_PMRSWTP_SET_PMRSWTV(pmrswtp, val)   \
+    (pmrswtp |= (uint64_t)(val & PMRSWTP_PMRSWTV_MASK) << PMRSWTP_PMRSWTV_SHIFT)
+
+enum NvmePmrmscShift {
+    PMRMSC_CMSE_SHIFT   = 1,
+    PMRMSC_CBA_SHIFT    = 12,
+};
+
+enum NvmePmrmscMask {
+    PMRMSC_CMSE_MASK   = 0x1,
+    PMRMSC_CBA_MASK    = 0xfffffffffffff,
+};
+
+#define NVME_PMRMSC_CMSE(pmrmsc)    \
+    ((pmrmsc >> PMRMSC_CMSE_SHIFT)   & PMRMSC_CMSE_MASK)
+#define NVME_PMRMSC_CBA(pmrmsc)     \
+    ((pmrmsc >> PMRMSC_CBA_SHIFT)   & PMRMSC_CBA_MASK)
+
+#define NVME_PMRMSC_SET_CMSE(pmrmsc, val)   \
+    (pmrmsc |= (uint64_t)(val & PMRMSC_CMSE_MASK) << PMRMSC_CMSE_SHIFT)
+#define NVME_PMRMSC_SET_CBA(pmrmsc, val)   \
+    (pmrmsc |= (uint64_t)(val & PMRMSC_CBA_MASK) << PMRMSC_CBA_SHIFT)
 
 typedef struct NvmeCmd {
     uint8_t     opcode;
