@@ -1025,7 +1025,7 @@ class SizeTree:
         if extracted < self.width:
             output(ind, 'insn = ', decode_function,
                    '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted / 8, self.width / 8));
+                   .format(extracted // 8, self.width // 8));
             extracted = self.width
 
         # Attempt to aid the compiler in producing compact switch statements.
@@ -1079,7 +1079,7 @@ class SizeLeaf:
         if extracted < self.width:
             output(ind, 'insn = ', decode_function,
                    '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted / 8, self.width / 8));
+                   .format(extracted // 8, self.width // 8));
             extracted = self.width
         output(ind, 'return insn;\n')
 # end SizeLeaf
