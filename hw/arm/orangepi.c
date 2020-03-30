@@ -104,7 +104,7 @@ static void orangepi_init(MachineState *machine)
                                 machine->ram);
 
     /* Load target kernel or start using BootROM */
-    if (!machine->kernel_filename && blk_is_available(blk)) {
+    if (!machine->kernel_filename && blk && blk_is_available(blk)) {
         /* Use Boot ROM to copy data from SD card to SRAM */
         allwinner_h3_bootrom_setup(h3, blk);
     }
