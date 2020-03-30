@@ -537,7 +537,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
                           s->page_size / sizeof(uint64_t) * s->page_size);
 
     oncs = le16_to_cpu(idctrl->oncs);
-    s->supports_write_zeroes = !!(oncs & NVME_ONCS_WRITE_ZEROS);
+    s->supports_write_zeroes = !!(oncs & NVME_ONCS_WRITE_ZEROES);
     s->supports_discard = !!(oncs & NVME_ONCS_DSM);
 
     memset(resp, 0, 4096);
@@ -1201,7 +1201,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     }
 
     NvmeCmd cmd = {
-        .opcode = NVME_CMD_WRITE_ZEROS,
+        .opcode = NVME_CMD_WRITE_ZEROES,
         .nsid = cpu_to_le32(s->nsid),
         .cdw10 = cpu_to_le32((offset >> s->blkshift) & 0xFFFFFFFF),
         .cdw11 = cpu_to_le32(((offset >> s->blkshift) >> 32) & 0xFFFFFFFF),
