@@ -7305,7 +7305,10 @@ static int open_self_stat(void *cpu_env, int fd)
         snprintf(buf, sizeof(buf), "%"PRId64 " ", val);
       } else if (i == 1) {
         /* app name */
-        snprintf(buf, sizeof(buf), "(%s) ", ts->bprm->argv[0]);
+        len = snprintf(buf, sizeof(buf), "(%s) ", ts->bprm->argv[0]);
+        if (len >= sizeof(buf))
+          /* bring back the ending ") " that was truncated */
+          strcpy(buf+sizeof(buf)-3, ") ");
       } else if (i == 27) {
         /* stack bottom */
         val = start_stack;
