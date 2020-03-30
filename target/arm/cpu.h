@@ -2801,6 +2801,9 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
  *     handling via the TLB. The only way to do a stage 1 translation without
  *     the immediate stage 2 translation is via the ATS or AT system insns,
  *     which can be slow-pathed and always do a page table walk.
+ *     The only use of stage 2 translations is either as part of an s1+2
+ *     lookup or when loading the descriptors during a stage 1 page table walk,
+ *     and in both those cases we don't use the TLB.
  *  4. we can also safely fold together the "32 bit EL3" and "64 bit EL3"
  *     translation regimes, because they map reasonably well to each other
  *     and they can't both be active at the same time.
@@ -2816,15 +2819,15 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
  * NS EL1 EL1&0 stage 1+2 (aka NS PL1)
  * NS EL1 EL1&0 stage 1+2 +PAN
  * NS EL0 EL2&0
+ * NS EL2 EL2&0
  * NS EL2 EL2&0 +PAN
  * NS EL2 (aka NS PL2)
  * S EL0 EL1&0 (aka S PL0)
  * S EL1 EL1&0 (not used if EL3 is 32 bit)
  * S EL1 EL1&0 +PAN
  * S EL3 (aka S PL1)
- * NS EL1&0 stage 2
  *
- * for a total of 12 different mmu_idx.
+ * for a total of 11 different mmu_idx.
  *
  * R profile CPUs have an MPU, but can use the same set of MMU indexes
  * as A profile. They only need to distinguish NS EL0 and NS EL1 (and
@@ -2846,7 +2849,8 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
  * are not quite the same -- different CPU types (most notably M profile
  * vs A/R profile) would like to use MMU indexes with different semantics,
  * but since we don't ever need to use all of those in a single CPU we
- * can avoid setting NB_MMU_MODES to more than 8. The lower bits of
+ * can avoid having to set NB_MMU_MODES to "total number of A profile MMU
+ * modes + total number of M profile MMU modes". The lower bits of
  * ARMMMUIdx are the core TLB mmu index, and the higher bits are always
  * the same for any particular CPU.
  * Variables of type ARMMUIdx are always full values, and the core
@@ -2894,8 +2898,6 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_SE10_1_PAN = 9 | ARM_MMU_IDX_A,
     ARMMMUIdx_SE3        = 10 | ARM_MMU_IDX_A,
 
-    ARMMMUIdx_Stage2     = 11 | ARM_MMU_IDX_A,
-
     /*
      * These are not allocated TLBs and are used only for AT system
      * instructions or for the first stage of an S12 page table walk.
@@ -2903,6 +2905,14 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_Stage1_E0 = 0 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1 = 1 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1_PAN = 2 | ARM_MMU_IDX_NOTLB,
+    /*
+     * Not allocated a TLB: used only for second stage of an S12 page
+     * table walk, or for descriptor loads during first stage of an S1
+     * page table walk. Note that if we ever want to have a TLB for this
+     * then various TLB flush insns which currently are no-ops or flush
+     * only stage 1 MMU indexes will need to change to flush stage 2.
+     */
+    ARMMMUIdx_Stage2     = 3 | ARM_MMU_IDX_NOTLB,
 
     /*
      * M-profile.
@@ -2936,7 +2946,6 @@ typedef enum ARMMMUIdxBit {
     TO_CORE_BIT(SE10_1),
     TO_CORE_BIT(SE10_1_PAN),
     TO_CORE_BIT(SE3),
-    TO_CORE_BIT(Stage2),
 
     TO_CORE_BIT(MUser),
     TO_CORE_BIT(MPriv),
