@@ -217,6 +217,7 @@ qos-test-obj-y += tests/qtest/es1370-test.o
 qos-test-obj-y += tests/qtest/ipoctal232-test.o
 qos-test-obj-y += tests/qtest/megasas-test.o
 qos-test-obj-y += tests/qtest/ne2000-test.o
+qos-test-obj-y += tests/qtest/tulip-test.o
 qos-test-obj-y += tests/qtest/nvme-test.o
 qos-test-obj-y += tests/qtest/pca9552-test.o
 qos-test-obj-y += tests/qtest/pci-test.o

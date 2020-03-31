@@ -967,7 +967,7 @@ e1000e_start_recv(E1000ECore *core)
     }
 }
 
-int
+bool
 e1000e_can_receive(E1000ECore *core)
 {
     int i;

@@ -845,7 +845,7 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
     return total_size <= bufs * s->rxbuf_size;
 }
 
-static int
+static bool
 e1000_can_receive(NetClientState *nc)
 {
     E1000State *s = qemu_get_nic_opaque(nc);

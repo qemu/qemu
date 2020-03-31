@@ -1049,7 +1049,7 @@ static void imx_eth_write(void *opaque, hwaddr offset, uint64_t value,
     imx_eth_update(s);
 }
 
-static int imx_eth_can_receive(NetClientState *nc)
+static bool imx_eth_can_receive(NetClientState *nc)
 {
     IMXFECState *s = IMX_FEC(qemu_get_nic_opaque(nc));
 

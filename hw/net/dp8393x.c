@@ -414,7 +414,7 @@ static void dp8393x_do_stop_timer(dp8393xState *s)
     dp8393x_update_wt_regs(s);
 }
 
-static int dp8393x_can_receive(NetClientState *nc);
+static bool dp8393x_can_receive(NetClientState *nc);
 
 static void dp8393x_do_receiver_enable(dp8393xState *s)
 {
@@ -718,13 +718,11 @@ static void dp8393x_watchdog(void *opaque)
     dp8393x_update_irq(s);
 }
 
-static int dp8393x_can_receive(NetClientState *nc)
+static bool dp8393x_can_receive(NetClientState *nc)
 {
     dp8393xState *s = qemu_get_nic_opaque(nc);
 
-    if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
-        return 0;
-    return 1;
+    return !!(s->regs[SONIC_CR] & SONIC_CR_RXEN);
 }
 
 static int dp8393x_receive_filter(dp8393xState *s, const uint8_t * buf,

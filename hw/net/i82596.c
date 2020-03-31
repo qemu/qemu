@@ -43,6 +43,9 @@
 #define SCB_STATUS_CNA  0x2000 /* CU left active state */
 #define SCB_STATUS_RNR  0x1000 /* RU left active state */
 
+#define SCB_COMMAND_ACK_MASK \
+        (SCB_STATUS_CX | SCB_STATUS_FR | SCB_STATUS_CNA | SCB_STATUS_RNR)
+
 #define CU_IDLE         0
 #define CU_SUSPENDED    1
 #define CU_ACTIVE       2
@@ -348,14 +351,7 @@ static void examine_scb(I82596State *s)
     /* and clear the scb command word */
     set_uint16(s->scb + 2, 0);
 
-    if (command & BIT(31))      /* ACK-CX */
-        s->scb_status &= ~SCB_STATUS_CX;
-    if (command & BIT(30))      /*ACK-FR */
-        s->scb_status &= ~SCB_STATUS_FR;
-    if (command & BIT(29))      /*ACK-CNA */
-        s->scb_status &= ~SCB_STATUS_CNA;
-    if (command & BIT(28))      /*ACK-RNR */
-        s->scb_status &= ~SCB_STATUS_RNR;
+    s->scb_status &= ~(command & SCB_COMMAND_ACK_MASK);
 
     switch (cuc) {
     case 0:     /* no change */
@@ -474,23 +470,23 @@ void i82596_h_reset(void *opaque)
     i82596_s_reset(s);
 }
 
-int i82596_can_receive(NetClientState *nc)
+bool i82596_can_receive(NetClientState *nc)
 {
     I82596State *s = qemu_get_nic_opaque(nc);
 
     if (s->rx_status == RX_SUSPENDED) {
-        return 0;
+        return false;
     }
 
     if (!s->lnkst) {
-        return 0;
+        return false;
     }
 
     if (USE_TIMER && !timer_pending(s->flush_queue_timer)) {
-        return 1;
+        return true;
     }
 
-    return 1;
+    return true;
 }
 
 #define MIN_BUF_SIZE 60
@@ -501,7 +497,8 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
     uint32_t rfd_p;
     uint32_t rbd;
     uint16_t is_broadcast = 0;
-    size_t len = sz;
+    size_t len = sz; /* length of data for guest (including CRC) */
+    size_t bufsz = sz; /* length of data in buf */
     uint32_t crc;
     uint8_t *crc_ptr;
     uint8_t buf1[MIN_BUF_SIZE + VLAN_HLEN];
@@ -595,6 +592,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
         if (len < MIN_BUF_SIZE) {
             len = MIN_BUF_SIZE;
         }
+        bufsz = len;
     }
 
     /* Calculate the ethernet checksum (4 bytes) */
@@ -627,6 +625,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
         while (len) {
             uint16_t buffer_size, num;
             uint32_t rba;
+            size_t bufcount, crccount;
 
             /* printf("Receive: rbd is %08x\n", rbd); */
             buffer_size = get_uint16(rbd + 12);
@@ -639,14 +638,37 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
             }
             rba = get_uint32(rbd + 8);
             /* printf("rba is 0x%x\n", rba); */
-            address_space_write(&address_space_memory, rba,
-                                MEMTXATTRS_UNSPECIFIED, buf, num);
-            rba += num;
-            buf += num;
-            len -= num;
-            if (len == 0) { /* copy crc */
-                address_space_write(&address_space_memory, rba - 4,
-                                    MEMTXATTRS_UNSPECIFIED, crc_ptr, 4);
+            /*
+             * Calculate how many bytes we want from buf[] and how many
+             * from the CRC.
+             */
+            if ((len - num) >= 4) {
+                /* The whole guest buffer, we haven't hit the CRC yet */
+                bufcount = num;
+            } else {
+                /* All that's left of buf[] */
+                bufcount = len - 4;
+            }
+            crccount = num - bufcount;
+
+            if (bufcount > 0) {
+                /* Still some of the actual data buffer to transfer */
+                assert(bufsz >= bufcount);
+                bufsz -= bufcount;
+                address_space_write(&address_space_memory, rba,
+                                    MEMTXATTRS_UNSPECIFIED, buf, bufcount);
+                rba += bufcount;
+                buf += bufcount;
+                len -= bufcount;
+            }
+
+            /* Write as much of the CRC as fits */
+            if (crccount > 0) {
+                address_space_write(&address_space_memory, rba,
+                                    MEMTXATTRS_UNSPECIFIED, crc_ptr, crccount);
+                rba += crccount;
+                crc_ptr += crccount;
+                len -= crccount;
             }
 
             num |= 0x4000; /* set F BIT */

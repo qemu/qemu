@@ -349,12 +349,11 @@ static void open_eth_reset(void *opaque)
     open_eth_set_link_status(qemu_get_queue(s->nic));
 }
 
-static int open_eth_can_receive(NetClientState *nc)
+static bool open_eth_can_receive(NetClientState *nc)
 {
     OpenEthState *s = qemu_get_nic_opaque(nc);
 
-    return GET_REGBIT(s, MODER, RXEN) &&
-        (s->regs[TX_BD_NUM] < 0x80);
+    return GET_REGBIT(s, MODER, RXEN) && (s->regs[TX_BD_NUM] < 0x80);
 }
 
 static ssize_t open_eth_receive(NetClientState *nc,

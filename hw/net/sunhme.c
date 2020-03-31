@@ -657,11 +657,11 @@ static void sunhme_transmit(SunHMEState *s)
     sunhme_update_irq(s);
 }
 
-static int sunhme_can_receive(NetClientState *nc)
+static bool sunhme_can_receive(NetClientState *nc)
 {
     SunHMEState *s = qemu_get_nic_opaque(nc);
 
-    return s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_ENABLE;
+    return !!(s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_ENABLE);
 }
 
 static void sunhme_link_status_changed(NetClientState *nc)

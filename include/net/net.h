@@ -42,7 +42,7 @@ typedef struct NICConf {
 /* Net clients */
 
 typedef void (NetPoll)(NetClientState *, bool enable);
-typedef int (NetCanReceive)(NetClientState *);
+typedef bool (NetCanReceive)(NetClientState *);
 typedef ssize_t (NetReceive)(NetClientState *, const uint8_t *, size_t);
 typedef ssize_t (NetReceiveIOV)(NetClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (NetClientState *);

@@ -110,11 +110,11 @@ typedef struct SpaprVioVlan {
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
 } SpaprVioVlan;
 
-static int spapr_vlan_can_receive(NetClientState *nc)
+static bool spapr_vlan_can_receive(NetClientState *nc)
 {
     SpaprVioVlan *dev = qemu_get_nic_opaque(nc);
 
-    return (dev->isopen && dev->rx_bufs > 0);
+    return dev->isopen && dev->rx_bufs > 0;
 }
 
 /**

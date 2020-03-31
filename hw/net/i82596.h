@@ -48,7 +48,7 @@ void i82596_ioport_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t i82596_ioport_readl(void *opaque, uint32_t addr);
 uint32_t i82596_bcr_readw(I82596State *s, uint32_t rap);
 ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t size_);
-int i82596_can_receive(NetClientState *nc);
+bool i82596_can_receive(NetClientState *nc);
 void i82596_set_link_status(NetClientState *nc);
 void i82596_common_init(DeviceState *dev, I82596State *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_i82596;

@@ -505,7 +505,7 @@ static void phy_update_link(CadenceGEMState *s)
     }
 }
 
-static int gem_can_receive(NetClientState *nc)
+static bool gem_can_receive(NetClientState *nc)
 {
     CadenceGEMState *s;
     int i;
@@ -518,7 +518,7 @@ static int gem_can_receive(NetClientState *nc)
             s->can_rx_state = 1;
             DB_PRINT("can't receive - no enable\n");
         }
-        return 0;
+        return false;
     }
 
     for (i = 0; i < s->num_priority_queues; i++) {
@@ -532,14 +532,14 @@ static int gem_can_receive(NetClientState *nc)
             s->can_rx_state = 2;
             DB_PRINT("can't receive - all the buffer descriptors are busy\n");
         }
-        return 0;
+        return false;
     }
 
     if (s->can_rx_state != 0) {
         s->can_rx_state = 0;
         DB_PRINT("can receive\n");
     }
-    return 1;
+    return true;
 }
 
 /*

@@ -90,7 +90,7 @@ static NetHub *net_hub_new(int id)
     return hub;
 }
 
-static int net_hub_port_can_receive(NetClientState *nc)
+static bool net_hub_port_can_receive(NetClientState *nc)
 {
     NetHubPort *port;
     NetHubPort *src_port = DO_UPCAST(NetHubPort, nc, nc);
@@ -102,11 +102,11 @@ static int net_hub_port_can_receive(NetClientState *nc)
         }
 
         if (qemu_can_send_packet(&port->nc)) {
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 static ssize_t net_hub_port_receive(NetClientState *nc,

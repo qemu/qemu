@@ -433,7 +433,7 @@ static bool sungem_rx_full(SunGEMState *s, uint32_t kick, uint32_t done)
     return kick == ((done + 1) & s->rx_mask);
 }
 
-static int sungem_can_receive(NetClientState *nc)
+static bool sungem_can_receive(NetClientState *nc)
 {
     SunGEMState *s = qemu_get_nic_opaque(nc);
     uint32_t kick, done, rxdma_cfg, rxmac_cfg;
@@ -445,11 +445,11 @@ static int sungem_can_receive(NetClientState *nc)
     /* If MAC disabled, can't receive */
     if ((rxmac_cfg & MAC_RXCFG_ENAB) == 0) {
         trace_sungem_rx_mac_disabled();
-        return 0;
+        return false;
     }
     if ((rxdma_cfg & RXDMA_CFG_ENABLE) == 0) {
         trace_sungem_rx_txdma_disabled();
-        return 0;
+        return false;
     }
 
     /* Check RX availability */

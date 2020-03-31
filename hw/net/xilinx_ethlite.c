@@ -175,7 +175,7 @@ static const MemoryRegionOps eth_ops = {
     }
 };
 
-static int eth_can_rx(NetClientState *nc)
+static bool eth_can_rx(NetClientState *nc)
 {
     struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
     unsigned int rxbase = s->rxbuf * (0x800 / 4);

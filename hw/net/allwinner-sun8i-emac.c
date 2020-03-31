@@ -395,7 +395,7 @@ static void allwinner_sun8i_emac_flush_desc(FrameDescriptor *desc,
     cpu_physical_memory_write(phys_addr, desc, sizeof(*desc));
 }
 
-static int allwinner_sun8i_emac_can_receive(NetClientState *nc)
+static bool allwinner_sun8i_emac_can_receive(NetClientState *nc)
 {
     AwSun8iEmacState *s = qemu_get_nic_opaque(nc);
     FrameDescriptor desc;
@@ -611,10 +611,10 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
         value = s->mii_data;
         break;
     case REG_ADDR_HIGH:         /* MAC Address High */
-        value = *(((uint32_t *) (s->conf.macaddr.a)) + 1);
+        value = lduw_le_p(s->conf.macaddr.a + 4);
         break;
     case REG_ADDR_LOW:          /* MAC Address Low */
-        value = *(uint32_t *) (s->conf.macaddr.a);
+        value = ldl_le_p(s->conf.macaddr.a);
         break;
     case REG_TX_DMA_STA:        /* Transmit DMA Status */
         break;
@@ -728,14 +728,10 @@ static void allwinner_sun8i_emac_write(void *opaque, hwaddr offset,
         s->mii_data = value;
         break;
     case REG_ADDR_HIGH:         /* MAC Address High */
-        s->conf.macaddr.a[4] = (value & 0xff);
-        s->conf.macaddr.a[5] = (value & 0xff00) >> 8;
+        stw_le_p(s->conf.macaddr.a + 4, value);
         break;
     case REG_ADDR_LOW:          /* MAC Address Low */
-        s->conf.macaddr.a[0] = (value & 0xff);
-        s->conf.macaddr.a[1] = (value & 0xff00) >> 8;
-        s->conf.macaddr.a[2] = (value & 0xff0000) >> 16;
-        s->conf.macaddr.a[3] = (value & 0xff000000) >> 24;
+        stl_le_p(s->conf.macaddr.a, value);
         break;
     case REG_TX_DMA_STA:        /* Transmit DMA Status */
     case REG_TX_CUR_DESC:       /* Transmit Current Descriptor */
