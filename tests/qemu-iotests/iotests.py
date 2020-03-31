@@ -28,6 +28,7 @@ import signal
 import struct
 import subprocess
 import sys
+from typing import (Any, Callable, Dict, Iterable, List, Optional, TypeVar)
 import unittest
 
 # pylint: disable=import-error, wrong-import-position
@@ -354,9 +355,16 @@ def filter_qmp_imgfmt(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
-def log(msg, filters=(), indent=None):
-    '''Logs either a string message or a JSON serializable message (like QMP).
-    If indent is provided, JSON serializable messages are pretty-printed.'''
+
+Msg = TypeVar('Msg', Dict[str, Any], List[Any], str)
+
+def log(msg: Msg,
+        filters: Iterable[Callable[[Msg], Msg]] = (),
+        indent: Optional[int] = None) -> None:
+    """
+    Logs either a string message or a JSON serializable message (like QMP).
+    If indent is provided, JSON serializable messages are pretty-printed.
+    """
     for flt in filters:
         msg = flt(msg)
     if isinstance(msg, (dict, list)):
