@@ -1214,7 +1214,7 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "downtime_limit",
                    "an integer in the range of 0 to "
-                    stringify(MAX_MIGRATE_DOWNTIME)" milliseconds");
+                    stringify(MAX_MIGRATE_DOWNTIME)" ms");
         return false;
     }
 
