@@ -187,8 +187,10 @@ read 24576/24576 bytes at offset 491520
 24 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 516096
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 24576/24576 bytes at offset 524288
-24 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 524288
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 20480/20480 bytes at offset 528384
+20 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 548864
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 557056
@@ -199,8 +201,10 @@ read 24576/24576 bytes at offset 622592
 24 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 647168
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 24576/24576 bytes at offset 655360
-24 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4096/4096 bytes at offset 655360
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 20480/20480 bytes at offset 659456
+20 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 679936
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 8192/8192 bytes at offset 688128

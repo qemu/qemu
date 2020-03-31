@@ -160,18 +160,16 @@ TEST_IMG=$BACKING_IMG _make_test_img 1G
 
 $QEMU_IO -c 'write 0k 64k' "$BACKING_IMG" | _filter_qemu_io
 
-# compat=0.10 is required in order to make the following discard actually
-# unallocate the sector rather than make it a zero sector - we want COW, after
-# all.
-_make_test_img -o 'compat=0.10' -b "$BACKING_IMG" 1G
+_make_test_img -b "$BACKING_IMG" 1G
 # Write two clusters, the second one enforces creation of an L2 table after
 # the first data cluster.
 $QEMU_IO -c 'write 0k 64k' -c 'write 512M 64k' "$TEST_IMG" | _filter_qemu_io
-# Discard the first cluster. This cluster will soon enough be reallocated and
+# Free the first cluster. This cluster will soon enough be reallocated and
 # used for COW.
-$QEMU_IO -c 'discard 0k 64k' "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$l2_offset" "\x00\x00\x00\x00\x00\x00\x00\x00"
+poke_file "$TEST_IMG" "$(($rb_offset+10))" "\x00\x00"
 # Now, corrupt the image by marking the second L2 table cluster as free.
-poke_file "$TEST_IMG" '131084' "\x00\x00" # 0x2000c
+poke_file "$TEST_IMG" "$(($rb_offset+12))" "\x00\x00"
 # Start a write operation requiring COW on the image stopping it right before
 # doing the read; then, trigger the corruption prevention by writing anything to
 # any unallocated cluster, leading to an attempt to overwrite the second L2
