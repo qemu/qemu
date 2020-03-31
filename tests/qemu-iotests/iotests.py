@@ -1006,7 +1006,8 @@ def case_notrun(reason):
     open('%s/%s.casenotrun' % (output_dir, seq), 'a').write(
         '    [case not run] ' + reason + '\n')
 
-def verify_image_format(supported_fmts=(), unsupported_fmts=()):
+def _verify_image_format(supported_fmts: Sequence[str] = (),
+                         unsupported_fmts: Sequence[str] = ()) -> None:
     assert not (supported_fmts and unsupported_fmts)
 
     if 'generic' in supported_fmts and \
@@ -1020,7 +1021,8 @@ def verify_image_format(supported_fmts=(), unsupported_fmts=()):
     if not_sup or (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
 
-def verify_protocol(supported=(), unsupported=()):
+def _verify_protocol(supported: Sequence[str] = (),
+                     unsupported: Sequence[str] = ()) -> None:
     assert not (supported and unsupported)
 
     if 'generic' in supported:
@@ -1030,7 +1032,8 @@ def verify_protocol(supported=(), unsupported=()):
     if not_sup or (imgproto in unsupported):
         notrun('not suitable for this protocol: %s' % imgproto)
 
-def verify_platform(supported=(), unsupported=()):
+def _verify_platform(supported: Sequence[str] = (),
+                     unsupported: Sequence[str] = ()) -> None:
     if any((sys.platform.startswith(x) for x in unsupported)):
         notrun('not suitable for this OS: %s' % sys.platform)
 
@@ -1038,11 +1041,11 @@ def verify_platform(supported=(), unsupported=()):
         if not any((sys.platform.startswith(x) for x in supported)):
             notrun('not suitable for this OS: %s' % sys.platform)
 
-def verify_cache_mode(supported_cache_modes=()):
+def _verify_cache_mode(supported_cache_modes: Sequence[str] = ()) -> None:
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
-def verify_aio_mode(supported_aio_modes=()):
+def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()):
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
 
@@ -1170,11 +1173,11 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
         sys.stderr.write('Please run this test via the "check" script\n')
         sys.exit(os.EX_USAGE)
 
-    verify_image_format(supported_fmts, unsupported_fmts)
-    verify_protocol(supported_protocols, unsupported_protocols)
-    verify_platform(supported=supported_platforms)
-    verify_cache_mode(supported_cache_modes)
-    verify_aio_mode(supported_aio_modes)
+    _verify_image_format(supported_fmts, unsupported_fmts)
+    _verify_protocol(supported_protocols, unsupported_protocols)
+    _verify_platform(supported=supported_platforms)
+    _verify_cache_mode(supported_cache_modes)
+    _verify_aio_mode(supported_aio_modes)
 
     debug = '-d' in sys.argv
     if debug:
