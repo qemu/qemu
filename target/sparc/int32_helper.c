@@ -23,9 +23,7 @@
 #include "exec/log.h"
 #include "sysemu/runstate.h"
 
-#define DEBUG_PCALL
 
-#ifdef DEBUG_PCALL
 static const char * const excp_names[0x80] = {
     [TT_TFAULT] = "Instruction Access Fault",
     [TT_ILL_INSN] = "Illegal Instruction",
@@ -58,7 +56,6 @@ static const char * const excp_names[0x80] = {
     [TT_DIV_ZERO] = "Division By Zero",
     [TT_NCP_INSN] = "Coprocessor Disabled",
 };
-#endif
 
 void sparc_cpu_do_interrupt(CPUState *cs)
 {
@@ -71,7 +68,6 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         cpu_get_psr(env);
     }
 
-#ifdef DEBUG_PCALL
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;
@@ -104,7 +100,6 @@ void sparc_cpu_do_interrupt(CPUState *cs)
 #endif
         count++;
     }
-#endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->psret == 0) {
         if (cs->exception_index == 0x80 &&
