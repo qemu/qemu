@@ -23,6 +23,8 @@ import os
 import iotests
 from iotests import log
 
+iotests.script_initialize()
+
 virtio_scsi_device = iotests.get_virtio_scsi_device()
 
 vm = iotests.VM()

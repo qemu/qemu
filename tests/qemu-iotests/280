@@ -22,9 +22,11 @@
 import iotests
 import os
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
-iotests.verify_protocol(supported=['file'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(
+    supported_fmts=['qcow2'],
+    supported_protocols=['file'],
+    supported_platforms=['linux'],
+)
 
 with iotests.FilePath('base') as base_path , \
      iotests.FilePath('top') as top_path, \

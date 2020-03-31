@@ -24,9 +24,10 @@
 import iotests
 from iotests import log, qemu_img, qemu_io, qemu_io_silent
 
-iotests.verify_platform(['linux'])
-iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk',
-                                            'vhdx', 'raw'])
+iotests.script_initialize(
+    supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk', 'vhdx', 'raw'],
+    supported_platforms=['linux'],
+)
 
 patterns = [("0x5d", "0",         "64k"),
             ("0xd5", "1M",        "64k"),

@@ -23,8 +23,8 @@
 import iotests
 import os
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
 
 with iotests.FilePath('img') as img_path, \
      iotests.FilePath('mig_fifo') as fifo, \

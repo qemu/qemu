@@ -24,7 +24,9 @@ import iotests
 from iotests import qemu_img_create, qemu_io_silent_check, file_path, \
         qemu_nbd_popen, log
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.script_initialize(
+    supported_fmts=['qcow2'],
+)
 
 disk_a, disk_b, nbd_sock = file_path('disk_a', 'disk_b', 'nbd-sock')
 nbd_uri = 'nbd+unix:///?socket=' + nbd_sock

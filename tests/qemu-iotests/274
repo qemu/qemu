@@ -21,8 +21,8 @@
 
 import iotests
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
 
 size_short = 1 * 1024 * 1024
 size_long = 2 * 1024 * 1024

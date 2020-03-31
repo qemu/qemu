@@ -28,7 +28,8 @@ import signal
 import struct
 import subprocess
 import sys
-from typing import (Any, Callable, Dict, Iterable, List, Optional, TypeVar)
+from typing import (Any, Callable, Dict, Iterable,
+                    List, Optional, Sequence, TypeVar)
 import unittest
 
 # pylint: disable=import-error, wrong-import-position
@@ -1029,12 +1030,11 @@ def verify_protocol(supported=(), unsupported=()):
     if not_sup or (imgproto in unsupported):
         notrun('not suitable for this protocol: %s' % imgproto)
 
-def verify_platform(supported=None, unsupported=None):
-    if unsupported is not None:
-        if any((sys.platform.startswith(x) for x in unsupported)):
-            notrun('not suitable for this OS: %s' % sys.platform)
+def verify_platform(supported=(), unsupported=()):
+    if any((sys.platform.startswith(x) for x in unsupported)):
+        notrun('not suitable for this OS: %s' % sys.platform)
 
-    if supported is not None:
+    if supported:
         if not any((sys.platform.startswith(x) for x in supported)):
             notrun('not suitable for this OS: %s' % sys.platform)
 
@@ -1116,7 +1116,18 @@ def skip_if_user_is_root(func):
             return func(*args, **kwargs)
     return func_wrapper
 
-def execute_unittest(output, verbosity, debug):
+def execute_unittest(debug=False):
+    """Executes unittests within the calling module."""
+
+    verbosity = 2 if debug else 1
+
+    if debug:
+        output = sys.stdout
+    else:
+        # We need to filter out the time taken from the output so that
+        # qemu-iotest can reliably diff the results against master output.
+        output = io.StringIO()
+
     runner = unittest.TextTestRunner(stream=output, descriptions=True,
                                      verbosity=verbosity)
     try:
@@ -1124,6 +1135,8 @@ def execute_unittest(output, verbosity, debug):
         # exception
         unittest.main(testRunner=runner)
     finally:
+        # We need to filter out the time taken from the output so that
+        # qemu-iotest can reliably diff the results against master output.
         if not debug:
             out = output.getvalue()
             out = re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', out)
@@ -1135,13 +1148,19 @@ def execute_unittest(output, verbosity, debug):
 
             sys.stderr.write(out)
 
-def execute_test(test_function=None,
-                 supported_fmts=(),
-                 supported_platforms=None,
-                 supported_cache_modes=(), supported_aio_modes=(),
-                 unsupported_fmts=(), supported_protocols=(),
-                 unsupported_protocols=()):
-    """Run either unittest or script-style tests."""
+def execute_setup_common(supported_fmts: Sequence[str] = (),
+                         supported_platforms: Sequence[str] = (),
+                         supported_cache_modes: Sequence[str] = (),
+                         supported_aio_modes: Sequence[str] = (),
+                         unsupported_fmts: Sequence[str] = (),
+                         supported_protocols: Sequence[str] = (),
+                         unsupported_protocols: Sequence[str] = ()) -> bool:
+    """
+    Perform necessary setup for either script-style or unittest-style tests.
+
+    :return: Bool; Whether or not debug mode has been requested via the CLI.
+    """
+    # Note: Python 3.6 and pylint do not like 'Collection' so use 'Sequence'.
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
     # indicate that we're not being run via "check". There may be
@@ -1151,34 +1170,39 @@ def execute_test(test_function=None,
         sys.stderr.write('Please run this test via the "check" script\n')
         sys.exit(os.EX_USAGE)
 
-    debug = '-d' in sys.argv
-    verbosity = 1
     verify_image_format(supported_fmts, unsupported_fmts)
     verify_protocol(supported_protocols, unsupported_protocols)
     verify_platform(supported=supported_platforms)
     verify_cache_mode(supported_cache_modes)
     verify_aio_mode(supported_aio_modes)
 
+    debug = '-d' in sys.argv
     if debug:
-        output = sys.stdout
-        verbosity = 2
         sys.argv.remove('-d')
-    else:
-        # We need to filter out the time taken from the output so that
-        # qemu-iotest can reliably diff the results against master output.
-        output = io.StringIO()
-
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
+    return debug
+
+def execute_test(*args, test_function=None, **kwargs):
+    """Run either unittest or script-style tests."""
+
+    debug = execute_setup_common(*args, **kwargs)
     if not test_function:
-        execute_unittest(output, verbosity, debug)
+        execute_unittest(debug)
     else:
         test_function()
 
+# This is called from script-style iotests without a single point of entry
+def script_initialize(*args, **kwargs):
+    """Initialize script-style tests without running any tests."""
+    execute_setup_common(*args, **kwargs)
+
+# This is called from script-style iotests with a single point of entry
 def script_main(test_function, *args, **kwargs):
     """Run script-style tests outside of the unittest framework"""
-    execute_test(test_function, *args, **kwargs)
+    execute_test(*args, test_function=test_function, **kwargs)
 
+# This is called from unittest style iotests
 def main(*args, **kwargs):
     """Run tests using the unittest framework"""
-    execute_test(None, *args, **kwargs)
+    execute_test(*args, **kwargs)

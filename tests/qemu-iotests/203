@@ -24,8 +24,8 @@
 
 import iotests
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
 
 with iotests.FilePath('disk0.img') as disk0_img_path, \
      iotests.FilePath('disk1.img') as disk1_img_path, \

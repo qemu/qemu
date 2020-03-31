@@ -25,8 +25,10 @@ from iotests import log, qemu_img, filter_testfiles, filter_imgfmt, \
         filter_qmp_testfiles, filter_qmp_imgfmt
 
 # Need backing file and change-backing-file support
-iotests.verify_image_format(supported_fmts=['qcow2', 'qed'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(
+    supported_fmts=['qcow2', 'qed'],
+    supported_platforms=['linux'],
+)
 
 
 def log_node_info(node):

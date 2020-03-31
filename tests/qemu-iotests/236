@@ -22,7 +22,7 @@
 import iotests
 from iotests import log
 
-iotests.verify_image_format(supported_fmts=['generic'])
+iotests.script_initialize(supported_fmts=['generic'])
 size = 64 * 1024 * 1024
 granularity = 64 * 1024
 

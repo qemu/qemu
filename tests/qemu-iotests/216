@@ -23,8 +23,8 @@ import iotests
 from iotests import log, qemu_img, qemu_io_silent
 
 # Need backing file support
-iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk'],
+                          supported_platforms=['linux'])
 
 log('')
 log('=== Copy-on-read across nodes ===')

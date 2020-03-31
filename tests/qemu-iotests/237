@@ -24,7 +24,7 @@ import math
 import iotests
 from iotests import imgfmt
 
-iotests.verify_image_format(supported_fmts=['vmdk'])
+iotests.script_initialize(supported_fmts=['vmdk'])
 
 with iotests.FilePath('t.vmdk') as disk_path, \
      iotests.FilePath('t.vmdk.1') as extent1_path, \

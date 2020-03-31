@@ -23,8 +23,10 @@
 import iotests
 from iotests import imgfmt
 
-iotests.verify_image_format(supported_fmts=['vdi'])
-iotests.verify_protocol(supported=['file'])
+iotests.script_initialize(
+    supported_fmts=['vdi'],
+    supported_protocols=['file'],
+)
 
 def blockdev_create(vm, options):
     error = vm.blockdev_create(options)

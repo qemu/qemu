@@ -22,7 +22,7 @@
 import iotests
 from iotests import log
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'])
 size = 64 * 1024 * 1024 * 1024
 gran_small = 32 * 1024
 gran_large = 128 * 1024

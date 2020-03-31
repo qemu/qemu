@@ -27,6 +27,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 
 from qemu.machine import QEMUMachine
 
+iotests.script_initialize(supported_fmts=['qcow2'])
+
 # Note:
 # This test was added to check that mirror dead-lock was fixed (see previous
 # commit before this test addition).
@@ -39,8 +41,6 @@ from qemu.machine import QEMUMachine
 # 4. add iothread
 
 size = 1 * 1024 * 1024 * 1024
-
-iotests.verify_image_format(supported_fmts=['qcow2'])
 
 disk = file_path('disk')
 

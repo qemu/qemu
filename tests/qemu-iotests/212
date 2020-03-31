@@ -23,8 +23,10 @@
 import iotests
 from iotests import imgfmt
 
-iotests.verify_image_format(supported_fmts=['parallels'])
-iotests.verify_protocol(supported=['file'])
+iotests.script_initialize(
+    supported_fmts=['parallels'],
+    supported_protocols=['file'],
+)
 
 with iotests.FilePath('t.parallels') as disk_path, \
      iotests.VM() as vm:
