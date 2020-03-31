@@ -57,6 +57,14 @@ static const char * const excp_names[0x80] = {
     [TT_NCP_INSN] = "Coprocessor Disabled",
 };
 
+static const char *excp_name_str(int32_t exception_index)
+{
+    if (exception_index < 0 || exception_index >= ARRAY_SIZE(excp_names)) {
+        return "Unknown";
+    }
+    return excp_names[exception_index];
+}
+
 void sparc_cpu_do_interrupt(CPUState *cs)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
@@ -77,10 +85,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         } else if (intno >= 0x80) {
             name = "Trap Instruction";
         } else {
-            name = excp_names[intno];
-            if (!name) {
-                name = "Unknown";
-            }
+            name = excp_name_str(intno);
         }
 
         qemu_log("%6d: %s (v=%02x)\n", count, name, intno);
@@ -106,8 +111,9 @@ void sparc_cpu_do_interrupt(CPUState *cs)
             env->def.features & CPU_FEATURE_TA0_SHUTDOWN) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         } else {
-            cpu_abort(cs, "Trap 0x%02x while interrupts disabled, Error state",
-                      cs->exception_index);
+            cpu_abort(cs, "Trap 0x%02x (%s) while interrupts disabled, "
+                          "Error state",
+                      cs->exception_index, excp_name_str(cs->exception_index));
         }
         return;
     }
