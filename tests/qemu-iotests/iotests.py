@@ -486,21 +486,21 @@ class VM(qtest.QEMUQtestMachine):
         self._args.append(opts)
         return self
 
-    def add_drive(self, path, opts='', interface='virtio', format=imgfmt):
+    def add_drive(self, path, opts='', interface='virtio', img_format=imgfmt):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=%s' % interface,
                    'id=drive%d' % self._num_drives]
 
         if path is not None:
             options.append('file=%s' % path)
-            options.append('format=%s' % format)
+            options.append('format=%s' % img_format)
             options.append('cache=%s' % cachemode)
             options.append('aio=%s' % aiomode)
 
         if opts:
             options.append(opts)
 
-        if format == 'luks' and 'key-secret' not in opts:
+        if img_format == 'luks' and 'key-secret' not in opts:
             # default luks support
             if luks_default_secret_object not in self._args:
                 self.add_object(luks_default_secret_object)
