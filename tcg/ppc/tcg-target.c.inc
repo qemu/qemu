@@ -912,31 +912,41 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     }
 }
 
-static void tcg_out_dupi_vec(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long val)
+static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg ret, int64_t val)
 {
     uint32_t load_insn;
     int rel, low;
     intptr_t add;
 
-    low = (int8_t)val;
-    if (low >= -16 && low < 16) {
-        if (val == (tcg_target_long)dup_const(MO_8, low)) {
+    switch (vece) {
+    case MO_8:
+        low = (int8_t)val;
+        if (low >= -16 && low < 16) {
             tcg_out32(s, VSPLTISB | VRT(ret) | ((val & 31) << 16));
             return;
         }
-        if (val == (tcg_target_long)dup_const(MO_16, low)) {
+        if (have_isa_3_00) {
+            tcg_out32(s, XXSPLTIB | VRT(ret) | ((val & 0xff) << 11));
+            return;
+        }
+        break;
+
+    case MO_16:
+        low = (int16_t)val;
+        if (low >= -16 && low < 16) {
             tcg_out32(s, VSPLTISH | VRT(ret) | ((val & 31) << 16));
             return;
         }
-        if (val == (tcg_target_long)dup_const(MO_32, low)) {
+        break;
+
+    case MO_32:
+        low = (int32_t)val;
+        if (low >= -16 && low < 16) {
             tcg_out32(s, VSPLTISW | VRT(ret) | ((val & 31) << 16));
             return;
         }
-    }
-    if (have_isa_3_00 && val == (tcg_target_long)dup_const(MO_8, val)) {
-        tcg_out32(s, XXSPLTIB | VRT(ret) | ((val & 0xff) << 11));
-        return;
+        break;
     }
 
     /*
@@ -956,14 +966,15 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, TCGReg ret,
         if (TCG_TARGET_REG_BITS == 64) {
             new_pool_label(s, val, rel, s->code_ptr, add);
         } else {
-            new_pool_l2(s, rel, s->code_ptr, add, val, val);
+            new_pool_l2(s, rel, s->code_ptr, add, val >> 32, val);
         }
     } else {
         load_insn = LVX | VRT(ret) | RB(TCG_REG_TMP1);
         if (TCG_TARGET_REG_BITS == 64) {
             new_pool_l2(s, rel, s->code_ptr, add, val, val);
         } else {
-            new_pool_l4(s, rel, s->code_ptr, add, val, val, val, val);
+            new_pool_l4(s, rel, s->code_ptr, add,
+                        val >> 32, val, val >> 32, val);
         }
     }
 

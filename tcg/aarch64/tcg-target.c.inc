@@ -857,14 +857,14 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
     tcg_out_insn_3404(s, insn, ext, rd, rn, ext, r, c);
 }
 
-static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
-                             TCGReg rd, tcg_target_long v64)
+static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg rd, int64_t v64)
 {
     bool q = type == TCG_TYPE_V128;
     int cmode, imm8, i;
 
     /* Test all bytes equal first.  */
-    if (v64 == dup_const(MO_8, v64)) {
+    if (vece == MO_8) {
         imm8 = (uint8_t)v64;
         tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0xe, imm8);
         return;
@@ -891,7 +891,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
      * cannot find an expansion there's no point checking a larger
      * width because we already know by replication it cannot match.
      */
-    if (v64 == dup_const(MO_16, v64)) {
+    if (vece == MO_16) {
         uint16_t v16 = v64;
 
         if (is_shimm16(v16, &cmode, &imm8)) {
@@ -910,7 +910,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
         tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0x8, v16 & 0xff);
         tcg_out_insn(s, 3606, ORR, q, rd, 0, 0xa, v16 >> 8);
         return;
-    } else if (v64 == dup_const(MO_32, v64)) {
+    } else if (vece == MO_32) {
         uint32_t v32 = v64;
         uint32_t n32 = ~v32;
 
@@ -2435,7 +2435,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                         tcg_out_insn_3617(s, insn, is_q, vece, a0, a1);
                         break;
                     }
-                    tcg_out_dupi_vec(s, type, TCG_VEC_TMP, 0);
+                    tcg_out_dupi_vec(s, type, MO_8, TCG_VEC_TMP, 0);
                     a2 = TCG_VEC_TMP;
                 }
                 insn = cmp_insn[cond];
