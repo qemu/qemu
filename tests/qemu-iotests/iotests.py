@@ -30,6 +30,7 @@ import io
 from collections import OrderedDict
 import faulthandler
 
+# pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qtest
 
