@@ -16,19 +16,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
-import re
-import subprocess
-import unittest
-import sys
-import struct
-import json
-import signal
-import logging
 import atexit
-import io
 from collections import OrderedDict
 import faulthandler
+import io
+import json
+import logging
+import os
+import re
+import signal
+import struct
+import subprocess
+import sys
+import unittest
 
 # pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
