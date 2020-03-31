@@ -18,5 +18,9 @@ disable=invalid-name,
         too-many-locals,
         too-many-public-methods,
         # These are temporary, and should be removed:
-        line-too-long,
         missing-docstring,
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=79
