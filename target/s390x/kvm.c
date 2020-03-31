@@ -1768,8 +1768,10 @@ static int handle_tsch(S390CPU *cpu)
 
 static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
 {
+    const MachineState *ms = MACHINE(qdev_get_machine());
+    uint16_t conf_cpus = 0, reserved_cpus = 0;
     SysIB_322 sysib;
-    int del;
+    int del, i;
 
     if (s390_cpu_virt_mem_read(cpu, addr, ar, &sysib, sizeof(sysib))) {
         return;
@@ -1789,6 +1791,19 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
         memset(sysib.ext_names[del], 0,
                sizeof(sysib.ext_names[0]) * (sysib.count - del));
     }
+
+    /* count the cpus and split them into configured and reserved ones */
+    for (i = 0; i < ms->possible_cpus->len; i++) {
+        if (ms->possible_cpus->cpus[i].cpu) {
+            conf_cpus++;
+        } else {
+            reserved_cpus++;
+        }
+    }
+    sysib.vm[0].total_cpus = conf_cpus + reserved_cpus;
+    sysib.vm[0].conf_cpus = conf_cpus;
+    sysib.vm[0].reserved_cpus = reserved_cpus;
+
     /* Insert short machine name in EBCDIC, padded with blanks */
     if (qemu_name) {
         memset(sysib.vm[0].name, 0x40, sizeof(sysib.vm[0].name));
