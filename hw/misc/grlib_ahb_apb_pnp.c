@@ -136,8 +136,15 @@ static uint64_t grlib_ahb_pnp_read(void *opaque, hwaddr offset, unsigned size)
     return ahb_pnp->regs[offset >> 2];
 }
 
+static void grlib_ahb_pnp_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
+}
+
 static const MemoryRegionOps grlib_ahb_pnp_ops = {
     .read       = grlib_ahb_pnp_read,
+    .write      = grlib_ahb_pnp_write,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
