@@ -1297,7 +1297,7 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
      * but pcms->acpi_dev is still created. Check !acpi_enabled in
      * addition to cover this case.
      */
-    if (!pcms->acpi_dev || !acpi_enabled) {
+    if (!pcms->acpi_dev || !x86_machine_is_acpi_enabled(X86_MACHINE(pcms))) {
         error_setg(errp,
                    "memory hotplug is not enabled: missing acpi device or acpi disabled");
         return;
@@ -1351,7 +1351,7 @@ static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
      * but pcms->acpi_dev is still created. Check !acpi_enabled in
      * addition to cover this case.
      */
-    if (!pcms->acpi_dev || !acpi_enabled) {
+    if (!pcms->acpi_dev || !x86_machine_is_acpi_enabled(X86_MACHINE(pcms))) {
         error_setg(&local_err,
                    "memory hotplug is not enabled: missing acpi device or acpi disabled");
         goto out;

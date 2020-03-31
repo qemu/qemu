@@ -144,7 +144,6 @@ static Chardev **serial_hds;
 Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack = 0;
 int singlestep = 0;
-int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
@@ -3516,7 +3515,8 @@ void qemu_init(int argc, char **argv, char **envp)
                 vnc_parse(optarg, &error_fatal);
                 break;
             case QEMU_OPTION_no_acpi:
-                acpi_enabled = 0;
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse_noisily(olist, "acpi=off", false);
                 break;
             case QEMU_OPTION_no_hpet:
                 no_hpet = 1;

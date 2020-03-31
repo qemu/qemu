@@ -910,7 +910,7 @@ void virt_acpi_setup(VirtMachineState *vms)
         return;
     }
 
-    if (!acpi_enabled) {
+    if (!virt_is_acpi_enabled(vms)) {
         trace_virt_acpi_setup();
         return;
     }

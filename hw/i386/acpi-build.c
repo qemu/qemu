@@ -3024,7 +3024,7 @@ void acpi_setup(void)
         return;
     }
 
-    if (!acpi_enabled) {
+    if (!x86_machine_is_acpi_enabled(X86_MACHINE(pcms))) {
         ACPI_BUILD_DPRINTF("ACPI disabled. Bailing out.\n");
         return;
     }

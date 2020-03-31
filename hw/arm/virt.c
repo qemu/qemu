@@ -67,6 +67,7 @@
 #include "kvm_arm.h"
 #include "hw/firmware/smbios.h"
 #include "qapi/visitor.h"
+#include "qapi/qapi-visit-common.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
 #include "hw/acpi/acpi.h"
@@ -1844,7 +1845,7 @@ static void machvirt_init(MachineState *machine)
 
     create_pcie(vms);
 
-    if (has_ged && aarch64 && firmware_loaded && acpi_enabled) {
+    if (has_ged && aarch64 && firmware_loaded && virt_is_acpi_enabled(vms)) {
         vms->acpi_dev = create_acpi_ged(vms);
     } else {
         create_gpio(vms);
@@ -1932,6 +1933,31 @@ static void virt_set_its(Object *obj, bool value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     vms->its = value;
+}
+
+bool virt_is_acpi_enabled(VirtMachineState *vms)
+{
+    if (vms->acpi == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+    return true;
+}
+
+static void virt_get_acpi(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    OnOffAuto acpi = vms->acpi;
+
+    visit_type_OnOffAuto(v, name, &acpi, errp);
+}
+
+static void virt_set_acpi(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &vms->acpi, errp);
 }
 
 static char *virt_get_gic_version(Object *obj, Error **errp)
@@ -2113,7 +2139,7 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI)) {
         VirtMachineState *vms = VIRT_MACHINE(machine);
 
-        if (!vms->bootinfo.firmware_loaded || !acpi_enabled) {
+        if (!vms->bootinfo.firmware_loaded || !virt_is_acpi_enabled(vms)) {
             return HOTPLUG_HANDLER(machine);
         }
     }
@@ -2184,6 +2210,12 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->numa_mem_supported = true;
     mc->auto_enable_numa_with_memhp = true;
     mc->default_ram_id = "mach-virt.ram";
+
+    object_class_property_add(oc, "acpi", "OnOffAuto",
+        virt_get_acpi, virt_set_acpi,
+        NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, "acpi",
+        "Enable ACPI", &error_abort);
 }
 
 static void virt_instance_init(Object *obj)

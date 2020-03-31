@@ -904,11 +904,37 @@ static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &x86ms->smm, errp);
 }
 
+bool x86_machine_is_acpi_enabled(X86MachineState *x86ms)
+{
+    if (x86ms->acpi == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+    return true;
+}
+
+static void x86_machine_get_acpi(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    OnOffAuto acpi = x86ms->acpi;
+
+    visit_type_OnOffAuto(v, name, &acpi, errp);
+}
+
+static void x86_machine_set_acpi(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &x86ms->acpi, errp);
+}
+
 static void x86_machine_initfn(Object *obj)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
 
     x86ms->smm = ON_OFF_AUTO_AUTO;
+    x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->max_ram_below_4g = 0; /* use default */
     x86ms->smp_dies = 1;
 }
@@ -937,6 +963,12 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, X86_MACHINE_SMM,
         "Enable SMM", &error_abort);
+
+    object_class_property_add(oc, X86_MACHINE_ACPI, "OnOffAuto",
+        x86_machine_get_acpi, x86_machine_set_acpi,
+        NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, X86_MACHINE_ACPI,
+        "Enable ACPI", &error_abort);
 }
 
 static const TypeInfo x86_machine_info = {

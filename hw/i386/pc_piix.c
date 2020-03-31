@@ -275,7 +275,7 @@ static void pc_init1(MachineState *machine,
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
     }
 
-    if (pcmc->pci_enabled && acpi_enabled) {
+    if (pcmc->pci_enabled && x86_machine_is_acpi_enabled(X86_MACHINE(pcms))) {
         DeviceState *piix4_pm;
 
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);

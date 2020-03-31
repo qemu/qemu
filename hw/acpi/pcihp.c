@@ -154,7 +154,7 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
 
     trace_acpi_pci_eject_slot(bsel, slot);
 
-    if (!bus) {
+    if (!bus || slot > 31) {
         return;
     }
 

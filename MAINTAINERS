@@ -1634,6 +1634,15 @@ F: hw/virtio/trace-events
 F: net/vhost-user.c
 F: include/hw/virtio/
 
+virtio-balloon
+M: Michael S. Tsirkin <mst@redhat.com>
+M: David Hildenbrand <david@redhat.com>
+S: Maintained
+F: hw/virtio/virtio-balloon*.c
+F: include/hw/virtio/virtio-balloon.h
+F: balloon.c
+F: include/sysemu/balloon.h
+
 virtio-9p
 M: Greg Kurz <groug@kaod.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>

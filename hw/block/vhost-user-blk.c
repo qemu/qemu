@@ -349,18 +349,6 @@ static void vhost_user_blk_disconnect(DeviceState *dev)
     vhost_dev_cleanup(&s->dev);
 }
 
-static gboolean vhost_user_blk_watch(GIOChannel *chan, GIOCondition cond,
-                                     void *opaque)
-{
-    DeviceState *dev = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VHostUserBlk *s = VHOST_USER_BLK(vdev);
-
-    qemu_chr_fe_disconnect(&s->chardev);
-
-    return true;
-}
-
 static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 {
     DeviceState *dev = opaque;
@@ -373,15 +361,9 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
             qemu_chr_fe_disconnect(&s->chardev);
             return;
         }
-        s->watch = qemu_chr_fe_add_watch(&s->chardev, G_IO_HUP,
-                                         vhost_user_blk_watch, dev);
         break;
     case CHR_EVENT_CLOSED:
         vhost_user_blk_disconnect(dev);
-        if (s->watch) {
-            g_source_remove(s->watch);
-            s->watch = 0;
-        }
         break;
     case CHR_EVENT_BREAK:
     case CHR_EVENT_MUX_IN:
@@ -428,7 +410,6 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 
     s->inflight = g_new0(struct vhost_inflight, 1);
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
-    s->watch = 0;
     s->connected = false;
 
     qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL, vhost_user_blk_event,
