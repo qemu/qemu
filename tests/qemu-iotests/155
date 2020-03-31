@@ -188,7 +188,7 @@ class MirrorBaseClass(BaseClass):
 
         self.assert_qmp(result, 'return', {})
 
-        self.vm.run_job('mirror-job', use_log=False, auto_finalize=False,
+        self.vm.run_job('mirror-job', auto_finalize=False,
                         pre_finalize=self.openBacking, auto_dismiss=True)
 
     def testFull(self):
