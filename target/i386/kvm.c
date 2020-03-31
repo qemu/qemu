@@ -106,6 +106,7 @@ static bool has_msr_arch_capabs;
 static bool has_msr_core_capabs;
 static bool has_msr_vmx_vmfunc;
 static bool has_msr_ucode_rev;
+static bool has_msr_vmx_procbased_ctls2;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -490,21 +491,28 @@ uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
     value = msr_data.entries[0].data;
     switch (index) {
     case MSR_IA32_VMX_PROCBASED_CTLS2:
-        /* KVM forgot to add these bits for some time, do this ourselves.  */
-        if (kvm_arch_get_supported_cpuid(s, 0xD, 1, R_ECX) & CPUID_XSAVE_XSAVES) {
-            value |= (uint64_t)VMX_SECONDARY_EXEC_XSAVES << 32;
-        }
-        if (kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX) & CPUID_EXT_RDRAND) {
-            value |= (uint64_t)VMX_SECONDARY_EXEC_RDRAND_EXITING << 32;
-        }
-        if (kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX) & CPUID_7_0_EBX_INVPCID) {
-            value |= (uint64_t)VMX_SECONDARY_EXEC_ENABLE_INVPCID << 32;
-        }
-        if (kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX) & CPUID_7_0_EBX_RDSEED) {
-            value |= (uint64_t)VMX_SECONDARY_EXEC_RDSEED_EXITING << 32;
-        }
-        if (kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX) & CPUID_EXT2_RDTSCP) {
-            value |= (uint64_t)VMX_SECONDARY_EXEC_RDTSCP << 32;
+        if (!has_msr_vmx_procbased_ctls2) {
+            /* KVM forgot to add these bits for some time, do this ourselves. */
+            if (kvm_arch_get_supported_cpuid(s, 0xD, 1, R_ECX) &
+                CPUID_XSAVE_XSAVES) {
+                value |= (uint64_t)VMX_SECONDARY_EXEC_XSAVES << 32;
+            }
+            if (kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX) &
+                CPUID_EXT_RDRAND) {
+                value |= (uint64_t)VMX_SECONDARY_EXEC_RDRAND_EXITING << 32;
+            }
+            if (kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX) &
+                CPUID_7_0_EBX_INVPCID) {
+                value |= (uint64_t)VMX_SECONDARY_EXEC_ENABLE_INVPCID << 32;
+            }
+            if (kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX) &
+                CPUID_7_0_EBX_RDSEED) {
+                value |= (uint64_t)VMX_SECONDARY_EXEC_RDSEED_EXITING << 32;
+            }
+            if (kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX) &
+                CPUID_EXT2_RDTSCP) {
+                value |= (uint64_t)VMX_SECONDARY_EXEC_RDTSCP << 32;
+            }
         }
         /* fall through */
     case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
@@ -2059,6 +2067,9 @@ static int kvm_get_supported_msrs(KVMState *s)
                 break;
             case MSR_IA32_UCODE_REV:
                 has_msr_ucode_rev = true;
+                break;
+            case MSR_IA32_VMX_PROCBASED_CTLS2:
+                has_msr_vmx_procbased_ctls2 = true;
                 break;
             }
         }
