@@ -2411,12 +2411,10 @@ static uint64_t cirrus_linear_bitblt_read(void *opaque,
                                           unsigned size)
 {
     CirrusVGAState *s = opaque;
-    uint32_t ret;
 
     /* XXX handle bitblt */
     (void)s;
-    ret = 0xff;
-    return ret;
+    return 0xff;
 }
 
 static void cirrus_linear_bitblt_write(void *opaque,

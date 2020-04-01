@@ -411,8 +411,7 @@ int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s,
     if (ret < 0) {
         return ret;
     }
-    ret = vhdx_update_header(bs, s, generate_data_write_guid, log_guid);
-    return ret;
+    return vhdx_update_header(bs, s, generate_data_write_guid, log_guid);
 }
 
 /* opens the specified header block from the VHDX file header section */

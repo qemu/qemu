@@ -1617,13 +1617,12 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
     BDRVRawState *s G_GNUC_UNUSED = aiocb->bs->opaque;
-    int ret;
 
     /* First try to write zeros and unmap at the same time */
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
-    ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                       aiocb->aio_offset, aiocb->aio_nbytes);
+    int ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                           aiocb->aio_offset, aiocb->aio_nbytes);
     if (ret != -ENOTSUP) {
         return ret;
     }
@@ -1631,8 +1630,7 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
 
     /* If we couldn't manage to unmap while guaranteed that the area reads as
      * all-zero afterwards, just write zeroes without unmapping */
-    ret = handle_aiocb_write_zeroes(aiocb);
-    return ret;
+    return handle_aiocb_write_zeroes(aiocb);
 }
 
 #ifndef HAVE_COPY_FILE_RANGE
