@@ -680,6 +680,12 @@ static RegisterAccessInfo zdma_regs_info[] = {
     },{ .name = "ZDMA_CH_DBG0",  .addr = A_ZDMA_CH_DBG0,
         .rsvd = 0xfffffe00,
         .ro = 0x1ff,
+
+        /*
+         * There's SW out there that will check the debug regs for free space.
+         * Claim that we always have 0x100 free.
+         */
+        .reset = 0x100
     },{ .name = "ZDMA_CH_DBG1",  .addr = A_ZDMA_CH_DBG1,
         .rsvd = 0xfffffe00,
         .ro = 0x1ff,
