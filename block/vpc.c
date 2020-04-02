@@ -835,7 +835,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 
     /* Write the footer (twice: at the beginning and at the end) */
     block_size = 0x200000;
-    num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
+    num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
     ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
     if (ret < 0) {
