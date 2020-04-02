@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2018 Philippe Mathieu-Daudé
  *
- * This code is licensed under the GNU GPLv2 and later.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

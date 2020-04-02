@@ -19,6 +19,7 @@
 #include "sysemu/runstate.h"
 #include "migration/misc.h"
 #include "migration/global_state.h"
+#include "hw/boards.h"
 
 //#define DEBUG_XEN
 
@@ -151,6 +152,8 @@ static void xen_setup_post(MachineState *ms, AccelState *accel)
 
 static int xen_init(MachineState *ms)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
         xen_pv_printf(NULL, 0, "can't open xen interface\n");
@@ -170,6 +173,10 @@ static int xen_init(MachineState *ms)
         return -1;
     }
     qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
+    /*
+     * opt out of system RAM being allocated by generic code
+     */
+    mc->default_ram_id = NULL;
     return 0;
 }
 

@@ -285,10 +285,7 @@ void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
     v = qobject_input_visitor_new(QOBJECT(qdict));
     obj = user_creatable_add_type(type, id, qdict, v, errp);
     visit_free(v);
-    if (obj) {
-        object_unref(obj);
-    }
-    *ret_data = QOBJECT(qdict_new());
+    object_unref(obj);
 }
 
 void qmp_object_del(const char *id, Error **errp)

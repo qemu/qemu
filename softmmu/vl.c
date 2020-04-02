@@ -4137,6 +4137,9 @@ void qemu_init(int argc, char **argv, char **envp)
     machine_opts = qemu_get_machine_opts();
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                      &error_fatal);
+    current_machine->ram_size = ram_size;
+    current_machine->maxram_size = maxram_size;
+    current_machine->ram_slots = ram_slots;
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
@@ -4298,6 +4301,11 @@ void qemu_init(int argc, char **argv, char **envp)
 
         backend = object_resolve_path_type(current_machine->ram_memdev_id,
                                            TYPE_MEMORY_BACKEND, NULL);
+        if (!backend) {
+            error_report("Memory backend '%s' not found",
+                         current_machine->ram_memdev_id);
+            exit(EXIT_FAILURE);
+        }
         backend_size = object_property_get_uint(backend, "size",  &error_abort);
         if (have_custom_ram_size && backend_size != ram_size) {
                 error_report("Size specified by -m option must match size of "
@@ -4314,10 +4322,6 @@ void qemu_init(int argc, char **argv, char **envp)
             exit(1);
         }
     }
-
-    current_machine->ram_size = ram_size;
-    current_machine->maxram_size = maxram_size;
-    current_machine->ram_slots = ram_slots;
 
     parse_numa_opts(current_machine);
 
