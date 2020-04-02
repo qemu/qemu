@@ -185,6 +185,14 @@ uint64_t register_read_memory(void *opaque, hwaddr addr, unsigned size);
  *          memory region (r_array->mem) the caller should add to a container.
  */
 
+RegisterInfoArray *register_init_block8(DeviceState *owner,
+                                        const RegisterAccessInfo *rae,
+                                        int num, RegisterInfo *ri,
+                                        uint8_t *data,
+                                        const MemoryRegionOps *ops,
+                                        bool debug_enabled,
+                                        uint64_t memory_size);
+
 RegisterInfoArray *register_init_block32(DeviceState *owner,
                                          const RegisterAccessInfo *rae,
                                          int num, RegisterInfo *ri,
