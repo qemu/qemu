@@ -514,7 +514,6 @@ static void zdma_process_descr(XlnxZDMA *s)
     if (ptype == PT_REG || src_cmd == CMD_STOP) {
         ARRAY_FIELD_DP32(s->regs, ZDMA_CH_CTRL2, EN, 0);
         zdma_set_state(s, DISABLED);
-        return;
     }
 
     if (src_cmd == CMD_HALT) {
