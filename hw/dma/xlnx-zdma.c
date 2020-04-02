@@ -333,10 +333,28 @@ static void zdma_load_src_descriptor(XlnxZDMA *s)
     }
 }
 
+static void zdma_update_descr_addr(XlnxZDMA *s, bool type,
+                                   unsigned int basereg)
+{
+    uint64_t addr, next;
+
+    if (type == DTYPE_LINEAR) {
+        addr = zdma_get_regaddr64(s, basereg);
+        next = addr + sizeof(s->dsc_dst);
+    } else {
+        addr = zdma_get_regaddr64(s, basereg);
+        addr += sizeof(s->dsc_dst);
+        address_space_read(s->dma_as, addr, s->attr, (void *) &next, 8);
+    }
+
+    zdma_put_regaddr64(s, basereg, next);
+}
+
 static void zdma_load_dst_descriptor(XlnxZDMA *s)
 {
     uint64_t dst_addr;
     unsigned int ptype = ARRAY_FIELD_EX32(s->regs, ZDMA_CH_CTRL0, POINT_TYPE);
+    bool dst_type;
 
     if (ptype == PT_REG) {
         memcpy(&s->dsc_dst, &s->regs[R_ZDMA_CH_DST_DSCR_WORD0],
@@ -349,24 +367,10 @@ static void zdma_load_dst_descriptor(XlnxZDMA *s)
     if (!zdma_load_descriptor(s, dst_addr, &s->dsc_dst)) {
         ARRAY_FIELD_DP32(s->regs, ZDMA_CH_ISR, AXI_RD_DST_DSCR, true);
     }
-}
 
-static uint64_t zdma_update_descr_addr(XlnxZDMA *s, bool type,
-                                       unsigned int basereg)
-{
-    uint64_t addr, next;
-
-    if (type == DTYPE_LINEAR) {
-        next = zdma_get_regaddr64(s, basereg);
-        next += sizeof(s->dsc_dst);
-        zdma_put_regaddr64(s, basereg, next);
-    } else {
-        addr = zdma_get_regaddr64(s, basereg);
-        addr += sizeof(s->dsc_dst);
-        address_space_read(s->dma_as, addr, s->attr, &next, 8);
-        zdma_put_regaddr64(s, basereg, next);
-    }
-    return next;
+    /* Advance the descriptor pointer.  */
+    dst_type = FIELD_EX32(s->dsc_dst.words[3], ZDMA_CH_DST_DSCR_WORD3, TYPE);
+    zdma_update_descr_addr(s, dst_type, R_ZDMA_CH_DST_CUR_DSCR_LSB);
 }
 
 static void zdma_write_dst(XlnxZDMA *s, uint8_t *buf, uint32_t len)
@@ -387,14 +391,7 @@ static void zdma_write_dst(XlnxZDMA *s, uint8_t *buf, uint32_t len)
         dst_size = FIELD_EX32(s->dsc_dst.words[2], ZDMA_CH_DST_DSCR_WORD2,
                               SIZE);
         if (dst_size == 0 && ptype == PT_MEM) {
-            uint64_t next;
-            bool dst_type = FIELD_EX32(s->dsc_dst.words[3],
-                                       ZDMA_CH_DST_DSCR_WORD3,
-                                       TYPE);
-
-            next = zdma_update_descr_addr(s, dst_type,
-                                          R_ZDMA_CH_DST_CUR_DSCR_LSB);
-            zdma_load_descriptor(s, next, &s->dsc_dst);
+            zdma_load_dst_descriptor(s);
             dst_size = FIELD_EX32(s->dsc_dst.words[2], ZDMA_CH_DST_DSCR_WORD2,
                                   SIZE);
         }
