@@ -95,36 +95,36 @@ static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
     struct ibv_wc wc[2];
     RdmaProtectedGSList *cqe_ctx_list;
 
-    qemu_mutex_lock(&rdma_dev_res->lock);
-    do {
-        ne = ibv_poll_cq(ibcq, ARRAY_SIZE(wc), wc);
+    WITH_QEMU_LOCK_GUARD(&rdma_dev_res->lock) {
+        do {
+            ne = ibv_poll_cq(ibcq, ARRAY_SIZE(wc), wc);
 
-        trace_rdma_poll_cq(ne, ibcq);
+            trace_rdma_poll_cq(ne, ibcq);
 
-        for (i = 0; i < ne; i++) {
-            bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, wc[i].wr_id);
-            if (unlikely(!bctx)) {
-                rdma_error_report("No matching ctx for req %"PRId64,
-                                  wc[i].wr_id);
-                continue;
+            for (i = 0; i < ne; i++) {
+                bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, wc[i].wr_id);
+                if (unlikely(!bctx)) {
+                    rdma_error_report("No matching ctx for req %"PRId64,
+                                      wc[i].wr_id);
+                    continue;
+                }
+
+                comp_handler(bctx->up_ctx, &wc[i]);
+
+                if (bctx->backend_qp) {
+                    cqe_ctx_list = &bctx->backend_qp->cqe_ctx_list;
+                } else {
+                    cqe_ctx_list = &bctx->backend_srq->cqe_ctx_list;
+                }
+
+                rdma_protected_gslist_remove_int32(cqe_ctx_list, wc[i].wr_id);
+                rdma_rm_dealloc_cqe_ctx(rdma_dev_res, wc[i].wr_id);
+                g_free(bctx);
             }
-
-            comp_handler(bctx->up_ctx, &wc[i]);
-
-            if (bctx->backend_qp) {
-                cqe_ctx_list = &bctx->backend_qp->cqe_ctx_list;
-            } else {
-                cqe_ctx_list = &bctx->backend_srq->cqe_ctx_list;
-            }
-
-            rdma_protected_gslist_remove_int32(cqe_ctx_list, wc[i].wr_id);
-            rdma_rm_dealloc_cqe_ctx(rdma_dev_res, wc[i].wr_id);
-            g_free(bctx);
-        }
-        total_ne += ne;
-    } while (ne > 0);
-    atomic_sub(&rdma_dev_res->stats.missing_cqe, total_ne);
-    qemu_mutex_unlock(&rdma_dev_res->lock);
+            total_ne += ne;
+        } while (ne > 0);
+        atomic_sub(&rdma_dev_res->stats.missing_cqe, total_ne);
+    }
 
     if (ne < 0) {
         rdma_error_report("ibv_poll_cq fail, rc=%d, errno=%d", ne, errno);

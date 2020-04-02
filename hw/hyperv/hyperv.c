@@ -15,6 +15,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/lockable.h"
 #include "qemu/queue.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
@@ -491,7 +492,7 @@ int hyperv_set_msg_handler(uint32_t conn_id, HvMsgHandler handler, void *data)
     int ret;
     MsgHandler *mh;
 
-    qemu_mutex_lock(&handlers_mutex);
+    QEMU_LOCK_GUARD(&handlers_mutex);
     QLIST_FOREACH(mh, &msg_handlers, link) {
         if (mh->conn_id == conn_id) {
             if (handler) {
@@ -501,7 +502,7 @@ int hyperv_set_msg_handler(uint32_t conn_id, HvMsgHandler handler, void *data)
                 g_free_rcu(mh, rcu);
                 ret = 0;
             }
-            goto unlock;
+            return ret;
         }
     }
 
@@ -515,8 +516,7 @@ int hyperv_set_msg_handler(uint32_t conn_id, HvMsgHandler handler, void *data)
     } else {
         ret = -ENOENT;
     }
-unlock:
-    qemu_mutex_unlock(&handlers_mutex);
+
     return ret;
 }
 
@@ -565,7 +565,7 @@ static int set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
     int ret;
     EventFlagHandler *handler;
 
-    qemu_mutex_lock(&handlers_mutex);
+    QEMU_LOCK_GUARD(&handlers_mutex);
     QLIST_FOREACH(handler, &event_flag_handlers, link) {
         if (handler->conn_id == conn_id) {
             if (notifier) {
@@ -575,7 +575,7 @@ static int set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
                 g_free_rcu(handler, rcu);
                 ret = 0;
             }
-            goto unlock;
+            return ret;
         }
     }
 
@@ -588,8 +588,7 @@ static int set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
     } else {
         ret = -ENOENT;
     }
-unlock:
-    qemu_mutex_unlock(&handlers_mutex);
+
     return ret;
 }
 
