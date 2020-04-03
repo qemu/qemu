@@ -103,6 +103,27 @@ static void ppc_radix64_raise_si(PowerPCCPU *cpu, int rwx, vaddr eaddr,
     }
 }
 
+static void ppc_radix64_raise_hsi(PowerPCCPU *cpu, int rwx, vaddr eaddr,
+                                  hwaddr g_raddr, uint32_t cause)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    if (rwx == 2) { /* H Instruction Storage Interrupt */
+        cs->exception_index = POWERPC_EXCP_HISI;
+        env->spr[SPR_ASDR] = g_raddr;
+        env->error_code = cause;
+    } else { /* H Data Storage Interrupt */
+        cs->exception_index = POWERPC_EXCP_HDSI;
+        if (rwx == 1) { /* Write -> Store */
+            cause |= DSISR_ISSTORE;
+        }
+        env->spr[SPR_HDSISR] = cause;
+        env->spr[SPR_HDAR] = eaddr;
+        env->spr[SPR_ASDR] = g_raddr;
+        env->error_code = 0;
+    }
+}
 
 static bool ppc_radix64_check_prot(PowerPCCPU *cpu, int rwx, uint64_t pte,
                                    int *fault_cause, int *prot,
@@ -243,6 +264,37 @@ static bool validate_pate(PowerPCCPU *cpu, uint64_t lpid, ppc_v3_pate_t *pate)
     return true;
 }
 
+static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu, int rwx,
+                                              vaddr eaddr, hwaddr g_raddr,
+                                              ppc_v3_pate_t pate,
+                                              hwaddr *h_raddr, int *h_prot,
+                                              int *h_page_size, bool pde_addr,
+                                              bool cause_excp)
+{
+    int fault_cause = 0;
+    hwaddr pte_addr;
+    uint64_t pte;
+
+    *h_page_size = PRTBE_R_GET_RTS(pate.dw0);
+    /* No valid pte or access denied due to protection */
+    if (ppc_radix64_walk_tree(CPU(cpu)->as, g_raddr, pate.dw0 & PRTBE_R_RPDB,
+                              pate.dw0 & PRTBE_R_RPDS, h_raddr, h_page_size,
+                              &pte, &fault_cause, &pte_addr) ||
+        ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, h_prot, true)) {
+        if (pde_addr) /* address being translated was that of a guest pde */
+            fault_cause |= DSISR_PRTABLE_FAULT;
+        if (cause_excp) {
+            ppc_radix64_raise_hsi(cpu, rwx, eaddr, g_raddr, fault_cause);
+        }
+        return 1;
+    }
+
+    /* Update Reference and Change Bits */
+    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, h_prot);
+
+    return 0;
+}
+
 static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                             vaddr eaddr, uint64_t pid,
                                             ppc_v3_pate_t pate, hwaddr *g_raddr,
@@ -250,9 +302,10 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                             bool cause_excp)
 {
     CPUState *cs = CPU(cpu);
-    uint64_t offset, size, prtbe_addr, prtbe0, pte;
-    int fault_cause = 0;
-    hwaddr pte_addr;
+    CPUPPCState *env = &cpu->env;
+    uint64_t offset, size, prtbe_addr, prtbe0, base_addr, nls, index, pte;
+    int fault_cause = 0, h_page_size, h_prot;
+    hwaddr h_raddr, pte_addr;
     int ret;
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
@@ -266,18 +319,85 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
         return 1;
     }
     prtbe_addr = (pate.dw1 & PATE1_R_PRTB) + offset;
-    prtbe0 = ldq_phys(cs->as, prtbe_addr);
+
+    if (cpu->vhyp) {
+        prtbe0 = ldq_phys(cs->as, prtbe_addr);
+    } else {
+        /*
+         * Process table addresses are subject to partition-scoped
+         * translation
+         *
+         * On a Radix host, the partition-scoped page table for LPID=0
+         * is only used to translate the effective addresses of the
+         * process table entries.
+         */
+        ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, prtbe_addr,
+                                                 pate, &h_raddr, &h_prot,
+                                                 &h_page_size, 1, 1);
+        if (ret) {
+            return ret;
+        }
+        prtbe0 = ldq_phys(cs->as, h_raddr);
+    }
 
     /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
     *g_page_size = PRTBE_R_GET_RTS(prtbe0);
-    ret = ppc_radix64_walk_tree(cs->as, eaddr & R_EADDR_MASK,
-                                prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
-                                g_raddr, g_page_size, &pte, &fault_cause,
-                                &pte_addr);
+    base_addr = prtbe0 & PRTBE_R_RPDB;
+    nls = prtbe0 & PRTBE_R_RPDS;
+    if (msr_hv || cpu->vhyp) {
+        /*
+         * Can treat process table addresses as real addresses
+         */
+        ret = ppc_radix64_walk_tree(cs->as, eaddr & R_EADDR_MASK, base_addr,
+                                    nls, g_raddr, g_page_size, &pte,
+                                    &fault_cause, &pte_addr);
+        if (ret) {
+            /* No valid PTE */
+            if (cause_excp) {
+                ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
+            }
+            return ret;
+        }
+    } else {
+        uint64_t rpn, mask;
 
-    if (ret ||
-        ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, g_prot, false)) {
-        /* No valid pte or access denied due to protection */
+        index = (eaddr & R_EADDR_MASK) >> (*g_page_size - nls); /* Shift */
+        index &= ((1UL << nls) - 1);                            /* Mask */
+        pte_addr = base_addr + (index * sizeof(pte));
+
+        /*
+         * Each process table address is subject to a partition-scoped
+         * translation
+         */
+        do {
+            ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, pte_addr,
+                                                     pate, &h_raddr, &h_prot,
+                                                     &h_page_size, 1, 1);
+            if (ret) {
+                return ret;
+            }
+
+            ret = ppc_radix64_next_level(cs->as, eaddr & R_EADDR_MASK, &h_raddr,
+                                         &nls, g_page_size, &pte, &fault_cause);
+            if (ret) {
+                /* No valid pte */
+                if (cause_excp) {
+                    ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
+                }
+                return ret;
+            }
+            pte_addr = h_raddr;
+        } while (!(pte & R_PTE_LEAF));
+
+        rpn = pte & R_PTE_RPN;
+        mask = (1UL << *g_page_size) - 1;
+
+        /* Or high bits of rpn and low bits to ea to form whole real addr */
+        *g_raddr = (rpn & ~mask) | (eaddr & mask);
+    }
+
+    if (ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, g_prot, false)) {
+        /* Access denied due to protection */
         if (cause_excp) {
             ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
         }
@@ -289,11 +409,29 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
     return 0;
 }
 
+/*
+ * Radix tree translation is a 2 steps translation process:
+ *
+ * 1. Process-scoped translation:   Guest Eff Addr  -> Guest Real Addr
+ * 2. Partition-scoped translation: Guest Real Addr -> Host Real Addr
+ *
+ *                                  MSR[HV]
+ *              +-------------+----------------+---------------+
+ *              |             |     HV = 0     |     HV = 1    |
+ *              +-------------+----------------+---------------+
+ *              | Relocation  |    Partition   |      No       |
+ *              | = Off       |     Scoped     |  Translation  |
+ *  Relocation  +-------------+----------------+---------------+
+ *              | Relocation  |   Partition &  |    Process    |
+ *              | = On        | Process Scoped |    Scoped     |
+ *              +-------------+----------------+---------------+
+ */
 static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                              bool relocation,
                              hwaddr *raddr, int *psizep, int *protp,
                              bool cause_excp)
 {
+    CPUPPCState *env = &cpu->env;
     uint64_t lpid = 0, pid = 0;
     ppc_v3_pate_t pate;
     int psize, prot;
@@ -325,11 +463,6 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
             }
             return 1;
         }
-        /* We don't support guest mode yet */
-        if (lpid != 0) {
-            error_report("PowerNV guest support Unimplemented");
-            exit(1);
-        }
     }
 
     *psizep = INT_MAX;
@@ -340,6 +473,8 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
      *
      * - Translates an effective address to a host real address in
      *   quadrants 0 and 3 when HV=1.
+     *
+     * - Translates an effective address to a guest real address.
      */
     if (relocation) {
         int ret = ppc_radix64_process_scoped_xlate(cpu, rwx, eaddr, pid,
@@ -354,7 +489,30 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
         g_raddr = eaddr & R_EADDR_MASK;
     }
 
-    *raddr = g_raddr;
+    if (cpu->vhyp) {
+        *raddr = g_raddr;
+    } else {
+        /*
+         * Perform partition-scoped translation if !HV or HV access to
+         * quadrants 1 or 2. Translates a guest real address to a host
+         * real address.
+         */
+        if (lpid || !msr_hv) {
+            int ret;
+
+            ret = ppc_radix64_partition_scoped_xlate(cpu, rwx, eaddr, g_raddr,
+                                                     pate, raddr, &prot, &psize,
+                                                     0, cause_excp);
+            if (ret) {
+                return ret;
+            }
+            *psizep = MIN(*psizep, psize);
+            *protp &= prot;
+        } else {
+            *raddr = g_raddr;
+        }
+    }
+
     return 0;
 }
 
