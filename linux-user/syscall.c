@@ -117,6 +117,7 @@
 
 #include "qemu.h"
 #include "qemu/guest-random.h"
+#include "qemu/selfmap.h"
 #include "user/syscall-trace.h"
 #include "qapi/error.h"
 #include "fd-trans.h"
@@ -7232,44 +7233,44 @@ static int open_self_maps(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
     TaskState *ts = cpu->opaque;
-    FILE *fp;
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t read;
+    GSList *map_info = read_self_maps();
+    GSList *s;
 
-    fp = fopen("/proc/self/maps", "r");
-    if (fp == NULL) {
-        return -1;
-    }
+    for (s = map_info; s; s = g_slist_next(s)) {
+        MapInfo *e = (MapInfo *) s->data;
 
-    while ((read = getline(&line, &len, fp)) != -1) {
-        int fields, dev_maj, dev_min, inode;
-        uint64_t min, max, offset;
-        char flag_r, flag_w, flag_x, flag_p;
-        char path[512] = "";
-        fields = sscanf(line, "%"PRIx64"-%"PRIx64" %c%c%c%c %"PRIx64" %x:%x %d"
-                        " %512s", &min, &max, &flag_r, &flag_w, &flag_x,
-                        &flag_p, &offset, &dev_maj, &dev_min, &inode, path);
-
-        if ((fields < 10) || (fields > 11)) {
-            continue;
-        }
-        if (h2g_valid(min)) {
+        if (h2g_valid(e->start)) {
+            unsigned long min = e->start;
+            unsigned long max = e->end;
             int flags = page_get_flags(h2g(min));
-            max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
+            const char *path;
+
+            max = h2g_valid(max - 1) ?
+                max : (uintptr_t) g2h(GUEST_ADDR_MAX) + 1;
+
             if (page_check_range(h2g(min), max - min, flags) == -1) {
                 continue;
             }
+
             if (h2g(min) == ts->info->stack_limit) {
-                pstrcpy(path, sizeof(path), "      [stack]");
+                path = "      [stack]";
+            } else {
+                path = e->path;
             }
+
             dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
-                    " %c%c%c%c %08" PRIx64 " %02x:%02x %d %s%s\n",
-                    h2g(min), h2g(max - 1) + 1, flag_r, flag_w,
-                    flag_x, flag_p, offset, dev_maj, dev_min, inode,
-                    path[0] ? "         " : "", path);
+                    " %c%c%c%c %08" PRIx64 " %s %"PRId64" %s%s\n",
+                    h2g(min), h2g(max - 1) + 1,
+                    e->is_read ? 'r' : '-',
+                    e->is_write ? 'w' : '-',
+                    e->is_exec ? 'x' : '-',
+                    e->is_priv ? 'p' : '-',
+                    (uint64_t) e->offset, e->dev, e->inode,
+                    path ? "         " : "", path ? path : "");
         }
     }
+
+    free_self_maps(map_info);
 
 #ifdef TARGET_VSYSCALL_PAGE
     /*
@@ -7280,9 +7281,6 @@ static int open_self_maps(void *cpu_env, int fd)
             " --xp 00000000 00:00 0 [vsyscall]\n",
             TARGET_VSYSCALL_PAGE, TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE);
 #endif
-
-    free(line);
-    fclose(fp);
 
     return 0;
 }
