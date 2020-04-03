@@ -7235,6 +7235,7 @@ static int open_self_maps(void *cpu_env, int fd)
     TaskState *ts = cpu->opaque;
     GSList *map_info = read_self_maps();
     GSList *s;
+    int count;
 
     for (s = map_info; s; s = g_slist_next(s)) {
         MapInfo *e = (MapInfo *) s->data;
@@ -7253,20 +7254,24 @@ static int open_self_maps(void *cpu_env, int fd)
             }
 
             if (h2g(min) == ts->info->stack_limit) {
-                path = "      [stack]";
+                path = "[stack]";
             } else {
                 path = e->path;
             }
 
-            dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
-                    " %c%c%c%c %08" PRIx64 " %s %"PRId64" %s%s\n",
-                    h2g(min), h2g(max - 1) + 1,
-                    e->is_read ? 'r' : '-',
-                    e->is_write ? 'w' : '-',
-                    e->is_exec ? 'x' : '-',
-                    e->is_priv ? 'p' : '-',
-                    (uint64_t) e->offset, e->dev, e->inode,
-                    path ? "         " : "", path ? path : "");
+            count = dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
+                            " %c%c%c%c %08" PRIx64 " %s %"PRId64,
+                            h2g(min), h2g(max - 1) + 1,
+                            e->is_read ? 'r' : '-',
+                            e->is_write ? 'w' : '-',
+                            e->is_exec ? 'x' : '-',
+                            e->is_priv ? 'p' : '-',
+                            (uint64_t) e->offset, e->dev, e->inode);
+            if (path) {
+                dprintf(fd, "%*s%s\n", 73 - count, "", path);
+            } else {
+                dprintf(fd, "\n");
+            }
         }
     }
 
@@ -7277,9 +7282,10 @@ static int open_self_maps(void *cpu_env, int fd)
      * We only support execution from the vsyscall page.
      * This is as if CONFIG_LEGACY_VSYSCALL_XONLY=y from v5.3.
      */
-    dprintf(fd, TARGET_FMT_lx "-" TARGET_FMT_lx
-            " --xp 00000000 00:00 0 [vsyscall]\n",
-            TARGET_VSYSCALL_PAGE, TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE);
+    count = dprintf(fd, TARGET_FMT_lx "-" TARGET_FMT_lx
+                    " --xp 00000000 00:00 0",
+                    TARGET_VSYSCALL_PAGE, TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE);
+    dprintf(fd, "%*s%s\n", 73 - count, "",  "[vsyscall]");
 #endif
 
     return 0;
