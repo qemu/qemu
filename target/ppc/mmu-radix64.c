@@ -219,17 +219,127 @@ static bool validate_pate(PowerPCCPU *cpu, uint64_t lpid, ppc_v3_pate_t *pate)
     return true;
 }
 
+static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
+                                            vaddr eaddr, uint64_t pid,
+                                            ppc_v3_pate_t pate, hwaddr *g_raddr,
+                                            int *g_prot, int *g_page_size,
+                                            bool cause_excp)
+{
+    CPUState *cs = CPU(cpu);
+    uint64_t offset, size, prtbe_addr, prtbe0, pte;
+    int fault_cause = 0;
+    hwaddr pte_addr;
+
+    /* Index Process Table by PID to Find Corresponding Process Table Entry */
+    offset = pid * sizeof(struct prtb_entry);
+    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
+    if (offset >= size) {
+        /* offset exceeds size of the process table */
+        if (cause_excp) {
+            ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
+        }
+        return 1;
+    }
+    prtbe_addr = (pate.dw1 & PATE1_R_PRTB) + offset;
+    prtbe0 = ldq_phys(cs->as, prtbe_addr);
+
+    /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
+    *g_page_size = PRTBE_R_GET_RTS(prtbe0);
+    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
+                                prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
+                                g_raddr, g_page_size, &fault_cause, &pte_addr);
+
+    if (!(pte & R_PTE_VALID) ||
+        ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, g_prot)) {
+        /* No valid pte or access denied due to protection */
+        if (cause_excp) {
+            ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
+        }
+        return 1;
+    }
+
+    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, g_prot);
+
+    return 0;
+}
+
+static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
+                             bool relocation,
+                             hwaddr *raddr, int *psizep, int *protp,
+                             bool cause_excp)
+{
+    uint64_t lpid = 0, pid = 0;
+    ppc_v3_pate_t pate;
+    int psize, prot;
+    hwaddr g_raddr;
+
+    /* Virtual Mode Access - get the fully qualified address */
+    if (!ppc_radix64_get_fully_qualified_addr(&cpu->env, eaddr, &lpid, &pid)) {
+        if (cause_excp) {
+            ppc_radix64_raise_segi(cpu, rwx, eaddr);
+        }
+        return 1;
+    }
+
+    /* Get Process Table */
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc;
+        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->get_pate(cpu->vhyp, &pate);
+    } else {
+        if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
+            if (cause_excp) {
+                ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
+            }
+            return 1;
+        }
+        if (!validate_pate(cpu, lpid, &pate)) {
+            if (cause_excp) {
+                ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_R_BADCONFIG);
+            }
+            return 1;
+        }
+        /* We don't support guest mode yet */
+        if (lpid != 0) {
+            error_report("PowerNV guest support Unimplemented");
+            exit(1);
+        }
+    }
+
+    *psizep = INT_MAX;
+    *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+
+    /*
+     * Perform process-scoped translation if relocation enabled.
+     *
+     * - Translates an effective address to a host real address in
+     *   quadrants 0 and 3 when HV=1.
+     */
+    if (relocation) {
+        int ret = ppc_radix64_process_scoped_xlate(cpu, rwx, eaddr, pid,
+                                                   pate, &g_raddr, &prot,
+                                                   &psize, cause_excp);
+        if (ret) {
+            return ret;
+        }
+        *psizep = MIN(*psizep, psize);
+        *protp &= prot;
+    } else {
+        g_raddr = eaddr & R_EADDR_MASK;
+    }
+
+    *raddr = g_raddr;
+    return 0;
+}
+
 int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                                  int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    PPCVirtualHypervisorClass *vhc;
-    hwaddr raddr, pte_addr;
-    uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
-    int page_size, prot, fault_cause = 0;
-    ppc_v3_pate_t pate;
+    int page_size, prot;
     bool relocation;
+    hwaddr raddr;
 
     assert(!(msr_hv && cpu->vhyp));
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
@@ -262,54 +372,11 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                       TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
     }
 
-    /* Virtual Mode Access - get the fully qualified address */
-    if (!ppc_radix64_get_fully_qualified_addr(env, eaddr, &lpid, &pid)) {
-        ppc_radix64_raise_segi(cpu, rwx, eaddr);
+    /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
+    if (ppc_radix64_xlate(cpu, eaddr, rwx, relocation, &raddr,
+                          &page_size, &prot, true)) {
         return 1;
     }
-
-    /* Get Process Table */
-    if (cpu->vhyp) {
-        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->get_pate(cpu->vhyp, &pate);
-    } else {
-        if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
-            ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
-            return 1;
-        }
-        if (!validate_pate(cpu, lpid, &pate)) {
-            ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_R_BADCONFIG);
-        }
-        /* We don't support guest mode yet */
-        if (lpid != 0) {
-            error_report("PowerNV guest support Unimplemented");
-            exit(1);
-       }
-    }
-
-    /* Index Process Table by PID to Find Corresponding Process Table Entry */
-    offset = pid * sizeof(struct prtb_entry);
-    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
-    if (offset >= size) {
-        /* offset exceeds size of the process table */
-        ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
-        return 1;
-    }
-    prtbe0 = ldq_phys(cs->as, (pate.dw1 & PATE1_R_PRTB) + offset);
-
-    /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
-    page_size = PRTBE_R_GET_RTS(prtbe0);
-    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
-                                prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
-                                &raddr, &page_size, &fault_cause, &pte_addr);
-    if (!pte || ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, &prot)) {
-        /* Couldn't get pte or access denied due to protection */
-        ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
-        return 1;
-    }
-
-    /* Update Reference and Change Bits */
-    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, &prot);
 
     tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                  prot, mmu_idx, 1UL << page_size);
@@ -318,58 +385,18 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
 hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
 {
-    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    PPCVirtualHypervisorClass *vhc;
-    hwaddr raddr, pte_addr;
-    uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
-    int page_size, fault_cause = 0;
-    ppc_v3_pate_t pate;
+    int psize, prot;
+    hwaddr raddr;
 
     /* Handle Real Mode */
-    if (msr_dr == 0) {
+    if ((msr_dr == 0) && (msr_hv || cpu->vhyp)) {
         /* In real mode top 4 effective addr bits (mostly) ignored */
         return eaddr & 0x0FFFFFFFFFFFFFFFULL;
     }
 
-    /* Virtual Mode Access - get the fully qualified address */
-    if (!ppc_radix64_get_fully_qualified_addr(env, eaddr, &lpid, &pid)) {
-        return -1;
-    }
-
-    /* Get Process Table */
-    if (cpu->vhyp) {
-        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->get_pate(cpu->vhyp, &pate);
-    } else {
-        if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
-            return -1;
-        }
-        if (!validate_pate(cpu, lpid, &pate)) {
-            return -1;
-        }
-        /* We don't support guest mode yet */
-        if (lpid != 0) {
-            error_report("PowerNV guest support Unimplemented");
-            exit(1);
-       }
-    }
-
-    /* Index Process Table by PID to Find Corresponding Process Table Entry */
-    offset = pid * sizeof(struct prtb_entry);
-    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
-    if (offset >= size) {
-        /* offset exceeds size of the process table */
-        return -1;
-    }
-    prtbe0 = ldq_phys(cs->as, (pate.dw1 & PATE1_R_PRTB) + offset);
-
-    /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
-    page_size = PRTBE_R_GET_RTS(prtbe0);
-    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
-                                prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
-                                &raddr, &page_size, &fault_cause, &pte_addr);
-    if (!pte) {
+    if (ppc_radix64_xlate(cpu, eaddr, 0, msr_dr, &raddr, &psize,
+                          &prot, false)) {
         return -1;
     }
 
