@@ -26,6 +26,7 @@
 #include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/qemu-print.h"
 #include "s390-pci-bus.h"
 #include "sysemu/reset.h"
 #include "hw/s390x/storage-keys.h"
@@ -439,6 +440,26 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     s390_cpu_restart(S390_CPU(cs));
 }
 
+static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
+{
+    /* same logic as in sclp.c */
+    int increment_size = 20;
+    ram_addr_t newsz;
+
+    while ((sz >> increment_size) > MAX_STORAGE_INCREMENTS) {
+        increment_size++;
+    }
+    newsz = sz >> increment_size << increment_size;
+
+    if (sz != newsz) {
+        qemu_printf("Ram size %" PRIu64 "MB was fixed up to %" PRIu64
+                    "MB to match machine restrictions. Consider updating "
+                    "the guest definition.\n", (uint64_t) (sz / MiB),
+                    (uint64_t) (newsz / MiB));
+    }
+    return newsz;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -668,6 +689,7 @@ static void ccw_machine_4_2_instance_options(MachineState *machine)
 static void ccw_machine_4_2_class_options(MachineClass *mc)
 {
     ccw_machine_5_0_class_options(mc);
+    mc->fixup_ram_size = s390_fixup_ram_size;
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 DEFINE_CCW_MACHINE(4_2, "4.2", false);

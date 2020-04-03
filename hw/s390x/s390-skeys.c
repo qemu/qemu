@@ -176,7 +176,7 @@ static void qemu_s390_skeys_init(Object *obj)
     QEMUS390SKeysState *skeys = QEMU_S390_SKEYS(obj);
     MachineState *machine = MACHINE(qdev_get_machine());
 
-    skeys->key_count = machine->maxram_size / TARGET_PAGE_SIZE;
+    skeys->key_count = machine->ram_size / TARGET_PAGE_SIZE;
     skeys->keydata = g_malloc0(skeys->key_count);
 }
 
