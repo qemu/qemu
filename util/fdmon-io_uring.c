@@ -295,7 +295,12 @@ static bool fdmon_io_uring_need_wait(AioContext *ctx)
         return true;
     }
 
-    /* Do we need to submit new io_uring sqes? */
+    /* Are there pending sqes to submit? */
+    if (io_uring_sq_ready(&ctx->fdmon_io_uring)) {
+        return true;
+    }
+
+    /* Do we need to process AioHandlers for io_uring changes? */
     if (!QSLIST_EMPTY_RCU(&ctx->submit_list)) {
         return true;
     }
