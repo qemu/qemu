@@ -163,44 +163,67 @@ static void ppc_radix64_set_rc(PowerPCCPU *cpu, int rwx, uint64_t pte,
     }
 }
 
-static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, vaddr eaddr,
-                                      uint64_t base_addr, uint64_t nls,
-                                      hwaddr *raddr, int *psize,
-                                      int *fault_cause, hwaddr *pte_addr)
+static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
+                                  uint64_t *pte_addr, uint64_t *nls,
+                                  int *psize, uint64_t *pte, int *fault_cause)
 {
-    CPUState *cs = CPU(cpu);
     uint64_t index, pde;
 
-    if (nls < 5) { /* Directory maps less than 2**5 entries */
+    if (*nls < 5) { /* Directory maps less than 2**5 entries */
         *fault_cause |= DSISR_R_BADCONFIG;
-        return 0;
+        return 1;
     }
 
     /* Read page <directory/table> entry from guest address space */
-    index = eaddr >> (*psize - nls); /* Shift */
-    index &= ((1UL << nls) - 1); /* Mask */
-    pde = ldq_phys(cs->as, base_addr + (index * sizeof(pde)));
-    if (!(pde & R_PTE_VALID)) { /* Invalid Entry */
+    pde = ldq_phys(as, *pte_addr);
+    if (!(pde & R_PTE_VALID)) {         /* Invalid Entry */
         *fault_cause |= DSISR_NOPTE;
-        return 0;
+        return 1;
     }
 
-    *psize -= nls;
+    *pte = pde;
+    *psize -= *nls;
+    if (!(pde & R_PTE_LEAF)) { /* Prepare for next iteration */
+        *nls = pde & R_PDE_NLS;
+        index = eaddr >> (*psize - *nls);       /* Shift */
+        index &= ((1UL << *nls) - 1);           /* Mask */
+        *pte_addr = (pde & R_PDE_NLB) + (index * sizeof(pde));
+    }
+    return 0;
+}
 
-    /* Check if Leaf Entry -> Page Table Entry -> Stop the Search */
-    if (pde & R_PTE_LEAF) {
-        uint64_t rpn = pde & R_PTE_RPN;
-        uint64_t mask = (1UL << *psize) - 1;
+static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
+                                 uint64_t base_addr, uint64_t nls,
+                                 hwaddr *raddr, int *psize, uint64_t *pte,
+                                 int *fault_cause, hwaddr *pte_addr)
+{
+    uint64_t index, pde, rpn , mask;
 
-        /* Or high bits of rpn and low bits to ea to form whole real addr */
-        *raddr = (rpn & ~mask) | (eaddr & mask);
-        *pte_addr = base_addr + (index * sizeof(pde));
-        return pde;
+    if (nls < 5) { /* Directory maps less than 2**5 entries */
+        *fault_cause |= DSISR_R_BADCONFIG;
+        return 1;
     }
 
-    /* Next Level of Radix Tree */
-    return ppc_radix64_walk_tree(cpu, eaddr, pde & R_PDE_NLB, pde & R_PDE_NLS,
-                                 raddr, psize, fault_cause, pte_addr);
+    index = eaddr >> (*psize - nls);    /* Shift */
+    index &= ((1UL << nls) - 1);       /* Mask */
+    *pte_addr = base_addr + (index * sizeof(pde));
+    do {
+        int ret;
+
+        ret = ppc_radix64_next_level(as, eaddr, pte_addr, &nls, psize, &pde,
+                                     fault_cause);
+        if (ret) {
+            return ret;
+        }
+    } while (!(pde & R_PTE_LEAF));
+
+    *pte = pde;
+    rpn = pde & R_PTE_RPN;
+    mask = (1UL << *psize) - 1;
+
+    /* Or high bits of rpn and low bits to ea to form whole real addr */
+    *raddr = (rpn & ~mask) | (eaddr & mask);
+    return 0;
 }
 
 static bool validate_pate(PowerPCCPU *cpu, uint64_t lpid, ppc_v3_pate_t *pate)
@@ -230,6 +253,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
     uint64_t offset, size, prtbe_addr, prtbe0, pte;
     int fault_cause = 0;
     hwaddr pte_addr;
+    int ret;
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
@@ -246,11 +270,12 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
 
     /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
     *g_page_size = PRTBE_R_GET_RTS(prtbe0);
-    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
+    ret = ppc_radix64_walk_tree(cs->as, eaddr & R_EADDR_MASK,
                                 prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
-                                g_raddr, g_page_size, &fault_cause, &pte_addr);
+                                g_raddr, g_page_size, &pte, &fault_cause,
+                                &pte_addr);
 
-    if (!(pte & R_PTE_VALID) ||
+    if (ret ||
         ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, g_prot, false)) {
         /* No valid pte or access denied due to protection */
         if (cause_excp) {
