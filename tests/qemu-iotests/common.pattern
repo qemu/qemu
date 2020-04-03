@@ -23,7 +23,7 @@ do_is_allocated() {
     local count=$4
 
     for ((i=1;i<=$count;i++)); do
-        echo alloc $(( start + (i - 1) * step )) $size
+        echo "alloc $(( start + (i - 1) * step )) $size"
     done
 }
 
@@ -39,9 +39,9 @@ do_io() {
     local count=$5
     local pattern=$6
 
-    echo === IO: pattern $pattern >&2
+    echo "=== IO: pattern $pattern" >&2
     for ((i=1;i<=$count;i++)); do
-        echo $op -P $pattern $(( start + (i - 1) * step )) $size
+        echo "$op -P $pattern $(( start + (i - 1) * step )) $size"
     done
 }
 
@@ -110,31 +110,31 @@ io_test2() {
     #        free - free - compressed
 
     # Write the clusters to be compressed
-    echo === Clusters to be compressed [1]
+    echo '=== Clusters to be compressed [1]'
     io_pattern writev $((offset + 4 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
-    echo === Clusters to be compressed [2]
+    echo '=== Clusters to be compressed [2]'
     io_pattern writev $((offset + 5 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
-    echo === Clusters to be compressed [3]
+    echo '=== Clusters to be compressed [3]'
     io_pattern writev $((offset + 8 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
 
     mv "$TEST_IMG" "$TEST_IMG.orig"
     $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c "$TEST_IMG.orig" "$TEST_IMG"
 
     # Write the used clusters
-    echo === Used clusters [1]
+    echo '=== Used clusters [1]'
     io_pattern writev $((offset + 0 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
-    echo === Used clusters [2]
+    echo '=== Used clusters [2]'
     io_pattern writev $((offset + 1 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
-    echo === Used clusters [3]
+    echo '=== Used clusters [3]'
     io_pattern writev $((offset + 3 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
 
     # Read them
-    echo === Read used/compressed clusters
+    echo '=== Read used/compressed clusters'
     io_pattern readv $((offset + 0 * $cluster_size)) $((2 * $cluster_size)) $((9 * $cluster_size)) $num 165
     io_pattern readv $((offset + 3 * $cluster_size)) $((3 * $cluster_size)) $((9 * $cluster_size)) $num 165
     io_pattern readv $((offset + 8 * $cluster_size)) $((1 * $cluster_size)) $((9 * $cluster_size)) $num 165
 
-    echo === Read zeros
+    echo '=== Read zeros'
     io_zero readv $((offset + 2 * $cluster_size)) $((1 * $cluster_size)) $((9 * $cluster_size)) $num
     io_zero readv $((offset + 6 * $cluster_size)) $((2 * $cluster_size)) $((9 * $cluster_size)) $num
 }
