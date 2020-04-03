@@ -30,7 +30,8 @@ class IbmPrep40pMachine(Test):
         :avocado: tags=machine:40p
         :avocado: tags=slowness:high
         """
-        bios_url = ('ftp://ftp.boulder.ibm.com/rs6000/firmware/'
+        bios_url = ('http://ftpmirror.your.org/pub/misc/'
+                    'ftp.software.ibm.com/rs6000/firmware/'
                     '7020-40p/P12H0456.IMG')
         bios_hash = '1775face4e6dc27f3a6ed955ef6eb331bf817f03'
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
