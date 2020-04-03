@@ -3,17 +3,25 @@
 GDB usage
 ---------
 
-QEMU has a primitive support to work with gdb, so that you can do
-'Ctrl-C' while the virtual machine is running and inspect its state.
+QEMU supports working with gdb via gdb's remote-connection facility
+(the "gdbstub"). This allows you to debug guest code in the same
+way that you might with a low-level debug facility like JTAG
+on real hardware. You can stop and start the virtual machine,
+examine state like registers and memory, and set breakpoints and
+watchpoints.
 
-In order to use gdb, launch QEMU with the '-s' option. It will wait for
-a gdb connection:
+In order to use gdb, launch QEMU with the ``-s`` and ``-S`` options.
+The ``-s`` option will make QEMU listen for an incoming connection
+from gdb on TCP port 1234, and ``-S`` will make QEMU not start the
+guest until you tell it to from gdb. (If you want to specify which
+TCP port to use or to use something other than TCP for the gdbstub
+connection, use the ``-gdb dev`` option instead of ``-s``.)
 
 .. parsed-literal::
 
-   |qemu_system| -s -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
-   Connected to host network interface: tun0
-   Waiting gdb connection on port 1234
+   |qemu_system| -s -S -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
+
+QEMU will launch but will silently wait for gdb to connect.
 
 Then launch gdb on the 'vmlinux' executable::
 

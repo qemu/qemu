@@ -3680,14 +3680,26 @@ SRST
 ERST
 
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
-    "-gdb dev        wait for gdb connection on 'dev'\n", QEMU_ARCH_ALL)
+    "-gdb dev        accept gdb connection on 'dev'. (QEMU defaults to starting\n"
+    "                the guest without waiting for gdb to connect; use -S too\n"
+    "                if you want it to not start execution.)\n",
+    QEMU_ARCH_ALL)
 SRST
 ``-gdb dev``
-    Wait for gdb connection on device dev (see
-    :ref:`gdb_005fusage`). Typical connections will likely be
-    TCP-based, but also UDP, pseudo TTY, or even stdio are reasonable
-    use case. The latter is allowing to start QEMU from within gdb and
-    establish the connection via a pipe:
+    Accept a gdb connection on device dev (see
+    :ref:`gdb_005fusage`). Note that this option does not pause QEMU
+    execution -- if you want QEMU to not start the guest until you
+    connect with gdb and issue a ``continue`` command, you will need to
+    also pass the ``-S`` option to QEMU.
+
+    The most usual configuration is to listen on a local TCP socket::
+
+        -gdb tcp::3117
+
+    but you can specify other backends; UDP, pseudo TTY, or even stdio
+    are all reasonable use cases. For example, a stdio connection
+    allows you to start QEMU from within gdb and establish the
+    connection via a pipe:
 
     .. parsed-literal::
 
