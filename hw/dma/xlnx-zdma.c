@@ -299,6 +299,14 @@ static void zdma_put_regaddr64(XlnxZDMA *s, unsigned int basereg, uint64_t addr)
     s->regs[basereg + 1] = addr >> 32;
 }
 
+static void zdma_load_descriptor_reg(XlnxZDMA *s, unsigned int reg,
+                                     XlnxZDMADescr *descr)
+{
+    descr->addr = zdma_get_regaddr64(s, reg);
+    descr->size = s->regs[reg + 2];
+    descr->attr = s->regs[reg + 3];
+}
+
 static bool zdma_load_descriptor(XlnxZDMA *s, uint64_t addr,
                                  XlnxZDMADescr *descr)
 {
@@ -324,8 +332,7 @@ static void zdma_load_src_descriptor(XlnxZDMA *s)
     unsigned int ptype = ARRAY_FIELD_EX32(s->regs, ZDMA_CH_CTRL0, POINT_TYPE);
 
     if (ptype == PT_REG) {
-        memcpy(&s->dsc_src, &s->regs[R_ZDMA_CH_SRC_DSCR_WORD0],
-               sizeof(s->dsc_src));
+        zdma_load_descriptor_reg(s, R_ZDMA_CH_SRC_DSCR_WORD0, &s->dsc_src);
         return;
     }
 
@@ -360,8 +367,7 @@ static void zdma_load_dst_descriptor(XlnxZDMA *s)
     bool dst_type;
 
     if (ptype == PT_REG) {
-        memcpy(&s->dsc_dst, &s->regs[R_ZDMA_CH_DST_DSCR_WORD0],
-               sizeof(s->dsc_dst));
+        zdma_load_descriptor_reg(s, R_ZDMA_CH_DST_DSCR_WORD0, &s->dsc_dst);
         return;
     }
 
