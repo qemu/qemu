@@ -21,6 +21,7 @@
 #include "standard-headers/linux/pci_regs.h"
 #include "qemu/event_notifier.h"
 #include "qemu/vfio-helpers.h"
+#include "qemu/lockable.h"
 #include "trace.h"
 
 #define QEMU_VFIO_DEBUG 0
@@ -667,14 +668,12 @@ int qemu_vfio_dma_reset_temporary(QEMUVFIOState *s)
         .size = QEMU_VFIO_IOVA_MAX - s->high_water_mark,
     };
     trace_qemu_vfio_dma_reset_temporary(s);
-    qemu_mutex_lock(&s->lock);
+    QEMU_LOCK_GUARD(&s->lock);
     if (ioctl(s->container, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         error_report("VFIO_UNMAP_DMA failed: %s", strerror(errno));
-        qemu_mutex_unlock(&s->lock);
         return -errno;
     }
     s->high_water_mark = QEMU_VFIO_IOVA_MAX;
-    qemu_mutex_unlock(&s->lock);
     return 0;
 }
 
