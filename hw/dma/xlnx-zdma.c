@@ -299,19 +299,22 @@ static void zdma_put_regaddr64(XlnxZDMA *s, unsigned int basereg, uint64_t addr)
     s->regs[basereg + 1] = addr >> 32;
 }
 
-static bool zdma_load_descriptor(XlnxZDMA *s, uint64_t addr, void *buf)
+static bool zdma_load_descriptor(XlnxZDMA *s, uint64_t addr,
+                                 XlnxZDMADescr *descr)
 {
     /* ZDMA descriptors must be aligned to their own size.  */
     if (addr % sizeof(XlnxZDMADescr)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "zdma: unaligned descriptor at %" PRIx64,
                       addr);
-        memset(buf, 0x0, sizeof(XlnxZDMADescr));
+        memset(descr, 0x0, sizeof(XlnxZDMADescr));
         s->error = true;
         return false;
     }
 
-    address_space_read(s->dma_as, addr, s->attr, buf, sizeof(XlnxZDMADescr));
+    descr->addr = address_space_ldq_le(s->dma_as, addr, s->attr, NULL);
+    descr->size = address_space_ldl_le(s->dma_as, addr + 8, s->attr, NULL);
+    descr->attr = address_space_ldl_le(s->dma_as, addr + 12, s->attr, NULL);
     return true;
 }
 
@@ -344,7 +347,7 @@ static void zdma_update_descr_addr(XlnxZDMA *s, bool type,
     } else {
         addr = zdma_get_regaddr64(s, basereg);
         addr += sizeof(s->dsc_dst);
-        address_space_read(s->dma_as, addr, s->attr, (void *) &next, 8);
+        next = address_space_ldq_le(s->dma_as, addr, s->attr, NULL);
     }
 
     zdma_put_regaddr64(s, basereg, next);
