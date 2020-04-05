@@ -540,7 +540,7 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
     }
 
     req_size = audio_ring_dist(cpos, hw->pos_emul, hw->size_emul);
-    req_size = MIN(req_size, hw->size_emul - hw->pos_emul);
+    req_size = MIN(*size, MIN(req_size, hw->size_emul - hw->pos_emul));
 
     if (req_size == 0) {
         *size = 0;
