@@ -2053,6 +2053,11 @@ F: include/qemu/error-report.h
 F: qapi/error.json
 F: util/error.c
 F: util/qemu-error.c
+F: scripts/coccinelle/err-bad-newline.cocci
+F: scripts/coccinelle/error-use-after-free.cocci
+F: scripts/coccinelle/error_propagate_null.cocci
+F: scripts/coccinelle/remove_local_err.cocci
+F: scripts/coccinelle/use-error_fatal.cocci
 
 GDB stub
 M: Alex Bennée <alex.bennee@linaro.org>
