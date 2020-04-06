@@ -38,6 +38,7 @@
 #include "migration/misc.h"
 #include "migration/migration.h"
 #include "qemu/cutils.h"
+#include "hw/clock.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -737,6 +738,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     ObjectClass *class;
     BusState *child;
     NamedGPIOList *ngl;
+    NamedClockList *ncl;
 
     qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                 dev->id ? dev->id : "");
@@ -750,6 +752,13 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
             qdev_printf("gpio-out \"%s\" %d\n", ngl->name ? ngl->name : "",
                         ngl->num_out);
         }
+    }
+    QLIST_FOREACH(ncl, &dev->clocks, node) {
+        qdev_printf("clock-%s%s \"%s\" freq_hz=%e\n",
+                    ncl->output ? "out" : "in",
+                    ncl->alias ? " (alias)" : "",
+                    ncl->name,
+                    CLOCK_PERIOD_TO_HZ(1.0 * clock_get(ncl->clock)));
     }
     class = object_get_class(OBJECT(dev));
     do {
