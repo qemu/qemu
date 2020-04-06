@@ -7,7 +7,7 @@ common-obj-y += hotplug.o
 common-obj-y += vmstate-if.o
 # irq.o needed for qdev GPIO handling:
 common-obj-y += irq.o
-common-obj-y += clock.o
+common-obj-y += clock.o qdev-clock.o
 
 common-obj-$(CONFIG_SOFTMMU) += reset.o
 common-obj-$(CONFIG_SOFTMMU) += qdev-fw.o
