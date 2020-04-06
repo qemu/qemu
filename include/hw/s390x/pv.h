@@ -13,6 +13,7 @@
 #define HW_S390_PV_H
 
 #ifdef CONFIG_KVM
+#include "cpu.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
 static inline bool s390_is_pv(void)
@@ -41,6 +42,7 @@ int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak);
 void s390_pv_perf_clear_reset(void);
 int s390_pv_verify(void);
 void s390_pv_unshare(void);
+void s390_pv_inject_reset_error(CPUState *cs);
 #else /* CONFIG_KVM */
 static inline bool s390_is_pv(void) { return false; }
 static inline int s390_pv_vm_enable(void) { return 0; }
@@ -50,6 +52,7 @@ static inline int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak) {
 static inline void s390_pv_perf_clear_reset(void) {}
 static inline int s390_pv_verify(void) { return 0; }
 static inline void s390_pv_unshare(void) {}
+static inline void s390_pv_inject_reset_error(CPUState *cs) {};
 #endif /* CONFIG_KVM */
 
 #endif /* HW_S390_PV_H */

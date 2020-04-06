@@ -14,6 +14,7 @@
 #define HW_S390_IPL_H
 
 #include "cpu.h"
+#include "exec/address-spaces.h"
 #include "hw/qdev-core.h"
 
 struct IPLBlockPVComp {

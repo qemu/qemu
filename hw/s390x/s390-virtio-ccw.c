@@ -45,7 +45,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "hw/s390x/pv.h"
-#include <linux/kvm.h>
 #include "migration/blocker.h"
 
 static Error *pv_mig_blocker;
@@ -390,15 +389,6 @@ out_err:
     return rc;
 }
 
-static void s390_machine_inject_pv_error(CPUState *cs)
-{
-    int r1 = (cs->kvm_run->s390_sieic.ipa & 0x00f0) >> 4;
-    CPUS390XState *env = &S390_CPU(cs)->env;
-
-    /* Report that we are unable to enter protected mode */
-    env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
-}
-
 static void s390_pv_prepare_reset(S390CcwMachineState *ms)
 {
     CPUState *cs;
@@ -484,7 +474,7 @@ static void s390_machine_reset(MachineState *machine)
         run_on_cpu(cs, s390_do_cpu_reset, RUN_ON_CPU_NULL);
 
         if (s390_machine_protect(ms)) {
-            s390_machine_inject_pv_error(cs);
+            s390_pv_inject_reset_error(cs);
             /*
              * Continue after the diag308 so the guest knows something
              * went wrong.

@@ -13,8 +13,10 @@
 
 #include <linux/kvm.h>
 
+#include "cpu.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "hw/s390x/ipl.h"
 #include "hw/s390x/pv.h"
 
 static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
@@ -99,4 +101,13 @@ int s390_pv_verify(void)
 void s390_pv_unshare(void)
 {
     s390_pv_cmd_exit(KVM_PV_UNSHARE_ALL, NULL);
+}
+
+void s390_pv_inject_reset_error(CPUState *cs)
+{
+    int r1 = (cs->kvm_run->s390_sieic.ipa & 0x00f0) >> 4;
+    CPUS390XState *env = &S390_CPU(cs)->env;
+
+    /* Report that we are unable to enter protected mode */
+    env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
 }
