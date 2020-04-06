@@ -116,6 +116,23 @@ Clock *qdev_init_clock_in(DeviceState *dev, const char *name,
     return ncl->clock;
 }
 
+void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks)
+{
+    const struct ClockPortInitElem *elem;
+
+    for (elem = &clocks[0]; elem->name != NULL; elem++) {
+        Clock **clkp;
+        /* offset cannot be inside the DeviceState part */
+        assert(elem->offset > sizeof(DeviceState));
+        clkp = (Clock **)(((void *) dev) + elem->offset);
+        if (elem->is_output) {
+            *clkp = qdev_init_clock_out(dev, elem->name);
+        } else {
+            *clkp = qdev_init_clock_in(dev, elem->name, elem->callback, dev);
+        }
+    }
+}
+
 static NamedClockList *qdev_get_clocklist(DeviceState *dev, const char *name)
 {
     NamedClockList *ncl;
