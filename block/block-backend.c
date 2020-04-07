@@ -1140,10 +1140,15 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
     return 0;
 }
 
+/* To be called between exactly one pair of blk_inc/dec_in_flight() */
 static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 {
+    assert(blk->in_flight > 0);
+
     if (blk->quiesce_counter && !blk->disable_request_queuing) {
+        blk_dec_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, NULL);
+        blk_inc_in_flight(blk);
     }
 }
 
@@ -1418,12 +1423,6 @@ static void blk_aio_read_entry(void *opaque)
     BlkRwCo *rwco = &acb->rwco;
     QEMUIOVector *qiov = rwco->iobuf;
 
-    if (rwco->blk->quiesce_counter) {
-        blk_dec_in_flight(rwco->blk);
-        blk_wait_while_drained(rwco->blk);
-        blk_inc_in_flight(rwco->blk);
-    }
-
     assert(qiov->size == acb->bytes);
     rwco->ret = blk_do_preadv(rwco->blk, rwco->offset, acb->bytes,
                               qiov, rwco->flags);
@@ -1435,12 +1434,6 @@ static void blk_aio_write_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
     QEMUIOVector *qiov = rwco->iobuf;
-
-    if (rwco->blk->quiesce_counter) {
-        blk_dec_in_flight(rwco->blk);
-        blk_wait_while_drained(rwco->blk);
-        blk_inc_in_flight(rwco->blk);
-    }
 
     assert(!qiov || qiov->size == acb->bytes);
     rwco->ret = blk_do_pwritev_part(rwco->blk, rwco->offset, acb->bytes,
