@@ -133,12 +133,16 @@ struct AioContext {
     AioHandlerList deleted_aio_handlers;
 
     /* Used to avoid unnecessary event_notifier_set calls in aio_notify;
-     * accessed with atomic primitives.  If this field is 0, everything
-     * (file descriptors, bottom halves, timers) will be re-evaluated
-     * before the next blocking poll(), thus the event_notifier_set call
-     * can be skipped.  If it is non-zero, you may need to wake up a
-     * concurrent aio_poll or the glib main event loop, making
-     * event_notifier_set necessary.
+     * only written from the AioContext home thread, or under the BQL in
+     * the case of the main AioContext.  However, it is read from any
+     * thread so it is still accessed with atomic primitives.
+     *
+     * If this field is 0, everything (file descriptors, bottom halves,
+     * timers) will be re-evaluated before the next blocking poll() or
+     * io_uring wait; therefore, the event_notifier_set call can be
+     * skipped.  If it is non-zero, you may need to wake up a concurrent
+     * aio_poll or the glib main event loop, making event_notifier_set
+     * necessary.
      *
      * Bit 0 is reserved for GSource usage of the AioContext, and is 1
      * between a call to aio_ctx_prepare and the next call to aio_ctx_check.
@@ -680,19 +684,6 @@ void aio_co_enter(AioContext *ctx, struct Coroutine *co);
  * called from another thread it will be the main loop AioContext.
  */
 AioContext *qemu_get_current_aio_context(void);
-
-/**
- * in_aio_context_home_thread:
- * @ctx: the aio context
- *
- * Return whether we are running in the thread that normally runs @ctx.  Note
- * that acquiring/releasing ctx does not affect the outcome, each AioContext
- * still only has one home thread that is responsible for running it.
- */
-static inline bool in_aio_context_home_thread(AioContext *ctx)
-{
-    return ctx == qemu_get_current_aio_context();
-}
 
 /**
  * aio_context_setup:
