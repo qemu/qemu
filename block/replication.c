@@ -144,12 +144,15 @@ fail:
 static void replication_close(BlockDriverState *bs)
 {
     BDRVReplicationState *s = bs->opaque;
+    Job *commit_job;
 
     if (s->stage == BLOCK_REPLICATION_RUNNING) {
         replication_stop(s->rs, false, NULL);
     }
     if (s->stage == BLOCK_REPLICATION_FAILOVER) {
-        job_cancel_sync(&s->commit_job->job);
+        commit_job = &s->commit_job->job;
+        assert(commit_job->aio_context == qemu_get_current_aio_context());
+        job_cancel_sync(commit_job);
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {

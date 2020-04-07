@@ -3612,7 +3612,16 @@ void qmp_block_job_finalize(const char *id, Error **errp)
     }
 
     trace_qmp_block_job_finalize(job);
+    job_ref(&job->job);
     job_finalize(&job->job, errp);
+
+    /*
+     * Job's context might have changed via job_finalize (and job_txn_apply
+     * automatically acquires the new one), so make sure we release the correct
+     * one.
+     */
+    aio_context = blk_get_aio_context(job->blk);
+    job_unref(&job->job);
     aio_context_release(aio_context);
 }
 
