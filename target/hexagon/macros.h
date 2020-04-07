@@ -221,7 +221,7 @@
     tcg_temp_free(EA)
 #else
 #define LOG_REG_WRITE(RNUM, VAL)\
-  log_reg_write(env, RNUM, VAL, slot)
+    log_reg_write(env, RNUM, VAL, slot)
 #define LOG_PRED_WRITE(RNUM, VAL)\
     log_pred_write(env, RNUM, VAL)
 #endif
@@ -474,14 +474,7 @@
     _Generic((X), int64_t : gen_store8i, TCGv_i64 : gen_store8)
 #define MEM_STORE8(VA, DATA, SLOT) \
     MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
-
-#else
-#define MEM_STORE1(VA, DATA, SLOT) log_store32(env, VA, DATA, 1, SLOT)
-#define MEM_STORE2(VA, DATA, SLOT) log_store32(env, VA, DATA, 2, SLOT)
-#define MEM_STORE4(VA, DATA, SLOT) log_store32(env, VA, DATA, 4, SLOT)
-#define MEM_STORE8(VA, DATA, SLOT) log_store64(env, VA, DATA, 8, SLOT)
 #endif
-
 
 #ifdef QEMU_GENERATE
 static inline void gen_slot_cancelled_check(TCGv check, int slot_num)
@@ -623,12 +616,10 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
 #define fLSBNEW1NOT (!fLSBNEW1)
 #endif
 
-#define fNEWREG(RNUM) HELPER(new_value)(env, RNUM)
+#define fNEWREG(RNUM) ((int32_t)(env->new_value[(RNUM)]))
 
 #ifdef QEMU_GENERATE
-#define fNEWREG_ST(RNUM) gen_newreg_st(NEWREG_ST, cpu_env, RNUM)
-#else
-#define fNEWREG_ST(RNUM) HELPER(new_value)(env, RNUM)
+#define fNEWREG_ST(RNUM) (hex_new_value[NtX])
 #endif
 
 #define fMEMZNEW(RNUM) (RNUM == 0)

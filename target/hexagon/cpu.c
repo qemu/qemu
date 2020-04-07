@@ -337,7 +337,6 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->synchronize_from_tb = hexagon_cpu_synchronize_from_tb;
-    cc->gdb_core_xml_file = "hexagon-core.xml";
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
     cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS + NUM_VREGS + NUM_QREGS;

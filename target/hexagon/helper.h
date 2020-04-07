@@ -19,7 +19,6 @@
 
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 DEF_HELPER_1(debug_start_packet, void, env)
-DEF_HELPER_2(new_value, s32, env, int)
 DEF_HELPER_3(debug_check_store_width, void, env, int, int)
 DEF_HELPER_1(commit_hvx_stores, void, env)
 DEF_HELPER_3(debug_commit_end, void, env, int, int)
