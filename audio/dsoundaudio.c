@@ -279,7 +279,7 @@ static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
         return -1;
     }
 
-    if (*statusp & DSERR_BUFFERLOST) {
+    if (*statusp & DSBSTATUS_BUFFERLOST) {
         dsound_restore_out(dsb, s);
         return -1;
     }
@@ -540,7 +540,12 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
     }
 
     req_size = audio_ring_dist(cpos, hw->pos_emul, hw->size_emul);
-    req_size = MIN(req_size, hw->size_emul - hw->pos_emul);
+    req_size = MIN(*size, MIN(req_size, hw->size_emul - hw->pos_emul));
+
+    if (req_size == 0) {
+        *size = 0;
+        return NULL;
+    }
 
     err = dsound_lock_in(dscb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
                          &act_size, NULL, false, ds->s);
