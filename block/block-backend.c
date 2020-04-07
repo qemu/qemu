@@ -1488,38 +1488,6 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
                         blk_aio_write_entry, flags, cb, opaque);
 }
 
-static void blk_aio_flush_entry(void *opaque)
-{
-    BlkAioEmAIOCB *acb = opaque;
-    BlkRwCo *rwco = &acb->rwco;
-
-    rwco->ret = blk_co_flush(rwco->blk);
-    blk_aio_complete(acb);
-}
-
-BlockAIOCB *blk_aio_flush(BlockBackend *blk,
-                          BlockCompletionFunc *cb, void *opaque)
-{
-    return blk_aio_prwv(blk, 0, 0, NULL, blk_aio_flush_entry, 0, cb, opaque);
-}
-
-static void blk_aio_pdiscard_entry(void *opaque)
-{
-    BlkAioEmAIOCB *acb = opaque;
-    BlkRwCo *rwco = &acb->rwco;
-
-    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, acb->bytes);
-    blk_aio_complete(acb);
-}
-
-BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
-                             int64_t offset, int bytes,
-                             BlockCompletionFunc *cb, void *opaque)
-{
-    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_pdiscard_entry, 0,
-                        cb, opaque);
-}
-
 void blk_aio_cancel(BlockAIOCB *acb)
 {
     bdrv_aio_cancel(acb);
@@ -1586,6 +1554,37 @@ int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
     return bdrv_co_pdiscard(blk->root, offset, bytes);
 }
 
+static void blk_aio_pdiscard_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, acb->bytes);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
+                             int64_t offset, int bytes,
+                             BlockCompletionFunc *cb, void *opaque)
+{
+    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_pdiscard_entry, 0,
+                        cb, opaque);
+}
+
+static void blk_pdiscard_entry(void *opaque)
+{
+    BlkRwCo *rwco = opaque;
+    QEMUIOVector *qiov = rwco->iobuf;
+
+    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, qiov->size);
+    aio_wait_kick();
+}
+
+int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
+{
+    return blk_prw(blk, offset, NULL, bytes, blk_pdiscard_entry, 0);
+}
+
 int blk_co_flush(BlockBackend *blk)
 {
     blk_wait_while_drained(blk);
@@ -1595,6 +1594,21 @@ int blk_co_flush(BlockBackend *blk)
     }
 
     return bdrv_co_flush(blk_bs(blk));
+}
+
+static void blk_aio_flush_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_flush(rwco->blk);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_flush(BlockBackend *blk,
+                          BlockCompletionFunc *cb, void *opaque)
+{
+    return blk_aio_prwv(blk, 0, 0, NULL, blk_aio_flush_entry, 0, cb, opaque);
 }
 
 static void blk_flush_entry(void *opaque)
@@ -2081,20 +2095,6 @@ int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
     }
 
     return bdrv_truncate(blk->root, offset, exact, prealloc, errp);
-}
-
-static void blk_pdiscard_entry(void *opaque)
-{
-    BlkRwCo *rwco = opaque;
-    QEMUIOVector *qiov = rwco->iobuf;
-
-    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, qiov->size);
-    aio_wait_kick();
-}
-
-int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
-{
-    return blk_prw(blk, offset, NULL, bytes, blk_pdiscard_entry, 0);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
