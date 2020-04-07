@@ -571,9 +571,28 @@ static void pnv_powerdown_notify(Notifier *n, void *opaque)
 
 static void pnv_reset(MachineState *machine)
 {
+    PnvMachineState *pnv = PNV_MACHINE(machine);
+    IPMIBmc *bmc;
     void *fdt;
 
     qemu_devices_reset();
+
+    /*
+     * The machine should provide by default an internal BMC simulator.
+     * If not, try to use the BMC device that was provided on the command
+     * line.
+     */
+    bmc = pnv_bmc_find(&error_fatal);
+    if (!pnv->bmc) {
+        if (!bmc) {
+            warn_report("machine has no BMC device. Use '-device "
+                        "ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10' "
+                        "to define one");
+        } else {
+            pnv_bmc_set_pnor(bmc, pnv->pnor);
+            pnv->bmc = bmc;
+        }
+    }
 
     fdt = pnv_dt_create(machine);
 
@@ -833,9 +852,6 @@ static void pnv_init(MachineState *machine)
     }
     g_free(chip_typename);
 
-    /* Create the machine BMC simulator */
-    pnv->bmc = pnv_bmc_create(pnv->pnor);
-
     /* Instantiate ISA bus on chip 0 */
     pnv->isa_bus = pnv_isa_create(pnv->chips[0], &error_fatal);
 
@@ -845,8 +861,14 @@ static void pnv_init(MachineState *machine)
     /* Create an RTC ISA device too */
     mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
 
-    /* Create the IPMI BT device for communication with the BMC */
-    pnv_ipmi_bt_init(pnv->isa_bus, pnv->bmc, 10);
+    /*
+     * Create the machine BMC simulator and the IPMI BT device for
+     * communication with the BMC
+     */
+    if (defaults_enabled()) {
+        pnv->bmc = pnv_bmc_create(pnv->pnor);
+        pnv_ipmi_bt_init(pnv->isa_bus, pnv->bmc, 10);
+    }
 
     /*
      * OpenPOWER systems use a IPMI SEL Event message to notify the

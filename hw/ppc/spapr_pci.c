@@ -1663,6 +1663,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 
         if (pc->is_bridge) {
             error_setg(errp, "PCI: Hot unplug of PCI bridges not supported");
+            return;
         }
 
         /* ensure any other present functions are pending unplug */

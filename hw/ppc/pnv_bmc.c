@@ -213,6 +213,18 @@ static const IPMINetfn hiomap_netfn = {
     .cmd_handlers = hiomap_cmds
 };
 
+
+void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
+{
+    object_ref(OBJECT(pnor));
+    object_property_add_const_link(OBJECT(bmc), "pnor", OBJECT(pnor),
+                                   &error_abort);
+
+    /* Install the HIOMAP protocol handlers to access the PNOR */
+    ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(bmc), IPMI_NETFN_OEM,
+                            &hiomap_netfn);
+}
+
 /*
  * Instantiate the machine BMC. PowerNV uses the QEMU internal
  * simulator but it could also be external.
@@ -231,4 +243,37 @@ IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
                             &hiomap_netfn);
 
     return IPMI_BMC(obj);
+}
+
+typedef struct ForeachArgs {
+    const char *name;
+    Object *obj;
+} ForeachArgs;
+
+static int bmc_find(Object *child, void *opaque)
+{
+    ForeachArgs *args = opaque;
+
+    if (object_dynamic_cast(child, args->name)) {
+        if (args->obj) {
+            return 1;
+        }
+        args->obj = child;
+    }
+    return 0;
+}
+
+IPMIBmc *pnv_bmc_find(Error **errp)
+{
+    ForeachArgs args = { TYPE_IPMI_BMC_SIMULATOR, NULL };
+    int ret;
+
+    ret = object_child_foreach_recursive(object_get_root(), bmc_find, &args);
+    if (ret) {
+        error_setg(errp, "machine should have only one BMC device. "
+                   "Use '-nodefaults'");
+        return NULL;
+    }
+
+    return args.obj ? IPMI_BMC(args.obj) : NULL;
 }
