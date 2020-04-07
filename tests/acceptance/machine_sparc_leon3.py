@@ -7,12 +7,16 @@
 
 from avocado_qemu import Test
 from avocado_qemu import wait_for_console_pattern
+from avocado import skip
 
 
 class Leon3Machine(Test):
 
     timeout = 60
 
+    @skip("Test currently broken")
+    # A Window Underflow exception occurs before booting the kernel,
+    # and QEMU exit calling cpu_abort(), which makes this test to fail.
     def test_leon3_helenos_uimage(self):
         """
         :avocado: tags=arch:sparc
