@@ -72,8 +72,8 @@ struct DisasContext {
     unsigned cpenable;
 
     uint32_t op_flags;
-    xtensa_insnbuf insnbuf;
-    xtensa_insnbuf slotbuf;
+    xtensa_insnbuf_word insnbuf[MAX_INSNBUF_LENGTH];
+    xtensa_insnbuf_word slotbuf[MAX_INSNBUF_LENGTH];
 };
 
 static TCGv_i32 cpu_pc;
@@ -1173,16 +1173,6 @@ static void xtensa_tr_init_disas_context(DisasContextBase *dcbase,
     dc->cwoe = tb_flags & XTENSA_TBFLAG_CWOE;
     dc->callinc = ((tb_flags & XTENSA_TBFLAG_CALLINC_MASK) >>
                    XTENSA_TBFLAG_CALLINC_SHIFT);
-
-    /*
-     * FIXME: This will leak when a failed instruction load or similar
-     * event causes us to longjump out of the translation loop and
-     * hence not clean-up in xtensa_tr_tb_stop
-     */
-    if (dc->config->isa) {
-        dc->insnbuf = xtensa_insnbuf_alloc(dc->config->isa);
-        dc->slotbuf = xtensa_insnbuf_alloc(dc->config->isa);
-    }
     init_sar_tracker(dc);
 }
 
@@ -1272,10 +1262,6 @@ static void xtensa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     reset_sar_tracker(dc);
-    if (dc->config->isa) {
-        xtensa_insnbuf_free(dc->config->isa, dc->insnbuf);
-        xtensa_insnbuf_free(dc->config->isa, dc->slotbuf);
-    }
     if (dc->icount) {
         tcg_temp_free(dc->next_icount);
     }
