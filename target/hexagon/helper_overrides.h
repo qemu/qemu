@@ -650,12 +650,10 @@
     do { \
         TCGv HALF = tcg_temp_new(); \
         TCGv BYTE = tcg_temp_new(); \
-        TCGv NEWREG_ST = tcg_temp_new(); \
         TCGv tmp = tcg_temp_new(); \
         SHORTCODE; \
         tcg_temp_free(HALF); \
         tcg_temp_free(BYTE); \
-        tcg_temp_free(NEWREG_ST); \
         tcg_temp_free(tmp); \
     } while (0)
 
@@ -663,7 +661,6 @@
     do { \
         TCGv HALF = tcg_temp_new(); \
         TCGv BYTE = tcg_temp_new(); \
-        TCGv NEWREG_ST = tcg_temp_new(); \
         { \
             fEA_IMM(UiV); \
             STORE; \
@@ -671,7 +668,6 @@
         } \
         tcg_temp_free(HALF); \
         tcg_temp_free(BYTE); \
-        tcg_temp_free(NEWREG_ST); \
     } while (0)
 
 #define fWRAP_STORE_pcr(SHIFT, STORE) \
@@ -679,7 +675,6 @@
         TCGv ireg = tcg_temp_new(); \
         TCGv HALF = tcg_temp_new(); \
         TCGv BYTE = tcg_temp_new(); \
-        TCGv NEWREG_ST = tcg_temp_new(); \
         TCGv tmp = tcg_temp_new(); \
         fEA_REG(RxV); \
         fPM_CIRR(RxV, fREAD_IREG(MuV, SHIFT), MuV); \
@@ -687,7 +682,6 @@
         tcg_temp_free(ireg); \
         tcg_temp_free(HALF); \
         tcg_temp_free(BYTE); \
-        tcg_temp_free(NEWREG_ST); \
         tcg_temp_free(tmp); \
     } while (0)
 
@@ -718,6 +712,8 @@
 #define fWRAP_SS1_storeb_io(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_SS2_storebi0(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storebi1(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
 #define fWRAP_S2_storerh_io(GENHLPR, SHORTCODE) \
@@ -796,6 +792,8 @@
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_SS2_storewi0(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storewi1(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
 
 #define fWRAP_S2_storerd_io(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
@@ -849,6 +847,8 @@
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S4_storerhnew_ur(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerhnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerhnew_pbr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerhnew_pci(GENHLPR, SHORTCODE) \
@@ -881,7 +881,6 @@
 #define fWRAP_PRED_STORE(GET_EA, PRED, SRC, SIZE, INC) \
     do { \
         TCGv LSB = tcg_temp_local_new(); \
-        TCGv NEWREG_ST = tcg_temp_local_new(); \
         TCGv BYTE = tcg_temp_local_new(); \
         TCGv HALF = tcg_temp_local_new(); \
         TCGLabel *label = gen_new_label(); \
@@ -893,43 +892,506 @@
             fSTORE(1, SIZE, EA, SRC); \
         gen_set_label(label); \
         tcg_temp_free(LSB); \
-        tcg_temp_free(NEWREG_ST); \
         tcg_temp_free(BYTE); \
         tcg_temp_free(HALF); \
     } while (0)
 
 #define NOINC    do {} while (0)
 
-#define fWRAP_S4_pstorerinewfnew_rr(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RRs(RsV, RuV, uiV), fLSBNEWNOT(PvN), \
-                     hex_new_value[NtX], 4, NOINC)
-#define fWRAP_S2_pstorerdtnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     RttV, 8, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S4_pstorerdtnew_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
-                     RttV, 8, NOINC)
-#define fWRAP_S4_pstorerbtnew_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
-                     fGETBYTE(0, RtV), 1, NOINC)
-#define fWRAP_S2_pstorerhtnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     fGETHALF(0, RtV), 2, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S2_pstoreritnew_pi(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
-                     RtV, 4, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
-#define fWRAP_S2_pstorerif_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
-                     RtV, 4, NOINC)
-#define fWRAP_S4_pstorerit_abs(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBOLD(PvV), \
-                     RtV, 4, NOINC)
-#define fWRAP_S2_pstorerinewf_io(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
-                     hex_new_value[NtX], 4, NOINC)
-#define fWRAP_S4_pstorerbnewfnew_abs(GENHLPR, SHORTCODE) \
-    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBNEWNOT(PvN), \
-                     fGETBYTE(0, hex_new_value[NtX]), 1, NOINC)
+#define fWRAP_S4_storeirbt_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLD(PvV), SiV, 1, NOINC)
+#define fWRAP_S4_storeirbf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), SiV, 1, NOINC)
+#define fWRAP_S4_storeirbtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), SiV, 1, NOINC)
+#define fWRAP_S4_storeirbfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEWNOT(PvN), SiV, 1, NOINC)
+
+#define fWRAP_S4_storeirht_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLD(PvV), SiV, 2, NOINC)
+#define fWRAP_S4_storeirhf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), SiV, 2, NOINC)
+#define fWRAP_S4_storeirhtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), SiV, 2, NOINC)
+#define fWRAP_S4_storeirhfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEWNOT(PvN), SiV, 2, NOINC)
+
+#define fWRAP_S4_storeirit_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLD(PvV), SiV, 4, NOINC)
+#define fWRAP_S4_storeirif_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), SiV, 4, NOINC)
+#define fWRAP_S4_storeiritnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), SiV, 4, NOINC)
+#define fWRAP_S4_storeirifnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEWNOT(PvN), SiV, 4, NOINC)
+
+/*
+ * There are a total of 128 pstore instructions.
+ * Lots of variations on the same pattern
+ * - 4 addressing modes
+ * - old or new value of the predicate
+ * - old or new value to store
+ * - size of the operand (byte, half word, word, double word)
+ * - true or false sense of the predicate
+ * - half word stores can also use the high half or the register
+ *
+ * We use the C preprocessor to our advantage when building the combinations.
+ *
+ * The instructions are organized by addressing mode.  For each addressing mode,
+ * there are 4 macros to help out
+ * - old predicate, old value
+ * - new predicate, old value
+ * - old predicate, new value
+ * - new predicate, new value
+ */
+
+/*
+ ****************************************************************************
+ * _rr addressing mode (base + index << shift)
+ */
+#define fWRAP_pstoreX_rr(PRED, VAL, SIZE) \
+    fWRAP_PRED_STORE(fEA_RRs(RsV, RuV, uiV), PRED, VAL, SIZE, NOINC)
+
+/* Byte (old value) */
+#define fWRAP_pstoreX_rr_byte_old(PRED) \
+    fWRAP_pstoreX_rr(PRED, fGETBYTE(0, RtV), 1)
+
+#define fWRAP_S4_pstorerbt_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerbf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_old(fLSBNEWNOT(PvN))
+
+/* Byte (new value) */
+#define fWRAP_pstoreX_rr_byte_new(PRED) \
+    fWRAP_pstoreX_rr(PRED, fGETBYTE(0, hex_new_value[NtX]), 1)
+
+#define fWRAP_S4_pstorerbnewt_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerbnewf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbnewtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbnewfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_byte_new(fLSBNEWNOT(PvN))
+
+/* Half word (old value) */
+#define fWRAP_pstoreX_rr_half_old(PRED) \
+    fWRAP_pstoreX_rr(PRED, fGETHALF(0, RtV), 2)
+
+#define fWRAP_S4_pstorerht_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerhf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_old(fLSBNEWNOT(PvN))
+
+/* Half word (new value) */
+#define fWRAP_pstoreX_rr_half_new(PRED) \
+    fWRAP_pstoreX_rr(PRED, fGETHALF(0, hex_new_value[NtX]), 2)
+
+#define fWRAP_S4_pstorerhnewt_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerhnewf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhnewtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhnewfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_new(fLSBNEWNOT(PvN))
+
+/* High half word */
+#define fWRAP_pstoreX_rr_half_high(PRED) \
+    fWRAP_pstoreX_rr(PRED, fGETHALF(1, RtV), 2)
+
+#define fWRAP_S4_pstorerft_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_high(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerff_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_high(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerftnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_high(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerffnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_half_high(fLSBNEWNOT(PvN))
+
+/* Word (old value) */
+#define fWRAP_pstoreX_rr_word_old(PRED) \
+    fWRAP_pstoreX_rr(PRED, RtV, 4)
+
+#define fWRAP_S4_pstorerit_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerif_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstoreritnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerifnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_old(fLSBNEWNOT(PvN))
+
+/* Word (new value) */
+#define fWRAP_pstoreX_rr_word_new(PRED) \
+    fWRAP_pstoreX_rr(PRED, hex_new_value[NtX], 4)
+
+#define fWRAP_S4_pstorerinewt_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerinewf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerinewtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerinewfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_word_new(fLSBNEWNOT(PvN))
+
+/* Double word (old value) */
+#define fWRAP_pstoreX_rr_double_old(PRED) \
+    fWRAP_pstoreX_rr(PRED, RttV, 8)
+
+#define fWRAP_S4_pstorerdt_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_double_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerdf_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_double_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerdtnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_double_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerdfnew_rr(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_rr_double_old(fLSBNEWNOT(PvN))
+
+/*
+ ****************************************************************************
+ * _io addressing mode (addr + increment)
+ */
+#define fWRAP_pstoreX_io(PRED, VAL, SIZE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), PRED, VAL, SIZE, NOINC)
+
+/* Byte (old value) */
+#define fWRAP_pstoreX_io_byte_old(PRED) \
+    fWRAP_pstoreX_io(PRED, fGETBYTE(0, RtV), 1)
+
+#define fWRAP_S2_pstorerbt_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerbf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_old(fLSBNEWNOT(PvN))
+
+/* Byte (new value) */
+#define fWRAP_pstoreX_io_byte_new(PRED) \
+    fWRAP_pstoreX_io(PRED, fGETBYTE(0, hex_new_value[NtX]), 1)
+
+#define fWRAP_S2_pstorerbnewt_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerbnewf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbnewtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbnewfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_byte_new(fLSBNEWNOT(PvN))
+
+/* Half word (old value) */
+#define fWRAP_pstoreX_io_half_old(PRED) \
+    fWRAP_pstoreX_io(PRED, fGETHALF(0, RtV), 2)
+
+#define fWRAP_S2_pstorerht_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerhf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_old(fLSBNEWNOT(PvN))
+
+/* Half word (new value) */
+#define fWRAP_pstoreX_io_half_new(PRED) \
+    fWRAP_pstoreX_io(PRED, fGETHALF(0, hex_new_value[NtX]), 2)
+
+#define fWRAP_S2_pstorerhnewt_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerhnewf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhnewtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhnewfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_new(fLSBNEWNOT(PvN))
+
+/* High half word */
+#define fWRAP_pstoreX_io_half_high(PRED) \
+    fWRAP_pstoreX_io(PRED, fGETHALF(1, RtV), 2)
+
+#define fWRAP_S2_pstorerft_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_high(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerff_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_high(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerftnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_high(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerffnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_half_high(fLSBNEWNOT(PvN))
+
+/* Word (old value) */
+#define fWRAP_pstoreX_io_word_old(PRED) \
+    fWRAP_pstoreX_io(PRED, RtV, 4)
+
+#define fWRAP_S2_pstorerit_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerif_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstoreritnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerifnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_old(fLSBNEWNOT(PvN))
+
+/* Word (new value) */
+#define fWRAP_pstoreX_io_word_new(PRED) \
+    fWRAP_pstoreX_io(PRED, hex_new_value[NtX], 4)
+
+#define fWRAP_S2_pstorerinewt_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerinewf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerinewtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerinewfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_word_new(fLSBNEWNOT(PvN))
+
+/* Double word (old value) */
+#define fWRAP_pstoreX_io_double_old(PRED) \
+    fWRAP_pstoreX_io(PRED, RttV, 8)
+
+#define fWRAP_S2_pstorerdt_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_double_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerdf_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_double_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerdtnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_double_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerdfnew_io(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_io_double_old(fLSBNEWNOT(PvN))
+
+/****************************************************************************
+ * _abs addressing mode (##addr)
+ */
+#define fWRAP_pstoreX_abs(PRED, VAL, SIZE) \
+    fWRAP_PRED_STORE(fEA_IMM(uiV), PRED, VAL, SIZE, NOINC)
+
+/* Byte (old value) */
+#define fWRAP_pstoreX_abs_byte_old(PRED) \
+    fWRAP_pstoreX_abs(PRED, fGETBYTE(0, RtV), 1)
+
+#define fWRAP_S4_pstorerbt_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerbf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_old(fLSBNEWNOT(PvN))
+
+/* Byte (new value) */
+#define fWRAP_pstoreX_abs_byte_new(PRED) \
+    fWRAP_pstoreX_abs(PRED, fGETBYTE(0, hex_new_value[NtX]), 1)
+
+#define fWRAP_S4_pstorerbnewt_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerbnewf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerbnewtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerbnewfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_byte_new(fLSBNEWNOT(PvN))
+
+/* Half word (old value) */
+#define fWRAP_pstoreX_abs_half_old(PRED) \
+    fWRAP_pstoreX_abs(PRED, fGETHALF(0, RtV), 2)
+
+#define fWRAP_S4_pstorerht_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerhf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_old(fLSBNEWNOT(PvN))
+
+/* Half word (new value) */
+#define fWRAP_pstoreX_abs_half_new(PRED) \
+    fWRAP_pstoreX_abs(PRED, fGETHALF(0, hex_new_value[NtX]), 2)
+
+#define fWRAP_S4_pstorerhnewt_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerhnewf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerhnewtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerhnewfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_new(fLSBNEWNOT(PvN))
+
+/* High half word */
+#define fWRAP_pstoreX_abs_half_high(PRED) \
+    fWRAP_pstoreX_abs(PRED, fGETHALF(1, RtV), 2)
+
+#define fWRAP_S4_pstorerft_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_high(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerff_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_high(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerftnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_high(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerffnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_half_high(fLSBNEWNOT(PvN))
+
+/* Word (old value) */
+#define fWRAP_pstoreX_abs_word_old(PRED) \
+    fWRAP_pstoreX_abs(PRED, RtV, 4)
+
+#define fWRAP_S4_pstorerit_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerif_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstoreritnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerifnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_old(fLSBNEWNOT(PvN))
+
+/* Word (new value) */
+#define fWRAP_pstoreX_abs_word_new(PRED) \
+    fWRAP_pstoreX_abs(PRED, hex_new_value[NtX], 4)
+
+#define fWRAP_S4_pstorerinewt_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_new(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerinewf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_new(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerinewtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_new(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerinewfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_word_new(fLSBNEWNOT(PvN))
+
+/* Double word (old value) */
+#define fWRAP_pstoreX_abs_double_old(PRED) \
+    fWRAP_pstoreX_abs(PRED, RttV, 8)
+
+#define fWRAP_S4_pstorerdt_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_double_old(fLSBOLD(PvV))
+#define fWRAP_S4_pstorerdf_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_double_old(fLSBOLDNOT(PvV))
+#define fWRAP_S4_pstorerdtnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_double_old(fLSBNEW(PvN))
+#define fWRAP_S4_pstorerdfnew_abs(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_abs_double_old(fLSBNEWNOT(PvN))
+
+/*
+ ****************************************************************************
+ * _pi addressing mode (addr ++ increment)
+ */
+#define fWRAP_pstoreX_pi(PRED, VAL, SIZE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), PRED, VAL, SIZE, fPM_I(RxV, siV))
+
+/* Byte (old value) */
+#define fWRAP_pstoreX_pi_byte_old(PRED) \
+    fWRAP_pstoreX_pi(PRED, fGETBYTE(0, RtV), 1)
+
+#define fWRAP_S2_pstorerbt_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerbf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_old(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerbtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_old(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerbfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_old(fLSBNEWNOT(PvN))
+
+/* Byte (new value) */
+#define fWRAP_pstoreX_pi_byte_new(PRED) \
+    fWRAP_pstoreX_pi(PRED, fGETBYTE(0, hex_new_value[NtX]), 1)
+
+#define fWRAP_S2_pstorerbnewt_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerbnewf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_new(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerbnewtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_new(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerbnewfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_byte_new(fLSBNEWNOT(PvN))
+
+/* Half word (old value) */
+#define fWRAP_pstoreX_pi_half_old(PRED) \
+    fWRAP_pstoreX_pi(PRED, fGETHALF(0, RtV), 2)
+
+#define fWRAP_S2_pstorerht_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerhf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_old(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerhtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_old(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerhfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_old(fLSBNEWNOT(PvN))
+
+/* Half word (new value) */
+#define fWRAP_pstoreX_pi_half_new(PRED) \
+    fWRAP_pstoreX_pi(PRED, fGETHALF(0, hex_new_value[NtX]), 2)
+
+#define fWRAP_S2_pstorerhnewt_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerhnewf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_new(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerhnewtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_new(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerhnewfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_new(fLSBNEWNOT(PvN))
+
+/* High half word */
+#define fWRAP_pstoreX_pi_half_high(PRED) \
+    fWRAP_pstoreX_pi(PRED, fGETHALF(1, RtV), 2)
+
+#define fWRAP_S2_pstorerft_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_high(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerff_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_high(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerftnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_high(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerffnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_half_high(fLSBNEWNOT(PvN))
+
+/* Word (old value) */
+#define fWRAP_pstoreX_pi_word_old(PRED) \
+    fWRAP_pstoreX_pi(PRED, RtV, 4)
+
+#define fWRAP_S2_pstorerit_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerif_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_old(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstoreritnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_old(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerifnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_old(fLSBNEWNOT(PvN))
+
+/* Word (new value) */
+#define fWRAP_pstoreX_pi_word_new(PRED) \
+    fWRAP_pstoreX_pi(PRED, hex_new_value[NtX], 4)
+
+#define fWRAP_S2_pstorerinewt_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_new(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerinewf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_new(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerinewtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_new(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerinewfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_word_new(fLSBNEWNOT(PvN))
+
+/* Double word (old value) */
+#define fWRAP_pstoreX_pi_double_old(PRED) \
+    fWRAP_pstoreX_pi(PRED, RttV, 8)
+
+#define fWRAP_S2_pstorerdt_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_double_old(fLSBOLD(PvV))
+#define fWRAP_S2_pstorerdf_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_double_old(fLSBOLDNOT(PvV))
+#define fWRAP_S2_pstorerdtnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_double_old(fLSBNEW(PvN))
+#define fWRAP_S2_pstorerdfnew_pi(GENHLR, SHORTCODE) \
+    fWRAP_pstoreX_pi_double_old(fLSBNEWNOT(PvN))
+/*
+ ****************************************************************************
+ * Whew!  That's the end of the predicated stores.
+ ****************************************************************************
+ */
 
 /* We have to brute force memops because they have C math in the semantics */
 #define fWRAP_MEMOP(GENHLPR, SHORTCODE, SIZE, OP) \

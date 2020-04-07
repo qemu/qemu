@@ -32,12 +32,6 @@ static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
     return pred;
 }
 
-static inline TCGv gen_newreg_st(TCGv result, TCGv_env cpu_env, TCGv rnum)
-{
-    gen_helper_new_value(result, cpu_env, rnum);
-    return result;
-}
-
 static inline bool is_preloaded(DisasContext *ctx, int num)
 {
     int i;

@@ -19,7 +19,6 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "exec/helper-proto.h"
-#include "tcg/tcg-op.h"
 #include "cpu.h"
 #include "internal.h"
 #include "macros.h"
@@ -126,33 +125,12 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum,
     }
 }
 
-static inline void log_store32(CPUHexagonState *env, target_ulong addr,
-                               target_ulong val, int width, int slot)
-{
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx ", " TARGET_FMT_ld
-                  " [0x" TARGET_FMT_lx "])\n",
-                  width, addr, val, val);
-    env->mem_log_stores[slot].va = addr;
-    env->mem_log_stores[slot].width = width;
-    env->mem_log_stores[slot].data32 = val;
-}
-
-static inline void log_store64(CPUHexagonState *env, target_ulong addr,
-                               int64_t val, int width, int slot)
-{
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx ", %ld [0x%lx])\n",
-                   width, addr, val, val);
-    env->mem_log_stores[slot].va = addr;
-    env->mem_log_stores[slot].width = width;
-    env->mem_log_stores[slot].data64 = val;
-}
-
 static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
 
     /*
-     * If more than one branch it taken in a packet, only the first one
+     * If more than one branch is taken in a packet, only the first one
      * is actually done.
      */
     if (env->branch_taken) {
@@ -175,15 +153,6 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         env->reg_written[i] = 0;
     }
-}
-
-/*
- * This helper is needed when the rnum has already been turned into a TCGv,
- * so we can't just do tcg_gen_mov_tl(result, hex_new_value[rnum]);
- */
-int32_t HELPER(new_value)(CPUHexagonState *env, int rnum)
-{
-    return env->new_value[rnum];
 }
 
 static inline int32_t new_pred_value(CPUHexagonState *env, int pnum)
@@ -463,12 +432,13 @@ static int64_t merge_bytes(CPUHexagonState *env, target_ulong load_addr,
                            int64_t load_data, uint32_t load_width)
 {
     /* Don't do anything if slot 1 was cancelled */
-    if (env->slot_cancelled & (1 << 1)) {
+    const int store_slot = 1;
+    if (env->slot_cancelled & (1 << store_slot)) {
         return load_data;
     }
 
-    int store_width = env->mem_log_stores[1].width;
-    target_ulong store_addr = env->mem_log_stores[1].va;
+    int store_width = env->mem_log_stores[store_slot].width;
+    target_ulong store_addr = env->mem_log_stores[store_slot].va;
     union {
         uint8_t bytes[8];
         uint32_t data32;
@@ -482,9 +452,9 @@ static int64_t merge_bytes(CPUHexagonState *env, target_ulong load_addr,
     retdata.data64 = load_data;
 
     if (store_width == 1 || store_width == 2 || store_width == 4) {
-        storedata.data32 = env->mem_log_stores[1].data32;
+        storedata.data32 = env->mem_log_stores[store_slot].data32;
     } else if (store_width == 8) {
-        storedata.data64 = env->mem_log_stores[1].data64;
+        storedata.data64 = env->mem_log_stores[store_slot].data64;
     } else {
         g_assert_not_reached();
     }
