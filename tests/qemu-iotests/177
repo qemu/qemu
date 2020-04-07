@@ -89,8 +89,9 @@ verify_io()
 {
     if ($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" |
 	    grep "compat: 0.10" > /dev/null); then
-        # For v2 images, discarded clusters are read from the backing file
-        discarded=11
+        # In v2 images clusters are not discarded when there is a backing file
+        # so the previous value is read
+        discarded=22
     else
         # Discarded clusters are zeroed for v3 or later
         discarded=0

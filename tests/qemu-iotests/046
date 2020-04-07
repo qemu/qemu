@@ -193,8 +193,8 @@ echo "== Verify image content =="
 verify_io()
 {
     if ($QEMU_IMG info -U -f "$IMGFMT" "$TEST_IMG" | grep "compat: 0.10" > /dev/null); then
-        # For v2 images, discarded clusters are read from the backing file
-        # Keep the variable empty so that the backing file value can be used as
+        # In v2 images clusters are not discarded when there is a backing file.
+        # Keep the variable empty so that the previous value can be used as
         # the default below
         discarded=
     else
@@ -230,14 +230,16 @@ verify_io()
     echo read -P 70 0x78000 0x6000
     echo read -P 7  0x7e000 0x2000
 
-    echo read -P ${discarded:-8} 0x80000 0x6000
+    echo read -P ${discarded:-89} 0x80000 0x1000
+    echo read -P ${discarded:-8} 0x81000 0x5000
     echo read -P 80 0x86000 0x2000
     echo read -P ${discarded:-8} 0x88000 0x2000
     echo read -P 81 0x8a000 0xe000
     echo read -P 90 0x98000 0x6000
     echo read -P 9  0x9e000 0x2000
 
-    echo read -P ${discarded:-10} 0xa0000 0x6000
+    echo read -P ${discarded:-109} 0xa0000 0x1000
+    echo read -P ${discarded:-10} 0xa1000 0x5000
     echo read -P 100 0xa6000 0x2000
     echo read -P ${discarded:-10} 0xa8000 0x2000
     echo read -P 101 0xaa000 0xe000

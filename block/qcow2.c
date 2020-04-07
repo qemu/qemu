@@ -3784,6 +3784,12 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     int ret;
     BDRVQcow2State *s = bs->opaque;
 
+    /* If the image does not support QCOW_OFLAG_ZERO then discarding
+     * clusters could expose stale data from the backing file. */
+    if (s->qcow_version < 3 && bs->backing) {
+        return -ENOTSUP;
+    }
+
     if (!QEMU_IS_ALIGNED(offset | bytes, s->cluster_size)) {
         assert(bytes < s->cluster_size);
         /* Ignore partial clusters, except for the special case of the
@@ -4346,6 +4352,11 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     }
 
     if (offset_into_cluster(s, offset)) {
+        return -EINVAL;
+    }
+
+    if (offset_into_cluster(s, bytes) &&
+        (offset + bytes) != (bs->total_sectors << BDRV_SECTOR_BITS)) {
         return -EINVAL;
     }
 
