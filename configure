@@ -2119,7 +2119,7 @@ if compile_prog "-Werror -fno-pie" "-no-pie"; then
 fi
 
 if test "$static" = "yes"; then
-  if test "$pie" != "no" && compile_prog "-fPIE -DPIE" "-static-pie"; then
+  if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
     QEMU_LDFLAGS="-static-pie $QEMU_LDFLAGS"
     pie="yes"
@@ -2132,7 +2132,7 @@ if test "$static" = "yes"; then
 elif test "$pie" = "no"; then
   QEMU_CFLAGS="$CFLAGS_NOPIE $QEMU_CFLAGS"
   QEMU_LDFLAGS="$LDFLAGS_NOPIE $QEMU_LDFLAGS"
-elif compile_prog "-fPIE -DPIE" "-pie"; then
+elif compile_prog "-Werror -fPIE -DPIE" "-pie"; then
   QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
   QEMU_LDFLAGS="-pie $QEMU_LDFLAGS"
   pie="yes"

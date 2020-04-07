@@ -1,0 +1,34 @@
+# Configuration for Repo Lockdown - https://github.com/dessant/repo-lockdown
+
+# Close issues and pull requests
+close: true
+
+# Lock issues and pull requests
+lock: true
+
+issues:
+  comment: |
+    Thank you for your interest in the QEMU project.
+
+    This repository is a read-only mirror of the project's master
+    repostories hosted on https://git.qemu.org/git/qemu.git.
+    The project does not process issues filed on GitHub.
+
+    The project issues are tracked on Launchpad:
+    https://bugs.launchpad.net/qemu
+
+    QEMU welcomes bug report contributions. You can file new ones on:
+    https://bugs.launchpad.net/qemu/+filebug
+
+pulls:
+  comment: |
+    Thank you for your interest in the QEMU project.
+
+    This repository is a read-only mirror of the project's master
+    repostories hosted on https://git.qemu.org/git/qemu.git.
+    The project does not process merge requests filed on GitHub.
+
+    QEMU welcomes contributions of code (either fixing bugs or adding new
+    functionality). However, we get a lot of patches, and so we have some
+    guidelines about contributing on the project website:
+    https://www.qemu.org/contribute/
