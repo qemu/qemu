@@ -321,6 +321,12 @@ static void handleAnyDeviceErrors(Error * err)
     }
 }
 
+/* Name for the normal window */
+/* Used for the window title, and also to save the window frame. */
+static NSString* normalWindowName(const char* name) {
+    return name ? [NSString stringWithFormat:@"QEMU %s", name] : @"QEMU";
+}
+
 /*
  ------------------------------------------------------
     QemuCocoaView
@@ -403,6 +409,7 @@ QemuCocoaView *cocoaView;
 {
     return YES;
 }
+
 
 - (BOOL) screenContainsPoint:(NSPoint) p
 {
@@ -595,16 +602,10 @@ QemuCocoaView *cocoaView;
     // update windows
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:NO animate:NO];
-    } else {
-        if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:YES animate:NO];
     }
-
-    if (isResize) {
-        [normalWindow center];
-    }
+    
+    [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:!isFullscreen animate:NO];
+    [normalWindow setTitle:normalWindowName(qemu_name)];
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -1006,10 +1007,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (!isFullscreen) {
-        if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
-        else
-            [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
+        [normalWindow setTitle:[NSString stringWithFormat:@"%@ - (Press ctrl + alt + g to release Mouse)", normalWindowName(qemu_name) ]];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {
@@ -1024,10 +1022,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
 
     if (!isFullscreen) {
-        if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
-        else
-            [normalWindow setTitle:@"QEMU"];
+        [normalWindow setTitle:normalWindowName(qemu_name)];
     }
     [self unhideCursor];
     if (isMouseDeassociated) {
@@ -1124,8 +1119,9 @@ QemuCocoaView *cocoaView;
             exit(1);
         }
         [normalWindow setAcceptsMouseMovedEvents:YES];
-        [normalWindow setTitle:@"QEMU"];
+        [normalWindow setTitle:normalWindowName(qemu_name)];
         [normalWindow setContentView:cocoaView];
+        [normalWindow setFrameAutosaveName:normalWindowName(qemu_name)];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
         [normalWindow useOptimizedDrawing:YES];
 #endif
@@ -1537,7 +1533,7 @@ QemuCocoaView *cocoaView;
     });
     COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
 }
-
+         
 @end
 
 @interface QemuApplication : NSApplication
