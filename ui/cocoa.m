@@ -322,40 +322,29 @@ static void handleAnyDeviceErrors(Error * err)
 }
 
 /* Name for the normal window */
-/* Used for the window title, and also to save the window frame. */
-static NSString* normalWindowName(const char* name) {
+static NSString *normalWindowName(const char* name) {
     return name ? [NSString stringWithFormat:@"QEMU %s", name] : @"QEMU";
 }
 
+/* Key to use for saving/restoring the window position */
+static NSString *windowPositionKey(const char* name) {
+    return [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
+}
+
 /* Log the window position for debugging purposes. */
-static void logWindowPosition(NSWindow* window, NSString* label, const char* name) {
-    NSString* title = normalWindowName(name);
+static void logWindowPosition(NSWindow *window, NSString *label, const char* name) {
+    NSString *title = normalWindowName(name);
     NSLog(@"%@: %@ %@", label, title, NSStringFromRect(window.frame));
 }
 
 static void saveWindowPosition(NSWindow* window, const char* name) {
     NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    NSString* key = [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
     NSPoint position = [window contentRectForFrameRect: [window frame]].origin;
     NSArray* value = @[@(position.x), @(position.y)];
-//    NSArray* value = @[[NSNumber numberWithDouble: position.x], [NSNumber numberWithDouble: position.y]];
-    [defaults setObject:value forKey: key];
+    [defaults setObject:value forKey: windowPositionKey(name)];
     [defaults synchronize];
-    NSLog(@"saved position %@", value);
 }
 
-static NSRect restoredWindowFrame(NSWindow* window, const char* name, CGFloat width, CGFloat height) {
-    NSRect frame = [window contentRectForFrameRect: [window frame]];
-    NSString* key = [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
-    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    NSArray* value = [defaults arrayForKey: key];
-    if ([value count] == 2) {
-        frame.origin = NSMakePoint([[value objectAtIndex:0] doubleValue], [[value objectAtIndex:1] doubleValue]);
-        NSLog(@"restored position %@", value);
-    }
-    frame.size = NSMakeSize(width, height);
-    return [window frameRectForContentRect: frame];
-}
 
 /*
  ------------------------------------------------------
@@ -628,17 +617,33 @@ QemuCocoaView *cocoaView;
     pixman_image = image;
     dataProviderRef = CGDataProviderCreateWithData(NULL, pixman_image_get_data(image), w * 4 * h, NULL);
 
-    // update fullscreen window
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
+    } else {
+        [self updateWindowFrameForWidth:w height:h isResize:isResize];
+        [normalWindow setTitle:normalWindowName(qemu_name)];
     }
+}
 
-    // update size of normal window, keeping the top-left in the same place
-    logWindowPosition(normalWindow, @"before resize", qemu_name);
-    NSRect newFrame = restoredWindowFrame(normalWindow, qemu_name, w, h);
-    [normalWindow setFrame:newFrame display:!isFullscreen animate:NO];
-    [normalWindow setTitle:normalWindowName(qemu_name)];
-    logWindowPosition(normalWindow, @"after resize", qemu_name);
+/* Update size of normal window, keeping the top-left in the same place */
+- (void) updateWindowFrameForWidth:(CGFloat)width height:(CGFloat)height isResize:(BOOL)isResize {
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSArray* value = [defaults arrayForKey: windowPositionKey(qemu_name)];
+    BOOL gotValue = [value count] == 2;
+    
+    NSRect contentFrame = [normalWindow contentRectForFrameRect: [normalWindow frame]];
+    contentFrame.size = NSMakeSize(width, height);
+    if (gotValue) {
+        // restore window origin if it was saved previously
+        contentFrame.origin = NSMakePoint([[value objectAtIndex:0] doubleValue], [[value objectAtIndex:1] doubleValue]);
+    }
+    NSRect windowFrame = [normalWindow frameRectForContentRect: contentFrame];
+    [normalWindow setFrame:windowFrame display:!isFullscreen animate:NO];
+    
+    if (isResize && !gotValue) {
+        // if we've no saved origin, center the window like we used to
+        [normalWindow center];
+    }
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -1238,7 +1243,6 @@ QemuCocoaView *cocoaView;
 
 - (void) windowDidMove:(id)sender
 {
-    logWindowPosition(normalWindow, @"moved", qemu_name);
     saveWindowPosition(normalWindow, qemu_name);
 }
 
