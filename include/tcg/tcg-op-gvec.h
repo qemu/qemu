@@ -109,6 +109,8 @@ typedef struct {
     uint8_t vece;
     /* Prefer i64 to v64.  */
     bool prefer_i64;
+    /* Load dest as a 2nd source operand.  */
+    bool load_dest;
 } GVecGen2;
 
 typedef struct {

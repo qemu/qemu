@@ -663,17 +663,22 @@ static void expand_clr(uint32_t dofs, uint32_t maxsz)
 
 /* Expand OPSZ bytes worth of two-operand operations using i32 elements.  */
 static void expand_2_i32(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
-                         void (*fni)(TCGv_i32, TCGv_i32))
+                         bool load_dest, void (*fni)(TCGv_i32, TCGv_i32))
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 4) {
         tcg_gen_ld_i32(t0, cpu_env, aofs + i);
-        fni(t0, t0);
-        tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        if (load_dest) {
+            tcg_gen_ld_i32(t1, cpu_env, dofs + i);
+        }
+        fni(t1, t0);
+        tcg_gen_st_i32(t1, cpu_env, dofs + i);
     }
     tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
 }
 
 static void expand_2i_i32(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
@@ -793,17 +798,22 @@ static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
 
 /* Expand OPSZ bytes worth of two-operand operations using i64 elements.  */
 static void expand_2_i64(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
-                         void (*fni)(TCGv_i64, TCGv_i64))
+                         bool load_dest, void (*fni)(TCGv_i64, TCGv_i64))
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
     uint32_t i;
 
     for (i = 0; i < oprsz; i += 8) {
         tcg_gen_ld_i64(t0, cpu_env, aofs + i);
-        fni(t0, t0);
-        tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        if (load_dest) {
+            tcg_gen_ld_i64(t1, cpu_env, dofs + i);
+        }
+        fni(t1, t0);
+        tcg_gen_st_i64(t1, cpu_env, dofs + i);
     }
     tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
 }
 
 static void expand_2i_i64(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
@@ -924,17 +934,23 @@ static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
 /* Expand OPSZ bytes worth of two-operand operations using host vectors.  */
 static void expand_2_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
                          uint32_t oprsz, uint32_t tysz, TCGType type,
+                         bool load_dest,
                          void (*fni)(unsigned, TCGv_vec, TCGv_vec))
 {
     TCGv_vec t0 = tcg_temp_new_vec(type);
+    TCGv_vec t1 = tcg_temp_new_vec(type);
     uint32_t i;
 
     for (i = 0; i < oprsz; i += tysz) {
         tcg_gen_ld_vec(t0, cpu_env, aofs + i);
-        fni(vece, t0, t0);
-        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        if (load_dest) {
+            tcg_gen_ld_vec(t1, cpu_env, dofs + i);
+        }
+        fni(vece, t1, t0);
+        tcg_gen_st_vec(t1, cpu_env, dofs + i);
     }
     tcg_temp_free_vec(t0);
+    tcg_temp_free_vec(t1);
 }
 
 /* Expand OPSZ bytes worth of two-vector operands and an immediate operand
@@ -1088,7 +1104,8 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
         some = QEMU_ALIGN_DOWN(oprsz, 32);
-        expand_2_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256, g->fniv);
+        expand_2_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256,
+                     g->load_dest, g->fniv);
         if (some == oprsz) {
             break;
         }
@@ -1098,17 +1115,19 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
         maxsz -= some;
         /* fallthru */
     case TCG_TYPE_V128:
-        expand_2_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128, g->fniv);
+        expand_2_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
+                     g->load_dest, g->fniv);
         break;
     case TCG_TYPE_V64:
-        expand_2_vec(g->vece, dofs, aofs, oprsz, 8, TCG_TYPE_V64, g->fniv);
+        expand_2_vec(g->vece, dofs, aofs, oprsz, 8, TCG_TYPE_V64,
+                     g->load_dest, g->fniv);
         break;
 
     case 0:
         if (g->fni8 && check_size_impl(oprsz, 8)) {
-            expand_2_i64(dofs, aofs, oprsz, g->fni8);
+            expand_2_i64(dofs, aofs, oprsz, g->load_dest, g->fni8);
         } else if (g->fni4 && check_size_impl(oprsz, 4)) {
-            expand_2_i32(dofs, aofs, oprsz, g->fni4);
+            expand_2_i32(dofs, aofs, oprsz, g->load_dest, g->fni4);
         } else {
             assert(g->fno != NULL);
             tcg_gen_gvec_2_ool(dofs, aofs, oprsz, maxsz, g->data, g->fno);
