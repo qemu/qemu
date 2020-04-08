@@ -322,27 +322,8 @@ static void handleAnyDeviceErrors(Error * err)
 }
 
 /* Name for the normal window */
-static NSString *normalWindowName(const char* name) {
-    return name ? [NSString stringWithFormat:@"QEMU %s", name] : @"QEMU";
-}
-
-/* Key to use for saving/restoring the window position */
-static NSString *windowPositionKey(const char* name) {
-    return [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
-}
-
-/* Log the window position for debugging purposes. */
-static void logWindowPosition(NSWindow *window, NSString *label, const char* name) {
-    NSString *title = normalWindowName(name);
-    NSLog(@"%@: %@ %@", label, title, NSStringFromRect(window.frame));
-}
-
-static void saveWindowPosition(NSWindow* window, const char* name) {
-    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    NSPoint position = [window contentRectForFrameRect: [window frame]].origin;
-    NSArray* value = @[@(position.x), @(position.y)];
-    [defaults setObject:value forKey: windowPositionKey(name)];
-    [defaults synchronize];
+static NSString *normalWindowName(void) {
+    return qemu_name ? [NSString stringWithFormat:@"QEMU %s", qemu_name] : @"QEMU";
 }
 
 
@@ -621,27 +602,41 @@ QemuCocoaView *cocoaView;
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
     } else {
         [self updateWindowFrameForWidth:w height:h isResize:isResize];
-        [normalWindow setTitle:normalWindowName(qemu_name)];
+        [normalWindow setTitle:normalWindowName()];
     }
 }
 
-/* Update size of normal window, keeping the top-left in the same place */
+
+/* Key to use for saving/restoring the window position */
+- (NSString*) windowPositionKey {
+    return [NSString stringWithFormat: @"Position %@", normalWindowName()];
+}
+
+/* Store the normal window position in the user defaults. */
+- (void) saveWindowPosition {
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSPoint position = [normalWindow contentRectForFrameRect: [normalWindow frame]].origin;
+    NSArray* value = @[@(position.x), @(position.y)];
+    [defaults setObject:value forKey: [self windowPositionKey]];
+}
+
+/* Update size of the normal window, keeping the origin constant if the user has positioned it */
 - (void) updateWindowFrameForWidth:(CGFloat)width height:(CGFloat)height isResize:(BOOL)isResize {
     NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    NSArray* value = [defaults arrayForKey: windowPositionKey(qemu_name)];
-    BOOL gotValue = [value count] == 2;
+    NSArray* value = [defaults arrayForKey: [self windowPositionKey]];
+    BOOL gotOrigin = [value count] == 2;
     
     NSRect contentFrame = [normalWindow contentRectForFrameRect: [normalWindow frame]];
     contentFrame.size = NSMakeSize(width, height);
-    if (gotValue) {
+    if (gotOrigin) {
         // restore window origin if it was saved previously
         contentFrame.origin = NSMakePoint([[value objectAtIndex:0] doubleValue], [[value objectAtIndex:1] doubleValue]);
     }
     NSRect windowFrame = [normalWindow frameRectForContentRect: contentFrame];
     [normalWindow setFrame:windowFrame display:!isFullscreen animate:NO];
     
-    if (isResize && !gotValue) {
-        // if we've no saved origin, center the window like we used to
+    if (isResize && !gotOrigin) {
+        // if we've no saved origin, center the window
         [normalWindow center];
     }
 }
@@ -1045,7 +1040,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (!isFullscreen) {
-        [normalWindow setTitle:[NSString stringWithFormat:@"%@ - (Press ctrl + alt + g to release Mouse)", normalWindowName(qemu_name) ]];
+        [normalWindow setTitle:[NSString stringWithFormat:@"%@ - (Press ctrl + alt + g to release Mouse)", normalWindowName() ]];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {
@@ -1060,7 +1055,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
 
     if (!isFullscreen) {
-        [normalWindow setTitle:normalWindowName(qemu_name)];
+        [normalWindow setTitle:normalWindowName()];
     }
     [self unhideCursor];
     if (isMouseDeassociated) {
@@ -1159,7 +1154,7 @@ QemuCocoaView *cocoaView;
             exit(1);
         }
         [normalWindow setAcceptsMouseMovedEvents:YES];
-        [normalWindow setTitle:normalWindowName(qemu_name)];
+        [normalWindow setTitle:normalWindowName()];
         [normalWindow setContentView:cocoaView];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
         [normalWindow useOptimizedDrawing:YES];
@@ -1243,7 +1238,7 @@ QemuCocoaView *cocoaView;
 
 - (void) windowDidMove:(id)sender
 {
-    saveWindowPosition(normalWindow, qemu_name);
+    [cocoaView saveWindowPosition];
 }
 
 /* Called when QEMU goes into the background */
