@@ -327,6 +327,36 @@ static NSString* normalWindowName(const char* name) {
     return name ? [NSString stringWithFormat:@"QEMU %s", name] : @"QEMU";
 }
 
+/* Log the window position for debugging purposes. */
+static void logWindowPosition(NSWindow* window, NSString* label, const char* name) {
+    NSString* title = normalWindowName(name);
+    NSLog(@"%@: %@ %@", label, title, NSStringFromRect(window.frame));
+}
+
+static void saveWindowPosition(NSWindow* window, const char* name) {
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSString* key = [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
+    NSPoint position = [window contentRectForFrameRect: [window frame]].origin;
+    NSArray* value = @[@(position.x), @(position.y)];
+//    NSArray* value = @[[NSNumber numberWithDouble: position.x], [NSNumber numberWithDouble: position.y]];
+    [defaults setObject:value forKey: key];
+    [defaults synchronize];
+    NSLog(@"saved position %@", value);
+}
+
+static NSRect restoredWindowFrame(NSWindow* window, const char* name, CGFloat width, CGFloat height) {
+    NSRect frame = [window contentRectForFrameRect: [window frame]];
+    NSString* key = [NSString stringWithFormat: @"Position %@", normalWindowName(name)];
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSArray* value = [defaults arrayForKey: key];
+    if ([value count] == 2) {
+        frame.origin = NSMakePoint([[value objectAtIndex:0] doubleValue], [[value objectAtIndex:1] doubleValue]);
+        NSLog(@"restored position %@", value);
+    }
+    frame.size = NSMakeSize(width, height);
+    return [window frameRectForContentRect: frame];
+}
+
 /*
  ------------------------------------------------------
     QemuCocoaView
@@ -576,7 +606,6 @@ QemuCocoaView *cocoaView;
      */
     bool isResize = (w != screen.width || h != screen.height || cdx == 0.0);
 
-    int oldh = screen.height;
     if (isResize) {
         // Resize before we trigger the redraw, or we'll redraw at the wrong size
         COCOA_DEBUG("switchSurface: new size %d x %d\n", w, h);
@@ -599,13 +628,17 @@ QemuCocoaView *cocoaView;
     pixman_image = image;
     dataProviderRef = CGDataProviderCreateWithData(NULL, pixman_image_get_data(image), w * 4 * h, NULL);
 
-    // update windows
+    // update fullscreen window
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
     }
-    
-    [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:!isFullscreen animate:NO];
+
+    // update size of normal window, keeping the top-left in the same place
+    logWindowPosition(normalWindow, @"before resize", qemu_name);
+    NSRect newFrame = restoredWindowFrame(normalWindow, qemu_name, w, h);
+    [normalWindow setFrame:newFrame display:!isFullscreen animate:NO];
     [normalWindow setTitle:normalWindowName(qemu_name)];
+    logWindowPosition(normalWindow, @"after resize", qemu_name);
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -1104,14 +1137,16 @@ QemuCocoaView *cocoaView;
     if (self) {
 
         // create a view and add it to the window
-        cocoaView = [[QemuCocoaView alloc] initWithFrame:NSMakeRect(0.0, 0.0, 640.0, 480.0)];
+        NSRect frame = NSMakeRect(0.0, 0.0, 640.0, 480.0);
+        cocoaView = [[QemuCocoaView alloc] initWithFrame:frame];
         if(!cocoaView) {
             fprintf(stderr, "(cocoa) can't create a view\n");
             exit(1);
         }
 
         // create a window
-        normalWindow = [[NSWindow alloc] initWithContentRect:[cocoaView frame]
+        frame.origin = NSMakePoint(256.0, 256.0);
+        normalWindow = [[NSWindow alloc] initWithContentRect:frame
             styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskClosable
             backing:NSBackingStoreBuffered defer:NO];
         if(!normalWindow) {
@@ -1121,13 +1156,13 @@ QemuCocoaView *cocoaView;
         [normalWindow setAcceptsMouseMovedEvents:YES];
         [normalWindow setTitle:normalWindowName(qemu_name)];
         [normalWindow setContentView:cocoaView];
-        [normalWindow setFrameAutosaveName:normalWindowName(qemu_name)];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
         [normalWindow useOptimizedDrawing:YES];
 #endif
         [normalWindow makeKeyAndOrderFront:self];
         [normalWindow center];
         [normalWindow setDelegate: self];
+
         stretch_video = false;
 
         /* Used for displaying pause on the screen */
@@ -1199,6 +1234,12 @@ QemuCocoaView *cocoaView;
      * closing of this window.
      */
     return NO;
+}
+
+- (void) windowDidMove:(id)sender
+{
+    logWindowPosition(normalWindow, @"moved", qemu_name);
+    saveWindowPosition(normalWindow, qemu_name);
 }
 
 /* Called when QEMU goes into the background */
