@@ -4315,6 +4315,11 @@ void qemu_init(int argc, char **argv, char **envp)
                              "explicitly specified 'memory-backend' property");
                 exit(EXIT_FAILURE);
         }
+        if (mem_path) {
+            error_report("'-mem-path' can't be used together with"
+                         "'-machine memory-backend'");
+            exit(EXIT_FAILURE);
+        }
         ram_size = backend_size;
     }
 
