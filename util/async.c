@@ -249,7 +249,14 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
 
-    atomic_or(&ctx->notify_me, 1);
+    atomic_set(&ctx->notify_me, atomic_read(&ctx->notify_me) | 1);
+
+    /*
+     * Write ctx->notify_me before computing the timeout
+     * (reading bottom half flags, etc.).  Pairs with
+     * smp_mb in aio_notify().
+     */
+    smp_mb();
 
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
@@ -268,7 +275,8 @@ aio_ctx_check(GSource *source)
     QEMUBH *bh;
     BHListSlice *s;
 
-    atomic_and(&ctx->notify_me, ~1);
+    /* Finish computing the timeout before clearing the flag.  */
+    atomic_store_release(&ctx->notify_me, atomic_read(&ctx->notify_me) & ~1);
     aio_notify_accept(ctx);
 
     QSLIST_FOREACH_RCU(bh, &ctx->bh_list, next) {
@@ -411,10 +419,10 @@ LuringState *aio_get_linux_io_uring(AioContext *ctx)
 void aio_notify(AioContext *ctx)
 {
     /* Write e.g. bh->scheduled before reading ctx->notify_me.  Pairs
-     * with atomic_or in aio_ctx_prepare or atomic_add in aio_poll.
+     * with smp_mb in aio_ctx_prepare or aio_poll.
      */
     smp_mb();
-    if (ctx->notify_me) {
+    if (atomic_read(&ctx->notify_me)) {
         event_notifier_set(&ctx->notifier);
         atomic_mb_set(&ctx->notified, true);
     }

@@ -88,7 +88,10 @@ static struct io_uring_sqe *get_sqe(AioContext *ctx)
     }
 
     /* No free sqes left, submit pending sqes first */
-    ret = io_uring_submit(ring);
+    do {
+        ret = io_uring_submit(ring);
+    } while (ret == -EINTR);
+
     assert(ret > 1);
     sqe = io_uring_get_sqe(ring);
     assert(sqe);
@@ -282,7 +285,10 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
 
     fill_sq_ring(ctx);
 
-    ret = io_uring_submit_and_wait(&ctx->fdmon_io_uring, wait_nr);
+    do {
+        ret = io_uring_submit_and_wait(&ctx->fdmon_io_uring, wait_nr);
+    } while (ret == -EINTR);
+
     assert(ret >= 0);
 
     return process_cq_ring(ctx, ready_list);
