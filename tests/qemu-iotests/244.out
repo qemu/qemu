@@ -74,8 +74,6 @@ read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read 2097152/2097152 bytes at offset 2097152
-2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 4194304
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 5242880
@@ -108,7 +106,12 @@ read 1048576/1048576 bytes at offset 1048576
 read 4194304/4194304 bytes at offset 2097152
 4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-Images are identical.
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 3145728/3145728 bytes at offset 3145728
+3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qcow2 file size after I/O: 327680
 
 === bdrv_co_block_status test for file and offset=0 ===
