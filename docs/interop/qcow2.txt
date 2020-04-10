@@ -25,6 +25,9 @@ The first cluster of a qcow2 image contains the file header:
                     is stored (NB: The string is not null terminated). 0 if the
                     image doesn't have a backing file.
 
+                    Note: backing files are incompatible with raw external data
+                    files (auto-clear feature bit 1).
+
          16 - 19:   backing_file_size
                     Length of the backing file name in bytes. Must not be
                     longer than 1023 bytes. Undefined if the image doesn't have
