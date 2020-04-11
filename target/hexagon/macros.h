@@ -732,7 +732,8 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_SA0 (READ_REG(tmp, HEX_REG_SA0))
 #define fREAD_SA1 (READ_REG(tmp, HEX_REG_SA1))
 #define fREAD_FP() (READ_REG(tmp, HEX_REG_FP))
-#define fREAD_GP() (READ_REG(tmp, HEX_REG_GP))
+#define fREAD_GP() \
+    (insn->extension_valid ? gen_zero(tmp) : READ_REG(tmp, HEX_REG_GP))
 #define fREAD_PC() (READ_REG(tmp, HEX_REG_PC))
 #else
 #define fREAD_SP() (READ_REG(HEX_REG_SP))
@@ -745,7 +746,8 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_SA0 (READ_REG(HEX_REG_SA0))
 #define fREAD_SA1 (READ_REG(HEX_REG_SA1))
 #define fREAD_FP() (READ_REG(HEX_REG_FP))
-#define fREAD_GP() (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
+#define fREAD_GP() \
+    (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
 #define fREAD_PC() (READ_REG(HEX_REG_PC))
 #endif
 

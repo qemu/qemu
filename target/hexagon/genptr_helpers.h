@@ -20,6 +20,12 @@
 
 #include "tcg/tcg.h"
 
+static inline TCGv gen_zero(TCGv result)
+{
+    tcg_gen_movi_tl(result, 0);
+    return result;
+}
+
 static inline TCGv gen_read_reg(TCGv result, int num)
 {
     tcg_gen_mov_tl(result, hex_gpr[num]);
