@@ -492,8 +492,11 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                            QEMU_THREAD_JOINABLE);
         addr += memset_thread[i].numpages * hpagesize;
     }
+
+    qemu_mutex_lock(&page_mutex);
     threads_created_flag = true;
     qemu_cond_broadcast(&page_cond);
+    qemu_mutex_unlock(&page_mutex);
 
     for (i = 0; i < memset_num_threads; i++) {
         qemu_thread_join(&memset_thread[i].pgthread);

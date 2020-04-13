@@ -132,7 +132,7 @@ The core RCU API is small:
 
      typeof(*p) atomic_rcu_read(p);
 
-        atomic_rcu_read() is similar to atomic_mb_read(), but it makes
+        atomic_rcu_read() is similar to atomic_load_acquire(), but it makes
         some assumptions on the code that calls it.  This allows a more
         optimized implementation.
 
@@ -154,7 +154,7 @@ The core RCU API is small:
 
      void atomic_rcu_set(p, typeof(*p) v);
 
-        atomic_rcu_set() is also similar to atomic_mb_set(), and it also
+        atomic_rcu_set() is similar to atomic_store_release(), though it also
         makes assumptions on the code that calls it in order to allow a more
         optimized implementation.
 

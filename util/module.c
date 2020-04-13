@@ -177,7 +177,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
     char *version_dir;
 #endif
     const char *search_dir;
-    char *dirs[4];
+    char *dirs[5];
     char *module_name;
     int i = 0, n_dirs = 0;
     int ret;

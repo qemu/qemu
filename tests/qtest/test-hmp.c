@@ -143,7 +143,7 @@ static void add_machine_test_case(const char *mname)
     char *path;
 
     /* Ignore blacklisted machines that have known problems */
-    if (!strcmp("xenfv", mname) || !strcmp("xenpv", mname)) {
+    if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
         return;
     }
 
