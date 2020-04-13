@@ -477,20 +477,6 @@
 #endif
 
 #ifdef QEMU_GENERATE
-static inline void gen_slot_cancelled_check(TCGv check, int slot_num)
-{
-    TCGv mask = tcg_const_tl(1 << slot_num);
-    TCGv one = tcg_const_tl(1);
-    TCGv zero = tcg_const_tl(0);
-
-    tcg_gen_and_tl(mask, hex_slot_cancelled, mask);
-    tcg_gen_movcond_tl(TCG_COND_NE, check, mask, zero, one, zero);
-
-    tcg_temp_free(one);
-    tcg_temp_free(zero);
-    tcg_temp_free(mask);
-}
-
 static inline void gen_cancel(TCGv slot)
 {
     TCGv one = tcg_const_tl(1);
@@ -732,7 +718,8 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_SA0 (READ_REG(tmp, HEX_REG_SA0))
 #define fREAD_SA1 (READ_REG(tmp, HEX_REG_SA1))
 #define fREAD_FP() (READ_REG(tmp, HEX_REG_FP))
-#define fREAD_GP() (READ_REG(tmp, HEX_REG_GP))
+#define fREAD_GP() \
+    (insn->extension_valid ? gen_zero(tmp) : READ_REG(tmp, HEX_REG_GP))
 #define fREAD_PC() (READ_REG(tmp, HEX_REG_PC))
 #else
 #define fREAD_SP() (READ_REG(HEX_REG_SP))
@@ -745,7 +732,8 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fREAD_SA0 (READ_REG(HEX_REG_SA0))
 #define fREAD_SA1 (READ_REG(HEX_REG_SA1))
 #define fREAD_FP() (READ_REG(HEX_REG_FP))
-#define fREAD_GP() (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
+#define fREAD_GP() \
+    (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
 #define fREAD_PC() (READ_REG(HEX_REG_PC))
 #endif
 
@@ -805,7 +793,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fWRITE_LC1(VAL) WRITE_RREG(HEX_REG_LC1, VAL)
 
 #ifdef QEMU_GENERATE
-#define fCARRY_FROM_ADD(A, B, C) gen_carry_from_add64(tmp_i64, A, B, C)
+#define fCARRY_FROM_ADD(RES, A, B, C) gen_carry_from_add64(RES, A, B, C)
 #else
 #define fCARRY_FROM_ADD(A, B, C) carry_from_add64(A, B, C)
 #endif

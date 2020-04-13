@@ -16,10 +16,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "opcodes.h"
-#include "insn.h"
-#include "mmvec/macros.h"
 #include "qemu.h"
+#include "cpu.h"
+#include "hex_arch_types.h"
+#include "mmvec/macros.h"
 
 #define TYPE_LOAD 'L'
 #define TYPE_STORE 'S'

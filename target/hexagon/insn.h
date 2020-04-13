@@ -20,7 +20,6 @@
 
 #include "cpu.h"
 #include "hex_arch_types.h"
-#include "translate.h"
 
 #define INSTRUCTIONS_MAX 7    /* 2 pairs + loopend */
 #define REG_OPERANDS_MAX 5
@@ -28,9 +27,10 @@
 
 struct Instruction;
 struct Packet;
+struct DisasContext;
 
 typedef void (*semantic_insn_t)(CPUHexagonState *env,
-                                DisasContext *ctx,
+                                struct DisasContext *ctx,
                                 struct Instruction *insn,
                                 struct Packet *pkt);
 

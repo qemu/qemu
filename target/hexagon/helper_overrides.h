@@ -1712,8 +1712,8 @@
         fLSBOLD(PxV); \
         tcg_gen_extu_i32_i64(LSB_i64, LSB); \
         tcg_gen_add_i64(RddV, RddV, LSB_i64); \
-        fCARRY_FROM_ADD(RssV, RttV, LSB_i64); \
-        tcg_gen_extrl_i64_i32(tmp, RssV); \
+        fCARRY_FROM_ADD(tmp_i64, RssV, RttV, LSB_i64); \
+        tcg_gen_extrl_i64_i32(tmp, tmp_i64); \
         f8BITSOF(PxV, tmp); \
         tcg_temp_free(LSB); \
         tcg_temp_free_i64(LSB_i64); \
@@ -1733,8 +1733,8 @@
         fLSBOLD(PxV); \
         tcg_gen_extu_i32_i64(LSB_i64, LSB); \
         tcg_gen_add_i64(RddV, RddV, LSB_i64); \
-        fCARRY_FROM_ADD(RssV, tmp_i64, LSB_i64); \
-        tcg_gen_extrl_i64_i32(tmp, RssV); \
+        fCARRY_FROM_ADD(tmp_i64, RssV, tmp_i64, LSB_i64); \
+        tcg_gen_extrl_i64_i32(tmp, tmp_i64); \
         f8BITSOF(PxV, tmp); \
         tcg_temp_free(LSB); \
         tcg_temp_free_i64(LSB_i64); \
