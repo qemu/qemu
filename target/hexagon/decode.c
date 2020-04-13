@@ -22,10 +22,10 @@
 #include "genptr.h"
 #include "decode.h"
 #include "insn.h"
-#include "macros.h"
 #include "printinsn.h"
-#include "mmvec/mmvec.h"
 #include "mmvec/decode_ext_mmvec.h"
+
+#define fZXTN(N, M, VAL) ((VAL) & ((1LL << (N)) - 1))
 
 enum {
     EXT_IDX_noext = 0,

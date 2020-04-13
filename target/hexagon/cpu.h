@@ -202,6 +202,8 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
 typedef struct CPUHexagonState CPUArchState;
 typedef HexagonCPU ArchCPU;
 
+void hexagon_translate_init(void);
+
 #include "exec/cpu-all.h"
 
 #endif /* HEXAGON_CPU_H */
