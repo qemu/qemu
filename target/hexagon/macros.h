@@ -807,7 +807,7 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fWRITE_LC1(VAL) WRITE_RREG(HEX_REG_LC1, VAL)
 
 #ifdef QEMU_GENERATE
-#define fCARRY_FROM_ADD(A, B, C) gen_carry_from_add64(tmp_i64, A, B, C)
+#define fCARRY_FROM_ADD(RES, A, B, C) gen_carry_from_add64(RES, A, B, C)
 #else
 #define fCARRY_FROM_ADD(A, B, C) carry_from_add64(A, B, C)
 #endif
