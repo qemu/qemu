@@ -470,21 +470,33 @@ static inline TCGv_i64 gen_carry_from_add64(TCGv_i64 result, TCGv_i64 a,
     TCGv_i64 tmpa = tcg_temp_new_i64();
     TCGv_i64 tmpb = tcg_temp_new_i64();
     TCGv_i64 tmpc = tcg_temp_new_i64();
+    TCGv_i64 tmpx = tcg_temp_new_i64();
 
+    /*
+     * tmpa = fGETUWORD(0, a);
+     * tmpb = fGETUWORD(0, b);
+     * tmpc = tmpa + tmpb + c;
+     * tmpa = fGETUWORD(1, a);
+     * tmpb = fGETUWORD(1, b);
+     * tmpc = tmpa + tmpb + fGETUWORD(1, tmpc);
+     * result = fGETUWORD(1, tmpc);
+     * return result;
+     */
     tcg_gen_mov_i64(tmpa, fGETUWORD(0, a));
     tcg_gen_mov_i64(tmpb, fGETUWORD(0, b));
     tcg_gen_add_i64(tmpc, tmpa, tmpb);
     tcg_gen_add_i64(tmpc, tmpc, c);
     tcg_gen_mov_i64(tmpa, fGETUWORD(1, a));
     tcg_gen_mov_i64(tmpb, fGETUWORD(1, b));
-    tcg_gen_add_i64(tmpc, tmpa, tmpb);
-    tcg_gen_add_i64(tmpc, tmpc, fGETUWORD(1, tmpc));
+    tcg_gen_add_i64(tmpx, tmpa, tmpb);
+    tcg_gen_add_i64(tmpc, tmpx, fGETUWORD(1, tmpc));
     tcg_gen_mov_i64(result, fGETUWORD(1, tmpc));
 
     tcg_temp_free_i64(WORD);
     tcg_temp_free_i64(tmpa);
     tcg_temp_free_i64(tmpb);
     tcg_temp_free_i64(tmpc);
+    tcg_temp_free_i64(tmpx);
     return result;
 }
 
