@@ -498,21 +498,21 @@ int arch_sf_recip_common(size4s_t *Rs, size4s_t *Rt, size4s_t *Rd, int *adjust)
         }
         RdV = RsV = RtV = fSFNANVAL();
     } else if (d_class == FP_NAN) {
-        /* EJP: or put NaN in num/den fixup? */
+        /* or put NaN in num/den fixup? */
         if (fGETBIT(22, RtV) == 0) {
             fRAISEFLAGS(FE_INVALID);
         }
         RdV = RsV = RtV = fSFNANVAL();
     } else if ((n_class == FP_INFINITE) && (d_class == FP_INFINITE)) {
-        /* EJP: or put Inf in num fixup? */
+        /* or put Inf in num fixup? */
         RdV = RsV = RtV = fSFNANVAL();
         fRAISEFLAGS(FE_INVALID);
     } else if ((n_class == FP_ZERO) && (d_class == FP_ZERO)) {
-        /* EJP: or put zero in num fixup? */
+        /* or put zero in num fixup? */
         RdV = RsV = RtV = fSFNANVAL();
         fRAISEFLAGS(FE_INVALID);
     } else if (d_class == FP_ZERO) {
-        /* EJP: or put Inf in num fixup? */
+        /* or put Inf in num fixup? */
         RsV = fSFINFVAL(RsV ^ RtV);
         RtV = fSFONEVAL(0);
         RdV = fSFONEVAL(0);
@@ -524,13 +524,13 @@ int arch_sf_recip_common(size4s_t *Rs, size4s_t *Rt, size4s_t *Rd, int *adjust)
         RtV = fSFONEVAL(0);
         RdV = fSFONEVAL(0);
     } else if (n_class == FP_ZERO) {
-        /* EJP: Does this just work itself out? */
-        /* EJP: No, 0/Inf causes problems. */
+        /* Does this just work itself out? */
+        /* No, 0/Inf causes problems. */
         RsV = 0x80000000 & (RsV ^ RtV);
         RtV = fSFONEVAL(0);
         RdV = fSFONEVAL(0);
     } else if (n_class == FP_INFINITE) {
-        /* EJP: Does this just work itself out? */
+        /* Does this just work itself out? */
         RsV = fSFINFVAL(RsV ^ RtV);
         RtV = fSFONEVAL(0);
         RdV = fSFONEVAL(0);
@@ -589,12 +589,11 @@ int arch_sf_invsqrt_common(size4s_t *Rs, size4s_t *Rd, int *adjust)
         RsV = fSFNANVAL();
         RdV = fSFNANVAL();
     } else if (r_class == FP_INFINITE) {
-        /* EJP: or put Inf in num fixup? */
+        /* or put Inf in num fixup? */
         RsV = fSFINFVAL(-1);
         RdV = fSFINFVAL(-1);
     } else if (r_class == FP_ZERO) {
-        /* EJP: or put zero in num fixup? */
-        RsV = RsV;
+        /* or put zero in num fixup? */
         RdV = fSFONEVAL(0);
     } else {
         PeV = 0x00;
