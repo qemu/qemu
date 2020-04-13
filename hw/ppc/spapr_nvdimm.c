@@ -37,6 +37,12 @@ void spapr_nvdimm_validate_opts(NVDIMMDevice *nvdimm, uint64_t size,
     QemuUUID uuid;
     int ret;
 
+    if (object_property_get_int(OBJECT(nvdimm), NVDIMM_LABEL_SIZE_PROP,
+                                &error_abort) == 0) {
+        error_setg(errp, "NVDIMM device requires label-size to be set");
+        return;
+    }
+
     if (size % SPAPR_MINIMUM_SCM_BLOCK_SIZE) {
         error_setg(errp, "NVDIMM memory size excluding the label area"
                    " must be a multiple of %" PRIu64 "MB",
