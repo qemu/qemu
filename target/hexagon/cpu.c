@@ -19,7 +19,6 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "internal.h"
-#include "translate.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"

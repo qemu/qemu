@@ -22,7 +22,6 @@
 #include "qemu.h"
 #include "cpu_loop-common.h"
 #include "internal.h"
-#include "translate.h"
 
 static int do_store_exclusive(CPUHexagonState *env, bool single)
 {

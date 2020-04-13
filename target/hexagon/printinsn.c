@@ -19,8 +19,11 @@
 #include "opcodes.h"
 #include "printinsn.h"
 #include "insn.h"
-#include "macros.h"
+#include "reg_fields.h"
 #include "internal.h"
+
+#define REGNO(NUM) (insn->regno[NUM])
+#define IMMNO(NUM) (insn->immed[NUM])
 
 static const char *sreg2str(unsigned int reg)
 {

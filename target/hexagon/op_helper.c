@@ -491,7 +491,7 @@ void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
 
 void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
 {
-    HEX_DEBUG_LOG("value = 0x%lx\n", value);
+    HEX_DEBUG_LOG("value_i64 = 0x%lx\n", value);
 }
 
 /* Log a write to HVX vector */

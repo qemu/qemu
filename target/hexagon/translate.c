@@ -27,7 +27,6 @@
 #include "decode.h"
 #include "translate.h"
 #include "printinsn.h"
-#include "macros.h"
 
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
