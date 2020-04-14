@@ -30,6 +30,4 @@ RUN apt update && \
         pkg-config \
         psmisc \
         python3 \
-        python3-sphinx \
-        texinfo \
         $(apt-get -s build-dep qemu | egrep ^Inst | fgrep '[all]' | cut -d\  -f2)
