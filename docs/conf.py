@@ -59,8 +59,10 @@ sys.path.insert(0, os.path.join(qemu_docdir, "sphinx"))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# 1.3 is where the 'alabaster' theme was shipped with Sphinx.
-needs_sphinx = '1.3'
+# Sphinx 1.5 and earlier can't build our docs because they are too
+# picky about the syntax of the argument to the option:: directive
+# (see Sphinx bugs #646, #3366).
+needs_sphinx = '1.6'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom

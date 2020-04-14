@@ -1,0 +1,401 @@
+#!/bin/sh -e
+
+# Upload a created tarball to Coverity Scan, as per
+# https://scan.coverity.com/projects/qemu/builds/new
+
+# This work is licensed under the terms of the GNU GPL version 2,
+# or (at your option) any later version.
+# See the COPYING file in the top-level directory.
+#
+# Copyright (c) 2017-2020 Linaro Limited
+# Written by Peter Maydell
+
+# Note that this script will automatically download and
+# run the (closed-source) coverity build tools, so don't
+# use it if you don't trust them!
+
+# This script assumes that you're running it from a QEMU source
+# tree, and that tree is a fresh clean one, because we do an in-tree
+# build. (This is necessary so that the filenames that the Coverity
+# Scan server sees are relative paths that match up with the component
+# regular expressions it uses; an out-of-tree build won't work for this.)
+# The host machine should have as many of QEMU's dependencies
+# installed as possible, for maximum coverity coverage.
+
+# To do an upload you need to be a maintainer in the Coverity online
+# service, and you will need to know the "Coverity token", which is a
+# secret 8 digit hex string. You can find that from the web UI in the
+# project settings, if you have maintainer access there.
+
+# Command line options:
+#   --dry-run : run the tools, but don't actually do the upload
+#   --docker : create and work inside a docker container
+#   --update-tools-only : update the cached copy of the tools, but don't run them
+#   --tokenfile : file to read Coverity token from
+#   --version ver : specify version being analyzed (default: ask git)
+#   --description desc : specify description of this version (default: ask git)
+#   --srcdir : QEMU source tree to analyze (default: current working dir)
+#   --results-tarball : path to copy the results tarball to (default: don't
+#                       copy it anywhere, just upload it)
+#   --src-tarball : tarball to untar into src dir (default: none); this
+#                   is intended mainly for internal use by the Docker support
+#
+# User-specifiable environment variables:
+#  COVERITY_TOKEN -- Coverity token
+#  COVERITY_EMAIL -- the email address to use for uploads (default:
+#                    looks at your git user.email config)
+#  COVERITY_BUILD_CMD -- make command (default: 'make -jN' where N is
+#                    number of CPUs as determined by 'nproc')
+#  COVERITY_TOOL_BASE -- set to directory to put coverity tools
+#                        (default: /tmp/coverity-tools)
+#
+# You must specify the token, either by environment variable or by
+# putting it in a file and using --tokenfile. Everything else has
+# a reasonable default if this is run from a git tree.
+
+check_upload_permissions() {
+    # Check whether we can do an upload to the server; will exit the script
+    # with status 1 if the check failed (usually a bad token);
+    # will exit the script with status 0 if the check indicated that we
+    # can't upload yet (ie we are at quota)
+    # Assumes that PROJTOKEN, PROJNAME and DRYRUN have been initialized.
+
+    echo "Checking upload permissions..."
+
+    if ! up_perm="$(wget https://scan.coverity.com/api/upload_permitted --post-data "token=$PROJTOKEN&project=$PROJNAME" -q -O -)"; then
+        echo "Coverity Scan API access denied: bad token?"
+        exit 1
+    fi
+
+    # Really up_perm is a JSON response with either
+    # {upload_permitted:true} or {next_upload_permitted_at:<date>}
+    # We do some hacky string parsing instead of properly parsing it.
+    case "$up_perm" in
+        *upload_permitted*true*)
+            echo "Coverity Scan: upload permitted"
+            ;;
+        *next_upload_permitted_at*)
+            if [ "$DRYRUN" = yes ]; then
+                echo "Coverity Scan: upload quota reached, continuing dry run"
+            else
+                echo "Coverity Scan: upload quota reached; stopping here"
+                # Exit success as this isn't a build error.
+                exit 0
+            fi
+            ;;
+        *)
+            echo "Coverity Scan upload check: unexpected result $up_perm"
+            exit 1
+            ;;
+    esac
+}
+
+
+update_coverity_tools () {
+    # Check for whether we need to download the Coverity tools
+    # (either because we don't have a copy, or because it's out of date)
+    # Assumes that COVERITY_TOOL_BASE, PROJTOKEN and PROJNAME are set.
+
+    mkdir -p "$COVERITY_TOOL_BASE"
+    cd "$COVERITY_TOOL_BASE"
+
+    echo "Checking for new version of coverity build tools..."
+    wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME&md5=1" -O coverity_tool.md5.new
+
+    if ! cmp -s coverity_tool.md5 coverity_tool.md5.new; then
+        # out of date md5 or no md5: download new build tool
+        # blow away the old build tool
+        echo "Downloading coverity build tools..."
+        rm -rf coverity_tool coverity_tool.tgz
+        wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME" -O coverity_tool.tgz
+        if ! (cat coverity_tool.md5.new; echo "  coverity_tool.tgz") | md5sum -c --status; then
+            echo "Downloaded tarball didn't match md5sum!"
+            exit 1
+        fi
+        # extract the new one, keeping it corralled in a 'coverity_tool' directory
+        echo "Unpacking coverity build tools..."
+        mkdir -p coverity_tool
+        cd coverity_tool
+        tar xf ../coverity_tool.tgz
+        cd ..
+        mv coverity_tool.md5.new coverity_tool.md5
+    fi
+
+    rm -f coverity_tool.md5.new
+}
+
+
+# Check user-provided environment variables and arguments
+DRYRUN=no
+UPDATE_ONLY=no
+DOCKER=no
+
+while [ "$#" -ge 1 ]; do
+    case "$1" in
+        --dry-run)
+            shift
+            DRYRUN=yes
+            ;;
+        --update-tools-only)
+            shift
+            UPDATE_ONLY=yes
+            ;;
+        --version)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--version needs an argument"
+                exit 1
+            fi
+            VERSION="$1"
+            shift
+            ;;
+        --description)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--description needs an argument"
+                exit 1
+            fi
+            DESCRIPTION="$1"
+            shift
+            ;;
+        --tokenfile)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--tokenfile needs an argument"
+                exit 1
+            fi
+            COVERITY_TOKEN="$(cat "$1")"
+            shift
+            ;;
+        --srcdir)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--srcdir needs an argument"
+                exit 1
+            fi
+            SRCDIR="$1"
+            shift
+            ;;
+        --results-tarball)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--results-tarball needs an argument"
+                exit 1
+            fi
+            RESULTSTARBALL="$1"
+            shift
+            ;;
+        --src-tarball)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--src-tarball needs an argument"
+                exit 1
+            fi
+            SRCTARBALL="$1"
+            shift
+            ;;
+        --docker)
+            DOCKER=yes
+            shift
+            ;;
+        *)
+            echo "Unexpected argument '$1'"
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$COVERITY_TOKEN" ]; then
+    echo "COVERITY_TOKEN environment variable not set"
+    exit 1
+fi
+
+if [ -z "$COVERITY_BUILD_CMD" ]; then
+    NPROC=$(nproc)
+    COVERITY_BUILD_CMD="make -j$NPROC"
+    echo "COVERITY_BUILD_CMD: using default '$COVERITY_BUILD_CMD'"
+fi
+
+if [ -z "$COVERITY_TOOL_BASE" ]; then
+    echo "COVERITY_TOOL_BASE: using default /tmp/coverity-tools"
+    COVERITY_TOOL_BASE=/tmp/coverity-tools
+fi
+
+if [ -z "$SRCDIR" ]; then
+    SRCDIR="$PWD"
+fi
+
+PROJTOKEN="$COVERITY_TOKEN"
+PROJNAME=QEMU
+TARBALL=cov-int.tar.xz
+
+if [ "$UPDATE_ONLY" = yes ] && [ "$DOCKER" = yes ]; then
+    echo "Combining --docker and --update-only is not supported"
+    exit 1
+fi
+
+if [ "$UPDATE_ONLY" = yes ]; then
+    # Just do the tools update; we don't need to check whether
+    # we are in a source tree or have upload rights for this,
+    # so do it before some of the command line and source tree checks.
+    update_coverity_tools
+    exit 0
+fi
+
+if [ ! -e "$SRCDIR" ]; then
+    mkdir "$SRCDIR"
+fi
+
+cd "$SRCDIR"
+
+if [ ! -z "$SRCTARBALL" ]; then
+    echo "Untarring source tarball into $SRCDIR..."
+    tar xvf "$SRCTARBALL"
+fi
+
+echo "Checking this is a QEMU source tree..."
+if ! [ -e "$SRCDIR/VERSION" ]; then
+    echo "Not in a QEMU source tree?"
+    exit 1
+fi
+
+# Fill in defaults used by the non-update-only process
+if [ -z "$VERSION" ]; then
+    VERSION="$(git describe --always HEAD)"
+fi
+
+if [ -z "$DESCRIPTION" ]; then
+    DESCRIPTION="$(git rev-parse HEAD)"
+fi
+
+if [ -z "$COVERITY_EMAIL" ]; then
+    COVERITY_EMAIL="$(git config user.email)"
+fi
+
+# Run ourselves inside docker if that's what the user wants
+if [ "$DOCKER" = yes ]; then
+    # build docker container including the coverity-scan tools
+    # Put the Coverity token into a temporary file that only
+    # we have read access to, and then pass it to docker build
+    # using --secret. This requires at least Docker 18.09.
+    # Mostly what we are trying to do here is ensure we don't leak
+    # the token into the Docker image.
+    umask 077
+    SECRETDIR=$(mktemp -d)
+    if [ -z "$SECRETDIR" ]; then
+        echo "Failed to create temporary directory"
+        exit 1
+    fi
+    trap 'rm -rf "$SECRETDIR"' INT TERM EXIT
+    echo "Created temporary directory $SECRETDIR"
+    SECRET="$SECRETDIR/token"
+    echo "$COVERITY_TOKEN" > "$SECRET"
+    echo "Building docker container..."
+    # TODO: This re-downloads the tools every time, rather than
+    # caching and reusing the image produced with the downloaded tools.
+    # Not sure why.
+    # TODO: how do you get 'docker build' to print the output of the
+    # commands it is running to its stdout? This would be useful for debug.
+    DOCKER_BUILDKIT=1 docker build -t coverity-scanner \
+                   --secret id=coverity.token,src="$SECRET" \
+                   -f scripts/coverity-scan/coverity-scan.docker \
+                   scripts/coverity-scan
+    echo "Archiving sources to be analyzed..."
+    ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
+    if [ "$DRYRUN" = yes ]; then
+        DRYRUNARG=--dry-run
+    fi
+    echo "Running scanner..."
+    # If we need to capture the output tarball, get the inner run to
+    # save it to the secrets directory so we can copy it out before the
+    # directory is cleaned up.
+    if [ ! -z "$RESULTSTARBALL" ]; then
+        RTARGS="--results-tarball /work/cov-int.tar.xz"
+    else
+        RTARGS=""
+    fi
+    # Arrange for this docker run to get access to the sources with -v.
+    # We pass through all the configuration from the outer script to the inner.
+    export COVERITY_EMAIL COVERITY_BUILD_CMD
+    docker run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
+           -v "$SECRETDIR:/work" coverity-scanner \
+           ./run-coverity-scan --version "$VERSION" \
+           --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
+           --srcdir /qemu --src-tarball /work/qemu-sources.tgz $RTARGS
+    if [ ! -z "$RESULTSTARBALL" ]; then
+        echo "Copying results tarball to $RESULTSTARBALL..."
+        cp "$SECRETDIR/cov-int.tar.xz" "$RESULTSTARBALL"
+    fi
+    echo "Docker work complete."
+    exit 0
+fi
+
+# Otherwise, continue with the full build and upload process.
+
+check_upload_permissions
+
+update_coverity_tools
+
+TOOLBIN="$(cd "$COVERITY_TOOL_BASE" && echo $PWD/coverity_tool/cov-analysis-*/bin)"
+
+if ! test -x "$TOOLBIN/cov-build"; then
+    echo "Couldn't find cov-build in the coverity build-tool directory??"
+    exit 1
+fi
+
+export PATH="$TOOLBIN:$PATH"
+
+cd "$SRCDIR"
+
+echo "Doing make distclean..."
+make distclean
+
+echo "Configuring..."
+# We configure with a fixed set of enables here to ensure that we don't
+# accidentally reduce the scope of the analysis by doing the build on
+# the system that's missing a dependency that we need to build part of
+# the codebase.
+./configure --disable-modules --enable-sdl --enable-gtk \
+    --enable-opengl --enable-vte --enable-gnutls \
+    --enable-nettle --enable-curses --enable-curl \
+    --audio-drv-list=oss,alsa,sdl,pa --enable-virtfs \
+    --enable-vnc --enable-vnc-sasl --enable-vnc-jpeg --enable-vnc-png \
+    --enable-xen --enable-brlapi \
+    --enable-linux-aio --enable-attr \
+    --enable-cap-ng --enable-trace-backends=log --enable-spice --enable-rbd \
+    --enable-xfsctl --enable-libusb --enable-usb-redir \
+    --enable-libiscsi --enable-libnfs --enable-seccomp \
+    --enable-tpm --enable-libssh --enable-lzo --enable-snappy --enable-bzip2 \
+    --enable-numa --enable-rdma --enable-smartcard --enable-virglrenderer \
+    --enable-mpath --enable-libxml2 --enable-glusterfs \
+    --enable-virtfs --enable-zstd
+
+echo "Making libqemustub.a..."
+make libqemustub.a
+
+echo "Running cov-build..."
+rm -rf cov-int
+mkdir cov-int
+cov-build --dir cov-int $COVERITY_BUILD_CMD
+
+echo "Creating results tarball..."
+tar cvf - cov-int | xz > "$TARBALL"
+
+if [ ! -z "$RESULTSTARBALL" ]; then
+    echo "Copying results tarball to $RESULTSTARBALL..."
+    cp "$TARBALL" "$RESULTSTARBALL"
+fi
+
+echo "Uploading results tarball..."
+
+if [ "$DRYRUN" = yes ]; then
+    echo "Dry run only, not uploading $TARBALL"
+    exit 0
+fi
+
+curl --form token="$PROJTOKEN" --form email="$COVERITY_EMAIL" \
+     --form file=@"$TARBALL" --form version="$VERSION" \
+     --form description="$DESCRIPTION" \
+     https://scan.coverity.com/builds?project="$PROJNAME"
+
+echo "Done."

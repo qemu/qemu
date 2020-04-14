@@ -2038,6 +2038,11 @@ M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: scripts/coverity-model.c
 
+Coverity Scan integration
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: scripts/coverity-scan/
+
 Device Tree
 M: Alistair Francis <alistair.francis@wdc.com>
 R: David Gibson <david@gibson.dropbear.id.au>
