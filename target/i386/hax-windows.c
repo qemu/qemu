@@ -185,12 +185,12 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
 
 static char *hax_vm_devfs_string(int vm_id)
 {
-    return g_strdup_printf("/dev/hax_vm/vm%02d", vm_id);
+    return g_strdup_printf("\\\\.\\hax_vm%02d", vm_id);
 }
 
 static char *hax_vcpu_devfs_string(int vm_id, int vcpu_id)
 {
-    return g_strdup_printf("/dev/hax_vm%02d/vcpu%02d", vm_id, vcpu_id);
+    return g_strdup_printf("\\\\.\\hax_vm%02d_vcpu%02d", vm_id, vcpu_id);
 }
 
 int hax_host_create_vm(struct hax_state *hax, int *vmid)
