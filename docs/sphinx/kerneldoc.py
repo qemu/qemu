@@ -99,6 +99,7 @@ class KernelDocDirective(Directive):
                 env.note_dependency(os.path.abspath(f))
                 cmd += ['-export-file', f]
 
+        cmd += ['-sphinx-version', sphinx.__version__]
         cmd += [filename]
 
         try:
