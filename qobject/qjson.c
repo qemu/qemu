@@ -159,21 +159,28 @@ typedef struct ToJsonIterState
 
 static void to_json(const QObject *obj, QString *str, int pretty, int indent);
 
+static void json_pretty_newline(QString *str, bool pretty, int indent)
+{
+    int i;
+
+    if (pretty) {
+        qstring_append(str, "\n");
+        for (i = 0; i < indent; i++) {
+            qstring_append(str, "    ");
+        }
+    }
+}
+
 static void to_json_dict_iter(const char *key, QObject *obj, void *opaque)
 {
     ToJsonIterState *s = opaque;
     QString *qkey;
-    int j;
 
     if (s->count) {
         qstring_append(s->str, s->pretty ? "," : ", ");
     }
 
-    if (s->pretty) {
-        qstring_append(s->str, "\n");
-        for (j = 0 ; j < s->indent ; j++)
-            qstring_append(s->str, "    ");
-    }
+    json_pretty_newline(s->str, s->pretty, s->indent);
 
     qkey = qstring_from_str(key);
     to_json(QOBJECT(qkey), s->str, s->pretty, s->indent);
@@ -187,17 +194,12 @@ static void to_json_dict_iter(const char *key, QObject *obj, void *opaque)
 static void to_json_list_iter(QObject *obj, void *opaque)
 {
     ToJsonIterState *s = opaque;
-    int j;
 
     if (s->count) {
         qstring_append(s->str, s->pretty ? "," : ", ");
     }
 
-    if (s->pretty) {
-        qstring_append(s->str, "\n");
-        for (j = 0 ; j < s->indent ; j++)
-            qstring_append(s->str, "    ");
-    }
+    json_pretty_newline(s->str, s->pretty, s->indent);
 
     to_json(obj, s->str, s->pretty, s->indent);
     s->count++;
@@ -282,12 +284,7 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         s.pretty = pretty;
         qstring_append(str, "{");
         qdict_iter(val, to_json_dict_iter, &s);
-        if (pretty) {
-            int j;
-            qstring_append(str, "\n");
-            for (j = 0 ; j < indent ; j++)
-                qstring_append(str, "    ");
-        }
+        json_pretty_newline(str, pretty, indent);
         qstring_append(str, "}");
         break;
     }
@@ -301,12 +298,7 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         s.pretty = pretty;
         qstring_append(str, "[");
         qlist_iter(val, (void *)to_json_list_iter, &s);
-        if (pretty) {
-            int j;
-            qstring_append(str, "\n");
-            for (j = 0 ; j < indent ; j++)
-                qstring_append(str, "    ");
-        }
+        json_pretty_newline(str, pretty, indent);
         qstring_append(str, "]");
         break;
     }
