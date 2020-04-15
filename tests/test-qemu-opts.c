@@ -500,10 +500,10 @@ static void test_opts_parse(void)
     g_assert(!opts);
     /* TODO Cover .merge_lists = true */
 
-    /* Buggy ID recognition */
+    /* Buggy ID recognition (fixed) */
     opts = qemu_opts_parse(&opts_list_03, "x=,,id=bar", false, &error_abort);
     g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpstr(qemu_opts_id(opts), ==, "bar"); /* BUG */
+    g_assert(!qemu_opts_id(opts));
     g_assert_cmpstr(qemu_opt_get(opts, "x"), ==, ",id=bar");
 
     /* Anti-social ID */

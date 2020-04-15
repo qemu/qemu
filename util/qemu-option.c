@@ -872,6 +872,24 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
     }
 }
 
+static char *opts_parse_id(const char *params)
+{
+    const char *p;
+    char *name, *value;
+
+    for (p = params; *p;) {
+        p = get_opt_name_value(p, NULL, &name, &value);
+        if (!strcmp(name, "id")) {
+            g_free(name);
+            return value;
+        }
+        g_free(name);
+        g_free(value);
+    }
+
+    return NULL;
+}
+
 /**
  * Store options parsed from @params into @opts.
  * If @firstname is non-null, the first key=value in @params may omit
@@ -889,19 +907,12 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
                             bool *invalidp, Error **errp)
 {
     const char *firstname;
-    char *id = NULL;
-    const char *p;
+    char *id = opts_parse_id(params);
     QemuOpts *opts;
     Error *local_err = NULL;
 
     assert(!permit_abbrev || list->implied_opt_name);
     firstname = permit_abbrev ? list->implied_opt_name : NULL;
-
-    if (strncmp(params, "id=", 3) == 0) {
-        get_opt_value(params + 3, &id);
-    } else if ((p = strstr(params, ",id=")) != NULL) {
-        get_opt_value(p + 4, &id);
-    }
 
     /*
      * This code doesn't work for defaults && !list->merge_lists: when
