@@ -223,6 +223,25 @@ static bool qemu_img_object_print_help(const char *type, QemuOpts *opts)
     return true;
 }
 
+static int accumulate_options(char **options, char *optarg)
+{
+    char *new_options;
+
+    if (!is_valid_option_list(optarg)) {
+        error_report("Invalid option list: %s", optarg);
+        return -1;
+    }
+
+    if (!*options) {
+        *options = g_strdup(optarg);
+    } else {
+        new_options = g_strdup_printf("%s,%s", *options, optarg);
+        g_free(*options);
+        *options = new_options;
+    }
+    return 0;
+}
+
 static QemuOptsList qemu_source_opts = {
     .name = "source",
     .implied_opt_name = "file",
@@ -482,16 +501,8 @@ static int img_create(int argc, char **argv)
             fmt = optarg;
             break;
         case 'o':
-            if (!is_valid_option_list(optarg)) {
-                error_report("Invalid option list: %s", optarg);
+            if (accumulate_options(&options, optarg) < 0) {
                 goto fail;
-            }
-            if (!options) {
-                options = g_strdup(optarg);
-            } else {
-                char *old_options = options;
-                options = g_strdup_printf("%s,%s", options, optarg);
-                g_free(old_options);
             }
             break;
         case 'q':
@@ -2127,16 +2138,8 @@ static int img_convert(int argc, char **argv)
             s.compressed = true;
             break;
         case 'o':
-            if (!is_valid_option_list(optarg)) {
-                error_report("Invalid option list: %s", optarg);
+            if (accumulate_options(&options, optarg) < 0) {
                 goto fail_getopt;
-            }
-            if (!options) {
-                options = g_strdup(optarg);
-            } else {
-                char *old_options = options;
-                options = g_strdup_printf("%s,%s", options, optarg);
-                g_free(old_options);
             }
             break;
         case 'l':
@@ -3953,17 +3956,9 @@ static int img_amend(int argc, char **argv)
             help();
             break;
         case 'o':
-            if (!is_valid_option_list(optarg)) {
-                error_report("Invalid option list: %s", optarg);
+            if (accumulate_options(&options, optarg) < 0) {
                 ret = -1;
                 goto out_no_progress;
-            }
-            if (!options) {
-                options = g_strdup(optarg);
-            } else {
-                char *old_options = options;
-                options = g_strdup_printf("%s,%s", options, optarg);
-                g_free(old_options);
             }
             break;
         case 'f':
@@ -4855,16 +4850,8 @@ static int img_measure(int argc, char **argv)
             out_fmt = optarg;
             break;
         case 'o':
-            if (!is_valid_option_list(optarg)) {
-                error_report("Invalid option list: %s", optarg);
+            if (accumulate_options(&options, optarg) < 0) {
                 goto out;
-            }
-            if (!options) {
-                options = g_strdup(optarg);
-            } else {
-                char *old_options = options;
-                options = g_strdup_printf("%s,%s", options, optarg);
-                g_free(old_options);
             }
             break;
         case 'l':
