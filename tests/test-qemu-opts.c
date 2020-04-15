@@ -732,41 +732,39 @@ static void test_has_help_option(void)
 {
     static const struct {
         const char *params;
-        /* expected value of has_help_option() */
-        bool expect_has_help_option;
         /* expected value of qemu_opt_has_help_opt() with implied=false */
-        bool expect_opt_has_help_opt;
+        bool expect;
         /* expected value of qemu_opt_has_help_opt() with implied=true */
-        bool expect_opt_has_help_opt_implied;
+        bool expect_implied;
     } test[] = {
-        { "help", true, true, false },
-        { "?", true, true, false },
-        { "helpme", false, false, false },
-        { "?me", false, false, false },
-        { "a,help", true, true, true },
-        { "a,?", true, true, true },
-        { "a=0,help,b", true, true, true },
-        { "a=0,?,b", true, true, true },
-        { "help,b=1", true, true, false },
-        { "?,b=1", true, true, false },
-        { "a,b,,help", true, true, true },
-        { "a,b,,?", true, true, true },
+        { "help", true, false },
+        { "?", true, false },
+        { "helpme", false, false },
+        { "?me", false, false },
+        { "a,help", true, true },
+        { "a,?", true, true },
+        { "a=0,help,b", true, true },
+        { "a=0,?,b", true, true },
+        { "help,b=1", true, false },
+        { "?,b=1", true, false },
+        { "a,b,,help", true, true },
+        { "a,b,,?", true, true },
     };
     int i;
     QemuOpts *opts;
 
     for (i = 0; i < ARRAY_SIZE(test); i++) {
         g_assert_cmpint(has_help_option(test[i].params),
-                        ==, test[i].expect_has_help_option);
+                        ==, test[i].expect);
         opts = qemu_opts_parse(&opts_list_03, test[i].params, false,
                                &error_abort);
         g_assert_cmpint(qemu_opt_has_help_opt(opts),
-                        ==, test[i].expect_opt_has_help_opt);
+                        ==, test[i].expect);
         qemu_opts_del(opts);
         opts = qemu_opts_parse(&opts_list_03, test[i].params, true,
                                &error_abort);
         g_assert_cmpint(qemu_opt_has_help_opt(opts),
-                        ==, test[i].expect_opt_has_help_opt_implied);
+                        ==, test[i].expect_implied);
         qemu_opts_del(opts);
     }
 }
