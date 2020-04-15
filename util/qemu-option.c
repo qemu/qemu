@@ -519,7 +519,7 @@ int qemu_opt_unset(QemuOpts *opts, const char *name)
 }
 
 static void opt_set(QemuOpts *opts, const char *name, char *value,
-                    bool prepend, bool *invalidp, Error **errp)
+                    bool prepend, bool *help_wanted, Error **errp)
 {
     QemuOpt *opt;
     const QemuOptDesc *desc;
@@ -529,8 +529,8 @@ static void opt_set(QemuOpts *opts, const char *name, char *value,
     if (!desc && !opts_accepts_any(opts)) {
         g_free(value);
         error_setg(errp, QERR_INVALID_PARAMETER, name);
-        if (invalidp) {
-            *invalidp = true;
+        if (help_wanted && is_help_option(name)) {
+            *help_wanted = true;
         }
         return;
     }
@@ -827,7 +827,7 @@ static const char *get_opt_name_value(const char *params,
 
 static void opts_do_parse(QemuOpts *opts, const char *params,
                           const char *firstname, bool prepend,
-                          bool *invalidp, Error **errp)
+                          bool *help_wanted, Error **errp)
 {
     Error *local_err = NULL;
     char *option, *value;
@@ -843,7 +843,7 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
             continue;
         }
 
-        opt_set(opts, option, value, prepend, invalidp, &local_err);
+        opt_set(opts, option, value, prepend, help_wanted, &local_err);
         g_free(option);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -903,7 +903,7 @@ void qemu_opts_do_parse(QemuOpts *opts, const char *params,
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
                             bool permit_abbrev, bool defaults,
-                            bool *invalidp, Error **errp)
+                            bool *help_wanted, Error **errp)
 {
     const char *firstname;
     char *id = opts_parse_id(params);
@@ -928,7 +928,7 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
         return NULL;
     }
 
-    opts_do_parse(opts, params, firstname, defaults, invalidp, &local_err);
+    opts_do_parse(opts, params, firstname, defaults, help_wanted, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
@@ -964,11 +964,11 @@ QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
 {
     Error *err = NULL;
     QemuOpts *opts;
-    bool invalidp = false;
+    bool help_wanted = false;
 
-    opts = opts_parse(list, params, permit_abbrev, false, &invalidp, &err);
+    opts = opts_parse(list, params, permit_abbrev, false, &help_wanted, &err);
     if (err) {
-        if (invalidp && has_help_option(params)) {
+        if (help_wanted) {
             qemu_opts_print_help(list, true);
             error_free(err);
         } else {
