@@ -165,28 +165,6 @@ void parse_option_size(const char *name, const char *value,
     *ret = size;
 }
 
-bool is_valid_option_list(const char *p)
-{
-    char *value = NULL;
-    bool result = false;
-
-    while (*p) {
-        p = get_opt_value(p, &value);
-        if ((*p && !*++p) ||
-            (!*value || *value == ',')) {
-            goto out;
-        }
-
-        g_free(value);
-        value = NULL;
-    }
-
-    result = true;
-out:
-    g_free(value);
-    return result;
-}
-
 static const char *opt_type_to_string(enum QemuOptType type)
 {
     switch (type) {

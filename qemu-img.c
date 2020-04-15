@@ -223,6 +223,32 @@ static bool qemu_img_object_print_help(const char *type, QemuOpts *opts)
     return true;
 }
 
+/*
+ * Is @optarg safe for accumulate_options()?
+ * It is when multiple of them can be joined together separated by ','.
+ * To make that work, @optarg must not start with ',' (or else a
+ * separating ',' preceding it gets escaped), and it must not end with
+ * an odd number of ',' (or else a separating ',' following it gets
+ * escaped).
+ */
+static bool is_valid_option_list(const char *optarg)
+{
+    size_t len = strlen(optarg);
+    size_t i;
+
+    if (optarg[0] == ',') {
+        return false;
+    }
+
+    for (i = len; i > 0 && optarg[i - 1] == ','; i--) {
+    }
+    if ((len - i) % 2) {
+        return false;
+    }
+
+    return true;
+}
+
 static int accumulate_options(char **options, char *optarg)
 {
     char *new_options;
