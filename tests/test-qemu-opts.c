@@ -749,8 +749,8 @@ static void test_has_help_option(void)
         { "a=0,?,b", true, true, true },
         { "help,b=1", true, true, false },
         { "?,b=1", true, true, false },
-        { "a,b,,help", false /* BUG */, true, true },
-        { "a,b,,?", false /* BUG */, true, true },
+        { "a,b,,help", true, true, true },
+        { "a,b,,?", true, true, true },
     };
     int i;
     QemuOpts *opts;

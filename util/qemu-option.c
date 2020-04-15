@@ -165,26 +165,6 @@ void parse_option_size(const char *name, const char *value,
     *ret = size;
 }
 
-bool has_help_option(const char *param)
-{
-    const char *p = param;
-    bool result = false;
-
-    while (*p && !result) {
-        char *value;
-
-        p = get_opt_value(p, &value);
-        if (*p) {
-            p++;
-        }
-
-        result = is_help_option(value);
-        g_free(value);
-    }
-
-    return result;
-}
-
 bool is_valid_option_list(const char *p)
 {
     char *value = NULL;
@@ -888,6 +868,25 @@ static char *opts_parse_id(const char *params)
     }
 
     return NULL;
+}
+
+bool has_help_option(const char *params)
+{
+    const char *p;
+    char *name, *value;
+    bool ret;
+
+    for (p = params; *p;) {
+        p = get_opt_name_value(p, NULL, &name, &value);
+        ret = is_help_option(name);
+        g_free(name);
+        g_free(value);
+        if (ret) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
