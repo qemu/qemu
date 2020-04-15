@@ -204,7 +204,7 @@ qcrypto_secret_prop_set_loaded(Object *obj,
             input = output;
             inputlen = outputlen;
         } else {
-            if (secret->format != QCRYPTO_SECRET_FORMAT_RAW) {
+            if (secret->format == QCRYPTO_SECRET_FORMAT_BASE64) {
                 qcrypto_secret_decode(input, inputlen,
                                       &output, &outputlen, &local_err);
                 g_free(input);
