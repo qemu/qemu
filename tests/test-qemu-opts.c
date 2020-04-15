@@ -728,6 +728,49 @@ static void test_opts_parse_size(void)
     qemu_opts_reset(&opts_list_02);
 }
 
+static void test_has_help_option(void)
+{
+    static const struct {
+        const char *params;
+        /* expected value of has_help_option() */
+        bool expect_has_help_option;
+        /* expected value of qemu_opt_has_help_opt() with implied=false */
+        bool expect_opt_has_help_opt;
+        /* expected value of qemu_opt_has_help_opt() with implied=true */
+        bool expect_opt_has_help_opt_implied;
+    } test[] = {
+        { "help", true, true, false },
+        { "?", true, true, false },
+        { "helpme", false, false, false },
+        { "?me", false, false, false },
+        { "a,help", true, true, true },
+        { "a,?", true, true, true },
+        { "a=0,help,b", true, true, true },
+        { "a=0,?,b", true, true, true },
+        { "help,b=1", true, true, false },
+        { "?,b=1", true, true, false },
+        { "a,b,,help", false /* BUG */, true, true },
+        { "a,b,,?", false /* BUG */, true, true },
+    };
+    int i;
+    QemuOpts *opts;
+
+    for (i = 0; i < ARRAY_SIZE(test); i++) {
+        g_assert_cmpint(has_help_option(test[i].params),
+                        ==, test[i].expect_has_help_option);
+        opts = qemu_opts_parse(&opts_list_03, test[i].params, false,
+                               &error_abort);
+        g_assert_cmpint(qemu_opt_has_help_opt(opts),
+                        ==, test[i].expect_opt_has_help_opt);
+        qemu_opts_del(opts);
+        opts = qemu_opts_parse(&opts_list_03, test[i].params, true,
+                               &error_abort);
+        g_assert_cmpint(qemu_opt_has_help_opt(opts),
+                        ==, test[i].expect_opt_has_help_opt_implied);
+        qemu_opts_del(opts);
+    }
+}
+
 static void append_verify_list_01(QemuOptDesc *desc, bool with_overlapping)
 {
     int i = 0;
@@ -990,6 +1033,7 @@ int main(int argc, char *argv[])
     g_test_add_func("/qemu-opts/opts_parse/bool", test_opts_parse_bool);
     g_test_add_func("/qemu-opts/opts_parse/number", test_opts_parse_number);
     g_test_add_func("/qemu-opts/opts_parse/size", test_opts_parse_size);
+    g_test_add_func("/qemu-opts/has_help_option", test_has_help_option);
     g_test_add_func("/qemu-opts/append_to_null", test_opts_append_to_null);
     g_test_add_func("/qemu-opts/append", test_opts_append);
     g_test_add_func("/qemu-opts/to_qdict/basic", test_opts_to_qdict_basic);
