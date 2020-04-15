@@ -965,18 +965,16 @@ void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
     assert(opts);
 }
 
-typedef struct OptsFromQDictState {
-    QemuOpts *opts;
-    Error **errp;
-} OptsFromQDictState;
-
-static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
+static void qemu_opts_from_qdict_entry(QemuOpts *opts,
+                                       const QDictEntry *entry,
+                                       Error **errp)
 {
-    OptsFromQDictState *state = opaque;
+    const char *key = qdict_entry_key(entry);
+    QObject *obj = qdict_entry_value(entry);
     char buf[32], *tmp = NULL;
     const char *value;
 
-    if (!strcmp(key, "id") || *state->errp) {
+    if (!strcmp(key, "id")) {
         return;
     }
 
@@ -997,7 +995,7 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
         return;
     }
 
-    qemu_opt_set(state->opts, key, value, state->errp);
+    qemu_opt_set(opts, key, value, errp);
     g_free(tmp);
 }
 
@@ -1010,7 +1008,6 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
 QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
                                Error **errp)
 {
-    OptsFromQDictState state;
     Error *local_err = NULL;
     QemuOpts *opts;
     const QDictEntry *entry;
@@ -1024,20 +1021,15 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
 
     assert(opts != NULL);
 
-    state.errp = &local_err;
-    state.opts = opts;
-
     for (entry = qdict_first(qdict);
          entry;
          entry = qdict_next(qdict, entry)) {
-        qemu_opts_from_qdict_1(qdict_entry_key(entry),
-                               qdict_entry_value(entry),
-                               &state);
-    }
-    if (local_err) {
-        error_propagate(errp, local_err);
-        qemu_opts_del(opts);
-        return NULL;
+        qemu_opts_from_qdict_entry(opts, entry, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            qemu_opts_del(opts);
+            return NULL;
+        }
     }
 
     return opts;
@@ -1056,21 +1048,16 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
 
     while (entry != NULL) {
         Error *local_err = NULL;
-        OptsFromQDictState state = {
-            .errp = &local_err,
-            .opts = opts,
-        };
 
         next = qdict_next(qdict, entry);
 
         if (find_desc_by_name(opts->list->desc, entry->key)) {
-            qemu_opts_from_qdict_1(entry->key, entry->value, &state);
+            qemu_opts_from_qdict_entry(opts, entry, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;
-            } else {
-                qdict_del(qdict, entry->key);
             }
+            qdict_del(qdict, entry->key);
         }
 
         entry = next;
