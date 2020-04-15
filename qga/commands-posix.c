@@ -26,6 +26,7 @@
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+#include "commands-common.h"
 
 #ifdef HAVE_UTMPX
 #include <utmpx.h>
@@ -237,12 +238,12 @@ typedef enum {
     RW_STATE_WRITING,
 } RwState;
 
-typedef struct GuestFileHandle {
+struct GuestFileHandle {
     uint64_t id;
     FILE *fh;
     RwState state;
     QTAILQ_ENTRY(GuestFileHandle) next;
-} GuestFileHandle;
+};
 
 static struct {
     QTAILQ_HEAD(, GuestFileHandle) filehandles;
@@ -268,7 +269,7 @@ static int64_t guest_file_handle_add(FILE *fh, Error **errp)
     return handle;
 }
 
-static GuestFileHandle *guest_file_handle_find(int64_t id, Error **errp)
+GuestFileHandle *guest_file_handle_find(int64_t id, Error **errp)
 {
     GuestFileHandle *gfh;
 
@@ -460,28 +461,13 @@ void qmp_guest_file_close(int64_t handle, Error **errp)
     g_free(gfh);
 }
 
-struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
-                                          int64_t count, Error **errp)
+GuestFileRead *guest_file_read_unsafe(GuestFileHandle *gfh,
+                                      int64_t count, Error **errp)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     GuestFileRead *read_data = NULL;
     guchar *buf;
-    FILE *fh;
+    FILE *fh = gfh->fh;
     size_t read_count;
-
-    if (!gfh) {
-        return NULL;
-    }
-
-    if (!has_count) {
-        count = QGA_READ_COUNT_DEFAULT;
-    } else if (count < 0 || count >= UINT32_MAX) {
-        error_setg(errp, "value '%" PRId64 "' is invalid for argument count",
-                   count);
-        return NULL;
-    }
-
-    fh = gfh->fh;
 
     /* explicitly flush when switching from writing to reading */
     if (gfh->state == RW_STATE_WRITING) {
@@ -497,7 +483,6 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(errp, errno, "failed to read file");
-        slog("guest-file-read failed, handle: %" PRId64, handle);
     } else {
         buf[read_count] = 0;
         read_data = g_new0(GuestFileRead, 1);

@@ -266,11 +266,13 @@
 ##
 # @guest-file-read:
 #
-# Read from an open file in the guest. Data will be base64-encoded
+# Read from an open file in the guest. Data will be base64-encoded.
+# As this command is just for limited, ad-hoc debugging, such as log
+# file access, the number of bytes to read is limited to 48 MB.
 #
 # @handle: filehandle returned by guest-file-open
 #
-# @count: maximum number of bytes to read (default is 4KB)
+# @count: maximum number of bytes to read (default is 4KB, maximum is 48MB)
 #
 # Returns: @GuestFileRead on success.
 #
