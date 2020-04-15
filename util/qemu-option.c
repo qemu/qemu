@@ -1013,6 +1013,7 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
     OptsFromQDictState state;
     Error *local_err = NULL;
     QemuOpts *opts;
+    const QDictEntry *entry;
 
     opts = qemu_opts_create(list, qdict_get_try_str(qdict, "id"), 1,
                             &local_err);
@@ -1025,7 +1026,14 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
 
     state.errp = &local_err;
     state.opts = opts;
-    qdict_iter(qdict, qemu_opts_from_qdict_1, &state);
+
+    for (entry = qdict_first(qdict);
+         entry;
+         entry = qdict_next(qdict, entry)) {
+        qemu_opts_from_qdict_1(qdict_entry_key(entry),
+                               qdict_entry_value(entry),
+                               &state);
+    }
     if (local_err) {
         error_propagate(errp, local_err);
         qemu_opts_del(opts);

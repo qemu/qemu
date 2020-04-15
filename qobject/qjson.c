@@ -149,14 +149,6 @@ QDict *qdict_from_jsonf_nofail(const char *string, ...)
     return qdict;
 }
 
-typedef struct ToJsonIterState
-{
-    int indent;
-    int pretty;
-    int count;
-    QString *str;
-} ToJsonIterState;
-
 static void to_json(const QObject *obj, QString *str, int pretty, int indent);
 
 static void json_pretty_newline(QString *str, bool pretty, int indent)
@@ -169,26 +161,6 @@ static void json_pretty_newline(QString *str, bool pretty, int indent)
             qstring_append(str, "    ");
         }
     }
-}
-
-static void to_json_dict_iter(const char *key, QObject *obj, void *opaque)
-{
-    ToJsonIterState *s = opaque;
-    QString *qkey;
-
-    if (s->count) {
-        qstring_append(s->str, s->pretty ? "," : ", ");
-    }
-
-    json_pretty_newline(s->str, s->pretty, s->indent);
-
-    qkey = qstring_from_str(key);
-    to_json(QOBJECT(qkey), s->str, s->pretty, s->indent);
-    qobject_unref(qkey);
-
-    qstring_append(s->str, ": ");
-    to_json(obj, s->str, s->pretty, s->indent);
-    s->count++;
 }
 
 static void to_json(const QObject *obj, QString *str, int pretty, int indent)
@@ -261,15 +233,29 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         break;
     }
     case QTYPE_QDICT: {
-        ToJsonIterState s;
         QDict *val = qobject_to(QDict, obj);
+        const char *comma = pretty ? "," : ", ";
+        const char *sep = "";
+        const QDictEntry *entry;
+        QString *qkey;
 
-        s.count = 0;
-        s.str = str;
-        s.indent = indent + 1;
-        s.pretty = pretty;
         qstring_append(str, "{");
-        qdict_iter(val, to_json_dict_iter, &s);
+
+        for (entry = qdict_first(val);
+             entry;
+             entry = qdict_next(val, entry)) {
+            qstring_append(str, sep);
+            json_pretty_newline(str, pretty, indent + 1);
+
+            qkey = qstring_from_str(qdict_entry_key(entry));
+            to_json(QOBJECT(qkey), str, pretty, indent + 1);
+            qobject_unref(qkey);
+
+            qstring_append(str, ": ");
+            to_json(qdict_entry_value(entry), str, pretty, indent + 1);
+            sep = comma;
+        }
+
         json_pretty_newline(str, pretty, indent);
         qstring_append(str, "}");
         break;

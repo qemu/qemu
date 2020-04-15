@@ -203,31 +203,32 @@ static const char *qobject_input_get_keyval(QObjectInputVisitor *qiv,
     return qstring_get_str(qstr);
 }
 
-static void qdict_add_key(const char *key, QObject *obj, void *opaque)
-{
-    GHashTable *h = opaque;
-    g_hash_table_insert(h, (gpointer) key, NULL);
-}
-
 static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
                                             const char *name,
                                             QObject *obj, void *qapi)
 {
     GHashTable *h;
     StackObject *tos = g_new0(StackObject, 1);
+    QDict *qdict = qobject_to(QDict, obj);
+    QList *qlist = qobject_to(QList, obj);
+    const QDictEntry *entry;
 
     assert(obj);
     tos->name = name;
     tos->obj = obj;
     tos->qapi = qapi;
 
-    if (qobject_type(obj) == QTYPE_QDICT) {
+    if (qdict) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
-        qdict_iter(qobject_to(QDict, obj), qdict_add_key, h);
+        for (entry = qdict_first(qdict);
+             entry;
+             entry = qdict_next(qdict, entry)) {
+            g_hash_table_insert(h, (void *)qdict_entry_key(entry), NULL);
+        }
         tos->h = h;
     } else {
-        assert(qobject_type(obj) == QTYPE_QLIST);
-        tos->entry = qlist_first(qobject_to(QList, obj));
+        assert(qlist);
+        tos->entry = qlist_first(qlist);
         tos->index = -1;
     }
 
