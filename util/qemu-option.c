@@ -805,61 +805,71 @@ void qemu_opts_print(QemuOpts *opts, const char *separator)
     }
 }
 
+static const char *get_opt_name_value(const char *params,
+                                      const char *firstname,
+                                      char **name, char **value)
+{
+    const char *p, *pe, *pc;
+
+    pe = strchr(params, '=');
+    pc = strchr(params, ',');
+
+    if (!pe || (pc && pc < pe)) {
+        /* found "foo,more" */
+        if (firstname) {
+            /* implicitly named first option */
+            *name = g_strdup(firstname);
+            p = get_opt_value(params, value);
+        } else {
+            /* option without value, must be a flag */
+            p = get_opt_name(params, name, ',');
+            if (strncmp(*name, "no", 2) == 0) {
+                memmove(*name, *name + 2, strlen(*name + 2) + 1);
+                *value = g_strdup("off");
+            } else {
+                *value = g_strdup("on");
+            }
+        }
+    } else {
+        /* found "foo=bar,more" */
+        p = get_opt_name(params, name, '=');
+        assert(*p == '=');
+        p++;
+        p = get_opt_value(p, value);
+    }
+
+    assert(!*p || *p == ',');
+    if (*p == ',') {
+        p++;
+    }
+    return p;
+}
+
 static void opts_do_parse(QemuOpts *opts, const char *params,
                           const char *firstname, bool prepend,
                           bool *invalidp, Error **errp)
 {
-    char *option = NULL;
-    char *value = NULL;
-    const char *p,*pe,*pc;
     Error *local_err = NULL;
+    char *option, *value;
+    const char *p;
 
-    for (p = params; *p != '\0'; p++) {
-        pe = strchr(p, '=');
-        pc = strchr(p, ',');
-        if (!pe || (pc && pc < pe)) {
-            /* found "foo,more" */
-            if (p == params && firstname) {
-                /* implicitly named first option */
-                option = g_strdup(firstname);
-                p = get_opt_value(p, &value);
-            } else {
-                /* option without value, probably a flag */
-                p = get_opt_name(p, &option, ',');
-                if (strncmp(option, "no", 2) == 0) {
-                    memmove(option, option+2, strlen(option+2)+1);
-                    value = g_strdup("off");
-                } else {
-                    value = g_strdup("on");
-                }
-            }
-        } else {
-            /* found "foo=bar,more" */
-            p = get_opt_name(p, &option, '=');
-            assert(*p == '=');
-            p++;
-            p = get_opt_value(p, &value);
+    for (p = params; *p;) {
+        p = get_opt_name_value(p, firstname, &option, &value);
+        firstname = NULL;
+
+        if (!strcmp(option, "id")) {
+            g_free(option);
+            g_free(value);
+            continue;
         }
-        if (strcmp(option, "id") != 0) {
-            /* store and parse */
-            opt_set(opts, option, value, prepend, invalidp, &local_err);
-            value = NULL;
-            if (local_err) {
-                error_propagate(errp, local_err);
-                goto cleanup;
-            }
-        }
-        if (*p != ',') {
-            break;
-        }
+
+        opt_set(opts, option, value, prepend, invalidp, &local_err);
         g_free(option);
-        g_free(value);
-        option = value = NULL;
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-
- cleanup:
-    g_free(option);
-    g_free(value);
 }
 
 /**
