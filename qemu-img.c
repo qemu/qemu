@@ -229,14 +229,16 @@ static bool qemu_img_object_print_help(const char *type, QemuOpts *opts)
  * To make that work, @optarg must not start with ',' (or else a
  * separating ',' preceding it gets escaped), and it must not end with
  * an odd number of ',' (or else a separating ',' following it gets
- * escaped).
+ * escaped), or be empty (or else a separating ',' preceding it can
+ * escape a separating ',' following it).
+ * 
  */
 static bool is_valid_option_list(const char *optarg)
 {
     size_t len = strlen(optarg);
     size_t i;
 
-    if (optarg[0] == ',') {
+    if (!optarg[0] || optarg[0] == ',') {
         return false;
     }
 
