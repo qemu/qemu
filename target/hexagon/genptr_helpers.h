@@ -93,11 +93,24 @@ static inline void gen_log_reg_write_pair(int rnum, TCGv_i64 val, int slot,
         tcg_gen_extrl_i64_i32(val32, val);
         tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
                            val32, hex_new_value[rnum]);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum],
+                           slot_mask, zero,
+                           one, hex_reg_written[rnum]);
+#endif
+
         /* High word */
         tcg_gen_extrh_i64_i32(val32, val);
         tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum + 1],
                            slot_mask, zero,
                            val32, hex_new_value[rnum + 1]);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum + 1],
+                           slot_mask, zero,
+                           one, hex_reg_written[rnum + 1]);
+#endif
 
         tcg_temp_free(one);
         tcg_temp_free(zero);
@@ -106,9 +119,18 @@ static inline void gen_log_reg_write_pair(int rnum, TCGv_i64 val, int slot,
         /* Low word */
         tcg_gen_extrl_i64_i32(val32, val);
         tcg_gen_mov_tl(hex_new_value[rnum], val32);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+#endif
+
         /* High word */
         tcg_gen_extrh_i64_i32(val32, val);
         tcg_gen_mov_tl(hex_new_value[rnum + 1], val32);
+#if HEX_DEBUG
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
+#endif
     }
 
     tcg_temp_free(val32);
