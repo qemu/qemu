@@ -2719,6 +2719,43 @@ static void setup_mounts(const char *source)
 }
 
 /*
+ * Only keep whitelisted capabilities that are needed for file system operation
+ */
+static void setup_capabilities(void)
+{
+    pthread_mutex_lock(&cap.mutex);
+    capng_restore_state(&cap.saved);
+
+    /*
+     * Whitelist file system-related capabilities that are needed for a file
+     * server to act like root.  Drop everything else like networking and
+     * sysadmin capabilities.
+     *
+     * Exclusions:
+     * 1. CAP_LINUX_IMMUTABLE is not included because it's only used via ioctl
+     *    and we don't support that.
+     * 2. CAP_MAC_OVERRIDE is not included because it only seems to be
+     *    used by the Smack LSM.  Omit it until there is demand for it.
+     */
+    capng_setpid(syscall(SYS_gettid));
+    capng_clear(CAPNG_SELECT_BOTH);
+    capng_updatev(CAPNG_ADD, CAPNG_PERMITTED | CAPNG_EFFECTIVE,
+            CAP_CHOWN,
+            CAP_DAC_OVERRIDE,
+            CAP_DAC_READ_SEARCH,
+            CAP_FOWNER,
+            CAP_FSETID,
+            CAP_SETGID,
+            CAP_SETUID,
+            CAP_MKNOD,
+            CAP_SETFCAP);
+    capng_apply(CAPNG_SELECT_BOTH);
+
+    cap.saved = capng_save_state();
+    pthread_mutex_unlock(&cap.mutex);
+}
+
+/*
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
@@ -2728,6 +2765,7 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     setup_namespaces(lo, se);
     setup_mounts(lo->source);
     setup_seccomp(enable_syslog);
+    setup_capabilities();
 }
 
 /* Set the maximum number of open file descriptors */
