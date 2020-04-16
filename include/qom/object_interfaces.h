@@ -88,6 +88,18 @@ Object *user_creatable_add_type(const char *type, const char *id,
                                 Visitor *v, Error **errp);
 
 /**
+ * user_creatable_add_dict:
+ * @qdict: the object definition
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Create an instance of the user creatable object that is defined by
+ * @qdict.  The object type is taken from the QDict key 'qom-type', its
+ * ID from the key 'id'. The remaining entries in @qdict are used to
+ * initialize the object properties.
+ */
+void user_creatable_add_dict(QDict *qdict, Error **errp);
+
+/**
  * user_creatable_add_opts:
  * @opts: the object definition
  * @errp: if an error occurs, a pointer to an area to store the error
