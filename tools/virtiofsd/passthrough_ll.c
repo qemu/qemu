@@ -2531,6 +2531,17 @@ static void print_capabilities(void)
 }
 
 /*
+ * Drop all Linux capabilities because the wait parent process only needs to
+ * sit in waitpid(2) and terminate.
+ */
+static void setup_wait_parent_capabilities(void)
+{
+    capng_setpid(syscall(SYS_gettid));
+    capng_clear(CAPNG_SELECT_BOTH);
+    capng_apply(CAPNG_SELECT_BOTH);
+}
+
+/*
  * Move to a new mount, net, and pid namespaces to isolate this process.
  */
 static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
@@ -2562,6 +2573,8 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
     if (child > 0) {
         pid_t waited;
         int wstatus;
+
+        setup_wait_parent_capabilities();
 
         /* The parent waits for the child */
         do {
