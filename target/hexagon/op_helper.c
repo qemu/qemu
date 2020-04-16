@@ -260,7 +260,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 HEX_DEBUG_LOG("Regs written\n");
                 reg_printed = true;
             }
-            HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx " )\n",
+            HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")\n",
                           i, env->new_value[i], env->new_value[i]);
         }
     }
