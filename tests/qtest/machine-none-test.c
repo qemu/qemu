@@ -33,8 +33,8 @@ static struct arch2cpu cpus_map[] = {
     { "cris", "crisv32" },
     { "lm32", "lm32-full" },
     { "m68k", "m5206" },
-    /* FIXME: { "microblaze", "any" }, doesn't work with -M none -cpu any */
-    /* FIXME: { "microblazeel", "any" }, doesn't work with -M none -cpu any */
+    { "microblaze", "any" },
+    { "microblazeel", "any" },
     { "mips", "4Kc" },
     { "mipsel", "I7200" },
     { "mips64", "20Kc" },
@@ -79,10 +79,8 @@ static void test_machine_cpu_cli(void)
     QTestState *qts;
 
     if (!cpu_model) {
-        if (!(!strcmp(arch, "microblaze") || !strcmp(arch, "microblazeel"))) {
-            fprintf(stderr, "WARNING: cpu name for target '%s' isn't defined,"
-                    " add it to cpus_map\n", arch);
-        }
+        fprintf(stderr, "WARNING: cpu name for target '%s' isn't defined,"
+                " add it to cpus_map\n", arch);
         return; /* TODO: die here to force all targets have a test */
     }
     qts = qtest_initf("-machine none -cpu '%s'", cpu_model);
