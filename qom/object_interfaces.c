@@ -106,7 +106,7 @@ out:
     return obj;
 }
 
-void user_creatable_add_dict(QDict *qdict, Error **errp)
+void user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
 {
     Visitor *v;
     Object *obj;
@@ -127,7 +127,11 @@ void user_creatable_add_dict(QDict *qdict, Error **errp)
     }
     qdict_del(qdict, "id");
 
-    v = qobject_input_visitor_new(QOBJECT(qdict));
+    if (keyval) {
+        v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    } else {
+        v = qobject_input_visitor_new(QOBJECT(qdict));
+    }
     obj = user_creatable_add_type(type, id, qdict, v, errp);
     visit_free(v);
     object_unref(obj);

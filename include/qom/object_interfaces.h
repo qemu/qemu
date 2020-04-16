@@ -90,6 +90,10 @@ Object *user_creatable_add_type(const char *type, const char *id,
 /**
  * user_creatable_add_dict:
  * @qdict: the object definition
+ * @keyval: if true, use a keyval visitor for processing @qdict (i.e.
+ *          assume that all @qdict values are strings); otherwise, use
+ *          the normal QObject visitor (i.e. assume all @qdict values
+ *          have the QType expected by the QOM object type)
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Create an instance of the user creatable object that is defined by
@@ -97,7 +101,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
  * ID from the key 'id'. The remaining entries in @qdict are used to
  * initialize the object properties.
  */
-void user_creatable_add_dict(QDict *qdict, Error **errp);
+void user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp);
 
 /**
  * user_creatable_add_opts:

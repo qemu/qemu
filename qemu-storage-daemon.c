@@ -278,7 +278,6 @@ static void process_options(int argc, char *argv[])
                 QemuOpts *opts;
                 const char *type;
                 QDict *args;
-                QObject *ret_data = NULL;
 
                 /* FIXME The keyval parser rejects 'help' arguments, so we must
                  * unconditionall try QemuOpts first. */
@@ -291,9 +290,8 @@ static void process_options(int argc, char *argv[])
                 qemu_opts_del(opts);
 
                 args = keyval_parse(optarg, "qom-type", &error_fatal);
-                qmp_object_add(args, &ret_data, &error_fatal);
+                user_creatable_add_dict(args, true, &error_fatal);
                 qobject_unref(args);
-                qobject_unref(ret_data);
                 break;
             }
         default:

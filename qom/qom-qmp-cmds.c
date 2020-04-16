@@ -263,7 +263,7 @@ void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
         qobject_unref(pdict);
     }
 
-    user_creatable_add_dict(qdict, errp);
+    user_creatable_add_dict(qdict, false, errp);
 }
 
 void qmp_object_del(const char *id, Error **errp)
