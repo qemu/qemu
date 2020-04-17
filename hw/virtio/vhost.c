@@ -1514,7 +1514,7 @@ void vhost_dev_set_config_notifier(struct vhost_dev *hdev,
 
 void vhost_dev_free_inflight(struct vhost_inflight *inflight)
 {
-    if (inflight->addr) {
+    if (inflight && inflight->addr) {
         qemu_memfd_free(inflight->addr, inflight->size, inflight->fd);
         inflight->addr = NULL;
         inflight->fd = -1;
