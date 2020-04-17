@@ -27,3 +27,10 @@ resettable_phase_exit_begin(void *obj, const char *objtype, unsigned count, int 
 resettable_phase_exit_exec(void *obj, const char *objtype, int has_method) "obj=%p(%s) method=%d"
 resettable_phase_exit_end(void *obj, const char *objtype, unsigned count) "obj=%p(%s) count=%d"
 resettable_transitional_function(void *obj, const char *objtype) "obj=%p(%s)"
+
+# clock.c
+clock_set_source(const char *clk, const char *src) "'%s', src='%s'"
+clock_disconnect(const char *clk) "'%s'"
+clock_set(const char *clk, uint64_t old, uint64_t new) "'%s', ns=%"PRIu64"->%"PRIu64
+clock_propagate(const char *clk) "'%s'"
+clock_update(const char *clk, const char *src, uint64_t val, int cb) "'%s', src='%s', ns=%"PRIu64", cb=%d"
