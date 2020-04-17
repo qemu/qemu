@@ -5011,6 +5011,7 @@ static void gen_slbia(DisasContext *ctx)
     CHK_SV;
 
     gen_helper_slbia(cpu_env, t0);
+    tcg_temp_free_i32(t0);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
