@@ -1257,3 +1257,28 @@ void HELPER(sve2_pmull_h)(void *vd, void *vn, void *vm, uint32_t desc)
     }
 }
 #endif
+
+#define DO_CMP0(NAME, TYPE, OP)                         \
+void HELPER(NAME)(void *vd, void *vn, uint32_t desc)    \
+{                                                       \
+    intptr_t i, opr_sz = simd_oprsz(desc);              \
+    for (i = 0; i < opr_sz; i += sizeof(TYPE)) {        \
+        TYPE nn = *(TYPE *)(vn + i);                    \
+        *(TYPE *)(vd + i) = -(nn OP 0);                 \
+    }                                                   \
+    clear_tail(vd, opr_sz, simd_maxsz(desc));           \
+}
+
+DO_CMP0(gvec_ceq0_b, int8_t, ==)
+DO_CMP0(gvec_clt0_b, int8_t, <)
+DO_CMP0(gvec_cle0_b, int8_t, <=)
+DO_CMP0(gvec_cgt0_b, int8_t, >)
+DO_CMP0(gvec_cge0_b, int8_t, >=)
+
+DO_CMP0(gvec_ceq0_h, int16_t, ==)
+DO_CMP0(gvec_clt0_h, int16_t, <)
+DO_CMP0(gvec_cle0_h, int16_t, <=)
+DO_CMP0(gvec_cgt0_h, int16_t, >)
+DO_CMP0(gvec_cge0_h, int16_t, >=)
+
+#undef DO_CMP0
