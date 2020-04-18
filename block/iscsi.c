@@ -991,8 +991,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
         acb->ioh->driver_status |= SG_ERR_DRIVER_SENSE;
 
         acb->ioh->sb_len_wr = acb->task->datain.size - 2;
-        ss = (acb->ioh->mx_sb_len >= acb->ioh->sb_len_wr) ?
-             acb->ioh->mx_sb_len : acb->ioh->sb_len_wr;
+        ss = MIN(acb->ioh->mx_sb_len, acb->ioh->sb_len_wr);
         memcpy(acb->ioh->sbp, &acb->task->datain.data[2], ss);
     }
 
