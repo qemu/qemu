@@ -696,6 +696,16 @@ void tcg_gen_sarv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
     do_op3_nofail(vece, r, a, b, INDEX_op_sarv_vec);
 }
 
+void tcg_gen_rotlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_op3_nofail(vece, r, a, b, INDEX_op_rotlv_vec);
+}
+
+void tcg_gen_rotrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_op3_nofail(vece, r, a, b, INDEX_op_rotrv_vec);
+}
+
 static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
                       TCGv_i32 s, TCGOpcode opc_s, TCGOpcode opc_v)
 {

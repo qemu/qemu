@@ -621,8 +621,10 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
 * shrv_vec   v0, v1, v2
 * sarv_vec   v0, v1, v2
+* rotlv_vec  v0, v1, v2
+* rotrv_vec  v0, v1, v2
 
-  Similarly for logical and arithmetic right shift.
+  Similarly for logical and arithmetic right shift, and rotates.
 
 * cmp_vec  v0, v1, v2, cond
 
