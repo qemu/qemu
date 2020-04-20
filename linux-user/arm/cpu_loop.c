@@ -332,10 +332,32 @@ void cpu_loop(CPUARMState *env)
                             env->regs[0] = cpu_get_tls(env);
                             break;
                         default:
-                            qemu_log_mask(LOG_UNIMP,
-                                          "qemu: Unsupported ARM syscall: 0x%x\n",
-                                          n);
-                            env->regs[0] = -TARGET_ENOSYS;
+                            if (n < 0xf0800) {
+                                /*
+                                 * Syscalls 0xf0000..0xf07ff (or 0x9f0000..
+                                 * 0x9f07ff in OABI numbering) are defined
+                                 * to return -ENOSYS rather than raising
+                                 * SIGILL. Note that we have already
+                                 * removed the 0x900000 prefix.
+                                 */
+                                qemu_log_mask(LOG_UNIMP,
+                                    "qemu: Unsupported ARM syscall: 0x%x\n",
+                                              n);
+                                env->regs[0] = -TARGET_ENOSYS;
+                            } else {
+                                /* Otherwise SIGILL */
+                                info.si_signo = TARGET_SIGILL;
+                                info.si_errno = 0;
+                                info.si_code = TARGET_ILL_ILLTRP;
+                                info._sifields._sigfault._addr = env->regs[15];
+                                if (env->thumb) {
+                                    info._sifields._sigfault._addr -= 2;
+                                } else {
+                                    info._sifields._sigfault._addr -= 4;
+                                }
+                                queue_signal(env, info.si_signo,
+                                             QEMU_SI_FAULT, &info);
+                            }
                             break;
                         }
                     } else {
