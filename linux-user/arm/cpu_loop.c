@@ -295,32 +295,17 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_SWI:
-        case EXCP_BKPT:
             {
                 env->eabi = 1;
                 /* system call */
-                if (trapnr == EXCP_BKPT) {
-                    if (env->thumb) {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u16(insn, env->regs[15], env);
-                        n = insn & 0xff;
-                        env->regs[15] += 2;
-                    } else {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u32(insn, env->regs[15], env);
-                        n = (insn & 0xf) | ((insn >> 4) & 0xff0);
-                        env->regs[15] += 4;
-                    }
+                if (env->thumb) {
+                    /* FIXME - what to do if get_user() fails? */
+                    get_user_code_u16(insn, env->regs[15] - 2, env);
+                    n = insn & 0xff;
                 } else {
-                    if (env->thumb) {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u16(insn, env->regs[15] - 2, env);
-                        n = insn & 0xff;
-                    } else {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u32(insn, env->regs[15] - 4, env);
-                        n = insn & 0xffffff;
-                    }
+                    /* FIXME - what to do if get_user() fails? */
+                    get_user_code_u32(insn, env->regs[15] - 4, env);
+                    n = insn & 0xffffff;
                 }
 
                 if (n == ARM_NR_cacheflush) {
@@ -396,6 +381,7 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_DEBUG:
+        case EXCP_BKPT:
         excp_debug:
             info.si_signo = TARGET_SIGTRAP;
             info.si_errno = 0;
