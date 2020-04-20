@@ -308,9 +308,7 @@ void cpu_loop(CPUARMState *env)
                     n = insn & 0xffffff;
                 }
 
-                if (n == ARM_NR_cacheflush) {
-                    /* nop */
-                } else if (n == 0 || n >= ARM_SYSCALL_BASE || env->thumb) {
+                if (n == 0 || n >= ARM_SYSCALL_BASE || env->thumb) {
                     /* linux syscall */
                     if (env->thumb || n == 0) {
                         n = env->regs[7];
