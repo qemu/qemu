@@ -2816,11 +2816,11 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 #if defined(TARGET_PPC64)
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run)
 {
-    bool recovered = run->flags & KVM_RUN_PPC_NMI_DISP_FULLY_RECOV;
+    uint16_t flags = run->flags & KVM_RUN_PPC_NMI_DISP_MASK;
 
     cpu_synchronize_state(CPU(cpu));
 
-    spapr_mce_req_event(cpu, recovered);
+    spapr_mce_req_event(cpu, flags == KVM_RUN_PPC_NMI_DISP_FULLY_RECOV);
 
     return 0;
 }
