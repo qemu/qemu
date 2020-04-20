@@ -2976,6 +2976,28 @@ void tcg_gen_gvec_sars(unsigned vece, uint32_t dofs, uint32_t aofs,
     do_gvec_shifts(vece, dofs, aofs, shift, oprsz, maxsz, &g);
 }
 
+void tcg_gen_gvec_rotls(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2sh g = {
+        .fni4 = tcg_gen_rotl_i32,
+        .fni8 = tcg_gen_rotl_i64,
+        .fniv_s = tcg_gen_rotls_vec,
+        .fniv_v = tcg_gen_rotlv_vec,
+        .fno = {
+            gen_helper_gvec_rotl8i,
+            gen_helper_gvec_rotl16i,
+            gen_helper_gvec_rotl32i,
+            gen_helper_gvec_rotl64i,
+        },
+        .s_list = { INDEX_op_rotls_vec, 0 },
+        .v_list = { INDEX_op_rotlv_vec, 0 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    do_gvec_shifts(vece, dofs, aofs, shift, oprsz, maxsz, &g);
+}
+
 /*
  * Expand D = A << (B % element bits)
  *
