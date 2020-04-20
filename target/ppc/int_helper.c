@@ -1348,23 +1348,6 @@ VRFI(p, float_round_up)
 VRFI(z, float_round_to_zero)
 #undef VRFI
 
-#define VROTATE(suffix, element, mask)                                  \
-    void helper_vrl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int shift = b->element[i] & mask;                  \
-            r->element[i] = (a->element[i] << shift) |                  \
-                (a->element[i] >> (sizeof(a->element[0]) * 8 - shift)); \
-        }                                                               \
-    }
-VROTATE(b, u8, 0x7)
-VROTATE(h, u16, 0xF)
-VROTATE(w, u32, 0x1F)
-VROTATE(d, u64, 0x3F)
-#undef VROTATE
-
 void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
