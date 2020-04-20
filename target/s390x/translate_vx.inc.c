@@ -1825,63 +1825,6 @@ static DisasJumpType op_vpopct(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static void gen_rll_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    TCGv_i32 t0 = tcg_temp_new_i32();
-
-    tcg_gen_andi_i32(t0, b, 31);
-    tcg_gen_rotl_i32(d, a, t0);
-    tcg_temp_free_i32(t0);
-}
-
-static void gen_rll_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
-{
-    TCGv_i64 t0 = tcg_temp_new_i64();
-
-    tcg_gen_andi_i64(t0, b, 63);
-    tcg_gen_rotl_i64(d, a, t0);
-    tcg_temp_free_i64(t0);
-}
-
-static DisasJumpType op_verllv(DisasContext *s, DisasOps *o)
-{
-    const uint8_t es = get_field(s, m4);
-    static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_verllv8, },
-        { .fno = gen_helper_gvec_verllv16, },
-        { .fni4 = gen_rll_i32, },
-        { .fni8 = gen_rll_i64, },
-    };
-
-    if (es > ES_64) {
-        gen_program_exception(s, PGM_SPECIFICATION);
-        return DISAS_NORETURN;
-    }
-
-    gen_gvec_3(get_field(s, v1), get_field(s, v2),
-               get_field(s, v3), &g[es]);
-    return DISAS_NEXT;
-}
-
-static DisasJumpType op_verll(DisasContext *s, DisasOps *o)
-{
-    const uint8_t es = get_field(s, m4);
-    static const GVecGen2s g[4] = {
-        { .fno = gen_helper_gvec_verll8, },
-        { .fno = gen_helper_gvec_verll16, },
-        { .fni4 = gen_rll_i32, },
-        { .fni8 = gen_rll_i64, },
-    };
-
-    if (es > ES_64) {
-        gen_program_exception(s, PGM_SPECIFICATION);
-        return DISAS_NORETURN;
-    }
-    gen_gvec_2s(get_field(s, v1), get_field(s, v3), o->addr1,
-                &g[es]);
-    return DISAS_NEXT;
-}
-
 static void gen_rim_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, int32_t c)
 {
     TCGv_i32 t = tcg_temp_new_i32();
@@ -1946,6 +1889,9 @@ static DisasJumpType op_vesv(DisasContext *s, DisasOps *o)
     case 0x70:
         gen_gvec_fn_3(shlv, es, v1, v2, v3);
         break;
+    case 0x73:
+        gen_gvec_fn_3(rotlv, es, v1, v2, v3);
+        break;
     case 0x7a:
         gen_gvec_fn_3(sarv, es, v1, v2, v3);
         break;
@@ -1977,6 +1923,9 @@ static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
         case 0x30:
             gen_gvec_fn_2i(shli, es, v1, v3, d2);
             break;
+        case 0x33:
+            gen_gvec_fn_2i(rotli, es, v1, v3, d2);
+            break;
         case 0x3a:
             gen_gvec_fn_2i(sari, es, v1, v3, d2);
             break;
@@ -1993,6 +1942,9 @@ static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
         switch (s->fields.op2) {
         case 0x30:
             gen_gvec_fn_2s(shls, es, v1, v3, shift);
+            break;
+        case 0x33:
+            gen_gvec_fn_2s(rotls, es, v1, v3, shift);
             break;
         case 0x3a:
             gen_gvec_fn_2s(sars, es, v1, v3, shift);
