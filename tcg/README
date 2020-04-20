@@ -605,10 +605,11 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
 * shri_vec   v0, v1, i2
 * sari_vec   v0, v1, i2
+* rotli_vec  v0, v1, i2
 * shrs_vec   v0, v1, s2
 * sars_vec   v0, v1, s2
 
-  Similarly for logical and arithmetic right shift.
+  Similarly for logical and arithmetic right shift, and left rotate.
 
 * shlv_vec   v0, v1, v2
 
