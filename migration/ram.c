@@ -3147,7 +3147,7 @@ static int ram_load_postcopy(QEMUFile *f)
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = mis->postcopy_tmp_page;
     void *this_host = NULL;
-    bool all_zero = false;
+    bool all_zero = true;
     int target_pages = 0;
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
@@ -3174,7 +3174,6 @@ static int ram_load_postcopy(QEMUFile *f)
         addr &= TARGET_PAGE_MASK;
 
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
-        place_needed = false;
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE)) {
             block = ram_block_from_stream(f, flags);
@@ -3199,9 +3198,7 @@ static int ram_load_postcopy(QEMUFile *f)
              */
             page_buffer = postcopy_host_page +
                           ((uintptr_t)host & (block->page_size - 1));
-            /* If all TP are zero then we can optimise the place */
             if (target_pages == 1) {
-                all_zero = true;
                 this_host = (void *)QEMU_ALIGN_DOWN((uintptr_t)host,
                                                     block->page_size);
             } else {
@@ -3221,7 +3218,6 @@ static int ram_load_postcopy(QEMUFile *f)
              */
             if (target_pages == (block->page_size / TARGET_PAGE_SIZE)) {
                 place_needed = true;
-                target_pages = 0;
             }
             place_source = postcopy_host_page;
         }
@@ -3303,6 +3299,10 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = postcopy_place_page(mis, place_dest,
                                           place_source, block);
             }
+            place_needed = false;
+            target_pages = 0;
+            /* Assume we have a zero page until we detect something different */
+            all_zero = true;
         }
     }
 
