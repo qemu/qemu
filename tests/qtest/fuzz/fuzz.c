@@ -91,6 +91,7 @@ static void usage(char *path)
         printf(" * %s  : %s\n", tmp->target->name,
                 tmp->target->description);
     }
+    printf("Alternatively, add -target-FUZZ_TARGET to the executable name\n");
     exit(0);
 }
 
@@ -143,18 +144,20 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_LIBQOS);
 
-    if (*argc <= 1) {
+    target_name = strstr(**argv, "-target-");
+    if (target_name) {        /* The binary name specifies the target */
+        target_name += strlen("-target-");
+    } else if (*argc > 1) {  /* The target is specified as an argument */
+        target_name = (*argv)[1];
+        if (!strstr(target_name, "--fuzz-target=")) {
+            usage(**argv);
+        }
+        target_name += strlen("--fuzz-target=");
+    } else {
         usage(**argv);
     }
 
     /* Identify the fuzz target */
-    target_name = (*argv)[1];
-    if (!strstr(target_name, "--fuzz-target=")) {
-        usage(**argv);
-    }
-
-    target_name += strlen("--fuzz-target=");
-
     fuzz_target = fuzz_get_target(target_name);
     if (!fuzz_target) {
         usage(**argv);
