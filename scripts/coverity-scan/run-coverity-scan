@@ -95,6 +95,18 @@ check_upload_permissions() {
 }
 
 
+build_docker_image() {
+    # build docker container including the coverity-scan tools
+    echo "Building docker container..."
+    # TODO: This re-unpacks the tools every time, rather than caching
+    # and reusing the image produced by the COPY of the .tgz file.
+    # Not sure why.
+    tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
+                   -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
+                   --extra-files scripts/coverity-scan/run-coverity-scan \
+                                 "$COVERITY_TOOL_BASE"/coverity_tool.tgz
+}
+
 update_coverity_tools () {
     # Check for whether we need to download the Coverity tools
     # (either because we don't have a copy, or because it's out of date)
@@ -128,6 +140,11 @@ update_coverity_tools () {
         fi
     fi
     rm -f coverity_tool.md5.new
+    cd "$SRCDIR"
+
+    if [ "$DOCKER" = yes ]; then
+        build_docker_image
+    fi
 }
 
 
@@ -252,15 +269,16 @@ fi
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
-if [ "$UPDATE" = only ] && [ "$DOCKER" = yes ]; then
-    echo "Combining --docker and --update-only is not supported"
-    exit 1
-fi
-
 if [ "$UPDATE" = only ]; then
     # Just do the tools update; we don't need to check whether
     # we are in a source tree or have upload rights for this,
     # so do it before some of the command line and source tree checks.
+
+    if [ "$DOCKER" = yes ] && [ ! -z "$SRCTARBALL" ]; then
+        echo --update-tools-only --docker is incompatible with --src-tarball.
+        exit 1
+    fi
+
     update_coverity_tools
     exit 0
 fi
@@ -322,17 +340,6 @@ if [ "$DOCKER" = yes ]; then
     echo "Created temporary directory $SECRETDIR"
     SECRET="$SECRETDIR/token"
     echo "$COVERITY_TOKEN" > "$SECRET"
-    if [ "$UPDATE" != no ]; then
-        # build docker container including the coverity-scan tools
-        echo "Building docker container..."
-        # TODO: This re-unpacks the tools every time, rather than caching
-        # and reusing the image produced by the COPY of the .tgz file.
-        # Not sure why.
-        tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
-                       -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
-                       --extra-files scripts/coverity-scan/run-coverity-scan \
-                                     "$COVERITY_TOOL_BASE"/coverity_tool.tgz
-    fi
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
     ARGS="--no-update-tools"
