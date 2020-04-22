@@ -716,11 +716,11 @@ void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
         for (i = 0; sdram_bank_sizes[i]; i++) {
             g_string_append_printf(s, "%" PRIi64 "%s",
                                    sdram_bank_sizes[i] / MiB,
-                                   sdram_bank_sizes[i + 1] ? " ," : "");
+                                   sdram_bank_sizes[i + 1] ? ", " : "");
         }
-        error_report("Max %d banks of %s MB DIMM/bank supported",
-            nr_banks, s->str);
-        error_report("Possible valid RAM size: %" PRIi64,
+        error_report("at most %d bank%s of %s MiB each supported",
+                     nr_banks, nr_banks == 1 ? "" : "s", s->str);
+        error_printf("Possible valid RAM size: %" PRIi64 " MiB \n",
             used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
 
         g_string_free(s, true);
