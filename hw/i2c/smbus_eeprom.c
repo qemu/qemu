@@ -229,7 +229,7 @@ uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
     nbanks = 1;
     while (sz_log2 > max_log2 && nbanks < 8) {
         sz_log2--;
-        nbanks++;
+        nbanks *= 2;
     }
 
     assert(size == (1ULL << sz_log2) * nbanks);
