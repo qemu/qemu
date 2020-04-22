@@ -392,16 +392,16 @@ class BuildCommand(SubCommand):
                             help="""Specify a binary that will be copied to the
                             container together with all its dependent
                             libraries""")
-        parser.add_argument("--extra-files", "-f", nargs='*',
+        parser.add_argument("--extra-files", nargs='*',
                             help="""Specify files that will be copied in the
                             Docker image, fulfilling the ADD directive from the
                             Dockerfile""")
         parser.add_argument("--add-current-user", "-u", dest="user",
                             action="store_true",
                             help="Add the current user to image's passwd")
-        parser.add_argument("tag",
+        parser.add_argument("-t", dest="tag",
                             help="Image Tag")
-        parser.add_argument("dockerfile",
+        parser.add_argument("-f", dest="dockerfile",
                             help="Dockerfile name")
 
     def run(self, args, argv):
