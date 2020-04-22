@@ -116,15 +116,17 @@ update_coverity_tools () {
             echo "Downloaded tarball didn't match md5sum!"
             exit 1
         fi
-        # extract the new one, keeping it corralled in a 'coverity_tool' directory
-        echo "Unpacking coverity build tools..."
-        mkdir -p coverity_tool
-        cd coverity_tool
-        tar xf ../coverity_tool.tgz
-        cd ..
-        mv coverity_tool.md5.new coverity_tool.md5
-    fi
 
+        if [ "$DOCKER" != yes ]; then
+            # extract the new one, keeping it corralled in a 'coverity_tool' directory
+            echo "Unpacking coverity build tools..."
+            mkdir -p coverity_tool
+            cd coverity_tool
+            tar xf ../coverity_tool.tgz
+            cd ..
+            mv coverity_tool.md5.new coverity_tool.md5
+        fi
+    fi
     rm -f coverity_tool.md5.new
 }
 
@@ -296,6 +298,14 @@ if [ -z "$COVERITY_EMAIL" ]; then
     COVERITY_EMAIL="$(git config user.email)"
 fi
 
+# Otherwise, continue with the full build and upload process.
+
+check_upload_permissions
+
+if [ "$UPDATE" != no ]; then
+    update_coverity_tools
+fi
+
 # Run ourselves inside docker if that's what the user wants
 if [ "$DOCKER" = yes ]; then
     # Put the Coverity token into a temporary file that only
@@ -315,13 +325,13 @@ if [ "$DOCKER" = yes ]; then
     if [ "$UPDATE" != no ]; then
         # build docker container including the coverity-scan tools
         echo "Building docker container..."
-        # TODO: This re-downloads the tools every time, rather than
-        # caching and reusing the image produced with the downloaded tools.
+        # TODO: This re-unpacks the tools every time, rather than caching
+        # and reusing the image produced by the COPY of the .tgz file.
         # Not sure why.
         tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
                        -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
-                       -v "$SECRETDIR:/work" \
-                       --extra-files scripts/coverity-scan/run-coverity-scan
+                       --extra-files scripts/coverity-scan/run-coverity-scan \
+                                     "$COVERITY_TOOL_BASE"/coverity_tool.tgz
     fi
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
@@ -350,14 +360,6 @@ if [ "$DOCKER" = yes ]; then
     fi
     echo "Docker work complete."
     exit 0
-fi
-
-# Otherwise, continue with the full build and upload process.
-
-check_upload_permissions
-
-if [ "$UPDATE" != no ]; then
-    update_coverity_tools
 fi
 
 TOOLBIN="$(cd "$COVERITY_TOOL_BASE" && echo $PWD/coverity_tool/cov-analysis-*/bin)"
