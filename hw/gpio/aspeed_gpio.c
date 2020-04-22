@@ -712,7 +712,7 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
 static int get_set_idx(AspeedGPIOState *s, const char *group, int *group_idx)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    int set_idx, g_idx = *group_idx;
+    int set_idx, g_idx;
 
     for (set_idx = 0; set_idx < agc->nr_gpio_sets; set_idx++) {
         const GPIOSetProperties *set_props = &agc->props[set_idx];
