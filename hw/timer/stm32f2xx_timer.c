@@ -222,7 +222,6 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
     case TIM_PSC:
         timer_val = stm32f2xx_ns_to_ticks(s, now) - s->tick_offset;
         s->tim_psc = value & 0xFFFF;
-        value = timer_val;
         break;
     case TIM_CNT:
         timer_val = value;
