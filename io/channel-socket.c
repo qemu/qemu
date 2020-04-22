@@ -704,6 +704,7 @@ qio_channel_socket_close(QIOChannel *ioc,
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
     int rc = 0;
+    Error *err = NULL;
 
     if (sioc->fd != -1) {
 #ifdef WIN32
@@ -715,8 +716,8 @@ qio_channel_socket_close(QIOChannel *ioc,
 
         if (closesocket(sioc->fd) < 0) {
             sioc->fd = -1;
-            error_setg_errno(errp, errno,
-                             "Unable to close socket");
+            error_setg_errno(&err, errno, "Unable to close socket");
+            error_propagate(errp, err);
             return -1;
         }
         sioc->fd = -1;
