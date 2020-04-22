@@ -41,9 +41,10 @@
 #                   is intended mainly for internal use by the Docker support
 #
 # User-specifiable environment variables:
-#  COVERITY_TOKEN -- Coverity token
+#  COVERITY_TOKEN -- Coverity token (default: looks at your
+#                    coverity.token config)
 #  COVERITY_EMAIL -- the email address to use for uploads (default:
-#                    looks at your git user.email config)
+#                    looks at your git coverity.email or user.email config)
 #  COVERITY_BUILD_CMD -- make command (default: 'make -jN' where N is
 #                    number of CPUs as determined by 'nproc')
 #  COVERITY_TOOL_BASE -- set to directory to put coverity tools
@@ -58,11 +59,11 @@ check_upload_permissions() {
     # with status 1 if the check failed (usually a bad token);
     # will exit the script with status 0 if the check indicated that we
     # can't upload yet (ie we are at quota)
-    # Assumes that PROJTOKEN, PROJNAME and DRYRUN have been initialized.
+    # Assumes that COVERITY_TOKEN, PROJNAME and DRYRUN have been initialized.
 
     echo "Checking upload permissions..."
 
-    if ! up_perm="$(wget https://scan.coverity.com/api/upload_permitted --post-data "token=$PROJTOKEN&project=$PROJNAME" -q -O -)"; then
+    if ! up_perm="$(wget https://scan.coverity.com/api/upload_permitted --post-data "token=$COVERITY_TOKEN&project=$PROJNAME" -q -O -)"; then
         echo "Coverity Scan API access denied: bad token?"
         exit 1
     fi
@@ -94,20 +95,20 @@ check_upload_permissions() {
 update_coverity_tools () {
     # Check for whether we need to download the Coverity tools
     # (either because we don't have a copy, or because it's out of date)
-    # Assumes that COVERITY_TOOL_BASE, PROJTOKEN and PROJNAME are set.
+    # Assumes that COVERITY_TOOL_BASE, COVERITY_TOKEN and PROJNAME are set.
 
     mkdir -p "$COVERITY_TOOL_BASE"
     cd "$COVERITY_TOOL_BASE"
 
     echo "Checking for new version of coverity build tools..."
-    wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME&md5=1" -O coverity_tool.md5.new
+    wget https://scan.coverity.com/download/linux64 --post-data "token=$COVERITY_TOKEN&project=$PROJNAME&md5=1" -O coverity_tool.md5.new
 
     if ! cmp -s coverity_tool.md5 coverity_tool.md5.new; then
         # out of date md5 or no md5: download new build tool
         # blow away the old build tool
         echo "Downloading coverity build tools..."
         rm -rf coverity_tool coverity_tool.tgz
-        wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME" -O coverity_tool.tgz
+        wget https://scan.coverity.com/download/linux64 --post-data "token=$COVERITY_TOKEN&project=$PROJNAME" -O coverity_tool.tgz
         if ! (cat coverity_tool.md5.new; echo "  coverity_tool.tgz") | md5sum -c --status; then
             echo "Downloaded tarball didn't match md5sum!"
             exit 1
@@ -206,6 +207,9 @@ while [ "$#" -ge 1 ]; do
 done
 
 if [ -z "$COVERITY_TOKEN" ]; then
+    COVERITY_TOKEN="$(git config coverity.token)"
+fi
+if [ -z "$COVERITY_TOKEN" ]; then
     echo "COVERITY_TOKEN environment variable not set"
     exit 1
 fi
@@ -225,7 +229,6 @@ if [ -z "$SRCDIR" ]; then
     SRCDIR="$PWD"
 fi
 
-PROJTOKEN="$COVERITY_TOKEN"
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
@@ -268,6 +271,9 @@ if [ -z "$DESCRIPTION" ]; then
     DESCRIPTION="$(git rev-parse HEAD)"
 fi
 
+if [ -z "$COVERITY_EMAIL" ]; then
+    COVERITY_EMAIL="$(git config coverity.email)"
+fi
 if [ -z "$COVERITY_EMAIL" ]; then
     COVERITY_EMAIL="$(git config user.email)"
 fi
@@ -393,7 +399,7 @@ if [ "$DRYRUN" = yes ]; then
     exit 0
 fi
 
-curl --form token="$PROJTOKEN" --form email="$COVERITY_EMAIL" \
+curl --form token="$COVERITY_TOKEN" --form email="$COVERITY_EMAIL" \
      --form file=@"$TARBALL" --form version="$VERSION" \
      --form description="$DESCRIPTION" \
      https://scan.coverity.com/builds?project="$PROJNAME"
