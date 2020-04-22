@@ -797,40 +797,49 @@ void cpu_ticks_init(void)
 
 void configure_icount(QemuOpts *opts, Error **errp)
 {
-    const char *option;
+    const char *option = qemu_opt_get(opts, "shift");
+    bool sleep = qemu_opt_get_bool(opts, "sleep", true);
+    bool align = qemu_opt_get_bool(opts, "align", false);
+    long time_shift = -1;
     char *rem_str = NULL;
 
-    option = qemu_opt_get(opts, "shift");
-    if (!option) {
-        if (qemu_opt_get(opts, "align") != NULL) {
-            error_setg(errp, "Please specify shift option when using align");
-        }
+    if (!option && qemu_opt_get(opts, "align")) {
+        error_setg(errp, "Please specify shift option when using align");
         return;
     }
 
-    icount_sleep = qemu_opt_get_bool(opts, "sleep", true);
+    if (align && !sleep) {
+        error_setg(errp, "align=on and sleep=off are incompatible");
+        return;
+    }
+
+    if (strcmp(option, "auto") != 0) {
+        errno = 0;
+        time_shift = strtol(option, &rem_str, 0);
+        if (errno != 0 || *rem_str != '\0' || !strlen(option)) {
+            error_setg(errp, "icount: Invalid shift value");
+            return;
+        }
+    } else if (icount_align_option) {
+        error_setg(errp, "shift=auto and align=on are incompatible");
+        return;
+    } else if (!icount_sleep) {
+        error_setg(errp, "shift=auto and sleep=off are incompatible");
+        return;
+    }
+
+    icount_sleep = sleep;
     if (icount_sleep) {
         timers_state.icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                          icount_timer_cb, NULL);
     }
 
-    icount_align_option = qemu_opt_get_bool(opts, "align", false);
+    icount_align_option = align;
 
-    if (icount_align_option && !icount_sleep) {
-        error_setg(errp, "align=on and sleep=off are incompatible");
-    }
-    if (strcmp(option, "auto") != 0) {
-        errno = 0;
-        timers_state.icount_time_shift = strtol(option, &rem_str, 0);
-        if (errno != 0 || *rem_str != '\0' || !strlen(option)) {
-            error_setg(errp, "icount: Invalid shift value");
-        }
+    if (time_shift >= 0) {
+        timers_state.icount_time_shift = time_shift;
         use_icount = 1;
         return;
-    } else if (icount_align_option) {
-        error_setg(errp, "shift=auto and align=on are incompatible");
-    } else if (!icount_sleep) {
-        error_setg(errp, "shift=auto and sleep=off are incompatible");
     }
 
     use_icount = 2;
