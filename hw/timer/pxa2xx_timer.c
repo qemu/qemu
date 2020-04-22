@@ -140,6 +140,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
     static const int counters[8] = { 0, 0, 0, 0, 4, 4, 6, 6 };
     int counter;
 
+    assert(n < ARRAY_SIZE(counters));
     if (s->tm4[n].control & (1 << 7))
         counter = n;
     else
