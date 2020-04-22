@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/cutils.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
@@ -801,7 +802,6 @@ void configure_icount(QemuOpts *opts, Error **errp)
     bool sleep = qemu_opt_get_bool(opts, "sleep", true);
     bool align = qemu_opt_get_bool(opts, "align", false);
     long time_shift = -1;
-    char *rem_str = NULL;
 
     if (!option && qemu_opt_get(opts, "align")) {
         error_setg(errp, "Please specify shift option when using align");
@@ -814,9 +814,8 @@ void configure_icount(QemuOpts *opts, Error **errp)
     }
 
     if (strcmp(option, "auto") != 0) {
-        errno = 0;
-        time_shift = strtol(option, &rem_str, 0);
-        if (errno != 0 || *rem_str != '\0' || !strlen(option)) {
+        if (qemu_strtol(option, NULL, 0, &time_shift) < 0
+            || time_shift < 0 || time_shift > MAX_ICOUNT_SHIFT) {
             error_setg(errp, "icount: Invalid shift value");
             return;
         }
