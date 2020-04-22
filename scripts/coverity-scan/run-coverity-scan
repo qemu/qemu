@@ -29,7 +29,9 @@
 
 # Command line options:
 #   --dry-run : run the tools, but don't actually do the upload
-#   --docker : create and work inside a docker container
+#   --docker : create and work inside a container
+#   --docker-engine : specify the container engine to use (docker/podman/auto);
+#                     implies --docker
 #   --update-tools-only : update the cached copy of the tools, but don't run them
 #   --tokenfile : file to read Coverity token from
 #   --version ver : specify version being analyzed (default: ask git)
@@ -197,6 +199,17 @@ while [ "$#" -ge 1 ]; do
             ;;
         --docker)
             DOCKER=yes
+            DOCKER_ENGINE=auto
+            shift
+            ;;
+        --docker-engine)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--docker-engine needs an argument"
+                exit 1
+            fi
+            DOCKER=yes
+            DOCKER_ENGINE="$1"
             shift
             ;;
         *)
@@ -283,9 +296,8 @@ if [ "$DOCKER" = yes ]; then
     # build docker container including the coverity-scan tools
     # Put the Coverity token into a temporary file that only
     # we have read access to, and then pass it to docker build
-    # using --secret. This requires at least Docker 18.09.
-    # Mostly what we are trying to do here is ensure we don't leak
-    # the token into the Docker image.
+    # using a volume.  A volume is enough for the token not to
+    # leak into the Docker image.
     umask 077
     SECRETDIR=$(mktemp -d)
     if [ -z "$SECRETDIR" ]; then
@@ -300,12 +312,10 @@ if [ "$DOCKER" = yes ]; then
     # TODO: This re-downloads the tools every time, rather than
     # caching and reusing the image produced with the downloaded tools.
     # Not sure why.
-    # TODO: how do you get 'docker build' to print the output of the
-    # commands it is running to its stdout? This would be useful for debug.
-    DOCKER_BUILDKIT=1 docker build -t coverity-scanner \
-                   --secret id=coverity.token,src="$SECRET" \
-                   -f scripts/coverity-scan/coverity-scan.docker \
-                   scripts/coverity-scan
+    tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
+                   -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
+                   -v "$SECRETDIR:/work" \
+                   --extra-files scripts/coverity-scan/run-coverity-scan
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
     if [ "$DRYRUN" = yes ]; then
@@ -323,7 +333,7 @@ if [ "$DOCKER" = yes ]; then
     # Arrange for this docker run to get access to the sources with -v.
     # We pass through all the configuration from the outer script to the inner.
     export COVERITY_EMAIL COVERITY_BUILD_CMD
-    docker run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
+    tests/docker/docker.py run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
            -v "$SECRETDIR:/work" coverity-scanner \
            ./run-coverity-scan --version "$VERSION" \
            --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
