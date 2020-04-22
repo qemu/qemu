@@ -325,17 +325,16 @@ if [ "$DOCKER" = yes ]; then
     fi
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
+    ARGS="--no-update-tools"
     if [ "$DRYRUN" = yes ]; then
-        DRYRUNARG=--dry-run
+        ARGS="$ARGS --dry-run"
     fi
     echo "Running scanner..."
     # If we need to capture the output tarball, get the inner run to
     # save it to the secrets directory so we can copy it out before the
     # directory is cleaned up.
     if [ ! -z "$RESULTSTARBALL" ]; then
-        RTARGS="--results-tarball /work/cov-int.tar.xz"
-    else
-        RTARGS=""
+        ARGS="$ARGS --results-tarball /work/cov-int.tar.xz"
     fi
     # Arrange for this docker run to get access to the sources with -v.
     # We pass through all the configuration from the outer script to the inner.
@@ -343,8 +342,8 @@ if [ "$DOCKER" = yes ]; then
     tests/docker/docker.py run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
            -v "$SECRETDIR:/work" coverity-scanner \
            ./run-coverity-scan --version "$VERSION" \
-           --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
-           --srcdir /qemu --src-tarball /work/qemu-sources.tgz $RTARGS
+           --description "$DESCRIPTION" $ARGS --tokenfile /work/token \
+           --srcdir /qemu --src-tarball /work/qemu-sources.tgz
     if [ ! -z "$RESULTSTARBALL" ]; then
         echo "Copying results tarball to $RESULTSTARBALL..."
         cp "$SECRETDIR/cov-int.tar.xz" "$RESULTSTARBALL"
