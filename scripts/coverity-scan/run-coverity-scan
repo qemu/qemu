@@ -33,6 +33,7 @@
 #   --docker-engine : specify the container engine to use (docker/podman/auto);
 #                     implies --docker
 #   --update-tools-only : update the cached copy of the tools, but don't run them
+#   --no-update-tools : do not update the cached copy of the tools
 #   --tokenfile : file to read Coverity token from
 #   --version ver : specify version being analyzed (default: ask git)
 #   --description desc : specify description of this version (default: ask git)
@@ -130,7 +131,7 @@ update_coverity_tools () {
 
 # Check user-provided environment variables and arguments
 DRYRUN=no
-UPDATE_ONLY=no
+UPDATE=yes
 DOCKER=no
 
 while [ "$#" -ge 1 ]; do
@@ -139,9 +140,13 @@ while [ "$#" -ge 1 ]; do
             shift
             DRYRUN=yes
             ;;
+        --no-update-tools)
+            shift
+            UPDATE=no
+            ;;
         --update-tools-only)
             shift
-            UPDATE_ONLY=yes
+            UPDATE=only
             ;;
         --version)
             shift
@@ -245,12 +250,12 @@ fi
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
-if [ "$UPDATE_ONLY" = yes ] && [ "$DOCKER" = yes ]; then
+if [ "$UPDATE" = only ] && [ "$DOCKER" = yes ]; then
     echo "Combining --docker and --update-only is not supported"
     exit 1
 fi
 
-if [ "$UPDATE_ONLY" = yes ]; then
+if [ "$UPDATE" = only ]; then
     # Just do the tools update; we don't need to check whether
     # we are in a source tree or have upload rights for this,
     # so do it before some of the command line and source tree checks.
@@ -293,7 +298,6 @@ fi
 
 # Run ourselves inside docker if that's what the user wants
 if [ "$DOCKER" = yes ]; then
-    # build docker container including the coverity-scan tools
     # Put the Coverity token into a temporary file that only
     # we have read access to, and then pass it to docker build
     # using a volume.  A volume is enough for the token not to
@@ -308,14 +312,17 @@ if [ "$DOCKER" = yes ]; then
     echo "Created temporary directory $SECRETDIR"
     SECRET="$SECRETDIR/token"
     echo "$COVERITY_TOKEN" > "$SECRET"
-    echo "Building docker container..."
-    # TODO: This re-downloads the tools every time, rather than
-    # caching and reusing the image produced with the downloaded tools.
-    # Not sure why.
-    tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
-                   -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
-                   -v "$SECRETDIR:/work" \
-                   --extra-files scripts/coverity-scan/run-coverity-scan
+    if [ "$UPDATE" != no ]; then
+        # build docker container including the coverity-scan tools
+        echo "Building docker container..."
+        # TODO: This re-downloads the tools every time, rather than
+        # caching and reusing the image produced with the downloaded tools.
+        # Not sure why.
+        tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
+                       -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
+                       -v "$SECRETDIR:/work" \
+                       --extra-files scripts/coverity-scan/run-coverity-scan
+    fi
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
     if [ "$DRYRUN" = yes ]; then
@@ -350,7 +357,9 @@ fi
 
 check_upload_permissions
 
-update_coverity_tools
+if [ "$UPDATE" != no ]; then
+    update_coverity_tools
+fi
 
 TOOLBIN="$(cd "$COVERITY_TOOL_BASE" && echo $PWD/coverity_tool/cov-analysis-*/bin)"
 
