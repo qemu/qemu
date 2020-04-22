@@ -297,7 +297,6 @@ static void mips_fulong2e_init(MachineState *machine)
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     long bios_size;
     uint8_t *spd_data;
-    Error *err = NULL;
     int64_t kernel_entry;
     PCIBus *pci_bus;
     ISABus *isa_bus;
@@ -377,13 +376,8 @@ static void mips_fulong2e_init(MachineState *machine)
     }
 
     /* Populate SPD eeprom data */
-    spd_data = spd_data_generate(DDR, machine->ram_size, &err);
-    if (err) {
-        warn_report_err(err);
-    }
-    if (spd_data) {
-        smbus_eeprom_init_one(smbus, 0x50, spd_data);
-    }
+    spd_data = spd_data_generate(DDR, machine->ram_size);
+    smbus_eeprom_init_one(smbus, 0x50, spd_data);
 
     mc146818_rtc_init(isa_bus, 2000, NULL);
 
