@@ -335,7 +335,8 @@ static void sam460ex_init(MachineState *machine)
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700, uic[0][2]);
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
-    spd_data = spd_data_generate(DDR2, ram_sizes[0], &err);
+    spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
+                                 ram_sizes[0], &err);
     if (err) {
         warn_report_err(err);
     }
