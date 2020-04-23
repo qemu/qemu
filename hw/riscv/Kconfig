@@ -27,6 +27,11 @@ config SPIKE
     select HTIF
     select SIFIVE
 
+config OPENTITAN
+    bool
+    select HART
+    select UNIMP
+
 config RISCV_VIRT
     bool
     imply PCI_DEVICES
