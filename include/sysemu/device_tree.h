@@ -43,7 +43,7 @@ void *load_device_tree_from_sysfs(void);
  * @name may be NULL to wildcard names and only match compatibility
  * strings.
  */
-char **qemu_fdt_node_path(void *fdt, const char *name, char *compat,
+char **qemu_fdt_node_path(void *fdt, const char *name, const char *compat,
                           Error **errp);
 
 /**
