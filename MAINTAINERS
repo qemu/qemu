@@ -1250,7 +1250,9 @@ M: Alistair Francis <Alistair.Francis@wdc.com>
 L: qemu-riscv@nongnu.org
 S: Supported
 F: hw/riscv/opentitan.c
+F: hw/char/ibex_uart.c
 F: include/hw/riscv/opentitan.h
+F: include/hw/char/ibex_uart.h
 
 SH4 Machines
 ------------
