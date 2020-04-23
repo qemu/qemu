@@ -1,4 +1,5 @@
 chardev-obj-y += char.o
+chardev-obj-$(CONFIG_SOFTMMU) += chardev-sysemu.o
 chardev-obj-$(CONFIG_WIN32) += char-console.o
 chardev-obj-$(CONFIG_POSIX) += char-fd.o
 chardev-obj-y += char-fe.o

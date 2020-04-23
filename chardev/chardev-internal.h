@@ -26,6 +26,7 @@
 
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
@@ -58,5 +59,7 @@ typedef struct MuxChardev {
 
 void mux_set_focus(Chardev *chr, int focus);
 void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event);
+
+Object *get_chardevs_root(void);
 
 #endif /* CHAR_MUX_H */
