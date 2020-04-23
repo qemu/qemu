@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "sysemu/qtest.h"
+#include "sysemu/device_tree.h"
 
 typedef struct XlnxZCU102 {
     MachineState parent_obj;
@@ -66,6 +67,34 @@ static void zcu102_set_virt(Object *obj, bool value, Error **errp)
     XlnxZCU102 *s = ZCU102_MACHINE(obj);
 
     s->virt = value;
+}
+
+static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
+{
+    XlnxZCU102 *s = container_of(binfo, XlnxZCU102, binfo);
+    bool method_is_hvc;
+    char **node_path;
+    const char *r;
+    int prop_len;
+    int i;
+
+    /* If EL3 is enabled, we keep all firmware nodes active.  */
+    if (!s->secure) {
+        node_path = qemu_fdt_node_path(fdt, NULL, "xlnx,zynqmp-firmware",
+                                       &error_fatal);
+
+        for (i = 0; node_path && node_path[i]; i++) {
+            r = qemu_fdt_getprop(fdt, node_path[i], "method", &prop_len, NULL);
+            method_is_hvc = r && !strcmp("hvc", r);
+
+            /* Allow HVC based firmware if EL2 is enabled.  */
+            if (method_is_hvc && s->virt) {
+                continue;
+            }
+            qemu_fdt_setprop_string(fdt, node_path[i], "status", "disabled");
+        }
+        g_strfreev(node_path);
+    }
 }
 
 static void xlnx_zcu102_init(MachineState *machine)
@@ -169,6 +198,7 @@ static void xlnx_zcu102_init(MachineState *machine)
 
     s->binfo.ram_size = ram_size;
     s->binfo.loader_start = 0;
+    s->binfo.modify_dtb = zcu102_modify_dtb;
     arm_load_kernel(s->soc.boot_cpu_ptr, machine, &s->binfo);
 }
 
