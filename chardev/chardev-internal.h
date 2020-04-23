@@ -1,5 +1,5 @@
 /*
- * QEMU System Emulator
+ * QEMU Character device internals
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
  *
@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_MUX_H
-#define CHAR_MUX_H
+#ifndef CHARDEV_INTERNAL_H
+#define CHARDEV_INTERNAL_H
 
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
@@ -30,6 +30,7 @@
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
+
 typedef struct MuxChardev {
     Chardev parent;
     CharBackend *backends[MAX_MUX];

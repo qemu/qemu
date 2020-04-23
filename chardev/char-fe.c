@@ -29,7 +29,7 @@
 
 #include "chardev/char-fe.h"
 #include "chardev/char-io.h"
-#include "chardev/char-mux.h"
+#include "chardev-internal.h"
 
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
 {
