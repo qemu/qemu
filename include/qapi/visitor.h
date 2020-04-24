@@ -345,9 +345,9 @@ void visit_end_struct(Visitor *v, void **obj);
  * input visitors set *@list to NULL.
  *
  * After visit_start_list() succeeds, the caller may visit its members
- * one after the other.  A real visit (where @obj is non-NULL) uses
+ * one after the other.  A real visit (where @list is non-NULL) uses
  * visit_next_list() for traversing the linked list, while a virtual
- * visit (where @obj is NULL) uses other means.  For each list
+ * visit (where @list is NULL) uses other means.  For each list
  * element, call the appropriate visit_type_FOO() with name set to
  * NULL and obj set to the address of the value member of the list
  * element.  Finally, visit_end_list() needs to be called with the
