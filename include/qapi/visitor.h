@@ -25,19 +25,21 @@
  * for doing work at each node of a QAPI graph; it can also be used
  * for a virtual walk, where there is no actual QAPI C struct.
  *
- * There are four kinds of visitor classes: input visitors (QObject,
- * string, and QemuOpts) parse an external representation and build
- * the corresponding QAPI graph, output visitors (QObject and string) take
- * a completed QAPI graph and generate an external representation, the
- * dealloc visitor can take a QAPI graph (possibly partially
- * constructed) and recursively free its resources, and the clone
- * visitor performs a deep clone of one QAPI object to another.  While
- * the dealloc and QObject input/output visitors are general, the string,
- * QemuOpts, and clone visitors have some implementation limitations;
- * see the documentation for each visitor for more details on what it
- * supports.  Also, see visitor-impl.h for the callback contracts
- * implemented by each visitor, and docs/devel/qapi-code-gen.txt for more
- * about the QAPI code generator.
+ * There are four kinds of visitors: input visitors (QObject, string,
+ * and QemuOpts) parse an external representation and build the
+ * corresponding QAPI object, output visitors (QObject and string)
+ * take a QAPI object and generate an external representation, the
+ * dealloc visitor takes a QAPI object (possibly partially
+ * constructed) and recursively frees it, and the clone visitor
+ * performs a deep clone of a QAPI object.
+ *
+ * While the dealloc and QObject input/output visitors are general,
+ * the string, QemuOpts, and clone visitors have some implementation
+ * limitations; see the documentation for each visitor for more
+ * details on what it supports.  Also, see visitor-impl.h for the
+ * callback contracts implemented by each visitor, and
+ * docs/devel/qapi-code-gen.txt for more about the QAPI code
+ * generator.
  *
  * All of the visitors are created via:
  *
@@ -45,11 +47,15 @@
  *
  * A visitor should be used for exactly one top-level visit_type_FOO()
  * or virtual walk; if that is successful, the caller can optionally
- * call visit_complete() (for now, useful only for output visits, but
- * safe to call on all visits).  Then, regardless of success or
- * failure, the user should call visit_free() to clean up resources.
- * It is okay to free the visitor without completing the visit, if
- * some other error is detected in the meantime.
+ * call visit_complete() (useful only for output visits, but safe to
+ * call on all visits).  Then, regardless of success or failure, the
+ * user should call visit_free() to clean up resources.  It is okay to
+ * free the visitor without completing the visit, if some other error
+ * is detected in the meantime.
+ *
+ * The clone and dealloc visitor should not be used directly outside
+ * of QAPI code.  Use the qapi_free_FOO() and QAPI_CLONE() instead,
+ * described below.
  *
  * All QAPI types have a corresponding function with a signature
  * roughly compatible with this:
@@ -68,22 +74,26 @@
  * alternate, @name should equal the name used for visiting the
  * alternate.
  *
- * The visit_type_FOO() functions expect a non-null @obj argument;
- * they allocate *@obj during input visits, leave it unchanged on
- * output visits, and recursively free any resources during a dealloc
- * visit.  Each function also takes the customary @errp argument (see
+ * The visit_type_FOO() functions take a non-null @obj argument; they
+ * allocate *@obj during input visits, leave it unchanged during
+ * output and clone visits, and free it (recursively) during a dealloc
+ * visit.
+ *
+ * Each function also takes the customary @errp argument (see
  * qapi/error.h for details), for reporting any errors (such as if a
  * member @name is not present, or is present but not the specified
  * type).
  *
  * If an error is detected during visit_type_FOO() with an input
- * visitor, then *@obj will be NULL for pointer types, and left
- * unchanged for scalar types.  Using an output or clone visitor with
- * an incomplete object has undefined behavior (other than a special
- * case for visit_type_str() treating NULL like ""), while the dealloc
- * visitor safely handles incomplete objects.  Since input visitors
- * never produce an incomplete object, such an object is possible only
- * by manual construction.
+ * visitor, then *@obj will be set to NULL for pointer types, and left
+ * unchanged for scalar types.
+ *
+ * Using an output or clone visitor with an incomplete object has
+ * undefined behavior (other than a special case for visit_type_str()
+ * treating NULL like ""), while the dealloc visitor safely handles
+ * incomplete objects.  Since input visitors never produce an
+ * incomplete object, such an object is possible only by manual
+ * construction.
  *
  * For the QAPI object types (structs, unions, and alternates), there
  * is an additional generated function in qapi-visit-MODULE.h
@@ -100,23 +110,20 @@
  *
  * void qapi_free_FOO(FOO *obj);
  *
- * where behaves like free() in that @obj may be NULL.  Such objects
- * may also be used with the following macro, provided alongside the
- * clone visitor:
+ * Does nothing when @obj is NULL.
+ *
+ * Such objects may also be used with macro
  *
  * Type *QAPI_CLONE(Type, src);
  *
- * in order to perform a deep clone of @src.  Because of the generated
- * qapi_free functions and the QAPI_CLONE() macro, the clone and
- * dealloc visitor should not be used directly outside of QAPI code.
+ * in order to perform a deep clone of @src.
  *
- * QAPI types can also inherit from a base class; when this happens, a
- * function is generated for easily going from the derived type to the
- * base type:
+ * For QAPI types can that inherit from a base type, a function is
+ * generated for going from the derived type to the base type:
  *
  * BASE *qapi_CHILD_base(CHILD *obj);
  *
- * For a real QAPI struct, typical input usage involves:
+ * Typical input visitor usage involves:
  *
  * <example>
  *  Foo *f;
@@ -153,7 +160,7 @@
  *  qapi_free_FooList(l);
  * </example>
  *
- * Similarly, typical output usage is:
+ * Typical output visitor usage:
  *
  * <example>
  *  Foo *f = ...obtain populated object...
@@ -172,17 +179,8 @@
  *  visit_free(v);
  * </example>
  *
- * When visiting a real QAPI struct, this file provides several
- * helpers that rely on in-tree information to control the walk:
- * visit_optional() for the 'has_member' field associated with
- * optional 'member' in the C struct; and visit_next_list() for
- * advancing through a FooList linked list.  Similarly, the
- * visit_is_input() helper makes it possible to write code that is
- * visitor-agnostic everywhere except for cleanup.  Only the generated
- * visit_type functions need to use these helpers.
- *
  * It is also possible to use the visitors to do a virtual walk, where
- * no actual QAPI struct is present.  In this situation, decisions
+ * no actual QAPI object is present.  In this situation, decisions
  * about what needs to be walked are made by the calling code, and
  * structured visits are split between pairs of start and end methods
  * (where the end method must be called if the start function
@@ -227,6 +225,12 @@
  * out:
  *  visit_free(v);
  * </example>
+ *
+ * This file provides helpers for use by the generated
+ * visit_type_FOO(): visit_optional() for the 'has_member' field
+ * associated with optional 'member' in the C struct,
+ * visit_next_list() for advancing through a FooList linked list, and
+ * visit_is_input() for cleaning up on failure.
  */
 
 /*** Useful types ***/
