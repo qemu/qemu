@@ -160,10 +160,13 @@ static void visit_type_uintN(Visitor *v, uint64_t *obj, const char *name,
     Error *err = NULL;
     uint64_t value = *obj;
 
+    assert(v->type == VISITOR_INPUT || value <= max);
+
     v->type_uint64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
     } else if (value > max) {
+        assert(v->type == VISITOR_INPUT);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    name ? name : "null", type);
     } else {
@@ -219,10 +222,13 @@ static void visit_type_intN(Visitor *v, int64_t *obj, const char *name,
     Error *err = NULL;
     int64_t value = *obj;
 
+    assert(v->type == VISITOR_INPUT || (value >= min && value <= max));
+
     v->type_int64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
     } else if (value < min || value > max) {
+        assert(v->type == VISITOR_INPUT);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    name ? name : "null", type);
     } else {
