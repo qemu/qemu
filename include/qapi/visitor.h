@@ -215,6 +215,9 @@
  *      goto outlist;
  *  }
  * outlist:
+ *  if (!err) {
+ *      visit_check_list(v, &err);
+ *  }
  *  visit_end_list(v, NULL);
  *  if (!err) {
  *      visit_check_struct(v, &err);
@@ -222,7 +225,6 @@
  * outobj:
  *  visit_end_struct(v, NULL);
  * out:
- *  error_propagate(errp, err);
  *  visit_free(v);
  * </example>
  */
