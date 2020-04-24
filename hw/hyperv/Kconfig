@@ -6,3 +6,8 @@ config HYPERV_TESTDEV
     bool
     default y if TEST_DEVICES
     depends on HYPERV
+
+config VMBUS
+    bool
+    default y
+    depends on HYPERV
