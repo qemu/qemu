@@ -341,15 +341,6 @@ static void output_type_enum(Visitor *v, const char *name, int *obj,
     int value = *obj;
     char *enum_str;
 
-    /*
-     * TODO why is this an error, not an assertion?  If assertion:
-     * delete, and rely on qapi_enum_lookup()
-     */
-    if (value < 0 || value >= lookup->size) {
-        error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
-        return;
-    }
-
     enum_str = (char *)qapi_enum_lookup(lookup, value);
     visit_type_str(v, name, &enum_str, errp);
 }
