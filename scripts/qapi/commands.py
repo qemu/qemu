@@ -104,6 +104,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 %(proto)s
 {
     Error *err = NULL;
+    Visitor *v;
 ''',
                 proto=build_marshal_proto(name))
 
@@ -117,21 +118,14 @@ def gen_marshal(name, arg_type, boxed, ret_type):
         visit_members = ('visit_type_%s_members(v, &arg, &err);'
                          % arg_type.c_name())
         ret += mcgen('''
-    Visitor *v;
     %(c_name)s arg = {0};
-
 ''',
                      c_name=arg_type.c_name())
     else:
         visit_members = ''
-        ret += mcgen('''
-    Visitor *v = NULL;
-
-    if (args) {
-''')
-        push_indent()
 
     ret += mcgen('''
+
     v = qobject_input_visitor_new(QOBJECT(args));
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
@@ -148,12 +142,6 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 ''',
                  visit_members=visit_members)
 
-    if not have_args:
-        pop_indent()
-        ret += mcgen('''
-    }
-''')
-
     ret += gen_call(name, arg_type, boxed, ret_type)
 
     ret += mcgen('''
@@ -168,10 +156,6 @@ out:
                          % arg_type.c_name())
     else:
         visit_members = ''
-        ret += mcgen('''
-    if (args) {
-''')
-        push_indent()
 
     ret += mcgen('''
     v = qapi_dealloc_visitor_new();
@@ -181,12 +165,6 @@ out:
     visit_free(v);
 ''',
                  visit_members=visit_members)
-
-    if not have_args:
-        pop_indent()
-        ret += mcgen('''
-    }
-''')
 
     ret += mcgen('''
 }
