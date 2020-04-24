@@ -3897,7 +3897,7 @@ static int img_resize(int argc, char **argv)
      * resizing, so pass @exact=true.  It is of no use to report
      * success when the image has not actually been resized.
      */
-    ret = blk_truncate(blk, total_size, true, prealloc, &err);
+    ret = blk_truncate(blk, total_size, true, prealloc, 0, &err);
     if (!ret) {
         qprintf(quiet, "Image resized.\n");
     } else {

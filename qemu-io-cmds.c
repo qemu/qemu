@@ -1715,7 +1715,7 @@ static int truncate_f(BlockBackend *blk, int argc, char **argv)
      * exact=true.  It is better to err on the "emit more errors" side
      * than to be overly permissive.
      */
-    ret = blk_truncate(blk, offset, true, PREALLOC_MODE_OFF, &local_err);
+    ret = blk_truncate(blk, offset, true, PREALLOC_MODE_OFF, 0, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;

@@ -1703,13 +1703,13 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
         /* All zeroes, so we can just extend the file - the end of the BAT
          * is the furthest thing we have written yet */
         ret = blk_truncate(blk, data_file_offset, false, PREALLOC_MODE_OFF,
-                           errp);
+                           0, errp);
         if (ret < 0) {
             goto exit;
         }
     } else if (type == VHDX_TYPE_FIXED) {
         ret = blk_truncate(blk, data_file_offset + image_size, false,
-                           PREALLOC_MODE_OFF, errp);
+                           PREALLOC_MODE_OFF, 0, errp);
         if (ret < 0) {
             goto exit;
         }

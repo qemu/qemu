@@ -115,7 +115,7 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
      * which will be used by the crypto header
      */
     return blk_truncate(data->blk, data->size + headerlen, false,
-                        data->prealloc, errp);
+                        data->prealloc, 0, errp);
 }
 
 

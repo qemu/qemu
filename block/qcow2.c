@@ -3511,7 +3511,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 
     /* Okay, now that we have a valid image, let's give it the right size */
     ret = blk_truncate(blk, qcow2_opts->size, false, qcow2_opts->preallocation,
-                       errp);
+                       0, errp);
     if (ret < 0) {
         error_prepend(errp, "Could not resize image: ");
         goto out;
@@ -5374,7 +5374,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
          * Amending image options should ensure that the image has
          * exactly the given new values, so pass exact=true here.
          */
-        ret = blk_truncate(blk, new_size, true, PREALLOC_MODE_OFF, errp);
+        ret = blk_truncate(blk, new_size, true, PREALLOC_MODE_OFF, 0, errp);
         blk_unref(blk);
         if (ret < 0) {
             return ret;
