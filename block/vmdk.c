@@ -2077,7 +2077,7 @@ vmdk_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
             }
             length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
             ret = bdrv_truncate(s->extents[i].file, length, false,
-                                PREALLOC_MODE_OFF, NULL);
+                                PREALLOC_MODE_OFF, 0, NULL);
             if (ret < 0) {
                 return ret;
             }

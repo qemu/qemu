@@ -480,7 +480,7 @@ static int get_cluster_offset(BlockDriverState *bs,
                     return -E2BIG;
                 }
                 ret = bdrv_truncate(bs->file, cluster_offset + s->cluster_size,
-                                    false, PREALLOC_MODE_OFF, NULL);
+                                    false, PREALLOC_MODE_OFF, 0, NULL);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1035,7 +1035,7 @@ static int qcow_make_empty(BlockDriverState *bs)
             l1_length) < 0)
         return -1;
     ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length, false,
-                        PREALLOC_MODE_OFF, NULL);
+                        PREALLOC_MODE_OFF, 0, NULL);
     if (ret < 0)
         return ret;
 

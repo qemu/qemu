@@ -1264,7 +1264,7 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     return bdrv_truncate(bs->file, *new_offset + s->block_size, false,
-                         PREALLOC_MODE_OFF, NULL);
+                         PREALLOC_MODE_OFF, 0, NULL);
 }
 
 /*

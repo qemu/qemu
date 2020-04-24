@@ -2144,7 +2144,7 @@ int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk->root, offset, exact, prealloc, errp);
+    return bdrv_truncate(blk->root, offset, exact, prealloc, 0, errp);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,

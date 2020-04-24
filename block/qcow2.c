@@ -3095,7 +3095,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
             mode = PREALLOC_MODE_OFF;
         }
         ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, false,
-                               mode, errp);
+                               mode, 0, errp);
         if (ret < 0) {
             return ret;
         }
@@ -4061,7 +4061,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
              * always fulfilled, so there is no need to pass it on.)
              */
             bdrv_co_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                             false, PREALLOC_MODE_OFF, &local_err);
+                             false, PREALLOC_MODE_OFF, 0, &local_err);
             if (local_err) {
                 warn_reportf_err(local_err,
                                  "Failed to truncate the tail of the image: ");
@@ -4083,7 +4083,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
              * file should be resized to the exact target size, too,
              * so we pass @exact here.
              */
-            ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, errp);
+            ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, 0,
+                                   errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -4169,7 +4170,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
         /* Image file grows, so @exact does not matter */
-        ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, 0,
+                               errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,
@@ -4348,7 +4350,8 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         if (len < 0) {
             return len;
         }
-        return bdrv_co_truncate(bs->file, len, false, PREALLOC_MODE_OFF, NULL);
+        return bdrv_co_truncate(bs->file, len, false, PREALLOC_MODE_OFF, 0,
+                                NULL);
     }
 
     if (offset_into_cluster(s, offset)) {
@@ -4563,7 +4566,7 @@ static int make_completely_empty(BlockDriverState *bs)
     }
 
     ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size, false,
-                        PREALLOC_MODE_OFF, &local_err);
+                        PREALLOC_MODE_OFF, 0, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         goto fail;

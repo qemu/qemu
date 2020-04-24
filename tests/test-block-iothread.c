@@ -186,18 +186,18 @@ static void test_sync_op_truncate(BdrvChild *c)
     int ret;
 
     /* Normal success path */
-    ret = bdrv_truncate(c, 65536, false, PREALLOC_MODE_OFF, NULL);
+    ret = bdrv_truncate(c, 65536, false, PREALLOC_MODE_OFF, 0, NULL);
     g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = bdrv_truncate(c, -2, false, PREALLOC_MODE_OFF, NULL);
+    ret = bdrv_truncate(c, -2, false, PREALLOC_MODE_OFF, 0, NULL);
     g_assert_cmpint(ret, ==, -EINVAL);
 
     /* Error: Read-only image */
     c->bs->read_only = true;
     c->bs->open_flags &= ~BDRV_O_RDWR;
 
-    ret = bdrv_truncate(c, 65536, false, PREALLOC_MODE_OFF, NULL);
+    ret = bdrv_truncate(c, 65536, false, PREALLOC_MODE_OFF, 0, NULL);
     g_assert_cmpint(ret, ==, -EACCES);
 
     c->bs->read_only = false;
