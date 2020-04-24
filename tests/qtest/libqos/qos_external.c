@@ -66,7 +66,7 @@ void types_apply_to_node(ObjectTypeInfoList *type_info)
     }
 }
 
-QGuestAllocator *get_machine_allocator(QOSGraphObject *obj)
+static QGuestAllocator *get_machine_allocator(QOSGraphObject *obj)
 {
     return obj->get_driver(obj, "memory");
 }
