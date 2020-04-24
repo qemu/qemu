@@ -338,8 +338,9 @@ def filter_img_info(output, filename):
     for line in output.split('\n'):
         if 'disk size' in line or 'actual-size' in line:
             continue
-        line = line.replace(filename, 'TEST_IMG') \
-                   .replace(imgfmt, 'IMGFMT')
+        line = line.replace(filename, 'TEST_IMG')
+        line = filter_testfiles(line)
+        line = line.replace(imgfmt, 'IMGFMT')
         line = re.sub('iters: [0-9]+', 'iters: XXX', line)
         line = re.sub('uuid: [-a-f0-9]+', 'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX', line)
         line = re.sub('cid: [0-9]+', 'cid: XXXXXXXXXX', line)
