@@ -4170,9 +4170,25 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* Allocate the data area */
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
-        /* Image file grows, so @exact does not matter */
-        ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, 0,
-                               errp);
+        /*
+         * Image file grows, so @exact does not matter.
+         *
+         * If we need to zero out the new area, try first whether the protocol
+         * driver can already take care of this.
+         */
+        if (flags & BDRV_REQ_ZERO_WRITE) {
+            ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc,
+                                   BDRV_REQ_ZERO_WRITE, NULL);
+            if (ret >= 0) {
+                flags &= ~BDRV_REQ_ZERO_WRITE;
+            }
+        } else {
+            ret = -1;
+        }
+        if (ret < 0) {
+            ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, 0,
+                                   errp);
+        }
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,

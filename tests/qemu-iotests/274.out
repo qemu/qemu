@@ -187,7 +187,7 @@ read 65536/65536 bytes at offset 9437184
 10 MiB (0xa00000) bytes     allocated at offset 5 MiB (0x500000)
 
 [{ "start": 0, "length": 5242880, "depth": 1, "zero": true, "data": false},
-{ "start": 5242880, "length": 10485760, "depth": 0, "zero": true, "data": false, "offset": 327680}]
+{ "start": 5242880, "length": 10485760, "depth": 0, "zero": false, "data": true, "offset": 327680}]
 
 === preallocation=full ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 size=16777216 cluster_size=65536 lazy_refcounts=off refcount_bits=16
@@ -206,7 +206,7 @@ read 65536/65536 bytes at offset 11534336
 4 MiB (0x400000) bytes     allocated at offset 8 MiB (0x800000)
 
 [{ "start": 0, "length": 8388608, "depth": 1, "zero": true, "data": false},
-{ "start": 8388608, "length": 4194304, "depth": 0, "zero": true, "data": false, "offset": 327680}]
+{ "start": 8388608, "length": 4194304, "depth": 0, "zero": false, "data": true, "offset": 327680}]
 
 === preallocation=off ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 size=393216 cluster_size=65536 lazy_refcounts=off refcount_bits=16
