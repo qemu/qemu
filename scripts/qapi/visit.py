@@ -189,6 +189,8 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         goto out;
     }
     if (!*obj) {
+        /* incomplete */
+        assert(visit_is_dealloc(v));
         goto out_obj;
     }
     switch ((*obj)->type) {
@@ -260,6 +262,8 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         goto out;
     }
     if (!*obj) {
+        /* incomplete */
+        assert(visit_is_dealloc(v));
         goto out_obj;
     }
     visit_type_%(c_name)s_members(v, *obj, &err);

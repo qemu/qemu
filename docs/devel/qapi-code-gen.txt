@@ -1446,6 +1446,8 @@ Example:
             goto out;
         }
         if (!*obj) {
+            /* incomplete */
+            assert(visit_is_dealloc(v));
             goto out_obj;
         }
         visit_type_UserDefOne_members(v, *obj, &err);

@@ -142,6 +142,11 @@ bool visit_is_input(Visitor *v)
     return v->type == VISITOR_INPUT;
 }
 
+bool visit_is_dealloc(Visitor *v)
+{
+    return v->type == VISITOR_DEALLOC;
+}
+
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     assert(obj);

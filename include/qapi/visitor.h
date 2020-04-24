@@ -479,6 +479,11 @@ void visit_type_enum(Visitor *v, const char *name, int *obj,
  */
 bool visit_is_input(Visitor *v);
 
+/*
+ * Check if visitor is a dealloc visitor.
+ */
+bool visit_is_dealloc(Visitor *v);
+
 /*** Visiting built-in types ***/
 
 /*
