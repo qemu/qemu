@@ -234,6 +234,9 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     default:
         error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "%(name)s");
+        /* Avoid passing invalid *obj to qapi_free_%(c_name)s() */
+        g_free(*obj);
+        *obj = NULL;
     }
 out_obj:
     visit_end_alternate(v, (void **)obj);
