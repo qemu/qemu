@@ -3394,6 +3394,31 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         goto out;
     }
 
+    /*
+     * If the image has a backing file that is large enough that it would
+     * provide data for the new area, we cannot leave it unallocated because
+     * then the backing file content would become visible. Instead, zero-fill
+     * the new area.
+     *
+     * Note that if the image has a backing file, but was opened without the
+     * backing file, taking care of keeping things consistent with that backing
+     * file is the user's responsibility.
+     */
+    if (new_bytes && bs->backing) {
+        int64_t backing_len;
+
+        backing_len = bdrv_getlength(backing_bs(bs));
+        if (backing_len < 0) {
+            ret = backing_len;
+            error_setg_errno(errp, -ret, "Could not get backing file size");
+            goto out;
+        }
+
+        if (backing_len > old_size) {
+            flags |= BDRV_REQ_ZERO_WRITE;
+        }
+    }
+
     if (drv->bdrv_co_truncate) {
         if (flags & ~bs->supported_truncate_flags) {
             error_setg(errp, "Block driver does not support requested flags");
