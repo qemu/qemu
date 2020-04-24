@@ -115,14 +115,10 @@ def gen_marshal(name, arg_type, boxed, ret_type):
                      c_type=ret_type.c_type())
 
     if have_args:
-        visit_members = ('visit_type_%s_members(v, &arg, &err);'
-                         % arg_type.c_name())
         ret += mcgen('''
     %(c_name)s arg = {0};
 ''',
                      c_name=arg_type.c_name())
-    else:
-        visit_members = ''
 
     ret += mcgen('''
 
@@ -131,16 +127,27 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     if (err) {
         goto out;
     }
-    %(visit_members)s
+''')
+
+    if have_args:
+        ret += mcgen('''
+    visit_type_%(c_arg_type)s_members(v, &arg, &err);
     if (!err) {
         visit_check_struct(v, &err);
     }
+''',
+                     c_arg_type=arg_type.c_name())
+    else:
+        ret += mcgen('''
+    visit_check_struct(v, &err);
+''')
+
+    ret += mcgen('''
     visit_end_struct(v, NULL);
     if (err) {
         goto out;
     }
-''',
-                 visit_members=visit_members)
+''')
 
     ret += gen_call(name, arg_type, boxed, ret_type)
 
@@ -151,20 +158,21 @@ out:
     visit_free(v);
 ''')
 
-    if have_args:
-        visit_members = ('visit_type_%s_members(v, &arg, NULL);'
-                         % arg_type.c_name())
-    else:
-        visit_members = ''
-
     ret += mcgen('''
     v = qapi_dealloc_visitor_new();
     visit_start_struct(v, NULL, NULL, 0, NULL);
-    %(visit_members)s
+''')
+
+    if have_args:
+        ret += mcgen('''
+    visit_type_%(c_arg_type)s_members(v, &arg, NULL);
+''',
+                     c_arg_type=arg_type.c_name())
+
+    ret += mcgen('''
     visit_end_struct(v, NULL);
     visit_free(v);
-''',
-                 visit_members=visit_members)
+''')
 
     ret += mcgen('''
 }
