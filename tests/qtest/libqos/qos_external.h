@@ -20,8 +20,12 @@
 #define QOS_EXTERNAL_H
 #include "libqos/qgraph.h"
 
-void apply_to_node(const char *name, bool is_machine, bool is_abstract);
-void apply_to_qlist(QList *list, bool is_machine);
+#include "libqos/malloc.h"
+#include "qapi/qapi-types-machine.h"
+#include "qapi/qapi-types-qom.h"
+
+void machines_apply_to_node(MachineInfoList *mach_info);
+void types_apply_to_node(ObjectTypeInfoList *type_info);
 QGuestAllocator *get_machine_allocator(QOSGraphObject *obj);
 void *allocate_objects(QTestState *qts, char **path, QGuestAllocator **p_alloc);
 

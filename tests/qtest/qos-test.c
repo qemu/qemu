@@ -19,11 +19,12 @@
 #include "qemu/osdep.h"
 #include <getopt.h>
 #include "libqtest-single.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qstring.h"
 #include "qemu/module.h"
-#include "qapi/qmp/qlist.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-machine.h"
+#include "qapi/qapi-visit-qom.h"
 #include "libqos/malloc.h"
 #include "libqos/qgraph.h"
 #include "libqos/qgraph_internal.h"
@@ -51,13 +52,20 @@ static void qos_set_machines_devices_available(void)
 {
     QDict *response;
     QDict *args = qdict_new();
-    QList *list;
+    QObject *ret;
+    Visitor *v;
+    MachineInfoList *mach_info;
+    ObjectTypeInfoList *type_info;
 
     qtest_start("-machine none");
     response = qmp("{ 'execute': 'query-machines' }");
-    list = qdict_get_qlist(response, "return");
+    ret = qdict_get(response, "return");
 
-    apply_to_qlist(list, true);
+    v = qobject_input_visitor_new(ret);
+    visit_type_MachineInfoList(v, NULL, &mach_info, &error_abort);
+    visit_free(v);
+    machines_apply_to_node(mach_info);
+    qapi_free_MachineInfoList(mach_info);
 
     qobject_unref(response);
 
@@ -66,10 +74,13 @@ static void qos_set_machines_devices_available(void)
 
     response = qmp("{'execute': 'qom-list-types',"
                    " 'arguments': %p }", args);
-    g_assert(qdict_haskey(response, "return"));
-    list = qdict_get_qlist(response, "return");
+    ret = qdict_get(response, "return");
 
-    apply_to_qlist(list, false);
+    v = qobject_input_visitor_new(ret);
+    visit_type_ObjectTypeInfoList(v, NULL, &type_info, &error_abort);
+    visit_free(v);
+    types_apply_to_node(type_info);
+    qapi_free_ObjectTypeInfoList(type_info);
 
     qtest_end();
     qobject_unref(response);
