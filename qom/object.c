@@ -1550,11 +1550,9 @@ int object_property_get_enum(Object *obj, const char *name,
     }
     visit_complete(v, &str);
     visit_free(v);
-    v = string_input_visitor_new(str);
-    visit_type_enum(v, name, &ret, enumprop->lookup, errp);
 
+    ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);
     g_free(str);
-    visit_free(v);
 
     return ret;
 }
