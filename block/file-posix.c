@@ -2080,7 +2080,7 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
                                         bool exact, PreallocMode prealloc,
-                                        Error **errp)
+                                        BdrvRequestFlags flags, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     struct stat st;

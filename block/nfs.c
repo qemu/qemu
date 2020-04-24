@@ -755,7 +755,8 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
 
 static int coroutine_fn
 nfs_file_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
-                     PreallocMode prealloc, Error **errp)
+                     PreallocMode prealloc, BdrvRequestFlags flags,
+                     Error **errp)
 {
     NFSClient *client = bs->opaque;
     int ret;

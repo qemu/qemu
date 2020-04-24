@@ -299,7 +299,8 @@ static int block_crypto_co_create_generic(BlockDriverState *bs,
 
 static int coroutine_fn
 block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
-                         PreallocMode prealloc, Error **errp)
+                         PreallocMode prealloc, BdrvRequestFlags flags,
+                         Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
     uint64_t payload_offset =

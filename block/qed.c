@@ -1467,6 +1467,7 @@ static int coroutine_fn bdrv_qed_co_truncate(BlockDriverState *bs,
                                              int64_t offset,
                                              bool exact,
                                              PreallocMode prealloc,
+                                             BdrvRequestFlags flags,
                                              Error **errp)
 {
     BDRVQEDState *s = bs->opaque;

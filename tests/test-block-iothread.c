@@ -46,7 +46,8 @@ static int coroutine_fn bdrv_test_co_pdiscard(BlockDriverState *bs,
 
 static int coroutine_fn
 bdrv_test_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
-                      PreallocMode prealloc, Error **errp)
+                      PreallocMode prealloc, BdrvRequestFlags flags,
+                      Error **errp)
 {
     return 0;
 }

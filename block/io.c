@@ -3344,6 +3344,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
+    BdrvRequestFlags flags = 0;
     int64_t old_size, new_bytes;
     int ret;
 
@@ -3394,7 +3395,12 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     }
 
     if (drv->bdrv_co_truncate) {
-        ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, errp);
+        if (flags & ~bs->supported_truncate_flags) {
+            error_setg(errp, "Block driver does not support requested flags");
+            ret = -ENOTSUP;
+            goto out;
+        }
+        ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, flags, errp);
     } else if (bs->file && drv->is_filter) {
         ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
     } else {

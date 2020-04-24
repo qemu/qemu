@@ -3964,7 +3964,7 @@ fail:
 
 static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
                                           bool exact, PreallocMode prealloc,
-                                          Error **errp)
+                                          BdrvRequestFlags flags, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;

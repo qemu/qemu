@@ -371,7 +371,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
                                         bool exact, PreallocMode prealloc,
-                                        Error **errp)
+                                        BdrvRequestFlags flags, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
