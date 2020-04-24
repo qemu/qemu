@@ -34,12 +34,6 @@ static void qapi_dealloc_end_struct(Visitor *v, void **obj)
     }
 }
 
-static void qapi_dealloc_start_alternate(Visitor *v, const char *name,
-                                         GenericAlternate **obj, size_t size,
-                                         Error **errp)
-{
-}
-
 static void qapi_dealloc_end_alternate(Visitor *v, void **obj)
 {
     if (obj) {
@@ -123,7 +117,6 @@ Visitor *qapi_dealloc_visitor_new(void)
     v->visitor.type = VISITOR_DEALLOC;
     v->visitor.start_struct = qapi_dealloc_start_struct;
     v->visitor.end_struct = qapi_dealloc_end_struct;
-    v->visitor.start_alternate = qapi_dealloc_start_alternate;
     v->visitor.end_alternate = qapi_dealloc_end_alternate;
     v->visitor.start_list = qapi_dealloc_start_list;
     v->visitor.next_list = qapi_dealloc_next_list;
