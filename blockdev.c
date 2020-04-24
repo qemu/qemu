@@ -3725,14 +3725,8 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
     QDict *qdict;
-    Error *local_err = NULL;
 
-    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
+    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
     visit_complete(v, &obj);
     qdict = qobject_to(QDict, obj);
 
@@ -3760,7 +3754,6 @@ void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
     AioContext *ctx;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
-    Error *local_err = NULL;
     BlockReopenQueue *queue;
     QDict *qdict;
 
@@ -3777,12 +3770,7 @@ void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
     }
 
     /* Put all options in a QDict and flatten it */
-    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
+    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
     visit_complete(v, &obj);
     qdict = qobject_to(QDict, obj);
 

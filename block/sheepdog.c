@@ -1854,18 +1854,11 @@ static int sd_create_prealloc(BlockdevOptionsSheepdog *location, int64_t size,
     Visitor *v;
     QObject *obj = NULL;
     QDict *qdict;
-    Error *local_err = NULL;
     int ret;
 
     v = qobject_output_visitor_new(&obj);
-    visit_type_BlockdevOptionsSheepdog(v, NULL, &location, &local_err);
+    visit_type_BlockdevOptionsSheepdog(v, NULL, &location, &error_abort);
     visit_free(v);
-
-    if (local_err) {
-        error_propagate(errp, local_err);
-        qobject_unref(obj);
-        return -EINVAL;
-    }
 
     qdict = qobject_to(QDict, obj);
     qdict_flatten(qdict);

@@ -43,6 +43,10 @@ typedef enum VisitorType {
 
 struct Visitor
 {
+    /*
+     * Only input visitors may fail!
+     */
+
     /* Must be set to visit structs */
     void (*start_struct)(Visitor *v, const char *name, void **obj,
                          size_t size, Error **errp);

@@ -82,7 +82,7 @@
  * Each function also takes the customary @errp argument (see
  * qapi/error.h for details), for reporting any errors (such as if a
  * member @name is not present, or is present but not the specified
- * type).
+ * type).  Only input visitors can fail.
  *
  * If an error is detected during visit_type_FOO() with an input
  * visitor, then *@obj will be set to NULL for pointer types, and left
@@ -164,19 +164,14 @@
  *
  * <example>
  *  Foo *f = ...obtain populated object...
- *  Error *err = NULL;
  *  Visitor *v;
  *  Type *result;
  *
  *  v = FOO_visitor_new(..., &result);
- *  visit_type_Foo(v, NULL, &f, &err);
- *  if (err) {
- *      ...handle error...
- *  } else {
- *      visit_complete(v, &result);
- *      ...use result...
- *  }
+ *  visit_type_Foo(v, NULL, &f, &error_abort);
+ *  visit_complete(v, &result);
  *  visit_free(v);
+ *  ...use result...
  * </example>
  *
  * It is also possible to use the visitors to do a virtual walk, where
@@ -289,6 +284,7 @@ void visit_free(Visitor *v);
  * case @size is ignored.
  *
  * On failure, set *@obj to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  *
  * After visit_start_struct() succeeds, the caller may visit its
  * members one after the other, passing the member's name and address
@@ -305,7 +301,8 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
 /*
  * Prepare for completing an object visit.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  *
  * Should be called prior to visit_end_struct() if all other
  * intermediate visit steps were successful, to allow the visitor one
@@ -342,6 +339,7 @@ void visit_end_struct(Visitor *v, void **obj);
  * ignored.
  *
  * On failure, set *@list to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  *
  * After visit_start_list() succeeds, the caller may visit its members
  * one after the other.  A real visit (where @list is non-NULL) uses
@@ -375,7 +373,8 @@ GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size);
 /*
  * Prepare for completing a list visit.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  *
  * Should be called prior to visit_end_list() if all other
  * intermediate visit steps were successful, to allow the visitor one
@@ -411,6 +410,7 @@ void visit_end_list(Visitor *v, void **list);
  * (*@obj)->type.  Other visitors leave @obj unchanged.
  *
  * On failure, set *@obj to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  *
  * If successful, this must be paired with visit_end_alternate() with
  * the same @obj to clean up, even if visiting the contents of the
@@ -465,11 +465,13 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
  * visitors produce text output.  The mapping between enumeration
  * values and strings is done by the visitor core, using @lookup.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  *
  * May call visit_type_str() under the hood, and the enum visit may
  * fail even if the corresponding string visit succeeded; this implies
- * that visit_type_str() must have no unwelcome side effects.
+ * that an input visitor's visit_type_str() must have no unwelcome
+ * side effects.
  */
 void visit_type_enum(Visitor *v, const char *name, int *obj,
                      const QEnumLookup *lookup, Error **errp);
@@ -495,7 +497,8 @@ bool visit_is_dealloc(Visitor *v);
  * @obj must be non-NULL.  Input visitors set *@obj to the value;
  * other visitors will leave *@obj unchanged.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  */
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp);
 
@@ -573,7 +576,8 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
  * @obj must be non-NULL.  Input visitors set *@obj to the value;
  * other visitors will leave *@obj unchanged.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  */
 void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp);
 
@@ -592,6 +596,7 @@ void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp);
  * into @obj for use by an output visitor.
  *
  * On failure, set *@obj to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  *
  * FIXME: Callers that try to output NULL *obj should not be allowed.
  */
@@ -607,7 +612,8 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp);
  * other visitors will leave *@obj unchanged.  Visitors should
  * document if infinity or NaN are not permitted.
  *
- * On failure, store an error through @errp.
+ * On failure, store an error through @errp.  Can happen only when @v
+ * is an input visitor.
  */
 void visit_type_number(Visitor *v, const char *name, double *obj,
                        Error **errp);
@@ -623,6 +629,7 @@ void visit_type_number(Visitor *v, const char *name, double *obj,
  * for output visitors.
  *
  * On failure, set *@obj to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  *
  * Note that some kinds of input can't express arbitrary QObject.
  * E.g. the visitor returned by qobject_input_visitor_new_keyval()
@@ -640,6 +647,7 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp);
  * other visitors ignore *@obj.
  *
  * On failure, set *@obj to NULL and store an error through @errp.
+ * Can happen only when @v is an input visitor.
  */
 void visit_type_null(Visitor *v, const char *name, QNull **obj,
                      Error **errp);
