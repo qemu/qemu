@@ -2641,6 +2641,12 @@ static const VMStateDescription vmstate_vmbus_bridge = {
     },
 };
 
+static Property vmbus_bridge_props[] = {
+    DEFINE_PROP_UINT8("irq0", VMBusBridge, irq0, 7),
+    DEFINE_PROP_UINT8("irq1", VMBusBridge, irq1, 13),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void vmbus_bridge_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -2651,6 +2657,7 @@ static void vmbus_bridge_class_init(ObjectClass *klass, void *data)
     sk->explicit_ofw_unit_address = vmbus_bridge_ofw_unit_address;
     set_bit(DEVICE_CATEGORY_BRIDGE, k->categories);
     k->vmsd = &vmstate_vmbus_bridge;
+    device_class_set_props(k, vmbus_bridge_props);
     /* override SysBusDevice's default */
     k->user_creatable = true;
 }
