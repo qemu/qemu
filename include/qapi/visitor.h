@@ -58,7 +58,7 @@
  *
  * where T is FOO for scalar types, and FOO * otherwise.  The scalar
  * visitors are declared here; the remaining visitors are generated in
- * qapi-visit.h.
+ * qapi-visit-MODULE.h.
  *
  * The @name parameter of visit_type_FOO() describes the relation
  * between this QAPI value and its parent container.  When visiting
@@ -86,16 +86,16 @@
  * by manual construction.
  *
  * For the QAPI object types (structs, unions, and alternates), there
- * is an additional generated function in qapi-visit.h compatible
- * with:
+ * is an additional generated function in qapi-visit-MODULE.h
+ * compatible with:
  *
  * void visit_type_FOO_members(Visitor *v, FOO *obj, Error **errp);
  *
  * for visiting the members of a type without also allocating the QAPI
  * struct.
  *
- * Additionally, in qapi-types.h, all QAPI pointer types (structs,
- * unions, alternates, and lists) have a generated function compatible
+ * Additionally, QAPI pointer types (structs, unions, alternates, and
+ * lists) have a generated function in qapi-types-MODULE.h compatible
  * with:
  *
  * void qapi_free_FOO(FOO *obj);
