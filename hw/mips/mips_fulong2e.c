@@ -315,12 +315,11 @@ static void mips_fulong2e_init(MachineState *machine)
         error_report("Invalid RAM size, should be 256MB");
         exit(EXIT_FAILURE);
     }
+    memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
-    /* allocate RAM */
+    /* Boot ROM */
     memory_region_init_rom(bios, NULL, "fulong2e.bios", BIOS_SIZE,
                            &error_fatal);
-
-    memory_region_add_subregion(address_space_mem, 0, machine->ram);
     memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bios);
 
     /*
