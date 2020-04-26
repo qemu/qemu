@@ -503,7 +503,7 @@ static void via_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_via;
     /*
      * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
-     * e.g. by mips_fulong2e_init()
+     * e.g. by mips_fuloong2e_init()
      */
     dc->user_creatable = false;
 }

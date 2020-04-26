@@ -11,7 +11,7 @@
  */
 
 /*
- * fulong 2e mini pc has a bonito north bridge.
+ * fuloong 2e mini pc has a bonito north bridge.
  */
 
 /*
@@ -573,11 +573,11 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
     slot = (pci_dev->devfn >> 3);
 
     switch (slot) {
-    case 5:   /* FULONG2E_VIA_SLOT, SouthBridge, IDE, USB, ACPI, AC97, MC97 */
+    case 5:   /* FULOONG2E_VIA_SLOT, SouthBridge, IDE, USB, ACPI, AC97, MC97 */
         return irq_num % 4 + BONITO_IRQ_BASE;
-    case 6:   /* FULONG2E_ATI_SLOT, VGA */
+    case 6:   /* FULOONG2E_ATI_SLOT, VGA */
         return 4 + BONITO_IRQ_BASE;
-    case 7:   /* FULONG2E_RTL_SLOT, RTL8139 */
+    case 7:   /* FULOONG2E_RTL_SLOT, RTL8139 */
         return 5 + BONITO_IRQ_BASE;
     case 8 ... 12: /* PCI slot 1 to 4 */
         return (slot - 8 + irq_num) + 6 + BONITO_IRQ_BASE;

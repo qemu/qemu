@@ -2,7 +2,7 @@
 
 include mips-softmmu-common.mak
 CONFIG_IDE_VIA=y
-CONFIG_FULONG=y
+CONFIG_FULOONG=y
 CONFIG_ATI_VGA=y
 CONFIG_RTL8139_PCI=y
 CONFIG_JAZZ=y
