@@ -170,25 +170,26 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        dev = qdev_create(NULL, "cadence_gem");
-        s->lpd.iou.gem[i] = SYS_BUS_DEVICE(dev);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        sysbus_init_child_obj(OBJECT(s), name,
+                              &s->lpd.iou.gem[i], sizeof(s->lpd.iou.gem[i]),
+                              TYPE_CADENCE_GEM);
+        dev = DEVICE(&s->lpd.iou.gem[i]);
         if (nd->used) {
             qemu_check_nic_model(nd, "cadence_gem");
             qdev_set_nic_properties(dev, nd);
         }
-        object_property_set_int(OBJECT(s->lpd.iou.gem[i]),
+        object_property_set_int(OBJECT(dev),
                                 2, "num-priority-queues",
                                 &error_abort);
-        object_property_set_link(OBJECT(s->lpd.iou.gem[i]),
+        object_property_set_link(OBJECT(dev),
                                  OBJECT(&s->mr_ps), "dma",
                                  &error_abort);
         qdev_init_nofail(dev);
 
-        mr = sysbus_mmio_get_region(s->lpd.iou.gem[i], 0);
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
 
-        sysbus_connect_irq(s->lpd.iou.gem[i], 0, pic[irqs[i]]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irqs[i]]);
         g_free(name);
     }
 }
