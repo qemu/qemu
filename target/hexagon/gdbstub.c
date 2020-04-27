@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "internal.h"
 
-static int gdb_get_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
+static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {
     int total = 0;
     int i;
@@ -32,7 +32,7 @@ static int gdb_get_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
     return total;
 }
 
-static int gdb_get_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
+static int gdb_get_qreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {
     int total = 0;
     int i;
@@ -43,7 +43,7 @@ static int gdb_get_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
     return total;
 }
 
-int hexagon_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
+int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;

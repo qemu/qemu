@@ -18,12 +18,17 @@
 #ifndef HEXAGON_TARGET_CPU_H
 #define HEXAGON_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUHexagonState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUHexagonState *env,
+                                        target_ulong newsp, unsigned flags)
 {
     if (newsp) {
         env->gpr[HEX_REG_SP] = newsp;
     }
     env->gpr[0] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPUHexagonState *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPUHexagonState *env, target_ulong newtls)

@@ -254,12 +254,13 @@ void restore_state_to_opc(CPUHexagonState *env, TranslationBlock *tb,
     env->gpr[HEX_REG_PC] = data[0];
 }
 
-static void hexagon_cpu_reset(CPUState *cs)
+static void hexagon_cpu_reset(DeviceState *dev)
 {
+    CPUState *cs = CPU(dev);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cpu);
 
-    mcc->parent_reset(cs);
+    mcc->parent_reset(dev);
 }
 
 static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
@@ -325,11 +326,10 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     CPUClass *cc = CPU_CLASS(c);
     DeviceClass *dc = DEVICE_CLASS(c);
 
-    mcc->parent_realize = dc->realize;
-    dc->realize = hexagon_cpu_realize;
+    device_class_set_parent_realize(dc, hexagon_cpu_realize,
+                                    &mcc->parent_realize);
 
-    mcc->parent_reset = cc->reset;
-    cc->reset = hexagon_cpu_reset;
+    device_class_set_parent_reset(dc, hexagon_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
     cc->has_work = hexagon_cpu_has_work;
