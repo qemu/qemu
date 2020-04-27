@@ -332,6 +332,10 @@ static void handle_keydown(SDL_Event *ev)
     int gui_key_modifier_pressed = get_mod_state();
     int gui_keysym = 0;
 
+    if (!scon) {
+        return;
+    }
+
     if (!scon->ignore_hotkeys && gui_key_modifier_pressed && !ev->key.repeat) {
         switch (ev->key.keysym.scancode) {
         case SDL_SCANCODE_2:
@@ -412,6 +416,10 @@ static void handle_keyup(SDL_Event *ev)
 {
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
 
+    if (!scon) {
+        return;
+    }
+
     scon->ignore_hotkeys = false;
     sdl2_process_key(scon, &ev->key);
 }
@@ -420,6 +428,10 @@ static void handle_textinput(SDL_Event *ev)
 {
     struct sdl2_console *scon = get_scon_from_window(ev->text.windowID);
     QemuConsole *con = scon ? scon->dcl.con : NULL;
+
+    if (!con) {
+        return;
+    }
 
     if (qemu_console_is_graphic(con)) {
         return;
