@@ -20,7 +20,6 @@
 #include "hw/arm/boot.h"
 #include "kvm_arm.h"
 #include "hw/misc/unimp.h"
-#include "hw/intc/arm_gicv3_common.h"
 #include "hw/arm/xlnx-versal.h"
 #include "hw/char/pl011.h"
 
