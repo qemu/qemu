@@ -31,19 +31,11 @@ static void versal_create_apu_cpus(Versal *s)
 
     for (i = 0; i < ARRAY_SIZE(s->fpd.apu.cpu); i++) {
         Object *obj;
-        char *name;
 
-        obj = object_new(XLNX_VERSAL_ACPU_TYPE);
-        if (!obj) {
-            error_report("Unable to create apu.cpu[%d] of type %s",
-                         i, XLNX_VERSAL_ACPU_TYPE);
-            exit(EXIT_FAILURE);
-        }
-
-        name = g_strdup_printf("apu-cpu[%d]", i);
-        object_property_add_child(OBJECT(s), name, obj, &error_fatal);
-        g_free(name);
-
+        object_initialize_child(OBJECT(s), "apu-cpu[*]",
+                                &s->fpd.apu.cpu[i], sizeof(s->fpd.apu.cpu[i]),
+                                XLNX_VERSAL_ACPU_TYPE, &error_abort, NULL);
+        obj = OBJECT(&s->fpd.apu.cpu[i]);
         object_property_set_int(obj, s->cfg.psci_conduit,
                                 "psci-conduit", &error_abort);
         if (i) {
@@ -57,7 +49,6 @@ static void versal_create_apu_cpus(Versal *s)
         object_property_set_link(obj, OBJECT(&s->fpd.apu.mr), "memory",
                                  &error_abort);
         object_property_set_bool(obj, true, "realized", &error_fatal);
-        s->fpd.apu.cpu[i] = ARM_CPU(obj);
     }
 }
 
@@ -95,7 +86,7 @@ static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
     }
 
     for (i = 0; i < nr_apu_cpus; i++) {
-        DeviceState *cpudev = DEVICE(s->fpd.apu.cpu[i]);
+        DeviceState *cpudev = DEVICE(&s->fpd.apu.cpu[i]);
         int ppibase = XLNX_VERSAL_NR_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
         qemu_irq maint_irq;
         int ti;

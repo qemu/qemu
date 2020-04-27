@@ -469,9 +469,9 @@ static void versal_virt_init(MachineState *machine)
     s->binfo.get_dtb = versal_virt_get_dtb;
     s->binfo.modify_dtb = versal_virt_modify_dtb;
     if (machine->kernel_filename) {
-        arm_load_kernel(s->soc.fpd.apu.cpu[0], machine, &s->binfo);
+        arm_load_kernel(&s->soc.fpd.apu.cpu[0], machine, &s->binfo);
     } else {
-        AddressSpace *as = arm_boot_address_space(s->soc.fpd.apu.cpu[0],
+        AddressSpace *as = arm_boot_address_space(&s->soc.fpd.apu.cpu[0],
                                                   &s->binfo);
         /* Some boot-loaders (e.g u-boot) don't like blobs at address 0 (NULL).
          * Offset things by 4K.  */

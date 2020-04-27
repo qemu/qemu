@@ -36,7 +36,7 @@ typedef struct Versal {
     struct {
         struct {
             MemoryRegion mr;
-            ARMCPU *cpu[XLNX_VERSAL_NR_ACPUS];
+            ARMCPU cpu[XLNX_VERSAL_NR_ACPUS];
             GICv3State gic;
         } apu;
     } fpd;
