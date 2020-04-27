@@ -210,6 +210,36 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
     }
 }
 
+#define SDHCI_CAPABILITIES  0x280737ec6481 /* Same as on ZynqMP.  */
+static void versal_create_sds(Versal *s, qemu_irq *pic)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->pmc.iou.sd); i++) {
+        DeviceState *dev;
+        MemoryRegion *mr;
+
+        sysbus_init_child_obj(OBJECT(s), "sd[*]",
+                              &s->pmc.iou.sd[i], sizeof(s->pmc.iou.sd[i]),
+                              TYPE_SYSBUS_SDHCI);
+        dev = DEVICE(&s->pmc.iou.sd[i]);
+
+        object_property_set_uint(OBJECT(dev),
+                                 3, "sd-spec-version", &error_fatal);
+        object_property_set_uint(OBJECT(dev), SDHCI_CAPABILITIES, "capareg",
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), UHS_I, "uhs", &error_fatal);
+        qdev_init_nofail(dev);
+
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+        memory_region_add_subregion(&s->mr_ps,
+                                    MM_PMC_SD0 + i * MM_PMC_SD0_SIZE, mr);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                           pic[VERSAL_SD0_IRQ_0 + i * 2]);
+    }
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -292,6 +322,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_uarts(s, pic);
     versal_create_gems(s, pic);
     versal_create_admas(s, pic);
+    versal_create_sds(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 

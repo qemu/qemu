@@ -14,6 +14,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
+#include "hw/sd/sdhci.h"
 #include "hw/intc/arm_gicv3.h"
 #include "hw/char/pl011.h"
 #include "hw/dma/xlnx-zdma.h"
@@ -26,6 +27,7 @@
 #define XLNX_VERSAL_NR_UARTS   2
 #define XLNX_VERSAL_NR_GEMS    2
 #define XLNX_VERSAL_NR_ADMAS   8
+#define XLNX_VERSAL_NR_SDS     2
 #define XLNX_VERSAL_NR_IRQS    192
 
 typedef struct Versal {
@@ -58,6 +60,13 @@ typedef struct Versal {
         } iou;
     } lpd;
 
+    /* The Platform Management Controller subsystem.  */
+    struct {
+        struct {
+            SDHCIState sd[XLNX_VERSAL_NR_SDS];
+        } iou;
+    } pmc;
+
     struct {
         MemoryRegion *mr_ddr;
         uint32_t psci_conduit;
@@ -80,6 +89,7 @@ typedef struct Versal {
 #define VERSAL_GEM1_IRQ_0          58
 #define VERSAL_GEM1_WAKE_IRQ_0     59
 #define VERSAL_ADMA_IRQ_0          60
+#define VERSAL_SD0_IRQ_0           126
 
 /* Architecturally reserved IRQs suitable for virtualization.  */
 #define VERSAL_RSVD_IRQ_FIRST 111
@@ -129,6 +139,8 @@ typedef struct Versal {
 #define MM_FPD_CRF                  0xfd1a0000U
 #define MM_FPD_CRF_SIZE             0x140000
 
+#define MM_PMC_SD0                  0xf1040000U
+#define MM_PMC_SD0_SIZE             0x10000
 #define MM_PMC_CRP                  0xf1260000U
 #define MM_PMC_CRP_SIZE             0x10000
 #endif
