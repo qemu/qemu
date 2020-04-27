@@ -535,9 +535,44 @@ static inline bool pkt_has_hvx_store(packet_t *pkt)
     return false;
 }
 
+static bool pkt_has_vhist(packet_t *pkt)
+{
+    int i;
+    for (i = 0; i < pkt->num_insns; i++) {
+        int opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CVI) && GET_ATTRIB(opcode, A_CVI_4SLOT)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void gen_commit_hvx(DisasContext *ctx, packet_t *pkt)
 {
     int i;
+
+    /*
+     * vhist instructions need special handling
+     * They potentially write the entire vector register file
+     */
+    if (pkt_has_vhist(pkt)) {
+        TCGv cmp = tcg_temp_local_new();
+        size_t size = sizeof(mmvector_t);
+        for (i = 0; i < NUM_VREGS; i++) {
+            intptr_t dstoff = offsetof(CPUHexagonState, VRegs[i]);
+            intptr_t srcoff = offsetof(CPUHexagonState, future_VRegs[i]);
+            TCGLabel *label_skip = gen_new_label();
+
+            tcg_gen_andi_tl(cmp, hex_VRegs_updated, 1 << i);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cmp, 0, label_skip);
+            {
+                gen_vec_copy(dstoff, srcoff, size);
+            }
+            gen_set_label(label_skip);
+        }
+        tcg_temp_free(cmp);
+        return;
+    }
 
     /*
      *    for (i = 0; i < ctx->ctx_vreg_log_idx; i++) {

@@ -18,6 +18,7 @@
 #ifndef HEXAGON_MMVEC_MACROS_H
 #define HEXAGON_MMVEC_MACROS_H
 
+#include "arch.h"
 #include "mmvec/system_ext_mmvec.h"
 
 #ifdef QEMU_GENERATE
@@ -647,15 +648,24 @@ static inline mmvector_t mmvec_zero_vector(void)
 #define fVARRAY_ELEMENT_ACCESS(ARRAY, TYPE, INDEX) \
     ARRAY.v[(INDEX) / (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))].TYPE[(INDEX) % \
     (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))]
+
+#ifndef QEMU_GENERATE
 /* Grabs the .tmp data, wherever it is, and clears the .tmp status */
 /* Used for vhist */
-static inline mmvector_t mmvec_vtmp_data(void)
+static inline mmvector_t mmvec_vtmp_data(CPUHexagonState *env)
 {
+    VRegMask vsel = env->VRegs_updated_tmp;
     mmvector_t ret;
-    g_assert_not_reached();
+    int idx = count_leading_ones_4(~reverse_bits_4(vsel));
+    if (vsel == 0) {
+        printf("[UNDEFINED] no .tmp load when implicitly required...");
+    }
+    ret = env->tmp_VRegs[idx];
+    env->VRegs_updated_tmp = 0;
     return ret;
 }
-#define fTMPVDATA() mmvec_vtmp_data()
+#define fTMPVDATA() mmvec_vtmp_data(env)
+#endif
 #define fVSATDW(U, V) fVSATW(((((long long)U) << 32) | fZXTN(32, 64, V)))
 #define fVASL_SATHI(U, V) fVSATW(((U) << 1) | ((V) >> 31))
 #define fVUADDSAT(WIDTH, U, V) \
