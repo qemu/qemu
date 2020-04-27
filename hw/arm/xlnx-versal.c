@@ -36,7 +36,6 @@ static void versal_create_apu_cpus(Versal *s)
 
         obj = object_new(XLNX_VERSAL_ACPU_TYPE);
         if (!obj) {
-            /* Secondary CPUs start in PSCI powered-down state */
             error_report("Unable to create apu.cpu[%d] of type %s",
                          i, XLNX_VERSAL_ACPU_TYPE);
             exit(EXIT_FAILURE);
@@ -49,6 +48,7 @@ static void versal_create_apu_cpus(Versal *s)
         object_property_set_int(obj, s->cfg.psci_conduit,
                                 "psci-conduit", &error_abort);
         if (i) {
+            /* Secondary CPUs start in PSCI powered-down state */
             object_property_set_bool(obj, true,
                                      "start-powered-off", &error_abort);
         }
