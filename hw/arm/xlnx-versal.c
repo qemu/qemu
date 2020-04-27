@@ -203,18 +203,18 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        dev = qdev_create(NULL, "xlnx.zdma");
-        s->lpd.iou.adma[i] = SYS_BUS_DEVICE(dev);
-        object_property_set_int(OBJECT(s->lpd.iou.adma[i]), 128, "bus-width",
-                                &error_abort);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        sysbus_init_child_obj(OBJECT(s), name,
+                              &s->lpd.iou.adma[i], sizeof(s->lpd.iou.adma[i]),
+                              TYPE_XLNX_ZDMA);
+        dev = DEVICE(&s->lpd.iou.adma[i]);
+        object_property_set_int(OBJECT(dev), 128, "bus-width", &error_abort);
         qdev_init_nofail(dev);
 
-        mr = sysbus_mmio_get_region(s->lpd.iou.adma[i], 0);
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps,
                                     MM_ADMA_CH0 + i * MM_ADMA_CH0_SIZE, mr);
 
-        sysbus_connect_irq(s->lpd.iou.adma[i], 0, pic[VERSAL_ADMA_IRQ_0 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[VERSAL_ADMA_IRQ_0 + i]);
         g_free(name);
     }
 }

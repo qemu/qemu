@@ -16,6 +16,7 @@
 #include "hw/arm/boot.h"
 #include "hw/intc/arm_gicv3.h"
 #include "hw/char/pl011.h"
+#include "hw/dma/xlnx-zdma.h"
 #include "hw/net/cadence_gem.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
@@ -53,7 +54,7 @@ typedef struct Versal {
         struct {
             PL011State uart[XLNX_VERSAL_NR_UARTS];
             CadenceGEMState gem[XLNX_VERSAL_NR_GEMS];
-            SysBusDevice *adma[XLNX_VERSAL_NR_ADMAS];
+            XlnxZDMA adma[XLNX_VERSAL_NR_ADMAS];
         } iou;
     } lpd;
 
