@@ -36,7 +36,8 @@
 
 void riscv_find_and_load_firmware(MachineState *machine,
                                   const char *default_machine_firmware,
-                                  hwaddr firmware_load_addr)
+                                  hwaddr firmware_load_addr,
+                                  symbol_fn_t sym_cb)
 {
     char *firmware_filename = NULL;
 
@@ -76,7 +77,7 @@ void riscv_find_and_load_firmware(MachineState *machine,
 
     if (firmware_filename) {
         /* If not "none" load the firmware */
-        riscv_load_firmware(firmware_filename, firmware_load_addr);
+        riscv_load_firmware(firmware_filename, firmware_load_addr, sym_cb);
         g_free(firmware_filename);
     }
 }
@@ -96,12 +97,14 @@ char *riscv_find_firmware(const char *firmware_filename)
 }
 
 target_ulong riscv_load_firmware(const char *firmware_filename,
-                                 hwaddr firmware_load_addr)
+                                 hwaddr firmware_load_addr,
+                                 symbol_fn_t sym_cb)
 {
     uint64_t firmware_entry, firmware_start, firmware_end;
 
-    if (load_elf(firmware_filename, NULL, NULL, NULL, &firmware_entry,
-                 &firmware_start, &firmware_end, NULL, 0, EM_RISCV, 1, 0) > 0) {
+    if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
+                         &firmware_entry, &firmware_start, &firmware_end, NULL,
+                         0, EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
         return firmware_entry;
     }
 
