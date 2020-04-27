@@ -15,6 +15,7 @@
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/char/pl011.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
 #define XLNX_VERSAL(obj) OBJECT_CHECK(Versal, (obj), TYPE_XLNX_VERSAL)
@@ -49,7 +50,7 @@ typedef struct Versal {
         MemoryRegion mr_ocm;
 
         struct {
-            SysBusDevice *uart[XLNX_VERSAL_NR_UARTS];
+            PL011State uart[XLNX_VERSAL_NR_UARTS];
             SysBusDevice *gem[XLNX_VERSAL_NR_GEMS];
             SysBusDevice *adma[XLNX_VERSAL_NR_ADMAS];
         } iou;
