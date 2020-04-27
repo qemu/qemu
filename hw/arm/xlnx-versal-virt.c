@@ -440,7 +440,7 @@ static void versal_virt_init(MachineState *machine)
         psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     }
 
-    sysbus_init_child_obj(OBJECT(machine), "xlnx-ve", &s->soc,
+    sysbus_init_child_obj(OBJECT(machine), "xlnx-versal", &s->soc,
                           sizeof(s->soc), TYPE_XLNX_VERSAL);
     object_property_set_link(OBJECT(&s->soc), OBJECT(machine->ram),
                              "ddr", &error_abort);
