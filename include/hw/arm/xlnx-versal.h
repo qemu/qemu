@@ -19,6 +19,7 @@
 #include "hw/char/pl011.h"
 #include "hw/dma/xlnx-zdma.h"
 #include "hw/net/cadence_gem.h"
+#include "hw/rtc/xlnx-zynqmp-rtc.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
 #define XLNX_VERSAL(obj) OBJECT_CHECK(Versal, (obj), TYPE_XLNX_VERSAL)
@@ -65,6 +66,8 @@ typedef struct Versal {
         struct {
             SDHCIState sd[XLNX_VERSAL_NR_SDS];
         } iou;
+
+        XlnxZynqMPRTC rtc;
     } pmc;
 
     struct {
@@ -89,7 +92,10 @@ typedef struct Versal {
 #define VERSAL_GEM1_IRQ_0          58
 #define VERSAL_GEM1_WAKE_IRQ_0     59
 #define VERSAL_ADMA_IRQ_0          60
+#define VERSAL_RTC_APB_ERR_IRQ     121
 #define VERSAL_SD0_IRQ_0           126
+#define VERSAL_RTC_ALARM_IRQ       142
+#define VERSAL_RTC_SECONDS_IRQ     143
 
 /* Architecturally reserved IRQs suitable for virtualization.  */
 #define VERSAL_RSVD_IRQ_FIRST 111
@@ -143,4 +149,6 @@ typedef struct Versal {
 #define MM_PMC_SD0_SIZE             0x10000
 #define MM_PMC_CRP                  0xf1260000U
 #define MM_PMC_CRP_SIZE             0x10000
+#define MM_PMC_RTC                  0xf12a0000
+#define MM_PMC_RTC_SIZE             0x10000
 #endif

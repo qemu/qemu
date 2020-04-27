@@ -240,6 +240,26 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
     }
 }
 
+static void versal_create_rtc(Versal *s, qemu_irq *pic)
+{
+    SysBusDevice *sbd;
+    MemoryRegion *mr;
+
+    sysbus_init_child_obj(OBJECT(s), "rtc", &s->pmc.rtc, sizeof(s->pmc.rtc),
+                          TYPE_XLNX_ZYNQMP_RTC);
+    sbd = SYS_BUS_DEVICE(&s->pmc.rtc);
+    qdev_init_nofail(DEVICE(sbd));
+
+    mr = sysbus_mmio_get_region(sbd, 0);
+    memory_region_add_subregion(&s->mr_ps, MM_PMC_RTC, mr);
+
+    /*
+     * TODO: Connect the ALARM and SECONDS interrupts once our RTC model
+     * supports them.
+     */
+    sysbus_connect_irq(sbd, 1, pic[VERSAL_RTC_APB_ERR_IRQ]);
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -323,6 +343,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_gems(s, pic);
     versal_create_admas(s, pic);
     versal_create_sds(s, pic);
+    versal_create_rtc(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 
