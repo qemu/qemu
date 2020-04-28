@@ -2148,7 +2148,7 @@ DLOG(checkpoint());
      * - get modified FAT
      * - compare the two FATs (TODO)
      * - get buffer for marking used clusters
-     * - recurse direntries from root (using bs->bdrv_read to make
+     * - recurse direntries from root (using bs->bdrv_pread to make
      *    sure to get the new data)
      *   - check that the FAT agrees with the size
      *   - count the number of clusters occupied by this directory and
@@ -2913,9 +2913,9 @@ static int handle_deletes(BDRVVVFATState* s)
 /*
  * synchronize mapping with new state:
  *
- * - copy FAT (with bdrv_read)
+ * - copy FAT (with bdrv_pread)
  * - mark all filenames corresponding to mappings as deleted
- * - recurse direntries from root (using bs->bdrv_read)
+ * - recurse direntries from root (using bs->bdrv_pread)
  * - delete files corresponding to mappings marked as deleted
  */
 static int do_commit(BDRVVVFATState* s)
@@ -2935,10 +2935,10 @@ static int do_commit(BDRVVVFATState* s)
         return ret;
     }
 
-    /* copy FAT (with bdrv_read) */
+    /* copy FAT (with bdrv_pread) */
     memcpy(s->fat.pointer, s->fat2, 0x200 * s->sectors_per_fat);
 
-    /* recurse direntries from root (using bs->bdrv_read) */
+    /* recurse direntries from root (using bs->bdrv_pread) */
     ret = commit_direntries(s, 0, -1);
     if (ret) {
         fprintf(stderr, "Fatal: error while committing (%d)\n", ret);
