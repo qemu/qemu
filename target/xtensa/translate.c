@@ -2191,7 +2191,11 @@ static void translate_rsil(DisasContext *dc, const OpcodeArg arg[],
 static void translate_rsr(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
-    tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
+    if (sr_name[par[0]]) {
+        tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
+    } else {
+        tcg_gen_movi_i32(arg[0].out, 0);
+    }
 }
 
 static void translate_rsr_ccount(DisasContext *dc, const OpcodeArg arg[],
@@ -2563,13 +2567,17 @@ static void translate_wrmsk_expstate(DisasContext *dc, const OpcodeArg arg[],
 static void translate_wsr(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
-    tcg_gen_mov_i32(cpu_SR[par[0]], arg[0].in);
+    if (sr_name[par[0]]) {
+        tcg_gen_mov_i32(cpu_SR[par[0]], arg[0].in);
+    }
 }
 
 static void translate_wsr_mask(DisasContext *dc, const OpcodeArg arg[],
                                const uint32_t par[])
 {
-    tcg_gen_andi_i32(cpu_SR[par[0]], arg[0].in, par[2]);
+    if (sr_name[par[0]]) {
+        tcg_gen_andi_i32(cpu_SR[par[0]], arg[0].in, par[2]);
+    }
 }
 
 static void translate_wsr_acchi(DisasContext *dc, const OpcodeArg arg[],
@@ -2775,23 +2783,31 @@ static void translate_xor(DisasContext *dc, const OpcodeArg arg[],
 static void translate_xsr(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
+    if (sr_name[par[0]]) {
+        TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_mov_i32(tmp, arg[0].in);
-    tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
-    tcg_gen_mov_i32(cpu_SR[par[0]], tmp);
-    tcg_temp_free(tmp);
+        tcg_gen_mov_i32(tmp, arg[0].in);
+        tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
+        tcg_gen_mov_i32(cpu_SR[par[0]], tmp);
+        tcg_temp_free(tmp);
+    } else {
+        tcg_gen_movi_i32(arg[0].out, 0);
+    }
 }
 
 static void translate_xsr_mask(DisasContext *dc, const OpcodeArg arg[],
                                const uint32_t par[])
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
+    if (sr_name[par[0]]) {
+        TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_mov_i32(tmp, arg[0].in);
-    tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
-    tcg_gen_andi_i32(cpu_SR[par[0]], tmp, par[2]);
-    tcg_temp_free(tmp);
+        tcg_gen_mov_i32(tmp, arg[0].in);
+        tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
+        tcg_gen_andi_i32(cpu_SR[par[0]], tmp, par[2]);
+        tcg_temp_free(tmp);
+    } else {
+        tcg_gen_movi_i32(arg[0].out, 0);
+    }
 }
 
 static void translate_xsr_ccount(DisasContext *dc, const OpcodeArg arg[],
@@ -2819,7 +2835,11 @@ static void translate_xsr_ccount(DisasContext *dc, const OpcodeArg arg[],
 { \
     TCGv_i32 tmp = tcg_temp_new_i32(); \
  \
-    tcg_gen_mov_i32(tmp, cpu_SR[par[0]]); \
+    if (sr_name[par[0]]) { \
+        tcg_gen_mov_i32(tmp, cpu_SR[par[0]]); \
+    } else { \
+        tcg_gen_movi_i32(tmp, 0); \
+    } \
     translate_wsr_##name(dc, arg, par); \
     tcg_gen_mov_i32(arg[0].out, tmp); \
     tcg_temp_free(tmp); \
