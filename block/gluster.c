@@ -1359,12 +1359,6 @@ static int64_t qemu_gluster_allocated_file_size(BlockDriverState *bs)
     }
 }
 
-static int qemu_gluster_has_zero_init(BlockDriverState *bs)
-{
-    /* GlusterFS volume could be backed by a block device */
-    return 0;
-}
-
 /*
  * Find allocation range in @bs around offset @start.
  * May change underlying file descriptor's file offset.
@@ -1569,8 +1563,6 @@ static BlockDriver bdrv_gluster = {
     .bdrv_co_readv                = qemu_gluster_co_readv,
     .bdrv_co_writev               = qemu_gluster_co_writev,
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-    .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
-    .bdrv_has_zero_init_truncate  = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
     .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
@@ -1601,8 +1593,6 @@ static BlockDriver bdrv_gluster_tcp = {
     .bdrv_co_readv                = qemu_gluster_co_readv,
     .bdrv_co_writev               = qemu_gluster_co_writev,
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-    .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
-    .bdrv_has_zero_init_truncate  = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
     .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
@@ -1633,8 +1623,6 @@ static BlockDriver bdrv_gluster_unix = {
     .bdrv_co_readv                = qemu_gluster_co_readv,
     .bdrv_co_writev               = qemu_gluster_co_writev,
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-    .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
-    .bdrv_has_zero_init_truncate  = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
     .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
@@ -1671,8 +1659,6 @@ static BlockDriver bdrv_gluster_rdma = {
     .bdrv_co_readv                = qemu_gluster_co_readv,
     .bdrv_co_writev               = qemu_gluster_co_writev,
     .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-    .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
-    .bdrv_has_zero_init_truncate  = qemu_gluster_has_zero_init,
 #ifdef CONFIG_GLUSTERFS_DISCARD
     .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
 #endif
