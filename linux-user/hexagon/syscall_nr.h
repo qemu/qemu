@@ -104,7 +104,7 @@
 #define TARGET_NR_waitid 95
 #define TARGET_NR_set_tid_address 96
 #define TARGET_NR_unshare 97
-#define TARGET_NR_futex 98
+#define TARGET_NR_futex_time64 98
 #define TARGET_NR_set_robust_list 99
 #define TARGET_NR_get_robust_list 100
 #define TARGET_NR_nanosleep 101
@@ -118,8 +118,8 @@
 #define TARGET_NR_timer_getoverrun 109
 #define TARGET_NR_timer_settime 110
 #define TARGET_NR_timer_delete 111
-#define TARGET_NR_clock_settime 112
-#define TARGET_NR_clock_gettime 113
+#define TARGET_NR_clock_settime64 112
+#define TARGET_NR_clock_gettime64 113
 #define TARGET_NR_clock_getres 114
 #define TARGET_NR_clock_nanosleep 115
 #define TARGET_NR_syslog 116
