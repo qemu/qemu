@@ -620,6 +620,9 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     bs->total_sectors = ret;
+    if (client->has_zero_init) {
+        bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
+    }
     return 0;
 }
 
