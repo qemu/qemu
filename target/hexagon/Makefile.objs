@@ -1,0 +1,127 @@
+##
+##  Copyright(c) 2019-2020 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##
+##  This program is free software; you can redistribute it and/or modify
+##  it under the terms of the GNU General Public License as published by
+##  the Free Software Foundation; either version 2 of the License, or
+##  (at your option) any later version.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License
+##  along with this program; if not, see <http://www.gnu.org/licenses/>.
+##
+
+obj-y += \
+    cpu.o \
+    translate.o \
+    op_helper.o \
+    gdbstub.o \
+    genptr.o \
+    reg_fields.o \
+    decode.o \
+    iclass.o \
+    opcodes.o \
+    printinsn.o \
+    arch.o \
+    fma_emu.o \
+    conv_emu.o \
+    mmvec/decode_ext_mmvec.o \
+    mmvec/system_ext_mmvec.o
+
+#
+#  Step 1
+#  We use a C program to create semantics_generated.pyinc
+#
+BUILD_USER_DIR = $(BUILD_DIR)/hexagon-linux-user
+GEN_SEMANTICS = gen_semantics
+GEN_SEMANTICS_SRC = $(SRC_PATH)/target/hexagon/gen_semantics.c
+
+IDEF_FILES = \
+    $(SRC_PATH)/target/hexagon/imported/alu.idef \
+    $(SRC_PATH)/target/hexagon/imported/branch.idef \
+    $(SRC_PATH)/target/hexagon/imported/compare.idef \
+    $(SRC_PATH)/target/hexagon/imported/float.idef \
+    $(SRC_PATH)/target/hexagon/imported/ldst.idef \
+    $(SRC_PATH)/target/hexagon/imported/mpy.idef \
+    $(SRC_PATH)/target/hexagon/imported/shift.idef \
+    $(SRC_PATH)/target/hexagon/imported/subinsns.idef \
+    $(SRC_PATH)/target/hexagon/imported/system.idef \
+    $(SRC_PATH)/target/hexagon/imported/allext.idef \
+    $(SRC_PATH)/target/hexagon/imported/mmvec/ext.idef
+DEF_FILES = \
+    $(SRC_PATH)/target/hexagon/imported/allidefs.def \
+    $(SRC_PATH)/target/hexagon/imported/macros.def \
+    $(SRC_PATH)/target/hexagon/imported/allext_macros.def \
+    $(SRC_PATH)/target/hexagon/imported/mmvec/macros.def
+
+$(GEN_SEMANTICS): $(GEN_SEMANTICS_SRC) $(IDEF_FILES) $(DEF_FILES)
+	$(CC) $(CFLAGS) $(GEN_SEMANTICS_SRC) -o $(GEN_SEMANTICS)
+
+SEMANTICS=semantics_generated.pyinc
+$(SEMANTICS): $(GEN_SEMANTICS)
+	$(call quiet-command, \
+	    $(BUILD_USER_DIR)/$(GEN_SEMANTICS) $(SEMANTICS), \
+	    "GEN", $(SEMANTICS))
+
+#
+# Step 2
+# We use the do_qemu.py script to generate the following files
+#
+QEMU_DEF_H = $(BUILD_USER_DIR)/qemu_def_generated.h
+QEMU_WRAP_H = $(BUILD_USER_DIR)/qemu_wrap_generated.h
+OPCODES_DEF_H = $(BUILD_USER_DIR)/opcodes_def_generated.h
+OP_ATTRIBS_H = $(BUILD_USER_DIR)/op_attribs_generated.h
+OP_REGS_H = $(BUILD_USER_DIR)/op_regs_generated.h
+PRINTINSN_H = $(BUILD_USER_DIR)/printinsn_generated.h
+
+GENERATED_HEXAGON_FILES = \
+    $(QEMU_DEF_H) \
+    $(QEMU_WRAP_H) \
+    $(OPCODES_DEF_H) \
+    $(OP_ATTRIBS_H) \
+    $(OP_REGS_H) \
+    $(PRINTINSN_H)
+
+$(GENERATED_HEXAGON_FILES): \
+    $(SRC_PATH)/target/hexagon/do_qemu.py \
+    $(SEMANTICS) \
+    $(SRC_PATH)/target/hexagon/attribs_def.h
+	$(call quiet-command, \
+	    $(SRC_PATH)/target/hexagon/do_qemu.py \
+                $(SEMANTICS) \
+                $(SRC_PATH)/target/hexagon/attribs_def.h, \
+	    "GEN", "Hexagon generated files")
+
+#
+# Step 3
+# We use a C program to create iset.py which is imported into dectree.py
+# to create the decode tree
+#
+GEN_DECTREE_IMPORT=gen_dectree_import
+GEN_DECTREE_IMPORT_SRC = $(SRC_PATH)/target/hexagon/gen_dectree_import.c
+
+$(GEN_DECTREE_IMPORT): $(GEN_DECTREE_IMPORT_SRC) $(GENERATED_HEXAGON_FILES)
+	$(CC) $(CFLAGS) -I$(BUILD_USER_DIR) $(GEN_DECTREE_IMPORT_SRC) -o $(GEN_DECTREE_IMPORT)
+
+DECTREE_IMPORT=iset.py
+$(DECTREE_IMPORT): $(GEN_DECTREE_IMPORT)
+	$(call quiet-command, \
+	    $(BUILD_USER_DIR)/$(GEN_DECTREE_IMPORT) $(DECTREE_IMPORT), \
+	    "GEN", $(DECTREE_IMPORT))
+
+#
+# Step 4
+# We use the dectree.py script to generate the decode tree header file
+#
+DECTREE_HEADER=dectree_generated.h
+$(DECTREE_HEADER): $(SRC_PATH)/target/hexagon/dectree.py $(DECTREE_IMPORT)
+	$(call quiet-command, \
+	    $(SRC_PATH)/target/hexagon/dectree.py \
+                $(BUILD_USER_DIR), \
+	    "GEN", "Hexagon decode tree")
+
+generated-files-y += $(GENERATED_HEXAGON_FILES) $(DECTREE_HEADER)
