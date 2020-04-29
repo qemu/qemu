@@ -6764,3 +6764,26 @@ void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
 
     parent_bs->drv->bdrv_del_child(parent_bs, child, errp);
 }
+
+int bdrv_make_empty(BdrvChild *c, Error **errp)
+{
+    BlockDriver *drv = c->bs->drv;
+    int ret;
+
+    assert(c->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED));
+
+    if (!drv->bdrv_make_empty) {
+        error_setg(errp, "%s does not support emptying nodes",
+                   drv->format_name);
+        return -ENOTSUP;
+    }
+
+    ret = drv->bdrv_make_empty(c->bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to empty %s",
+                         c->bs->filename);
+        return ret;
+    }
+
+    return 0;
+}
