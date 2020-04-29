@@ -266,4 +266,6 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
 
 const BdrvChild *blk_root(BlockBackend *blk);
 
+int blk_make_empty(BlockBackend *blk, Error **errp);
+
 #endif

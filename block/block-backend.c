@@ -2402,3 +2402,13 @@ const BdrvChild *blk_root(BlockBackend *blk)
 {
     return blk->root;
 }
+
+int blk_make_empty(BlockBackend *blk, Error **errp)
+{
+    if (!blk_is_available(blk)) {
+        error_setg(errp, "No medium inserted");
+        return -ENOMEDIUM;
+    }
+
+    return bdrv_make_empty(blk->root, errp);
+}
