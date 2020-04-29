@@ -71,18 +71,26 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
 static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
 {
     RAMFBState *s = dev;
-    uint32_t fourcc, format;
+    DisplaySurface *surface;
+    uint32_t fourcc, format, width, height;
     hwaddr stride, addr;
 
-    s->width  = be32_to_cpu(s->cfg.width);
-    s->height = be32_to_cpu(s->cfg.height);
-    stride    = be32_to_cpu(s->cfg.stride);
-    fourcc    = be32_to_cpu(s->cfg.fourcc);
-    addr      = be64_to_cpu(s->cfg.addr);
-    format    = qemu_drm_format_to_pixman(fourcc);
+    width  = be32_to_cpu(s->cfg.width);
+    height = be32_to_cpu(s->cfg.height);
+    stride = be32_to_cpu(s->cfg.stride);
+    fourcc = be32_to_cpu(s->cfg.fourcc);
+    addr   = be64_to_cpu(s->cfg.addr);
+    format = qemu_drm_format_to_pixman(fourcc);
 
-    s->ds = ramfb_create_display_surface(s->width, s->height,
-                                         format, stride, addr);
+    surface = ramfb_create_display_surface(width, height,
+                                           format, stride, addr);
+    if (!surface) {
+        return;
+    }
+
+    s->width = width;
+    s->height = height;
+    s->ds = surface;
 }
 
 void ramfb_display_update(QemuConsole *con, RAMFBState *s)
