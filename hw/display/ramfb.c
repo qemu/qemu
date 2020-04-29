@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "hw/loader.h"
 #include "hw/display/ramfb.h"
+#include "hw/display/bochs-vbe.h" /* for limits */
 #include "ui/console.h"
 #include "sysemu/reset.h"
 
@@ -48,6 +49,11 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
     DisplaySurface *surface;
     hwaddr size;
     void *data;
+
+    if (width < 16 || width > VBE_DISPI_MAX_XRES ||
+        height < 16 || height > VBE_DISPI_MAX_YRES ||
+        format == 0 /* unknown format */)
+        return NULL;
 
     if (linesize == 0) {
         linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
