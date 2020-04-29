@@ -69,6 +69,7 @@ typedef struct IsaDmaClass {
 
 typedef struct ISADeviceClass {
     DeviceClass parent_class;
+    void (*build_aml)(ISADevice *dev, Aml *scope);
 } ISADeviceClass;
 
 struct ISABus {
@@ -107,6 +108,7 @@ ISADevice *isa_try_create(ISABus *bus, const char *name);
 ISADevice *isa_create_simple(ISABus *bus, const char *name);
 
 ISADevice *isa_vga_init(ISABus *bus);
+void isa_build_aml(ISABus *bus, Aml *scope);
 
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.
