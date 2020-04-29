@@ -44,10 +44,10 @@ static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
 
 static DisplaySurface *ramfb_create_display_surface(int width, int height,
                                                     pixman_format_code_t format,
-                                                    int linesize, uint64_t addr)
+                                                    hwaddr stride, hwaddr addr)
 {
     DisplaySurface *surface;
-    hwaddr size;
+    hwaddr size, mapsize, linesize;
     void *data;
 
     if (width < 16 || width > VBE_DISPI_MAX_XRES ||
@@ -55,19 +55,20 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
         format == 0 /* unknown format */)
         return NULL;
 
-    if (linesize == 0) {
-        linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    if (stride == 0) {
+        stride = linesize;
     }
 
-    size = (hwaddr)linesize * height;
-    data = cpu_physical_memory_map(addr, &size, false);
-    if (size != (hwaddr)linesize * height) {
-        cpu_physical_memory_unmap(data, size, 0, 0);
+    mapsize = size = stride * (height - 1) + linesize;
+    data = cpu_physical_memory_map(addr, &mapsize, false);
+    if (size != mapsize) {
+        cpu_physical_memory_unmap(data, mapsize, 0, 0);
         return NULL;
     }
 
     surface = qemu_create_displaysurface_from(width, height,
-                                              format, linesize, data);
+                                              format, stride, data);
     pixman_image_set_destroy_function(surface->image,
                                       ramfb_unmap_display_surface, NULL);
 
