@@ -1151,14 +1151,11 @@ static Aml *build_kbd_device_aml(void)
 {
     Aml *dev;
     Aml *crs;
-    Aml *method;
 
     dev = aml_device("KBD");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0303")));
 
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_return(aml_int(0x0f)));
-    aml_append(dev, method);
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
     crs = aml_resource_template();
     aml_append(crs, aml_io(AML_DECODE16, 0x0060, 0x0060, 0x01, 0x01));
@@ -1173,14 +1170,11 @@ static Aml *build_mouse_device_aml(void)
 {
     Aml *dev;
     Aml *crs;
-    Aml *method;
 
     dev = aml_device("MOU");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0F13")));
 
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_return(aml_int(0x0f)));
-    aml_append(dev, method);
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
     crs = aml_resource_template();
     aml_append(crs, aml_irq_no_flags(12));
@@ -2238,9 +2232,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                            TPM_CRB_ADDR_SIZE, AML_READ_WRITE));
         aml_append(dev, aml_name_decl("_CRS", crs));
 
-        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-        aml_append(method, aml_return(aml_int(0x0f)));
-        aml_append(dev, method);
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
         tpm_build_ppi_acpi(tpm, dev);
 
