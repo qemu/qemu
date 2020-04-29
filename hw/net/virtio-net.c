@@ -1526,7 +1526,7 @@ static void virtio_net_rsc_extract_unit6(VirtioNetRscChain *chain,
                                  + sizeof(struct eth_header));
     unit->ip = ip6;
     unit->ip_plen = &(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen);
-    unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip)\
+    unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip)
                                         + sizeof(struct ip6_header));
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
 
@@ -2947,6 +2947,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             n->net_conf.duplex = DUPLEX_FULL;
         } else {
             error_setg(errp, "'duplex' must be 'half' or 'full'");
+            return;
         }
         n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
     } else {
@@ -2955,7 +2956,9 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     if (n->net_conf.speed < SPEED_UNKNOWN) {
         error_setg(errp, "'speed' must be between 0 and INT_MAX");
-    } else if (n->net_conf.speed >= 0) {
+        return;
+    }
+    if (n->net_conf.speed >= 0) {
         n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
     }
 

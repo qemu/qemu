@@ -2206,20 +2206,20 @@ static QemuOptsList vhdx_create_opts = {
            .name = VHDX_BLOCK_OPT_BLOCK_SIZE,
            .type = QEMU_OPT_SIZE,
            .def_value_str = stringify(0),
-           .help = "Block Size; min 1MB, max 256MB. " \
+           .help = "Block Size; min 1MB, max 256MB. "
                    "0 means auto-calculate based on image size."
        },
        {
            .name = BLOCK_OPT_SUBFMT,
            .type = QEMU_OPT_STRING,
-           .help = "VHDX format type, can be either 'dynamic' or 'fixed'. "\
+           .help = "VHDX format type, can be either 'dynamic' or 'fixed'. "
                    "Default is 'dynamic'."
        },
        {
            .name = VHDX_BLOCK_OPT_ZERO,
            .type = QEMU_OPT_BOOL,
-           .help = "Force use of payload blocks of type 'ZERO'. "\
-                   "Non-standard, but default.  Do not set to 'off' when "\
+           .help = "Force use of payload blocks of type 'ZERO'. "
+                   "Non-standard, but default.  Do not set to 'off' when "
                    "using 'qemu-img convert' with subformat=dynamic."
        },
        { NULL }

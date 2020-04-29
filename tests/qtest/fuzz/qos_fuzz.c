@@ -36,7 +36,6 @@
 
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-qom.h"
-#include "qapi/qmp/qlist.h"
 
 
 void *fuzz_qos_obj;
@@ -45,34 +44,19 @@ QGuestAllocator *fuzz_qos_alloc;
 static const char *fuzz_target_name;
 static char **fuzz_path_vec;
 
-/*
- * Replaced the qmp commands with direct qmp_marshal calls.
- * Probably there is a better way to do this
- */
 static void qos_set_machines_devices_available(void)
 {
-    QDict *req = qdict_new();
-    QObject *response;
-    QDict *args = qdict_new();
-    QList *lst;
+    MachineInfoList *mach_info;
+    ObjectTypeInfoList *type_info;
 
-    qmp_marshal_query_machines(NULL, &response, &error_abort);
-    lst = qobject_to(QList, response);
-    apply_to_qlist(lst, true);
+    mach_info = qmp_query_machines(&error_abort);
+    machines_apply_to_node(mach_info);
+    qapi_free_MachineInfoList(mach_info);
 
-    qobject_unref(response);
-
-
-    qdict_put_str(req, "execute", "qom-list-types");
-    qdict_put_str(args, "implements", "device");
-    qdict_put_bool(args, "abstract", true);
-    qdict_put_obj(req, "arguments", (QObject *) args);
-
-    qmp_marshal_qom_list_types(args, &response, &error_abort);
-    lst = qobject_to(QList, response);
-    apply_to_qlist(lst, false);
-    qobject_unref(response);
-    qobject_unref(req);
+    type_info = qmp_qom_list_types(true, "device", true, true,
+                                   &error_abort);
+    types_apply_to_node(type_info);
+    qapi_free_ObjectTypeInfoList(type_info);
 }
 
 static char **current_path;

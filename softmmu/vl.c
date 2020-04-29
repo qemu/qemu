@@ -3059,19 +3059,19 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_kernel:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "kernel", optarg,
+                qemu_opts_set(qemu_find_opts("machine"), NULL, "kernel", optarg,
                               &error_abort);
                 break;
             case QEMU_OPTION_initrd:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg,
+                qemu_opts_set(qemu_find_opts("machine"), NULL, "initrd", optarg,
                               &error_abort);
                 break;
             case QEMU_OPTION_append:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg,
+                qemu_opts_set(qemu_find_opts("machine"), NULL, "append", optarg,
                               &error_abort);
                 break;
             case QEMU_OPTION_dtb:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "dtb", optarg,
+                qemu_opts_set(qemu_find_opts("machine"), NULL, "dtb", optarg,
                               &error_abort);
                 break;
             case QEMU_OPTION_cdrom:
@@ -3182,7 +3182,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_bios:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "firmware", optarg,
+                qemu_opts_set(qemu_find_opts("machine"), NULL, "firmware", optarg,
                               &error_abort);
                 break;
             case QEMU_OPTION_singlestep:

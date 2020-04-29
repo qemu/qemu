@@ -267,15 +267,17 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     Object *obj = OBJECT(dev);
     int ret;
 
-    s->con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, s);
-
     if (s->vgamem < 4 * MiB) {
         error_setg(errp, "bochs-display: video memory too small");
+        return;
     }
     if (s->vgamem > 256 * MiB) {
         error_setg(errp, "bochs-display: video memory too big");
+        return;
     }
     s->vgamem = pow2ceil(s->vgamem);
+
+    s->con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, s);
 
     memory_region_init_ram(&s->vram, obj, "bochs-display-vram", s->vgamem,
                            &error_fatal);

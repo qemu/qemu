@@ -29,66 +29,44 @@
 #include "libqos/qgraph_internal.h"
 #include "libqos/qos_external.h"
 
-
-
-void apply_to_node(const char *name, bool is_machine, bool is_abstract)
+static void machine_apply_to_node(const char *name)
 {
-    char *machine_name = NULL;
-    if (is_machine) {
-        const char *arch = qtest_get_arch();
-        machine_name = g_strconcat(arch, "/", name, NULL);
-        name = machine_name;
+    char *machine_name = g_strconcat(qtest_get_arch(), "/", name, NULL);
+
+    qos_graph_node_set_availability(machine_name, true);
+    g_free(machine_name);
+}
+
+void machines_apply_to_node(MachineInfoList *mach_info)
+{
+    MachineInfoList *tail;
+
+    for (tail = mach_info; tail; tail = tail->next) {
+        machine_apply_to_node(tail->value->name);
+        if (tail->value->alias) {
+            machine_apply_to_node(tail->value->alias);
+        }
     }
+}
+
+static void type_apply_to_node(const char *name, bool is_abstract)
+{
     qos_graph_node_set_availability(name, true);
     if (is_abstract) {
         qos_delete_cmd_line(name);
     }
-    g_free(machine_name);
 }
 
-/**
- * apply_to_qlist(): using QMP queries QEMU for a list of
- * machines and devices available, and sets the respective node
- * as true. If a node is found, also all its produced and contained
- * child are marked available.
- *
- * See qos_graph_node_set_availability() for more info
- */
-void apply_to_qlist(QList *list, bool is_machine)
+void types_apply_to_node(ObjectTypeInfoList *type_info)
 {
-    const QListEntry *p;
-    const char *name;
-    bool abstract;
-    QDict *minfo;
-    QObject *qobj;
-    QString *qstr;
-    QBool *qbool;
+    ObjectTypeInfoList *tail;
 
-    for (p = qlist_first(list); p; p = qlist_next(p)) {
-        minfo = qobject_to(QDict, qlist_entry_obj(p));
-        qobj = qdict_get(minfo, "name");
-        qstr = qobject_to(QString, qobj);
-        name = qstring_get_str(qstr);
-
-        qobj = qdict_get(minfo, "abstract");
-        if (qobj) {
-            qbool = qobject_to(QBool, qobj);
-            abstract = qbool_get_bool(qbool);
-        } else {
-            abstract = false;
-        }
-
-        apply_to_node(name, is_machine, abstract);
-        qobj = qdict_get(minfo, "alias");
-        if (qobj) {
-            qstr = qobject_to(QString, qobj);
-            name = qstring_get_str(qstr);
-            apply_to_node(name, is_machine, abstract);
-        }
+    for (tail = type_info; tail; tail = tail->next) {
+        type_apply_to_node(tail->value->name, tail->value->abstract);
     }
 }
 
-QGuestAllocator *get_machine_allocator(QOSGraphObject *obj)
+static QGuestAllocator *get_machine_allocator(QOSGraphObject *obj)
 {
     return obj->get_driver(obj, "memory");
 }

@@ -1322,9 +1322,16 @@ void qmp_guest_suspend_disk(Error **errp)
 
     *mode = GUEST_SUSPEND_MODE_DISK;
     check_suspend_mode(*mode, &local_err);
+    if (local_err) {
+        goto out;
+    }
     acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    if (local_err) {
+        goto out;
+    }
     execute_async(do_suspend, mode, &local_err);
 
+out:
     if (local_err) {
         error_propagate(errp, local_err);
         g_free(mode);
@@ -1338,9 +1345,16 @@ void qmp_guest_suspend_ram(Error **errp)
 
     *mode = GUEST_SUSPEND_MODE_RAM;
     check_suspend_mode(*mode, &local_err);
+    if (local_err) {
+        goto out;
+    }
     acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
+    if (local_err) {
+        goto out;
+    }
     execute_async(do_suspend, mode, &local_err);
 
+out:
     if (local_err) {
         error_propagate(errp, local_err);
         g_free(mode);

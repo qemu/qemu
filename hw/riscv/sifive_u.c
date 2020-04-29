@@ -465,7 +465,7 @@ static void riscv_sifive_u_machine_instance_init(Object *obj)
     object_property_add_bool(obj, "start-in-flash", sifive_u_get_start_in_flash,
                              sifive_u_set_start_in_flash, NULL);
     object_property_set_description(obj, "start-in-flash",
-                                    "Set on to tell QEMU's ROM to jump to " \
+                                    "Set on to tell QEMU's ROM to jump to "
                                     "flash. Otherwise QEMU will jump to DRAM",
                                     NULL);
 }

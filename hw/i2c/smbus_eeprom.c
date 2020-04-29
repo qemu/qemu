@@ -195,8 +195,7 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
 }
 
 /* Generate SDRAM SPD EEPROM data describing a module of type and size */
-uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size,
-                           Error **errp)
+uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
 {
     uint8_t *spd;
     uint8_t nbanks;
@@ -222,39 +221,18 @@ uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size,
         g_assert_not_reached();
     }
     size = ram_size >> 20; /* work in terms of megabytes */
-    if (size < 4) {
-        error_setg(errp, "SDRAM size is too small");
-        return NULL;
-    }
     sz_log2 = 31 - clz32(size);
     size = 1U << sz_log2;
-    if (ram_size > size * MiB) {
-        error_setg(errp, "SDRAM size 0x"RAM_ADDR_FMT" is not a power of 2, "
-                   "truncating to %u MB", ram_size, size);
-    }
-    if (sz_log2 < min_log2) {
-        error_setg(errp,
-                   "Memory size is too small for SDRAM type, adjusting type");
-        if (size >= 32) {
-            type = DDR;
-            min_log2 = 5;
-            max_log2 = 12;
-        } else {
-            type = SDR;
-            min_log2 = 2;
-            max_log2 = 9;
-        }
-    }
+    assert(ram_size == size * MiB);
+    assert(sz_log2 >= min_log2);
 
     nbanks = 1;
     while (sz_log2 > max_log2 && nbanks < 8) {
         sz_log2--;
-        nbanks++;
+        nbanks *= 2;
     }
 
-    if (size > (1ULL << sz_log2) * nbanks) {
-        error_setg(errp, "Memory size is too big for SDRAM, truncating");
-    }
+    assert(size == (1ULL << sz_log2) * nbanks);
 
     /* split to 2 banks if possible to avoid a bug in MIPS Malta firmware */
     if (nbanks == 1 && sz_log2 > min_log2) {

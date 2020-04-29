@@ -163,14 +163,14 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    env->pvr.regs[0] = PVR0_USE_EXC_MASK \
-                       | PVR0_USE_ICACHE_MASK \
+    env->pvr.regs[0] = PVR0_USE_EXC_MASK
+                       | PVR0_USE_ICACHE_MASK
                        | PVR0_USE_DCACHE_MASK;
-    env->pvr.regs[2] = PVR2_D_OPB_MASK \
-                        | PVR2_D_LMB_MASK \
-                        | PVR2_I_OPB_MASK \
-                        | PVR2_I_LMB_MASK \
-                        | PVR2_FPU_EXC_MASK \
+    env->pvr.regs[2] = PVR2_D_OPB_MASK
+                        | PVR2_D_LMB_MASK
+                        | PVR2_I_OPB_MASK
+                        | PVR2_I_LMB_MASK
+                        | PVR2_FPU_EXC_MASK
                         | 0;
 
     version = cpu->cfg.version ? cpu->cfg.version : DEFAULT_CPU_VERSION;

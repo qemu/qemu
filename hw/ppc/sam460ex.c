@@ -292,7 +292,6 @@ static void sam460ex_init(MachineState *machine)
     SysBusDevice *sbdev;
     struct boot_info *boot_info;
     uint8_t *spd_data;
-    Error *err = NULL;
     int success;
 
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
@@ -335,14 +334,10 @@ static void sam460ex_init(MachineState *machine)
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700, uic[0][2]);
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
-    spd_data = spd_data_generate(DDR2, ram_sizes[0], &err);
-    if (err) {
-        warn_report_err(err);
-    }
-    if (spd_data) {
-        spd_data[20] = 4; /* SO-DIMM module */
-        smbus_eeprom_init_one(i2c, 0x50, spd_data);
-    }
+    spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
+                                 ram_sizes[0]);
+    spd_data[20] = 4; /* SO-DIMM module */
+    smbus_eeprom_init_one(i2c, 0x50, spd_data);
     /* RTC */
     i2c_create_slave(i2c, "m41t80", 0x68);
 

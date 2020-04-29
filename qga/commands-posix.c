@@ -2518,6 +2518,9 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
         mem_blk->phys_index = strtoul(&de->d_name[6], NULL, 10);
         mem_blk->has_can_offline = true; /* lolspeak ftw */
         transfer_memory_block(mem_blk, true, NULL, &local_err);
+        if (local_err) {
+            break;
+        }
 
         entry = g_malloc0(sizeof *entry);
         entry->value = mem_blk;

@@ -282,12 +282,7 @@ static int cryptodev_builtin_sym_close_session(
     CryptoDevBackendBuiltin *builtin =
                       CRYPTODEV_BACKEND_BUILTIN(backend);
 
-    if (session_id >= MAX_NUM_SESSIONS ||
-              builtin->sessions[session_id] == NULL) {
-        error_setg(errp, "Cannot find a valid session id: %" PRIu64 "",
-                      session_id);
-        return -1;
-    }
+    assert(session_id < MAX_NUM_SESSIONS && builtin->sessions[session_id]);
 
     qcrypto_cipher_free(builtin->sessions[session_id]->cipher);
     g_free(builtin->sessions[session_id]);
@@ -356,8 +351,7 @@ static void cryptodev_builtin_cleanup(
 
     for (i = 0; i < MAX_NUM_SESSIONS; i++) {
         if (builtin->sessions[i] != NULL) {
-            cryptodev_builtin_sym_close_session(
-                    backend, i, 0, errp);
+            cryptodev_builtin_sym_close_session(backend, i, 0, &error_abort);
         }
     }
 
