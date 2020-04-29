@@ -6,7 +6,7 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
 {
 }
 
-RAMFBState *ramfb_setup(DeviceState* dev, Error **errp)
+RAMFBState *ramfb_setup(Error **errp)
 {
     error_setg(errp, "ramfb support not available");
     return NULL;
