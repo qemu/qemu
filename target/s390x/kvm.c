@@ -2165,7 +2165,7 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 
 static int query_cpu_subfunc(S390FeatBitmap features)
 {
-    struct kvm_s390_vm_cpu_subfunc prop;
+    struct kvm_s390_vm_cpu_subfunc prop = {};
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_CPU_MODEL,
         .attr = KVM_S390_VM_CPU_MACHINE_SUBFUNC,
@@ -2292,7 +2292,7 @@ static int kvm_to_feat[][2] = {
 
 static int query_cpu_feat(S390FeatBitmap features)
 {
-    struct kvm_s390_vm_cpu_feat prop;
+    struct kvm_s390_vm_cpu_feat prop = {};
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_CPU_MODEL,
         .attr = KVM_S390_VM_CPU_MACHINE_FEAT,
