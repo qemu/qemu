@@ -47,6 +47,7 @@ typedef struct RTCState {
 } RTCState;
 
 #define RTC_ISA_IRQ 8
+#define RTC_ISA_BASE 0x70
 
 ISADevice *mc146818_rtc_init(ISABus *bus, int base_year,
                              qemu_irq intercept_irq);
