@@ -414,7 +414,9 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     ctx = bdrv_get_aio_context(bs);
-    src = blk_new(ctx, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    /* WRITE_UNCHANGED is required for bdrv_make_empty() */
+    src = blk_new(ctx, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED,
+                  BLK_PERM_ALL);
     backing = blk_new(ctx, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
 
     ret = blk_insert_bs(src, bs, &local_err);
@@ -492,13 +494,13 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    if (drv->bdrv_make_empty) {
-        ret = drv->bdrv_make_empty(bs);
-        if (ret < 0) {
-            goto ro_cleanup;
-        }
-        blk_flush(src);
+    ret = blk_make_empty(src, NULL);
+    /* Ignore -ENOTSUP */
+    if (ret < 0 && ret != -ENOTSUP) {
+        goto ro_cleanup;
     }
+
+    blk_flush(src);
 
     /*
      * Make sure all data we wrote to the backing device is actually

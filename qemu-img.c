@@ -1104,11 +1104,20 @@ static int img_commit(int argc, char **argv)
         goto unref_backing;
     }
 
-    if (!drop && bs->drv->bdrv_make_empty) {
-        ret = bs->drv->bdrv_make_empty(bs);
-        if (ret) {
-            error_setg_errno(&local_err, -ret, "Could not empty %s",
-                             filename);
+    if (!drop) {
+        BlockBackend *old_backing_blk;
+
+        old_backing_blk = blk_new_with_bs(bs, BLK_PERM_WRITE, BLK_PERM_ALL,
+                                          &local_err);
+        if (!old_backing_blk) {
+            goto unref_backing;
+        }
+        ret = blk_make_empty(old_backing_blk, &local_err);
+        blk_unref(old_backing_blk);
+        if (ret == -ENOTSUP) {
+            error_free(local_err);
+            local_err = NULL;
+        } else if (ret < 0) {
             goto unref_backing;
         }
     }
