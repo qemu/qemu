@@ -81,8 +81,6 @@ static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
     addr      = be64_to_cpu(s->cfg.addr);
     format    = qemu_drm_format_to_pixman(fourcc);
 
-    fprintf(stderr, "%s: %dx%d @ 0x%" PRIx64 "\n", __func__,
-            s->width, s->height, addr);
     s->ds = ramfb_create_display_surface(s->width, s->height,
                                          format, stride, addr);
 }
