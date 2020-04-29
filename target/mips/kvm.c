@@ -198,9 +198,7 @@ int kvm_mips_set_interrupt(MIPSCPU *cpu, int irq, int level)
     CPUState *cs = CPU(cpu);
     struct kvm_mips_interrupt intr;
 
-    if (!kvm_enabled()) {
-        return 0;
-    }
+    assert(kvm_enabled());
 
     intr.cpu = -1;
 
@@ -221,9 +219,7 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
     CPUState *dest_cs = CPU(cpu);
     struct kvm_mips_interrupt intr;
 
-    if (!kvm_enabled()) {
-        return 0;
-    }
+    assert(kvm_enabled());
 
     intr.cpu = dest_cs->cpu_index;
 
