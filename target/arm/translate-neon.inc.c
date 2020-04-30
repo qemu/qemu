@@ -398,3 +398,76 @@ static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
     gen_neon_ldst_base_update(s, a->rm, a->rn, nregs * interleave * 8);
     return true;
 }
+
+static bool trans_VLD_all_lanes(DisasContext *s, arg_VLD_all_lanes *a)
+{
+    /* Neon load single structure to all lanes */
+    int reg, stride, vec_size;
+    int vd = a->vd;
+    int size = a->size;
+    int nregs = a->n + 1;
+    TCGv_i32 addr, tmp;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+        return false;
+    }
+
+    if (size == 3) {
+        if (nregs != 4 || a->a == 0) {
+            return false;
+        }
+        /* For VLD4 size == 3 a == 1 means 32 bits at 16 byte alignment */
+        size = 2;
+    }
+    if (nregs == 1 && a->a == 1 && size == 0) {
+        return false;
+    }
+    if (nregs == 3 && a->a == 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * VLD1 to all lanes: T bit indicates how many Dregs to write.
+     * VLD2/3/4 to all lanes: T bit indicates register stride.
+     */
+    stride = a->t ? 2 : 1;
+    vec_size = nregs == 1 ? stride * 8 : 8;
+
+    tmp = tcg_temp_new_i32();
+    addr = tcg_temp_new_i32();
+    load_reg_var(s, addr, a->rn);
+    for (reg = 0; reg < nregs; reg++) {
+        gen_aa32_ld_i32(s, tmp, addr, get_mem_index(s),
+                        s->be_data | size);
+        if ((vd & 1) && vec_size == 16) {
+            /*
+             * We cannot write 16 bytes at once because the
+             * destination is unaligned.
+             */
+            tcg_gen_gvec_dup_i32(size, neon_reg_offset(vd, 0),
+                                 8, 8, tmp);
+            tcg_gen_gvec_mov(0, neon_reg_offset(vd + 1, 0),
+                             neon_reg_offset(vd, 0), 8, 8);
+        } else {
+            tcg_gen_gvec_dup_i32(size, neon_reg_offset(vd, 0),
+                                 vec_size, vec_size, tmp);
+        }
+        tcg_gen_addi_i32(addr, addr, 1 << size);
+        vd += stride;
+    }
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(addr);
+
+    gen_neon_ldst_base_update(s, a->rm, a->rn, (1 << size) * nregs);
+
+    return true;
+}

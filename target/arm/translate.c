@@ -3224,7 +3224,6 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
     int size;
     int reg;
     int load;
-    int vec_size;
     TCGv_i32 addr;
     TCGv_i32 tmp;
 
@@ -3254,58 +3253,8 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
     } else {
         size = (insn >> 10) & 3;
         if (size == 3) {
-            /* Load single element to all lanes.  */
-            int a = (insn >> 4) & 1;
-            if (!load) {
-                return 1;
-            }
-            size = (insn >> 6) & 3;
-            nregs = ((insn >> 8) & 3) + 1;
-
-            if (size == 3) {
-                if (nregs != 4 || a == 0) {
-                    return 1;
-                }
-                /* For VLD4 size==3 a == 1 means 32 bits at 16 byte alignment */
-                size = 2;
-            }
-            if (nregs == 1 && a == 1 && size == 0) {
-                return 1;
-            }
-            if (nregs == 3 && a == 1) {
-                return 1;
-            }
-            addr = tcg_temp_new_i32();
-            load_reg_var(s, addr, rn);
-
-            /* VLD1 to all lanes: bit 5 indicates how many Dregs to write.
-             * VLD2/3/4 to all lanes: bit 5 indicates register stride.
-             */
-            stride = (insn & (1 << 5)) ? 2 : 1;
-            vec_size = nregs == 1 ? stride * 8 : 8;
-
-            tmp = tcg_temp_new_i32();
-            for (reg = 0; reg < nregs; reg++) {
-                gen_aa32_ld_i32(s, tmp, addr, get_mem_index(s),
-                                s->be_data | size);
-                if ((rd & 1) && vec_size == 16) {
-                    /* We cannot write 16 bytes at once because the
-                     * destination is unaligned.
-                     */
-                    tcg_gen_gvec_dup_i32(size, neon_reg_offset(rd, 0),
-                                         8, 8, tmp);
-                    tcg_gen_gvec_mov(0, neon_reg_offset(rd + 1, 0),
-                                     neon_reg_offset(rd, 0), 8, 8);
-                } else {
-                    tcg_gen_gvec_dup_i32(size, neon_reg_offset(rd, 0),
-                                         vec_size, vec_size, tmp);
-                }
-                tcg_gen_addi_i32(addr, addr, 1 << size);
-                rd += stride;
-            }
-            tcg_temp_free_i32(tmp);
-            tcg_temp_free_i32(addr);
-            stride = (1 << size) * nregs;
+            /* Load single element to all lanes -- handled by decodetree  */
+            return 1;
         } else {
             /* Single element.  */
             int idx = (insn >> 4) & 0xf;
