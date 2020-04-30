@@ -27,3 +27,10 @@
 #   0b1111_1001_xxx0_xxxx_xxxx_xxxx_xxxx_xxxx
 # This file works on the A32 encoding only; calling code for T32 has to
 # transform the insn into the A32 version first.
+
+%vd_dp  22:1 12:4
+
+# Neon load/store multiple structures
+
+VLDST_multiple 1111 0100 0 . l:1 0 rn:4 .... itype:4 size:2 align:2 rm:4 \
+               vd=%vd_dp

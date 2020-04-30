@@ -3214,45 +3214,19 @@ static void gen_neon_trn_u16(TCGv_i32 t0, TCGv_i32 t1)
 }
 
 
-static struct {
-    int nregs;
-    int interleave;
-    int spacing;
-} const neon_ls_element_type[11] = {
-    {1, 4, 1},
-    {1, 4, 2},
-    {4, 1, 1},
-    {2, 2, 2},
-    {1, 3, 1},
-    {1, 3, 2},
-    {3, 1, 1},
-    {1, 1, 1},
-    {1, 2, 1},
-    {1, 2, 2},
-    {2, 1, 1}
-};
-
 /* Translate a NEON load/store element instruction.  Return nonzero if the
    instruction is invalid.  */
 static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
 {
     int rd, rn, rm;
-    int op;
     int nregs;
-    int interleave;
-    int spacing;
     int stride;
     int size;
     int reg;
     int load;
-    int n;
     int vec_size;
-    int mmu_idx;
-    MemOp endian;
     TCGv_i32 addr;
     TCGv_i32 tmp;
-    TCGv_i32 tmp2;
-    TCGv_i64 tmp64;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return 1;
@@ -3274,70 +3248,9 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
     rn = (insn >> 16) & 0xf;
     rm = insn & 0xf;
     load = (insn & (1 << 21)) != 0;
-    endian = s->be_data;
-    mmu_idx = get_mem_index(s);
     if ((insn & (1 << 23)) == 0) {
-        /* Load store all elements.  */
-        op = (insn >> 8) & 0xf;
-        size = (insn >> 6) & 3;
-        if (op > 10)
-            return 1;
-        /* Catch UNDEF cases for bad values of align field */
-        switch (op & 0xc) {
-        case 4:
-            if (((insn >> 5) & 1) == 1) {
-                return 1;
-            }
-            break;
-        case 8:
-            if (((insn >> 4) & 3) == 3) {
-                return 1;
-            }
-            break;
-        default:
-            break;
-        }
-        nregs = neon_ls_element_type[op].nregs;
-        interleave = neon_ls_element_type[op].interleave;
-        spacing = neon_ls_element_type[op].spacing;
-        if (size == 3 && (interleave | spacing) != 1) {
-            return 1;
-        }
-        /* For our purposes, bytes are always little-endian.  */
-        if (size == 0) {
-            endian = MO_LE;
-        }
-        /* Consecutive little-endian elements from a single register
-         * can be promoted to a larger little-endian operation.
-         */
-        if (interleave == 1 && endian == MO_LE) {
-            size = 3;
-        }
-        tmp64 = tcg_temp_new_i64();
-        addr = tcg_temp_new_i32();
-        tmp2 = tcg_const_i32(1 << size);
-        load_reg_var(s, addr, rn);
-        for (reg = 0; reg < nregs; reg++) {
-            for (n = 0; n < 8 >> size; n++) {
-                int xs;
-                for (xs = 0; xs < interleave; xs++) {
-                    int tt = rd + reg + spacing * xs;
-
-                    if (load) {
-                        gen_aa32_ld_i64(s, tmp64, addr, mmu_idx, endian | size);
-                        neon_store_element64(tt, n, size, tmp64);
-                    } else {
-                        neon_load_element64(tmp64, tt, n, size);
-                        gen_aa32_st_i64(s, tmp64, addr, mmu_idx, endian | size);
-                    }
-                    tcg_gen_add_i32(addr, addr, tmp2);
-                }
-            }
-        }
-        tcg_temp_free_i32(addr);
-        tcg_temp_free_i32(tmp2);
-        tcg_temp_free_i64(tmp64);
-        stride = nregs * interleave * 8;
+        /* Load store all elements -- handled already by decodetree */
+        return 1;
     } else {
         size = (insn >> 10) & 3;
         if (size == 3) {
