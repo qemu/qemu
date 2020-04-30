@@ -617,3 +617,17 @@ DO_3SAME(VEOR, tcg_gen_gvec_xor)
 DO_3SAME_BITSEL(VBSL, rd_ofs, rn_ofs, rm_ofs)
 DO_3SAME_BITSEL(VBIT, rm_ofs, rn_ofs, rd_ofs)
 DO_3SAME_BITSEL(VBIF, rm_ofs, rd_ofs, rn_ofs)
+
+#define DO_3SAME_NO_SZ_3(INSN, FUNC)                                    \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (a->size == 3) {                                             \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, FUNC);                                    \
+    }
+
+DO_3SAME_NO_SZ_3(VMAX_S, tcg_gen_gvec_smax)
+DO_3SAME_NO_SZ_3(VMAX_U, tcg_gen_gvec_umax)
+DO_3SAME_NO_SZ_3(VMIN_S, tcg_gen_gvec_smin)
+DO_3SAME_NO_SZ_3(VMIN_U, tcg_gen_gvec_umin)
