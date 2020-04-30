@@ -7032,84 +7032,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     return 0;
 }
 
-/* Advanced SIMD three registers of the same length extension.
- *  31           25    23  22    20   16   12  11   10   9    8        3     0
- * +---------------+-----+---+-----+----+----+---+----+---+----+---------+----+
- * | 1 1 1 1 1 1 0 | op1 | D | op2 | Vn | Vd | 1 | o3 | 0 | o4 | N Q M U | Vm |
- * +---------------+-----+---+-----+----+----+---+----+---+----+---------+----+
- */
-static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
-{
-    gen_helper_gvec_3 *fn_gvec = NULL;
-    gen_helper_gvec_3_ptr *fn_gvec_ptr = NULL;
-    int rd, rn, rm, opr_sz;
-    int data = 0;
-    int off_rn, off_rm;
-    bool is_long = false, q = extract32(insn, 6, 1);
-    bool ptr_is_env = false;
-
-    if ((insn & 0xff300f10) == 0xfc200810) {
-        /* VFM[AS]L -- 1111 1100 S.10 .... .... 1000 .Q.1 .... */
-        int is_s = extract32(insn, 23, 1);
-        if (!dc_isar_feature(aa32_fhm, s)) {
-            return 1;
-        }
-        is_long = true;
-        data = is_s; /* is_2 == 0 */
-        fn_gvec_ptr = gen_helper_gvec_fmlal_a32;
-        ptr_is_env = true;
-    } else {
-        return 1;
-    }
-
-    VFP_DREG_D(rd, insn);
-    if (rd & q) {
-        return 1;
-    }
-    if (q || !is_long) {
-        VFP_DREG_N(rn, insn);
-        VFP_DREG_M(rm, insn);
-        if ((rn | rm) & q & !is_long) {
-            return 1;
-        }
-        off_rn = vfp_reg_offset(1, rn);
-        off_rm = vfp_reg_offset(1, rm);
-    } else {
-        rn = VFP_SREG_N(insn);
-        rm = VFP_SREG_M(insn);
-        off_rn = vfp_reg_offset(0, rn);
-        off_rm = vfp_reg_offset(0, rm);
-    }
-
-    if (s->fp_excp_el) {
-        gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
-                           syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
-        return 0;
-    }
-    if (!s->vfp_enabled) {
-        return 1;
-    }
-
-    opr_sz = (1 + q) * 8;
-    if (fn_gvec_ptr) {
-        TCGv_ptr ptr;
-        if (ptr_is_env) {
-            ptr = cpu_env;
-        } else {
-            ptr = get_fpstatus_ptr(1);
-        }
-        tcg_gen_gvec_3_ptr(vfp_reg_offset(1, rd), off_rn, off_rm, ptr,
-                           opr_sz, opr_sz, data, fn_gvec_ptr);
-        if (!ptr_is_env) {
-            tcg_temp_free_ptr(ptr);
-        }
-    } else {
-        tcg_gen_gvec_3_ool(vfp_reg_offset(1, rd), off_rn, off_rm,
-                           opr_sz, opr_sz, data, fn_gvec);
-    }
-    return 0;
-}
-
 /* Advanced SIMD two registers and a scalar extension.
  *  31             24   23  22   20   16   12  11   10   9    8        3     0
  * +-----------------+----+---+----+----+----+---+----+---+----+---------+----+
@@ -10956,12 +10878,6 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     }
                 }
             }
-        } else if ((insn & 0x0e000a00) == 0x0c000800
-                   && arm_dc_feature(s, ARM_FEATURE_V8)) {
-            if (disas_neon_insn_3same_ext(s, insn)) {
-                goto illegal_op;
-            }
-            return;
         } else if ((insn & 0x0f000a00) == 0x0e000800
                    && arm_dc_feature(s, ARM_FEATURE_V8)) {
             if (disas_neon_insn_2reg_scalar_ext(s, insn)) {
@@ -11145,14 +11061,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             }
             break;
         }
-        if ((insn & 0xfe000a00) == 0xfc000800
+        if ((insn & 0xff000a00) == 0xfe000800
             && arm_dc_feature(s, ARM_FEATURE_V8)) {
-            /* The Thumb2 and ARM encodings are identical.  */
-            if (disas_neon_insn_3same_ext(s, insn)) {
-                goto illegal_op;
-            }
-        } else if ((insn & 0xff000a00) == 0xfe000800
-                   && arm_dc_feature(s, ARM_FEATURE_V8)) {
             /* The Thumb2 and ARM encodings are identical.  */
             if (disas_neon_insn_2reg_scalar_ext(s, insn)) {
                 goto illegal_op;
