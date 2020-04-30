@@ -74,7 +74,11 @@ to check that crash is fixed :)
 vm = iotests.VM()
 vm.launch()
 
-vm.qmp_log('blockdev-add', **{'node-name': 'target', 'driver': 'null-co'})
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'target',
+    'driver': 'null-co',
+    'size': size,
+})
 
 vm.qmp_log('blockdev-add', **{
     'node-name': 'source',
