@@ -594,6 +594,14 @@ static void gen_gvec_fn4(DisasContext *s, bool is_q, int rd, int rn, int rm,
             is_q ? 16 : 8, vec_full_reg_size(s));
 }
 
+/* Expand a 2-operand AdvSIMD vector operation using an op descriptor. */
+static void gen_gvec_op2(DisasContext *s, bool is_q, int rd,
+                         int rn, const GVecGen2 *gvec_op)
+{
+    tcg_gen_gvec_2(vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+                   is_q ? 16 : 8, vec_full_reg_size(s), gvec_op);
+}
+
 /* Expand a 2-operand + immediate AdvSIMD vector operation using
  * an op descriptor.
  */
@@ -12366,6 +12374,15 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             return;
         }
         break;
+    case 0x8: /* CMGT, CMGE */
+        gen_gvec_op2(s, is_q, rd, rn, u ? &cge0_op[size] : &cgt0_op[size]);
+        return;
+    case 0x9: /* CMEQ, CMLE */
+        gen_gvec_op2(s, is_q, rd, rn, u ? &cle0_op[size] : &ceq0_op[size]);
+        return;
+    case 0xa: /* CMLT */
+        gen_gvec_op2(s, is_q, rd, rn, &clt0_op[size]);
+        return;
     case 0xb:
         if (u) { /* ABS, NEG */
             gen_gvec_fn2(s, is_q, rd, rn, tcg_gen_gvec_neg, size);
@@ -12403,29 +12420,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         for (pass = 0; pass < (is_q ? 4 : 2); pass++) {
             TCGv_i32 tcg_op = tcg_temp_new_i32();
             TCGv_i32 tcg_res = tcg_temp_new_i32();
-            TCGCond cond;
 
             read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
 
             if (size == 2) {
                 /* Special cases for 32 bit elements */
                 switch (opcode) {
-                case 0xa: /* CMLT */
-                    /* 32 bit integer comparison against zero, result is
-                     * test ? (2^32 - 1) : 0. We implement via setcond(test)
-                     * and inverting.
-                     */
-                    cond = TCG_COND_LT;
-                do_cmop:
-                    tcg_gen_setcondi_i32(cond, tcg_res, tcg_op, 0);
-                    tcg_gen_neg_i32(tcg_res, tcg_res);
-                    break;
-                case 0x8: /* CMGT, CMGE */
-                    cond = u ? TCG_COND_GE : TCG_COND_GT;
-                    goto do_cmop;
-                case 0x9: /* CMEQ, CMLE */
-                    cond = u ? TCG_COND_LE : TCG_COND_EQ;
-                    goto do_cmop;
                 case 0x4: /* CLS */
                     if (u) {
                         tcg_gen_clzi_i32(tcg_res, tcg_op, 32);
@@ -12520,36 +12520,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     };
                     genfn = fns[size][u];
                     genfn(tcg_res, cpu_env, tcg_op);
-                    break;
-                }
-                case 0x8: /* CMGT, CMGE */
-                case 0x9: /* CMEQ, CMLE */
-                case 0xa: /* CMLT */
-                {
-                    static NeonGenTwoOpFn * const fns[3][2] = {
-                        { gen_helper_neon_cgt_s8, gen_helper_neon_cgt_s16 },
-                        { gen_helper_neon_cge_s8, gen_helper_neon_cge_s16 },
-                        { gen_helper_neon_ceq_u8, gen_helper_neon_ceq_u16 },
-                    };
-                    NeonGenTwoOpFn *genfn;
-                    int comp;
-                    bool reverse;
-                    TCGv_i32 tcg_zero = tcg_const_i32(0);
-
-                    /* comp = index into [CMGT, CMGE, CMEQ, CMLE, CMLT] */
-                    comp = (opcode - 0x8) * 2 + u;
-                    /* ...but LE, LT are implemented as reverse GE, GT */
-                    reverse = (comp > 2);
-                    if (reverse) {
-                        comp = 4 - comp;
-                    }
-                    genfn = fns[comp][size];
-                    if (reverse) {
-                        genfn(tcg_res, tcg_zero, tcg_op);
-                    } else {
-                        genfn(tcg_res, tcg_op, tcg_zero);
-                    }
-                    tcg_temp_free_i32(tcg_zero);
                     break;
                 }
                 case 0x4: /* CLS, CLZ */

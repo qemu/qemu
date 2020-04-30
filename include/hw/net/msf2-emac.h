@@ -1,7 +1,7 @@
 /*
- * Microsemi Smartfusion2 SoC
+ * QEMU model of the Smartfusion2 Ethernet MAC.
  *
- * Copyright (c) 2017 Subbaraya Sundeep <sundeep.lkml@gmail.com>
+ * Copyright (c) 2020 Subbaraya Sundeep <sundeep.lkml@gmail.com>.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,48 +22,32 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_ARM_MSF2_SOC_H
-#define HW_ARM_MSF2_SOC_H
+#include "hw/sysbus.h"
+#include "exec/memory.h"
+#include "net/net.h"
+#include "net/eth.h"
 
-#include "hw/arm/armv7m.h"
-#include "hw/timer/mss-timer.h"
-#include "hw/misc/msf2-sysreg.h"
-#include "hw/ssi/mss-spi.h"
-#include "hw/net/msf2-emac.h"
+#define TYPE_MSS_EMAC "msf2-emac"
+#define MSS_EMAC(obj) \
+    OBJECT_CHECK(MSF2EmacState, (obj), TYPE_MSS_EMAC)
 
-#define TYPE_MSF2_SOC     "msf2-soc"
-#define MSF2_SOC(obj)     OBJECT_CHECK(MSF2State, (obj), TYPE_MSF2_SOC)
+#define R_MAX         (0x1a0 / 4)
+#define PHY_MAX_REGS  32
 
-#define MSF2_NUM_SPIS         2
-#define MSF2_NUM_UARTS        2
+typedef struct MSF2EmacState {
+    SysBusDevice parent;
 
-/*
- * System timer consists of two programmable 32-bit
- * decrementing counters that generate individual interrupts to
- * the Cortex-M3 processor
- */
-#define MSF2_NUM_TIMERS       2
+    MemoryRegion mmio;
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
 
-typedef struct MSF2State {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
+    qemu_irq irq;
+    NICState *nic;
+    NICConf conf;
 
-    ARMv7MState armv7m;
+    uint8_t mac_addr[ETH_ALEN];
+    uint32_t rx_desc;
+    uint16_t phy_regs[PHY_MAX_REGS];
 
-    char *cpu_type;
-    char *part_name;
-    uint64_t envm_size;
-    uint64_t esram_size;
-
-    uint32_t m3clk;
-    uint8_t apb0div;
-    uint8_t apb1div;
-
-    MSF2SysregState sysreg;
-    MSSTimerState timer;
-    MSSSpiState spi[MSF2_NUM_SPIS];
-    MSF2EmacState emac;
-} MSF2State;
-
-#endif
+    uint32_t regs[R_MAX];
+} MSF2EmacState;

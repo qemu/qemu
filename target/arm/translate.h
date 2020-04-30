@@ -275,6 +275,11 @@ static inline void gen_swstep_exception(DisasContext *s, int isv, int ex)
 uint64_t vfp_expand_imm(int size, uint8_t imm8);
 
 /* Vector operations shared between ARM and AArch64.  */
+extern const GVecGen2 ceq0_op[4];
+extern const GVecGen2 clt0_op[4];
+extern const GVecGen2 cgt0_op[4];
+extern const GVecGen2 cle0_op[4];
+extern const GVecGen2 cge0_op[4];
 extern const GVecGen3 mla_op[4];
 extern const GVecGen3 mls_op[4];
 extern const GVecGen3 cmtst_op[4];

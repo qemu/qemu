@@ -562,24 +562,6 @@ uint32_t HELPER(neon_hsub_u32)(uint32_t src1, uint32_t src2)
     return dest;
 }
 
-#define NEON_FN(dest, src1, src2) dest = (src1 > src2) ? ~0 : 0
-NEON_VOP(cgt_s8, neon_s8, 4)
-NEON_VOP(cgt_u8, neon_u8, 4)
-NEON_VOP(cgt_s16, neon_s16, 2)
-NEON_VOP(cgt_u16, neon_u16, 2)
-NEON_VOP(cgt_s32, neon_s32, 1)
-NEON_VOP(cgt_u32, neon_u32, 1)
-#undef NEON_FN
-
-#define NEON_FN(dest, src1, src2) dest = (src1 >= src2) ? ~0 : 0
-NEON_VOP(cge_s8, neon_s8, 4)
-NEON_VOP(cge_u8, neon_u8, 4)
-NEON_VOP(cge_s16, neon_s16, 2)
-NEON_VOP(cge_u16, neon_u16, 2)
-NEON_VOP(cge_s32, neon_s32, 1)
-NEON_VOP(cge_u32, neon_u32, 1)
-#undef NEON_FN
-
 #define NEON_FN(dest, src1, src2) dest = (src1 < src2) ? src1 : src2
 NEON_POP(pmin_s8, neon_s8, 4)
 NEON_POP(pmin_u8, neon_u8, 4)
@@ -1133,12 +1115,6 @@ NEON_VOP(mul_u16, neon_u16, 2)
 NEON_VOP(tst_u8, neon_u8, 4)
 NEON_VOP(tst_u16, neon_u16, 2)
 NEON_VOP(tst_u32, neon_u32, 1)
-#undef NEON_FN
-
-#define NEON_FN(dest, src1, src2) dest = (src1 == src2) ? -1 : 0
-NEON_VOP(ceq_u8, neon_u8, 4)
-NEON_VOP(ceq_u16, neon_u16, 2)
-NEON_VOP(ceq_u32, neon_u32, 1)
 #undef NEON_FN
 
 /* Count Leading Sign/Zero Bits.  */

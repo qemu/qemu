@@ -205,6 +205,8 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
 
         dev = qdev_create(NULL, "xlnx.zdma");
         s->lpd.iou.adma[i] = SYS_BUS_DEVICE(dev);
+        object_property_set_int(OBJECT(s->lpd.iou.adma[i]), 128, "bus-width",
+                                &error_abort);
         object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
         qdev_init_nofail(dev);
 
