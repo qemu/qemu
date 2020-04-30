@@ -24,6 +24,7 @@ or vfio-ap is also available.
 .. toctree::
    s390x/vfio-ap
    s390x/css
+   s390x/3270
 
 Architectural features
 ======================
