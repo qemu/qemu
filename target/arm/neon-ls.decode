@@ -1,0 +1,29 @@
+# AArch32 Neon load/store instruction descriptions
+#
+#  Copyright (c) 2020 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+
+# Encodings for Neon load/store instructions where the T32 encoding
+# is a simple transformation of the A32 encoding.
+# More specifically, this file covers instructions where the A32 encoding is
+#   0b1111_0100_xxx0_xxxx_xxxx_xxxx_xxxx_xxxx
+# and the T32 encoding is
+#   0b1111_1001_xxx0_xxxx_xxxx_xxxx_xxxx_xxxx
+# This file works on the A32 encoding only; calling code for T32 has to
+# transform the insn into the A32 version first.
