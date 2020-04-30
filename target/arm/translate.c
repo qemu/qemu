@@ -3258,6 +3258,10 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
     TCGv_i32 tmp2;
     TCGv_i64 tmp64;
 
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return 1;
+    }
+
     /* FIXME: this access check should not take precedence over UNDEF
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
@@ -5001,6 +5005,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     TCGv_i32 tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_ptr ptr1, ptr2, ptr3;
     TCGv_i64 tmp64;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return 1;
+    }
 
     /* FIXME: this access check should not take precedence over UNDEF
      * for invalid encodings; we will generate incorrect syndrome information
@@ -10948,10 +10956,6 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
 
         if (((insn >> 25) & 7) == 1) {
             /* NEON Data processing.  */
-            if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
-                goto illegal_op;
-            }
-
             if (disas_neon_data_insn(s, insn)) {
                 goto illegal_op;
             }
@@ -10959,10 +10963,6 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         }
         if ((insn & 0x0f100000) == 0x04000000) {
             /* NEON load/store.  */
-            if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
-                goto illegal_op;
-            }
-
             if (disas_neon_ls_insn(s, insn)) {
                 goto illegal_op;
             }
