@@ -598,3 +598,22 @@ static bool do_3same(DisasContext *s, arg_3same *a, GVecGen3Fn fn)
 
 DO_3SAME(VADD, tcg_gen_gvec_add)
 DO_3SAME(VSUB, tcg_gen_gvec_sub)
+DO_3SAME(VAND, tcg_gen_gvec_and)
+DO_3SAME(VBIC, tcg_gen_gvec_andc)
+DO_3SAME(VORR, tcg_gen_gvec_or)
+DO_3SAME(VORN, tcg_gen_gvec_orc)
+DO_3SAME(VEOR, tcg_gen_gvec_xor)
+
+/* These insns are all gvec_bitsel but with the inputs in various orders. */
+#define DO_3SAME_BITSEL(INSN, O1, O2, O3)                               \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        tcg_gen_gvec_bitsel(vece, rd_ofs, O1, O2, O3, oprsz, maxsz);    \
+    }                                                                   \
+    DO_3SAME(INSN, gen_##INSN##_3s)
+
+DO_3SAME_BITSEL(VBSL, rd_ofs, rn_ofs, rm_ofs)
+DO_3SAME_BITSEL(VBIT, rm_ofs, rn_ofs, rd_ofs)
+DO_3SAME_BITSEL(VBIF, rm_ofs, rd_ofs, rn_ofs)

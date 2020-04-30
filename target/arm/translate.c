@@ -4848,43 +4848,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             return 1;
 
-        case NEON_3R_LOGIC: /* Logic ops.  */
-            switch ((u << 2) | size) {
-            case 0: /* VAND */
-                tcg_gen_gvec_and(0, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-                break;
-            case 1: /* VBIC */
-                tcg_gen_gvec_andc(0, rd_ofs, rn_ofs, rm_ofs,
-                                  vec_size, vec_size);
-                break;
-            case 2: /* VORR */
-                tcg_gen_gvec_or(0, rd_ofs, rn_ofs, rm_ofs,
-                                vec_size, vec_size);
-                break;
-            case 3: /* VORN */
-                tcg_gen_gvec_orc(0, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-                break;
-            case 4: /* VEOR */
-                tcg_gen_gvec_xor(0, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-                break;
-            case 5: /* VBSL */
-                tcg_gen_gvec_bitsel(MO_8, rd_ofs, rd_ofs, rn_ofs, rm_ofs,
-                                    vec_size, vec_size);
-                break;
-            case 6: /* VBIT */
-                tcg_gen_gvec_bitsel(MO_8, rd_ofs, rm_ofs, rn_ofs, rd_ofs,
-                                    vec_size, vec_size);
-                break;
-            case 7: /* VBIF */
-                tcg_gen_gvec_bitsel(MO_8, rd_ofs, rm_ofs, rd_ofs, rn_ofs,
-                                    vec_size, vec_size);
-                break;
-            }
-            return 0;
-
         case NEON_3R_VQADD:
             tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),
                            rn_ofs, rm_ofs, vec_size, vec_size,
@@ -4962,6 +4925,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             return 0;
 
         case NEON_3R_VADD_VSUB:
+        case NEON_3R_LOGIC:
             /* Already handled by decodetree */
             return 1;
         }
