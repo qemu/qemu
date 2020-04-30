@@ -398,8 +398,6 @@ static void reset_gdbserver_state(void)
 bool gdb_has_xml;
 
 #ifdef CONFIG_USER_ONLY
-/* XXX: This is not thread safe.  Do we care?  */
-static int gdbserver_fd = -1;
 
 static int get_char(void)
 {
@@ -2964,7 +2962,7 @@ void gdb_exit(CPUArchState *env, int code)
       return;
   }
 #ifdef CONFIG_USER_ONLY
-  if (gdbserver_fd < 0 || gdbserver_state.fd < 0) {
+  if (gdbserver_state.fd < 0) {
       return;
   }
 #endif
@@ -3011,7 +3009,7 @@ gdb_handlesig(CPUState *cpu, int sig)
     char buf[256];
     int n;
 
-    if (gdbserver_fd < 0 || gdbserver_state.fd < 0) {
+    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
         return sig;
     }
 
@@ -3060,7 +3058,7 @@ void gdb_signalled(CPUArchState *env, int sig)
 {
     char buf[4];
 
-    if (gdbserver_fd < 0 || gdbserver_state.fd < 0) {
+    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
         return;
     }
 
@@ -3068,7 +3066,7 @@ void gdb_signalled(CPUArchState *env, int sig)
     put_packet(buf);
 }
 
-static bool gdb_accept(void)
+static bool gdb_accept(int gdb_fd)
 {
     struct sockaddr_in sockaddr;
     socklen_t len;
@@ -3076,7 +3074,7 @@ static bool gdb_accept(void)
 
     for(;;) {
         len = sizeof(sockaddr);
-        fd = accept(gdbserver_fd, (struct sockaddr *)&sockaddr, &len);
+        fd = accept(gdb_fd, (struct sockaddr *)&sockaddr, &len);
         if (fd < 0 && errno != EINTR) {
             perror("accept");
             return false;
@@ -3137,13 +3135,13 @@ static int gdbserver_open(int port)
 
 int gdbserver_start(int port)
 {
-    gdbserver_fd = gdbserver_open(port);
-    if (gdbserver_fd < 0)
+    int gdb_fd = gdbserver_open(port);
+    if (gdb_fd < 0) {
         return -1;
+    }
     /* accept connections */
-    if (!gdb_accept()) {
-        close(gdbserver_fd);
-        gdbserver_fd = -1;
+    if (!gdb_accept(gdb_fd)) {
+        close(gdb_fd);
         return -1;
     }
     return 0;
@@ -3152,7 +3150,7 @@ int gdbserver_start(int port)
 /* Disable gdb stub for child processes.  */
 void gdbserver_fork(CPUState *cpu)
 {
-    if (gdbserver_fd < 0 || gdbserver_state.fd < 0) {
+    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
         return;
     }
     close(gdbserver_state.fd);
