@@ -1572,6 +1572,12 @@ static int get_cluster_offset(BlockDriverState *bs,
     extent->l2_cache_counts[min_index] = 1;
  found:
     l2_index = ((offset >> 9) / extent->cluster_sectors) % extent->l2_size;
+    if (m_data) {
+        m_data->l1_index = l1_index;
+        m_data->l2_index = l2_index;
+        m_data->l2_offset = l2_offset;
+        m_data->l2_cache_entry = ((uint32_t *)l2_table) + l2_index;
+    }
 
     if (extent->sesparse) {
         cluster_sector = le64_to_cpu(((uint64_t *)l2_table)[l2_index]);
@@ -1631,10 +1637,6 @@ static int get_cluster_offset(BlockDriverState *bs,
         }
         if (m_data) {
             m_data->new_allocation = true;
-            m_data->l1_index = l1_index;
-            m_data->l2_index = l2_index;
-            m_data->l2_offset = l2_offset;
-            m_data->l2_cache_entry = ((uint32_t *)l2_table) + l2_index;
         }
     }
     *cluster_offset = cluster_sector << BDRV_SECTOR_BITS;
@@ -1990,7 +1992,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                 error_report("Could not write to allocated cluster"
                               " for streamOptimized");
                 return -EIO;
-            } else {
+            } else if (!zeroed) {
                 /* allocate */
                 ret = get_cluster_offset(bs, extent, &m_data, offset,
                                          true, &cluster_offset, 0, 0);
