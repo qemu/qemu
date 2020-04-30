@@ -7049,31 +7049,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
     bool is_long = false, q = extract32(insn, 6, 1);
     bool ptr_is_env = false;
 
-    if ((insn & 0xff000f10) == 0xfe000800) {
-        /* VCMLA (indexed) -- 1111 1110 S.RR .... .... 1000 ...0 .... */
-        int rot = extract32(insn, 20, 2);
-        int size = extract32(insn, 23, 1);
-        int index;
-
-        if (!dc_isar_feature(aa32_vcma, s)) {
-            return 1;
-        }
-        if (size == 0) {
-            if (!dc_isar_feature(aa32_fp16_arith, s)) {
-                return 1;
-            }
-            /* For fp16, rm is just Vm, and index is M.  */
-            rm = extract32(insn, 0, 4);
-            index = extract32(insn, 5, 1);
-        } else {
-            /* For fp32, rm is the usual M:Vm, and index is 0.  */
-            VFP_DREG_M(rm, insn);
-            index = 0;
-        }
-        data = (index << 2) | rot;
-        fn_gvec_ptr = (size ? gen_helper_gvec_fcmlas_idx
-                       : gen_helper_gvec_fcmlah_idx);
-    } else if ((insn & 0xffb00f00) == 0xfe200d00) {
+    if ((insn & 0xffb00f00) == 0xfe200d00) {
         /* V[US]DOT -- 1111 1110 0.10 .... .... 1101 .Q.U .... */
         int u = extract32(insn, 4, 1);
 
