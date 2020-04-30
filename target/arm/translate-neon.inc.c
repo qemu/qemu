@@ -653,3 +653,18 @@ static void gen_VTST_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &cmtst_op[vece]);
 }
 DO_3SAME_NO_SZ_3(VTST, gen_VTST_3s)
+
+#define DO_3SAME_GVEC4(INSN, OPARRAY)                                   \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),           \
+                       rn_ofs, rm_ofs, oprsz, maxsz, &OPARRAY[vece]);   \
+    }                                                                   \
+    DO_3SAME(INSN, gen_##INSN##_3s)
+
+DO_3SAME_GVEC4(VQADD_S, sqadd_op)
+DO_3SAME_GVEC4(VQADD_U, uqadd_op)
+DO_3SAME_GVEC4(VQSUB_S, sqsub_op)
+DO_3SAME_GVEC4(VQSUB_U, uqsub_op)
