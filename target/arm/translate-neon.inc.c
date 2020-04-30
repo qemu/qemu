@@ -26,6 +26,11 @@
  * It might be possible to convert it to a standalone .c file eventually.
  */
 
+static inline int plus1(DisasContext *s, int x)
+{
+    return x + 1;
+}
+
 /* Include the generated Neon decoder */
 #include "decode-neon-dp.inc.c"
 #include "decode-neon-ls.inc.c"
@@ -468,6 +473,90 @@ static bool trans_VLD_all_lanes(DisasContext *s, arg_VLD_all_lanes *a)
     tcg_temp_free_i32(addr);
 
     gen_neon_ldst_base_update(s, a->rm, a->rn, (1 << size) * nregs);
+
+    return true;
+}
+
+static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
+{
+    /* Neon load/store single structure to one lane */
+    int reg;
+    int nregs = a->n + 1;
+    int vd = a->vd;
+    TCGv_i32 addr, tmp;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+        return false;
+    }
+
+    /* Catch the UNDEF cases. This is unavoidably a bit messy. */
+    switch (nregs) {
+    case 1:
+        if (((a->align & (1 << a->size)) != 0) ||
+            (a->size == 2 && ((a->align & 3) == 1 || (a->align & 3) == 2))) {
+            return false;
+        }
+        break;
+    case 3:
+        if ((a->align & 1) != 0) {
+            return false;
+        }
+        /* fall through */
+    case 2:
+        if (a->size == 2 && (a->align & 2) != 0) {
+            return false;
+        }
+        break;
+    case 4:
+        if ((a->size == 2) && ((a->align & 3) == 3)) {
+            return false;
+        }
+        break;
+    default:
+        abort();
+    }
+    if ((vd + a->stride * (nregs - 1)) > 31) {
+        /*
+         * Attempts to write off the end of the register file are
+         * UNPREDICTABLE; we choose to UNDEF because otherwise we would
+         * access off the end of the array that holds the register data.
+         */
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tmp = tcg_temp_new_i32();
+    addr = tcg_temp_new_i32();
+    load_reg_var(s, addr, a->rn);
+    /*
+     * TODO: if we implemented alignment exceptions, we should check
+     * addr against the alignment encoded in a->align here.
+     */
+    for (reg = 0; reg < nregs; reg++) {
+        if (a->l) {
+            gen_aa32_ld_i32(s, tmp, addr, get_mem_index(s),
+                            s->be_data | a->size);
+            neon_store_element(vd, a->reg_idx, a->size, tmp);
+        } else { /* Store */
+            neon_load_element(tmp, vd, a->reg_idx, a->size);
+            gen_aa32_st_i32(s, tmp, addr, get_mem_index(s),
+                            s->be_data | a->size);
+        }
+        vd += a->stride;
+        tcg_gen_addi_i32(addr, addr, 1 << a->size);
+    }
+    tcg_temp_free_i32(addr);
+    tcg_temp_free_i32(tmp);
+
+    gen_neon_ldst_base_update(s, a->rm, a->rn, (1 << a->size) * nregs);
 
     return true;
 }
