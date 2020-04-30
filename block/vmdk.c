@@ -1340,7 +1340,9 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
  * get_whole_cluster
  *
  * Copy backing file's cluster that covers @sector_num, otherwise write zero,
- * to the cluster at @cluster_sector_num.
+ * to the cluster at @cluster_sector_num. If @zeroed is true, we're overwriting
+ * a zeroed cluster in the current layer and must not copy data from the
+ * backing file.
  *
  * If @skip_start_sector < @skip_end_sector, the relative range
  * [@skip_start_sector, @skip_end_sector) is not copied or written, and leave
@@ -1351,18 +1353,21 @@ static int get_whole_cluster(BlockDriverState *bs,
                              uint64_t cluster_offset,
                              uint64_t offset,
                              uint64_t skip_start_bytes,
-                             uint64_t skip_end_bytes)
+                             uint64_t skip_end_bytes,
+                             bool zeroed)
 {
     int ret = VMDK_OK;
     int64_t cluster_bytes;
     uint8_t *whole_grain;
+    bool copy_from_backing;
 
     /* For COW, align request sector_num to cluster start */
     cluster_bytes = extent->cluster_sectors << BDRV_SECTOR_BITS;
     offset = QEMU_ALIGN_DOWN(offset, cluster_bytes);
     whole_grain = qemu_blockalign(bs, cluster_bytes);
+    copy_from_backing = bs->backing && !zeroed;
 
-    if (!bs->backing) {
+    if (!copy_from_backing) {
         memset(whole_grain, 0, skip_start_bytes);
         memset(whole_grain + skip_end_bytes, 0, cluster_bytes - skip_end_bytes);
     }
@@ -1377,7 +1382,7 @@ static int get_whole_cluster(BlockDriverState *bs,
 
     /* Read backing data before skip range */
     if (skip_start_bytes > 0) {
-        if (bs->backing) {
+        if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
             BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_pread(bs->backing, offset, whole_grain,
@@ -1397,7 +1402,7 @@ static int get_whole_cluster(BlockDriverState *bs,
     }
     /* Read backing data after skip range */
     if (skip_end_bytes < cluster_bytes) {
-        if (bs->backing) {
+        if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
             BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_pread(bs->backing, offset + skip_end_bytes,
@@ -1631,7 +1636,8 @@ static int get_cluster_offset(BlockDriverState *bs,
          * or inappropriate VM shutdown.
          */
         ret = get_whole_cluster(bs, extent, cluster_sector * BDRV_SECTOR_SIZE,
-                                offset, skip_start_bytes, skip_end_bytes);
+                                offset, skip_start_bytes, skip_end_bytes,
+                                zeroed);
         if (ret) {
             return ret;
         }
