@@ -15,6 +15,8 @@ import argparse
 import subprocess
 import shutil
 import shlex
+import os
+from tempfile import TemporaryDirectory
 
 def get_args():
     parser = argparse.ArgumentParser(description="A gdbstub test runner")
@@ -41,11 +43,15 @@ if __name__ == '__main__':
         print("We need gdb to run the test")
         exit(-1)
 
+    socket_dir = TemporaryDirectory("qemu-gdbstub")
+    socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
+
     # Launch QEMU with binary
     if "system" in args.qemu:
         cmd = "%s %s %s -s -S" % (args.qemu, args.qargs, args.binary)
     else:
-        cmd = "%s %s -g 1234 %s" % (args.qemu, args.qargs, args.binary)
+        cmd = "%s %s -g %s %s" % (args.qemu, args.qargs, socket_name,
+                                  args.binary)
 
     inferior = subprocess.Popen(shlex.split(cmd))
 
@@ -56,7 +62,10 @@ if __name__ == '__main__':
     # disable prompts in case of crash
     gdb_cmd += " -ex 'set confirm off'"
     # connect to remote
-    gdb_cmd += " -ex 'target remote localhost:1234'"
+    if "system" in args.qemu:
+        gdb_cmd += " -ex 'target remote localhost:1234'"
+    else:
+        gdb_cmd += " -ex 'target remote %s'" % (socket_name)
     # finally the test script itself
     gdb_cmd += " -x %s" % (args.test)
 
