@@ -22,6 +22,9 @@
    It also protects replay events queue which stores events to be
    written or read to the log. */
 static QemuMutex lock;
+/* Condition and queue for fair ordering of mutex lock requests. */
+static QemuCond mutex_cond;
+static unsigned long mutex_head, mutex_tail;
 
 /* File for replay writing */
 static bool write_error;
@@ -197,9 +200,10 @@ static __thread bool replay_locked;
 void replay_mutex_init(void)
 {
     qemu_mutex_init(&lock);
+    qemu_cond_init(&mutex_cond);
     /* Hold the mutex while we start-up */
-    qemu_mutex_lock(&lock);
     replay_locked = true;
+    ++mutex_tail;
 }
 
 bool replay_mutex_locked(void)
@@ -211,10 +215,16 @@ bool replay_mutex_locked(void)
 void replay_mutex_lock(void)
 {
     if (replay_mode != REPLAY_MODE_NONE) {
+        unsigned long id;
         g_assert(!qemu_mutex_iothread_locked());
         g_assert(!replay_mutex_locked());
         qemu_mutex_lock(&lock);
+        id = mutex_tail++;
+        while (id != mutex_head) {
+            qemu_cond_wait(&mutex_cond, &lock);
+        }
         replay_locked = true;
+        qemu_mutex_unlock(&lock);
     }
 }
 
@@ -222,7 +232,10 @@ void replay_mutex_unlock(void)
 {
     if (replay_mode != REPLAY_MODE_NONE) {
         g_assert(replay_mutex_locked());
+        qemu_mutex_lock(&lock);
+        ++mutex_head;
         replay_locked = false;
+        qemu_cond_broadcast(&mutex_cond);
         qemu_mutex_unlock(&lock);
     }
 }
