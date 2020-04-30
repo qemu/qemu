@@ -25,6 +25,7 @@
 #include "qemu/timer.h"
 #include "qemu/qemu-print.h"
 #include "hw/s390x/ioinst.h"
+#include "hw/s390x/pv.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
 #ifndef CONFIG_USER_ONLY
@@ -245,6 +246,11 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     SigpSaveArea *sa;
     hwaddr len = sizeof(*sa);
     int i;
+
+    /* For PVMs storing will occur when this cpu enters SIE again */
+    if (s390_is_pv()) {
+        return 0;
+    }
 
     sa = cpu_physical_memory_map(addr, &len, true);
     if (!sa) {

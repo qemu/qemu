@@ -24,3 +24,8 @@ or vfio-ap is also available.
 .. toctree::
    s390x/vfio-ap
 
+Architectural features
+======================
+
+.. toctree::
+   s390x/protvirt

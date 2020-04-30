@@ -39,6 +39,11 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
     return 0;
 }
 
+int kvm_s390_get_hpage_1m(void)
+{
+    return 0;
+}
+
 int kvm_s390_get_ri(void)
 {
     return 0;
