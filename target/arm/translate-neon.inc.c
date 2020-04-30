@@ -631,3 +631,25 @@ DO_3SAME_NO_SZ_3(VMAX_S, tcg_gen_gvec_smax)
 DO_3SAME_NO_SZ_3(VMAX_U, tcg_gen_gvec_umax)
 DO_3SAME_NO_SZ_3(VMIN_S, tcg_gen_gvec_smin)
 DO_3SAME_NO_SZ_3(VMIN_U, tcg_gen_gvec_umin)
+
+#define DO_3SAME_CMP(INSN, COND)                                        \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        tcg_gen_gvec_cmp(COND, vece, rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz); \
+    }                                                                   \
+    DO_3SAME_NO_SZ_3(INSN, gen_##INSN##_3s)
+
+DO_3SAME_CMP(VCGT_S, TCG_COND_GT)
+DO_3SAME_CMP(VCGT_U, TCG_COND_GTU)
+DO_3SAME_CMP(VCGE_S, TCG_COND_GE)
+DO_3SAME_CMP(VCGE_U, TCG_COND_GEU)
+DO_3SAME_CMP(VCEQ, TCG_COND_EQ)
+
+static void gen_VTST_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                         uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &cmtst_op[vece]);
+}
+DO_3SAME_NO_SZ_3(VTST, gen_VTST_3s)
