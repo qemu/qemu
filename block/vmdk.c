@@ -2013,7 +2013,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                     offset_in_cluster == 0 &&
                     n_bytes >= extent->cluster_sectors * BDRV_SECTOR_SIZE) {
                 n_bytes = extent->cluster_sectors * BDRV_SECTOR_SIZE;
-                if (!zero_dry_run) {
+                if (!zero_dry_run && ret != VMDK_ZEROED) {
                     /* update L2 tables */
                     if (vmdk_L2update(extent, &m_data, VMDK_GTE_ZEROED)
                             != VMDK_OK) {
