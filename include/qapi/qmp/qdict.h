@@ -40,9 +40,6 @@ void qdict_del(QDict *qdict, const char *key);
 int qdict_haskey(const QDict *qdict, const char *key);
 QObject *qdict_get(const QDict *qdict, const char *key);
 bool qdict_is_equal(const QObject *x, const QObject *y);
-void qdict_iter(const QDict *qdict,
-                void (*iter)(const char *key, QObject *obj, void *opaque),
-                void *opaque);
 const QDictEntry *qdict_first(const QDict *qdict);
 const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry);
 void qdict_destroy_obj(QObject *obj);

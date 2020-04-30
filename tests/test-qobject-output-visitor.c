@@ -141,21 +141,6 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
     }
 }
 
-static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
-                                         const void *unused)
-{
-    EnumOne i, bad_values[] = { ENUM_ONE__MAX, -1 };
-
-    for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
-        Error *err = NULL;
-
-        visit_type_EnumOne(data->ov, "unused", &bad_values[i], &err);
-        error_free_or_abort(&err);
-        visitor_reset(data);
-    }
-}
-
-
 static void test_visitor_out_struct(TestOutputVisitorData *data,
                                     const void *unused)
 {
@@ -233,26 +218,6 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
 
     qapi_free_UserDefTwo(ud2);
 }
-
-static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
-                                           const void *unused)
-{
-    EnumOne bad_values[] = { ENUM_ONE__MAX, -1 };
-    UserDefOne u = {0};
-    UserDefOne *pu = &u;
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
-        Error *err = NULL;
-
-        u.has_enum1 = true;
-        u.enum1 = bad_values[i];
-        visit_type_UserDefOne(data->ov, "unused", &pu, &err);
-        error_free_or_abort(&err);
-        visitor_reset(data);
-    }
-}
-
 
 static void test_visitor_out_list(TestOutputVisitorData *data,
                                   const void *unused)
@@ -821,14 +786,10 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_no_string);
     output_visitor_test_add("/visitor/output/enum",
                             &out_visitor_data, test_visitor_out_enum);
-    output_visitor_test_add("/visitor/output/enum-errors",
-                            &out_visitor_data, test_visitor_out_enum_errors);
     output_visitor_test_add("/visitor/output/struct",
                             &out_visitor_data, test_visitor_out_struct);
     output_visitor_test_add("/visitor/output/struct-nested",
                             &out_visitor_data, test_visitor_out_struct_nested);
-    output_visitor_test_add("/visitor/output/struct-errors",
-                            &out_visitor_data, test_visitor_out_struct_errors);
     output_visitor_test_add("/visitor/output/list",
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/any",

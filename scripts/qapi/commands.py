@@ -104,6 +104,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 %(proto)s
 {
     Error *err = NULL;
+    Visitor *v;
 ''',
                 proto=build_marshal_proto(name))
 
@@ -114,43 +115,37 @@ def gen_marshal(name, arg_type, boxed, ret_type):
                      c_type=ret_type.c_type())
 
     if have_args:
-        visit_members = ('visit_type_%s_members(v, &arg, &err);'
-                         % arg_type.c_name())
         ret += mcgen('''
-    Visitor *v;
     %(c_name)s arg = {0};
-
 ''',
                      c_name=arg_type.c_name())
-    else:
-        visit_members = ''
-        ret += mcgen('''
-    Visitor *v = NULL;
-
-    if (args) {
-''')
-        push_indent()
 
     ret += mcgen('''
+
     v = qobject_input_visitor_new(QOBJECT(args));
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }
-    %(visit_members)s
+''')
+
+    if have_args:
+        ret += mcgen('''
+    visit_type_%(c_arg_type)s_members(v, &arg, &err);
     if (!err) {
         visit_check_struct(v, &err);
     }
+''',
+                     c_arg_type=arg_type.c_name())
+    else:
+        ret += mcgen('''
+    visit_check_struct(v, &err);
+''')
+
+    ret += mcgen('''
     visit_end_struct(v, NULL);
     if (err) {
         goto out;
-    }
-''',
-                 visit_members=visit_members)
-
-    if not have_args:
-        pop_indent()
-        ret += mcgen('''
     }
 ''')
 
@@ -163,29 +158,20 @@ out:
     visit_free(v);
 ''')
 
-    if have_args:
-        visit_members = ('visit_type_%s_members(v, &arg, NULL);'
-                         % arg_type.c_name())
-    else:
-        visit_members = ''
-        ret += mcgen('''
-    if (args) {
-''')
-        push_indent()
-
     ret += mcgen('''
     v = qapi_dealloc_visitor_new();
     visit_start_struct(v, NULL, NULL, 0, NULL);
-    %(visit_members)s
+''')
+
+    if have_args:
+        ret += mcgen('''
+    visit_type_%(c_arg_type)s_members(v, &arg, NULL);
+''',
+                     c_arg_type=arg_type.c_name())
+
+    ret += mcgen('''
     visit_end_struct(v, NULL);
     visit_free(v);
-''',
-                 visit_members=visit_members)
-
-    if not have_args:
-        pop_indent()
-        ret += mcgen('''
-    }
 ''')
 
     ret += mcgen('''

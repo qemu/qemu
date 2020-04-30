@@ -113,7 +113,7 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
 
     while (m) {
         v = string_output_visitor_new(false, &str);
-        visit_type_uint16List(v, NULL, &m->value->host_nodes, NULL);
+        visit_type_uint16List(v, NULL, &m->value->host_nodes, &error_abort);
         monitor_printf(mon, "memory backend: %s\n", m->value->id);
         monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
         monitor_printf(mon, "  merge: %s\n",

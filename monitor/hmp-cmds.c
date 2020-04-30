@@ -334,7 +334,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
         Visitor *v;
         char *str;
         v = string_output_visitor_new(false, &str);
-        visit_type_uint32List(v, NULL, &info->postcopy_vcpu_blocktime, NULL);
+        visit_type_uint32List(v, NULL, &info->postcopy_vcpu_blocktime,
+                              &error_abort);
         visit_complete(v, &str);
         monitor_printf(mon, "postcopy vcpu blocktime: %s\n", str);
         g_free(str);

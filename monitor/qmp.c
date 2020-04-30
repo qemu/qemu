@@ -322,9 +322,12 @@ static QDict *qmp_greeting(MonitorQMP *mon)
 {
     QList *cap_list = qlist_new();
     QObject *ver = NULL;
+    QDict *args;
     QMPCapability cap;
 
-    qmp_marshal_query_version(NULL, &ver, NULL);
+    args = qdict_new();
+    qmp_marshal_query_version(args, &ver, NULL);
+    qobject_unref(args);
 
     for (cap = 0; cap < QMP_CAPABILITY__MAX; cap++) {
         if (mon->capab_offered[cap]) {

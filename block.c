@@ -2982,7 +2982,6 @@ BdrvChild *bdrv_open_child(const char *filename,
 BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
 {
     BlockDriverState *bs = NULL;
-    Error *local_err = NULL;
     QObject *obj = NULL;
     QDict *qdict = NULL;
     const char *reference = NULL;
@@ -2995,11 +2994,7 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         assert(ref->type == QTYPE_QDICT);
 
         v = qobject_output_visitor_new(&obj);
-        visit_type_BlockdevOptions(v, NULL, &options, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto fail;
-        }
+        visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
         visit_complete(v, &obj);
 
         qdict = qobject_to(QDict, obj);
@@ -3017,8 +3012,6 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
 
     bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, errp);
     obj = NULL;
-
-fail:
     qobject_unref(obj);
     visit_free(v);
     return bs;

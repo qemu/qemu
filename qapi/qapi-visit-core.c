@@ -142,6 +142,11 @@ bool visit_is_input(Visitor *v)
     return v->type == VISITOR_INPUT;
 }
 
+bool visit_is_dealloc(Visitor *v)
+{
+    return v->type == VISITOR_DEALLOC;
+}
+
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     assert(obj);
@@ -155,10 +160,13 @@ static void visit_type_uintN(Visitor *v, uint64_t *obj, const char *name,
     Error *err = NULL;
     uint64_t value = *obj;
 
+    assert(v->type == VISITOR_INPUT || value <= max);
+
     v->type_uint64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
     } else if (value > max) {
+        assert(v->type == VISITOR_INPUT);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    name ? name : "null", type);
     } else {
@@ -214,10 +222,13 @@ static void visit_type_intN(Visitor *v, int64_t *obj, const char *name,
     Error *err = NULL;
     int64_t value = *obj;
 
+    assert(v->type == VISITOR_INPUT || (value >= min && value <= max));
+
     v->type_int64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
     } else if (value < min || value > max) {
+        assert(v->type == VISITOR_INPUT);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    name ? name : "null", type);
     } else {
@@ -335,15 +346,6 @@ static void output_type_enum(Visitor *v, const char *name, int *obj,
 {
     int value = *obj;
     char *enum_str;
-
-    /*
-     * TODO why is this an error, not an assertion?  If assertion:
-     * delete, and rely on qapi_enum_lookup()
-     */
-    if (value < 0 || value >= lookup->size) {
-        error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
-        return;
-    }
 
     enum_str = (char *)qapi_enum_lookup(lookup, value);
     visit_type_str(v, name, &enum_str, errp);

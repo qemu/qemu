@@ -1446,6 +1446,8 @@ Example:
             goto out;
         }
         if (!*obj) {
+            /* incomplete */
+            assert(visit_is_dealloc(v));
             goto out_obj;
         }
         visit_type_UserDefOne_members(v, *obj, &err);
@@ -1577,8 +1579,8 @@ Example:
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *err = NULL;
-        UserDefOne *retval;
         Visitor *v;
+        UserDefOne *retval;
         q_obj_my_command_arg arg = {0};
 
         v = qobject_input_visitor_new(QOBJECT(args));

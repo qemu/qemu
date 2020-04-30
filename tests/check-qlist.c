@@ -61,40 +61,31 @@ static void qobject_to_qlist_test(void)
     qobject_unref(qlist);
 }
 
-static int iter_called;
-static const int iter_max = 42;
-
-static void iter_func(QObject *obj, void *opaque)
-{
-    QNum *qi;
-    int64_t val;
-
-    g_assert(opaque == NULL);
-
-    qi = qobject_to(QNum, obj);
-    g_assert(qi != NULL);
-
-    g_assert(qnum_get_try_int(qi, &val));
-    g_assert_cmpint(val, >=, 0);
-    g_assert_cmpint(val, <=, iter_max);
-
-    iter_called++;
-}
-
 static void qlist_iter_test(void)
 {
+    const int iter_max = 42;
     int i;
     QList *qlist;
+    QListEntry *entry;
+    QNum *qi;
+    int64_t val;
 
     qlist = qlist_new();
 
     for (i = 0; i < iter_max; i++)
         qlist_append_int(qlist, i);
 
-    iter_called = 0;
-    qlist_iter(qlist, iter_func, NULL);
+    i = 0;
+    QLIST_FOREACH_ENTRY(qlist, entry) {
+        qi = qobject_to(QNum, qlist_entry_obj(entry));
+        g_assert(qi != NULL);
 
-    g_assert(iter_called == iter_max);
+        g_assert(qnum_get_try_int(qi, &val));
+        g_assert_cmpint(val, ==, i);
+        i++;
+    }
+
+    g_assert(i == iter_max);
 
     qobject_unref(qlist);
 }

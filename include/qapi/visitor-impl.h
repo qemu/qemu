@@ -43,6 +43,10 @@ typedef enum VisitorType {
 
 struct Visitor
 {
+    /*
+     * Only input visitors may fail!
+     */
+
     /* Must be set to visit structs */
     void (*start_struct)(Visitor *v, const char *name, void **obj,
                          size_t size, Error **errp);
@@ -67,13 +71,12 @@ struct Visitor
     /* Must be set */
     void (*end_list)(Visitor *v, void **list);
 
-    /* Must be set by input and dealloc visitors to visit alternates;
-     * optional for output visitors. */
+    /* Must be set by input and clone visitors to visit alternates */
     void (*start_alternate)(Visitor *v, const char *name,
                             GenericAlternate **obj, size_t size,
                             Error **errp);
 
-    /* Optional, needed for dealloc visitor */
+    /* Optional */
     void (*end_alternate)(Visitor *v, void **obj);
 
     /* Must be set */
