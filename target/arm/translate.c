@@ -7048,14 +7048,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
     bool is_long = false, q = extract32(insn, 6, 1);
     bool ptr_is_env = false;
 
-    if ((insn & 0xfeb00f00) == 0xfc200d00) {
-        /* V[US]DOT -- 1111 1100 0.10 .... .... 1101 .Q.U .... */
-        bool u = extract32(insn, 4, 1);
-        if (!dc_isar_feature(aa32_dp, s)) {
-            return 1;
-        }
-        fn_gvec = u ? gen_helper_gvec_udot_b : gen_helper_gvec_sdot_b;
-    } else if ((insn & 0xff300f10) == 0xfc200810) {
+    if ((insn & 0xff300f10) == 0xfc200810) {
         /* VFM[AS]L -- 1111 1100 S.10 .... .... 1000 .Q.1 .... */
         int is_s = extract32(insn, 23, 1);
         if (!dc_isar_feature(aa32_fhm, s)) {

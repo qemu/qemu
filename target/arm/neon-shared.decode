@@ -39,3 +39,7 @@ VCMLA          1111 110 rot:2 . 1 size:1 .... .... 1000 . q:1 . 0 .... \
 
 VCADD          1111 110 rot:1 1 . 0 size:1 .... .... 1000 . q:1 . 0 .... \
                vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+# VUDOT and VSDOT
+VDOT           1111 110 00 . 10 .... .... 1101 . q:1 . u:1 .... \
+               vm=%vm_dp vn=%vn_dp vd=%vd_dp
