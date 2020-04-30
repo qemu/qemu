@@ -180,7 +180,7 @@ typedef struct VmdkMetaData {
     unsigned int l1_index;
     unsigned int l2_index;
     unsigned int l2_offset;
-    int valid;
+    bool new_allocation;
     uint32_t *l2_cache_entry;
 } VmdkMetaData;
 
@@ -1492,7 +1492,7 @@ static int get_cluster_offset(BlockDriverState *bs,
     unsigned int l2_size_bytes = extent->l2_size * extent->entry_size;
 
     if (m_data) {
-        m_data->valid = 0;
+        m_data->new_allocation = false;
     }
     if (extent->flat) {
         *cluster_offset = extent->flat_start_offset;
@@ -1630,7 +1630,7 @@ static int get_cluster_offset(BlockDriverState *bs,
             return ret;
         }
         if (m_data) {
-            m_data->valid = 1;
+            m_data->new_allocation = true;
             m_data->l1_index = l1_index;
             m_data->l2_index = l2_index;
             m_data->l2_offset = l2_offset;
@@ -2021,7 +2021,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
             if (ret) {
                 return ret;
             }
-            if (m_data.valid) {
+            if (m_data.new_allocation) {
                 /* update L2 tables */
                 if (vmdk_L2update(extent, &m_data,
                                   cluster_offset >> BDRV_SECTOR_BITS)
