@@ -57,3 +57,10 @@ VCMLA_scalar   1111 1110 1 . rot:2 .... .... 1000 . q:1 . 0 .... \
 
 VDOT_scalar    1111 1110 0 . 10 .... .... 1101 . q:1 index:1 u:1 rm:4 \
                vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+%vfml_scalar_q0_rm 0:3 5:1
+%vfml_scalar_q1_index 5:1 3:1
+VFML_scalar    1111 1110 0 . 0 s:1 .... .... 1000 . 0 . 1 index:1 ... \
+               rm=%vfml_scalar_q0_rm vn=%vn_sp vd=%vd_dp q=0
+VFML_scalar    1111 1110 0 . 0 s:1 .... .... 1000 . 1 . 1 . rm:3 \
+               index=%vfml_scalar_q1_index vn=%vn_dp vd=%vd_dp q=1
