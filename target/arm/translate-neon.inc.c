@@ -631,6 +631,7 @@ DO_3SAME_NO_SZ_3(VMAX_S, tcg_gen_gvec_smax)
 DO_3SAME_NO_SZ_3(VMAX_U, tcg_gen_gvec_umax)
 DO_3SAME_NO_SZ_3(VMIN_S, tcg_gen_gvec_smin)
 DO_3SAME_NO_SZ_3(VMIN_U, tcg_gen_gvec_umin)
+DO_3SAME_NO_SZ_3(VMUL, tcg_gen_gvec_mul)
 
 #define DO_3SAME_CMP(INSN, COND)                                        \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
@@ -668,3 +669,46 @@ DO_3SAME_GVEC4(VQADD_S, sqadd_op)
 DO_3SAME_GVEC4(VQADD_U, uqadd_op)
 DO_3SAME_GVEC4(VQSUB_S, sqsub_op)
 DO_3SAME_GVEC4(VQSUB_U, uqsub_op)
+
+static void gen_VMUL_p_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                           uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz,
+                       0, gen_helper_gvec_pmul_b);
+}
+
+static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
+{
+    if (a->size != 0) {
+        return false;
+    }
+    return do_3same(s, a, gen_VMUL_p_3s);
+}
+
+#define DO_3SAME_GVEC3_NO_SZ_3(INSN, OPARRAY)                           \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs,                          \
+                       oprsz, maxsz, &OPARRAY[vece]);                   \
+    }                                                                   \
+    DO_3SAME_NO_SZ_3(INSN, gen_##INSN##_3s)
+
+
+DO_3SAME_GVEC3_NO_SZ_3(VMLA, mla_op)
+DO_3SAME_GVEC3_NO_SZ_3(VMLS, mls_op)
+
+#define DO_3SAME_GVEC3_SHIFT(INSN, OPARRAY)                             \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        /* Note the operation is vshl vd,vm,vn */                       \
+        tcg_gen_gvec_3(rd_ofs, rm_ofs, rn_ofs,                          \
+                       oprsz, maxsz, &OPARRAY[vece]);                   \
+    }                                                                   \
+    DO_3SAME(INSN, gen_##INSN##_3s)
+
+DO_3SAME_GVEC3_SHIFT(VSHL_S, sshl_op)
+DO_3SAME_GVEC3_SHIFT(VSHL_U, ushl_op)

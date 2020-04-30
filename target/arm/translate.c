@@ -4848,31 +4848,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             return 1;
 
-        case NEON_3R_VMUL: /* VMUL */
-            if (u) {
-                /* Polynomial case allows only P8.  */
-                if (size != 0) {
-                    return 1;
-                }
-                tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size,
-                                   0, gen_helper_gvec_pmul_b);
-            } else {
-                tcg_gen_gvec_mul(size, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-            }
-            return 0;
-
-        case NEON_3R_VML: /* VMLA, VMLS */
-            tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size,
-                           u ? &mls_op[size] : &mla_op[size]);
-            return 0;
-
-        case NEON_3R_VSHL:
-            /* Note the operation is vshl vd,vm,vn */
-            tcg_gen_gvec_3(rd_ofs, rm_ofs, rn_ofs, vec_size, vec_size,
-                           u ? &ushl_op[size] : &sshl_op[size]);
-            return 0;
-
         case NEON_3R_VADD_VSUB:
         case NEON_3R_LOGIC:
         case NEON_3R_VMAX:
@@ -4882,6 +4857,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_VCGE:
         case NEON_3R_VQADD:
         case NEON_3R_VQSUB:
+        case NEON_3R_VMUL:
+        case NEON_3R_VML:
+        case NEON_3R_VSHL:
             /* Already handled by decodetree */
             return 1;
         }
