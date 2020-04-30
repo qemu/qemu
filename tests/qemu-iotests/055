@@ -566,6 +566,10 @@ class TestCompressedToQcow2(iotests.QMPTestCase):
 class TestCompressedToVmdk(TestCompressedToQcow2):
     target_fmt = {'type': 'vmdk', 'args': ('-o', 'subformat=streamOptimized')}
 
+    @iotests.skip_if_unsupported(['vmdk'])
+    def setUp(self):
+        pass
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['raw', 'qcow2'],
