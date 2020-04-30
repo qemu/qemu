@@ -47,6 +47,7 @@ sector = "%d"
 ''' % bad_sector)
         file.close()
 
+    @iotests.skip_if_unsupported(['quorum'])
     def setUp(self):
         driveopts = ['driver=quorum', 'vote-threshold=2']
         driveopts.append('read-pattern=%s' % self.read_pattern)
