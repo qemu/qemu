@@ -7049,18 +7049,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
     bool is_long = false, q = extract32(insn, 6, 1);
     bool ptr_is_env = false;
 
-    if ((insn & 0xffb00f00) == 0xfe200d00) {
-        /* V[US]DOT -- 1111 1110 0.10 .... .... 1101 .Q.U .... */
-        int u = extract32(insn, 4, 1);
-
-        if (!dc_isar_feature(aa32_dp, s)) {
-            return 1;
-        }
-        fn_gvec = u ? gen_helper_gvec_udot_idx_b : gen_helper_gvec_sdot_idx_b;
-        /* rm is just Vm, and index is M.  */
-        data = extract32(insn, 5, 1); /* index */
-        rm = extract32(insn, 0, 4);
-    } else if ((insn & 0xffa00f10) == 0xfe000810) {
+    if ((insn & 0xffa00f10) == 0xfe000810) {
         /* VFM[AS]L -- 1111 1110 0.0S .... .... 1000 .Q.1 .... */
         int is_s = extract32(insn, 20, 1);
         int vm20 = extract32(insn, 0, 3);
