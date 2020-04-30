@@ -355,6 +355,7 @@ typedef struct GDBState {
     int signal;
 #ifdef CONFIG_USER_ONLY
     int fd;
+    char *socket_path;
     int running_state;
 #else
     CharBackend chr;
@@ -2962,6 +2963,9 @@ void gdb_exit(CPUArchState *env, int code)
       return;
   }
 #ifdef CONFIG_USER_ONLY
+  if (gdbserver_state.socket_path) {
+      unlink(gdbserver_state.socket_path);
+  }
   if (gdbserver_state.fd < 0) {
       return;
   }
@@ -3066,7 +3070,66 @@ void gdb_signalled(CPUArchState *env, int sig)
     put_packet(buf);
 }
 
-static bool gdb_accept(int gdb_fd)
+static void gdb_accept_init(int fd)
+{
+    init_gdbserver_state();
+    create_default_process(&gdbserver_state);
+    gdbserver_state.processes[0].attached = true;
+    gdbserver_state.c_cpu = gdb_first_attached_cpu();
+    gdbserver_state.g_cpu = gdbserver_state.c_cpu;
+    gdbserver_state.fd = fd;
+    gdb_has_xml = false;
+}
+
+static bool gdb_accept_socket(int gdb_fd)
+{
+    int fd;
+
+    for(;;) {
+        fd = accept(gdb_fd, NULL, NULL);
+        if (fd < 0 && errno != EINTR) {
+            perror("accept socket");
+            return false;
+        } else if (fd >= 0) {
+            qemu_set_cloexec(fd);
+            break;
+        }
+    }
+
+    gdb_accept_init(fd);
+    return true;
+}
+
+static int gdbserver_open_socket(const char *path)
+{
+    struct sockaddr_un sockaddr;
+    int fd, ret;
+
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) {
+        perror("create socket");
+        return -1;
+    }
+
+    sockaddr.sun_family = AF_UNIX;
+    pstrcpy(sockaddr.sun_path, sizeof(sockaddr.sun_path) - 1, path);
+    ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (ret < 0) {
+        perror("bind socket");
+        close(fd);
+        return -1;
+    }
+    ret = listen(fd, 1);
+    if (ret < 0) {
+        perror("listen socket");
+        close(fd);
+        return -1;
+    }
+
+    return fd;
+}
+
+static bool gdb_accept_tcp(int gdb_fd)
 {
     struct sockaddr_in sockaddr;
     socklen_t len;
@@ -3091,17 +3154,11 @@ static bool gdb_accept(int gdb_fd)
         return false;
     }
 
-    init_gdbserver_state();
-    create_default_process(&gdbserver_state);
-    gdbserver_state.processes[0].attached = true;
-    gdbserver_state.c_cpu = gdb_first_attached_cpu();
-    gdbserver_state.g_cpu = gdbserver_state.c_cpu;
-    gdbserver_state.fd = fd;
-    gdb_has_xml = false;
+    gdb_accept_init(fd);
     return true;
 }
 
-static int gdbserver_open(int port)
+static int gdbserver_open_port(int port)
 {
     struct sockaddr_in sockaddr;
     int fd, ret;
@@ -3130,21 +3187,35 @@ static int gdbserver_open(int port)
         close(fd);
         return -1;
     }
+
     return fd;
 }
 
-int gdbserver_start(int port)
+int gdbserver_start(const char *port_or_path)
 {
-    int gdb_fd = gdbserver_open(port);
+    int port = g_ascii_strtoull(port_or_path, NULL, 10);
+    int gdb_fd;
+
+    if (port > 0) {
+        gdb_fd = gdbserver_open_port(port);
+    } else {
+        gdb_fd = gdbserver_open_socket(port_or_path);
+    }
+
     if (gdb_fd < 0) {
         return -1;
     }
-    /* accept connections */
-    if (!gdb_accept(gdb_fd)) {
-        close(gdb_fd);
-        return -1;
+
+    if (port > 0 && gdb_accept_tcp(gdb_fd)) {
+        return 0;
+    } else if (gdb_accept_socket(gdb_fd)) {
+        gdbserver_state.socket_path = g_strdup(port_or_path);
+        return 0;
     }
-    return 0;
+
+    /* gone wrong */
+    close(gdb_fd);
+    return -1;
 }
 
 /* Disable gdb stub for child processes.  */
