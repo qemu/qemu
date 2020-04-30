@@ -958,11 +958,13 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
 {
     DWORD info_size;
     char mnt, *mnt_point;
+    wchar_t wfs_name[32];
     char fs_name[32];
-    char vol_info[MAX_PATH+1];
+    wchar_t vol_info[MAX_PATH + 1];
     size_t len;
     uint64_t i64FreeBytesToCaller, i64TotalBytes, i64FreeBytes;
     GuestFilesystemInfo *fs = NULL;
+    HANDLE hLocalDiskHandle = NULL;
 
     GetVolumePathNamesForVolumeName(guid, (LPCH)&mnt, 0, &info_size);
     if (GetLastError() != ERROR_MORE_DATA) {
@@ -977,18 +979,27 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
         goto free;
     }
 
+    hLocalDiskHandle = CreateFile(guid, 0 , 0, NULL, OPEN_EXISTING,
+                                  FILE_ATTRIBUTE_NORMAL |
+                                  FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (INVALID_HANDLE_VALUE == hLocalDiskHandle) {
+        error_setg_win32(errp, GetLastError(), "failed to get handle for volume");
+        goto free;
+    }
+
     len = strlen(mnt_point);
     mnt_point[len] = '\\';
     mnt_point[len+1] = 0;
-    if (!GetVolumeInformation(mnt_point, vol_info, sizeof(vol_info), NULL, NULL,
-                              NULL, (LPSTR)&fs_name, sizeof(fs_name))) {
+
+    if (!GetVolumeInformationByHandleW(hLocalDiskHandle, vol_info,
+                                       sizeof(vol_info), NULL, NULL, NULL,
+                                       (LPWSTR) & wfs_name, sizeof(wfs_name))) {
         if (GetLastError() != ERROR_NOT_READY) {
             error_setg_win32(errp, GetLastError(), "failed to get volume info");
         }
         goto free;
     }
 
-    fs_name[sizeof(fs_name) - 1] = 0;
     fs = g_malloc(sizeof(*fs));
     fs->name = g_strdup(guid);
     fs->has_total_bytes = false;
@@ -1007,9 +1018,11 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
             fs->has_used_bytes = true;
         }
     }
+    wcstombs(fs_name, wfs_name, sizeof(wfs_name));
     fs->type = g_strdup(fs_name);
     fs->disk = build_guest_disk_info(guid, errp);
 free:
+    CloseHandle(hLocalDiskHandle);
     g_free(mnt_point);
     return fs;
 }
@@ -1027,8 +1040,12 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     }
 
     do {
-        GuestFilesystemInfo *info = build_guest_fsinfo(guid, errp);
-        if (info == NULL) {
+        Error *local_err = NULL;
+        GuestFilesystemInfo *info = build_guest_fsinfo(guid, &local_err);
+        if (local_err) {
+            g_debug("failed to get filesystem info, ignoring error: %s",
+                    error_get_pretty(local_err));
+            error_free(local_err);
             continue;
         }
         new = g_malloc(sizeof(*ret));
