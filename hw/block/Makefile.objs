@@ -7,12 +7,12 @@ common-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
 common-obj-$(CONFIG_XEN) += xen-block.o
 common-obj-$(CONFIG_ECC) += ecc.o
 common-obj-$(CONFIG_ONENAND) += onenand.o
-common-obj-$(CONFIG_NVME_PCI) += nvme.o
 common-obj-$(CONFIG_SWIM) += swim.o
 
 common-obj-$(CONFIG_SH4) += tc58128.o
 
 obj-$(CONFIG_VIRTIO_BLK) += virtio-blk.o
 obj-$(CONFIG_VHOST_USER_BLK) += vhost-user-blk.o
+obj-$(CONFIG_NVME_PCI) += nvme.o
 
 obj-y += dataplane/

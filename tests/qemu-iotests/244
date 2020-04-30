@@ -143,7 +143,6 @@ $QEMU_IO -c 'read -P 0 0 1M' \
 echo
 $QEMU_IO -c 'read -P 0 0 1M' \
          -c 'read -P 0x11 1M 1M' \
-         -c 'read -P 0 2M 2M' \
          -c 'read -P 0x11 4M 1M' \
          -c 'read -P 0 5M 1M' \
          -f raw "$TEST_IMG.data" |
@@ -180,8 +179,15 @@ $QEMU_IO -c 'read -P 0 0 1M' \
          -f $IMGFMT "$TEST_IMG" |
          _filter_qemu_io
 
+# Discarded clusters are only marked as such in the qcow2 metadata, but
+# they can contain stale data in the external data file.  Instead, zero
+# clusters must be zeroed in the external data file too.
 echo
-$QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.data"
+$QEMU_IO -c 'read -P 0 0 1M' \
+         -c 'read -P 0x11 1M 1M' \
+         -c 'read -P 0 3M 3M' \
+         -f raw "$TEST_IMG".data |
+         _filter_qemu_io
 
 echo -n "qcow2 file size after I/O: "
 du -b $TEST_IMG | cut -f1

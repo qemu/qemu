@@ -677,7 +677,7 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
      * The QED format associates file length with allocation status,
      * so a new file (which is empty) must have a length of 0.
      */
-    ret = blk_truncate(blk, 0, true, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate(blk, 0, true, PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         goto out;
     }
@@ -1467,6 +1467,7 @@ static int coroutine_fn bdrv_qed_co_truncate(BlockDriverState *bs,
                                              int64_t offset,
                                              bool exact,
                                              PreallocMode prealloc,
+                                             BdrvRequestFlags flags,
                                              Error **errp)
 {
     BDRVQEDState *s = bs->opaque;

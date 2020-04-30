@@ -3339,7 +3339,8 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
  * 'offset' bytes in length.
  */
 int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
-                                  PreallocMode prealloc, Error **errp)
+                                  PreallocMode prealloc, BdrvRequestFlags flags,
+                                  Error **errp)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -3393,10 +3394,40 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         goto out;
     }
 
+    /*
+     * If the image has a backing file that is large enough that it would
+     * provide data for the new area, we cannot leave it unallocated because
+     * then the backing file content would become visible. Instead, zero-fill
+     * the new area.
+     *
+     * Note that if the image has a backing file, but was opened without the
+     * backing file, taking care of keeping things consistent with that backing
+     * file is the user's responsibility.
+     */
+    if (new_bytes && bs->backing) {
+        int64_t backing_len;
+
+        backing_len = bdrv_getlength(backing_bs(bs));
+        if (backing_len < 0) {
+            ret = backing_len;
+            error_setg_errno(errp, -ret, "Could not get backing file size");
+            goto out;
+        }
+
+        if (backing_len > old_size) {
+            flags |= BDRV_REQ_ZERO_WRITE;
+        }
+    }
+
     if (drv->bdrv_co_truncate) {
-        ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, errp);
+        if (flags & ~bs->supported_truncate_flags) {
+            error_setg(errp, "Block driver does not support requested flags");
+            ret = -ENOTSUP;
+            goto out;
+        }
+        ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, flags, errp);
     } else if (bs->file && drv->is_filter) {
-        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
     } else {
         error_setg(errp, "Image format driver does not support resize");
         ret = -ENOTSUP;
@@ -3429,6 +3460,7 @@ typedef struct TruncateCo {
     int64_t offset;
     bool exact;
     PreallocMode prealloc;
+    BdrvRequestFlags flags;
     Error **errp;
     int ret;
 } TruncateCo;
@@ -3437,12 +3469,12 @@ static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
 {
     TruncateCo *tco = opaque;
     tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->exact,
-                                tco->prealloc, tco->errp);
+                                tco->prealloc, tco->flags, tco->errp);
     aio_wait_kick();
 }
 
 int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
-                  PreallocMode prealloc, Error **errp)
+                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
 {
     Coroutine *co;
     TruncateCo tco = {
@@ -3450,6 +3482,7 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
         .offset     = offset,
         .exact      = exact,
         .prealloc   = prealloc,
+        .flags      = flags,
         .errp       = errp,
         .ret        = NOT_DONE,
     };

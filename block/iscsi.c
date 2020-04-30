@@ -2124,7 +2124,7 @@ static void iscsi_reopen_commit(BDRVReopenState *reopen_state)
 
 static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
                                           bool exact, PreallocMode prealloc,
-                                          Error **errp)
+                                          BdrvRequestFlags flags, Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
     int64_t cur_length;

@@ -548,7 +548,8 @@ static int64_t create_file_fallback_truncate(BlockBackend *blk,
     int64_t size;
     int ret;
 
-    ret = blk_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, &local_err);
+    ret = blk_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, 0,
+                       &local_err);
     if (ret < 0 && ret != -ENOTSUP) {
         error_propagate(errp, local_err);
         return ret;

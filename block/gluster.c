@@ -1228,6 +1228,7 @@ static coroutine_fn int qemu_gluster_co_truncate(BlockDriverState *bs,
                                                  int64_t offset,
                                                  bool exact,
                                                  PreallocMode prealloc,
+                                                 BdrvRequestFlags flags,
                                                  Error **errp)
 {
     BDRVGlusterState *s = bs->opaque;

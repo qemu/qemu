@@ -558,7 +558,7 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
                     goto exit;
                 }
                 ret = bdrv_truncate(bs->file, new_file_size, false,
-                                    PREALLOC_MODE_OFF, NULL);
+                                    PREALLOC_MODE_OFF, 0, NULL);
                 if (ret < 0) {
                     goto exit;
                 }

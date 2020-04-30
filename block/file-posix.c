@@ -702,6 +702,10 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #endif
 
     bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
+    if (S_ISREG(st.st_mode)) {
+        /* When extending regular files, we get zeros from the OS */
+        bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
+    }
     ret = 0;
 fail:
     if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
@@ -2080,7 +2084,7 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
                                         bool exact, PreallocMode prealloc,
-                                        Error **errp)
+                                        BdrvRequestFlags flags, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     struct stat st;

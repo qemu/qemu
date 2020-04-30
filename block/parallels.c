@@ -203,7 +203,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         } else {
             ret = bdrv_truncate(bs->file,
                                 (s->data_end + space) << BDRV_SECTOR_BITS,
-                                false, PREALLOC_MODE_OFF, NULL);
+                                false, PREALLOC_MODE_OFF, 0, NULL);
         }
         if (ret < 0) {
             return ret;
@@ -493,7 +493,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
              * That means we have to pass exact=true.
              */
             ret = bdrv_truncate(bs->file, res->image_end_offset, true,
-                                PREALLOC_MODE_OFF, &local_err);
+                                PREALLOC_MODE_OFF, 0, &local_err);
             if (ret < 0) {
                 error_report_err(local_err);
                 res->check_errors++;
@@ -889,7 +889,7 @@ static void parallels_close(BlockDriverState *bs)
 
         /* errors are ignored, so we might as well pass exact=true */
         bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
-                      PREALLOC_MODE_OFF, NULL);
+                      PREALLOC_MODE_OFF, 0, NULL);
     }
 
     g_free(s->bat_dirty_bmap);

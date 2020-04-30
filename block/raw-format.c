@@ -371,7 +371,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
                                         bool exact, PreallocMode prealloc,
-                                        Error **errp)
+                                        BdrvRequestFlags flags, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -387,7 +387,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
 
     s->size = offset;
     offset += s->offset;
-    return bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
+    return bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
 }
 
 static void raw_eject(BlockDriverState *bs, bool eject_flag)
@@ -445,6 +445,8 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
         ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
             bs->file->bs->supported_zero_flags);
+    bs->supported_truncate_flags = bs->file->bs->supported_truncate_flags &
+                                   BDRV_REQ_ZERO_WRITE;
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
         bdrv_refresh_filename(bs->file->bs);

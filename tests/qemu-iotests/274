@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# Some tests for short backing files and short overlays
+
+import iotests
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(['linux'])
+
+size_short = 1 * 1024 * 1024
+size_long = 2 * 1024 * 1024
+size_diff = size_long - size_short
+
+def create_chain() -> None:
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, base,
+                         str(size_long))
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base, mid,
+                         str(size_short))
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', mid, top,
+                         str(size_long))
+
+    iotests.qemu_io_log('-c', 'write -P 1 0 %d' % size_long, base)
+
+def create_vm() -> iotests.VM:
+    vm = iotests.VM()
+    vm.add_blockdev('file,filename=%s,node-name=base-file' % base)
+    vm.add_blockdev('%s,file=base-file,node-name=base' % iotests.imgfmt)
+    vm.add_blockdev('file,filename=%s,node-name=mid-file' % mid)
+    vm.add_blockdev('%s,file=mid-file,node-name=mid,backing=base'
+                    % iotests.imgfmt)
+    vm.add_drive(top, 'backing=mid,node-name=top')
+    return vm
+
+with iotests.FilePath('base') as base, \
+     iotests.FilePath('mid') as mid, \
+     iotests.FilePath('top') as top:
+
+    iotests.log('== Commit tests ==')
+
+    create_chain()
+
+    iotests.log('=== Check visible data ===')
+
+    iotests.qemu_io_log('-c', 'read -P 1 0 %d' % size_short, top)
+    iotests.qemu_io_log('-c', 'read -P 0 %d %d' % (size_short, size_diff), top)
+
+    iotests.log('=== Checking allocation status ===')
+
+    iotests.qemu_io_log('-c', 'alloc 0 %d' % size_short,
+                        '-c', 'alloc %d %d' % (size_short, size_diff),
+                        base)
+
+    iotests.qemu_io_log('-c', 'alloc 0 %d' % size_short,
+                        '-c', 'alloc %d %d' % (size_short, size_diff),
+                        mid)
+
+    iotests.qemu_io_log('-c', 'alloc 0 %d' % size_short,
+                        '-c', 'alloc %d %d' % (size_short, size_diff),
+                        top)
+
+    iotests.log('=== Checking map ===')
+
+    iotests.qemu_img_log('map', '--output=json', base)
+    iotests.qemu_img_log('map', '--output=human', base)
+    iotests.qemu_img_log('map', '--output=json', mid)
+    iotests.qemu_img_log('map', '--output=human', mid)
+    iotests.qemu_img_log('map', '--output=json', top)
+    iotests.qemu_img_log('map', '--output=human', top)
+
+    iotests.log('=== Testing qemu-img commit (top -> mid) ===')
+
+    iotests.qemu_img_log('commit', top)
+    iotests.img_info_log(mid)
+    iotests.qemu_io_log('-c', 'read -P 1 0 %d' % size_short, mid)
+    iotests.qemu_io_log('-c', 'read -P 0 %d %d' % (size_short, size_diff), mid)
+
+    iotests.log('=== Testing HMP commit (top -> mid) ===')
+
+    create_chain()
+    with create_vm() as vm:
+        vm.launch()
+        vm.qmp_log('human-monitor-command', command_line='commit drive0')
+
+    iotests.img_info_log(mid)
+    iotests.qemu_io_log('-c', 'read -P 1 0 %d' % size_short, mid)
+    iotests.qemu_io_log('-c', 'read -P 0 %d %d' % (size_short, size_diff), mid)
+
+    iotests.log('=== Testing QMP active commit (top -> mid) ===')
+
+    create_chain()
+    with create_vm() as vm:
+        vm.launch()
+        vm.qmp_log('block-commit', device='top', base_node='mid',
+                   job_id='job0', auto_dismiss=False)
+        vm.run_job('job0', wait=5)
+
+    iotests.img_info_log(mid)
+    iotests.qemu_io_log('-c', 'read -P 1 0 %d' % size_short, mid)
+    iotests.qemu_io_log('-c', 'read -P 0 %d %d' % (size_short, size_diff), mid)
+
+
+    iotests.log('== Resize tests ==')
+
+    # Use different sizes for different allocation modes:
+    #
+    # We want to have at least one test where 32 bit truncation in the size of
+    # the overlapping area becomes visible. This is covered by the
+    # prealloc='off' case (1G to 6G is an overlap of 5G).
+    #
+    # However, we can only do this for modes that don't preallocate data
+    # because otherwise we might run out of space on the test host.
+    #
+    # We also want to test some unaligned combinations.
+    for (prealloc, base_size, top_size_old, top_size_new, off) in [
+            ('off',       '6G',    '1G',   '8G',   '5G'),
+            ('metadata', '32G',   '30G',  '33G',  '31G'),
+            ('falloc',   '10M',    '5M',  '15M',   '9M'),
+            ('full',     '16M',    '8M',  '12M',  '11M'),
+            ('off',      '384k', '253k', '512k', '253k'),
+            ('off',      '400k', '256k', '512k', '336k'),
+            ('off',      '512k', '256k', '500k', '436k')]:
+
+        iotests.log('=== preallocation=%s ===' % prealloc)
+        iotests.qemu_img_log('create', '-f', iotests.imgfmt, base, base_size)
+        iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base, top,
+                             top_size_old)
+        iotests.qemu_io_log('-c', 'write -P 1 %s 64k' % off, base)
+
+        # After this, top_size_old to base_size should be allocated/zeroed.
+        #
+        # In theory, leaving base_size to top_size_new unallocated would be
+        # correct, but in practice, if we zero out anything, we zero out
+        # everything up to top_size_new.
+        iotests.qemu_img_log('resize', '-f', iotests.imgfmt,
+                             '--preallocation', prealloc, top, top_size_new)
+        iotests.qemu_io_log('-c', 'read -P 0 %s 64k' % off, top)
+        iotests.qemu_io_log('-c', 'map', top)
+        iotests.qemu_img_log('map', '--output=json', top)
