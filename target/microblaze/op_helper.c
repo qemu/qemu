@@ -132,11 +132,12 @@ uint32_t helper_carry(uint32_t a, uint32_t b, uint32_t cf)
 
 static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
 {
+    MicroBlazeCPU *cpu = env_archcpu(env);
+
     if (b == 0) {
         env->sregs[SR_MSR] |= MSR_DZ;
 
-        if ((env->sregs[SR_MSR] & MSR_EE)
-            && !(env->pvr.regs[2] & PVR2_DIV_ZERO_EXC_MASK)) {
+        if ((env->sregs[SR_MSR] & MSR_EE) && cpu->cfg.div_zero_exception) {
             env->sregs[SR_ESR] = ESR_EC_DIVZERO;
             helper_raise_exception(env, EXCP_HW_EXCP);
         }
