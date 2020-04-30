@@ -115,13 +115,4 @@ static inline int vec_full_reg_size(DisasContext *s)
 
 bool disas_sve(DisasContext *, uint32_t);
 
-/* Note that the gvec expanders operate on offsets + sizes.  */
-typedef void GVecGen2Fn(unsigned, uint32_t, uint32_t, uint32_t, uint32_t);
-typedef void GVecGen2iFn(unsigned, uint32_t, uint32_t, int64_t,
-                         uint32_t, uint32_t);
-typedef void GVecGen3Fn(unsigned, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t);
-typedef void GVecGen4Fn(unsigned, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t);
-
 #endif /* TARGET_ARM_TRANSLATE_A64_H */

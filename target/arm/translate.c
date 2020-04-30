@@ -4885,16 +4885,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             return 0;
 
-        case NEON_3R_VADD_VSUB:
-            if (u) {
-                tcg_gen_gvec_sub(size, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-            } else {
-                tcg_gen_gvec_add(size, rd_ofs, rn_ofs, rm_ofs,
-                                 vec_size, vec_size);
-            }
-            return 0;
-
         case NEON_3R_VQADD:
             tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),
                            rn_ofs, rm_ofs, vec_size, vec_size,
@@ -4970,6 +4960,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             tcg_gen_gvec_3(rd_ofs, rm_ofs, rn_ofs, vec_size, vec_size,
                            u ? &ushl_op[size] : &sshl_op[size]);
             return 0;
+
+        case NEON_3R_VADD_VSUB:
+            /* Already handled by decodetree */
+            return 1;
         }
 
         if (size == 3) {

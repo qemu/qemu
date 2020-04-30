@@ -18,6 +18,10 @@
 #
 # This file is processed by scripts/decodetree.py
 #
+# VFP/Neon register fields; same as vfp.decode
+%vm_dp  5:1 0:4
+%vn_dp  7:1 16:4
+%vd_dp  22:1 12:4
 
 # Encodings for Neon data processing instructions where the T32 encoding
 # is a simple transformation of the A32 encoding.
@@ -27,3 +31,16 @@
 #   0b111p_1111_qqqq_qqqq_qqqq_qqqq_qqqq_qqqq
 # This file works on the A32 encoding only; calling code for T32 has to
 # transform the insn into the A32 version first.
+
+######################################################################
+# 3-reg-same grouping:
+# 1111 001 U 0 D sz:2 Vn:4 Vd:4 opc:4 N Q M op Vm:4
+######################################################################
+
+&3same vm vn vd q size
+
+@3same           .... ... . . . size:2 .... .... .... . q:1 . . .... \
+                 &3same vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+VADD_3s          1111 001 0 0 . .. .... .... 1000 . . . 0 .... @3same
+VSUB_3s          1111 001 1 0 . .. .... .... 1000 . . . 0 .... @3same

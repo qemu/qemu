@@ -560,3 +560,41 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
 
     return true;
 }
+
+static bool do_3same(DisasContext *s, arg_3same *a, GVecGen3Fn fn)
+{
+    int vec_size = a->q ? 16 : 8;
+    int rd_ofs = neon_reg_offset(a->vd, 0);
+    int rn_ofs = neon_reg_offset(a->vn, 0);
+    int rm_ofs = neon_reg_offset(a->vm, 0);
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fn(a->size, rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size);
+    return true;
+}
+
+#define DO_3SAME(INSN, FUNC)                                            \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        return do_3same(s, a, FUNC);                                    \
+    }
+
+DO_3SAME(VADD, tcg_gen_gvec_add)
+DO_3SAME(VSUB, tcg_gen_gvec_sub)

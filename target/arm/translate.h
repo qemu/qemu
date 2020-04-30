@@ -305,4 +305,13 @@ void gen_sshl_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
 #define dc_isar_feature(name, ctx) \
     ({ DisasContext *ctx_ = (ctx); isar_feature_##name(ctx_->isar); })
 
+/* Note that the gvec expanders operate on offsets + sizes.  */
+typedef void GVecGen2Fn(unsigned, uint32_t, uint32_t, uint32_t, uint32_t);
+typedef void GVecGen2iFn(unsigned, uint32_t, uint32_t, int64_t,
+                         uint32_t, uint32_t);
+typedef void GVecGen3Fn(unsigned, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t);
+typedef void GVecGen4Fn(unsigned, uint32_t, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t);
+
 #endif /* TARGET_ARM_TRANSLATE_H */
