@@ -546,6 +546,9 @@ fi
 if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
     IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
 fi
+if [ "$IMGFMT" == "vmdk" ] && ! (echo "$IMGOPTS" | grep "zeroed_grain=" > /dev/null); then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "zeroed_grain=on")
+fi
 
 if [ -z "$SAMPLE_IMG_DIR" ]; then
         SAMPLE_IMG_DIR="$source_iotests/sample_images"
