@@ -2531,11 +2531,24 @@ static void print_capabilities(void)
 }
 
 /*
+ * Drop all Linux capabilities because the wait parent process only needs to
+ * sit in waitpid(2) and terminate.
+ */
+static void setup_wait_parent_capabilities(void)
+{
+    capng_setpid(syscall(SYS_gettid));
+    capng_clear(CAPNG_SELECT_BOTH);
+    capng_apply(CAPNG_SELECT_BOTH);
+}
+
+/*
  * Move to a new mount, net, and pid namespaces to isolate this process.
  */
 static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
 {
     pid_t child;
+    char template[] = "virtiofsd-XXXXXX";
+    char *tmpdir;
 
     /*
      * Create a new pid namespace for *child* processes.  We'll have to
@@ -2560,6 +2573,8 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
     if (child > 0) {
         pid_t waited;
         int wstatus;
+
+        setup_wait_parent_capabilities();
 
         /* The parent waits for the child */
         do {
@@ -2597,11 +2612,32 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
         exit(1);
     }
 
-    /* Now we can get our /proc/self/fd directory file descriptor */
-    lo->proc_self_fd = open("/proc/self/fd", O_PATH);
-    if (lo->proc_self_fd == -1) {
-        fuse_log(FUSE_LOG_ERR, "open(/proc/self/fd, O_PATH): %m\n");
+    tmpdir = mkdtemp(template);
+    if (!tmpdir) {
+        fuse_log(FUSE_LOG_ERR, "tmpdir(%s): %m\n", template);
         exit(1);
+    }
+
+    if (mount("/proc/self/fd", tmpdir, NULL, MS_BIND, NULL) < 0) {
+        fuse_log(FUSE_LOG_ERR, "mount(/proc/self/fd, %s, MS_BIND): %m\n",
+                 tmpdir);
+        exit(1);
+    }
+
+    /* Now we can get our /proc/self/fd directory file descriptor */
+    lo->proc_self_fd = open(tmpdir, O_PATH);
+    if (lo->proc_self_fd == -1) {
+        fuse_log(FUSE_LOG_ERR, "open(%s, O_PATH): %m\n", tmpdir);
+        exit(1);
+    }
+
+    if (umount2(tmpdir, MNT_DETACH) < 0) {
+        fuse_log(FUSE_LOG_ERR, "umount2(%s, MNT_DETACH): %m\n", tmpdir);
+        exit(1);
+    }
+
+    if (rmdir(tmpdir) < 0) {
+        fuse_log(FUSE_LOG_ERR, "rmdir(%s): %m\n", tmpdir);
     }
 }
 
@@ -2643,7 +2679,7 @@ static void setup_mounts(const char *source)
     int oldroot;
     int newroot;
 
-    if (mount(source, source, NULL, MS_BIND, NULL) < 0) {
+    if (mount(source, source, NULL, MS_BIND | MS_REC, NULL) < 0) {
         fuse_log(FUSE_LOG_ERR, "mount(%s, %s, MS_BIND): %m\n", source, source);
         exit(1);
     }
@@ -2696,6 +2732,43 @@ static void setup_mounts(const char *source)
 }
 
 /*
+ * Only keep whitelisted capabilities that are needed for file system operation
+ */
+static void setup_capabilities(void)
+{
+    pthread_mutex_lock(&cap.mutex);
+    capng_restore_state(&cap.saved);
+
+    /*
+     * Whitelist file system-related capabilities that are needed for a file
+     * server to act like root.  Drop everything else like networking and
+     * sysadmin capabilities.
+     *
+     * Exclusions:
+     * 1. CAP_LINUX_IMMUTABLE is not included because it's only used via ioctl
+     *    and we don't support that.
+     * 2. CAP_MAC_OVERRIDE is not included because it only seems to be
+     *    used by the Smack LSM.  Omit it until there is demand for it.
+     */
+    capng_setpid(syscall(SYS_gettid));
+    capng_clear(CAPNG_SELECT_BOTH);
+    capng_updatev(CAPNG_ADD, CAPNG_PERMITTED | CAPNG_EFFECTIVE,
+            CAP_CHOWN,
+            CAP_DAC_OVERRIDE,
+            CAP_DAC_READ_SEARCH,
+            CAP_FOWNER,
+            CAP_FSETID,
+            CAP_SETGID,
+            CAP_SETUID,
+            CAP_MKNOD,
+            CAP_SETFCAP);
+    capng_apply(CAPNG_SELECT_BOTH);
+
+    cap.saved = capng_save_state();
+    pthread_mutex_unlock(&cap.mutex);
+}
+
+/*
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
@@ -2705,25 +2778,20 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     setup_namespaces(lo, se);
     setup_mounts(lo->source);
     setup_seccomp(enable_syslog);
+    setup_capabilities();
 }
 
-/* Raise the maximum number of open file descriptors */
-static void setup_nofile_rlimit(void)
+/* Set the maximum number of open file descriptors */
+static void setup_nofile_rlimit(unsigned long rlimit_nofile)
 {
-    const rlim_t max_fds = 1000000;
-    struct rlimit rlim;
+    struct rlimit rlim = {
+        .rlim_cur = rlimit_nofile,
+        .rlim_max = rlimit_nofile,
+    };
 
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
-        fuse_log(FUSE_LOG_ERR, "getrlimit(RLIMIT_NOFILE): %m\n");
-        exit(1);
-    }
-
-    if (rlim.rlim_cur >= max_fds) {
+    if (rlimit_nofile == 0) {
         return; /* nothing to do */
     }
-
-    rlim.rlim_cur = max_fds;
-    rlim.rlim_max = max_fds;
 
     if (setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         /* Ignore SELinux denials */
@@ -2977,7 +3045,7 @@ int main(int argc, char *argv[])
 
     fuse_daemonize(opts.foreground);
 
-    setup_nofile_rlimit();
+    setup_nofile_rlimit(opts.rlimit_nofile);
 
     /* Must be before sandbox since it wants /proc */
     setup_capng();
