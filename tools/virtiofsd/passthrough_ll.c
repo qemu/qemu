@@ -2707,23 +2707,17 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     setup_seccomp(enable_syslog);
 }
 
-/* Raise the maximum number of open file descriptors */
-static void setup_nofile_rlimit(void)
+/* Set the maximum number of open file descriptors */
+static void setup_nofile_rlimit(unsigned long rlimit_nofile)
 {
-    const rlim_t max_fds = 1000000;
-    struct rlimit rlim;
+    struct rlimit rlim = {
+        .rlim_cur = rlimit_nofile,
+        .rlim_max = rlimit_nofile,
+    };
 
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
-        fuse_log(FUSE_LOG_ERR, "getrlimit(RLIMIT_NOFILE): %m\n");
-        exit(1);
-    }
-
-    if (rlim.rlim_cur >= max_fds) {
+    if (rlimit_nofile == 0) {
         return; /* nothing to do */
     }
-
-    rlim.rlim_cur = max_fds;
-    rlim.rlim_max = max_fds;
 
     if (setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         /* Ignore SELinux denials */
@@ -2977,7 +2971,7 @@ int main(int argc, char *argv[])
 
     fuse_daemonize(opts.foreground);
 
-    setup_nofile_rlimit();
+    setup_nofile_rlimit(opts.rlimit_nofile);
 
     /* Must be before sandbox since it wants /proc */
     setup_capng();
