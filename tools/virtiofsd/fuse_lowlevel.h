@@ -1777,6 +1777,7 @@ struct fuse_cmdline_opts {
     int syslog;
     int log_level;
     unsigned int max_idle_threads;
+    unsigned long rlimit_nofile;
 };
 
 /**

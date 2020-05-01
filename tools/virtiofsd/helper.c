@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #define FUSE_HELPER_OPT(t, p)                       \
@@ -53,6 +55,7 @@ static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_HELPER_OPT("subtype=", nodefault_subtype),
     FUSE_OPT_KEY("subtype=", FUSE_OPT_KEY_KEEP),
     FUSE_HELPER_OPT("max_idle_threads=%u", max_idle_threads),
+    FUSE_HELPER_OPT("--rlimit-nofile=%lu", rlimit_nofile),
     FUSE_HELPER_OPT("--syslog", syslog),
     FUSE_HELPER_OPT_VALUE("log_level=debug", log_level, FUSE_LOG_DEBUG),
     FUSE_HELPER_OPT_VALUE("log_level=info", log_level, FUSE_LOG_INFO),
@@ -171,6 +174,9 @@ void fuse_cmdline_help(void)
            "                               default: no_writeback\n"
            "    -o xattr|no_xattr          enable/disable xattr\n"
            "                               default: no_xattr\n"
+           "    --rlimit-nofile=<num>      set maximum number of file descriptors\n"
+           "                               (0 leaves rlimit unchanged)\n"
+           "                               default: 1,000,000 if the current rlimit is lower\n"
            );
 }
 
@@ -191,11 +197,28 @@ static int fuse_helper_opt_proc(void *data, const char *arg, int key,
     }
 }
 
+static unsigned long get_default_rlimit_nofile(void)
+{
+    rlim_t max_fds = 1000000; /* our default RLIMIT_NOFILE target */
+    struct rlimit rlim;
+
+    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
+        fuse_log(FUSE_LOG_ERR, "getrlimit(RLIMIT_NOFILE): %m\n");
+        exit(1);
+    }
+
+    if (rlim.rlim_cur >= max_fds) {
+        return 0; /* we have more fds available than required! */
+    }
+    return max_fds;
+}
+
 int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts)
 {
     memset(opts, 0, sizeof(struct fuse_cmdline_opts));
 
     opts->max_idle_threads = 10;
+    opts->rlimit_nofile = get_default_rlimit_nofile();
     opts->foreground = 1;
 
     if (fuse_opt_parse(args, opts, fuse_helper_opts, fuse_helper_opt_proc) ==
