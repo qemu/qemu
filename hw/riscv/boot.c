@@ -41,34 +41,11 @@ void riscv_find_and_load_firmware(MachineState *machine,
 {
     char *firmware_filename = NULL;
 
-    if (!machine->firmware) {
+    if ((!machine->firmware) || (!strcmp(machine->firmware, "default"))) {
         /*
-         * The user didn't specify -bios.
-         * At the moment we default to loading nothing when this hapens.
-         * In the future this defaul will change to loading the prebuilt
-         * OpenSBI firmware. Let's warn the user and then continue.
-        */
-        if (!qtest_enabled()) {
-            warn_report("No -bios option specified. Not loading a firmware.");
-            warn_report("This default will change in a future QEMU release. " \
-                        "Please use the -bios option to avoid breakages when "\
-                        "this happens.");
-            warn_report("See QEMU's deprecation documentation for details.");
-        }
-        return;
-    }
-
-    if (!strcmp(machine->firmware, "default")) {
-        /*
-         * The user has specified "-bios default". That means we are going to
-         * load the OpenSBI binary included in the QEMU source.
-         *
-         * We can't load the binary by default as it will break existing users
-         * as users are already loading their own firmware.
-         *
-         * Let's try to get everyone to specify the -bios option at all times,
-         * so then in the future we can make "-bios default" the default option
-         * if no -bios option is set without breaking anything.
+         * The user didn't specify -bios, or has specified "-bios default".
+         * That means we are going to load the OpenSBI binary included in
+         * the QEMU source.
          */
         firmware_filename = riscv_find_firmware(default_machine_firmware);
     } else if (strcmp(machine->firmware, "none")) {
