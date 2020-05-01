@@ -176,7 +176,8 @@ void fuse_cmdline_help(void)
            "                               default: no_xattr\n"
            "    --rlimit-nofile=<num>      set maximum number of file descriptors\n"
            "                               (0 leaves rlimit unchanged)\n"
-           "                               default: 1,000,000 if the current rlimit is lower\n"
+           "                               default: min(1000000, fs.file-max - 16384)\n"
+           "                                        if the current rlimit is lower\n"
            );
 }
 
@@ -199,8 +200,31 @@ static int fuse_helper_opt_proc(void *data, const char *arg, int key,
 
 static unsigned long get_default_rlimit_nofile(void)
 {
+    g_autofree gchar *file_max_str = NULL;
+    const rlim_t reserved_fds = 16384; /* leave at least this many fds free */
     rlim_t max_fds = 1000000; /* our default RLIMIT_NOFILE target */
+    rlim_t file_max;
     struct rlimit rlim;
+
+    /*
+     * Reduce max_fds below the system-wide maximum, if necessary.  This
+     * ensures there are fds available for other processes so we don't
+     * cause resource exhaustion.
+     */
+    if (!g_file_get_contents("/proc/sys/fs/file-max", &file_max_str,
+                             NULL, NULL)) {
+        fuse_log(FUSE_LOG_ERR, "can't read /proc/sys/fs/file-max\n");
+        exit(1);
+    }
+    file_max = g_ascii_strtoull(file_max_str, NULL, 10);
+    if (file_max < 2 * reserved_fds) {
+        fuse_log(FUSE_LOG_ERR,
+                 "The fs.file-max sysctl is too low (%lu) to allow a "
+                 "reasonable number of open files.\n",
+                 (unsigned long)file_max);
+        exit(1);
+    }
+    max_fds = MIN(file_max - reserved_fds, max_fds);
 
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         fuse_log(FUSE_LOG_ERR, "getrlimit(RLIMIT_NOFILE): %m\n");
