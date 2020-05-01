@@ -88,9 +88,17 @@ char *riscv_find_firmware(const char *firmware_filename)
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, firmware_filename);
     if (filename == NULL) {
-        error_report("Unable to load the RISC-V firmware \"%s\"",
-                     firmware_filename);
-        exit(1);
+        if (!qtest_enabled()) {
+            /*
+             * We only ship plain binary bios images in the QEMU source.
+             * With Spike machine that uses ELF images as the default bios,
+             * running QEMU test will complain hence let's suppress the error
+             * report for QEMU testing.
+             */
+            error_report("Unable to load the RISC-V firmware \"%s\"",
+                         firmware_filename);
+            exit(1);
+        }
     }
 
     return filename;
