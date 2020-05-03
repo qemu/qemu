@@ -100,6 +100,7 @@ void rdma_protected_gslist_destroy(RdmaProtectedGSList *list)
 {
     if (list->list) {
         g_slist_free(list->list);
+        qemu_mutex_destroy(&list->lock);
         list->list = NULL;
     }
 }
