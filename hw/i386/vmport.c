@@ -23,10 +23,10 @@
  */
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
-#include "hw/i386/pc.h"
-#include "hw/input/i8042.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/log.h"
+#include "vmport.h"
+#include "cpu.h"
 #include "trace.h"
 
 #define VMPORT_CMD_GETVERSION 0x0a
@@ -107,27 +107,6 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 
     cpu->env.regs[R_EBX] = 0x1177;
     return ram_size;
-}
-
-/* vmmouse helpers */
-void vmmouse_get_data(uint32_t *data)
-{
-    X86CPU *cpu = X86_CPU(current_cpu);
-    CPUX86State *env = &cpu->env;
-
-    data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
-    data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
-    data[4] = env->regs[R_ESI]; data[5] = env->regs[R_EDI];
-}
-
-void vmmouse_set_data(const uint32_t *data)
-{
-    X86CPU *cpu = X86_CPU(current_cpu);
-    CPUX86State *env = &cpu->env;
-
-    env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
-    env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
-    env->regs[R_ESI] = data[4]; env->regs[R_EDI] = data[5];
 }
 
 static const MemoryRegionOps vmport_ops = {

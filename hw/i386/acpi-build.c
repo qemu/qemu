@@ -128,6 +128,12 @@ typedef struct FwCfgTPMConfig {
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg);
 
+const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio = {
+    .space_id = AML_AS_SYSTEM_IO,
+    .address = NVDIMM_ACPI_IO_BASE,
+    .bit_width = NVDIMM_ACPI_IO_LEN << 3
+};
+
 static void init_common_fadt_data(MachineState *ms, Object *o,
                                   AcpiFadtData *data)
 {
@@ -1151,14 +1157,11 @@ static Aml *build_kbd_device_aml(void)
 {
     Aml *dev;
     Aml *crs;
-    Aml *method;
 
     dev = aml_device("KBD");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0303")));
 
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_return(aml_int(0x0f)));
-    aml_append(dev, method);
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
     crs = aml_resource_template();
     aml_append(crs, aml_io(AML_DECODE16, 0x0060, 0x0060, 0x01, 0x01));
@@ -1173,14 +1176,11 @@ static Aml *build_mouse_device_aml(void)
 {
     Aml *dev;
     Aml *crs;
-    Aml *method;
 
     dev = aml_device("MOU");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0F13")));
 
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_return(aml_int(0x0f)));
-    aml_append(dev, method);
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
     crs = aml_resource_template();
     aml_append(crs, aml_irq_no_flags(12));
@@ -1294,6 +1294,7 @@ static void build_isa_devices_aml(Aml *table)
         error_report("No ISA bus, unable to define IPMI ACPI data");
     } else {
         build_acpi_ipmi_devices(scope, BUS(obj), "\\_SB.PCI0.ISA");
+        isa_build_aml(ISA_BUS(obj), scope);
     }
 
     aml_append(table, scope);
@@ -2238,9 +2239,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                            TPM_CRB_ADDR_SIZE, AML_READ_WRITE));
         aml_append(dev, aml_name_decl("_CRS", crs));
 
-        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-        aml_append(method, aml_return(aml_int(0x0f)));
-        aml_append(dev, method);
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
 
         tpm_build_ppi_acpi(tpm, dev);
 
@@ -2513,6 +2512,34 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);
 }
+
+/*
+ * Windows ACPI Emulated Devices Table
+ * (Version 1.0 - April 6, 2009)
+ * Spec: http://download.microsoft.com/download/7/E/7/7E7662CF-CBEA-470B-A97E-CE7CE0D98DC2/WAET.docx
+ *
+ * Helpful to speedup Windows guests and ignored by others.
+ */
+static void
+build_waet(GArray *table_data, BIOSLinker *linker)
+{
+    int waet_start = table_data->len;
+
+    /* WAET header */
+    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+    /*
+     * Set "ACPI PM timer good" flag.
+     *
+     * Tells Windows guests that our ACPI PM timer is reliable in the
+     * sense that guest can read it only once to obtain a reliable value.
+     * Which avoids costly VMExits caused by guest re-reading it unnecessarily.
+     */
+    build_append_int_noprefix(table_data, 1 << 1 /* ACPI PM timer good */, 4);
+
+    build_header(linker, table_data, (void *)(table_data->data + waet_start),
+                 "WAET", table_data->len - waet_start, 1, NULL, NULL);
+}
+
 /*
  *   IVRS table as specified in AMD IOMMU Specification v2.62, Section 5.2
  *   accessible here http://support.amd.com/TechDocs/48882_IOMMU.pdf
@@ -2859,6 +2886,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
                           machine->nvdimms_state, machine->ram_slots);
     }
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_waet(tables_blob, tables->linker);
 
     /* Add tables supplied by user (if any) */
     for (u = acpi_table_first(); u; u = acpi_table_next(u)) {

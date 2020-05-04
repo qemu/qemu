@@ -207,6 +207,21 @@ ISADevice *isa_vga_init(ISABus *bus)
     }
 }
 
+void isa_build_aml(ISABus *bus, Aml *scope)
+{
+    BusChild *kid;
+    ISADevice *dev;
+    ISADeviceClass *dc;
+
+    QTAILQ_FOREACH(kid, &bus->parent_obj.children, sibling) {
+        dev = ISA_DEVICE(kid->child);
+        dc = ISA_DEVICE_GET_CLASS(dev);
+        if (dc->build_aml) {
+            dc->build_aml(dev, scope);
+        }
+    }
+}
+
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     ISADevice *d = ISA_DEVICE(dev);

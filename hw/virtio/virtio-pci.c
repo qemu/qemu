@@ -1705,6 +1705,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
      *
      *   region 0   --  virtio legacy io bar
      *   region 1   --  msi-x bar
+     *   region 2   --  virtio modern io bar (off by default)
      *   region 4+5 --  virtio modern memory (64bit) bar
      *
      */

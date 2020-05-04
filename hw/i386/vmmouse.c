@@ -25,10 +25,11 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "ui/console.h"
-#include "hw/i386/pc.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "vmport.h"
+#include "cpu.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
@@ -69,6 +70,26 @@ typedef struct VMMouseState
     QEMUPutMouseEntry *entry;
     ISAKBDState *i8042;
 } VMMouseState;
+
+static void vmmouse_get_data(uint32_t *data)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
+
+    data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
+    data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
+    data[4] = env->regs[R_ESI]; data[5] = env->regs[R_EDI];
+}
+
+static void vmmouse_set_data(const uint32_t *data)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
+
+    env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
+    env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
+    env->regs[R_ESI] = data[4]; env->regs[R_EDI] = data[5];
+}
 
 static uint32_t vmmouse_get_status(VMMouseState *s)
 {

@@ -441,7 +441,9 @@ reconnect:
 
 virtio_err:
     g_free(s->vhost_vqs);
+    s->vhost_vqs = NULL;
     g_free(s->inflight);
+    s->inflight = NULL;
     for (i = 0; i < s->num_queues; i++) {
         virtio_delete_queue(s->virtqs[i]);
     }
@@ -462,7 +464,9 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
     vhost_dev_cleanup(&s->dev);
     vhost_dev_free_inflight(s->inflight);
     g_free(s->vhost_vqs);
+    s->vhost_vqs = NULL;
     g_free(s->inflight);
+    s->inflight = NULL;
 
     for (i = 0; i < s->num_queues; i++) {
         virtio_delete_queue(s->virtqs[i]);
