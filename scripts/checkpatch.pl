@@ -1261,12 +1261,13 @@ sub WARN {
 sub checkfilename {
 	my ($name, $acpi_testexpected, $acpi_nontestexpected) = @_;
 
-	if ($name =~ m#^tests/data/acpi/# and
-		# make exception for a shell script that rebuilds the files
-		not $name =~ m#^\.sh$# or
-		$name =~ m#^tests/qtest/bios-tables-test-allowed-diff.h$#) {
+        # Note: shell script that rebuilds the expected files is in the same
+        # directory as files themselves.
+        # Note: allowed diff list can be changed both when changing expected
+        # files and when changing tests.
+	if ($name =~ m#^tests/data/acpi/# and not $name =~ m#^\.sh$#) {
 		$$acpi_testexpected = $name;
-	} else {
+	} elsif ($name =~ m#^tests/qtest/bios-tables-test-allowed-diff.h$#) {
 		$$acpi_nontestexpected = $name;
 	}
 	if (defined $$acpi_testexpected and defined $$acpi_nontestexpected) {
