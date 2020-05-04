@@ -20,7 +20,6 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
-#include "qom/object.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost.h"

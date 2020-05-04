@@ -76,6 +76,7 @@ typedef struct NetFilterState NetFilterState;
 typedef struct NICInfo NICInfo;
 typedef struct NodeInfo NodeInfo;
 typedef struct NumaNodeMem NumaNodeMem;
+typedef struct Object Object;
 typedef struct ObjectClass ObjectClass;
 typedef struct PCIBridge PCIBridge;
 typedef struct PCIBus PCIBus;
