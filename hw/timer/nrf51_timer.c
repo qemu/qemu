@@ -240,6 +240,7 @@ static void nrf51_timer_write(void *opaque, hwaddr offset,
 
             idx = (offset - NRF51_TIMER_TASK_CAPTURE_0) / 4;
             s->cc[idx] = s->counter;
+            trace_nrf51_timer_set_count(s->id, idx, s->counter);
         }
         break;
     case NRF51_TIMER_EVENT_COMPARE_0 ... NRF51_TIMER_EVENT_COMPARE_3:
