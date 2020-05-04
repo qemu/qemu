@@ -364,9 +364,6 @@ typedef struct opcode_arg {
 typedef struct DisasContext DisasContext;
 typedef void (*XtensaOpcodeOp)(DisasContext *dc, const OpcodeArg arg[],
                                const uint32_t par[]);
-typedef bool (*XtensaOpcodeBoolTest)(DisasContext *dc,
-                                     const OpcodeArg arg[],
-                                     const uint32_t par[]);
 typedef uint32_t (*XtensaOpcodeUintTest)(DisasContext *dc,
                                          const OpcodeArg arg[],
                                          const uint32_t par[]);
@@ -408,7 +405,7 @@ enum {
 typedef struct XtensaOpcodeOps {
     const void *name;
     XtensaOpcodeOp translate;
-    XtensaOpcodeBoolTest test_ill;
+    XtensaOpcodeUintTest test_exceptions;
     XtensaOpcodeUintTest test_overflow;
     const uint32_t *par;
     uint32_t op_flags;
