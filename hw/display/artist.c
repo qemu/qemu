@@ -21,7 +21,7 @@
 #include "migration/vmstate.h"
 #include "ui/console.h"
 #include "trace.h"
-#include "hw/display/framebuffer.h"
+#include "framebuffer.h"
 
 #define TYPE_ARTIST "artist"
 #define ARTIST(obj) OBJECT_CHECK(ARTISTState, (obj), TYPE_ARTIST)
