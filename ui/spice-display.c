@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "ui/qemu-spice.h"
 #include "qemu/timer.h"
+#include "qemu/lockable.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
@@ -483,12 +484,12 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 {
     graphic_hw_update(ssd->dcl.con);
 
-    qemu_mutex_lock(&ssd->lock);
-    if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
-        qemu_spice_create_update(ssd);
-        ssd->notify++;
+    WITH_QEMU_LOCK_GUARD(&ssd->lock) {
+        if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
+            qemu_spice_create_update(ssd);
+            ssd->notify++;
+        }
     }
-    qemu_mutex_unlock(&ssd->lock);
 
     trace_qemu_spice_display_refresh(ssd->qxl.id, ssd->notify);
     if (ssd->notify) {
@@ -580,7 +581,7 @@ static int interface_get_cursor_command(QXLInstance *sin, QXLCommandExt *ext)
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     int ret;
 
-    qemu_mutex_lock(&ssd->lock);
+    QEMU_LOCK_GUARD(&ssd->lock);
     if (ssd->ptr_define) {
         *ext = ssd->ptr_define->ext;
         ssd->ptr_define = NULL;
@@ -592,7 +593,6 @@ static int interface_get_cursor_command(QXLInstance *sin, QXLCommandExt *ext)
     } else {
         ret = false;
     }
-    qemu_mutex_unlock(&ssd->lock);
     return ret;
 }
 

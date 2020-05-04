@@ -894,11 +894,11 @@ void multifd_recv_sync_main(void)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        qemu_mutex_lock(&p->mutex);
-        if (multifd_recv_state->packet_num < p->packet_num) {
-            multifd_recv_state->packet_num = p->packet_num;
+        WITH_QEMU_LOCK_GUARD(&p->mutex) {
+            if (multifd_recv_state->packet_num < p->packet_num) {
+                multifd_recv_state->packet_num = p->packet_num;
+            }
         }
-        qemu_mutex_unlock(&p->mutex);
         trace_multifd_recv_sync_main_signal(p->id);
         qemu_sem_post(&p->sem_sync);
     }

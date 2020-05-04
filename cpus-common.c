@@ -22,6 +22,7 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
+#include "qemu/lockable.h"
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
@@ -71,7 +72,7 @@ static int cpu_get_free_index(void)
 
 void cpu_list_add(CPUState *cpu)
 {
-    qemu_mutex_lock(&qemu_cpu_list_lock);
+    QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
     if (cpu->cpu_index == UNASSIGNED_CPU_INDEX) {
         cpu->cpu_index = cpu_get_free_index();
         assert(cpu->cpu_index != UNASSIGNED_CPU_INDEX);
@@ -79,15 +80,13 @@ void cpu_list_add(CPUState *cpu)
         assert(!cpu_index_auto_assigned);
     }
     QTAILQ_INSERT_TAIL_RCU(&cpus, cpu, node);
-    qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
 void cpu_list_remove(CPUState *cpu)
 {
-    qemu_mutex_lock(&qemu_cpu_list_lock);
+    QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
     if (!QTAILQ_IN_USE(cpu, node)) {
         /* there is nothing to undo since cpu_exec_init() hasn't been called */
-        qemu_mutex_unlock(&qemu_cpu_list_lock);
         return;
     }
 
@@ -95,7 +94,6 @@ void cpu_list_remove(CPUState *cpu)
 
     QTAILQ_REMOVE_RCU(&cpus, cpu, node);
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
-    qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
 struct qemu_work_item {
@@ -237,7 +235,7 @@ void cpu_exec_start(CPUState *cpu)
      * see cpu->running == true, and it will kick the CPU.
      */
     if (unlikely(atomic_read(&pending_cpus))) {
-        qemu_mutex_lock(&qemu_cpu_list_lock);
+        QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
         if (!cpu->has_waiter) {
             /* Not counted in pending_cpus, let the exclusive item
              * run.  Since we have the lock, just set cpu->running to true
@@ -252,7 +250,6 @@ void cpu_exec_start(CPUState *cpu)
              * waiter at cpu_exec_end.
              */
         }
-        qemu_mutex_unlock(&qemu_cpu_list_lock);
     }
 }
 
@@ -280,7 +277,7 @@ void cpu_exec_end(CPUState *cpu)
      * next cpu_exec_start.
      */
     if (unlikely(atomic_read(&pending_cpus))) {
-        qemu_mutex_lock(&qemu_cpu_list_lock);
+        QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
         if (cpu->has_waiter) {
             cpu->has_waiter = false;
             atomic_set(&pending_cpus, pending_cpus - 1);
@@ -288,7 +285,6 @@ void cpu_exec_end(CPUState *cpu)
                 qemu_cond_signal(&exclusive_cond);
             }
         }
-        qemu_mutex_unlock(&qemu_cpu_list_lock);
     }
 }
 
