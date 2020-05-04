@@ -4242,15 +4242,17 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
          * requires a cluster-aligned start. The end may be unaligned if it is
          * at the end of the image (which it is here).
          */
-        ret = qcow2_cluster_zeroize(bs, zero_start, offset - zero_start, 0);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Failed to zero out new clusters");
-            goto fail;
+        if (offset > zero_start) {
+            ret = qcow2_cluster_zeroize(bs, zero_start, offset - zero_start, 0);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to zero out new clusters");
+                goto fail;
+            }
         }
 
         /* Write explicit zeros for the unaligned head */
         if (zero_start > old_length) {
-            uint64_t len = zero_start - old_length;
+            uint64_t len = MIN(zero_start, offset) - old_length;
             uint8_t *buf = qemu_blockalign0(bs, len);
             QEMUIOVector qiov;
             qemu_iovec_init_buf(&qiov, buf, len);
