@@ -1509,6 +1509,7 @@ static void ahci_cmd_done(IDEDMA *dma)
 
 static void ahci_irq_set(void *opaque, int n, int level)
 {
+    qemu_log_mask(LOG_UNIMP, "ahci: IRQ#%d level:%d\n", n, level);
 }
 
 static const IDEDMAOps ahci_dma_ops = {
