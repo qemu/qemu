@@ -1152,7 +1152,7 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl, bool no_vmport)
 
     i8042 = isa_create_simple(isa_bus, "i8042");
     if (!no_vmport) {
-        vmport_init(isa_bus);
+        isa_create_simple(isa_bus, TYPE_VMPORT);
         vmmouse = isa_try_create(isa_bus, "vmmouse");
     } else {
         vmmouse = NULL;
