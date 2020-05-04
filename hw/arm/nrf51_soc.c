@@ -150,6 +150,11 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
+        object_property_set_uint(OBJECT(&s->timer[i]), i, "id", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
         object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
