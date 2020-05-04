@@ -4498,7 +4498,9 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
         if (aSig) {
-            return commonNaNToFloatx80(float32ToCommonNaN(a, status), status);
+            floatx80 res = commonNaNToFloatx80(float32ToCommonNaN(a, status),
+                                               status);
+            return floatx80_silence_nan(res, status);
         }
         return packFloatx80(aSign,
                             floatx80_infinity_high,
@@ -5016,7 +5018,9 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
         if (aSig) {
-            return commonNaNToFloatx80(float64ToCommonNaN(a, status), status);
+            floatx80 res = commonNaNToFloatx80(float64ToCommonNaN(a, status),
+                                               status);
+            return floatx80_silence_nan(res, status);
         }
         return packFloatx80(aSign,
                             floatx80_infinity_high,
@@ -5618,7 +5622,9 @@ float32 floatx80_to_float32(floatx80 a, float_status *status)
     aSign = extractFloatx80Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( (uint64_t) ( aSig<<1 ) ) {
-            return commonNaNToFloat32(floatx80ToCommonNaN(a, status), status);
+            float32 res = commonNaNToFloat32(floatx80ToCommonNaN(a, status),
+                                             status);
+            return float32_silence_nan(res, status);
         }
         return packFloat32( aSign, 0xFF, 0 );
     }
@@ -5650,7 +5656,9 @@ float64 floatx80_to_float64(floatx80 a, float_status *status)
     aSign = extractFloatx80Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( (uint64_t) ( aSig<<1 ) ) {
-            return commonNaNToFloat64(floatx80ToCommonNaN(a, status), status);
+            float64 res = commonNaNToFloat64(floatx80ToCommonNaN(a, status),
+                                             status);
+            return float64_silence_nan(res, status);
         }
         return packFloat64( aSign, 0x7FF, 0 );
     }
@@ -5681,7 +5689,9 @@ float128 floatx80_to_float128(floatx80 a, float_status *status)
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
     if ( ( aExp == 0x7FFF ) && (uint64_t) ( aSig<<1 ) ) {
-        return commonNaNToFloat128(floatx80ToCommonNaN(a, status), status);
+        float128 res = commonNaNToFloat128(floatx80ToCommonNaN(a, status),
+                                           status);
+        return float128_silence_nan(res, status);
     }
     shift128Right( aSig<<1, 0, 16, &zSig0, &zSig1 );
     return packFloat128( aSign, aExp, zSig0, zSig1 );
@@ -6959,7 +6969,9 @@ floatx80 float128_to_floatx80(float128 a, float_status *status)
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloatx80(float128ToCommonNaN(a, status), status);
+            floatx80 res = commonNaNToFloatx80(float128ToCommonNaN(a, status),
+                                               status);
+            return floatx80_silence_nan(res, status);
         }
         return packFloatx80(aSign, floatx80_infinity_high,
                                    floatx80_infinity_low);
