@@ -20,9 +20,7 @@
 #include "hw/arm/boot.h"
 #include "kvm_arm.h"
 #include "hw/misc/unimp.h"
-#include "hw/intc/arm_gicv3_common.h"
 #include "hw/arm/xlnx-versal.h"
-#include "hw/char/pl011.h"
 
 #define XLNX_VERSAL_ACPU_TYPE ARM_CPU_TYPE_NAME("cortex-a72")
 #define GEM_REVISION        0x40070106
@@ -33,23 +31,15 @@ static void versal_create_apu_cpus(Versal *s)
 
     for (i = 0; i < ARRAY_SIZE(s->fpd.apu.cpu); i++) {
         Object *obj;
-        char *name;
 
-        obj = object_new(XLNX_VERSAL_ACPU_TYPE);
-        if (!obj) {
-            /* Secondary CPUs start in PSCI powered-down state */
-            error_report("Unable to create apu.cpu[%d] of type %s",
-                         i, XLNX_VERSAL_ACPU_TYPE);
-            exit(EXIT_FAILURE);
-        }
-
-        name = g_strdup_printf("apu-cpu[%d]", i);
-        object_property_add_child(OBJECT(s), name, obj, &error_fatal);
-        g_free(name);
-
+        object_initialize_child(OBJECT(s), "apu-cpu[*]",
+                                &s->fpd.apu.cpu[i], sizeof(s->fpd.apu.cpu[i]),
+                                XLNX_VERSAL_ACPU_TYPE, &error_abort, NULL);
+        obj = OBJECT(&s->fpd.apu.cpu[i]);
         object_property_set_int(obj, s->cfg.psci_conduit,
                                 "psci-conduit", &error_abort);
         if (i) {
+            /* Secondary CPUs start in PSCI powered-down state */
             object_property_set_bool(obj, true,
                                      "start-powered-off", &error_abort);
         }
@@ -59,7 +49,6 @@ static void versal_create_apu_cpus(Versal *s)
         object_property_set_link(obj, OBJECT(&s->fpd.apu.mr), "memory",
                                  &error_abort);
         object_property_set_bool(obj, true, "realized", &error_fatal);
-        s->fpd.apu.cpu[i] = ARM_CPU(obj);
     }
 }
 
@@ -97,7 +86,7 @@ static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
     }
 
     for (i = 0; i < nr_apu_cpus; i++) {
-        DeviceState *cpudev = DEVICE(s->fpd.apu.cpu[i]);
+        DeviceState *cpudev = DEVICE(&s->fpd.apu.cpu[i]);
         int ppibase = XLNX_VERSAL_NR_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
         qemu_irq maint_irq;
         int ti;
@@ -145,16 +134,17 @@ static void versal_create_uarts(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        dev = qdev_create(NULL, TYPE_PL011);
-        s->lpd.iou.uart[i] = SYS_BUS_DEVICE(dev);
+        sysbus_init_child_obj(OBJECT(s), name,
+                              &s->lpd.iou.uart[i], sizeof(s->lpd.iou.uart[i]),
+                              TYPE_PL011);
+        dev = DEVICE(&s->lpd.iou.uart[i]);
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
         qdev_init_nofail(dev);
 
-        mr = sysbus_mmio_get_region(s->lpd.iou.uart[i], 0);
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
 
-        sysbus_connect_irq(s->lpd.iou.uart[i], 0, pic[irqs[i]]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irqs[i]]);
         g_free(name);
     }
 }
@@ -171,25 +161,26 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        dev = qdev_create(NULL, "cadence_gem");
-        s->lpd.iou.gem[i] = SYS_BUS_DEVICE(dev);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        sysbus_init_child_obj(OBJECT(s), name,
+                              &s->lpd.iou.gem[i], sizeof(s->lpd.iou.gem[i]),
+                              TYPE_CADENCE_GEM);
+        dev = DEVICE(&s->lpd.iou.gem[i]);
         if (nd->used) {
             qemu_check_nic_model(nd, "cadence_gem");
             qdev_set_nic_properties(dev, nd);
         }
-        object_property_set_int(OBJECT(s->lpd.iou.gem[i]),
+        object_property_set_int(OBJECT(dev),
                                 2, "num-priority-queues",
                                 &error_abort);
-        object_property_set_link(OBJECT(s->lpd.iou.gem[i]),
+        object_property_set_link(OBJECT(dev),
                                  OBJECT(&s->mr_ps), "dma",
                                  &error_abort);
         qdev_init_nofail(dev);
 
-        mr = sysbus_mmio_get_region(s->lpd.iou.gem[i], 0);
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
 
-        sysbus_connect_irq(s->lpd.iou.gem[i], 0, pic[irqs[i]]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irqs[i]]);
         g_free(name);
     }
 }
@@ -203,20 +194,70 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        dev = qdev_create(NULL, "xlnx.zdma");
-        s->lpd.iou.adma[i] = SYS_BUS_DEVICE(dev);
-        object_property_set_int(OBJECT(s->lpd.iou.adma[i]), 128, "bus-width",
-                                &error_abort);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        sysbus_init_child_obj(OBJECT(s), name,
+                              &s->lpd.iou.adma[i], sizeof(s->lpd.iou.adma[i]),
+                              TYPE_XLNX_ZDMA);
+        dev = DEVICE(&s->lpd.iou.adma[i]);
+        object_property_set_int(OBJECT(dev), 128, "bus-width", &error_abort);
         qdev_init_nofail(dev);
 
-        mr = sysbus_mmio_get_region(s->lpd.iou.adma[i], 0);
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps,
                                     MM_ADMA_CH0 + i * MM_ADMA_CH0_SIZE, mr);
 
-        sysbus_connect_irq(s->lpd.iou.adma[i], 0, pic[VERSAL_ADMA_IRQ_0 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[VERSAL_ADMA_IRQ_0 + i]);
         g_free(name);
     }
+}
+
+#define SDHCI_CAPABILITIES  0x280737ec6481 /* Same as on ZynqMP.  */
+static void versal_create_sds(Versal *s, qemu_irq *pic)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->pmc.iou.sd); i++) {
+        DeviceState *dev;
+        MemoryRegion *mr;
+
+        sysbus_init_child_obj(OBJECT(s), "sd[*]",
+                              &s->pmc.iou.sd[i], sizeof(s->pmc.iou.sd[i]),
+                              TYPE_SYSBUS_SDHCI);
+        dev = DEVICE(&s->pmc.iou.sd[i]);
+
+        object_property_set_uint(OBJECT(dev),
+                                 3, "sd-spec-version", &error_fatal);
+        object_property_set_uint(OBJECT(dev), SDHCI_CAPABILITIES, "capareg",
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), UHS_I, "uhs", &error_fatal);
+        qdev_init_nofail(dev);
+
+        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+        memory_region_add_subregion(&s->mr_ps,
+                                    MM_PMC_SD0 + i * MM_PMC_SD0_SIZE, mr);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                           pic[VERSAL_SD0_IRQ_0 + i * 2]);
+    }
+}
+
+static void versal_create_rtc(Versal *s, qemu_irq *pic)
+{
+    SysBusDevice *sbd;
+    MemoryRegion *mr;
+
+    sysbus_init_child_obj(OBJECT(s), "rtc", &s->pmc.rtc, sizeof(s->pmc.rtc),
+                          TYPE_XLNX_ZYNQMP_RTC);
+    sbd = SYS_BUS_DEVICE(&s->pmc.rtc);
+    qdev_init_nofail(DEVICE(sbd));
+
+    mr = sysbus_mmio_get_region(sbd, 0);
+    memory_region_add_subregion(&s->mr_ps, MM_PMC_RTC, mr);
+
+    /*
+     * TODO: Connect the ALARM and SECONDS interrupts once our RTC model
+     * supports them.
+     */
+    sysbus_connect_irq(sbd, 1, pic[VERSAL_RTC_APB_ERR_IRQ]);
 }
 
 /* This takes the board allocated linear DDR memory and creates aliases
@@ -301,6 +342,8 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_uarts(s, pic);
     versal_create_gems(s, pic);
     versal_create_admas(s, pic);
+    versal_create_sds(s, pic);
+    versal_create_rtc(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 

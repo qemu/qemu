@@ -1,0 +1,86 @@
+# AArch32 Neon data-processing instruction descriptions
+#
+#  Copyright (c) 2020 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+# VFP/Neon register fields; same as vfp.decode
+%vm_dp  5:1 0:4
+%vn_dp  7:1 16:4
+%vd_dp  22:1 12:4
+
+# Encodings for Neon data processing instructions where the T32 encoding
+# is a simple transformation of the A32 encoding.
+# More specifically, this file covers instructions where the A32 encoding is
+#   0b1111_001p_qqqq_qqqq_qqqq_qqqq_qqqq_qqqq
+# and the T32 encoding is
+#   0b111p_1111_qqqq_qqqq_qqqq_qqqq_qqqq_qqqq
+# This file works on the A32 encoding only; calling code for T32 has to
+# transform the insn into the A32 version first.
+
+######################################################################
+# 3-reg-same grouping:
+# 1111 001 U 0 D sz:2 Vn:4 Vd:4 opc:4 N Q M op Vm:4
+######################################################################
+
+&3same vm vn vd q size
+
+@3same           .... ... . . . size:2 .... .... .... . q:1 . . .... \
+                 &3same vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+VQADD_S_3s       1111 001 0 0 . .. .... .... 0000 . . . 1 .... @3same
+VQADD_U_3s       1111 001 1 0 . .. .... .... 0000 . . . 1 .... @3same
+
+@3same_logic     .... ... . . . .. .... .... .... . q:1 .. .... \
+                 &3same vm=%vm_dp vn=%vn_dp vd=%vd_dp size=0
+
+VAND_3s          1111 001 0 0 . 00 .... .... 0001 ... 1 .... @3same_logic
+VBIC_3s          1111 001 0 0 . 01 .... .... 0001 ... 1 .... @3same_logic
+VORR_3s          1111 001 0 0 . 10 .... .... 0001 ... 1 .... @3same_logic
+VORN_3s          1111 001 0 0 . 11 .... .... 0001 ... 1 .... @3same_logic
+VEOR_3s          1111 001 1 0 . 00 .... .... 0001 ... 1 .... @3same_logic
+VBSL_3s          1111 001 1 0 . 01 .... .... 0001 ... 1 .... @3same_logic
+VBIT_3s          1111 001 1 0 . 10 .... .... 0001 ... 1 .... @3same_logic
+VBIF_3s          1111 001 1 0 . 11 .... .... 0001 ... 1 .... @3same_logic
+
+VQSUB_S_3s       1111 001 0 0 . .. .... .... 0010 . . . 1 .... @3same
+VQSUB_U_3s       1111 001 1 0 . .. .... .... 0010 . . . 1 .... @3same
+
+VCGT_S_3s        1111 001 0 0 . .. .... .... 0011 . . . 0 .... @3same
+VCGT_U_3s        1111 001 1 0 . .. .... .... 0011 . . . 0 .... @3same
+VCGE_S_3s        1111 001 0 0 . .. .... .... 0011 . . . 1 .... @3same
+VCGE_U_3s        1111 001 1 0 . .. .... .... 0011 . . . 1 .... @3same
+
+VSHL_S_3s        1111 001 0 0 . .. .... .... 0100 . . . 0 .... @3same
+VSHL_U_3s        1111 001 1 0 . .. .... .... 0100 . . . 0 .... @3same
+
+VMAX_S_3s        1111 001 0 0 . .. .... .... 0110 . . . 0 .... @3same
+VMAX_U_3s        1111 001 1 0 . .. .... .... 0110 . . . 0 .... @3same
+VMIN_S_3s        1111 001 0 0 . .. .... .... 0110 . . . 1 .... @3same
+VMIN_U_3s        1111 001 1 0 . .. .... .... 0110 . . . 1 .... @3same
+
+VADD_3s          1111 001 0 0 . .. .... .... 1000 . . . 0 .... @3same
+VSUB_3s          1111 001 1 0 . .. .... .... 1000 . . . 0 .... @3same
+
+VTST_3s          1111 001 0 0 . .. .... .... 1000 . . . 1 .... @3same
+VCEQ_3s          1111 001 1 0 . .. .... .... 1000 . . . 1 .... @3same
+
+VMLA_3s          1111 001 0 0 . .. .... .... 1001 . . . 0 .... @3same
+VMLS_3s          1111 001 1 0 . .. .... .... 1001 . . . 0 .... @3same
+
+VMUL_3s          1111 001 0 0 . .. .... .... 1001 . . . 1 .... @3same
+VMUL_p_3s        1111 001 1 0 . .. .... .... 1001 . . . 1 .... @3same

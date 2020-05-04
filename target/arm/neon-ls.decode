@@ -1,0 +1,52 @@
+# AArch32 Neon load/store instruction descriptions
+#
+#  Copyright (c) 2020 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+
+# Encodings for Neon load/store instructions where the T32 encoding
+# is a simple transformation of the A32 encoding.
+# More specifically, this file covers instructions where the A32 encoding is
+#   0b1111_0100_xxx0_xxxx_xxxx_xxxx_xxxx_xxxx
+# and the T32 encoding is
+#   0b1111_1001_xxx0_xxxx_xxxx_xxxx_xxxx_xxxx
+# This file works on the A32 encoding only; calling code for T32 has to
+# transform the insn into the A32 version first.
+
+%vd_dp  22:1 12:4
+
+# Neon load/store multiple structures
+
+VLDST_multiple 1111 0100 0 . l:1 0 rn:4 .... itype:4 size:2 align:2 rm:4 \
+               vd=%vd_dp
+
+# Neon load single element to all lanes
+
+VLD_all_lanes  1111 0100 1 . 1 0 rn:4 .... 11 n:2 size:2 t:1 a:1 rm:4 \
+               vd=%vd_dp
+
+# Neon load/store single structure to one lane
+%imm1_5_p1 5:1 !function=plus1
+%imm1_6_p1 6:1 !function=plus1
+
+VLDST_single   1111 0100 1 . l:1 0 rn:4 .... 00 n:2 reg_idx:3 align:1 rm:4 \
+               vd=%vd_dp size=0 stride=1
+VLDST_single   1111 0100 1 . l:1 0 rn:4 .... 01 n:2 reg_idx:2 align:2 rm:4 \
+               vd=%vd_dp size=1 stride=%imm1_5_p1
+VLDST_single   1111 0100 1 . l:1 0 rn:4 .... 10 n:2 reg_idx:1 align:3 rm:4 \
+               vd=%vd_dp size=2 stride=%imm1_6_p1
