@@ -2889,7 +2889,6 @@ static void arm_cpu_register_types(void)
     const size_t cpu_count = ARRAY_SIZE(arm_cpus);
 
     type_register_static(&arm_cpu_type_info);
-    type_register_static(&idau_interface_type_info);
 
 #ifdef CONFIG_KVM
     type_register_static(&host_arm_cpu_type_info);
@@ -2898,6 +2897,7 @@ static void arm_cpu_register_types(void)
     if (cpu_count) {
         size_t i;
 
+        type_register_static(&idau_interface_type_info);
         for (i = 0; i < cpu_count; ++i) {
             arm_cpu_register(&arm_cpus[i]);
         }
