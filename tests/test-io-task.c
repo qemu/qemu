@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 
+#include "qom/object.h"
 #include "io/task.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
