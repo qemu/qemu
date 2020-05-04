@@ -20,5 +20,9 @@ int main(void)
         printf("FAIL: pseudo-denormal add\n");
         ret = 1;
     }
+    if (ld_pseudo_m16382.ld != 0x1p-16382L) {
+        printf("FAIL: pseudo-denormal compare\n");
+        ret = 1;
+    }
     return ret;
 }
