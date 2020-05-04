@@ -29,7 +29,7 @@
 #define MICROBIT_I2C(obj) \
     OBJECT_CHECK(MicrobitI2CState, (obj), TYPE_MICROBIT_I2C)
 
-#define MICROBIT_I2C_NREGS (NRF51_TWI_SIZE / sizeof(uint32_t))
+#define MICROBIT_I2C_NREGS (NRF51_PERIPHERAL_SIZE / sizeof(uint32_t))
 
 typedef struct {
     SysBusDevice parent_obj;
