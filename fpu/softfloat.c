@@ -339,12 +339,10 @@ static inline bool f64_is_inf(union_float64 a)
     return float64_is_infinity(a.s);
 }
 
-/* Note: @fast_test and @post can be NULL */
 static inline float32
 float32_gen2(float32 xa, float32 xb, float_status *s,
              hard_f32_op2_fn hard, soft_f32_op2_fn soft,
-             f32_check_fn pre, f32_check_fn post,
-             f32_check_fn fast_test, soft_f32_op2_fn fast_op)
+             f32_check_fn pre, f32_check_fn post)
 {
     union_float32 ua, ub, ur;
 
@@ -359,17 +357,12 @@ float32_gen2(float32 xa, float32 xb, float_status *s,
     if (unlikely(!pre(ua, ub))) {
         goto soft;
     }
-    if (fast_test && fast_test(ua, ub)) {
-        return fast_op(ua.s, ub.s, s);
-    }
 
     ur.h = hard(ua.h, ub.h);
     if (unlikely(f32_is_inf(ur))) {
         s->float_exception_flags |= float_flag_overflow;
-    } else if (unlikely(fabsf(ur.h) <= FLT_MIN)) {
-        if (post == NULL || post(ua, ub)) {
-            goto soft;
-        }
+    } else if (unlikely(fabsf(ur.h) <= FLT_MIN) && post(ua, ub)) {
+        goto soft;
     }
     return ur.s;
 
@@ -380,8 +373,7 @@ float32_gen2(float32 xa, float32 xb, float_status *s,
 static inline float64
 float64_gen2(float64 xa, float64 xb, float_status *s,
              hard_f64_op2_fn hard, soft_f64_op2_fn soft,
-             f64_check_fn pre, f64_check_fn post,
-             f64_check_fn fast_test, soft_f64_op2_fn fast_op)
+             f64_check_fn pre, f64_check_fn post)
 {
     union_float64 ua, ub, ur;
 
@@ -396,17 +388,12 @@ float64_gen2(float64 xa, float64 xb, float_status *s,
     if (unlikely(!pre(ua, ub))) {
         goto soft;
     }
-    if (fast_test && fast_test(ua, ub)) {
-        return fast_op(ua.s, ub.s, s);
-    }
 
     ur.h = hard(ua.h, ub.h);
     if (unlikely(f64_is_inf(ur))) {
         s->float_exception_flags |= float_flag_overflow;
-    } else if (unlikely(fabs(ur.h) <= DBL_MIN)) {
-        if (post == NULL || post(ua, ub)) {
-            goto soft;
-        }
+    } else if (unlikely(fabs(ur.h) <= DBL_MIN) && post(ua, ub)) {
+        goto soft;
     }
     return ur.s;
 
@@ -1115,7 +1102,7 @@ static double hard_f64_sub(double a, double b)
     return a - b;
 }
 
-static bool f32_addsub_post(union_float32 a, union_float32 b)
+static bool f32_addsubmul_post(union_float32 a, union_float32 b)
 {
     if (QEMU_HARDFLOAT_2F32_USE_FP) {
         return !(fpclassify(a.h) == FP_ZERO && fpclassify(b.h) == FP_ZERO);
@@ -1123,7 +1110,7 @@ static bool f32_addsub_post(union_float32 a, union_float32 b)
     return !(float32_is_zero(a.s) && float32_is_zero(b.s));
 }
 
-static bool f64_addsub_post(union_float64 a, union_float64 b)
+static bool f64_addsubmul_post(union_float64 a, union_float64 b)
 {
     if (QEMU_HARDFLOAT_2F64_USE_FP) {
         return !(fpclassify(a.h) == FP_ZERO && fpclassify(b.h) == FP_ZERO);
@@ -1136,14 +1123,14 @@ static float32 float32_addsub(float32 a, float32 b, float_status *s,
                               hard_f32_op2_fn hard, soft_f32_op2_fn soft)
 {
     return float32_gen2(a, b, s, hard, soft,
-                        f32_is_zon2, f32_addsub_post, NULL, NULL);
+                        f32_is_zon2, f32_addsubmul_post);
 }
 
 static float64 float64_addsub(float64 a, float64 b, float_status *s,
                               hard_f64_op2_fn hard, soft_f64_op2_fn soft)
 {
     return float64_gen2(a, b, s, hard, soft,
-                        f64_is_zon2, f64_addsub_post, NULL, NULL);
+                        f64_is_zon2, f64_addsubmul_post);
 }
 
 float32 QEMU_FLATTEN
@@ -1258,42 +1245,18 @@ static double hard_f64_mul(double a, double b)
     return a * b;
 }
 
-static bool f32_mul_fast_test(union_float32 a, union_float32 b)
-{
-    return float32_is_zero(a.s) || float32_is_zero(b.s);
-}
-
-static bool f64_mul_fast_test(union_float64 a, union_float64 b)
-{
-    return float64_is_zero(a.s) || float64_is_zero(b.s);
-}
-
-static float32 f32_mul_fast_op(float32 a, float32 b, float_status *s)
-{
-    bool signbit = float32_is_neg(a) ^ float32_is_neg(b);
-
-    return float32_set_sign(float32_zero, signbit);
-}
-
-static float64 f64_mul_fast_op(float64 a, float64 b, float_status *s)
-{
-    bool signbit = float64_is_neg(a) ^ float64_is_neg(b);
-
-    return float64_set_sign(float64_zero, signbit);
-}
-
 float32 QEMU_FLATTEN
 float32_mul(float32 a, float32 b, float_status *s)
 {
     return float32_gen2(a, b, s, hard_f32_mul, soft_f32_mul,
-                        f32_is_zon2, NULL, f32_mul_fast_test, f32_mul_fast_op);
+                        f32_is_zon2, f32_addsubmul_post);
 }
 
 float64 QEMU_FLATTEN
 float64_mul(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_mul, soft_f64_mul,
-                        f64_is_zon2, NULL, f64_mul_fast_test, f64_mul_fast_op);
+                        f64_is_zon2, f64_addsubmul_post);
 }
 
 /*
@@ -1834,14 +1797,14 @@ float32 QEMU_FLATTEN
 float32_div(float32 a, float32 b, float_status *s)
 {
     return float32_gen2(a, b, s, hard_f32_div, soft_f32_div,
-                        f32_div_pre, f32_div_post, NULL, NULL);
+                        f32_div_pre, f32_div_post);
 }
 
 float64 QEMU_FLATTEN
 float64_div(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_div, soft_f64_div,
-                        f64_div_pre, f64_div_post, NULL, NULL);
+                        f64_div_pre, f64_div_post);
 }
 
 /*
