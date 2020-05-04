@@ -91,6 +91,7 @@
 #include "qapi/qmp/qerror.h"
 #include "config-devices.h"
 #include "e820_memory_layout.h"
+#include "vmport.h"
 #include "fw_cfg.h"
 #include "trace.h"
 
