@@ -431,6 +431,7 @@ static uint32_t aspeed_silicon_revs[] = {
     AST2500_A0_SILICON_REV,
     AST2500_A1_SILICON_REV,
     AST2600_A0_SILICON_REV,
+    AST2600_A1_SILICON_REV,
 };
 
 bool is_supported_silicon_rev(uint32_t silicon_rev)
@@ -649,12 +650,10 @@ static const MemoryRegionOps aspeed_ast2600_scu_ops = {
     .valid.unaligned = false,
 };
 
-static const uint32_t ast2600_a0_resets[ASPEED_AST2600_SCU_NR_REGS] = {
-    [AST2600_SILICON_REV]       = AST2600_SILICON_REV,
-    [AST2600_SILICON_REV2]      = AST2600_SILICON_REV,
-    [AST2600_SYS_RST_CTRL]      = 0xF7CFFEDC | 0x100,
+static const uint32_t ast2600_a1_resets[ASPEED_AST2600_SCU_NR_REGS] = {
+    [AST2600_SYS_RST_CTRL]      = 0xF7C3FED8,
     [AST2600_SYS_RST_CTRL2]     = 0xFFFFFFFC,
-    [AST2600_CLK_STOP_CTRL]     = 0xEFF43E8B,
+    [AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A,
     [AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0,
     [AST2600_SDRAM_HANDSHAKE]   = 0x00000040,  /* SoC completed DRAM init */
     [AST2600_HPLL_PARAM]        = 0x1000405F,
@@ -684,7 +683,7 @@ static void aspeed_2600_scu_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "ASPEED 2600 System Control Unit";
     dc->reset = aspeed_ast2600_scu_reset;
-    asc->resets = ast2600_a0_resets;
+    asc->resets = ast2600_a1_resets;
     asc->calc_hpll = aspeed_2500_scu_calc_hpll; /* No change since AST2500 */
     asc->apb_divider = 4;
     asc->nr_regs = ASPEED_AST2600_SCU_NR_REGS;
