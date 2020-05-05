@@ -343,14 +343,6 @@ float32 float32_muladd(float32, float32, float32, int, float_status *status);
 float32 float32_sqrt(float32, float_status *status);
 float32 float32_exp2(float32, float_status *status);
 float32 float32_log2(float32, float_status *status);
-int float32_eq(float32, float32, float_status *status);
-int float32_le(float32, float32, float_status *status);
-int float32_lt(float32, float32, float_status *status);
-int float32_unordered(float32, float32, float_status *status);
-int float32_eq_quiet(float32, float32, float_status *status);
-int float32_le_quiet(float32, float32, float_status *status);
-int float32_lt_quiet(float32, float32, float_status *status);
-int float32_unordered_quiet(float32, float32, float_status *status);
 FloatRelation float32_compare(float32, float32, float_status *status);
 FloatRelation float32_compare_quiet(float32, float32, float_status *status);
 float32 float32_min(float32, float32, float_status *status);
@@ -423,6 +415,47 @@ static inline bool float32_is_zero_or_normal(float32 a)
 static inline float32 float32_set_sign(float32 a, int sign)
 {
     return make_float32((float32_val(a) & 0x7fffffff) | (sign << 31));
+}
+
+static inline bool float32_eq(float32 a, float32 b, float_status *s)
+{
+    return float32_compare(a, b, s) == float_relation_equal;
+}
+
+static inline bool float32_le(float32 a, float32 b, float_status *s)
+{
+    return float32_compare(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float32_lt(float32 a, float32 b, float_status *s)
+{
+    return float32_compare(a, b, s) < float_relation_equal;
+}
+
+static inline bool float32_unordered(float32 a, float32 b, float_status *s)
+{
+    return float32_compare(a, b, s) == float_relation_unordered;
+}
+
+static inline bool float32_eq_quiet(float32 a, float32 b, float_status *s)
+{
+    return float32_compare_quiet(a, b, s) == float_relation_equal;
+}
+
+static inline bool float32_le_quiet(float32 a, float32 b, float_status *s)
+{
+    return float32_compare_quiet(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float32_lt_quiet(float32 a, float32 b, float_status *s)
+{
+    return float32_compare_quiet(a, b, s) < float_relation_equal;
+}
+
+static inline bool float32_unordered_quiet(float32 a, float32 b,
+                                           float_status *s)
+{
+    return float32_compare_quiet(a, b, s) == float_relation_unordered;
 }
 
 #define float32_zero make_float32(0)
