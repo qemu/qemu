@@ -571,18 +571,18 @@ void object_initialize_childv(Object *parentobj, const char *propname,
         }
     }
 
+out:
     /*
-     * Since object_property_add_child added a reference to the child object,
-     * we can drop the reference added by object_initialize(), so the child
-     * property will own the only reference to the object.
+     * We want @obj's reference to be 1 on success, 0 on failure.
+     * On success, it's 2: one taken by object_initialize(), and one
+     * by object_property_add_child().
+     * On failure in object_initialize() or earlier, it's 1.
+     * On failure afterwards, it's also 1: object_unparent() releases
+     * the reference taken by object_property_add_child().
      */
     object_unref(obj);
 
-out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(obj);
-    }
+    error_propagate(errp, local_err);
 }
 
 static inline bool object_property_is_child(ObjectProperty *prop)
