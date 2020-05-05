@@ -35,7 +35,7 @@ quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
 quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
 quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
 
-nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
+nbd_sock_path = os.path.join(iotests.sock_dir, 'nbd.sock')
 
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
