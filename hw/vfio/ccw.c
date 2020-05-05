@@ -363,8 +363,7 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
     vcdev->io_region_size = info->size;
     if (sizeof(*vcdev->io_region) != vcdev->io_region_size) {
         error_setg(errp, "vfio: Unexpected size of the I/O region");
-        g_free(info);
-        return;
+        goto out_err;
     }
 
     vcdev->io_region_offset = info->offset;
@@ -377,15 +376,20 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         vcdev->async_cmd_region_size = info->size;
         if (sizeof(*vcdev->async_cmd_region) != vcdev->async_cmd_region_size) {
             error_setg(errp, "vfio: Unexpected size of the async cmd region");
-            g_free(vcdev->io_region);
-            g_free(info);
-            return;
+            goto out_err;
         }
         vcdev->async_cmd_region_offset = info->offset;
         vcdev->async_cmd_region = g_malloc0(info->size);
     }
 
     g_free(info);
+    return;
+
+out_err:
+    g_free(vcdev->async_cmd_region);
+    g_free(vcdev->io_region);
+    g_free(info);
+    return;
 }
 
 static void vfio_ccw_put_region(VFIOCCWDevice *vcdev)
