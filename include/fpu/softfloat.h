@@ -689,14 +689,6 @@ floatx80 floatx80_mul(floatx80, floatx80, float_status *status);
 floatx80 floatx80_div(floatx80, floatx80, float_status *status);
 floatx80 floatx80_rem(floatx80, floatx80, float_status *status);
 floatx80 floatx80_sqrt(floatx80, float_status *status);
-int floatx80_eq(floatx80, floatx80, float_status *status);
-int floatx80_le(floatx80, floatx80, float_status *status);
-int floatx80_lt(floatx80, floatx80, float_status *status);
-int floatx80_unordered(floatx80, floatx80, float_status *status);
-int floatx80_eq_quiet(floatx80, floatx80, float_status *status);
-int floatx80_le_quiet(floatx80, floatx80, float_status *status);
-int floatx80_lt_quiet(floatx80, floatx80, float_status *status);
-int floatx80_unordered_quiet(floatx80, floatx80, float_status *status);
 FloatRelation floatx80_compare(floatx80, floatx80, float_status *status);
 FloatRelation floatx80_compare_quiet(floatx80, floatx80, float_status *status);
 int floatx80_is_quiet_nan(floatx80, float_status *status);
@@ -744,6 +736,47 @@ static inline int floatx80_is_zero_or_denormal(floatx80 a)
 static inline int floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
+}
+
+static inline bool floatx80_eq(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare(a, b, s) == float_relation_equal;
+}
+
+static inline bool floatx80_le(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare(a, b, s) <= float_relation_equal;
+}
+
+static inline bool floatx80_lt(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare(a, b, s) < float_relation_equal;
+}
+
+static inline bool floatx80_unordered(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare(a, b, s) == float_relation_unordered;
+}
+
+static inline bool floatx80_eq_quiet(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare_quiet(a, b, s) == float_relation_equal;
+}
+
+static inline bool floatx80_le_quiet(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare_quiet(a, b, s) <= float_relation_equal;
+}
+
+static inline bool floatx80_lt_quiet(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_compare_quiet(a, b, s) < float_relation_equal;
+}
+
+static inline bool floatx80_unordered_quiet(floatx80 a, floatx80 b,
+                                           float_status *s)
+{
+    return floatx80_compare_quiet(a, b, s) == float_relation_unordered;
 }
 
 /*----------------------------------------------------------------------------
