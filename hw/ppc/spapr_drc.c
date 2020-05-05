@@ -518,7 +518,7 @@ static void realize(DeviceState *d, Error **errp)
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
     gchar *link_name;
-    gchar *child_name;
+    char *child_name;
     Error *err = NULL;
 
     trace_spapr_drc_realize(spapr_drc_index(drc));

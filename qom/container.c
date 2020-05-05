@@ -28,7 +28,7 @@ static void container_register_types(void)
 Object *container_get(Object *root, const char *path)
 {
     Object *obj, *child;
-    gchar **parts;
+    char **parts;
     int i;
 
     parts = g_strsplit(path, "/", 0);

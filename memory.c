@@ -1175,7 +1175,7 @@ static void memory_region_get_container(Object *obj, Visitor *v,
                                         Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
-    gchar *path = (gchar *)"";
+    char *path = (char *)"";
 
     if (mr->container) {
         path = object_get_canonical_path(OBJECT(mr->container));
@@ -2845,7 +2845,7 @@ static void mtree_expand_owner(const char *label, Object *obj)
     if (dev && dev->id) {
         qemu_printf(" id=%s", dev->id);
     } else {
-        gchar *canonical_path = object_get_canonical_path(obj);
+        char *canonical_path = object_get_canonical_path(obj);
         if (canonical_path) {
             qemu_printf(" path=%s", canonical_path);
             g_free(canonical_path);

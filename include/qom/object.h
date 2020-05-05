@@ -369,9 +369,9 @@ typedef void (ObjectPropertyInit)(Object *obj, ObjectProperty *prop);
 
 struct ObjectProperty
 {
-    gchar *name;
-    gchar *type;
-    gchar *description;
+    char *name;
+    char *type;
+    char *description;
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     ObjectPropertyResolve *resolve;
@@ -1421,7 +1421,7 @@ Object *object_get_internal_root(void);
  * path is the path within the composition tree starting from the root.
  * %NULL if the object doesn't have a parent (and thus a canonical path).
  */
-gchar *object_get_canonical_path_component(Object *obj);
+char *object_get_canonical_path_component(Object *obj);
 
 /**
  * object_get_canonical_path:
@@ -1429,7 +1429,7 @@ gchar *object_get_canonical_path_component(Object *obj);
  * Returns: The canonical path for a object.  This is the path within the
  * composition tree starting from the root.
  */
-gchar *object_get_canonical_path(Object *obj);
+char *object_get_canonical_path(Object *obj);
 
 /**
  * object_resolve_path:
@@ -1487,7 +1487,7 @@ Object *object_resolve_path_type(const char *path, const char *typename,
  *
  * Returns: The resolved object or NULL on path lookup failure.
  */
-Object *object_resolve_path_component(Object *parent, const gchar *part);
+Object *object_resolve_path_component(Object *parent, const char *part);
 
 /**
  * object_property_add_child:
