@@ -71,7 +71,7 @@ static void wav_destroy (void *opaque)
     g_free (wav->path);
 }
 
-static void wav_capture (void *opaque, void *buf, int size)
+static void wav_capture(void *opaque, const void *buf, int size)
 {
     WAVState *wav = opaque;
 

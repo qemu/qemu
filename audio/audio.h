@@ -60,7 +60,7 @@ typedef enum {
 
 struct audio_capture_ops {
     void (*notify) (void *opaque, audcnotification_e cmd);
-    void (*capture) (void *opaque, void *buf, int size);
+    void (*capture) (void *opaque, const void *buf, int size);
     void (*destroy) (void *opaque);
 };
 
