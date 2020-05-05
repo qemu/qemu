@@ -30,6 +30,7 @@
 #include "hw/usb.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "monitor/qdev.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
@@ -755,13 +756,16 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
     qdict_put_int(qdict, "port", port);
     qdict_put_int(qdict, "hostbus", atoi(busid));
     qdict_put_str(qdict, "hostport", portname);
-    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
-    if (local_err) {
-        goto err;
-    }
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict,
+                                &error_abort);
     usbif->ports[port - 1].dev = USB_DEVICE(qdev_device_add(opts, &local_err));
     if (!usbif->ports[port - 1].dev) {
-        goto err;
+        qobject_unref(qdict);
+        xen_pv_printf(&usbif->xendev, 0,
+                      "device %s could not be opened: %s\n",
+                      busid, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
     }
     qobject_unref(qdict);
     speed = usbif->ports[port - 1].dev->speed;
@@ -793,11 +797,6 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
     usbback_hotplug_enq(usbif, port);
 
     TR_BUS(&usbif->xendev, "port %d attached\n", port);
-    return;
-
-err:
-    qobject_unref(qdict);
-    xen_pv_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
 }
 
 static void usbback_process_port(struct usbback_info *usbif, unsigned port)
