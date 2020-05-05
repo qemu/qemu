@@ -532,14 +532,6 @@ float64 float64_rem(float64, float64, float_status *status);
 float64 float64_muladd(float64, float64, float64, int, float_status *status);
 float64 float64_sqrt(float64, float_status *status);
 float64 float64_log2(float64, float_status *status);
-int float64_eq(float64, float64, float_status *status);
-int float64_le(float64, float64, float_status *status);
-int float64_lt(float64, float64, float_status *status);
-int float64_unordered(float64, float64, float_status *status);
-int float64_eq_quiet(float64, float64, float_status *status);
-int float64_le_quiet(float64, float64, float_status *status);
-int float64_lt_quiet(float64, float64, float_status *status);
-int float64_unordered_quiet(float64, float64, float_status *status);
 FloatRelation float64_compare(float64, float64, float_status *status);
 FloatRelation float64_compare_quiet(float64, float64, float_status *status);
 float64 float64_min(float64, float64, float_status *status);
@@ -613,6 +605,47 @@ static inline float64 float64_set_sign(float64 a, int sign)
 {
     return make_float64((float64_val(a) & 0x7fffffffffffffffULL)
                         | ((int64_t)sign << 63));
+}
+
+static inline bool float64_eq(float64 a, float64 b, float_status *s)
+{
+    return float64_compare(a, b, s) == float_relation_equal;
+}
+
+static inline bool float64_le(float64 a, float64 b, float_status *s)
+{
+    return float64_compare(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float64_lt(float64 a, float64 b, float_status *s)
+{
+    return float64_compare(a, b, s) < float_relation_equal;
+}
+
+static inline bool float64_unordered(float64 a, float64 b, float_status *s)
+{
+    return float64_compare(a, b, s) == float_relation_unordered;
+}
+
+static inline bool float64_eq_quiet(float64 a, float64 b, float_status *s)
+{
+    return float64_compare_quiet(a, b, s) == float_relation_equal;
+}
+
+static inline bool float64_le_quiet(float64 a, float64 b, float_status *s)
+{
+    return float64_compare_quiet(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float64_lt_quiet(float64 a, float64 b, float_status *s)
+{
+    return float64_compare_quiet(a, b, s) < float_relation_equal;
+}
+
+static inline bool float64_unordered_quiet(float64 a, float64 b,
+                                           float_status *s)
+{
+    return float64_compare_quiet(a, b, s) == float_relation_unordered;
 }
 
 #define float64_zero make_float64(0)
