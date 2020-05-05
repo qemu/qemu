@@ -59,8 +59,7 @@ static void orangepi_init(MachineState *machine)
     }
 
     h3 = AW_H3(object_new(TYPE_AW_H3));
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(h3),
-                              &error_abort);
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(h3));
     object_unref(OBJECT(h3));
 
     /* Setup timer properties */

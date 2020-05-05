@@ -298,7 +298,7 @@ static void pca9552_initfn(Object *obj)
 
         name = g_strdup_printf("led%d", led);
         object_property_add(obj, name, "bool", pca9552_get_led, pca9552_set_led,
-                            NULL, NULL, NULL);
+                            NULL, NULL);
         g_free(name);
     }
 }

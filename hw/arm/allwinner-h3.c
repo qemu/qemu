@@ -205,9 +205,9 @@ static void allwinner_h3_init(Object *obj)
     sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
                           TYPE_AW_A10_PIT);
     object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer),
-                              "clk0-freq", &error_abort);
+                              "clk0-freq");
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
-                              "clk1-freq", &error_abort);
+                              "clk1-freq");
 
     sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
                           TYPE_AW_H3_CCU);
@@ -221,7 +221,7 @@ static void allwinner_h3_init(Object *obj)
     sysbus_init_child_obj(obj, "sid", &s->sid, sizeof(s->sid),
                           TYPE_AW_SID);
     object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
-                              "identifier", &error_abort);
+                              "identifier");
 
     sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
                           TYPE_AW_SDHOST_SUN5I);
@@ -232,9 +232,9 @@ static void allwinner_h3_init(Object *obj)
     sysbus_init_child_obj(obj, "dramc", &s->dramc, sizeof(s->dramc),
                           TYPE_AW_H3_DRAMC);
     object_property_add_alias(obj, "ram-addr", OBJECT(&s->dramc),
-                             "ram-addr", &error_abort);
+                             "ram-addr");
     object_property_add_alias(obj, "ram-size", OBJECT(&s->dramc),
-                              "ram-size", &error_abort);
+                              "ram-size");
 
     sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
                           TYPE_AW_RTC_SUN6I);
@@ -366,7 +366,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_MMC0));
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
-                              "sd-bus", &error_abort);
+                              "sd-bus");
 
     /* EMAC */
     if (nd_table[0].used) {

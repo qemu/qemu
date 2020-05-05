@@ -141,21 +141,19 @@ memfd_backend_class_init(ObjectClass *oc, void *data)
     if (qemu_memfd_check(MFD_HUGETLB)) {
         object_class_property_add_bool(oc, "hugetlb",
                                        memfd_backend_get_hugetlb,
-                                       memfd_backend_set_hugetlb,
-                                       &error_abort);
+                                       memfd_backend_set_hugetlb);
         object_class_property_set_description(oc, "hugetlb",
                                               "Use huge pages");
         object_class_property_add(oc, "hugetlbsize", "int",
                                   memfd_backend_get_hugetlbsize,
                                   memfd_backend_set_hugetlbsize,
-                                  NULL, NULL, &error_abort);
+                                  NULL, NULL);
         object_class_property_set_description(oc, "hugetlbsize",
                                               "Huge pages size (ex: 2M, 1G)");
     }
     object_class_property_add_bool(oc, "seal",
                                    memfd_backend_get_seal,
-                                   memfd_backend_set_seal,
-                                   &error_abort);
+                                   memfd_backend_set_seal);
     object_class_property_set_description(oc, "seal",
                                           "Seal growing & shrinking");
 }

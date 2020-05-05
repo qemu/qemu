@@ -209,7 +209,7 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
     /* Default to secure mode being disabled */
     s->secure = false;
     object_property_add_bool(obj, "secure", zcu102_get_secure,
-                             zcu102_set_secure, NULL);
+                             zcu102_set_secure);
     object_property_set_description(obj, "secure",
                                     "Set on/off to enable/disable the ARM "
                                     "Security Extensions (TrustZone)");
@@ -217,7 +217,7 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
     /* Default to virt (EL2) being disabled */
     s->virt = false;
     object_property_add_bool(obj, "virtualization", zcu102_get_virt,
-                             zcu102_set_virt, NULL);
+                             zcu102_set_virt);
     object_property_set_description(obj, "virtualization",
                                     "Set on/off to enable/disable emulating a "
                                     "guest CPU which implements the ARM "

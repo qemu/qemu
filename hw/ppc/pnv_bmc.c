@@ -217,8 +217,7 @@ static const IPMINetfn hiomap_netfn = {
 void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
 {
     object_ref(OBJECT(pnor));
-    object_property_add_const_link(OBJECT(bmc), "pnor", OBJECT(pnor),
-                                   &error_abort);
+    object_property_add_const_link(OBJECT(bmc), "pnor", OBJECT(pnor));
 
     /* Install the HIOMAP protocol handlers to access the PNOR */
     ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(bmc), IPMI_NETFN_OEM,
@@ -235,7 +234,7 @@ IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
 
     obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
     object_ref(OBJECT(pnor));
-    object_property_add_const_link(obj, "pnor", OBJECT(pnor), &error_abort);
+    object_property_add_const_link(obj, "pnor", OBJECT(pnor));
     object_property_set_bool(obj, true, "realized", &error_fatal);
 
     /* Install the HIOMAP protocol handlers to access the PNOR */

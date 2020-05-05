@@ -347,16 +347,16 @@ static void tmp421_initfn(Object *obj)
 {
     object_property_add(obj, "temperature0", "int",
                         tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL, NULL);
+                        tmp421_set_temperature, NULL, NULL);
     object_property_add(obj, "temperature1", "int",
                         tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL, NULL);
+                        tmp421_set_temperature, NULL, NULL);
     object_property_add(obj, "temperature2", "int",
                         tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL, NULL);
+                        tmp421_set_temperature, NULL, NULL);
     object_property_add(obj, "temperature3", "int",
                         tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL, NULL);
+                        tmp421_set_temperature, NULL, NULL);
 }
 
 static void tmp421_class_init(ObjectClass *klass, void *data)

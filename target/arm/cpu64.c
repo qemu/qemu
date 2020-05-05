@@ -571,13 +571,13 @@ void aarch64_add_sve_properties(Object *obj)
     uint32_t vq;
 
     object_property_add(obj, "sve", "bool", cpu_arm_get_sve,
-                        cpu_arm_set_sve, NULL, NULL, &error_fatal);
+                        cpu_arm_set_sve, NULL, NULL);
 
     for (vq = 1; vq <= ARM_MAX_VQ; ++vq) {
         char name[8];
         sprintf(name, "sve%d", vq * 128);
         object_property_add(obj, name, "bool", cpu_arm_get_sve_vq,
-                            cpu_arm_set_sve_vq, NULL, NULL, &error_fatal);
+                            cpu_arm_set_sve_vq, NULL, NULL);
     }
 }
 
@@ -726,7 +726,7 @@ static void aarch64_max_initfn(Object *obj)
 
     aarch64_add_sve_properties(obj);
     object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_max_vq,
-                        cpu_max_set_sve_max_vq, NULL, NULL, &error_fatal);
+                        cpu_max_set_sve_max_vq, NULL, NULL);
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
@@ -767,7 +767,7 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
 static void aarch64_cpu_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aarch64", aarch64_cpu_get_aarch64,
-                             aarch64_cpu_set_aarch64, NULL);
+                             aarch64_cpu_set_aarch64);
     object_property_set_description(obj, "aarch64",
                                     "Set on/off to enable/disable aarch64 "
                                     "execution state ");

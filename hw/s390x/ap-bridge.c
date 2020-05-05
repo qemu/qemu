@@ -51,7 +51,7 @@ void s390_init_ap(void)
     /* Create bridge device */
     dev = qdev_create(NULL, TYPE_AP_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_AP_BRIDGE,
-                              OBJECT(dev), NULL);
+                              OBJECT(dev));
     qdev_init_nofail(dev);
 
     /* Create bus on bridge device */

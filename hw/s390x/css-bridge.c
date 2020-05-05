@@ -103,7 +103,7 @@ VirtualCssBus *virtual_css_bus_init(void)
     /* Create bridge device */
     dev = qdev_create(NULL, TYPE_VIRTUAL_CSS_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_VIRTUAL_CSS_BRIDGE,
-                              OBJECT(dev), NULL);
+                              OBJECT(dev));
     qdev_init_nofail(dev);
 
     /* Create bus on bridge device */
@@ -141,7 +141,7 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, virtual_css_bridge_properties);
     object_class_property_add_bool(klass, "cssid-unrestricted",
-                                   prop_get_true, NULL, NULL);
+                                   prop_get_true, NULL);
     object_class_property_set_description(klass, "cssid-unrestricted",
             "A css device can use any cssid, regardless whether virtual"
             " or not (read only, always true)");

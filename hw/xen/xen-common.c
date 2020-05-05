@@ -198,8 +198,7 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
     compat_props_add(ac->compat_props, compat, G_N_ELEMENTS(compat));
 
     object_class_property_add_bool(oc, "igd-passthru",
-        xen_get_igd_gfx_passthru, xen_set_igd_gfx_passthru,
-        &error_abort);
+        xen_get_igd_gfx_passthru, xen_set_igd_gfx_passthru);
     object_class_property_set_description(oc, "igd-passthru",
         "Set on/off to enable/disable igd passthrou");
 }

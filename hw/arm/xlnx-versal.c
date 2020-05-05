@@ -309,7 +309,7 @@ static void versal_unimp_area(Versal *s, const char *name,
 
     qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", size);
-    object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+    object_property_add_child(OBJECT(s), name, OBJECT(dev));
     qdev_init_nofail(dev);
 
     mr_dev = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);

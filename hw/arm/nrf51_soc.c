@@ -197,8 +197,7 @@ static void nrf51_soc_init(Object *obj)
 
     sysbus_init_child_obj(obj, "uart", &s->uart, sizeof(s->uart),
                            TYPE_NRF51_UART);
-    object_property_add_alias(obj, "serial0", OBJECT(&s->uart), "chardev",
-                              &error_abort);
+    object_property_add_alias(obj, "serial0", OBJECT(&s->uart), "chardev");
 
     sysbus_init_child_obj(obj, "rng", &s->rng, sizeof(s->rng),
                            TYPE_NRF51_RNG);

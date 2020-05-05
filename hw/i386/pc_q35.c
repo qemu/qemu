@@ -214,7 +214,7 @@ static void pc_q35_init(MachineState *machine)
     /* create pci host bus */
     q35_host = Q35_HOST_DEVICE(qdev_create(NULL, TYPE_Q35_HOST_DEVICE));
 
-    object_property_add_child(qdev_get_machine(), "q35", OBJECT(q35_host), NULL);
+    object_property_add_child(qdev_get_machine(), "q35", OBJECT(q35_host));
     object_property_set_link(OBJECT(q35_host), OBJECT(ram_memory),
                              MCH_HOST_PROP_RAM_MEM, NULL);
     object_property_set_link(OBJECT(q35_host), OBJECT(pci_memory),
@@ -240,7 +240,7 @@ static void pc_q35_init(MachineState *machine)
                              TYPE_HOTPLUG_HANDLER,
                              (Object **)&pcms->acpi_dev,
                              object_property_allow_set_link,
-                             OBJ_PROP_LINK_STRONG, &error_abort);
+                             OBJ_PROP_LINK_STRONG);
     object_property_set_link(OBJECT(machine), OBJECT(lpc),
                              PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
 

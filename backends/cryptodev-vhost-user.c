@@ -340,8 +340,7 @@ static void cryptodev_vhost_user_instance_int(Object *obj)
 {
     object_property_add_str(obj, "chardev",
                             cryptodev_vhost_user_get_chardev,
-                            cryptodev_vhost_user_set_chardev,
-                            NULL);
+                            cryptodev_vhost_user_set_chardev);
 }
 
 static void cryptodev_vhost_user_finalize(Object *obj)

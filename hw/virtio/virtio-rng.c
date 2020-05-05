@@ -203,7 +203,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
         }
 
         object_property_add_child(OBJECT(dev), "default-backend",
-                                  default_backend, &error_abort);
+                                  default_backend);
 
         /* The child property took a reference, we can safely drop ours now */
         object_unref(default_backend);

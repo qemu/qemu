@@ -544,7 +544,7 @@ static void aspeed_machine_class_props_init(ObjectClass *oc)
 {
     object_class_property_add_bool(oc, "execute-in-place",
                                    aspeed_get_mmio_exec,
-                                   aspeed_set_mmio_exec, &error_abort);
+                                   aspeed_set_mmio_exec);
     object_class_property_set_description(oc, "execute-in-place",
                            "boot directly from CE0 flash device");
 }

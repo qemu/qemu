@@ -264,7 +264,7 @@ static void sparc32_dma_device_init(Object *obj)
     object_property_add_link(OBJECT(dev), "iommu", TYPE_SUN4M_IOMMU,
                              (Object **) &s->iommu,
                              qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
+                             0);
 
     qdev_init_gpio_in(dev, dma_set_irq, 1);
     qdev_init_gpio_out(dev, s->gpio, 2);
@@ -302,7 +302,7 @@ static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
     ESPState *esp;
 
     d = qdev_create(NULL, TYPE_ESP);
-    object_property_add_child(OBJECT(dev), "esp", OBJECT(d), errp);
+    object_property_add_child(OBJECT(dev), "esp", OBJECT(d));
     sysbus = ESP_STATE(d);
     esp = &sysbus->esp;
     esp->dma_memory_read = espdma_memory_read;
@@ -344,7 +344,7 @@ static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
     qemu_check_nic_model(nd, TYPE_LANCE);
 
     d = qdev_create(NULL, TYPE_LANCE);
-    object_property_add_child(OBJECT(dev), "lance", OBJECT(d), errp);
+    object_property_add_child(OBJECT(dev), "lance", OBJECT(d));
     qdev_set_nic_properties(d, nd);
     object_property_set_link(OBJECT(d), OBJECT(dev), "dma", errp);
     qdev_init_nofail(d);
@@ -380,7 +380,7 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
 
     espdma = qdev_create(NULL, TYPE_SPARC32_ESPDMA_DEVICE);
     object_property_set_link(OBJECT(espdma), iommu, "iommu", errp);
-    object_property_add_child(OBJECT(s), "espdma", OBJECT(espdma), errp);
+    object_property_add_child(OBJECT(s), "espdma", OBJECT(espdma));
     qdev_init_nofail(espdma);
 
     esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
@@ -395,7 +395,7 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
 
     ledma = qdev_create(NULL, TYPE_SPARC32_LEDMA_DEVICE);
     object_property_set_link(OBJECT(ledma), iommu, "iommu", errp);
-    object_property_add_child(OBJECT(s), "ledma", OBJECT(ledma), errp);
+    object_property_add_child(OBJECT(s), "ledma", OBJECT(ledma));
     qdev_init_nofail(ledma);
 
     lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));

@@ -250,7 +250,7 @@ static void aspeed_sdmc_initfn(Object *obj)
 {
     object_property_add(obj, "ram-size", "int",
                         aspeed_sdmc_get_ram_size, aspeed_sdmc_set_ram_size,
-                        NULL, NULL, NULL);
+                        NULL, NULL);
 }
 
 static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)

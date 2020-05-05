@@ -74,8 +74,7 @@ qauthz_simple_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_str(oc, "identity",
                                   qauthz_simple_prop_get_identity,
-                                  qauthz_simple_prop_set_identity,
-                                  NULL);
+                                  qauthz_simple_prop_set_identity);
 }
 
 

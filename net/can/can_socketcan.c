@@ -266,8 +266,7 @@ static void can_host_socketcan_class_init(ObjectClass *klass,
 
     object_class_property_add_str(klass, "if",
                                   can_host_socketcan_get_if,
-                                  can_host_socketcan_set_if,
-                                  &error_abort);
+                                  can_host_socketcan_set_if);
     chc->connect = can_host_socketcan_connect;
     chc->disconnect = can_host_socketcan_disconnect;
 }

@@ -962,7 +962,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, RTC_ISA_BASE, 3);
     qemu_register_reset(rtc_reset, s);
 
-    object_property_add_tm(OBJECT(s), "date", rtc_get_date, NULL);
+    object_property_add_tm(OBJECT(s), "date", rtc_get_date);
 
     qdev_init_gpio_out(dev, &s->irq, 1);
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
@@ -984,7 +984,7 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     }
 
     object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(isadev),
-                              "date", NULL);
+                              "date");
 
     return isadev;
 }

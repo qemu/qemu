@@ -761,7 +761,7 @@ Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
     Object *obj;
 
     obj = object_new(TYPE_XIVE_TCTX);
-    object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
+    object_property_add_child(cpu, TYPE_XIVE_TCTX, obj);
     object_unref(obj);
     object_property_set_link(obj, cpu, "cpu", &error_abort);
     object_property_set_link(obj, OBJECT(xptr), "presenter", &error_abort);

@@ -33,8 +33,7 @@ static void vhost_user_vga_inst_initfn(Object *obj)
     VIRTIO_VGA_BASE(dev)->vgpu = VIRTIO_GPU_BASE(&dev->vdev);
 
     object_property_add_alias(obj, "chardev",
-                              OBJECT(&dev->vdev), "chardev",
-                              &error_abort);
+                              OBJECT(&dev->vdev), "chardev");
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_user_vga_info = {

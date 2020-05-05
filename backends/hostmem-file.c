@@ -184,18 +184,15 @@ file_backend_class_init(ObjectClass *oc, void *data)
     oc->unparent = file_backend_unparent;
 
     object_class_property_add_bool(oc, "discard-data",
-        file_memory_backend_get_discard_data, file_memory_backend_set_discard_data,
-        &error_abort);
+        file_memory_backend_get_discard_data, file_memory_backend_set_discard_data);
     object_class_property_add_str(oc, "mem-path",
-        get_mem_path, set_mem_path,
-        &error_abort);
+        get_mem_path, set_mem_path);
     object_class_property_add(oc, "align", "int",
         file_memory_backend_get_align,
         file_memory_backend_set_align,
-        NULL, NULL, &error_abort);
+        NULL, NULL);
     object_class_property_add_bool(oc, "pmem",
-        file_memory_backend_get_pmem, file_memory_backend_set_pmem,
-        &error_abort);
+        file_memory_backend_get_pmem, file_memory_backend_set_pmem);
 }
 
 static void file_backend_instance_finalize(Object *o)

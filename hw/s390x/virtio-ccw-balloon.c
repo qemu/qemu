@@ -32,10 +32,10 @@ static void virtio_ccw_balloon_instance_init(Object *obj)
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_BALLOON);
     object_property_add_alias(obj, "guest-stats", OBJECT(&dev->vdev),
-                              "guest-stats", &error_abort);
+                              "guest-stats");
     object_property_add_alias(obj, "guest-stats-polling-interval",
                               OBJECT(&dev->vdev),
-                              "guest-stats-polling-interval", &error_abort);
+                              "guest-stats-polling-interval");
 }
 
 static Property virtio_ccw_balloon_properties[] = {

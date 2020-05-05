@@ -301,17 +301,13 @@ void ppc_compat_add_property(Object *obj, const char *name,
                              uint32_t *compat_pvr, const char *basedesc,
                              Error **errp)
 {
-    Error *local_err = NULL;
     gchar *namesv[ARRAY_SIZE(compat_table) + 1];
     gchar *names, *desc;
     int i;
 
     object_property_add(obj, name, "string",
                         ppc_compat_prop_get, ppc_compat_prop_set, NULL,
-                        compat_pvr, &local_err);
-    if (local_err) {
-        goto out;
-    }
+                        compat_pvr);
 
     for (i = 0; i < ARRAY_SIZE(compat_table); i++) {
         /*
@@ -328,7 +324,4 @@ void ppc_compat_add_property(Object *obj, const char *name,
 
     g_free(names);
     g_free(desc);
-
-out:
-    error_propagate(errp, local_err);
 }

@@ -307,7 +307,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
         obj = object_new(TYPE_ICS_SPAPR);
 
-        object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
+        object_property_add_child(OBJECT(spapr), "ics", obj);
         object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
                                  &error_abort);
         object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &error_abort);

@@ -76,9 +76,9 @@ static void cpu_core_instance_init(Object *obj)
     CPUCore *core = CPU_CORE(obj);
 
     object_property_add(obj, "core-id", "int", core_prop_get_core_id,
-                        core_prop_set_core_id, NULL, NULL, NULL);
+                        core_prop_set_core_id, NULL, NULL);
     object_property_add(obj, "nr-threads", "int", core_prop_get_nr_threads,
-                        core_prop_set_nr_threads, NULL, NULL, NULL);
+                        core_prop_set_nr_threads, NULL, NULL);
     core->nr_threads = ms->smp.threads;
 }
 

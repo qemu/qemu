@@ -329,7 +329,6 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
                                    DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
     BootIndexProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->bootindex = bootindex;
@@ -340,13 +339,8 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                         device_get_bootindex,
                         device_set_bootindex,
                         property_release_bootindex,
-                        prop, &local_err);
+                        prop);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
-        g_free(prop);
-        return;
-    }
     /* initialize devices' bootindex property to -1 */
     object_property_set_int(obj, -1, name, NULL);
 }

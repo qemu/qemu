@@ -259,7 +259,7 @@ static void mv88w8618_audio_init(Object *obj)
     object_property_add_link(OBJECT(dev), "wm8750", TYPE_WM8750,
                              (Object **) &s->wm,
                              qdev_prop_allow_set_link_before_realize,
-                             0, &error_abort);
+                             0);
 }
 
 static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)

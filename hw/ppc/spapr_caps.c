@@ -826,7 +826,6 @@ void spapr_caps_cpu_apply(SpaprMachineState *spapr, PowerPCCPU *cpu)
 
 void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 {
-    Error *local_err = NULL;
     ObjectClass *klass = OBJECT_CLASS(smc);
     int i;
 
@@ -837,12 +836,7 @@ void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 
         object_class_property_add(klass, name, cap->type,
                                   cap->get, cap->set,
-                                  NULL, cap, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            g_free(name);
-            return;
-        }
+                                  NULL, cap);
 
         desc = g_strdup_printf("%s", cap->description);
         object_class_property_set_description(klass, name, desc);

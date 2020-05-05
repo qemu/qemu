@@ -1105,7 +1105,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
     }
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(dev), NULL);
+                              OBJECT(dev));
     qdev_init_nofail(dev);
 
     sbd = SYS_BUS_DEVICE(dev);
@@ -1145,7 +1145,7 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
     }
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(dev), NULL);
+                              OBJECT(dev));
     qdev_init_nofail(dev);
 
     sbd = SYS_BUS_DEVICE(dev);

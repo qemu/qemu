@@ -226,22 +226,18 @@ qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_bool(oc, "verify-peer",
                                    qcrypto_tls_creds_prop_get_verify,
-                                   qcrypto_tls_creds_prop_set_verify,
-                                   NULL);
+                                   qcrypto_tls_creds_prop_set_verify);
     object_class_property_add_str(oc, "dir",
                                   qcrypto_tls_creds_prop_get_dir,
-                                  qcrypto_tls_creds_prop_set_dir,
-                                  NULL);
+                                  qcrypto_tls_creds_prop_set_dir);
     object_class_property_add_enum(oc, "endpoint",
                                    "QCryptoTLSCredsEndpoint",
                                    &QCryptoTLSCredsEndpoint_lookup,
                                    qcrypto_tls_creds_prop_get_endpoint,
-                                   qcrypto_tls_creds_prop_set_endpoint,
-                                   NULL);
+                                   qcrypto_tls_creds_prop_set_endpoint);
     object_class_property_add_str(oc, "priority",
                                   qcrypto_tls_creds_prop_get_priority,
-                                  qcrypto_tls_creds_prop_set_priority,
-                                  NULL);
+                                  qcrypto_tls_creds_prop_set_priority);
 }
 
 

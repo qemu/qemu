@@ -62,8 +62,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                 qdev_prop_set_uint32(d, "irq", k->parallel.get_irq(sio, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
-            object_property_add_child(OBJECT(sio), name, OBJECT(isa),
-                                      &error_abort);
+            object_property_add_child(OBJECT(dev), name, OBJECT(isa));
             qdev_init_nofail(d);
             sio->parallel[i] = isa;
             trace_superio_create_parallel(i,
@@ -102,8 +101,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                 qdev_prop_set_uint32(d, "irq", k->serial.get_irq(sio, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
-            object_property_add_child(OBJECT(sio), name, OBJECT(isa),
-                                      &error_abort);
+            object_property_add_child(OBJECT(dev), name, OBJECT(isa));
             qdev_init_nofail(d);
             sio->serial[i] = isa;
             trace_superio_create_serial(i,
@@ -137,8 +135,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_drive(d, "driveB", blk_by_legacy_dinfo(drive),
                                 &error_fatal);
         }
-        object_property_add_child(OBJECT(sio), "isa-fdc", OBJECT(isa),
-                                  &error_abort);
+        object_property_add_child(OBJECT(sio), "isa-fdc", OBJECT(isa));
         qdev_init_nofail(d);
         sio->floppy = isa;
         trace_superio_create_floppy(0,
@@ -150,8 +147,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
 
     /* Keyboard, mouse */
     isa = isa_create(bus, TYPE_I8042);
-    object_property_add_child(OBJECT(sio), TYPE_I8042, OBJECT(isa),
-                              &error_abort);
+    object_property_add_child(OBJECT(sio), TYPE_I8042, OBJECT(isa));
     qdev_init_nofail(DEVICE(isa));
     sio->kbc = isa;
 
@@ -169,8 +165,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_uint32(d, "irq", k->ide.get_irq(sio, 0));
         }
         qdev_init_nofail(d);
-        object_property_add_child(OBJECT(sio), "isa-ide", OBJECT(isa),
-                                  &error_abort);
+        object_property_add_child(OBJECT(sio), "isa-ide", OBJECT(isa));
         sio->ide = isa;
         trace_superio_create_ide(0,
                                  k->ide.get_iobase ?

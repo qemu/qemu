@@ -449,18 +449,18 @@ static void init_event_facility(Object *obj)
     event_facility->allow_all_mask_sizes = true;
     object_property_add_bool(obj, "allow_all_mask_sizes",
                              sclp_event_get_allow_all_mask_sizes,
-                             sclp_event_set_allow_all_mask_sizes, NULL);
+                             sclp_event_set_allow_all_mask_sizes);
     /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
                         TYPE_SCLP_EVENTS_BUS, sdev, NULL);
 
     new = object_new(TYPE_SCLP_QUIESCE);
-    object_property_add_child(obj, TYPE_SCLP_QUIESCE, new, NULL);
+    object_property_add_child(obj, TYPE_SCLP_QUIESCE, new);
     object_unref(new);
     qdev_set_parent_bus(DEVICE(new), BUS(&event_facility->sbus));
 
     new = object_new(TYPE_SCLP_CPU_HOTPLUG);
-    object_property_add_child(obj, TYPE_SCLP_CPU_HOTPLUG, new, NULL);
+    object_property_add_child(obj, TYPE_SCLP_CPU_HOTPLUG, new);
     object_unref(new);
     qdev_set_parent_bus(DEVICE(new), BUS(&event_facility->sbus));
     /* the facility will automatically realize the devices via the bus */

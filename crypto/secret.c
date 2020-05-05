@@ -369,30 +369,24 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_secret_prop_get_loaded,
-                                   qcrypto_secret_prop_set_loaded,
-                                   NULL);
+                                   qcrypto_secret_prop_set_loaded);
     object_class_property_add_enum(oc, "format",
                                    "QCryptoSecretFormat",
                                    &QCryptoSecretFormat_lookup,
                                    qcrypto_secret_prop_get_format,
-                                   qcrypto_secret_prop_set_format,
-                                   NULL);
+                                   qcrypto_secret_prop_set_format);
     object_class_property_add_str(oc, "data",
                                   qcrypto_secret_prop_get_data,
-                                  qcrypto_secret_prop_set_data,
-                                  NULL);
+                                  qcrypto_secret_prop_set_data);
     object_class_property_add_str(oc, "file",
                                   qcrypto_secret_prop_get_file,
-                                  qcrypto_secret_prop_set_file,
-                                  NULL);
+                                  qcrypto_secret_prop_set_file);
     object_class_property_add_str(oc, "keyid",
                                   qcrypto_secret_prop_get_keyid,
-                                  qcrypto_secret_prop_set_keyid,
-                                  NULL);
+                                  qcrypto_secret_prop_set_keyid);
     object_class_property_add_str(oc, "iv",
                                   qcrypto_secret_prop_get_iv,
-                                  qcrypto_secret_prop_set_iv,
-                                  NULL);
+                                  qcrypto_secret_prop_set_iv);
 }
 
 

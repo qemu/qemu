@@ -893,12 +893,12 @@ static void virtio_balloon_instance_init(Object *obj)
     VirtIOBalloon *s = VIRTIO_BALLOON(obj);
 
     object_property_add(obj, "guest-stats", "guest statistics",
-                        balloon_stats_get_all, NULL, NULL, s, NULL);
+                        balloon_stats_get_all, NULL, NULL, s);
 
     object_property_add(obj, "guest-stats-polling-interval", "int",
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
-                        NULL, s, NULL);
+                        NULL, s);
 }
 
 static const VMStateDescription vmstate_virtio_balloon = {

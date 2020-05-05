@@ -197,8 +197,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         /* Alias controller SPI bus to the SoC itself */
         bus_name = g_strdup_printf("spi%d", i);
         object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->spi[i]), "spi",
-                                  &error_abort);
+                                  OBJECT(&s->spi[i]), "spi");
         g_free(bus_name);
     }
 

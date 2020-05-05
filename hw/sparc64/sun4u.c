@@ -691,7 +691,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev), NULL);
+    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev));
     qdev_init_nofail(dev);
     memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
                                 &FW_CFG_IO(dev)->comb_iomem);
