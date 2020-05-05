@@ -1321,20 +1321,6 @@ int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp);
 
 /**
- * object_property_get_uint16List:
- * @obj: the object
- * @name: the name of the property
- * @list: the returned int list
- * @errp: returns an error if this function fails
- *
- * Returns: the value of the property, converted to integers, or
- * undefined if an error occurs (including when the property value is not
- * an list of integers).
- */
-void object_property_get_uint16List(Object *obj, const char *name,
-                                    uint16List **list, Error **errp);
-
-/**
  * object_property_set:
  * @obj: the object
  * @v: the visitor that will be used to write the property value.  This should
