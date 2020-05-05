@@ -58,7 +58,8 @@ static inline void set_float_detect_tininess(bool val, float_status *status)
     status->tininess_before_rounding = val;
 }
 
-static inline void set_float_rounding_mode(int val, float_status *status)
+static inline void set_float_rounding_mode(FloatRoundMode val,
+                                           float_status *status)
 {
     status->float_rounding_mode = val;
 }
@@ -99,7 +100,7 @@ static inline bool get_float_detect_tininess(float_status *status)
     return status->tininess_before_rounding;
 }
 
-static inline int get_float_rounding_mode(float_status *status)
+static inline FloatRoundMode get_float_rounding_mode(float_status *status)
 {
     return status->float_rounding_mode;
 }

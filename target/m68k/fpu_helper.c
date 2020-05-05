@@ -149,7 +149,7 @@ void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val)
 
 void HELPER(fitrunc)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    FloatRoundMode rounding_mode = get_float_rounding_mode(&env->fp_status);
     set_float_rounding_mode(float_round_to_zero, &env->fp_status);
     res->d = floatx80_round_to_int(val->d, &env->fp_status);
     set_float_rounding_mode(rounding_mode, &env->fp_status);
@@ -300,7 +300,7 @@ void HELPER(fdmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 
 void HELPER(fsglmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    FloatRoundMode rounding_mode = get_float_rounding_mode(&env->fp_status);
     floatx80 a, b;
 
     PREC_BEGIN(32);
@@ -333,7 +333,7 @@ void HELPER(fddiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 
 void HELPER(fsgldiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    FloatRoundMode rounding_mode = get_float_rounding_mode(&env->fp_status);
     floatx80 a, b;
 
     PREC_BEGIN(32);

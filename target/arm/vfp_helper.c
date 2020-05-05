@@ -697,9 +697,9 @@ static bool round_to_inf(float_status *fpst, bool sign_bit)
         return sign_bit;
     case float_round_to_zero: /* Round to Zero */
         return false;
+    default:
+        g_assert_not_reached();
     }
-
-    g_assert_not_reached();
 }
 
 uint32_t HELPER(recpe_f16)(uint32_t input, void *fpstp)
