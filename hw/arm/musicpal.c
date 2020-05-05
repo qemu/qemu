@@ -1619,14 +1619,10 @@ static void musicpal_init(MachineState *machine)
                           pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
                           pic[MP_TIMER4_IRQ], NULL);
 
-    if (serial_hd(0)) {
-        serial_mm_init(address_space_mem, MP_UART1_BASE, 2, pic[MP_UART1_IRQ],
-                       1825000, serial_hd(0), DEVICE_NATIVE_ENDIAN);
-    }
-    if (serial_hd(1)) {
-        serial_mm_init(address_space_mem, MP_UART2_BASE, 2, pic[MP_UART2_IRQ],
-                       1825000, serial_hd(1), DEVICE_NATIVE_ENDIAN);
-    }
+    serial_mm_init(address_space_mem, MP_UART1_BASE, 2, pic[MP_UART1_IRQ],
+                   1825000, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+    serial_mm_init(address_space_mem, MP_UART2_BASE, 2, pic[MP_UART2_IRQ],
+                   1825000, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
