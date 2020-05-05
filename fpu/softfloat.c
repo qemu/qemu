@@ -744,8 +744,7 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
             p.cls = float_class_zero;
             goto do_zero;
         } else {
-            bool is_tiny = (s->float_detect_tininess
-                            == float_tininess_before_rounding)
+            bool is_tiny = s->tininess_before_rounding
                         || (exp < 0)
                         || !((frac + inc) & DECOMPOSED_OVERFLOW_BIT);
 
@@ -3579,11 +3578,9 @@ static float32 roundAndPackFloat32(bool zSign, int zExp, uint32_t zSig,
                 float_raise(float_flag_output_denormal, status);
                 return packFloat32(zSign, 0, 0);
             }
-            isTiny =
-                (status->float_detect_tininess
-                 == float_tininess_before_rounding)
-                || ( zExp < -1 )
-                || ( zSig + roundIncrement < 0x80000000 );
+            isTiny = status->tininess_before_rounding
+                  || (zExp < -1)
+                  || (zSig + roundIncrement < 0x80000000);
             shift32RightJamming( zSig, - zExp, &zSig );
             zExp = 0;
             roundBits = zSig & 0x7F;
@@ -3735,11 +3732,9 @@ static float64 roundAndPackFloat64(bool zSign, int zExp, uint64_t zSig,
                 float_raise(float_flag_output_denormal, status);
                 return packFloat64(zSign, 0, 0);
             }
-            isTiny =
-                   (status->float_detect_tininess
-                    == float_tininess_before_rounding)
-                || ( zExp < -1 )
-                || ( zSig + roundIncrement < UINT64_C(0x8000000000000000) );
+            isTiny = status->tininess_before_rounding
+                  || (zExp < -1)
+                  || (zSig + roundIncrement < UINT64_C(0x8000000000000000));
             shift64RightJamming( zSig, - zExp, &zSig );
             zExp = 0;
             roundBits = zSig & 0x3FF;
@@ -3878,11 +3873,9 @@ floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
                 float_raise(float_flag_output_denormal, status);
                 return packFloatx80(zSign, 0, 0);
             }
-            isTiny =
-                   (status->float_detect_tininess
-                    == float_tininess_before_rounding)
-                || ( zExp < 0 )
-                || ( zSig0 <= zSig0 + roundIncrement );
+            isTiny = status->tininess_before_rounding
+                  || (zExp < 0 )
+                  || (zSig0 <= zSig0 + roundIncrement);
             shift64RightJamming( zSig0, 1 - zExp, &zSig0 );
             zExp = 0;
             roundBits = zSig0 & roundMask;
@@ -3956,12 +3949,10 @@ floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
                                 floatx80_infinity_low);
         }
         if ( zExp <= 0 ) {
-            isTiny =
-                   (status->float_detect_tininess
-                    == float_tininess_before_rounding)
-                || ( zExp < 0 )
-                || ! increment
-                || ( zSig0 < UINT64_C(0xFFFFFFFFFFFFFFFF) );
+            isTiny = status->tininess_before_rounding
+                  || (zExp < 0)
+                  || !increment
+                  || (zSig0 < UINT64_C(0xFFFFFFFFFFFFFFFF));
             shift64ExtraRightJamming( zSig0, zSig1, 1 - zExp, &zSig0, &zSig1 );
             zExp = 0;
             if (isTiny && zSig1) {
@@ -4237,17 +4228,12 @@ static float128 roundAndPackFloat128(bool zSign, int32_t zExp,
                 float_raise(float_flag_output_denormal, status);
                 return packFloat128(zSign, 0, 0, 0);
             }
-            isTiny =
-                   (status->float_detect_tininess
-                    == float_tininess_before_rounding)
-                || ( zExp < -1 )
-                || ! increment
-                || lt128(
-                       zSig0,
-                       zSig1,
-                       UINT64_C(0x0001FFFFFFFFFFFF),
-                       UINT64_C(0xFFFFFFFFFFFFFFFF)
-                   );
+            isTiny = status->tininess_before_rounding
+                  || (zExp < -1)
+                  || !increment
+                  || lt128(zSig0, zSig1,
+                           UINT64_C(0x0001FFFFFFFFFFFF),
+                           UINT64_C(0xFFFFFFFFFFFFFFFF));
             shift128ExtraRightJamming(
                 zSig0, zSig1, zSig2, - zExp, &zSig0, &zSig1, &zSig2 );
             zExp = 0;

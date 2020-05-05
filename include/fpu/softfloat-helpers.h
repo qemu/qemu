@@ -53,9 +53,9 @@ this code that are retained.
 
 #include "fpu/softfloat-types.h"
 
-static inline void set_float_detect_tininess(int val, float_status *status)
+static inline void set_float_detect_tininess(bool val, float_status *status)
 {
-    status->float_detect_tininess = val;
+    status->tininess_before_rounding = val;
 }
 
 static inline void set_float_rounding_mode(int val, float_status *status)
@@ -94,9 +94,9 @@ static inline void set_snan_bit_is_one(bool val, float_status *status)
     status->snan_bit_is_one = val;
 }
 
-static inline int get_float_detect_tininess(float_status *status)
+static inline bool get_float_detect_tininess(float_status *status)
 {
-    return status->float_detect_tininess;
+    return status->tininess_before_rounding;
 }
 
 static inline int get_float_rounding_mode(float_status *status)

@@ -116,10 +116,8 @@ typedef struct {
  * Software IEC/IEEE floating-point underflow tininess-detection mode.
  */
 
-enum {
-    float_tininess_after_rounding  = 0,
-    float_tininess_before_rounding = 1
-};
+#define float_tininess_after_rounding  false
+#define float_tininess_before_rounding true
 
 /*
  *Software IEC/IEEE floating-point rounding mode.
@@ -158,10 +156,10 @@ enum {
  */
 
 typedef struct float_status {
-    signed char float_detect_tininess;
     signed char float_rounding_mode;
     uint8_t     float_exception_flags;
     signed char floatx80_rounding_precision;
+    bool tininess_before_rounding;
     /* should denormalised results go to zero and set the inexact flag? */
     bool flush_to_zero;
     /* should denormalised inputs go to zero and set the input_denormal flag? */
