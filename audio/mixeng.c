@@ -339,10 +339,10 @@ f_sample *mixeng_clip_float[2] = {
     clip_natural_float_from_stereo,
 };
 
-void audio_sample_to_uint64(void *samples, int pos,
+void audio_sample_to_uint64(const void *samples, int pos,
                             uint64_t *left, uint64_t *right)
 {
-    struct st_sample *sample = samples;
+    const struct st_sample *sample = samples;
     sample += pos;
 #ifdef FLOAT_MIXENG
     error_report(

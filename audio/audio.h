@@ -163,7 +163,7 @@ int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
 bool audio_is_cleaning_up(void);
 void audio_cleanup(void);
 
-void audio_sample_to_uint64(void *samples, int pos,
+void audio_sample_to_uint64(const void *samples, int pos,
                             uint64_t *left, uint64_t *right);
 void audio_sample_from_uint64(void *samples, int pos,
                             uint64_t left, uint64_t right);
