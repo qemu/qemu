@@ -1521,8 +1521,6 @@ typedef struct EnumProperty {
 int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp)
 {
-    Error *err = NULL;
-    Visitor *v;
     char *str;
     int ret;
     ObjectProperty *prop = object_property_find(obj, name, errp);
@@ -1541,15 +1539,10 @@ int object_property_get_enum(Object *obj, const char *name,
 
     enumprop = prop->opaque;
 
-    v = string_output_visitor_new(false, &str);
-    object_property_get(obj, v, name, &err);
-    if (err) {
-        error_propagate(errp, err);
-        visit_free(v);
+    str = object_property_get_str(obj, name, errp);
+    if (!str) {
         return 0;
     }
-    visit_complete(v, &str);
-    visit_free(v);
 
     ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);
     g_free(str);
