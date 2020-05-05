@@ -614,7 +614,7 @@ static void object_property_del_all(Object *obj)
     g_hash_table_unref(obj->properties);
 }
 
-static void object_property_del_child(Object *obj, Object *child, Error **errp)
+static void object_property_del_child(Object *obj, Object *child)
 {
     ObjectProperty *prop;
     GHashTableIter iter;
@@ -644,7 +644,7 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
 void object_unparent(Object *obj)
 {
     if (obj->parent) {
-        object_property_del_child(obj->parent, obj, NULL);
+        object_property_del_child(obj->parent, obj);
     }
 }
 
