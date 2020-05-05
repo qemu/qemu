@@ -281,7 +281,7 @@ float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
     return float64_sqrt(a, &env->vfp.fp_status);
 }
 
-static void softfloat_to_vfp_compare(CPUARMState *env, int cmp)
+static void softfloat_to_vfp_compare(CPUARMState *env, FloatRelation cmp)
 {
     uint32_t flags;
     switch (cmp) {

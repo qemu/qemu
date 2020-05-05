@@ -2848,8 +2848,8 @@ MINMAX(64, maxnummag, false, true, true)
 #undef MINMAX
 
 /* Floating point compare */
-static int compare_floats(FloatParts a, FloatParts b, bool is_quiet,
-                          float_status *s)
+static FloatRelation compare_floats(FloatParts a, FloatParts b, bool is_quiet,
+                                    float_status *s)
 {
     if (is_nan(a.cls) || is_nan(b.cls)) {
         if (!is_quiet ||
@@ -2920,17 +2920,17 @@ COMPARE(soft_f64_compare, QEMU_SOFTFLOAT_ATTR, 64)
 
 #undef COMPARE
 
-int float16_compare(float16 a, float16 b, float_status *s)
+FloatRelation float16_compare(float16 a, float16 b, float_status *s)
 {
     return soft_f16_compare(a, b, false, s);
 }
 
-int float16_compare_quiet(float16 a, float16 b, float_status *s)
+FloatRelation float16_compare_quiet(float16 a, float16 b, float_status *s)
 {
     return soft_f16_compare(a, b, true, s);
 }
 
-static int QEMU_FLATTEN
+static FloatRelation QEMU_FLATTEN
 f32_compare(float32 xa, float32 xb, bool is_quiet, float_status *s)
 {
     union_float32 ua, ub;
@@ -2959,17 +2959,17 @@ f32_compare(float32 xa, float32 xb, bool is_quiet, float_status *s)
     return soft_f32_compare(ua.s, ub.s, is_quiet, s);
 }
 
-int float32_compare(float32 a, float32 b, float_status *s)
+FloatRelation float32_compare(float32 a, float32 b, float_status *s)
 {
     return f32_compare(a, b, false, s);
 }
 
-int float32_compare_quiet(float32 a, float32 b, float_status *s)
+FloatRelation float32_compare_quiet(float32 a, float32 b, float_status *s)
 {
     return f32_compare(a, b, true, s);
 }
 
-static int QEMU_FLATTEN
+static FloatRelation QEMU_FLATTEN
 f64_compare(float64 xa, float64 xb, bool is_quiet, float_status *s)
 {
     union_float64 ua, ub;
@@ -2998,12 +2998,12 @@ f64_compare(float64 xa, float64 xb, bool is_quiet, float_status *s)
     return soft_f64_compare(ua.s, ub.s, is_quiet, s);
 }
 
-int float64_compare(float64 a, float64 b, float_status *s)
+FloatRelation float64_compare(float64 a, float64 b, float_status *s)
 {
     return f64_compare(a, b, false, s);
 }
 
-int float64_compare_quiet(float64 a, float64 b, float_status *s)
+FloatRelation float64_compare_quiet(float64 a, float64 b, float_status *s)
 {
     return f64_compare(a, b, true, s);
 }
@@ -7892,8 +7892,9 @@ int float128_unordered_quiet(float128 a, float128 b, float_status *status)
     return 0;
 }
 
-static inline int floatx80_compare_internal(floatx80 a, floatx80 b,
-                                            int is_quiet, float_status *status)
+static inline FloatRelation
+floatx80_compare_internal(floatx80 a, floatx80 b, bool is_quiet,
+                          float_status *status)
 {
     bool aSign, bSign;
 
@@ -7939,18 +7940,20 @@ static inline int floatx80_compare_internal(floatx80 a, floatx80 b,
     }
 }
 
-int floatx80_compare(floatx80 a, floatx80 b, float_status *status)
+FloatRelation floatx80_compare(floatx80 a, floatx80 b, float_status *status)
 {
     return floatx80_compare_internal(a, b, 0, status);
 }
 
-int floatx80_compare_quiet(floatx80 a, floatx80 b, float_status *status)
+FloatRelation floatx80_compare_quiet(floatx80 a, floatx80 b,
+                                     float_status *status)
 {
     return floatx80_compare_internal(a, b, 1, status);
 }
 
-static inline int float128_compare_internal(float128 a, float128 b,
-                                            int is_quiet, float_status *status)
+static inline FloatRelation
+float128_compare_internal(float128 a, float128 b, bool is_quiet,
+                          float_status *status)
 {
     bool aSign, bSign;
 
@@ -7983,12 +7986,13 @@ static inline int float128_compare_internal(float128 a, float128 b,
     }
 }
 
-int float128_compare(float128 a, float128 b, float_status *status)
+FloatRelation float128_compare(float128 a, float128 b, float_status *status)
 {
     return float128_compare_internal(a, b, 0, status);
 }
 
-int float128_compare_quiet(float128 a, float128 b, float_status *status)
+FloatRelation float128_compare_quiet(float128 a, float128 b,
+                                     float_status *status)
 {
     return float128_compare_internal(a, b, 1, status);
 }

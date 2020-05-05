@@ -139,7 +139,7 @@ void HELPER(oeq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 
 void HELPER(ueq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 {
-    int v = float32_compare_quiet(a, b, &env->fp_status);
+    FloatRelation v = float32_compare_quiet(a, b, &env->fp_status);
     set_br(env, v == float_relation_equal || v == float_relation_unordered, br);
 }
 
@@ -150,7 +150,7 @@ void HELPER(olt_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 
 void HELPER(ult_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 {
-    int v = float32_compare_quiet(a, b, &env->fp_status);
+    FloatRelation v = float32_compare_quiet(a, b, &env->fp_status);
     set_br(env, v == float_relation_less || v == float_relation_unordered, br);
 }
 
@@ -161,6 +161,6 @@ void HELPER(ole_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 
 void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 {
-    int v = float32_compare_quiet(a, b, &env->fp_status);
+    FloatRelation v = float32_compare_quiet(a, b, &env->fp_status);
     set_br(env, v != float_relation_greater, br);
 }

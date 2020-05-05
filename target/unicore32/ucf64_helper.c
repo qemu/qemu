@@ -174,8 +174,7 @@ float64 HELPER(ucf64_absd)(float64 a)
 void HELPER(ucf64_cmps)(float32 a, float32 b, uint32_t c,
         CPUUniCore32State *env)
 {
-    int flag;
-    flag = float32_compare_quiet(a, b, &env->ucf64.fp_status);
+    FloatRelation flag = float32_compare_quiet(a, b, &env->ucf64.fp_status);
     env->CF = 0;
     switch (c & 0x7) {
     case 0: /* F */
@@ -223,8 +222,7 @@ void HELPER(ucf64_cmps)(float32 a, float32 b, uint32_t c,
 void HELPER(ucf64_cmpd)(float64 a, float64 b, uint32_t c,
         CPUUniCore32State *env)
 {
-    int flag;
-    flag = float64_compare_quiet(a, b, &env->ucf64.fp_status);
+    FloatRelation flag = float64_compare_quiet(a, b, &env->ucf64.fp_status);
     env->CF = 0;
     switch (c & 0x7) {
     case 0: /* F */

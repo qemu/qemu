@@ -85,12 +85,13 @@ this code that are retained.
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
 *----------------------------------------------------------------------------*/
-enum {
+
+typedef enum {
     float_relation_less      = -1,
     float_relation_equal     =  0,
     float_relation_greater   =  1,
     float_relation_unordered =  2
-};
+} FloatRelation;
 
 #include "fpu/softfloat-types.h"
 #include "fpu/softfloat-helpers.h"
@@ -231,8 +232,8 @@ float16 float16_maxnum(float16, float16, float_status *status);
 float16 float16_minnummag(float16, float16, float_status *status);
 float16 float16_maxnummag(float16, float16, float_status *status);
 float16 float16_sqrt(float16, float_status *status);
-int float16_compare(float16, float16, float_status *status);
-int float16_compare_quiet(float16, float16, float_status *status);
+FloatRelation float16_compare(float16, float16, float_status *status);
+FloatRelation float16_compare_quiet(float16, float16, float_status *status);
 
 int float16_is_quiet_nan(float16, float_status *status);
 int float16_is_signaling_nan(float16, float_status *status);
@@ -350,8 +351,8 @@ int float32_eq_quiet(float32, float32, float_status *status);
 int float32_le_quiet(float32, float32, float_status *status);
 int float32_lt_quiet(float32, float32, float_status *status);
 int float32_unordered_quiet(float32, float32, float_status *status);
-int float32_compare(float32, float32, float_status *status);
-int float32_compare_quiet(float32, float32, float_status *status);
+FloatRelation float32_compare(float32, float32, float_status *status);
+FloatRelation float32_compare_quiet(float32, float32, float_status *status);
 float32 float32_min(float32, float32, float_status *status);
 float32 float32_max(float32, float32, float_status *status);
 float32 float32_minnum(float32, float32, float_status *status);
@@ -506,8 +507,8 @@ int float64_eq_quiet(float64, float64, float_status *status);
 int float64_le_quiet(float64, float64, float_status *status);
 int float64_lt_quiet(float64, float64, float_status *status);
 int float64_unordered_quiet(float64, float64, float_status *status);
-int float64_compare(float64, float64, float_status *status);
-int float64_compare_quiet(float64, float64, float_status *status);
+FloatRelation float64_compare(float64, float64, float_status *status);
+FloatRelation float64_compare_quiet(float64, float64, float_status *status);
 float64 float64_min(float64, float64, float_status *status);
 float64 float64_max(float64, float64, float_status *status);
 float64 float64_minnum(float64, float64, float_status *status);
@@ -630,8 +631,8 @@ int floatx80_eq_quiet(floatx80, floatx80, float_status *status);
 int floatx80_le_quiet(floatx80, floatx80, float_status *status);
 int floatx80_lt_quiet(floatx80, floatx80, float_status *status);
 int floatx80_unordered_quiet(floatx80, floatx80, float_status *status);
-int floatx80_compare(floatx80, floatx80, float_status *status);
-int floatx80_compare_quiet(floatx80, floatx80, float_status *status);
+FloatRelation floatx80_compare(floatx80, floatx80, float_status *status);
+FloatRelation floatx80_compare_quiet(floatx80, floatx80, float_status *status);
 int floatx80_is_quiet_nan(floatx80, float_status *status);
 int floatx80_is_signaling_nan(floatx80, float_status *status);
 floatx80 floatx80_silence_nan(floatx80, float_status *status);
@@ -842,8 +843,8 @@ int float128_eq_quiet(float128, float128, float_status *status);
 int float128_le_quiet(float128, float128, float_status *status);
 int float128_lt_quiet(float128, float128, float_status *status);
 int float128_unordered_quiet(float128, float128, float_status *status);
-int float128_compare(float128, float128, float_status *status);
-int float128_compare_quiet(float128, float128, float_status *status);
+FloatRelation float128_compare(float128, float128, float_status *status);
+FloatRelation float128_compare_quiet(float128, float128, float_status *status);
 int float128_is_quiet_nan(float128, float_status *status);
 int float128_is_signaling_nan(float128, float_status *status);
 float128 float128_silence_nan(float128, float_status *status);
