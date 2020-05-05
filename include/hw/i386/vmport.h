@@ -4,7 +4,7 @@
 #include "hw/isa/isa.h"
 
 #define TYPE_VMPORT "vmport"
-typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
+typedef uint32_t VMPortReadFunc(void *opaque, uint32_t address);
 
 typedef enum {
     VMPORT_CMD_GETVERSION       = 10,
