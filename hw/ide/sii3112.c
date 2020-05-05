@@ -42,7 +42,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     SiI3112PCIState *d = opaque;
-    uint64_t val = 0;
+    uint64_t val;
 
     switch (addr) {
     case 0x00:
@@ -126,6 +126,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         break;
     default:
         val = 0;
+        break;
     }
     trace_sii3112_read(size, addr, val);
     return val;
@@ -201,7 +202,7 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
         d->regs[1].sien = (val >> 16) & 0x3eed;
         break;
     default:
-        val = 0;
+        break;
     }
 }
 

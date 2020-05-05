@@ -197,6 +197,7 @@ static void esp_pci_io_write(void *opaque, hwaddr addr,
         addr &= ~3;
         size = 4;
     }
+    g_assert(size >= 4);
 
     if (addr < 0x40) {
         /* SCSI core reg */

@@ -67,7 +67,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
     I82378State *s = I82378(dev);
     uint8_t *pci_conf;
     ISABus *isabus;
-    ISADevice *isa;
+    ISADevice *pit;
 
     pci_conf = pci->config;
     pci_set_word(pci_conf + PCI_COMMAND,
@@ -99,13 +99,13 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
     isa_bus_irqs(isabus, s->i8259);
 
     /* 1 82C54 (pit) */
-    isa = i8254_pit_init(isabus, 0x40, 0, NULL);
+    pit = i8254_pit_init(isabus, 0x40, 0, NULL);
 
     /* speaker */
-    pcspk_init(isabus, isa);
+    pcspk_init(isabus, pit);
 
     /* 2 82C37 (dma) */
-    isa = isa_create_simple(isabus, "i82374");
+    isa_create_simple(isabus, "i82374");
 }
 
 static void i82378_init(Object *obj)

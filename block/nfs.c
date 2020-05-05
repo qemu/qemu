@@ -620,8 +620,7 @@ static int nfs_file_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     bs->total_sectors = ret;
-    ret = 0;
-    return ret;
+    return 0;
 }
 
 static QemuOptsList nfs_create_opts = {

@@ -606,7 +606,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         *highaddr = (uint64_t)(elf_sword)high;
     ret = total_size;
  fail:
-    g_mapped_file_unref(mapped_file);
+    if (mapped_file) {
+        g_mapped_file_unref(mapped_file);
+    }
     g_free(phdr);
     return ret;
 }
