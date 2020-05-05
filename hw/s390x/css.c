@@ -2170,30 +2170,23 @@ void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
     }
 }
 
-void css_queue_crw(uint8_t rsc, uint8_t erc, int solicited,
-                   int chain, uint16_t rsid)
+void css_crw_add_to_queue(CRW crw)
 {
     CrwContainer *crw_cont;
 
-    trace_css_crw(rsc, erc, rsid, chain ? "(chained)" : "");
+    trace_css_crw((crw.flags & CRW_FLAGS_MASK_RSC) >> 8,
+                  crw.flags & CRW_FLAGS_MASK_ERC,
+                  crw.rsid,
+                  (crw.flags & CRW_FLAGS_MASK_C) ? "(chained)" : "");
+
     /* TODO: Maybe use a static crw pool? */
     crw_cont = g_try_new0(CrwContainer, 1);
     if (!crw_cont) {
         channel_subsys.crws_lost = true;
         return;
     }
-    crw_cont->crw.flags = (rsc << 8) | erc;
-    if (solicited) {
-        crw_cont->crw.flags |= CRW_FLAGS_MASK_S;
-    }
-    if (chain) {
-        crw_cont->crw.flags |= CRW_FLAGS_MASK_C;
-    }
-    crw_cont->crw.rsid = rsid;
-    if (channel_subsys.crws_lost) {
-        crw_cont->crw.flags |= CRW_FLAGS_MASK_R;
-        channel_subsys.crws_lost = false;
-    }
+
+    crw_cont->crw = crw;
 
     QTAILQ_INSERT_TAIL(&channel_subsys.pending_crws, crw_cont, sibling);
 
@@ -2202,6 +2195,27 @@ void css_queue_crw(uint8_t rsc, uint8_t erc, int solicited,
         /* Inject crw pending machine check. */
         s390_crw_mchk();
     }
+}
+
+void css_queue_crw(uint8_t rsc, uint8_t erc, int solicited,
+                   int chain, uint16_t rsid)
+{
+    CRW crw;
+
+    crw.flags = (rsc << 8) | erc;
+    if (solicited) {
+        crw.flags |= CRW_FLAGS_MASK_S;
+    }
+    if (chain) {
+        crw.flags |= CRW_FLAGS_MASK_C;
+    }
+    crw.rsid = rsid;
+    if (channel_subsys.crws_lost) {
+        crw.flags |= CRW_FLAGS_MASK_R;
+        channel_subsys.crws_lost = false;
+    }
+
+    css_crw_add_to_queue(crw);
 }
 
 void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
