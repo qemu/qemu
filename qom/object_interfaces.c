@@ -89,8 +89,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
     user_creatable_complete(USER_CREATABLE(obj), &local_err);
     if (local_err) {
         if (id != NULL) {
-            object_property_del(object_get_objects_root(),
-                                id, &error_abort);
+            object_property_del(object_get_objects_root(), id);
         }
         goto out;
     }

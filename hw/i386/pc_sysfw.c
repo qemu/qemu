@@ -120,7 +120,7 @@ static void pc_system_flash_cleanup_unused(PCMachineState *pcms)
         dev_obj = OBJECT(pcms->flash[i]);
         if (!object_property_get_bool(dev_obj, "realized", &error_abort)) {
             prop_name = g_strdup_printf("pflash%d", i);
-            object_property_del(OBJECT(pcms), prop_name, &error_abort);
+            object_property_del(OBJECT(pcms), prop_name);
             g_free(prop_name);
             object_unparent(dev_obj);
             pcms->flash[i] = NULL;

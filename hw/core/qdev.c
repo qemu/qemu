@@ -65,7 +65,7 @@ static void bus_remove_child(BusState *bus, DeviceState *child)
             bus->num_children--;
 
             /* This gives back ownership of kid->child back to us.  */
-            object_property_del(OBJECT(bus), name, NULL);
+            object_property_del(OBJECT(bus), name);
             object_unref(OBJECT(kid->child));
             g_free(kid);
             return;

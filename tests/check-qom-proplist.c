@@ -280,7 +280,7 @@ static void dummy_bus_init(Object *obj)
 static void dummy_bus_unparent(Object *obj)
 {
     DummyBus *bus = DUMMY_BUS(obj);
-    object_property_del(obj->parent, "backend", NULL);
+    object_property_del(obj->parent, "backend");
     object_unparent(OBJECT(bus->backend));
 }
 

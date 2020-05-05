@@ -1280,14 +1280,9 @@ ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
     return prop;
 }
 
-void object_property_del(Object *obj, const char *name, Error **errp)
+void object_property_del(Object *obj, const char *name)
 {
     ObjectProperty *prop = g_hash_table_lookup(obj->properties, name);
-
-    if (!prop) {
-        error_setg(errp, "Property '.%s' not found", name);
-        return;
-    }
 
     if (prop->release) {
         prop->release(obj, name, prop->opaque);

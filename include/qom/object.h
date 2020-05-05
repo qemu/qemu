@@ -1047,7 +1047,7 @@ ObjectProperty *object_property_add(Object *obj, const char *name,
                                     ObjectPropertyRelease *release,
                                     void *opaque);
 
-void object_property_del(Object *obj, const char *name, Error **errp);
+void object_property_del(Object *obj, const char *name);
 
 ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           const char *type,
