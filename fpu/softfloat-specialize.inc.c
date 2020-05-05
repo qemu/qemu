@@ -245,7 +245,7 @@ typedef struct {
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float16_is_quiet_nan(float16 a_, float_status *status)
+bool float16_is_quiet_nan(float16 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return float16_is_any_nan(a_);
@@ -264,7 +264,7 @@ int float16_is_quiet_nan(float16 a_, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float16_is_signaling_nan(float16 a_, float_status *status)
+bool float16_is_signaling_nan(float16 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return 0;
@@ -283,7 +283,7 @@ int float16_is_signaling_nan(float16 a_, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float32_is_quiet_nan(float32 a_, float_status *status)
+bool float32_is_quiet_nan(float32 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return float32_is_any_nan(a_);
@@ -302,7 +302,7 @@ int float32_is_quiet_nan(float32 a_, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float32_is_signaling_nan(float32 a_, float_status *status)
+bool float32_is_signaling_nan(float32 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return 0;
@@ -637,7 +637,7 @@ static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float64_is_quiet_nan(float64 a_, float_status *status)
+bool float64_is_quiet_nan(float64 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return float64_is_any_nan(a_);
@@ -657,7 +657,7 @@ int float64_is_quiet_nan(float64 a_, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float64_is_signaling_nan(float64 a_, float_status *status)
+bool float64_is_signaling_nan(float64 a_, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return 0;
@@ -939,7 +939,7 @@ floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float128_is_quiet_nan(float128 a, float_status *status)
+bool float128_is_quiet_nan(float128 a, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return float128_is_any_nan(a);
@@ -959,7 +959,7 @@ int float128_is_quiet_nan(float128 a, float_status *status)
 | signaling NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float128_is_signaling_nan(float128 a, float_status *status)
+bool float128_is_signaling_nan(float128 a, float_status *status)
 {
 #ifdef NO_SIGNALING_NANS
     return 0;

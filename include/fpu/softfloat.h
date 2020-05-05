@@ -235,31 +235,31 @@ float16 float16_sqrt(float16, float_status *status);
 FloatRelation float16_compare(float16, float16, float_status *status);
 FloatRelation float16_compare_quiet(float16, float16, float_status *status);
 
-int float16_is_quiet_nan(float16, float_status *status);
-int float16_is_signaling_nan(float16, float_status *status);
+bool float16_is_quiet_nan(float16, float_status *status);
+bool float16_is_signaling_nan(float16, float_status *status);
 float16 float16_silence_nan(float16, float_status *status);
 
-static inline int float16_is_any_nan(float16 a)
+static inline bool float16_is_any_nan(float16 a)
 {
     return ((float16_val(a) & ~0x8000) > 0x7c00);
 }
 
-static inline int float16_is_neg(float16 a)
+static inline bool float16_is_neg(float16 a)
 {
     return float16_val(a) >> 15;
 }
 
-static inline int float16_is_infinity(float16 a)
+static inline bool float16_is_infinity(float16 a)
 {
     return (float16_val(a) & 0x7fff) == 0x7c00;
 }
 
-static inline int float16_is_zero(float16 a)
+static inline bool float16_is_zero(float16 a)
 {
     return (float16_val(a) & 0x7fff) == 0;
 }
 
-static inline int float16_is_zero_or_denormal(float16 a)
+static inline bool float16_is_zero_or_denormal(float16 a)
 {
     return (float16_val(a) & 0x7c00) == 0;
 }
@@ -351,8 +351,8 @@ float32 float32_minnum(float32, float32, float_status *status);
 float32 float32_maxnum(float32, float32, float_status *status);
 float32 float32_minnummag(float32, float32, float_status *status);
 float32 float32_maxnummag(float32, float32, float_status *status);
-int float32_is_quiet_nan(float32, float_status *status);
-int float32_is_signaling_nan(float32, float_status *status);
+bool float32_is_quiet_nan(float32, float_status *status);
+bool float32_is_signaling_nan(float32, float_status *status);
 float32 float32_silence_nan(float32, float_status *status);
 float32 float32_scalbn(float32, int, float_status *status);
 
@@ -372,27 +372,27 @@ static inline float32 float32_chs(float32 a)
     return make_float32(float32_val(a) ^ 0x80000000);
 }
 
-static inline int float32_is_infinity(float32 a)
+static inline bool float32_is_infinity(float32 a)
 {
     return (float32_val(a) & 0x7fffffff) == 0x7f800000;
 }
 
-static inline int float32_is_neg(float32 a)
+static inline bool float32_is_neg(float32 a)
 {
     return float32_val(a) >> 31;
 }
 
-static inline int float32_is_zero(float32 a)
+static inline bool float32_is_zero(float32 a)
 {
     return (float32_val(a) & 0x7fffffff) == 0;
 }
 
-static inline int float32_is_any_nan(float32 a)
+static inline bool float32_is_any_nan(float32 a)
 {
     return ((float32_val(a) & ~(1 << 31)) > 0x7f800000UL);
 }
 
-static inline int float32_is_zero_or_denormal(float32 a)
+static inline bool float32_is_zero_or_denormal(float32 a)
 {
     return (float32_val(a) & 0x7f800000) == 0;
 }
@@ -540,8 +540,8 @@ float64 float64_minnum(float64, float64, float_status *status);
 float64 float64_maxnum(float64, float64, float_status *status);
 float64 float64_minnummag(float64, float64, float_status *status);
 float64 float64_maxnummag(float64, float64, float_status *status);
-int float64_is_quiet_nan(float64 a, float_status *status);
-int float64_is_signaling_nan(float64, float_status *status);
+bool float64_is_quiet_nan(float64 a, float_status *status);
+bool float64_is_signaling_nan(float64, float_status *status);
 float64 float64_silence_nan(float64, float_status *status);
 float64 float64_scalbn(float64, int, float_status *status);
 
@@ -561,27 +561,27 @@ static inline float64 float64_chs(float64 a)
     return make_float64(float64_val(a) ^ 0x8000000000000000LL);
 }
 
-static inline int float64_is_infinity(float64 a)
+static inline bool float64_is_infinity(float64 a)
 {
     return (float64_val(a) & 0x7fffffffffffffffLL ) == 0x7ff0000000000000LL;
 }
 
-static inline int float64_is_neg(float64 a)
+static inline bool float64_is_neg(float64 a)
 {
     return float64_val(a) >> 63;
 }
 
-static inline int float64_is_zero(float64 a)
+static inline bool float64_is_zero(float64 a)
 {
     return (float64_val(a) & 0x7fffffffffffffffLL) == 0;
 }
 
-static inline int float64_is_any_nan(float64 a)
+static inline bool float64_is_any_nan(float64 a)
 {
     return ((float64_val(a) & ~(1ULL << 63)) > 0x7ff0000000000000ULL);
 }
 
-static inline int float64_is_zero_or_denormal(float64 a)
+static inline bool float64_is_zero_or_denormal(float64 a)
 {
     return (float64_val(a) & 0x7ff0000000000000LL) == 0;
 }
@@ -708,7 +708,7 @@ static inline floatx80 floatx80_chs(floatx80 a)
     return a;
 }
 
-static inline int floatx80_is_infinity(floatx80 a)
+static inline bool floatx80_is_infinity(floatx80 a)
 {
 #if defined(TARGET_M68K)
     return (a.high & 0x7fff) == floatx80_infinity.high && !(a.low << 1);
@@ -718,22 +718,22 @@ static inline int floatx80_is_infinity(floatx80 a)
 #endif
 }
 
-static inline int floatx80_is_neg(floatx80 a)
+static inline bool floatx80_is_neg(floatx80 a)
 {
     return a.high >> 15;
 }
 
-static inline int floatx80_is_zero(floatx80 a)
+static inline bool floatx80_is_zero(floatx80 a)
 {
     return (a.high & 0x7fff) == 0 && a.low == 0;
 }
 
-static inline int floatx80_is_zero_or_denormal(floatx80 a)
+static inline bool floatx80_is_zero_or_denormal(floatx80 a)
 {
     return (a.high & 0x7fff) == 0;
 }
 
-static inline int floatx80_is_any_nan(floatx80 a)
+static inline bool floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
 }
@@ -936,8 +936,8 @@ float128 float128_rem(float128, float128, float_status *status);
 float128 float128_sqrt(float128, float_status *status);
 FloatRelation float128_compare(float128, float128, float_status *status);
 FloatRelation float128_compare_quiet(float128, float128, float_status *status);
-int float128_is_quiet_nan(float128, float_status *status);
-int float128_is_signaling_nan(float128, float_status *status);
+bool float128_is_quiet_nan(float128, float_status *status);
+bool float128_is_signaling_nan(float128, float_status *status);
 float128 float128_silence_nan(float128, float_status *status);
 float128 float128_scalbn(float128, int, float_status *status);
 
@@ -953,22 +953,22 @@ static inline float128 float128_chs(float128 a)
     return a;
 }
 
-static inline int float128_is_infinity(float128 a)
+static inline bool float128_is_infinity(float128 a)
 {
     return (a.high & 0x7fffffffffffffffLL) == 0x7fff000000000000LL && a.low == 0;
 }
 
-static inline int float128_is_neg(float128 a)
+static inline bool float128_is_neg(float128 a)
 {
     return a.high >> 63;
 }
 
-static inline int float128_is_zero(float128 a)
+static inline bool float128_is_zero(float128 a)
 {
     return (a.high & 0x7fffffffffffffffLL) == 0 && a.low == 0;
 }
 
-static inline int float128_is_zero_or_denormal(float128 a)
+static inline bool float128_is_zero_or_denormal(float128 a)
 {
     return (a.high & 0x7fff000000000000LL) == 0;
 }
@@ -983,7 +983,7 @@ static inline bool float128_is_denormal(float128 a)
     return float128_is_zero_or_denormal(a) && !float128_is_zero(a);
 }
 
-static inline int float128_is_any_nan(float128 a)
+static inline bool float128_is_any_nan(float128 a)
 {
     return ((a.high >> 48) & 0x7fff) == 0x7fff &&
         ((a.low != 0) || ((a.high & 0xffffffffffffLL) != 0));
