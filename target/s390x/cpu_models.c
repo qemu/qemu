@@ -1107,13 +1107,13 @@ void s390_cpu_model_register_props(Object *obj)
         const S390FeatDef *def = s390_feat_def(feat);
         object_property_add(obj, def->name, "bool", get_feature,
                             set_feature, NULL, (void *) feat, NULL);
-        object_property_set_description(obj, def->name, def->desc , NULL);
+        object_property_set_description(obj, def->name, def->desc);
     }
     for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
         const S390FeatGroupDef *def = s390_feat_group_def(group);
         object_property_add(obj, def->name, "bool", get_feature_group,
                             set_feature_group, NULL, (void *) group, NULL);
-        object_property_set_description(obj, def->name, def->desc , NULL);
+        object_property_set_description(obj, def->name, def->desc);
     }
 }
 

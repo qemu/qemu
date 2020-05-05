@@ -984,19 +984,19 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
         x86_machine_get_max_ram_below_4g, x86_machine_set_max_ram_below_4g,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, X86_MACHINE_MAX_RAM_BELOW_4G,
-        "Maximum ram below the 4G boundary (32bit boundary)", &error_abort);
+        "Maximum ram below the 4G boundary (32bit boundary)");
 
     object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto",
         x86_machine_get_smm, x86_machine_set_smm,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, X86_MACHINE_SMM,
-        "Enable SMM", &error_abort);
+        "Enable SMM");
 
     object_class_property_add(oc, X86_MACHINE_ACPI, "OnOffAuto",
         x86_machine_get_acpi, x86_machine_set_acpi,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, X86_MACHINE_ACPI,
-        "Enable ACPI", &error_abort);
+        "Enable ACPI");
 }
 
 static const TypeInfo x86_machine_info = {

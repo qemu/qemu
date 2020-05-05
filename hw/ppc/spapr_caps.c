@@ -845,12 +845,8 @@ void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
         }
 
         desc = g_strdup_printf("%s", cap->description);
-        object_class_property_set_description(klass, name, desc, &local_err);
+        object_class_property_set_description(klass, name, desc);
         g_free(name);
         g_free(desc);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
     }
 }

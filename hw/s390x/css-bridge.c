@@ -144,8 +144,7 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
                                    prop_get_true, NULL, NULL);
     object_class_property_set_description(klass, "cssid-unrestricted",
             "A css device can use any cssid, regardless whether virtual"
-            " or not (read only, always true)",
-            NULL);
+            " or not (read only, always true)");
 }
 
 static const TypeInfo virtual_css_bridge_info = {

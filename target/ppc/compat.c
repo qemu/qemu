@@ -324,7 +324,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 
     names = g_strjoinv(", ", namesv);
     desc = g_strdup_printf("%s. Valid values are %s.", basedesc, names);
-    object_property_set_description(obj, name, desc, &local_err);
+    object_property_set_description(obj, name, desc);
 
     g_free(names);
     g_free(desc);

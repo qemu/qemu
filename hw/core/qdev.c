@@ -775,8 +775,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
                              prop, &error_abort);
 
     object_property_set_description(obj, prop->name,
-                                    prop->info->description,
-                                    &error_abort);
+                                    prop->info->description);
 
     if (prop->set_default) {
         prop->info->set_default_value(op, prop);
@@ -805,8 +804,7 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
         }
     }
     object_class_property_set_description(oc, prop->name,
-                                          prop->info->description,
-                                          &error_abort);
+                                          prop->info->description);
 }
 
 /* @qdev_alias_all_properties - Add alias properties to the source object for

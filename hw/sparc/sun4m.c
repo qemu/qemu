@@ -797,8 +797,7 @@ static void ram_initfn(Object *obj)
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG, &error_abort);
     object_property_set_description(obj, "memdev", "Set RAM backend"
-                                    "Valid value is ID of a hostmem backend",
-                                     &error_abort);
+                                    "Valid value is ID of a hostmem backend");
 }
 
 static void ram_class_init(ObjectClass *klass, void *data)

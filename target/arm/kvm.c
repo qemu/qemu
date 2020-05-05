@@ -204,7 +204,7 @@ void kvm_arm_add_vcpu_properties(Object *obj)
     object_property_set_description(obj, "kvm-no-adjvtime",
                                     "Set on to disable the adjustment of "
                                     "the virtual counter. VM stopped time "
-                                    "will be counted.", &error_abort);
+                                    "will be counted.");
 }
 
 bool kvm_arm_pmu_supported(CPUState *cpu)

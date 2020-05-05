@@ -1971,7 +1971,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         pc_machine_get_vmport, pc_machine_set_vmport,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, PC_MACHINE_VMPORT,
-        "Enable vmport (pc & q35)", &error_abort);
+        "Enable vmport (pc & q35)");
 
     object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
         pc_machine_get_smbus, pc_machine_set_smbus, &error_abort);

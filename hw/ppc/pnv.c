@@ -2030,8 +2030,7 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
                                    pnv_machine_get_hb, pnv_machine_set_hb,
                                    &error_abort);
     object_class_property_set_description(oc, "hb-mode",
-                              "Use a hostboot like boot loader",
-                              NULL);
+                              "Use a hostboot like boot loader");
 }
 
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
