@@ -93,7 +93,7 @@ this code that are retained.
  * 2008 revision and backward compatibility with their original choice.
  * Thus for MIPS we must make the choice at runtime.
  */
-static inline flag snan_bit_is_one(float_status *status)
+static inline bool snan_bit_is_one(float_status *status)
 {
 #if defined(TARGET_MIPS)
     return status->snan_bit_is_one;
@@ -114,7 +114,7 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
 #ifdef NO_SIGNALING_NANS
     return false;
 #else
-    flag msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
+    bool msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
     return msb == snan_bit_is_one(status);
 #endif
 }
@@ -236,7 +236,7 @@ void float_raise(uint8_t flags, float_status *status)
 | Internal canonical NaN format.
 *----------------------------------------------------------------------------*/
 typedef struct {
-    flag sign;
+    bool sign;
     uint64_t high, low;
 } commonNaNT;
 
@@ -374,7 +374,7 @@ static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 *----------------------------------------------------------------------------*/
 
 static int pickNaN(FloatClass a_cls, FloatClass b_cls,
-                   flag aIsLargerSignificand)
+                   bool aIsLargerSignificand)
 {
 #if defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_HPPA)
     /* ARM mandated NaN propagation rules (see FPProcessNaNs()), take
@@ -584,7 +584,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
 
 static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
 {
-    flag aIsLargerSignificand;
+    bool aIsLargerSignificand;
     uint32_t av, bv;
     FloatClass a_cls, b_cls;
 
@@ -722,7 +722,7 @@ static float64 commonNaNToFloat64(commonNaNT a, float_status *status)
 
 static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
 {
-    flag aIsLargerSignificand;
+    bool aIsLargerSignificand;
     uint64_t av, bv;
     FloatClass a_cls, b_cls;
 
@@ -890,7 +890,7 @@ static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 
 floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aIsLargerSignificand;
+    bool aIsLargerSignificand;
     FloatClass a_cls, b_cls;
 
     /* This is not complete, but is good enough for pickNaN.  */
@@ -1038,7 +1038,7 @@ static float128 commonNaNToFloat128(commonNaNT a, float_status *status)
 static float128 propagateFloat128NaN(float128 a, float128 b,
                                      float_status *status)
 {
-    flag aIsLargerSignificand;
+    bool aIsLargerSignificand;
     FloatClass a_cls, b_cls;
 
     /* This is not complete, but is good enough for pickNaN.  */

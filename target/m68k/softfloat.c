@@ -49,7 +49,7 @@ static floatx80 propagateFloatx80NaNOneArg(floatx80 a, float_status *status)
 
 floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int32_t aExp, bExp, expDiff;
     uint64_t aSig0, aSig1, bSig;
     uint64_t qTemp, term0, term1;
@@ -132,7 +132,7 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_getman(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -166,7 +166,7 @@ floatx80 floatx80_getman(floatx80 a, float_status *status)
 
 floatx80 floatx80_getexp(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -202,7 +202,7 @@ floatx80 floatx80_getexp(floatx80 a, float_status *status)
 
 floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     int32_t aExp, bExp, shiftCount;
     uint64_t aSig, bSig;
 
@@ -258,7 +258,7 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_move(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -306,7 +306,7 @@ static int32_t floatx80_make_compact(int32_t aExp, uint64_t aSig)
 
 floatx80 floatx80_lognp1(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig, fSig;
 
@@ -505,7 +505,7 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
 
 floatx80 floatx80_logn(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig, fSig;
 
@@ -673,7 +673,7 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
 
 floatx80 floatx80_log10(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -730,7 +730,7 @@ floatx80 floatx80_log10(floatx80 a, float_status *status)
 
 floatx80 floatx80_log2(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -797,7 +797,7 @@ floatx80 floatx80_log2(floatx80 a, float_status *status)
 
 floatx80 floatx80_etox(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -805,7 +805,7 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
 
     int32_t compact, n, j, k, m, m1;
     floatx80 fp0, fp1, fp2, fp3, l2, scale, adjscale;
-    flag adjflag;
+    bool adjflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -981,7 +981,7 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
 
 floatx80 floatx80_twotox(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -1131,7 +1131,7 @@ floatx80 floatx80_twotox(floatx80 a, float_status *status)
 
 floatx80 floatx80_tentox(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -1286,7 +1286,7 @@ floatx80 floatx80_tentox(floatx80 a, float_status *status)
 
 floatx80 floatx80_tan(floatx80 a, float_status *status)
 {
-    flag aSign, xSign;
+    bool aSign, xSign;
     int32_t aExp, xExp;
     uint64_t aSig, xSig;
 
@@ -1295,7 +1295,7 @@ floatx80 floatx80_tan(floatx80 a, float_status *status)
     int32_t compact, l, n, j;
     floatx80 fp0, fp1, fp2, fp3, fp4, fp5, invtwopi, twopi1, twopi2;
     float32 twoto63;
-    flag endflag;
+    bool endflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -1344,10 +1344,10 @@ floatx80 floatx80_tan(floatx80 a, float_status *status)
             xExp -= 0x3FFF;
             if (xExp <= 28) {
                 l = 0;
-                endflag = 1;
+                endflag = true;
             } else {
                 l = xExp - 27;
-                endflag = 0;
+                endflag = false;
             }
             invtwopi = packFloatx80(0, 0x3FFE - l,
                                     UINT64_C(0xA2F9836E4E44152A)); /* INVTWOPI */
@@ -1372,7 +1372,7 @@ floatx80 floatx80_tan(floatx80 a, float_status *status)
             fp1 = floatx80_sub(fp1, fp4, status); /* FP1 is a := r - p */
             fp0 = floatx80_add(fp0, fp1, status); /* FP0 is R := A+a */
 
-            if (endflag > 0) {
+            if (endflag) {
                 n = floatx80_to_int32(fp2, status);
                 goto tancont;
             }
@@ -1496,7 +1496,7 @@ floatx80 floatx80_tan(floatx80 a, float_status *status)
 
 floatx80 floatx80_sin(floatx80 a, float_status *status)
 {
-    flag aSign, xSign;
+    bool aSign, xSign;
     int32_t aExp, xExp;
     uint64_t aSig, xSig;
 
@@ -1505,7 +1505,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
     int32_t compact, l, n, j;
     floatx80 fp0, fp1, fp2, fp3, fp4, fp5, x, invtwopi, twopi1, twopi2;
     float32 posneg1, twoto63;
-    flag endflag;
+    bool endflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -1554,10 +1554,10 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
             xExp -= 0x3FFF;
             if (xExp <= 28) {
                 l = 0;
-                endflag = 1;
+                endflag = true;
             } else {
                 l = xExp - 27;
-                endflag = 0;
+                endflag = false;
             }
             invtwopi = packFloatx80(0, 0x3FFE - l,
                                     UINT64_C(0xA2F9836E4E44152A)); /* INVTWOPI */
@@ -1582,7 +1582,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
             fp1 = floatx80_sub(fp1, fp4, status); /* FP1 is a := r - p */
             fp0 = floatx80_add(fp0, fp1, status); /* FP0 is R := A+a */
 
-            if (endflag > 0) {
+            if (endflag) {
                 n = floatx80_to_int32(fp2, status);
                 goto sincont;
             }
@@ -1735,7 +1735,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
 
 floatx80 floatx80_cos(floatx80 a, float_status *status)
 {
-    flag aSign, xSign;
+    bool aSign, xSign;
     int32_t aExp, xExp;
     uint64_t aSig, xSig;
 
@@ -1744,7 +1744,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
     int32_t compact, l, n, j;
     floatx80 fp0, fp1, fp2, fp3, fp4, fp5, x, invtwopi, twopi1, twopi2;
     float32 posneg1, twoto63;
-    flag endflag;
+    bool endflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -1793,10 +1793,10 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
             xExp -= 0x3FFF;
             if (xExp <= 28) {
                 l = 0;
-                endflag = 1;
+                endflag = true;
             } else {
                 l = xExp - 27;
-                endflag = 0;
+                endflag = false;
             }
             invtwopi = packFloatx80(0, 0x3FFE - l,
                                     UINT64_C(0xA2F9836E4E44152A)); /* INVTWOPI */
@@ -1821,7 +1821,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
             fp1 = floatx80_sub(fp1, fp4, status); /* FP1 is a := r - p */
             fp0 = floatx80_add(fp0, fp1, status); /* FP0 is R := A+a */
 
-            if (endflag > 0) {
+            if (endflag) {
                 n = floatx80_to_int32(fp2, status);
                 goto sincont;
             }
@@ -1972,7 +1972,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
 
 floatx80 floatx80_atan(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -2169,7 +2169,7 @@ floatx80 floatx80_atan(floatx80 a, float_status *status)
 
 floatx80 floatx80_asin(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -2234,7 +2234,7 @@ floatx80 floatx80_asin(floatx80 a, float_status *status)
 
 floatx80 floatx80_acos(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -2303,7 +2303,7 @@ floatx80 floatx80_acos(floatx80 a, float_status *status)
 
 floatx80 floatx80_atanh(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -2368,7 +2368,7 @@ floatx80 floatx80_atanh(floatx80 a, float_status *status)
 
 floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -2620,7 +2620,7 @@ floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
 
 floatx80 floatx80_tanh(floatx80 a, float_status *status)
 {
-    flag aSign, vSign;
+    bool aSign, vSign;
     int32_t aExp, vExp;
     uint64_t aSig, vSig;
 
@@ -2735,7 +2735,7 @@ floatx80 floatx80_tanh(floatx80 a, float_status *status)
 
 floatx80 floatx80_sinh(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 

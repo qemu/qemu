@@ -440,7 +440,7 @@ static inline float32 float32_set_sign(float32 a, int sign)
 | significand.
 *----------------------------------------------------------------------------*/
 
-static inline float32 packFloat32(flag zSign, int zExp, uint32_t zSig)
+static inline float32 packFloat32(bool zSign, int zExp, uint32_t zSig)
 {
     return make_float32(
           (((uint32_t)zSign) << 31) + (((uint32_t)zExp) << 23) + zSig);
@@ -722,7 +722,7 @@ static inline int32_t extractFloatx80Exp(floatx80 a)
 | `a'.
 *----------------------------------------------------------------------------*/
 
-static inline flag extractFloatx80Sign(floatx80 a)
+static inline bool extractFloatx80Sign(floatx80 a)
 {
     return a.high >> 15;
 }
@@ -732,7 +732,7 @@ static inline flag extractFloatx80Sign(floatx80 a)
 | extended double-precision floating-point value, returning the result.
 *----------------------------------------------------------------------------*/
 
-static inline floatx80 packFloatx80(flag zSign, int32_t zExp, uint64_t zSig)
+static inline floatx80 packFloatx80(bool zSign, int32_t zExp, uint64_t zSig)
 {
     floatx80 z;
 
@@ -783,7 +783,7 @@ floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status);
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
+floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
                               int32_t zExp, uint64_t zSig0, uint64_t zSig1,
                               float_status *status);
 
@@ -797,7 +797,7 @@ floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 *----------------------------------------------------------------------------*/
 
 floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
-                                       flag zSign, int32_t zExp,
+                                       bool zSign, int32_t zExp,
                                        uint64_t zSig0, uint64_t zSig1,
                                        float_status *status);
 

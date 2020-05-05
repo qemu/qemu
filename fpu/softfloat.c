@@ -423,7 +423,7 @@ static inline int extractFloat32Exp(float32 a)
 | Returns the sign bit of the single-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline flag extractFloat32Sign(float32 a)
+static inline bool extractFloat32Sign(float32 a)
 {
     return float32_val(a) >> 31;
 }
@@ -450,7 +450,7 @@ static inline int extractFloat64Exp(float64 a)
 | Returns the sign bit of the double-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline flag extractFloat64Sign(float64 a)
+static inline bool extractFloat64Sign(float64 a)
 {
     return float64_val(a) >> 63;
 }
@@ -3328,10 +3328,11 @@ float64 float64_squash_input_denormal(float64 a, float_status *status)
 | positive or negative integer is returned.
 *----------------------------------------------------------------------------*/
 
-static int32_t roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status)
+static int32_t roundAndPackInt32(bool zSign, uint64_t absZ,
+                                 float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven;
+    bool roundNearestEven;
     int8_t roundIncrement, roundBits;
     int32_t z;
 
@@ -3385,11 +3386,11 @@ static int32_t roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status
 | returned.
 *----------------------------------------------------------------------------*/
 
-static int64_t roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
+static int64_t roundAndPackInt64(bool zSign, uint64_t absZ0, uint64_t absZ1,
                                float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven, increment;
+    bool roundNearestEven, increment;
     int64_t z;
 
     roundingMode = status->float_rounding_mode;
@@ -3443,11 +3444,11 @@ static int64_t roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
 | exception is raised and the largest unsigned integer is returned.
 *----------------------------------------------------------------------------*/
 
-static int64_t roundAndPackUint64(flag zSign, uint64_t absZ0,
+static int64_t roundAndPackUint64(bool zSign, uint64_t absZ0,
                                 uint64_t absZ1, float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven, increment;
+    bool roundNearestEven, increment;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = (roundingMode == float_round_nearest_even);
@@ -3531,13 +3532,13 @@ static void
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
+static float32 roundAndPackFloat32(bool zSign, int zExp, uint32_t zSig,
                                    float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven;
+    bool roundNearestEven;
     int8_t roundIncrement, roundBits;
-    flag isTiny;
+    bool isTiny;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -3618,7 +3619,7 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
 *----------------------------------------------------------------------------*/
 
 static float32
- normalizeRoundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
+ normalizeRoundAndPackFloat32(bool zSign, int zExp, uint32_t zSig,
                               float_status *status)
 {
     int8_t shiftCount;
@@ -3658,7 +3659,7 @@ static void
 | significand.
 *----------------------------------------------------------------------------*/
 
-static inline float64 packFloat64(flag zSign, int zExp, uint64_t zSig)
+static inline float64 packFloat64(bool zSign, int zExp, uint64_t zSig)
 {
 
     return make_float64(
@@ -3688,13 +3689,13 @@ static inline float64 packFloat64(flag zSign, int zExp, uint64_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
+static float64 roundAndPackFloat64(bool zSign, int zExp, uint64_t zSig,
                                    float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven;
+    bool roundNearestEven;
     int roundIncrement, roundBits;
-    flag isTiny;
+    bool isTiny;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -3774,7 +3775,7 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
 *----------------------------------------------------------------------------*/
 
 static float64
- normalizeRoundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
+ normalizeRoundAndPackFloat64(bool zSign, int zExp, uint64_t zSig,
                               float_status *status)
 {
     int8_t shiftCount;
@@ -3826,12 +3827,12 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
+floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
                               int32_t zExp, uint64_t zSig0, uint64_t zSig1,
                               float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven, increment, isTiny;
+    bool roundNearestEven, increment, isTiny;
     int64_t roundIncrement, roundMask, roundBits;
 
     roundingMode = status->float_rounding_mode;
@@ -4025,7 +4026,7 @@ floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 *----------------------------------------------------------------------------*/
 
 floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
-                                       flag zSign, int32_t zExp,
+                                       bool zSign, int32_t zExp,
                                        uint64_t zSig0, uint64_t zSig1,
                                        float_status *status)
 {
@@ -4084,11 +4085,9 @@ static inline int32_t extractFloat128Exp( float128 a )
 | Returns the sign bit of the quadruple-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
-static inline flag extractFloat128Sign( float128 a )
+static inline bool extractFloat128Sign(float128 a)
 {
-
-    return a.high>>63;
-
+    return a.high >> 63;
 }
 
 /*----------------------------------------------------------------------------
@@ -4146,14 +4145,13 @@ static void
 *----------------------------------------------------------------------------*/
 
 static inline float128
- packFloat128( flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1 )
+packFloat128(bool zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1)
 {
     float128 z;
 
     z.low = zSig1;
-    z.high = ( ( (uint64_t) zSign )<<63 ) + ( ( (uint64_t) zExp )<<48 ) + zSig0;
+    z.high = ((uint64_t)zSign << 63) + ((uint64_t)zExp << 48) + zSig0;
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -4177,12 +4175,12 @@ static inline float128
 | overflow follows the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
+static float128 roundAndPackFloat128(bool zSign, int32_t zExp,
                                      uint64_t zSig0, uint64_t zSig1,
                                      uint64_t zSig2, float_status *status)
 {
     int8_t roundingMode;
-    flag roundNearestEven, increment, isTiny;
+    bool roundNearestEven, increment, isTiny;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -4302,7 +4300,7 @@ static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
 | point exponent.
 *----------------------------------------------------------------------------*/
 
-static float128 normalizeRoundAndPackFloat128(flag zSign, int32_t zExp,
+static float128 normalizeRoundAndPackFloat128(bool zSign, int32_t zExp,
                                               uint64_t zSig0, uint64_t zSig1,
                                               float_status *status)
 {
@@ -4338,7 +4336,7 @@ static float128 normalizeRoundAndPackFloat128(flag zSign, int32_t zExp,
 
 floatx80 int32_to_floatx80(int32_t a, float_status *status)
 {
-    flag zSign;
+    bool zSign;
     uint32_t absA;
     int8_t shiftCount;
     uint64_t zSig;
@@ -4360,7 +4358,7 @@ floatx80 int32_to_floatx80(int32_t a, float_status *status)
 
 float128 int32_to_float128(int32_t a, float_status *status)
 {
-    flag zSign;
+    bool zSign;
     uint32_t absA;
     int8_t shiftCount;
     uint64_t zSig0;
@@ -4383,7 +4381,7 @@ float128 int32_to_float128(int32_t a, float_status *status)
 
 floatx80 int64_to_floatx80(int64_t a, float_status *status)
 {
-    flag zSign;
+    bool zSign;
     uint64_t absA;
     int8_t shiftCount;
 
@@ -4403,7 +4401,7 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
 
 float128 int64_to_float128(int64_t a, float_status *status)
 {
-    flag zSign;
+    bool zSign;
     uint64_t absA;
     int8_t shiftCount;
     int32_t zExp;
@@ -4451,7 +4449,7 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
 
 floatx80 float32_to_floatx80(float32 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint32_t aSig;
 
@@ -4487,7 +4485,7 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
 
 float128 float32_to_float128(float32 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint32_t aSig;
 
@@ -4518,7 +4516,7 @@ float128 float32_to_float128(float32 a, float_status *status)
 
 float32 float32_rem(float32 a, float32 b, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int aExp, bExp, expDiff;
     uint32_t aSig, bSig;
     uint32_t q;
@@ -4653,7 +4651,7 @@ static const float64 float32_exp2_coefficients[15] =
 
 float32 float32_exp2(float32 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint32_t aSig;
     float64 r, x, xn;
@@ -4703,7 +4701,7 @@ float32 float32_exp2(float32 a, float_status *status)
 *----------------------------------------------------------------------------*/
 float32 float32_log2(float32 a, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int aExp;
     uint32_t aSig, zSig, i;
 
@@ -4779,7 +4777,7 @@ int float32_eq(float32 a, float32 b, float_status *status)
 
 int float32_le(float32 a, float32 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint32_t av, bv;
     a = float32_squash_input_denormal(a, status);
     b = float32_squash_input_denormal(b, status);
@@ -4808,7 +4806,7 @@ int float32_le(float32 a, float32 b, float_status *status)
 
 int float32_lt(float32 a, float32 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint32_t av, bv;
     a = float32_squash_input_denormal(a, status);
     b = float32_squash_input_denormal(b, status);
@@ -4883,7 +4881,7 @@ int float32_eq_quiet(float32 a, float32 b, float_status *status)
 
 int float32_le_quiet(float32 a, float32 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint32_t av, bv;
     a = float32_squash_input_denormal(a, status);
     b = float32_squash_input_denormal(b, status);
@@ -4915,7 +4913,7 @@ int float32_le_quiet(float32 a, float32 b, float_status *status)
 
 int float32_lt_quiet(float32 a, float32 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint32_t av, bv;
     a = float32_squash_input_denormal(a, status);
     b = float32_squash_input_denormal(b, status);
@@ -4971,7 +4969,7 @@ int float32_unordered_quiet(float32 a, float32 b, float_status *status)
 
 floatx80 float64_to_floatx80(float64 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint64_t aSig;
 
@@ -5008,7 +5006,7 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
 
 float128 float64_to_float128(float64 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint64_t aSig, zSig0, zSig1;
 
@@ -5041,7 +5039,7 @@ float128 float64_to_float128(float64 a, float_status *status)
 
 float64 float64_rem(float64 a, float64 b, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int aExp, bExp, expDiff;
     uint64_t aSig, bSig;
     uint64_t q, alternateASig;
@@ -5128,7 +5126,7 @@ float64 float64_rem(float64 a, float64 b, float_status *status)
 *----------------------------------------------------------------------------*/
 float64 float64_log2(float64 a, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int aExp;
     uint64_t aSig, aSig0, aSig1, zSig, i;
     a = float64_squash_input_denormal(a, status);
@@ -5204,7 +5202,7 @@ int float64_eq(float64 a, float64 b, float_status *status)
 
 int float64_le(float64 a, float64 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint64_t av, bv;
     a = float64_squash_input_denormal(a, status);
     b = float64_squash_input_denormal(b, status);
@@ -5233,7 +5231,7 @@ int float64_le(float64 a, float64 b, float_status *status)
 
 int float64_lt(float64 a, float64 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint64_t av, bv;
 
     a = float64_squash_input_denormal(a, status);
@@ -5311,7 +5309,7 @@ int float64_eq_quiet(float64 a, float64 b, float_status *status)
 
 int float64_le_quiet(float64 a, float64 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint64_t av, bv;
     a = float64_squash_input_denormal(a, status);
     b = float64_squash_input_denormal(b, status);
@@ -5343,7 +5341,7 @@ int float64_le_quiet(float64 a, float64 b, float_status *status)
 
 int float64_lt_quiet(float64 a, float64 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
     uint64_t av, bv;
     a = float64_squash_input_denormal(a, status);
     b = float64_squash_input_denormal(b, status);
@@ -5402,7 +5400,7 @@ int float64_unordered_quiet(float64 a, float64 b, float_status *status)
 
 int32_t floatx80_to_int32(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig;
 
@@ -5433,7 +5431,7 @@ int32_t floatx80_to_int32(floatx80 a, float_status *status)
 
 int32_t floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig, savedASig;
     int32_t z;
@@ -5484,7 +5482,7 @@ int32_t floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
 
 int64_t floatx80_to_int64(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig, aSigExtra;
 
@@ -5525,7 +5523,7 @@ int64_t floatx80_to_int64(floatx80 a, float_status *status)
 
 int64_t floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig;
     int64_t z;
@@ -5572,7 +5570,7 @@ int64_t floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
 
 float32 floatx80_to_float32(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -5606,7 +5604,7 @@ float32 floatx80_to_float32(floatx80 a, float_status *status)
 
 float64 floatx80_to_float64(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig, zSig;
 
@@ -5640,7 +5638,7 @@ float64 floatx80_to_float64(floatx80 a, float_status *status)
 
 float128 floatx80_to_float128(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     uint64_t aSig, zSig0, zSig1;
 
@@ -5686,7 +5684,7 @@ floatx80 floatx80_round(floatx80 a, float_status *status)
 
 floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t lastBitMask, roundBitsMask;
     floatx80 z;
@@ -5783,7 +5781,7 @@ floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
+static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, bool zSign,
                                 float_status *status)
 {
     int32_t aExp, bExp, zExp;
@@ -5863,7 +5861,7 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
+static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, bool zSign,
                                 float_status *status)
 {
     int32_t aExp, bExp, zExp;
@@ -5932,7 +5930,7 @@ static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
 
 floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
@@ -5957,7 +5955,7 @@ floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_sub(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
@@ -5982,7 +5980,7 @@ floatx80 floatx80_sub(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign, zSign;
+    bool aSign, bSign, zSign;
     int32_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
 
@@ -6044,7 +6042,7 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign, zSign;
+    bool aSign, bSign, zSign;
     int32_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
     uint64_t rem0, rem1, rem2, term0, term1, term2;
@@ -6131,7 +6129,7 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int32_t aExp, bExp, expDiff;
     uint64_t aSig0, aSig1, bSig;
     uint64_t q, term0, term1, alternateASig0, alternateASig1;
@@ -6230,7 +6228,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_sqrt(floatx80 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, zExp;
     uint64_t aSig0, aSig1, zSig0, zSig1, doubleZSig0;
     uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
@@ -6331,7 +6329,7 @@ int floatx80_eq(floatx80 a, floatx80 b, float_status *status)
 
 int floatx80_le(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)
         || (extractFloatx80Exp(a) == 0x7FFF
@@ -6365,7 +6363,7 @@ int floatx80_le(floatx80 a, floatx80 b, float_status *status)
 
 int floatx80_lt(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)
         || (extractFloatx80Exp(a) == 0x7FFF
@@ -6453,7 +6451,7 @@ int floatx80_eq_quiet(floatx80 a, floatx80 b, float_status *status)
 
 int floatx80_le_quiet(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
@@ -6493,7 +6491,7 @@ int floatx80_le_quiet(floatx80 a, floatx80 b, float_status *status)
 
 int floatx80_lt_quiet(floatx80 a, floatx80 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
@@ -6562,7 +6560,7 @@ int floatx80_unordered_quiet(floatx80 a, floatx80 b, float_status *status)
 
 int32_t float128_to_int32(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig0, aSig1;
 
@@ -6591,7 +6589,7 @@ int32_t float128_to_int32(float128 a, float_status *status)
 
 int32_t float128_to_int32_round_to_zero(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig0, aSig1, savedASig;
     int32_t z;
@@ -6641,7 +6639,7 @@ int32_t float128_to_int32_round_to_zero(float128 a, float_status *status)
 
 int64_t float128_to_int64(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig0, aSig1;
 
@@ -6684,7 +6682,7 @@ int64_t float128_to_int64(float128 a, float_status *status)
 
 int64_t float128_to_int64_round_to_zero(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, shiftCount;
     uint64_t aSig0, aSig1;
     int64_t z;
@@ -6749,7 +6747,7 @@ int64_t float128_to_int64_round_to_zero(float128 a, float_status *status)
 
 uint64_t float128_to_uint64(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int aExp;
     int shiftCount;
     uint64_t aSig0, aSig1;
@@ -6860,7 +6858,7 @@ uint32_t float128_to_uint32(float128 a, float_status *status)
 
 float32 float128_to_float32(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig0, aSig1;
     uint32_t zSig;
@@ -6895,7 +6893,7 @@ float32 float128_to_float32(float128 a, float_status *status)
 
 float64 float128_to_float64(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig0, aSig1;
 
@@ -6928,7 +6926,7 @@ float64 float128_to_float64(float128 a, float_status *status)
 
 floatx80 float128_to_floatx80(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig0, aSig1;
 
@@ -6966,7 +6964,7 @@ floatx80 float128_to_floatx80(float128 a, float_status *status)
 
 float128 float128_round_to_int(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t lastBitMask, roundBitsMask;
     float128 z;
@@ -7121,7 +7119,7 @@ float128 float128_round_to_int(float128 a, float_status *status)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128 addFloat128Sigs(float128 a, float128 b, flag zSign,
+static float128 addFloat128Sigs(float128 a, float128 b, bool zSign,
                                 float_status *status)
 {
     int32_t aExp, bExp, zExp;
@@ -7212,7 +7210,7 @@ static float128 addFloat128Sigs(float128 a, float128 b, flag zSign,
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128 subFloat128Sigs(float128 a, float128 b, flag zSign,
+static float128 subFloat128Sigs(float128 a, float128 b, bool zSign,
                                 float_status *status)
 {
     int32_t aExp, bExp, zExp;
@@ -7300,7 +7298,7 @@ static float128 subFloat128Sigs(float128 a, float128 b, flag zSign,
 
 float128 float128_add(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     aSign = extractFloat128Sign( a );
     bSign = extractFloat128Sign( b );
@@ -7321,7 +7319,7 @@ float128 float128_add(float128 a, float128 b, float_status *status)
 
 float128 float128_sub(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     aSign = extractFloat128Sign( a );
     bSign = extractFloat128Sign( b );
@@ -7342,7 +7340,7 @@ float128 float128_sub(float128 a, float128 b, float_status *status)
 
 float128 float128_mul(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign, zSign;
+    bool aSign, bSign, zSign;
     int32_t aExp, bExp, zExp;
     uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1, zSig2, zSig3;
 
@@ -7405,7 +7403,7 @@ float128 float128_mul(float128 a, float128 b, float_status *status)
 
 float128 float128_div(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign, zSign;
+    bool aSign, bSign, zSign;
     int32_t aExp, bExp, zExp;
     uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1, zSig2;
     uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
@@ -7492,7 +7490,7 @@ float128 float128_div(float128 a, float128 b, float_status *status)
 
 float128 float128_rem(float128 a, float128 b, float_status *status)
 {
-    flag aSign, zSign;
+    bool aSign, zSign;
     int32_t aExp, bExp, expDiff;
     uint64_t aSig0, aSig1, bSig0, bSig1, q, term0, term1, term2;
     uint64_t allZero, alternateASig0, alternateASig1, sigMean1;
@@ -7599,7 +7597,7 @@ float128 float128_rem(float128 a, float128 b, float_status *status)
 
 float128 float128_sqrt(float128 a, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp, zExp;
     uint64_t aSig0, aSig1, zSig0, zSig1, zSig2, doubleZSig0;
     uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
@@ -7695,7 +7693,7 @@ int float128_eq(float128 a, float128 b, float_status *status)
 
 int float128_le(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -7728,7 +7726,7 @@ int float128_le(float128 a, float128 b, float_status *status)
 
 int float128_lt(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -7811,7 +7809,7 @@ int float128_eq_quiet(float128 a, float128 b, float_status *status)
 
 int float128_le_quiet(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -7847,7 +7845,7 @@ int float128_le_quiet(float128 a, float128 b, float_status *status)
 
 int float128_lt_quiet(float128 a, float128 b, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -7900,7 +7898,7 @@ int float128_unordered_quiet(float128 a, float128 b, float_status *status)
 static inline int floatx80_compare_internal(floatx80 a, floatx80 b,
                                             int is_quiet, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
@@ -7957,7 +7955,7 @@ int floatx80_compare_quiet(floatx80 a, floatx80 b, float_status *status)
 static inline int float128_compare_internal(float128 a, float128 b,
                                             int is_quiet, float_status *status)
 {
-    flag aSign, bSign;
+    bool aSign, bSign;
 
     if (( ( extractFloat128Exp( a ) == 0x7fff ) &&
           ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) ) ||
@@ -8000,7 +7998,7 @@ int float128_compare_quiet(float128 a, float128 b, float_status *status)
 
 floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig;
 
@@ -8039,7 +8037,7 @@ floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
 
 float128 float128_scalbn(float128 a, int n, float_status *status)
 {
-    flag aSign;
+    bool aSign;
     int32_t aExp;
     uint64_t aSig0, aSig1;
 
