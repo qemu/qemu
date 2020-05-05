@@ -4107,7 +4107,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     {
         int64_t allocation_start, host_offset, guest_offset;
         int64_t clusters_allocated;
-        int64_t old_file_size, new_file_size;
+        int64_t old_file_size, last_cluster, new_file_size;
         uint64_t nb_new_data_clusters, nb_new_l2_tables;
 
         /* With a data file, preallocation means just allocating the metadata
@@ -4127,7 +4127,13 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             ret = old_file_size;
             goto fail;
         }
-        old_file_size = ROUND_UP(old_file_size, s->cluster_size);
+
+        last_cluster = qcow2_get_last_cluster(bs, old_file_size);
+        if (last_cluster >= 0) {
+            old_file_size = (last_cluster + 1) * s->cluster_size;
+        } else {
+            old_file_size = ROUND_UP(old_file_size, s->cluster_size);
+        }
 
         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
                                             s->cluster_size);
