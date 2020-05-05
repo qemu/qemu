@@ -901,14 +901,6 @@ float128 float128_mul(float128, float128, float_status *status);
 float128 float128_div(float128, float128, float_status *status);
 float128 float128_rem(float128, float128, float_status *status);
 float128 float128_sqrt(float128, float_status *status);
-int float128_eq(float128, float128, float_status *status);
-int float128_le(float128, float128, float_status *status);
-int float128_lt(float128, float128, float_status *status);
-int float128_unordered(float128, float128, float_status *status);
-int float128_eq_quiet(float128, float128, float_status *status);
-int float128_le_quiet(float128, float128, float_status *status);
-int float128_lt_quiet(float128, float128, float_status *status);
-int float128_unordered_quiet(float128, float128, float_status *status);
 FloatRelation float128_compare(float128, float128, float_status *status);
 FloatRelation float128_compare_quiet(float128, float128, float_status *status);
 int float128_is_quiet_nan(float128, float_status *status);
@@ -962,6 +954,47 @@ static inline int float128_is_any_nan(float128 a)
 {
     return ((a.high >> 48) & 0x7fff) == 0x7fff &&
         ((a.low != 0) || ((a.high & 0xffffffffffffLL) != 0));
+}
+
+static inline bool float128_eq(float128 a, float128 b, float_status *s)
+{
+    return float128_compare(a, b, s) == float_relation_equal;
+}
+
+static inline bool float128_le(float128 a, float128 b, float_status *s)
+{
+    return float128_compare(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float128_lt(float128 a, float128 b, float_status *s)
+{
+    return float128_compare(a, b, s) < float_relation_equal;
+}
+
+static inline bool float128_unordered(float128 a, float128 b, float_status *s)
+{
+    return float128_compare(a, b, s) == float_relation_unordered;
+}
+
+static inline bool float128_eq_quiet(float128 a, float128 b, float_status *s)
+{
+    return float128_compare_quiet(a, b, s) == float_relation_equal;
+}
+
+static inline bool float128_le_quiet(float128 a, float128 b, float_status *s)
+{
+    return float128_compare_quiet(a, b, s) <= float_relation_equal;
+}
+
+static inline bool float128_lt_quiet(float128 a, float128 b, float_status *s)
+{
+    return float128_compare_quiet(a, b, s) < float_relation_equal;
+}
+
+static inline bool float128_unordered_quiet(float128 a, float128 b,
+                                           float_status *s)
+{
+    return float128_compare_quiet(a, b, s) == float_relation_unordered;
 }
 
 #define float128_zero make_float128(0, 0)
