@@ -2717,11 +2717,10 @@ static BlockBackend *vmdk_co_create_cb(int64_t size, int idx,
     if (!bs) {
         return NULL;
     }
-    blk = blk_new(bdrv_get_aio_context(bs),
-                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
-                  BLK_PERM_ALL);
-    if (blk_insert_bs(blk, bs, errp)) {
-        bdrv_unref(bs);
+    blk = blk_new_with_bs(bs,
+                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
+                          BLK_PERM_ALL, errp);
+    if (!blk) {
         return NULL;
     }
     blk_set_allow_write_beyond_eof(blk, true);

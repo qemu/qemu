@@ -26,8 +26,8 @@ from iotests import log, qemu_img, qemu_io_silent, filter_qmp_testfiles, \
 import json
 
 # Need backing file support (for arbitrary backing formats)
-iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed'])
-iotests.verify_platform(['linux'])
+iotests.script_initialize(supported_fmts=['qcow2', 'qcow', 'qed'],
+                          supported_platforms=['linux'])
 
 
 # There are two variations of this test:

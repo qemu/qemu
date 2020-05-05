@@ -24,7 +24,7 @@ import struct
 from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
     file_path, img_info_log, log, filter_qemu_io
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'])
 
 disk = file_path('disk')
 chunk = 256 * 1024

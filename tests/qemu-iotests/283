@@ -21,7 +21,9 @@
 import iotests
 
 # The test is unrelated to formats, restrict it to qcow2 to avoid extra runs
-iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.script_initialize(
+    supported_fmts=['qcow2'],
+)
 
 size = 1024 * 1024
 

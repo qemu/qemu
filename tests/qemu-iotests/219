@@ -21,7 +21,7 @@
 
 import iotests
 
-iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'])
 
 img_size = 4 * 1024 * 1024
 

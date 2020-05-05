@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Test bdrv_read/bdrv_write using BDRV_O_SNAPSHOT
+# Test bdrv_pread/bdrv_pwrite using BDRV_O_SNAPSHOT
 #
 # Copyright (C) 2013 Red Hat, Inc.
 #

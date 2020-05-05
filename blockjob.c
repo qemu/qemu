@@ -397,16 +397,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 {
     BlockBackend *blk;
     BlockJob *job;
-    int ret;
 
     if (job_id == NULL && !(flags & JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
     }
 
-    blk = blk_new(bdrv_get_aio_context(bs), perm, shared_perm);
-    ret = blk_insert_bs(blk, bs, errp);
-    if (ret < 0) {
-        blk_unref(blk);
+    blk = blk_new_with_bs(bs, perm, shared_perm, errp);
+    if (!blk) {
         return NULL;
     }
 

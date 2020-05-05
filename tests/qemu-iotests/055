@@ -469,7 +469,8 @@ class TestDriveCompression(iotests.QMPTestCase):
         qemu_img('create', '-f', fmt, blockdev_target_img,
                  str(TestDriveCompression.image_len), *args)
         if attach_target:
-            self.vm.add_drive(blockdev_target_img, format=fmt, interface="none")
+            self.vm.add_drive(blockdev_target_img,
+                              img_format=fmt, interface="none")
 
         self.vm.launch()
 

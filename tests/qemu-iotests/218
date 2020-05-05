@@ -29,7 +29,7 @@
 import iotests
 from iotests import log, qemu_img, qemu_io_silent
 
-iotests.verify_image_format(supported_fmts=['qcow2', 'raw'])
+iotests.script_initialize(supported_fmts=['qcow2', 'raw'])
 
 
 # Launches the VM, adds two null-co nodes (source and target), and

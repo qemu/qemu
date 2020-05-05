@@ -23,11 +23,6 @@ import iotests
 from iotests import log, qemu_img, qemu_io_silent, \
         filter_qmp_testfiles, filter_qmp_imgfmt
 
-# Need backing file and change-backing-file support
-iotests.verify_image_format(supported_fmts=['qcow2', 'qed'])
-iotests.verify_platform(['linux'])
-
-
 # Returns a node for blockdev-add
 def node(node_name, path, backing=None, fmt=None, throttle=None):
     if fmt is None:
@@ -160,4 +155,7 @@ def main():
     test_concurrent_finish(False)
 
 if __name__ == '__main__':
-    main()
+    # Need backing file and change-backing-file support
+    iotests.script_main(main,
+                        supported_fmts=['qcow2', 'qed'],
+                        supported_platforms=['linux'])

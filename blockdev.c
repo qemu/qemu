@@ -2711,7 +2711,6 @@ void qmp_block_resize(bool has_device, const char *device,
     BlockBackend *blk = NULL;
     BlockDriverState *bs;
     AioContext *aio_context;
-    int ret;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -2734,9 +2733,8 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
-    blk = blk_new(bdrv_get_aio_context(bs), BLK_PERM_RESIZE, BLK_PERM_ALL);
-    ret = blk_insert_bs(blk, bs, errp);
-    if (ret < 0) {
+    blk = blk_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
+    if (!blk) {
         goto out;
     }
 

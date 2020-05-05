@@ -122,7 +122,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
         _run_cmd $QEMU_IMG check       $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG compare     $L "${TEST_IMG}" "${TEST_IMG}"
         _run_cmd $QEMU_IMG map         $L "${TEST_IMG}"
-        _run_cmd $QEMU_IMG amend -o "" $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG amend -o "size=$size" $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG commit      $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG resize      $L "${TEST_IMG}" $size
         _run_cmd $QEMU_IMG rebase      $L "${TEST_IMG}" -b "${TEST_IMG}.base"

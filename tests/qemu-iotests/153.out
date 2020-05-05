@@ -56,7 +56,7 @@ _qemu_img_wrapper map TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
-_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
@@ -118,7 +118,7 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
-_qemu_img_wrapper amend -o  -U TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
 qemu-img: unrecognized option '-U'
 Try 'qemu-img --help' for more information
 
@@ -187,7 +187,7 @@ _qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper map TEST_DIR/t.qcow2
 
-_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
@@ -241,7 +241,7 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
-_qemu_img_wrapper amend -o  -U TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
 qemu-img: unrecognized option '-U'
 Try 'qemu-img --help' for more information
 
@@ -303,7 +303,7 @@ _qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper map TEST_DIR/t.qcow2
 
-_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M TEST_DIR/t.qcow2
 
 _qemu_img_wrapper commit TEST_DIR/t.qcow2
 
@@ -345,7 +345,7 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
-_qemu_img_wrapper amend -o  -U TEST_DIR/t.qcow2
+_qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
 qemu-img: unrecognized option '-U'
 Try 'qemu-img --help' for more information
 

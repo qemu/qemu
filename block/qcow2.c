@@ -3405,10 +3405,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Create BlockBackend to write to the image */
-    blk = blk_new(bdrv_get_aio_context(bs),
-                  BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
-    ret = blk_insert_bs(blk, bs, errp);
-    if (ret < 0) {
+    blk = blk_new_with_bs(bs, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL,
+                          errp);
+    if (!blk) {
+        ret = -EPERM;
         goto out;
     }
     blk_set_allow_write_beyond_eof(blk, true);
@@ -3989,14 +3989,17 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     qemu_co_mutex_lock(&s->lock);
 
-    /* cannot proceed if image has snapshots */
-    if (s->nb_snapshots) {
-        error_setg(errp, "Can't resize an image which has snapshots");
+    /*
+     * Even though we store snapshot size for all images, it was not
+     * required until v3, so it is not safe to proceed for v2.
+     */
+    if (s->nb_snapshots && s->qcow_version < 3) {
+        error_setg(errp, "Can't resize a v2 image which has snapshots");
         ret = -ENOTSUP;
         goto fail;
     }
 
-    /* cannot proceed if image has bitmaps */
+    /* See qcow2-bitmap.c for which bitmap scenarios prevent a resize. */
     if (qcow2_truncate_bitmaps_check(bs, errp)) {
         ret = -ENOTSUP;
         goto fail;
@@ -5005,6 +5008,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     BDRVQcow2State *s = bs->opaque;
     int current_version = s->qcow_version;
     int ret;
+    int i;
 
     /* This is qcow2_downgrade(), not qcow2_upgrade() */
     assert(target_version < current_version);
@@ -5020,6 +5024,21 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     if (has_data_file(bs)) {
         error_setg(errp, "Cannot downgrade an image with a data file");
         return -ENOTSUP;
+    }
+
+    /*
+     * If any internal snapshot has a different size than the current
+     * image size, or VM state size that exceeds 32 bits, downgrading
+     * is unsafe.  Even though we would still use v3-compliant output
+     * to preserve that data, other v2 programs might not realize
+     * those optional fields are important.
+     */
+    for (i = 0; i < s->nb_snapshots; i++) {
+        if (s->snapshots[i].vm_state_size > UINT32_MAX ||
+            s->snapshots[i].disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
+            error_setg(errp, "Internal snapshots prevent downgrade of image");
+            return -ENOTSUP;
+        }
     }
 
     /* clear incompatible features */
@@ -5412,12 +5431,10 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (new_size) {
-        BlockBackend *blk = blk_new(bdrv_get_aio_context(bs),
-                                    BLK_PERM_RESIZE, BLK_PERM_ALL);
-        ret = blk_insert_bs(blk, bs, errp);
-        if (ret < 0) {
-            blk_unref(blk);
-            return ret;
+        BlockBackend *blk = blk_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL,
+                                            errp);
+        if (!blk) {
+            return -EPERM;
         }
 
         /*

@@ -1027,5 +1027,6 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.run_test_iothreads(None, 'iothread0')
 
 if __name__ == '__main__':
+    iotests.activate_logging()
     iotests.main(supported_fmts=["qcow2"],
                  supported_protocols=["file"])

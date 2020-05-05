@@ -411,8 +411,8 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
         self.assert_qmp(result, 'return', {})
 
-        self.vm.run_job(job='drive0', auto_dismiss=True, use_log=False)
-        self.vm.run_job(job='node4', auto_dismiss=True, use_log=False)
+        self.vm.run_job(job='drive0', auto_dismiss=True)
+        self.vm.run_job(job='node4', auto_dismiss=True)
         self.assert_no_active_block_jobs()
 
     # Test a block-stream and a block-commit job in parallel
