@@ -2595,7 +2595,7 @@ static void usbredir_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &dev->bootindex,
                                   "bootindex", NULL,
-                                  &udev->qdev, NULL);
+                                  &udev->qdev);
 }
 
 static const TypeInfo usbredir_dev_info = {

@@ -1883,7 +1883,7 @@ static void eepro100_instance_init(Object *obj)
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, PCI_DEVICE(obj));
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(s), NULL);
+                                  DEVICE(s));
 }
 
 static E100PCIDeviceInfo e100_devices[] = {

@@ -217,7 +217,7 @@ static void vhost_user_scsi_instance_init(Object *obj)
 
     /* Add the bootindex property for this object */
     device_add_bootindex_property(obj, &vsc->bootindex, "bootindex", NULL,
-                                  DEVICE(vsc), NULL);
+                                  DEVICE(vsc));
 }
 
 static const TypeInfo vhost_user_scsi_info = {

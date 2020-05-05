@@ -1250,7 +1250,7 @@ const PropertyInfo qdev_prop_size = {
 
 /* --- object link property --- */
 
-static void create_link_property(ObjectClass *oc, Property *prop, Error **errp)
+static void create_link_property(ObjectClass *oc, Property *prop)
 {
     object_class_property_add_link(oc, prop->name, prop->link_type,
                                    prop->offset,

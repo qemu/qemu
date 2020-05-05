@@ -327,7 +327,7 @@ static void property_release_bootindex(Object *obj, const char *name,
 
 void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
-                                   DeviceState *dev, Error **errp)
+                                   DeviceState *dev)
 {
     BootIndexProperty *prop = g_malloc0(sizeof(*prop));
 

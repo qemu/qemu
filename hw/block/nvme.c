@@ -1594,7 +1594,7 @@ static void nvme_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/namespace@1,0",
-                                  DEVICE(obj), &error_abort);
+                                  DEVICE(obj));
 }
 
 static const TypeInfo nvme_info = {

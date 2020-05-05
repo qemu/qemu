@@ -92,7 +92,7 @@ static void ne2000_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &s->c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  &pci_dev->qdev, NULL);
+                                  &pci_dev->qdev);
 }
 
 static Property ne2000_properties[] = {

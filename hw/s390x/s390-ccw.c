@@ -151,7 +151,7 @@ static void s390_ccw_instance_init(Object *obj)
     S390CCWDevice *dev = S390_CCW_DEVICE(obj);
 
     device_add_bootindex_property(obj, &dev->bootindex, "bootindex",
-                                  "/disk@0,0", DEVICE(obj), NULL);
+                                  "/disk@0,0", DEVICE(obj));
 }
 
 static void s390_ccw_class_init(ObjectClass *klass, void *data)

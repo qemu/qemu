@@ -298,8 +298,7 @@ out:
 }
 
 void ppc_compat_add_property(Object *obj, const char *name,
-                             uint32_t *compat_pvr, const char *basedesc,
-                             Error **errp)
+                             uint32_t *compat_pvr, const char *basedesc)
 {
     gchar *namesv[ARRAY_SIZE(compat_table) + 1];
     gchar *names, *desc;

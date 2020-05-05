@@ -782,7 +782,7 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
     ObjectClass *oc = OBJECT_CLASS(klass);
 
     if (prop->info->create) {
-        prop->info->create(oc, prop, &error_abort);
+        prop->info->create(oc, prop);
     } else {
         ObjectProperty *op;
 

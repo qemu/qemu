@@ -639,7 +639,7 @@ static void ich9_lpc_initfn(Object *obj)
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
                                   &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
 
-    ich9_pm_add_properties(obj, &lpc->pm, NULL);
+    ich9_pm_add_properties(obj, &lpc->pm);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
