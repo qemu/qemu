@@ -301,16 +301,6 @@ The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
 ``acl_remove`` commands are deprecated with no replacement. Authorization
 for VNC should be performed using the pluggable QAuthZ objects.
 
-Guest Emulator ISAs
--------------------
-
-RISC-V ISA privledge specification version 1.09.1 (since 4.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The RISC-V ISA privledge specification version 1.09.1 has been deprecated.
-QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
-should be used instead of the 1.09.1 version.
-
 System emulator CPUS
 --------------------
 
@@ -470,6 +460,16 @@ The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0
 
 The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
 'hostfwd_remove' HMP commands has been replaced by ``netdev_id``.
+
+Guest Emulator ISAs
+-------------------
+
+RISC-V ISA privledge specification version 1.09.1 (removed in 5.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The RISC-V ISA privledge specification version 1.09.1 has been removed.
+QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
+should be used instead of the 1.09.1 version.
 
 System emulator CPUS
 --------------------
