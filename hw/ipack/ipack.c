@@ -60,15 +60,13 @@ static void ipack_device_realize(DeviceState *dev, Error **errp)
     k->realize(dev, errp);
 }
 
-static void ipack_device_unrealize(DeviceState *dev, Error **errp)
+static void ipack_device_unrealize(DeviceState *dev)
 {
     IPackDevice *idev = IPACK_DEVICE(dev);
     IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
-    Error *err = NULL;
 
     if (k->unrealize) {
-        k->unrealize(dev, &err);
-        error_propagate(errp, err);
+        k->unrealize(dev);
         return;
     }
 

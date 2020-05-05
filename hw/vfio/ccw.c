@@ -521,13 +521,13 @@ out_device_err:
     vfio_put_group(group);
 out_group_err:
     if (cdc->unrealize) {
-        cdc->unrealize(cdev, NULL);
+        cdc->unrealize(cdev);
     }
 out_err_propagate:
     error_propagate(errp, err);
 }
 
-static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
+static void vfio_ccw_unrealize(DeviceState *dev)
 {
     CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
     S390CCWDevice *cdev = DO_UPCAST(S390CCWDevice, parent_obj, ccw_dev);
@@ -541,7 +541,7 @@ static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
     vfio_put_group(group);
 
     if (cdc->unrealize) {
-        cdc->unrealize(cdev, errp);
+        cdc->unrealize(cdev);
     }
 }
 

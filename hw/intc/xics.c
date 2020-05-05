@@ -338,7 +338,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);
 }
 
-static void icp_unrealize(DeviceState *dev, Error **errp)
+static void icp_unrealize(DeviceState *dev)
 {
     ICPState *icp = ICP(dev);
 

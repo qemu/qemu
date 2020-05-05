@@ -1326,7 +1326,7 @@ static void usbnet_cleanup(NetClientState *nc)
     s->nic = NULL;
 }
 
-static void usb_net_unrealize(USBDevice *dev, Error **errp)
+static void usb_net_unrealize(USBDevice *dev)
 {
     USBNetState *s = (USBNetState *) dev;
 

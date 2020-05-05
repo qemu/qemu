@@ -275,7 +275,7 @@ static void pnv_core_cpu_unrealize(PnvCore *pc, PowerPCCPU *cpu)
     object_unparent(OBJECT(cpu));
 }
 
-static void pnv_core_unrealize(DeviceState *dev, Error **errp)
+static void pnv_core_unrealize(DeviceState *dev)
 {
     PnvCore *pc = PNV_CORE(dev);
     CPUCore *cc = CPU_CORE(dev);

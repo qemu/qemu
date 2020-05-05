@@ -124,7 +124,7 @@ out_get_dev_err:
     vfio_put_group(vfio_group);
 }
 
-static void vfio_ap_unrealize(DeviceState *dev, Error **errp)
+static void vfio_ap_unrealize(DeviceState *dev)
 {
     APDevice *apdev = AP_DEVICE(dev);
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);

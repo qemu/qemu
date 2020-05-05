@@ -203,7 +203,7 @@ virtio_gpu_base_set_features(VirtIODevice *vdev, uint64_t features)
 }
 
 static void
-virtio_gpu_base_device_unrealize(DeviceState *qdev, Error **errp)
+virtio_gpu_base_device_unrealize(DeviceState *qdev)
 {
     VirtIOGPUBase *g = VIRTIO_GPU_BASE(qdev);
 

@@ -950,7 +950,7 @@ static void serial_realize(DeviceState *dev, Error **errp)
     serial_reset(s);
 }
 
-static void serial_unrealize(DeviceState *dev, Error **errp)
+static void serial_unrealize(DeviceState *dev)
 {
     SerialState *s = SERIAL(dev);
 

@@ -1627,7 +1627,8 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
         return;
     }
 
-    object_property_set_bool(OBJECT(plugged_dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(plugged_dev), false, "realized",
+                             &error_abort);
 }
 
 static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
@@ -1715,7 +1716,7 @@ static void spapr_phb_finalizefn(Object *obj)
     sphb->dtbusname = NULL;
 }
 
-static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
+static void spapr_phb_unrealize(DeviceState *dev)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
@@ -1724,7 +1725,6 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
     SpaprTceTable *tcet;
     int i;
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
-    Error *local_err = NULL;
 
     spapr_phb_nvgpu_free(sphb);
 
@@ -1745,11 +1745,7 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
         }
     }
 
-    remove_drcs(sphb, phb->bus, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+    remove_drcs(sphb, phb->bus, &error_abort);
 
     for (i = PCI_NUM_PINS - 1; i >= 0; i--) {
         if (sphb->lsi_table[i].irq) {
@@ -2011,7 +2007,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     return;
 
 unrealize:
-    spapr_phb_unrealize(dev, NULL);
+    spapr_phb_unrealize(dev);
 }
 
 static int spapr_phb_children_reset(Object *child, void *opaque)

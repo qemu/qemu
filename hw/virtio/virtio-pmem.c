@@ -124,7 +124,7 @@ static void virtio_pmem_realize(DeviceState *dev, Error **errp)
     pmem->rq_vq = virtio_add_queue(vdev, 128, virtio_pmem_flush);
 }
 
-static void virtio_pmem_unrealize(DeviceState *dev, Error **errp)
+static void virtio_pmem_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOPMEM *pmem = VIRTIO_PMEM(dev);

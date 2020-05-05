@@ -57,7 +57,7 @@ typedef struct XenBlockDevice {
 } XenBlockDevice;
 
 typedef void (*XenBlockDeviceRealize)(XenBlockDevice *blockdev, Error **errp);
-typedef void (*XenBlockDeviceUnrealize)(XenBlockDevice *blockdev, Error **errp);
+typedef void (*XenBlockDeviceUnrealize)(XenBlockDevice *blockdev);
 
 typedef struct XenBlockDeviceClass {
     /*< private >*/

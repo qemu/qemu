@@ -136,7 +136,7 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
     g_free(ring_ref);
 }
 
-static void xen_block_unrealize(XenDevice *xendev, Error **errp)
+static void xen_block_unrealize(XenDevice *xendev)
 {
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     XenBlockDeviceClass *blockdev_class =
@@ -157,7 +157,7 @@ static void xen_block_unrealize(XenDevice *xendev, Error **errp)
     blockdev->dataplane = NULL;
 
     if (blockdev_class->unrealize) {
-        blockdev_class->unrealize(blockdev, errp);
+        blockdev_class->unrealize(blockdev);
     }
 }
 
@@ -567,7 +567,7 @@ static const TypeInfo xen_block_type_info = {
     .class_init = xen_block_class_init,
 };
 
-static void xen_disk_unrealize(XenBlockDevice *blockdev, Error **errp)
+static void xen_disk_unrealize(XenBlockDevice *blockdev)
 {
     trace_xen_disk_unrealize();
 }
@@ -606,7 +606,7 @@ static const TypeInfo xen_disk_type_info = {
     .class_init = xen_disk_class_init,
 };
 
-static void xen_cdrom_unrealize(XenBlockDevice *blockdev, Error **errp)
+static void xen_cdrom_unrealize(XenBlockDevice *blockdev)
 {
     trace_xen_cdrom_unrealize();
 }

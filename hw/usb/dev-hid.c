@@ -699,7 +699,7 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_hid_unrealize(USBDevice *dev, Error **errp)
+static void usb_hid_unrealize(USBDevice *dev)
 {
     USBHIDState *us = USB_HID(dev);
 

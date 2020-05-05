@@ -688,7 +688,7 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void virtio_iommu_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_iommu_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOIOMMU *s = VIRTIO_IOMMU(dev);

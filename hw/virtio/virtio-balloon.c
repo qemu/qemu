@@ -819,7 +819,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     reset_stats(s);
 }
 
-static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_balloon_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);

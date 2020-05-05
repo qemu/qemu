@@ -1468,7 +1468,7 @@ static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
     }
 }
 
-static void usbredir_unrealize(USBDevice *udev, Error **errp)
+static void usbredir_unrealize(USBDevice *udev)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
 

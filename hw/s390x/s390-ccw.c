@@ -132,7 +132,7 @@ out_err_propagate:
     error_propagate(errp, err);
 }
 
-static void s390_ccw_unrealize(S390CCWDevice *cdev, Error **errp)
+static void s390_ccw_unrealize(S390CCWDevice *cdev)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     SubchDev *sch = ccw_dev->sch;

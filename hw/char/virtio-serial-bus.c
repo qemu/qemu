@@ -1010,7 +1010,7 @@ static void virtser_port_device_plug(HotplugHandler *hotplug_dev,
     virtio_notify_config(VIRTIO_DEVICE(hotplug_dev));
 }
 
-static void virtser_port_device_unrealize(DeviceState *dev, Error **errp)
+static void virtser_port_device_unrealize(DeviceState *dev)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
@@ -1022,7 +1022,7 @@ static void virtser_port_device_unrealize(DeviceState *dev, Error **errp)
     QTAILQ_REMOVE(&vser->ports, port, next);
 
     if (vsc->unrealize) {
-        vsc->unrealize(dev, errp);
+        vsc->unrealize(dev);
     }
 }
 
@@ -1122,7 +1122,7 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_init = virtio_serial_port_class_init,
 };
 
-static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_serial_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
@@ -1147,7 +1147,7 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
         g_free(vser->post_load);
     }
 
-    qbus_set_hotplug_handler(BUS(&vser->bus), NULL, errp);
+    qbus_set_hotplug_handler(BUS(&vser->bus), NULL, &error_abort);
 
     virtio_cleanup(vdev);
 }

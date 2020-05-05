@@ -392,7 +392,7 @@ static void device_reset_child_foreach(Object *obj, ResettableChildCallback cb,
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
 }
 
 /*
@@ -945,23 +945,18 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
        }
 
     } else if (!value && dev->realized) {
-        /* We want local_err to track only the first error */
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
-                                     local_err ? NULL : &local_err);
+                                     &error_abort);
         }
         if (qdev_get_vmsd(dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
         }
         if (dc->unrealize) {
-            dc->unrealize(dev, local_err ? NULL : &local_err);
+            dc->unrealize(dev);
         }
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
-
-        if (local_err != NULL) {
-            goto fail;
-        }
     }
 
     assert(local_err == NULL);
@@ -971,7 +966,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 child_realize_fail:
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
         object_property_set_bool(OBJECT(bus), false, "realized",
-                                 NULL);
+                                 &error_abort);
     }
 
     if (qdev_get_vmsd(dev)) {
@@ -982,7 +977,7 @@ post_realize_fail:
     g_free(dev->canonical_path);
     dev->canonical_path = NULL;
     if (dc->unrealize) {
-        dc->unrealize(dev, NULL);
+        dc->unrealize(dev);
     }
 
 fail:
@@ -1083,7 +1078,7 @@ static void device_unparent(Object *obj)
     BusState *bus;
 
     if (dev->realized) {
-        object_property_set_bool(obj, false, "realized", NULL);
+        object_property_set_bool(obj, false, "realized", &error_abort);
     }
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);

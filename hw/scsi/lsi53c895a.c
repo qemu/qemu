@@ -2312,7 +2312,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
 }
 
-static void lsi_scsi_unrealize(DeviceState *dev, Error **errp)
+static void lsi_scsi_unrealize(DeviceState *dev)
 {
     LSIState *s = LSI53C895A(dev);
 

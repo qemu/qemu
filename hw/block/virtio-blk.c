@@ -1223,7 +1223,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lsecs);
 }
 
-static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_blk_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);

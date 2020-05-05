@@ -2421,7 +2421,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
                          dev->conf.lsecs);
 }
 
-static void scsi_unrealize(SCSIDevice *dev, Error **errp)
+static void scsi_unrealize(SCSIDevice *dev)
 {
     del_boot_device_lchs(&dev->qdev, NULL);
 }

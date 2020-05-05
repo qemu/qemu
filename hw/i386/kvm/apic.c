@@ -230,7 +230,7 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void kvm_apic_unrealize(DeviceState *dev, Error **errp)
+static void kvm_apic_unrealize(DeviceState *dev)
 {
 }
 
