@@ -489,7 +489,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
 
 class TestCompressedToQcow2(iotests.QMPTestCase):
     image_len = 64 * 1024 * 1024 # MB
-    target_fmt = {'type': 'qcow2', 'args': ()}
+    target_fmt = {'type': 'qcow2', 'args': (), 'drive-opts': ''}
 
     def tearDown(self):
         self.vm.shutdown()
@@ -500,14 +500,16 @@ class TestCompressedToQcow2(iotests.QMPTestCase):
             pass
 
     def do_prepare_drives(self, attach_target):
-        self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
+        self.vm = iotests.VM().add_drive('blkdebug::' + test_img,
+                                         opts=self.target_fmt['drive-opts'])
 
         qemu_img('create', '-f', self.target_fmt['type'], blockdev_target_img,
                  str(self.image_len), *self.target_fmt['args'])
         if attach_target:
             self.vm.add_drive(blockdev_target_img,
                               img_format=self.target_fmt['type'],
-                              interface="none")
+                              interface="none",
+                              opts=self.target_fmt['drive-opts'])
 
         self.vm.launch()
 
@@ -601,7 +603,8 @@ class TestCompressedToQcow2(iotests.QMPTestCase):
 
 
 class TestCompressedToVmdk(TestCompressedToQcow2):
-    target_fmt = {'type': 'vmdk', 'args': ('-o', 'subformat=streamOptimized')}
+    target_fmt = {'type': 'vmdk', 'args': ('-o', 'subformat=streamOptimized'),
+                  'drive-opts': 'cache.no-flush=on'}
 
     @iotests.skip_if_unsupported(['vmdk'])
     def setUp(self):
