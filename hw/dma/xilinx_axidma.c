@@ -111,7 +111,6 @@ struct Stream {
     int nr;
 
     struct SDesc desc;
-    int pos;
     unsigned int complete_cnt;
     uint32_t regs[R_MAX];
     uint8_t app[20];
@@ -267,7 +266,9 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
                                  StreamSlave *tx_control_dev)
 {
     uint32_t prev_d;
-    unsigned int txlen;
+    uint32_t txlen;
+    uint64_t addr;
+    bool eop;
 
     if (!stream_running(s) || stream_idle(s)) {
         return;
@@ -282,24 +283,26 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
         }
 
         if (stream_desc_sof(&s->desc)) {
-            s->pos = 0;
             stream_push(tx_control_dev, s->desc.app, sizeof(s->desc.app), true);
         }
 
         txlen = s->desc.control & SDESC_CTRL_LEN_MASK;
-        if ((txlen + s->pos) > sizeof s->txbuf) {
-            hw_error("%s: too small internal txbuf! %d\n", __func__,
-                     txlen + s->pos);
+
+        eop = stream_desc_eof(&s->desc);
+        addr = s->desc.buffer_address;
+        while (txlen) {
+            unsigned int len;
+
+            len = txlen > sizeof s->txbuf ? sizeof s->txbuf : txlen;
+            address_space_read(&s->dma->as, addr,
+                               MEMTXATTRS_UNSPECIFIED,
+                               s->txbuf, len);
+            stream_push(tx_data_dev, s->txbuf, len, eop && len == txlen);
+            txlen -= len;
+            addr += len;
         }
 
-        address_space_read(&s->dma->as, s->desc.buffer_address,
-                           MEMTXATTRS_UNSPECIFIED,
-                           s->txbuf + s->pos, txlen);
-        s->pos += txlen;
-
-        if (stream_desc_eof(&s->desc)) {
-            stream_push(tx_data_dev, s->txbuf, s->pos, true);
-            s->pos = 0;
+        if (eop) {
             stream_complete(s);
         }
 
