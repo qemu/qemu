@@ -402,6 +402,9 @@ struct XilinxAXIEnet {
 
     uint32_t hdr[CONTROL_PAYLOAD_WORDS];
 
+    uint8_t *txmem;
+    uint32_t txpos;
+
     uint8_t *rxmem;
     uint32_t rxsize;
     uint32_t rxpos;
@@ -421,6 +424,7 @@ static void axienet_rx_reset(XilinxAXIEnet *s)
 static void axienet_tx_reset(XilinxAXIEnet *s)
 {
     s->tc = TC_JUM | TC_TX | TC_VLAN;
+    s->txpos = 0;
 }
 
 static inline int axienet_rx_resetting(XilinxAXIEnet *s)
@@ -902,17 +906,35 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
     XilinxAXIEnetStreamSlave *ds = XILINX_AXI_ENET_DATA_STREAM(obj);
     XilinxAXIEnet *s = ds->enet;
 
-    /* We don't support fragmented packets yet.  */
-    assert(eop);
-
     /* TX enable ?  */
     if (!(s->tc & TC_TX)) {
         return size;
     }
 
+    if (s->txpos + size > s->c_txmem) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Packet larger than txmem\n",
+                      TYPE_XILINX_AXI_ENET);
+        s->txpos = 0;
+        return size;
+    }
+
+    if (s->txpos == 0 && eop) {
+        /* Fast path single fragment.  */
+        s->txpos = size;
+    } else {
+        memcpy(s->txmem + s->txpos, buf, size);
+        buf = s->txmem;
+        s->txpos += size;
+
+        if (!eop) {
+            return size;
+        }
+    }
+
     /* Jumbo or vlan sizes ?  */
     if (!(s->tc & TC_JUM)) {
-        if (size > 1518 && size <= 1522 && !(s->tc & TC_VLAN)) {
+        if (s->txpos > 1518 && s->txpos <= 1522 && !(s->tc & TC_VLAN)) {
+            s->txpos = 0;
             return size;
         }
     }
@@ -923,7 +945,7 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
         uint32_t tmp_csum;
         uint16_t csum;
 
-        tmp_csum = net_checksum_add(size - start_off,
+        tmp_csum = net_checksum_add(s->txpos - start_off,
                                     buf + start_off);
         /* Accumulate the seed.  */
         tmp_csum += s->hdr[2] & 0xffff;
@@ -936,12 +958,13 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
         buf[write_off + 1] = csum & 0xff;
     }
 
-    qemu_send_packet(qemu_get_queue(s->nic), buf, size);
+    qemu_send_packet(qemu_get_queue(s->nic), buf, s->txpos);
 
-    s->stats.tx_bytes += size;
+    s->stats.tx_bytes += s->txpos;
     s->regs[R_IS] |= IS_TX_COMPLETE;
     enet_update_irq(s);
 
+    s->txpos = 0;
     return size;
 }
 
@@ -989,6 +1012,7 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
     s->TEMAC.parent = s;
 
     s->rxmem = g_malloc(s->c_rxmem);
+    s->txmem = g_malloc(s->c_txmem);
     return;
 
 xilinx_enet_realize_fail:
