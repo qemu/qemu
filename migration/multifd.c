@@ -727,6 +727,8 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
          * its status.
          */
         p->quit = true;
+        object_unref(OBJECT(sioc));
+        error_free(local_err);
     } else {
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
