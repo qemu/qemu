@@ -2352,15 +2352,16 @@ static void machvirt_machine_init(void)
 }
 type_init(machvirt_machine_init);
 
+static void virt_machine_5_1_options(MachineClass *mc)
+{
+}
+DEFINE_VIRT_MACHINE_AS_LATEST(5, 1)
+
 static void virt_machine_5_0_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        { TYPE_TPM_TIS_SYSBUS, "ppi", "false" },
-    };
-
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    virt_machine_5_1_options(mc);
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(5, 0)
+DEFINE_VIRT_MACHINE(5, 0)
 
 static void virt_machine_4_2_options(MachineClass *mc)
 {

@@ -28,6 +28,9 @@
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
 
+GlobalProperty hw_compat_5_0[] = {};
+const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
+
 GlobalProperty hw_compat_4_2[] = {
     { "virtio-blk-device", "queue-size", "128"},
     { "virtio-scsi-device", "virtqueue_size", "128"},

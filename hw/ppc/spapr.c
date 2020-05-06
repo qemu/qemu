@@ -4600,14 +4600,25 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     type_init(spapr_machine_register_##suffix)
 
 /*
- * pseries-5.0
+ * pseries-5.1
  */
-static void spapr_machine_5_0_class_options(MachineClass *mc)
+static void spapr_machine_5_1_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE(5_0, "5.0", true);
+DEFINE_SPAPR_MACHINE(5_1, "5.1", true);
+
+/*
+ * pseries-5.0
+ */
+static void spapr_machine_5_0_class_options(MachineClass *mc)
+{
+    spapr_machine_5_1_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
+}
+
+DEFINE_SPAPR_MACHINE(5_0, "5.0", false);
 
 /*
  * pseries-4.2
