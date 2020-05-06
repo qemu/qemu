@@ -246,16 +246,18 @@ uint64_t register_read_memory(void *opaque, hwaddr addr,
     return extract64(read_val, 0, size * 8);
 }
 
-RegisterInfoArray *register_init_block32(DeviceState *owner,
-                                         const RegisterAccessInfo *rae,
-                                         int num, RegisterInfo *ri,
-                                         uint32_t *data,
-                                         const MemoryRegionOps *ops,
-                                         bool debug_enabled,
-                                         uint64_t memory_size)
+static RegisterInfoArray *register_init_block(DeviceState *owner,
+                                              const RegisterAccessInfo *rae,
+                                              int num, RegisterInfo *ri,
+                                              void *data,
+                                              const MemoryRegionOps *ops,
+                                              bool debug_enabled,
+                                              uint64_t memory_size,
+                                              size_t data_size_bits)
 {
     const char *device_prefix = object_get_typename(OBJECT(owner));
     RegisterInfoArray *r_array = g_new0(RegisterInfoArray, 1);
+    int data_size = data_size_bits >> 3;
     int i;
 
     r_array->r = g_new0(RegisterInfo *, num);
@@ -264,12 +266,12 @@ RegisterInfoArray *register_init_block32(DeviceState *owner,
     r_array->prefix = device_prefix;
 
     for (i = 0; i < num; i++) {
-        int index = rae[i].addr / 4;
+        int index = rae[i].addr / data_size;
         RegisterInfo *r = &ri[index];
 
         *r = (RegisterInfo) {
-            .data = &data[index],
-            .data_size = sizeof(uint32_t),
+            .data = data + data_size * index,
+            .data_size = data_size,
             .access = &rae[i],
             .opaque = owner,
         };
@@ -282,6 +284,30 @@ RegisterInfoArray *register_init_block32(DeviceState *owner,
                           device_prefix, memory_size);
 
     return r_array;
+}
+
+RegisterInfoArray *register_init_block8(DeviceState *owner,
+                                        const RegisterAccessInfo *rae,
+                                        int num, RegisterInfo *ri,
+                                        uint8_t *data,
+                                        const MemoryRegionOps *ops,
+                                        bool debug_enabled,
+                                        uint64_t memory_size)
+{
+    return register_init_block(owner, rae, num, ri, (void *)
+                               data, ops, debug_enabled, memory_size, 8);
+}
+
+RegisterInfoArray *register_init_block32(DeviceState *owner,
+                                         const RegisterAccessInfo *rae,
+                                         int num, RegisterInfo *ri,
+                                         uint32_t *data,
+                                         const MemoryRegionOps *ops,
+                                         bool debug_enabled,
+                                         uint64_t memory_size)
+{
+    return register_init_block(owner, rae, num, ri, (void *)
+                               data, ops, debug_enabled, memory_size, 32);
 }
 
 void register_finalize_block(RegisterInfoArray *r_array)
