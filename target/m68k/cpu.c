@@ -292,16 +292,38 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->tcg_initialize = m68k_tcg_init;
 
     cc->gdb_num_core_regs = 18;
-    cc->gdb_core_xml_file = "cf-core.xml";
 
     dc->vmsd = &vmstate_m68k_cpu;
 }
 
-#define DEFINE_M68K_CPU_TYPE(cpu_model, initfn) \
-    {                                           \
-        .name = M68K_CPU_TYPE_NAME(cpu_model),  \
-        .instance_init = initfn,                \
-        .parent = TYPE_M68K_CPU,                \
+static void m68k_cpu_class_init_cf_core(ObjectClass *c, void *data)
+{
+    CPUClass *cc = CPU_CLASS(c);
+
+    cc->gdb_core_xml_file = "cf-core.xml";
+}
+
+#define DEFINE_M68K_CPU_TYPE_CF(model)               \
+    {                                                \
+        .name = M68K_CPU_TYPE_NAME(#model),          \
+        .instance_init = model##_cpu_initfn,         \
+        .parent = TYPE_M68K_CPU,                     \
+        .class_init = m68k_cpu_class_init_cf_core    \
+    }
+
+static void m68k_cpu_class_init_m68k_core(ObjectClass *c, void *data)
+{
+    CPUClass *cc = CPU_CLASS(c);
+
+    cc->gdb_core_xml_file = "m68k-core.xml";
+}
+
+#define DEFINE_M68K_CPU_TYPE_M68K(model)             \
+    {                                                \
+        .name = M68K_CPU_TYPE_NAME(#model),          \
+        .instance_init = model##_cpu_initfn,         \
+        .parent = TYPE_M68K_CPU,                     \
+        .class_init = m68k_cpu_class_init_m68k_core  \
     }
 
 static const TypeInfo m68k_cpus_type_infos[] = {
@@ -314,15 +336,15 @@ static const TypeInfo m68k_cpus_type_infos[] = {
         .class_size = sizeof(M68kCPUClass),
         .class_init = m68k_cpu_class_init,
     },
-    DEFINE_M68K_CPU_TYPE("m68000", m68000_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68020", m68020_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68030", m68030_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68040", m68040_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68060", m68060_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m5206", m5206_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m5208", m5208_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("cfv4e", cfv4e_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("any", any_cpu_initfn),
+    DEFINE_M68K_CPU_TYPE_M68K(m68000),
+    DEFINE_M68K_CPU_TYPE_M68K(m68020),
+    DEFINE_M68K_CPU_TYPE_M68K(m68030),
+    DEFINE_M68K_CPU_TYPE_M68K(m68040),
+    DEFINE_M68K_CPU_TYPE_M68K(m68060),
+    DEFINE_M68K_CPU_TYPE_CF(m5206),
+    DEFINE_M68K_CPU_TYPE_CF(m5208),
+    DEFINE_M68K_CPU_TYPE_CF(cfv4e),
+    DEFINE_M68K_CPU_TYPE_CF(any),
 };
 
 DEFINE_TYPES(m68k_cpus_type_infos)

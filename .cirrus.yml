@@ -3,10 +3,10 @@ env:
 
 freebsd_12_task:
   freebsd_instance:
-    image: freebsd-12-0-release-amd64
+    image_family: freebsd-12-1
     cpu: 8
     memory: 8G
-  install_script: pkg install -y
+  install_script: ASSUME_ALWAYS_YES=yes pkg bootstrap -f ; pkg install -y
     bash bison curl cyrus-sasl git glib gmake gnutls gsed
     nettle perl5 pixman pkgconf png usbredir
   script:
