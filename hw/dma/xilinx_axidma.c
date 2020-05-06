@@ -33,6 +33,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 
+#include "sysemu/dma.h"
 #include "hw/stream.h"
 
 #define D(x)
@@ -103,6 +104,7 @@ enum {
 };
 
 struct Stream {
+    struct XilinxAXIDMA *dma;
     ptimer_state *ptimer;
     qemu_irq irq;
 
@@ -125,6 +127,9 @@ struct XilinxAXIDMAStreamSlave {
 struct XilinxAXIDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
+    MemoryRegion *dma_mr;
+    AddressSpace as;
+
     uint32_t freqhz;
     StreamSlave *tx_data_dev;
     StreamSlave *tx_control_dev;
@@ -186,7 +191,7 @@ static void stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
 
-    cpu_physical_memory_read(addr, d, sizeof *d);
+    address_space_read(&s->dma->as, addr, MEMTXATTRS_UNSPECIFIED, d, sizeof *d);
 
     /* Convert from LE into host endianness.  */
     d->buffer_address = le64_to_cpu(d->buffer_address);
@@ -204,7 +209,8 @@ static void stream_desc_store(struct Stream *s, hwaddr addr)
     d->nxtdesc = cpu_to_le64(d->nxtdesc);
     d->control = cpu_to_le32(d->control);
     d->status = cpu_to_le32(d->status);
-    cpu_physical_memory_write(addr, d, sizeof *d);
+    address_space_write(&s->dma->as, addr, MEMTXATTRS_UNSPECIFIED,
+                        d, sizeof *d);
 }
 
 static void stream_update_irq(struct Stream *s)
@@ -286,8 +292,9 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
                      txlen + s->pos);
         }
 
-        cpu_physical_memory_read(s->desc.buffer_address,
-                                 s->txbuf + s->pos, txlen);
+        address_space_read(&s->dma->as, s->desc.buffer_address,
+                           MEMTXATTRS_UNSPECIFIED,
+                           s->txbuf + s->pos, txlen);
         s->pos += txlen;
 
         if (stream_desc_eof(&s->desc)) {
@@ -336,7 +343,8 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
             rxlen = len;
         }
 
-        cpu_physical_memory_write(s->desc.buffer_address, buf + pos, rxlen);
+        address_space_write(&s->dma->as, s->desc.buffer_address,
+                            MEMTXATTRS_UNSPECIFIED, buf + pos, rxlen);
         len -= rxlen;
         pos += rxlen;
 
@@ -525,6 +533,7 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
     XilinxAXIDMAStreamSlave *cs = XILINX_AXI_DMA_CONTROL_STREAM(
                                                             &s->rx_control_dev);
     Error *local_err = NULL;
+    int i;
 
     object_property_add_link(OBJECT(ds), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&ds->dma,
@@ -545,17 +554,19 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
         goto xilinx_axidma_realize_fail;
     }
 
-    int i;
-
     for (i = 0; i < 2; i++) {
         struct Stream *st = &s->streams[i];
 
+        st->dma = s;
         st->nr = i;
         st->ptimer = ptimer_init(timer_hit, st, PTIMER_POLICY_DEFAULT);
         ptimer_transaction_begin(st->ptimer);
         ptimer_set_freq(st->ptimer, s->freqhz);
         ptimer_transaction_commit(st->ptimer);
     }
+
+    address_space_init(&s->as,
+                       s->dma_mr ? s->dma_mr : get_system_memory(), "dma");
     return;
 
 xilinx_axidma_realize_fail:
@@ -575,6 +586,11 @@ static void xilinx_axidma_init(Object *obj)
                             &s->rx_control_dev, sizeof(s->rx_control_dev),
                             TYPE_XILINX_AXI_DMA_CONTROL_STREAM, &error_abort,
                             NULL);
+    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
+                             (Object **)&s->dma_mr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG,
+                             &error_abort);
 
     sysbus_init_irq(sbd, &s->streams[0].irq);
     sysbus_init_irq(sbd, &s->streams[1].irq);
