@@ -77,6 +77,7 @@ undocumented; you can get a complete list by running
 
    arm/integratorcp
    arm/mps2
+   arm/musca
    arm/realview
    arm/versatile
    arm/vexpress
