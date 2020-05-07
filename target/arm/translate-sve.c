@@ -2044,7 +2044,11 @@ static bool trans_DUP_x(DisasContext *s, arg_DUP_x *a)
             unsigned nofs = vec_reg_offset(s, a->rn, index, esz);
             tcg_gen_gvec_dup_mem(esz, dofs, nofs, vsz, vsz);
         } else {
-            tcg_gen_gvec_dup_imm(esz, dofs, vsz, vsz, 0);
+            /*
+             * While dup_mem handles 128-bit elements, dup_imm does not.
+             * Thankfully element size doesn't matter for splatting zero.
+             */
+            tcg_gen_gvec_dup_imm(MO_64, dofs, vsz, vsz, 0);
         }
     }
     return true;
