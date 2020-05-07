@@ -76,6 +76,7 @@ undocumented; you can get a complete list by running
    :maxdepth: 1
 
    arm/integratorcp
+   arm/mps2
    arm/realview
    arm/versatile
    arm/vexpress
