@@ -1001,7 +1001,10 @@ void helper_fscale(CPUX86State *env)
         }
     } else {
         int n = floatx80_to_int32_round_to_zero(ST1, &env->fp_status);
+        signed char save = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.floatx80_rounding_precision = 80;
         ST0 = floatx80_scalbn(ST0, n, &env->fp_status);
+        env->fp_status.floatx80_rounding_precision = save;
     }
 }
 

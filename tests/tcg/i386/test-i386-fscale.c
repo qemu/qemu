@@ -8,6 +8,8 @@ union u {
     long double ld;
 };
 
+volatile long double ld_third = 1.0L / 3.0L;
+volatile long double ld_four_thirds = 4.0L / 3.0L;
 volatile union u ld_invalid_1 = { .s = { 1, 1234 } };
 volatile union u ld_invalid_2 = { .s = { 0, 1234 } };
 volatile union u ld_invalid_3 = { .s = { 0, 0x7fff } };
@@ -89,6 +91,17 @@ int main(void)
                       "0" (-1.0L), "u" (-__builtin_infl()));
     if (ld_res != -0.0L || __builtin_copysignl(1.0L, ld_res) != -1.0L) {
         printf("FAIL: fscale finite down inf\n");
+        ret = 1;
+    }
+    /* Set round-to-nearest with single-precision rounding.  */
+    cw = cw & ~0xf00;
+    __asm__ volatile ("fldcw %0" : : "m" (cw));
+    __asm__ volatile ("fscale" : "=t" (ld_res) :
+                      "0" (ld_third), "u" (2.0L));
+    cw = cw | 0x300;
+    __asm__ volatile ("fldcw %0" : : "m" (cw));
+    if (ld_res != ld_four_thirds) {
+        printf("FAIL: fscale single-precision\n");
         ret = 1;
     }
     return ret;
