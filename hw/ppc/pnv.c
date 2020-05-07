@@ -1984,12 +1984,26 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
 
     cpu_synchronize_state(cs);
     ppc_cpu_do_system_reset(cs);
-    /*
-     * SRR1[42:45] is set to 0100 which the ISA defines as implementation
-     * dependent. POWER processors use this for xscom triggered interrupts,
-     * which come from the BMC or NMI IPIs.
-     */
-    env->spr[SPR_SRR1] |= PPC_BIT(43);
+    if (env->spr[SPR_SRR1] & PPC_BITMASK(46, 47)) {
+        /*
+         * Power-save wakeups, as indicated by non-zero SRR1[46:47] put the
+         * wakeup reason in SRR1[42:45], system reset is indicated with 0b0100
+         * (PPC_BIT(43)).
+         */
+        if (!(env->spr[SPR_SRR1] & PPC_BIT(43))) {
+            warn_report("ppc_cpu_do_system_reset does not set system reset wakeup reason");
+            env->spr[SPR_SRR1] |= PPC_BIT(43);
+        }
+    } else {
+        /*
+         * For non-powersave system resets, SRR1[42:45] are defined to be
+         * implementation-dependent. The POWER9 User Manual specifies that
+         * an external (SCOM driven, which may come from a BMC nmi command or
+         * another CPU requesting a NMI IPI) system reset exception should be
+         * 0b0010 (PPC_BIT(44)).
+         */
+        env->spr[SPR_SRR1] |= PPC_BIT(44);
+    }
 }
 
 static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
