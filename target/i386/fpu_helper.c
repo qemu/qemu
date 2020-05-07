@@ -977,6 +977,28 @@ void helper_fscale(CPUX86State *env)
             float_raise(float_flag_invalid, &env->fp_status);
             ST0 = floatx80_silence_nan(ST0, &env->fp_status);
         }
+    } else if (floatx80_is_infinity(ST1) &&
+               !floatx80_invalid_encoding(ST0) &&
+               !floatx80_is_any_nan(ST0)) {
+        if (floatx80_is_neg(ST1)) {
+            if (floatx80_is_infinity(ST0)) {
+                float_raise(float_flag_invalid, &env->fp_status);
+                ST0 = floatx80_default_nan(&env->fp_status);
+            } else {
+                ST0 = (floatx80_is_neg(ST0) ?
+                       floatx80_chs(floatx80_zero) :
+                       floatx80_zero);
+            }
+        } else {
+            if (floatx80_is_zero(ST0)) {
+                float_raise(float_flag_invalid, &env->fp_status);
+                ST0 = floatx80_default_nan(&env->fp_status);
+            } else {
+                ST0 = (floatx80_is_neg(ST0) ?
+                       floatx80_chs(floatx80_infinity) :
+                       floatx80_infinity);
+            }
+        }
     } else {
         int n = floatx80_to_int32_round_to_zero(ST1, &env->fp_status);
         ST0 = floatx80_scalbn(ST0, n, &env->fp_status);
