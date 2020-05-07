@@ -767,10 +767,33 @@ void helper_fxtract(CPUX86State *env)
                            &env->fp_status);
         fpush(env);
         ST0 = temp.d;
+    } else if (floatx80_invalid_encoding(ST0)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+        fpush(env);
+        ST0 = ST1;
+    } else if (floatx80_is_any_nan(ST0)) {
+        if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST0 = floatx80_silence_nan(ST0, &env->fp_status);
+        }
+        fpush(env);
+        ST0 = ST1;
+    } else if (floatx80_is_infinity(ST0)) {
+        fpush(env);
+        ST0 = ST1;
+        ST1 = floatx80_infinity;
     } else {
         int expdif;
 
-        expdif = EXPD(temp) - EXPBIAS;
+        if (EXPD(temp) == 0) {
+            int shift = clz64(temp.l.lower);
+            temp.l.lower <<= shift;
+            expdif = 1 - EXPBIAS - shift;
+            float_raise(float_flag_input_denormal, &env->fp_status);
+        } else {
+            expdif = EXPD(temp) - EXPBIAS;
+        }
         /* DP exponent bias */
         ST0 = int32_to_floatx80(expdif, &env->fp_status);
         fpush(env);
