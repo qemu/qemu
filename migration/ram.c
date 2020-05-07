@@ -327,6 +327,10 @@ struct RAMState {
     uint64_t num_dirty_pages_period;
     /* xbzrle misses since the beginning of the period */
     uint64_t xbzrle_cache_miss_prev;
+    /* Amount of xbzrle pages since the beginning of the period */
+    uint64_t xbzrle_pages_prev;
+    /* Amount of xbzrle encoded bytes since the beginning of the period */
+    uint64_t xbzrle_bytes_prev;
 
     /* compression statistics since the beginning of the period */
     /* amount of count that no free thread to compress data */
@@ -616,20 +620,34 @@ static size_t save_page_header(RAMState *rs, QEMUFile *f,  RAMBlock *block,
  * able to complete migration. Some workloads dirty memory way too
  * fast and will not effectively converge, even with auto-converge.
  */
-static void mig_throttle_guest_down(void)
+static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
+                                    uint64_t bytes_dirty_threshold)
 {
     MigrationState *s = migrate_get_current();
     uint64_t pct_initial = s->parameters.cpu_throttle_initial;
-    uint64_t pct_icrement = s->parameters.cpu_throttle_increment;
+    uint64_t pct_increment = s->parameters.cpu_throttle_increment;
+    bool pct_tailslow = s->parameters.cpu_throttle_tailslow;
     int pct_max = s->parameters.max_cpu_throttle;
+
+    uint64_t throttle_now = cpu_throttle_get_percentage();
+    uint64_t cpu_now, cpu_ideal, throttle_inc;
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {
         cpu_throttle_set(pct_initial);
     } else {
         /* Throttling already on, just increase the rate */
-        cpu_throttle_set(MIN(cpu_throttle_get_percentage() + pct_icrement,
-                         pct_max));
+        if (!pct_tailslow) {
+            throttle_inc = pct_increment;
+        } else {
+            /* Compute the ideal CPU percentage used by Guest, which may
+             * make the dirty rate match the dirty rate threshold. */
+            cpu_now = 100 - throttle_now;
+            cpu_ideal = cpu_now * (bytes_dirty_threshold * 1.0 /
+                        bytes_dirty_period);
+            throttle_inc = MIN(cpu_now - cpu_ideal, pct_increment);
+        }
+        cpu_throttle_set(MIN(throttle_now + throttle_inc, pct_max));
     }
 }
 
@@ -696,6 +714,18 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
         return -1;
     }
 
+    /*
+     * Reaching here means the page has hit the xbzrle cache, no matter what
+     * encoding result it is (normal encoding, overflow or skipping the page),
+     * count the page as encoded. This is used to caculate the encoding rate.
+     *
+     * Example: 2 pages (8KB) being encoded, first page encoding generates 2KB,
+     * 2nd page turns out to be skipped (i.e. no new bytes written to the
+     * page), the overall encoding rate will be 8KB / 2KB = 4, which has the
+     * skipped page included. In this way, the encoding rate can tell if the
+     * guest page is good for xbzrle encoding.
+     */
+    xbzrle_counters.pages++;
     prev_cached_page = get_cached_data(XBZRLE.cache, current_addr);
 
     /* save current buffer into memory */
@@ -726,6 +756,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     } else if (encoded_len == -1) {
         trace_save_xbzrle_page_overflow();
         xbzrle_counters.overflow++;
+        xbzrle_counters.bytes += TARGET_PAGE_SIZE;
         return -1;
     }
 
@@ -736,8 +767,12 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     qemu_put_be16(rs->f, encoded_len);
     qemu_put_buffer(rs->f, XBZRLE.encoded_buf, encoded_len);
     bytes_xbzrle += encoded_len + 1 + 2;
-    xbzrle_counters.pages++;
-    xbzrle_counters.bytes += bytes_xbzrle;
+    /*
+     * Like compressed_size (please see update_compress_thread_counts),
+     * the xbzrle encoded bytes don't count the 8 byte header with
+     * RAM_SAVE_FLAG_CONTINUE.
+     */
+    xbzrle_counters.bytes += bytes_xbzrle - 8;
     ram_counters.transferred += bytes_xbzrle;
 
     return 1;
@@ -870,9 +905,23 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     }
 
     if (migrate_use_xbzrle()) {
+        double encoded_size, unencoded_size;
+
         xbzrle_counters.cache_miss_rate = (double)(xbzrle_counters.cache_miss -
             rs->xbzrle_cache_miss_prev) / page_count;
         rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
+        unencoded_size = (xbzrle_counters.pages - rs->xbzrle_pages_prev) *
+                         TARGET_PAGE_SIZE;
+        encoded_size = xbzrle_counters.bytes - rs->xbzrle_bytes_prev;
+        if (xbzrle_counters.pages == rs->xbzrle_pages_prev) {
+            xbzrle_counters.encoding_rate = 0;
+        } else if (!encoded_size) {
+            xbzrle_counters.encoding_rate = UINT64_MAX;
+        } else {
+            xbzrle_counters.encoding_rate = unencoded_size / encoded_size;
+        }
+        rs->xbzrle_pages_prev = xbzrle_counters.pages;
+        rs->xbzrle_bytes_prev = xbzrle_counters.bytes;
     }
 
     if (migrate_use_compression()) {
@@ -919,7 +968,8 @@ static void migration_trigger_throttle(RAMState *rs)
             (++rs->dirty_rate_high_cnt >= 2)) {
             trace_migration_throttle();
             rs->dirty_rate_high_cnt = 0;
-            mig_throttle_guest_down();
+            mig_throttle_guest_down(bytes_dirty_period,
+                                    bytes_dirty_threshold);
         }
     }
 }
@@ -3132,7 +3182,7 @@ static int ram_load_postcopy(QEMUFile *f)
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = mis->postcopy_tmp_page;
     void *this_host = NULL;
-    bool all_zero = false;
+    bool all_zero = true;
     int target_pages = 0;
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
@@ -3159,7 +3209,6 @@ static int ram_load_postcopy(QEMUFile *f)
         addr &= TARGET_PAGE_MASK;
 
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
-        place_needed = false;
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE)) {
             block = ram_block_from_stream(f, flags);
@@ -3184,9 +3233,7 @@ static int ram_load_postcopy(QEMUFile *f)
              */
             page_buffer = postcopy_host_page +
                           ((uintptr_t)host & (block->page_size - 1));
-            /* If all TP are zero then we can optimise the place */
             if (target_pages == 1) {
-                all_zero = true;
                 this_host = (void *)QEMU_ALIGN_DOWN((uintptr_t)host,
                                                     block->page_size);
             } else {
@@ -3206,7 +3253,6 @@ static int ram_load_postcopy(QEMUFile *f)
              */
             if (target_pages == (block->page_size / TARGET_PAGE_SIZE)) {
                 place_needed = true;
-                target_pages = 0;
             }
             place_source = postcopy_host_page;
         }
@@ -3288,6 +3334,10 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = postcopy_place_page(mis, place_dest,
                                           place_source, block);
             }
+            place_needed = false;
+            target_pages = 0;
+            /* Assume we have a zero page until we detect something different */
+            all_zero = true;
         }
     }
 

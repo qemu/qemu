@@ -50,6 +50,26 @@ All these migration protocols use the same infrastructure to
 save/restore state devices.  This infrastructure is shared with the
 savevm/loadvm functionality.
 
+Debugging
+=========
+
+The migration stream can be analyzed thanks to `scripts/analyze_migration.py`.
+
+Example usage:
+
+.. code-block:: shell
+
+  $ qemu-system-x86_64
+   (qemu) migrate "exec:cat > mig"
+  $ ./scripts/analyze_migration.py -f mig
+  {
+    "ram (3)": {
+        "section sizes": {
+            "pc.ram": "0x0000000008000000",
+  ...
+
+See also ``analyze_migration.py -h`` help for more options.
+
 Common infrastructure
 =====================
 
