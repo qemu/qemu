@@ -1035,21 +1035,25 @@ GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
 GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
 
-#define GEN_VXFORM_DUPI(name, tcg_op, opc2, opc3)                       \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-    {                                                                   \
-        int simm;                                                       \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        simm = SIMM5(ctx->opcode);                                      \
-        tcg_op(avr_full_offset(rD(ctx->opcode)), 16, 16, simm);         \
+static void gen_vsplti(DisasContext *ctx, int vece)
+{
+    int simm;
+
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
     }
 
-GEN_VXFORM_DUPI(vspltisb, tcg_gen_gvec_dup8i, 6, 12);
-GEN_VXFORM_DUPI(vspltish, tcg_gen_gvec_dup16i, 6, 13);
-GEN_VXFORM_DUPI(vspltisw, tcg_gen_gvec_dup32i, 6, 14);
+    simm = SIMM5(ctx->opcode);
+    tcg_gen_gvec_dup_imm(vece, avr_full_offset(rD(ctx->opcode)), 16, 16, simm);
+}
+
+#define GEN_VXFORM_VSPLTI(name, vece, opc2, opc3) \
+static void glue(gen_, name)(DisasContext *ctx) { gen_vsplti(ctx, vece); }
+
+GEN_VXFORM_VSPLTI(vspltisb, MO_8, 6, 12);
+GEN_VXFORM_VSPLTI(vspltish, MO_16, 6, 13);
+GEN_VXFORM_VSPLTI(vspltisw, MO_32, 6, 14);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -1559,7 +1563,7 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VXRFORM_DUAL
 #undef GEN_VXRFORM1
 #undef GEN_VXRFORM
-#undef GEN_VXFORM_DUPI
+#undef GEN_VXFORM_VSPLTI
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED

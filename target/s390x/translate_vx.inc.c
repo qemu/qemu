@@ -231,8 +231,8 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_mov(v1, v2) \
     tcg_gen_gvec_mov(0, vec_full_reg_offset(v1), vec_full_reg_offset(v2), 16, \
                      16)
-#define gen_gvec_dup64i(v1, c) \
-    tcg_gen_gvec_dup64i(vec_full_reg_offset(v1), 16, 16, c)
+#define gen_gvec_dup_imm(es, v1, c) \
+    tcg_gen_gvec_dup_imm(es, vec_full_reg_offset(v1), 16, 16, c);
 #define gen_gvec_fn_2(fn, es, v1, v2) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       16, 16)
@@ -316,31 +316,6 @@ static void gen_gvec128_4_i64(gen_gvec128_4_i64_fn fn, uint8_t d, uint8_t a,
         tcg_temp_free_i64(cl);
 }
 
-static void gen_gvec_dupi(uint8_t es, uint8_t reg, uint64_t c)
-{
-    switch (es) {
-    case ES_8:
-        tcg_gen_gvec_dup8i(vec_full_reg_offset(reg), 16, 16, c);
-        break;
-    case ES_16:
-        tcg_gen_gvec_dup16i(vec_full_reg_offset(reg), 16, 16, c);
-        break;
-    case ES_32:
-        tcg_gen_gvec_dup32i(vec_full_reg_offset(reg), 16, 16, c);
-        break;
-    case ES_64:
-        gen_gvec_dup64i(reg, c);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-static void zero_vec(uint8_t reg)
-{
-    tcg_gen_gvec_dup8i(vec_full_reg_offset(reg), 16, 16, 0);
-}
-
 static void gen_addi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
                           uint64_t b)
 {
@@ -396,8 +371,8 @@ static DisasJumpType op_vgbm(DisasContext *s, DisasOps *o)
          * Masks for both 64 bit elements of the vector are the same.
          * Trust tcg to produce a good constant loading.
          */
-        gen_gvec_dup64i(get_field(s, v1),
-                        generate_byte_mask(i2 & 0xff));
+        gen_gvec_dup_imm(ES_64, get_field(s, v1),
+                         generate_byte_mask(i2 & 0xff));
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
 
@@ -432,7 +407,7 @@ static DisasJumpType op_vgm(DisasContext *s, DisasOps *o)
         }
     }
 
-    gen_gvec_dupi(es, get_field(s, v1), mask);
+    gen_gvec_dup_imm(es, get_field(s, v1), mask);
     return DISAS_NEXT;
 }
 
@@ -585,7 +560,7 @@ static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
 
     t = tcg_temp_new_i64();
     tcg_gen_qemu_ld_i64(t, o->addr1, get_mem_index(s), MO_TE | es);
-    zero_vec(get_field(s, v1));
+    gen_gvec_dup_imm(es, get_field(s, v1), 0);
     write_vec_element_i64(t, get_field(s, v1), enr, es);
     tcg_temp_free_i64(t);
     return DISAS_NEXT;
@@ -892,7 +867,7 @@ static DisasJumpType op_vrepi(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    gen_gvec_dupi(es, get_field(s, v1), data);
+    gen_gvec_dup_imm(es, get_field(s, v1), data);
     return DISAS_NEXT;
 }
 
@@ -1372,7 +1347,7 @@ static DisasJumpType op_vcksm(DisasContext *s, DisasOps *o)
         read_vec_element_i32(tmp, get_field(s, v2), i, ES_32);
         tcg_gen_add2_i32(tmp, sum, sum, sum, tmp, tmp);
     }
-    zero_vec(get_field(s, v1));
+    gen_gvec_dup_imm(ES_32, get_field(s, v1), 0);
     write_vec_element_i32(sum, get_field(s, v1), 1, ES_32);
 
     tcg_temp_free_i32(tmp);
