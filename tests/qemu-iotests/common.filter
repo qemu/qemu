@@ -152,7 +152,8 @@ _filter_img_create()
         -e "s# refcount_bits=[0-9]\\+##g" \
         -e "s# key-secret=[a-zA-Z0-9]\\+##g" \
         -e "s# iter-time=[0-9]\\+##g" \
-        -e "s# force_size=\\(on\\|off\\)##g"
+        -e "s# force_size=\\(on\\|off\\)##g" \
+        -e "s# compression_type=[a-zA-Z0-9]\\+##g"
 }
 
 _filter_img_info()

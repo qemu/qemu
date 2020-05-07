@@ -88,24 +88,30 @@ class TestQMP(TestImageInfoSpecific):
 class TestQCow2(TestQemuImgInfo):
     '''Testing a qcow2 version 2 image'''
     img_options = 'compat=0.10'
-    json_compare = { 'compat': '0.10', 'refcount-bits': 16 }
-    human_compare = [ 'compat: 0.10', 'refcount bits: 16' ]
+    json_compare = { 'compat': '0.10', 'refcount-bits': 16,
+                     'compression-type': 'zlib' }
+    human_compare = [ 'compat: 0.10', 'compression type: zlib',
+                      'refcount bits: 16' ]
 
 class TestQCow3NotLazy(TestQemuImgInfo):
     '''Testing a qcow2 version 3 image with lazy refcounts disabled'''
     img_options = 'compat=1.1,lazy_refcounts=off'
     json_compare = { 'compat': '1.1', 'lazy-refcounts': False,
-                     'refcount-bits': 16, 'corrupt': False }
-    human_compare = [ 'compat: 1.1', 'lazy refcounts: false',
-                      'refcount bits: 16', 'corrupt: false' ]
+                     'refcount-bits': 16, 'corrupt': False,
+                     'compression-type': 'zlib' }
+    human_compare = [ 'compat: 1.1', 'compression type: zlib',
+                      'lazy refcounts: false', 'refcount bits: 16',
+                      'corrupt: false' ]
 
 class TestQCow3Lazy(TestQemuImgInfo):
     '''Testing a qcow2 version 3 image with lazy refcounts enabled'''
     img_options = 'compat=1.1,lazy_refcounts=on'
     json_compare = { 'compat': '1.1', 'lazy-refcounts': True,
-                     'refcount-bits': 16, 'corrupt': False }
-    human_compare = [ 'compat: 1.1', 'lazy refcounts: true',
-                      'refcount bits: 16', 'corrupt: false' ]
+                     'refcount-bits': 16, 'corrupt': False,
+                     'compression-type': 'zlib' }
+    human_compare = [ 'compat: 1.1', 'compression type: zlib',
+                      'lazy refcounts: true', 'refcount bits: 16',
+                      'corrupt: false' ]
 
 class TestQCow3NotLazyQMP(TestQMP):
     '''Testing a qcow2 version 3 image with lazy refcounts disabled, opening
@@ -113,7 +119,8 @@ class TestQCow3NotLazyQMP(TestQMP):
     img_options = 'compat=1.1,lazy_refcounts=off'
     qemu_options = 'lazy-refcounts=on'
     compare = { 'compat': '1.1', 'lazy-refcounts': False,
-                'refcount-bits': 16, 'corrupt': False }
+                'refcount-bits': 16, 'corrupt': False,
+                'compression-type': 'zlib' }
 
 
 class TestQCow3LazyQMP(TestQMP):
@@ -122,7 +129,8 @@ class TestQCow3LazyQMP(TestQMP):
     img_options = 'compat=1.1,lazy_refcounts=on'
     qemu_options = 'lazy-refcounts=off'
     compare = { 'compat': '1.1', 'lazy-refcounts': True,
-                'refcount-bits': 16, 'corrupt': False }
+                'refcount-bits': 16, 'corrupt': False,
+                'compression-type': 'zlib' }
 
 TestImageInfoSpecific = None
 TestQemuImgInfo = None
