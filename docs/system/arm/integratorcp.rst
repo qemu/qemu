@@ -1,5 +1,5 @@
-Integrator/CP (``integratorcp``)
-================================
+Arm Integrator/CP (``integratorcp``)
+====================================
 
 The Arm Integrator/CP board is emulated with the following devices:
 
