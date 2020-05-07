@@ -70,16 +70,16 @@ static inline void dump_syscall(CPUPPCState *env)
 static inline void dump_hcall(CPUPPCState *env)
 {
     qemu_log_mask(CPU_LOG_INT, "hypercall r3=%016" PRIx64
-		  " r4=%016" PRIx64 " r5=%016" PRIx64 " r6=%016" PRIx64
-		  " r7=%016" PRIx64 " r8=%016" PRIx64 " r9=%016" PRIx64
-		  " r10=%016" PRIx64 " r11=%016" PRIx64 " r12=%016" PRIx64
+                  " r4=%016" PRIx64 " r5=%016" PRIx64 " r6=%016" PRIx64
+                  " r7=%016" PRIx64 " r8=%016" PRIx64 " r9=%016" PRIx64
+                  " r10=%016" PRIx64 " r11=%016" PRIx64 " r12=%016" PRIx64
                   " nip=" TARGET_FMT_lx "\n",
                   ppc_dump_gpr(env, 3), ppc_dump_gpr(env, 4),
-		  ppc_dump_gpr(env, 5), ppc_dump_gpr(env, 6),
-		  ppc_dump_gpr(env, 7), ppc_dump_gpr(env, 8),
-		  ppc_dump_gpr(env, 9), ppc_dump_gpr(env, 10),
-		  ppc_dump_gpr(env, 11), ppc_dump_gpr(env, 12),
-		  env->nip);
+                  ppc_dump_gpr(env, 5), ppc_dump_gpr(env, 6),
+                  ppc_dump_gpr(env, 7), ppc_dump_gpr(env, 8),
+                  ppc_dump_gpr(env, 9), ppc_dump_gpr(env, 10),
+                  ppc_dump_gpr(env, 11), ppc_dump_gpr(env, 12),
+                  env->nip);
 }
 
 static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
