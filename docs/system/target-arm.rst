@@ -78,6 +78,7 @@ undocumented; you can get a complete list by running
    arm/integratorcp
    arm/realview
    arm/versatile
+   arm/vexpress
    arm/musicpal
    arm/nseries
    arm/orangepi
