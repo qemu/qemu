@@ -57,8 +57,12 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         }
         return gdb_get_reg32(mem_buf, 0);
     case 25:
-        /* CPSR */
-        return gdb_get_reg32(mem_buf, cpsr_read(env));
+        /* CPSR, or XPSR for M-profile */
+        if (arm_feature(env, ARM_FEATURE_M)) {
+            return gdb_get_reg32(mem_buf, xpsr_read(env));
+        } else {
+            return gdb_get_reg32(mem_buf, cpsr_read(env));
+        }
     }
     /* Unknown register.  */
     return 0;
@@ -98,8 +102,18 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         }
         return 4;
     case 25:
-        /* CPSR */
-        cpsr_write(env, tmp, 0xffffffff, CPSRWriteByGDBStub);
+        /* CPSR, or XPSR for M-profile */
+        if (arm_feature(env, ARM_FEATURE_M)) {
+            /*
+             * Don't allow writing to XPSR.Exception as it can cause
+             * a transition into or out of handler mode (it's not
+             * writeable via the MSR insn so this is a reasonable
+             * restriction). Other fields are safe to update.
+             */
+            xpsr_write(env, tmp, ~XPSR_EXCP);
+        } else {
+            cpsr_write(env, tmp, 0xffffffff, CPSRWriteByGDBStub);
+        }
         return 4;
     }
     /* Unknown register.  */
