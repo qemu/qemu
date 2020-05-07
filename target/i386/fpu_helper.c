@@ -970,6 +970,10 @@ void helper_fscale(CPUX86State *env)
 {
     if (floatx80_is_any_nan(ST1)) {
         ST0 = ST1;
+        if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST0 = floatx80_silence_nan(ST0, &env->fp_status);
+        }
     } else {
         int n = floatx80_to_int32_round_to_zero(ST1, &env->fp_status);
         ST0 = floatx80_scalbn(ST0, n, &env->fp_status);
