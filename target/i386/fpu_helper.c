@@ -968,7 +968,10 @@ void helper_frndint(CPUX86State *env)
 
 void helper_fscale(CPUX86State *env)
 {
-    if (floatx80_is_any_nan(ST1)) {
+    if (floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST1)) {
         ST0 = ST1;
         if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
             float_raise(float_flag_invalid, &env->fp_status);

@@ -8,6 +8,11 @@ union u {
     long double ld;
 };
 
+volatile union u ld_invalid_1 = { .s = { 1, 1234 } };
+volatile union u ld_invalid_2 = { .s = { 0, 1234 } };
+volatile union u ld_invalid_3 = { .s = { 0, 0x7fff } };
+volatile union u ld_invalid_4 = { .s = { (UINT64_C(1) << 63) - 1, 0x7fff } };
+
 volatile long double ld_res;
 
 int isnan_ld(long double x)
@@ -31,6 +36,30 @@ int main(void)
                       "0" (2.5L), "u" (__builtin_nansl("")));
     if (!isnan_ld(ld_res) || issignaling_ld(ld_res)) {
         printf("FAIL: fscale snan\n");
+        ret = 1;
+    }
+    __asm__ volatile ("fscale" : "=t" (ld_res) :
+                      "0" (2.5L), "u" (ld_invalid_1.ld));
+    if (!isnan_ld(ld_res) || issignaling_ld(ld_res)) {
+        printf("FAIL: fscale invalid 1\n");
+        ret = 1;
+    }
+    __asm__ volatile ("fscale" : "=t" (ld_res) :
+                      "0" (2.5L), "u" (ld_invalid_2.ld));
+    if (!isnan_ld(ld_res) || issignaling_ld(ld_res)) {
+        printf("FAIL: fscale invalid 2\n");
+        ret = 1;
+    }
+    __asm__ volatile ("fscale" : "=t" (ld_res) :
+                      "0" (2.5L), "u" (ld_invalid_3.ld));
+    if (!isnan_ld(ld_res) || issignaling_ld(ld_res)) {
+        printf("FAIL: fscale invalid 3\n");
+        ret = 1;
+    }
+    __asm__ volatile ("fscale" : "=t" (ld_res) :
+                      "0" (2.5L), "u" (ld_invalid_4.ld));
+    if (!isnan_ld(ld_res) || issignaling_ld(ld_res)) {
+        printf("FAIL: fscale invalid 4\n");
         ret = 1;
     }
     return ret;
