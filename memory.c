@@ -2198,7 +2198,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp
 }
 
 
-void memory_region_do_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
+void memory_region_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
 {
     /*
      * Might be extended case needed to cover
