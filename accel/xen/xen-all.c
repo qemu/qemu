@@ -16,6 +16,7 @@
 #include "hw/xen/xen_pt.h"
 #include "chardev/char.h"
 #include "sysemu/accel.h"
+#include "sysemu/xen.h"
 #include "sysemu/runstate.h"
 #include "migration/misc.h"
 #include "migration/global_state.h"
@@ -30,6 +31,13 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+static bool xen_allowed;
+
+bool xen_enabled(void)
+{
+    return xen_allowed;
+}
 
 xc_interface *xen_xc;
 xenforeignmemory_handle *xen_fmem;

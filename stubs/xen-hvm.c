@@ -35,21 +35,12 @@ int xen_is_pirq_msi(uint32_t msi_data)
     return 0;
 }
 
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
-                   Error **errp)
-{
-}
-
 qemu_irq *xen_interrupt_controller_init(void)
 {
     return NULL;
 }
 
 void xen_register_framebuffer(MemoryRegion *mr)
-{
-}
-
-void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {
 }
 
