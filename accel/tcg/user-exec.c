@@ -211,7 +211,7 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
         g_assert_not_reached();
     }
 
-    if (!guest_addr_valid(addr) || page_check_range(addr, size, flags) < 0) {
+    if (!guest_addr_valid(addr) || page_check_range(addr, 1, flags) < 0) {
         CPUState *cpu = env_cpu(env);
         CPUClass *cc = CPU_GET_CLASS(cpu);
         cc->tlb_fill(cpu, addr, size, access_type, MMU_USER_IDX, false,
