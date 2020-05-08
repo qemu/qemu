@@ -190,12 +190,11 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     g_assert_not_reached();
 }
 
-void *probe_access(CPUArchState *env, target_ulong addr, int size,
-                   MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+static int probe_access_internal(CPUArchState *env, target_ulong addr,
+                                 int fault_size, MMUAccessType access_type,
+                                 bool nonfault, uintptr_t ra)
 {
     int flags;
-
-    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
     switch (access_type) {
     case MMU_DATA_STORE:
@@ -212,12 +211,38 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
     }
 
     if (!guest_addr_valid(addr) || page_check_range(addr, 1, flags) < 0) {
-        CPUState *cpu = env_cpu(env);
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        cc->tlb_fill(cpu, addr, size, access_type, MMU_USER_IDX, false,
-                     retaddr);
-        g_assert_not_reached();
+        if (nonfault) {
+            return TLB_INVALID_MASK;
+        } else {
+            CPUState *cpu = env_cpu(env);
+            CPUClass *cc = CPU_GET_CLASS(cpu);
+            cc->tlb_fill(cpu, addr, fault_size, access_type,
+                         MMU_USER_IDX, false, ra);
+            g_assert_not_reached();
+        }
     }
+    return 0;
+}
+
+int probe_access_flags(CPUArchState *env, target_ulong addr,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool nonfault, void **phost, uintptr_t ra)
+{
+    int flags;
+
+    flags = probe_access_internal(env, addr, 0, access_type, nonfault, ra);
+    *phost = flags ? NULL : g2h(addr);
+    return flags;
+}
+
+void *probe_access(CPUArchState *env, target_ulong addr, int size,
+                   MMUAccessType access_type, int mmu_idx, uintptr_t ra)
+{
+    int flags;
+
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+    flags = probe_access_internal(env, addr, size, access_type, false, ra);
+    g_assert(flags == 0);
 
     return size ? g2h(addr) : NULL;
 }
