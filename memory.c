@@ -2200,7 +2200,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp
 void memory_region_msync(MemoryRegion *mr, hwaddr addr, hwaddr size)
 {
     if (mr->ram_block) {
-        qemu_ram_writeback(mr->ram_block, addr, size);
+        qemu_ram_msync(mr->ram_block, addr, size);
     }
 }
 
