@@ -340,7 +340,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockCompletionFunc *cb, void *opaque,
                   JobTxn *txn, Error **errp)
 {
-    int64_t len;
+    int64_t len, target_len;
     BackupBlockJob *job = NULL;
     int64_t cluster_size;
     BdrvRequestFlags write_flags;
@@ -400,8 +400,20 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
 
     len = bdrv_getlength(bs);
     if (len < 0) {
-        error_setg_errno(errp, -len, "unable to get length for '%s'",
-                         bdrv_get_device_name(bs));
+        error_setg_errno(errp, -len, "Unable to get length for '%s'",
+                         bdrv_get_device_or_node_name(bs));
+        goto error;
+    }
+
+    target_len = bdrv_getlength(target);
+    if (target_len < 0) {
+        error_setg_errno(errp, -target_len, "Unable to get length for '%s'",
+                         bdrv_get_device_or_node_name(bs));
+        goto error;
+    }
+
+    if (target_len != len) {
+        error_setg(errp, "Source and target image have different sizes");
         goto error;
     }
 

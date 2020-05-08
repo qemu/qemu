@@ -180,7 +180,7 @@ typedef struct VmdkMetaData {
     unsigned int l1_index;
     unsigned int l2_index;
     unsigned int l2_offset;
-    int valid;
+    bool new_allocation;
     uint32_t *l2_cache_entry;
 } VmdkMetaData;
 
@@ -1340,7 +1340,9 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
  * get_whole_cluster
  *
  * Copy backing file's cluster that covers @sector_num, otherwise write zero,
- * to the cluster at @cluster_sector_num.
+ * to the cluster at @cluster_sector_num. If @zeroed is true, we're overwriting
+ * a zeroed cluster in the current layer and must not copy data from the
+ * backing file.
  *
  * If @skip_start_sector < @skip_end_sector, the relative range
  * [@skip_start_sector, @skip_end_sector) is not copied or written, and leave
@@ -1351,18 +1353,21 @@ static int get_whole_cluster(BlockDriverState *bs,
                              uint64_t cluster_offset,
                              uint64_t offset,
                              uint64_t skip_start_bytes,
-                             uint64_t skip_end_bytes)
+                             uint64_t skip_end_bytes,
+                             bool zeroed)
 {
     int ret = VMDK_OK;
     int64_t cluster_bytes;
     uint8_t *whole_grain;
+    bool copy_from_backing;
 
     /* For COW, align request sector_num to cluster start */
     cluster_bytes = extent->cluster_sectors << BDRV_SECTOR_BITS;
     offset = QEMU_ALIGN_DOWN(offset, cluster_bytes);
     whole_grain = qemu_blockalign(bs, cluster_bytes);
+    copy_from_backing = bs->backing && !zeroed;
 
-    if (!bs->backing) {
+    if (!copy_from_backing) {
         memset(whole_grain, 0, skip_start_bytes);
         memset(whole_grain + skip_end_bytes, 0, cluster_bytes - skip_end_bytes);
     }
@@ -1377,7 +1382,7 @@ static int get_whole_cluster(BlockDriverState *bs,
 
     /* Read backing data before skip range */
     if (skip_start_bytes > 0) {
-        if (bs->backing) {
+        if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
             BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_pread(bs->backing, offset, whole_grain,
@@ -1397,7 +1402,7 @@ static int get_whole_cluster(BlockDriverState *bs,
     }
     /* Read backing data after skip range */
     if (skip_end_bytes < cluster_bytes) {
-        if (bs->backing) {
+        if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
             BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_pread(bs->backing, offset + skip_end_bytes,
@@ -1430,7 +1435,7 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
     offset = cpu_to_le32(offset);
     /* update L2 table */
     BLKDBG_EVENT(extent->file, BLKDBG_L2_UPDATE);
-    if (bdrv_pwrite_sync(extent->file,
+    if (bdrv_pwrite(extent->file,
                 ((int64_t)m_data->l2_offset * 512)
                     + (m_data->l2_index * sizeof(offset)),
                 &offset, sizeof(offset)) < 0) {
@@ -1439,12 +1444,15 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
     /* update backup L2 table */
     if (extent->l1_backup_table_offset != 0) {
         m_data->l2_offset = extent->l1_backup_table[m_data->l1_index];
-        if (bdrv_pwrite_sync(extent->file,
+        if (bdrv_pwrite(extent->file,
                     ((int64_t)m_data->l2_offset * 512)
                         + (m_data->l2_index * sizeof(offset)),
                     &offset, sizeof(offset)) < 0) {
             return VMDK_ERROR;
         }
+    }
+    if (bdrv_flush(extent->file->bs) < 0) {
+        return VMDK_ERROR;
     }
     if (m_data->l2_cache_entry) {
         *m_data->l2_cache_entry = offset;
@@ -1492,7 +1500,7 @@ static int get_cluster_offset(BlockDriverState *bs,
     unsigned int l2_size_bytes = extent->l2_size * extent->entry_size;
 
     if (m_data) {
-        m_data->valid = 0;
+        m_data->new_allocation = false;
     }
     if (extent->flat) {
         *cluster_offset = extent->flat_start_offset;
@@ -1572,6 +1580,12 @@ static int get_cluster_offset(BlockDriverState *bs,
     extent->l2_cache_counts[min_index] = 1;
  found:
     l2_index = ((offset >> 9) / extent->cluster_sectors) % extent->l2_size;
+    if (m_data) {
+        m_data->l1_index = l1_index;
+        m_data->l2_index = l2_index;
+        m_data->l2_offset = l2_offset;
+        m_data->l2_cache_entry = ((uint32_t *)l2_table) + l2_index;
+    }
 
     if (extent->sesparse) {
         cluster_sector = le64_to_cpu(((uint64_t *)l2_table)[l2_index]);
@@ -1625,16 +1639,13 @@ static int get_cluster_offset(BlockDriverState *bs,
          * or inappropriate VM shutdown.
          */
         ret = get_whole_cluster(bs, extent, cluster_sector * BDRV_SECTOR_SIZE,
-                                offset, skip_start_bytes, skip_end_bytes);
+                                offset, skip_start_bytes, skip_end_bytes,
+                                zeroed);
         if (ret) {
             return ret;
         }
         if (m_data) {
-            m_data->valid = 1;
-            m_data->l1_index = l1_index;
-            m_data->l2_index = l2_index;
-            m_data->l2_offset = l2_offset;
-            m_data->l2_cache_entry = ((uint32_t *)l2_table) + l2_index;
+            m_data->new_allocation = true;
         }
     }
     *cluster_offset = cluster_sector << BDRV_SECTOR_BITS;
@@ -1990,7 +2001,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                 error_report("Could not write to allocated cluster"
                               " for streamOptimized");
                 return -EIO;
-            } else {
+            } else if (!zeroed) {
                 /* allocate */
                 ret = get_cluster_offset(bs, extent, &m_data, offset,
                                          true, &cluster_offset, 0, 0);
@@ -2005,7 +2016,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                     offset_in_cluster == 0 &&
                     n_bytes >= extent->cluster_sectors * BDRV_SECTOR_SIZE) {
                 n_bytes = extent->cluster_sectors * BDRV_SECTOR_SIZE;
-                if (!zero_dry_run) {
+                if (!zero_dry_run && ret != VMDK_ZEROED) {
                     /* update L2 tables */
                     if (vmdk_L2update(extent, &m_data, VMDK_GTE_ZEROED)
                             != VMDK_OK) {
@@ -2021,7 +2032,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
             if (ret) {
                 return ret;
             }
-            if (m_data.valid) {
+            if (m_data.new_allocation) {
                 /* update L2 tables */
                 if (vmdk_L2update(extent, &m_data,
                                   cluster_offset >> BDRV_SECTOR_BITS)

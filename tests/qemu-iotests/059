@@ -41,9 +41,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt vmdk
 _supported_proto file
 _supported_os Linux
-_unsupported_imgopts "subformat=monolithicFlat" \
-                     "subformat=twoGbMaxExtentFlat" \
-                     "subformat=twoGbMaxExtentSparse"
+
+# We test all kinds of VMDK options here, so ignore user-specified options
+IMGOPTS=""
 
 capacity_offset=16
 granularity_offset=20

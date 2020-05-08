@@ -5284,27 +5284,6 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
-int bdrv_has_zero_init_truncate(BlockDriverState *bs)
-{
-    if (!bs->drv) {
-        return 0;
-    }
-
-    if (bs->backing) {
-        /* Depends on the backing image length, but better safe than sorry */
-        return 0;
-    }
-    if (bs->drv->bdrv_has_zero_init_truncate) {
-        return bs->drv->bdrv_has_zero_init_truncate(bs);
-    }
-    if (bs->file && bs->drv->is_filter) {
-        return bdrv_has_zero_init_truncate(bs->file->bs);
-    }
-
-    /* safe default */
-    return 0;
-}
-
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;

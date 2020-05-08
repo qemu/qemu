@@ -1240,12 +1240,16 @@ exit:
 /*
  * Allocate a new payload block at the end of the file.
  *
- * Allocation will happen at 1MB alignment inside the file
+ * Allocation will happen at 1MB alignment inside the file.
+ *
+ * If @need_zero is set on entry but not cleared on return, then truncation
+ * could not guarantee that the new portion reads as zero, and the caller
+ * will take care of it instead.
  *
  * Returns the file offset start of the new payload block
  */
 static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
-                                    uint64_t *new_offset)
+                               uint64_t *new_offset, bool *need_zero)
 {
     int64_t current_len;
 
@@ -1260,6 +1264,17 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     *new_offset = ROUND_UP(*new_offset, 1 * MiB);
     if (*new_offset > INT64_MAX) {
         return -EINVAL;
+    }
+
+    if (*need_zero) {
+        int ret;
+
+        ret = bdrv_truncate(bs->file, *new_offset + s->block_size, false,
+                            PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE, NULL);
+        if (ret != -ENOTSUP) {
+            *need_zero = false;
+            return ret;
+        }
     }
 
     return bdrv_truncate(bs->file, *new_offset + s->block_size, false,
@@ -1355,18 +1370,38 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                 /* in this case, we need to preserve zero writes for
                  * data that is not part of this write, so we must pad
                  * the rest of the buffer to zeroes */
-
-                /* if we are on a posix system with ftruncate() that extends
-                 * a file, then it is zero-filled for us.  On Win32, the raw
-                 * layer uses SetFilePointer and SetFileEnd, which does not
-                 * zero fill AFAIK */
-
-                /* Queue another write of zero buffers if the underlying file
-                 * does not zero-fill on file extension */
-
-                if (bdrv_has_zero_init_truncate(bs->file->bs) == 0) {
-                    use_zero_buffers = true;
-
+                use_zero_buffers = true;
+                /* fall through */
+            case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
+            case PAYLOAD_BLOCK_UNMAPPED:
+            case PAYLOAD_BLOCK_UNMAPPED_v095:
+            case PAYLOAD_BLOCK_UNDEFINED:
+                bat_prior_offset = sinfo.file_offset;
+                ret = vhdx_allocate_block(bs, s, &sinfo.file_offset,
+                                          &use_zero_buffers);
+                if (ret < 0) {
+                    goto exit;
+                }
+                /*
+                 * once we support differencing files, this may also be
+                 * partially present
+                 */
+                /* update block state to the newly specified state */
+                vhdx_update_bat_table_entry(bs, s, &sinfo, &bat_entry,
+                                            &bat_entry_offset,
+                                            PAYLOAD_BLOCK_FULLY_PRESENT);
+                bat_update = true;
+                /*
+                 * Since we just allocated a block, file_offset is the
+                 * beginning of the payload block. It needs to be the
+                 * write address, which includes the offset into the
+                 * block, unless the entire block needs to read as
+                 * zeroes but truncation was not able to provide them,
+                 * in which case we need to fill in the rest.
+                 */
+                if (!use_zero_buffers) {
+                    sinfo.file_offset += sinfo.block_offset;
+                } else {
                     /* zero fill the front, if any */
                     if (sinfo.block_offset) {
                         iov1.iov_len = sinfo.block_offset;
@@ -1378,7 +1413,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                     }
 
                     /* our actual data */
-                    qemu_iovec_concat(&hd_qiov, qiov,  bytes_done,
+                    qemu_iovec_concat(&hd_qiov, qiov, bytes_done,
                                       sinfo.bytes_avail);
 
                     /* zero fill the back, if any */
@@ -1393,29 +1428,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                         sectors_to_write += iov2.iov_len >> BDRV_SECTOR_BITS;
                     }
                 }
-                /* fall through */
-            case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
-            case PAYLOAD_BLOCK_UNMAPPED:
-            case PAYLOAD_BLOCK_UNMAPPED_v095:
-            case PAYLOAD_BLOCK_UNDEFINED:
-                bat_prior_offset = sinfo.file_offset;
-                ret = vhdx_allocate_block(bs, s, &sinfo.file_offset);
-                if (ret < 0) {
-                    goto exit;
-                }
-                /* once we support differencing files, this may also be
-                 * partially present */
-                /* update block state to the newly specified state */
-                vhdx_update_bat_table_entry(bs, s, &sinfo, &bat_entry,
-                                            &bat_entry_offset,
-                                            PAYLOAD_BLOCK_FULLY_PRESENT);
-                bat_update = true;
-                /* since we just allocated a block, file_offset is the
-                 * beginning of the payload block. It needs to be the
-                 * write address, which includes the offset into the block */
-                if (!use_zero_buffers) {
-                    sinfo.file_offset += sinfo.block_offset;
-                }
+
                 /* fall through */
             case PAYLOAD_BLOCK_FULLY_PRESENT:
                 /* if the file offset address is in the header zone,

@@ -4107,7 +4107,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     {
         int64_t allocation_start, host_offset, guest_offset;
         int64_t clusters_allocated;
-        int64_t old_file_size, new_file_size;
+        int64_t old_file_size, last_cluster, new_file_size;
         uint64_t nb_new_data_clusters, nb_new_l2_tables;
 
         /* With a data file, preallocation means just allocating the metadata
@@ -4127,7 +4127,13 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             ret = old_file_size;
             goto fail;
         }
-        old_file_size = ROUND_UP(old_file_size, s->cluster_size);
+
+        last_cluster = qcow2_get_last_cluster(bs, old_file_size);
+        if (last_cluster >= 0) {
+            old_file_size = (last_cluster + 1) * s->cluster_size;
+        } else {
+            old_file_size = ROUND_UP(old_file_size, s->cluster_size);
+        }
 
         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
                                             s->cluster_size);
@@ -4242,15 +4248,17 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
          * requires a cluster-aligned start. The end may be unaligned if it is
          * at the end of the image (which it is here).
          */
-        ret = qcow2_cluster_zeroize(bs, zero_start, offset - zero_start, 0);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Failed to zero out new clusters");
-            goto fail;
+        if (offset > zero_start) {
+            ret = qcow2_cluster_zeroize(bs, zero_start, offset - zero_start, 0);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to zero out new clusters");
+                goto fail;
+            }
         }
 
         /* Write explicit zeros for the unaligned head */
         if (zero_start > old_length) {
-            uint64_t len = zero_start - old_length;
+            uint64_t len = MIN(zero_start, offset) - old_length;
             uint8_t *buf = qemu_blockalign0(bs, len);
             QEMUIOVector qiov;
             qemu_iovec_init_buf(&qiov, buf, len);
@@ -5613,7 +5621,6 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_create_opts  = qcow2_co_create_opts,
     .bdrv_co_create       = qcow2_co_create,
     .bdrv_has_zero_init   = qcow2_has_zero_init,
-    .bdrv_has_zero_init_truncate = bdrv_has_zero_init_1,
     .bdrv_co_block_status = qcow2_co_block_status,
 
     .bdrv_co_preadv_part    = qcow2_co_preadv_part,

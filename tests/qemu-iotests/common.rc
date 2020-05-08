@@ -673,11 +673,44 @@ _supported_cache_modes()
     _notrun "not suitable for cache mode: $CACHEMODE"
 }
 
+# Check whether the filesystem supports O_DIRECT
+_check_o_direct()
+{
+    $QEMU_IMG create -f raw "$TEST_IMG".test_o_direct 1M > /dev/null
+    out=$($QEMU_IO -f raw -t none -c quit "$TEST_IMG".test_o_direct 2>&1)
+    rm -f "$TEST_IMG".test_o_direct
+
+    [[ "$out" != *"O_DIRECT"* ]]
+}
+
+_require_o_direct()
+{
+    if ! _check_o_direct; then
+        _notrun "file system on $TEST_DIR does not support O_DIRECT"
+    fi
+}
+
+_check_cache_mode()
+{
+    if [ $CACHEMODE == "none" ] || [ $CACHEMODE == "directsync" ]; then
+        _require_o_direct
+    fi
+}
+
+_check_cache_mode
+
+# $1 - cache mode to use by default
+# $2 - (optional) cache mode to use by default if O_DIRECT is not supported
 _default_cache_mode()
 {
     if $CACHEMODE_IS_DEFAULT; then
-        CACHEMODE="$1"
-        QEMU_IO="$QEMU_IO --cache $1"
+        if [ -z "$2" ] || _check_o_direct; then
+            CACHEMODE="$1"
+        else
+            CACHEMODE="$2"
+        fi
+        QEMU_IO="$QEMU_IO --cache $CACHEMODE"
+        _check_cache_mode
         return
     fi
 }

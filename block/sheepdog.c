@@ -1654,6 +1654,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     memcpy(&s->inode, buf, sizeof(s->inode));
 
     bs->total_sectors = s->inode.vdi_size / BDRV_SECTOR_SIZE;
+    bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
     pstrcpy(s->name, sizeof(s->name), vdi);
     qemu_co_mutex_init(&s->lock);
     qemu_co_mutex_init(&s->queue_lock);
@@ -3225,7 +3226,6 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_co_create               = sd_co_create,
     .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
-    .bdrv_has_zero_init_truncate  = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
     .bdrv_co_truncate             = sd_co_truncate,
@@ -3264,7 +3264,6 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_co_create               = sd_co_create,
     .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
-    .bdrv_has_zero_init_truncate  = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
     .bdrv_co_truncate             = sd_co_truncate,
@@ -3303,7 +3302,6 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_co_create               = sd_co_create,
     .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
-    .bdrv_has_zero_init_truncate  = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
     .bdrv_co_truncate             = sd_co_truncate,

@@ -166,7 +166,7 @@ static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
 static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors, int *pnum)
 {
-    int ret;
+    int ret = 0;
     BDRVParallelsState *s = bs->opaque;
     int64_t pos, space, idx, to_allocate, i, len;
 
@@ -196,14 +196,24 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     }
     if (s->data_end + space > (len >> BDRV_SECTOR_BITS)) {
         space += s->prealloc_size;
+        /*
+         * We require the expanded size to read back as zero. If the
+         * user permitted truncation, we try that; but if it fails, we
+         * force the safer-but-slower fallocate.
+         */
+        if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
+            ret = bdrv_truncate(bs->file,
+                                (s->data_end + space) << BDRV_SECTOR_BITS,
+                                false, PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE,
+                                NULL);
+            if (ret == -ENOTSUP) {
+                s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
+            }
+        }
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
             ret = bdrv_pwrite_zeroes(bs->file,
                                      s->data_end << BDRV_SECTOR_BITS,
                                      space << BDRV_SECTOR_BITS, 0);
-        } else {
-            ret = bdrv_truncate(bs->file,
-                                (s->data_end + space) << BDRV_SECTOR_BITS,
-                                false, PREALLOC_MODE_OFF, 0, NULL);
         }
         if (ret < 0) {
             return ret;
@@ -828,16 +838,13 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         qemu_opt_get_size_del(opts, PARALLELS_OPT_PREALLOC_SIZE, 0);
     s->prealloc_size = MAX(s->tracks, s->prealloc_size >> BDRV_SECTOR_BITS);
     buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
+    /* prealloc_mode can be downgraded later during allocate_clusters */
     s->prealloc_mode = qapi_enum_parse(&prealloc_mode_lookup, buf,
                                        PRL_PREALLOC_MODE_FALLOCATE,
                                        &local_err);
     g_free(buf);
     if (local_err != NULL) {
         goto fail_options;
-    }
-
-    if (!bdrv_has_zero_init_truncate(bs->file->bs)) {
-        s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 
     if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_INACTIVE)) {
