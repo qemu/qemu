@@ -4056,7 +4056,9 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
     return;
 err:
     error_propagate(errp, local_err);
-    g_free(rdma->host);
+    if (rdma) {
+        g_free(rdma->host);
+    }
     g_free(rdma);
     g_free(rdma_return_path);
 }
