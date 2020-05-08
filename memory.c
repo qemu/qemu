@@ -2197,6 +2197,12 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp
     qemu_ram_resize(mr->ram_block, newsize, errp);
 }
 
+void memory_region_msync(MemoryRegion *mr, hwaddr addr, hwaddr size)
+{
+    if (mr->ram_block) {
+        qemu_ram_writeback(mr->ram_block, addr, size);
+    }
+}
 
 void memory_region_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
 {
@@ -2204,8 +2210,8 @@ void memory_region_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
      * Might be extended case needed to cover
      * different types of memory regions
      */
-    if (mr->ram_block && mr->dirty_log_mask) {
-        qemu_ram_writeback(mr->ram_block, addr, size);
+    if (mr->dirty_log_mask) {
+        memory_region_msync(mr, addr, size);
     }
 }
 

@@ -1473,8 +1473,19 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr);
  */
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize,
                               Error **errp);
+
 /**
- * memory_region_writeback: Trigger cache writeback or msync for
+ * memory_region_msync: Synchronize selected address range of
+ * a memory mapped region
+ *
+ * @mr: the memory region to be msync
+ * @addr: the initial address of the range to be sync
+ * @size: the size of the range to be sync
+ */
+void memory_region_msync(MemoryRegion *mr, hwaddr addr, hwaddr size);
+
+/**
+ * memory_region_writeback: Trigger cache writeback for
  * selected address range
  *
  * @mr: the memory region to be updated
