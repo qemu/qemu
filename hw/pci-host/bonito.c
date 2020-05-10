@@ -50,6 +50,7 @@
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
+#include "hw/registerfields.h"
 
 /* #define DEBUG_BONITO */
 
@@ -112,8 +113,19 @@
 /* Power on register */
 
 #define BONITO_BONPONCFG        (0x00 >> 2)      /* 0x100 */
+
+/* PCI configuration register */
 #define BONITO_BONGENCFG_OFFSET 0x4
 #define BONITO_BONGENCFG        (BONITO_BONGENCFG_OFFSET >> 2)   /*0x104 */
+REG32(BONGENCFG,        0x104)
+FIELD(BONGENCFG, DEBUGMODE,      0, 1)
+FIELD(BONGENCFG, SNOOP,          1, 1)
+FIELD(BONGENCFG, CPUSELFRESET,   2, 1)
+FIELD(BONGENCFG, BYTESWAP,       6, 1)
+FIELD(BONGENCFG, UNCACHED,       7, 1)
+FIELD(BONGENCFG, PREFETCH,       8, 1)
+FIELD(BONGENCFG, WRITEBEHIND,    9, 1)
+FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 
 /* 2. IO & IDE configuration */
 #define BONITO_IODEVCFG         (0x08 >> 2)      /* 0x108 */
@@ -577,11 +589,18 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
 static void bonito_reset(void *opaque)
 {
     PCIBonitoState *s = opaque;
+    uint32_t val = 0;
 
     /* set the default value of north bridge registers */
 
     s->regs[BONITO_BONPONCFG] = 0xc40;
-    s->regs[BONITO_BONGENCFG] = 0x1384;
+    val = FIELD_DP32(val, BONGENCFG, PCIQUEUE, 1);
+    val = FIELD_DP32(val, BONGENCFG, WRITEBEHIND, 1);
+    val = FIELD_DP32(val, BONGENCFG, PREFETCH, 1);
+    val = FIELD_DP32(val, BONGENCFG, UNCACHED, 1);
+    val = FIELD_DP32(val, BONGENCFG, CPUSELFRESET, 1);
+    s->regs[BONITO_BONGENCFG] = val;
+
     s->regs[BONITO_IODEVCFG] = 0x2bff8010;
     s->regs[BONITO_SDCFG] = 0x255e0091;
 
