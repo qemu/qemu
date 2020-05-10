@@ -39,6 +39,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
@@ -82,7 +83,7 @@
 #define BONITO_PCILO1_BASE      0x14000000
 #define BONITO_PCILO2_BASE      0x18000000
 #define BONITO_PCIHI_BASE       0x20000000
-#define BONITO_PCIHI_SIZE       0x20000000
+#define BONITO_PCIHI_SIZE       0x60000000
 #define BONITO_PCIHI_TOP        (BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE - 1)
 #define BONITO_PCIIO_BASE       0x1fd00000
 #define BONITO_PCIIO_BASE_VA    0xbfd00000
@@ -605,14 +606,26 @@ static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
+    MemoryRegion *pcimem_lo_alias = g_new(MemoryRegion, 3);
 
-    memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCILO_SIZE);
+    memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
                                      dev, &bs->pci_mem, get_system_io(),
                                      0x28, 32, TYPE_PCI_BUS);
-    memory_region_add_subregion(get_system_memory(), BONITO_PCILO_BASE,
-                                &bs->pci_mem);
+
+    for (size_t i = 0; i < 3; i++) {
+        char *name = g_strdup_printf("pci.lomem%zu", i);
+
+        memory_region_init_alias(&pcimem_lo_alias[i], NULL, name,
+                                 &bs->pci_mem, i * 64 * MiB, 64 * MiB);
+        memory_region_add_subregion(get_system_memory(),
+                                    BONITO_PCILO_BASE + i * 64 * MiB,
+                                    &pcimem_lo_alias[i]);
+        g_free(name);
+    }
+
+    create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
 }
 
 static void bonito_realize(PCIDevice *dev, Error **errp)
@@ -620,6 +633,8 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     PCIBonitoState *s = PCI_BONITO(dev);
     SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
+    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(s->pcihost);
+    MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
 
     /*
      * Bonito North Bridge, built on FPGA,
@@ -652,6 +667,7 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     sysbus_init_mmio(sysbus, &s->iomem_ldma);
     sysbus_mmio_map(sysbus, 3, 0x1fe00200);
 
+    /* PCI copier */
     memory_region_init_io(&s->iomem_cop, OBJECT(s), &bonito_cop_ops, s,
                           "cop", 0x100);
     sysbus_init_mmio(sysbus, &s->iomem_cop);
@@ -668,6 +684,14 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
                              get_system_io(), 0, BONITO_DEV_SIZE);
     sysbus_init_mmio(sysbus, &s->bonito_localio);
     sysbus_mmio_map(sysbus, 6, BONITO_DEV_BASE);
+
+    memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
+                             &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
+    memory_region_add_subregion(get_system_memory(),
+                                BONITO_PCIHI_BASE, pcimem_alias);
+    create_unimplemented_device("PCI_2",
+                                (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
+                                2 * GiB);
 
     /* set the default value of north bridge pci config */
     pci_set_word(dev->config + PCI_COMMAND, 0x0000);
