@@ -48,6 +48,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
+#include "hw/misc/unimp.h"
 
 /* #define DEBUG_BONITO */
 
@@ -643,6 +644,8 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
                           "south-bridge-pci-config", BONITO_SPCICONFIG_SIZE);
     sysbus_init_mmio(sysbus, &phb->data_mem);
     sysbus_mmio_map(sysbus, 2, BONITO_SPCICONFIG_BASE);
+
+    create_unimplemented_device("bonito", BONITO_REG_BASE, BONITO_REG_SIZE);
 
     memory_region_init_io(&s->iomem_ldma, OBJECT(s), &bonito_ldma_ops, s,
                           "ldma", 0x100);

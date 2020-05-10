@@ -58,4 +58,5 @@ config PCI_EXPRESS_DESIGNWARE
 
 config PCI_BONITO
     select PCI
+    select UNIMP
     bool
