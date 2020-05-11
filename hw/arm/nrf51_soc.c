@@ -150,13 +150,18 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
+        object_property_set_uint(OBJECT(&s->timer[i]), i, "id", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
         object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
 
-        base_addr = NRF51_TIMER_BASE + i * NRF51_TIMER_SIZE;
+        base_addr = NRF51_TIMER_BASE + i * NRF51_PERIPHERAL_SIZE;
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer[i]), 0, base_addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer[i]), 0,
@@ -166,7 +171,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* STUB Peripherals */
     memory_region_init_io(&s->clock, OBJECT(dev_soc), &clock_ops, NULL,
-                          "nrf51_soc.clock", 0x1000);
+                          "nrf51_soc.clock", NRF51_PERIPHERAL_SIZE);
     memory_region_add_subregion_overlap(&s->container,
                                         NRF51_IOMEM_BASE, &s->clock, -1);
 

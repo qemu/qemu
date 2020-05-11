@@ -79,6 +79,7 @@ obj-y += translate.o op_helper.o
 obj-y += crypto_helper.o
 obj-y += iwmmxt_helper.o vec_helper.o neon_helper.o
 obj-y += m_helper.o
+obj-y += cpu_tcg.o
 
 obj-$(CONFIG_SOFTMMU) += psci.o
 

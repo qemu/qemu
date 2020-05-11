@@ -59,6 +59,7 @@ typedef struct NRF51TimerState {
     MemoryRegion iomem;
     qemu_irq irq;
 
+    uint8_t id;
     QEMUTimer timer;
     int64_t timer_start_ns;
     int64_t update_counter_ns;
