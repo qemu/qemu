@@ -679,6 +679,7 @@ void aio_context_destroy(AioContext *ctx)
 {
     fdmon_io_uring_destroy(ctx);
     fdmon_epoll_disable(ctx);
+    aio_free_deleted_handlers(ctx);
 }
 
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,

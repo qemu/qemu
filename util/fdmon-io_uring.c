@@ -342,11 +342,18 @@ void fdmon_io_uring_destroy(AioContext *ctx)
 
         io_uring_queue_exit(&ctx->fdmon_io_uring);
 
-        /* No need to submit these anymore, just free them. */
+        /* Move handlers due to be removed onto the deleted list */
         while ((node = QSLIST_FIRST_RCU(&ctx->submit_list))) {
+            unsigned flags = atomic_fetch_and(&node->flags,
+                    ~(FDMON_IO_URING_PENDING |
+                      FDMON_IO_URING_ADD |
+                      FDMON_IO_URING_REMOVE));
+
+            if (flags & FDMON_IO_URING_REMOVE) {
+                QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
+            }
+
             QSLIST_REMOVE_HEAD_RCU(&ctx->submit_list, node_submitted);
-            QLIST_REMOVE(node, node);
-            g_free(node);
         }
 
         ctx->fdmon_ops = &fdmon_poll_ops;
