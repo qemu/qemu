@@ -701,6 +701,9 @@ void aio_context_setup(AioContext *ctx);
  */
 void aio_context_destroy(AioContext *ctx);
 
+/* Used internally, do not call outside AioContext code */
+void aio_context_use_g_source(AioContext *ctx);
+
 /**
  * aio_context_set_poll_params:
  * @ctx: the aio context
