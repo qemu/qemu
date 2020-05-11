@@ -705,7 +705,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     }
 
     qemu_mutex_lock_iothread();
-    cpu_synchronize_all_pre_loadvm();
+    cpu_synchronize_all_states();
     ret = qemu_loadvm_state_main(mis->from_src_file, mis);
     qemu_mutex_unlock_iothread();
 
