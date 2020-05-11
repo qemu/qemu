@@ -398,6 +398,8 @@ static void backup_job_cleanup(BlockDriverState *bs)
     BDRVReplicationState *s = bs->opaque;
     BlockDriverState *top_bs;
 
+    s->backup_job = NULL;
+
     top_bs = bdrv_lookup_bs(s->top_id, s->top_id, NULL);
     if (!top_bs) {
         return;
