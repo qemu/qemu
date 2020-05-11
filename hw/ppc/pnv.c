@@ -1984,15 +1984,15 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
 
     cpu_synchronize_state(cs);
     ppc_cpu_do_system_reset(cs);
-    if (env->spr[SPR_SRR1] & PPC_BITMASK(46, 47)) {
+    if (env->spr[SPR_SRR1] & SRR1_WAKESTATE) {
         /*
          * Power-save wakeups, as indicated by non-zero SRR1[46:47] put the
          * wakeup reason in SRR1[42:45], system reset is indicated with 0b0100
          * (PPC_BIT(43)).
          */
-        if (!(env->spr[SPR_SRR1] & PPC_BIT(43))) {
+        if (!(env->spr[SPR_SRR1] & SRR1_WAKERESET)) {
             warn_report("ppc_cpu_do_system_reset does not set system reset wakeup reason");
-            env->spr[SPR_SRR1] |= PPC_BIT(43);
+            env->spr[SPR_SRR1] |= SRR1_WAKERESET;
         }
     } else {
         /*
@@ -2002,7 +2002,7 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
          * another CPU requesting a NMI IPI) system reset exception should be
          * 0b0010 (PPC_BIT(44)).
          */
-        env->spr[SPR_SRR1] |= PPC_BIT(44);
+        env->spr[SPR_SRR1] |= SRR1_WAKESCOM;
     }
 }
 

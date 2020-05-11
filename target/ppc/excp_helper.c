@@ -101,7 +101,7 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
     env->resume_as_sreset = false;
 
     /* Pretend to be returning from doze always as we don't lose state */
-    *msr |= (0x1ull << (63 - 47));
+    *msr |= SRR1_WS_NOLOSS;
 
     /* Machine checks are sent normally */
     if (excp == POWERPC_EXCP_MCHECK) {
@@ -109,25 +109,25 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
     }
     switch (excp) {
     case POWERPC_EXCP_RESET:
-        *msr |= 0x4ull << (63 - 45);
+        *msr |= SRR1_WAKERESET;
         break;
     case POWERPC_EXCP_EXTERNAL:
-        *msr |= 0x8ull << (63 - 45);
+        *msr |= SRR1_WAKEEE;
         break;
     case POWERPC_EXCP_DECR:
-        *msr |= 0x6ull << (63 - 45);
+        *msr |= SRR1_WAKEDEC;
         break;
     case POWERPC_EXCP_SDOOR:
-        *msr |= 0x5ull << (63 - 45);
+        *msr |= SRR1_WAKEDBELL;
         break;
     case POWERPC_EXCP_SDOOR_HV:
-        *msr |= 0x3ull << (63 - 45);
+        *msr |= SRR1_WAKEHDBELL;
         break;
     case POWERPC_EXCP_HV_MAINT:
-        *msr |= 0xaull << (63 - 45);
+        *msr |= SRR1_WAKEHMI;
         break;
     case POWERPC_EXCP_HVIRT:
-        *msr |= 0x9ull << (63 - 45);
+        *msr |= SRR1_WAKEHVI;
         break;
     default:
         cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
