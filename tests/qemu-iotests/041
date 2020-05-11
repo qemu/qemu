@@ -240,6 +240,49 @@ class TestSingleBlockdev(TestSingleDrive):
                              target=self.qmp_target)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+    def do_test_resize(self, device, node):
+        def pre_finalize():
+            if device:
+                result = self.vm.qmp('block_resize', device=device, size=65536)
+                self.assert_qmp(result, 'error/class', 'GenericError')
+
+            result = self.vm.qmp('block_resize', node_name=node, size=65536)
+            self.assert_qmp(result, 'error/class', 'GenericError')
+
+        result = self.vm.qmp(self.qmp_cmd, job_id='job0', device='drive0',
+                             sync='full', target=self.qmp_target,
+                             auto_finalize=False, auto_dismiss=False)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.run_job('job0', auto_finalize=False,
+                                 pre_finalize=pre_finalize)
+        self.assertEqual(result, None)
+
+    def test_source_resize(self):
+        self.do_test_resize('drive0', 'top')
+
+    def test_target_resize(self):
+        self.do_test_resize(None, self.qmp_target)
+
+    def do_test_target_size(self, size):
+        result = self.vm.qmp('block_resize', node_name=self.qmp_target,
+                             size=size)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp(self.qmp_cmd, job_id='job0',
+                             device='drive0', sync='full', auto_dismiss=False,
+                             target=self.qmp_target)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.run_job('job0')
+        self.assertEqual(result, 'Source and target image have different sizes')
+
+    def test_small_target(self):
+        self.do_test_target_size(self.image_len // 2)
+
+    def test_large_target(self):
+        self.do_test_target_size(self.image_len * 2)
+
     test_large_cluster = None
     test_image_not_found = None
     test_small_buffer2 = None
@@ -251,6 +294,8 @@ class TestSingleDriveZeroLength(TestSingleDrive):
 
 class TestSingleBlockdevZeroLength(TestSingleBlockdev):
     image_len = 0
+    test_small_target = None
+    test_large_target = None
 
 class TestSingleDriveUnalignedLength(TestSingleDrive):
     image_len = 1025 * 1024
