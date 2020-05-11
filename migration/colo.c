@@ -436,6 +436,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    qemu_event_reset(&s->colo_checkpoint_event);
     colo_notify_compares_event(NULL, COLO_EVENT_CHECKPOINT, &local_err);
     if (local_err) {
         goto out;
@@ -589,7 +590,7 @@ static void colo_process_checkpoint(MigrationState *s)
             goto out;
         }
 
-        qemu_sem_wait(&s->colo_checkpoint_sem);
+        qemu_event_wait(&s->colo_checkpoint_event);
 
         if (s->state != MIGRATION_STATUS_COLO) {
             goto out;
@@ -637,7 +638,7 @@ out:
     colo_compare_unregister_notifier(&packets_compare_notifier);
     timer_del(s->colo_delay_timer);
     timer_free(s->colo_delay_timer);
-    qemu_sem_destroy(&s->colo_checkpoint_sem);
+    qemu_event_destroy(&s->colo_checkpoint_event);
 
     /*
      * Must be called after failover BH is completed,
@@ -654,7 +655,7 @@ void colo_checkpoint_notify(void *opaque)
     MigrationState *s = opaque;
     int64_t next_notify_time;
 
-    qemu_sem_post(&s->colo_checkpoint_sem);
+    qemu_event_set(&s->colo_checkpoint_event);
     s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     next_notify_time = s->colo_checkpoint_time +
                     s->parameters.x_checkpoint_delay;
@@ -664,7 +665,7 @@ void colo_checkpoint_notify(void *opaque)
 void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
-    qemu_sem_init(&s->colo_checkpoint_sem, 0);
+    qemu_event_init(&s->colo_checkpoint_event, false);
     s->colo_delay_timer =  timer_new_ms(QEMU_CLOCK_HOST,
                                 colo_checkpoint_notify, s);
 
