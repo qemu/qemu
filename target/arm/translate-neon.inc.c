@@ -671,3 +671,18 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
     }
     return do_3same(s, a, gen_VMUL_p_3s);
 }
+
+#define DO_VQRDMLAH(INSN, FUNC)                                         \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (!dc_isar_feature(aa32_rdm, s)) {                            \
+            return false;                                               \
+        }                                                               \
+        if (a->size != 1 && a->size != 2) {                             \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, FUNC);                                    \
+    }
+
+DO_VQRDMLAH(VQRDMLAH, gen_gvec_sqrdmlah_qc)
+DO_VQRDMLAH(VQRDMLSH, gen_gvec_sqrdmlsh_qc)
