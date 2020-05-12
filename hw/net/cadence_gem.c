@@ -61,6 +61,7 @@
 #define GEM_TXPAUSE       (0x0000003C / 4) /* TX Pause Time reg */
 #define GEM_TXPARTIALSF   (0x00000040 / 4) /* TX Partial Store and Forward */
 #define GEM_RXPARTIALSF   (0x00000044 / 4) /* RX Partial Store and Forward */
+#define GEM_JUMBO_MAX_LEN (0x00000048 / 4) /* Max Jumbo Frame Size */
 #define GEM_HASHLO        (0x00000080 / 4) /* Hash Low address reg */
 #define GEM_HASHHI        (0x00000084 / 4) /* Hash High address reg */
 #define GEM_SPADDR1LO     (0x00000088 / 4) /* Specific addr 1 low reg */
@@ -212,10 +213,12 @@
 #define GEM_NWCFG_LERR_DISC    0x00010000 /* Discard RX frames with len err */
 #define GEM_NWCFG_BUFF_OFST_M  0x0000C000 /* Receive buffer offset mask */
 #define GEM_NWCFG_BUFF_OFST_S  14         /* Receive buffer offset shift */
+#define GEM_NWCFG_RCV_1538     0x00000100 /* Receive 1538 bytes frame */
 #define GEM_NWCFG_UCAST_HASH   0x00000080 /* accept unicast if hash match */
 #define GEM_NWCFG_MCAST_HASH   0x00000040 /* accept multicast if hash match */
 #define GEM_NWCFG_BCAST_REJ    0x00000020 /* Reject broadcast packets */
 #define GEM_NWCFG_PROMISC      0x00000010 /* Accept all packets */
+#define GEM_NWCFG_JUMBO_FRAME  0x00000008 /* Jumbo Frames enable */
 
 #define GEM_DMACFG_ADDR_64B    (1U << 30)
 #define GEM_DMACFG_TX_BD_EXT   (1U << 29)
@@ -233,6 +236,7 @@
 
 /* GEM_ISR GEM_IER GEM_IDR GEM_IMR */
 #define GEM_INT_TXCMPL        0x00000080 /* Transmit Complete */
+#define GEM_INT_AMBA_ERR      0x00000040
 #define GEM_INT_TXUSED         0x00000008
 #define GEM_INT_RXUSED         0x00000004
 #define GEM_INT_RXCMPL        0x00000002
@@ -452,6 +456,24 @@ static inline void rx_desc_set_sar(uint32_t *desc, int sar_idx)
 
 /* The broadcast MAC address: 0xFFFFFFFFFFFF */
 static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+static uint32_t gem_get_max_buf_len(CadenceGEMState *s, bool tx)
+{
+    uint32_t size;
+    if (s->regs[GEM_NWCFG] & GEM_NWCFG_JUMBO_FRAME) {
+        size = s->regs[GEM_JUMBO_MAX_LEN];
+        if (size > s->jumbo_max_len) {
+            size = s->jumbo_max_len;
+            qemu_log_mask(LOG_GUEST_ERROR, "GEM_JUMBO_MAX_LEN reg cannot be"
+                " greater than 0x%" PRIx32 "\n", s->jumbo_max_len);
+        }
+    } else if (tx) {
+        size = 1518;
+    } else {
+        size = s->regs[GEM_NWCFG] & GEM_NWCFG_RCV_1538 ? 1538 : 1518;
+    }
+    return size;
+}
 
 static void gem_set_isr(CadenceGEMState *s, int q, uint32_t flag)
 {
@@ -1016,6 +1038,12 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Find which queue we are targeting */
     q = get_queue_from_screen(s, rxbuf_ptr, rxbufsize);
 
+    if (size > gem_get_max_buf_len(s, false)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "rx frame too long\n");
+        gem_set_isr(s, q, GEM_INT_AMBA_ERR);
+        return -1;
+    }
+
     while (bytes_to_copy) {
         hwaddr desc_addr;
 
@@ -1196,12 +1224,13 @@ static void gem_transmit(CadenceGEMState *s)
                 break;
             }
 
-            if (tx_desc_get_length(desc) > MAX_FRAME_SIZE -
+            if (tx_desc_get_length(desc) > gem_get_max_buf_len(s, true) -
                                                (p - s->tx_packet)) {
-                DB_PRINT("TX descriptor @ 0x%" HWADDR_PRIx \
-                         " too large: size 0x%x space 0x%zx\n",
+                qemu_log_mask(LOG_GUEST_ERROR, "TX descriptor @ 0x%" \
+                         HWADDR_PRIx " too large: size 0x%x space 0x%zx\n",
                          packet_desc_addr, tx_desc_get_length(desc),
-                         MAX_FRAME_SIZE - (p - s->tx_packet));
+                         gem_get_max_buf_len(s, true) - (p - s->tx_packet));
+                gem_set_isr(s, q, GEM_INT_AMBA_ERR);
                 break;
             }
 
@@ -1343,9 +1372,10 @@ static void gem_reset(DeviceState *d)
     s->regs[GEM_RXPARTIALSF] = 0x000003ff;
     s->regs[GEM_MODID] = s->revision;
     s->regs[GEM_DESCONF] = 0x02500111;
-    s->regs[GEM_DESCONF2] = 0x2ab13fff;
+    s->regs[GEM_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
     s->regs[GEM_DESCONF5] = 0x002f2045;
     s->regs[GEM_DESCONF6] = GEM_DESCONF6_64B_MASK;
+    s->regs[GEM_JUMBO_MAX_LEN] = s->jumbo_max_len;
 
     if (s->num_priority_queues > 1) {
         queues_mask = MAKE_64BIT_MASK(1, s->num_priority_queues - 1);
@@ -1516,6 +1546,9 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->regs[GEM_IMR] &= ~val;
         gem_update_int_status(s);
         break;
+    case GEM_JUMBO_MAX_LEN:
+        s->regs[GEM_JUMBO_MAX_LEN] = val & MAX_JUMBO_FRAME_SIZE_MASK;
+        break;
     case GEM_INT_Q1_ENABLE ... GEM_INT_Q7_ENABLE:
         s->regs[GEM_INT_Q1_MASK + offset - GEM_INT_Q1_ENABLE] &= ~val;
         gem_update_int_status(s);
@@ -1610,6 +1643,12 @@ static void gem_realize(DeviceState *dev, Error **errp)
 
     s->nic = qemu_new_nic(&net_gem_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
+
+    if (s->jumbo_max_len > MAX_FRAME_SIZE) {
+        error_setg(errp, "jumbo-max-len is greater than %d",
+                  MAX_FRAME_SIZE);
+        return;
+    }
 }
 
 static void gem_init(Object *obj)
@@ -1658,6 +1697,8 @@ static Property gem_properties[] = {
                       num_type1_screeners, 4),
     DEFINE_PROP_UINT8("num-type2-screeners", CadenceGEMState,
                       num_type2_screeners, 4),
+    DEFINE_PROP_UINT16("jumbo-max-len", CadenceGEMState,
+                       jumbo_max_len, 10240),
     DEFINE_PROP_END_OF_LIST(),
 };
 

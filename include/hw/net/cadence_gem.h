@@ -40,7 +40,8 @@
 #define MAX_TYPE1_SCREENERS             16
 #define MAX_TYPE2_SCREENERS             16
 
-#define MAX_FRAME_SIZE 2048
+#define MAX_JUMBO_FRAME_SIZE_MASK 0x3FFF
+#define MAX_FRAME_SIZE MAX_JUMBO_FRAME_SIZE_MASK
 
 typedef struct CadenceGEMState {
     /*< private >*/
@@ -59,6 +60,7 @@ typedef struct CadenceGEMState {
     uint8_t num_type1_screeners;
     uint8_t num_type2_screeners;
     uint32_t revision;
+    uint16_t jumbo_max_len;
 
     /* GEM registers backing store */
     uint32_t regs[CADENCE_GEM_MAXREG];
