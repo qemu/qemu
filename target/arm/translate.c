@@ -5494,9 +5494,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 tcg_temp_free_ptr(fpstatus);
             } else {
                 if (size == 0) {
-                    gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
+                    gen_helper_recps_f32(tmp, cpu_env, tmp, tmp2);
                 } else {
-                    gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
+                    gen_helper_rsqrts_f32(tmp, cpu_env, tmp, tmp2);
               }
             }
             break;

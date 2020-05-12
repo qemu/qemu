@@ -581,7 +581,7 @@ uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
 #define float32_three make_float32(0x40400000)
 #define float32_one_point_five make_float32(0x3fc00000)
 
-float32 HELPER(recps_f32)(float32 a, float32 b, CPUARMState *env)
+float32 HELPER(recps_f32)(CPUARMState *env, float32 a, float32 b)
 {
     float_status *s = &env->vfp.standard_fp_status;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
@@ -594,7 +594,7 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUARMState *env)
     return float32_sub(float32_two, float32_mul(a, b, s), s);
 }
 
-float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUARMState *env)
+float32 HELPER(rsqrts_f32)(CPUARMState *env, float32 a, float32 b)
 {
     float_status *s = &env->vfp.standard_fp_status;
     float32 product;
