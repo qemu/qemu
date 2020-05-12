@@ -877,3 +877,7 @@ DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
 
 DO_3SAME_32(VHADD_S, hadd_s)
 DO_3SAME_32(VHADD_U, hadd_u)
+DO_3SAME_32(VHSUB_S, hsub_s)
+DO_3SAME_32(VHSUB_U, hsub_u)
+DO_3SAME_32(VRHADD_S, rhadd_s)
+DO_3SAME_32(VRHADD_U, rhadd_u)
