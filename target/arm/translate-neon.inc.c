@@ -641,6 +641,10 @@ DO_3SAME_NO_SZ_3(VMUL, tcg_gen_gvec_mul)
 DO_3SAME_NO_SZ_3(VMLA, gen_gvec_mla)
 DO_3SAME_NO_SZ_3(VMLS, gen_gvec_mls)
 DO_3SAME_NO_SZ_3(VTST, gen_gvec_cmtst)
+DO_3SAME_NO_SZ_3(VABD_S, gen_gvec_sabd)
+DO_3SAME_NO_SZ_3(VABA_S, gen_gvec_saba)
+DO_3SAME_NO_SZ_3(VABD_U, gen_gvec_uabd)
+DO_3SAME_NO_SZ_3(VABA_U, gen_gvec_uaba)
 
 #define DO_3SAME_CMP(INSN, COND)                                        \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \

@@ -5421,26 +5421,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             /* VQRDMLSH : handled by decodetree */
             return 1;
 
-        case NEON_3R_VABD:
-            if (u) {
-                gen_gvec_uabd(size, rd_ofs, rn_ofs, rm_ofs,
-                              vec_size, vec_size);
-            } else {
-                gen_gvec_sabd(size, rd_ofs, rn_ofs, rm_ofs,
-                              vec_size, vec_size);
-            }
-            return 0;
-
-        case NEON_3R_VABA:
-            if (u) {
-                gen_gvec_uaba(size, rd_ofs, rn_ofs, rm_ofs,
-                              vec_size, vec_size);
-            } else {
-                gen_gvec_saba(size, rd_ofs, rn_ofs, rm_ofs,
-                              vec_size, vec_size);
-            }
-            return 0;
-
         case NEON_3R_VADD_VSUB:
         case NEON_3R_LOGIC:
         case NEON_3R_VMAX:
@@ -5455,6 +5435,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_VSHL:
         case NEON_3R_SHA:
         case NEON_3R_VHADD:
+        case NEON_3R_VABD:
+        case NEON_3R_VABA:
             /* Already handled by decodetree */
             return 1;
         }
