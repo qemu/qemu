@@ -1049,3 +1049,66 @@ DO_3SAME_VQDMULH(VQRDMULH, qrdmulh)
 DO_3S_FP_GVEC(VADD, gen_helper_gvec_fadd_s)
 DO_3S_FP_GVEC(VSUB, gen_helper_gvec_fsub_s)
 DO_3S_FP_GVEC(VABD, gen_helper_gvec_fabd_s)
+
+static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
+{
+    /* FP operations handled pairwise 32 bits at a time */
+    TCGv_i32 tmp, tmp2, tmp3;
+    TCGv_ptr fpstatus;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    assert(a->q == 0); /* enforced by decode patterns */
+
+    /*
+     * Note that we have to be careful not to clobber the source operands
+     * in the "vm == vd" case by storing the result of the first pass too
+     * early. Since Q is 0 there are always just two passes, so instead
+     * of a complicated loop over each pass we just unroll.
+     */
+    fpstatus = get_fpstatus_ptr(1);
+    tmp = neon_load_reg(a->vn, 0);
+    tmp2 = neon_load_reg(a->vn, 1);
+    fn(tmp, tmp, tmp2, fpstatus);
+    tcg_temp_free_i32(tmp2);
+
+    tmp3 = neon_load_reg(a->vm, 0);
+    tmp2 = neon_load_reg(a->vm, 1);
+    fn(tmp3, tmp3, tmp2, fpstatus);
+    tcg_temp_free_i32(tmp2);
+    tcg_temp_free_ptr(fpstatus);
+
+    neon_store_reg(a->vd, 0, tmp);
+    neon_store_reg(a->vd, 1, tmp3);
+    return true;
+}
+
+/*
+ * For all the functions using this macro, size == 1 means fp16,
+ * which is an architecture extension we don't implement yet.
+ */
+#define DO_3S_FP_PAIR(INSN,FUNC)                                    \
+    static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
+    {                                                               \
+        if (a->size != 0) {                                         \
+            /* TODO fp16 support */                                 \
+            return false;                                           \
+        }                                                           \
+        return do_3same_fp_pair(s, a, FUNC);                        \
+    }
+
+DO_3S_FP_PAIR(VPADD, gen_helper_vfp_adds)
+DO_3S_FP_PAIR(VPMAX, gen_helper_vfp_maxs)
+DO_3S_FP_PAIR(VPMIN, gen_helper_vfp_mins)
