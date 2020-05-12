@@ -1207,6 +1207,47 @@ static bool trans_VRSQRTS_fp_3s(DisasContext *s, arg_3same *a)
     return do_3same(s, a, gen_VRSQRTS_fp_3s);
 }
 
+static void gen_VFMA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muladds(vd, vn, vm, vd, fpstatus);
+}
+
+static bool trans_VFMA_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_VFMA_fp_3s, true);
+}
+
+static void gen_VFMS_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_negs(vn, vn);
+    gen_helper_vfp_muladds(vd, vn, vm, vd, fpstatus);
+}
+
+static bool trans_VFMS_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_VFMS_fp_3s, true);
+}
+
 static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
 {
     /* FP operations handled pairwise 32 bits at a time */
