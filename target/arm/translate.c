@@ -5433,6 +5433,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_VPADD_VQRDMLAH:
         case NEON_3R_VQDMULH_VQRDMULH:
         case NEON_3R_FLOAT_ARITH:
+        case NEON_3R_FLOAT_MULTIPLY:
             /* Already handled by decodetree */
             return 1;
         }
@@ -5479,22 +5480,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         tmp = neon_load_reg(rn, pass);
         tmp2 = neon_load_reg(rm, pass);
         switch (op) {
-        case NEON_3R_FLOAT_MULTIPLY:
-        {
-            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-            gen_helper_vfp_muls(tmp, tmp, tmp2, fpstatus);
-            if (!u) {
-                tcg_temp_free_i32(tmp2);
-                tmp2 = neon_load_reg(rd, pass);
-                if (size == 0) {
-                    gen_helper_vfp_adds(tmp, tmp, tmp2, fpstatus);
-                } else {
-                    gen_helper_vfp_subs(tmp, tmp2, tmp, fpstatus);
-                }
-            }
-            tcg_temp_free_ptr(fpstatus);
-            break;
-        }
         case NEON_3R_FLOAT_CMP:
         {
             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
