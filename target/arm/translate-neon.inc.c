@@ -1114,6 +1114,12 @@ DO_3S_FP_GVEC(VMUL, gen_helper_gvec_fmul_s)
         return do_3same_fp(s, a, FUNC, READS_VD);                   \
     }
 
+DO_3S_FP(VCEQ, gen_helper_neon_ceq_f32, false)
+DO_3S_FP(VCGE, gen_helper_neon_cge_f32, false)
+DO_3S_FP(VCGT, gen_helper_neon_cgt_f32, false)
+DO_3S_FP(VACGE, gen_helper_neon_acge_f32, false)
+DO_3S_FP(VACGT, gen_helper_neon_acgt_f32, false)
+
 static void gen_VMLA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
                             TCGv_ptr fpstatus)
 {
