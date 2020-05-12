@@ -5459,42 +5459,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         }
 
         if (size == 3) {
-            /* 64-bit element instructions. */
-            for (pass = 0; pass < (q ? 2 : 1); pass++) {
-                neon_load_reg64(cpu_V0, rn + pass);
-                neon_load_reg64(cpu_V1, rm + pass);
-                switch (op) {
-                case NEON_3R_VQSHL:
-                    if (u) {
-                        gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
-                                                 cpu_V1, cpu_V0);
-                    } else {
-                        gen_helper_neon_qshl_s64(cpu_V0, cpu_env,
-                                                 cpu_V1, cpu_V0);
-                    }
-                    break;
-                case NEON_3R_VRSHL:
-                    if (u) {
-                        gen_helper_neon_rshl_u64(cpu_V0, cpu_V1, cpu_V0);
-                    } else {
-                        gen_helper_neon_rshl_s64(cpu_V0, cpu_V1, cpu_V0);
-                    }
-                    break;
-                case NEON_3R_VQRSHL:
-                    if (u) {
-                        gen_helper_neon_qrshl_u64(cpu_V0, cpu_env,
-                                                  cpu_V1, cpu_V0);
-                    } else {
-                        gen_helper_neon_qrshl_s64(cpu_V0, cpu_env,
-                                                  cpu_V1, cpu_V0);
-                    }
-                    break;
-                default:
-                    abort();
-                }
-                neon_store_reg64(cpu_V0, rd + pass);
-            }
-            return 0;
+            /* 64-bit element instructions: handled by decodetree */
+            return 1;
         }
         pairwise = 0;
         switch (op) {

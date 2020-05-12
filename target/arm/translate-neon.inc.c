@@ -825,3 +825,27 @@ static bool trans_SHA256SU1_3s(DisasContext *s, arg_SHA256SU1_3s *a)
 
     return true;
 }
+
+#define DO_3SAME_64(INSN, FUNC)                                         \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        static const GVecGen3 op = { .fni8 = FUNC };                    \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &op);      \
+    }                                                                   \
+    DO_3SAME(INSN, gen_##INSN##_3s)
+
+#define DO_3SAME_64_ENV(INSN, FUNC)                                     \
+    static void gen_##INSN##_elt(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)    \
+    {                                                                   \
+        FUNC(d, cpu_env, n, m);                                         \
+    }                                                                   \
+    DO_3SAME_64(INSN, gen_##INSN##_elt)
+
+DO_3SAME_64(VRSHL_S64, gen_helper_neon_rshl_s64)
+DO_3SAME_64(VRSHL_U64, gen_helper_neon_rshl_u64)
+DO_3SAME_64_ENV(VQSHL_S64, gen_helper_neon_qshl_s64)
+DO_3SAME_64_ENV(VQSHL_U64, gen_helper_neon_qshl_u64)
+DO_3SAME_64_ENV(VQRSHL_S64, gen_helper_neon_qrshl_s64)
+DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
