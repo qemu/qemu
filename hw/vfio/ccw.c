@@ -74,16 +74,9 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
     struct ccw_io_region *region = vcdev->io_region;
     int ret;
 
-    if (!(sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH)) {
-        if (!(vcdev->force_orb_pfch)) {
-            warn_once_pfch(vcdev, sch, "requires PFCH flag set");
-            sch_gen_unit_exception(sch);
-            css_inject_io_interrupt(sch);
-            return IOINST_CC_EXPECTED;
-        } else {
-            sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
-            warn_once_pfch(vcdev, sch, "PFCH flag forced");
-        }
+    if (!(sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH) && vcdev->force_orb_pfch) {
+        sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
+        warn_once_pfch(vcdev, sch, "PFCH flag forced");
     }
 
     QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
