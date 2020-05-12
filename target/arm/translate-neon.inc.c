@@ -875,9 +875,52 @@ DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
         return do_3same(s, a, gen_##INSN##_3s);                         \
     }
 
+/*
+ * Some helper functions need to be passed the cpu_env. In order
+ * to use those with the gvec APIs like tcg_gen_gvec_3() we need
+ * to create wrapper functions whose prototype is a NeonGenTwoOpFn()
+ * and which call a NeonGenTwoOpEnvFn().
+ */
+#define WRAP_ENV_FN(WRAPNAME, FUNC)                                     \
+    static void WRAPNAME(TCGv_i32 d, TCGv_i32 n, TCGv_i32 m)            \
+    {                                                                   \
+        FUNC(d, cpu_env, n, m);                                         \
+    }
+
+#define DO_3SAME_32_ENV(INSN, FUNC)                                     \
+    WRAP_ENV_FN(gen_##INSN##_tramp8, gen_helper_neon_##FUNC##8);        \
+    WRAP_ENV_FN(gen_##INSN##_tramp16, gen_helper_neon_##FUNC##16);      \
+    WRAP_ENV_FN(gen_##INSN##_tramp32, gen_helper_neon_##FUNC##32);      \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        static const GVecGen3 ops[4] = {                                \
+            { .fni4 = gen_##INSN##_tramp8 },                            \
+            { .fni4 = gen_##INSN##_tramp16 },                           \
+            { .fni4 = gen_##INSN##_tramp32 },                           \
+            { 0 },                                                      \
+        };                                                              \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops[vece]); \
+    }                                                                   \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##INSN##_3s);                         \
+    }
+
 DO_3SAME_32(VHADD_S, hadd_s)
 DO_3SAME_32(VHADD_U, hadd_u)
 DO_3SAME_32(VHSUB_S, hsub_s)
 DO_3SAME_32(VHSUB_U, hsub_u)
 DO_3SAME_32(VRHADD_S, rhadd_s)
 DO_3SAME_32(VRHADD_U, rhadd_u)
+DO_3SAME_32(VRSHL_S, rshl_s)
+DO_3SAME_32(VRSHL_U, rshl_u)
+
+DO_3SAME_32_ENV(VQSHL_S, qshl_s)
+DO_3SAME_32_ENV(VQSHL_U, qshl_u)
+DO_3SAME_32_ENV(VQRSHL_S, qrshl_s)
+DO_3SAME_32_ENV(VQRSHL_U, qrshl_u)
