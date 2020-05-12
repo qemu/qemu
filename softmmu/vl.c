@@ -1993,7 +1993,7 @@ char *qemu_find_file(int type, const char *name)
     return NULL;
 }
 
-static void qemu_add_data_dir(const char *path)
+void qemu_add_data_dir(const char *path)
 {
     int i;
 
