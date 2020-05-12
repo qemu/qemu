@@ -316,8 +316,6 @@ static void type_initialize(TypeImpl *ti)
         g_assert(parent->instance_size <= ti->instance_size);
         memcpy(ti->class, parent->class, parent->class_size);
         ti->class->interfaces = NULL;
-        ti->class->properties = g_hash_table_new_full(
-            g_str_hash, g_str_equal, NULL, object_property_free);
 
         for (e = parent->class->interfaces; e; e = e->next) {
             InterfaceClass *iface = e->data;
@@ -347,10 +345,10 @@ static void type_initialize(TypeImpl *ti)
 
             type_initialize_interface(ti, t, t);
         }
-    } else {
-        ti->class->properties = g_hash_table_new_full(
-            g_str_hash, g_str_equal, NULL, object_property_free);
     }
+
+    ti->class->properties = g_hash_table_new_full(g_str_hash, g_str_equal, NULL,
+                                                  object_property_free);
 
     ti->class->type = ti;
 
