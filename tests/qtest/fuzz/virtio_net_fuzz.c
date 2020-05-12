@@ -122,6 +122,7 @@ static void virtio_net_fork_fuzz(QTestState *s,
         flush_events(s);
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }
@@ -134,6 +135,7 @@ static void virtio_net_fork_fuzz_check_used(QTestState *s,
         flush_events(s);
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }

@@ -151,6 +151,7 @@ static void i440fx_fuzz_qos_fork(QTestState *s,
         i440fx_fuzz_qos(s, Data, Size);
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }
