@@ -809,7 +809,7 @@ F: include/hw/misc/imx6_*.h
 F: include/hw/ssi/imx_spi.h
 
 SBSA-REF
-M: Radoslaw Biernacki <radoslaw.biernacki@linaro.org>
+M: Radoslaw Biernacki <rad@semihalf.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Leif Lindholm <leif@nuviainc.com>
 L: qemu-arm@nongnu.org
