@@ -321,7 +321,7 @@ void s390_sclp_init(void)
     Object *new = object_new(TYPE_SCLP);
 
     object_property_add_child(qdev_get_machine(), TYPE_SCLP, new);
-    object_unref(OBJECT(new));
+    object_unref(new);
     qdev_init_nofail(DEVICE(new));
 }
 
