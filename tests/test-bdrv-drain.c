@@ -86,18 +86,20 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
 }
 
 static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                 const BdrvChildRole *role,
+                                 const BdrvChildClass *child_class,
                                  BlockReopenQueue *reopen_queue,
                                  uint64_t perm, uint64_t shared,
                                  uint64_t *nperm, uint64_t *nshared)
 {
-    /* bdrv_format_default_perms() accepts only these two, so disguise
-     * detach_by_driver_cb_role as one of them. */
-    if (role != &child_file && role != &child_backing) {
-        role = &child_file;
+    /*
+     * bdrv_format_default_perms() accepts only these two, so disguise
+     * detach_by_driver_cb_parent as one of them.
+     */
+    if (child_class != &child_file && child_class != &child_backing) {
+        child_class = &child_file;
     }
 
-    bdrv_format_default_perms(bs, c, role, reopen_queue, perm, shared,
+    bdrv_format_default_perms(bs, c, child_class, reopen_queue, perm, shared,
                               nperm, nshared);
 }
 
@@ -1332,7 +1334,7 @@ static void detach_by_driver_cb_drained_begin(BdrvChild *child)
     child_file.drained_begin(child);
 }
 
-static BdrvChildRole detach_by_driver_cb_role;
+static BdrvChildClass detach_by_driver_cb_class;
 
 /*
  * Initial graph:
@@ -1349,7 +1351,7 @@ static BdrvChildRole detach_by_driver_cb_role;
  *
  * by_parent_cb == false: Test that bdrv_drain_invoke() doesn't poll
  *
- *     PA's BdrvChildRole has a .drained_begin callback that schedules a BH
+ *     PA's BdrvChildClass has a .drained_begin callback that schedules a BH
  *     that does the same graph change. If bdrv_drain_invoke() calls it, the
  *     state is messed up, but if it is only polled in the single
  *     BDRV_POLL_WHILE() at the end of the drain, this should work fine.
@@ -1364,8 +1366,8 @@ static void test_detach_indirect(bool by_parent_cb)
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
     if (!by_parent_cb) {
-        detach_by_driver_cb_role = child_file;
-        detach_by_driver_cb_role.drained_begin =
+        detach_by_driver_cb_class = child_file;
+        detach_by_driver_cb_class.drained_begin =
             detach_by_driver_cb_drained_begin;
     }
 
@@ -1399,7 +1401,7 @@ static void test_detach_indirect(bool by_parent_cb)
 
     bdrv_ref(a);
     bdrv_attach_child(parent_a, a, "PA-A",
-                      by_parent_cb ? &child_file : &detach_by_driver_cb_role,
+                      by_parent_cb ? &child_file : &detach_by_driver_cb_class,
                       &error_abort);
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
@@ -1735,7 +1737,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
 /**
  * Test a poll in the midst of bdrv_drop_intermediate().
  *
- * bdrv_drop_intermediate() calls BdrvChildRole.update_filename(),
+ * bdrv_drop_intermediate() calls BdrvChildClass.update_filename(),
  * which can yield or poll.  This may lead to graph changes, unless
  * the whole subtree in question is drained.
  *
@@ -1772,7 +1774,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
  *
  * The solution is for bdrv_drop_intermediate() to drain top's
  * subtree.  This prevents graph changes from happening just because
- * BdrvChildRole.update_filename() yields or polls.  Thus, the block
+ * BdrvChildClass.update_filename() yields or polls.  Thus, the block
  * job is paused during that drained section and must finish before or
  * after.
  *
@@ -1780,7 +1782,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
  */
 static void test_drop_intermediate_poll(void)
 {
-    static BdrvChildRole chain_child_role;
+    static BdrvChildClass chain_child_class;
     BlockDriverState *chain[3];
     TestSimpleBlockJob *job;
     BlockDriverState *job_node;
@@ -1788,8 +1790,8 @@ static void test_drop_intermediate_poll(void)
     int i;
     int ret;
 
-    chain_child_role = child_backing;
-    chain_child_role.update_filename = drop_intermediate_poll_update_filename;
+    chain_child_class = child_backing;
+    chain_child_class.update_filename = drop_intermediate_poll_update_filename;
 
     for (i = 0; i < 3; i++) {
         char name[32];
@@ -1810,7 +1812,7 @@ static void test_drop_intermediate_poll(void)
         if (i) {
             /* Takes the reference to chain[i - 1] */
             chain[i]->backing = bdrv_attach_child(chain[i], chain[i - 1],
-                                                  "chain", &chain_child_role,
+                                                  "chain", &chain_child_class,
                                                   &error_abort);
         }
     }

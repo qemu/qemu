@@ -163,7 +163,7 @@ static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
     job->job.aio_context = ctx;
 }
 
-static const BdrvChildRole child_job = {
+static const BdrvChildClass child_job = {
     .get_parent_desc    = child_job_get_parent_desc,
     .drained_begin      = child_job_drained_begin,
     .drained_poll       = child_job_drained_poll,

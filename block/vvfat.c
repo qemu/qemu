@@ -3136,7 +3136,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
-static const BdrvChildRole child_vvfat_qcow = {
+static const BdrvChildClass child_vvfat_qcow = {
     .parent_is_bds      = true,
     .inherit_options    = vvfat_qcow_options,
 };
@@ -3210,14 +3210,14 @@ err:
 }
 
 static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
-                             const BdrvChildRole *role,
+                             const BdrvChildClass *child_class,
                              BlockReopenQueue *reopen_queue,
                              uint64_t perm, uint64_t shared,
                              uint64_t *nperm, uint64_t *nshared)
 {
     BDRVVVFATState *s = bs->opaque;
 
-    assert(c == s->qcow || role == &child_backing);
+    assert(c == s->qcow || child_class == &child_backing);
 
     if (c == s->qcow) {
         /* This is a private node, nobody should try to attach to it */

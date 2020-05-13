@@ -297,7 +297,7 @@ static void blk_root_detach(BdrvChild *child)
     }
 }
 
-static const BdrvChildRole child_root = {
+static const BdrvChildClass child_root = {
     .inherit_options    = blk_root_inherit_options,
 
     .change_media       = blk_root_change_media,
@@ -716,7 +716,7 @@ static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
 {
     BdrvChild *child;
     QLIST_FOREACH(child, &bs->parents, next_parent) {
-        if (child->role == &child_root) {
+        if (child->klass == &child_root) {
             return child->opaque;
         }
     }
@@ -740,7 +740,7 @@ bool bdrv_is_root_node(BlockDriverState *bs)
     BdrvChild *c;
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c->role != &child_root) {
+        if (c->klass != &child_root) {
             return false;
         }
     }
