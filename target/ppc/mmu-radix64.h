@@ -55,9 +55,9 @@ static inline int ppc_radix64_get_prot_eaa(uint64_t pte)
            (pte & R_PTE_EAA_X ? PAGE_EXEC : 0);
 }
 
-static inline int ppc_radix64_get_prot_amr(PowerPCCPU *cpu)
+static inline int ppc_radix64_get_prot_amr(const PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
+    const CPUPPCState *env = &cpu->env;
     int amr = env->spr[SPR_AMR] >> 62; /* We only care about key0 AMR63:62 */
     int iamr = env->spr[SPR_IAMR] >> 62; /* We only care about key0 IAMR63:62 */
 
