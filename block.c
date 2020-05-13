@@ -2528,19 +2528,57 @@ static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
     bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
                               perm, shared, &perm, &shared);
 
-    /* Format drivers may touch metadata even if the guest doesn't write */
-    if (bdrv_is_writable_after_reopen(bs, reopen_queue)) {
-        perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    if (role & BDRV_CHILD_METADATA) {
+        /* Format drivers may touch metadata even if the guest doesn't write */
+        if (bdrv_is_writable_after_reopen(bs, reopen_queue)) {
+            perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+        }
+
+        /*
+         * bs->file always needs to be consistent because of the
+         * metadata. We can never allow other users to resize or write
+         * to it.
+         */
+        if (!(flags & BDRV_O_NO_IO)) {
+            perm |= BLK_PERM_CONSISTENT_READ;
+        }
+        shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
     }
 
-    /*
-     * bs->file always needs to be consistent because of the metadata. We
-     * can never allow other users to resize or write to it.
-     */
-    if (!(flags & BDRV_O_NO_IO)) {
-        perm |= BLK_PERM_CONSISTENT_READ;
+    if (role & BDRV_CHILD_DATA) {
+        /*
+         * Technically, everything in this block is a subset of the
+         * BDRV_CHILD_METADATA path taken above, and so this could
+         * be an "else if" branch.  However, that is not obvious, and
+         * this function is not performance critical, therefore we let
+         * this be an independent "if".
+         */
+
+        /*
+         * We cannot allow other users to resize the file because the
+         * format driver might have some assumptions about the size
+         * (e.g. because it is stored in metadata, or because the file
+         * is split into fixed-size data files).
+         */
+        shared &= ~BLK_PERM_RESIZE;
+
+        /*
+         * WRITE_UNCHANGED often cannot be performed as such on the
+         * data file.  For example, the qcow2 driver may still need to
+         * write copied clusters on copy-on-read.
+         */
+        if (perm & BLK_PERM_WRITE_UNCHANGED) {
+            perm |= BLK_PERM_WRITE;
+        }
+
+        /*
+         * If the data file is written to, the format driver may
+         * expect to be able to resize it by writing beyond the EOF.
+         */
+        if (perm & BLK_PERM_WRITE) {
+            perm |= BLK_PERM_RESIZE;
+        }
     }
-    shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
 
     if (bs->open_flags & BDRV_O_INACTIVE) {
         shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
