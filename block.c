@@ -1172,35 +1172,6 @@ const BdrvChildClass child_file = {
     .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
 };
 
-/*
- * Returns the options and flags that bs->file should get if the use of formats
- * (and not only protocols) is permitted for it, based on the given options and
- * flags for the parent BDS
- */
-static void bdrv_inherited_fmt_options(BdrvChildRole role,
-                                       bool parent_is_format,
-                                       int *child_flags, QDict *child_options,
-                                       int parent_flags, QDict *parent_options)
-{
-    bdrv_inherited_options(BDRV_CHILD_DATA, false,
-                           child_flags, child_options,
-                           parent_flags, parent_options);
-}
-
-const BdrvChildClass child_format = {
-    .parent_is_bds   = true,
-    .get_parent_desc = bdrv_child_get_parent_desc,
-    .inherit_options = bdrv_inherited_fmt_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_poll    = bdrv_child_cb_drained_poll,
-    .drained_end     = bdrv_child_cb_drained_end,
-    .attach          = bdrv_child_cb_attach,
-    .detach          = bdrv_child_cb_detach,
-    .inactivate      = bdrv_child_cb_inactivate,
-    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
-    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
-};
-
 static void bdrv_backing_attach(BdrvChild *c)
 {
     BlockDriverState *parent = c->opaque;
