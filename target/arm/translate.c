@@ -4520,62 +4520,69 @@ static void gen_mls_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
 /* Note that while NEON does not support VMLA and VMLS as 64-bit ops,
  * these tables are shared with AArch64 which does support them.
  */
+void gen_gvec_mla(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                  uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_mul_vec, INDEX_op_add_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        { .fni4 = gen_mla8_i32,
+          .fniv = gen_mla_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fni4 = gen_mla16_i32,
+          .fniv = gen_mla_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = gen_mla32_i32,
+          .fniv = gen_mla_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = gen_mla64_i64,
+          .fniv = gen_mla_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_64 },
+    };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
 
-static const TCGOpcode vecop_list_mla[] = {
-    INDEX_op_mul_vec, INDEX_op_add_vec, 0
-};
-
-static const TCGOpcode vecop_list_mls[] = {
-    INDEX_op_mul_vec, INDEX_op_sub_vec, 0
-};
-
-const GVecGen3 mla_op[4] = {
-    { .fni4 = gen_mla8_i32,
-      .fniv = gen_mla_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mla,
-      .vece = MO_8 },
-    { .fni4 = gen_mla16_i32,
-      .fniv = gen_mla_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mla,
-      .vece = MO_16 },
-    { .fni4 = gen_mla32_i32,
-      .fniv = gen_mla_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mla,
-      .vece = MO_32 },
-    { .fni8 = gen_mla64_i64,
-      .fniv = gen_mla_vec,
-      .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-      .load_dest = true,
-      .opt_opc = vecop_list_mla,
-      .vece = MO_64 },
-};
-
-const GVecGen3 mls_op[4] = {
-    { .fni4 = gen_mls8_i32,
-      .fniv = gen_mls_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mls,
-      .vece = MO_8 },
-    { .fni4 = gen_mls16_i32,
-      .fniv = gen_mls_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mls,
-      .vece = MO_16 },
-    { .fni4 = gen_mls32_i32,
-      .fniv = gen_mls_vec,
-      .load_dest = true,
-      .opt_opc = vecop_list_mls,
-      .vece = MO_32 },
-    { .fni8 = gen_mls64_i64,
-      .fniv = gen_mls_vec,
-      .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-      .load_dest = true,
-      .opt_opc = vecop_list_mls,
-      .vece = MO_64 },
-};
+void gen_gvec_mls(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                  uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_mul_vec, INDEX_op_sub_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        { .fni4 = gen_mls8_i32,
+          .fniv = gen_mls_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fni4 = gen_mls16_i32,
+          .fniv = gen_mls_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = gen_mls32_i32,
+          .fniv = gen_mls_vec,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = gen_mls64_i64,
+          .fniv = gen_mls_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .opt_opc = vecop_list,
+          .vece = MO_64 },
+    };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
 
 /* CMTST : test is "if (X & Y != 0)". */
 static void gen_cmtst_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
