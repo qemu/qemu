@@ -28,7 +28,8 @@
 #include "mmu-radix64.h"
 #include "mmu-book3s-v3.h"
 
-static bool ppc_radix64_get_fully_qualified_addr(CPUPPCState *env, vaddr eaddr,
+static bool ppc_radix64_get_fully_qualified_addr(const CPUPPCState *env,
+                                                 vaddr eaddr,
                                                  uint64_t *lpid, uint64_t *pid)
 {
     if (msr_hv) { /* MSR[HV] -> Hypervisor/bare metal */
