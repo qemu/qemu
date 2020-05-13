@@ -563,7 +563,6 @@ struct BlockDriver {
      * @reopen_queue.
      */
      void (*bdrv_child_perm)(BlockDriverState *bs, BdrvChild *c,
-                             const BdrvChildClass *child_class,
                              BdrvChildRole role,
                              BlockReopenQueue *reopen_queue,
                              uint64_t parent_perm, uint64_t parent_shared,
@@ -1270,8 +1269,7 @@ bool bdrv_recurse_can_replace(BlockDriverState *bs,
  * child_of_bds child class and set an appropriate BdrvChildRole.
  */
 void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
-                        const BdrvChildClass *child_class, BdrvChildRole role,
-                        BlockReopenQueue *reopen_queue,
+                        BdrvChildRole role, BlockReopenQueue *reopen_queue,
                         uint64_t perm, uint64_t shared,
                         uint64_t *nperm, uint64_t *nshared);
 

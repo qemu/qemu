@@ -30,7 +30,6 @@ static BlockDriver bdrv_pass_through = {
 };
 
 static void no_perm_default_perms(BlockDriverState *bs, BdrvChild *c,
-                                         const BdrvChildClass *child_class,
                                          BdrvChildRole role,
                                          BlockReopenQueue *reopen_queue,
                                          uint64_t perm, uint64_t shared,

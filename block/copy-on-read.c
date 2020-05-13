@@ -52,7 +52,6 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
 #define PERM_UNCHANGED (BLK_PERM_ALL & ~PERM_PASSTHROUGH)
 
 static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
-                           const BdrvChildClass *child_class,
                            BdrvChildRole role,
                            BlockReopenQueue *reopen_queue,
                            uint64_t perm, uint64_t shared,

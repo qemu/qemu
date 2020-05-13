@@ -995,7 +995,6 @@ static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
 }
 
 static void blkdebug_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                const BdrvChildClass *child_class,
                                 BdrvChildRole role,
                                 BlockReopenQueue *reopen_queue,
                                 uint64_t perm, uint64_t shared,
@@ -1003,7 +1002,7 @@ static void blkdebug_child_perm(BlockDriverState *bs, BdrvChild *c,
 {
     BDRVBlkdebugState *s = bs->opaque;
 
-    bdrv_default_perms(bs, c, child_class, role, reopen_queue,
+    bdrv_default_perms(bs, c, role, reopen_queue,
                        perm, shared, nperm, nshared);
 
     *nperm |= s->take_child_perms;

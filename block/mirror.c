@@ -1492,7 +1492,6 @@ static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs)
 }
 
 static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                       const BdrvChildClass *child_class,
                                        BdrvChildRole role,
                                        BlockReopenQueue *reopen_queue,
                                        uint64_t perm, uint64_t shared,

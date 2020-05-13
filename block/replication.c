@@ -164,7 +164,6 @@ static void replication_close(BlockDriverState *bs)
 }
 
 static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                   const BdrvChildClass *child_class,
                                    BdrvChildRole role,
                                    BlockReopenQueue *reopen_queue,
                                    uint64_t perm, uint64_t shared,

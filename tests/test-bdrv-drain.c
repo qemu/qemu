@@ -85,23 +85,6 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
-static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                 const BdrvChildClass *child_class,
-                                 BdrvChildRole role,
-                                 BlockReopenQueue *reopen_queue,
-                                 uint64_t perm, uint64_t shared,
-                                 uint64_t *nperm, uint64_t *nshared)
-{
-    /*
-     * bdrv_default_perms() accepts nothing else, so disguise
-     * detach_by_driver_cb_parent.
-     */
-    child_class = &child_of_bds;
-
-    bdrv_default_perms(bs, c, child_class, role, reopen_queue,
-                       perm, shared, nperm, nshared);
-}
-
 static int bdrv_test_change_backing_file(BlockDriverState *bs,
                                          const char *backing_file,
                                          const char *backing_fmt)
@@ -119,7 +102,7 @@ static BlockDriver bdrv_test = {
     .bdrv_co_drain_begin    = bdrv_test_co_drain_begin,
     .bdrv_co_drain_end      = bdrv_test_co_drain_end,
 
-    .bdrv_child_perm        = bdrv_test_child_perm,
+    .bdrv_child_perm        = bdrv_default_perms,
 
     .bdrv_change_backing_file = bdrv_test_change_backing_file,
 };

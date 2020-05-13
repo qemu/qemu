@@ -283,7 +283,6 @@ static int64_t blk_log_writes_getlength(BlockDriverState *bs)
 }
 
 static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                      const BdrvChildClass *child_class,
                                       BdrvChildRole role,
                                       BlockReopenQueue *ro_q,
                                       uint64_t perm, uint64_t shrd,
@@ -295,7 +294,7 @@ static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
         return;
     }
 
-    bdrv_default_perms(bs, c, child_class, role, ro_q, perm, shrd,
+    bdrv_default_perms(bs, c, role, ro_q, perm, shrd,
                        nperm, nshrd);
 }
 

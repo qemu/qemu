@@ -122,7 +122,6 @@ static void backup_top_refresh_filename(BlockDriverState *bs)
 }
 
 static void backup_top_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                  const BdrvChildClass *child_class,
                                   BdrvChildRole role,
                                   BlockReopenQueue *reopen_queue,
                                   uint64_t perm, uint64_t shared,
@@ -156,7 +155,7 @@ static void backup_top_child_perm(BlockDriverState *bs, BdrvChild *c,
         *nperm = BLK_PERM_WRITE;
     } else {
         /* Source child */
-        bdrv_default_perms(bs, c, child_class, role, reopen_queue,
+        bdrv_default_perms(bs, c, role, reopen_queue,
                            perm, shared, nperm, nshared);
 
         if (perm & BLK_PERM_WRITE) {
