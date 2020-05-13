@@ -50,6 +50,8 @@ static bool ppc_radix64_get_fully_qualified_addr(const CPUPPCState *env,
             *lpid = 0;
             *pid = 0;
             break;
+        default:
+            g_assert_not_reached();
         }
     } else {  /* !MSR[HV] -> Guest */
         switch (eaddr & R_EADDR_QUADRANT) {
@@ -64,6 +66,8 @@ static bool ppc_radix64_get_fully_qualified_addr(const CPUPPCState *env,
             *lpid = env->spr[SPR_LPIDR];
             *pid = 0; /* pid set to 0 -> addresses guest operating system */
             break;
+        default:
+            g_assert_not_reached();
         }
     }
 
@@ -433,7 +437,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                              bool cause_excp)
 {
     CPUPPCState *env = &cpu->env;
-    uint64_t lpid = 0, pid = 0;
+    uint64_t lpid, pid;
     ppc_v3_pate_t pate;
     int psize, prot;
     hwaddr g_raddr;
