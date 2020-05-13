@@ -112,7 +112,7 @@ typedef struct MegasasState {
     uint64_t reply_queue_pa;
     void *reply_queue;
     int reply_queue_len;
-    int reply_queue_head;
+    uint16_t reply_queue_head;
     int reply_queue_tail;
     uint64_t consumer_pa;
     uint64_t producer_pa;
@@ -445,7 +445,7 @@ static MegasasCmd *megasas_lookup_frame(MegasasState *s,
 
     index = s->reply_queue_head;
 
-    while (num < s->fw_cmds) {
+    while (num < s->fw_cmds && index < MEGASAS_MAX_FRAMES) {
         if (s->frames[index].pa && s->frames[index].pa == frame) {
             cmd = &s->frames[index];
             break;
