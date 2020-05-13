@@ -93,15 +93,15 @@ static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
                                  uint64_t *nperm, uint64_t *nshared)
 {
     /*
-     * bdrv_format_default_perms() accepts only these two, so disguise
+     * bdrv_default_perms() accepts only these two, so disguise
      * detach_by_driver_cb_parent as one of them.
      */
     if (child_class != &child_file && child_class != &child_of_bds) {
         child_class = &child_of_bds;
     }
 
-    bdrv_format_default_perms(bs, c, child_class, role, reopen_queue,
-                              perm, shared, nperm, nshared);
+    bdrv_default_perms(bs, c, child_class, role, reopen_queue,
+                       perm, shared, nperm, nshared);
 }
 
 static int bdrv_test_change_backing_file(BlockDriverState *bs,
@@ -1137,7 +1137,7 @@ static BlockDriver bdrv_test_top_driver = {
     .bdrv_close             = bdrv_test_top_close,
     .bdrv_co_preadv         = bdrv_test_top_co_preadv,
 
-    .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
 };
 
 typedef struct TestCoDeleteByDrainData {
@@ -1966,7 +1966,7 @@ static BlockDriver bdrv_replace_test = {
     .bdrv_co_drain_begin    = bdrv_replace_test_co_drain_begin,
     .bdrv_co_drain_end      = bdrv_replace_test_co_drain_end,
 
-    .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
 };
 
 static void coroutine_fn test_replace_child_mid_drain_read_co(void *opaque)

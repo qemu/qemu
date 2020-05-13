@@ -26,7 +26,7 @@
 
 static BlockDriver bdrv_pass_through = {
     .format_name = "pass-through",
-    .bdrv_child_perm = bdrv_filter_default_perms,
+    .bdrv_child_perm = bdrv_default_perms,
 };
 
 static void no_perm_default_perms(BlockDriverState *bs, BdrvChild *c,

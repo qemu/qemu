@@ -139,7 +139,7 @@ static BlockDriver bdrv_blkreplay = {
     .is_filter              = true,
 
     .bdrv_open              = blkreplay_open,
-    .bdrv_child_perm        = bdrv_filter_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
     .bdrv_getlength         = blkreplay_getlength,
 
     .bdrv_co_preadv         = blkreplay_co_preadv,

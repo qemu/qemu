@@ -1003,8 +1003,8 @@ static void blkdebug_child_perm(BlockDriverState *bs, BdrvChild *c,
 {
     BDRVBlkdebugState *s = bs->opaque;
 
-    bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
-                              perm, shared, nperm, nshared);
+    bdrv_default_perms(bs, c, child_class, role, reopen_queue,
+                       perm, shared, nperm, nshared);
 
     *nperm |= s->take_child_perms;
     *nshared &= ~s->unshare_child_perms;

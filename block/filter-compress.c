@@ -133,7 +133,7 @@ static BlockDriver bdrv_compress = {
     .format_name                        = "compress",
 
     .bdrv_open                          = compress_open,
-    .bdrv_child_perm                    = bdrv_filter_default_perms,
+    .bdrv_child_perm                    = bdrv_default_perms,
 
     .bdrv_getlength                     = compress_getlength,
 

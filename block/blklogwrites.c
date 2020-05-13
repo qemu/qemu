@@ -295,13 +295,8 @@ static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
         return;
     }
 
-    if (!strcmp(c->name, "log")) {
-        bdrv_format_default_perms(bs, c, child_class, role, ro_q, perm, shrd,
-                                  nperm, nshrd);
-    } else {
-        bdrv_filter_default_perms(bs, c, child_class, role, ro_q, perm, shrd,
-                                  nperm, nshrd);
-    }
+    bdrv_default_perms(bs, c, child_class, role, ro_q, perm, shrd,
+                       nperm, nshrd);
 }
 
 static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)
