@@ -504,7 +504,7 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     cmd->pa = frame;
     /* Map all possible frames */
     cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
-    if (frame_size_p != frame_size) {
+    if (!cmd->frame || frame_size_p != frame_size) {
         trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
         if (cmd->frame) {
             megasas_unmap_frame(s, cmd);
