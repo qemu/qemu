@@ -120,7 +120,8 @@ static QTAILQ_HEAD(, BlockBackend) block_backends =
 static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
-static void blk_root_inherit_options(int *child_flags, QDict *child_options,
+static void blk_root_inherit_options(BdrvChildRole role,
+                                     int *child_flags, QDict *child_options,
                                      int parent_flags, QDict *parent_options)
 {
     /* We're not supposed to call this function for root nodes */

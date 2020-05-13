@@ -677,7 +677,8 @@ struct BdrvChildClass {
      * non-BDS parents. */
     bool parent_is_bds;
 
-    void (*inherit_options)(int *child_flags, QDict *child_options,
+    void (*inherit_options)(BdrvChildRole role,
+                            int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
 
     void (*change_media)(BdrvChild *child, bool load);
