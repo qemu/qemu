@@ -339,7 +339,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
          */
         ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, prtbe_addr,
                                                  pate, &h_raddr, &h_prot,
-                                                 &h_page_size, 1, 1);
+                                                 &h_page_size, true,
+                                                 cause_excp);
         if (ret) {
             return ret;
         }
@@ -378,7 +379,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
         do {
             ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, pte_addr,
                                                      pate, &h_raddr, &h_prot,
-                                                     &h_page_size, 1, 1);
+                                                     &h_page_size, true,
+                                                     cause_excp);
             if (ret) {
                 return ret;
             }
