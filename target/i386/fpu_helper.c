@@ -59,8 +59,13 @@
 #define FPUC_EM 0x3f
 
 #define floatx80_lg2 make_floatx80(0x3ffd, 0x9a209a84fbcff799LL)
+#define floatx80_lg2_d make_floatx80(0x3ffd, 0x9a209a84fbcff798LL)
 #define floatx80_l2e make_floatx80(0x3fff, 0xb8aa3b295c17f0bcLL)
+#define floatx80_l2e_d make_floatx80(0x3fff, 0xb8aa3b295c17f0bbLL)
 #define floatx80_l2t make_floatx80(0x4000, 0xd49a784bcd1b8afeLL)
+#define floatx80_l2t_u make_floatx80(0x4000, 0xd49a784bcd1b8affLL)
+#define floatx80_ln2_d make_floatx80(0x3ffe, 0xb17217f7d1cf79abLL)
+#define floatx80_pi_d make_floatx80(0x4000, 0xc90fdaa22168c234LL)
 
 #if !defined(CONFIG_USER_ONLY)
 static qemu_irq ferr_irq;
@@ -544,27 +549,66 @@ void helper_fld1_ST0(CPUX86State *env)
 
 void helper_fldl2t_ST0(CPUX86State *env)
 {
-    ST0 = floatx80_l2t;
+    switch (env->fpuc & FPU_RC_MASK) {
+    case FPU_RC_UP:
+        ST0 = floatx80_l2t_u;
+        break;
+    default:
+        ST0 = floatx80_l2t;
+        break;
+    }
 }
 
 void helper_fldl2e_ST0(CPUX86State *env)
 {
-    ST0 = floatx80_l2e;
+    switch (env->fpuc & FPU_RC_MASK) {
+    case FPU_RC_DOWN:
+    case FPU_RC_CHOP:
+        ST0 = floatx80_l2e_d;
+        break;
+    default:
+        ST0 = floatx80_l2e;
+        break;
+    }
 }
 
 void helper_fldpi_ST0(CPUX86State *env)
 {
-    ST0 = floatx80_pi;
+    switch (env->fpuc & FPU_RC_MASK) {
+    case FPU_RC_DOWN:
+    case FPU_RC_CHOP:
+        ST0 = floatx80_pi_d;
+        break;
+    default:
+        ST0 = floatx80_pi;
+        break;
+    }
 }
 
 void helper_fldlg2_ST0(CPUX86State *env)
 {
-    ST0 = floatx80_lg2;
+    switch (env->fpuc & FPU_RC_MASK) {
+    case FPU_RC_DOWN:
+    case FPU_RC_CHOP:
+        ST0 = floatx80_lg2_d;
+        break;
+    default:
+        ST0 = floatx80_lg2;
+        break;
+    }
 }
 
 void helper_fldln2_ST0(CPUX86State *env)
 {
-    ST0 = floatx80_ln2;
+    switch (env->fpuc & FPU_RC_MASK) {
+    case FPU_RC_DOWN:
+    case FPU_RC_CHOP:
+        ST0 = floatx80_ln2_d;
+        break;
+    default:
+        ST0 = floatx80_ln2;
+        break;
+    }
 }
 
 void helper_fldz_ST0(CPUX86State *env)
