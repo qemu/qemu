@@ -1154,9 +1154,9 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
  * Returns the options and flags that bs->file should get if a protocol driver
  * is expected, based on the given options and flags for the parent BDS
  */
-static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
-                                   int *child_flags, QDict *child_options,
-                                   int parent_flags, QDict *parent_options)
+static void bdrv_protocol_options(BdrvChildRole role, bool parent_is_format,
+                                  int *child_flags, QDict *child_options,
+                                  int parent_flags, QDict *parent_options)
 {
     int flags = parent_flags;
 
@@ -1188,7 +1188,7 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
 const BdrvChildClass child_file = {
     .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
-    .inherit_options = bdrv_inherited_options,
+    .inherit_options = bdrv_protocol_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
     .drained_end     = bdrv_child_cb_drained_end,
