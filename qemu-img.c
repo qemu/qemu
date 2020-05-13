@@ -3009,6 +3009,8 @@ static int img_map(int argc, char **argv)
     int ret = 0;
     bool image_opts = false;
     bool force_share = false;
+    int64_t start_offset = 0;
+    int64_t max_length = -1;
 
     fmt = NULL;
     output = NULL;
@@ -3021,9 +3023,11 @@ static int img_map(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"start-offset", required_argument, 0, 's'},
+            {"max-length", required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:hU",
+        c = getopt_long(argc, argv, ":f:s:l:hU",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -3046,6 +3050,18 @@ static int img_map(int argc, char **argv)
             break;
         case OPTION_OUTPUT:
             output = optarg;
+            break;
+        case 's':
+            start_offset = cvtnum("start offset", optarg);
+            if (start_offset < 0) {
+                return 1;
+            }
+            break;
+        case 'l':
+            max_length = cvtnum("max length", optarg);
+            if (max_length < 0) {
+                return 1;
+            }
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -3097,7 +3113,11 @@ static int img_map(int argc, char **argv)
         error_report("Failed to get size for '%s'", filename);
         return 1;
     }
+    if (max_length != -1) {
+        length = MIN(start_offset + max_length, length);
+    }
 
+    curr.start = start_offset;
     while (curr.start + curr.length < length) {
         int64_t offset = curr.start + curr.length;
         int64_t n;
