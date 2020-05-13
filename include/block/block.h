@@ -268,6 +268,62 @@ enum {
     DEFAULT_PERM_UNCHANGED      = BLK_PERM_ALL & ~DEFAULT_PERM_PASSTHROUGH,
 };
 
+/*
+ * Flags that parent nodes assign to child nodes to specify what kind of
+ * role(s) they take.
+ *
+ * At least one of DATA, METADATA, FILTERED, or COW must be set for
+ * every child.
+ */
+enum BdrvChildRoleBits {
+    /*
+     * This child stores data.
+     * Any node may have an arbitrary number of such children.
+     */
+    BDRV_CHILD_DATA         = (1 << 0),
+
+    /*
+     * This child stores metadata.
+     * Any node may have an arbitrary number of metadata-storing
+     * children.
+     */
+    BDRV_CHILD_METADATA     = (1 << 1),
+
+    /*
+     * A child that always presents exactly the same visible data as
+     * the parent, e.g. by virtue of the parent forwarding all reads
+     * and writes.
+     * This flag is mutually exclusive with DATA, METADATA, and COW.
+     * Any node may have at most one filtered child at a time.
+     */
+    BDRV_CHILD_FILTERED     = (1 << 2),
+
+    /*
+     * Child from which to read all data that isn’t allocated in the
+     * parent (i.e., the backing child); such data is copied to the
+     * parent through COW (and optionally COR).
+     * This field is mutually exclusive with DATA, METADATA, and
+     * FILTERED.
+     * Any node may have at most one such backing child at a time.
+     */
+    BDRV_CHILD_COW          = (1 << 3),
+
+    /*
+     * The primary child.  For most drivers, this is the child whose
+     * filename applies best to the parent node.
+     * Any node may have at most one primary child at a time.
+     */
+    BDRV_CHILD_PRIMARY      = (1 << 4),
+
+    /* Useful combination of flags */
+    BDRV_CHILD_IMAGE        = BDRV_CHILD_DATA
+                              | BDRV_CHILD_METADATA
+                              | BDRV_CHILD_PRIMARY,
+};
+
+/* Mask of BdrvChildRoleBits values */
+typedef unsigned int BdrvChildRole;
+
 char *bdrv_perm_names(uint64_t perm);
 uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm);
 
