@@ -1789,9 +1789,11 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
                  env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
     qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
-                 "debug=%x imm=%x iflags=%x fsr=%" PRIx64 "\n",
+                 "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
+                 "rbtr=%" PRIx64 "\n",
                  env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
-                 env->debug, env->imm, env->iflags, env->sregs[SR_FSR]);
+                 env->debug, env->imm, env->iflags, env->sregs[SR_FSR],
+                 env->sregs[SR_BTR]);
     qemu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
                  "eip=%d ie=%d\n",
                  env->btaken, env->btarget,
@@ -1799,7 +1801,17 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
                  (bool)(env->sregs[SR_MSR] & MSR_EIP),
                  (bool)(env->sregs[SR_MSR] & MSR_IE));
+    for (i = 0; i < 12; i++) {
+        qemu_fprintf(f, "rpvr%2.2d=%8.8x ", i, env->pvr.regs[i]);
+        if ((i + 1) % 4 == 0) {
+            qemu_fprintf(f, "\n");
+        }
+    }
 
+    /* Registers that aren't modeled are reported as 0 */
+    qemu_fprintf(f, "redr=%" PRIx64 " rpid=0 rzpr=0 rtlbx=0 rtlbsx=0 "
+                    "rtlblo=0 rtlbhi=0\n", env->sregs[SR_EDR]);
+    qemu_fprintf(f, "slr=%x shr=%x\n", env->slr, env->shr);
     for (i = 0; i < 32; i++) {
         qemu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
         if ((i + 1) % 4 == 0)
