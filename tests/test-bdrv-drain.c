@@ -87,6 +87,7 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
 
 static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
                                  const BdrvChildClass *child_class,
+                                 BdrvChildRole role,
                                  BlockReopenQueue *reopen_queue,
                                  uint64_t perm, uint64_t shared,
                                  uint64_t *nperm, uint64_t *nshared)
@@ -99,8 +100,8 @@ static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
         child_class = &child_file;
     }
 
-    bdrv_format_default_perms(bs, c, child_class, reopen_queue, perm, shared,
-                              nperm, nshared);
+    bdrv_format_default_perms(bs, c, child_class, role, reopen_queue,
+                              perm, shared, nperm, nshared);
 }
 
 static int bdrv_test_change_backing_file(BlockDriverState *bs,

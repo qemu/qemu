@@ -1152,6 +1152,7 @@ static char *quorum_dirname(BlockDriverState *bs, Error **errp)
 
 static void quorum_child_perm(BlockDriverState *bs, BdrvChild *c,
                               const BdrvChildClass *child_class,
+                              BdrvChildRole role,
                               BlockReopenQueue *reopen_queue,
                               uint64_t perm, uint64_t shared,
                               uint64_t *nperm, uint64_t *nshared)
