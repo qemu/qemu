@@ -2254,6 +2254,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_check          = vhdx_co_check,
     .bdrv_has_zero_init     = vhdx_has_zero_init,
 
+    .is_format              = true,
     .create_opts            = &vhdx_create_opts,
 };
 

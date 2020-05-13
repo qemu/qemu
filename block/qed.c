@@ -1665,6 +1665,7 @@ static BlockDriver bdrv_qed = {
     .format_name              = "qed",
     .instance_size            = sizeof(BDRVQEDState),
     .create_opts              = &qed_create_opts,
+    .is_format                = true,
     .supports_backing         = true,
 
     .bdrv_probe               = bdrv_qed_probe,

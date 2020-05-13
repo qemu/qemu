@@ -771,6 +771,8 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
 
+    .is_format          = true,
+
     .strong_runtime_opts = block_crypto_strong_runtime_opts,
 };
 

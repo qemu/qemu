@@ -297,6 +297,7 @@ static BlockDriver bdrv_cloop = {
     .bdrv_refresh_limits = cloop_refresh_limits,
     .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,
+    .is_format      = true,
 };
 
 static void bdrv_cloop_init(void)

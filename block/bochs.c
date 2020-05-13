@@ -301,6 +301,7 @@ static BlockDriver bdrv_bochs = {
     .bdrv_refresh_limits = bochs_refresh_limits,
     .bdrv_co_preadv = bochs_co_preadv,
     .bdrv_close		= bochs_close,
+    .is_format          = true,
 };
 
 static void bdrv_bochs_init(void)
