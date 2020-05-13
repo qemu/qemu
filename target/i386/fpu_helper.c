@@ -732,6 +732,16 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
 
     val = floatx80_to_int64(ST0, &env->fp_status);
     mem_ref = ptr;
+    if (val >= 1000000000000000000LL || val <= -1000000000000000000LL) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        while (mem_ref < ptr + 7) {
+            cpu_stb_data_ra(env, mem_ref++, 0, GETPC());
+        }
+        cpu_stb_data_ra(env, mem_ref++, 0xc0, GETPC());
+        cpu_stb_data_ra(env, mem_ref++, 0xff, GETPC());
+        cpu_stb_data_ra(env, mem_ref++, 0xff, GETPC());
+        return;
+    }
     mem_end = mem_ref + 9;
     if (SIGND(temp)) {
         cpu_stb_data_ra(env, mem_end, 0x80, GETPC());
