@@ -274,7 +274,7 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                               ppc_v3_pate_t pate,
                                               hwaddr *h_raddr, int *h_prot,
                                               int *h_page_size, bool pde_addr,
-                                              bool cause_excp)
+                                              bool guest_visible)
 {
     int fault_cause = 0;
     hwaddr pte_addr;
@@ -289,14 +289,15 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu, int rwx,
         if (pde_addr) { /* address being translated was that of a guest pde */
             fault_cause |= DSISR_PRTABLE_FAULT;
         }
-        if (cause_excp) {
+        if (guest_visible) {
             ppc_radix64_raise_hsi(cpu, rwx, eaddr, g_raddr, fault_cause);
         }
         return 1;
     }
 
-    /* Update Reference and Change Bits */
-    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, h_prot);
+    if (guest_visible) {
+        ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, h_prot);
+    }
 
     return 0;
 }
@@ -305,7 +306,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                             vaddr eaddr, uint64_t pid,
                                             ppc_v3_pate_t pate, hwaddr *g_raddr,
                                             int *g_prot, int *g_page_size,
-                                            bool cause_excp)
+                                            bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -319,7 +320,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
     size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
     if (offset >= size) {
         /* offset exceeds size of the process table */
-        if (cause_excp) {
+        if (guest_visible) {
             ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
         }
         return 1;
@@ -340,7 +341,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
         ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, prtbe_addr,
                                                  pate, &h_raddr, &h_prot,
                                                  &h_page_size, true,
-                                                 cause_excp);
+                                                 guest_visible);
         if (ret) {
             return ret;
         }
@@ -360,7 +361,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                     &fault_cause, &pte_addr);
         if (ret) {
             /* No valid PTE */
-            if (cause_excp) {
+            if (guest_visible) {
                 ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
             }
             return ret;
@@ -380,7 +381,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
             ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, pte_addr,
                                                      pate, &h_raddr, &h_prot,
                                                      &h_page_size, true,
-                                                     cause_excp);
+                                                     guest_visible);
             if (ret) {
                 return ret;
             }
@@ -389,7 +390,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                          &nls, g_page_size, &pte, &fault_cause);
             if (ret) {
                 /* No valid pte */
-                if (cause_excp) {
+                if (guest_visible) {
                     ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
                 }
                 return ret;
@@ -406,13 +407,15 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
 
     if (ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, g_prot, false)) {
         /* Access denied due to protection */
-        if (cause_excp) {
+        if (guest_visible) {
             ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
         }
         return 1;
     }
 
-    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, g_prot);
+    if (guest_visible) {
+        ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, g_prot);
+    }
 
     return 0;
 }
@@ -437,7 +440,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
 static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                              bool relocation,
                              hwaddr *raddr, int *psizep, int *protp,
-                             bool cause_excp)
+                             bool guest_visible)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
@@ -447,7 +450,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
     /* Virtual Mode Access - get the fully qualified address */
     if (!ppc_radix64_get_fully_qualified_addr(&cpu->env, eaddr, &lpid, &pid)) {
-        if (cause_excp) {
+        if (guest_visible) {
             ppc_radix64_raise_segi(cpu, rwx, eaddr);
         }
         return 1;
@@ -460,13 +463,13 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
         vhc->get_pate(cpu->vhyp, &pate);
     } else {
         if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
-            if (cause_excp) {
+            if (guest_visible) {
                 ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
             }
             return 1;
         }
         if (!validate_pate(cpu, lpid, &pate)) {
-            if (cause_excp) {
+            if (guest_visible) {
                 ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_R_BADCONFIG);
             }
             return 1;
@@ -487,7 +490,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     if (relocation) {
         int ret = ppc_radix64_process_scoped_xlate(cpu, rwx, eaddr, pid,
                                                    pate, &g_raddr, &prot,
-                                                   &psize, cause_excp);
+                                                   &psize, guest_visible);
         if (ret) {
             return ret;
         }
@@ -510,7 +513,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
             ret = ppc_radix64_partition_scoped_xlate(cpu, rwx, eaddr, g_raddr,
                                                      pate, raddr, &prot, &psize,
-                                                     0, cause_excp);
+                                                     0, guest_visible);
             if (ret) {
                 return ret;
             }
