@@ -2497,6 +2497,13 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
             perm |= BLK_PERM_CONSISTENT_READ;
         }
         shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+
+        if (bs->open_flags & BDRV_O_INACTIVE) {
+            shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+        }
+
+        *nperm = perm;
+        *nshared = shared;
     } else {
         /* We want consistent read from backing files if the parent needs it.
          * No other operations are performed on backing files. */
@@ -2513,14 +2520,14 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
 
         shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
                   BLK_PERM_WRITE_UNCHANGED;
-    }
 
-    if (bs->open_flags & BDRV_O_INACTIVE) {
-        shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
-    }
+        if (bs->open_flags & BDRV_O_INACTIVE) {
+            shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+        }
 
-    *nperm = perm;
-    *nshared = shared;
+        *nperm = perm;
+        *nshared = shared;
+    }
 }
 
 uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm)
