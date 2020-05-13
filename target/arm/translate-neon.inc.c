@@ -692,8 +692,7 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
                                 uint32_t rn_ofs, uint32_t rm_ofs,       \
                                 uint32_t oprsz, uint32_t maxsz)         \
     {                                                                   \
-        /* Note the operation is vshl vd,vm,vn */                       \
-        tcg_gen_gvec_3(rd_ofs, rm_ofs, rn_ofs,                          \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs,                          \
                        oprsz, maxsz, &OPARRAY[vece]);                   \
     }                                                                   \
     DO_3SAME(INSN, gen_##INSN##_3s)
