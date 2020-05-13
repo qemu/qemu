@@ -134,8 +134,8 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Open the test file */
     s->test_file = bdrv_open_child(qemu_opt_get(opts, "x-image"), options,
-                                   "test", bs, &child_format, 0, false,
-                                   &local_err);
+                                   "test", bs, &child_of_bds, BDRV_CHILD_DATA,
+                                   false, &local_err);
     if (local_err) {
         ret = -EINVAL;
         error_propagate(errp, local_err);
