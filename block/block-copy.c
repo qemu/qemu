@@ -591,13 +591,13 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
         }
         if (s->skip_unallocated && !(ret & BDRV_BLOCK_ALLOCATED)) {
             block_copy_task_end(task, 0);
-            g_free(task);
             progress_set_remaining(s->progress,
                                    bdrv_get_dirty_count(s->copy_bitmap) +
                                    s->in_flight_bytes);
             trace_block_copy_skip_range(s, task->offset, task->bytes);
             offset = task_end(task);
             bytes = end - offset;
+            g_free(task);
             continue;
         }
         task->zeroes = ret & BDRV_BLOCK_ZERO;

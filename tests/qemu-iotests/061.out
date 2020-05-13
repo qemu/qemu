@@ -22,11 +22,11 @@ incompatible_features     []
 compatible_features       [0]
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 magic                     0x514649fb
@@ -80,11 +80,11 @@ incompatible_features     []
 compatible_features       [0]
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 magic                     0x514649fb
@@ -136,11 +136,11 @@ incompatible_features     [0]
 compatible_features       [0]
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -191,11 +191,11 @@ incompatible_features     []
 compatible_features       [42]
 autoclear_features        [42]
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 magic                     0x514649fb
@@ -260,11 +260,11 @@ incompatible_features     []
 compatible_features       [0]
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 read 65536/65536 bytes at offset 44040192
@@ -322,11 +322,11 @@ incompatible_features     [0]
 compatible_features       [0]
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -351,11 +351,11 @@ incompatible_features     []
 compatible_features       []
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 read 131072/131072 bytes at offset 0
@@ -519,6 +519,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file: TEST_DIR/t.IMGFMT.data
@@ -539,6 +540,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file: foo
@@ -552,6 +554,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file raw: false
@@ -566,6 +569,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file: TEST_DIR/t.IMGFMT.data
@@ -578,6 +582,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file: TEST_DIR/t.IMGFMT.data
@@ -591,6 +596,7 @@ virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     data file: TEST_DIR/t.IMGFMT.data

@@ -78,6 +78,8 @@
 #
 # @bitmaps: A list of qcow2 bitmap details (since 4.0)
 #
+# @compression-type: the image cluster compression method (since 5.1)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -89,7 +91,8 @@
       '*corrupt': 'bool',
       'refcount-bits': 'int',
       '*encrypt': 'ImageInfoSpecificQCow2Encryption',
-      '*bitmaps': ['Qcow2BitmapInfo']
+      '*bitmaps': ['Qcow2BitmapInfo'],
+      'compression-type': 'Qcow2CompressionType'
   } }
 
 ##
@@ -4285,6 +4288,19 @@
 
 
 ##
+# @Qcow2CompressionType:
+#
+# Compression type used in qcow2 image file
+#
+# @zlib: zlib compression, see <http://zlib.net/>
+# @zstd: zstd compression, see <http://github.com/facebook/zstd>
+#
+# Since: 5.1
+##
+{ 'enum': 'Qcow2CompressionType',
+  'data': [ 'zlib', { 'name': 'zstd', 'if': 'defined(CONFIG_ZSTD)' } ] }
+
+##
 # @BlockdevCreateOptionsQcow2:
 #
 # Driver specific image creation options for qcow2.
@@ -4307,6 +4323,8 @@
 #                 allowed values: off, falloc, full, metadata)
 # @lazy-refcounts: True if refcounts may be updated lazily (default: off)
 # @refcount-bits: Width of reference counts in bits (default: 16)
+# @compression-type: The image cluster compression method
+#                    (default: zlib, since 5.1)
 #
 # Since: 2.12
 ##
@@ -4322,7 +4340,8 @@
             '*cluster-size':    'size',
             '*preallocation':   'PreallocMode',
             '*lazy-refcounts':  'bool',
-            '*refcount-bits':   'int' } }
+            '*refcount-bits':   'int',
+            '*compression-type':'Qcow2CompressionType' } }
 
 ##
 # @BlockdevCreateOptionsQed:

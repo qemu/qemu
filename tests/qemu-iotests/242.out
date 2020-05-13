@@ -12,6 +12,7 @@ virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     refcount bits: 16
     corrupt: false
@@ -32,6 +33,7 @@ virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     bitmaps:
         [0]:
@@ -64,6 +66,7 @@ virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     bitmaps:
         [0]:
@@ -104,6 +107,7 @@ virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     bitmaps:
         [0]:
@@ -153,6 +157,7 @@ virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
+    compression type: zlib
     lazy refcounts: false
     bitmaps:
         [0]:

@@ -146,7 +146,15 @@ typedef struct QCowHeader {
 
     uint32_t refcount_order;
     uint32_t header_length;
+
+    /* Additional fields */
+    uint8_t compression_type;
+
+    /* header must be a multiple of 8 */
+    uint8_t padding[7];
 } QEMU_PACKED QCowHeader;
+
+QEMU_BUILD_BUG_ON(!QEMU_IS_ALIGNED(sizeof(QCowHeader), 8));
 
 typedef struct QEMU_PACKED QCowSnapshotHeader {
     /* header is 8 byte aligned */
@@ -216,13 +224,16 @@ enum {
     QCOW2_INCOMPAT_DIRTY_BITNR      = 0,
     QCOW2_INCOMPAT_CORRUPT_BITNR    = 1,
     QCOW2_INCOMPAT_DATA_FILE_BITNR  = 2,
+    QCOW2_INCOMPAT_COMPRESSION_BITNR = 3,
     QCOW2_INCOMPAT_DIRTY            = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
     QCOW2_INCOMPAT_CORRUPT          = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
     QCOW2_INCOMPAT_DATA_FILE        = 1 << QCOW2_INCOMPAT_DATA_FILE_BITNR,
+    QCOW2_INCOMPAT_COMPRESSION      = 1 << QCOW2_INCOMPAT_COMPRESSION_BITNR,
 
     QCOW2_INCOMPAT_MASK             = QCOW2_INCOMPAT_DIRTY
                                     | QCOW2_INCOMPAT_CORRUPT
-                                    | QCOW2_INCOMPAT_DATA_FILE,
+                                    | QCOW2_INCOMPAT_DATA_FILE
+                                    | QCOW2_INCOMPAT_COMPRESSION,
 };
 
 /* Compatible feature bits */
@@ -366,6 +377,13 @@ typedef struct BDRVQcow2State {
 
     bool metadata_preallocation_checked;
     bool metadata_preallocation;
+    /*
+     * Compression type used for the image. Default: 0 - ZLIB
+     * The image compression type is set on image creation.
+     * For now, the only way to change the compression type
+     * is to convert the image with the desired compression type set.
+     */
+    Qcow2CompressionType compression_type;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

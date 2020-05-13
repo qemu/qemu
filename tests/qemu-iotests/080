@@ -45,7 +45,7 @@ _supported_os Linux
 # - This is generally a test for compat=1.1 images
 _unsupported_imgopts 'refcount_bits=1[^0-9]' data_file 'compat=0.10'
 
-header_size=104
+header_size=112
 
 offset_backing_file_offset=8
 offset_backing_file_size=16

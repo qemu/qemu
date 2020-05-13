@@ -113,11 +113,11 @@ incompatible_features     []
 compatible_features       []
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 Header extension:
@@ -146,11 +146,11 @@ incompatible_features     []
 compatible_features       []
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 Header extension:
@@ -164,7 +164,7 @@ No errors were found on the image.
 
 magic                     0x514649fb
 version                   3
-backing_file_offset       0x1d8
+backing_file_offset       0x210
 backing_file_size         0x17
 cluster_bits              16
 size                      67108864
@@ -179,7 +179,7 @@ incompatible_features     []
 compatible_features       []
 autoclear_features        []
 refcount_order            4
-header_length             104
+header_length             112
 
 Header extension:
 magic                     0xe2792aca
@@ -188,7 +188,7 @@ data                      'host_device'
 
 Header extension:
 magic                     0x6803f857
-length                    288
+length                    336
 data                      <binary>
 
 Header extension:
