@@ -85,6 +85,7 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
                                    int *child_flags, QDict *child_options,
                                    int parent_flags, QDict *parent_options);
 static void bdrv_child_cb_attach(BdrvChild *child);
+static void bdrv_child_cb_detach(BdrvChild *child);
 
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
@@ -1100,12 +1101,6 @@ static void bdrv_child_cb_drained_end(BdrvChild *child,
     bdrv_drained_end_no_poll(bs, drained_end_counter);
 }
 
-static void bdrv_child_cb_detach(BdrvChild *child)
-{
-    BlockDriverState *bs = child->opaque;
-    bdrv_unapply_subtree_drain(child, bs);
-}
-
 static int bdrv_child_cb_inactivate(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -1266,7 +1261,14 @@ static void bdrv_backing_detach(BdrvChild *c)
     bdrv_op_unblock_all(c->bs, parent->backing_blocker);
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
+}
 
+/* XXX: Will be removed along with child_backing */
+static void bdrv_child_cb_detach_backing(BdrvChild *c)
+{
+    if (!(c->role & BDRV_CHILD_COW)) {
+        bdrv_backing_detach(c);
+    }
     bdrv_child_cb_detach(c);
 }
 
@@ -1314,7 +1316,7 @@ const BdrvChildClass child_backing = {
     .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
     .attach          = bdrv_child_cb_attach_backing,
-    .detach          = bdrv_backing_detach,
+    .detach          = bdrv_child_cb_detach_backing,
     .inherit_options = bdrv_backing_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
@@ -1414,6 +1416,17 @@ static void bdrv_child_cb_attach(BdrvChild *child)
     }
 
     bdrv_apply_subtree_drain(child, bs);
+}
+
+static void bdrv_child_cb_detach(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+
+    if (child->role & BDRV_CHILD_COW) {
+        bdrv_backing_detach(child);
+    }
+
+    bdrv_unapply_subtree_drain(child, bs);
 }
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
