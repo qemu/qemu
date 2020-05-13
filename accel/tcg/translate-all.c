@@ -1800,7 +1800,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             size_t data_size = gen_code_size - code_size;
             size_t i;
 
-            log_disas(tb->tc.ptr, code_size);
+            log_disas(tb->tc.ptr, code_size, NULL);
 
             for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
                 if (sizeof(tcg_target_ulong) == 8) {
@@ -1814,7 +1814,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 }
             }
         } else {
-            log_disas(tb->tc.ptr, gen_code_size);
+            log_disas(tb->tc.ptr, gen_code_size, NULL);
         }
         qemu_log("\n");
         qemu_log_flush();
