@@ -26,12 +26,37 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
 
+    /*
+     * GDB expects registers to be reported in this order:
+     * R0-R31
+     * PC-BTR
+     * PVR0-PVR11
+     * EDR-TLBHI
+     * SLR-SHR
+     */
     if (n < 32) {
         return gdb_get_reg32(mem_buf, env->regs[n]);
     } else {
-        return gdb_get_reg32(mem_buf, env->sregs[n - 32]);
+        n -= 32;
+        switch (n) {
+        case 0 ... 5:
+            return gdb_get_reg32(mem_buf, env->sregs[n]);
+        /* PVR12 is intentionally skipped */
+        case 6 ... 17:
+            n -= 6;
+            return gdb_get_reg32(mem_buf, env->pvr.regs[n]);
+        case 18 ... 24:
+            /* Add an offset of 6 to resume where we left off with SRegs */
+            n = n - 18 + 6;
+            return gdb_get_reg32(mem_buf, env->sregs[n]);
+        case 25:
+            return gdb_get_reg32(mem_buf, env->slr);
+        case 26:
+            return gdb_get_reg32(mem_buf, env->shr);
+        default:
+            return 0;
+        }
     }
-    return 0;
 }
 
 int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
@@ -50,7 +75,28 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (n < 32) {
         env->regs[n] = tmp;
     } else {
-        env->sregs[n - 32] = tmp;
+        n -= 32;
+        switch (n) {
+        case 0 ... 5:
+            env->sregs[n] = tmp;
+            break;
+        /* PVR12 is intentionally skipped */
+        case 6 ... 17:
+            n -= 6;
+            env->pvr.regs[n] = tmp;
+            break;
+        case 18 ... 24:
+            /* Add an offset of 6 to resume where we left off with SRegs */
+            n = n - 18 + 6;
+            env->sregs[n] = tmp;
+            break;
+        case 25:
+            env->slr = tmp;
+            break;
+        case 26:
+            env->shr = tmp;
+            break;
+        }
     }
     return 4;
 }
