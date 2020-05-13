@@ -1407,3 +1407,27 @@ DO_CMP0(gvec_cgt0_h, int16_t, >)
 DO_CMP0(gvec_cge0_h, int16_t, >=)
 
 #undef DO_CMP0
+
+#define DO_ABD(NAME, TYPE)                                      \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)  \
+{                                                               \
+    intptr_t i, opr_sz = simd_oprsz(desc);                      \
+    TYPE *d = vd, *n = vn, *m = vm;                             \
+                                                                \
+    for (i = 0; i < opr_sz / sizeof(TYPE); ++i) {               \
+        d[i] = n[i] < m[i] ? m[i] - n[i] : n[i] - m[i];         \
+    }                                                           \
+    clear_tail(d, opr_sz, simd_maxsz(desc));                    \
+}
+
+DO_ABD(gvec_sabd_b, int8_t)
+DO_ABD(gvec_sabd_h, int16_t)
+DO_ABD(gvec_sabd_s, int32_t)
+DO_ABD(gvec_sabd_d, int64_t)
+
+DO_ABD(gvec_uabd_b, uint8_t)
+DO_ABD(gvec_uabd_h, uint16_t)
+DO_ABD(gvec_uabd_s, uint32_t)
+DO_ABD(gvec_uabd_d, uint64_t)
+
+#undef DO_ABD
