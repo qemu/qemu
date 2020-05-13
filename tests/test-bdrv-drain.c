@@ -93,12 +93,10 @@ static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
                                  uint64_t *nperm, uint64_t *nshared)
 {
     /*
-     * bdrv_default_perms() accepts only these two, so disguise
-     * detach_by_driver_cb_parent as one of them.
+     * bdrv_default_perms() accepts nothing else, so disguise
+     * detach_by_driver_cb_parent.
      */
-    if (child_class != &child_file && child_class != &child_of_bds) {
-        child_class = &child_of_bds;
-    }
+    child_class = &child_of_bds;
 
     bdrv_default_perms(bs, c, child_class, role, reopen_queue,
                        perm, shared, nperm, nshared);

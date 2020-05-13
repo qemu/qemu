@@ -80,13 +80,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            BdrvChildRole child_role,
                                            Error **errp);
 
-/* TODO: Remove when no longer needed */
-static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
-                                   int *child_flags, QDict *child_options,
-                                   int parent_flags, QDict *parent_options);
-static void bdrv_child_cb_attach(BdrvChild *child);
-static void bdrv_child_cb_detach(BdrvChild *child);
-
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -1144,33 +1137,6 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
      * temporary snapshot */
     *child_flags &= ~BDRV_O_NATIVE_AIO;
 }
-
-/*
- * Returns the options and flags that bs->file should get if a protocol driver
- * is expected, based on the given options and flags for the parent BDS
- */
-static void bdrv_protocol_options(BdrvChildRole role, bool parent_is_format,
-                                  int *child_flags, QDict *child_options,
-                                  int parent_flags, QDict *parent_options)
-{
-    bdrv_inherited_options(BDRV_CHILD_IMAGE, true,
-                           child_flags, child_options,
-                           parent_flags, parent_options);
-}
-
-const BdrvChildClass child_file = {
-    .parent_is_bds   = true,
-    .get_parent_desc = bdrv_child_get_parent_desc,
-    .inherit_options = bdrv_protocol_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_poll    = bdrv_child_cb_drained_poll,
-    .drained_end     = bdrv_child_cb_drained_end,
-    .attach          = bdrv_child_cb_attach,
-    .detach          = bdrv_child_cb_detach,
-    .inactivate      = bdrv_child_cb_inactivate,
-    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
-    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
-};
 
 static void bdrv_backing_attach(BdrvChild *c)
 {
@@ -2444,9 +2410,8 @@ static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
 {
     int flags;
 
-    assert(child_class == &child_file ||
-           (child_class == &child_of_bds &&
-            (role & (BDRV_CHILD_METADATA | BDRV_CHILD_DATA))));
+    assert(child_class == &child_of_bds &&
+           (role & (BDRV_CHILD_METADATA | BDRV_CHILD_DATA)));
 
     flags = bdrv_reopen_get_flags(reopen_queue, bs);
 
