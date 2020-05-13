@@ -742,7 +742,6 @@ struct BdrvChildClass {
 
 extern const BdrvChildClass child_of_bds;
 extern const BdrvChildClass child_file;
-extern const BdrvChildClass child_backing;
 
 struct BdrvChild {
     BlockDriverState *bs;

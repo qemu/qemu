@@ -1215,15 +1215,6 @@ static void bdrv_backing_attach(BdrvChild *c)
                     parent->backing_blocker);
 }
 
-/* XXX: Will be removed along with child_backing */
-static void bdrv_child_cb_attach_backing(BdrvChild *c)
-{
-    if (!(c->role & BDRV_CHILD_COW)) {
-        bdrv_backing_attach(c);
-    }
-    bdrv_child_cb_attach(c);
-}
-
 static void bdrv_backing_detach(BdrvChild *c)
 {
     BlockDriverState *parent = c->opaque;
@@ -1232,28 +1223,6 @@ static void bdrv_backing_detach(BdrvChild *c)
     bdrv_op_unblock_all(c->bs, parent->backing_blocker);
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
-}
-
-/* XXX: Will be removed along with child_backing */
-static void bdrv_child_cb_detach_backing(BdrvChild *c)
-{
-    if (!(c->role & BDRV_CHILD_COW)) {
-        bdrv_backing_detach(c);
-    }
-    bdrv_child_cb_detach(c);
-}
-
-/*
- * Returns the options and flags that bs->backing should get, based on the
- * given options and flags for the parent BDS
- */
-static void bdrv_backing_options(BdrvChildRole role, bool parent_is_format,
-                                 int *child_flags, QDict *child_options,
-                                 int parent_flags, QDict *parent_options)
-{
-    bdrv_inherited_options(BDRV_CHILD_COW, true,
-                           child_flags, child_options,
-                           parent_flags, parent_options);
 }
 
 static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
@@ -1282,21 +1251,6 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
 
     return ret;
 }
-
-const BdrvChildClass child_backing = {
-    .parent_is_bds   = true,
-    .get_parent_desc = bdrv_child_get_parent_desc,
-    .attach          = bdrv_child_cb_attach_backing,
-    .detach          = bdrv_child_cb_detach_backing,
-    .inherit_options = bdrv_backing_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_poll    = bdrv_child_cb_drained_poll,
-    .drained_end     = bdrv_child_cb_drained_end,
-    .inactivate      = bdrv_child_cb_inactivate,
-    .update_filename = bdrv_backing_update_filename,
-    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
-    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
-};
 
 /*
  * Returns the options and flags that a generic child of a BDS should
@@ -2446,8 +2400,7 @@ static void bdrv_default_perms_for_cow(BlockDriverState *bs, BdrvChild *c,
                                        uint64_t perm, uint64_t shared,
                                        uint64_t *nperm, uint64_t *nshared)
 {
-    assert(child_class == &child_backing ||
-           (child_class == &child_of_bds && (role & BDRV_CHILD_COW)));
+    assert(child_class == &child_of_bds && (role & BDRV_CHILD_COW));
 
     /*
      * We want consistent read from backing files if the parent needs it.
@@ -2566,23 +2519,16 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t perm, uint64_t shared,
                                uint64_t *nperm, uint64_t *nshared)
 {
-    bool backing = (child_class == &child_backing);
-
     if (child_class == &child_of_bds) {
         bdrv_default_perms(bs, c, child_class, role, reopen_queue,
                            perm, shared, nperm, nshared);
         return;
     }
 
-    assert(child_class == &child_backing || child_class == &child_file);
+    assert(child_class == &child_file);
 
-    if (!backing) {
-        bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
-                                       perm, shared, nperm, nshared);
-    } else {
-        bdrv_default_perms_for_cow(bs, c, child_class, role, reopen_queue,
+    bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
                                    perm, shared, nperm, nshared);
-    }
 }
 
 void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
