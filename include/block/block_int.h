@@ -1344,4 +1344,16 @@ int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
                                             Error **errp);
 extern QemuOptsList bdrv_create_opts_simple;
 
+BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
+                                           const char *name,
+                                           BlockDriverState **pbs,
+                                           Error **errp);
+BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
+                                          BlockDirtyBitmapMergeSourceList *bms,
+                                          HBitmap **backup, Error **errp);
+BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
+                                           bool release,
+                                           BlockDriverState **bitmap_bs,
+                                           Error **errp);
+
 #endif /* BLOCK_INT_H */

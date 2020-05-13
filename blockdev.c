@@ -1197,10 +1197,10 @@ out_aio_context:
  *
  * @return: A bitmap object on success, or NULL on failure.
  */
-static BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
-                                                  const char *name,
-                                                  BlockDriverState **pbs,
-                                                  Error **errp)
+BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
+                                           const char *name,
+                                           BlockDriverState **pbs,
+                                           Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
@@ -2171,11 +2171,6 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
-        const char *node, const char *target,
-        BlockDirtyBitmapMergeSourceList *bitmaps,
-        HBitmap **backup, Error **errp);
-
 static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                              Error **errp)
 {
@@ -2189,14 +2184,10 @@ static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
 
     action = common->action->u.block_dirty_bitmap_merge.data;
 
-    state->bitmap = do_block_dirty_bitmap_merge(action->node, action->target,
-                                                action->bitmaps, &state->backup,
-                                                errp);
+    state->bitmap = block_dirty_bitmap_merge(action->node, action->target,
+                                             action->bitmaps, &state->backup,
+                                             errp);
 }
-
-static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
-        const char *node, const char *name, bool release,
-        BlockDriverState **bitmap_bs, Error **errp);
 
 static void block_dirty_bitmap_remove_prepare(BlkActionState *common,
                                               Error **errp)
@@ -2211,8 +2202,8 @@ static void block_dirty_bitmap_remove_prepare(BlkActionState *common,
 
     action = common->action->u.block_dirty_bitmap_remove.data;
 
-    state->bitmap = do_block_dirty_bitmap_remove(action->node, action->name,
-                                                 false, &state->bs, errp);
+    state->bitmap = block_dirty_bitmap_remove(action->node, action->name,
+                                              false, &state->bs, errp);
     if (state->bitmap) {
         bdrv_dirty_bitmap_skip_store(state->bitmap, true);
         bdrv_dirty_bitmap_set_busy(state->bitmap, true);
@@ -2504,9 +2495,10 @@ out:
     aio_context_release(aio_context);
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
-        const char *node, const char *name, bool release,
-        BlockDriverState **bitmap_bs, Error **errp)
+BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
+                                           bool release,
+                                           BlockDriverState **bitmap_bs,
+                                           Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
@@ -2548,7 +2540,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
 void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
                                    Error **errp)
 {
-    do_block_dirty_bitmap_remove(node, name, true, NULL, errp);
+    block_dirty_bitmap_remove(node, name, true, NULL, errp);
 }
 
 /**
@@ -2609,10 +2601,9 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
     bdrv_disable_dirty_bitmap(bitmap);
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
-        const char *node, const char *target,
-        BlockDirtyBitmapMergeSourceList *bitmaps,
-        HBitmap **backup, Error **errp)
+BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
+                                          BlockDirtyBitmapMergeSourceList *bms,
+                                          HBitmap **backup, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *dst, *src, *anon;
@@ -2630,7 +2621,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
         return NULL;
     }
 
-    for (lst = bitmaps; lst; lst = lst->next) {
+    for (lst = bms; lst; lst = lst->next) {
         switch (lst->value->type) {
             const char *name, *node;
         case QTYPE_QSTRING:
@@ -2675,7 +2666,7 @@ void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
                                   BlockDirtyBitmapMergeSourceList *bitmaps,
                                   Error **errp)
 {
-    do_block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
+    block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
