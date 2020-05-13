@@ -1741,7 +1741,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    qemu_add_vm_change_state_handler(cpu_update_state, env);
+    cpu->vmsentry = qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     c = cpuid_find_entry(&cpuid_data.cpuid, 1, 0);
     if (c) {
@@ -1851,6 +1851,8 @@ int kvm_arch_destroy_vcpu(CPUState *cs)
         g_free(env->nested_state);
         env->nested_state = NULL;
     }
+
+    qemu_del_vm_change_state_handler(cpu->vmsentry);
 
     return 0;
 }
