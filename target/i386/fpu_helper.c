@@ -726,11 +726,14 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
     int v;
     target_ulong mem_ref, mem_end;
     int64_t val;
+    CPU_LDoubleU temp;
+
+    temp.d = ST0;
 
     val = floatx80_to_int64(ST0, &env->fp_status);
     mem_ref = ptr;
     mem_end = mem_ref + 9;
-    if (val < 0) {
+    if (SIGND(temp)) {
         cpu_stb_data_ra(env, mem_end, 0x80, GETPC());
         val = -val;
     } else {
