@@ -1099,7 +1099,7 @@ void helper_fxam_ST0(CPUX86State *env)
     if (expdif == MAXEXPD) {
         if (MANTD(temp) == 0x8000000000000000ULL) {
             env->fpus |= 0x500; /* Infinity */
-        } else {
+        } else if (MANTD(temp) & 0x8000000000000000ULL) {
             env->fpus |= 0x100; /* NaN */
         }
     } else if (expdif == 0) {
@@ -1108,7 +1108,7 @@ void helper_fxam_ST0(CPUX86State *env)
         } else {
             env->fpus |= 0x4400; /* Denormal */
         }
-    } else {
+    } else if (MANTD(temp) & 0x8000000000000000ULL) {
         env->fpus |= 0x400;
     }
 }
