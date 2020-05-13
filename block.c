@@ -2596,6 +2596,13 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t *nperm, uint64_t *nshared)
 {
     bool backing = (child_class == &child_backing);
+
+    if (child_class == &child_of_bds) {
+        bdrv_default_perms(bs, c, child_class, role, reopen_queue,
+                           perm, shared, nperm, nshared);
+        return;
+    }
+
     assert(child_class == &child_backing || child_class == &child_file);
 
     if (!backing) {
@@ -2604,6 +2611,31 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
     } else {
         bdrv_default_perms_for_cow(bs, c, child_class, role, reopen_queue,
                                    perm, shared, nperm, nshared);
+    }
+}
+
+void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
+                        const BdrvChildClass *child_class, BdrvChildRole role,
+                        BlockReopenQueue *reopen_queue,
+                        uint64_t perm, uint64_t shared,
+                        uint64_t *nperm, uint64_t *nshared)
+{
+    assert(child_class == &child_of_bds);
+
+    if (role & BDRV_CHILD_FILTERED) {
+        assert(!(role & (BDRV_CHILD_DATA | BDRV_CHILD_METADATA |
+                         BDRV_CHILD_COW)));
+        bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+                                  perm, shared, nperm, nshared);
+    } else if (role & BDRV_CHILD_COW) {
+        assert(!(role & (BDRV_CHILD_DATA | BDRV_CHILD_METADATA)));
+        bdrv_default_perms_for_cow(bs, c, child_class, role, reopen_queue,
+                                   perm, shared, nperm, nshared);
+    } else if (role & (BDRV_CHILD_METADATA | BDRV_CHILD_DATA)) {
+        bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
+                                       perm, shared, nperm, nshared);
+    } else {
+        g_assert_not_reached();
     }
 }
 
