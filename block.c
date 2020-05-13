@@ -2506,6 +2506,50 @@ static void bdrv_default_perms_for_cow(BlockDriverState *bs, BdrvChild *c,
     *nshared = shared;
 }
 
+static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
+                                           const BdrvChildClass *child_class,
+                                           BdrvChildRole role,
+                                           BlockReopenQueue *reopen_queue,
+                                           uint64_t perm, uint64_t shared,
+                                           uint64_t *nperm, uint64_t *nshared)
+{
+    int flags;
+
+    assert(child_class == &child_file ||
+           (child_class == &child_of_bds &&
+            (role & (BDRV_CHILD_METADATA | BDRV_CHILD_DATA))));
+
+    flags = bdrv_reopen_get_flags(reopen_queue, bs);
+
+    /*
+     * Apart from the modifications below, the same permissions are
+     * forwarded and left alone as for filters
+     */
+    bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+                              perm, shared, &perm, &shared);
+
+    /* Format drivers may touch metadata even if the guest doesn't write */
+    if (bdrv_is_writable_after_reopen(bs, reopen_queue)) {
+        perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    }
+
+    /*
+     * bs->file always needs to be consistent because of the metadata. We
+     * can never allow other users to resize or write to it.
+     */
+    if (!(flags & BDRV_O_NO_IO)) {
+        perm |= BLK_PERM_CONSISTENT_READ;
+    }
+    shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    }
+
+    *nperm = perm;
+    *nshared = shared;
+}
+
 void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                const BdrvChildClass *child_class,
                                BdrvChildRole role,
@@ -2517,31 +2561,8 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
     assert(child_class == &child_backing || child_class == &child_file);
 
     if (!backing) {
-        int flags = bdrv_reopen_get_flags(reopen_queue, bs);
-
-        /* Apart from the modifications below, the same permissions are
-         * forwarded and left alone as for filters */
-        bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
-                                  perm, shared, &perm, &shared);
-
-        /* Format drivers may touch metadata even if the guest doesn't write */
-        if (bdrv_is_writable_after_reopen(bs, reopen_queue)) {
-            perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
-        }
-
-        /* bs->file always needs to be consistent because of the metadata. We
-         * can never allow other users to resize or write to it. */
-        if (!(flags & BDRV_O_NO_IO)) {
-            perm |= BLK_PERM_CONSISTENT_READ;
-        }
-        shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
-
-        if (bs->open_flags & BDRV_O_INACTIVE) {
-            shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
-        }
-
-        *nperm = perm;
-        *nshared = shared;
+        bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
+                                       perm, shared, nperm, nshared);
     } else {
         bdrv_default_perms_for_cow(bs, c, child_class, role, reopen_queue,
                                    perm, shared, nperm, nshared);
