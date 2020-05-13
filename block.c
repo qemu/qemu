@@ -2517,25 +2517,6 @@ static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
     *nshared = shared;
 }
 
-void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
-                               const BdrvChildClass *child_class,
-                               BdrvChildRole role,
-                               BlockReopenQueue *reopen_queue,
-                               uint64_t perm, uint64_t shared,
-                               uint64_t *nperm, uint64_t *nshared)
-{
-    if (child_class == &child_of_bds) {
-        bdrv_default_perms(bs, c, child_class, role, reopen_queue,
-                           perm, shared, nperm, nshared);
-        return;
-    }
-
-    assert(child_class == &child_file);
-
-    bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
-                                   perm, shared, nperm, nshared);
-}
-
 void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
                         const BdrvChildClass *child_class, BdrvChildRole role,
                         BlockReopenQueue *reopen_queue,
