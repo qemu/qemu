@@ -2468,6 +2468,44 @@ void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
     *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) | DEFAULT_PERM_UNCHANGED;
 }
 
+static void bdrv_default_perms_for_cow(BlockDriverState *bs, BdrvChild *c,
+                                       const BdrvChildClass *child_class,
+                                       BdrvChildRole role,
+                                       BlockReopenQueue *reopen_queue,
+                                       uint64_t perm, uint64_t shared,
+                                       uint64_t *nperm, uint64_t *nshared)
+{
+    assert(child_class == &child_backing ||
+           (child_class == &child_of_bds && (role & BDRV_CHILD_COW)));
+
+    /*
+     * We want consistent read from backing files if the parent needs it.
+     * No other operations are performed on backing files.
+     */
+    perm &= BLK_PERM_CONSISTENT_READ;
+
+    /*
+     * If the parent can deal with changing data, we're okay with a
+     * writable and resizable backing file.
+     * TODO Require !(perm & BLK_PERM_CONSISTENT_READ), too?
+     */
+    if (shared & BLK_PERM_WRITE) {
+        shared = BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    } else {
+        shared = 0;
+    }
+
+    shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
+              BLK_PERM_WRITE_UNCHANGED;
+
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    }
+
+    *nperm = perm;
+    *nshared = shared;
+}
+
 void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                const BdrvChildClass *child_class,
                                BdrvChildRole role,
@@ -2505,28 +2543,8 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
         *nperm = perm;
         *nshared = shared;
     } else {
-        /* We want consistent read from backing files if the parent needs it.
-         * No other operations are performed on backing files. */
-        perm &= BLK_PERM_CONSISTENT_READ;
-
-        /* If the parent can deal with changing data, we're okay with a
-         * writable and resizable backing file. */
-        /* TODO Require !(perm & BLK_PERM_CONSISTENT_READ), too? */
-        if (shared & BLK_PERM_WRITE) {
-            shared = BLK_PERM_WRITE | BLK_PERM_RESIZE;
-        } else {
-            shared = 0;
-        }
-
-        shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
-                  BLK_PERM_WRITE_UNCHANGED;
-
-        if (bs->open_flags & BDRV_O_INACTIVE) {
-            shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
-        }
-
-        *nperm = perm;
-        *nshared = shared;
+        bdrv_default_perms_for_cow(bs, c, child_class, role, reopen_queue,
+                                   perm, shared, nperm, nshared);
     }
 }
 
