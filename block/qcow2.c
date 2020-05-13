@@ -5791,6 +5791,8 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_detach_aio_context  = qcow2_detach_aio_context,
     .bdrv_attach_aio_context  = qcow2_attach_aio_context,
 
+    .bdrv_supports_persistent_dirty_bitmap =
+            qcow2_supports_persistent_dirty_bitmap,
     .bdrv_co_can_store_new_dirty_bitmap = qcow2_co_can_store_new_dirty_bitmap,
     .bdrv_co_remove_persistent_dirty_bitmap =
             qcow2_co_remove_persistent_dirty_bitmap,
