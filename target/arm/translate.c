@@ -4606,27 +4606,31 @@ static void gen_cmtst_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
     tcg_gen_cmp_vec(TCG_COND_NE, vece, d, d, a);
 }
 
-static const TCGOpcode vecop_list_cmtst[] = { INDEX_op_cmp_vec, 0 };
-
-const GVecGen3 cmtst_op[4] = {
-    { .fni4 = gen_helper_neon_tst_u8,
-      .fniv = gen_cmtst_vec,
-      .opt_opc = vecop_list_cmtst,
-      .vece = MO_8 },
-    { .fni4 = gen_helper_neon_tst_u16,
-      .fniv = gen_cmtst_vec,
-      .opt_opc = vecop_list_cmtst,
-      .vece = MO_16 },
-    { .fni4 = gen_cmtst_i32,
-      .fniv = gen_cmtst_vec,
-      .opt_opc = vecop_list_cmtst,
-      .vece = MO_32 },
-    { .fni8 = gen_cmtst_i64,
-      .fniv = gen_cmtst_vec,
-      .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-      .opt_opc = vecop_list_cmtst,
-      .vece = MO_64 },
-};
+void gen_gvec_cmtst(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                    uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
+{
+    static const TCGOpcode vecop_list[] = { INDEX_op_cmp_vec, 0 };
+    static const GVecGen3 ops[4] = {
+        { .fni4 = gen_helper_neon_tst_u8,
+          .fniv = gen_cmtst_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fni4 = gen_helper_neon_tst_u16,
+          .fniv = gen_cmtst_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = gen_cmtst_i32,
+          .fniv = gen_cmtst_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = gen_cmtst_i64,
+          .fniv = gen_cmtst_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .opt_opc = vecop_list,
+          .vece = MO_64 },
+    };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
 
 void gen_ushl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
 {
@@ -4744,29 +4748,33 @@ static void gen_ushl_vec(unsigned vece, TCGv_vec dst,
     tcg_temp_free_vec(rsh);
 }
 
-static const TCGOpcode ushl_list[] = {
-    INDEX_op_neg_vec, INDEX_op_shlv_vec,
-    INDEX_op_shrv_vec, INDEX_op_cmp_vec, 0
-};
-
-const GVecGen3 ushl_op[4] = {
-    { .fniv = gen_ushl_vec,
-      .fno = gen_helper_gvec_ushl_b,
-      .opt_opc = ushl_list,
-      .vece = MO_8 },
-    { .fniv = gen_ushl_vec,
-      .fno = gen_helper_gvec_ushl_h,
-      .opt_opc = ushl_list,
-      .vece = MO_16 },
-    { .fni4 = gen_ushl_i32,
-      .fniv = gen_ushl_vec,
-      .opt_opc = ushl_list,
-      .vece = MO_32 },
-    { .fni8 = gen_ushl_i64,
-      .fniv = gen_ushl_vec,
-      .opt_opc = ushl_list,
-      .vece = MO_64 },
-};
+void gen_gvec_ushl(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                   uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_neg_vec, INDEX_op_shlv_vec,
+        INDEX_op_shrv_vec, INDEX_op_cmp_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        { .fniv = gen_ushl_vec,
+          .fno = gen_helper_gvec_ushl_b,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fniv = gen_ushl_vec,
+          .fno = gen_helper_gvec_ushl_h,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = gen_ushl_i32,
+          .fniv = gen_ushl_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = gen_ushl_i64,
+          .fniv = gen_ushl_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_64 },
+    };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
 
 void gen_sshl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
 {
@@ -4878,29 +4886,33 @@ static void gen_sshl_vec(unsigned vece, TCGv_vec dst,
     tcg_temp_free_vec(tmp);
 }
 
-static const TCGOpcode sshl_list[] = {
-    INDEX_op_neg_vec, INDEX_op_umin_vec, INDEX_op_shlv_vec,
-    INDEX_op_sarv_vec, INDEX_op_cmp_vec, INDEX_op_cmpsel_vec, 0
-};
-
-const GVecGen3 sshl_op[4] = {
-    { .fniv = gen_sshl_vec,
-      .fno = gen_helper_gvec_sshl_b,
-      .opt_opc = sshl_list,
-      .vece = MO_8 },
-    { .fniv = gen_sshl_vec,
-      .fno = gen_helper_gvec_sshl_h,
-      .opt_opc = sshl_list,
-      .vece = MO_16 },
-    { .fni4 = gen_sshl_i32,
-      .fniv = gen_sshl_vec,
-      .opt_opc = sshl_list,
-      .vece = MO_32 },
-    { .fni8 = gen_sshl_i64,
-      .fniv = gen_sshl_vec,
-      .opt_opc = sshl_list,
-      .vece = MO_64 },
-};
+void gen_gvec_sshl(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                   uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_neg_vec, INDEX_op_umin_vec, INDEX_op_shlv_vec,
+        INDEX_op_sarv_vec, INDEX_op_cmp_vec, INDEX_op_cmpsel_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        { .fniv = gen_sshl_vec,
+          .fno = gen_helper_gvec_sshl_b,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fniv = gen_sshl_vec,
+          .fno = gen_helper_gvec_sshl_h,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = gen_sshl_i32,
+          .fniv = gen_sshl_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = gen_sshl_i64,
+          .fniv = gen_sshl_vec,
+          .opt_opc = vecop_list,
+          .vece = MO_64 },
+    };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
 
 static void gen_uqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)

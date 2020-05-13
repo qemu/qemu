@@ -603,6 +603,8 @@ DO_3SAME(VBIC, tcg_gen_gvec_andc)
 DO_3SAME(VORR, tcg_gen_gvec_or)
 DO_3SAME(VORN, tcg_gen_gvec_orc)
 DO_3SAME(VEOR, tcg_gen_gvec_xor)
+DO_3SAME(VSHL_S, gen_gvec_sshl)
+DO_3SAME(VSHL_U, gen_gvec_ushl)
 
 /* These insns are all gvec_bitsel but with the inputs in various orders. */
 #define DO_3SAME_BITSEL(INSN, O1, O2, O3)                               \
@@ -634,6 +636,7 @@ DO_3SAME_NO_SZ_3(VMIN_U, tcg_gen_gvec_umin)
 DO_3SAME_NO_SZ_3(VMUL, tcg_gen_gvec_mul)
 DO_3SAME_NO_SZ_3(VMLA, gen_gvec_mla)
 DO_3SAME_NO_SZ_3(VMLS, gen_gvec_mls)
+DO_3SAME_NO_SZ_3(VTST, gen_gvec_cmtst)
 
 #define DO_3SAME_CMP(INSN, COND)                                        \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
@@ -649,13 +652,6 @@ DO_3SAME_CMP(VCGT_U, TCG_COND_GTU)
 DO_3SAME_CMP(VCGE_S, TCG_COND_GE)
 DO_3SAME_CMP(VCGE_U, TCG_COND_GEU)
 DO_3SAME_CMP(VCEQ, TCG_COND_EQ)
-
-static void gen_VTST_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
-                         uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
-{
-    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &cmtst_op[vece]);
-}
-DO_3SAME_NO_SZ_3(VTST, gen_VTST_3s)
 
 #define DO_3SAME_GVEC4(INSN, OPARRAY)                                   \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
@@ -686,16 +682,3 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
     }
     return do_3same(s, a, gen_VMUL_p_3s);
 }
-
-#define DO_3SAME_GVEC3_SHIFT(INSN, OPARRAY)                             \
-    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
-                                uint32_t rn_ofs, uint32_t rm_ofs,       \
-                                uint32_t oprsz, uint32_t maxsz)         \
-    {                                                                   \
-        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs,                          \
-                       oprsz, maxsz, &OPARRAY[vece]);                   \
-    }                                                                   \
-    DO_3SAME(INSN, gen_##INSN##_3s)
-
-DO_3SAME_GVEC3_SHIFT(VSHL_S, sshl_op)
-DO_3SAME_GVEC3_SHIFT(VSHL_U, ushl_op)

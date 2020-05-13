@@ -577,15 +577,6 @@ static void gen_gvec_fn4(DisasContext *s, bool is_q, int rd, int rn, int rm,
             is_q ? 16 : 8, vec_full_reg_size(s));
 }
 
-/* Expand a 3-operand AdvSIMD vector operation using an op descriptor.  */
-static void gen_gvec_op3(DisasContext *s, bool is_q, int rd,
-                         int rn, int rm, const GVecGen3 *gvec_op)
-{
-    tcg_gen_gvec_3(vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
-                   vec_full_reg_offset(s, rm), is_q ? 16 : 8,
-                   vec_full_reg_size(s), gvec_op);
-}
-
 /* Expand a 3-operand operation using an out-of-line helper.  */
 static void gen_gvec_op3_ool(DisasContext *s, bool is_q, int rd,
                              int rn, int rm, int data, gen_helper_gvec_3 *fn)
@@ -11193,8 +11184,11 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                        (u ? uqsub_op : sqsub_op) + size);
         return;
     case 0x08: /* SSHL, USHL */
-        gen_gvec_op3(s, is_q, rd, rn, rm,
-                     u ? &ushl_op[size] : &sshl_op[size]);
+        if (u) {
+            gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_ushl, size);
+        } else {
+            gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_sshl, size);
+        }
         return;
     case 0x0c: /* SMAX, UMAX */
         if (u) {
@@ -11233,7 +11227,7 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
         return;
     case 0x11:
         if (!u) { /* CMTST */
-            gen_gvec_op3(s, is_q, rd, rn, rm, &cmtst_op[size]);
+            gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_cmtst, size);
             return;
         }
         /* else CMEQ */
