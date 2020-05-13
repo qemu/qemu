@@ -2571,6 +2571,7 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildClass *child_class,
+                                  BdrvChildRole child_role,
                                   AioContext *ctx,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp)
@@ -2592,6 +2593,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
         .bs             = NULL,
         .name           = g_strdup(child_name),
         .klass          = child_class,
+        .role           = child_role,
         .perm           = perm,
         .shared_perm    = shared_perm,
         .opaque         = opaque,
@@ -2644,6 +2646,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
                              const char *child_name,
                              const BdrvChildClass *child_class,
+                             BdrvChildRole child_role,
                              Error **errp)
 {
     BdrvChild *child;
@@ -2656,7 +2659,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                     perm, shared_perm, &perm, &shared_perm);
 
     child = bdrv_root_attach_child(child_bs, child_name, child_class,
-                                   bdrv_get_aio_context(parent_bs),
+                                   child_role, bdrv_get_aio_context(parent_bs),
                                    perm, shared_perm, parent_bs, errp);
     if (child == NULL) {
         return NULL;
@@ -2774,7 +2777,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     }
 
     bs->backing = bdrv_attach_child(bs, backing_hd, "backing", &child_backing,
-                                    errp);
+                                    0, errp);
     /* If backing_hd was already part of bs's backing chain, and
      * inherits_from pointed recursively to bs then let's update it to
      * point directly to bs (else it will become NULL). */
@@ -2965,6 +2968,7 @@ BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
                            BlockDriverState *parent,
                            const BdrvChildClass *child_class,
+                           BdrvChildRole child_role,
                            bool allow_none, Error **errp)
 {
     BlockDriverState *bs;
@@ -2975,7 +2979,8 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
-    return bdrv_attach_child(parent, bs, bdref_key, child_class, errp);
+    return bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
+                             errp);
 }
 
 /*

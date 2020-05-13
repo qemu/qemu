@@ -378,7 +378,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     QemuUUID uuid_link, uuid_parent;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, 0,
                                false, errp);
     if (!bs->file) {
         return -EINVAL;

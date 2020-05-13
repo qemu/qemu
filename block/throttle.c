@@ -82,7 +82,7 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     int ret;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs,
-                               &child_file, false, errp);
+                               &child_file, 0, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }

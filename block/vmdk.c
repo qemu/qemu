@@ -1152,7 +1152,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         assert(ret < 32);
 
         extent_file = bdrv_open_child(extent_path, options, extent_opt_prefix,
-                                      bs, &child_file, false, &local_err);
+                                      bs, &child_file, 0, false, &local_err);
         g_free(extent_path);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -1257,7 +1257,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t magic;
     Error *local_err = NULL;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, 0,
                                false, errp);
     if (!bs->file) {
         return -EINVAL;

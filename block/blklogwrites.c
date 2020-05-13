@@ -157,7 +157,7 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Open the file */
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, 0, false,
                                &local_err);
     if (local_err) {
         ret = -EINVAL;
@@ -166,8 +166,8 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Open the log file */
-    s->log_file = bdrv_open_child(NULL, options, "log", bs, &child_file, false,
-                                  &local_err);
+    s->log_file = bdrv_open_child(NULL, options, "log", bs, &child_file, 0,
+                                  false, &local_err);
     if (local_err) {
         ret = -EINVAL;
         error_propagate(errp, local_err);

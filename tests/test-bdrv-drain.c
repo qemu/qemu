@@ -1202,7 +1202,7 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
-    bdrv_attach_child(bs, null_bs, "null-child", &child_file, &error_abort);
+    bdrv_attach_child(bs, null_bs, "null-child", &child_file, 0, &error_abort);
 
     /* This child will be the one to pass to requests through to, and
      * it will stall until a drain occurs */
@@ -1211,13 +1211,13 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
     child_bs->total_sectors = 65536 >> BDRV_SECTOR_BITS;
     /* Takes our reference to child_bs */
     tts->wait_child = bdrv_attach_child(bs, child_bs, "wait-child", &child_file,
-                                        &error_abort);
+                                        0, &error_abort);
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
-    bdrv_attach_child(bs, null_bs, "null-child", &child_file, &error_abort);
+    bdrv_attach_child(bs, null_bs, "null-child", &child_file, 0, &error_abort);
 
     blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
@@ -1314,7 +1314,7 @@ static void detach_indirect_bh(void *opaque)
 
     bdrv_ref(data->c);
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
-                                      &child_file, &error_abort);
+                                      &child_file, 0, &error_abort);
 }
 
 static void detach_by_parent_aio_cb(void *opaque, int ret)
@@ -1396,13 +1396,15 @@ static void test_detach_indirect(bool by_parent_cb)
     /* Set child relationships */
     bdrv_ref(b);
     bdrv_ref(a);
-    child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_file, &error_abort);
-    child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_backing, &error_abort);
+    child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_file, 0,
+                                &error_abort);
+    child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_backing, 0,
+                                &error_abort);
 
     bdrv_ref(a);
     bdrv_attach_child(parent_a, a, "PA-A",
                       by_parent_cb ? &child_file : &detach_by_driver_cb_class,
-                      &error_abort);
+                      0, &error_abort);
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
     g_assert_cmpint(parent_b->refcnt, ==, 1);
@@ -1813,7 +1815,7 @@ static void test_drop_intermediate_poll(void)
             /* Takes the reference to chain[i - 1] */
             chain[i]->backing = bdrv_attach_child(chain[i], chain[i - 1],
                                                   "chain", &chain_child_class,
-                                                  &error_abort);
+                                                  0, &error_abort);
         }
     }
 
@@ -2031,7 +2033,7 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
 
     bdrv_ref(old_child_bs);
     parent_bs->backing = bdrv_attach_child(parent_bs, old_child_bs, "child",
-                                           &child_backing, &error_abort);
+                                           &child_backing, 0, &error_abort);
 
     for (i = 0; i < old_drain_count; i++) {
         bdrv_drained_begin(old_child_bs);

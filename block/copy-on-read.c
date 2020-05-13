@@ -28,7 +28,7 @@
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, 0, false,
                                errp);
     if (!bs->file) {
         return -EINVAL;
