@@ -605,6 +605,10 @@ DO_3SAME(VORN, tcg_gen_gvec_orc)
 DO_3SAME(VEOR, tcg_gen_gvec_xor)
 DO_3SAME(VSHL_S, gen_gvec_sshl)
 DO_3SAME(VSHL_U, gen_gvec_ushl)
+DO_3SAME(VQADD_S, gen_gvec_sqadd_qc)
+DO_3SAME(VQADD_U, gen_gvec_uqadd_qc)
+DO_3SAME(VQSUB_S, gen_gvec_sqsub_qc)
+DO_3SAME(VQSUB_U, gen_gvec_uqsub_qc)
 
 /* These insns are all gvec_bitsel but with the inputs in various orders. */
 #define DO_3SAME_BITSEL(INSN, O1, O2, O3)                               \
@@ -652,21 +656,6 @@ DO_3SAME_CMP(VCGT_U, TCG_COND_GTU)
 DO_3SAME_CMP(VCGE_S, TCG_COND_GE)
 DO_3SAME_CMP(VCGE_U, TCG_COND_GEU)
 DO_3SAME_CMP(VCEQ, TCG_COND_EQ)
-
-#define DO_3SAME_GVEC4(INSN, OPARRAY)                                   \
-    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
-                                uint32_t rn_ofs, uint32_t rm_ofs,       \
-                                uint32_t oprsz, uint32_t maxsz)         \
-    {                                                                   \
-        tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),           \
-                       rn_ofs, rm_ofs, oprsz, maxsz, &OPARRAY[vece]);   \
-    }                                                                   \
-    DO_3SAME(INSN, gen_##INSN##_3s)
-
-DO_3SAME_GVEC4(VQADD_S, sqadd_op)
-DO_3SAME_GVEC4(VQADD_U, uqadd_op)
-DO_3SAME_GVEC4(VQSUB_S, sqsub_op)
-DO_3SAME_GVEC4(VQSUB_U, uqsub_op)
 
 static void gen_VMUL_p_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
                            uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
