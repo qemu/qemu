@@ -693,42 +693,20 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
 DO_VQRDMLAH(VQRDMLAH, gen_gvec_sqrdmlah_qc)
 DO_VQRDMLAH(VQRDMLSH, gen_gvec_sqrdmlsh_qc)
 
-static bool trans_SHA1_3s(DisasContext *s, arg_SHA1_3s *a)
-{
-    TCGv_ptr ptr1, ptr2, ptr3;
-    TCGv_i32 tmp;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !dc_isar_feature(aa32_sha1, s)) {
-        return false;
+#define DO_SHA1(NAME, FUNC)                                             \
+    WRAP_OOL_FN(gen_##NAME##_3s, FUNC)                                  \
+    static bool trans_##NAME##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (!dc_isar_feature(aa32_sha1, s)) {                           \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##NAME##_3s);                         \
     }
 
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vn | a->vm | a->vd) & 1) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    ptr1 = vfp_reg_ptr(true, a->vd);
-    ptr2 = vfp_reg_ptr(true, a->vn);
-    ptr3 = vfp_reg_ptr(true, a->vm);
-    tmp = tcg_const_i32(a->optype);
-    gen_helper_crypto_sha1_3reg(ptr1, ptr2, ptr3, tmp);
-    tcg_temp_free_i32(tmp);
-    tcg_temp_free_ptr(ptr1);
-    tcg_temp_free_ptr(ptr2);
-    tcg_temp_free_ptr(ptr3);
-
-    return true;
-}
+DO_SHA1(SHA1C, gen_helper_crypto_sha1c)
+DO_SHA1(SHA1P, gen_helper_crypto_sha1p)
+DO_SHA1(SHA1M, gen_helper_crypto_sha1m)
+DO_SHA1(SHA1SU0, gen_helper_crypto_sha1su0)
 
 #define DO_SHA2(NAME, FUNC)                                             \
     WRAP_OOL_FN(gen_##NAME##_3s, FUNC)                                  \

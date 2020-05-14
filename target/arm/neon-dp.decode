@@ -168,8 +168,10 @@ VQRDMLAH_3s      1111 001 1 0 . .. .... .... 1011 ... 1 .... @3same
 @3same_crypto    .... .... .... .... .... .... .... .... \
                  &3same vm=%vm_dp vn=%vn_dp vd=%vd_dp size=0 q=1
 
-SHA1_3s          1111 001 0 0 . optype:2 .... .... 1100 . 1 . 0 .... \
-                 vm=%vm_dp vn=%vn_dp vd=%vd_dp
+SHA1C_3s         1111 001 0 0 . 00 .... .... 1100 . 1 . 0 .... @3same_crypto
+SHA1P_3s         1111 001 0 0 . 01 .... .... 1100 . 1 . 0 .... @3same_crypto
+SHA1M_3s         1111 001 0 0 . 10 .... .... 1100 . 1 . 0 .... @3same_crypto
+SHA1SU0_3s       1111 001 0 0 . 11 .... .... 1100 . 1 . 0 .... @3same_crypto
 SHA256H_3s       1111 001 1 0 . 00 .... .... 1100 . 1 . 0 .... @3same_crypto
 SHA256H2_3s      1111 001 1 0 . 01 .... .... 1100 . 1 . 0 .... @3same_crypto
 SHA256SU1_3s     1111 001 1 0 . 10 .... .... 1100 . 1 . 0 .... @3same_crypto
