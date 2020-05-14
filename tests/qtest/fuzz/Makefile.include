@@ -7,9 +7,9 @@ fuzz-obj-y += tests/qtest/fuzz/fork_fuzz.o
 fuzz-obj-y += tests/qtest/fuzz/qos_fuzz.o
 
 # Targets
-fuzz-obj-y += tests/qtest/fuzz/i440fx_fuzz.o
-fuzz-obj-y += tests/qtest/fuzz/virtio_net_fuzz.o
-fuzz-obj-y += tests/qtest/fuzz/virtio_scsi_fuzz.o
+fuzz-obj-$(CONFIG_PCI_I440FX) += tests/qtest/fuzz/i440fx_fuzz.o
+fuzz-obj-$(CONFIG_VIRTIO_NET) += tests/qtest/fuzz/virtio_net_fuzz.o
+fuzz-obj-$(CONFIG_SCSI) += tests/qtest/fuzz/virtio_scsi_fuzz.o
 
 FUZZ_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
 
