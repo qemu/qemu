@@ -19,6 +19,7 @@ subclass of QEMUMachine, respectively.
 
 import socket
 import os
+from typing import Optional, TextIO
 
 from .machine import QEMUMachine
 
@@ -40,7 +41,7 @@ class QEMUQtestProtocol:
     def __init__(self, address, server=False):
         self._address = address
         self._sock = self._get_sock()
-        self._sockfile = None
+        self._sockfile: Optional[TextIO] = None
         if server:
             self._sock.bind(self._address)
             self._sock.listen(1)
@@ -59,7 +60,7 @@ class QEMUQtestProtocol:
         @raise socket.error on socket connection errors
         """
         self._sock.connect(self._address)
-        self._sockfile = self._sock.makefile()
+        self._sockfile = self._sock.makefile(mode='r')
 
     def accept(self):
         """
@@ -68,7 +69,7 @@ class QEMUQtestProtocol:
         @raise socket.error on socket connection errors
         """
         self._sock, _ = self._sock.accept()
-        self._sockfile = self._sock.makefile()
+        self._sockfile = self._sock.makefile(mode='r')
 
     def cmd(self, qtest_cmd):
         """
@@ -76,6 +77,7 @@ class QEMUQtestProtocol:
 
         @param qtest_cmd: qtest command text to be sent
         """
+        assert self._sockfile is not None
         self._sock.sendall((qtest_cmd + "\n").encode('utf-8'))
         resp = self._sockfile.readline()
         return resp
@@ -83,7 +85,9 @@ class QEMUQtestProtocol:
     def close(self):
         """Close this socket."""
         self._sock.close()
-        self._sockfile.close()
+        if self._sockfile:
+            self._sockfile.close()
+            self._sockfile = None
 
     def settimeout(self, timeout):
         """Set a timeout, in seconds."""
