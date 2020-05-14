@@ -119,9 +119,6 @@ class QEMUMachine(object):
         self._console_socket = None
         self._remove_files = []
 
-        # just in case logging wasn't configured by the main script:
-        logging.basicConfig()
-
     def __enter__(self):
         return self
 
