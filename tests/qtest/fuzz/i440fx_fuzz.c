@@ -39,7 +39,7 @@ enum action_id {
     ACTION_MAX
 };
 
-static void i440fx_fuzz_qtest(QTestState *s,
+static void ioport_fuzz_qtest(QTestState *s,
         const unsigned char *Data, size_t Size) {
     /*
      * loop over the Data, breaking it up into actions. each action has an
@@ -84,10 +84,17 @@ static void i440fx_fuzz_qtest(QTestState *s,
     flush_events(s);
 }
 
+static void i440fx_fuzz_qtest(QTestState *s,
+                              const unsigned char *Data,
+                              size_t Size)
+{
+    ioport_fuzz_qtest(s, Data, Size);
+}
+
 static void pciconfig_fuzz_qos(QTestState *s, QPCIBus *bus,
         const unsigned char *Data, size_t Size) {
     /*
-     * Same as i440fx_fuzz_qtest, but using QOS. devfn is incorporated into the
+     * Same as ioport_fuzz_qtest, but using QOS. devfn is incorporated into the
      * value written over Port IO
      */
     struct {
