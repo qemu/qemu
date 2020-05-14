@@ -1542,9 +1542,17 @@ SRST
 ``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly]``
   \
 ``-virtfs synth,mount_tag=mount_tag``
-    Define a new filesystem device and expose it to the guest using a
-    virtio-9p-device. The general form of a Virtual File system
-    pass-through options are:
+    Define a new virtual filesystem device and expose it to the guest using
+    a virtio-9p-device (a.k.a. 9pfs), which essentially means that a certain
+    directory on host is made directly accessible by guest as a pass-through
+    file system by using the 9P network protocol for communication between
+    host and guests, if desired even accessible, shared by several guests
+    simultaniously.
+
+    Note that ``-virtfs`` is actually just a convenience shortcut for its
+    generalized form ``-fsdev -device virtio-9p-pci``.
+
+    The general form of pass-through file system options are:
 
     ``local``
         Accesses to the filesystem are done by QEMU.

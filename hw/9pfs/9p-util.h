@@ -37,9 +37,22 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 {
     int fd, serrno, ret;
 
+again:
     fd = openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
                 mode);
     if (fd == -1) {
+        if (errno == EPERM && (flags & O_NOATIME)) {
+            /*
+             * The client passed O_NOATIME but we lack permissions to honor it.
+             * Rather than failing the open, fall back without O_NOATIME. This
+             * doesn't break the semantics on the client side, as the Linux
+             * open(2) man page notes that O_NOATIME "may not be effective on
+             * all filesystems". In particular, NFS and other network
+             * filesystems ignore it entirely.
+             */
+            flags &= ~O_NOATIME;
+            goto again;
+        }
         return -1;
     }
 
