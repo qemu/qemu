@@ -45,12 +45,11 @@ static void i440fx_fuzz_qtest(QTestState *s,
      * loop over the Data, breaking it up into actions. each action has an
      * opcode, address offset and value
      */
-    typedef struct QTestFuzzAction {
+    struct {
         uint8_t opcode;
         uint8_t addr;
         uint32_t value;
-    } QTestFuzzAction;
-    QTestFuzzAction a;
+    } a;
 
     while (Size >= sizeof(a)) {
         /* make a copy of the action so we can normalize the values in-place */
@@ -91,19 +90,18 @@ static void i440fx_fuzz_qos(QTestState *s,
      * Same as i440fx_fuzz_qtest, but using QOS. devfn is incorporated into the
      * value written over Port IO
      */
-    typedef struct QOSFuzzAction {
+    struct {
         uint8_t opcode;
         uint8_t offset;
         int devfn;
         uint32_t value;
-    } QOSFuzzAction;
+    } a;
 
     static QPCIBus *bus;
     if (!bus) {
         bus = qpci_new_pc(s, fuzz_qos_alloc);
     }
 
-    QOSFuzzAction a;
     while (Size >= sizeof(a)) {
         memcpy(&a, Data, sizeof(a));
         switch (a.opcode % ACTION_MAX) {
