@@ -121,7 +121,8 @@ class QEMUQtestMachine(QEMUMachine):
         super()._pre_launch()
         self._qtest = QEMUQtestProtocol(self._qtest_path, server=True)
 
-    def _post_launch(self):
+    def _post_launch(self) -> None:
+        assert self._qtest is not None
         super()._post_launch()
         self._qtest.accept()
 
@@ -129,6 +130,13 @@ class QEMUQtestMachine(QEMUMachine):
         super()._post_shutdown()
         self._remove_if_exists(self._qtest_path)
 
-    def qtest(self, cmd):
-        '''Send a qtest command to guest'''
+    def qtest(self, cmd: str) -> str:
+        """
+        Send a qtest command to the guest.
+
+        :param cmd: qtest command to send
+        :return: qtest server response
+        """
+        if self._qtest is None:
+            raise RuntimeError("qtest socket not available")
         return self._qtest.cmd(cmd)
