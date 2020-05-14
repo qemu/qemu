@@ -55,7 +55,7 @@ class MonitorResponseError(qmp.QMPError):
             desc = reply["error"]["desc"]
         except KeyError:
             desc = reply
-        super(MonitorResponseError, self).__init__(desc)
+        super().__init__(desc)
         self.reply = reply
 
 

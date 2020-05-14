@@ -101,29 +101,28 @@ class QEMUQtestMachine(QEMUMachine):
             name = "qemu-%d" % os.getpid()
         if sock_dir is None:
             sock_dir = test_dir
-        super(QEMUQtestMachine,
-              self).__init__(binary, args, name=name, test_dir=test_dir,
-                             socket_scm_helper=socket_scm_helper,
-                             sock_dir=sock_dir)
+        super().__init__(binary, args, name=name, test_dir=test_dir,
+                         socket_scm_helper=socket_scm_helper,
+                         sock_dir=sock_dir)
         self._qtest = None
         self._qtest_path = os.path.join(sock_dir, name + "-qtest.sock")
 
     def _base_args(self):
-        args = super(QEMUQtestMachine, self)._base_args()
+        args = super()._base_args()
         args.extend(['-qtest', 'unix:path=' + self._qtest_path,
                      '-accel', 'qtest'])
         return args
 
     def _pre_launch(self):
-        super(QEMUQtestMachine, self)._pre_launch()
+        super()._pre_launch()
         self._qtest = QEMUQtestProtocol(self._qtest_path, server=True)
 
     def _post_launch(self):
-        super(QEMUQtestMachine, self)._post_launch()
+        super()._post_launch()
         self._qtest.accept()
 
     def _post_shutdown(self):
-        super(QEMUQtestMachine, self)._post_shutdown()
+        super()._post_shutdown()
         self._remove_if_exists(self._qtest_path)
 
     def qtest(self, cmd):
