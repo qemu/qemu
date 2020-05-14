@@ -1168,17 +1168,16 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
         sys.stderr.write('Please run this test via the "check" script\n')
         sys.exit(os.EX_USAGE)
 
+    debug = '-d' in sys.argv
+    if debug:
+        sys.argv.remove('-d')
+    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
+
     _verify_image_format(supported_fmts, unsupported_fmts)
     _verify_protocol(supported_protocols, unsupported_protocols)
     _verify_platform(supported=supported_platforms)
     _verify_cache_mode(supported_cache_modes)
     _verify_aio_mode(supported_aio_modes)
-
-    debug = '-d' in sys.argv
-    if debug:
-        sys.argv.remove('-d')
-    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
-    logger.debug("iotests debugging messages active")
 
     return debug
 
