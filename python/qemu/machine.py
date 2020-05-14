@@ -24,6 +24,8 @@ import subprocess
 import shutil
 import socket
 import tempfile
+from typing import Optional, Type
+from types import TracebackType
 
 from . import qmp
 
@@ -124,9 +126,11 @@ class QEMUMachine:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         self.shutdown()
-        return False
 
     def add_monitor_null(self):
         """
