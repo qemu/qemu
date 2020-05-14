@@ -137,7 +137,8 @@ static ssize_t xen_9pfs_pdu_vmarshal(V9fsPDU *pdu,
     ret = v9fs_iov_vmarshal(in_sg, num, offset, 0, fmt, ap);
     if (ret < 0) {
         xen_pv_printf(&xen_9pfs->xendev, 0,
-                      "Failed to encode VirtFS request type %d\n", pdu->id + 1);
+                      "Failed to encode VirtFS reply type %d\n",
+                      pdu->id + 1);
         xen_be_set_state(&xen_9pfs->xendev, XenbusStateClosing);
         xen_9pfs_disconnect(&xen_9pfs->xendev);
     }
@@ -201,9 +202,9 @@ static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
 
     buf_size = iov_size(ring->sg, num);
     if (buf_size  < P9_IOHDRSZ) {
-        xen_pv_printf(&xen_9pfs->xendev, 0, "Xen 9pfs request type %d"
-                "needs %zu bytes, buffer has %zu, less than minimum\n",
-                pdu->id, *size, buf_size);
+        xen_pv_printf(&xen_9pfs->xendev, 0, "Xen 9pfs reply type %d needs "
+                      "%zu bytes, buffer has %zu, less than minimum\n",
+                      pdu->id + 1, *size, buf_size);
         xen_be_set_state(&xen_9pfs->xendev, XenbusStateClosing);
         xen_9pfs_disconnect(&xen_9pfs->xendev);
     }
