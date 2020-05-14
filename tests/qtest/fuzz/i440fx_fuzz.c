@@ -84,7 +84,7 @@ static void i440fx_fuzz_qtest(QTestState *s,
     flush_events(s);
 }
 
-static void i440fx_fuzz_qos(QTestState *s,
+static void pciconfig_fuzz_qos(QTestState *s, QPCIBus *bus,
         const unsigned char *Data, size_t Size) {
     /*
      * Same as i440fx_fuzz_qtest, but using QOS. devfn is incorporated into the
@@ -96,11 +96,6 @@ static void i440fx_fuzz_qos(QTestState *s,
         int devfn;
         uint32_t value;
     } a;
-
-    static QPCIBus *bus;
-    if (!bus) {
-        bus = qpci_new_pc(s, fuzz_qos_alloc);
-    }
 
     while (Size >= sizeof(a)) {
         memcpy(&a, Data, sizeof(a));
@@ -128,6 +123,19 @@ static void i440fx_fuzz_qos(QTestState *s,
         Data += sizeof(a);
     }
     flush_events(s);
+}
+
+static void i440fx_fuzz_qos(QTestState *s,
+                            const unsigned char *Data,
+                            size_t Size)
+{
+    static QPCIBus *bus;
+
+    if (!bus) {
+        bus = qpci_new_pc(s, fuzz_qos_alloc);
+    }
+
+    pciconfig_fuzz_qos(s, bus, Data, Size);
 }
 
 static void i440fx_fuzz_qos_fork(QTestState *s,
