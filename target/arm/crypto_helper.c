@@ -632,15 +632,14 @@ void HELPER(crypto_sm3partw2)(void *vd, void *vn, void *vm, uint32_t desc)
     clear_tail_16(vd, desc);
 }
 
-void HELPER(crypto_sm3tt)(void *vd, void *vn, void *vm, uint32_t imm2,
-                          uint32_t opcode)
+static inline void QEMU_ALWAYS_INLINE
+crypto_sm3tt(uint64_t *rd, uint64_t *rn, uint64_t *rm,
+             uint32_t desc, uint32_t opcode)
 {
-    uint64_t *rd = vd;
-    uint64_t *rn = vn;
-    uint64_t *rm = vm;
     union CRYPTO_STATE d = { .l = { rd[0], rd[1] } };
     union CRYPTO_STATE n = { .l = { rn[0], rn[1] } };
     union CRYPTO_STATE m = { .l = { rm[0], rm[1] } };
+    uint32_t imm2 = simd_data(desc);
     uint32_t t;
 
     assert(imm2 < 4);
@@ -655,7 +654,7 @@ void HELPER(crypto_sm3tt)(void *vd, void *vn, void *vm, uint32_t imm2,
         /* SM3TT2B */
         t = cho(CR_ST_WORD(d, 3), CR_ST_WORD(d, 2), CR_ST_WORD(d, 1));
     } else {
-        g_assert_not_reached();
+        qemu_build_not_reached();
     }
 
     t += CR_ST_WORD(d, 0) + CR_ST_WORD(m, imm2);
@@ -680,7 +679,20 @@ void HELPER(crypto_sm3tt)(void *vd, void *vn, void *vm, uint32_t imm2,
 
     rd[0] = d.l[0];
     rd[1] = d.l[1];
+
+    clear_tail_16(rd, desc);
 }
+
+#define DO_SM3TT(NAME, OPCODE) \
+    void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
+    { crypto_sm3tt(vd, vn, vm, desc, OPCODE); }
+
+DO_SM3TT(crypto_sm3tt1a, 0)
+DO_SM3TT(crypto_sm3tt1b, 1)
+DO_SM3TT(crypto_sm3tt2a, 2)
+DO_SM3TT(crypto_sm3tt2b, 3)
+
+#undef DO_SM3TT
 
 static uint8_t const sm4_sbox[] = {
     0xd6, 0x90, 0xe9, 0xfe, 0xcc, 0xe1, 0x3d, 0xb7,

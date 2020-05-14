@@ -13866,13 +13866,15 @@ static void disas_crypto_xar(DisasContext *s, uint32_t insn)
  */
 static void disas_crypto_three_reg_imm2(DisasContext *s, uint32_t insn)
 {
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_crypto_sm3tt1a, gen_helper_crypto_sm3tt1b,
+        gen_helper_crypto_sm3tt2a, gen_helper_crypto_sm3tt2b,
+    };
     int opcode = extract32(insn, 10, 2);
     int imm2 = extract32(insn, 12, 2);
     int rm = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
-    TCGv_ptr tcg_rd_ptr, tcg_rn_ptr, tcg_rm_ptr;
-    TCGv_i32 tcg_imm2, tcg_opcode;
 
     if (!dc_isar_feature(aa64_sm3, s)) {
         unallocated_encoding(s);
@@ -13883,20 +13885,7 @@ static void disas_crypto_three_reg_imm2(DisasContext *s, uint32_t insn)
         return;
     }
 
-    tcg_rd_ptr = vec_full_reg_ptr(s, rd);
-    tcg_rn_ptr = vec_full_reg_ptr(s, rn);
-    tcg_rm_ptr = vec_full_reg_ptr(s, rm);
-    tcg_imm2   = tcg_const_i32(imm2);
-    tcg_opcode = tcg_const_i32(opcode);
-
-    gen_helper_crypto_sm3tt(tcg_rd_ptr, tcg_rn_ptr, tcg_rm_ptr, tcg_imm2,
-                            tcg_opcode);
-
-    tcg_temp_free_ptr(tcg_rd_ptr);
-    tcg_temp_free_ptr(tcg_rn_ptr);
-    tcg_temp_free_ptr(tcg_rm_ptr);
-    tcg_temp_free_i32(tcg_imm2);
-    tcg_temp_free_i32(tcg_opcode);
+    gen_gvec_op3_ool(s, true, rd, rn, rm, imm2, fns[opcode]);
 }
 
 /* C3.6 Data processing - SIMD, inc Crypto
