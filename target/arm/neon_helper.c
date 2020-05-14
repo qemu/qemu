@@ -576,16 +576,6 @@ NEON_POP(pmax_s16, neon_s16, 2)
 NEON_POP(pmax_u16, neon_u16, 2)
 #undef NEON_FN
 
-#define NEON_FN(dest, src1, src2) \
-    dest = (src1 > src2) ? (src1 - src2) : (src2 - src1)
-NEON_VOP(abd_s8, neon_s8, 4)
-NEON_VOP(abd_u8, neon_u8, 4)
-NEON_VOP(abd_s16, neon_s16, 2)
-NEON_VOP(abd_u16, neon_u16, 2)
-NEON_VOP(abd_s32, neon_s32, 1)
-NEON_VOP(abd_u32, neon_u32, 1)
-#undef NEON_FN
-
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
     tmp = (int8_t)src2; \
@@ -1835,13 +1825,6 @@ uint64_t HELPER(neon_qneg_s64)(CPUARMState *env, uint64_t x)
 }
 
 /* NEON Float helpers.  */
-uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b, void *fpstp)
-{
-    float_status *fpst = fpstp;
-    float32 f0 = make_float32(a);
-    float32 f1 = make_float32(b);
-    return float32_val(float32_abs(float32_sub(f0, f1, fpst)));
-}
 
 /* Floating point comparisons produce an integer result.
  * Note that EQ doesn't signal InvalidOp for QNaNs but GE and GT do.

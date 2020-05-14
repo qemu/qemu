@@ -603,6 +603,12 @@ DO_3SAME(VBIC, tcg_gen_gvec_andc)
 DO_3SAME(VORR, tcg_gen_gvec_or)
 DO_3SAME(VORN, tcg_gen_gvec_orc)
 DO_3SAME(VEOR, tcg_gen_gvec_xor)
+DO_3SAME(VSHL_S, gen_gvec_sshl)
+DO_3SAME(VSHL_U, gen_gvec_ushl)
+DO_3SAME(VQADD_S, gen_gvec_sqadd_qc)
+DO_3SAME(VQADD_U, gen_gvec_uqadd_qc)
+DO_3SAME(VQSUB_S, gen_gvec_sqsub_qc)
+DO_3SAME(VQSUB_U, gen_gvec_uqsub_qc)
 
 /* These insns are all gvec_bitsel but with the inputs in various orders. */
 #define DO_3SAME_BITSEL(INSN, O1, O2, O3)                               \
@@ -632,6 +638,13 @@ DO_3SAME_NO_SZ_3(VMAX_U, tcg_gen_gvec_umax)
 DO_3SAME_NO_SZ_3(VMIN_S, tcg_gen_gvec_smin)
 DO_3SAME_NO_SZ_3(VMIN_U, tcg_gen_gvec_umin)
 DO_3SAME_NO_SZ_3(VMUL, tcg_gen_gvec_mul)
+DO_3SAME_NO_SZ_3(VMLA, gen_gvec_mla)
+DO_3SAME_NO_SZ_3(VMLS, gen_gvec_mls)
+DO_3SAME_NO_SZ_3(VTST, gen_gvec_cmtst)
+DO_3SAME_NO_SZ_3(VABD_S, gen_gvec_sabd)
+DO_3SAME_NO_SZ_3(VABA_S, gen_gvec_saba)
+DO_3SAME_NO_SZ_3(VABD_U, gen_gvec_uabd)
+DO_3SAME_NO_SZ_3(VABA_U, gen_gvec_uaba)
 
 #define DO_3SAME_CMP(INSN, COND)                                        \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
@@ -648,28 +661,6 @@ DO_3SAME_CMP(VCGE_S, TCG_COND_GE)
 DO_3SAME_CMP(VCGE_U, TCG_COND_GEU)
 DO_3SAME_CMP(VCEQ, TCG_COND_EQ)
 
-static void gen_VTST_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
-                         uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
-{
-    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &cmtst_op[vece]);
-}
-DO_3SAME_NO_SZ_3(VTST, gen_VTST_3s)
-
-#define DO_3SAME_GVEC4(INSN, OPARRAY)                                   \
-    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
-                                uint32_t rn_ofs, uint32_t rm_ofs,       \
-                                uint32_t oprsz, uint32_t maxsz)         \
-    {                                                                   \
-        tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),           \
-                       rn_ofs, rm_ofs, oprsz, maxsz, &OPARRAY[vece]);   \
-    }                                                                   \
-    DO_3SAME(INSN, gen_##INSN##_3s)
-
-DO_3SAME_GVEC4(VQADD_S, sqadd_op)
-DO_3SAME_GVEC4(VQADD_U, uqadd_op)
-DO_3SAME_GVEC4(VQSUB_S, sqsub_op)
-DO_3SAME_GVEC4(VQSUB_U, uqsub_op)
-
 static void gen_VMUL_p_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
                            uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
 {
@@ -685,30 +676,637 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
     return do_3same(s, a, gen_VMUL_p_3s);
 }
 
-#define DO_3SAME_GVEC3_NO_SZ_3(INSN, OPARRAY)                           \
+#define DO_VQRDMLAH(INSN, FUNC)                                         \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (!dc_isar_feature(aa32_rdm, s)) {                            \
+            return false;                                               \
+        }                                                               \
+        if (a->size != 1 && a->size != 2) {                             \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, FUNC);                                    \
+    }
+
+DO_VQRDMLAH(VQRDMLAH, gen_gvec_sqrdmlah_qc)
+DO_VQRDMLAH(VQRDMLSH, gen_gvec_sqrdmlsh_qc)
+
+static bool trans_SHA1_3s(DisasContext *s, arg_SHA1_3s *a)
+{
+    TCGv_ptr ptr1, ptr2, ptr3;
+    TCGv_i32 tmp;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_sha1, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    ptr1 = vfp_reg_ptr(true, a->vd);
+    ptr2 = vfp_reg_ptr(true, a->vn);
+    ptr3 = vfp_reg_ptr(true, a->vm);
+    tmp = tcg_const_i32(a->optype);
+    gen_helper_crypto_sha1_3reg(ptr1, ptr2, ptr3, tmp);
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_ptr(ptr1);
+    tcg_temp_free_ptr(ptr2);
+    tcg_temp_free_ptr(ptr3);
+
+    return true;
+}
+
+static bool trans_SHA256H_3s(DisasContext *s, arg_SHA256H_3s *a)
+{
+    TCGv_ptr ptr1, ptr2, ptr3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_sha2, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    ptr1 = vfp_reg_ptr(true, a->vd);
+    ptr2 = vfp_reg_ptr(true, a->vn);
+    ptr3 = vfp_reg_ptr(true, a->vm);
+    gen_helper_crypto_sha256h(ptr1, ptr2, ptr3);
+    tcg_temp_free_ptr(ptr1);
+    tcg_temp_free_ptr(ptr2);
+    tcg_temp_free_ptr(ptr3);
+
+    return true;
+}
+
+static bool trans_SHA256H2_3s(DisasContext *s, arg_SHA256H2_3s *a)
+{
+    TCGv_ptr ptr1, ptr2, ptr3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_sha2, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    ptr1 = vfp_reg_ptr(true, a->vd);
+    ptr2 = vfp_reg_ptr(true, a->vn);
+    ptr3 = vfp_reg_ptr(true, a->vm);
+    gen_helper_crypto_sha256h2(ptr1, ptr2, ptr3);
+    tcg_temp_free_ptr(ptr1);
+    tcg_temp_free_ptr(ptr2);
+    tcg_temp_free_ptr(ptr3);
+
+    return true;
+}
+
+static bool trans_SHA256SU1_3s(DisasContext *s, arg_SHA256SU1_3s *a)
+{
+    TCGv_ptr ptr1, ptr2, ptr3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_sha2, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    ptr1 = vfp_reg_ptr(true, a->vd);
+    ptr2 = vfp_reg_ptr(true, a->vn);
+    ptr3 = vfp_reg_ptr(true, a->vm);
+    gen_helper_crypto_sha256su1(ptr1, ptr2, ptr3);
+    tcg_temp_free_ptr(ptr1);
+    tcg_temp_free_ptr(ptr2);
+    tcg_temp_free_ptr(ptr3);
+
+    return true;
+}
+
+#define DO_3SAME_64(INSN, FUNC)                                         \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
                                 uint32_t rn_ofs, uint32_t rm_ofs,       \
                                 uint32_t oprsz, uint32_t maxsz)         \
     {                                                                   \
-        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs,                          \
-                       oprsz, maxsz, &OPARRAY[vece]);                   \
-    }                                                                   \
-    DO_3SAME_NO_SZ_3(INSN, gen_##INSN##_3s)
-
-
-DO_3SAME_GVEC3_NO_SZ_3(VMLA, mla_op)
-DO_3SAME_GVEC3_NO_SZ_3(VMLS, mls_op)
-
-#define DO_3SAME_GVEC3_SHIFT(INSN, OPARRAY)                             \
-    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
-                                uint32_t rn_ofs, uint32_t rm_ofs,       \
-                                uint32_t oprsz, uint32_t maxsz)         \
-    {                                                                   \
-        /* Note the operation is vshl vd,vm,vn */                       \
-        tcg_gen_gvec_3(rd_ofs, rm_ofs, rn_ofs,                          \
-                       oprsz, maxsz, &OPARRAY[vece]);                   \
+        static const GVecGen3 op = { .fni8 = FUNC };                    \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &op);      \
     }                                                                   \
     DO_3SAME(INSN, gen_##INSN##_3s)
 
-DO_3SAME_GVEC3_SHIFT(VSHL_S, sshl_op)
-DO_3SAME_GVEC3_SHIFT(VSHL_U, ushl_op)
+#define DO_3SAME_64_ENV(INSN, FUNC)                                     \
+    static void gen_##INSN##_elt(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)    \
+    {                                                                   \
+        FUNC(d, cpu_env, n, m);                                         \
+    }                                                                   \
+    DO_3SAME_64(INSN, gen_##INSN##_elt)
+
+DO_3SAME_64(VRSHL_S64, gen_helper_neon_rshl_s64)
+DO_3SAME_64(VRSHL_U64, gen_helper_neon_rshl_u64)
+DO_3SAME_64_ENV(VQSHL_S64, gen_helper_neon_qshl_s64)
+DO_3SAME_64_ENV(VQSHL_U64, gen_helper_neon_qshl_u64)
+DO_3SAME_64_ENV(VQRSHL_S64, gen_helper_neon_qrshl_s64)
+DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
+
+#define DO_3SAME_32(INSN, FUNC)                                         \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        static const GVecGen3 ops[4] = {                                \
+            { .fni4 = gen_helper_neon_##FUNC##8 },                      \
+            { .fni4 = gen_helper_neon_##FUNC##16 },                     \
+            { .fni4 = gen_helper_neon_##FUNC##32 },                     \
+            { 0 },                                                      \
+        };                                                              \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops[vece]); \
+    }                                                                   \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##INSN##_3s);                         \
+    }
+
+/*
+ * Some helper functions need to be passed the cpu_env. In order
+ * to use those with the gvec APIs like tcg_gen_gvec_3() we need
+ * to create wrapper functions whose prototype is a NeonGenTwoOpFn()
+ * and which call a NeonGenTwoOpEnvFn().
+ */
+#define WRAP_ENV_FN(WRAPNAME, FUNC)                                     \
+    static void WRAPNAME(TCGv_i32 d, TCGv_i32 n, TCGv_i32 m)            \
+    {                                                                   \
+        FUNC(d, cpu_env, n, m);                                         \
+    }
+
+#define DO_3SAME_32_ENV(INSN, FUNC)                                     \
+    WRAP_ENV_FN(gen_##INSN##_tramp8, gen_helper_neon_##FUNC##8);        \
+    WRAP_ENV_FN(gen_##INSN##_tramp16, gen_helper_neon_##FUNC##16);      \
+    WRAP_ENV_FN(gen_##INSN##_tramp32, gen_helper_neon_##FUNC##32);      \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        static const GVecGen3 ops[4] = {                                \
+            { .fni4 = gen_##INSN##_tramp8 },                            \
+            { .fni4 = gen_##INSN##_tramp16 },                           \
+            { .fni4 = gen_##INSN##_tramp32 },                           \
+            { 0 },                                                      \
+        };                                                              \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops[vece]); \
+    }                                                                   \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##INSN##_3s);                         \
+    }
+
+DO_3SAME_32(VHADD_S, hadd_s)
+DO_3SAME_32(VHADD_U, hadd_u)
+DO_3SAME_32(VHSUB_S, hsub_s)
+DO_3SAME_32(VHSUB_U, hsub_u)
+DO_3SAME_32(VRHADD_S, rhadd_s)
+DO_3SAME_32(VRHADD_U, rhadd_u)
+DO_3SAME_32(VRSHL_S, rshl_s)
+DO_3SAME_32(VRSHL_U, rshl_u)
+
+DO_3SAME_32_ENV(VQSHL_S, qshl_s)
+DO_3SAME_32_ENV(VQSHL_U, qshl_u)
+DO_3SAME_32_ENV(VQRSHL_S, qrshl_s)
+DO_3SAME_32_ENV(VQRSHL_U, qrshl_u)
+
+static bool do_3same_pair(DisasContext *s, arg_3same *a, NeonGenTwoOpFn *fn)
+{
+    /* Operations handled pairwise 32 bits at a time */
+    TCGv_i32 tmp, tmp2, tmp3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->size == 3) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    assert(a->q == 0); /* enforced by decode patterns */
+
+    /*
+     * Note that we have to be careful not to clobber the source operands
+     * in the "vm == vd" case by storing the result of the first pass too
+     * early. Since Q is 0 there are always just two passes, so instead
+     * of a complicated loop over each pass we just unroll.
+     */
+    tmp = neon_load_reg(a->vn, 0);
+    tmp2 = neon_load_reg(a->vn, 1);
+    fn(tmp, tmp, tmp2);
+    tcg_temp_free_i32(tmp2);
+
+    tmp3 = neon_load_reg(a->vm, 0);
+    tmp2 = neon_load_reg(a->vm, 1);
+    fn(tmp3, tmp3, tmp2);
+    tcg_temp_free_i32(tmp2);
+
+    neon_store_reg(a->vd, 0, tmp);
+    neon_store_reg(a->vd, 1, tmp3);
+    return true;
+}
+
+#define DO_3SAME_PAIR(INSN, func)                                       \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        static NeonGenTwoOpFn * const fns[] = {                         \
+            gen_helper_neon_##func##8,                                  \
+            gen_helper_neon_##func##16,                                 \
+            gen_helper_neon_##func##32,                                 \
+        };                                                              \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        return do_3same_pair(s, a, fns[a->size]);                       \
+    }
+
+/* 32-bit pairwise ops end up the same as the elementwise versions.  */
+#define gen_helper_neon_pmax_s32  tcg_gen_smax_i32
+#define gen_helper_neon_pmax_u32  tcg_gen_umax_i32
+#define gen_helper_neon_pmin_s32  tcg_gen_smin_i32
+#define gen_helper_neon_pmin_u32  tcg_gen_umin_i32
+#define gen_helper_neon_padd_u32  tcg_gen_add_i32
+
+DO_3SAME_PAIR(VPMAX_S, pmax_s)
+DO_3SAME_PAIR(VPMIN_S, pmin_s)
+DO_3SAME_PAIR(VPMAX_U, pmax_u)
+DO_3SAME_PAIR(VPMIN_U, pmin_u)
+DO_3SAME_PAIR(VPADD, padd_u)
+
+#define DO_3SAME_VQDMULH(INSN, FUNC)                                    \
+    WRAP_ENV_FN(gen_##INSN##_tramp16, gen_helper_neon_##FUNC##_s16);    \
+    WRAP_ENV_FN(gen_##INSN##_tramp32, gen_helper_neon_##FUNC##_s32);    \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        static const GVecGen3 ops[2] = {                                \
+            { .fni4 = gen_##INSN##_tramp16 },                           \
+            { .fni4 = gen_##INSN##_tramp32 },                           \
+        };                                                              \
+        tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops[vece - 1]); \
+    }                                                                   \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (a->size != 1 && a->size != 2) {                             \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##INSN##_3s);                         \
+    }
+
+DO_3SAME_VQDMULH(VQDMULH, qdmulh)
+DO_3SAME_VQDMULH(VQRDMULH, qrdmulh)
+
+static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn,
+                        bool reads_vd)
+{
+    /*
+     * FP operations handled elementwise 32 bits at a time.
+     * If reads_vd is true then the old value of Vd will be
+     * loaded before calling the callback function. This is
+     * used for multiply-accumulate type operations.
+     */
+    TCGv_i32 tmp, tmp2;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        tmp = neon_load_reg(a->vn, pass);
+        tmp2 = neon_load_reg(a->vm, pass);
+        if (reads_vd) {
+            TCGv_i32 tmp_rd = neon_load_reg(a->vd, pass);
+            fn(tmp_rd, tmp, tmp2, fpstatus);
+            neon_store_reg(a->vd, pass, tmp_rd);
+            tcg_temp_free_i32(tmp);
+        } else {
+            fn(tmp, tmp, tmp2, fpstatus);
+            neon_store_reg(a->vd, pass, tmp);
+        }
+        tcg_temp_free_i32(tmp2);
+    }
+    tcg_temp_free_ptr(fpstatus);
+    return true;
+}
+
+/*
+ * For all the functions using this macro, size == 1 means fp16,
+ * which is an architecture extension we don't implement yet.
+ */
+#define DO_3S_FP_GVEC(INSN,FUNC)                                        \
+    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
+                                uint32_t rn_ofs, uint32_t rm_ofs,       \
+                                uint32_t oprsz, uint32_t maxsz)         \
+    {                                                                   \
+        TCGv_ptr fpst = get_fpstatus_ptr(1);                            \
+        tcg_gen_gvec_3_ptr(rd_ofs, rn_ofs, rm_ofs, fpst,                \
+                           oprsz, maxsz, 0, FUNC);                      \
+        tcg_temp_free_ptr(fpst);                                        \
+    }                                                                   \
+    static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a)     \
+    {                                                                   \
+        if (a->size != 0) {                                             \
+            /* TODO fp16 support */                                     \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##INSN##_3s);                         \
+    }
+
+
+DO_3S_FP_GVEC(VADD, gen_helper_gvec_fadd_s)
+DO_3S_FP_GVEC(VSUB, gen_helper_gvec_fsub_s)
+DO_3S_FP_GVEC(VABD, gen_helper_gvec_fabd_s)
+DO_3S_FP_GVEC(VMUL, gen_helper_gvec_fmul_s)
+
+/*
+ * For all the functions using this macro, size == 1 means fp16,
+ * which is an architecture extension we don't implement yet.
+ */
+#define DO_3S_FP(INSN,FUNC,READS_VD)                                \
+    static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
+    {                                                               \
+        if (a->size != 0) {                                         \
+            /* TODO fp16 support */                                 \
+            return false;                                           \
+        }                                                           \
+        return do_3same_fp(s, a, FUNC, READS_VD);                   \
+    }
+
+DO_3S_FP(VCEQ, gen_helper_neon_ceq_f32, false)
+DO_3S_FP(VCGE, gen_helper_neon_cge_f32, false)
+DO_3S_FP(VCGT, gen_helper_neon_cgt_f32, false)
+DO_3S_FP(VACGE, gen_helper_neon_acge_f32, false)
+DO_3S_FP(VACGT, gen_helper_neon_acgt_f32, false)
+DO_3S_FP(VMAX, gen_helper_vfp_maxs, false)
+DO_3S_FP(VMIN, gen_helper_vfp_mins, false)
+
+static void gen_VMLA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muls(vn, vn, vm, fpstatus);
+    gen_helper_vfp_adds(vd, vd, vn, fpstatus);
+}
+
+static void gen_VMLS_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muls(vn, vn, vm, fpstatus);
+    gen_helper_vfp_subs(vd, vd, vn, fpstatus);
+}
+
+DO_3S_FP(VMLA, gen_VMLA_fp_3s, true)
+DO_3S_FP(VMLS, gen_VMLS_fp_3s, true)
+
+static bool trans_VMAXNM_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_helper_vfp_maxnums, false);
+}
+
+static bool trans_VMINNM_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_helper_vfp_minnums, false);
+}
+
+WRAP_ENV_FN(gen_VRECPS_tramp, gen_helper_recps_f32)
+
+static void gen_VRECPS_fp_3s(unsigned vece, uint32_t rd_ofs,
+                             uint32_t rn_ofs, uint32_t rm_ofs,
+                             uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 ops = { .fni4 = gen_VRECPS_tramp };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops);
+}
+
+static bool trans_VRECPS_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same(s, a, gen_VRECPS_fp_3s);
+}
+
+WRAP_ENV_FN(gen_VRSQRTS_tramp, gen_helper_rsqrts_f32)
+
+static void gen_VRSQRTS_fp_3s(unsigned vece, uint32_t rd_ofs,
+                              uint32_t rn_ofs, uint32_t rm_ofs,
+                              uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 ops = { .fni4 = gen_VRSQRTS_tramp };
+    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops);
+}
+
+static bool trans_VRSQRTS_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same(s, a, gen_VRSQRTS_fp_3s);
+}
+
+static void gen_VFMA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muladds(vd, vn, vm, vd, fpstatus);
+}
+
+static bool trans_VFMA_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_VFMA_fp_3s, true);
+}
+
+static void gen_VFMS_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_negs(vn, vn);
+    gen_helper_vfp_muladds(vd, vn, vm, vd, fpstatus);
+}
+
+static bool trans_VFMS_fp_3s(DisasContext *s, arg_3same *a)
+{
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+
+    if (a->size != 0) {
+        /* TODO fp16 support */
+        return false;
+    }
+
+    return do_3same_fp(s, a, gen_VFMS_fp_3s, true);
+}
+
+static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
+{
+    /* FP operations handled pairwise 32 bits at a time */
+    TCGv_i32 tmp, tmp2, tmp3;
+    TCGv_ptr fpstatus;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    assert(a->q == 0); /* enforced by decode patterns */
+
+    /*
+     * Note that we have to be careful not to clobber the source operands
+     * in the "vm == vd" case by storing the result of the first pass too
+     * early. Since Q is 0 there are always just two passes, so instead
+     * of a complicated loop over each pass we just unroll.
+     */
+    fpstatus = get_fpstatus_ptr(1);
+    tmp = neon_load_reg(a->vn, 0);
+    tmp2 = neon_load_reg(a->vn, 1);
+    fn(tmp, tmp, tmp2, fpstatus);
+    tcg_temp_free_i32(tmp2);
+
+    tmp3 = neon_load_reg(a->vm, 0);
+    tmp2 = neon_load_reg(a->vm, 1);
+    fn(tmp3, tmp3, tmp2, fpstatus);
+    tcg_temp_free_i32(tmp2);
+    tcg_temp_free_ptr(fpstatus);
+
+    neon_store_reg(a->vd, 0, tmp);
+    neon_store_reg(a->vd, 1, tmp3);
+    return true;
+}
+
+/*
+ * For all the functions using this macro, size == 1 means fp16,
+ * which is an architecture extension we don't implement yet.
+ */
+#define DO_3S_FP_PAIR(INSN,FUNC)                                    \
+    static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
+    {                                                               \
+        if (a->size != 0) {                                         \
+            /* TODO fp16 support */                                 \
+            return false;                                           \
+        }                                                           \
+        return do_3same_fp_pair(s, a, FUNC);                        \
+    }
+
+DO_3S_FP_PAIR(VPADD, gen_helper_vfp_adds)
+DO_3S_FP_PAIR(VPMAX, gen_helper_vfp_maxs)
+DO_3S_FP_PAIR(VPMIN, gen_helper_vfp_mins)
