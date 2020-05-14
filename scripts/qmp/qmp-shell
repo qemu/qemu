@@ -77,9 +77,6 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
 
-if sys.version_info[0] == 2:
-    input = raw_input
-
 class QMPCompleter(list):
     def complete(self, text, state):
         for cmd in self:
