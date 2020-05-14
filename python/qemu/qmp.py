@@ -120,14 +120,14 @@ class QEMUMonitorProtocol:
         """
 
         # Check for new events regardless and pull them into the cache:
-        self.__sock.setblocking(0)
+        self.__sock.setblocking(False)
         try:
             self.__json_read()
         except OSError as err:
             if err.errno == errno.EAGAIN:
                 # No data available
                 pass
-        self.__sock.setblocking(1)
+        self.__sock.setblocking(True)
 
         # Wait for new events, if needed.
         # if wait is 0.0, this means "no wait" and is also implicitly false.
