@@ -159,7 +159,7 @@ static void register_pci_fuzz_targets(void)
     /* Uses simple qtest commands and reboots to reset state */
     fuzz_add_target(&(FuzzTarget){
                 .name = "i440fx-qtest-reboot-fuzz",
-                .description = "Fuzz the i440fx using raw qtest commands and"
+                .description = "Fuzz the i440fx using raw qtest commands and "
                                "rebooting after each run",
                 .get_init_cmdline = i440fx_argv,
                 .fuzz = i440fx_fuzz_qtest});
@@ -167,7 +167,7 @@ static void register_pci_fuzz_targets(void)
     /* Uses libqos and forks to prevent state leakage */
     fuzz_add_qos_target(&(FuzzTarget){
                 .name = "i440fx-qos-fork-fuzz",
-                .description = "Fuzz the i440fx using raw qtest commands and"
+                .description = "Fuzz the i440fx using raw qtest commands and "
                                "rebooting after each run",
                 .pre_vm_init = &fork_init,
                 .fuzz = i440fx_fuzz_qos_fork,},
@@ -182,7 +182,7 @@ static void register_pci_fuzz_targets(void)
      */
     fuzz_add_qos_target(&(FuzzTarget){
                 .name = "i440fx-qos-noreset-fuzz",
-                .description = "Fuzz the i440fx using raw qtest commands and"
+                .description = "Fuzz the i440fx using raw qtest commands and "
                                "rebooting after each run",
                 .fuzz = i440fx_fuzz_qos,},
                 "i440FX-pcihost",
