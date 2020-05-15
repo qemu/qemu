@@ -18,11 +18,9 @@ RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
         bc \
-        bison \
         build-essential \
         ca-certificates \
         clang \
-        flex \
         gdb-multiarch \
         gettext \
         git \

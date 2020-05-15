@@ -10,7 +10,7 @@
 #
 
 FROM ubuntu:20.04
-ENV PACKAGES flex bison \
+ENV PACKAGES \
     ccache \
     clang \
     dbus \

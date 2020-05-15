@@ -11,11 +11,9 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
-        bison \
         build-essential \
         ca-certificates \
         curl \
-        flex \
         gettext \
         git \
         python3-minimal
