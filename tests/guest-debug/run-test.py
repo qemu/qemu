@@ -80,4 +80,10 @@ if __name__ == '__main__':
         print("GDB crashed? SKIPPING")
         exit(0)
 
+    try:
+        inferior.wait(2)
+    except subprocess.TimeoutExpired:
+        print("GDB never connected? Killed guest")
+        inferior.kill()
+
     exit(result)

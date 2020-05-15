@@ -11,6 +11,7 @@
 #include "qemu/queue.h"
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
+#include "qemu/selfmap.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -382,68 +383,30 @@ enum {
 
 /* The commpage only exists for 32 bit kernels */
 
-/* Return 1 if the proposed guest space is suitable for the guest.
- * Return 0 if the proposed guest space isn't suitable, but another
- * address space should be tried.
- * Return -1 if there is no way the proposed guest space can be
- * valid regardless of the base.
- * The guest code may leave a page mapped and populate it if the
- * address is suitable.
- */
-static int init_guest_commpage(unsigned long guest_base,
-                               unsigned long guest_size)
+#define ARM_COMMPAGE (intptr_t)0xffff0f00u
+
+static bool init_guest_commpage(void)
 {
-    unsigned long real_start, test_page_addr;
+    void *want = g2h(ARM_COMMPAGE & -qemu_host_page_size);
+    void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
+                      MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
-    /* We need to check that we can force a fault on access to the
-     * commpage at 0xffff0fxx
-     */
-    test_page_addr = guest_base + (0xffff0f00 & qemu_host_page_mask);
-
-    /* If the commpage lies within the already allocated guest space,
-     * then there is no way we can allocate it.
-     *
-     * You may be thinking that that this check is redundant because
-     * we already validated the guest size against MAX_RESERVED_VA;
-     * but if qemu_host_page_mask is unusually large, then
-     * test_page_addr may be lower.
-     */
-    if (test_page_addr >= guest_base
-        && test_page_addr < (guest_base + guest_size)) {
-        return -1;
+    if (addr == MAP_FAILED) {
+        perror("Allocating guest commpage");
+        exit(EXIT_FAILURE);
+    }
+    if (addr != want) {
+        return false;
     }
 
-    /* Note it needs to be writeable to let us initialise it */
-    real_start = (unsigned long)
-                 mmap((void *)test_page_addr, qemu_host_page_size,
-                     PROT_READ | PROT_WRITE,
-                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    /* Set kernel helper versions; rest of page is 0.  */
+    __put_user(5, (uint32_t *)g2h(0xffff0ffcu));
 
-    /* If we can't map it then try another address */
-    if (real_start == -1ul) {
-        return 0;
-    }
-
-    if (real_start != test_page_addr) {
-        /* OS didn't put the page where we asked - unmap and reject */
-        munmap((void *)real_start, qemu_host_page_size);
-        return 0;
-    }
-
-    /* Leave the page mapped
-     * Populate it (mmap should have left it all 0'd)
-     */
-
-    /* Kernel helper versions */
-    __put_user(5, (uint32_t *)g2h(0xffff0ffcul));
-
-    /* Now it's populated make it RO */
-    if (mprotect((void *)test_page_addr, qemu_host_page_size, PROT_READ)) {
+    if (mprotect(addr, qemu_host_page_size, PROT_READ)) {
         perror("Protecting guest commpage");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
-
-    return 1; /* All good */
+    return true;
 }
 
 #define ELF_HWCAP get_elf_hwcap()
@@ -2075,239 +2038,267 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-unsigned long init_guest_space(unsigned long host_start,
-                               unsigned long host_size,
-                               unsigned long guest_start,
-                               bool fixed)
+#ifndef ARM_COMMPAGE
+#define ARM_COMMPAGE 0
+#define init_guest_commpage() true
+#endif
+
+static void pgb_fail_in_use(const char *image_name)
+{
+    error_report("%s: requires virtual address space that is in use "
+                 "(omit the -B option or choose a different value)",
+                 image_name);
+    exit(EXIT_FAILURE);
+}
+
+static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
+                                abi_ulong guest_hiaddr, long align)
+{
+    const int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+    void *addr, *test;
+
+    if (!QEMU_IS_ALIGNED(guest_base, align)) {
+        fprintf(stderr, "Requested guest base 0x%lx does not satisfy "
+                "host minimum alignment (0x%lx)\n",
+                guest_base, align);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Sanity check the guest binary. */
+    if (reserved_va) {
+        if (guest_hiaddr > reserved_va) {
+            error_report("%s: requires more than reserved virtual "
+                         "address space (0x%" PRIx64 " > 0x%lx)",
+                         image_name, (uint64_t)guest_hiaddr, reserved_va);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        if ((guest_hiaddr - guest_base) > ~(uintptr_t)0) {
+            error_report("%s: requires more virtual address space "
+                         "than the host can provide (0x%" PRIx64 ")",
+                         image_name, (uint64_t)guest_hiaddr - guest_base);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /*
+     * Expand the allocation to the entire reserved_va.
+     * Exclude the mmap_min_addr hole.
+     */
+    if (reserved_va) {
+        guest_loaddr = (guest_base >= mmap_min_addr ? 0
+                        : mmap_min_addr - guest_base);
+        guest_hiaddr = reserved_va;
+    }
+
+    /* Reserve the address space for the binary, or reserved_va. */
+    test = g2h(guest_loaddr);
+    addr = mmap(test, guest_hiaddr - guest_loaddr, PROT_NONE, flags, -1, 0);
+    if (test != addr) {
+        pgb_fail_in_use(image_name);
+    }
+}
+
+/* Return value for guest_base, or -1 if no hole found. */
+static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
+                               long align)
+{
+    GSList *maps, *iter;
+    uintptr_t this_start, this_end, next_start, brk;
+    intptr_t ret = -1;
+
+    assert(QEMU_IS_ALIGNED(guest_loaddr, align));
+
+    maps = read_self_maps();
+
+    /* Read brk after we've read the maps, which will malloc. */
+    brk = (uintptr_t)sbrk(0);
+
+    /* The first hole is before the first map entry. */
+    this_start = mmap_min_addr;
+
+    for (iter = maps; iter;
+         this_start = next_start, iter = g_slist_next(iter)) {
+        uintptr_t align_start, hole_size;
+
+        this_end = ((MapInfo *)iter->data)->start;
+        next_start = ((MapInfo *)iter->data)->end;
+        align_start = ROUND_UP(this_start, align);
+
+        /* Skip holes that are too small. */
+        if (align_start >= this_end) {
+            continue;
+        }
+        hole_size = this_end - align_start;
+        if (hole_size < guest_size) {
+            continue;
+        }
+
+        /* If this hole contains brk, give ourselves some room to grow. */
+        if (this_start <= brk && brk < this_end) {
+            hole_size -= guest_size;
+            if (sizeof(uintptr_t) == 8 && hole_size >= 1 * GiB) {
+                align_start += 1 * GiB;
+            } else if (hole_size >= 16 * MiB) {
+                align_start += 16 * MiB;
+            } else {
+                align_start = (this_end - guest_size) & -align;
+                if (align_start < this_start) {
+                    continue;
+                }
+            }
+        }
+
+        /* Record the lowest successful match. */
+        if (ret < 0) {
+            ret = align_start - guest_loaddr;
+        }
+        /* If this hole contains the identity map, select it. */
+        if (align_start <= guest_loaddr &&
+            guest_loaddr + guest_size <= this_end) {
+            ret = 0;
+        }
+        /* If this hole ends above the identity map, stop looking. */
+        if (this_end >= guest_loaddr) {
+            break;
+        }
+    }
+    free_self_maps(maps);
+
+    return ret;
+}
+
+static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
+                       abi_ulong orig_hiaddr, long align)
+{
+    uintptr_t loaddr = orig_loaddr;
+    uintptr_t hiaddr = orig_hiaddr;
+    uintptr_t addr;
+
+    if (hiaddr != orig_hiaddr) {
+        error_report("%s: requires virtual address space that the "
+                     "host cannot provide (0x%" PRIx64 ")",
+                     image_name, (uint64_t)orig_hiaddr);
+        exit(EXIT_FAILURE);
+    }
+
+    loaddr &= -align;
+    if (ARM_COMMPAGE) {
+        /*
+         * Extend the allocation to include the commpage.
+         * For a 64-bit host, this is just 4GiB; for a 32-bit host,
+         * the address arithmetic will wrap around, but the difference
+         * will produce the correct allocation size.
+         */
+        if (sizeof(uintptr_t) == 8 || loaddr >= 0x80000000u) {
+            hiaddr = (uintptr_t)4 << 30;
+        } else {
+            loaddr = ARM_COMMPAGE & -align;
+        }
+    }
+
+    addr = pgb_find_hole(loaddr, hiaddr - loaddr, align);
+    if (addr == -1) {
+        /*
+         * If ARM_COMMPAGE, there *might* be a non-consecutive allocation
+         * that can satisfy both.  But as the normal arm32 link base address
+         * is ~32k, and we extend down to include the commpage, making the
+         * overhead only ~96k, this is unlikely.
+         */
+        error_report("%s: Unable to allocate %#zx bytes of "
+                     "virtual address space", image_name,
+                     (size_t)(hiaddr - loaddr));
+        exit(EXIT_FAILURE);
+    }
+
+    guest_base = addr;
+}
+
+static void pgb_dynamic(const char *image_name, long align)
+{
+    /*
+     * The executable is dynamic and does not require a fixed address.
+     * All we need is a commpage that satisfies align.
+     * If we do not need a commpage, leave guest_base == 0.
+     */
+    if (ARM_COMMPAGE) {
+        uintptr_t addr, commpage;
+
+        /* 64-bit hosts should have used reserved_va. */
+        assert(sizeof(uintptr_t) == 4);
+
+        /*
+         * By putting the commpage at the first hole, that puts guest_base
+         * just above that, and maximises the positive guest addresses.
+         */
+        commpage = ARM_COMMPAGE & -align;
+        addr = pgb_find_hole(commpage, -commpage, align);
+        assert(addr != -1);
+        guest_base = addr;
+    }
+}
+
+static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
+                            abi_ulong guest_hiaddr, long align)
+{
+    const int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+    void *addr, *test;
+
+    if (guest_hiaddr > reserved_va) {
+        error_report("%s: requires more than reserved virtual "
+                     "address space (0x%" PRIx64 " > 0x%lx)",
+                     image_name, (uint64_t)guest_hiaddr, reserved_va);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Widen the "image" to the entire reserved address space. */
+    pgb_static(image_name, 0, reserved_va, align);
+
+    /* Reserve the memory on the host. */
+    assert(guest_base != 0);
+    test = g2h(0);
+    addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
+    if (addr == MAP_FAILED) {
+        error_report("Unable to reserve 0x%lx bytes of virtual address "
+                     "space for use as guest address space (check your "
+                     "virtual memory ulimit setting or reserve less "
+                     "using -R option)", reserved_va);
+        exit(EXIT_FAILURE);
+    }
+    assert(addr == test);
+}
+
+void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
+                      abi_ulong guest_hiaddr)
 {
     /* In order to use host shmat, we must be able to honor SHMLBA.  */
-    unsigned long align = MAX(SHMLBA, qemu_host_page_size);
-    unsigned long current_start, aligned_start;
-    int flags;
+    uintptr_t align = MAX(SHMLBA, qemu_host_page_size);
 
-    assert(host_start || host_size);
-
-    /* If just a starting address is given, then just verify that
-     * address.  */
-    if (host_start && !host_size) {
-#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
-        if (init_guest_commpage(host_start, host_size) != 1) {
-            return (unsigned long)-1;
-        }
-#endif
-        return host_start;
+    if (have_guest_base) {
+        pgb_have_guest_base(image_name, guest_loaddr, guest_hiaddr, align);
+    } else if (reserved_va) {
+        pgb_reserved_va(image_name, guest_loaddr, guest_hiaddr, align);
+    } else if (guest_loaddr) {
+        pgb_static(image_name, guest_loaddr, guest_hiaddr, align);
+    } else {
+        pgb_dynamic(image_name, align);
     }
 
-    /* Setup the initial flags and start address.  */
-    current_start = host_start & -align;
-    flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-    if (fixed) {
-        flags |= MAP_FIXED;
-    }
-
-    /* Otherwise, a non-zero size region of memory needs to be mapped
-     * and validated.  */
-
-#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
-    /* On 32-bit ARM, we need to map not just the usable memory, but
-     * also the commpage.  Try to find a suitable place by allocating
-     * a big chunk for all of it.  If host_start, then the naive
-     * strategy probably does good enough.
-     */
-    if (!host_start) {
-        unsigned long guest_full_size, host_full_size, real_start;
-
-        guest_full_size =
-            (0xffff0f00 & qemu_host_page_mask) + qemu_host_page_size;
-        host_full_size = guest_full_size - guest_start;
-        real_start = (unsigned long)
-            mmap(NULL, host_full_size, PROT_NONE, flags, -1, 0);
-        if (real_start == (unsigned long)-1) {
-            if (host_size < host_full_size - qemu_host_page_size) {
-                /* We failed to map a continous segment, but we're
-                 * allowed to have a gap between the usable memory and
-                 * the commpage where other things can be mapped.
-                 * This sparseness gives us more flexibility to find
-                 * an address range.
-                 */
-                goto naive;
-            }
-            return (unsigned long)-1;
-        }
-        munmap((void *)real_start, host_full_size);
-        if (real_start & (align - 1)) {
-            /* The same thing again, but with extra
-             * so that we can shift around alignment.
-             */
-            unsigned long real_size = host_full_size + qemu_host_page_size;
-            real_start = (unsigned long)
-                mmap(NULL, real_size, PROT_NONE, flags, -1, 0);
-            if (real_start == (unsigned long)-1) {
-                if (host_size < host_full_size - qemu_host_page_size) {
-                    goto naive;
-                }
-                return (unsigned long)-1;
-            }
-            munmap((void *)real_start, real_size);
-            real_start = ROUND_UP(real_start, align);
-        }
-        current_start = real_start;
-    }
- naive:
-#endif
-
-    while (1) {
-        unsigned long real_start, real_size, aligned_size;
-        aligned_size = real_size = host_size;
-
-        /* Do not use mmap_find_vma here because that is limited to the
-         * guest address space.  We are going to make the
-         * guest address space fit whatever we're given.
+    /* Reserve and initialize the commpage. */
+    if (!init_guest_commpage()) {
+        /*
+         * With have_guest_base, the user has selected the address and
+         * we are trying to work with that.  Otherwise, we have selected
+         * free space and init_guest_commpage must succeeded.
          */
-        real_start = (unsigned long)
-            mmap((void *)current_start, host_size, PROT_NONE, flags, -1, 0);
-        if (real_start == (unsigned long)-1) {
-            return (unsigned long)-1;
-        }
-
-        /* Check to see if the address is valid.  */
-        if (host_start && real_start != current_start) {
-            qemu_log_mask(CPU_LOG_PAGE, "invalid %lx && %lx != %lx\n",
-                          host_start, real_start, current_start);
-            goto try_again;
-        }
-
-        /* Ensure the address is properly aligned.  */
-        if (real_start & (align - 1)) {
-            /* Ideally, we adjust like
-             *
-             *    pages: [  ][  ][  ][  ][  ]
-             *      old:   [   real   ]
-             *             [ aligned  ]
-             *      new:   [     real     ]
-             *               [ aligned  ]
-             *
-             * But if there is something else mapped right after it,
-             * then obviously it won't have room to grow, and the
-             * kernel will put the new larger real someplace else with
-             * unknown alignment (if we made it to here, then
-             * fixed=false).  Which is why we grow real by a full page
-             * size, instead of by part of one; so that even if we get
-             * moved, we can still guarantee alignment.  But this does
-             * mean that there is a padding of < 1 page both before
-             * and after the aligned range; the "after" could could
-             * cause problems for ARM emulation where it could butt in
-             * to where we need to put the commpage.
-             */
-            munmap((void *)real_start, host_size);
-            real_size = aligned_size + align;
-            real_start = (unsigned long)
-                mmap((void *)real_start, real_size, PROT_NONE, flags, -1, 0);
-            if (real_start == (unsigned long)-1) {
-                return (unsigned long)-1;
-            }
-            aligned_start = ROUND_UP(real_start, align);
-        } else {
-            aligned_start = real_start;
-        }
-
-#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
-        /* On 32-bit ARM, we need to also be able to map the commpage.  */
-        int valid = init_guest_commpage(aligned_start - guest_start,
-                                        aligned_size + guest_start);
-        if (valid == -1) {
-            munmap((void *)real_start, real_size);
-            return (unsigned long)-1;
-        } else if (valid == 0) {
-            goto try_again;
-        }
-#endif
-
-        /* If nothing has said `return -1` or `goto try_again` yet,
-         * then the address we have is good.
-         */
-        break;
-
-    try_again:
-        /* That address didn't work.  Unmap and try a different one.
-         * The address the host picked because is typically right at
-         * the top of the host address space and leaves the guest with
-         * no usable address space.  Resort to a linear search.  We
-         * already compensated for mmap_min_addr, so this should not
-         * happen often.  Probably means we got unlucky and host
-         * address space randomization put a shared library somewhere
-         * inconvenient.
-         *
-         * This is probably a good strategy if host_start, but is
-         * probably a bad strategy if not, which means we got here
-         * because of trouble with ARM commpage setup.
-         */
-        if (munmap((void *)real_start, real_size) != 0) {
-            error_report("%s: failed to unmap %lx:%lx (%s)", __func__,
-                         real_start, real_size, strerror(errno));
-            abort();
-        }
-        current_start += align;
-        if (host_start == current_start) {
-            /* Theoretically possible if host doesn't have any suitably
-             * aligned areas.  Normally the first mmap will fail.
-             */
-            return (unsigned long)-1;
-        }
+        assert(have_guest_base);
+        pgb_fail_in_use(image_name);
     }
 
-    qemu_log_mask(CPU_LOG_PAGE, "Reserved 0x%lx bytes of guest address space\n", host_size);
-
-    return aligned_start;
+    assert(QEMU_IS_ALIGNED(guest_base, align));
+    qemu_log_mask(CPU_LOG_PAGE, "Locating guest address space "
+                  "@ 0x%" PRIx64 "\n", (uint64_t)guest_base);
 }
-
-static void probe_guest_base(const char *image_name,
-                             abi_ulong loaddr, abi_ulong hiaddr)
-{
-    /* Probe for a suitable guest base address, if the user has not set
-     * it explicitly, and set guest_base appropriately.
-     * In case of error we will print a suitable message and exit.
-     */
-    const char *errmsg;
-    if (!have_guest_base && !reserved_va) {
-        unsigned long host_start, real_start, host_size;
-
-        /* Round addresses to page boundaries.  */
-        loaddr &= qemu_host_page_mask;
-        hiaddr = HOST_PAGE_ALIGN(hiaddr);
-
-        if (loaddr < mmap_min_addr) {
-            host_start = HOST_PAGE_ALIGN(mmap_min_addr);
-        } else {
-            host_start = loaddr;
-            if (host_start != loaddr) {
-                errmsg = "Address overflow loading ELF binary";
-                goto exit_errmsg;
-            }
-        }
-        host_size = hiaddr - loaddr;
-
-        /* Setup the initial guest memory space with ranges gleaned from
-         * the ELF image that is being loaded.
-         */
-        real_start = init_guest_space(host_start, host_size, loaddr, false);
-        if (real_start == (unsigned long)-1) {
-            errmsg = "Unable to find space for application";
-            goto exit_errmsg;
-        }
-        guest_base = real_start - loaddr;
-
-        qemu_log_mask(CPU_LOG_PAGE, "Relocating guest address space from 0x"
-                      TARGET_ABI_FMT_lx " to 0x%lx\n",
-                      loaddr, real_start);
-    }
-    return;
-
-exit_errmsg:
-    fprintf(stderr, "%s: %s\n", image_name, errmsg);
-    exit(-1);
-}
-
 
 /* Load an ELF image into the address space.
 
@@ -2399,6 +2390,12 @@ static void load_elf_image(const char *image_name, int image_fd,
              * MMAP_MIN_ADDR or the QEMU application itself.
              */
             probe_guest_base(image_name, loaddr, hiaddr);
+        } else {
+            /*
+             * The binary is dynamic, but we still need to
+             * select guest_base.  In this case we pass a size.
+             */
+            probe_guest_base(image_name, 0, hiaddr - loaddr);
         }
     }
 
