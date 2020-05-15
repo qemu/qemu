@@ -338,12 +338,36 @@ int32_t helper_fistt_ST0(CPUX86State *env)
 
 int32_t helper_fisttl_ST0(CPUX86State *env)
 {
-    return floatx80_to_int32_round_to_zero(ST0, &env->fp_status);
+    int32_t val;
+    signed char old_exp_flags;
+
+    old_exp_flags = get_float_exception_flags(&env->fp_status);
+    set_float_exception_flags(0, &env->fp_status);
+
+    val = floatx80_to_int32_round_to_zero(ST0, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) & float_flag_invalid) {
+        val = 0x80000000;
+    }
+    set_float_exception_flags(get_float_exception_flags(&env->fp_status)
+                                | old_exp_flags, &env->fp_status);
+    return val;
 }
 
 int64_t helper_fisttll_ST0(CPUX86State *env)
 {
-    return floatx80_to_int64_round_to_zero(ST0, &env->fp_status);
+    int64_t val;
+    signed char old_exp_flags;
+
+    old_exp_flags = get_float_exception_flags(&env->fp_status);
+    set_float_exception_flags(0, &env->fp_status);
+
+    val = floatx80_to_int64_round_to_zero(ST0, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) & float_flag_invalid) {
+        val = 0x8000000000000000ULL;
+    }
+    set_float_exception_flags(get_float_exception_flags(&env->fp_status)
+                                | old_exp_flags, &env->fp_status);
+    return val;
 }
 
 void helper_fldt_ST0(CPUX86State *env, target_ulong ptr)
