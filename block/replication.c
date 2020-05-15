@@ -343,9 +343,18 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    ret = s->hidden_disk->bs->drv->bdrv_make_empty(s->hidden_disk->bs);
+    BlockBackend *blk = blk_new(qemu_get_current_aio_context(),
+                                BLK_PERM_WRITE, BLK_PERM_ALL);
+    blk_insert_bs(blk, s->hidden_disk->bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        blk_unref(blk);
+        return;
+    }
+
+    ret = blk_make_empty(blk, errp);
+    blk_unref(blk);
     if (ret < 0) {
-        error_setg(errp, "Cannot make hidden disk empty");
         return;
     }
 }
