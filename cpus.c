@@ -821,8 +821,10 @@ void configure_icount(QemuOpts *opts, Error **errp)
     bool align = qemu_opt_get_bool(opts, "align", false);
     long time_shift = -1;
 
-    if (!option && qemu_opt_get(opts, "align")) {
-        error_setg(errp, "Please specify shift option when using align");
+    if (!option) {
+        if (qemu_opt_get(opts, "align") != NULL) {
+            error_setg(errp, "Please specify shift option when using align");
+        }
         return;
     }
 
