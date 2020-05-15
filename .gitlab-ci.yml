@@ -4,7 +4,7 @@ include:
 
 before_script:
  - apt-get update -qq
- - apt-get install -y -qq flex bison libglib2.0-dev libpixman-1-dev genisoimage
+ - apt-get install -y -qq libglib2.0-dev libpixman-1-dev genisoimage
 
 build-system1:
  script:
