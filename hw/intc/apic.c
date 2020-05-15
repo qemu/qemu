@@ -900,7 +900,7 @@ static void apic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
-static void apic_unrealize(DeviceState *dev, Error **errp)
+static void apic_unrealize(DeviceState *dev)
 {
     APICCommonState *s = APIC(dev);
 

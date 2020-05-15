@@ -229,7 +229,7 @@ static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
         rtc_set_memory(rtc, 0x3f, checksum >> 8);
 
         object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(rtc),
-                                  "date", NULL);
+                                  "date");
     }
     return 0;
 }
@@ -275,7 +275,7 @@ static void ibm_40p_init(MachineState *machine)
     qdev_prop_set_string(dev, "bios-name", bios_name);
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
     pcihost = SYS_BUS_DEVICE(dev);
-    object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
+    object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
     qdev_init_nofail(dev);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     if (!pci_bus) {
@@ -343,7 +343,7 @@ static void ibm_40p_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(fw_cfg), NULL);
+                              OBJECT(fw_cfg));
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, CFG_ADDR);

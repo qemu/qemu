@@ -282,7 +282,7 @@ static void kvaser_pci_instance_init(Object *obj)
     object_property_add_link(obj, "canbus", TYPE_CAN_BUS,
                              (Object **)&d->canbus,
                              qdev_prop_allow_set_link_before_realize,
-                             0, &error_abort);
+                             0);
 }
 
 static void kvaser_pci_class_init(ObjectClass *klass, void *data)

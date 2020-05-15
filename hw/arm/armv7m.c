@@ -138,7 +138,7 @@ static void armv7m_instance_init(Object *obj)
 
     sysbus_init_child_obj(obj, "nvnic", &s->nvic, sizeof(s->nvic), TYPE_NVIC);
     object_property_add_alias(obj, "num-irq",
-                              OBJECT(&s->nvic), "num-irq", &error_abort);
+                              OBJECT(&s->nvic), "num-irq");
 
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         sysbus_init_child_obj(obj, "bitband[*]", &s->bitband[i],

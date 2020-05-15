@@ -275,12 +275,10 @@ qcrypto_tls_creds_psk_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_tls_creds_psk_prop_get_loaded,
-                                   qcrypto_tls_creds_psk_prop_set_loaded,
-                                   NULL);
+                                   qcrypto_tls_creds_psk_prop_set_loaded);
     object_class_property_add_str(oc, "username",
                                   qcrypto_tls_creds_psk_prop_get_username,
-                                  qcrypto_tls_creds_psk_prop_set_username,
-                                  NULL);
+                                  qcrypto_tls_creds_psk_prop_set_username);
 }
 
 

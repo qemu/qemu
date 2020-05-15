@@ -2522,7 +2522,7 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
     s->vmstate = qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
 }
 
-void usb_ehci_unrealize(EHCIState *s, DeviceState *dev, Error **errp)
+void usb_ehci_unrealize(EHCIState *s, DeviceState *dev)
 {
     trace_usb_ehci_unrealize();
 

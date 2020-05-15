@@ -320,9 +320,8 @@ void s390_sclp_init(void)
 {
     Object *new = object_new(TYPE_SCLP);
 
-    object_property_add_child(qdev_get_machine(), TYPE_SCLP, new,
-                              NULL);
-    object_unref(OBJECT(new));
+    object_property_add_child(qdev_get_machine(), TYPE_SCLP, new);
+    object_unref(new);
     qdev_init_nofail(DEVICE(new));
 }
 
@@ -383,7 +382,7 @@ static void sclp_init(Object *obj)
     Object *new;
 
     new = object_new(TYPE_SCLP_EVENT_FACILITY);
-    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new, NULL);
+    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new);
     object_unref(new);
     sclp->event_facility = EVENT_FACILITY(new);
 

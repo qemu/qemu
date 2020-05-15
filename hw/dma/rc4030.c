@@ -690,7 +690,7 @@ static void rc4030_realize(DeviceState *dev, Error **errp)
     address_space_init(&s->dma_as, MEMORY_REGION(&s->dma_mr), "rc4030-dma");
 }
 
-static void rc4030_unrealize(DeviceState *dev, Error **errp)
+static void rc4030_unrealize(DeviceState *dev)
 {
     rc4030State *s = RC4030(dev);
 

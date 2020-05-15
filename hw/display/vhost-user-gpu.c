@@ -512,7 +512,7 @@ vhost_user_gpu_instance_init(Object *obj)
 
     g->vhost = VHOST_USER_BACKEND(object_new(TYPE_VHOST_USER_BACKEND));
     object_property_add_alias(obj, "chardev",
-                              OBJECT(g->vhost), "chardev", &error_abort);
+                              OBJECT(g->vhost), "chardev");
 }
 
 static void

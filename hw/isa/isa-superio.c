@@ -62,6 +62,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                 qdev_prop_set_uint32(d, "irq", k->parallel.get_irq(sio, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
+            object_property_add_child(OBJECT(dev), name, OBJECT(isa));
             qdev_init_nofail(d);
             sio->parallel[i] = isa;
             trace_superio_create_parallel(i,
@@ -69,8 +70,6 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                                           k->parallel.get_iobase(sio, i) : -1,
                                           k->parallel.get_irq ?
                                           k->parallel.get_irq(sio, i) : -1);
-            object_property_add_child(OBJECT(dev), name,
-                                      OBJECT(sio->parallel[i]), NULL);
             g_free(name);
         }
     }
@@ -102,6 +101,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                 qdev_prop_set_uint32(d, "irq", k->serial.get_irq(sio, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
+            object_property_add_child(OBJECT(dev), name, OBJECT(isa));
             qdev_init_nofail(d);
             sio->serial[i] = isa;
             trace_superio_create_serial(i,
@@ -109,8 +109,6 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                                         k->serial.get_iobase(sio, i) : -1,
                                         k->serial.get_irq ?
                                         k->serial.get_irq(sio, i) : -1);
-            object_property_add_child(OBJECT(dev), name,
-                                      OBJECT(sio->serial[0]), NULL);
             g_free(name);
         }
     }
@@ -137,6 +135,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_drive(d, "driveB", blk_by_legacy_dinfo(drive),
                                 &error_fatal);
         }
+        object_property_add_child(OBJECT(sio), "isa-fdc", OBJECT(isa));
         qdev_init_nofail(d);
         sio->floppy = isa;
         trace_superio_create_floppy(0,
@@ -147,7 +146,10 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 
     /* Keyboard, mouse */
-    sio->kbc = isa_create_simple(bus, TYPE_I8042);
+    isa = isa_create(bus, TYPE_I8042);
+    object_property_add_child(OBJECT(sio), TYPE_I8042, OBJECT(isa));
+    qdev_init_nofail(DEVICE(isa));
+    sio->kbc = isa;
 
     /* IDE */
     if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(sio, 0))) {
@@ -163,6 +165,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_uint32(d, "irq", k->ide.get_irq(sio, 0));
         }
         qdev_init_nofail(d);
+        object_property_add_child(OBJECT(sio), "isa-ide", OBJECT(isa));
         sio->ide = isa;
         trace_superio_create_ide(0,
                                  k->ide.get_iobase ?

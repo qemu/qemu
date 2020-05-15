@@ -3622,7 +3622,7 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     virtio_bus_device_plugged(vdev, &err);
     if (err != NULL) {
         error_propagate(errp, err);
-        vdc->unrealize(dev, NULL);
+        vdc->unrealize(dev);
         return;
     }
 
@@ -3630,20 +3630,15 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     memory_listener_register(&vdev->listener, vdev->dma_as);
 }
 
-static void virtio_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
-    Error *err = NULL;
 
     virtio_bus_device_unplugged(vdev);
 
     if (vdc->unrealize != NULL) {
-        vdc->unrealize(dev, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
+        vdc->unrealize(dev);
     }
 
     g_free(vdev->bus_name);

@@ -63,9 +63,9 @@ static void bcm2836_init(Object *obj)
     sysbus_init_child_obj(obj, "peripherals", &s->peripherals,
                           sizeof(s->peripherals), TYPE_BCM2835_PERIPHERALS);
     object_property_add_alias(obj, "board-rev", OBJECT(&s->peripherals),
-                              "board-rev", &error_abort);
+                              "board-rev");
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->peripherals),
-                              "vcram-size", &error_abort);
+                              "vcram-size");
 }
 
 static void bcm2836_realize(DeviceState *dev, Error **errp)
@@ -86,11 +86,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj);
 
     object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
     if (err) {
@@ -99,11 +95,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     }
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->peripherals),
-                              "sd-bus", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+                              "sd-bus");
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->peripherals), 0,
                             info->peri_base, 1);

@@ -787,85 +787,80 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->numa_auto_assign_ram = numa_default_auto_assign_ram;
 
     object_class_property_add_str(oc, "kernel",
-        machine_get_kernel, machine_set_kernel, &error_abort);
+        machine_get_kernel, machine_set_kernel);
     object_class_property_set_description(oc, "kernel",
-        "Linux kernel image file", &error_abort);
+        "Linux kernel image file");
 
     object_class_property_add_str(oc, "initrd",
-        machine_get_initrd, machine_set_initrd, &error_abort);
+        machine_get_initrd, machine_set_initrd);
     object_class_property_set_description(oc, "initrd",
-        "Linux initial ramdisk file", &error_abort);
+        "Linux initial ramdisk file");
 
     object_class_property_add_str(oc, "append",
-        machine_get_append, machine_set_append, &error_abort);
+        machine_get_append, machine_set_append);
     object_class_property_set_description(oc, "append",
-        "Linux kernel command line", &error_abort);
+        "Linux kernel command line");
 
     object_class_property_add_str(oc, "dtb",
-        machine_get_dtb, machine_set_dtb, &error_abort);
+        machine_get_dtb, machine_set_dtb);
     object_class_property_set_description(oc, "dtb",
-        "Linux kernel device tree file", &error_abort);
+        "Linux kernel device tree file");
 
     object_class_property_add_str(oc, "dumpdtb",
-        machine_get_dumpdtb, machine_set_dumpdtb, &error_abort);
+        machine_get_dumpdtb, machine_set_dumpdtb);
     object_class_property_set_description(oc, "dumpdtb",
-        "Dump current dtb to a file and quit", &error_abort);
+        "Dump current dtb to a file and quit");
 
     object_class_property_add(oc, "phandle-start", "int",
         machine_get_phandle_start, machine_set_phandle_start,
-        NULL, NULL, &error_abort);
+        NULL, NULL);
     object_class_property_set_description(oc, "phandle-start",
-            "The first phandle ID we may generate dynamically", &error_abort);
+        "The first phandle ID we may generate dynamically");
 
     object_class_property_add_str(oc, "dt-compatible",
-        machine_get_dt_compatible, machine_set_dt_compatible, &error_abort);
+        machine_get_dt_compatible, machine_set_dt_compatible);
     object_class_property_set_description(oc, "dt-compatible",
-        "Overrides the \"compatible\" property of the dt root node",
-        &error_abort);
+        "Overrides the \"compatible\" property of the dt root node");
 
     object_class_property_add_bool(oc, "dump-guest-core",
-        machine_get_dump_guest_core, machine_set_dump_guest_core, &error_abort);
+        machine_get_dump_guest_core, machine_set_dump_guest_core);
     object_class_property_set_description(oc, "dump-guest-core",
-        "Include guest memory in a core dump", &error_abort);
+        "Include guest memory in a core dump");
 
     object_class_property_add_bool(oc, "mem-merge",
-        machine_get_mem_merge, machine_set_mem_merge, &error_abort);
+        machine_get_mem_merge, machine_set_mem_merge);
     object_class_property_set_description(oc, "mem-merge",
-        "Enable/disable memory merge support", &error_abort);
+        "Enable/disable memory merge support");
 
     object_class_property_add_bool(oc, "usb",
-        machine_get_usb, machine_set_usb, &error_abort);
+        machine_get_usb, machine_set_usb);
     object_class_property_set_description(oc, "usb",
-        "Set on/off to enable/disable usb", &error_abort);
+        "Set on/off to enable/disable usb");
 
     object_class_property_add_bool(oc, "graphics",
-        machine_get_graphics, machine_set_graphics, &error_abort);
+        machine_get_graphics, machine_set_graphics);
     object_class_property_set_description(oc, "graphics",
-        "Set on/off to enable/disable graphics emulation", &error_abort);
+        "Set on/off to enable/disable graphics emulation");
 
     object_class_property_add_str(oc, "firmware",
-        machine_get_firmware, machine_set_firmware,
-        &error_abort);
+        machine_get_firmware, machine_set_firmware);
     object_class_property_set_description(oc, "firmware",
-        "Firmware image", &error_abort);
+        "Firmware image");
 
     object_class_property_add_bool(oc, "suppress-vmdesc",
-        machine_get_suppress_vmdesc, machine_set_suppress_vmdesc,
-        &error_abort);
+        machine_get_suppress_vmdesc, machine_set_suppress_vmdesc);
     object_class_property_set_description(oc, "suppress-vmdesc",
-        "Set on to disable self-describing migration", &error_abort);
+        "Set on to disable self-describing migration");
 
     object_class_property_add_bool(oc, "enforce-config-section",
-        machine_get_enforce_config_section, machine_set_enforce_config_section,
-        &error_abort);
+        machine_get_enforce_config_section, machine_set_enforce_config_section);
     object_class_property_set_description(oc, "enforce-config-section",
-        "Set on to enforce configuration section migration", &error_abort);
+        "Set on to enforce configuration section migration");
 
     object_class_property_add_str(oc, "memory-encryption",
-        machine_get_memory_encryption, machine_set_memory_encryption,
-        &error_abort);
+        machine_get_memory_encryption, machine_set_memory_encryption);
     object_class_property_set_description(oc, "memory-encryption",
-        "Set memory encryption object to use", &error_abort);
+        "Set memory encryption object to use");
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
@@ -894,40 +889,34 @@ static void machine_initfn(Object *obj)
 
         ms->nvdimms_state = g_new0(NVDIMMState, 1);
         object_property_add_bool(obj, "nvdimm",
-                                 machine_get_nvdimm, machine_set_nvdimm,
-                                 &error_abort);
+                                 machine_get_nvdimm, machine_set_nvdimm);
         object_property_set_description(obj, "nvdimm",
                                         "Set on/off to enable/disable "
-                                        "NVDIMM instantiation", NULL);
+                                        "NVDIMM instantiation");
 
         object_property_add_str(obj, "nvdimm-persistence",
                                 machine_get_nvdimm_persistence,
-                                machine_set_nvdimm_persistence,
-                                &error_abort);
+                                machine_set_nvdimm_persistence);
         object_property_set_description(obj, "nvdimm-persistence",
                                         "Set NVDIMM persistence"
-                                        "Valid values are cpu, mem-ctrl",
-                                        NULL);
+                                        "Valid values are cpu, mem-ctrl");
     }
 
     if (mc->cpu_index_to_instance_props && mc->get_default_cpu_node_id) {
         ms->numa_state = g_new0(NumaState, 1);
         object_property_add_bool(obj, "hmat",
-                                 machine_get_hmat, machine_set_hmat,
-                                 &error_abort);
+                                 machine_get_hmat, machine_set_hmat);
         object_property_set_description(obj, "hmat",
                                         "Set on/off to enable/disable "
                                         "ACPI Heterogeneous Memory Attribute "
-                                        "Table (HMAT)", NULL);
+                                        "Table (HMAT)");
     }
 
     object_property_add_str(obj, "memory-backend",
-                            machine_get_memdev, machine_set_memdev,
-                            &error_abort);
+                            machine_get_memdev, machine_set_memdev);
     object_property_set_description(obj, "memory-backend",
                                     "Set RAM backend"
-                                    "Valid value is ID of hostmem based backend",
-                                     &error_abort);
+                                    "Valid value is ID of hostmem based backend");
 
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;

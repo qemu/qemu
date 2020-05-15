@@ -705,7 +705,7 @@ static void e1000e_instance_init(Object *obj)
     E1000EState *s = E1000E(obj);
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj), NULL);
+                                  DEVICE(obj));
 }
 
 static const TypeInfo e1000e_info = {

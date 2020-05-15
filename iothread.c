@@ -276,15 +276,15 @@ static void iothread_class_init(ObjectClass *klass, void *class_data)
     object_class_property_add(klass, "poll-max-ns", "int",
                               iothread_get_poll_param,
                               iothread_set_poll_param,
-                              NULL, &poll_max_ns_info, &error_abort);
+                              NULL, &poll_max_ns_info);
     object_class_property_add(klass, "poll-grow", "int",
                               iothread_get_poll_param,
                               iothread_set_poll_param,
-                              NULL, &poll_grow_info, &error_abort);
+                              NULL, &poll_grow_info);
     object_class_property_add(klass, "poll-shrink", "int",
                               iothread_get_poll_param,
                               iothread_set_poll_param,
-                              NULL, &poll_shrink_info, &error_abort);
+                              NULL, &poll_shrink_info);
 }
 
 static const TypeInfo iothread_info = {

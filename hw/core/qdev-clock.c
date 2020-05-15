@@ -46,7 +46,7 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
      */
     if (clk == NULL) {
         clk = CLOCK(object_new(TYPE_CLOCK));
-        object_property_add_child(OBJECT(dev), name, OBJECT(clk), &error_abort);
+        object_property_add_child(OBJECT(dev), name, OBJECT(clk));
         if (output) {
             /*
              * Remove object_new()'s initial reference.
@@ -59,7 +59,7 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
         object_property_add_link(OBJECT(dev), name,
                                  object_get_typename(OBJECT(clk)),
                                  (Object **) &ncl->clock,
-                                 NULL, OBJ_PROP_LINK_STRONG, &error_abort);
+                                 NULL, OBJ_PROP_LINK_STRONG);
     }
 
     ncl->clock = clk;

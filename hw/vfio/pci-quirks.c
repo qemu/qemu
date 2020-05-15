@@ -1634,7 +1634,7 @@ int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp)
 
     object_property_add(OBJECT(vdev), "nvlink2-tgt", "uint64",
                         vfio_pci_nvlink2_get_tgt, NULL, NULL,
-                        (void *) (uintptr_t) cap->tgt, NULL);
+                        (void *) (uintptr_t) cap->tgt);
     trace_vfio_pci_nvidia_gpu_setup_quirk(vdev->vbasedev.name, cap->tgt,
                                           nv2reg->size);
 free_exit:
@@ -1695,13 +1695,13 @@ int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp)
 
     object_property_add(OBJECT(vdev), "nvlink2-tgt", "uint64",
                         vfio_pci_nvlink2_get_tgt, NULL, NULL,
-                        (void *) (uintptr_t) captgt->tgt, NULL);
+                        (void *) (uintptr_t) captgt->tgt);
     trace_vfio_pci_nvlink2_setup_quirk_ssatgt(vdev->vbasedev.name, captgt->tgt,
                                               atsdreg->size);
 
     object_property_add(OBJECT(vdev), "nvlink2-link-speed", "uint32",
                         vfio_pci_nvlink2_get_link_speed, NULL, NULL,
-                        (void *) (uintptr_t) capspeed->link_speed, NULL);
+                        (void *) (uintptr_t) capspeed->link_speed);
     trace_vfio_pci_nvlink2_setup_quirk_lnkspd(vdev->vbasedev.name,
                                               capspeed->link_speed);
 free_exit:

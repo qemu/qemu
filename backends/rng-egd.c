@@ -138,8 +138,7 @@ static char *rng_egd_get_chardev(Object *obj, Error **errp)
 static void rng_egd_init(Object *obj)
 {
     object_property_add_str(obj, "chardev",
-                            rng_egd_get_chardev, rng_egd_set_chardev,
-                            NULL);
+                            rng_egd_get_chardev, rng_egd_set_chardev);
 }
 
 static void rng_egd_finalize(Object *obj)

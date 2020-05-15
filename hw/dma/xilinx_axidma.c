@@ -543,16 +543,11 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
     object_property_add_link(OBJECT(ds), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&ds->dma,
                              object_property_allow_set_link,
-                             OBJ_PROP_LINK_STRONG,
-                             &local_err);
+                             OBJ_PROP_LINK_STRONG);
     object_property_add_link(OBJECT(cs), "dma", TYPE_XILINX_AXI_DMA,
                              (Object **)&cs->dma,
                              object_property_allow_set_link,
-                             OBJ_PROP_LINK_STRONG,
-                             &local_err);
-    if (local_err) {
-        goto xilinx_axidma_realize_fail;
-    }
+                             OBJ_PROP_LINK_STRONG);
     object_property_set_link(OBJECT(ds), OBJECT(s), "dma", &local_err);
     object_property_set_link(OBJECT(cs), OBJECT(s), "dma", &local_err);
     if (local_err) {
@@ -594,8 +589,7 @@ static void xilinx_axidma_init(Object *obj)
     object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
                              (Object **)&s->dma_mr,
                              qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG,
-                             &error_abort);
+                             OBJ_PROP_LINK_STRONG);
 
     sysbus_init_irq(sbd, &s->streams[0].irq);
     sysbus_init_irq(sbd, &s->streams[1].irq);

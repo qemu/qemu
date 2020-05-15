@@ -1245,34 +1245,30 @@ static void colo_compare_init(Object *obj)
     CompareState *s = COLO_COMPARE(obj);
 
     object_property_add_str(obj, "primary_in",
-                            compare_get_pri_indev, compare_set_pri_indev,
-                            NULL);
+                            compare_get_pri_indev, compare_set_pri_indev);
     object_property_add_str(obj, "secondary_in",
-                            compare_get_sec_indev, compare_set_sec_indev,
-                            NULL);
+                            compare_get_sec_indev, compare_set_sec_indev);
     object_property_add_str(obj, "outdev",
-                            compare_get_outdev, compare_set_outdev,
-                            NULL);
+                            compare_get_outdev, compare_set_outdev);
     object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
                             (Object **)&s->iothread,
                             object_property_allow_set_link,
-                            OBJ_PROP_LINK_STRONG, NULL);
+                            OBJ_PROP_LINK_STRONG);
     /* This parameter just for Xen COLO */
     object_property_add_str(obj, "notify_dev",
-                            compare_get_notify_dev, compare_set_notify_dev,
-                            NULL);
+                            compare_get_notify_dev, compare_set_notify_dev);
 
     object_property_add(obj, "compare_timeout", "uint32",
                         compare_get_timeout,
-                        compare_set_timeout, NULL, NULL, NULL);
+                        compare_set_timeout, NULL, NULL);
 
     object_property_add(obj, "expired_scan_cycle", "uint32",
                         compare_get_expired_scan_cycle,
-                        compare_set_expired_scan_cycle, NULL, NULL, NULL);
+                        compare_set_expired_scan_cycle, NULL, NULL);
 
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
-                             compare_set_vnet_hdr, NULL);
+                             compare_set_vnet_hdr);
 }
 
 static void colo_compare_finalize(Object *obj)

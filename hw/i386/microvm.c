@@ -510,47 +510,42 @@ static void microvm_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, MICROVM_MACHINE_PIC, "OnOffAuto",
                               microvm_machine_get_pic,
                               microvm_machine_set_pic,
-                              NULL, NULL, &error_abort);
+                              NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_PIC,
-        "Enable i8259 PIC", &error_abort);
+        "Enable i8259 PIC");
 
     object_class_property_add(oc, MICROVM_MACHINE_PIT, "OnOffAuto",
                               microvm_machine_get_pit,
                               microvm_machine_set_pit,
-                              NULL, NULL, &error_abort);
+                              NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_PIT,
-        "Enable i8254 PIT", &error_abort);
+        "Enable i8254 PIT");
 
     object_class_property_add(oc, MICROVM_MACHINE_RTC, "OnOffAuto",
                               microvm_machine_get_rtc,
                               microvm_machine_set_rtc,
-                              NULL, NULL, &error_abort);
+                              NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_RTC,
-        "Enable MC146818 RTC", &error_abort);
+        "Enable MC146818 RTC");
 
     object_class_property_add_bool(oc, MICROVM_MACHINE_ISA_SERIAL,
                                    microvm_machine_get_isa_serial,
-                                   microvm_machine_set_isa_serial,
-                                   &error_abort);
+                                   microvm_machine_set_isa_serial);
     object_class_property_set_description(oc, MICROVM_MACHINE_ISA_SERIAL,
-        "Set off to disable the instantiation an ISA serial port",
-        &error_abort);
+        "Set off to disable the instantiation an ISA serial port");
 
     object_class_property_add_bool(oc, MICROVM_MACHINE_OPTION_ROMS,
                                    microvm_machine_get_option_roms,
-                                   microvm_machine_set_option_roms,
-                                   &error_abort);
+                                   microvm_machine_set_option_roms);
     object_class_property_set_description(oc, MICROVM_MACHINE_OPTION_ROMS,
-        "Set off to disable loading option ROMs", &error_abort);
+        "Set off to disable loading option ROMs");
 
     object_class_property_add_bool(oc, MICROVM_MACHINE_AUTO_KERNEL_CMDLINE,
                                    microvm_machine_get_auto_kernel_cmdline,
-                                   microvm_machine_set_auto_kernel_cmdline,
-                                   &error_abort);
+                                   microvm_machine_set_auto_kernel_cmdline);
     object_class_property_set_description(oc,
         MICROVM_MACHINE_AUTO_KERNEL_CMDLINE,
-        "Set off to disable adding virtio-mmio devices to the kernel cmdline",
-        &error_abort);
+        "Set off to disable adding virtio-mmio devices to the kernel cmdline");
 }
 
 static const TypeInfo microvm_machine_info = {

@@ -392,7 +392,7 @@ void spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp)
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
                              (Object **)(&drc->dev),
-                             NULL, 0, NULL);
+                             NULL, 0);
 }
 
 static void spapr_drc_release(SpaprDrc *drc)
@@ -405,7 +405,7 @@ static void spapr_drc_release(SpaprDrc *drc)
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
-    object_property_del(OBJECT(drc), "device", &error_abort);
+    object_property_del(OBJECT(drc), "device");
     drc->dev = NULL;
 }
 
@@ -518,8 +518,7 @@ static void realize(DeviceState *d, Error **errp)
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
     gchar *link_name;
-    gchar *child_name;
-    Error *err = NULL;
+    char *child_name;
 
     trace_spapr_drc_realize(spapr_drc_index(drc));
     /* NOTE: we do this as part of realize/unrealize due to the fact
@@ -534,19 +533,15 @@ static void realize(DeviceState *d, Error **errp)
     child_name = object_get_canonical_path_component(OBJECT(drc));
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
-                              drc->owner, child_name, &err);
+                              drc->owner, child_name);
     g_free(child_name);
     g_free(link_name);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
     vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
-static void unrealize(DeviceState *d, Error **errp)
+static void unrealize(DeviceState *d)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
@@ -556,7 +551,7 @@ static void unrealize(DeviceState *d, Error **errp)
     vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     name = g_strdup_printf("%x", spapr_drc_index(drc));
-    object_property_del(root_container, name, errp);
+    object_property_del(root_container, name);
     g_free(name);
 }
 
@@ -570,7 +565,7 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
     drc->owner = owner;
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
                                 spapr_drc_index(drc));
-    object_property_add_child(owner, prop_name, OBJECT(drc), &error_abort);
+    object_property_add_child(owner, prop_name, OBJECT(drc));
     object_unref(OBJECT(drc));
     object_property_set_bool(OBJECT(drc), true, "realized", NULL);
     g_free(prop_name);
@@ -583,12 +578,11 @@ static void spapr_dr_connector_instance_init(Object *obj)
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(obj);
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    object_property_add_uint32_ptr(obj, "id", &drc->id, OBJ_PROP_FLAG_READ,
-                                   NULL);
+    object_property_add_uint32_ptr(obj, "id", &drc->id, OBJ_PROP_FLAG_READ);
     object_property_add(obj, "index", "uint32", prop_get_index,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL);
     drc->state = drck->empty_state;
 }
 
@@ -656,17 +650,11 @@ static void realize_physical(DeviceState *d, Error **errp)
     qemu_register_reset(drc_physical_reset, drcp);
 }
 
-static void unrealize_physical(DeviceState *d, Error **errp)
+static void unrealize_physical(DeviceState *d)
 {
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
-    Error *local_err = NULL;
 
-    unrealize(d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
+    unrealize(d);
     vmstate_unregister(VMSTATE_IF(drcp), &vmstate_spapr_drc_physical, drcp);
     qemu_unregister_reset(drc_physical_reset, drcp);
 }

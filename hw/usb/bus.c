@@ -14,7 +14,7 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
 static char *usb_get_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
-static void usb_qdev_unrealize(DeviceState *qdev, Error **errp);
+static void usb_qdev_unrealize(DeviceState *qdev);
 
 static Property usb_props[] = {
     DEFINE_PROP_STRING("port", USBDevice, port_path),
@@ -130,12 +130,12 @@ USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
     return NULL;
 }
 
-static void usb_device_unrealize(USBDevice *dev, Error **errp)
+static void usb_device_unrealize(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
 
     if (klass->unrealize) {
-        klass->unrealize(dev, errp);
+        klass->unrealize(dev);
     }
 }
 
@@ -265,14 +265,14 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
     if (dev->auto_attach) {
         usb_device_attach(dev, &local_err);
         if (local_err) {
-            usb_qdev_unrealize(qdev, NULL);
+            usb_qdev_unrealize(qdev);
             error_propagate(errp, local_err);
             return;
         }
     }
 }
 
-static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
+static void usb_qdev_unrealize(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
     USBDescString *s, *next;
@@ -286,7 +286,7 @@ static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
     if (dev->attached) {
         usb_device_detach(dev);
     }
-    usb_device_unrealize(dev, errp);
+    usb_device_unrealize(dev);
     if (dev->port) {
         usb_release_port(dev);
     }
@@ -753,12 +753,10 @@ static void usb_device_instance_init(Object *obj)
 
     if (klass->attached_settable) {
         object_property_add_bool(obj, "attached",
-                                 usb_get_attached, usb_set_attached,
-                                 NULL);
+                                 usb_get_attached, usb_set_attached);
     } else {
         object_property_add_bool(obj, "attached",
-                                 usb_get_attached, NULL,
-                                 NULL);
+                                 usb_get_attached, NULL);
     }
 }
 

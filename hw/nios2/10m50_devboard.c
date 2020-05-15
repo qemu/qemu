@@ -81,8 +81,7 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
 
     /* Register: Internal Interrupt Controller (IIC) */
     dev = qdev_create(NULL, "altera,iic");
-    object_property_add_const_link(OBJECT(dev), "cpu", OBJECT(cpu),
-                                   &error_abort);
+    object_property_add_const_link(OBJECT(dev), "cpu", OBJECT(cpu));
     qdev_init_nofail(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq[0]);
     for (i = 0; i < 32; i++) {

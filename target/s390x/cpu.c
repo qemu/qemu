@@ -296,7 +296,7 @@ static void s390_cpu_initfn(Object *obj)
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
     object_property_add(obj, "crash-information", "GuestPanicInformation",
-                        s390_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
+                        s390_cpu_get_crash_info_qom, NULL, NULL, NULL);
     s390_cpu_model_register_props(obj);
 #if !defined(CONFIG_USER_ONLY)
     cpu->env.tod_timer =

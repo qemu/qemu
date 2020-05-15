@@ -241,7 +241,7 @@ static void macio_oldworld_init(Object *obj)
     object_property_add_link(obj, "pic", TYPE_HEATHROW,
                              (Object **) &os->pic,
                              qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
+                             0);
 
     macio_init_child_obj(s, "cuda", &s->cuda, sizeof(s->cuda), TYPE_CUDA);
 
@@ -397,7 +397,7 @@ static void macio_newworld_init(Object *obj)
     object_property_add_link(obj, "pic", TYPE_OPENPIC,
                              (Object **) &ns->pic,
                              qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
+                             0);
 
     macio_init_child_obj(s, "gpio", &ns->gpio, sizeof(ns->gpio),
                          TYPE_MACIO_GPIO);

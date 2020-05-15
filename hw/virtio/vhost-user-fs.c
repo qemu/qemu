@@ -241,7 +241,7 @@ err_virtio:
     return;
 }
 
-static void vuf_device_unrealize(DeviceState *dev, Error **errp)
+static void vuf_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserFS *fs = VHOST_USER_FS(dev);

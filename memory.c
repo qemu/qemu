@@ -1154,7 +1154,7 @@ static void memory_region_do_init(MemoryRegion *mr,
             owner = container_get(qdev_get_machine(), "/unattached");
         }
 
-        object_property_add_child(owner, name_array, OBJECT(mr), &error_abort);
+        object_property_add_child(owner, name_array, OBJECT(mr));
         object_unref(OBJECT(mr));
         g_free(name_array);
         g_free(escaped_name);
@@ -1175,7 +1175,7 @@ static void memory_region_get_container(Object *obj, Visitor *v,
                                         Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
-    gchar *path = (gchar *)"";
+    char *path = (char *)"";
 
     if (mr->container) {
         path = object_get_canonical_path(OBJECT(mr->container));
@@ -1230,19 +1230,19 @@ static void memory_region_initfn(Object *obj)
                              "link<" TYPE_MEMORY_REGION ">",
                              memory_region_get_container,
                              NULL, /* memory_region_set_container */
-                             NULL, NULL, &error_abort);
+                             NULL, NULL);
     op->resolve = memory_region_resolve_container;
 
     object_property_add_uint64_ptr(OBJECT(mr), "addr",
-                                   &mr->addr, OBJ_PROP_FLAG_READ, &error_abort);
+                                   &mr->addr, OBJ_PROP_FLAG_READ);
     object_property_add(OBJECT(mr), "priority", "uint32",
                         memory_region_get_priority,
                         NULL, /* memory_region_set_priority */
-                        NULL, NULL, &error_abort);
+                        NULL, NULL);
     object_property_add(OBJECT(mr), "size", "uint64",
                         memory_region_get_size,
                         NULL, /* memory_region_set_size, */
-                        NULL, NULL, &error_abort);
+                        NULL, NULL);
 }
 
 static void iommu_memory_region_initfn(Object *obj)
@@ -2845,7 +2845,7 @@ static void mtree_expand_owner(const char *label, Object *obj)
     if (dev && dev->id) {
         qemu_printf(" id=%s", dev->id);
     } else {
-        gchar *canonical_path = object_get_canonical_path(obj);
+        char *canonical_path = object_get_canonical_path(obj);
         if (canonical_path) {
             qemu_printf(" path=%s", canonical_path);
             g_free(canonical_path);

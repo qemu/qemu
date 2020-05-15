@@ -28,7 +28,7 @@ static void container_register_types(void)
 Object *container_get(Object *root, const char *path)
 {
     Object *obj, *child;
-    gchar **parts;
+    char **parts;
     int i;
 
     parts = g_strsplit(path, "/", 0);
@@ -39,7 +39,7 @@ Object *container_get(Object *root, const char *path)
         child = object_resolve_path_component(obj, parts[i]);
         if (!child) {
             child = object_new("container");
-            object_property_add_child(obj, parts[i], child, NULL);
+            object_property_add_child(obj, parts[i], child);
             object_unref(child);
         }
     }

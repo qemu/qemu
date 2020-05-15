@@ -65,11 +65,11 @@ void s390_flic_init(void)
     if (kvm_enabled()) {
         dev = qdev_create(NULL, TYPE_KVM_S390_FLIC);
         object_property_add_child(qdev_get_machine(), TYPE_KVM_S390_FLIC,
-                                  OBJECT(dev), NULL);
+                                  OBJECT(dev));
     } else {
         dev = qdev_create(NULL, TYPE_QEMU_S390_FLIC);
         object_property_add_child(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
-                                  OBJECT(dev), NULL);
+                                  OBJECT(dev));
     }
     qdev_init_nofail(dev);
 }

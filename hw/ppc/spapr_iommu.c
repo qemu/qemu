@@ -365,7 +365,7 @@ SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     tcet->liobn = liobn;
 
     tmp = g_strdup_printf("tce-table-%x", liobn);
-    object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
+    object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet));
     g_free(tmp);
     object_unref(OBJECT(tcet));
 
@@ -416,7 +416,7 @@ void spapr_tce_table_disable(SpaprTceTable *tcet)
     tcet->nb_table = 0;
 }
 
-static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
+static void spapr_tce_table_unrealize(DeviceState *dev)
 {
     SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
 

@@ -633,13 +633,13 @@ static void ich9_lpc_initfn(Object *obj)
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
     object_property_add_uint8_ptr(obj, ACPI_PM_PROP_SCI_INT,
-                                  &lpc->sci_gsi, OBJ_PROP_FLAG_READ, NULL);
+                                  &lpc->sci_gsi, OBJ_PROP_FLAG_READ);
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ, NULL);
+                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
     object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ, NULL);
+                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
 
-    ich9_pm_add_properties(obj, &lpc->pm, NULL);
+    ich9_pm_add_properties(obj, &lpc->pm);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)

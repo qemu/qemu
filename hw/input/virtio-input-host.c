@@ -178,7 +178,7 @@ err_close:
     return;
 }
 
-static void virtio_input_host_unrealize(DeviceState *dev, Error **errp)
+static void virtio_input_host_unrealize(DeviceState *dev)
 {
     VirtIOInputHost *vih = VIRTIO_INPUT_HOST(dev);
 

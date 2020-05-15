@@ -25,7 +25,7 @@
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
 {
-    object_property_set_link(OBJECT(bus), OBJECT(handler),
+    object_property_set_link(OBJECT(bus), handler,
                              QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
 }
 
@@ -122,7 +122,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
     if (bus->parent) {
         QLIST_INSERT_HEAD(&bus->parent->child_bus, bus, sibling);
         bus->parent->num_child_bus++;
-        object_property_add_child(OBJECT(bus->parent), bus->name, OBJECT(bus), NULL);
+        object_property_add_child(OBJECT(bus->parent), bus->name, OBJECT(bus));
         object_unref(OBJECT(bus));
     } else {
         /* The only bus without a parent is the main system bus */
@@ -176,11 +176,10 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
     BusState *bus = BUS(obj);
     BusClass *bc = BUS_GET_CLASS(bus);
     BusChild *kid;
-    Error *local_err = NULL;
 
     if (value && !bus->realized) {
         if (bc->realize) {
-            bc->realize(bus, &local_err);
+            bc->realize(bus, errp);
         }
 
         /* TODO: recursive realization */
@@ -188,19 +187,11 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
         QTAILQ_FOREACH(kid, &bus->children, sibling) {
             DeviceState *dev = kid->child;
             object_property_set_bool(OBJECT(dev), false, "realized",
-                                     &local_err);
-            if (local_err != NULL) {
-                break;
-            }
+                                     &error_abort);
         }
-        if (bc->unrealize && local_err == NULL) {
-            bc->unrealize(bus, &local_err);
+        if (bc->unrealize) {
+            bc->unrealize(bus);
         }
-    }
-
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
     }
 
     bus->realized = value;
@@ -215,10 +206,9 @@ static void qbus_initfn(Object *obj)
                              TYPE_HOTPLUG_HANDLER,
                              (Object **)&bus->hotplug_handler,
                              object_property_allow_set_link,
-                             0,
-                             NULL);
+                             0);
     object_property_add_bool(obj, "realized",
-                             bus_get_realized, bus_set_realized, NULL);
+                             bus_get_realized, bus_set_realized);
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)

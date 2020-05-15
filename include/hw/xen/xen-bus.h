@@ -42,7 +42,7 @@ typedef void (*XenDeviceRealize)(XenDevice *xendev, Error **errp);
 typedef void (*XenDeviceFrontendChanged)(XenDevice *xendev,
                                          enum xenbus_state frontend_state,
                                          Error **errp);
-typedef void (*XenDeviceUnrealize)(XenDevice *xendev, Error **errp);
+typedef void (*XenDeviceUnrealize)(XenDevice *xendev);
 
 typedef struct XenDeviceClass {
     /*< private >*/

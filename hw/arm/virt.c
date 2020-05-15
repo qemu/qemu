@@ -959,10 +959,9 @@ static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    object_property_add_child(OBJECT(vms), name, OBJECT(dev),
-                              &error_abort);
+    object_property_add_child(OBJECT(vms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(vms), alias_prop_name,
-                              OBJECT(dev), "drive", &error_abort);
+                              OBJECT(dev), "drive");
     return PFLASH_CFI01(dev);
 }
 
@@ -2270,9 +2269,9 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add(oc, "acpi", "OnOffAuto",
         virt_get_acpi, virt_set_acpi,
-        NULL, NULL, &error_abort);
+        NULL, NULL);
     object_class_property_set_description(oc, "acpi",
-        "Enable ACPI", &error_abort);
+        "Enable ACPI");
 }
 
 static void virt_instance_init(Object *obj)
@@ -2286,37 +2285,33 @@ static void virt_instance_init(Object *obj)
      */
     vms->secure = false;
     object_property_add_bool(obj, "secure", virt_get_secure,
-                             virt_set_secure, NULL);
+                             virt_set_secure);
     object_property_set_description(obj, "secure",
                                     "Set on/off to enable/disable the ARM "
-                                    "Security Extensions (TrustZone)",
-                                    NULL);
+                                    "Security Extensions (TrustZone)");
 
     /* EL2 is also disabled by default, for similar reasons */
     vms->virt = false;
     object_property_add_bool(obj, "virtualization", virt_get_virt,
-                             virt_set_virt, NULL);
+                             virt_set_virt);
     object_property_set_description(obj, "virtualization",
                                     "Set on/off to enable/disable emulating a "
                                     "guest CPU which implements the ARM "
-                                    "Virtualization Extensions",
-                                    NULL);
+                                    "Virtualization Extensions");
 
     /* High memory is enabled by default */
     vms->highmem = true;
     object_property_add_bool(obj, "highmem", virt_get_highmem,
-                             virt_set_highmem, NULL);
+                             virt_set_highmem);
     object_property_set_description(obj, "highmem",
                                     "Set on/off to enable/disable using "
-                                    "physical address space above 32 bits",
-                                    NULL);
+                                    "physical address space above 32 bits");
     vms->gic_version = VIRT_GIC_VERSION_NOSEL;
     object_property_add_str(obj, "gic-version", virt_get_gic_version,
-                        virt_set_gic_version, NULL);
+                        virt_set_gic_version);
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
-                                    "Valid values are 2, 3, host and max",
-                                    NULL);
+                                    "Valid values are 2, 3, host and max");
 
     vms->highmem_ecam = !vmc->no_highmem_ecam;
 
@@ -2326,29 +2321,26 @@ static void virt_instance_init(Object *obj)
         /* Default allows ITS instantiation */
         vms->its = true;
         object_property_add_bool(obj, "its", virt_get_its,
-                                 virt_set_its, NULL);
+                                 virt_set_its);
         object_property_set_description(obj, "its",
                                         "Set on/off to enable/disable "
-                                        "ITS instantiation",
-                                        NULL);
+                                        "ITS instantiation");
     }
 
     /* Default disallows iommu instantiation */
     vms->iommu = VIRT_IOMMU_NONE;
-    object_property_add_str(obj, "iommu", virt_get_iommu, virt_set_iommu, NULL);
+    object_property_add_str(obj, "iommu", virt_get_iommu, virt_set_iommu);
     object_property_set_description(obj, "iommu",
                                     "Set the IOMMU type. "
-                                    "Valid values are none and smmuv3",
-                                    NULL);
+                                    "Valid values are none and smmuv3");
 
     /* Default disallows RAS instantiation */
     vms->ras = false;
     object_property_add_bool(obj, "ras", virt_get_ras,
-                             virt_set_ras, NULL);
+                             virt_set_ras);
     object_property_set_description(obj, "ras",
                                     "Set on/off to enable/disable reporting host memory errors "
-                                    "to a KVM guest using ACPI and guest external abort exceptions",
-                                    NULL);
+                                    "to a KVM guest using ACPI and guest external abort exceptions");
 
     vms->irqmap = a15irqmap;
 

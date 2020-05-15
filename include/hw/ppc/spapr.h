@@ -921,7 +921,7 @@ static inline uint8_t spapr_get_cap(SpaprMachineState *spapr, int cap)
 void spapr_caps_init(SpaprMachineState *spapr);
 void spapr_caps_apply(SpaprMachineState *spapr);
 void spapr_caps_cpu_apply(SpaprMachineState *spapr, PowerPCCPU *cpu);
-void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp);
+void spapr_caps_add_properties(SpaprMachineClass *smc);
 int spapr_caps_post_migration(SpaprMachineState *spapr);
 
 void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,

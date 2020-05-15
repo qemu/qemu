@@ -954,7 +954,7 @@ void virtio_scsi_common_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
-static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_scsi_device_unrealize(DeviceState *dev)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
 

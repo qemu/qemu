@@ -2802,7 +2802,7 @@ static void create_default_memdev(MachineState *ms, const char *path)
     }
     object_property_set_int(obj, ms->ram_size, "size", &error_fatal);
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
-                              obj, &error_fatal);
+                              obj);
     /* Ensure backend's memory region name is equal to mc->default_ram_id */
     object_property_set_bool(obj, false, "x-use-canonical-path-for-ramblock-id",
                              &error_fatal);
@@ -3878,11 +3878,10 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(0);
     }
     object_property_add_child(object_get_root(), "machine",
-                              OBJECT(current_machine), &error_abort);
+                              OBJECT(current_machine));
     object_property_add_child(container_get(OBJECT(current_machine),
                                             "/unattached"),
-                              "sysbus", OBJECT(sysbus_get_default()),
-                              NULL);
+                              "sysbus", OBJECT(sysbus_get_default()));
 
     if (machine_class->minimum_page_bits) {
         if (!set_preferred_target_page_bits(machine_class->minimum_page_bits)) {

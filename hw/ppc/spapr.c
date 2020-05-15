@@ -1732,7 +1732,7 @@ static void spapr_rtc_create(SpaprMachineState *spapr)
     object_property_set_bool(OBJECT(&spapr->rtc), true, "realized",
                               &error_fatal);
     object_property_add_alias(OBJECT(spapr), "rtc-time", OBJECT(&spapr->rtc),
-                              "date", &error_fatal);
+                              "date");
 }
 
 /* Returns whether we want to use VGA or not */
@@ -3305,64 +3305,53 @@ static void spapr_instance_init(Object *obj)
     spapr->htab_fd = -1;
     spapr->use_hotplug_event_source = true;
     object_property_add_str(obj, "kvm-type",
-                            spapr_get_kvm_type, spapr_set_kvm_type, NULL);
+                            spapr_get_kvm_type, spapr_set_kvm_type);
     object_property_set_description(obj, "kvm-type",
-                                    "Specifies the KVM virtualization mode (HV, PR)",
-                                    NULL);
+                                    "Specifies the KVM virtualization mode (HV, PR)");
     object_property_add_bool(obj, "modern-hotplug-events",
                             spapr_get_modern_hotplug_events,
-                            spapr_set_modern_hotplug_events,
-                            NULL);
+                            spapr_set_modern_hotplug_events);
     object_property_set_description(obj, "modern-hotplug-events",
                                     "Use dedicated hotplug event mechanism in"
                                     " place of standard EPOW events when possible"
-                                    " (required for memory hot-unplug support)",
-                                    NULL);
+                                    " (required for memory hot-unplug support)");
     ppc_compat_add_property(obj, "max-cpu-compat", &spapr->max_compat_pvr,
-                            "Maximum permitted CPU compatibility mode",
-                            &error_fatal);
+                            "Maximum permitted CPU compatibility mode");
 
     object_property_add_str(obj, "resize-hpt",
-                            spapr_get_resize_hpt, spapr_set_resize_hpt, NULL);
+                            spapr_get_resize_hpt, spapr_set_resize_hpt);
     object_property_set_description(obj, "resize-hpt",
-                                    "Resizing of the Hash Page Table (enabled, disabled, required)",
-                                    NULL);
+                                    "Resizing of the Hash Page Table (enabled, disabled, required)");
     object_property_add_uint32_ptr(obj, "vsmt",
-                                   &spapr->vsmt, OBJ_PROP_FLAG_READWRITE,
-                                   &error_abort);
+                                   &spapr->vsmt, OBJ_PROP_FLAG_READWRITE);
     object_property_set_description(obj, "vsmt",
                                     "Virtual SMT: KVM behaves as if this were"
-                                    " the host's SMT mode", &error_abort);
+                                    " the host's SMT mode");
 
     object_property_add_bool(obj, "vfio-no-msix-emulation",
-                             spapr_get_msix_emulation, NULL, NULL);
+                             spapr_get_msix_emulation, NULL);
 
     object_property_add_uint64_ptr(obj, "kernel-addr",
-                                   &spapr->kernel_addr, OBJ_PROP_FLAG_READWRITE,
-                                   &error_abort);
+                                   &spapr->kernel_addr, OBJ_PROP_FLAG_READWRITE);
     object_property_set_description(obj, "kernel-addr",
                                     stringify(KERNEL_LOAD_ADDR)
-                                    " for -kernel is the default",
-                                    NULL);
+                                    " for -kernel is the default");
     spapr->kernel_addr = KERNEL_LOAD_ADDR;
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
-                            spapr_set_ic_mode, NULL);
+                            spapr_set_ic_mode);
     object_property_set_description(obj, "ic-mode",
-                 "Specifies the interrupt controller mode (xics, xive, dual)",
-                 NULL);
+                 "Specifies the interrupt controller mode (xics, xive, dual)");
 
     object_property_add_str(obj, "host-model",
-        spapr_get_host_model, spapr_set_host_model,
-        &error_abort);
+        spapr_get_host_model, spapr_set_host_model);
     object_property_set_description(obj, "host-model",
-        "Host model to advertise in guest device tree", &error_abort);
+        "Host model to advertise in guest device tree");
     object_property_add_str(obj, "host-serial",
-        spapr_get_host_serial, spapr_set_host_serial,
-        &error_abort);
+        spapr_get_host_serial, spapr_set_host_serial);
     object_property_set_description(obj, "host-serial",
-        "Host serial number to advertise in guest device tree", &error_abort);
+        "Host serial number to advertise in guest device tree");
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -3681,7 +3670,7 @@ static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
     SpaprDimmState *ds = spapr_pending_dimm_unplugs_find(spapr, PC_DIMM(dev));
 
     pc_dimm_unplug(PC_DIMM(dev), MACHINE(hotplug_dev));
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
     spapr_pending_dimm_unplugs_remove(spapr, ds);
 }
 
@@ -3774,7 +3763,7 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 
     assert(core_slot);
     core_slot->cpu = NULL;
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
 }
 
 static
@@ -4024,7 +4013,7 @@ static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     /* hotplug hooks should check it's enabled before getting this far */
     assert(drc);
 
-    spapr_drc_attach(drc, DEVICE(dev), &local_err);
+    spapr_drc_attach(drc, dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -4047,7 +4036,7 @@ void spapr_phb_release(DeviceState *dev)
 
 static void spapr_phb_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
 }
 
 static void spapr_phb_unplug_request(HotplugHandler *hotplug_dev,
@@ -4083,7 +4072,7 @@ static void spapr_tpm_proxy_unplug(HotplugHandler *hotplug_dev, DeviceState *dev
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
 
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
     object_unparent(OBJECT(dev));
     spapr->tpm_proxy = NULL;
 }
@@ -4535,7 +4524,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->default_caps.caps[SPAPR_CAP_LARGE_DECREMENTER] = SPAPR_CAP_ON;
     smc->default_caps.caps[SPAPR_CAP_CCF_ASSIST] = SPAPR_CAP_ON;
     smc->default_caps.caps[SPAPR_CAP_FWNMI] = SPAPR_CAP_ON;
-    spapr_caps_add_properties(smc, &error_abort);
+    spapr_caps_add_properties(smc);
     smc->irq = &spapr_irq_dual;
     smc->dr_phb_enabled = true;
     smc->linux_pci_probe = true;

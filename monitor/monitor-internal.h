@@ -91,7 +91,7 @@ struct Monitor {
     bool skip_flush;
     bool use_io_thread;
 
-    gchar *mon_cpu_path;
+    char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
 
     /*

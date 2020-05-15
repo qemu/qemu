@@ -125,32 +125,22 @@ static char *dummy_get_sv(Object *obj,
 
 static void dummy_init(Object *obj)
 {
-    Error *err = NULL;
-
     object_property_add_bool(obj, "bv",
                              dummy_get_bv,
-                             dummy_set_bv,
-                             &err);
-    error_free_or_abort(&err);
+                             dummy_set_bv);
 }
 
 
 static void dummy_class_init(ObjectClass *cls, void *data)
 {
-    object_class_property_add_bool(cls, "bv",
-                                   dummy_get_bv,
-                                   dummy_set_bv,
-                                   NULL);
     object_class_property_add_str(cls, "sv",
                                   dummy_get_sv,
-                                  dummy_set_sv,
-                                  NULL);
+                                  dummy_set_sv);
     object_class_property_add_enum(cls, "av",
                                    "DummyAnimal",
                                    &dummy_animal_map,
                                    dummy_get_av,
-                                   dummy_set_av,
-                                   NULL);
+                                   dummy_set_av);
 }
 
 
@@ -255,13 +245,13 @@ static void dummy_dev_init(Object *obj)
     DummyBus *bus = DUMMY_BUS(object_new(TYPE_DUMMY_BUS));
     DummyBackend *backend = DUMMY_BACKEND(object_new(TYPE_DUMMY_BACKEND));
 
-    object_property_add_child(obj, "bus", OBJECT(bus), NULL);
+    object_property_add_child(obj, "bus", OBJECT(bus));
     dev->bus = bus;
-    object_property_add_child(OBJECT(bus), "backend", OBJECT(backend), NULL);
+    object_property_add_child(OBJECT(bus), "backend", OBJECT(backend));
     bus->backend = backend;
 
     object_property_add_link(obj, "backend", TYPE_DUMMY_BACKEND,
-                             (Object **)&bus->backend, NULL, 0, NULL);
+                             (Object **)&bus->backend, NULL, 0);
 }
 
 static void dummy_dev_unparent(Object *obj)
@@ -290,7 +280,7 @@ static void dummy_bus_init(Object *obj)
 static void dummy_bus_unparent(Object *obj)
 {
     DummyBus *bus = DUMMY_BUS(obj);
-    object_property_del(obj->parent, "backend", NULL);
+    object_property_del(obj->parent, "backend");
     object_unparent(OBJECT(bus->backend));
 }
 
@@ -520,34 +510,33 @@ static void test_dummy_getenum(void)
 }
 
 
-static void test_dummy_prop_iterator(ObjectPropertyIterator *iter)
+static void test_dummy_prop_iterator(ObjectPropertyIterator *iter,
+                                     const char *expected[], int n)
 {
-    bool seenbv = false, seensv = false, seenav = false, seentype = false;
     ObjectProperty *prop;
+    int i;
 
     while ((prop = object_property_iter_next(iter))) {
-        if (!seenbv && g_str_equal(prop->name, "bv")) {
-            seenbv = true;
-        } else if (!seensv && g_str_equal(prop->name, "sv")) {
-            seensv = true;
-        } else if (!seenav && g_str_equal(prop->name, "av")) {
-            seenav = true;
-        } else if (!seentype && g_str_equal(prop->name, "type")) {
-            /* This prop comes from the base Object class */
-            seentype = true;
-        } else {
-            g_printerr("Found prop '%s'\n", prop->name);
-            g_assert_not_reached();
+        for (i = 0; i < n; i++) {
+            if (!g_strcmp0(prop->name, expected[i])) {
+                break;
+            }
         }
+        g_assert(i < n);
+        expected[i] = NULL;
     }
-    g_assert(seenbv);
-    g_assert(seenav);
-    g_assert(seensv);
-    g_assert(seentype);
+
+    for (i = 0; i < n; i++) {
+        g_assert(!expected[i]);
+    }
 }
 
 static void test_dummy_iterator(void)
 {
+    const char *expected[] = {
+        "type",                 /* inherited from TYPE_OBJECT */
+        "sv", "av",             /* class properties */
+        "bv"};                  /* instance property */
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
         object_new_with_props(TYPE_DUMMY,
@@ -561,17 +550,18 @@ static void test_dummy_iterator(void)
     ObjectPropertyIterator iter;
 
     object_property_iter_init(&iter, OBJECT(dobj));
-    test_dummy_prop_iterator(&iter);
+    test_dummy_prop_iterator(&iter, expected, ARRAY_SIZE(expected));
     object_unparent(OBJECT(dobj));
 }
 
 static void test_dummy_class_iterator(void)
 {
+    const char *expected[] = { "type", "av", "sv" };
     ObjectPropertyIterator iter;
     ObjectClass *klass = object_class_by_name(TYPE_DUMMY);
 
     object_class_property_iter_init(&iter, klass);
-    test_dummy_prop_iterator(&iter);
+    test_dummy_prop_iterator(&iter, expected, ARRAY_SIZE(expected));
 }
 
 static void test_dummy_delchild(void)
@@ -602,11 +592,11 @@ static void test_qom_partial_path(void)
      * /cont1/obj2 (obj2a)
      * /obj2 (obj2b)
      */
-    object_property_add_child(cont1, "obj1", obj1, &error_abort);
+    object_property_add_child(cont1, "obj1", obj1);
     object_unref(obj1);
-    object_property_add_child(cont1, "obj2", obj2a, &error_abort);
+    object_property_add_child(cont1, "obj2", obj2a);
     object_unref(obj2a);
-    object_property_add_child(root,  "obj2", obj2b, &error_abort);
+    object_property_add_child(root,  "obj2", obj2b);
     object_unref(obj2b);
 
     ambiguous = false;

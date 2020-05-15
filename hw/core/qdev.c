@@ -65,7 +65,7 @@ static void bus_remove_child(BusState *bus, DeviceState *child)
             bus->num_children--;
 
             /* This gives back ownership of kid->child back to us.  */
-            object_property_del(OBJECT(bus), name, NULL);
+            object_property_del(OBJECT(bus), name);
             object_unref(OBJECT(kid->child));
             g_free(kid);
             return;
@@ -91,8 +91,7 @@ static void bus_add_child(BusState *bus, DeviceState *child)
                              object_get_typename(OBJECT(child)),
                              (Object **)&kid->child,
                              NULL, /* read-only property */
-                             0, /* return ownership on prop deletion */
-                             NULL);
+                             0);
 }
 
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
@@ -393,7 +392,7 @@ static void device_reset_child_foreach(Object *obj, ResettableChildCallback cb,
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
-    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
 }
 
 /*
@@ -481,7 +480,7 @@ void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
         gchar *propname = g_strdup_printf("%s[%u]", name, i);
 
         object_property_add_child(OBJECT(dev), propname,
-                                  OBJECT(gpio_list->in[i]), &error_abort);
+                                  OBJECT(gpio_list->in[i]));
         g_free(propname);
     }
 
@@ -512,8 +511,7 @@ void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
         object_property_add_link(OBJECT(dev), propname, TYPE_IRQ,
                                  (Object **)&pins[i],
                                  object_property_allow_set_link,
-                                 OBJ_PROP_LINK_STRONG,
-                                 &error_abort);
+                                 OBJ_PROP_LINK_STRONG);
         g_free(propname);
     }
     gpio_list->num_out += n;
@@ -542,15 +540,11 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
 {
     char *propname = g_strdup_printf("%s[%d]",
                                      name ? name : "unnamed-gpio-out", n);
-    if (pin) {
-        /* We need a name for object_property_set_link to work.  If the
-         * object has a parent, object_property_add_child will come back
-         * with an error without doing anything.  If it has none, it will
-         * never fail.  So we can just call it with a NULL Error pointer.
-         */
+    if (pin && !OBJECT(pin)->parent) {
+        /* We need a name for object_property_set_link to work */
         object_property_add_child(container_get(qdev_get_machine(),
                                                 "/unattached"),
-                                  "non-qdev-gpio[*]", OBJECT(pin), NULL);
+                                  "non-qdev-gpio[*]", OBJECT(pin));
     }
     object_property_set_link(OBJECT(dev), OBJECT(pin), propname, &error_abort);
     g_free(propname);
@@ -608,8 +602,7 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
         char *propname = g_strdup_printf("%s[%d]", nm, i);
 
         object_property_add_alias(OBJECT(container), propname,
-                                  OBJECT(dev), propname,
-                                  &error_abort);
+                                  OBJECT(dev), propname);
         g_free(propname);
     }
     for (i = 0; i < ngl->num_out; i++) {
@@ -617,8 +610,7 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
         char *propname = g_strdup_printf("%s[%d]", nm, i);
 
         object_property_add_alias(OBJECT(container), propname,
-                                  OBJECT(dev), propname,
-                                  &error_abort);
+                                  OBJECT(dev), propname);
         g_free(propname);
     }
     QLIST_REMOVE(ngl, node);
@@ -759,7 +751,7 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, Property *prop)
     name = g_strdup_printf("legacy-%s", prop->name);
     object_class_property_add(OBJECT_CLASS(dc), name, "str",
         prop->info->print ? qdev_get_legacy_property : prop->info->get,
-        NULL, NULL, prop, &error_abort);
+        NULL, NULL, prop);
 }
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
@@ -772,11 +764,10 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
     op = object_property_add(obj, prop->name, prop->info->name,
                              prop->info->get, prop->info->set,
                              prop->info->release,
-                             prop, &error_abort);
+                             prop);
 
     object_property_set_description(obj, prop->name,
-                                    prop->info->description,
-                                    &error_abort);
+                                    prop->info->description);
 
     if (prop->set_default) {
         prop->info->set_default_value(op, prop);
@@ -791,7 +782,7 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
     ObjectClass *oc = OBJECT_CLASS(klass);
 
     if (prop->info->create) {
-        prop->info->create(oc, prop, &error_abort);
+        prop->info->create(oc, prop);
     } else {
         ObjectProperty *op;
 
@@ -799,14 +790,13 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
                                        prop->name, prop->info->name,
                                        prop->info->get, prop->info->set,
                                        prop->info->release,
-                                       prop, &error_abort);
+                                       prop);
         if (prop->set_default) {
             prop->info->set_default_value(op, prop);
         }
     }
     object_class_property_set_description(oc, prop->name,
-                                          prop->info->description,
-                                          &error_abort);
+                                          prop->info->description);
 }
 
 /* @qdev_alias_all_properties - Add alias properties to the source object for
@@ -823,8 +813,7 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
 
         for (prop = dc->props_; prop && prop->name; prop++) {
             object_property_add_alias(source, prop->name,
-                                      OBJECT(target), prop->name,
-                                      &error_abort);
+                                      OBJECT(target), prop->name);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
@@ -876,7 +865,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 
             object_property_add_child(container_get(qdev_get_machine(),
                                                     "/unattached"),
-                                      name, obj, &error_abort);
+                                      name, obj);
             unattached_parent = true;
             g_free(name);
         }
@@ -956,23 +945,18 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
        }
 
     } else if (!value && dev->realized) {
-        /* We want local_err to track only the first error */
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
-                                     local_err ? NULL : &local_err);
+                                     &error_abort);
         }
         if (qdev_get_vmsd(dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
         }
         if (dc->unrealize) {
-            dc->unrealize(dev, local_err ? NULL : &local_err);
+            dc->unrealize(dev);
         }
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
-
-        if (local_err != NULL) {
-            goto fail;
-        }
     }
 
     assert(local_err == NULL);
@@ -982,7 +966,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 child_realize_fail:
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
         object_property_set_bool(OBJECT(bus), false, "realized",
-                                 NULL);
+                                 &error_abort);
     }
 
     if (qdev_get_vmsd(dev)) {
@@ -993,7 +977,7 @@ post_realize_fail:
     g_free(dev->canonical_path);
     dev->canonical_path = NULL;
     if (dc->unrealize) {
-        dc->unrealize(dev, NULL);
+        dc->unrealize(dev);
     }
 
 fail:
@@ -1094,7 +1078,7 @@ static void device_unparent(Object *obj)
     BusState *bus;
 
     if (dev->realized) {
-        object_property_set_bool(obj, false, "realized", NULL);
+        object_property_set_bool(obj, false, "realized", &error_abort);
     }
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
@@ -1203,17 +1187,13 @@ static void device_class_init(ObjectClass *class, void *data)
     rc->get_transitional_function = device_get_transitional_reset;
 
     object_class_property_add_bool(class, "realized",
-                                   device_get_realized, device_set_realized,
-                                   &error_abort);
+                                   device_get_realized, device_set_realized);
     object_class_property_add_bool(class, "hotpluggable",
-                                   device_get_hotpluggable, NULL,
-                                   &error_abort);
+                                   device_get_hotpluggable, NULL);
     object_class_property_add_bool(class, "hotplugged",
-                                   device_get_hotplugged, NULL,
-                                   &error_abort);
+                                   device_get_hotplugged, NULL);
     object_class_property_add_link(class, "parent_bus", TYPE_BUS,
-                                   offsetof(DeviceState, parent_bus), NULL, 0,
-                                   &error_abort);
+                                   offsetof(DeviceState, parent_bus), NULL, 0);
 }
 
 void device_class_set_props(DeviceClass *dc, Property *props)

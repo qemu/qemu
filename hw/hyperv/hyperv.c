@@ -131,7 +131,7 @@ void hyperv_synic_add(CPUState *cs)
     obj = object_new(TYPE_SYNIC);
     synic = SYNIC(obj);
     synic->cs = cs;
-    object_property_add_child(OBJECT(cs), "synic", obj, &error_abort);
+    object_property_add_child(OBJECT(cs), "synic", obj);
     object_unref(obj);
     object_property_set_bool(obj, true, "realized", &error_abort);
 }

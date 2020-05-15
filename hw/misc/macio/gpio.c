@@ -170,7 +170,7 @@ static void macio_gpio_init(Object *obj)
     object_property_add_link(obj, "pic", TYPE_OPENPIC,
                              (Object **) &s->pic,
                              qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
+                             0);
 
     memory_region_init_io(&s->gpiomem, OBJECT(s), &macio_gpio_ops, obj,
                           "gpio", 0x30);

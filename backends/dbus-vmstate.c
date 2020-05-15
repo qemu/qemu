@@ -481,11 +481,9 @@ dbus_vmstate_class_init(ObjectClass *oc, void *data)
     vc->get_id = dbus_vmstate_get_id;
 
     object_class_property_add_str(oc, "addr",
-                                  get_dbus_addr, set_dbus_addr,
-                                  &error_abort);
+                                  get_dbus_addr, set_dbus_addr);
     object_class_property_add_str(oc, "id-list",
-                                  get_id_list, set_id_list,
-                                  &error_abort);
+                                  get_id_list, set_id_list);
 }
 
 static const TypeInfo dbus_vmstate_info = {

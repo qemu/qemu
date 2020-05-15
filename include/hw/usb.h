@@ -272,7 +272,7 @@ struct USBDevice {
      OBJECT_GET_CLASS(USBDeviceClass, (obj), TYPE_USB_DEVICE)
 
 typedef void (*USBDeviceRealize)(USBDevice *dev, Error **errp);
-typedef void (*USBDeviceUnrealize)(USBDevice *dev, Error **errp);
+typedef void (*USBDeviceUnrealize)(USBDevice *dev);
 
 typedef struct USBDeviceClass {
     DeviceClass parent_class;

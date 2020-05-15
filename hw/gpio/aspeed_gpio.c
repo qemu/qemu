@@ -873,7 +873,7 @@ static void aspeed_gpio_init(Object *obj)
         name = g_strdup_printf("gpio%s%d", props->group_label[group_idx],
                                pin_idx % GPIOS_PER_GROUP);
         object_property_add(obj, name, "bool", aspeed_gpio_get_pin,
-                            aspeed_gpio_set_pin, NULL, NULL, NULL);
+                            aspeed_gpio_set_pin, NULL, NULL);
         g_free(name);
     }
 }

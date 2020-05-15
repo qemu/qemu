@@ -377,7 +377,7 @@ err_virtio:
     return;
 }
 
-static void vhost_vsock_device_unrealize(DeviceState *dev, Error **errp)
+static void vhost_vsock_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostVSock *vsock = VHOST_VSOCK(dev);

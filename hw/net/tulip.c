@@ -1001,7 +1001,7 @@ static void tulip_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &d->c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  &pci_dev->qdev, NULL);
+                                  &pci_dev->qdev);
 }
 
 static Property tulip_properties[] = {

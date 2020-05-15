@@ -248,7 +248,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     return;
 }
 
-static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
+static void vhost_scsi_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(dev);
@@ -311,7 +311,7 @@ static void vhost_scsi_instance_init(Object *obj)
     vsc->feature_bits = kernel_feature_bits;
 
     device_add_bootindex_property(obj, &vsc->bootindex, "bootindex", NULL,
-                                  DEVICE(vsc), NULL);
+                                  DEVICE(vsc));
 }
 
 static const TypeInfo vhost_scsi_info = {

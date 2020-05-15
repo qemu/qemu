@@ -151,9 +151,9 @@ static void prop2_accessor(Object *obj, Visitor *v, const char *name,
 static void dynamic_instance_init(Object *obj)
 {
     object_property_add(obj, "prop1", "uint32", prop1_accessor, prop1_accessor,
-                        NULL, NULL, NULL);
+                        NULL, NULL);
     object_property_add(obj, "prop2", "uint32", prop2_accessor, prop2_accessor,
-                        NULL, NULL, NULL);
+                        NULL, NULL);
 }
 
 static void dynamic_class_init(ObjectClass *oc, void *data)

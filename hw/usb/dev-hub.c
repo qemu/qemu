@@ -565,7 +565,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_hub_unrealize(USBDevice *dev, Error **errp)
+static void usb_hub_unrealize(USBDevice *dev)
 {
     USBHubState *s = (USBHubState *)dev;
     int i;

@@ -187,8 +187,7 @@ qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_tls_creds_anon_prop_get_loaded,
-                                   qcrypto_tls_creds_anon_prop_set_loaded,
-                                   NULL);
+                                   qcrypto_tls_creds_anon_prop_set_loaded);
 }
 
 

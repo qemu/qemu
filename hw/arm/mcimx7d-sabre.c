@@ -41,7 +41,7 @@ static void mcimx7d_sabre_init(MachineState *machine)
     };
 
     s = FSL_IMX7(object_new(TYPE_FSL_IMX7));
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(s), &error_fatal);
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(s));
     object_property_set_bool(OBJECT(s), true, "realized", &error_fatal);
 
     memory_region_add_subregion(get_system_memory(), FSL_IMX7_MMDC_ADDR,

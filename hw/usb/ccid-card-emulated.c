@@ -562,7 +562,7 @@ out1:
     qemu_mutex_destroy(&card->event_list_mutex);
 }
 
-static void emulated_unrealize(CCIDCardState *base, Error **errp)
+static void emulated_unrealize(CCIDCardState *base)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);

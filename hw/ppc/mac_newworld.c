@@ -455,7 +455,7 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(fw_cfg), NULL);
+                              OBJECT(fw_cfg));
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, CFG_ADDR);
@@ -628,11 +628,10 @@ static void core99_instance_init(Object *obj)
     /* Default via_config is CORE99_VIA_CONFIG_CUDA */
     cms->via_config = CORE99_VIA_CONFIG_CUDA;
     object_property_add_str(obj, "via", core99_get_via_config,
-                            core99_set_via_config, NULL);
+                            core99_set_via_config);
     object_property_set_description(obj, "via",
                                     "Set VIA configuration. "
-                                    "Valid values are cuda, pmu and pmu-adb",
-                                    NULL);
+                                    "Valid values are cuda, pmu and pmu-adb");
 
     return;
 }

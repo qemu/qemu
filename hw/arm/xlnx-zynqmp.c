@@ -554,8 +554,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
         /* Alias controller SD bus to the SoC itself */
         bus_name = g_strdup_printf("sd-bus%d", i);
-        object_property_add_alias(OBJECT(s), bus_name, sdhci, "sd-bus",
-                                  &error_abort);
+        object_property_add_alias(OBJECT(s), bus_name, sdhci, "sd-bus");
         g_free(bus_name);
     }
 
@@ -575,8 +574,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         /* Alias controller SPI bus to the SoC itself */
         bus_name = g_strdup_printf("spi%d", i);
         object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->spi[i]), "spi0",
-                                  &error_abort);
+                                  OBJECT(&s->spi[i]), "spi0");
         g_free(bus_name);
     }
 
@@ -597,8 +595,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         bus_name = g_strdup_printf("qspi%d", i);
         target_bus = g_strdup_printf("spi%d", i);
         object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->qspi), target_bus,
-                                  &error_abort);
+                                  OBJECT(&s->qspi), target_bus);
         g_free(bus_name);
         g_free(target_bus);
     }

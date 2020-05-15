@@ -399,7 +399,7 @@ static void rxfilter_notify(NetClientState *nc)
     VirtIONet *n = qemu_get_nic_opaque(nc);
 
     if (nc->rxfilter_notify_enabled) {
-        gchar *path = object_get_canonical_path(OBJECT(n->qdev));
+        char *path = object_get_canonical_path(OBJECT(n->qdev));
         qapi_event_send_nic_rx_filter_changed(!!n->netclient_name,
                                               n->netclient_name, path);
         g_free(path);
@@ -3077,7 +3077,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     n->qdev = dev;
 }
 
-static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_net_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(dev);
@@ -3125,7 +3125,7 @@ static void virtio_net_instance_init(Object *obj)
     n->config_size = sizeof(struct virtio_net_config);
     device_add_bootindex_property(obj, &n->nic_conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(n), NULL);
+                                  DEVICE(n));
 }
 
 static int virtio_net_pre_save(void *opaque)

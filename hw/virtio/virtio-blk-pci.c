@@ -81,7 +81,7 @@ static void virtio_blk_pci_instance_init(Object *obj)
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_BLK);
     object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
-                              "bootindex", &error_abort);
+                              "bootindex");
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_blk_pci_info = {

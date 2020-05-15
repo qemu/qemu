@@ -26,7 +26,7 @@ void s390_init_tod(void)
     } else {
         obj = object_new(TYPE_QEMU_S390_TOD);
     }
-    object_property_add_child(qdev_get_machine(), TYPE_S390_TOD, obj, NULL);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_TOD, obj);
     object_unref(obj);
 
     qdev_init_nofail(DEVICE(obj));

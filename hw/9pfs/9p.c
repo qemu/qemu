@@ -4124,13 +4124,13 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
     rc = 0;
 out:
     if (rc) {
-        v9fs_device_unrealize_common(s, NULL);
+        v9fs_device_unrealize_common(s);
     }
     v9fs_path_free(&path);
     return rc;
 }
 
-void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
+void v9fs_device_unrealize_common(V9fsState *s)
 {
     if (s->ops && s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);

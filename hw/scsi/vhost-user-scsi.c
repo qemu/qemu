@@ -143,7 +143,7 @@ free_virtio:
     virtio_scsi_common_unrealize(dev);
 }
 
-static void vhost_user_scsi_unrealize(DeviceState *dev, Error **errp)
+static void vhost_user_scsi_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(dev);
@@ -217,7 +217,7 @@ static void vhost_user_scsi_instance_init(Object *obj)
 
     /* Add the bootindex property for this object */
     device_add_bootindex_property(obj, &vsc->bootindex, "bootindex", NULL,
-                                  DEVICE(vsc), NULL);
+                                  DEVICE(vsc));
 }
 
 static const TypeInfo vhost_user_scsi_info = {

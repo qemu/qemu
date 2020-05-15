@@ -499,17 +499,17 @@ static void input_linux_instance_init(Object *obj)
 {
     object_property_add_str(obj, "evdev",
                             input_linux_get_evdev,
-                            input_linux_set_evdev, NULL);
+                            input_linux_set_evdev);
     object_property_add_bool(obj, "grab_all",
                              input_linux_get_grab_all,
-                             input_linux_set_grab_all, NULL);
+                             input_linux_set_grab_all);
     object_property_add_bool(obj, "repeat",
                              input_linux_get_repeat,
-                             input_linux_set_repeat, NULL);
+                             input_linux_set_repeat);
     object_property_add_enum(obj, "grab-toggle", "GrabToggleKeys",
                              &GrabToggleKeys_lookup,
                              input_linux_get_grab_toggle,
-                             input_linux_set_grab_toggle, NULL);
+                             input_linux_set_grab_toggle);
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)

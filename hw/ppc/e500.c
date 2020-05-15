@@ -744,8 +744,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
 
     dev = qdev_create(NULL, TYPE_OPENPIC);
-    object_property_add_child(OBJECT(machine), "pic", OBJECT(dev),
-                              &error_fatal);
+    object_property_add_child(OBJECT(machine), "pic", OBJECT(dev));
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
@@ -916,7 +915,7 @@ void ppce500_init(MachineState *machine)
 
     dev = qdev_create(NULL, "e500-ccsr");
     object_property_add_child(qdev_get_machine(), "e500-ccsr",
-                              OBJECT(dev), NULL);
+                              OBJECT(dev));
     qdev_init_nofail(dev);
     ccsr = CCSR(dev);
     ccsr_addr_space = &ccsr->ccsr_space;
@@ -957,8 +956,7 @@ void ppce500_init(MachineState *machine)
 
     /* PCI */
     dev = qdev_create(NULL, "e500-pcihost");
-    object_property_add_child(qdev_get_machine(), "pci-host", OBJECT(dev),
-                              &error_abort);
+    object_property_add_child(qdev_get_machine(), "pci-host", OBJECT(dev));
     qdev_prop_set_uint32(dev, "first_slot", pmc->pci_first_slot);
     qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
     qdev_init_nofail(dev);

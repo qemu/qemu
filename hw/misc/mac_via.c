@@ -885,10 +885,10 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     /* Pass through mos6522 output IRQs */
     ms = MOS6522(&m->mos6522_via1);
     object_property_add_alias(OBJECT(dev), "irq[0]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
+                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
     ms = MOS6522(&m->mos6522_via2);
     object_property_add_alias(OBJECT(dev), "irq[1]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
+                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
 
     /* Pass through mos6522 input IRQs */
     qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");

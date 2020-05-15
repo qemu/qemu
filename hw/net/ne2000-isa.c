@@ -133,7 +133,7 @@ static void isa_ne2000_instance_init(Object *obj)
 {
     object_property_add(obj, "bootindex", "int32",
                         isa_ne2000_get_bootindex,
-                        isa_ne2000_set_bootindex, NULL, NULL, NULL);
+                        isa_ne2000_set_bootindex, NULL, NULL);
     object_property_set_int(obj, -1, "bootindex", NULL);
 }
 static const TypeInfo ne2000_isa_info = {

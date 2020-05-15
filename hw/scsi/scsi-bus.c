@@ -59,11 +59,11 @@ static void scsi_device_realize(SCSIDevice *s, Error **errp)
     }
 }
 
-static void scsi_device_unrealize(SCSIDevice *s, Error **errp)
+static void scsi_device_unrealize(SCSIDevice *s)
 {
     SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
     if (sc->unrealize) {
-        sc->unrealize(s, errp);
+        sc->unrealize(s);
     }
 }
 
@@ -222,10 +222,9 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
             scsi_dma_restart_cb, dev);
 }
 
-static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
+static void scsi_qdev_unrealize(DeviceState *qdev)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
-    Error *local_err = NULL;
 
     if (dev->vmsentry) {
         qemu_del_vm_change_state_handler(dev->vmsentry);
@@ -233,11 +232,7 @@ static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
 
     scsi_device_purge_requests(dev, SENSE_CODE(NO_SENSE));
 
-    scsi_device_unrealize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+    scsi_device_unrealize(dev);
 
     blockdev_mark_auto_del(dev->conf.blk);
 }
@@ -268,7 +263,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     }
     dev = qdev_create(&bus->qbus, driver);
     name = g_strdup_printf("legacy[%d]", unit);
-    object_property_add_child(OBJECT(bus), name, OBJECT(dev), NULL);
+    object_property_add_child(OBJECT(bus), name, OBJECT(dev));
     g_free(name);
 
     qdev_prop_set_uint32(dev, "scsi-id", unit);
@@ -1738,7 +1733,7 @@ static void scsi_dev_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", NULL,
-                                  &s->qdev, NULL);
+                                  &s->qdev);
 }
 
 static const TypeInfo scsi_device_type_info = {

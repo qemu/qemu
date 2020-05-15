@@ -333,8 +333,7 @@ static void bochs_display_init(Object *obj)
     /* Expose framebuffer byteorder via QOM */
     object_property_add_bool(obj, "big-endian-framebuffer",
                              bochs_display_get_big_endian_fb,
-                             bochs_display_set_big_endian_fb,
-                             NULL);
+                             bochs_display_set_big_endian_fb);
 
     dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }

@@ -232,7 +232,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         pc->threads[i] = POWERPC_CPU(obj);
 
         snprintf(name, sizeof(name), "thread[%d]", i);
-        object_property_add_child(OBJECT(pc), name, obj, &error_abort);
+        object_property_add_child(OBJECT(pc), name, obj);
 
         cpu->machine_data = g_new0(PnvCPUState, 1);
 
@@ -275,7 +275,7 @@ static void pnv_core_cpu_unrealize(PnvCore *pc, PowerPCCPU *cpu)
     object_unparent(OBJECT(cpu));
 }
 
-static void pnv_core_unrealize(DeviceState *dev, Error **errp)
+static void pnv_core_unrealize(DeviceState *dev)
 {
     PnvCore *pc = PNV_CORE(dev);
     CPUCore *cc = CPU_CORE(dev);

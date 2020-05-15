@@ -832,7 +832,7 @@ static void pnv_init(MachineState *machine)
         }
 
         snprintf(chip_name, sizeof(chip_name), "chip[%d]", PNV_CHIP_HWID(i));
-        object_property_add_child(OBJECT(pnv), chip_name, chip, &error_fatal);
+        object_property_add_child(OBJECT(pnv), chip_name, chip);
         object_property_set_int(chip, PNV_CHIP_HWID(i), "chip-id",
                                 &error_fatal);
         object_property_set_int(chip, machine->smp.cores,
@@ -1060,8 +1060,7 @@ static void pnv_chip_power8_instance_init(Object *obj)
     object_property_add_link(obj, "xics", TYPE_XICS_FABRIC,
                              (Object **)&chip8->xics,
                              object_property_allow_set_link,
-                             OBJ_PROP_LINK_STRONG,
-                             &error_abort);
+                             OBJ_PROP_LINK_STRONG);
 
     object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
                             TYPE_PNV8_PSI, &error_abort, NULL);
@@ -1321,7 +1320,7 @@ static void pnv_chip_power9_instance_init(Object *obj)
     object_initialize_child(obj, "xive", &chip9->xive, sizeof(chip9->xive),
                             TYPE_PNV_XIVE, &error_abort, NULL);
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
-                              "xive-fabric", &error_abort);
+                              "xive-fabric");
 
     object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
                             TYPE_PNV9_PSI, &error_abort, NULL);
@@ -1739,8 +1738,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         pnv_core = PNV_CORE(object_new(typename));
 
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
-        object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
-                                  &error_abort);
+        object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core));
         chip->cores[i] = pnv_core;
         object_property_set_int(OBJECT(pnv_core), chip->nr_threads,
                                 "nr-threads", &error_fatal);
@@ -2027,11 +2025,9 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = pnv_nmi;
 
     object_class_property_add_bool(oc, "hb-mode",
-                                   pnv_machine_get_hb, pnv_machine_set_hb,
-                                   &error_abort);
+                                   pnv_machine_get_hb, pnv_machine_set_hb);
     object_class_property_set_description(oc, "hb-mode",
-                              "Use a hostboot like boot loader",
-                              NULL);
+                              "Use a hostboot like boot loader");
 }
 
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \

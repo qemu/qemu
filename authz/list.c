@@ -124,13 +124,12 @@ qauthz_list_class_init(ObjectClass *oc, void *data)
                                    "QAuthZListPolicy",
                                    &QAuthZListPolicy_lookup,
                                    qauthz_list_prop_get_policy,
-                                   qauthz_list_prop_set_policy,
-                                   NULL);
+                                   qauthz_list_prop_set_policy);
 
     object_class_property_add(oc, "rules", "QAuthZListRule",
                               qauthz_list_prop_get_rules,
                               qauthz_list_prop_set_rules,
-                              NULL, NULL, NULL);
+                              NULL, NULL);
 
     authz->is_allowed = qauthz_list_is_allowed;
 }

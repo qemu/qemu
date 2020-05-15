@@ -229,7 +229,7 @@ static void zynq_init(MachineState *machine)
     /* Create the main clock source, and feed slcr with it */
     zynq_machine->ps_clk = CLOCK(object_new(TYPE_CLOCK));
     object_property_add_child(OBJECT(zynq_machine), "ps_clk",
-                              OBJECT(zynq_machine->ps_clk), &error_abort);
+                              OBJECT(zynq_machine->ps_clk));
     object_unref(OBJECT(zynq_machine->ps_clk));
     clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY);
     qdev_connect_clock_in(slcr, "ps_clk", zynq_machine->ps_clk);

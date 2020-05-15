@@ -249,7 +249,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void virtconsole_unrealize(DeviceState *dev, Error **errp)
+static void virtconsole_unrealize(DeviceState *dev)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
 

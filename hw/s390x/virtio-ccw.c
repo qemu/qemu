@@ -752,14 +752,14 @@ out_err:
     g_free(sch);
 }
 
-static void virtio_ccw_device_unrealize(VirtioCcwDevice *dev, Error **errp)
+static void virtio_ccw_device_unrealize(VirtioCcwDevice *dev)
 {
     VirtIOCCWDeviceClass *dc = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     SubchDev *sch = ccw_dev->sch;
 
     if (dc->unrealize) {
-        dc->unrealize(dev, errp);
+        dc->unrealize(dev);
     }
 
     if (sch) {
@@ -1155,11 +1155,11 @@ static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
     virtio_ccw_device_realize(_dev, errp);
 }
 
-static void virtio_ccw_busdev_unrealize(DeviceState *dev, Error **errp)
+static void virtio_ccw_busdev_unrealize(DeviceState *dev)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
 
-    virtio_ccw_device_unrealize(_dev, errp);
+    virtio_ccw_device_unrealize(_dev);
 }
 
 static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,

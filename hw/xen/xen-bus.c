@@ -428,7 +428,7 @@ static void xen_bus_backend_changed(void *opaque)
     xen_bus_cleanup(xenbus);
 }
 
-static void xen_bus_unrealize(BusState *bus, Error **errp)
+static void xen_bus_unrealize(BusState *bus)
 {
     XenBus *xenbus = XEN_BUS(bus);
 
@@ -486,7 +486,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
     return;
 
 fail:
-    xen_bus_unrealize(bus, &error_abort);
+    xen_bus_unrealize(bus);
 }
 
 static void xen_bus_unplug_request(HotplugHandler *hotplug,
@@ -1189,7 +1189,7 @@ void xen_device_unbind_event_channel(XenDevice *xendev,
     g_free(channel);
 }
 
-static void xen_device_unrealize(DeviceState *dev, Error **errp)
+static void xen_device_unrealize(DeviceState *dev)
 {
     XenDevice *xendev = XEN_DEVICE(dev);
     XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
@@ -1208,7 +1208,7 @@ static void xen_device_unrealize(DeviceState *dev, Error **errp)
     }
 
     if (xendev_class->unrealize) {
-        xendev_class->unrealize(xendev, errp);
+        xendev_class->unrealize(xendev);
     }
 
     /* Make sure all event channels are cleaned up */
@@ -1242,7 +1242,7 @@ static void xen_device_exit(Notifier *n, void *data)
 {
     XenDevice *xendev = container_of(n, XenDevice, exit);
 
-    xen_device_unrealize(DEVICE(xendev), &error_abort);
+    xen_device_unrealize(DEVICE(xendev));
 }
 
 static void xen_device_realize(DeviceState *dev, Error **errp)
@@ -1336,7 +1336,7 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     return;
 
 unrealize:
-    xen_device_unrealize(dev, &error_abort);
+    xen_device_unrealize(dev);
 }
 
 static Property xen_device_props[] = {

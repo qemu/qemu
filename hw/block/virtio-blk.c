@@ -1223,7 +1223,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lsecs);
 }
 
-static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
+static void virtio_blk_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
@@ -1248,7 +1248,7 @@ static void virtio_blk_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &s->conf.conf.bootindex,
                                   "bootindex", "/disk@0,0",
-                                  DEVICE(obj), NULL);
+                                  DEVICE(obj));
 }
 
 static const VMStateDescription vmstate_virtio_blk = {

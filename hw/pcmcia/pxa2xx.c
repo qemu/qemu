@@ -189,7 +189,7 @@ static void pxa2xx_pcmcia_initfn(Object *obj)
     object_property_add_link(obj, "card", TYPE_PCMCIA_CARD,
                              (Object **)&s->card,
                              NULL, /* read-only property */
-                             0, NULL);
+                             0);
 }
 
 /* Insert a new card into a slot */

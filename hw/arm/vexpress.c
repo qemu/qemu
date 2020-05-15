@@ -749,11 +749,10 @@ static void vexpress_instance_init(Object *obj)
     /* EL3 is enabled by default on vexpress */
     vms->secure = true;
     object_property_add_bool(obj, "secure", vexpress_get_secure,
-                             vexpress_set_secure, NULL);
+                             vexpress_set_secure);
     object_property_set_description(obj, "secure",
                                     "Set on/off to enable/disable the ARM "
-                                    "Security Extensions (TrustZone)",
-                                    NULL);
+                                    "Security Extensions (TrustZone)");
 }
 
 static void vexpress_a15_instance_init(Object *obj)
@@ -766,12 +765,11 @@ static void vexpress_a15_instance_init(Object *obj)
      */
     vms->virt = true;
     object_property_add_bool(obj, "virtualization", vexpress_get_virt,
-                             vexpress_set_virt, NULL);
+                             vexpress_set_virt);
     object_property_set_description(obj, "virtualization",
                                     "Set on/off to enable/disable the ARM "
                                     "Virtualization Extensions "
-                                    "(defaults to same as 'secure')",
-                                    NULL);
+                                    "(defaults to same as 'secure')");
 }
 
 static void vexpress_a9_instance_init(Object *obj)

@@ -441,17 +441,18 @@ static void sifive_u_machine_instance_init(Object *obj)
     SiFiveUState *s = RISCV_U_MACHINE(obj);
 
     s->start_in_flash = false;
-    object_property_add_bool(obj, "start-in-flash", sifive_u_machine_get_start_in_flash,
-                             sifive_u_machine_set_start_in_flash, NULL);
+    object_property_add_bool(obj, "start-in-flash",
+                             sifive_u_machine_get_start_in_flash,
+                             sifive_u_machine_set_start_in_flash);
     object_property_set_description(obj, "start-in-flash",
                                     "Set on to tell QEMU's ROM to jump to "
-                                    "flash. Otherwise QEMU will jump to DRAM",
-                                    NULL);
+                                    "flash. Otherwise QEMU will jump to DRAM");
 
     s->serial = OTP_SERIAL;
-    object_property_add(obj, "serial", "uint32", sifive_u_machine_get_serial,
-                        sifive_u_machine_set_serial, NULL, &s->serial, NULL);
-    object_property_set_description(obj, "serial", "Board serial number", NULL);
+    object_property_add(obj, "serial", "uint32",
+                        sifive_u_machine_get_serial,
+                        sifive_u_machine_set_serial, NULL, &s->serial);
+    object_property_set_description(obj, "serial", "Board serial number");
 }
 
 static void sifive_u_machine_class_init(ObjectClass *oc, void *data)

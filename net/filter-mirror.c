@@ -392,12 +392,12 @@ static void filter_mirror_init(Object *obj)
     MirrorState *s = FILTER_MIRROR(obj);
 
     object_property_add_str(obj, "outdev", filter_mirror_get_outdev,
-                            filter_mirror_set_outdev, NULL);
+                            filter_mirror_set_outdev);
 
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support",
                              filter_mirror_get_vnet_hdr,
-                             filter_mirror_set_vnet_hdr, NULL);
+                             filter_mirror_set_vnet_hdr);
 }
 
 static void filter_redirector_init(Object *obj)
@@ -405,14 +405,14 @@ static void filter_redirector_init(Object *obj)
     MirrorState *s = FILTER_REDIRECTOR(obj);
 
     object_property_add_str(obj, "indev", filter_redirector_get_indev,
-                            filter_redirector_set_indev, NULL);
+                            filter_redirector_set_indev);
     object_property_add_str(obj, "outdev", filter_redirector_get_outdev,
-                            filter_redirector_set_outdev, NULL);
+                            filter_redirector_set_outdev);
 
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support",
                              filter_redirector_get_vnet_hdr,
-                             filter_redirector_set_vnet_hdr, NULL);
+                             filter_redirector_set_vnet_hdr);
 }
 
 static void filter_mirror_fini(Object *obj)

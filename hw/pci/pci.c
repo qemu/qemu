@@ -146,7 +146,7 @@ static void pcie_bus_realize(BusState *qbus, Error **errp)
     }
 }
 
-static void pci_bus_unrealize(BusState *qbus, Error **errp)
+static void pci_bus_unrealize(BusState *qbus)
 {
     PCIBus *bus = PCI_BUS(qbus);
 
@@ -456,7 +456,7 @@ void pci_root_bus_cleanup(PCIBus *bus)
 {
     pci_bus_uninit(bus);
     /* the caller of the unplug hotplug handler will delete this device */
-    object_property_set_bool(OBJECT(bus), false, "realized", NULL);
+    object_property_set_bool(OBJECT(bus), false, "realized", &error_abort);
 }
 
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
@@ -1118,7 +1118,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
     pci_unregister_vga(pci_dev);
 }
 
-static void pci_qdev_unrealize(DeviceState *dev, Error **errp)
+static void pci_qdev_unrealize(DeviceState *dev)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
@@ -2108,7 +2108,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             error_setg(errp, "failover primary device must be on "
                              "PCIExpress bus");
             error_propagate(errp, local_err);
-            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
         class_id = pci_get_word(pci_dev->config + PCI_CLASS_DEVICE);
@@ -2116,7 +2116,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             error_setg(errp, "failover primary device is not an "
                              "Ethernet device");
             error_propagate(errp, local_err);
-            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
         if (!(pci_dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION)
@@ -2126,7 +2126,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             error_setg(errp, "failover: primary device must be in its own "
                               "PCI slot");
             error_propagate(errp, local_err);
-            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
         qdev->allow_unplug_during_migration = true;
@@ -2142,7 +2142,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     pci_add_option_rom(pci_dev, is_default_rom, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+        pci_qdev_unrealize(DEVICE(pci_dev));
         return;
     }
 }

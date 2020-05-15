@@ -107,8 +107,7 @@ qauthz_pam_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_str(oc, "service",
                                   qauthz_pam_prop_get_service,
-                                  qauthz_pam_prop_set_service,
-                                  NULL);
+                                  qauthz_pam_prop_set_service);
 }
 
 

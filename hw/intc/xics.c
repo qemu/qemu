@@ -338,7 +338,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);
 }
 
-static void icp_unrealize(DeviceState *dev, Error **errp)
+static void icp_unrealize(DeviceState *dev)
 {
     ICPState *icp = ICP(dev);
 
@@ -380,7 +380,7 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     Object *obj;
 
     obj = object_new(type);
-    object_property_add_child(cpu, type, obj, &error_abort);
+    object_property_add_child(cpu, type, obj);
     object_unref(obj);
     object_property_set_link(obj, OBJECT(xi), ICP_PROP_XICS, &error_abort);
     object_property_set_link(obj, cpu, ICP_PROP_CPU, &error_abort);

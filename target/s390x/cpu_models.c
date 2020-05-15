@@ -1106,14 +1106,14 @@ void s390_cpu_model_register_props(Object *obj)
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
         const S390FeatDef *def = s390_feat_def(feat);
         object_property_add(obj, def->name, "bool", get_feature,
-                            set_feature, NULL, (void *) feat, NULL);
-        object_property_set_description(obj, def->name, def->desc , NULL);
+                            set_feature, NULL, (void *) feat);
+        object_property_set_description(obj, def->name, def->desc);
     }
     for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
         const S390FeatGroupDef *def = s390_feat_group_def(group);
         object_property_add(obj, def->name, "bool", get_feature_group,
-                            set_feature_group, NULL, (void *) group, NULL);
-        object_property_set_description(obj, def->name, def->desc , NULL);
+                            set_feature_group, NULL, (void *) group);
+        object_property_set_description(obj, def->name, def->desc);
     }
 }
 
@@ -1225,11 +1225,10 @@ static char *get_description(Object *obj, Error **errp)
 void s390_cpu_model_class_register_props(ObjectClass *oc)
 {
     object_class_property_add_bool(oc, "migration-safe", get_is_migration_safe,
-                                   NULL, NULL);
+                                   NULL);
     object_class_property_add_bool(oc, "static", get_is_static,
-                                   NULL, NULL);
-    object_class_property_add_str(oc, "description", get_description, NULL,
-                                  NULL);
+                                   NULL);
+    object_class_property_add_str(oc, "description", get_description, NULL);
 }
 
 #ifdef CONFIG_KVM

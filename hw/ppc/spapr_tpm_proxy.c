@@ -140,7 +140,7 @@ static void spapr_tpm_proxy_realize(DeviceState *d, Error **errp)
     qemu_register_reset(spapr_tpm_proxy_reset, tpm_proxy);
 }
 
-static void spapr_tpm_proxy_unrealize(DeviceState *d, Error **errp)
+static void spapr_tpm_proxy_unrealize(DeviceState *d)
 {
     SpaprTpmProxy *tpm_proxy = SPAPR_TPM_PROXY(d);
 
