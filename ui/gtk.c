@@ -38,6 +38,10 @@
 
 #include "ui/console.h"
 #include "ui/gtk.h"
+#ifdef G_OS_WIN32
+#include <gdk/gdkwin32.h>
+#endif
+#include "ui/win32-kbd-hook.h"
 
 #include <glib/gi18n.h>
 #include <locale.h>
@@ -426,6 +430,16 @@ static void gd_widget_reparent(GtkWidget *from, GtkWidget *to,
     gtk_container_remove(GTK_CONTAINER(from), widget);
     gtk_container_add(GTK_CONTAINER(to), widget);
     g_object_unref(G_OBJECT(widget));
+}
+
+static void *gd_win32_get_hwnd(VirtualConsole *vc)
+{
+#ifdef G_OS_WIN32
+    return gdk_win32_window_get_impl_hwnd(
+        gtk_widget_get_window(vc->window ? vc->window : vc->s->window));
+#else
+    return NULL;
+#endif
 }
 
 /** DisplayState Callbacks **/
@@ -1451,6 +1465,7 @@ static void gd_grab_keyboard(VirtualConsole *vc, const char *reason)
         }
     }
 
+    win32_kbd_set_grab(true);
 #if GTK_CHECK_VERSION(3, 20, 0)
     gd_grab_update(vc, true, vc->s->ptr_owner == vc);
 #else
@@ -1472,6 +1487,7 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
     }
     s->kbd_owner = NULL;
 
+    win32_kbd_set_grab(false);
 #if GTK_CHECK_VERSION(3, 20, 0)
     gd_grab_update(vc, false, vc->s->ptr_owner == vc);
 #else
@@ -1614,12 +1630,22 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
     return TRUE;
 }
 
+static gboolean gd_focus_in_event(GtkWidget *widget,
+                                  GdkEventFocus *event, gpointer opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    win32_kbd_set_window(gd_win32_get_hwnd(vc));
+    return TRUE;
+}
+
 static gboolean gd_focus_out_event(GtkWidget *widget,
-                                   GdkEventCrossing *crossing, gpointer opaque)
+                                   GdkEventFocus *event, gpointer opaque)
 {
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
 
+    win32_kbd_set_window(NULL);
     gtk_release_modifiers(s);
     return TRUE;
 }
@@ -1878,6 +1904,8 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
                          G_CALLBACK(gd_enter_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "leave-notify-event",
                          G_CALLBACK(gd_leave_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "focus-in-event",
+                         G_CALLBACK(gd_focus_in_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "focus-out-event",
                          G_CALLBACK(gd_focus_out_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "configure-event",
