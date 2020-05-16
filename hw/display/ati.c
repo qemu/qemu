@@ -511,7 +511,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     }
     switch (addr) {
     case MM_INDEX:
-        s->regs.mm_index = data;
+        s->regs.mm_index = data & ~3;
         break;
     case MM_DATA ... MM_DATA + 3:
         /* indexed access to regs or memory */
