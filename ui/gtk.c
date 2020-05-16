@@ -1026,8 +1026,13 @@ static const guint16 *gd_get_keymap(size_t *maplen)
 #ifdef GDK_WINDOWING_WIN32
     if (GDK_IS_WIN32_DISPLAY(dpy)) {
         trace_gd_keymap_windowing("win32");
+#if GTK_CHECK_VERSION(3, 22, 0)
+        *maplen = qemu_input_map_atset1_to_qcode_len;
+        return qemu_input_map_atset1_to_qcode;
+#else
         *maplen = qemu_input_map_win32_to_qcode_len;
         return qemu_input_map_win32_to_qcode;
+#endif
     }
 #endif
 
@@ -1073,6 +1078,25 @@ static int gd_map_keycode(int scancode)
     return keycode_map[scancode];
 }
 
+static int gd_get_keycode(GdkEventKey *key)
+{
+#if defined G_OS_WIN32 && GTK_CHECK_VERSION(3, 22, 0)
+    int scancode = gdk_event_get_scancode((GdkEvent *)key);
+
+    /* translate Windows native scancodes to atset1 keycodes */
+    switch (scancode & (KF_EXTENDED | 0xff)) {
+    case 0x145:     /* NUMLOCK */
+        return scancode & 0xff;
+    }
+
+    return scancode & KF_EXTENDED ?
+        0xe000 | (scancode & 0xff) : scancode & 0xff;
+
+#else
+    return key->hardware_keycode;
+#endif
+}
+
 static gboolean gd_text_key_down(GtkWidget *widget,
                                  GdkEventKey *key, void *opaque)
 {
@@ -1084,7 +1108,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
     } else if (key->length) {
         kbd_put_string_console(con, key->string, key->length);
     } else {
-        int qcode = gd_map_keycode(key->hardware_keycode);
+        int qcode = gd_map_keycode(gd_get_keycode(key));
         kbd_put_qcode_console(con, qcode, false);
     }
     return TRUE;
@@ -1093,7 +1117,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
-    int qcode;
+    int keycode, qcode;
 
 #ifdef G_OS_WIN32
     /* on windows, we ought to ignore the reserved key event? */
@@ -1121,9 +1145,10 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
         return TRUE;
     }
 
-    qcode = gd_map_keycode(key->hardware_keycode);
+    keycode = gd_get_keycode(key);
+    qcode = gd_map_keycode(keycode);
 
-    trace_gd_key_event(vc->label, key->hardware_keycode, qcode,
+    trace_gd_key_event(vc->label, keycode, qcode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
 
     qkbd_state_key_event(vc->gfx.kbd, qcode,
