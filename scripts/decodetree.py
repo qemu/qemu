@@ -124,6 +124,7 @@ def is_pow2(x):
 
 def ctz(x):
     """Return the number of times 2 factors into X."""
+    assert x != 0
     r = 0
     while ((x >> r) & 1) == 0:
         r += 1
@@ -131,6 +132,8 @@ def ctz(x):
 
 
 def is_contiguous(bits):
+    if bits == 0:
+        return -1
     shift = ctz(bits)
     if is_pow2((bits >> shift) + 1):
         return shift
@@ -793,9 +796,8 @@ def build_incmulti_pattern(lineno, pats):
             error(lineno, 'width mismatch in patterns within braces')
 
     repeat = True
-    while repeat:
-        if fixedmask == 0:
-            error(lineno, 'no overlap in patterns within braces')
+    fixedbits = 0
+    while repeat and fixedmask != 0:
         fixedbits = None
         for p in pats:
             thisbits = p.fixedbits & fixedmask
@@ -978,6 +980,12 @@ def build_tree(pats, outerbits, outermask):
         innermask &= i.fixedmask
 
     if innermask == 0:
+        # Edge condition: One pattern covers the entire insnmask
+        if len(pats) == 1:
+            t = Tree(outermask, innermask)
+            t.subs.append((0, pats[0]))
+            return t
+
         text = 'overlapping patterns:'
         for p in pats:
             text += '\n' + p.file + ':' + str(p.lineno) + ': ' + str(p)
