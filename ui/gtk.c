@@ -168,8 +168,6 @@ struct GtkDisplayState {
 
     bool external_pause_update;
 
-    bool ignore_keys;
-
     DisplayOptions *opts;
 };
 
@@ -1095,13 +1093,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
-    GtkDisplayState *s = vc->s;
     int qcode;
-
-    if (s->ignore_keys) {
-        s->ignore_keys = (key->type == GDK_KEY_PRESS);
-        return TRUE;
-    }
 
 #ifdef WIN32
     /* on windows, we ought to ignore the reserved key event? */
@@ -1204,7 +1196,6 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
         gtk_notebook_set_current_page(nb, page);
         gtk_widget_grab_focus(vc->focus);
     }
-    s->ignore_keys = false;
 }
 
 static void gd_accel_switch_vc(void *opaque)
