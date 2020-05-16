@@ -1142,6 +1142,25 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     return TRUE;
 }
 
+static gboolean gd_grab_broken_event(GtkWidget *widget,
+                                     GdkEventGrabBroken *event, void *opaque)
+{
+#ifdef CONFIG_WIN32
+    /*
+     * On Windows the Ctrl-Alt-Del key combination can't be grabbed. This
+     * key combination leaves all three keys in a stuck condition. We use
+     * the grab-broken-event to release all keys.
+     */
+    if (event->keyboard) {
+        VirtualConsole *vc = opaque;
+        GtkDisplayState *s = vc->s;
+
+        gtk_release_modifiers(s);
+    }
+#endif
+    return TRUE;
+}
+
 static gboolean gd_event(GtkWidget *widget, GdkEvent *event, void *opaque)
 {
     if (event->type == GDK_MOTION_NOTIFY) {
@@ -1910,6 +1929,8 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
                          G_CALLBACK(gd_focus_out_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "configure-event",
                          G_CALLBACK(gd_configure), vc);
+        g_signal_connect(vc->gfx.drawing_area, "grab-broken-event",
+                         G_CALLBACK(gd_grab_broken_event), vc);
     } else {
         g_signal_connect(vc->gfx.drawing_area, "key-press-event",
                          G_CALLBACK(gd_text_key_down), vc);
