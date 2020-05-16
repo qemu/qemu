@@ -517,6 +517,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #if defined(__NetBSD__)
 #include <ucontext.h>
+#include <sys/siginfo.h>
 #endif
 
 int cpu_signal_handler(int host_signum, void *pinfo,
@@ -525,10 +526,12 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     siginfo_t *info = pinfo;
 #if defined(__NetBSD__)
     ucontext_t *uc = puc;
+    siginfo_t *si = pinfo;
 #else
     ucontext_t *uc = puc;
 #endif
     unsigned long pc;
+    uint32_t fsr;
     int is_write;
 
 #if defined(__NetBSD__)
@@ -539,10 +542,17 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     pc = uc->uc_mcontext.arm_pc;
 #endif
 
-    /* error_code is the FSR value, in which bit 11 is WnR (assuming a v6 or
-     * later processor; on v5 we will always report this as a read).
+#ifdef __NetBSD__
+    fsr = si->si_trap;
+#else
+    fsr = uc->uc_mcontext.error_code;
+#endif
+    /*
+     * In the FSR, bit 11 is WnR, assuming a v6 or
+     * later processor.  On v5 we will always report
+     * this as a read, which will fail later.
      */
-    is_write = extract32(uc->uc_mcontext.error_code, 11, 1);
+    is_write = extract32(fsr, 11, 1);
     return handle_cpu_signal(pc, info, is_write, &uc->uc_sigmask);
 }
 
