@@ -881,16 +881,15 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         SDL_SetWindowIcon(sdl2_console[0].real_window, icon);
     }
 
-    gui_grab = 0;
-    if (gui_fullscreen) {
-        sdl_grab_start(0);
-    }
-
     mouse_mode_notifier.notify = sdl_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&mouse_mode_notifier);
 
     sdl_cursor_hidden = SDL_CreateCursor(&data, &data, 8, 1, 0, 0);
     sdl_cursor_normal = SDL_GetCursor();
+
+    if (gui_fullscreen) {
+        sdl_grab_start(&sdl2_console[0]);
+    }
 
     atexit(sdl_cleanup);
 }
