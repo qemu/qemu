@@ -14,7 +14,7 @@
 #include "qemu/module.h"
 #include "sysemu/watchdog.h"
 
-#include "hw/misc/imx2_wdt.h"
+#include "hw/watchdog/wdt_imx2.h"
 
 #define IMX2_WDT_WCR_WDA    BIT(5)      /* -> External Reset WDOG_B */
 #define IMX2_WDT_WCR_SRS    BIT(4)      /* -> Software Reset Signal */

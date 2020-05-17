@@ -375,6 +375,7 @@ config FSL_IMX6
     select IMX_FEC
     select IMX_I2C
     select IMX_USBPHY
+    select WDT_IMX2
     select SDHCI
 
 config ASPEED_SOC
@@ -412,6 +413,7 @@ config FSL_IMX7
     select IMX
     select IMX_FEC
     select IMX_I2C
+    select WDT_IMX2
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
     select UNIMP
@@ -425,6 +427,7 @@ config FSL_IMX6UL
     select IMX
     select IMX_FEC
     select IMX_I2C
+    select WDT_IMX2
     select SDHCI
     select UNIMP
 
