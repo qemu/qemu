@@ -20,6 +20,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
+#include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
 #include "hw/hw.h"
@@ -144,8 +145,9 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
         /* ??? Voltage control unimplemented.  */
         return 0;
     default:
-        hw_error("integratorcm_read: Unimplemented offset 0x%x\n",
-                 (int)offset);
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Unimplemented offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
         return 0;
     }
 }
@@ -252,8 +254,9 @@ static void integratorcm_write(void *opaque, hwaddr offset,
         /* ??? Voltage control unimplemented.  */
         break;
     default:
-        hw_error("integratorcm_write: Unimplemented offset 0x%x\n",
-                 (int)offset);
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Unimplemented offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
         break;
     }
 }
@@ -394,7 +397,8 @@ static uint64_t icp_pic_read(void *opaque, hwaddr offset,
     case 5: /* INT_SOFTCLR */
     case 11: /* FRQ_ENABLECLR */
     default:
-        printf ("icp_pic_read: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
         return 0;
     }
 }
@@ -430,7 +434,8 @@ static void icp_pic_write(void *opaque, hwaddr offset,
     case 8: /* FRQ_STATUS */
     case 9: /* FRQ_RAWSTAT */
     default:
-        printf ("icp_pic_write: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
         return;
     }
     icp_pic_update(s);
@@ -504,7 +509,8 @@ static uint64_t icp_control_read(void *opaque, hwaddr offset,
     case 3: /* CP_DECODE */
         return 0x11;
     default:
-        hw_error("icp_control_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
         return 0;
     }
 }
@@ -524,7 +530,8 @@ static void icp_control_write(void *opaque, hwaddr offset,
         /* Nothing interesting implemented yet.  */
         break;
     default:
-        hw_error("icp_control_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
     }
 }
 
