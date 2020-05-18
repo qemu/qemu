@@ -34,6 +34,7 @@
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/qtest.h"
 #include "qemu/log.h"
 #include "cpu.h"
 #include "trace.h"
@@ -94,10 +95,14 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
     VMPortState *s = opaque;
     CPUState *cs = current_cpu;
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env;
     unsigned char command;
     uint32_t eax;
 
+    if (qtest_enabled()) {
+        return -1;
+    }
+    env = &cpu->env;
     cpu_synchronize_state(cs);
 
     eax = env->regs[R_EAX];
@@ -142,6 +147,9 @@ static void vmport_ioport_write(void *opaque, hwaddr addr,
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
+    if (qtest_enabled()) {
+        return;
+    }
     cpu->env.regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
 }
 
@@ -149,6 +157,9 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
+    if (qtest_enabled()) {
+        return -1;
+    }
     cpu->env.regs[R_EBX] = VMPORT_MAGIC;
     if (port_state->compat_flags & VMPORT_COMPAT_REPORT_VMX_TYPE) {
         cpu->env.regs[R_ECX] = port_state->vmware_vmx_type;
@@ -172,6 +183,9 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
+    if (qtest_enabled()) {
+        return -1;
+    }
     cpu->env.regs[R_EBX] = 0x1177;
     return ram_size;
 }
