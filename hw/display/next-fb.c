@@ -27,7 +27,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/display/framebuffer.h"
+#include "framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "hw/m68k/next-cube.h"
 

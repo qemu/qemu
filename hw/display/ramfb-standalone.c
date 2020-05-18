@@ -3,7 +3,6 @@
 #include "qemu/module.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
-#include "hw/isa/isa.h"
 #include "hw/display/ramfb.h"
 #include "ui/console.h"
 
@@ -13,8 +12,6 @@ typedef struct RAMFBStandaloneState {
     SysBusDevice parent_obj;
     QemuConsole *con;
     RAMFBState *state;
-    uint32_t xres;
-    uint32_t yres;
 } RAMFBStandaloneState;
 
 static void display_update_wrapper(void *dev)
@@ -37,14 +34,8 @@ static void ramfb_realizefn(DeviceState *dev, Error **errp)
     RAMFBStandaloneState *ramfb = RAMFB(dev);
 
     ramfb->con = graphic_console_init(dev, 0, &wrapper_ops, dev);
-    ramfb->state = ramfb_setup(dev, errp);
+    ramfb->state = ramfb_setup(errp);
 }
-
-static Property ramfb_properties[] = {
-    DEFINE_PROP_UINT32("xres", RAMFBStandaloneState, xres, 0),
-    DEFINE_PROP_UINT32("yres", RAMFBStandaloneState, yres, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void ramfb_class_initfn(ObjectClass *klass, void *data)
 {
@@ -52,7 +43,6 @@ static void ramfb_class_initfn(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->realize = ramfb_realizefn;
-    device_class_set_props(dc, ramfb_properties);
     dc->desc = "ram framebuffer standalone device";
     dc->user_creatable = true;
 }

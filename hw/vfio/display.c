@@ -353,7 +353,7 @@ static int vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
                                           &vfio_display_dmabuf_ops,
                                           vdev);
     if (vdev->enable_ramfb) {
-        vdev->dpy->ramfb = ramfb_setup(DEVICE(vdev), errp);
+        vdev->dpy->ramfb = ramfb_setup(errp);
     }
     vfio_display_edid_init(vdev);
     return 0;
@@ -479,7 +479,7 @@ static int vfio_display_region_init(VFIOPCIDevice *vdev, Error **errp)
                                           &vfio_display_region_ops,
                                           vdev);
     if (vdev->enable_ramfb) {
-        vdev->dpy->ramfb = ramfb_setup(DEVICE(vdev), errp);
+        vdev->dpy->ramfb = ramfb_setup(errp);
     }
     return 0;
 }

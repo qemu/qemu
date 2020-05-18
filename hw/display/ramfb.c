@@ -13,9 +13,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/option.h"
 #include "hw/loader.h"
 #include "hw/display/ramfb.h"
+#include "hw/display/bochs-vbe.h" /* for limits */
 #include "ui/console.h"
 #include "sysemu/reset.h"
 
@@ -31,9 +31,7 @@ struct QEMU_PACKED RAMFBCfg {
 struct RAMFBState {
     DisplaySurface *ds;
     uint32_t width, height;
-    uint32_t starting_width, starting_height;
     struct RAMFBCfg cfg;
-    bool locked;
 };
 
 static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
@@ -46,25 +44,31 @@ static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
 
 static DisplaySurface *ramfb_create_display_surface(int width, int height,
                                                     pixman_format_code_t format,
-                                                    int linesize, uint64_t addr)
+                                                    hwaddr stride, hwaddr addr)
 {
     DisplaySurface *surface;
-    hwaddr size;
+    hwaddr size, mapsize, linesize;
     void *data;
 
-    if (linesize == 0) {
-        linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    if (width < 16 || width > VBE_DISPI_MAX_XRES ||
+        height < 16 || height > VBE_DISPI_MAX_YRES ||
+        format == 0 /* unknown format */)
+        return NULL;
+
+    linesize = width * PIXMAN_FORMAT_BPP(format) / 8;
+    if (stride == 0) {
+        stride = linesize;
     }
 
-    size = (hwaddr)linesize * height;
-    data = cpu_physical_memory_map(addr, &size, false);
-    if (size != (hwaddr)linesize * height) {
-        cpu_physical_memory_unmap(data, size, 0, 0);
+    mapsize = size = stride * (height - 1) + linesize;
+    data = cpu_physical_memory_map(addr, &mapsize, false);
+    if (size != mapsize) {
+        cpu_physical_memory_unmap(data, mapsize, 0, 0);
         return NULL;
     }
 
     surface = qemu_create_displaysurface_from(width, height,
-                                              format, linesize, data);
+                                              format, stride, data);
     pixman_image_set_destroy_function(surface->image,
                                       ramfb_unmap_display_surface, NULL);
 
@@ -74,27 +78,26 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
 static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
 {
     RAMFBState *s = dev;
+    DisplaySurface *surface;
     uint32_t fourcc, format, width, height;
     hwaddr stride, addr;
 
-    width     = be32_to_cpu(s->cfg.width);
-    height    = be32_to_cpu(s->cfg.height);
-    stride    = be32_to_cpu(s->cfg.stride);
-    fourcc    = be32_to_cpu(s->cfg.fourcc);
-    addr      = be64_to_cpu(s->cfg.addr);
-    format    = qemu_drm_format_to_pixman(fourcc);
+    width  = be32_to_cpu(s->cfg.width);
+    height = be32_to_cpu(s->cfg.height);
+    stride = be32_to_cpu(s->cfg.stride);
+    fourcc = be32_to_cpu(s->cfg.fourcc);
+    addr   = be64_to_cpu(s->cfg.addr);
+    format = qemu_drm_format_to_pixman(fourcc);
 
-    fprintf(stderr, "%s: %dx%d @ 0x%" PRIx64 "\n", __func__,
-            width, height, addr);
-    if (s->locked) {
-        fprintf(stderr, "%s: resolution locked, change rejected\n", __func__);
+    surface = ramfb_create_display_surface(width, height,
+                                           format, stride, addr);
+    if (!surface) {
         return;
     }
-    s->locked = true;
+
     s->width = width;
     s->height = height;
-    s->ds = ramfb_create_display_surface(s->width, s->height,
-                                         format, stride, addr);
+    s->ds = surface;
 }
 
 void ramfb_display_update(QemuConsole *con, RAMFBState *s)
@@ -112,16 +115,7 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
     dpy_gfx_update_full(con);
 }
 
-static void ramfb_reset(void *opaque)
-{
-    RAMFBState *s = (RAMFBState *)opaque;
-    s->locked = false;
-    memset(&s->cfg, 0, sizeof(s->cfg));
-    s->cfg.width = s->starting_width;
-    s->cfg.height = s->starting_height;
-}
-
-RAMFBState *ramfb_setup(DeviceState* dev, Error **errp)
+RAMFBState *ramfb_setup(Error **errp)
 {
     FWCfgState *fw_cfg = fw_cfg_find();
     RAMFBState *s;
@@ -133,22 +127,9 @@ RAMFBState *ramfb_setup(DeviceState* dev, Error **errp)
 
     s = g_new0(RAMFBState, 1);
 
-    const char *s_fb_width = qemu_opt_get(dev->opts, "xres");
-    const char *s_fb_height = qemu_opt_get(dev->opts, "yres");
-    if (s_fb_width) {
-        s->cfg.width = atoi(s_fb_width);
-        s->starting_width = s->cfg.width;
-    }
-    if (s_fb_height) {
-        s->cfg.height = atoi(s_fb_height);
-        s->starting_height = s->cfg.height;
-    }
-    s->locked = false;
-
     rom_add_vga("vgabios-ramfb.bin");
     fw_cfg_add_file_callback(fw_cfg, "etc/ramfb",
                              NULL, ramfb_fw_cfg_write, s,
                              &s->cfg, sizeof(s->cfg), false);
-    qemu_register_reset(ramfb_reset, s);
     return s;
 }
