@@ -546,6 +546,7 @@ restore_sigcontext(CPUARMState *env, struct target_sigcontext *sc)
 #ifdef TARGET_CONFIG_CPU_32
     __get_user(cpsr, &sc->arm_cpsr);
     cpsr_write(env, cpsr, CPSR_USER | CPSR_EXEC, CPSRWriteByInstr);
+    arm_rebuild_hflags(env);
 #endif
 
     err |= !valid_user_regs(env);
