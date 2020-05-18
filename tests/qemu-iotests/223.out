@@ -201,6 +201,7 @@ read 2097152/2097152 bytes at offset 2097152
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 [{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
-{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 1024, "length": 11321, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 12345, "length": 2084807, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 *** done
