@@ -965,15 +965,11 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 };
 
 
-static int net_client_init1(const void *object, bool is_netdev, Error **errp)
+static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
 {
-    Netdev legacy = {0};
-    const Netdev *netdev;
     NetClientState *peer = NULL;
 
     if (is_netdev) {
-        netdev = object;
-
         if (netdev->type == NET_CLIENT_DRIVER_NIC ||
             !net_client_init_fun[netdev->type]) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
@@ -981,56 +977,11 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
             return -1;
         }
     } else {
-        const NetLegacy *net = object;
-        const NetLegacyOptions *opts = net->opts;
-        legacy.id = net->id;
-        netdev = &legacy;
-
-        /* Map the old options to the new flat type */
-        switch (opts->type) {
-        case NET_LEGACY_OPTIONS_TYPE_NONE:
+        if (netdev->type == NET_CLIENT_DRIVER_NONE) {
             return 0; /* nothing to do */
-        case NET_LEGACY_OPTIONS_TYPE_NIC:
-            legacy.type = NET_CLIENT_DRIVER_NIC;
-            legacy.u.nic = opts->u.nic;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_USER:
-            legacy.type = NET_CLIENT_DRIVER_USER;
-            legacy.u.user = opts->u.user;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_TAP:
-            legacy.type = NET_CLIENT_DRIVER_TAP;
-            legacy.u.tap = opts->u.tap;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_L2TPV3:
-            legacy.type = NET_CLIENT_DRIVER_L2TPV3;
-            legacy.u.l2tpv3 = opts->u.l2tpv3;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_SOCKET:
-            legacy.type = NET_CLIENT_DRIVER_SOCKET;
-            legacy.u.socket = opts->u.socket;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_VDE:
-            legacy.type = NET_CLIENT_DRIVER_VDE;
-            legacy.u.vde = opts->u.vde;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_BRIDGE:
-            legacy.type = NET_CLIENT_DRIVER_BRIDGE;
-            legacy.u.bridge = opts->u.bridge;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_NETMAP:
-            legacy.type = NET_CLIENT_DRIVER_NETMAP;
-            legacy.u.netmap = opts->u.netmap;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_VHOST_USER:
-            legacy.type = NET_CLIENT_DRIVER_VHOST_USER;
-            legacy.u.vhost_user = opts->u.vhost_user;
-            break;
-        default:
-            abort();
         }
-
-        if (!net_client_init_fun[netdev->type]) {
+        if (netdev->type == NET_CLIENT_DRIVER_HUBPORT ||
+            !net_client_init_fun[netdev->type]) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                        "a net backend type (maybe it is not compiled "
                        "into this binary)");
@@ -1039,7 +990,7 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
 
         /* Do not add to a hub if it's a nic with a netdev= parameter. */
         if (netdev->type != NET_CLIENT_DRIVER_NIC ||
-            !opts->u.nic.has_netdev) {
+            !netdev->u.nic.has_netdev) {
             peer = net_hub_add_port(0, NULL, NULL);
         }
     }
@@ -1100,7 +1051,7 @@ static void show_netdevs(void)
 static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 {
     gchar **substrings = NULL;
-    void *object = NULL;
+    Netdev *object = NULL;
     Error *err = NULL;
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
@@ -1143,21 +1094,19 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
         }
     }
 
-    if (is_netdev) {
-        visit_type_Netdev(v, NULL, (Netdev **)&object, &err);
-    } else {
-        visit_type_NetLegacy(v, NULL, (NetLegacy **)&object, &err);
+    /* Create an ID for -net if the user did not specify one */
+    if (!is_netdev && !qemu_opts_id(opts)) {
+        static int idx;
+        qemu_opts_set_id(opts, g_strdup_printf("__org.qemu.net%i", idx++));
     }
+
+    visit_type_Netdev(v, NULL, &object, &err);
 
     if (!err) {
         ret = net_client_init1(object, is_netdev, &err);
     }
 
-    if (is_netdev) {
-        qapi_free_Netdev(object);
-    } else {
-        qapi_free_NetLegacy(object);
-    }
+    qapi_free_Netdev(object);
 
 out:
     error_propagate(errp, err);
