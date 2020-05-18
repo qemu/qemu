@@ -553,9 +553,14 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     rom_add_elf_program(label, mapped_file, data, file_size,
                                         mem_size, addr, as);
                 } else {
-                    address_space_write(as ? as : &address_space_memory,
-                                        addr, MEMTXATTRS_UNSPECIFIED,
-                                        data, file_size);
+                    MemTxResult res;
+
+                    res = address_space_write(as ? as : &address_space_memory,
+                                              addr, MEMTXATTRS_UNSPECIFIED,
+                                              data, file_size);
+                    if (res != MEMTX_OK) {
+                        goto fail;
+                    }
                 }
             }
 
