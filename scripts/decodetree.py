@@ -1021,16 +1021,20 @@ def parse_file(f, parent_pat):
         del toks[0]
 
         # End nesting?
-        if name == '}':
+        if name == '}' or name == ']':
             if len(toks) != 0:
                 error(start_lineno, 'extra tokens after close brace')
             if len(parent_pat.pats) < 2:
                 error(lineno, 'less than two patterns within braces')
 
+            # Make sure { } and [ ] nest properly.
+            if (name == '}') != isinstance(parent_pat, IncMultiPattern):
+                error(lineno, 'mismatched close brace')
+
             try:
                 parent_pat = nesting_pats.pop()
             except:
-                error(lineno, 'mismatched close brace')
+                error(lineno, 'extra close brace')
 
             nesting -= 2
             if indent != nesting:
@@ -1044,11 +1048,14 @@ def parse_file(f, parent_pat):
             error(start_lineno, 'indentation ', indent, ' != ', nesting)
 
         # Start nesting?
-        if name == '{':
+        if name == '{' or name == '[':
             if len(toks) != 0:
                 error(start_lineno, 'extra tokens after open brace')
 
-            nested_pat = IncMultiPattern(start_lineno)
+            if name == '{':
+                nested_pat = IncMultiPattern(start_lineno)
+            else:
+                nested_pat = ExcMultiPattern(start_lineno)
             parent_pat.pats.append(nested_pat)
             nesting_pats.append(parent_pat)
             parent_pat = nested_pat
@@ -1067,6 +1074,9 @@ def parse_file(f, parent_pat):
         else:
             parse_generic(start_lineno, parent_pat, name, toks)
         toks = []
+
+    if nesting != 0:
+        error(lineno, 'missing close brace')
 # end parse_file
 
 
