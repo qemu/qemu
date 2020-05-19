@@ -277,13 +277,10 @@ static void qemu_luring_completion_cb(void *opaque)
 static bool qemu_luring_poll_cb(void *opaque)
 {
     LuringState *s = opaque;
-    struct io_uring_cqe *cqes;
 
-    if (io_uring_peek_cqe(&s->ring, &cqes) == 0) {
-        if (cqes) {
-            luring_process_completions_and_submit(s);
-            return true;
-        }
+    if (io_uring_cq_ready(&s->ring)) {
+        luring_process_completions_and_submit(s);
+        return true;
     }
 
     return false;
