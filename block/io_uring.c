@@ -231,7 +231,7 @@ static int ioq_submit(LuringState *s)
         trace_luring_io_uring_submit(s, ret);
         /* Prevent infinite loop if submission is refused */
         if (ret <= 0) {
-            if (ret == -EAGAIN) {
+            if (ret == -EAGAIN || ret == -EINTR) {
                 continue;
             }
             break;
