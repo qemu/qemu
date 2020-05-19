@@ -264,7 +264,7 @@ void helper_fsqrtq(CPUSPARCState *env)
 #define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
     target_ulong glue(helper_, name) (CPUSPARCState *env)               \
     {                                                                   \
-        int ret;                                                        \
+        FloatRelation ret;                                              \
         target_ulong fsr;                                               \
         if (E) {                                                        \
             ret = glue(size, _compare)(reg1, reg2, &env->fp_status);    \
@@ -295,7 +295,7 @@ void helper_fsqrtq(CPUSPARCState *env)
 #define GEN_FCMP_T(name, size, FS, E)                                   \
     target_ulong glue(helper_, name)(CPUSPARCState *env, size src1, size src2)\
     {                                                                   \
-        int ret;                                                        \
+        FloatRelation ret;                                              \
         target_ulong fsr;                                               \
         if (E) {                                                        \
             ret = glue(size, _compare)(src1, src2, &env->fp_status);    \

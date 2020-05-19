@@ -523,7 +523,8 @@ uint64_t HELPER(fcnv_t_d_udw)(CPUHPPAState *env, float64 arg)
     return ret;
 }
 
-static void update_fr0_cmp(CPUHPPAState *env, uint32_t y, uint32_t c, int r)
+static void update_fr0_cmp(CPUHPPAState *env, uint32_t y,
+                           uint32_t c, FloatRelation r)
 {
     uint32_t shadow = env->fr0_shadow;
 
@@ -565,7 +566,7 @@ static void update_fr0_cmp(CPUHPPAState *env, uint32_t y, uint32_t c, int r)
 void HELPER(fcmp_s)(CPUHPPAState *env, float32 a, float32 b,
                     uint32_t y, uint32_t c)
 {
-    int r;
+    FloatRelation r;
     if (c & 1) {
         r = float32_compare(a, b, &env->fp_status);
     } else {
@@ -578,7 +579,7 @@ void HELPER(fcmp_s)(CPUHPPAState *env, float32 a, float32 b,
 void HELPER(fcmp_d)(CPUHPPAState *env, float64 a, float64 b,
                     uint32_t y, uint32_t c)
 {
-    int r;
+    FloatRelation r;
     if (c & 1) {
         r = float64_compare(a, b, &env->fp_status);
     } else {

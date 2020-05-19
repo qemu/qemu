@@ -53,12 +53,13 @@ this code that are retained.
 
 #include "fpu/softfloat-types.h"
 
-static inline void set_float_detect_tininess(int val, float_status *status)
+static inline void set_float_detect_tininess(bool val, float_status *status)
 {
-    status->float_detect_tininess = val;
+    status->tininess_before_rounding = val;
 }
 
-static inline void set_float_rounding_mode(int val, float_status *status)
+static inline void set_float_rounding_mode(FloatRoundMode val,
+                                           float_status *status)
 {
     status->float_rounding_mode = val;
 }
@@ -74,32 +75,32 @@ static inline void set_floatx80_rounding_precision(int val,
     status->floatx80_rounding_precision = val;
 }
 
-static inline void set_flush_to_zero(flag val, float_status *status)
+static inline void set_flush_to_zero(bool val, float_status *status)
 {
     status->flush_to_zero = val;
 }
 
-static inline void set_flush_inputs_to_zero(flag val, float_status *status)
+static inline void set_flush_inputs_to_zero(bool val, float_status *status)
 {
     status->flush_inputs_to_zero = val;
 }
 
-static inline void set_default_nan_mode(flag val, float_status *status)
+static inline void set_default_nan_mode(bool val, float_status *status)
 {
     status->default_nan_mode = val;
 }
 
-static inline void set_snan_bit_is_one(flag val, float_status *status)
+static inline void set_snan_bit_is_one(bool val, float_status *status)
 {
     status->snan_bit_is_one = val;
 }
 
-static inline int get_float_detect_tininess(float_status *status)
+static inline bool get_float_detect_tininess(float_status *status)
 {
-    return status->float_detect_tininess;
+    return status->tininess_before_rounding;
 }
 
-static inline int get_float_rounding_mode(float_status *status)
+static inline FloatRoundMode get_float_rounding_mode(float_status *status)
 {
     return status->float_rounding_mode;
 }
@@ -114,17 +115,17 @@ static inline int get_floatx80_rounding_precision(float_status *status)
     return status->floatx80_rounding_precision;
 }
 
-static inline flag get_flush_to_zero(float_status *status)
+static inline bool get_flush_to_zero(float_status *status)
 {
     return status->flush_to_zero;
 }
 
-static inline flag get_flush_inputs_to_zero(float_status *status)
+static inline bool get_flush_inputs_to_zero(float_status *status)
 {
     return status->flush_inputs_to_zero;
 }
 
-static inline flag get_default_nan_mode(float_status *status)
+static inline bool get_default_nan_mode(float_status *status)
 {
     return status->default_nan_mode;
 }

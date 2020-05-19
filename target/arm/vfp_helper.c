@@ -281,7 +281,7 @@ float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
     return float64_sqrt(a, &env->vfp.fp_status);
 }
 
-static void softfloat_to_vfp_compare(CPUARMState *env, int cmp)
+static void softfloat_to_vfp_compare(CPUARMState *env, FloatRelation cmp)
 {
     uint32_t flags;
     switch (cmp) {
@@ -531,7 +531,7 @@ float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, void *fpstp, uint32_t ahp_mode)
      * it would affect flushing input denormals.
      */
     float_status *fpst = fpstp;
-    flag save = get_flush_inputs_to_zero(fpst);
+    bool save = get_flush_inputs_to_zero(fpst);
     set_flush_inputs_to_zero(false, fpst);
     float32 r = float16_to_float32(a, !ahp_mode, fpst);
     set_flush_inputs_to_zero(save, fpst);
@@ -544,7 +544,7 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
      * it would affect flushing output denormals.
      */
     float_status *fpst = fpstp;
-    flag save = get_flush_to_zero(fpst);
+    bool save = get_flush_to_zero(fpst);
     set_flush_to_zero(false, fpst);
     float16 r = float32_to_float16(a, !ahp_mode, fpst);
     set_flush_to_zero(save, fpst);
@@ -557,7 +557,7 @@ float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, void *fpstp, uint32_t ahp_mode)
      * it would affect flushing input denormals.
      */
     float_status *fpst = fpstp;
-    flag save = get_flush_inputs_to_zero(fpst);
+    bool save = get_flush_inputs_to_zero(fpst);
     set_flush_inputs_to_zero(false, fpst);
     float64 r = float16_to_float64(a, !ahp_mode, fpst);
     set_flush_inputs_to_zero(save, fpst);
@@ -570,7 +570,7 @@ uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
      * it would affect flushing output denormals.
      */
     float_status *fpst = fpstp;
-    flag save = get_flush_to_zero(fpst);
+    bool save = get_flush_to_zero(fpst);
     set_flush_to_zero(false, fpst);
     float16 r = float64_to_float16(a, !ahp_mode, fpst);
     set_flush_to_zero(save, fpst);
@@ -697,9 +697,9 @@ static bool round_to_inf(float_status *fpst, bool sign_bit)
         return sign_bit;
     case float_round_to_zero: /* Round to Zero */
         return false;
+    default:
+        g_assert_not_reached();
     }
-
-    g_assert_not_reached();
 }
 
 uint32_t HELPER(recpe_f16)(uint32_t input, void *fpstp)

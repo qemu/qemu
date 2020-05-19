@@ -174,7 +174,7 @@ void HELPER(gvec_wfk64)(const void *v1, const void *v2, CPUS390XState *env,
     env->cc_op = wfc64(v1, v2, env, true, GETPC());
 }
 
-typedef int (*vfc64_fn)(float64 a, float64 b, float_status *status);
+typedef bool (*vfc64_fn)(float64 a, float64 b, float_status *status);
 static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                  CPUS390XState *env, bool s, vfc64_fn fn, uintptr_t retaddr)
 {

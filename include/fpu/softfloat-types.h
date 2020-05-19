@@ -80,12 +80,6 @@ this code that are retained.
 #ifndef SOFTFLOAT_TYPES_H
 #define SOFTFLOAT_TYPES_H
 
-/* This 'flag' type must be able to hold at least 0 and 1. It should
- * probably be replaced with 'bool' but the uses would need to be audited
- * to check that they weren't accidentally relying on it being a larger type.
- */
-typedef uint8_t flag;
-
 /*
  * Software IEC/IEEE floating-point types.
  */
@@ -122,16 +116,14 @@ typedef struct {
  * Software IEC/IEEE floating-point underflow tininess-detection mode.
  */
 
-enum {
-    float_tininess_after_rounding  = 0,
-    float_tininess_before_rounding = 1
-};
+#define float_tininess_after_rounding  false
+#define float_tininess_before_rounding true
 
 /*
  *Software IEC/IEEE floating-point rounding mode.
  */
 
-enum {
+typedef enum __attribute__((__packed__)) {
     float_round_nearest_even = 0,
     float_round_down         = 1,
     float_round_up           = 2,
@@ -139,7 +131,7 @@ enum {
     float_round_ties_away    = 4,
     /* Not an IEEE rounding mode: round to the closest odd mantissa value */
     float_round_to_odd       = 5,
-};
+} FloatRoundMode;
 
 /*
  * Software IEC/IEEE floating-point exception flags.
@@ -164,17 +156,17 @@ enum {
  */
 
 typedef struct float_status {
-    signed char float_detect_tininess;
-    signed char float_rounding_mode;
+    FloatRoundMode float_rounding_mode;
     uint8_t     float_exception_flags;
     signed char floatx80_rounding_precision;
+    bool tininess_before_rounding;
     /* should denormalised results go to zero and set the inexact flag? */
-    flag flush_to_zero;
+    bool flush_to_zero;
     /* should denormalised inputs go to zero and set the input_denormal flag? */
-    flag flush_inputs_to_zero;
-    flag default_nan_mode;
+    bool flush_inputs_to_zero;
+    bool default_nan_mode;
     /* not always used -- see snan_bit_is_one() in softfloat-specialize.h */
-    flag snan_bit_is_one;
+    bool snan_bit_is_one;
 } float_status;
 
 #endif /* SOFTFLOAT_TYPES_H */

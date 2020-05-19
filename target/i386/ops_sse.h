@@ -1031,7 +1031,7 @@ static const int comis_eflags[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
 
 void helper_ucomiss(CPUX86State *env, Reg *d, Reg *s)
 {
-    int ret;
+    FloatRelation ret;
     float32 s0, s1;
 
     s0 = d->ZMM_S(0);
@@ -1042,7 +1042,7 @@ void helper_ucomiss(CPUX86State *env, Reg *d, Reg *s)
 
 void helper_comiss(CPUX86State *env, Reg *d, Reg *s)
 {
-    int ret;
+    FloatRelation ret;
     float32 s0, s1;
 
     s0 = d->ZMM_S(0);
@@ -1053,7 +1053,7 @@ void helper_comiss(CPUX86State *env, Reg *d, Reg *s)
 
 void helper_ucomisd(CPUX86State *env, Reg *d, Reg *s)
 {
-    int ret;
+    FloatRelation ret;
     float64 d0, d1;
 
     d0 = d->ZMM_D(0);
@@ -1064,7 +1064,7 @@ void helper_ucomisd(CPUX86State *env, Reg *d, Reg *s)
 
 void helper_comisd(CPUX86State *env, Reg *d, Reg *s)
 {
-    int ret;
+    FloatRelation ret;
     float64 d0, d1;
 
     d0 = d->ZMM_D(0);
