@@ -379,7 +379,8 @@ static void icount_adjust(void)
 
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
-    cur_time = cpu_get_clock_locked();
+    cur_time = REPLAY_CLOCK_LOCKED(REPLAY_CLOCK_VIRTUAL_RT,
+                                   cpu_get_clock_locked());
     cur_icount = cpu_get_icount_locked();
 
     delta = cur_icount - cur_time;
@@ -647,6 +648,11 @@ static bool adjust_timers_state_needed(void *opaque)
     return s->icount_rt_timer != NULL;
 }
 
+static bool shift_state_needed(void *opaque)
+{
+    return use_icount == 2;
+}
+
 /*
  * Subsection for warp timer migration is optional, because may not be created
  */
@@ -674,6 +680,17 @@ static const VMStateDescription icount_vmstate_adjust_timers = {
     }
 };
 
+static const VMStateDescription icount_vmstate_shift = {
+    .name = "timer/icount/shift",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = shift_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT16(icount_time_shift, TimersState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /*
  * This is a subsection for icount migration.
  */
@@ -690,6 +707,7 @@ static const VMStateDescription icount_vmstate_timers = {
     .subsections = (const VMStateDescription*[]) {
         &icount_vmstate_warp_timer,
         &icount_vmstate_adjust_timers,
+        &icount_vmstate_shift,
         NULL
     }
 };
