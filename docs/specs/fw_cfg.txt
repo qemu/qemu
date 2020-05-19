@@ -258,4 +258,8 @@ Prefix "opt/org.qemu/" is reserved for QEMU itself.
 Use of names not beginning with "opt/" is potentially dangerous and
 entirely unsupported.  QEMU will warn if you try.
 
+Use of names not beginning with "opt/" is tolerated with 'gen_id' (that
+is, the warning is suppressed), but you must know exactly what you're
+doing.
+
 All externally provided fw_cfg items are read-only to the guest.
