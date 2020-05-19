@@ -343,9 +343,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
                                     ~BDRV_REQ_WRITE_COMPRESSED);
         if (ret < 0) {
             trace_block_copy_write_zeroes_fail(s, offset, ret);
-            if (error_is_read) {
-                *error_is_read = false;
-            }
+            *error_is_read = false;
         }
         return ret;
     }
@@ -393,9 +391,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
     ret = bdrv_co_pread(s->source, offset, nbytes, bounce_buffer, 0);
     if (ret < 0) {
         trace_block_copy_read_fail(s, offset, ret);
-        if (error_is_read) {
-            *error_is_read = true;
-        }
+        *error_is_read = true;
         goto out;
     }
 
@@ -403,9 +399,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
                          s->write_flags);
     if (ret < 0) {
         trace_block_copy_write_fail(s, offset, ret);
-        if (error_is_read) {
-            *error_is_read = false;
-        }
+        *error_is_read = false;
         goto out;
     }
 
@@ -418,7 +412,7 @@ out:
 static coroutine_fn int block_copy_task_entry(AioTask *task)
 {
     BlockCopyTask *t = container_of(task, BlockCopyTask, task);
-    bool error_is_read;
+    bool error_is_read = false;
     int ret;
 
     ret = block_copy_do_copy(t->s, t->offset, t->bytes, t->zeroes,

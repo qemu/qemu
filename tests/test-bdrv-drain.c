@@ -85,22 +85,6 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
-static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                 const BdrvChildRole *role,
-                                 BlockReopenQueue *reopen_queue,
-                                 uint64_t perm, uint64_t shared,
-                                 uint64_t *nperm, uint64_t *nshared)
-{
-    /* bdrv_format_default_perms() accepts only these two, so disguise
-     * detach_by_driver_cb_role as one of them. */
-    if (role != &child_file && role != &child_backing) {
-        role = &child_file;
-    }
-
-    bdrv_format_default_perms(bs, c, role, reopen_queue, perm, shared,
-                              nperm, nshared);
-}
-
 static int bdrv_test_change_backing_file(BlockDriverState *bs,
                                          const char *backing_file,
                                          const char *backing_fmt)
@@ -118,7 +102,7 @@ static BlockDriver bdrv_test = {
     .bdrv_co_drain_begin    = bdrv_test_co_drain_begin,
     .bdrv_co_drain_end      = bdrv_test_co_drain_end,
 
-    .bdrv_child_perm        = bdrv_test_child_perm,
+    .bdrv_child_perm        = bdrv_default_perms,
 
     .bdrv_change_backing_file = bdrv_test_change_backing_file,
 };
@@ -1134,7 +1118,7 @@ static BlockDriver bdrv_test_top_driver = {
     .bdrv_close             = bdrv_test_top_close,
     .bdrv_co_preadv         = bdrv_test_top_co_preadv,
 
-    .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
 };
 
 typedef struct TestCoDeleteByDrainData {
@@ -1200,7 +1184,8 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
-    bdrv_attach_child(bs, null_bs, "null-child", &child_file, &error_abort);
+    bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds,
+                      BDRV_CHILD_DATA, &error_abort);
 
     /* This child will be the one to pass to requests through to, and
      * it will stall until a drain occurs */
@@ -1208,14 +1193,17 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
                                     &error_abort);
     child_bs->total_sectors = 65536 >> BDRV_SECTOR_BITS;
     /* Takes our reference to child_bs */
-    tts->wait_child = bdrv_attach_child(bs, child_bs, "wait-child", &child_file,
+    tts->wait_child = bdrv_attach_child(bs, child_bs, "wait-child",
+                                        &child_of_bds,
+                                        BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                                         &error_abort);
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
     null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
-    bdrv_attach_child(bs, null_bs, "null-child", &child_file, &error_abort);
+    bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds, BDRV_CHILD_DATA,
+                      &error_abort);
 
     blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
@@ -1312,7 +1300,8 @@ static void detach_indirect_bh(void *opaque)
 
     bdrv_ref(data->c);
     data->child_c = bdrv_attach_child(data->parent_b, data->c, "PB-C",
-                                      &child_file, &error_abort);
+                                      &child_of_bds, BDRV_CHILD_DATA,
+                                      &error_abort);
 }
 
 static void detach_by_parent_aio_cb(void *opaque, int ret)
@@ -1329,10 +1318,10 @@ static void detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
     aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
                             detach_indirect_bh, &detach_by_parent_data);
-    child_file.drained_begin(child);
+    child_of_bds.drained_begin(child);
 }
 
-static BdrvChildRole detach_by_driver_cb_role;
+static BdrvChildClass detach_by_driver_cb_class;
 
 /*
  * Initial graph:
@@ -1349,7 +1338,7 @@ static BdrvChildRole detach_by_driver_cb_role;
  *
  * by_parent_cb == false: Test that bdrv_drain_invoke() doesn't poll
  *
- *     PA's BdrvChildRole has a .drained_begin callback that schedules a BH
+ *     PA's BdrvChildClass has a .drained_begin callback that schedules a BH
  *     that does the same graph change. If bdrv_drain_invoke() calls it, the
  *     state is messed up, but if it is only polled in the single
  *     BDRV_POLL_WHILE() at the end of the drain, this should work fine.
@@ -1364,8 +1353,8 @@ static void test_detach_indirect(bool by_parent_cb)
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
     if (!by_parent_cb) {
-        detach_by_driver_cb_role = child_file;
-        detach_by_driver_cb_role.drained_begin =
+        detach_by_driver_cb_class = child_of_bds;
+        detach_by_driver_cb_class.drained_begin =
             detach_by_driver_cb_drained_begin;
     }
 
@@ -1394,13 +1383,15 @@ static void test_detach_indirect(bool by_parent_cb)
     /* Set child relationships */
     bdrv_ref(b);
     bdrv_ref(a);
-    child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_file, &error_abort);
-    child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_backing, &error_abort);
+    child_b = bdrv_attach_child(parent_b, b, "PB-B", &child_of_bds,
+                                BDRV_CHILD_DATA, &error_abort);
+    child_a = bdrv_attach_child(parent_b, a, "PB-A", &child_of_bds,
+                                BDRV_CHILD_COW, &error_abort);
 
     bdrv_ref(a);
     bdrv_attach_child(parent_a, a, "PA-A",
-                      by_parent_cb ? &child_file : &detach_by_driver_cb_role,
-                      &error_abort);
+                      by_parent_cb ? &child_of_bds : &detach_by_driver_cb_class,
+                      BDRV_CHILD_DATA, &error_abort);
 
     g_assert_cmpint(parent_a->refcnt, ==, 1);
     g_assert_cmpint(parent_b->refcnt, ==, 1);
@@ -1735,7 +1726,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
 /**
  * Test a poll in the midst of bdrv_drop_intermediate().
  *
- * bdrv_drop_intermediate() calls BdrvChildRole.update_filename(),
+ * bdrv_drop_intermediate() calls BdrvChildClass.update_filename(),
  * which can yield or poll.  This may lead to graph changes, unless
  * the whole subtree in question is drained.
  *
@@ -1772,7 +1763,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
  *
  * The solution is for bdrv_drop_intermediate() to drain top's
  * subtree.  This prevents graph changes from happening just because
- * BdrvChildRole.update_filename() yields or polls.  Thus, the block
+ * BdrvChildClass.update_filename() yields or polls.  Thus, the block
  * job is paused during that drained section and must finish before or
  * after.
  *
@@ -1780,7 +1771,7 @@ static int drop_intermediate_poll_update_filename(BdrvChild *child,
  */
 static void test_drop_intermediate_poll(void)
 {
-    static BdrvChildRole chain_child_role;
+    static BdrvChildClass chain_child_class;
     BlockDriverState *chain[3];
     TestSimpleBlockJob *job;
     BlockDriverState *job_node;
@@ -1788,8 +1779,8 @@ static void test_drop_intermediate_poll(void)
     int i;
     int ret;
 
-    chain_child_role = child_backing;
-    chain_child_role.update_filename = drop_intermediate_poll_update_filename;
+    chain_child_class = child_of_bds;
+    chain_child_class.update_filename = drop_intermediate_poll_update_filename;
 
     for (i = 0; i < 3; i++) {
         char name[32];
@@ -1810,8 +1801,8 @@ static void test_drop_intermediate_poll(void)
         if (i) {
             /* Takes the reference to chain[i - 1] */
             chain[i]->backing = bdrv_attach_child(chain[i], chain[i - 1],
-                                                  "chain", &chain_child_role,
-                                                  &error_abort);
+                                                  "chain", &chain_child_class,
+                                                  BDRV_CHILD_COW, &error_abort);
         }
     }
 
@@ -1956,7 +1947,7 @@ static BlockDriver bdrv_replace_test = {
     .bdrv_co_drain_begin    = bdrv_replace_test_co_drain_begin,
     .bdrv_co_drain_end      = bdrv_replace_test_co_drain_end,
 
-    .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
 };
 
 static void coroutine_fn test_replace_child_mid_drain_read_co(void *opaque)
@@ -2029,7 +2020,8 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
 
     bdrv_ref(old_child_bs);
     parent_bs->backing = bdrv_attach_child(parent_bs, old_child_bs, "child",
-                                           &child_backing, &error_abort);
+                                           &child_of_bds, BDRV_CHILD_COW,
+                                           &error_abort);
 
     for (i = 0; i < old_drain_count; i++) {
         bdrv_drained_begin(old_child_bs);

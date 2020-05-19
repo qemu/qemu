@@ -739,8 +739,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     char *buf;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -912,12 +912,13 @@ static BlockDriver bdrv_parallels = {
     .bdrv_probe		= parallels_probe,
     .bdrv_open		= parallels_open,
     .bdrv_close		= parallels_close,
-    .bdrv_child_perm          = bdrv_format_default_perms,
+    .bdrv_child_perm          = bdrv_default_perms,
     .bdrv_co_block_status     = parallels_co_block_status,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_flush_to_os      = parallels_co_flush_to_os,
     .bdrv_co_readv  = parallels_co_readv,
     .bdrv_co_writev = parallels_co_writev,
+    .is_format      = true,
     .supports_backing = true,
     .bdrv_co_create      = parallels_co_create,
     .bdrv_co_create_opts = parallels_co_create_opts,

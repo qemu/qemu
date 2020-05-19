@@ -167,7 +167,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
                          blk_name(blk), strerror(-size));
             exit(1);
         }
-        if (size == 0 || size % FLASH_SECTOR_SIZE != 0) {
+        if (size == 0 || !QEMU_IS_ALIGNED(size, FLASH_SECTOR_SIZE)) {
             error_report("system firmware block device %s has invalid size "
                          "%" PRId64,
                          blk_name(blk), size);

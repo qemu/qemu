@@ -977,7 +977,8 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
         assert(ret < 32);
 
         s->children[i] = bdrv_open_child(NULL, options, indexstr, bs,
-                                         &child_format, false, &local_err);
+                                         &child_of_bds, BDRV_CHILD_DATA, false,
+                                         &local_err);
         if (local_err) {
             ret = -EINVAL;
             goto close_exit;
@@ -1053,7 +1054,8 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     /* We can safely add the child now */
     bdrv_ref(child_bs);
 
-    child = bdrv_attach_child(bs, child_bs, indexstr, &child_format, errp);
+    child = bdrv_attach_child(bs, child_bs, indexstr, &child_of_bds,
+                              BDRV_CHILD_DATA, errp);
     if (child == NULL) {
         s->next_child_index--;
         goto out;
@@ -1151,7 +1153,7 @@ static char *quorum_dirname(BlockDriverState *bs, Error **errp)
 }
 
 static void quorum_child_perm(BlockDriverState *bs, BdrvChild *c,
-                              const BdrvChildRole *role,
+                              BdrvChildRole role,
                               BlockReopenQueue *reopen_queue,
                               uint64_t perm, uint64_t shared,
                               uint64_t *nperm, uint64_t *nshared)

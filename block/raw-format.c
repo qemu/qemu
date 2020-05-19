@@ -71,19 +71,12 @@ static QemuOptsList raw_create_opts = {
     }
 };
 
-static int raw_read_options(QDict *options, BlockDriverState *bs,
-    BDRVRawState *s, Error **errp)
+static int raw_read_options(QDict *options, uint64_t *offset, bool *has_size,
+                            uint64_t *size, Error **errp)
 {
     Error *local_err = NULL;
     QemuOpts *opts = NULL;
-    int64_t real_size = 0;
     int ret;
-
-    real_size = bdrv_getlength(bs->file->bs);
-    if (real_size < 0) {
-        error_setg_errno(errp, -real_size, "Could not get image size");
-        return real_size;
-    }
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -93,64 +86,84 @@ static int raw_read_options(QDict *options, BlockDriverState *bs,
         goto end;
     }
 
-    s->offset = qemu_opt_get_size(opts, "offset", 0);
-    if (s->offset > real_size) {
-        error_setg(errp, "Offset (%" PRIu64 ") cannot be greater than "
-            "size of the containing file (%" PRId64 ")",
-            s->offset, real_size);
-        ret = -EINVAL;
-        goto end;
-    }
+    *offset = qemu_opt_get_size(opts, "offset", 0);
+    *has_size = qemu_opt_find(opts, "size");
+    *size = qemu_opt_get_size(opts, "size", 0);
 
-    if (qemu_opt_find(opts, "size") != NULL) {
-        s->size = qemu_opt_get_size(opts, "size", 0);
-        s->has_size = true;
-    } else {
-        s->has_size = false;
-        s->size = real_size - s->offset;
+    ret = 0;
+end:
+    qemu_opts_del(opts);
+    return ret;
+}
+
+static int raw_apply_options(BlockDriverState *bs, BDRVRawState *s,
+                             uint64_t offset, bool has_size, uint64_t size,
+                             Error **errp)
+{
+    int64_t real_size = 0;
+
+    real_size = bdrv_getlength(bs->file->bs);
+    if (real_size < 0) {
+        error_setg_errno(errp, -real_size, "Could not get image size");
+        return real_size;
     }
 
     /* Check size and offset */
-    if ((real_size - s->offset) < s->size) {
+    if (offset > real_size) {
+        error_setg(errp, "Offset (%" PRIu64 ") cannot be greater than "
+                   "size of the containing file (%" PRId64 ")",
+                   s->offset, real_size);
+        return -EINVAL;
+    }
+
+    if (has_size && (real_size - offset) < size) {
         error_setg(errp, "The sum of offset (%" PRIu64 ") and size "
-            "(%" PRIu64 ") has to be smaller or equal to the "
-            " actual size of the containing file (%" PRId64 ")",
-            s->offset, s->size, real_size);
-        ret = -EINVAL;
-        goto end;
+                   "(%" PRIu64 ") has to be smaller or equal to the "
+                   " actual size of the containing file (%" PRId64 ")",
+                   s->offset, s->size, real_size);
+        return -EINVAL;
     }
 
     /* Make sure size is multiple of BDRV_SECTOR_SIZE to prevent rounding
      * up and leaking out of the specified area. */
-    if (s->has_size && !QEMU_IS_ALIGNED(s->size, BDRV_SECTOR_SIZE)) {
+    if (has_size && !QEMU_IS_ALIGNED(size, BDRV_SECTOR_SIZE)) {
         error_setg(errp, "Specified size is not multiple of %llu",
-            BDRV_SECTOR_SIZE);
-        ret = -EINVAL;
-        goto end;
+                   BDRV_SECTOR_SIZE);
+        return -EINVAL;
     }
 
-    ret = 0;
+    s->offset = offset;
+    s->has_size = has_size;
+    s->size = has_size ? size : real_size - offset;
 
-end:
-
-    qemu_opts_del(opts);
-
-    return ret;
+    return 0;
 }
 
 static int raw_reopen_prepare(BDRVReopenState *reopen_state,
                               BlockReopenQueue *queue, Error **errp)
 {
+    bool has_size;
+    uint64_t offset, size;
+    int ret;
+
     assert(reopen_state != NULL);
     assert(reopen_state->bs != NULL);
 
     reopen_state->opaque = g_new0(BDRVRawState, 1);
 
-    return raw_read_options(
-        reopen_state->options,
-        reopen_state->bs,
-        reopen_state->opaque,
-        errp);
+    ret = raw_read_options(reopen_state->options, &offset, &has_size, &size,
+                           errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = raw_apply_options(reopen_state->bs, reopen_state->opaque,
+                            offset, has_size, size, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
 }
 
 static void raw_reopen_commit(BDRVReopenState *state)
@@ -426,10 +439,28 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVRawState *s = bs->opaque;
+    bool has_size;
+    uint64_t offset, size;
+    BdrvChildRole file_role;
     int ret;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    ret = raw_read_options(options, &offset, &has_size, &size, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Without offset and a size limit, this driver behaves very much
+     * like a filter.  With any such limit, it does not.
+     */
+    if (offset || has_size) {
+        file_role = BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY;
+    } else {
+        file_role = BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY;
+    }
+
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               file_role, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -455,7 +486,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                 bs->file->bs->filename);
     }
 
-    ret = raw_read_options(options, bs, s, errp);
+    ret = raw_apply_options(bs, s, offset, has_size, size, errp);
     if (ret < 0) {
         return ret;
     }
@@ -555,7 +586,7 @@ BlockDriver bdrv_raw = {
     .bdrv_reopen_commit   = &raw_reopen_commit,
     .bdrv_reopen_abort    = &raw_reopen_abort,
     .bdrv_open            = &raw_open,
-    .bdrv_child_perm      = bdrv_filter_default_perms,
+    .bdrv_child_perm      = bdrv_default_perms,
     .bdrv_co_create_opts  = &raw_co_create_opts,
     .bdrv_co_preadv       = &raw_co_preadv,
     .bdrv_co_pwritev      = &raw_co_pwritev,
@@ -566,6 +597,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_copy_range_to  = &raw_co_copy_range_to,
     .bdrv_co_truncate     = &raw_co_truncate,
     .bdrv_getlength       = &raw_getlength,
+    .is_format            = true,
     .has_variable_length  = true,
     .bdrv_measure         = &raw_measure,
     .bdrv_get_info        = &raw_get_info,

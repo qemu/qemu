@@ -96,6 +96,13 @@ struct BlockDriver {
      */
     bool is_filter;
     /*
+     * Set to true if the BlockDriver is a format driver.  Format nodes
+     * generally do not expect their children to be other format nodes
+     * (except for backing files), and so format probing is disabled
+     * on those children.
+     */
+    bool is_format;
+    /*
      * Return true if @to_replace can be replaced by a BDS with the
      * same data as @bs without it affecting @bs's behavior (that is,
      * without it being visible to @bs's parents).
@@ -549,14 +556,14 @@ struct BlockDriver {
      * the parents in @parent_perm and @parent_shared.
      *
      * If @c is NULL, return the permissions for attaching a new child for the
-     * given @role.
+     * given @child_class and @role.
      *
      * If @reopen_queue is non-NULL, don't return the currently needed
      * permissions, but those that will be needed after applying the
      * @reopen_queue.
      */
      void (*bdrv_child_perm)(BlockDriverState *bs, BdrvChild *c,
-                             const BdrvChildRole *role,
+                             BdrvChildRole role,
                              BlockReopenQueue *reopen_queue,
                              uint64_t parent_perm, uint64_t parent_shared,
                              uint64_t *nperm, uint64_t *nshared);
@@ -658,7 +665,7 @@ typedef struct BdrvAioNotifier {
     QLIST_ENTRY(BdrvAioNotifier) list;
 } BdrvAioNotifier;
 
-struct BdrvChildRole {
+struct BdrvChildClass {
     /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
      * points to. */
     bool stay_at_node;
@@ -669,7 +676,8 @@ struct BdrvChildRole {
      * non-BDS parents. */
     bool parent_is_bds;
 
-    void (*inherit_options)(int *child_flags, QDict *child_options,
+    void (*inherit_options)(BdrvChildRole role, bool parent_is_format,
+                            int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
 
     void (*change_media)(BdrvChild *child, bool load);
@@ -731,14 +739,13 @@ struct BdrvChildRole {
     void (*set_aio_ctx)(BdrvChild *child, AioContext *ctx, GSList **ignore);
 };
 
-extern const BdrvChildRole child_file;
-extern const BdrvChildRole child_format;
-extern const BdrvChildRole child_backing;
+extern const BdrvChildClass child_of_bds;
 
 struct BdrvChild {
     BlockDriverState *bs;
     char *name;
-    const BdrvChildRole *role;
+    const BdrvChildClass *klass;
+    BdrvChildRole role;
     void *opaque;
 
     /**
@@ -765,7 +772,7 @@ struct BdrvChild {
 
     /*
      * How many times the parent of this child has been drained
-     * (through role->drained_*).
+     * (through klass->drained_*).
      * Usually, this is equal to bs->quiesce_counter (potentially
      * reduced by bdrv_drain_all_count).  It may differ while the
      * child is entering or leaving a drained section.
@@ -1225,7 +1232,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
 
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
-                                  const BdrvChildRole *child_role,
+                                  const BdrvChildClass *child_class,
+                                  BdrvChildRole child_role,
                                   AioContext *ctx,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp);
@@ -1252,27 +1260,18 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
  */
 int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
 
-/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
- * block filters: Forward CONSISTENT_READ, WRITE, WRITE_UNCHANGED and RESIZE to
- * all children */
-void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
-                               const BdrvChildRole *role,
-                               BlockReopenQueue *reopen_queue,
-                               uint64_t perm, uint64_t shared,
-                               uint64_t *nperm, uint64_t *nshared);
-
-/* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
- * (non-raw) image formats: Like above for bs->backing, but for bs->file it
- * requires WRITE | RESIZE for read-write images, always requires
- * CONSISTENT_READ and doesn't share WRITE. */
-void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
-                               const BdrvChildRole *role,
-                               BlockReopenQueue *reopen_queue,
-                               uint64_t perm, uint64_t shared,
-                               uint64_t *nperm, uint64_t *nshared);
-
 bool bdrv_recurse_can_replace(BlockDriverState *bs,
                               BlockDriverState *to_replace);
+
+/*
+ * Default implementation for BlockDriver.bdrv_child_perm() that can
+ * be used by block filters and image formats, as long as they use the
+ * child_of_bds child class and set an appropriate BdrvChildRole.
+ */
+void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
+                        BdrvChildRole role, BlockReopenQueue *reopen_queue,
+                        uint64_t perm, uint64_t shared,
+                        uint64_t *nperm, uint64_t *nshared);
 
 /*
  * Default implementation for drivers to pass bdrv_co_block_status() to

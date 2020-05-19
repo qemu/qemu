@@ -157,7 +157,8 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Open the file */
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY, false,
                                &local_err);
     if (local_err) {
         ret = -EINVAL;
@@ -166,8 +167,8 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Open the log file */
-    s->log_file = bdrv_open_child(NULL, options, "log", bs, &child_file, false,
-                                  &local_err);
+    s->log_file = bdrv_open_child(NULL, options, "log", bs, &child_of_bds,
+                                  BDRV_CHILD_METADATA, false, &local_err);
     if (local_err) {
         ret = -EINVAL;
         error_propagate(errp, local_err);
@@ -282,7 +283,7 @@ static int64_t blk_log_writes_getlength(BlockDriverState *bs)
 }
 
 static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                      const BdrvChildRole *role,
+                                      BdrvChildRole role,
                                       BlockReopenQueue *ro_q,
                                       uint64_t perm, uint64_t shrd,
                                       uint64_t *nperm, uint64_t *nshrd)
@@ -293,11 +294,8 @@ static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
         return;
     }
 
-    if (!strcmp(c->name, "log")) {
-        bdrv_format_default_perms(bs, c, role, ro_q, perm, shrd, nperm, nshrd);
-    } else {
-        bdrv_filter_default_perms(bs, c, role, ro_q, perm, shrd, nperm, nshrd);
-    }
+    bdrv_default_perms(bs, c, role, ro_q, perm, shrd,
+                       nperm, nshrd);
 }
 
 static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)

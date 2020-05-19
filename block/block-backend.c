@@ -120,7 +120,8 @@ static QTAILQ_HEAD(, BlockBackend) block_backends =
 static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
-static void blk_root_inherit_options(int *child_flags, QDict *child_options,
+static void blk_root_inherit_options(BdrvChildRole role, bool parent_is_format,
+                                     int *child_flags, QDict *child_options,
                                      int parent_flags, QDict *parent_options)
 {
     /* We're not supposed to call this function for root nodes */
@@ -297,7 +298,7 @@ static void blk_root_detach(BdrvChild *child)
     }
 }
 
-static const BdrvChildRole child_root = {
+static const BdrvChildClass child_root = {
     .inherit_options    = blk_root_inherit_options,
 
     .change_media       = blk_root_change_media,
@@ -423,8 +424,9 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
-                                       perm, BLK_PERM_ALL, blk, errp);
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
+                                       blk->ctx, perm, BLK_PERM_ALL, blk, errp);
     if (!blk->root) {
         blk_unref(blk);
         return NULL;
@@ -716,7 +718,7 @@ static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
 {
     BdrvChild *child;
     QLIST_FOREACH(child, &bs->parents, next_parent) {
-        if (child->role == &child_root) {
+        if (child->klass == &child_root) {
             return child->opaque;
         }
     }
@@ -740,7 +742,7 @@ bool bdrv_is_root_node(BlockDriverState *bs)
     BdrvChild *c;
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c->role != &child_root) {
+        if (c->klass != &child_root) {
             return false;
         }
     }
@@ -834,8 +836,10 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
-                                       blk->perm, blk->shared_perm, blk, errp);
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+                                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
+                                       blk->ctx, blk->perm, blk->shared_perm,
+                                       blk, errp);
     if (blk->root == NULL) {
         return -EPERM;
     }
@@ -2401,4 +2405,14 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
 const BdrvChild *blk_root(BlockBackend *blk)
 {
     return blk->root;
+}
+
+int blk_make_empty(BlockBackend *blk, Error **errp)
+{
+    if (!blk_is_available(blk)) {
+        error_setg(errp, "No medium inserted");
+        return -ENOMEDIUM;
+    }
+
+    return bdrv_make_empty(blk->root, errp);
 }

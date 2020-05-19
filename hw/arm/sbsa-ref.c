@@ -240,7 +240,7 @@ static void sbsa_flash_map1(PFlashCFI01 *flash,
 {
     DeviceState *dev = DEVICE(flash);
 
-    assert(size % SBSA_FLASH_SECTOR_SIZE == 0);
+    assert(QEMU_IS_ALIGNED(size, SBSA_FLASH_SECTOR_SIZE));
     assert(size / SBSA_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / SBSA_FLASH_SECTOR_SIZE);
     qdev_init_nofail(dev);

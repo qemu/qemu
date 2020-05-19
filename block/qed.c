@@ -547,8 +547,8 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         .ret = -EINPROGRESS
     };
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -1665,13 +1665,14 @@ static BlockDriver bdrv_qed = {
     .format_name              = "qed",
     .instance_size            = sizeof(BDRVQEDState),
     .create_opts              = &qed_create_opts,
+    .is_format                = true,
     .supports_backing         = true,
 
     .bdrv_probe               = bdrv_qed_probe,
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
-    .bdrv_child_perm          = bdrv_format_default_perms,
+    .bdrv_child_perm          = bdrv_default_perms,
     .bdrv_co_create           = bdrv_qed_co_create,
     .bdrv_co_create_opts      = bdrv_qed_co_create_opts,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,

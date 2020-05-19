@@ -354,13 +354,13 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/desc',
             "Node 'node5' is busy: block device is in use by block job: commit")
 
+        result = self.vm.qmp('block-job-set-speed', device='commit-drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
+
         event = self.vm.event_wait(name='BLOCK_JOB_READY')
         self.assert_qmp(event, 'data/device', 'commit-drive0')
         self.assert_qmp(event, 'data/type', 'commit')
         self.assert_qmp_absent(event, 'data/error')
-
-        result = self.vm.qmp('block-job-set-speed', device='commit-drive0', speed=0)
-        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-complete', device='commit-drive0')
         self.assert_qmp(result, 'return', {})

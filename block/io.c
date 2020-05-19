@@ -50,7 +50,7 @@ static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
     BdrvChild *c, *next;
 
     QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
-        if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
+        if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
             continue;
         }
         bdrv_parent_drained_begin_single(c, false);
@@ -62,8 +62,8 @@ static void bdrv_parent_drained_end_single_no_poll(BdrvChild *c,
 {
     assert(c->parent_quiesce_counter > 0);
     c->parent_quiesce_counter--;
-    if (c->role->drained_end) {
-        c->role->drained_end(c, drained_end_counter);
+    if (c->klass->drained_end) {
+        c->klass->drained_end(c, drained_end_counter);
     }
 }
 
@@ -81,7 +81,7 @@ static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
     BdrvChild *c;
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
+        if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
             continue;
         }
         bdrv_parent_drained_end_single_no_poll(c, drained_end_counter);
@@ -90,8 +90,8 @@ static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
 
 static bool bdrv_parent_drained_poll_single(BdrvChild *c)
 {
-    if (c->role->drained_poll) {
-        return c->role->drained_poll(c);
+    if (c->klass->drained_poll) {
+        return c->klass->drained_poll(c);
     }
     return false;
 }
@@ -103,7 +103,7 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
     bool busy = false;
 
     QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
-        if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
+        if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
             continue;
         }
         busy |= bdrv_parent_drained_poll_single(c);
@@ -115,8 +115,8 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
 {
     c->parent_quiesce_counter++;
-    if (c->role->drained_begin) {
-        c->role->drained_begin(c);
+    if (c->klass->drained_begin) {
+        c->klass->drained_begin(c);
     }
     if (poll) {
         BDRV_POLL_WHILE(c->bs, bdrv_parent_drained_poll_single(c));
@@ -3326,8 +3326,8 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
 {
     BdrvChild *c;
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c->role->resize) {
-            c->role->resize(c);
+        if (c->klass->resize) {
+            c->klass->resize(c);
         }
     }
 }

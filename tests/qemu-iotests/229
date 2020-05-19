@@ -33,6 +33,7 @@ _cleanup()
     _cleanup_test_img
     _rm_test_img "$TEST_IMG"
     _rm_test_img "$DEST_IMG"
+    rm -f "$TEST_DIR/blkdebug.conf"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -49,11 +50,10 @@ _supported_os Linux
 
 DEST_IMG="$TEST_DIR/d.$IMGFMT"
 TEST_IMG="$TEST_DIR/b.$IMGFMT"
+BLKDEBUG_CONF="$TEST_DIR/blkdebug.conf"
 
 _make_test_img 2M
-
-# destination for mirror will be too small, causing error
-TEST_IMG=$DEST_IMG _make_test_img 1M
+TEST_IMG=$DEST_IMG _make_test_img 2M
 
 $QEMU_IO -c 'write 0 2M' "$TEST_IMG" | _filter_qemu_io
 
@@ -67,11 +67,18 @@ echo
 echo '=== Starting drive-mirror, causing error & stop  ==='
 echo
 
+cat > "$BLKDEBUG_CONF" <<EOF
+[inject-error]
+event = "write_aio"
+errno = "5"
+once = "on"
+EOF
+
 _send_qemu_cmd $QEMU_HANDLE \
     "{'execute': 'drive-mirror',
                  'arguments': {'device': 'testdisk',
                                'format': '$IMGFMT',
-                               'target': '$DEST_IMG',
+                               'target': 'blkdebug:$BLKDEBUG_CONF:$DEST_IMG',
                                'sync':   'full',
                                'mode':   'existing',
                                'on-source-error': 'stop',
@@ -90,7 +97,8 @@ success_or_failure="y" _send_qemu_cmd $QEMU_HANDLE \
                  'arguments': { 'device': 'testdisk',
                                 'force': true}}" \
      "BLOCK_JOB_CANCELLED" "Assertion" \
-    | grep -v '"BLOCK_JOB_ERROR"'
+    | grep -v '"BLOCK_JOB_ERROR"' \
+    | _filter_block_job_offset
 
 # success, all done
 echo "*** done"

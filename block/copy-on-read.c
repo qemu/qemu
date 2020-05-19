@@ -28,8 +28,9 @@
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
-                               errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
+                               false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -51,7 +52,7 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
 #define PERM_UNCHANGED (BLK_PERM_ALL & ~PERM_PASSTHROUGH)
 
 static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
-                           const BdrvChildRole *role,
+                           BdrvChildRole role,
                            BlockReopenQueue *reopen_queue,
                            uint64_t perm, uint64_t shared,
                            uint64_t *nperm, uint64_t *nshared)

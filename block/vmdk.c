@@ -1089,6 +1089,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     char *desc_file_dir = NULL;
     char *extent_path;
     BdrvChild *extent_file;
+    BdrvChildRole extent_role;
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent;
     char extent_opt_prefix[32];
@@ -1151,8 +1152,15 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         ret = snprintf(extent_opt_prefix, 32, "extents.%d", s->num_extents);
         assert(ret < 32);
 
+        extent_role = BDRV_CHILD_DATA;
+        if (strcmp(type, "FLAT") != 0 && strcmp(type, "VMFS") != 0) {
+            /* non-flat extents have metadata */
+            extent_role |= BDRV_CHILD_METADATA;
+        }
+
         extent_file = bdrv_open_child(extent_path, options, extent_opt_prefix,
-                                      bs, &child_file, false, &local_err);
+                                      bs, &child_of_bds, extent_role, false,
+                                      &local_err);
         g_free(extent_path);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -1257,8 +1265,8 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t magic;
     Error *local_err = NULL;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -1277,6 +1285,12 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
             s->desc_offset = 0x200;
             break;
         default:
+            /* No data in the descriptor file */
+            bs->file->role &= ~BDRV_CHILD_DATA;
+
+            /* Must succeed because we have given up permissions if anything */
+            bdrv_child_refresh_perms(bs, bs->file, &error_abort);
+
             ret = vmdk_open_desc_file(bs, flags, buf, options, errp);
             break;
     }
@@ -3053,7 +3067,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_open                    = vmdk_open,
     .bdrv_co_check                = vmdk_co_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
-    .bdrv_child_perm              = bdrv_format_default_perms,
+    .bdrv_child_perm              = bdrv_default_perms,
     .bdrv_co_preadv               = vmdk_co_preadv,
     .bdrv_co_pwritev              = vmdk_co_pwritev,
     .bdrv_co_pwritev_compressed   = vmdk_co_pwritev_compressed,
@@ -3070,6 +3084,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_info                = vmdk_get_info,
     .bdrv_gather_child_options    = vmdk_gather_child_options,
 
+    .is_format                    = true,
     .supports_backing             = true,
     .create_opts                  = &vmdk_create_opts,
 };

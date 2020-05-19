@@ -378,8 +378,8 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     QemuUUID uuid_link, uuid_parent;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -1039,7 +1039,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_open = vdi_open,
     .bdrv_close = vdi_close,
     .bdrv_reopen_prepare = vdi_reopen_prepare,
-    .bdrv_child_perm          = bdrv_format_default_perms,
+    .bdrv_child_perm          = bdrv_default_perms,
     .bdrv_co_create      = vdi_co_create,
     .bdrv_co_create_opts = vdi_co_create_opts,
     .bdrv_has_zero_init  = vdi_has_zero_init,
@@ -1053,6 +1053,7 @@ static BlockDriver bdrv_vdi = {
 
     .bdrv_get_info = vdi_get_info,
 
+    .is_format = true,
     .create_opts = &vdi_create_opts,
     .bdrv_co_check = vdi_co_check,
 };

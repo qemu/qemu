@@ -872,6 +872,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
     int64_t length;
+    int64_t target_length;
     BlockDriverInfo bdi;
     char backing_filename[2]; /* we only need 2 characters because we are only
                                  checking for a NULL string */
@@ -887,24 +888,26 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         goto immediate_exit;
     }
 
+    target_length = blk_getlength(s->target);
+    if (target_length < 0) {
+        ret = target_length;
+        goto immediate_exit;
+    }
+
     /* Active commit must resize the base image if its size differs from the
      * active layer. */
     if (s->base == blk_bs(s->target)) {
-        int64_t base_length;
-
-        base_length = blk_getlength(s->target);
-        if (base_length < 0) {
-            ret = base_length;
-            goto immediate_exit;
-        }
-
-        if (s->bdev_length > base_length) {
+        if (s->bdev_length > target_length) {
             ret = blk_truncate(s->target, s->bdev_length, false,
                                PREALLOC_MODE_OFF, 0, NULL);
             if (ret < 0) {
                 goto immediate_exit;
             }
         }
+    } else if (s->bdev_length != target_length) {
+        error_setg(errp, "Source and target image have different sizes");
+        ret = -EINVAL;
+        goto immediate_exit;
     }
 
     if (s->bdev_length == 0) {
@@ -1489,7 +1492,7 @@ static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs)
 }
 
 static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                       const BdrvChildRole *role,
+                                       BdrvChildRole role,
                                        BlockReopenQueue *reopen_queue,
                                        uint64_t perm, uint64_t shared,
                                        uint64_t *nperm, uint64_t *nshared)
@@ -1527,6 +1530,8 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
+
+    .is_filter                  = true,
 };
 
 static BlockJob *mirror_start_job(

@@ -2960,9 +2960,7 @@ static int do_commit(BDRVVVFATState* s)
         return ret;
     }
 
-    if (s->qcow->bs->drv && s->qcow->bs->drv->bdrv_make_empty) {
-        s->qcow->bs->drv->bdrv_make_empty(s->qcow->bs);
-    }
+    bdrv_make_empty(s->qcow, NULL);
 
     memset(s->used_clusters, 0, sector2cluster(s, s->sector_count));
 
@@ -3130,7 +3128,8 @@ static BlockDriver vvfat_write_target = {
     .bdrv_co_pwritev    = write_target_commit,
 };
 
-static void vvfat_qcow_options(int *child_flags, QDict *child_options,
+static void vvfat_qcow_options(BdrvChildRole role, bool parent_is_format,
+                               int *child_flags, QDict *child_options,
                                int parent_flags, QDict *parent_options)
 {
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "off");
@@ -3138,7 +3137,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
-static const BdrvChildRole child_vvfat_qcow = {
+static const BdrvChildClass child_vvfat_qcow = {
     .parent_is_bds      = true,
     .inherit_options    = vvfat_qcow_options,
 };
@@ -3185,7 +3184,9 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     options = qdict_new();
     qdict_put_str(options, "write-target.driver", "qcow");
     s->qcow = bdrv_open_child(s->qcow_filename, options, "write-target", bs,
-                              &child_vvfat_qcow, false, errp);
+                              &child_vvfat_qcow,
+                              BDRV_CHILD_DATA | BDRV_CHILD_METADATA,
+                              false, errp);
     qobject_unref(options);
     if (!s->qcow) {
         ret = -EINVAL;
@@ -3212,14 +3213,14 @@ err:
 }
 
 static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
-                             const BdrvChildRole *role,
+                             BdrvChildRole role,
                              BlockReopenQueue *reopen_queue,
                              uint64_t perm, uint64_t shared,
                              uint64_t *nperm, uint64_t *nshared)
 {
     BDRVVVFATState *s = bs->opaque;
 
-    assert(c == s->qcow || role == &child_backing);
+    assert(c == s->qcow || (role & BDRV_CHILD_COW));
 
     if (c == s->qcow) {
         /* This is a private node, nobody should try to attach to it */

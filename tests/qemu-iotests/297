@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+# get standard environment
+. ./common.rc
+
+if ! type -p "pylint-3" > /dev/null; then
+    _notrun "pylint-3 not found"
+fi
+if ! type -p "mypy" > /dev/null; then
+    _notrun "mypy not found"
+fi
+
+pylint-3 --score=n iotests.py
+
+MYPYPATH=../../python/ mypy --warn-unused-configs --disallow-subclassing-any \
+    --disallow-any-generics --disallow-incomplete-defs \
+    --disallow-untyped-decorators --no-implicit-optional \
+    --warn-redundant-casts --warn-unused-ignores \
+    --no-implicit-reexport iotests.py
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

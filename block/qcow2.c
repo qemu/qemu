@@ -1590,7 +1590,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     }
 
     /* Open external data file */
-    s->data_file = bdrv_open_child(NULL, options, "data-file", bs, &child_file,
+    s->data_file = bdrv_open_child(NULL, options, "data-file", bs,
+                                   &child_of_bds, BDRV_CHILD_DATA,
                                    true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1601,8 +1602,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
         if (!s->data_file && s->image_data_file) {
             s->data_file = bdrv_open_child(s->image_data_file, options,
-                                           "data-file", bs, &child_file,
-                                           false, errp);
+                                           "data-file", bs, &child_of_bds,
+                                           BDRV_CHILD_DATA, false, errp);
             if (!s->data_file) {
                 ret = -EINVAL;
                 goto fail;
@@ -1613,6 +1614,12 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
             ret = -EINVAL;
             goto fail;
         }
+
+        /* No data here */
+        bs->file->role &= ~BDRV_CHILD_DATA;
+
+        /* Must succeed because we have given up permissions if anything */
+        bdrv_child_refresh_perms(bs, bs->file, &error_abort);
     } else {
         if (s->data_file) {
             error_setg(errp, "'data-file' can only be set for images with an "
@@ -1863,8 +1870,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         .ret = -EINPROGRESS
     };
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -5737,7 +5744,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_commit_post = qcow2_reopen_commit_post,
     .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_join_options    = qcow2_join_options,
-    .bdrv_child_perm      = bdrv_format_default_perms,
+    .bdrv_child_perm      = bdrv_default_perms,
     .bdrv_co_create_opts  = qcow2_co_create_opts,
     .bdrv_co_create       = qcow2_co_create,
     .bdrv_has_zero_init   = qcow2_has_zero_init,
@@ -5767,6 +5774,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_save_vmstate    = qcow2_save_vmstate,
     .bdrv_load_vmstate    = qcow2_load_vmstate,
 
+    .is_format                  = true,
     .supports_backing           = true,
     .bdrv_change_backing_file   = qcow2_change_backing_file,
 

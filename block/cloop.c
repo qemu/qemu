@@ -71,8 +71,8 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -293,10 +293,11 @@ static BlockDriver bdrv_cloop = {
     .instance_size  = sizeof(BDRVCloopState),
     .bdrv_probe     = cloop_probe,
     .bdrv_open      = cloop_open,
-    .bdrv_child_perm     = bdrv_format_default_perms,
+    .bdrv_child_perm     = bdrv_default_perms,
     .bdrv_refresh_limits = cloop_refresh_limits,
     .bdrv_co_preadv = cloop_co_preadv,
     .bdrv_close     = cloop_close,
+    .is_format      = true,
 };
 
 static void bdrv_cloop_init(void)

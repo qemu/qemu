@@ -996,8 +996,8 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t signature;
     Error *local_err = NULL;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
-                               false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -2245,7 +2245,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_open              = vhdx_open,
     .bdrv_close             = vhdx_close,
     .bdrv_reopen_prepare    = vhdx_reopen_prepare,
-    .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_child_perm        = bdrv_default_perms,
     .bdrv_co_readv          = vhdx_co_readv,
     .bdrv_co_writev         = vhdx_co_writev,
     .bdrv_co_create         = vhdx_co_create,
@@ -2254,6 +2254,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_check          = vhdx_co_check,
     .bdrv_has_zero_init     = vhdx_has_zero_init,
 
+    .is_format              = true,
     .create_opts            = &vhdx_create_opts,
 };
 

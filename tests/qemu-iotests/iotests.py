@@ -1040,7 +1040,7 @@ def _verify_cache_mode(supported_cache_modes: Sequence[str] = ()) -> None:
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
-def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()):
+def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()) -> None:
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
 
@@ -1087,7 +1087,8 @@ def skip_if_unsupported(required_formats=(), read_only=False):
     '''Skip Test Decorator
        Runs the test if all the required formats are whitelisted'''
     def skip_test_decorator(func):
-        def func_wrapper(test_case: QMPTestCase, *args, **kwargs):
+        def func_wrapper(test_case: QMPTestCase, *args: List[Any],
+                         **kwargs: Dict[str, Any]) -> None:
             if callable(required_formats):
                 fmts = required_formats(test_case)
             else:
@@ -1097,9 +1098,8 @@ def skip_if_unsupported(required_formats=(), read_only=False):
             if usf_list:
                 msg = f'{test_case}: formats {usf_list} are not whitelisted'
                 test_case.case_skip(msg)
-                return None
             else:
-                return func(test_case, *args, **kwargs)
+                func(test_case, *args, **kwargs)
         return func_wrapper
     return skip_test_decorator
 
@@ -1168,17 +1168,16 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
         sys.stderr.write('Please run this test via the "check" script\n')
         sys.exit(os.EX_USAGE)
 
+    debug = '-d' in sys.argv
+    if debug:
+        sys.argv.remove('-d')
+    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
+
     _verify_image_format(supported_fmts, unsupported_fmts)
     _verify_protocol(supported_protocols, unsupported_protocols)
     _verify_platform(supported=supported_platforms)
     _verify_cache_mode(supported_cache_modes)
     _verify_aio_mode(supported_aio_modes)
-
-    debug = '-d' in sys.argv
-    if debug:
-        sys.argv.remove('-d')
-    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
-    logger.debug("iotests debugging messages active")
 
     return debug
 

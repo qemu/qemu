@@ -81,8 +81,9 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     char *group;
     int ret;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs,
-                               &child_file, false, errp);
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
+                               false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
@@ -236,7 +237,7 @@ static BlockDriver bdrv_throttle = {
     .bdrv_close                         =   throttle_close,
     .bdrv_co_flush                      =   throttle_co_flush,
 
-    .bdrv_child_perm                    =   bdrv_filter_default_perms,
+    .bdrv_child_perm                    =   bdrv_default_perms,
 
     .bdrv_getlength                     =   throttle_getlength,
 

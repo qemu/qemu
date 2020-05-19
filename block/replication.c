@@ -90,7 +90,8 @@ static int replication_open(BlockDriverState *bs, QDict *options,
     const char *mode;
     const char *top_id;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
                                false, errp);
     if (!bs->file) {
         return -EINVAL;
@@ -163,7 +164,7 @@ static void replication_close(BlockDriverState *bs)
 }
 
 static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
-                                   const BdrvChildRole *role,
+                                   BdrvChildRole role,
                                    BlockReopenQueue *reopen_queue,
                                    uint64_t perm, uint64_t shared,
                                    uint64_t *nperm, uint64_t *nshared)
@@ -331,9 +332,8 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    ret = s->active_disk->bs->drv->bdrv_make_empty(s->active_disk->bs);
+    ret = bdrv_make_empty(s->active_disk, errp);
     if (ret < 0) {
-        error_setg(errp, "Cannot make active disk empty");
         return;
     }
 
@@ -343,9 +343,18 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    ret = s->hidden_disk->bs->drv->bdrv_make_empty(s->hidden_disk->bs);
+    BlockBackend *blk = blk_new(qemu_get_current_aio_context(),
+                                BLK_PERM_WRITE, BLK_PERM_ALL);
+    blk_insert_bs(blk, s->hidden_disk->bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        blk_unref(blk);
+        return;
+    }
+
+    ret = blk_make_empty(blk, errp);
+    blk_unref(blk);
     if (ret < 0) {
-        error_setg(errp, "Cannot make hidden disk empty");
         return;
     }
 }
@@ -397,6 +406,8 @@ static void backup_job_cleanup(BlockDriverState *bs)
 {
     BDRVReplicationState *s = bs->opaque;
     BlockDriverState *top_bs;
+
+    s->backup_job = NULL;
 
     top_bs = bdrv_lookup_bs(s->top_id, s->top_id, NULL);
     if (!top_bs) {
