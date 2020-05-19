@@ -76,8 +76,12 @@ static int validate_prot_to_pageflags(int *host_prot, int prot)
      * don't bother transforming guest bit to host bit.  Any other
      * target-specific prot bits will not be understood by the host
      * and will need to be encoded into page_flags for qemu emulation.
+     *
+     * Pages that are executable by the guest will never be executed
+     * by the host, but the host will need to be able to read them.
      */
-    *host_prot = prot & (PROT_READ | PROT_WRITE | PROT_EXEC);
+    *host_prot = (prot & (PROT_READ | PROT_WRITE))
+               | (prot & PROT_EXEC ? PROT_READ : 0);
 
     return prot & ~valid ? 0 : page_flags;
 }
