@@ -1806,7 +1806,7 @@ ERST
 
     {
         .name       = "qom-set",
-        .args_type  = "path:s,property:s,value:s",
+        .args_type  = "path:s,property:s,value:S",
         .params     = "path property value",
         .help       = "set QOM property",
         .cmd        = hmp_qom_set,
