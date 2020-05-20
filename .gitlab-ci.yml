@@ -1,6 +1,6 @@
 include:
-  - local: '/.gitlab-ci-edk2.yml'
-  - local: '/.gitlab-ci-opensbi.yml'
+  - local: '/.gitlab-ci.d/edk2.yml'
+  - local: '/.gitlab-ci.d/opensbi.yml'
 
 .update_apt_template: &before_script_apt
  before_script:

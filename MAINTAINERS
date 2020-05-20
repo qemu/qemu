@@ -2542,7 +2542,7 @@ F: roms/edk2
 F: roms/edk2-*
 F: tests/data/uefi-boot-images/
 F: tests/uefi-test-tools/
-F: .gitlab-ci-edk2.yml
+F: .gitlab-ci.d/edk2.yml
 F: .gitlab-ci.d/edk2/
 
 Usermode Emulation
