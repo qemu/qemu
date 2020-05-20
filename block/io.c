@@ -35,8 +35,6 @@
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
 
-#define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
-
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
@@ -891,29 +889,63 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
+typedef int coroutine_fn BdrvRequestEntry(void *opaque);
+typedef struct BdrvRunCo {
+    BdrvRequestEntry *entry;
+    void *opaque;
+    int ret;
+    bool done;
+    Coroutine *co; /* Coroutine, running bdrv_run_co_entry, for debugging */
+} BdrvRunCo;
+
+static void coroutine_fn bdrv_run_co_entry(void *opaque)
+{
+    BdrvRunCo *arg = opaque;
+
+    arg->ret = arg->entry(arg->opaque);
+    arg->done = true;
+    aio_wait_kick();
+}
+
+static int bdrv_run_co(BlockDriverState *bs, BdrvRequestEntry *entry,
+                       void *opaque)
+{
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        return entry(opaque);
+    } else {
+        BdrvRunCo s = { .entry = entry, .opaque = opaque };
+
+        s.co = qemu_coroutine_create(bdrv_run_co_entry, &s);
+        bdrv_coroutine_enter(bs, s.co);
+
+        BDRV_POLL_WHILE(bs, !s.done);
+
+        return s.ret;
+    }
+}
+
 typedef struct RwCo {
     BdrvChild *child;
     int64_t offset;
     QEMUIOVector *qiov;
     bool is_write;
-    int ret;
     BdrvRequestFlags flags;
 } RwCo;
 
-static void coroutine_fn bdrv_rw_co_entry(void *opaque)
+static int coroutine_fn bdrv_rw_co_entry(void *opaque)
 {
     RwCo *rwco = opaque;
 
     if (!rwco->is_write) {
-        rwco->ret = bdrv_co_preadv(rwco->child, rwco->offset,
-                                   rwco->qiov->size, rwco->qiov,
-                                   rwco->flags);
+        return bdrv_co_preadv(rwco->child, rwco->offset,
+                              rwco->qiov->size, rwco->qiov,
+                              rwco->flags);
     } else {
-        rwco->ret = bdrv_co_pwritev(rwco->child, rwco->offset,
-                                    rwco->qiov->size, rwco->qiov,
-                                    rwco->flags);
+        return bdrv_co_pwritev(rwco->child, rwco->offset,
+                               rwco->qiov->size, rwco->qiov,
+                               rwco->flags);
     }
-    aio_wait_kick();
 }
 
 /*
@@ -923,25 +955,15 @@ static int bdrv_prwv_co(BdrvChild *child, int64_t offset,
                         QEMUIOVector *qiov, bool is_write,
                         BdrvRequestFlags flags)
 {
-    Coroutine *co;
     RwCo rwco = {
         .child = child,
         .offset = offset,
         .qiov = qiov,
         .is_write = is_write,
-        .ret = NOT_DONE,
         .flags = flags,
     };
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_rw_co_entry(&rwco);
-    } else {
-        co = qemu_coroutine_create(bdrv_rw_co_entry, &rwco);
-        bdrv_coroutine_enter(child->bs, co);
-        BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
-    }
-    return rwco.ret;
+    return bdrv_run_co(child->bs, bdrv_rw_co_entry, &rwco);
 }
 
 int bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset,
@@ -2229,8 +2251,6 @@ typedef struct BdrvCoBlockStatusData {
     int64_t *pnum;
     int64_t *map;
     BlockDriverState **file;
-    int ret;
-    bool done;
 } BdrvCoBlockStatusData;
 
 int coroutine_fn bdrv_co_block_status_from_file(BlockDriverState *bs,
@@ -2484,16 +2504,14 @@ static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
 }
 
 /* Coroutine wrapper for bdrv_block_status_above() */
-static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
+static int coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
 {
     BdrvCoBlockStatusData *data = opaque;
 
-    data->ret = bdrv_co_block_status_above(data->bs, data->base,
-                                           data->want_zero,
-                                           data->offset, data->bytes,
-                                           data->pnum, data->map, data->file);
-    data->done = true;
-    aio_wait_kick();
+    return bdrv_co_block_status_above(data->bs, data->base,
+                                      data->want_zero,
+                                      data->offset, data->bytes,
+                                      data->pnum, data->map, data->file);
 }
 
 /*
@@ -2508,7 +2526,6 @@ static int bdrv_common_block_status_above(BlockDriverState *bs,
                                           int64_t *map,
                                           BlockDriverState **file)
 {
-    Coroutine *co;
     BdrvCoBlockStatusData data = {
         .bs = bs,
         .base = base,
@@ -2518,18 +2535,9 @@ static int bdrv_common_block_status_above(BlockDriverState *bs,
         .pnum = pnum,
         .map = map,
         .file = file,
-        .done = false,
     };
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_block_status_above_co_entry(&data);
-    } else {
-        co = qemu_coroutine_create(bdrv_block_status_above_co_entry, &data);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, !data.done);
-    }
-    return data.ret;
+    return bdrv_run_co(bs, bdrv_block_status_above_co_entry, &data);
 }
 
 int bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
@@ -2630,7 +2638,6 @@ typedef struct BdrvVmstateCo {
     QEMUIOVector        *qiov;
     int64_t             pos;
     bool                is_read;
-    int                 ret;
 } BdrvVmstateCo;
 
 static int coroutine_fn
@@ -2658,33 +2665,25 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
     return ret;
 }
 
-static void coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
+static int coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
 {
     BdrvVmstateCo *co = opaque;
-    co->ret = bdrv_co_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
-    aio_wait_kick();
+
+    return bdrv_co_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
 }
 
 static inline int
 bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                 bool is_read)
 {
-    if (qemu_in_coroutine()) {
-        return bdrv_co_rw_vmstate(bs, qiov, pos, is_read);
-    } else {
-        BdrvVmstateCo data = {
-            .bs         = bs,
-            .qiov       = qiov,
-            .pos        = pos,
-            .is_read    = is_read,
-            .ret        = -EINPROGRESS,
-        };
-        Coroutine *co = qemu_coroutine_create(bdrv_co_rw_vmstate_entry, &data);
+    BdrvVmstateCo data = {
+        .bs         = bs,
+        .qiov       = qiov,
+        .pos        = pos,
+        .is_read    = is_read,
+    };
 
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, data.ret == -EINPROGRESS);
-        return data.ret;
-    }
+    return bdrv_run_co(bs, bdrv_co_rw_vmstate_entry, &data);
 }
 
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
@@ -2762,18 +2761,9 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
 /**************************************************************/
 /* Coroutine block device emulation */
 
-typedef struct FlushCo {
-    BlockDriverState *bs;
-    int ret;
-} FlushCo;
-
-
-static void coroutine_fn bdrv_flush_co_entry(void *opaque)
+static int coroutine_fn bdrv_flush_co_entry(void *opaque)
 {
-    FlushCo *rwco = opaque;
-
-    rwco->ret = bdrv_co_flush(rwco->bs);
-    aio_wait_kick();
+    return bdrv_co_flush(opaque);
 }
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
@@ -2890,36 +2880,20 @@ early_exit:
 
 int bdrv_flush(BlockDriverState *bs)
 {
-    Coroutine *co;
-    FlushCo flush_co = {
-        .bs = bs,
-        .ret = NOT_DONE,
-    };
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_flush_co_entry(&flush_co);
-    } else {
-        co = qemu_coroutine_create(bdrv_flush_co_entry, &flush_co);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, flush_co.ret == NOT_DONE);
-    }
-
-    return flush_co.ret;
+    return bdrv_run_co(bs, bdrv_flush_co_entry, bs);
 }
 
 typedef struct DiscardCo {
     BdrvChild *child;
     int64_t offset;
     int64_t bytes;
-    int ret;
 } DiscardCo;
-static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
+
+static int coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
 {
     DiscardCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
-    aio_wait_kick();
+    return bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
 }
 
 int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
@@ -3038,24 +3012,13 @@ out:
 
 int bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes)
 {
-    Coroutine *co;
     DiscardCo rwco = {
         .child = child,
         .offset = offset,
         .bytes = bytes,
-        .ret = NOT_DONE,
     };
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_pdiscard_co_entry(&rwco);
-    } else {
-        co = qemu_coroutine_create(bdrv_pdiscard_co_entry, &rwco);
-        bdrv_coroutine_enter(child->bs, co);
-        BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
-    }
-
-    return rwco.ret;
+    return bdrv_run_co(child->bs, bdrv_pdiscard_co_entry, &rwco);
 }
 
 int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
@@ -3463,21 +3426,19 @@ typedef struct TruncateCo {
     PreallocMode prealloc;
     BdrvRequestFlags flags;
     Error **errp;
-    int ret;
 } TruncateCo;
 
-static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
+static int coroutine_fn bdrv_truncate_co_entry(void *opaque)
 {
     TruncateCo *tco = opaque;
-    tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->exact,
-                                tco->prealloc, tco->flags, tco->errp);
-    aio_wait_kick();
+
+    return bdrv_co_truncate(tco->child, tco->offset, tco->exact,
+                            tco->prealloc, tco->flags, tco->errp);
 }
 
 int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
                   PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
 {
-    Coroutine *co;
     TruncateCo tco = {
         .child      = child,
         .offset     = offset,
@@ -3485,17 +3446,7 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
         .prealloc   = prealloc,
         .flags      = flags,
         .errp       = errp,
-        .ret        = NOT_DONE,
     };
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_truncate_co_entry(&tco);
-    } else {
-        co = qemu_coroutine_create(bdrv_truncate_co_entry, &tco);
-        bdrv_coroutine_enter(child->bs, co);
-        BDRV_POLL_WHILE(child->bs, tco.ret == NOT_DONE);
-    }
-
-    return tco.ret;
+    return bdrv_run_co(child->bs, bdrv_truncate_co_entry, &tco);
 }
