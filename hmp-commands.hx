@@ -1791,6 +1791,20 @@ SRST
 ERST
 
     {
+        .name       = "qom-get",
+        .args_type  = "path:s,property:s",
+        .params     = "path property",
+        .help       = "print QOM property",
+        .cmd        = hmp_qom_get,
+        .flags      = "p",
+    },
+
+SRST
+``qom-get`` *path* *property*
+  Print QOM property *property* of object at location *path*
+ERST
+
+    {
         .name       = "qom-set",
         .args_type  = "path:s,property:s,value:s",
         .params     = "path property value",
