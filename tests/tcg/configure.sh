@@ -97,8 +97,8 @@ for target in $target_list; do
   case $target in
     aarch64-*)
       # We don't have any bigendian build tools so we only use this for AArch64
-      container_image=debian-arm64-cross
-      container_cross_cc=aarch64-linux-gnu-gcc
+      container_image=debian-arm64-test-cross
+      container_cross_cc=aarch64-linux-gnu-gcc-10
       ;;
     alpha-*)
       container_image=debian-alpha-cross
