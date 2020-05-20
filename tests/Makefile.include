@@ -687,11 +687,26 @@ test-softfloat = $(call quiet-command, \
 			(cat $2.out && exit 1;), \
 			"FLOAT TEST", $2)
 
-# Conversion Routines:
+# Conversion Routines: Float to Float
+# FIXME: f32_to_f128 (broken), f64_to_f128 (broken)
+# FIXME: f128_to_f32(broken), f128_to_f64 (broken)
+# FIXME: f128_to_extF80 (broken)
+check-softfloat-conv-f2f: $(FP_TEST_BIN)
+	$(call test-softfloat, \
+		f16_to_f32 f16_to_f64 \
+		f16_to_extF80 f16_to_f128 \
+		f32_to_f16 f32_to_f64 \
+		f32_to_extF80 \
+		f64_to_f16 f64_to_f32 \
+		extF80_to_f16 extF80_to_f32 \
+		extF80_to_f64 extF80_to_f128 \
+		f128_to_f16, \
+		float-to-float)
+
+# Conversion Routines: Int and Uint to Float
 # FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
-#        ui32_to_f128 (not implemented), extF80_roundToInt (broken)
-#
-check-softfloat-conv: $(FP_TEST_BIN)
+#        ui32_to_f128 (not implemented)
+check-softfloat-conv-to-float: $(FP_TEST_BIN)
 	$(call test-softfloat, \
 		i32_to_f16 i64_to_f16 \
 		i32_to_f32 i64_to_f32 \
@@ -701,7 +716,12 @@ check-softfloat-conv: $(FP_TEST_BIN)
 		ui32_to_f16 ui64_to_f16 \
 		ui32_to_f32 ui64_to_f32 \
 		ui32_to_f64 ui64_to_f64 \
+		ui32_to_extF80 ui64_to_extF80 \
 		ui64_to_f128, uint-to-float)
+
+# Conversion Routines: Float to integers
+# FIXME: extF80_roundToInt (broken)
+check-softfloat-conv-to-int: $(FP_TEST_BIN)
 	$(call test-softfloat, \
 		f16_to_i32 f16_to_i32_r_minMag \
 		f32_to_i32 f32_to_i32_r_minMag \
@@ -718,10 +738,12 @@ check-softfloat-conv: $(FP_TEST_BIN)
 		f16_to_ui32 f16_to_ui32_r_minMag \
 		f32_to_ui32 f32_to_ui32_r_minMag \
 		f64_to_ui32 f64_to_ui32_r_minMag \
+		extF80_to_ui32 extF80_to_ui32_r_minMag \
 		f128_to_ui32 f128_to_ui32_r_minMag \
 		f16_to_ui64 f16_to_ui64_r_minMag \
 		f32_to_ui64 f32_to_ui64_r_minMag \
 		f64_to_ui64 f64_to_ui64_r_minMag \
+		extF80_to_ui64 extF80_to_ui64_r_minMag \
 		f128_to_ui64 f128_to_ui64_r_minMag, \
 		float-to-uint)
 	$(call test-softfloat, \
@@ -729,9 +751,14 @@ check-softfloat-conv: $(FP_TEST_BIN)
 		f64_roundToInt f128_roundToInt, \
 		round-to-integer)
 
+.PHONY: check-softfloat-conv
+check-softfloat-conv: check-softfloat-conv-f2f
+check-softfloat-conv: check-softfloat-conv-to-float
+check-softfloat-conv: check-softfloat-conv-to-int
+
 # Generic rule for all float operations
 #
-# Some patterns are overidden due to broken or missing tests.
+# Some patterns are overridden due to broken or missing tests.
 # Hopefully these can be removed over time.
 
 check-softfloat-%: $(FP_TEST_BIN)
