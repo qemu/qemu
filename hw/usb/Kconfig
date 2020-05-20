@@ -46,6 +46,11 @@ config USB_MUSB
     bool
     select USB
 
+config USB_DWC2
+    bool
+    default y
+    select USB
+
 config TUSB6010
     bool
     select USB_MUSB
