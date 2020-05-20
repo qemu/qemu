@@ -741,13 +741,6 @@ check-softfloat-%: $(FP_TEST_BIN)
 SF_COMPARE_OPS=eq eq_signaling le le_quiet lt_quiet
 SF_COMPARE_RULES=$(patsubst %,check-softfloat-%, $(SF_COMPARE_OPS))
 
-# FIXME: extF80_le_quiet (broken)
-check-softfloat-le_quiet: $(FP_TEST_BIN)
-	$(call test-softfloat, 				\
-		f16_le_quiet f32_le_quiet f64_le_quiet  \
-		f128_le_quiet, 				\
-		le_quiet)
-
 # FIXME: extF80_lt_quiet (broken)
 check-softfloat-lt_quiet: $(FP_TEST_BIN)
 	$(call test-softfloat, 				\
