@@ -407,6 +407,18 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     return 0;
 }
 
+static MemoryRegion *vhost_user_get_mr_data(uint64_t addr, ram_addr_t *offset,
+                                            int *fd)
+{
+    MemoryRegion *mr;
+
+    assert((uintptr_t)addr == addr);
+    mr = memory_region_from_host((void *)(uintptr_t)addr, offset);
+    *fd = memory_region_get_fd(mr);
+
+    return mr;
+}
+
 static void vhost_user_fill_msg_region(VhostUserMemoryRegion *dst,
                                        struct vhost_memory_region *src)
 {
@@ -433,10 +445,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
     for (i = 0; i < dev->mem->nregions; ++i) {
         reg = dev->mem->regions + i;
 
-        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
-                                     &offset);
-        fd = memory_region_get_fd(mr);
+        mr = vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
         if (fd > 0) {
             if (track_ramblocks) {
                 assert(*fd_num < VHOST_MEMORY_MAX_NREGIONS);
@@ -1551,13 +1560,9 @@ static bool vhost_user_can_merge(struct vhost_dev *dev,
 {
     ram_addr_t offset;
     int mfd, rfd;
-    MemoryRegion *mr;
 
-    mr = memory_region_from_host((void *)(uintptr_t)start1, &offset);
-    mfd = memory_region_get_fd(mr);
-
-    mr = memory_region_from_host((void *)(uintptr_t)start2, &offset);
-    rfd = memory_region_get_fd(mr);
+    (void)vhost_user_get_mr_data(start1, &offset, &mfd);
+    (void)vhost_user_get_mr_data(start2, &offset, &rfd);
 
     return mfd == rfd;
 }
