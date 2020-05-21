@@ -1273,10 +1273,9 @@ Master message types
   feature has been successfully negotiated, this message is submitted
   by master to the slave. The slave should return the message with a
   u64 payload containing the maximum number of memory slots for
-  QEMU to expose to the guest. At this point, the value returned
-  by the backend will be capped at the maximum number of ram slots
-  which can be supported by vhost-user. Currently that limit is set
-  at VHOST_USER_MAX_RAM_SLOTS = 8.
+  QEMU to expose to the guest. The value returned by the backend
+  will be capped at the maximum number of ram slots which can be
+  supported by the target platform.
 
 ``VHOST_USER_ADD_MEM_REG``
   :id: 37

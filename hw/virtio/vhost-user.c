@@ -35,9 +35,27 @@
 #include <linux/userfaultfd.h>
 #endif
 
-#define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_MEMORY_BASELINE_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_SLAVE_MAX_FDS     8
+
+/*
+ * Set maximum number of RAM slots supported to
+ * the maximum number supported by the target
+ * hardware plaform.
+ */
+#if defined(TARGET_X86) || defined(TARGET_X86_64) || \
+    defined(TARGET_ARM) || defined(TARGET_ARM_64)
+#include "hw/acpi/acpi.h"
+#define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
+
+#elif defined(TARGET_PPC) || defined(TARGET_PPC_64)
+#include "hw/ppc/spapr.h"
+#define VHOST_USER_MAX_RAM_SLOTS SPAPR_MAX_RAM_SLOTS
+
+#else
+#define VHOST_USER_MAX_RAM_SLOTS 512
+#endif
 
 /*
  * Maximum size of virtio device config space
@@ -127,7 +145,7 @@ typedef struct VhostUserMemoryRegion {
 typedef struct VhostUserMemory {
     uint32_t nregions;
     uint32_t padding;
-    VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
+    VhostUserMemoryRegion regions[VHOST_MEMORY_BASELINE_NREGIONS];
 } VhostUserMemory;
 
 typedef struct VhostUserMemRegMsg {
@@ -222,7 +240,7 @@ struct vhost_user {
     int slave_fd;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
-    uint64_t           postcopy_client_bases[VHOST_MEMORY_MAX_NREGIONS];
+    uint64_t           postcopy_client_bases[VHOST_USER_MAX_RAM_SLOTS];
     /* Length of the region_rb and region_rb_offset arrays */
     size_t             region_rb_len;
     /* RAMBlock associated with a given region */
@@ -237,7 +255,7 @@ struct vhost_user {
 
     /* Our current regions */
     int num_shadow_regions;
-    struct vhost_memory_region shadow_regions[VHOST_MEMORY_MAX_NREGIONS];
+    struct vhost_memory_region shadow_regions[VHOST_USER_MAX_RAM_SLOTS];
 };
 
 struct scrub_regions {
@@ -392,7 +410,7 @@ int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd)
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                                    struct vhost_log *log)
 {
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_USER_MAX_RAM_SLOTS];
     size_t fd_num = 0;
     bool shmfd = virtio_has_feature(dev->protocol_features,
                                     VHOST_USER_PROTOCOL_F_LOG_SHMFD);
@@ -470,7 +488,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
         mr = vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
         if (fd > 0) {
             if (track_ramblocks) {
-                assert(*fd_num < VHOST_MEMORY_MAX_NREGIONS);
+                assert(*fd_num < VHOST_MEMORY_BASELINE_NREGIONS);
                 trace_vhost_user_set_mem_table_withfd(*fd_num, mr->name,
                                                       reg->memory_size,
                                                       reg->guest_phys_addr,
@@ -478,7 +496,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                                                       offset);
                 u->region_rb_offset[i] = offset;
                 u->region_rb[i] = mr->ram_block;
-            } else if (*fd_num == VHOST_MEMORY_MAX_NREGIONS) {
+            } else if (*fd_num == VHOST_MEMORY_BASELINE_NREGIONS) {
                 error_report("Failed preparing vhost-user memory table msg");
                 return -1;
             }
@@ -523,7 +541,7 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
                                  bool track_ramblocks)
 {
     struct vhost_user *u = dev->opaque;
-    bool found[VHOST_MEMORY_MAX_NREGIONS] = {};
+    bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
     struct vhost_memory_region *reg, *shadow_reg;
     int i, j, fd, add_idx = 0, rm_idx = 0, fd_num = 0;
     ram_addr_t offset;
@@ -777,9 +795,9 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
                                          bool track_ramblocks)
 {
     struct vhost_user *u = dev->opaque;
-    struct scrub_regions add_reg[VHOST_MEMORY_MAX_NREGIONS];
-    struct scrub_regions rem_reg[VHOST_MEMORY_MAX_NREGIONS];
-    uint64_t shadow_pcb[VHOST_MEMORY_MAX_NREGIONS] = {};
+    struct scrub_regions add_reg[VHOST_USER_MAX_RAM_SLOTS];
+    struct scrub_regions rem_reg[VHOST_USER_MAX_RAM_SLOTS];
+    uint64_t shadow_pcb[VHOST_USER_MAX_RAM_SLOTS] = {};
     int nr_add_reg, nr_rem_reg;
 
     msg->hdr.size = sizeof(msg->payload.mem_reg.padding) +
@@ -803,7 +821,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
 
     if (track_ramblocks) {
         memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_MEMORY_MAX_NREGIONS);
+               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
         /*
          * Now we've registered this with the postcopy code, we ack to the
          * client, because now we're in the position to be able to deal with
@@ -823,7 +841,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
 err:
     if (track_ramblocks) {
         memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_MEMORY_MAX_NREGIONS);
+               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
     }
 
     return -1;
@@ -835,7 +853,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
                                              bool config_mem_slots)
 {
     struct vhost_user *u = dev->opaque;
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_MEMORY_BASELINE_NREGIONS];
     size_t fd_num = 0;
     VhostUserMsg msg_reply;
     int region_i, msg_i;
@@ -893,7 +911,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         }
 
         memset(u->postcopy_client_bases, 0,
-               sizeof(uint64_t) * VHOST_MEMORY_MAX_NREGIONS);
+               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
 
         /*
          * They're in the same order as the regions that were sent
@@ -942,7 +960,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
     struct vhost_user *u = dev->opaque;
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_MEMORY_BASELINE_NREGIONS];
     size_t fd_num = 0;
     bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
@@ -1149,7 +1167,7 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
                                 VhostUserRequest request,
                                 struct vhost_vring_file *file)
 {
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_USER_MAX_RAM_SLOTS];
     size_t fd_num = 0;
     VhostUserMsg msg = {
         .hdr.request = request,
@@ -1845,7 +1863,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
         /* get max memory regions if backend supports configurable RAM slots */
         if (!virtio_has_feature(dev->protocol_features,
                                 VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS)) {
-            u->user->memory_slots = VHOST_MEMORY_MAX_NREGIONS;
+            u->user->memory_slots = VHOST_MEMORY_BASELINE_NREGIONS;
         } else {
             err = vhost_user_get_max_memslots(dev, &ram_slots);
             if (err < 0) {
@@ -1860,7 +1878,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
                 return -1;
             }
 
-            u->user->memory_slots = MIN(ram_slots, VHOST_MEMORY_MAX_NREGIONS);
+            u->user->memory_slots = MIN(ram_slots, VHOST_USER_MAX_RAM_SLOTS);
         }
     }
 
