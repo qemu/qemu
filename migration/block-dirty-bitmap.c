@@ -274,15 +274,20 @@ static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
     DirtyBitmapMigBitmapState *dbms;
     Error *local_err = NULL;
 
+    bitmap = bdrv_dirty_bitmap_first(bs);
+    if (!bitmap) {
+        return 0;
+    }
+
+    if (!bs_name || strcmp(bs_name, "") == 0) {
+        error_report("Bitmap '%s' in unnamed node can't be migrated",
+                     bdrv_dirty_bitmap_name(bitmap));
+        return -1;
+    }
+
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         if (!bdrv_dirty_bitmap_name(bitmap)) {
             continue;
-        }
-
-        if (!bs_name || strcmp(bs_name, "") == 0) {
-            error_report("Found bitmap '%s' in unnamed node %p. It can't "
-                         "be migrated", bdrv_dirty_bitmap_name(bitmap), bs);
-            return -1;
         }
 
         if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, &local_err)) {
