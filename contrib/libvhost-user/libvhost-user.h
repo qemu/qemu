@@ -98,6 +98,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GPU_SET_SOCKET = 33,
     VHOST_USER_VRING_KICK = 35,
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
+    VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -123,6 +124,11 @@ typedef struct VhostUserMemory {
     uint32_t padding;
     VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
 } VhostUserMemory;
+
+typedef struct VhostUserMemRegMsg {
+    uint32_t padding;
+    VhostUserMemoryRegion region;
+} VhostUserMemRegMsg;
 
 typedef struct VhostUserLog {
     uint64_t mmap_size;
@@ -176,6 +182,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserMemRegMsg memreg;
         VhostUserLog log;
         VhostUserConfig config;
         VhostUserVringArea area;
