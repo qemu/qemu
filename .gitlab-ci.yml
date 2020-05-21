@@ -7,12 +7,14 @@ include:
   - apt-get update -qq
   - apt-get install -y -qq git gcc libglib2.0-dev libpixman-1-dev make
         genisoimage
+  - JOBS=$(expr $(nproc) + 1)
 
 .update_dnf_template: &before_script_dnf
  before_script:
   - dnf update -y
   - dnf install -y bzip2 diffutils gcc git genisoimage findutils glib2-devel
         make python3 perl-podlators perl-Test-Harness pixman-devel zlib-devel
+  - JOBS=$(expr $(nproc) + 1)
 
 build-system1:
  image: ubuntu:19.10
@@ -25,8 +27,8 @@ build-system1:
  - ../configure --enable-werror --target-list="aarch64-softmmu alpha-softmmu
       cris-softmmu hppa-softmmu lm32-softmmu moxie-softmmu microblazeel-softmmu
       mips64el-softmmu m68k-softmmu ppc-softmmu riscv64-softmmu sparc-softmmu"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-system2:
  image: fedora:latest
@@ -40,8 +42,8 @@ build-system2:
  - ../configure --enable-werror --target-list="tricore-softmmu unicore32-softmmu
       microblaze-softmmu mips-softmmu riscv32-softmmu s390x-softmmu sh4-softmmu
       sparc64-softmmu x86_64-softmmu xtensa-softmmu nios2-softmmu or1k-softmmu"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-disabled:
  image: fedora:latest
@@ -56,8 +58,8 @@ build-disabled:
       --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
       --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
       --target-list="i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user"
- - make -j2
- - make -j2 check-qtest SPEED=slow
+ - make -j"$JOBS"
+ - make -j"$JOBS" check-qtest SPEED=slow
 
 build-tcg-disabled:
  image: centos:8
@@ -67,7 +69,7 @@ build-tcg-disabled:
  - mkdir build
  - cd build
  - ../configure --cc=clang --enable-werror --disable-tcg --audio-drv-list=""
- - make -j2
+ - make -j"$JOBS"
  - make check-unit
  - make check-qapi-schema
  - cd tests/qemu-iotests/
@@ -86,7 +88,7 @@ build-user:
  - cd build
  - ../configure --enable-werror --disable-system --disable-guest-agent
                --disable-capstone --disable-slirp --disable-fdt
- - make -j2
+ - make -j"$JOBS"
  - make run-tcg-tests-i386-linux-user run-tcg-tests-x86_64-linux-user
 
 build-clang:
@@ -100,8 +102,8 @@ build-clang:
  - ../configure --cc=clang --cxx=clang++ --enable-werror
       --target-list="alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
                      ppc-softmmu s390x-softmmu x86_64-softmmu arm-linux-user"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-tci:
  image: centos:8
@@ -112,7 +114,7 @@ build-tci:
  - cd build
  - ../configure --enable-tcg-interpreter
       --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)"
- - make -j2
+ - make -j"$JOBS"
  - make run-tcg-tests-x86_64-softmmu
  - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
  - for tg in $TARGETS ; do
