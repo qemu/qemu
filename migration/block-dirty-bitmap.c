@@ -285,6 +285,13 @@ static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
         return -1;
     }
 
+    if (bs_name[0] == '#') {
+        error_report("Bitmap '%s' in a node with auto-generated "
+                     "name '%s' can't be migrated",
+                     bdrv_dirty_bitmap_name(bitmap), bs_name);
+        return -1;
+    }
+
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         if (!bdrv_dirty_bitmap_name(bitmap)) {
             continue;
