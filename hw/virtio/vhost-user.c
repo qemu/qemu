@@ -407,6 +407,15 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     return 0;
 }
 
+static void vhost_user_fill_msg_region(VhostUserMemoryRegion *dst,
+                                       struct vhost_memory_region *src)
+{
+    assert(src != NULL && dst != NULL);
+    dst->userspace_addr = src->userspace_addr;
+    dst->memory_size = src->memory_size;
+    dst->guest_phys_addr = src->guest_phys_addr;
+}
+
 static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                                              struct vhost_dev *dev,
                                              VhostUserMsg *msg,
@@ -417,6 +426,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
     ram_addr_t offset;
     MemoryRegion *mr;
     struct vhost_memory_region *reg;
+    VhostUserMemoryRegion region_buffer;
 
     msg->hdr.request = VHOST_USER_SET_MEM_TABLE;
 
@@ -441,12 +451,8 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                 error_report("Failed preparing vhost-user memory table msg");
                 return -1;
             }
-            msg->payload.memory.regions[*fd_num].userspace_addr =
-                reg->userspace_addr;
-            msg->payload.memory.regions[*fd_num].memory_size =
-                reg->memory_size;
-            msg->payload.memory.regions[*fd_num].guest_phys_addr =
-                reg->guest_phys_addr;
+            vhost_user_fill_msg_region(&region_buffer, reg);
+            msg->payload.memory.regions[*fd_num] = region_buffer;
             msg->payload.memory.regions[*fd_num].mmap_offset = offset;
             fds[(*fd_num)++] = fd;
         } else if (track_ramblocks) {
