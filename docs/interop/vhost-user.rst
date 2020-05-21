@@ -1276,8 +1276,37 @@ Master message types
   QEMU to expose to the guest. At this point, the value returned
   by the backend will be capped at the maximum number of ram slots
   which can be supported by vhost-user. Currently that limit is set
-  at VHOST_USER_MAX_RAM_SLOTS = 8 because of underlying protocol
-  limitations.
+  at VHOST_USER_MAX_RAM_SLOTS = 8.
+
+``VHOST_USER_ADD_MEM_REG``
+  :id: 37
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
+  feature has been successfully negotiated, this message is submitted
+  by the master to the slave. The message payload contains a memory
+  region descriptor struct, describing a region of guest memory which
+  the slave device must map in. When the
+  ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol feature has
+  been successfully negotiated, along with the
+  ``VHOST_USER_REM_MEM_REG`` message, this message is used to set and
+  update the memory tables of the slave device.
+
+``VHOST_USER_REM_MEM_REG``
+  :id: 38
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
+  feature has been successfully negotiated, this message is submitted
+  by the master to the slave. The message payload contains a memory
+  region descriptor struct, describing a region of guest memory which
+  the slave device must unmap. When the
+  ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol feature has
+  been successfully negotiated, along with the
+  ``VHOST_USER_ADD_MEM_REG`` message, this message is used to set and
+  update the memory tables of the slave device.
 
 Slave message types
 -------------------
