@@ -1,1 +1,2 @@
 common-obj-y += block-hmp-cmds.o
+block-obj-y += bitmap-qmp-cmds.o

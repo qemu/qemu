@@ -782,6 +782,7 @@ bool qcow2_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
 int qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                             const char *name,
                                             Error **errp);
+bool qcow2_supports_persistent_dirty_bitmap(BlockDriverState *bs);
 
 ssize_t coroutine_fn
 qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,

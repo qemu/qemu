@@ -13,9 +13,8 @@ chardev-obj-y = chardev/
 
 authz-obj-y = authz/
 
-block-obj-y = nbd/
+block-obj-y = block/ block/monitor/ nbd/ scsi/
 block-obj-y += block.o blockjob.o job.o
-block-obj-y += block/ scsi/
 block-obj-y += qemu-io-cmds.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
 
