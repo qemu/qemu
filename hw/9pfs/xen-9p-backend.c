@@ -21,7 +21,7 @@
 
 #define VERSIONS "1"
 #define MAX_RINGS 8
-#define MAX_RING_ORDER 8
+#define MAX_RING_ORDER 9
 
 typedef struct Xen9pfsRing {
     struct Xen9pfsDev *priv;
