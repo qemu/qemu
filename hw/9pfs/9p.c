@@ -2103,29 +2103,22 @@ out_nofid:
  * with qemu_iovec_destroy().
  */
 static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
-                                    size_t skip, size_t *size,
+                                    size_t skip, size_t size,
                                     bool is_write)
 {
     QEMUIOVector elem;
     struct iovec *iov;
     unsigned int niov;
-    size_t alloc_size = *size + skip;
 
     if (is_write) {
-        pdu->s->transport->init_out_iov_from_pdu(pdu, &iov, &niov, alloc_size);
+        pdu->s->transport->init_out_iov_from_pdu(pdu, &iov, &niov, size + skip);
     } else {
-        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, &alloc_size);
-    }
-
-    if (alloc_size < skip) {
-        *size = 0;
-    } else {
-        *size = alloc_size - skip;
+        pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, size + skip);
     }
 
     qemu_iovec_init_external(&elem, iov, niov);
     qemu_iovec_init(qiov, niov);
-    qemu_iovec_concat(qiov, &elem, skip, *size);
+    qemu_iovec_concat(qiov, &elem, skip, size);
 }
 
 static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
@@ -2133,14 +2126,15 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 {
     ssize_t err;
     size_t offset = 7;
-    size_t read_count;
+    uint64_t read_count;
     QEMUIOVector qiov_full;
 
     if (fidp->fs.xattr.len < off) {
         read_count = 0;
-    } else if (fidp->fs.xattr.len - off < max_count) {
-        read_count = fidp->fs.xattr.len - off;
     } else {
+        read_count = fidp->fs.xattr.len - off;
+    }
+    if (read_count > max_count) {
         read_count = max_count;
     }
     err = pdu_marshal(pdu, offset, "d", read_count);
@@ -2149,7 +2143,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
     }
     offset += err;
 
-    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, &read_count, false);
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, read_count, false);
     err = v9fs_pack(qiov_full.iov, qiov_full.niov, 0,
                     ((char *)fidp->fs.xattr.value) + off,
                     read_count);
@@ -2278,11 +2272,9 @@ static void coroutine_fn v9fs_read(void *opaque)
         QEMUIOVector qiov_full;
         QEMUIOVector qiov;
         int32_t len;
-        size_t size = max_count;
 
-        v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset + 4, &size, false);
+        v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset + 4, max_count, false);
         qemu_iovec_init(&qiov, qiov_full.niov);
-        max_count = size;
         do {
             qemu_iovec_reset(&qiov);
             qemu_iovec_concat(&qiov, &qiov_full, count, qiov_full.size - count);
@@ -2533,7 +2525,6 @@ static void coroutine_fn v9fs_write(void *opaque)
     int32_t len = 0;
     int32_t total = 0;
     size_t offset = 7;
-    size_t size;
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
@@ -2546,9 +2537,7 @@ static void coroutine_fn v9fs_write(void *opaque)
         return;
     }
     offset += err;
-    size = count;
-    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, &size, true);
-    count = size;
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, count, true);
     trace_v9fs_write(pdu->tag, pdu->id, fid, off, count, qiov_full.niov);
 
     fidp = get_fid(pdu, fid);
