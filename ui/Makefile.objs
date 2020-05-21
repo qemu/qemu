@@ -15,6 +15,9 @@ common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(call lnot,$(CONFIG_VNC)) += vnc-stubs.o
+ifneq (,$(findstring m,$(CONFIG_SDL)$(CONFIG_GTK)))
+common-obj-$(CONFIG_WIN32) += win32-kbd-hook.o
+endif
 
 # ui-sdl module
 common-obj-$(CONFIG_SDL) += sdl.mo

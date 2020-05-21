@@ -75,6 +75,9 @@ input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value
 input_event_sync(void) ""
 input_mouse_mode(int absolute) "absolute %d"
 
+# sdl2-input.c
+sdl2_process_key(int sdl_scancode, int qcode, const char *action) "translated SDL scancode %d to QKeyCode %d (%s)"
+
 # spice-display.c
 qemu_spice_add_memslot(int qid, uint32_t slot_id, unsigned long virt_start, unsigned long virt_end, int async) "%d %u: host virt 0x%lx - 0x%lx async=%d"
 qemu_spice_del_memslot(int qid, uint32_t gid, uint32_t slot_id) "%d gid=%u sid=%u"

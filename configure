@@ -2897,7 +2897,7 @@ fi
 if test "$gtk" != "no"; then
     gtkpackage="gtk+-3.0"
     gtkx11package="gtk+-x11-3.0"
-    gtkversion="3.14.0"
+    gtkversion="3.22.0"
     if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
         gtk_cflags=$($pkg_config --cflags $gtkpackage)
         gtk_libs=$($pkg_config --libs $gtkpackage)
