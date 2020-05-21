@@ -67,19 +67,27 @@ Unfortunately many of the Arm boards QEMU supports are currently
 undocumented; you can get a complete list by running
 ``qemu-system-aarch64 --machine help``.
 
+..
+   This table of contents should be kept sorted alphabetically
+   by the title text of each file, which isn't the same ordering
+   as an alphabetical sort by filename.
+
 .. toctree::
    :maxdepth: 1
 
    arm/integratorcp
-   arm/versatile
+   arm/mps2
+   arm/musca
    arm/realview
-   arm/xscale
-   arm/palm
-   arm/nseries
-   arm/stellaris
+   arm/versatile
+   arm/vexpress
    arm/musicpal
-   arm/sx1
+   arm/nseries
    arm/orangepi
+   arm/palm
+   arm/xscale
+   arm/sx1
+   arm/stellaris
 
 Arm CPU features
 ================

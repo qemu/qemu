@@ -44,7 +44,6 @@ common-obj-$(CONFIG_IMX) += imx6_ccm.o
 common-obj-$(CONFIG_IMX) += imx6ul_ccm.o
 obj-$(CONFIG_IMX) += imx6_src.o
 common-obj-$(CONFIG_IMX) += imx7_ccm.o
-common-obj-$(CONFIG_IMX) += imx2_wdt.o
 common-obj-$(CONFIG_IMX) += imx7_snvs.o
 common-obj-$(CONFIG_IMX) += imx7_gpr.o
 common-obj-$(CONFIG_IMX) += imx_rngc.o

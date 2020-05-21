@@ -295,84 +295,100 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_SWI:
-        case EXCP_BKPT:
             {
                 env->eabi = 1;
                 /* system call */
-                if (trapnr == EXCP_BKPT) {
-                    if (env->thumb) {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u16(insn, env->regs[15], env);
-                        n = insn & 0xff;
-                        env->regs[15] += 2;
-                    } else {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u32(insn, env->regs[15], env);
-                        n = (insn & 0xf) | ((insn >> 4) & 0xff0);
-                        env->regs[15] += 4;
-                    }
+                if (env->thumb) {
+                    /* Thumb is always EABI style with syscall number in r7 */
+                    n = env->regs[7];
                 } else {
-                    if (env->thumb) {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u16(insn, env->regs[15] - 2, env);
-                        n = insn & 0xff;
+                    /*
+                     * Equivalent of kernel CONFIG_OABI_COMPAT: read the
+                     * Arm SVC insn to extract the immediate, which is the
+                     * syscall number in OABI.
+                     */
+                    /* FIXME - what to do if get_user() fails? */
+                    get_user_code_u32(insn, env->regs[15] - 4, env);
+                    n = insn & 0xffffff;
+                    if (n == 0) {
+                        /* zero immediate: EABI, syscall number in r7 */
+                        n = env->regs[7];
                     } else {
-                        /* FIXME - what to do if get_user() fails? */
-                        get_user_code_u32(insn, env->regs[15] - 4, env);
-                        n = insn & 0xffffff;
+                        /*
+                         * This XOR matches the kernel code: an immediate
+                         * in the valid range (0x900000 .. 0x9fffff) is
+                         * converted into the correct EABI-style syscall
+                         * number; invalid immediates end up as values
+                         * > 0xfffff and are handled below as out-of-range.
+                         */
+                        n ^= ARM_SYSCALL_BASE;
+                        env->eabi = 0;
                     }
                 }
 
-                if (n == ARM_NR_cacheflush) {
-                    /* nop */
-                } else if (n == 0 || n >= ARM_SYSCALL_BASE || env->thumb) {
-                    /* linux syscall */
-                    if (env->thumb || n == 0) {
-                        n = env->regs[7];
-                    } else {
-                        n -= ARM_SYSCALL_BASE;
-                        env->eabi = 0;
-                    }
-                    if ( n > ARM_NR_BASE) {
-                        switch (n) {
-                        case ARM_NR_cacheflush:
-                            /* nop */
-                            break;
-                        case ARM_NR_set_tls:
-                            cpu_set_tls(env, env->regs[0]);
-                            env->regs[0] = 0;
-                            break;
-                        case ARM_NR_breakpoint:
-                            env->regs[15] -= env->thumb ? 2 : 4;
-                            goto excp_debug;
-                        case ARM_NR_get_tls:
-                            env->regs[0] = cpu_get_tls(env);
-                            break;
-                        default:
+                if (n > ARM_NR_BASE) {
+                    switch (n) {
+                    case ARM_NR_cacheflush:
+                        /* nop */
+                        break;
+                    case ARM_NR_set_tls:
+                        cpu_set_tls(env, env->regs[0]);
+                        env->regs[0] = 0;
+                        break;
+                    case ARM_NR_breakpoint:
+                        env->regs[15] -= env->thumb ? 2 : 4;
+                        goto excp_debug;
+                    case ARM_NR_get_tls:
+                        env->regs[0] = cpu_get_tls(env);
+                        break;
+                    default:
+                        if (n < 0xf0800) {
+                            /*
+                             * Syscalls 0xf0000..0xf07ff (or 0x9f0000..
+                             * 0x9f07ff in OABI numbering) are defined
+                             * to return -ENOSYS rather than raising
+                             * SIGILL. Note that we have already
+                             * removed the 0x900000 prefix.
+                             */
                             qemu_log_mask(LOG_UNIMP,
-                                          "qemu: Unsupported ARM syscall: 0x%x\n",
+                                "qemu: Unsupported ARM syscall: 0x%x\n",
                                           n);
                             env->regs[0] = -TARGET_ENOSYS;
-                            break;
+                        } else {
+                            /*
+                             * Otherwise SIGILL. This includes any SWI with
+                             * immediate not originally 0x9fxxxx, because
+                             * of the earlier XOR.
+                             */
+                            info.si_signo = TARGET_SIGILL;
+                            info.si_errno = 0;
+                            info.si_code = TARGET_ILL_ILLTRP;
+                            info._sifields._sigfault._addr = env->regs[15];
+                            if (env->thumb) {
+                                info._sifields._sigfault._addr -= 2;
+                            } else {
+                                info._sifields._sigfault._addr -= 4;
+                            }
+                            queue_signal(env, info.si_signo,
+                                         QEMU_SI_FAULT, &info);
                         }
-                    } else {
-                        ret = do_syscall(env,
-                                         n,
-                                         env->regs[0],
-                                         env->regs[1],
-                                         env->regs[2],
-                                         env->regs[3],
-                                         env->regs[4],
-                                         env->regs[5],
-                                         0, 0);
-                        if (ret == -TARGET_ERESTARTSYS) {
-                            env->regs[15] -= env->thumb ? 2 : 4;
-                        } else if (ret != -TARGET_QEMU_ESIGRETURN) {
-                            env->regs[0] = ret;
-                        }
+                        break;
                     }
                 } else {
-                    goto error;
+                    ret = do_syscall(env,
+                                     n,
+                                     env->regs[0],
+                                     env->regs[1],
+                                     env->regs[2],
+                                     env->regs[3],
+                                     env->regs[4],
+                                     env->regs[5],
+                                     0, 0);
+                    if (ret == -TARGET_ERESTARTSYS) {
+                        env->regs[15] -= env->thumb ? 2 : 4;
+                    } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                        env->regs[0] = ret;
+                    }
                 }
             }
             break;
@@ -396,6 +412,7 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_DEBUG:
+        case EXCP_BKPT:
         excp_debug:
             info.si_signo = TARGET_SIGTRAP;
             info.si_errno = 0;
