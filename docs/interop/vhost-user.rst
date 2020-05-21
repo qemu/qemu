@@ -815,6 +815,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD       12
   #define VHOST_USER_PROTOCOL_F_RESET_DEVICE         13
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
+  #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
 
 Master message types
 --------------------
@@ -1262,6 +1263,21 @@ Master message types
   descriptor or having the slave rely on polling.
 
   The state.num field is currently reserved and must be set to 0.
+
+``VHOST_USER_GET_MAX_MEM_SLOTS``
+  :id: 36
+  :equivalent ioctl: N/A
+  :slave payload: u64
+
+  When the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
+  feature has been successfully negotiated, this message is submitted
+  by master to the slave. The slave should return the message with a
+  u64 payload containing the maximum number of memory slots for
+  QEMU to expose to the guest. At this point, the value returned
+  by the backend will be capped at the maximum number of ram slots
+  which can be supported by vhost-user. Currently that limit is set
+  at VHOST_USER_MAX_RAM_SLOTS = 8 because of underlying protocol
+  limitations.
 
 Slave message types
 -------------------
