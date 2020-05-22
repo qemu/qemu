@@ -1258,6 +1258,13 @@ static bool do_vector_2sh(DisasContext *s, arg_2reg_shift *a, GVecGen2iFn *fn)
 
 DO_2SH(VSHL, tcg_gen_gvec_shli)
 DO_2SH(VSLI, gen_gvec_sli)
+DO_2SH(VSRI, gen_gvec_sri)
+DO_2SH(VSRA_S, gen_gvec_ssra)
+DO_2SH(VSRA_U, gen_gvec_usra)
+DO_2SH(VRSHR_S, gen_gvec_srshr)
+DO_2SH(VRSHR_U, gen_gvec_urshr)
+DO_2SH(VRSRA_S, gen_gvec_srsra)
+DO_2SH(VRSRA_U, gen_gvec_ursra)
 
 static bool trans_VSHR_S_2sh(DisasContext *s, arg_2reg_shift *a)
 {

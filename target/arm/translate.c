@@ -5297,6 +5297,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 
             switch (op) {
             case 0: /* VSHR */
+            case 1: /* VSRA */
+            case 2: /* VRSHR */
+            case 3: /* VRSRA */
+            case 4: /* VSRI */
             case 5: /* VSHL, VSLI */
                 return 1; /* handled by decodetree */
             default:
@@ -5328,54 +5332,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                    element size in bits.  */
                 if (op <= 4) {
                     shift = shift - (1 << (size + 3));
-                }
-
-                switch (op) {
-                case 1:  /* VSRA */
-                    /* Right shift comes here negative.  */
-                    shift = -shift;
-                    if (u) {
-                        gen_gvec_usra(size, rd_ofs, rm_ofs, shift,
-                                      vec_size, vec_size);
-                    } else {
-                        gen_gvec_ssra(size, rd_ofs, rm_ofs, shift,
-                                      vec_size, vec_size);
-                    }
-                    return 0;
-
-                case 2: /* VRSHR */
-                    /* Right shift comes here negative.  */
-                    shift = -shift;
-                    if (u) {
-                        gen_gvec_urshr(size, rd_ofs, rm_ofs, shift,
-                                       vec_size, vec_size);
-                    } else {
-                        gen_gvec_srshr(size, rd_ofs, rm_ofs, shift,
-                                       vec_size, vec_size);
-                    }
-                    return 0;
-
-                case 3: /* VRSRA */
-                    /* Right shift comes here negative.  */
-                    shift = -shift;
-                    if (u) {
-                        gen_gvec_ursra(size, rd_ofs, rm_ofs, shift,
-                                       vec_size, vec_size);
-                    } else {
-                        gen_gvec_srsra(size, rd_ofs, rm_ofs, shift,
-                                       vec_size, vec_size);
-                    }
-                    return 0;
-
-                case 4: /* VSRI */
-                    if (!u) {
-                        return 1;
-                    }
-                    /* Right shift comes here negative.  */
-                    shift = -shift;
-                    gen_gvec_sri(size, rd_ofs, rm_ofs, shift,
-                                 vec_size, vec_size);
-                    return 0;
                 }
 
                 if (size == 3) {
