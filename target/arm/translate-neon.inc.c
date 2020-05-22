@@ -1288,3 +1288,111 @@ static bool trans_VSHR_U_2sh(DisasContext *s, arg_2reg_shift *a)
         return do_vector_2sh(s, a, tcg_gen_gvec_shri);
     }
 }
+
+static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
+                             NeonGenTwo64OpEnvFn *fn)
+{
+    /*
+     * 2-reg-and-shift operations, size == 3 case, where the
+     * function needs to be passed cpu_env.
+     */
+    TCGv_i64 constimm;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * To avoid excessive duplication of ops we implement shift
+     * by immediate using the variable shift operations.
+     */
+    constimm = tcg_const_i64(dup_const(a->size, a->shift));
+
+    for (pass = 0; pass < a->q + 1; pass++) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+
+        neon_load_reg64(tmp, a->vm + pass);
+        fn(tmp, cpu_env, tmp, constimm);
+        neon_store_reg64(tmp, a->vd + pass);
+    }
+    tcg_temp_free_i64(constimm);
+    return true;
+}
+
+static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
+                             NeonGenTwoOpEnvFn *fn)
+{
+    /*
+     * 2-reg-and-shift operations, size < 3 case, where the
+     * helper needs to be passed cpu_env.
+     */
+    TCGv_i32 constimm;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * To avoid excessive duplication of ops we implement shift
+     * by immediate using the variable shift operations.
+     */
+    constimm = tcg_const_i32(dup_const(a->size, a->shift));
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        fn(tmp, cpu_env, tmp, constimm);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_i32(constimm);
+    return true;
+}
+
+#define DO_2SHIFT_ENV(INSN, FUNC)                                       \
+    static bool trans_##INSN##_64_2sh(DisasContext *s, arg_2reg_shift *a) \
+    {                                                                   \
+        return do_2shift_env_64(s, a, gen_helper_neon_##FUNC##64);      \
+    }                                                                   \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        static NeonGenTwoOpEnvFn * const fns[] = {                      \
+            gen_helper_neon_##FUNC##8,                                  \
+            gen_helper_neon_##FUNC##16,                                 \
+            gen_helper_neon_##FUNC##32,                                 \
+        };                                                              \
+        assert(a->size < ARRAY_SIZE(fns));                              \
+        return do_2shift_env_32(s, a, fns[a->size]);                    \
+    }
+
+DO_2SHIFT_ENV(VQSHLU, qshlu_s)
+DO_2SHIFT_ENV(VQSHL_U, qshl_u)
+DO_2SHIFT_ENV(VQSHL_S, qshl_s)
