@@ -232,6 +232,17 @@ VMINNM_fp_3s     1111 001 1 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
 @2reg_shl_b      .... ... . . . 001 shift:3  .... .... 0 q:1 . . .... \
                  &2reg_shift vm=%vm_dp vd=%vd_dp size=0
 
+# Narrowing right shifts: here the Q bit is part of the opcode decode
+@2reg_shrn_d     .... ... . . . 1 ..... .... .... 0 . . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp size=3 q=0 \
+                 shift=%neon_rshift_i5
+@2reg_shrn_s     .... ... . . . 01 .... .... .... 0 . . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp size=2 q=0 \
+                 shift=%neon_rshift_i4
+@2reg_shrn_h     .... ... . . . 001 ... .... .... 0 . . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp size=1 q=0 \
+                 shift=%neon_rshift_i3
+
 VSHR_S_2sh       1111 001 0 1 . ...... .... 0000 . . . 1 .... @2reg_shr_d
 VSHR_S_2sh       1111 001 0 1 . ...... .... 0000 . . . 1 .... @2reg_shr_s
 VSHR_S_2sh       1111 001 0 1 . ...... .... 0000 . . . 1 .... @2reg_shr_h
@@ -301,3 +312,19 @@ VQSHL_U_64_2sh   1111 001 1 1 . ...... .... 0111 . . . 1 .... @2reg_shl_d
 VQSHL_U_2sh      1111 001 1 1 . ...... .... 0111 . . . 1 .... @2reg_shl_s
 VQSHL_U_2sh      1111 001 1 1 . ...... .... 0111 . . . 1 .... @2reg_shl_h
 VQSHL_U_2sh      1111 001 1 1 . ...... .... 0111 . . . 1 .... @2reg_shl_b
+
+VSHRN_64_2sh     1111 001 0 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_d
+VSHRN_32_2sh     1111 001 0 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_s
+VSHRN_16_2sh     1111 001 0 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_h
+
+VRSHRN_64_2sh    1111 001 0 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_d
+VRSHRN_32_2sh    1111 001 0 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_s
+VRSHRN_16_2sh    1111 001 0 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_h
+
+VQSHRUN_64_2sh   1111 001 1 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_d
+VQSHRUN_32_2sh   1111 001 1 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_s
+VQSHRUN_16_2sh   1111 001 1 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_h
+
+VQRSHRUN_64_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_d
+VQRSHRUN_32_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_s
+VQRSHRUN_16_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_h

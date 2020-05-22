@@ -5280,6 +5280,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             case 5: /* VSHL, VSLI */
             case 6: /* VQSHLU */
             case 7: /* VQSHL */
+            case 8: /* VSHRN, VRSHRN, VQSHRUN, VQRSHRUN */
                 return 1; /* handled by decodetree */
             default:
                 break;
