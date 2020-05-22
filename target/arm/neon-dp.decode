@@ -375,3 +375,25 @@ VCVT_SF_2sh      1111 001 0 1 . ...... .... 1110 0 . . 1 .... @2reg_vcvt
 VCVT_UF_2sh      1111 001 1 1 . ...... .... 1110 0 . . 1 .... @2reg_vcvt
 VCVT_FS_2sh      1111 001 0 1 . ...... .... 1111 0 . . 1 .... @2reg_vcvt
 VCVT_FU_2sh      1111 001 1 1 . ...... .... 1111 0 . . 1 .... @2reg_vcvt
+
+######################################################################
+# 1-reg-and-modified-immediate grouping:
+# 1111 001 i 1 D 000 imm:3 Vd:4 cmode:4 0 Q op 1 Vm:4
+######################################################################
+
+&1reg_imm        vd q imm cmode op
+
+%asimd_imm_value 24:1 16:3 0:4
+
+@1reg_imm        .... ... . . . ... ... .... .... . q:1 . . .... \
+                 &1reg_imm imm=%asimd_imm_value vd=%vd_dp
+
+# The cmode/op bits here decode VORR/VBIC/VMOV/VMNV, but
+# not in a way we can conveniently represent in decodetree without
+# a lot of repetition:
+# VORR: op=0, (cmode & 1) && cmode < 12
+# VBIC: op=1, (cmode & 1) && cmode < 12
+# VMOV: everything else
+# So we have a single decode line and check the cmode/op in the
+# trans function.
+Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
