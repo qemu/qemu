@@ -366,6 +366,11 @@ void replay_finish(void)
     /* finalize the file */
     if (replay_file) {
         if (replay_mode == REPLAY_MODE_RECORD) {
+            /*
+             * Can't do it in the signal handler, therefore
+             * add shutdown event here for the case of Ctrl-C.
+             */
+            replay_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
             /* write end event */
             replay_put_event(EVENT_END);
 
