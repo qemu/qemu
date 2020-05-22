@@ -1374,6 +1374,13 @@ static int64_t tcg_get_icount_limit(void)
     }
 }
 
+static void notify_aio_contexts(void)
+{
+    /* Wake up other AioContexts.  */
+    qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+    qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+}
+
 static void handle_icount_deadline(void)
 {
     assert(qemu_in_vcpu_thread());
@@ -1382,9 +1389,7 @@ static void handle_icount_deadline(void)
                                                       QEMU_TIMER_ATTR_ALL);
 
         if (deadline == 0) {
-            /* Wake up other AioContexts.  */
-            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
-            qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+            notify_aio_contexts();
         }
     }
 }
@@ -1407,6 +1412,10 @@ static void prepare_icount_for_run(CPUState *cpu)
         cpu->icount_extra = cpu->icount_budget - insns_left;
 
         replay_mutex_lock();
+
+        if (cpu->icount_budget == 0 && replay_has_checkpoint()) {
+            notify_aio_contexts();
+        }
     }
 }
 
