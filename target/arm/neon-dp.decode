@@ -328,3 +328,23 @@ VQSHRUN_16_2sh   1111 001 1 1 . ...... .... 1000 . 0 . 1 .... @2reg_shrn_h
 VQRSHRUN_64_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_d
 VQRSHRUN_32_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_s
 VQRSHRUN_16_2sh  1111 001 1 1 . ...... .... 1000 . 1 . 1 .... @2reg_shrn_h
+
+# VQSHRN with signed input
+VQSHRN_S64_2sh   1111 001 0 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_d
+VQSHRN_S32_2sh   1111 001 0 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_s
+VQSHRN_S16_2sh   1111 001 0 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_h
+
+# VQRSHRN with signed input
+VQRSHRN_S64_2sh  1111 001 0 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_d
+VQRSHRN_S32_2sh  1111 001 0 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_s
+VQRSHRN_S16_2sh  1111 001 0 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_h
+
+# VQSHRN with unsigned input
+VQSHRN_U64_2sh   1111 001 1 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_d
+VQSHRN_U32_2sh   1111 001 1 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_s
+VQSHRN_U16_2sh   1111 001 1 1 . ...... .... 1001 . 0 . 1 .... @2reg_shrn_h
+
+# VQRSHRN with unsigned input
+VQRSHRN_U64_2sh  1111 001 1 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_d
+VQRSHRN_U32_2sh  1111 001 1 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_s
+VQRSHRN_U16_2sh  1111 001 1 1 . ...... .... 1001 . 1 . 1 .... @2reg_shrn_h
