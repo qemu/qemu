@@ -273,11 +273,20 @@ static artist_rop_t artist_get_op(ARTISTState *s)
     return (s->image_bitmap_op >> 8) & 0xf;
 }
 
-static void artist_rop8(ARTISTState *s, uint8_t *dst, uint8_t val)
+static void artist_rop8(ARTISTState *s, struct vram_buffer *buf,
+                        int offset, uint8_t val)
 {
-
     const artist_rop_t op = artist_get_op(s);
-    uint8_t plane_mask = s->plane_mask & 0xff;
+    uint8_t plane_mask;
+    uint8_t *dst;
+
+    if (offset < 0 || offset >= buf->size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rop8 offset:%d bufsize:%u\n", offset, buf->size);
+        return;
+    }
+    dst = buf->data + offset;
+    plane_mask = s->plane_mask & 0xff;
 
     switch (op) {
     case ARTIST_ROP_CLEAR:
@@ -375,7 +384,7 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
         for (i = 0; i < pix_count; i++) {
             uint32_t off = offset + pix_count - 1 - i;
             if (off < buf->size) {
-                artist_rop8(s, p + off,
+                artist_rop8(s, buf, off,
                             (data & 1) ? (s->plane_mask >> 24) : 0);
             }
             data >>= 1;
@@ -395,7 +404,7 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
                 s->vram_bitmask & (1 << (28 + i))) {
                 uint32_t off = offset + 3 - i;
                 if (off < buf->size) {
-                    artist_rop8(s, p + off, data8[ROP8OFF(i)]);
+                    artist_rop8(s, buf, off, data8[ROP8OFF(i)]);
                 }
             }
         }
@@ -424,10 +433,10 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
             if (!(s->image_bitmap_op & 0x20000000) ||
                 (vram_bitmask & mask)) {
                 if (data & mask) {
-                    artist_rop8(s, p + offset + i, s->fg_color);
+                    artist_rop8(s, buf, offset + i, s->fg_color);
                 } else {
                     if (!(s->image_bitmap_op & 0x10000002)) {
-                        artist_rop8(s, p + offset + i, s->bg_color);
+                        artist_rop8(s, buf, offset + i, s->bg_color);
                     }
                 }
             }
@@ -505,7 +514,7 @@ static void block_move(ARTISTState *s, int source_x, int source_y, int dest_x,
             if (dst + column > buf->size || src + column > buf->size) {
                 continue;
             }
-            artist_rop8(s, buf->data + dst + column, buf->data[src + column]);
+            artist_rop8(s, buf, dst + column, buf->data[src + column]);
         }
     }
 
@@ -546,7 +555,7 @@ static void fill_window(ARTISTState *s, int startx, int starty,
         offset = y * s->width;
 
         for (x = startx; x < startx + width; x++) {
-            artist_rop8(s, buf->data + offset + x, color);
+            artist_rop8(s, buf, offset + x, color);
         }
     }
     artist_invalidate_lines(buf, starty, height);
@@ -559,7 +568,6 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     uint8_t color;
     int dx, dy, t, e, x, y, incy, diago, horiz;
     bool c1;
-    uint8_t *p;
 
     trace_artist_draw_line(x1, y1, x2, y2);
 
@@ -628,16 +636,18 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     color = artist_get_color(s);
 
     do {
+        int ofs;
+
         if (c1) {
-            p = buf->data + x * s->width + y;
+            ofs = x * s->width + y;
         } else {
-            p = buf->data + y * s->width + x;
+            ofs = y * s->width + x;
         }
 
         if (skip_pix > 0) {
             skip_pix--;
         } else {
-            artist_rop8(s, p, color);
+            artist_rop8(s, buf, ofs, color);
         }
 
         if (e > 0) {
@@ -771,10 +781,10 @@ static void font_write16(ARTISTState *s, uint16_t val)
     for (i = 0; i < 16; i++) {
         mask = 1 << (15 - i);
         if (val & mask) {
-            artist_rop8(s, buf->data + offset + i, color);
+            artist_rop8(s, buf, offset + i, color);
         } else {
             if (!(s->image_bitmap_op & 0x20000000)) {
-                artist_rop8(s, buf->data + offset + i, s->bg_color);
+                artist_rop8(s, buf, offset + i, s->bg_color);
             }
         }
     }
