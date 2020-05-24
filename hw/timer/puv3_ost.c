@@ -14,6 +14,7 @@
 #include "hw/irq.h"
 #include "hw/ptimer.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -52,7 +53,9 @@ static uint64_t puv3_ost_read(void *opaque, hwaddr offset,
         ret = s->reg_OIER;
         break;
     default:
-        DPRINTF("Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad read offset 0x%"HWADDR_PRIx"\n",
+                      __func__, offset);
     }
     DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
     return ret;
@@ -88,7 +91,9 @@ static void puv3_ost_write(void *opaque, hwaddr offset,
         s->reg_OIER = value;
         break;
     default:
-        DPRINTF("Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad write offset 0x%"HWADDR_PRIx"\n",
+                      __func__, offset);
     }
 }
 

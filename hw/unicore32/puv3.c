@@ -16,8 +16,6 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "sysemu/qtest.h"
-
-#undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 #include "hw/input/i8042.h"
 #include "hw/irq.h"
