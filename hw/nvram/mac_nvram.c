@@ -30,17 +30,8 @@
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
+#include "trace.h"
 #include <zlib.h>
-
-/* debug NVR */
-//#define DEBUG_NVR
-
-#ifdef DEBUG_NVR
-#define NVR_DPRINTF(fmt, ...)                                   \
-    do { printf("NVR: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define NVR_DPRINTF(fmt, ...)
-#endif
 
 #define DEF_SYSTEM_SIZE 0xc10
 
@@ -51,9 +42,8 @@ static void macio_nvram_writeb(void *opaque, hwaddr addr,
     MacIONVRAMState *s = opaque;
 
     addr = (addr >> s->it_shift) & (s->size - 1);
+    trace_macio_nvram_write(addr, value);
     s->data[addr] = value;
-    NVR_DPRINTF("writeb addr %04" HWADDR_PRIx " val %" PRIx64 "\n",
-                addr, value);
 }
 
 static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
@@ -64,8 +54,7 @@ static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
 
     addr = (addr >> s->it_shift) & (s->size - 1);
     value = s->data[addr];
-    NVR_DPRINTF("readb addr %04" HWADDR_PRIx " val %" PRIx32 "\n",
-                addr, value);
+    trace_macio_nvram_read(addr, value);
 
     return value;
 }
