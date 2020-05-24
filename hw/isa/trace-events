@@ -9,3 +9,7 @@ superio_create_ide(int id, uint16_t base, unsigned int irq) "id=%d, base 0x%03x,
 # pc87312.c
 pc87312_io_read(uint32_t addr, uint32_t val) "read addr=0x%x val=0x%x"
 pc87312_io_write(uint32_t addr, uint32_t val) "write addr=0x%x val=0x%x"
+
+# apm.c
+apm_io_read(uint8_t addr, uint8_t val) "read addr=0x%x val=0x%02x"
+apm_io_write(uint8_t addr, uint8_t val) "write addr=0x%x val=0x%02x"
