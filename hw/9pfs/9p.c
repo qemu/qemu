@@ -28,6 +28,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/xxhash.h"
 #include <math.h>
+#include <linux/limits.h>
 
 int open_fd_hw;
 int total_open_fd;
