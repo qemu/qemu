@@ -24,6 +24,10 @@
 #include "crypto/secret.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#ifdef CONFIG_TEST_SECRET_KEYRING
+#include "crypto/secret_keyring.h"
+#include <keyutils.h>
+#endif
 
 static void test_secret_direct(void)
 {
@@ -124,6 +128,147 @@ static void test_secret_indirect_emptyfile(void)
     g_free(fname);
 }
 
+#ifdef CONFIG_TEST_SECRET_KEYRING
+
+#define DESCRIPTION "qemu_test_secret"
+#define PAYLOAD "Test Payload"
+
+
+static void test_secret_keyring_good(void)
+{
+    char key_str[16];
+    Object *sec;
+    int32_t key = add_key("user", DESCRIPTION, PAYLOAD,
+                          strlen(PAYLOAD), KEY_SPEC_PROCESS_KEYRING);
+
+    g_assert(key >= 0);
+
+    snprintf(key_str, sizeof(key_str), "0x%08x", key);
+    sec = object_new_with_props(
+        TYPE_QCRYPTO_SECRET_KEYRING,
+        object_get_objects_root(),
+        "sec0",
+        &error_abort,
+        "serial", key_str,
+        NULL);
+
+    assert(0 <= keyctl_unlink(key, KEY_SPEC_PROCESS_KEYRING));
+    char *pw = qcrypto_secret_lookup_as_utf8("sec0",
+                                             &error_abort);
+    g_assert_cmpstr(pw, ==, PAYLOAD);
+
+    object_unparent(sec);
+    g_free(pw);
+}
+
+
+static void test_secret_keyring_revoked_key(void)
+{
+    char key_str[16];
+    Object *sec;
+    int32_t key = add_key("user", DESCRIPTION, PAYLOAD,
+                          strlen(PAYLOAD), KEY_SPEC_PROCESS_KEYRING);
+    g_assert(key >= 0);
+    g_assert_false(keyctl_revoke(key));
+
+    snprintf(key_str, sizeof(key_str), "0x%08x", key);
+    sec = object_new_with_props(
+        TYPE_QCRYPTO_SECRET_KEYRING,
+        object_get_objects_root(),
+        "sec0",
+        NULL,
+        "serial", key_str,
+        NULL);
+
+    g_assert(errno == EKEYREVOKED);
+    g_assert(sec == NULL);
+
+    keyctl_unlink(key, KEY_SPEC_PROCESS_KEYRING);
+}
+
+
+static void test_secret_keyring_expired_key(void)
+{
+    char key_str[16];
+    Object *sec;
+    int32_t key = add_key("user", DESCRIPTION, PAYLOAD,
+                          strlen(PAYLOAD), KEY_SPEC_PROCESS_KEYRING);
+    g_assert(key >= 0);
+    g_assert_false(keyctl_set_timeout(key, 1));
+    sleep(1);
+
+    snprintf(key_str, sizeof(key_str), "0x%08x", key);
+    sec = object_new_with_props(
+        TYPE_QCRYPTO_SECRET_KEYRING,
+        object_get_objects_root(),
+        "sec0",
+        NULL,
+        "serial", key_str,
+        NULL);
+
+    g_assert(errno == EKEYEXPIRED);
+    g_assert(sec == NULL);
+
+    keyctl_unlink(key, KEY_SPEC_PROCESS_KEYRING);
+}
+
+
+static void test_secret_keyring_bad_serial_key(void)
+{
+    Object *sec;
+
+    sec = object_new_with_props(
+        TYPE_QCRYPTO_SECRET_KEYRING,
+        object_get_objects_root(),
+        "sec0",
+        NULL,
+        "serial", "1",
+        NULL);
+
+    g_assert(errno == ENOKEY);
+    g_assert(sec == NULL);
+}
+
+/*
+ * TODO
+ * test_secret_keyring_bad_key_access_right() is not working yet.
+ * We don't know yet if this due a bug in the Linux kernel or
+ * whether it's normal syscall behavior.
+ * We've requested information from kernel maintainers.
+ * See: <https://www.spinics.net/lists/keyrings/index.html>
+ * Thread: 'security/keys: remove possessor verify after key permission check'
+ */
+
+static void test_secret_keyring_bad_key_access_right(void)
+{
+    char key_str[16];
+    Object *sec;
+
+    g_test_skip("TODO: Need responce from Linux kernel maintainers");
+    return;
+
+    int32_t key = add_key("user", DESCRIPTION, PAYLOAD,
+                          strlen(PAYLOAD), KEY_SPEC_PROCESS_KEYRING);
+    g_assert(key >= 0);
+    g_assert_false(keyctl_setperm(key, KEY_POS_ALL & (~KEY_POS_READ)));
+
+    snprintf(key_str, sizeof(key_str), "0x%08x", key);
+
+    sec = object_new_with_props(
+        TYPE_QCRYPTO_SECRET_KEYRING,
+        object_get_objects_root(),
+        "sec0",
+        NULL,
+        "serial", key_str,
+        NULL);
+
+    g_assert(errno == EACCES);
+    g_assert(sec == NULL);
+
+    keyctl_unlink(key, KEY_SPEC_PROCESS_KEYRING);
+}
+
+#endif /* CONFIG_TEST_SECRET_KEYRING */
 
 static void test_secret_noconv_base64_good(void)
 {
@@ -425,6 +570,19 @@ int main(int argc, char **argv)
                     test_secret_indirect_badfile);
     g_test_add_func("/crypto/secret/indirect/emptyfile",
                     test_secret_indirect_emptyfile);
+
+#ifdef CONFIG_TEST_SECRET_KEYRING
+    g_test_add_func("/crypto/secret/keyring/good",
+                    test_secret_keyring_good);
+    g_test_add_func("/crypto/secret/keyring/revoked_key",
+                    test_secret_keyring_revoked_key);
+    g_test_add_func("/crypto/secret/keyring/expired_key",
+                    test_secret_keyring_expired_key);
+    g_test_add_func("/crypto/secret/keyring/bad_serial_key",
+                    test_secret_keyring_bad_serial_key);
+    g_test_add_func("/crypto/secret/keyring/bad_key_access_right",
+                    test_secret_keyring_bad_key_access_right);
+#endif /* CONFIG_TEST_SECRET_KEYRING */
 
     g_test_add_func("/crypto/secret/noconv/base64/good",
                     test_secret_noconv_base64_good);
