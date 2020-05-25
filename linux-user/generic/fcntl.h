@@ -99,6 +99,10 @@
 #define TARGET_F_SETLKW64      14
 #endif
 
+#define TARGET_F_OFD_GETLK     36
+#define TARGET_F_OFD_SETLK     37
+#define TARGET_F_OFD_SETLKW    38
+
 #ifndef TARGET_F_SETOWN_EX
 #define TARGET_F_SETOWN_EX     15
 #define TARGET_F_GETOWN_EX     16

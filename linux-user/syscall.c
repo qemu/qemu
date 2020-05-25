@@ -6098,6 +6098,9 @@ static int target_to_host_fcntl_cmd(int cmd)
     case TARGET_F_SETFD:
     case TARGET_F_GETFL:
     case TARGET_F_SETFL:
+    case TARGET_F_OFD_GETLK:
+    case TARGET_F_OFD_SETLK:
+    case TARGET_F_OFD_SETLKW:
         ret = cmd;
         break;
     case TARGET_F_GETLK:
@@ -6383,6 +6386,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         break;
 
     case TARGET_F_GETLK64:
+    case TARGET_F_OFD_GETLK:
         ret = copy_from_user_flock64(&fl64, arg);
         if (ret) {
             return ret;
@@ -6394,6 +6398,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         break;
     case TARGET_F_SETLK64:
     case TARGET_F_SETLKW64:
+    case TARGET_F_OFD_SETLK:
+    case TARGET_F_OFD_SETLKW:
         ret = copy_from_user_flock64(&fl64, arg);
         if (ret) {
             return ret;
