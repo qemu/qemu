@@ -85,6 +85,7 @@ Architecture support
 --------------------
 S390 general architecture support
 M: Cornelia Huck <cohuck@redhat.com>
+M: Thomas Huth <thuth@redhat.com>
 S: Supported
 F: default-configs/s390x-softmmu.mak
 F: gdb-xml/s390*.xml
