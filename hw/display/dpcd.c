@@ -1,5 +1,5 @@
 /*
- * dpcd.c
+ * Xilinx Display Port Control Data
  *
  *  Copyright (C) 2015 : GreenSocs Ltd
  *      http://www.greensocs.com/ , email: info@greensocs.com
@@ -137,7 +137,7 @@ static void dpcd_init(Object *obj)
 {
     DPCDState *s = DPCD(obj);
 
-    memory_region_init_io(&s->iomem, obj, &aux_ops, s, TYPE_DPCD, 0x7FFFF);
+    memory_region_init_io(&s->iomem, obj, &aux_ops, s, TYPE_DPCD, 0x80000);
     aux_init_mmio(AUX_SLAVE(obj), &s->iomem);
 }
 
