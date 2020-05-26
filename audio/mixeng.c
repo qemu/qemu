@@ -271,11 +271,12 @@ f_sample *mixeng_clip[2][2][2][3] = {
 #define CONV_NATURAL_FLOAT(x) (x)
 #define CLIP_NATURAL_FLOAT(x) (x)
 #else
-static const float float_scale = UINT_MAX / 2.f;
+/* macros to map [-1.f, 1.f] <-> [INT32_MIN, INT32_MAX + 1] */
+static const float float_scale = (int64_t)INT32_MAX + 1;
 #define CONV_NATURAL_FLOAT(x) ((x) * float_scale)
 
 #ifdef RECIPROCAL
-static const float float_scale_reciprocal = 2.f / UINT_MAX;
+static const float float_scale_reciprocal = 1.f / ((int64_t)INT32_MAX + 1);
 #define CLIP_NATURAL_FLOAT(x) ((x) * float_scale_reciprocal)
 #else
 #define CLIP_NATURAL_FLOAT(x) ((x) / float_scale)
@@ -338,10 +339,10 @@ f_sample *mixeng_clip_float[2] = {
     clip_natural_float_from_stereo,
 };
 
-void audio_sample_to_uint64(void *samples, int pos,
+void audio_sample_to_uint64(const void *samples, int pos,
                             uint64_t *left, uint64_t *right)
 {
-    struct st_sample *sample = samples;
+    const struct st_sample *sample = samples;
     sample += pos;
 #ifdef FLOAT_MIXENG
     error_report(

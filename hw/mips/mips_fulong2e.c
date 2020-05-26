@@ -33,7 +33,6 @@
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/pci/pci.h"
-#include "audio/audio.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "hw/ide/pci.h"

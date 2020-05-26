@@ -28,3 +28,8 @@ common-obj-$(CONFIG_AUDIO_SDL) += sdl.mo
 sdl.mo-objs = sdlaudio.o
 sdl.mo-cflags := $(SDL_CFLAGS)
 sdl.mo-libs := $(SDL_LIBS)
+
+# jack module
+common-obj-$(CONFIG_AUDIO_JACK) += jack.mo
+jack.mo-objs = jackaudio.o
+jack.mo-libs := $(JACK_LIBS)
