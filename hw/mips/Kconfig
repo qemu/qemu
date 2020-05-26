@@ -41,8 +41,9 @@ config JAZZ
     select DS1225Y
     select JAZZ_LED
 
-config FULONG
+config FULOONG
     bool
+    select PCI_BONITO
 
 config MIPS_CPS
     bool

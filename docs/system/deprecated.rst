@@ -368,6 +368,11 @@ mips ``r4k`` platform (since 5.0)
 This machine type is very old and unmaintained. Users should use the ``malta``
 machine type instead.
 
+mips ``fulong2e`` machine (since 5.1)
+'''''''''''''''''''''''''''''''''''''
+
+This machine has been renamed ``fuloong2e``.
+
 ``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (since 5.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

@@ -1,5 +1,5 @@
 /*
- * QEMU fulong 2e mini pc support
+ * QEMU fuloong 2e mini pc support
  *
  * Copyright (c) 2008 yajin (yajin@vm-kernel.org)
  * Copyright (c) 2009 chenming (chenming@rdc.faw.com.cn)
@@ -11,8 +11,8 @@
  */
 
 /*
- * Fulong 2e mini pc is based on ICT/ST Loongson 2e CPU (MIPS III like, 800MHz)
- * http://www.linux-mips.org/wiki/Fulong
+ * Fuloong 2e mini pc is based on ICT/ST Loongson 2e CPU (MIPS III like, 800MHz)
+ * https://www.linux-mips.org/wiki/Fuloong_2E
  *
  * Loongson 2e user manual:
  * http://www.loongsondeveloper.com/doc/Loongson2EUserGuide.pdf
@@ -45,13 +45,13 @@
 #include "sysemu/reset.h"
 #include "qemu/error-report.h"
 
-#define DEBUG_FULONG2E_INIT
+#define DEBUG_FULOONG2E_INIT
 
 #define ENVP_ADDR               0x80002000l
 #define ENVP_NB_ENTRIES         16
 #define ENVP_ENTRY_SIZE         256
 
-/* fulong 2e has a 512k flash: Winbond W39L040AP70Z */
+/* Fuloong 2e has a 512k flash: Winbond W39L040AP70Z */
 #define BIOS_SIZE               (512 * KiB)
 #define MAX_IDE_BUS             2
 
@@ -68,12 +68,12 @@
  * 2, use "Bonito2edev" to replace "dir_corresponding_to_your_target_hardware"
  * in the "Compile Guide".
  */
-#define FULONG_BIOSNAME "pmon_fulong2e.bin"
+#define FULOONG_BIOSNAME "pmon_2e.bin"
 
-/* PCI SLOT in fulong 2e */
-#define FULONG2E_VIA_SLOT        5
-#define FULONG2E_ATI_SLOT        6
-#define FULONG2E_RTL8139_SLOT    7
+/* PCI SLOT in Fuloong 2e */
+#define FULOONG2E_VIA_SLOT        5
+#define FULOONG2E_ATI_SLOT        6
+#define FULOONG2E_RTL8139_SLOT    7
 
 static struct _loaderparams {
     int ram_size;
@@ -278,7 +278,7 @@ static void network_init(PCIBus *pci_bus)
         const char *default_devaddr = NULL;
 
         if (i == 0 && (!nd->model || strcmp(nd->model, "rtl8139") == 0)) {
-            /* The fulong board has a RTL8139 card using PCI SLOT 7 */
+            /* The Fuloong board has a RTL8139 card using PCI SLOT 7 */
             default_devaddr = "07";
         }
 
@@ -286,7 +286,7 @@ static void network_init(PCIBus *pci_bus)
     }
 }
 
-static void mips_fulong2e_init(MachineState *machine)
+static void mips_fuloong2e_init(MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
@@ -315,12 +315,11 @@ static void mips_fulong2e_init(MachineState *machine)
         error_report("Invalid RAM size, should be 256MB");
         exit(EXIT_FAILURE);
     }
-
-    /* allocate RAM */
-    memory_region_init_rom(bios, NULL, "fulong2e.bios", BIOS_SIZE,
-                           &error_fatal);
-
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
+
+    /* Boot ROM */
+    memory_region_init_rom(bios, NULL, "fuloong2e.bios", BIOS_SIZE,
+                           &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bios);
 
     /*
@@ -337,7 +336,7 @@ static void mips_fulong2e_init(MachineState *machine)
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
     } else {
         if (bios_name == NULL) {
-                bios_name = FULONG_BIOSNAME;
+                bios_name = FULOONG_BIOSNAME;
         }
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
@@ -363,7 +362,7 @@ static void mips_fulong2e_init(MachineState *machine)
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    vt82c686b_southbridge_init(pci_bus, FULONG2E_VIA_SLOT, env->irq[5],
+    vt82c686b_southbridge_init(pci_bus, FULOONG2E_VIA_SLOT, env->irq[5],
                                &smbus, &isa_bus);
 
     /* GPU */
@@ -384,14 +383,15 @@ static void mips_fulong2e_init(MachineState *machine)
     network_init(pci_bus);
 }
 
-static void mips_fulong2e_machine_init(MachineClass *mc)
+static void mips_fuloong2e_machine_init(MachineClass *mc)
 {
-    mc->desc = "Fulong 2e mini pc";
-    mc->init = mips_fulong2e_init;
+    mc->desc = "Fuloong 2e mini pc";
+    mc->alias = "fulong2e";             /* Incorrect name used up to QEMU 4.2 */
+    mc->init = mips_fuloong2e_init;
     mc->block_default_type = IF_IDE;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("Loongson-2E");
     mc->default_ram_size = 256 * MiB;
-    mc->default_ram_id = "fulong2e.ram";
+    mc->default_ram_id = "fuloong2e.ram";
 }
 
-DEFINE_MACHINE("fulong2e", mips_fulong2e_machine_init)
+DEFINE_MACHINE("fuloong2e", mips_fuloong2e_machine_init)

@@ -33,7 +33,7 @@ static const TestCase test_cases[] = {
     { "mips64", "pica61", 0x90000000, .bswap = true },
     { "mips64", "mips", 0x14000000, .bswap = true },
     { "mips64", "malta", 0x10000000, .bswap = true },
-    { "mips64el", "fulong2e", 0x1fd00000 },
+    { "mips64el", "fuloong2e", 0x1fd00000 },
     { "ppc", "g3beige", 0xfe000000, .bswap = true, .superio = "i82378" },
     { "ppc", "40p", 0x80000000, .bswap = true },
     { "ppc", "bamboo", 0xe8000000, .bswap = true, .superio = "i82378" },

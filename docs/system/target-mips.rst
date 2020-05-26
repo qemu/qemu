@@ -74,7 +74,7 @@ The MIPS Magnum R4000 emulation supports:
 
 -  G364 framebuffer
 
-The Fulong 2E emulation supports:
+The Fuloong 2E emulation supports:
 
 -  Loongson 2E CPU
 
