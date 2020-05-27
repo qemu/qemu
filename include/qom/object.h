@@ -1404,7 +1404,7 @@ Object *object_get_internal_root(void);
  * path is the path within the composition tree starting from the root.
  * %NULL if the object doesn't have a parent (and thus a canonical path).
  */
-char *object_get_canonical_path_component(Object *obj);
+char *object_get_canonical_path_component(const Object *obj);
 
 /**
  * object_get_canonical_path:
@@ -1412,7 +1412,7 @@ char *object_get_canonical_path_component(Object *obj);
  * Returns: The canonical path for a object.  This is the path within the
  * composition tree starting from the root.
  */
-char *object_get_canonical_path(Object *obj);
+char *object_get_canonical_path(const Object *obj);
 
 /**
  * object_resolve_path:

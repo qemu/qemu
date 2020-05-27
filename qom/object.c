@@ -1881,7 +1881,7 @@ object_property_add_const_link(Object *obj, const char *name,
                                 NULL, OBJ_PROP_LINK_DIRECT);
 }
 
-char *object_get_canonical_path_component(Object *obj)
+char *object_get_canonical_path_component(const Object *obj)
 {
     ObjectProperty *prop = NULL;
     GHashTableIter iter;
@@ -1906,7 +1906,7 @@ char *object_get_canonical_path_component(Object *obj)
     return NULL;
 }
 
-char *object_get_canonical_path(Object *obj)
+char *object_get_canonical_path(const Object *obj)
 {
     Object *root = object_get_root();
     char *newpath, *path = NULL;
