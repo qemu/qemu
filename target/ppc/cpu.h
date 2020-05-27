@@ -127,8 +127,9 @@ enum {
     POWERPC_EXCP_SDOOR_HV = 100,
     /* ISA 3.00 additions */
     POWERPC_EXCP_HVIRT    = 101,
+    POWERPC_EXCP_SYSCALL_VECTORED = 102, /* scv exception                     */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 102,
+    POWERPC_EXCP_NB       = 103,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -475,9 +476,31 @@ typedef struct ppc_v3_pate_t {
 #define SRR1_PROTFAULT           DSISR_PROTFAULT
 #define SRR1_IAMR                DSISR_AMR
 
+/* SRR1[42:45] wakeup fields for System Reset Interrupt */
+
+#define SRR1_WAKEMASK           0x003c0000 /* reason for wakeup */
+
+#define SRR1_WAKEHMI            0x00280000 /* Hypervisor maintenance */
+#define SRR1_WAKEHVI            0x00240000 /* Hypervisor Virt. Interrupt (P9) */
+#define SRR1_WAKEEE             0x00200000 /* External interrupt */
+#define SRR1_WAKEDEC            0x00180000 /* Decrementer interrupt */
+#define SRR1_WAKEDBELL          0x00140000 /* Privileged doorbell */
+#define SRR1_WAKERESET          0x00100000 /* System reset */
+#define SRR1_WAKEHDBELL         0x000c0000 /* Hypervisor doorbell */
+#define SRR1_WAKESCOM           0x00080000 /* SCOM not in power-saving mode */
+
+/* SRR1[46:47] power-saving exit mode */
+
+#define SRR1_WAKESTATE          0x00030000 /* Powersave exit mask */
+
+#define SRR1_WS_HVLOSS          0x00030000 /* HV resources not maintained */
+#define SRR1_WS_GPRLOSS         0x00020000 /* GPRs not maintained */
+#define SRR1_WS_NOLOSS          0x00010000 /* All resources maintained */
+
 /* Facility Status and Control (FSCR) bits */
 #define FSCR_EBB        (63 - 56) /* Event-Based Branch Facility */
 #define FSCR_TAR        (63 - 55) /* Target Address Register */
+#define FSCR_SCV        (63 - 51) /* System call vectored */
 /* Interrupt cause mask and position in FSCR. HFSCR has the same format */
 #define FSCR_IC_MASK    (0xFFULL)
 #define FSCR_IC_POS     (63 - 7)
@@ -487,6 +510,7 @@ typedef struct ppc_v3_pate_t {
 #define FSCR_IC_TM          5
 #define FSCR_IC_EBB         7
 #define FSCR_IC_TAR         8
+#define FSCR_IC_SCV        12
 
 /* Exception state register bits definition                                  */
 #define ESR_PIL   PPC_BIT(36) /* Illegal Instruction                    */
@@ -554,6 +578,8 @@ enum {
     POWERPC_FLAG_VSX      = 0x00080000,
     /* Has Transaction Memory (ISA 2.07)                                     */
     POWERPC_FLAG_TM       = 0x00100000,
+    /* Has SCV (ISA 3.00)                                                    */
+    POWERPC_FLAG_SCV      = 0x00200000,
 };
 
 /*****************************************************************************/
