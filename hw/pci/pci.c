@@ -1891,7 +1891,18 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
         if (test_bit(DEVICE_CATEGORY_NETWORK, dc->categories) &&
             dc->user_creatable) {
             const char *name = object_class_get_name(list->data);
-            g_ptr_array_add(pci_nic_models, (gpointer)name);
+            /*
+             * A network device might also be something else than a NIC, see
+             * e.g. the "rocker" device. Thus we have to look for the "netdev"
+             * property, too. Unfortunately, some devices like virtio-net only
+             * create this property during instance_init, so we have to create
+             * a temporary instance here to be able to check it.
+             */
+            Object *obj = object_new_with_class(OBJECT_CLASS(dc));
+            if (object_property_find(obj, "netdev", NULL)) {
+                g_ptr_array_add(pci_nic_models, (gpointer)name);
+            }
+            object_unref(obj);
         }
         next = list->next;
         g_slist_free_1(list);
