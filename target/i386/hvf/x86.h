@@ -62,44 +62,6 @@ typedef enum x86_rflags {
     RFLAGS_ID       = (1L << 21),
 } x86_rflags;
 
-/* rflags register */
-typedef struct x86_reg_flags {
-    union {
-        struct {
-            uint64_t rflags;
-        };
-        struct {
-            uint32_t eflags;
-            uint32_t hi32_unused1;
-        };
-        struct {
-            uint32_t cf:1;
-            uint32_t unused1:1;
-            uint32_t pf:1;
-            uint32_t unused2:1;
-            uint32_t af:1;
-            uint32_t unused3:1;
-            uint32_t zf:1;
-            uint32_t sf:1;
-            uint32_t tf:1;
-            uint32_t ief:1;
-            uint32_t df:1;
-            uint32_t of:1;
-            uint32_t iopl:2;
-            uint32_t nt:1;
-            uint32_t unused4:1;
-            uint32_t rf:1;
-            uint32_t vm:1;
-            uint32_t ac:1;
-            uint32_t vif:1;
-            uint32_t vip:1;
-            uint32_t id:1;
-            uint32_t unused5:10;
-            uint32_t hi32_unused2;
-        };
-    };
-} __attribute__ ((__packed__)) x86_reg_flags;
-
 typedef enum x86_reg_cr0 {
     CR0_PE =            (1L << 0),
     CR0_MP =            (1L << 1),
@@ -294,15 +256,11 @@ typedef struct lazy_flags {
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
     struct x86_register regs[16];
-    struct x86_reg_flags   rflags;
     struct lazy_flags   lflags;
     uint8_t mmio_buf[4096];
 };
 
 /* useful register access  macros */
-#define RFLAGS(cpu) (cpu->hvf_emul->rflags.rflags)
-#define EFLAGS(cpu) (cpu->hvf_emul->rflags.eflags)
-
 #define RRX(cpu, reg) (cpu->hvf_emul->regs[reg].rrx)
 #define RAX(cpu)        RRX(cpu, R_EAX)
 #define RCX(cpu)        RRX(cpu, R_ECX)

@@ -459,7 +459,7 @@ static inline void string_increment_reg(struct CPUX86State *env, int reg,
                                         struct x86_decode *decode)
 {
     target_ulong val = read_reg(env, reg, decode->addressing_size);
-    if (env->hvf_emul->rflags.df) {
+    if (env->eflags & DF_MASK) {
         val -= decode->operand_size;
     } else {
         val += decode->operand_size;
@@ -1432,7 +1432,7 @@ void load_regs(struct CPUState *cpu)
         RRX(env, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
     }
 
-    RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
+    env->eflags = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
     rflags_to_lflags(env);
     env->eip = rreg(cpu->hvf_fd, HV_X86_RIP);
 }
@@ -1456,7 +1456,7 @@ void store_regs(struct CPUState *cpu)
     }
 
     lflags_to_rflags(env);
-    wreg(cpu->hvf_fd, HV_X86_RFLAGS, RFLAGS(env));
+    wreg(cpu->hvf_fd, HV_X86_RFLAGS, env->eflags);
     macvm_set_rip(cpu, env->eip);
 }
 

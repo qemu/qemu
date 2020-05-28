@@ -295,21 +295,21 @@ void set_SF(CPUX86State *env, bool val)
 
 void lflags_to_rflags(CPUX86State *env)
 {
-    env->hvf_emul->rflags.cf = get_CF(env);
-    env->hvf_emul->rflags.pf = get_PF(env);
-    env->hvf_emul->rflags.af = get_AF(env);
-    env->hvf_emul->rflags.zf = get_ZF(env);
-    env->hvf_emul->rflags.sf = get_SF(env);
-    env->hvf_emul->rflags.of = get_OF(env);
+    env->eflags |= get_CF(env) ? CC_C : 0;
+    env->eflags |= get_PF(env) ? CC_P : 0;
+    env->eflags |= get_AF(env) ? CC_A : 0;
+    env->eflags |= get_ZF(env) ? CC_Z : 0;
+    env->eflags |= get_SF(env) ? CC_S : 0;
+    env->eflags |= get_OF(env) ? CC_O : 0;
 }
 
 void rflags_to_lflags(CPUX86State *env)
 {
     env->hvf_emul->lflags.auxbits = env->hvf_emul->lflags.result = 0;
-    set_OF(env, env->hvf_emul->rflags.of);
-    set_SF(env, env->hvf_emul->rflags.sf);
-    set_ZF(env, env->hvf_emul->rflags.zf);
-    set_AF(env, env->hvf_emul->rflags.af);
-    set_PF(env, env->hvf_emul->rflags.pf);
-    set_CF(env, env->hvf_emul->rflags.cf);
+    set_OF(env, env->eflags & CC_O);
+    set_SF(env, env->eflags & CC_S);
+    set_ZF(env, env->eflags & CC_Z);
+    set_AF(env, env->eflags & CC_A);
+    set_PF(env, env->eflags & CC_P);
+    set_CF(env, env->eflags & CC_C);
 }
