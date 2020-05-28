@@ -29,6 +29,7 @@ from . import qmp
 
 LOG = logging.getLogger(__name__)
 
+
 class QEMUMachineError(Exception):
     """
     Exception called when an error in QEMUMachine happens.
@@ -62,7 +63,8 @@ class QEMUMachine:
     """
     A QEMU VM
 
-    Use this object as a context manager to ensure the QEMU process terminates::
+    Use this object as a context manager to ensure
+    the QEMU process terminates::
 
         with VM(binary) as vm:
             ...
@@ -185,8 +187,10 @@ class QEMUMachine:
             fd_param.append(str(fd))
 
         devnull = open(os.path.devnull, 'rb')
-        proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=False)
+        proc = subprocess.Popen(
+            fd_param, stdin=devnull, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, close_fds=False
+        )
         output = proc.communicate()[0]
         if output:
             LOG.debug(output)
@@ -485,7 +489,8 @@ class QEMUMachine:
 
     def events_wait(self, events, timeout=60.0):
         """
-        events_wait waits for and returns a named event from QMP with a timeout.
+        events_wait waits for and returns a named event
+        from QMP with a timeout.
 
         events: a sequence of (name, match_criteria) tuples.
                 The match criteria are optional and may be None.

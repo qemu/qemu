@@ -23,10 +23,11 @@ LOG = logging.getLogger(__name__)
 # Mapping host architecture to any additional architectures it can
 # support which often includes its 32 bit cousin.
 ADDITIONAL_ARCHES = {
-    "x86_64" : "i386",
-    "aarch64" : "armhf",
-    "ppc64le" : "ppc64",
+    "x86_64": "i386",
+    "aarch64": "armhf",
+    "ppc64le": "ppc64",
 }
+
 
 def list_accel(qemu_bin):
     """
@@ -46,6 +47,7 @@ def list_accel(qemu_bin):
         raise
     # Skip the first line which is the header.
     return [acc.strip() for acc in out.splitlines()[1:]]
+
 
 def kvm_available(target_arch=None, qemu_bin=None):
     """
@@ -68,6 +70,7 @@ def kvm_available(target_arch=None, qemu_bin=None):
     if qemu_bin and "kvm" not in list_accel(qemu_bin):
         return False
     return True
+
 
 def tcg_available(qemu_bin):
     """

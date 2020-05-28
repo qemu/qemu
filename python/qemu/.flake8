@@ -1,0 +1,2 @@
+[flake8]
+extend-ignore = E722  # Pylint handles this, but smarter.
