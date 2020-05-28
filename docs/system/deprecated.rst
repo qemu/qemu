@@ -138,25 +138,23 @@ the backing storage specified with ``-mem-path`` can actually provide
 the guest RAM configured with ``-m`` and QEMU will fail to start up if
 RAM allocation is unsuccessful.
 
-RISC-V ``-bios`` (since 4.1)
+RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
 QEMU 4.1 introduced support for the -bios option in QEMU for RISC-V for the
-RISC-V virt machine and sifive_u machine.
+RISC-V virt machine and sifive_u machine. QEMU 4.1 had no changes to the
+default behaviour to avoid breakages.
 
-QEMU 4.1 has no changes to the default behaviour to avoid breakages. This
-default will change in a future QEMU release, so please prepare now. All users
-of the virt or sifive_u machine must change their command line usage.
+QEMU 5.1 changes the default behaviour from ``-bios none`` to ``-bios default``.
 
-QEMU 4.1 has three options, please migrate to one of these three:
- 1. ``-bios none`` - This is the current default behavior if no -bios option
-      is included. QEMU will not automatically load any firmware. It is up
+QEMU 5.1 has three options:
+ 1. ``-bios default`` - This is the current default behavior if no -bios option
+      is included. This option will load the default OpenSBI firmware automatically.
+      The firmware is included with the QEMU release and no user interaction is
+      required. All a user needs to do is specify the kernel they want to boot
+      with the -kernel option
+ 2. ``-bios none`` - QEMU will not automatically load any firmware. It is up
       to the user to load all the images they need.
- 2. ``-bios default`` - In a future QEMU release this will become the default
-      behaviour if no -bios option is specified. This option will load the
-      default OpenSBI firmware automatically. The firmware is included with
-      the QEMU release and no user interaction is required. All a user needs
-      to do is specify the kernel they want to boot with the -kernel option
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
 ``-tb-size`` option (since 5.0)
