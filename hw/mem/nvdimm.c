@@ -97,7 +97,6 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
     if (qemu_uuid_parse(value, &nvdimm->uuid) != 0) {
         error_setg(errp, "Property '%s.%s' has invalid value",
                    object_get_typename(obj), name);
-        goto out;
     }
     g_free(value);
 

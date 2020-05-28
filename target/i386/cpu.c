@@ -5078,7 +5078,7 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 
 /* Load data from X86CPUDefinition into a X86CPU object
  */
-static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model, Error **errp)
+static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
 {
     X86CPUDefinition *def = model->cpudef;
     CPUX86State *env = &cpu->env;
@@ -5092,13 +5092,19 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model, Error **errp)
      */
 
     /* CPU models only set _minimum_ values for level/xlevel: */
-    object_property_set_uint(OBJECT(cpu), def->level, "min-level", errp);
-    object_property_set_uint(OBJECT(cpu), def->xlevel, "min-xlevel", errp);
+    object_property_set_uint(OBJECT(cpu), def->level, "min-level",
+                             &error_abort);
+    object_property_set_uint(OBJECT(cpu), def->xlevel, "min-xlevel",
+                             &error_abort);
 
-    object_property_set_int(OBJECT(cpu), def->family, "family", errp);
-    object_property_set_int(OBJECT(cpu), def->model, "model", errp);
-    object_property_set_int(OBJECT(cpu), def->stepping, "stepping", errp);
-    object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
+    object_property_set_int(OBJECT(cpu), def->family, "family",
+                            &error_abort);
+    object_property_set_int(OBJECT(cpu), def->model, "model",
+                            &error_abort);
+    object_property_set_int(OBJECT(cpu), def->stepping, "stepping",
+                            &error_abort);
+    object_property_set_str(OBJECT(cpu), def->model_id, "model-id",
+                            &error_abort);
     for (w = 0; w < FEATURE_WORDS; w++) {
         env->features[w] = def->features[w];
     }
@@ -5135,7 +5141,8 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model, Error **errp)
         vendor = host_vendor;
     }
 
-    object_property_set_str(OBJECT(cpu), vendor, "vendor", errp);
+    object_property_set_str(OBJECT(cpu), vendor, "vendor",
+                            &error_abort);
 
     x86_cpu_apply_version_props(cpu, model);
 }
@@ -6975,7 +6982,7 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "sse4_2", obj, "sse4.2");
 
     if (xcc->model) {
-        x86_cpu_load_model(cpu, xcc->model, &error_abort);
+        x86_cpu_load_model(cpu, xcc->model);
     }
 }
 

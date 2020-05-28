@@ -524,7 +524,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
             }
         }
         if (!err) {
-            visit_check_struct(visitor, errp);
+            visit_check_struct(visitor, &err);
         }
         visit_end_struct(visitor, NULL);
         visit_free(visitor);

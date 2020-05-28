@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -301,7 +302,6 @@ static char *migrate_get_socket_address(QTestState *who, const char *parameter)
 {
     QDict *rsp;
     char *result;
-    Error *local_err = NULL;
     SocketAddressList *addrs;
     Visitor *iv = NULL;
     QObject *object;
@@ -310,7 +310,7 @@ static char *migrate_get_socket_address(QTestState *who, const char *parameter)
     object = qdict_get(rsp, parameter);
 
     iv = qobject_input_visitor_new(object);
-    visit_type_SocketAddressList(iv, NULL, &addrs, &local_err);
+    visit_type_SocketAddressList(iv, NULL, &addrs, &error_abort);
     visit_free(iv);
 
     /* we are only using a single address */
