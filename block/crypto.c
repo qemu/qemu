@@ -758,7 +758,6 @@ static int block_crypto_get_info_luks(BlockDriverState *bs,
         return ret;
     }
 
-    bdi->unallocated_blocks_are_zero = false;
     bdi->cluster_size = subbdi.cluster_size;
 
     return 0;
