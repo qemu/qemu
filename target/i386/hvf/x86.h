@@ -228,10 +228,6 @@ typedef struct x68_segment_selector {
     };
 } __attribute__ ((__packed__)) x68_segment_selector;
 
-/* Definition of hvf_x86_state is here */
-struct HVFX86EmulatorState {
-};
-
 /* useful register access  macros */
 #define x86_reg(cpu, reg) ((x86_register *) &cpu->regs[reg])
 

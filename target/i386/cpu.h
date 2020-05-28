@@ -1604,7 +1604,6 @@ typedef struct CPUX86State {
 #if defined(CONFIG_HVF)
     HVFX86LazyFlags hvf_lflags;
     void *hvf_mmio_buf;
-    HVFX86EmulatorState *hvf_emul;
 #endif
 
     uint64_t mcg_cap;
