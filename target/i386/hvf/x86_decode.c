@@ -697,15 +697,13 @@ static void decode_db_4(CPUX86State *env, struct x86_decode *decode)
 
 
 #define RFLAGS_MASK_NONE    0
-#define RFLAGS_MASK_OSZAPC  (RFLAGS_OF | RFLAGS_SF | RFLAGS_ZF | RFLAGS_AF | \
-                             RFLAGS_PF | RFLAGS_CF)
-#define RFLAGS_MASK_LAHF    (RFLAGS_SF | RFLAGS_ZF | RFLAGS_AF | RFLAGS_PF | \
-                             RFLAGS_CF)
-#define RFLAGS_MASK_CF      (RFLAGS_CF)
-#define RFLAGS_MASK_IF      (RFLAGS_IF)
-#define RFLAGS_MASK_TF      (RFLAGS_TF)
-#define RFLAGS_MASK_DF      (RFLAGS_DF)
-#define RFLAGS_MASK_ZF      (RFLAGS_ZF)
+#define RFLAGS_MASK_OSZAPC  (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C)
+#define RFLAGS_MASK_LAHF    (CC_S | CC_Z | CC_A | CC_P | CC_C)
+#define RFLAGS_MASK_CF      (CC_C)
+#define RFLAGS_MASK_IF      (IF_MASK)
+#define RFLAGS_MASK_TF      (TF_MASK)
+#define RFLAGS_MASK_DF      (DF_MASK)
+#define RFLAGS_MASK_ZF      (CC_Z)
 
 struct decode_tbl _1op_inst[] = {
     {0x0, X86_DECODE_CMD_ADD, 1, true, decode_modrm_rm, decode_modrm_reg, NULL,

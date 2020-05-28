@@ -42,26 +42,6 @@ typedef struct x86_register {
     };
 } __attribute__ ((__packed__)) x86_register;
 
-typedef enum x86_rflags {
-    RFLAGS_CF       = (1L << 0),
-    RFLAGS_PF       = (1L << 2),
-    RFLAGS_AF       = (1L << 4),
-    RFLAGS_ZF       = (1L << 6),
-    RFLAGS_SF       = (1L << 7),
-    RFLAGS_TF       = (1L << 8),
-    RFLAGS_IF       = (1L << 9),
-    RFLAGS_DF       = (1L << 10),
-    RFLAGS_OF       = (1L << 11),
-    RFLAGS_IOPL     = (3L << 12),
-    RFLAGS_NT       = (1L << 14),
-    RFLAGS_RF       = (1L << 16),
-    RFLAGS_VM       = (1L << 17),
-    RFLAGS_AC       = (1L << 18),
-    RFLAGS_VIF      = (1L << 19),
-    RFLAGS_VIP      = (1L << 20),
-    RFLAGS_ID       = (1L << 21),
-} x86_rflags;
-
 typedef enum x86_reg_cr0 {
     CR0_PE =            (1L << 0),
     CR0_MP =            (1L << 1),
