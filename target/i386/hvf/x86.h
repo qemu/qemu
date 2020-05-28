@@ -235,13 +235,14 @@ typedef struct lazy_flags {
 
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
-    struct x86_register regs[16];
     struct lazy_flags   lflags;
     uint8_t mmio_buf[4096];
 };
 
 /* useful register access  macros */
-#define RRX(cpu, reg) (cpu->hvf_emul->regs[reg].rrx)
+#define x86_reg(cpu, reg) ((x86_register *) &cpu->regs[reg])
+
+#define RRX(cpu, reg)   (x86_reg(cpu, reg)->rrx)
 #define RAX(cpu)        RRX(cpu, R_EAX)
 #define RCX(cpu)        RRX(cpu, R_ECX)
 #define RDX(cpu)        RRX(cpu, R_EDX)
@@ -259,7 +260,7 @@ struct HVFX86EmulatorState {
 #define R14(cpu)        RRX(cpu, R_R14)
 #define R15(cpu)        RRX(cpu, R_R15)
 
-#define ERX(cpu, reg)   (cpu->hvf_emul->regs[reg].erx)
+#define ERX(cpu, reg)   (x86_reg(cpu, reg)->erx)
 #define EAX(cpu)        ERX(cpu, R_EAX)
 #define ECX(cpu)        ERX(cpu, R_ECX)
 #define EDX(cpu)        ERX(cpu, R_EDX)
@@ -269,7 +270,7 @@ struct HVFX86EmulatorState {
 #define ESI(cpu)        ERX(cpu, R_ESI)
 #define EDI(cpu)        ERX(cpu, R_EDI)
 
-#define RX(cpu, reg)   (cpu->hvf_emul->regs[reg].rx)
+#define RX(cpu, reg)   (x86_reg(cpu, reg)->rx)
 #define AX(cpu)        RX(cpu, R_EAX)
 #define CX(cpu)        RX(cpu, R_ECX)
 #define DX(cpu)        RX(cpu, R_EDX)
@@ -279,13 +280,13 @@ struct HVFX86EmulatorState {
 #define SI(cpu)        RX(cpu, R_ESI)
 #define DI(cpu)        RX(cpu, R_EDI)
 
-#define RL(cpu, reg)   (cpu->hvf_emul->regs[reg].lx)
+#define RL(cpu, reg)   (x86_reg(cpu, reg)->lx)
 #define AL(cpu)        RL(cpu, R_EAX)
 #define CL(cpu)        RL(cpu, R_ECX)
 #define DL(cpu)        RL(cpu, R_EDX)
 #define BL(cpu)        RL(cpu, R_EBX)
 
-#define RH(cpu, reg)   (cpu->hvf_emul->regs[reg].hx)
+#define RH(cpu, reg)   (x86_reg(cpu, reg)->hx)
 #define AH(cpu)        RH(cpu, R_EAX)
 #define CH(cpu)        RH(cpu, R_ECX)
 #define DH(cpu)        RH(cpu, R_EDX)

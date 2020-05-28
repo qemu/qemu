@@ -95,13 +95,13 @@ target_ulong read_reg(CPUX86State *env, int reg, int size)
 {
     switch (size) {
     case 1:
-        return env->hvf_emul->regs[reg].lx;
+        return x86_reg(env, reg)->lx;
     case 2:
-        return env->hvf_emul->regs[reg].rx;
+        return x86_reg(env, reg)->rx;
     case 4:
-        return env->hvf_emul->regs[reg].erx;
+        return x86_reg(env, reg)->erx;
     case 8:
-        return env->hvf_emul->regs[reg].rrx;
+        return x86_reg(env, reg)->rrx;
     default:
         abort();
     }
@@ -112,16 +112,16 @@ void write_reg(CPUX86State *env, int reg, target_ulong val, int size)
 {
     switch (size) {
     case 1:
-        env->hvf_emul->regs[reg].lx = val;
+        x86_reg(env, reg)->lx = val;
         break;
     case 2:
-        env->hvf_emul->regs[reg].rx = val;
+        x86_reg(env, reg)->rx = val;
         break;
     case 4:
-        env->hvf_emul->regs[reg].rrx = (uint32_t)val;
+        x86_reg(env, reg)->rrx = (uint32_t)val;
         break;
     case 8:
-        env->hvf_emul->regs[reg].rrx = val;
+        x86_reg(env, reg)->rrx = val;
         break;
     default:
         abort();
@@ -173,7 +173,7 @@ void write_val_to_reg(target_ulong reg_ptr, target_ulong val, int size)
 
 static bool is_host_reg(struct CPUX86State *env, target_ulong ptr)
 {
-    return (ptr - (target_ulong)&env->hvf_emul->regs[0]) < sizeof(env->hvf_emul->regs);
+    return (ptr - (target_ulong)&env->regs[0]) < sizeof(env->regs);
 }
 
 void write_val_ext(struct CPUX86State *env, target_ulong ptr, target_ulong val, int size)
