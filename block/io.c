@@ -2406,7 +2406,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
         ret |= BDRV_BLOCK_ALLOCATED;
-    } else if (want_zero) {
+    } else if (want_zero && bs->drv->supports_backing) {
         if (bs->backing) {
             BlockDriverState *bs2 = bs->backing->bs;
             int64_t size2 = bdrv_getlength(bs2);
@@ -2415,12 +2415,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
                 ret |= BDRV_BLOCK_ZERO;
             }
         } else {
-            BlockDriverInfo bdi;
-            int ret2 = bdrv_get_info(bs, &bdi);
-
-            if (ret2 == 0 && bdi.unallocated_blocks_are_zero) {
-                ret |= BDRV_BLOCK_ZERO;
-            }
+            ret |= BDRV_BLOCK_ZERO;
         }
     }
 

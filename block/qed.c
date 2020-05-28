@@ -1514,7 +1514,6 @@ static int bdrv_qed_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     memset(bdi, 0, sizeof(*bdi));
     bdi->cluster_size = s->header.cluster_size;
     bdi->is_dirty = s->header.features & QED_F_NEED_CHECK;
-    bdi->unallocated_blocks_are_zero = true;
     return 0;
 }
 

@@ -22,11 +22,6 @@ typedef struct BlockDriverInfo {
     int64_t vm_state_offset;
     bool is_dirty;
     /*
-     * True if unallocated blocks read back as zeroes. This is equivalent
-     * to the LBPRZ flag in the SCSI logical block provisioning page.
-     */
-    bool unallocated_blocks_are_zero;
-    /*
      * True if this block driver only supports compressed writes
      */
     bool needs_compressed_writes;
