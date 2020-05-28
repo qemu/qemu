@@ -1366,6 +1366,11 @@ typedef struct CPUCaches {
         CPUCacheInfo *l3_cache;
 } CPUCaches;
 
+typedef struct HVFX86LazyFlags {
+    target_ulong result;
+    target_ulong auxbits;
+} HVFX86LazyFlags;
+
 typedef struct CPUX86State {
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
@@ -1597,6 +1602,7 @@ typedef struct CPUX86State {
     struct kvm_nested_state *nested_state;
 #endif
 #if defined(CONFIG_HVF)
+    HVFX86LazyFlags hvf_lflags;
     HVFX86EmulatorState *hvf_emul;
 #endif
 

@@ -228,14 +228,8 @@ typedef struct x68_segment_selector {
     };
 } __attribute__ ((__packed__)) x68_segment_selector;
 
-typedef struct lazy_flags {
-    target_ulong result;
-    target_ulong auxbits;
-} lazy_flags;
-
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
-    struct lazy_flags   lflags;
     uint8_t mmio_buf[4096];
 };
 
