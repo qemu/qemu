@@ -293,7 +293,6 @@ typedef struct lazy_flags {
 
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
-    int interruptable;
     uint64_t fetch_rip;
     uint64_t rip;
     struct x86_register regs[16];
