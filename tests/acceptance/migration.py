@@ -35,6 +35,10 @@ class Migration(Test):
                       timeout=self.timeout,
                       step=0.1,
                       args=(src_vm,))
+        wait.wait_for(self.migration_finished,
+                      timeout=self.timeout,
+                      step=0.1,
+                      args=(dst_vm,))
         self.assertEqual(src_vm.command('query-migrate')['status'], 'completed')
         self.assertEqual(dst_vm.command('query-migrate')['status'], 'completed')
         self.assertEqual(dst_vm.command('query-status')['status'], 'running')
