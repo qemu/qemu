@@ -1,12 +1,24 @@
 include:
-  - local: '/.gitlab-ci-edk2.yml'
-  - local: '/.gitlab-ci-opensbi.yml'
+  - local: '/.gitlab-ci.d/edk2.yml'
+  - local: '/.gitlab-ci.d/opensbi.yml'
 
-before_script:
- - apt-get update -qq
- - apt-get install -y -qq flex bison libglib2.0-dev libpixman-1-dev genisoimage
+.update_apt_template: &before_script_apt
+ before_script:
+  - apt-get update -qq
+  - apt-get install -y -qq git gcc libglib2.0-dev libpixman-1-dev make
+        genisoimage
+  - JOBS=$(expr $(nproc) + 1)
+
+.update_dnf_template: &before_script_dnf
+ before_script:
+  - dnf update -y
+  - dnf install -y bzip2 diffutils gcc git genisoimage findutils glib2-devel
+        make python3 perl-podlators perl-Test-Harness pixman-devel zlib-devel
+  - JOBS=$(expr $(nproc) + 1)
 
 build-system1:
+ image: ubuntu:19.10
+ <<: *before_script_apt
  script:
  - apt-get install -y -qq libgtk-3-dev libvte-dev nettle-dev libcacard-dev
       libusb-dev libvde-dev libspice-protocol-dev libgl1-mesa-dev libvdeplug-dev
@@ -15,23 +27,27 @@ build-system1:
  - ../configure --enable-werror --target-list="aarch64-softmmu alpha-softmmu
       cris-softmmu hppa-softmmu lm32-softmmu moxie-softmmu microblazeel-softmmu
       mips64el-softmmu m68k-softmmu ppc-softmmu riscv64-softmmu sparc-softmmu"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-system2:
+ image: fedora:latest
+ <<: *before_script_dnf
  script:
- - apt-get install -y -qq libsdl2-dev libgcrypt-dev libbrlapi-dev libaio-dev
-      libfdt-dev liblzo2-dev librdmacm-dev libibverbs-dev libibumad-dev
-      libzstd-dev
+ - yum install -y SDL2-devel libgcrypt-devel brlapi-devel libaio-devel
+       libfdt-devel lzo-devel librdmacm-devel libibverbs-devel libibumad-devel
+       libzstd-devel
  - mkdir build
  - cd build
  - ../configure --enable-werror --target-list="tricore-softmmu unicore32-softmmu
       microblaze-softmmu mips-softmmu riscv32-softmmu s390x-softmmu sh4-softmmu
       sparc64-softmmu x86_64-softmmu xtensa-softmmu nios2-softmmu or1k-softmmu"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-disabled:
+ image: fedora:latest
+ <<: *before_script_dnf
  script:
  - mkdir build
  - cd build
@@ -42,16 +58,18 @@ build-disabled:
       --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
       --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
       --target-list="i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user"
- - make -j2
- - make -j2 check-qtest SPEED=slow
+ - make -j"$JOBS"
+ - make -j"$JOBS" check-qtest SPEED=slow
 
 build-tcg-disabled:
+ image: centos:8
+ <<: *before_script_dnf
  script:
- - apt-get install -y -qq clang libgtk-3-dev libusb-dev
+ - dnf install -y clang gtk3-devel libusbx-devel libgcrypt-devel
  - mkdir build
  - cd build
  - ../configure --cc=clang --enable-werror --disable-tcg --audio-drv-list=""
- - make -j2
+ - make -j"$JOBS"
  - make check-unit
  - make check-qapi-schema
  - cd tests/qemu-iotests/
@@ -64,34 +82,39 @@ build-tcg-disabled:
             260 261 262 263 264 270 272 273 277 279
 
 build-user:
+ <<: *before_script_apt
  script:
  - mkdir build
  - cd build
  - ../configure --enable-werror --disable-system --disable-guest-agent
                --disable-capstone --disable-slirp --disable-fdt
- - make -j2
+ - make -j"$JOBS"
  - make run-tcg-tests-i386-linux-user run-tcg-tests-x86_64-linux-user
 
 build-clang:
+ image: fedora:latest
+ <<: *before_script_dnf
  script:
- - apt-get install -y -qq clang libsdl2-dev libattr1-dev libcap-ng-dev
-      xfslibs-dev libiscsi-dev libnfs-dev libseccomp-dev gnutls-dev librbd-dev
+ - yum install -y clang SDL2-devel libattr-devel libcap-ng-devel xfsprogs-devel
+       libiscsi-devel libnfs-devel libseccomp-devel gnutls-devel librbd-devel
  - mkdir build
  - cd build
  - ../configure --cc=clang --cxx=clang++ --enable-werror
       --target-list="alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
                      ppc-softmmu s390x-softmmu x86_64-softmmu arm-linux-user"
- - make -j2
- - make -j2 check
+ - make -j"$JOBS"
+ - make -j"$JOBS" check
 
 build-tci:
+ image: centos:8
+ <<: *before_script_dnf
  script:
  - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
  - mkdir build
  - cd build
  - ../configure --enable-tcg-interpreter
       --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)"
- - make -j2
+ - make -j"$JOBS"
  - make run-tcg-tests-x86_64-softmmu
  - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
  - for tg in $TARGETS ; do
