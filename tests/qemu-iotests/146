@@ -51,19 +51,25 @@ echo === Testing VPC Autodetect ===
 echo
 _use_sample_img virtualpc-dynamic.vhd.bz2
 
-${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing VPC with current_size force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=current_size,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing VPC with chs force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=chs,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 _cleanup_test_img
 
@@ -72,19 +78,25 @@ echo === Testing Hyper-V Autodetect ===
 echo
 _use_sample_img hyperv2012r2-dynamic.vhd.bz2
 
-${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing Hyper-V with current_size force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=current_size,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing Hyper-V with chs force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=chs,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 _cleanup_test_img
 
@@ -93,19 +105,25 @@ echo === Testing d2v Autodetect ===
 echo
 _use_sample_img d2v-zerofilled.vhd.bz2
 
-${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing d2v with current_size force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=current_size,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing d2v with chs force ===
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=chs,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 _cleanup_test_img
 
@@ -121,19 +139,25 @@ echo
 echo === Read created image, default opts ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Read created image, force_size_calc=chs ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=chs,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Read created image, force_size_calc=current_size ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=current_size,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Testing Image create, force_size ===
@@ -145,19 +169,25 @@ echo
 echo === Read created image, default opts ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Read created image, force_size_calc=chs ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=chs ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=chs,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo
 echo === Read created image, force_size_calc=current_size ====
 echo
 
-${QEMU_IO} -c "open -o driver=vpc,force_size_calc=current_size ${TEST_IMG}" -c 'map'
+$QEMU_IMG map --output=json --image-opts \
+    "driver=vpc,force_size_calc=current_size,file.filename=$TEST_IMG" \
+    | _filter_qemu_img_map
 
 echo "*** done"
 rm -f $seq.full
