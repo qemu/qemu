@@ -230,7 +230,6 @@ typedef struct x68_segment_selector {
 
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
-    uint8_t mmio_buf[4096];
 };
 
 /* useful register access  macros */
