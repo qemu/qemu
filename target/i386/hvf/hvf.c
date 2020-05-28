@@ -767,8 +767,6 @@ int hvf_vcpu_exec(CPUState *cpu)
                 struct x86_decode decode;
 
                 load_regs(cpu);
-                env->hvf_emul->fetch_rip = rip;
-
                 decode_instruction(env, &decode);
                 exec_instruction(env, &decode);
                 store_regs(cpu);
@@ -809,8 +807,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            env->hvf_emul->fetch_rip = rip;
-
             decode_instruction(env, &decode);
             assert(ins_len == decode.len);
             exec_instruction(env, &decode);
@@ -915,8 +911,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            env->hvf_emul->fetch_rip = rip;
-
             decode_instruction(env, &decode);
             exec_instruction(env, &decode);
             store_regs(cpu);
