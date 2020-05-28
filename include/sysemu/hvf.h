@@ -30,35 +30,13 @@ extern bool hvf_allowed;
 #define hvf_get_supported_cpuid(func, idx, reg) 0
 #endif /* !CONFIG_HVF */
 
-/* Disable HVF if |disable| is 1, otherwise, enable it iff it is supported by
- * the host CPU. Use hvf_enabled() after this to get the result. */
-void hvf_disable(int disable);
-
-/* Returns non-0 if the host CPU supports the VMX "unrestricted guest" feature
- * which allows the virtual CPU to directly run in "real mode". If true, this
- * allows QEMU to run several vCPU threads in parallel (see cpus.c). Otherwise,
- * only a a single TCG thread can run, and it will call HVF to run the current
- * instructions, except in case of "real mode" (paging disabled, typically at
- * boot time), or MMIO operations. */
-
-int hvf_sync_vcpus(void);
-
 int hvf_init_vcpu(CPUState *);
 int hvf_vcpu_exec(CPUState *);
-int hvf_smp_cpu_exec(CPUState *);
 void hvf_cpu_synchronize_state(CPUState *);
 void hvf_cpu_synchronize_post_reset(CPUState *);
 void hvf_cpu_synchronize_post_init(CPUState *);
-void _hvf_cpu_synchronize_post_init(CPUState *, run_on_cpu_data);
-
 void hvf_vcpu_destroy(CPUState *);
-void hvf_raise_event(CPUState *);
-/* void hvf_reset_vcpu_state(void *opaque); */
 void hvf_reset_vcpu(CPUState *);
-void vmx_update_tpr(CPUState *);
-void update_apic_tpr(CPUState *);
-int hvf_put_registers(CPUState *);
-void vmx_clear_int_window_exiting(CPUState *cpu);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 
