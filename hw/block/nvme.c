@@ -1425,7 +1425,9 @@ static void nvme_init_state(NvmeCtrl *n)
 
 static void nvme_init_blk(NvmeCtrl *n, Error **errp)
 {
-    blkconf_blocksizes(&n->conf);
+    if (!blkconf_blocksizes(&n->conf, errp)) {
+        return;
+    }
     blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
                                   false, errp);
 }
