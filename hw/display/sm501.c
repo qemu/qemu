@@ -2,7 +2,7 @@
  * QEMU SM501 Device
  *
  * Copyright (c) 2008 Shin-ichiro KAWASAKI
- * Copyright (c) 2016 BALATON Zoltan
+ * Copyright (c) 2016-2020 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,23 +39,6 @@
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"
-
-/*
- * Status: 2010/05/07
- *   - Minimum implementation for Linux console : mmio regs and CRT layer.
- *   - 2D graphics acceleration partially supported : only fill rectangle.
- *
- * Status: 2016/12/04
- *   - Misc fixes: endianness, hardware cursor
- *   - Panel support
- *
- * TODO:
- *   - Touch panel support
- *   - USB support
- *   - UART support
- *   - More 2D graphics engine support
- *   - Performance tuning
- */
 
 /*#define DEBUG_SM501*/
 /*#define DEBUG_BITBLT*/
@@ -699,139 +682,176 @@ static inline void hwc_invalidate(SM501State *s, int crt)
 
 static void sm501_2d_operation(SM501State *s)
 {
-    /* obtain operation parameters */
-    int operation = (s->twoD_control >> 16) & 0x1f;
-    int rtl = s->twoD_control & 0x8000000;
-    int src_x = (s->twoD_source >> 16) & 0x01FFF;
-    int src_y = s->twoD_source & 0xFFFF;
-    int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
-    int dst_y = s->twoD_destination & 0xFFFF;
-    int operation_width = (s->twoD_dimension >> 16) & 0x1FFF;
-    int operation_height = s->twoD_dimension & 0xFFFF;
-    uint32_t color = s->twoD_foreground;
-    int format_flags = (s->twoD_stretch >> 20) & 0x3;
-    int addressing = (s->twoD_stretch >> 16) & 0xF;
+    int cmd = (s->twoD_control >> 16) & 0x1F;
+    int rtl = s->twoD_control & BIT(27);
+    int format = (s->twoD_stretch >> 20) & 0x3;
     int rop_mode = (s->twoD_control >> 15) & 0x1; /* 1 for rop2, else rop3 */
     /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
     int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
     int rop = s->twoD_control & 0xFF;
-    uint32_t src_base = s->twoD_source_base & 0x03FFFFFF;
+    unsigned int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
+    unsigned int dst_y = s->twoD_destination & 0xFFFF;
+    unsigned int width = (s->twoD_dimension >> 16) & 0x1FFF;
+    unsigned int height = s->twoD_dimension & 0xFFFF;
     uint32_t dst_base = s->twoD_destination_base & 0x03FFFFFF;
-
-    /* get frame buffer info */
-    uint8_t *src = s->local_mem + src_base;
-    uint8_t *dst = s->local_mem + dst_base;
-    int src_width = s->twoD_pitch & 0x1FFF;
-    int dst_width = (s->twoD_pitch >> 16) & 0x1FFF;
+    unsigned int dst_pitch = (s->twoD_pitch >> 16) & 0x1FFF;
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
     int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
 
-    if (addressing != 0x0) {
-        printf("%s: only XY addressing is supported.\n", __func__);
-        abort();
+    if ((s->twoD_stretch >> 16) & 0xF) {
+        qemu_log_mask(LOG_UNIMP, "sm501: only XY addressing is supported.\n");
+        return;
     }
 
-    if (rop_mode == 0) {
-        if (rop != 0xcc) {
-            /* Anything other than plain copies are not supported */
-            qemu_log_mask(LOG_UNIMP, "sm501: rop3 mode with rop %x is not "
-                          "supported.\n", rop);
+    if (s->twoD_source_base & BIT(27) || s->twoD_destination_base & BIT(27)) {
+        qemu_log_mask(LOG_UNIMP, "sm501: only local memory is supported.\n");
+        return;
+    }
+
+    if (!dst_pitch) {
+        qemu_log_mask(LOG_GUEST_ERROR, "sm501: Zero dest pitch.\n");
+        return;
+    }
+
+    if (!width || !height) {
+        qemu_log_mask(LOG_GUEST_ERROR, "sm501: Zero size 2D op.\n");
+        return;
+    }
+
+    if (rtl) {
+        dst_x -= width - 1;
+        dst_y -= height - 1;
+    }
+
+    if (dst_base >= get_local_mem_size(s) || dst_base +
+        (dst_x + width + (dst_y + height) * (dst_pitch + width)) *
+        (1 << format) >= get_local_mem_size(s)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "sm501: 2D op dest is outside vram.\n");
+        return;
+    }
+
+    switch (cmd) {
+    case 0: /* BitBlt */
+    {
+        static uint32_t tmp_buf[16384];
+        unsigned int src_x = (s->twoD_source >> 16) & 0x01FFF;
+        unsigned int src_y = s->twoD_source & 0xFFFF;
+        uint32_t src_base = s->twoD_source_base & 0x03FFFFFF;
+        unsigned int src_pitch = s->twoD_pitch & 0x1FFF;
+
+        if (!src_pitch) {
+            qemu_log_mask(LOG_GUEST_ERROR, "sm501: Zero src pitch.\n");
+            return;
         }
-    } else {
-        if (rop2_source_is_pattern && rop != 0x5) {
-            /* For pattern source, we support only inverse dest */
-            qemu_log_mask(LOG_UNIMP, "sm501: rop2 source being the pattern and "
-                          "rop %x is not supported.\n", rop);
+
+        if (rtl) {
+            src_x -= width - 1;
+            src_y -= height - 1;
+        }
+
+        if (src_base >= get_local_mem_size(s) || src_base +
+            (src_x + width + (src_y + height) * (src_pitch + width)) *
+            (1 << format) >= get_local_mem_size(s)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "sm501: 2D op src is outside vram.\n");
+            return;
+        }
+
+        if ((rop_mode && rop == 0x5) || (!rop_mode && rop == 0x55)) {
+            /* Invert dest, is there a way to do this with pixman? */
+            unsigned int x, y, i;
+            uint8_t *d = s->local_mem + dst_base;
+
+            for (y = 0; y < height; y++) {
+                i = (dst_x + (dst_y + y) * dst_pitch) * (1 << format);
+                for (x = 0; x < width; x++, i += (1 << format)) {
+                    switch (format) {
+                    case 0:
+                        d[i] = ~d[i];
+                        break;
+                    case 1:
+                        *(uint16_t *)&d[i] = ~*(uint16_t *)&d[i];
+                        break;
+                    case 2:
+                        *(uint32_t *)&d[i] = ~*(uint32_t *)&d[i];
+                        break;
+                    }
+                }
+            }
         } else {
-            if (rop != 0x5 && rop != 0xc) {
-                /* Anything other than plain copies or inverse dest is not
-                 * supported */
-                qemu_log_mask(LOG_UNIMP, "sm501: rop mode %x is not "
-                              "supported.\n", rop);
+            /* Do copy src for unimplemented ops, better than unpainted area */
+            if ((rop_mode && (rop != 0xc || rop2_source_is_pattern)) ||
+                (!rop_mode && rop != 0xcc)) {
+                qemu_log_mask(LOG_UNIMP,
+                              "sm501: rop%d op %x%s not implemented\n",
+                              (rop_mode ? 2 : 3), rop,
+                              (rop2_source_is_pattern ?
+                                  " with pattern source" : ""));
+            }
+            /* Check for overlaps, this could be made more exact */
+            uint32_t sb, se, db, de;
+            sb = src_base + src_x + src_y * (width + src_pitch);
+            se = sb + width + height * (width + src_pitch);
+            db = dst_base + dst_x + dst_y * (width + dst_pitch);
+            de = db + width + height * (width + dst_pitch);
+            if (rtl && ((db >= sb && db <= se) || (de >= sb && de <= se))) {
+                /* regions may overlap: copy via temporary */
+                int free_buf = 0, llb = width * (1 << format);
+                int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
+                uint32_t *tmp = tmp_buf;
+
+                if (tmp_stride * sizeof(uint32_t) * height > sizeof(tmp_buf)) {
+                    tmp = g_malloc(tmp_stride * sizeof(uint32_t) * height);
+                    free_buf = 1;
+                }
+                pixman_blt((uint32_t *)&s->local_mem[src_base], tmp,
+                           src_pitch * (1 << format) / sizeof(uint32_t),
+                           tmp_stride, 8 * (1 << format), 8 * (1 << format),
+                           src_x, src_y, 0, 0, width, height);
+                pixman_blt(tmp, (uint32_t *)&s->local_mem[dst_base],
+                           tmp_stride,
+                           dst_pitch * (1 << format) / sizeof(uint32_t),
+                           8 * (1 << format), 8 * (1 << format),
+                           0, 0, dst_x, dst_y, width, height);
+                if (free_buf) {
+                    g_free(tmp);
+                }
+            } else {
+                pixman_blt((uint32_t *)&s->local_mem[src_base],
+                           (uint32_t *)&s->local_mem[dst_base],
+                           src_pitch * (1 << format) / sizeof(uint32_t),
+                           dst_pitch * (1 << format) / sizeof(uint32_t),
+                           8 * (1 << format), 8 * (1 << format),
+                           src_x, src_y, dst_x, dst_y, width, height);
             }
         }
-    }
-
-    if ((s->twoD_source_base & 0x08000000) ||
-        (s->twoD_destination_base & 0x08000000)) {
-        printf("%s: only local memory is supported.\n", __func__);
-        abort();
-    }
-
-    switch (operation) {
-    case 0x00: /* copy area */
-#define COPY_AREA(_bpp, _pixel_type, rtl) {                                   \
-        int y, x, index_d, index_s;                                           \
-        for (y = 0; y < operation_height; y++) {                              \
-            for (x = 0; x < operation_width; x++) {                           \
-                _pixel_type val;                                              \
-                                                                              \
-                if (rtl) {                                                    \
-                    index_s = ((src_y - y) * src_width + src_x - x) * _bpp;   \
-                    index_d = ((dst_y - y) * dst_width + dst_x - x) * _bpp;   \
-                } else {                                                      \
-                    index_s = ((src_y + y) * src_width + src_x + x) * _bpp;   \
-                    index_d = ((dst_y + y) * dst_width + dst_x + x) * _bpp;   \
-                }                                                             \
-                if (rop_mode == 1 && rop == 5) {                              \
-                    /* Invert dest */                                         \
-                    val = ~*(_pixel_type *)&dst[index_d];                     \
-                } else {                                                      \
-                    val = *(_pixel_type *)&src[index_s];                      \
-                }                                                             \
-                *(_pixel_type *)&dst[index_d] = val;                          \
-            }                                                                 \
-        }                                                                     \
-    }
-        switch (format_flags) {
-        case 0:
-            COPY_AREA(1, uint8_t, rtl);
-            break;
-        case 1:
-            COPY_AREA(2, uint16_t, rtl);
-            break;
-        case 2:
-            COPY_AREA(4, uint32_t, rtl);
-            break;
-        }
         break;
-
-    case 0x01: /* fill rectangle */
-#define FILL_RECT(_bpp, _pixel_type) {                                      \
-        int y, x;                                                           \
-        for (y = 0; y < operation_height; y++) {                            \
-            for (x = 0; x < operation_width; x++) {                         \
-                int index = ((dst_y + y) * dst_width + dst_x + x) * _bpp;   \
-                *(_pixel_type *)&dst[index] = (_pixel_type)color;           \
-            }                                                               \
-        }                                                                   \
     }
+    case 1: /* Rectangle Fill */
+    {
+        uint32_t color = s->twoD_foreground;
 
-        switch (format_flags) {
-        case 0:
-            FILL_RECT(1, uint8_t);
-            break;
-        case 1:
-            color = cpu_to_le16(color);
-            FILL_RECT(2, uint16_t);
-            break;
-        case 2:
+        if (format == 2) {
             color = cpu_to_le32(color);
-            FILL_RECT(4, uint32_t);
-            break;
+        } else if (format == 1) {
+            color = cpu_to_le16(color);
         }
-        break;
 
-    default:
-        printf("non-implemented SM501 2D operation. %d\n", operation);
-        abort();
+        pixman_fill((uint32_t *)&s->local_mem[dst_base],
+                    dst_pitch * (1 << format) / sizeof(uint32_t),
+                    8 * (1 << format), dst_x, dst_y, width, height, color);
         break;
+    }
+    default:
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented 2D operation: %d\n",
+                      cmd);
+        return;
     }
 
     if (dst_base >= get_fb_addr(s, crt) &&
         dst_base <= get_fb_addr(s, crt) + fb_len) {
-        int dst_len = MIN(fb_len, ((dst_y + operation_height - 1) * dst_width +
-                           dst_x + operation_width) * (1 << format_flags));
+        int dst_len = MIN(fb_len, ((dst_y + height - 1) * dst_pitch +
+                          dst_x + width) * (1 << format));
         if (dst_len) {
             memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
         }
@@ -892,9 +912,8 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("sm501 system config : not implemented register read."
-               " addr=%x\n", (int)addr);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented system config"
+                      "register read. addr=%" HWADDR_PRIx "\n", addr);
     }
 
     return ret;
@@ -948,15 +967,15 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
         break;
     case SM501_ENDIAN_CONTROL:
         if (value & 0x00000001) {
-            printf("sm501 system config : big endian mode not implemented.\n");
-            abort();
+            qemu_log_mask(LOG_UNIMP, "sm501: system config big endian mode not"
+                          " implemented.\n");
         }
         break;
 
     default:
-        printf("sm501 system config : not implemented register write."
-               " addr=%x, val=%x\n", (int)addr, (uint32_t)value);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented system config"
+                      "register write. addr=%" HWADDR_PRIx
+                      ", val=%" PRIx64 "\n", addr, value);
     }
 }
 
@@ -1207,9 +1226,8 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("sm501 disp ctrl : not implemented register read."
-               " addr=%x\n", (int)addr);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented disp ctrl register "
+                      "read. addr=%" HWADDR_PRIx "\n", addr);
     }
 
     return ret;
@@ -1345,9 +1363,9 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("sm501 disp ctrl : not implemented register write."
-               " addr=%x, val=%x\n", (int)addr, (unsigned)value);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented disp ctrl register "
+                      "write. addr=%" HWADDR_PRIx
+                      ", val=%" PRIx64 "\n", addr, value);
     }
 }
 
@@ -1433,9 +1451,8 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
         ret = 0; /* Should return interrupt status */
         break;
     default:
-        printf("sm501 disp ctrl : not implemented register read."
-               " addr=%x\n", (int)addr);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented disp ctrl register "
+                      "read. addr=%" HWADDR_PRIx "\n", addr);
     }
 
     return ret;
@@ -1520,9 +1537,9 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
         /* ignored, writing 0 should clear interrupt status */
         break;
     default:
-        printf("sm501 2d engine : not implemented register write."
-               " addr=%x, val=%x\n", (int)addr, (unsigned)value);
-        abort();
+        qemu_log_mask(LOG_UNIMP, "sm501: not implemented 2d engine register "
+                      "write. addr=%" HWADDR_PRIx
+                      ", val=%" PRIx64 "\n", addr, value);
     }
 }
 
@@ -1670,9 +1687,9 @@ static void sm501_update_display(void *opaque)
         draw_line = draw_line32_funcs[dst_depth_index];
         break;
     default:
-        printf("sm501 update display : invalid control register value.\n");
-        abort();
-        break;
+        qemu_log_mask(LOG_GUEST_ERROR, "sm501: update display"
+                      "invalid control register value.\n");
+        return;
     }
 
     /* set up to draw hardware cursor */
