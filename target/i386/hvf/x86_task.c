@@ -38,7 +38,7 @@ static void save_state_to_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     CPUX86State *env = &x86_cpu->env;
 
     /* CR3 and ldt selector are not saved intentionally */
-    tss->eip = EIP(env);
+    tss->eip = (uint32_t)env->eip;
     tss->eflags = EFLAGS(env);
     tss->eax = EAX(env);
     tss->ecx = ECX(env);
@@ -64,7 +64,7 @@ static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
 
     wvmcs(cpu->hvf_fd, VMCS_GUEST_CR3, tss->cr3);
 
-    RIP(env) = tss->eip;
+    env->eip = tss->eip;
     EFLAGS(env) = tss->eflags | 2;
 
     /* General purpose registers */

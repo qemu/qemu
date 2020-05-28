@@ -797,7 +797,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 } else {
                     RAX(env) = (uint64_t)val;
                 }
-                RIP(env) += ins_len;
+                env->eip += ins_len;
                 store_regs(cpu);
                 break;
             } else if (!string && !in) {
@@ -871,7 +871,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             } else {
                 simulate_wrmsr(cpu);
             }
-            RIP(env) += ins_len;
+            env->eip += ins_len;
             store_regs(cpu);
             break;
         }
@@ -907,7 +907,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 error_report("Unrecognized CR %d", cr);
                 abort();
             }
-            RIP(env) += ins_len;
+            env->eip += ins_len;
             store_regs(cpu);
             break;
         }

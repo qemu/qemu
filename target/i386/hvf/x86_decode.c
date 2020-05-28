@@ -75,7 +75,7 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
         VM_PANIC_EX("%s invalid size %d\n", __func__, size);
         break;
     }
-    target_ulong va  = linear_rip(env_cpu(env), RIP(env)) + decode->len;
+    target_ulong va  = linear_rip(env_cpu(env), env->eip) + decode->len;
     vmx_read_mem(env_cpu(env), &val, va, size);
     decode->len += size;
     
@@ -1771,7 +1771,7 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
         ptr += get_sib_val(env, decode, &seg);
     } else if (!decode->modrm.mod && 5 == decode->modrm.rm) {
         if (x86_is_long_mode(env_cpu(env))) {
-            ptr += RIP(env) + decode->len;
+            ptr += env->eip + decode->len;
         } else {
             ptr = decode->displacement;
         }
@@ -1807,7 +1807,7 @@ void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
     if (4 == rm) {
         ptr = get_sib_val(env, decode, &seg) + offset;
     } else if (0 == mod && 5 == rm) {
-        ptr = RIP(env) + decode->len + (int32_t) offset;
+        ptr = env->eip + decode->len + (int32_t) offset;
     } else {
         ptr = get_reg_val(env, src, decode->rex.rex, decode->rex.b, 8) +
               (int64_t) offset;

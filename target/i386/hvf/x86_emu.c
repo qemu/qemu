@@ -267,49 +267,49 @@ static void exec_mov(struct CPUX86State *env, struct x86_decode *decode)
     write_val_ext(env, decode->op[0].ptr, decode->op[1].val,
                   decode->operand_size);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_add(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_or(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_adc(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, +get_CF(env)+, SET_FLAGS_OSZAPC_ADD, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_sbb(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -get_CF(env)-, SET_FLAGS_OSZAPC_SUB, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_and(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_sub(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_xor(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
@@ -332,13 +332,13 @@ static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
     }
 
     /*lflags_to_rflags(env);*/
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_cmp(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_inc(struct CPUX86State *env, struct x86_decode *decode)
@@ -348,7 +348,7 @@ static void exec_inc(struct CPUX86State *env, struct x86_decode *decode)
 
     EXEC_2OP_FLAGS_CMD(env, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_dec(struct CPUX86State *env, struct x86_decode *decode)
@@ -357,13 +357,13 @@ static void exec_dec(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].val = 0;
 
     EXEC_2OP_FLAGS_CMD(env, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_tst(struct CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_not(struct CPUX86State *env, struct x86_decode *decode)
@@ -372,7 +372,7 @@ static void exec_not(struct CPUX86State *env, struct x86_decode *decode)
 
     write_val_ext(env, decode->op[0].ptr, ~decode->op[0].val,
                   decode->operand_size);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_movzx(struct CPUX86State *env, struct x86_decode *decode)
@@ -392,7 +392,7 @@ void exec_movzx(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].val = read_val_ext(env, decode->op[1].ptr, src_op_size);
     write_val_ext(env, decode->op[0].ptr, decode->op[1].val, op_size);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_out(struct CPUX86State *env, struct x86_decode *decode)
@@ -416,7 +416,7 @@ static void exec_out(struct CPUX86State *env, struct x86_decode *decode)
         VM_PANIC("Bad out opcode\n");
         break;
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
@@ -452,7 +452,7 @@ static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
         break;
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static inline void string_increment_reg(struct CPUX86State *env, int reg,
@@ -505,7 +505,7 @@ static void exec_ins(struct CPUX86State *env, struct x86_decode *decode)
         exec_ins_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_outs_single(struct CPUX86State *env, struct x86_decode *decode)
@@ -528,7 +528,7 @@ static void exec_outs(struct CPUX86State *env, struct x86_decode *decode)
         exec_outs_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_movs_single(struct CPUX86State *env, struct x86_decode *decode)
@@ -556,7 +556,7 @@ static void exec_movs(struct CPUX86State *env, struct x86_decode *decode)
         exec_movs_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
@@ -586,7 +586,7 @@ static void exec_cmps(struct CPUX86State *env, struct x86_decode *decode)
     } else {
         exec_cmps_single(env, decode);
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 
@@ -612,7 +612,7 @@ static void exec_stos(struct CPUX86State *env, struct x86_decode *decode)
         exec_stos_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
@@ -638,7 +638,7 @@ static void exec_scas(struct CPUX86State *env, struct x86_decode *decode)
         exec_scas_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_lods_single(struct CPUX86State *env, struct x86_decode *decode)
@@ -661,7 +661,7 @@ static void exec_lods(struct CPUX86State *env, struct x86_decode *decode)
         exec_lods_single(env, decode);
     }
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void simulate_rdmsr(struct CPUState *cpu)
@@ -758,7 +758,7 @@ void simulate_rdmsr(struct CPUState *cpu)
 static void exec_rdmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
     simulate_rdmsr(env_cpu(env));
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void simulate_wrmsr(struct CPUState *cpu)
@@ -853,7 +853,7 @@ void simulate_wrmsr(struct CPUState *cpu)
 static void exec_wrmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
     simulate_wrmsr(env_cpu(env));
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 /*
@@ -909,25 +909,25 @@ static void do_bt(struct CPUX86State *env, struct x86_decode *decode, int flag)
 static void exec_bt(struct CPUX86State *env, struct x86_decode *decode)
 {
     do_bt(env, decode, 0);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_btc(struct CPUX86State *env, struct x86_decode *decode)
 {
     do_bt(env, decode, 1);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_btr(struct CPUX86State *env, struct x86_decode *decode)
 {
     do_bt(env, decode, 3);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_bts(struct CPUX86State *env, struct x86_decode *decode)
 {
     do_bt(env, decode, 2);
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
@@ -991,7 +991,7 @@ void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
 
 exit:
     /* lflags_to_rflags(env); */
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_movsx(CPUX86State *env, struct x86_decode *decode)
@@ -1014,7 +1014,7 @@ void exec_movsx(CPUX86State *env, struct x86_decode *decode)
 
     write_val_ext(env, decode->op[0].ptr, decode->op[1].val, op_size);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_ror(struct CPUX86State *env, struct x86_decode *decode)
@@ -1092,7 +1092,7 @@ void exec_ror(struct CPUX86State *env, struct x86_decode *decode)
         break;
         }
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_rol(struct CPUX86State *env, struct x86_decode *decode)
@@ -1173,7 +1173,7 @@ void exec_rol(struct CPUX86State *env, struct x86_decode *decode)
         break;
         }
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 
@@ -1259,7 +1259,7 @@ void exec_rcl(struct CPUX86State *env, struct x86_decode *decode)
         break;
         }
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 void exec_rcr(struct CPUX86State *env, struct x86_decode *decode)
@@ -1334,7 +1334,7 @@ void exec_rcr(struct CPUX86State *env, struct x86_decode *decode)
         break;
         }
     }
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_xchg(struct CPUX86State *env, struct x86_decode *decode)
@@ -1346,7 +1346,7 @@ static void exec_xchg(struct CPUX86State *env, struct x86_decode *decode)
     write_val_ext(env, decode->op[1].ptr, decode->op[0].val,
                   decode->operand_size);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static void exec_xadd(struct CPUX86State *env, struct x86_decode *decode)
@@ -1355,7 +1355,7 @@ static void exec_xadd(struct CPUX86State *env, struct x86_decode *decode)
     write_val_ext(env, decode->op[1].ptr, decode->op[0].val,
                   decode->operand_size);
 
-    RIP(env) += decode->len;
+    env->eip += decode->len;
 }
 
 static struct cmd_handler {
@@ -1434,7 +1434,7 @@ void load_regs(struct CPUState *cpu)
 
     RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
     rflags_to_lflags(env);
-    RIP(env) = rreg(cpu->hvf_fd, HV_X86_RIP);
+    env->eip = rreg(cpu->hvf_fd, HV_X86_RIP);
 }
 
 void store_regs(struct CPUState *cpu)
@@ -1457,20 +1457,20 @@ void store_regs(struct CPUState *cpu)
 
     lflags_to_rflags(env);
     wreg(cpu->hvf_fd, HV_X86_RFLAGS, RFLAGS(env));
-    macvm_set_rip(cpu, RIP(env));
+    macvm_set_rip(cpu, env->eip);
 }
 
 bool exec_instruction(struct CPUX86State *env, struct x86_decode *ins)
 {
     /*if (hvf_vcpu_id(cpu))
-    printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  RIP(cpu),
+    printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  env->eip,
           decode_cmd_to_string(ins->cmd));*/
 
     if (!_cmd_handler[ins->cmd].handler) {
-        printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
+        printf("Unimplemented handler (%llx) for %d (%x %x) \n", env->eip,
                 ins->cmd, ins->opcode[0],
                 ins->opcode_len > 1 ? ins->opcode[1] : 0);
-        RIP(env) += ins->len;
+        env->eip += ins->len;
         return true;
     }
 

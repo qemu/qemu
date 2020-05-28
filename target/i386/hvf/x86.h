@@ -294,7 +294,6 @@ typedef struct lazy_flags {
 /* Definition of hvf_x86_state is here */
 struct HVFX86EmulatorState {
     uint64_t fetch_rip;
-    uint64_t rip;
     struct x86_register regs[16];
     struct x86_reg_flags   rflags;
     struct lazy_flags   lflags;
@@ -302,8 +301,6 @@ struct HVFX86EmulatorState {
 };
 
 /* useful register access  macros */
-#define RIP(cpu)    (cpu->hvf_emul->rip)
-#define EIP(cpu)    ((uint32_t)cpu->hvf_emul->rip)
 #define RFLAGS(cpu) (cpu->hvf_emul->rflags.rflags)
 #define EFLAGS(cpu) (cpu->hvf_emul->rflags.eflags)
 
