@@ -2216,6 +2216,10 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
     tpm2_ptr->log_area_minimum_length =
         cpu_to_le32(TPM_LOG_AREA_MINIMUM_SIZE);
 
+    acpi_data_push(tcpalog, le32_to_cpu(tpm2_ptr->log_area_minimum_length));
+    bios_linker_loader_alloc(linker, ACPI_BUILD_TPMLOG_FILE, tcpalog, 1,
+                             false);
+
     /* log area start address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
                                    log_addr_offset, log_addr_size,
@@ -2752,10 +2756,10 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         build_hpet(tables_blob, tables->linker);
     }
     if (misc.tpm_version != TPM_VERSION_UNSPEC) {
-        acpi_add_table(table_offsets, tables_blob);
-        build_tpm_tcpa(tables_blob, tables->linker, tables->tcpalog);
-
-        if (misc.tpm_version == TPM_VERSION_2_0) {
+        if (misc.tpm_version == TPM_VERSION_1_2) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_tpm_tcpa(tables_blob, tables->linker, tables->tcpalog);
+        } else { /* TPM_VERSION_2_0 */
             acpi_add_table(table_offsets, tables_blob);
             build_tpm2(tables_blob, tables->linker, tables->tcpalog);
         }
