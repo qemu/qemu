@@ -1032,9 +1032,9 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
         } else {
 	    if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
 		if (s->cirrus_blt_pixelwidth > 2) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "cirrus: src transparent without colorexpand "
-                          "must be 8bpp or 16bpp\n");
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "cirrus: src transparent without colorexpand "
+                                  "must be 8bpp or 16bpp\n");
 		    goto bitblt_ignore;
 		}
 		if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
