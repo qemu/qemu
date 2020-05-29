@@ -190,3 +190,111 @@ class ReplayKernel(LinuxKernelTest):
                                'console=ttyS0 vga=off')
         console_pattern = 'No filesystem could mount root'
         self.run_rr(kernel_path, kernel_command_line, console_pattern)
+
+    def do_test_advcal_2018(self, file_path, kernel_name, args=None):
+        archive.extract(file_path, self.workdir)
+
+        for entry in os.scandir(self.workdir):
+            if entry.name.startswith('day') and entry.is_dir():
+                kernel_path = os.path.join(entry.path, kernel_name)
+                break
+
+        kernel_command_line = ''
+        console_pattern = 'QEMU advent calendar'
+        self.run_rr(kernel_path, kernel_command_line, console_pattern,
+                    args=args)
+
+    def test_arm_vexpressa9(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:vexpress-a9
+        """
+        tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day16.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        dtb_path = self.workdir + '/day16/vexpress-v2p-ca9.dtb'
+        self.do_test_advcal_2018(file_path, 'winter.zImage',
+                                 args=('-dtb', dtb_path))
+
+    def test_m68k_mcf5208evb(self):
+        """
+        :avocado: tags=arch:m68k
+        :avocado: tags=machine:mcf5208evb
+        """
+        tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day07.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'sanity-clause.elf')
+
+    def test_microblaze_s3adsp1800(self):
+        """
+        :avocado: tags=arch:microblaze
+        :avocado: tags=machine:petalogix-s3adsp1800
+        """
+        tar_hash = '08bf3e3bfb6b6c7ce1e54ab65d54e189f2caf13f'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day17.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'ballerina.bin')
+
+    def test_ppc64_e500(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:ppce500
+        :avocado: tags=cpu:e5500
+        """
+        tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day19.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'uImage', ('-cpu', 'e5500'))
+
+    def test_ppc_g3beige(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:g3beige
+        """
+        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day15.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'invaders.elf',
+                                 args=('-M', 'graphics=off'))
+
+    def test_ppc_mac99(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:mac99
+        """
+        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day15.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'invaders.elf',
+                                 args=('-M', 'graphics=off'))
+
+    def test_sparc_ss20(self):
+        """
+        :avocado: tags=arch:sparc
+        :avocado: tags=machine:SS-20
+        """
+        tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day11.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'zImage.elf')
+
+    def test_xtensa_lx60(self):
+        """
+        :avocado: tags=arch:xtensa
+        :avocado: tags=machine:lx60
+        :avocado: tags=cpu:dc233c
+        """
+        tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day02.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'santas-sleigh-ride.elf',
+                                 args=('-cpu', 'dc233c'))
