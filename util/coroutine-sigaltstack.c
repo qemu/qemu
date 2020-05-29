@@ -30,6 +30,10 @@
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
 
+#ifdef CONFIG_SAFESTACK
+#error "SafeStack is not compatible with code run in alternate signal stacks"
+#endif
+
 typedef struct {
     Coroutine base;
     void *stack;
