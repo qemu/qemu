@@ -498,6 +498,16 @@ static bool
 vu_get_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     vmsg->payload.u64 =
+        /*
+         * The following VIRTIO feature bits are supported by our virtqueue
+         * implementation:
+         */
+        1ULL << VIRTIO_F_NOTIFY_ON_EMPTY |
+        1ULL << VIRTIO_RING_F_INDIRECT_DESC |
+        1ULL << VIRTIO_RING_F_EVENT_IDX |
+        1ULL << VIRTIO_F_VERSION_1 |
+
+        /* vhost-user feature bits */
         1ULL << VHOST_F_LOG_ALL |
         1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
