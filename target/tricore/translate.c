@@ -3238,6 +3238,14 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 #endif
 }
 
+static void generate_qemu_excp(DisasContext *ctx, int excp)
+{
+    TCGv_i32 tmp = tcg_const_i32(excp);
+    gen_helper_qemu_excp(cpu_env, tmp);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    tcg_temp_free(tmp);
+}
+
 static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     if (use_goto_tb(ctx, dest)) {
@@ -3247,7 +3255,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
     } else {
         gen_save_pc(dest);
         if (ctx->base.singlestep_enabled) {
-            /* raise exception debug */
+            generate_qemu_excp(ctx, EXCP_DEBUG);
         }
         tcg_gen_exit_tb(NULL, 0);
     }
@@ -3264,14 +3272,6 @@ static void generate_trap(DisasContext *ctx, int class, int tin)
 
     tcg_temp_free(classtemp);
     tcg_temp_free(tintemp);
-}
-
-static void generate_qemu_excp(DisasContext *ctx, int excp)
-{
-    TCGv_i32 tmp = tcg_const_i32(excp);
-    gen_helper_qemu_excp(cpu_env, tmp);
-    ctx->base.is_jmp = DISAS_NORETURN;
-    tcg_temp_free(tmp);
 }
 
 static inline void gen_branch_cond(DisasContext *ctx, TCGCond cond, TCGv r1,
