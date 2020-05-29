@@ -205,14 +205,15 @@ jobs:
     # Test with Clang for compile portability (Travis uses clang-5.0)
     - name: "Clang (user)"
       env:
-        - CONFIG="--disable-system"
+        - CONFIG="--disable-system --host-cc=clang --cxx=clang++"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
 
 
     - name: "Clang (main-softmmu)"
       env:
-        - CONFIG="--target-list=${MAIN_SOFTMMU_TARGETS} "
+        - CONFIG="--target-list=${MAIN_SOFTMMU_TARGETS}
+                  --host-cc=clang --cxx=clang++"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-sanitize"
       compiler: clang
       before_script:
@@ -222,7 +223,8 @@ jobs:
 
     - name: "Clang (other-softmmu)"
       env:
-        - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
+        - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}
+                  --host-cc=clang --cxx=clang++"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
 

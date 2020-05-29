@@ -61,13 +61,15 @@ static bool cpu_index_auto_assigned;
 static int cpu_get_free_index(void)
 {
     CPUState *some_cpu;
-    int cpu_index = 0;
+    int max_cpu_index = 0;
 
     cpu_index_auto_assigned = true;
     CPU_FOREACH(some_cpu) {
-        cpu_index++;
+        if (some_cpu->cpu_index >= max_cpu_index) {
+            max_cpu_index = some_cpu->cpu_index + 1;
+        }
     }
-    return cpu_index;
+    return max_cpu_index;
 }
 
 void cpu_list_add(CPUState *cpu)
@@ -89,8 +91,6 @@ void cpu_list_remove(CPUState *cpu)
         /* there is nothing to undo since cpu_exec_init() hasn't been called */
         return;
     }
-
-    assert(!(cpu_index_auto_assigned && cpu != QTAILQ_LAST(&cpus)));
 
     QTAILQ_REMOVE_RCU(&cpus, cpu, node);
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;

@@ -65,6 +65,10 @@ except (gdb.error, AttributeError):
     print("SKIPPING (not connected)", file=sys.stderr)
     exit(0)
 
+if gdb.parse_and_eval('$pc') == 0:
+    print("SKIP: PC not set")
+    exit(0)
+
 try:
     # These are not very useful in scripts
     gdb.execute("set pagination off")

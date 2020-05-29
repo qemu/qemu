@@ -7635,30 +7635,33 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             return -TARGET_ERESTARTSYS;
         }
 
-        cpu_list_lock();
+        pthread_mutex_lock(&clone_lock);
 
         if (CPU_NEXT(first_cpu)) {
-            TaskState *ts;
+            TaskState *ts = cpu->opaque;
 
-            /* Remove the CPU from the list.  */
-            QTAILQ_REMOVE_RCU(&cpus, cpu, node);
+            object_property_set_bool(OBJECT(cpu), false, "realized", NULL);
+            object_unref(OBJECT(cpu));
+            /*
+             * At this point the CPU should be unrealized and removed
+             * from cpu lists. We can clean-up the rest of the thread
+             * data without the lock held.
+             */
 
-            cpu_list_unlock();
+            pthread_mutex_unlock(&clone_lock);
 
-            ts = cpu->opaque;
             if (ts->child_tidptr) {
                 put_user_u32(0, ts->child_tidptr);
                 do_sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
                           NULL, NULL, 0);
             }
             thread_cpu = NULL;
-            object_unref(OBJECT(cpu));
             g_free(ts);
             rcu_unregister_thread();
             pthread_exit(NULL);
         }
 
-        cpu_list_unlock();
+        pthread_mutex_unlock(&clone_lock);
         preexit_cleanup(cpu_env, arg1);
         _exit(arg1);
         return 0; /* avoid warning */
