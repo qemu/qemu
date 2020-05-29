@@ -26,7 +26,7 @@
 #include "hw/i386/x86.h"
 
 /* Platform virtio definitions */
-#define VIRTIO_MMIO_BASE      0xc0000000
+#define VIRTIO_MMIO_BASE      0xfeb00000
 #define VIRTIO_IRQ_BASE       5
 #define VIRTIO_NUM_TRANSPORTS 8
 #define VIRTIO_CMDLINE_MAXLEN 64
