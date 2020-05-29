@@ -5,6 +5,7 @@ fuzz-obj-y += $(libqos-obj-y)
 fuzz-obj-y += tests/qtest/fuzz/fuzz.o # Fuzzer skeleton
 fuzz-obj-y += tests/qtest/fuzz/fork_fuzz.o
 fuzz-obj-y += tests/qtest/fuzz/qos_fuzz.o
+fuzz-obj-y += tests/qtest/fuzz/qtest_wrappers.o
 
 # Targets
 fuzz-obj-$(CONFIG_PCI_I440FX) += tests/qtest/fuzz/i440fx_fuzz.o
@@ -16,3 +17,23 @@ FUZZ_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
 # Linker Script to force coverage-counters into known regions which we can mark
 # shared
 FUZZ_LDFLAGS += -Xlinker -T$(SRC_PATH)/tests/qtest/fuzz/fork_fuzz.ld
+
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_inb
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_inw
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_inl
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_outb
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_outw
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_outl
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_readb
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_readw
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_readl
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_readq
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_writeb
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_writew
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_writel
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_writeq
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_memread
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_bufread
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_memwrite
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_bufwrite
+FUZZ_LDFLAGS += -Wl,-wrap,qtest_memset

@@ -91,7 +91,10 @@ static void usage(char *path)
         printf(" * %s  : %s\n", tmp->target->name,
                 tmp->target->description);
     }
-    printf("Alternatively, add -target-FUZZ_TARGET to the executable name\n");
+    printf("Alternatively, add -target-FUZZ_TARGET to the executable name\n\n"
+           "Set the environment variable FUZZ_SERIALIZE_QTEST=1 to serialize\n"
+           "QTest commands into an ASCII protocol. Useful for building crash\n"
+           "reproducers, but slows down execution.\n");
     exit(0);
 }
 
@@ -138,6 +141,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
 
     char *target_name;
     char *dir;
+    bool serialize = false;
 
     /* Initialize qgraph and modules */
     qos_graph_init();
@@ -171,6 +175,13 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     } else {
         usage(**argv);
     }
+
+    /* Should we always serialize qtest commands? */
+    if (getenv("FUZZ_SERIALIZE_QTEST")) {
+        serialize = true;
+    }
+
+    fuzz_qtest_set_serialize(serialize);
 
     /* Identify the fuzz target */
     fuzz_target = fuzz_get_target(target_name);
