@@ -28,6 +28,11 @@ static inline void set_feature(CPUTriCoreState *env, int feature)
     env->features |= 1ULL << feature;
 }
 
+static gchar *tricore_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("tricore");
+}
+
 static void tricore_cpu_set_pc(CPUState *cs, vaddr value)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
@@ -149,6 +154,11 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_parent_reset(dc, tricore_cpu_reset, &mcc->parent_reset);
     cc->class_by_name = tricore_cpu_class_by_name;
     cc->has_work = tricore_cpu_has_work;
+
+    cc->gdb_read_register = tricore_cpu_gdb_read_register;
+    cc->gdb_write_register = tricore_cpu_gdb_write_register;
+    cc->gdb_num_core_regs = 44;
+    cc->gdb_arch_name = tricore_gdb_arch_name;
 
     cc->dump_state = tricore_cpu_dump_state;
     cc->set_pc = tricore_cpu_set_pc;
