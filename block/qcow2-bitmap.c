@@ -1755,3 +1755,39 @@ bool qcow2_supports_persistent_dirty_bitmap(BlockDriverState *bs)
 
     return s->qcow_version >= 3;
 }
+
+/*
+ * Compute the space required for bitmaps in @bs.
+ *
+ * The computation is based as if copying to a new image with the
+ * given @cluster_size, which may differ from the cluster size in @bs.
+ */
+uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *bs,
+                                                uint32_t cluster_size)
+{
+    uint64_t bitmaps_size = 0;
+    BdrvDirtyBitmap *bm;
+    size_t bitmap_dir_size = 0;
+
+    FOR_EACH_DIRTY_BITMAP(bs, bm) {
+        if (bdrv_dirty_bitmap_get_persistence(bm)) {
+            const char *name = bdrv_dirty_bitmap_name(bm);
+            uint32_t granularity = bdrv_dirty_bitmap_granularity(bm);
+            uint64_t bmbytes =
+                get_bitmap_bytes_needed(bdrv_dirty_bitmap_size(bm),
+                                        granularity);
+            uint64_t bmclusters = DIV_ROUND_UP(bmbytes, cluster_size);
+
+            /* Assume the entire bitmap is allocated */
+            bitmaps_size += bmclusters * cluster_size;
+            /* Also reserve space for the bitmap table entries */
+            bitmaps_size += ROUND_UP(bmclusters * sizeof(uint64_t),
+                                     cluster_size);
+            /* And space for contribution to bitmap directory size */
+            bitmap_dir_size += calc_dir_entry_size(strlen(name), 0);
+        }
+    }
+    bitmaps_size += ROUND_UP(bitmap_dir_size, cluster_size);
+
+    return bitmaps_size;
+}

@@ -268,57 +268,118 @@ static void dirty_bitmap_mig_cleanup(void)
 }
 
 /* Called with iothread lock taken. */
-static int init_dirty_bitmap_migration(void)
+static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
 {
-    BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
     DirtyBitmapMigBitmapState *dbms;
     Error *local_err = NULL;
+
+    bitmap = bdrv_dirty_bitmap_first(bs);
+    if (!bitmap) {
+        return 0;
+    }
+
+    if (!bs_name || strcmp(bs_name, "") == 0) {
+        error_report("Bitmap '%s' in unnamed node can't be migrated",
+                     bdrv_dirty_bitmap_name(bitmap));
+        return -1;
+    }
+
+    if (bs_name[0] == '#') {
+        error_report("Bitmap '%s' in a node with auto-generated "
+                     "name '%s' can't be migrated",
+                     bdrv_dirty_bitmap_name(bitmap), bs_name);
+        return -1;
+    }
+
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        if (!bdrv_dirty_bitmap_name(bitmap)) {
+            continue;
+        }
+
+        if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, &local_err)) {
+            error_report_err(local_err);
+            return -1;
+        }
+
+        bdrv_ref(bs);
+        bdrv_dirty_bitmap_set_busy(bitmap, true);
+
+        dbms = g_new0(DirtyBitmapMigBitmapState, 1);
+        dbms->bs = bs;
+        dbms->node_name = bs_name;
+        dbms->bitmap = bitmap;
+        dbms->total_sectors = bdrv_nb_sectors(bs);
+        dbms->sectors_per_chunk = CHUNK_SIZE * 8 *
+            bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
+        if (bdrv_dirty_bitmap_enabled(bitmap)) {
+            dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
+        }
+        if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+            dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+        }
+
+        QSIMPLEQ_INSERT_TAIL(&dirty_bitmap_mig_state.dbms_list,
+                             dbms, entry);
+    }
+
+    return 0;
+}
+
+/* Called with iothread lock taken. */
+static int init_dirty_bitmap_migration(void)
+{
+    BlockDriverState *bs;
+    DirtyBitmapMigBitmapState *dbms;
+    GHashTable *handled_by_blk = g_hash_table_new(NULL, NULL);
+    BlockBackend *blk;
 
     dirty_bitmap_mig_state.bulk_completed = false;
     dirty_bitmap_mig_state.prev_bs = NULL;
     dirty_bitmap_mig_state.prev_bitmap = NULL;
     dirty_bitmap_mig_state.no_bitmaps = false;
 
+    /*
+     * Use blockdevice name for direct (or filtered) children of named block
+     * backends.
+     */
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        const char *name = blk_name(blk);
+
+        if (!name || strcmp(name, "") == 0) {
+            continue;
+        }
+
+        bs = blk_bs(blk);
+
+        /* Skip filters without bitmaps */
+        while (bs && bs->drv && bs->drv->is_filter &&
+               !bdrv_has_named_bitmaps(bs))
+        {
+            if (bs->backing) {
+                bs = bs->backing->bs;
+            } else if (bs->file) {
+                bs = bs->file->bs;
+            } else {
+                bs = NULL;
+            }
+        }
+
+        if (bs && bs->drv && !bs->drv->is_filter) {
+            if (add_bitmaps_to_list(bs, name)) {
+                goto fail;
+            }
+            g_hash_table_add(handled_by_blk, bs);
+        }
+    }
+
     for (bs = bdrv_next_all_states(NULL); bs; bs = bdrv_next_all_states(bs)) {
-        const char *name = bdrv_get_device_or_node_name(bs);
+        if (g_hash_table_contains(handled_by_blk, bs)) {
+            continue;
+        }
 
-        FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
-            if (!bdrv_dirty_bitmap_name(bitmap)) {
-                continue;
-            }
-
-            if (!name || strcmp(name, "") == 0) {
-                error_report("Found bitmap '%s' in unnamed node %p. It can't "
-                             "be migrated", bdrv_dirty_bitmap_name(bitmap), bs);
-                goto fail;
-            }
-
-            if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT,
-                                        &local_err)) {
-                error_report_err(local_err);
-                goto fail;
-            }
-
-            bdrv_ref(bs);
-            bdrv_dirty_bitmap_set_busy(bitmap, true);
-
-            dbms = g_new0(DirtyBitmapMigBitmapState, 1);
-            dbms->bs = bs;
-            dbms->node_name = name;
-            dbms->bitmap = bitmap;
-            dbms->total_sectors = bdrv_nb_sectors(bs);
-            dbms->sectors_per_chunk = CHUNK_SIZE * 8 *
-                bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
-            if (bdrv_dirty_bitmap_enabled(bitmap)) {
-                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
-            }
-            if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
-                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
-            }
-
-            QSIMPLEQ_INSERT_TAIL(&dirty_bitmap_mig_state.dbms_list,
-                                 dbms, entry);
+        if (add_bitmaps_to_list(bs, bdrv_get_node_name(bs))) {
+            goto fail;
         }
     }
 
@@ -331,9 +392,12 @@ static int init_dirty_bitmap_migration(void)
         dirty_bitmap_mig_state.no_bitmaps = true;
     }
 
+    g_hash_table_destroy(handled_by_blk);
+
     return 0;
 
 fail:
+    g_hash_table_destroy(handled_by_blk);
     dirty_bitmap_mig_cleanup();
 
     return -1;

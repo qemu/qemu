@@ -818,6 +818,19 @@ bool bdrv_has_readonly_bitmaps(BlockDriverState *bs)
     return false;
 }
 
+bool bdrv_has_named_bitmaps(BlockDriverState *bs)
+{
+    BdrvDirtyBitmap *bm;
+
+    QLIST_FOREACH(bm, &bs->dirty_bitmaps, list) {
+        if (bdrv_dirty_bitmap_name(bm)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /* Called with BQL taken. */
 void bdrv_dirty_bitmap_set_persistence(BdrvDirtyBitmap *bitmap, bool persistent)
 {

@@ -162,6 +162,10 @@ Parameters to convert subcommand:
 
 .. program:: qemu-img-convert
 
+.. option:: --bitmaps
+
+  Additionally copy all persistent bitmaps from the top layer of the source
+
 .. option:: -n
 
   Skip the creation of the target volume
@@ -397,7 +401,7 @@ Command description:
   4
     Error on reading data
 
-.. option:: convert [--object OBJECTDEF] [--image-opts] [--target-image-opts] [--target-is-zero] [-U] [-C] [-c] [-p] [-q] [-n] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-O OUTPUT_FMT] [-B BACKING_FILE] [-o OPTIONS] [-l SNAPSHOT_PARAM] [-S SPARSE_SIZE] [-m NUM_COROUTINES] [-W] FILENAME [FILENAME2 [...]] OUTPUT_FILENAME
+.. option:: convert [--object OBJECTDEF] [--image-opts] [--target-image-opts] [--target-is-zero] [--bitmaps] [-U] [-C] [-c] [-p] [-q] [-n] [-f FMT] [-t CACHE] [-T SRC_CACHE] [-O OUTPUT_FMT] [-B BACKING_FILE] [-o OPTIONS] [-l SNAPSHOT_PARAM] [-S SPARSE_SIZE] [-m NUM_COROUTINES] [-W] FILENAME [FILENAME2 [...]] OUTPUT_FILENAME
 
   Convert the disk image *FILENAME* or a snapshot *SNAPSHOT_PARAM*
   to disk image *OUTPUT_FILENAME* using format *OUTPUT_FMT*. It can
@@ -616,6 +620,7 @@ Command description:
 
     required size: 524288
     fully allocated size: 1074069504
+    bitmaps size: 0
 
   The ``required size`` is the file size of the new image.  It may be smaller
   than the virtual disk size if the image format supports compact representation.
@@ -624,6 +629,12 @@ Command description:
   been written to all sectors.  This is the maximum size that the image file can
   occupy with the exception of internal snapshots, dirty bitmaps, vmstate data,
   and other advanced image format features.
+
+  The ``bitmaps size`` is the additional size required in order to
+  copy bitmaps from a source image in addition to the guest-visible
+  data; the line is omitted if either source or destination lacks
+  bitmap support, or 0 if bitmaps are supported but there is nothing
+  to copy.
 
 .. option:: snapshot [--object OBJECTDEF] [--image-opts] [-U] [-q] [-l | -a SNAPSHOT | -c SNAPSHOT | -d SNAPSHOT] FILENAME
 

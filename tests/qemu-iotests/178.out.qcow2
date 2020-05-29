@@ -13,7 +13,7 @@ qemu-img: Invalid option list: ,
 qemu-img: Invalid parameter 'snapshot.foo'
 qemu-img: Failed in parsing snapshot param 'snapshot.foo'
 qemu-img: --output must be used with human or json as argument.
-qemu-img: Image size must be less than 8 EiB!
+qemu-img: Invalid image size specified. Must be between 0 and 9223372036854775807.
 qemu-img: Unknown file format 'foo'
 
 == Size calculation for a new file (human) ==
@@ -37,6 +37,7 @@ qemu-img: The image size is too large (try using a larger cluster size)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
 required size: 196608
 fully allocated size: 196608
+bitmaps size: 0
 
 converted image file size in bytes: 196608
 
@@ -45,6 +46,7 @@ converted image file size in bytes: 196608
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 required size: 393216
 fully allocated size: 1074135040
+bitmaps size: 0
 wrote 512/512 bytes at offset 512
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 65536
@@ -53,6 +55,7 @@ wrote 64512/64512 bytes at offset 134217728
 63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 required size: 589824
 fully allocated size: 1074135040
+bitmaps size: 0
 
 converted image file size in bytes: 524288
 
@@ -60,6 +63,7 @@ converted image file size in bytes: 524288
 
 required size: 524288
 fully allocated size: 1074135040
+bitmaps size: 0
 
 converted image file size in bytes: 458752
 
@@ -67,16 +71,19 @@ converted image file size in bytes: 458752
 
 required size: 1074135040
 fully allocated size: 1074135040
+bitmaps size: 0
 
 == qcow2 input image and LUKS encryption ==
 
 required size: 2686976
 fully allocated size: 1076232192
+bitmaps size: 0
 
 == qcow2 input image and preallocation (human) ==
 
 required size: 1074135040
 fully allocated size: 1074135040
+bitmaps size: 0
 
 converted image file size in bytes: 1074135040
 
@@ -87,6 +94,7 @@ wrote 8388608/8388608 bytes at offset 0
 8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 required size: 8716288
 fully allocated size: 8716288
+bitmaps size: 0
 
 converted image file size in bytes: 8716288
 
@@ -173,6 +181,7 @@ qemu-img: The image size is too large (try using a larger cluster size)
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
 {
+    "bitmaps": 0,
     "required": 196608,
     "fully-allocated": 196608
 }
@@ -183,6 +192,7 @@ converted image file size in bytes: 196608
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 {
+    "bitmaps": 0,
     "required": 393216,
     "fully-allocated": 1074135040
 }
@@ -193,6 +203,7 @@ wrote 65536/65536 bytes at offset 65536
 wrote 64512/64512 bytes at offset 134217728
 63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {
+    "bitmaps": 0,
     "required": 589824,
     "fully-allocated": 1074135040
 }
@@ -202,6 +213,7 @@ converted image file size in bytes: 524288
 == qcow2 input image with internal snapshot (json) ==
 
 {
+    "bitmaps": 0,
     "required": 524288,
     "fully-allocated": 1074135040
 }
@@ -211,6 +223,7 @@ converted image file size in bytes: 458752
 == qcow2 input image and a backing file (json) ==
 
 {
+    "bitmaps": 0,
     "required": 1074135040,
     "fully-allocated": 1074135040
 }
@@ -218,6 +231,7 @@ converted image file size in bytes: 458752
 == qcow2 input image and LUKS encryption ==
 
 {
+    "bitmaps": 0,
     "required": 2686976,
     "fully-allocated": 1076232192
 }
@@ -225,6 +239,7 @@ converted image file size in bytes: 458752
 == qcow2 input image and preallocation (json) ==
 
 {
+    "bitmaps": 0,
     "required": 1074135040,
     "fully-allocated": 1074135040
 }
@@ -237,6 +252,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
 wrote 8388608/8388608 bytes at offset 0
 8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {
+    "bitmaps": 0,
     "required": 8716288,
     "fully-allocated": 8716288
 }
