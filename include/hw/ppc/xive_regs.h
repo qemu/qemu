@@ -71,7 +71,7 @@
  * QW word 2 contains the valid bit at the top and other fields
  * depending on the QW.
  */
-#define TM_WORD2                0x8
+#define   TM_WORD2              0x8
 #define   TM_QW0W2_VU           PPC_BIT32(0)
 #define   TM_QW0W2_LOGIC_SERV   PPC_BITMASK32(1, 31) /* XX 2,31 ? */
 #define   TM_QW1W2_VO           PPC_BIT32(0)
