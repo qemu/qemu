@@ -5,6 +5,7 @@
  * (Rev.1.40 R01UH0033EJ0140)
  *
  * Copyright (c) 2019 Yoshinori Sato
+ * Copyright (c) 2020 Philippe Mathieu-Daudé
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -54,6 +55,25 @@
 #define RX62N_TMR_IRQ   174
 #define RX62N_CMT_IRQ   28
 #define RX62N_SCI_IRQ   214
+
+#define RX62N_XTAL_MIN_HZ  (8 * 1000 * 1000)
+#define RX62N_XTAL_MAX_HZ (14 * 1000 * 1000)
+#define RX62N_PCLK_MAX_HZ (50 * 1000 * 1000)
+
+typedef struct RX62NClass {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+    const char *name;
+    uint64_t ram_size;
+    uint64_t rom_flash_size;
+    uint64_t data_flash_size;
+} RX62NClass;
+
+#define RX62N_MCU_CLASS(klass) \
+    OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)
+#define RX62N_MCU_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(RX62NClass, (obj), TYPE_RX62N_MCU)
 
 /*
  * IRQ -> IPR mapping table
@@ -148,7 +168,7 @@ static void register_tmr(RX62NState *s, int unit)
     object_initialize_child(OBJECT(s), "tmr[*]",
                             &s->tmr[unit], TYPE_RENESAS_TMR);
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
-    qdev_prop_set_uint64(DEVICE(tmr), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(tmr), "input-freq", s->pclk_freq_hz);
     sysbus_realize(tmr, &error_abort);
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
@@ -166,7 +186,7 @@ static void register_cmt(RX62NState *s, int unit)
     object_initialize_child(OBJECT(s), "cmt[*]",
                             &s->cmt[unit], TYPE_RENESAS_CMT);
     cmt = SYS_BUS_DEVICE(&s->cmt[unit]);
-    qdev_prop_set_uint64(DEVICE(cmt), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(cmt), "input-freq", s->pclk_freq_hz);
     sysbus_realize(cmt, &error_abort);
 
     irqbase = RX62N_CMT_IRQ + CMT_NR_IRQ * unit;
@@ -185,7 +205,7 @@ static void register_sci(RX62NState *s, int unit)
                             &s->sci[unit], TYPE_RENESAS_SCI);
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
-    qdev_prop_set_uint64(DEVICE(sci), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(sci), "input-freq", s->pclk_freq_hz);
     sysbus_realize(sci, &error_abort);
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
@@ -198,15 +218,31 @@ static void register_sci(RX62NState *s, int unit)
 static void rx62n_realize(DeviceState *dev, Error **errp)
 {
     RX62NState *s = RX62N_MCU(dev);
+    RX62NClass *rxc = RX62N_MCU_GET_CLASS(dev);
+
+    if (s->xtal_freq_hz == 0) {
+        error_setg(errp, "\"xtal-frequency-hz\" property must be provided.");
+        return;
+    }
+    /* XTAL range: 8-14 MHz */
+    if (s->xtal_freq_hz < RX62N_XTAL_MIN_HZ
+            || s->xtal_freq_hz > RX62N_XTAL_MAX_HZ) {
+        error_setg(errp, "\"xtal-frequency-hz\" property in incorrect range.");
+        return;
+    }
+    /* Use a 4x fixed multiplier */
+    s->pclk_freq_hz = 4 * s->xtal_freq_hz;
+    /* PCLK range: 8-50 MHz */
+    assert(s->pclk_freq_hz <= RX62N_PCLK_MAX_HZ);
 
     memory_region_init_ram(&s->iram, OBJECT(dev), "iram",
-                           RX62N_IRAM_SIZE, &error_abort);
+                           rxc->ram_size, &error_abort);
     memory_region_add_subregion(s->sysmem, RX62N_IRAM_BASE, &s->iram);
     memory_region_init_rom(&s->d_flash, OBJECT(dev), "flash-data",
-                           RX62N_DFLASH_SIZE, &error_abort);
+                           rxc->data_flash_size, &error_abort);
     memory_region_add_subregion(s->sysmem, RX62N_DFLASH_BASE, &s->d_flash);
     memory_region_init_rom(&s->c_flash, OBJECT(dev), "flash-code",
-                           RX62N_CFLASH_SIZE, &error_abort);
+                           rxc->rom_flash_size, &error_abort);
     memory_region_add_subregion(s->sysmem, RX62N_CFLASH_BASE, &s->c_flash);
 
     if (!s->kernel) {
@@ -235,6 +271,7 @@ static Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
+    DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -246,16 +283,41 @@ static void rx62n_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, rx62n_properties);
 }
 
-static const TypeInfo rx62n_info = {
-    .name = TYPE_RX62N_MCU,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(RX62NState),
-    .class_init = rx62n_class_init,
+static void r5f562n7_class_init(ObjectClass *oc, void *data)
+{
+    RX62NClass *rxc = RX62N_MCU_CLASS(oc);
+
+    rxc->ram_size = 64 * KiB;
+    rxc->rom_flash_size = 384 * KiB;
+    rxc->data_flash_size = 32 * KiB;
 };
 
-static void rx62n_register_types(void)
+static void r5f562n8_class_init(ObjectClass *oc, void *data)
 {
-    type_register_static(&rx62n_info);
-}
+    RX62NClass *rxc = RX62N_MCU_CLASS(oc);
 
-type_init(rx62n_register_types)
+    rxc->ram_size = 96 * KiB;
+    rxc->rom_flash_size = 512 * KiB;
+    rxc->data_flash_size = 32 * KiB;
+};
+
+static const TypeInfo rx62n_types[] = {
+    {
+        .name           = TYPE_R5F562N7_MCU,
+        .parent         = TYPE_RX62N_MCU,
+        .class_init     = r5f562n7_class_init,
+    }, {
+        .name           = TYPE_R5F562N8_MCU,
+        .parent         = TYPE_RX62N_MCU,
+        .class_init     = r5f562n8_class_init,
+    }, {
+        .name           = TYPE_RX62N_MCU,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(RX62NState),
+        .class_size     = sizeof(RX62NClass),
+        .class_init     = rx62n_class_init,
+        .abstract       = true,
+     }
+};
+
+DEFINE_TYPES(rx62n_types)

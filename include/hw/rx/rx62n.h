@@ -34,6 +34,9 @@
 #define TYPE_RX62N_MCU "rx62n-mcu"
 #define RX62N_MCU(obj) OBJECT_CHECK(RX62NState, (obj), TYPE_RX62N_MCU)
 
+#define TYPE_R5F562N7_MCU "r5f562n7-mcu"
+#define TYPE_R5F562N8_MCU "r5f562n8-mcu"
+
 #define RX62N_NR_TMR    2
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
@@ -59,17 +62,11 @@ typedef struct RX62NState {
     MemoryRegion iomem3;
     MemoryRegion c_flash;
     qemu_irq irq[NR_IRQS];
+
+    /* Input Clock (XTAL) frequency */
+    uint32_t xtal_freq_hz;
+    /* Peripheral Module Clock frequency */
+    uint32_t pclk_freq_hz;
 } RX62NState;
-
-/*
- * RX62N Internal Memory
- * It is the value of R5F562N8.
- * Please change the size for R5F562N7.
- */
-#define RX62N_IRAM_SIZE (96 * KiB)
-#define RX62N_DFLASH_SIZE (32 * KiB)
-#define RX62N_CFLASH_SIZE (512 * KiB)
-
-#define RX62N_PCLK (48 * 1000 * 1000)
 
 #endif
