@@ -1,5 +1,11 @@
-# QEMU qtest library
-#
+"""
+QEMU qtest library
+
+qtest offers the QEMUQtestProtocol and QEMUQTestMachine classes, which
+offer a connection to QEMU's qtest protocol socket, and a qtest-enabled
+subclass of QEMUMachine, respectively.
+"""
+
 # Copyright (C) 2015 Red Hat Inc.
 #
 # Authors:
@@ -13,26 +19,29 @@
 
 import socket
 import os
+from typing import Optional, TextIO
 
 from .machine import QEMUMachine
 
 
-class QEMUQtestProtocol(object):
-    def __init__(self, address, server=False):
-        """
-        Create a QEMUQtestProtocol object.
+class QEMUQtestProtocol:
+    """
+    QEMUQtestProtocol implements a connection to a qtest socket.
 
-        @param address: QEMU address, can be either a unix socket path (string)
-                        or a tuple in the form ( address, port ) for a TCP
-                        connection
-        @param server: server mode, listens on the socket (bool)
-        @raise socket.error on socket connection errors
-        @note No connection is established, this is done by the connect() or
-              accept() methods
-        """
+    :param address: QEMU address, can be either a unix socket path (string)
+                    or a tuple in the form ( address, port ) for a TCP
+                    connection
+    :param server: server mode, listens on the socket (bool)
+    :raise socket.error: on socket connection errors
+
+    .. note::
+       No conection is estabalished by __init__(), this is done
+       by the connect() or accept() methods.
+    """
+    def __init__(self, address, server=False):
         self._address = address
         self._sock = self._get_sock()
-        self._sockfile = None
+        self._sockfile: Optional[TextIO] = None
         if server:
             self._sock.bind(self._address)
             self._sock.listen(1)
@@ -51,7 +60,7 @@ class QEMUQtestProtocol(object):
         @raise socket.error on socket connection errors
         """
         self._sock.connect(self._address)
-        self._sockfile = self._sock.makefile()
+        self._sockfile = self._sock.makefile(mode='r')
 
     def accept(self):
         """
@@ -60,7 +69,7 @@ class QEMUQtestProtocol(object):
         @raise socket.error on socket connection errors
         """
         self._sock, _ = self._sock.accept()
-        self._sockfile = self._sock.makefile()
+        self._sockfile = self._sock.makefile(mode='r')
 
     def cmd(self, qtest_cmd):
         """
@@ -68,20 +77,27 @@ class QEMUQtestProtocol(object):
 
         @param qtest_cmd: qtest command text to be sent
         """
+        assert self._sockfile is not None
         self._sock.sendall((qtest_cmd + "\n").encode('utf-8'))
         resp = self._sockfile.readline()
         return resp
 
     def close(self):
+        """Close this socket."""
         self._sock.close()
-        self._sockfile.close()
+        if self._sockfile:
+            self._sockfile.close()
+            self._sockfile = None
 
     def settimeout(self, timeout):
+        """Set a timeout, in seconds."""
         self._sock.settimeout(timeout)
 
 
 class QEMUQtestMachine(QEMUMachine):
-    '''A QEMU VM'''
+    """
+    A QEMU VM, with a qtest socket available.
+    """
 
     def __init__(self, binary, args=None, name=None, test_dir="/var/tmp",
                  socket_scm_helper=None, sock_dir=None):
@@ -89,31 +105,38 @@ class QEMUQtestMachine(QEMUMachine):
             name = "qemu-%d" % os.getpid()
         if sock_dir is None:
             sock_dir = test_dir
-        super(QEMUQtestMachine,
-              self).__init__(binary, args, name=name, test_dir=test_dir,
-                             socket_scm_helper=socket_scm_helper,
-                             sock_dir=sock_dir)
+        super().__init__(binary, args, name=name, test_dir=test_dir,
+                         socket_scm_helper=socket_scm_helper,
+                         sock_dir=sock_dir)
         self._qtest = None
         self._qtest_path = os.path.join(sock_dir, name + "-qtest.sock")
 
     def _base_args(self):
-        args = super(QEMUQtestMachine, self)._base_args()
+        args = super()._base_args()
         args.extend(['-qtest', 'unix:path=' + self._qtest_path,
                      '-accel', 'qtest'])
         return args
 
     def _pre_launch(self):
-        super(QEMUQtestMachine, self)._pre_launch()
+        super()._pre_launch()
         self._qtest = QEMUQtestProtocol(self._qtest_path, server=True)
 
-    def _post_launch(self):
-        super(QEMUQtestMachine, self)._post_launch()
+    def _post_launch(self) -> None:
+        assert self._qtest is not None
+        super()._post_launch()
         self._qtest.accept()
 
     def _post_shutdown(self):
-        super(QEMUQtestMachine, self)._post_shutdown()
+        super()._post_shutdown()
         self._remove_if_exists(self._qtest_path)
 
-    def qtest(self, cmd):
-        '''Send a qtest command to guest'''
+    def qtest(self, cmd: str) -> str:
+        """
+        Send a qtest command to the guest.
+
+        :param cmd: qtest command to send
+        :return: qtest server response
+        """
+        if self._qtest is None:
+            raise RuntimeError("qtest socket not available")
         return self._qtest.cmd(cmd)

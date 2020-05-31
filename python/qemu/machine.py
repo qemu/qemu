@@ -24,10 +24,13 @@ import subprocess
 import shutil
 import socket
 import tempfile
+from typing import Optional, Type
+from types import TracebackType
 
 from . import qmp
 
 LOG = logging.getLogger(__name__)
+
 
 class QEMUMachineError(Exception):
     """
@@ -54,15 +57,16 @@ class MonitorResponseError(qmp.QMPError):
             desc = reply["error"]["desc"]
         except KeyError:
             desc = reply
-        super(MonitorResponseError, self).__init__(desc)
+        super().__init__(desc)
         self.reply = reply
 
 
-class QEMUMachine(object):
+class QEMUMachine:
     """
     A QEMU VM
 
-    Use this object as a context manager to ensure the QEMU process terminates::
+    Use this object as a context manager to ensure
+    the QEMU process terminates::
 
         with VM(binary) as vm:
             ...
@@ -119,15 +123,14 @@ class QEMUMachine(object):
         self._console_socket = None
         self._remove_files = []
 
-        # just in case logging wasn't configured by the main script:
-        logging.basicConfig()
-
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         self.shutdown()
-        return False
 
     def add_monitor_null(self):
         """
@@ -188,8 +191,10 @@ class QEMUMachine(object):
             fd_param.append(str(fd))
 
         devnull = open(os.path.devnull, 'rb')
-        proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=False)
+        proc = subprocess.Popen(
+            fd_param, stdin=devnull, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, close_fds=False
+        )
         output = proc.communicate()[0]
         if output:
             LOG.debug(output)
@@ -242,7 +247,7 @@ class QEMUMachine(object):
                          'chardev=mon,mode=control'])
         if self._machine is not None:
             args.extend(['-machine', self._machine])
-        for i in range(self._console_index):
+        for _ in range(self._console_index):
             args.extend(['-serial', 'null'])
         if self._console_set:
             self._console_address = os.path.join(self._sock_dir,
@@ -342,7 +347,7 @@ class QEMUMachine(object):
         self._load_io_log()
         self._post_shutdown()
 
-    def shutdown(self, has_quit=False):
+    def shutdown(self, has_quit=False, hard=False):
         """
         Terminate the VM and clean up
         """
@@ -354,7 +359,9 @@ class QEMUMachine(object):
             self._console_socket = None
 
         if self.is_running():
-            if self._qmp:
+            if hard:
+                self._popen.kill()
+            elif self._qmp:
                 try:
                     if not has_quit:
                         self._qmp.cmd('quit')
@@ -368,15 +375,19 @@ class QEMUMachine(object):
         self._post_shutdown()
 
         exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0:
+        if exitcode is not None and exitcode < 0 and \
+                not (exitcode == -9 and hard):
             msg = 'qemu received signal %i: %s'
             if self._qemu_full_args:
                 command = ' '.join(self._qemu_full_args)
             else:
                 command = ''
-            LOG.warning(msg, -exitcode, command)
+            LOG.warning(msg, -int(exitcode), command)
 
         self._launched = False
+
+    def kill(self):
+        self.shutdown(hard=True)
 
     def set_qmp_monitor(self, enabled=True):
         """
@@ -482,7 +493,8 @@ class QEMUMachine(object):
 
     def events_wait(self, events, timeout=60.0):
         """
-        events_wait waits for and returns a named event from QMP with a timeout.
+        events_wait waits for and returns a named event
+        from QMP with a timeout.
 
         events: a sequence of (name, match_criteria) tuples.
                 The match criteria are optional and may be None.

@@ -11,6 +11,12 @@ import json
 import errno
 import socket
 import logging
+from typing import (
+    Optional,
+    TextIO,
+    Type,
+)
+from types import TracebackType
 
 
 class QMPError(Exception):
@@ -61,7 +67,7 @@ class QEMUMonitorProtocol:
         self.__events = []
         self.__address = address
         self.__sock = self.__get_sock()
-        self.__sockfile = None
+        self.__sockfile: Optional[TextIO] = None
         self._nickname = nickname
         if self._nickname:
             self.logger = logging.getLogger('QMP').getChild(self._nickname)
@@ -88,6 +94,7 @@ class QEMUMonitorProtocol:
         raise QMPCapabilitiesError
 
     def __json_read(self, only_event=False):
+        assert self.__sockfile is not None
         while True:
             data = self.__sockfile.readline()
             if not data:
@@ -114,14 +121,14 @@ class QEMUMonitorProtocol:
         """
 
         # Check for new events regardless and pull them into the cache:
-        self.__sock.setblocking(0)
+        self.__sock.setblocking(False)
         try:
             self.__json_read()
         except OSError as err:
             if err.errno == errno.EAGAIN:
                 # No data available
                 pass
-        self.__sock.setblocking(1)
+        self.__sock.setblocking(True)
 
         # Wait for new events, if needed.
         # if wait is 0.0, this means "no wait" and is also implicitly false.
@@ -142,10 +149,14 @@ class QEMUMonitorProtocol:
         # Implement context manager enter function.
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self,
+                 # pylint: disable=duplicate-code
+                 # see https://github.com/PyCQA/pylint/issues/3619
+                 exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         # Implement context manager exit function.
         self.close()
-        return False
 
     def connect(self, negotiate=True):
         """
@@ -157,7 +168,7 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock.connect(self.__address)
-        self.__sockfile = self.__sock.makefile()
+        self.__sockfile = self.__sock.makefile(mode='r')
         if negotiate:
             return self.__negotiate_capabilities()
         return None
@@ -168,8 +179,8 @@ class QEMUMonitorProtocol:
 
         @param timeout: timeout in seconds (nonnegative float number, or
                         None). The value passed will set the behavior of the
-                        underneath QMP socket as described in [1]. Default value
-                        is set to 15.0.
+                        underneath QMP socket as described in [1].
+                        Default value is set to 15.0.
         @return QMP greeting dict
         @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received
@@ -180,7 +191,7 @@ class QEMUMonitorProtocol:
         """
         self.__sock.settimeout(timeout)
         self.__sock, _ = self.__sock.accept()
-        self.__sockfile = self.__sock.makefile()
+        self.__sockfile = self.__sock.makefile(mode='r')
         return self.__negotiate_capabilities()
 
     def cmd_obj(self, qmp_cmd):

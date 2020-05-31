@@ -258,12 +258,13 @@ class Docker(object):
         return self._do_kill_instances(True)
 
     def _output(self, cmd, **kwargs):
-        if sys.version_info[1] >= 6:
+        try:
             return subprocess.check_output(self._command + cmd,
                                            stderr=subprocess.STDOUT,
                                            encoding='utf-8',
                                            **kwargs)
-        else:
+        except TypeError:
+            # 'encoding' argument was added in 3.6+
             return subprocess.check_output(self._command + cmd,
                                            stderr=subprocess.STDOUT,
                                            **kwargs).decode('utf-8')

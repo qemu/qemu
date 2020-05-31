@@ -25,11 +25,6 @@ import struct
 import sys
 
 
-MIN_PYTHON = (3, 2)
-if sys.version_info < MIN_PYTHON:
-    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
-
-
 def mkdir_p(path):
     try:
         os.makedirs(path)
