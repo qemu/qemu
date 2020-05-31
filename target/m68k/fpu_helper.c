@@ -641,6 +641,11 @@ void HELPER(fatanh)(CPUM68KState *env, FPReg *res, FPReg *val)
     res->d = floatx80_atanh(val->d, &env->fp_status);
 }
 
+void HELPER(fetoxm1)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_etoxm1(val->d, &env->fp_status);
+}
+
 void HELPER(ftanh)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_tanh(val->d, &env->fp_status);
