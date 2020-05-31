@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -225,7 +226,8 @@ static void m5206_mbar_update(m5206_mbar_state *s)
                 break;
             default:
                 /* Unknown vector.  */
-                error_report("Unhandled vector for IRQ %d", irq);
+                qemu_log_mask(LOG_UNIMP, "%s: Unhandled vector for IRQ %d\n",
+                              __func__, irq);
                 vector = 0xf;
                 break;
             }
@@ -273,7 +275,7 @@ static void m5206_mbar_reset(m5206_mbar_state *s)
 }
 
 static uint64_t m5206_mbar_read(m5206_mbar_state *s,
-                                uint64_t offset, unsigned size)
+                                uint16_t offset, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
         return m5206_timer_read(s->timer[0], offset - 0x100);
@@ -306,11 +308,12 @@ static uint64_t m5206_mbar_read(m5206_mbar_state *s,
     case 0x170: return s->uivr[0];
     case 0x1b0: return s->uivr[1];
     }
-    hw_error("Bad MBAR read offset 0x%x", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad MBAR offset 0x%"PRIx16"\n",
+                  __func__, offset);
     return 0;
 }
 
-static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
+static void m5206_mbar_write(m5206_mbar_state *s, uint16_t offset,
                              uint64_t value, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
@@ -360,7 +363,8 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
         s->uivr[1] = value;
         break;
     default:
-        hw_error("Bad MBAR write offset 0x%x", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad MBAR offset 0x%"PRIx16"\n",
+                      __func__, offset);
         break;
     }
 }
