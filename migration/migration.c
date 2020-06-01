@@ -3361,6 +3361,10 @@ bool migration_rate_limit(void)
     bool urgent = false;
     migration_update_counters(s, now);
     if (qemu_file_rate_limit(s->to_dst_file)) {
+
+        if (qemu_file_get_error(s->to_dst_file)) {
+            return false;
+        }
         /*
          * Wait for a delay to do rate limiting OR
          * something urgent to post the semaphore.

@@ -4056,7 +4056,9 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
     return;
 err:
     error_propagate(errp, local_err);
-    g_free(rdma->host);
+    if (rdma) {
+        g_free(rdma->host);
+    }
     g_free(rdma);
     g_free(rdma_return_path);
 }
@@ -4092,20 +4094,20 @@ void rdma_start_outgoing_migration(void *opaque,
         rdma_return_path = qemu_rdma_data_init(host_port, errp);
 
         if (rdma_return_path == NULL) {
-            goto err;
+            goto return_path_err;
         }
 
         ret = qemu_rdma_source_init(rdma_return_path,
             s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
 
         if (ret) {
-            goto err;
+            goto return_path_err;
         }
 
         ret = qemu_rdma_connect(rdma_return_path, errp);
 
         if (ret) {
-            goto err;
+            goto return_path_err;
         }
 
         rdma->return_path = rdma_return_path;
@@ -4118,6 +4120,8 @@ void rdma_start_outgoing_migration(void *opaque,
     s->to_dst_file = qemu_fopen_rdma(rdma, "wb");
     migrate_fd_connect(s, NULL);
     return;
+return_path_err:
+    qemu_rdma_cleanup(rdma);
 err:
     g_free(rdma);
     g_free(rdma_return_path);

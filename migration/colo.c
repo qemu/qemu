@@ -436,11 +436,6 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
-    colo_notify_compares_event(NULL, COLO_EVENT_CHECKPOINT, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
     /* Disable block migration */
     migrate_set_block_enabled(false, &local_err);
     if (local_err) {
@@ -498,6 +493,12 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 
     colo_receive_check_message(s->rp_state.from_dst_file,
                        COLO_MESSAGE_VMSTATE_RECEIVED, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    qemu_event_reset(&s->colo_checkpoint_event);
+    colo_notify_compares_event(NULL, COLO_EVENT_CHECKPOINT, &local_err);
     if (local_err) {
         goto out;
     }
@@ -589,7 +590,7 @@ static void colo_process_checkpoint(MigrationState *s)
             goto out;
         }
 
-        qemu_sem_wait(&s->colo_checkpoint_sem);
+        qemu_event_wait(&s->colo_checkpoint_event);
 
         if (s->state != MIGRATION_STATUS_COLO) {
             goto out;
@@ -637,7 +638,7 @@ out:
     colo_compare_unregister_notifier(&packets_compare_notifier);
     timer_del(s->colo_delay_timer);
     timer_free(s->colo_delay_timer);
-    qemu_sem_destroy(&s->colo_checkpoint_sem);
+    qemu_event_destroy(&s->colo_checkpoint_event);
 
     /*
      * Must be called after failover BH is completed,
@@ -654,7 +655,7 @@ void colo_checkpoint_notify(void *opaque)
     MigrationState *s = opaque;
     int64_t next_notify_time;
 
-    qemu_sem_post(&s->colo_checkpoint_sem);
+    qemu_event_set(&s->colo_checkpoint_event);
     s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     next_notify_time = s->colo_checkpoint_time +
                     s->parameters.x_checkpoint_delay;
@@ -664,7 +665,7 @@ void colo_checkpoint_notify(void *opaque)
 void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
-    qemu_sem_init(&s->colo_checkpoint_sem, 0);
+    qemu_event_init(&s->colo_checkpoint_event, false);
     s->colo_delay_timer =  timer_new_ms(QEMU_CLOCK_HOST,
                                 colo_checkpoint_notify, s);
 
@@ -704,7 +705,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     }
 
     qemu_mutex_lock_iothread();
-    cpu_synchronize_all_pre_loadvm();
+    cpu_synchronize_all_states();
     ret = qemu_loadvm_state_main(mis->from_src_file, mis);
     qemu_mutex_unlock_iothread();
 
@@ -747,9 +748,11 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     qemu_mutex_lock_iothread();
     vmstate_loading = true;
+    colo_flush_ram_cache();
     ret = qemu_load_device_state(fb);
     if (ret < 0) {
         error_setg(errp, "COLO: load device state failed");
+        vmstate_loading = false;
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -758,6 +761,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     replication_get_error_all(&local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        vmstate_loading = false;
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -766,6 +770,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     replication_do_checkpoint_all(&local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        vmstate_loading = false;
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -777,6 +782,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     if (local_err) {
         error_propagate(errp, local_err);
+        vmstate_loading = false;
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -787,9 +793,6 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
     qemu_mutex_unlock_iothread();
 
     if (failover_get_state() == FAILOVER_STATUS_RELAUNCH) {
-        failover_set_state(FAILOVER_STATUS_RELAUNCH,
-                        FAILOVER_STATUS_NONE);
-        failover_request_active(NULL);
         return;
     }
 
@@ -888,6 +891,14 @@ void *colo_process_incoming_thread(void *opaque)
             error_report_err(local_err);
             break;
         }
+
+        if (failover_get_state() == FAILOVER_STATUS_RELAUNCH) {
+            failover_set_state(FAILOVER_STATUS_RELAUNCH,
+                            FAILOVER_STATUS_NONE);
+            failover_request_active(NULL);
+            break;
+        }
+
         if (failover_get_state() != FAILOVER_STATUS_NONE) {
             error_report("failover request");
             break;
@@ -895,8 +906,6 @@ void *colo_process_incoming_thread(void *opaque)
     }
 
 out:
-    vmstate_loading = false;
-
     /*
      * There are only two reasons we can get here, some error happened
      * or the user triggered failover.

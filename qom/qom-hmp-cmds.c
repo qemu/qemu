@@ -12,6 +12,8 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qom.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
 #include "qom/object.h"
 
 void hmp_qom_list(Monitor *mon, const QDict *qdict)
@@ -46,19 +48,29 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
     const char *property = qdict_get_str(qdict, "property");
     const char *value = qdict_get_str(qdict, "value");
     Error *err = NULL;
-    bool ambiguous = false;
-    Object *obj;
+    QObject *obj;
 
-    obj = object_resolve_path(path, &ambiguous);
-    if (obj == NULL) {
-        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", path);
-    } else {
-        if (ambiguous) {
-            monitor_printf(mon, "Warning: Path '%s' is ambiguous\n", path);
-        }
-        object_property_parse(obj, value, property, &err);
+    obj = qobject_from_json(value, &err);
+    if (err == NULL) {
+        qmp_qom_set(path, property, obj, &err);
     }
+
+    hmp_handle_error(mon, err);
+}
+
+void hmp_qom_get(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    Error *err = NULL;
+    QObject *obj = qmp_qom_get(path, property, &err);
+
+    if (err == NULL) {
+        QString *str = qobject_to_json_pretty(obj);
+        monitor_printf(mon, "%s\n", qstring_get_str(str));
+        qobject_unref(str);
+    }
+
     hmp_handle_error(mon, err);
 }
 

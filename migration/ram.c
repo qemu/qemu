@@ -3360,7 +3360,7 @@ static bool postcopy_is_running(void)
  * Flush content of RAM cache into SVM's memory.
  * Only flush the pages that be dirtied by PVM or SVM or both.
  */
-static void colo_flush_ram_cache(void)
+void colo_flush_ram_cache(void)
 {
     RAMBlock *block = NULL;
     void *dst_host;
@@ -3632,9 +3632,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     }
     trace_ram_load_complete(ret, seq_iter);
 
-    if (!ret  && migration_incoming_in_colo_state()) {
-        colo_flush_ram_cache();
-    }
     return ret;
 }
 
