@@ -245,10 +245,16 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
     (KVM_REG_MIPS_CP0 | KVM_REG_SIZE_U64 | (8 * (_R) + (_S)))
 
 #define KVM_REG_MIPS_CP0_INDEX          MIPS_CP0_32(0, 0)
+#define KVM_REG_MIPS_CP0_RANDOM         MIPS_CP0_32(1, 0)
 #define KVM_REG_MIPS_CP0_CONTEXT        MIPS_CP0_64(4, 0)
 #define KVM_REG_MIPS_CP0_USERLOCAL      MIPS_CP0_64(4, 2)
 #define KVM_REG_MIPS_CP0_PAGEMASK       MIPS_CP0_32(5, 0)
+#define KVM_REG_MIPS_CP0_PAGEGRAIN      MIPS_CP0_32(5, 1)
+#define KVM_REG_MIPS_CP0_PWBASE         MIPS_CP0_64(5, 5)
+#define KVM_REG_MIPS_CP0_PWFIELD        MIPS_CP0_64(5, 6)
+#define KVM_REG_MIPS_CP0_PWSIZE         MIPS_CP0_64(5, 7)
 #define KVM_REG_MIPS_CP0_WIRED          MIPS_CP0_32(6, 0)
+#define KVM_REG_MIPS_CP0_PWCTL          MIPS_CP0_32(6, 6)
 #define KVM_REG_MIPS_CP0_HWRENA         MIPS_CP0_32(7, 0)
 #define KVM_REG_MIPS_CP0_BADVADDR       MIPS_CP0_64(8, 0)
 #define KVM_REG_MIPS_CP0_COUNT          MIPS_CP0_32(9, 0)
@@ -258,13 +264,22 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 #define KVM_REG_MIPS_CP0_CAUSE          MIPS_CP0_32(13, 0)
 #define KVM_REG_MIPS_CP0_EPC            MIPS_CP0_64(14, 0)
 #define KVM_REG_MIPS_CP0_PRID           MIPS_CP0_32(15, 0)
+#define KVM_REG_MIPS_CP0_EBASE          MIPS_CP0_64(15, 1)
 #define KVM_REG_MIPS_CP0_CONFIG         MIPS_CP0_32(16, 0)
 #define KVM_REG_MIPS_CP0_CONFIG1        MIPS_CP0_32(16, 1)
 #define KVM_REG_MIPS_CP0_CONFIG2        MIPS_CP0_32(16, 2)
 #define KVM_REG_MIPS_CP0_CONFIG3        MIPS_CP0_32(16, 3)
 #define KVM_REG_MIPS_CP0_CONFIG4        MIPS_CP0_32(16, 4)
 #define KVM_REG_MIPS_CP0_CONFIG5        MIPS_CP0_32(16, 5)
+#define KVM_REG_MIPS_CP0_CONFIG6        MIPS_CP0_32(16, 6)
+#define KVM_REG_MIPS_CP0_XCONTEXT       MIPS_CP0_64(20, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC       MIPS_CP0_64(30, 0)
+#define KVM_REG_MIPS_CP0_KSCRATCH1      MIPS_CP0_64(31, 2)
+#define KVM_REG_MIPS_CP0_KSCRATCH2      MIPS_CP0_64(31, 3)
+#define KVM_REG_MIPS_CP0_KSCRATCH3      MIPS_CP0_64(31, 4)
+#define KVM_REG_MIPS_CP0_KSCRATCH4      MIPS_CP0_64(31, 5)
+#define KVM_REG_MIPS_CP0_KSCRATCH5      MIPS_CP0_64(31, 6)
+#define KVM_REG_MIPS_CP0_KSCRATCH6      MIPS_CP0_64(31, 7)
 
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
@@ -394,6 +409,29 @@ static inline int kvm_mips_get_one_ureg64(CPUState *cs, uint64_t reg_id,
                                          (1U << CP0C5_UFE) | \
                                          (1U << CP0C5_FRE) | \
                                          (1U << CP0C5_UFR))
+#define KVM_REG_MIPS_CP0_CONFIG6_MASK   ((1U << CP0C6_BPPASS) | \
+                                         (0x3fU << CP0C6_KPOS) | \
+                                         (1U << CP0C6_KE) | \
+                                         (1U << CP0C6_VTLBONLY) | \
+                                         (1U << CP0C6_LASX) | \
+                                         (1U << CP0C6_SSEN) | \
+                                         (1U << CP0C6_DISDRTIME) | \
+                                         (1U << CP0C6_PIXNUEN) | \
+                                         (1U << CP0C6_SCRAND) | \
+                                         (1U << CP0C6_LLEXCEN) | \
+                                         (1U << CP0C6_DISVC) | \
+                                         (1U << CP0C6_VCLRU) | \
+                                         (1U << CP0C6_DCLRU) | \
+                                         (1U << CP0C6_PIXUEN) | \
+                                         (1U << CP0C6_DISBLKLYEN) | \
+                                         (1U << CP0C6_UMEMUALEN) | \
+                                         (1U << CP0C6_SFBEN) | \
+                                         (1U << CP0C6_FLTINT) | \
+                                         (1U << CP0C6_VLTINT) | \
+                                         (1U << CP0C6_DISBTB) | \
+                                         (3U << CP0C6_STPREFCTL) | \
+                                         (1U << CP0C6_INSTPREF) | \
+                                         (1U << CP0C6_DATAPREF))
 
 static inline int kvm_mips_change_one_reg(CPUState *cs, uint64_t reg_id,
                                           int32_t *addr, int32_t mask)
@@ -729,6 +767,11 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to put CP0_INDEX (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_RANDOM, &env->CP0_Random);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_RANDOM (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_CONTEXT,
                                  &env->CP0_Context);
     if (err < 0) {
@@ -747,9 +790,38 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to put CP0_PAGEMASK (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_PAGEGRAIN,
+                               &env->CP0_PageGrain);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PAGEGRAIN (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_PWBASE,
+                               &env->CP0_PWBase);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PWBASE (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_PWFIELD,
+                               &env->CP0_PWField);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PWField (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_PWSIZE,
+                               &env->CP0_PWSize);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PWSIZE (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_WIRED, &env->CP0_Wired);
     if (err < 0) {
         DPRINTF("%s: Failed to put CP0_WIRED (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_PWCTL, &env->CP0_PWCtl);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_PWCTL (%d)\n", __func__, err);
         ret = err;
     }
     err = kvm_mips_put_one_reg(cs, KVM_REG_MIPS_CP0_HWRENA, &env->CP0_HWREna);
@@ -799,6 +871,11 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to put CP0_PRID (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_EBASE, &env->CP0_EBase);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_EBASE (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG,
                                   &env->CP0_Config0,
                                   KVM_REG_MIPS_CP0_CONFIG_MASK);
@@ -841,10 +918,59 @@ static int kvm_mips_put_cp0_registers(CPUState *cs, int level)
         DPRINTF("%s: Failed to change CP0_CONFIG5 (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_change_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG6,
+                                  &env->CP0_Config6,
+                                  KVM_REG_MIPS_CP0_CONFIG6_MASK);
+    if (err < 0) {
+        DPRINTF("%s: Failed to change CP0_CONFIG6 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_XCONTEXT,
+                                 &env->CP0_XContext);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_XCONTEXT (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
                                  &env->CP0_ErrorEPC);
     if (err < 0) {
         DPRINTF("%s: Failed to put CP0_ERROREPC (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH1,
+                                 &env->CP0_KScratch[0]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH1 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH2,
+                                 &env->CP0_KScratch[1]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH2 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH3,
+                                 &env->CP0_KScratch[2]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH3 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH4,
+                                 &env->CP0_KScratch[3]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH4 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH5,
+                                 &env->CP0_KScratch[4]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH5 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_put_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH6,
+                                 &env->CP0_KScratch[5]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to put CP0_KSCRATCH6 (%d)\n", __func__, err);
         ret = err;
     }
 
@@ -860,6 +986,11 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
     err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_INDEX, &env->CP0_Index);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_INDEX (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_RANDOM, &env->CP0_Random);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_RANDOM (%d)\n", __func__, err);
         ret = err;
     }
     err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_CONTEXT,
@@ -880,9 +1011,38 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
         DPRINTF("%s: Failed to get CP0_PAGEMASK (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_PAGEGRAIN,
+                               &env->CP0_PageGrain);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PAGEGRAIN (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_PWBASE,
+                               &env->CP0_PWBase);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PWBASE (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_PWFIELD,
+                               &env->CP0_PWField);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PWFIELD (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_PWSIZE,
+                               &env->CP0_PWSize);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PWSIZE (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_WIRED, &env->CP0_Wired);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_WIRED (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_PWCTL, &env->CP0_PWCtl);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_PWCtl (%d)\n", __func__, err);
         ret = err;
     }
     err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_HWRENA, &env->CP0_HWREna);
@@ -932,6 +1092,11 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
         DPRINTF("%s: Failed to get CP0_PRID (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_EBASE, &env->CP0_EBase);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_EBASE (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG, &env->CP0_Config0);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_CONFIG (%d)\n", __func__, err);
@@ -962,10 +1127,57 @@ static int kvm_mips_get_cp0_registers(CPUState *cs)
         DPRINTF("%s: Failed to get CP0_CONFIG5 (%d)\n", __func__, err);
         ret = err;
     }
+    err = kvm_mips_get_one_reg(cs, KVM_REG_MIPS_CP0_CONFIG6, &env->CP0_Config6);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_CONFIG6 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_XCONTEXT,
+                                 &env->CP0_XContext);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_XCONTEXT (%d)\n", __func__, err);
+        ret = err;
+    }
     err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_ERROREPC,
                                  &env->CP0_ErrorEPC);
     if (err < 0) {
         DPRINTF("%s: Failed to get CP0_ERROREPC (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH1,
+                                 &env->CP0_KScratch[0]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH1 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH2,
+                                 &env->CP0_KScratch[1]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH2 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH3,
+                                 &env->CP0_KScratch[2]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH3 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH4,
+                                 &env->CP0_KScratch[3]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH4 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH5,
+                                 &env->CP0_KScratch[4]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH5 (%d)\n", __func__, err);
+        ret = err;
+    }
+    err = kvm_mips_get_one_ulreg(cs, KVM_REG_MIPS_CP0_KSCRATCH6,
+                                 &env->CP0_KScratch[5]);
+    if (err < 0) {
+        DPRINTF("%s: Failed to get CP0_KSCRATCH6 (%d)\n", __func__, err);
         ret = err;
     }
 

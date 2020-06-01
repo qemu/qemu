@@ -51,7 +51,7 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
         env->CP0_Cause &= ~(1 << (irq + CP0Ca_IP));
     }
 
-    if (kvm_enabled() && irq == 2) {
+    if (kvm_enabled() && (irq == 2 || irq == 3)) {
         kvm_mips_set_interrupt(cpu, irq, level);
     }
 
