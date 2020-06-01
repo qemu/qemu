@@ -13,8 +13,6 @@
 #ifndef HW_USB_MUSB_H
 #define HW_USB_MUSB_H
 
-#include "exec/cpu-common.h"
-
 enum musb_irq_source_e {
     musb_irq_suspend = 0,
     musb_irq_resume,
@@ -32,8 +30,11 @@ enum musb_irq_source_e {
     musb_irq_max /* total number of interrupts defined */
 };
 
-extern CPUReadMemoryFunc * const musb_read[];
-extern CPUWriteMemoryFunc * const musb_write[];
+/* TODO convert hcd-musb to QOM/qdev and remove MUSBReadFunc/MUSBWriteFunc */
+typedef void MUSBWriteFunc(void *opaque, hwaddr addr, uint32_t value);
+typedef uint32_t MUSBReadFunc(void *opaque, hwaddr addr);
+extern MUSBReadFunc * const musb_read[];
+extern MUSBWriteFunc * const musb_write[];
 
 typedef struct MUSBState MUSBState;
 
