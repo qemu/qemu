@@ -42,6 +42,19 @@ static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
 
     return ret;
 }
+
+hwaddr tricore_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(cs);
+    hwaddr phys_addr;
+    int prot;
+    int mmu_idx = cpu_mmu_index(&cpu->env, false);
+
+    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr, 0, mmu_idx)) {
+        return -1;
+    }
+    return phys_addr;
+}
 #endif
 
 /* TODO: Add exeption support*/

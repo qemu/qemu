@@ -23,17 +23,14 @@
 #include "exec/exec-all.h"
 #include "qemu/error-report.h"
 
-static hwaddr tricore_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
-                                         MemTxAttrs *attrs)
-{
-    error_report("function cpu_get_phys_page_attrs_debug not "
-                    "implemented, aborting");
-    return -1;
-}
-
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
     env->features |= 1ULL << feature;
+}
+
+static gchar *tricore_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("tricore");
 }
 
 static void tricore_cpu_set_pc(CPUState *cs, vaddr value)
@@ -158,10 +155,15 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = tricore_cpu_class_by_name;
     cc->has_work = tricore_cpu_has_work;
 
+    cc->gdb_read_register = tricore_cpu_gdb_read_register;
+    cc->gdb_write_register = tricore_cpu_gdb_write_register;
+    cc->gdb_num_core_regs = 44;
+    cc->gdb_arch_name = tricore_gdb_arch_name;
+
     cc->dump_state = tricore_cpu_dump_state;
     cc->set_pc = tricore_cpu_set_pc;
     cc->synchronize_from_tb = tricore_cpu_synchronize_from_tb;
-    cc->get_phys_page_attrs_debug = tricore_cpu_get_phys_page_attrs_debug;
+    cc->get_phys_page_debug = tricore_cpu_get_phys_page_debug;
     cc->tcg_initialize = tricore_tcg_init;
     cc->tlb_fill = tricore_cpu_tlb_fill;
 }
