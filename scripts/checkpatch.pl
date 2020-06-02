@@ -1267,7 +1267,7 @@ sub checkfilename {
         # files and when changing tests.
 	if ($name =~ m#^tests/data/acpi/# and not $name =~ m#^\.sh$#) {
 		$$acpi_testexpected = $name;
-	} elsif ($name =~ m#^tests/qtest/bios-tables-test-allowed-diff.h$#) {
+	} elsif ($name !~ m#^tests/qtest/bios-tables-test-allowed-diff.h$#) {
 		$$acpi_nontestexpected = $name;
 	}
 	if (defined $$acpi_testexpected and defined $$acpi_nontestexpected) {
