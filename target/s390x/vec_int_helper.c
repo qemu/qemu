@@ -515,37 +515,6 @@ void HELPER(gvec_vpopct##BITS)(void *v1, const void *v2, uint32_t desc)        \
 DEF_VPOPCT(8)
 DEF_VPOPCT(16)
 
-#define DEF_VERLLV(BITS)                                                       \
-void HELPER(gvec_verllv##BITS)(void *v1, const void *v2, const void *v3,       \
-                               uint32_t desc)                                  \
-{                                                                              \
-    int i;                                                                     \
-                                                                               \
-    for (i = 0; i < (128 / BITS); i++) {                                       \
-        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
-        const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
-                                                                               \
-        s390_vec_write_element##BITS(v1, i, rol##BITS(a, b));                  \
-    }                                                                          \
-}
-DEF_VERLLV(8)
-DEF_VERLLV(16)
-
-#define DEF_VERLL(BITS)                                                        \
-void HELPER(gvec_verll##BITS)(void *v1, const void *v2, uint64_t count,        \
-                              uint32_t desc)                                   \
-{                                                                              \
-    int i;                                                                     \
-                                                                               \
-    for (i = 0; i < (128 / BITS); i++) {                                       \
-        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
-                                                                               \
-        s390_vec_write_element##BITS(v1, i, rol##BITS(a, count));              \
-    }                                                                          \
-}
-DEF_VERLL(8)
-DEF_VERLL(16)
-
 #define DEF_VERIM(BITS)                                                        \
 void HELPER(gvec_verim##BITS)(void *v1, const void *v2, const void *v3,        \
                               uint32_t desc)                                   \

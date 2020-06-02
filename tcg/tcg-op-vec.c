@@ -545,6 +545,18 @@ void tcg_gen_sari_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
     do_shifti(INDEX_op_sari_vec, vece, r, a, i);
 }
 
+void tcg_gen_rotli_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    do_shifti(INDEX_op_rotli_vec, vece, r, a, i);
+}
+
+void tcg_gen_rotri_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    int bits = 8 << vece;
+    tcg_debug_assert(i >= 0 && i < bits);
+    do_shifti(INDEX_op_rotli_vec, vece, r, a, -i & (bits - 1));
+}
+
 void tcg_gen_cmp_vec(TCGCond cond, unsigned vece,
                      TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
@@ -684,8 +696,18 @@ void tcg_gen_sarv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
     do_op3_nofail(vece, r, a, b, INDEX_op_sarv_vec);
 }
 
+void tcg_gen_rotlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_op3_nofail(vece, r, a, b, INDEX_op_rotlv_vec);
+}
+
+void tcg_gen_rotrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_op3_nofail(vece, r, a, b, INDEX_op_rotrv_vec);
+}
+
 static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
-                      TCGv_i32 s, TCGOpcode opc_s, TCGOpcode opc_v)
+                      TCGv_i32 s, TCGOpcode opc)
 {
     TCGTemp *rt = tcgv_vec_temp(r);
     TCGTemp *at = tcgv_vec_temp(a);
@@ -694,48 +716,40 @@ static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
     TCGArg ai = temp_arg(at);
     TCGArg si = temp_arg(st);
     TCGType type = rt->base_type;
-    const TCGOpcode *hold_list;
     int can;
 
     tcg_debug_assert(at->base_type >= type);
-    tcg_assert_listed_vecop(opc_s);
-    hold_list = tcg_swap_vecop_list(NULL);
-
-    can = tcg_can_emit_vec_op(opc_s, type, vece);
+    tcg_assert_listed_vecop(opc);
+    can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
-        vec_gen_3(opc_s, type, vece, ri, ai, si);
+        vec_gen_3(opc, type, vece, ri, ai, si);
     } else if (can < 0) {
-        tcg_expand_vec_op(opc_s, type, vece, ri, ai, si);
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
+        tcg_expand_vec_op(opc, type, vece, ri, ai, si);
+        tcg_swap_vecop_list(hold_list);
     } else {
-        TCGv_vec vec_s = tcg_temp_new_vec(type);
-
-        if (vece == MO_64) {
-            TCGv_i64 s64 = tcg_temp_new_i64();
-            tcg_gen_extu_i32_i64(s64, s);
-            tcg_gen_dup_i64_vec(MO_64, vec_s, s64);
-            tcg_temp_free_i64(s64);
-        } else {
-            tcg_gen_dup_i32_vec(vece, vec_s, s);
-        }
-        do_op3_nofail(vece, r, a, vec_s, opc_v);
-        tcg_temp_free_vec(vec_s);
+        g_assert_not_reached();
     }
-    tcg_swap_vecop_list(hold_list);
 }
 
 void tcg_gen_shls_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
-    do_shifts(vece, r, a, b, INDEX_op_shls_vec, INDEX_op_shlv_vec);
+    do_shifts(vece, r, a, b, INDEX_op_shls_vec);
 }
 
 void tcg_gen_shrs_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
-    do_shifts(vece, r, a, b, INDEX_op_shrs_vec, INDEX_op_shrv_vec);
+    do_shifts(vece, r, a, b, INDEX_op_shrs_vec);
 }
 
 void tcg_gen_sars_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
-    do_shifts(vece, r, a, b, INDEX_op_sars_vec, INDEX_op_sarv_vec);
+    do_shifts(vece, r, a, b, INDEX_op_sars_vec);
+}
+
+void tcg_gen_rotls_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 s)
+{
+    do_shifts(vece, r, a, s, INDEX_op_rotls_vec);
 }
 
 void tcg_gen_bitsel_vec(unsigned vece, TCGv_vec r, TCGv_vec a,
