@@ -299,7 +299,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->bytes >> 10);
         monitor_printf(mon, "xbzrle pages: %" PRIu64 " pages\n",
                        info->xbzrle_cache->pages);
-        monitor_printf(mon, "xbzrle cache miss: %" PRIu64 "\n",
+        monitor_printf(mon, "xbzrle cache miss: %" PRIu64 " pages\n",
                        info->xbzrle_cache->cache_miss);
         monitor_printf(mon, "xbzrle cache miss rate: %0.2f\n",
                        info->xbzrle_cache->cache_miss_rate);
@@ -316,8 +316,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->compression->busy);
         monitor_printf(mon, "compression busy rate: %0.2f\n",
                        info->compression->busy_rate);
-        monitor_printf(mon, "compressed size: %" PRIu64 "\n",
-                       info->compression->compressed_size);
+        monitor_printf(mon, "compressed size: %" PRIu64 " kbytes\n",
+                       info->compression->compressed_size >> 10);
         monitor_printf(mon, "compression rate: %0.2f\n",
                        info->compression->compression_rate);
     }
