@@ -167,7 +167,7 @@ static unsigned long long now(void)
     return (tv.tv_sec * 1000ull) + (tv.tv_usec / 1000ull);
 }
 
-static int stressone(unsigned long long ramsizeMB)
+static void stressone(unsigned long long ramsizeMB)
 {
     size_t pagesPerMB = 1024 * 1024 / PAGE_SIZE;
     g_autofree char *ram = g_malloc(ramsizeMB * 1024 * 1024);
@@ -186,7 +186,7 @@ static int stressone(unsigned long long ramsizeMB)
     memset(ram, 0xfe, ramsizeMB * 1024 * 1024);
 
     if (random_bytes(data, PAGE_SIZE) < 0) {
-        return -1;
+        return;
     }
 
     before = now();
@@ -225,7 +225,7 @@ static void *stressthread(void *arg)
     return NULL;
 }
 
-static int stress(unsigned long long ramsizeGB, int ncpus)
+static void stress(unsigned long long ramsizeGB, int ncpus)
 {
     size_t i;
     unsigned long long ramsizeMB = ramsizeGB * 1024 / ncpus;
@@ -238,8 +238,6 @@ static int stress(unsigned long long ramsizeGB, int ncpus)
     }
 
     stressone(ramsizeMB);
-
-    return 0;
 }
 
 
@@ -335,8 +333,7 @@ int main(int argc, char **argv)
     fprintf(stdout, "%s (%05d): INFO: RAM %llu GiB across %d CPUs\n",
             argv0, gettid(), ramsizeGB, ncpus);
 
-    if (stress(ramsizeGB, ncpus) < 0)
-        exit_failure();
+    stress(ramsizeGB, ncpus);
 
-    exit_success();
+    exit_failure();
 }
