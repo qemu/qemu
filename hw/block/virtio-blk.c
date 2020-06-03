@@ -819,14 +819,10 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     virtio_blk_handle_output_do(s, vq);
 }
 
-static void virtio_blk_dma_restart_bh(void *opaque)
+void virtio_blk_process_queued_requests(VirtIOBlock *s)
 {
-    VirtIOBlock *s = opaque;
     VirtIOBlockReq *req = s->rq;
     MultiReqBuffer mrb = {};
-
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
 
     s->rq = NULL;
 
@@ -853,6 +849,16 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     }
     blk_dec_in_flight(s->conf.conf.blk);
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
+}
+
+static void virtio_blk_dma_restart_bh(void *opaque)
+{
+    VirtIOBlock *s = opaque;
+
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
+
+    virtio_blk_process_queued_requests(s);
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running,
