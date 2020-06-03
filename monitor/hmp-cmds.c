@@ -1637,9 +1637,8 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     obj = user_creatable_add_opts(opts, &err);
     qemu_opts_del(opts);
 
-    if (err) {
-        hmp_handle_error(mon, err);
-    }
+    hmp_handle_error(mon, err);
+
     if (obj) {
         object_unref(obj);
     }
