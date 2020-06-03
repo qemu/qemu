@@ -819,7 +819,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     virtio_blk_handle_output_do(s, vq);
 }
 
-void virtio_blk_process_queued_requests(VirtIOBlock *s)
+void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
 {
     VirtIOBlockReq *req = s->rq;
     MultiReqBuffer mrb = {};
@@ -847,7 +847,9 @@ void virtio_blk_process_queued_requests(VirtIOBlock *s)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
-    blk_dec_in_flight(s->conf.conf.blk);
+    if (is_bh) {
+        blk_dec_in_flight(s->conf.conf.blk);
+    }
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
@@ -858,21 +860,25 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     qemu_bh_delete(s->bh);
     s->bh = NULL;
 
-    virtio_blk_process_queued_requests(s);
+    virtio_blk_process_queued_requests(s, true);
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running,
                                       RunState state)
 {
     VirtIOBlock *s = opaque;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
+    VirtioBusState *bus = VIRTIO_BUS(qbus);
 
     if (!running) {
         return;
     }
 
-    if (!s->bh) {
-        /* FIXME The data plane is not started yet, so these requests are
-         * processed in the main thread. */
+    /*
+     * If ioeventfd is enabled, don't schedule the BH here as queued
+     * requests will be processed while starting the data plane.
+     */
+    if (!s->bh && !virtio_bus_ioeventfd_enabled(bus)) {
         s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
                            virtio_blk_dma_restart_bh, s);
         blk_inc_in_flight(s->conf.conf.blk);
