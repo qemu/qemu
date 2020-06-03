@@ -71,6 +71,7 @@ void hmp_qom_get(Monitor *mon, const QDict *qdict)
         qobject_unref(str);
     }
 
+    qobject_unref(obj);
     hmp_handle_error(mon, err);
 }
 
