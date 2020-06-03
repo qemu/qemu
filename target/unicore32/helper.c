@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -106,8 +107,9 @@ void helper_cp0_set(CPUUniCore32State *env, uint32_t val, uint32_t creg,
     }
     return;
 unrecognized:
-    DPRINTF("Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
-            creg, cop);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
+                  creg, cop);
 }
 
 uint32_t helper_cp0_get(CPUUniCore32State *env, uint32_t creg, uint32_t cop)
@@ -153,8 +155,9 @@ uint32_t helper_cp0_get(CPUUniCore32State *env, uint32_t creg, uint32_t cop)
         }
         break;
     }
-    DPRINTF("Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
-            creg, cop);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
+                  creg, cop);
     return 0;
 }
 
