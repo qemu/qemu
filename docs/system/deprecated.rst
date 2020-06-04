@@ -138,25 +138,23 @@ the backing storage specified with ``-mem-path`` can actually provide
 the guest RAM configured with ``-m`` and QEMU will fail to start up if
 RAM allocation is unsuccessful.
 
-RISC-V ``-bios`` (since 4.1)
+RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
 QEMU 4.1 introduced support for the -bios option in QEMU for RISC-V for the
-RISC-V virt machine and sifive_u machine.
+RISC-V virt machine and sifive_u machine. QEMU 4.1 had no changes to the
+default behaviour to avoid breakages.
 
-QEMU 4.1 has no changes to the default behaviour to avoid breakages. This
-default will change in a future QEMU release, so please prepare now. All users
-of the virt or sifive_u machine must change their command line usage.
+QEMU 5.1 changes the default behaviour from ``-bios none`` to ``-bios default``.
 
-QEMU 4.1 has three options, please migrate to one of these three:
- 1. ``-bios none`` - This is the current default behavior if no -bios option
-      is included. QEMU will not automatically load any firmware. It is up
+QEMU 5.1 has three options:
+ 1. ``-bios default`` - This is the current default behavior if no -bios option
+      is included. This option will load the default OpenSBI firmware automatically.
+      The firmware is included with the QEMU release and no user interaction is
+      required. All a user needs to do is specify the kernel they want to boot
+      with the -kernel option
+ 2. ``-bios none`` - QEMU will not automatically load any firmware. It is up
       to the user to load all the images they need.
- 2. ``-bios default`` - In a future QEMU release this will become the default
-      behaviour if no -bios option is specified. This option will load the
-      default OpenSBI firmware automatically. The firmware is included with
-      the QEMU release and no user interaction is required. All a user needs
-      to do is specify the kernel they want to boot with the -kernel option
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
 ``-tb-size`` option (since 5.0)
@@ -301,33 +299,8 @@ The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
 ``acl_remove`` commands are deprecated with no replacement. Authorization
 for VNC should be performed using the pluggable QAuthZ objects.
 
-Guest Emulator ISAs
--------------------
-
-RISC-V ISA privledge specification version 1.09.1 (since 4.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The RISC-V ISA privledge specification version 1.09.1 has been deprecated.
-QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
-should be used instead of the 1.09.1 version.
-
 System emulator CPUS
 --------------------
-
-RISC-V ISA CPUs (since 4.1)
-'''''''''''''''''''''''''''
-
-The RISC-V cpus with the ISA version in the CPU name have been depcreated. The
-four CPUs are: ``rv32gcsu-v1.9.1``, ``rv32gcsu-v1.10.0``, ``rv64gcsu-v1.9.1`` and
-``rv64gcsu-v1.10.0``. Instead the version can be specified via the CPU ``priv_spec``
-option when using the ``rv32`` or ``rv64`` CPUs.
-
-RISC-V ISA CPUs (since 4.1)
-'''''''''''''''''''''''''''
-
-The RISC-V no MMU cpus have been depcreated. The two CPUs: ``rv32imacu-nommu`` and
-``rv64imacu-nommu`` should no longer be used. Instead the MMU status can be specified
-via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
 ``compat`` property of server class POWER CPUs (since 5.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -378,13 +351,6 @@ This machine has been renamed ``fuloong2e``.
 
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.
-
-``spike_v1.9.1`` and ``spike_v1.10`` (since 4.1)
-''''''''''''''''''''''''''''''''''''''''''''''''
-
-The version specific Spike machines have been deprecated in favour of the
-generic ``spike`` machine. If you need to specify an older version of the RISC-V
-spec you can use the ``-cpu rv64gcsu,priv_spec=v1.9.1`` command line argument.
 
 Device options
 --------------
@@ -492,6 +458,44 @@ The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0
 
 The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
 'hostfwd_remove' HMP commands has been replaced by ``netdev_id``.
+
+Guest Emulator ISAs
+-------------------
+
+RISC-V ISA privledge specification version 1.09.1 (removed in 5.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The RISC-V ISA privledge specification version 1.09.1 has been removed.
+QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
+should be used instead of the 1.09.1 version.
+
+System emulator CPUS
+--------------------
+
+RISC-V ISA Specific CPUs (removed in 5.1)
+'''''''''''''''''''''''''''''''''''''''''
+
+The RISC-V cpus with the ISA version in the CPU name have been removed. The
+four CPUs are: ``rv32gcsu-v1.9.1``, ``rv32gcsu-v1.10.0``, ``rv64gcsu-v1.9.1`` and
+``rv64gcsu-v1.10.0``. Instead the version can be specified via the CPU ``priv_spec``
+option when using the ``rv32`` or ``rv64`` CPUs.
+
+RISC-V no MMU CPUs (removed in 5.1)
+'''''''''''''''''''''''''''''''''''
+
+The RISC-V no MMU cpus have been removed. The two CPUs: ``rv32imacu-nommu`` and
+``rv64imacu-nommu`` can no longer be used. Instead the MMU status can be specified
+via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
+
+System emulator machines
+------------------------
+
+``spike_v1.9.1`` and ``spike_v1.10`` (removed in 5.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The version specific Spike machines have been removed in favour of the
+generic ``spike`` machine. If you need to specify an older version of the RISC-V
+spec you can use the ``-cpu rv64gcsu,priv_spec=v1.10.0`` command line argument.
 
 Related binaries
 ----------------

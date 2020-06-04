@@ -58,29 +58,9 @@ static int ctr(CPURISCVState *env, int csrno)
 #if !defined(CONFIG_USER_ONLY)
     CPUState *cs = env_cpu(env);
     RISCVCPU *cpu = RISCV_CPU(cs);
-    uint32_t ctr_en = ~0u;
 
     if (!cpu->cfg.ext_counters) {
         /* The Counters extensions is not enabled */
-        return -1;
-    }
-
-    /*
-     * The counters are always enabled at run time on newer priv specs, as the
-     * CSR has changed from controlling that the counters can be read to
-     * controlling that the counters increment.
-     */
-    if (env->priv_ver > PRIV_VERSION_1_09_1) {
-        return 0;
-    }
-
-    if (env->priv < PRV_M) {
-        ctr_en &= env->mcounteren;
-    }
-    if (env->priv < PRV_S) {
-        ctr_en &= env->scounteren;
-    }
-    if (!(ctr_en & (1u << (csrno & 31)))) {
         return -1;
     }
 #endif
@@ -293,9 +273,6 @@ static const target_ulong delegable_excps =
     (1ULL << (RISCV_EXCP_INST_GUEST_PAGE_FAULT)) |
     (1ULL << (RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT)) |
     (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT));
-static const target_ulong sstatus_v1_9_mask = SSTATUS_SIE | SSTATUS_SPIE |
-    SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
-    SSTATUS_SUM | SSTATUS_SD;
 static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
     SSTATUS_SUM | SSTATUS_MXR | SSTATUS_SD;
@@ -304,20 +281,11 @@ static const target_ulong hip_writable_mask = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP;
 static const target_ulong vsip_writable_mask = MIP_VSSIP;
 
 #if defined(TARGET_RISCV32)
-static const char valid_vm_1_09[16] = {
-    [VM_1_09_MBARE] = 1,
-    [VM_1_09_SV32] = 1,
-};
 static const char valid_vm_1_10[16] = {
     [VM_1_10_MBARE] = 1,
     [VM_1_10_SV32] = 1
 };
 #elif defined(TARGET_RISCV64)
-static const char valid_vm_1_09[16] = {
-    [VM_1_09_MBARE] = 1,
-    [VM_1_09_SV39] = 1,
-    [VM_1_09_SV48] = 1,
-};
 static const char valid_vm_1_10[16] = {
     [VM_1_10_MBARE] = 1,
     [VM_1_10_SV39] = 1,
@@ -347,8 +315,7 @@ static int read_mstatus(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int validate_vm(CPURISCVState *env, target_ulong vm)
 {
-    return (env->priv_ver >= PRIV_VERSION_1_10_0) ?
-        valid_vm_1_10[vm & 0xf] : valid_vm_1_09[vm & 0xf];
+    return valid_vm_1_10[vm & 0xf];
 }
 
 static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
@@ -358,34 +325,21 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
     int dirty;
 
     /* flush tlb on mstatus fields that affect VM */
-    if (env->priv_ver <= PRIV_VERSION_1_09_1) {
-        if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP |
-                MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_VM)) {
-            tlb_flush(env_cpu(env));
-        }
-        mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
-            MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
-            MSTATUS_MPP | MSTATUS_MXR |
-            (validate_vm(env, get_field(val, MSTATUS_VM)) ?
-                MSTATUS_VM : 0);
+    if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
+            MSTATUS_MPRV | MSTATUS_SUM)) {
+        tlb_flush(env_cpu(env));
     }
-    if (env->priv_ver >= PRIV_VERSION_1_10_0) {
-        if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
-                MSTATUS_MPRV | MSTATUS_SUM)) {
-            tlb_flush(env_cpu(env));
-        }
-        mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
-            MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
-            MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
-            MSTATUS_TW;
+    mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
+        MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
+        MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
+        MSTATUS_TW;
 #if defined(TARGET_RISCV64)
-            /*
-             * RV32: MPV and MTL are not in mstatus. The current plan is to
-             * add them to mstatush. For now, we just don't support it.
-             */
-            mask |= MSTATUS_MTL | MSTATUS_MPV;
+    /*
+     * RV32: MPV and MTL are not in mstatus. The current plan is to
+     * add them to mstatush. For now, we just don't support it.
+     */
+    mask |= MSTATUS_MTL | MSTATUS_MPV;
 #endif
-    }
 
     mstatus = (mstatus & ~mask) | (val & mask);
 
@@ -534,18 +488,12 @@ static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_mcounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if (env->priv_ver < PRIV_VERSION_1_10_0) {
-        return -1;
-    }
     *val = env->mcounteren;
     return 0;
 }
 
 static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
 {
-    if (env->priv_ver < PRIV_VERSION_1_10_0) {
-        return -1;
-    }
     env->mcounteren = val;
     return 0;
 }
@@ -553,8 +501,7 @@ static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
 /* This regiser is replaced with CSR_MCOUNTINHIBIT in 1.11.0 */
 static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if (env->priv_ver > PRIV_VERSION_1_09_1
-        && env->priv_ver < PRIV_VERSION_1_11_0) {
+    if (env->priv_ver < PRIV_VERSION_1_11_0) {
         return -1;
     }
     *val = env->mcounteren;
@@ -564,29 +511,10 @@ static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
 /* This regiser is replaced with CSR_MCOUNTINHIBIT in 1.11.0 */
 static int write_mscounteren(CPURISCVState *env, int csrno, target_ulong val)
 {
-    if (env->priv_ver > PRIV_VERSION_1_09_1
-        && env->priv_ver < PRIV_VERSION_1_11_0) {
+    if (env->priv_ver < PRIV_VERSION_1_11_0) {
         return -1;
     }
     env->mcounteren = val;
-    return 0;
-}
-
-static int read_mucounteren(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    if (env->priv_ver > PRIV_VERSION_1_09_1) {
-        return -1;
-    }
-    *val = env->scounteren;
-    return 0;
-}
-
-static int write_mucounteren(CPURISCVState *env, int csrno, target_ulong val)
-{
-    if (env->priv_ver > PRIV_VERSION_1_09_1) {
-        return -1;
-    }
-    env->scounteren = val;
     return 0;
 }
 
@@ -663,16 +591,14 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
 /* Supervisor Trap Setup */
 static int read_sstatus(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    target_ulong mask = ((env->priv_ver >= PRIV_VERSION_1_10_0) ?
-                         sstatus_v1_10_mask : sstatus_v1_9_mask);
+    target_ulong mask = (sstatus_v1_10_mask);
     *val = env->mstatus & mask;
     return 0;
 }
 
 static int write_sstatus(CPURISCVState *env, int csrno, target_ulong val)
 {
-    target_ulong mask = ((env->priv_ver >= PRIV_VERSION_1_10_0) ?
-                         sstatus_v1_10_mask : sstatus_v1_9_mask);
+    target_ulong mask = (sstatus_v1_10_mask);
     target_ulong newval = (env->mstatus & ~mask) | (val & mask);
     return write_mstatus(env, CSR_MSTATUS, newval);
 }
@@ -722,18 +648,12 @@ static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_scounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if (env->priv_ver < PRIV_VERSION_1_10_0) {
-        return -1;
-    }
     *val = env->scounteren;
     return 0;
 }
 
 static int write_scounteren(CPURISCVState *env, int csrno, target_ulong val)
 {
-    if (env->priv_ver < PRIV_VERSION_1_10_0) {
-        return -1;
-    }
     env->scounteren = val;
     return 0;
 }
@@ -812,15 +732,15 @@ static int read_satp(CPURISCVState *env, int csrno, target_ulong *val)
 {
     if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
         *val = 0;
-    } else if (env->priv_ver >= PRIV_VERSION_1_10_0) {
-        if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
-            return -1;
-        } else {
-            *val = env->satp;
-        }
-    } else {
-        *val = env->sptbr;
+        return 0;
     }
+
+    if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
+        return -1;
+    } else {
+        *val = env->satp;
+    }
+
     return 0;
 }
 
@@ -829,13 +749,7 @@ static int write_satp(CPURISCVState *env, int csrno, target_ulong val)
     if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
         return 0;
     }
-    if (env->priv_ver <= PRIV_VERSION_1_09_1 && (val ^ env->sptbr)) {
-        tlb_flush(env_cpu(env));
-        env->sptbr = val & (((target_ulong)
-            1 << (TARGET_PHYS_ADDR_SPACE_BITS - PGSHIFT)) - 1);
-    }
-    if (env->priv_ver >= PRIV_VERSION_1_10_0 &&
-        validate_vm(env, get_field(val, SATP_MODE)) &&
+    if (validate_vm(env, get_field(val, SATP_MODE)) &&
         ((val ^ env->satp) & (SATP_MODE | SATP_ASID | SATP_PPN)))
     {
         if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
@@ -1313,8 +1227,6 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MSTATUSH] =            { any,  read_mstatush,    write_mstatush    },
 #endif
 
-    /* Legacy Counter Setup (priv v1.9.1) */
-    [CSR_MUCOUNTEREN] =         { any,  read_mucounteren, write_mucounteren },
     [CSR_MSCOUNTEREN] =         { any,  read_mscounteren, write_mscounteren },
 
     /* Machine Trap Handling */

@@ -47,6 +47,10 @@ typedef struct SiFiveEState {
     SiFiveESoCState soc;
 } SiFiveEState;
 
+#define TYPE_RISCV_E_MACHINE MACHINE_TYPE_NAME("sifive_e")
+#define RISCV_E_MACHINE(obj) \
+    OBJECT_CHECK(SiFiveEState, (obj), TYPE_RISCV_E_MACHINE)
+
 enum {
     SIFIVE_E_DEBUG,
     SIFIVE_E_MROM,

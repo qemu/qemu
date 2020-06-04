@@ -215,11 +215,6 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (env->priv_ver < PRIV_VERSION_1_10_0) {
-        monitor_printf(mon, "Privileged mode < 1.10 unsupported\n");
-        return;
-    }
-
     if (!(env->satp & SATP_MODE)) {
         monitor_printf(mon, "No translation or protection\n");
         return;
