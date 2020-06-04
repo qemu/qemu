@@ -41,7 +41,6 @@ extern char *sev_get_launch_measurement(void);
 extern SevCapability *sev_get_capabilities(void);
 
 typedef struct QSevGuestInfo QSevGuestInfo;
-typedef struct QSevGuestInfoClass QSevGuestInfoClass;
 
 /**
  * QSevGuestInfo:
@@ -62,10 +61,6 @@ struct QSevGuestInfo {
     char *session_file;
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
-};
-
-struct QSevGuestInfoClass {
-    ObjectClass parent_class;
 };
 
 struct SEVState {
