@@ -29,22 +29,23 @@
 #include "trace.h"
 #include "migration/blocker.h"
 
-#define TYPE_QSEV_GUEST_INFO "sev-guest"
-#define QSEV_GUEST_INFO(obj)                  \
-    OBJECT_CHECK(QSevGuestInfo, (obj), TYPE_QSEV_GUEST_INFO)
+#define TYPE_SEV_GUEST "sev-guest"
+#define SEV_GUEST(obj)                                          \
+    OBJECT_CHECK(SevGuestState, (obj), TYPE_SEV_GUEST)
 
-typedef struct QSevGuestInfo QSevGuestInfo;
+typedef struct SevGuestState SevGuestState;
 
 /**
- * QSevGuestInfo:
+ * SevGuestState:
  *
- * The QSevGuestInfo object is used for creating a SEV guest.
+ * The SevGuestState object is used for creating and managing a SEV
+ * guest.
  *
  * # $QEMU \
  *         -object sev-guest,id=sev0 \
  *         -machine ...,memory-encryption=sev0
  */
-struct QSevGuestInfo {
+struct SevGuestState {
     Object parent_obj;
 
     char *sev_device;
@@ -57,7 +58,7 @@ struct QSevGuestInfo {
 };
 
 struct SEVState {
-    QSevGuestInfo *sev_info;
+    SevGuestState *sev_info;
     uint8_t api_major;
     uint8_t api_minor;
     uint8_t build_id;
@@ -235,82 +236,82 @@ static struct RAMBlockNotifier sev_ram_notifier = {
 };
 
 static void
-qsev_guest_finalize(Object *obj)
+sev_guest_finalize(Object *obj)
 {
 }
 
 static char *
-qsev_guest_get_session_file(Object *obj, Error **errp)
+sev_guest_get_session_file(Object *obj, Error **errp)
 {
-    QSevGuestInfo *s = QSEV_GUEST_INFO(obj);
+    SevGuestState *s = SEV_GUEST(obj);
 
     return s->session_file ? g_strdup(s->session_file) : NULL;
 }
 
 static void
-qsev_guest_set_session_file(Object *obj, const char *value, Error **errp)
+sev_guest_set_session_file(Object *obj, const char *value, Error **errp)
 {
-    QSevGuestInfo *s = QSEV_GUEST_INFO(obj);
+    SevGuestState *s = SEV_GUEST(obj);
 
     s->session_file = g_strdup(value);
 }
 
 static char *
-qsev_guest_get_dh_cert_file(Object *obj, Error **errp)
+sev_guest_get_dh_cert_file(Object *obj, Error **errp)
 {
-    QSevGuestInfo *s = QSEV_GUEST_INFO(obj);
+    SevGuestState *s = SEV_GUEST(obj);
 
     return g_strdup(s->dh_cert_file);
 }
 
 static void
-qsev_guest_set_dh_cert_file(Object *obj, const char *value, Error **errp)
+sev_guest_set_dh_cert_file(Object *obj, const char *value, Error **errp)
 {
-    QSevGuestInfo *s = QSEV_GUEST_INFO(obj);
+    SevGuestState *s = SEV_GUEST(obj);
 
     s->dh_cert_file = g_strdup(value);
 }
 
 static char *
-qsev_guest_get_sev_device(Object *obj, Error **errp)
+sev_guest_get_sev_device(Object *obj, Error **errp)
 {
-    QSevGuestInfo *sev = QSEV_GUEST_INFO(obj);
+    SevGuestState *sev = SEV_GUEST(obj);
 
     return g_strdup(sev->sev_device);
 }
 
 static void
-qsev_guest_set_sev_device(Object *obj, const char *value, Error **errp)
+sev_guest_set_sev_device(Object *obj, const char *value, Error **errp)
 {
-    QSevGuestInfo *sev = QSEV_GUEST_INFO(obj);
+    SevGuestState *sev = SEV_GUEST(obj);
 
     sev->sev_device = g_strdup(value);
 }
 
 static void
-qsev_guest_class_init(ObjectClass *oc, void *data)
+sev_guest_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "sev-device",
-                                  qsev_guest_get_sev_device,
-                                  qsev_guest_set_sev_device);
+                                  sev_guest_get_sev_device,
+                                  sev_guest_set_sev_device);
     object_class_property_set_description(oc, "sev-device",
             "SEV device to use");
     object_class_property_add_str(oc, "dh-cert-file",
-                                  qsev_guest_get_dh_cert_file,
-                                  qsev_guest_set_dh_cert_file);
+                                  sev_guest_get_dh_cert_file,
+                                  sev_guest_set_dh_cert_file);
     object_class_property_set_description(oc, "dh-cert-file",
             "guest owners DH certificate (encoded with base64)");
     object_class_property_add_str(oc, "session-file",
-                                  qsev_guest_get_session_file,
-                                  qsev_guest_set_session_file);
+                                  sev_guest_get_session_file,
+                                  sev_guest_set_session_file);
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
 }
 
 static void
-qsev_guest_init(Object *obj)
+sev_guest_instance_init(Object *obj)
 {
-    QSevGuestInfo *sev = QSEV_GUEST_INFO(obj);
+    SevGuestState *sev = SEV_GUEST(obj);
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
@@ -326,32 +327,32 @@ qsev_guest_init(Object *obj)
 }
 
 /* sev guest info */
-static const TypeInfo qsev_guest_info = {
+static const TypeInfo sev_guest_info = {
     .parent = TYPE_OBJECT,
-    .name = TYPE_QSEV_GUEST_INFO,
-    .instance_size = sizeof(QSevGuestInfo),
-    .instance_finalize = qsev_guest_finalize,
-    .class_init = qsev_guest_class_init,
-    .instance_init = qsev_guest_init,
+    .name = TYPE_SEV_GUEST,
+    .instance_size = sizeof(SevGuestState),
+    .instance_finalize = sev_guest_finalize,
+    .class_init = sev_guest_class_init,
+    .instance_init = sev_guest_instance_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }
 };
 
-static QSevGuestInfo *
+static SevGuestState *
 lookup_sev_guest_info(const char *id)
 {
     Object *obj;
-    QSevGuestInfo *info;
+    SevGuestState *info;
 
     obj = object_resolve_path_component(object_get_objects_root(), id);
     if (!obj) {
         return NULL;
     }
 
-    info = (QSevGuestInfo *)
-            object_dynamic_cast(obj, TYPE_QSEV_GUEST_INFO);
+    info = (SevGuestState *)
+            object_dynamic_cast(obj, TYPE_SEV_GUEST);
     if (!info) {
         return NULL;
     }
@@ -510,7 +511,7 @@ sev_launch_start(SEVState *s)
     gsize sz;
     int ret = 1;
     int fw_error, rc;
-    QSevGuestInfo *sev = s->sev_info;
+    SevGuestState *sev = s->sev_info;
     struct kvm_sev_launch_start *start;
     guchar *session = NULL, *dh_cert = NULL;
 
@@ -696,7 +697,7 @@ sev_guest_init(const char *id)
     s->sev_info = lookup_sev_guest_info(id);
     if (!s->sev_info) {
         error_report("%s: '%s' is not a valid '%s' object",
-                     __func__, id, TYPE_QSEV_GUEST_INFO);
+                     __func__, id, TYPE_SEV_GUEST);
         goto err;
     }
 
@@ -786,7 +787,7 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
 static void
 sev_register_types(void)
 {
-    type_register_static(&qsev_guest_info);
+    type_register_static(&sev_guest_info);
 }
 
 type_init(sev_register_types);
