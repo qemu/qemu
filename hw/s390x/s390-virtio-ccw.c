@@ -401,7 +401,7 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
         s390_cpu_set_state(S390_CPU_STATE_STOPPED, S390_CPU(cs));
     }
     s390_pv_unshare();
-    s390_pv_perf_clear_reset();
+    s390_pv_prep_reset();
 }
 
 static void s390_machine_reset(MachineState *machine)

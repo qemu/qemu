@@ -1,0 +1,32 @@
+3270 devices
+============
+
+QEMU supports connecting an external 3270 terminal emulator (such as
+``x3270``) to make a single 3270 device available to a guest. Note that this
+supports basic features only.
+
+To provide a 3270 device to a guest, create a ``x-terminal3270`` linked to
+a ``tn3270`` chardev. The guest will see a 3270 channel device. In order
+to actually be able to use it, attach the ``x3270`` emulator to the chardev.
+
+Example configuration
+---------------------
+
+* Add a ``tn3270`` chardev and a ``x-terminal3270`` to the QEMU command line::
+
+    -chardev socket,id=char_0,host=0.0.0.0,port=2300,nowait,server,tn3270
+    -device x-terminal3270,chardev=char_0,devno=fe.0.000a,id=terminal_0
+
+* Start the guest. In the guest, use ``chccwdev -e 0.0.000a`` to enable
+  the device.
+
+* On the host, start the ``x3270`` emulator::
+
+    x3270 <host>:2300
+
+* In the guest, locate the 3270 device node under ``/dev/3270/`` (say,
+  ``tty1``) and start a getty on it::
+
+    systemctl start serial-getty@3270-tty1.service
+
+This should get you an addtional tty for logging into the guest.

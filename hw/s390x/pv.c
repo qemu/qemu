@@ -88,7 +88,7 @@ int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak)
     return s390_pv_cmd(KVM_PV_UNPACK, &args);
 }
 
-void s390_pv_perf_clear_reset(void)
+void s390_pv_prep_reset(void)
 {
     s390_pv_cmd_exit(KVM_PV_PREP_RESET, NULL);
 }
