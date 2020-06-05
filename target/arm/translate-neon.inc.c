@@ -31,6 +31,24 @@ static inline int plus1(DisasContext *s, int x)
     return x + 1;
 }
 
+static inline int rsub_64(DisasContext *s, int x)
+{
+    return 64 - x;
+}
+
+static inline int rsub_32(DisasContext *s, int x)
+{
+    return 32 - x;
+}
+static inline int rsub_16(DisasContext *s, int x)
+{
+    return 16 - x;
+}
+static inline int rsub_8(DisasContext *s, int x)
+{
+    return 8 - x;
+}
+
 /* Include the generated Neon decoder */
 #include "decode-neon-dp.inc.c"
 #include "decode-neon-ls.inc.c"
@@ -661,12 +679,14 @@ DO_3SAME_CMP(VCGE_S, TCG_COND_GE)
 DO_3SAME_CMP(VCGE_U, TCG_COND_GEU)
 DO_3SAME_CMP(VCEQ, TCG_COND_EQ)
 
-static void gen_VMUL_p_3s(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
-                           uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)
-{
-    tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz,
-                       0, gen_helper_gvec_pmul_b);
-}
+#define WRAP_OOL_FN(WRAPNAME, FUNC)                                        \
+    static void WRAPNAME(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,  \
+                         uint32_t rm_ofs, uint32_t oprsz, uint32_t maxsz)  \
+    {                                                                      \
+        tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, 0, FUNC); \
+    }
+
+WRAP_OOL_FN(gen_VMUL_p_3s, gen_helper_gvec_pmul_b)
 
 static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
 {
@@ -691,144 +711,34 @@ static bool trans_VMUL_p_3s(DisasContext *s, arg_3same *a)
 DO_VQRDMLAH(VQRDMLAH, gen_gvec_sqrdmlah_qc)
 DO_VQRDMLAH(VQRDMLSH, gen_gvec_sqrdmlsh_qc)
 
-static bool trans_SHA1_3s(DisasContext *s, arg_SHA1_3s *a)
-{
-    TCGv_ptr ptr1, ptr2, ptr3;
-    TCGv_i32 tmp;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !dc_isar_feature(aa32_sha1, s)) {
-        return false;
+#define DO_SHA1(NAME, FUNC)                                             \
+    WRAP_OOL_FN(gen_##NAME##_3s, FUNC)                                  \
+    static bool trans_##NAME##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (!dc_isar_feature(aa32_sha1, s)) {                           \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##NAME##_3s);                         \
     }
 
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
-        return false;
+DO_SHA1(SHA1C, gen_helper_crypto_sha1c)
+DO_SHA1(SHA1P, gen_helper_crypto_sha1p)
+DO_SHA1(SHA1M, gen_helper_crypto_sha1m)
+DO_SHA1(SHA1SU0, gen_helper_crypto_sha1su0)
+
+#define DO_SHA2(NAME, FUNC)                                             \
+    WRAP_OOL_FN(gen_##NAME##_3s, FUNC)                                  \
+    static bool trans_##NAME##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        if (!dc_isar_feature(aa32_sha2, s)) {                           \
+            return false;                                               \
+        }                                                               \
+        return do_3same(s, a, gen_##NAME##_3s);                         \
     }
 
-    if ((a->vn | a->vm | a->vd) & 1) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    ptr1 = vfp_reg_ptr(true, a->vd);
-    ptr2 = vfp_reg_ptr(true, a->vn);
-    ptr3 = vfp_reg_ptr(true, a->vm);
-    tmp = tcg_const_i32(a->optype);
-    gen_helper_crypto_sha1_3reg(ptr1, ptr2, ptr3, tmp);
-    tcg_temp_free_i32(tmp);
-    tcg_temp_free_ptr(ptr1);
-    tcg_temp_free_ptr(ptr2);
-    tcg_temp_free_ptr(ptr3);
-
-    return true;
-}
-
-static bool trans_SHA256H_3s(DisasContext *s, arg_SHA256H_3s *a)
-{
-    TCGv_ptr ptr1, ptr2, ptr3;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !dc_isar_feature(aa32_sha2, s)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vn | a->vm | a->vd) & 1) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    ptr1 = vfp_reg_ptr(true, a->vd);
-    ptr2 = vfp_reg_ptr(true, a->vn);
-    ptr3 = vfp_reg_ptr(true, a->vm);
-    gen_helper_crypto_sha256h(ptr1, ptr2, ptr3);
-    tcg_temp_free_ptr(ptr1);
-    tcg_temp_free_ptr(ptr2);
-    tcg_temp_free_ptr(ptr3);
-
-    return true;
-}
-
-static bool trans_SHA256H2_3s(DisasContext *s, arg_SHA256H2_3s *a)
-{
-    TCGv_ptr ptr1, ptr2, ptr3;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !dc_isar_feature(aa32_sha2, s)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vn | a->vm | a->vd) & 1) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    ptr1 = vfp_reg_ptr(true, a->vd);
-    ptr2 = vfp_reg_ptr(true, a->vn);
-    ptr3 = vfp_reg_ptr(true, a->vm);
-    gen_helper_crypto_sha256h2(ptr1, ptr2, ptr3);
-    tcg_temp_free_ptr(ptr1);
-    tcg_temp_free_ptr(ptr2);
-    tcg_temp_free_ptr(ptr3);
-
-    return true;
-}
-
-static bool trans_SHA256SU1_3s(DisasContext *s, arg_SHA256SU1_3s *a)
-{
-    TCGv_ptr ptr1, ptr2, ptr3;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !dc_isar_feature(aa32_sha2, s)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vn | a->vm | a->vd) & 1) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    ptr1 = vfp_reg_ptr(true, a->vd);
-    ptr2 = vfp_reg_ptr(true, a->vn);
-    ptr3 = vfp_reg_ptr(true, a->vm);
-    gen_helper_crypto_sha256su1(ptr1, ptr2, ptr3);
-    tcg_temp_free_ptr(ptr1);
-    tcg_temp_free_ptr(ptr2);
-    tcg_temp_free_ptr(ptr3);
-
-    return true;
-}
+DO_SHA2(SHA256H, gen_helper_crypto_sha256h)
+DO_SHA2(SHA256H2, gen_helper_crypto_sha256h2)
+DO_SHA2(SHA256SU1, gen_helper_crypto_sha256su1)
 
 #define DO_3SAME_64(INSN, FUNC)                                         \
     static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
@@ -1310,3 +1220,609 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
 DO_3S_FP_PAIR(VPADD, gen_helper_vfp_adds)
 DO_3S_FP_PAIR(VPMAX, gen_helper_vfp_maxs)
 DO_3S_FP_PAIR(VPMIN, gen_helper_vfp_mins)
+
+static bool do_vector_2sh(DisasContext *s, arg_2reg_shift *a, GVecGen2iFn *fn)
+{
+    /* Handle a 2-reg-shift insn which can be vectorized. */
+    int vec_size = a->q ? 16 : 8;
+    int rd_ofs = neon_reg_offset(a->vd, 0);
+    int rm_ofs = neon_reg_offset(a->vm, 0);
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fn(a->size, rd_ofs, rm_ofs, a->shift, vec_size, vec_size);
+    return true;
+}
+
+#define DO_2SH(INSN, FUNC)                                              \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        return do_vector_2sh(s, a, FUNC);                               \
+    }                                                                   \
+
+DO_2SH(VSHL, tcg_gen_gvec_shli)
+DO_2SH(VSLI, gen_gvec_sli)
+DO_2SH(VSRI, gen_gvec_sri)
+DO_2SH(VSRA_S, gen_gvec_ssra)
+DO_2SH(VSRA_U, gen_gvec_usra)
+DO_2SH(VRSHR_S, gen_gvec_srshr)
+DO_2SH(VRSHR_U, gen_gvec_urshr)
+DO_2SH(VRSRA_S, gen_gvec_srsra)
+DO_2SH(VRSRA_U, gen_gvec_ursra)
+
+static bool trans_VSHR_S_2sh(DisasContext *s, arg_2reg_shift *a)
+{
+    /* Signed shift out of range results in all-sign-bits */
+    a->shift = MIN(a->shift, (8 << a->size) - 1);
+    return do_vector_2sh(s, a, tcg_gen_gvec_sari);
+}
+
+static void gen_zero_rd_2sh(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
+                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_dup_imm(vece, rd_ofs, oprsz, maxsz, 0);
+}
+
+static bool trans_VSHR_U_2sh(DisasContext *s, arg_2reg_shift *a)
+{
+    /* Shift out of range is architecturally valid and results in zero. */
+    if (a->shift >= (8 << a->size)) {
+        return do_vector_2sh(s, a, gen_zero_rd_2sh);
+    } else {
+        return do_vector_2sh(s, a, tcg_gen_gvec_shri);
+    }
+}
+
+static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
+                             NeonGenTwo64OpEnvFn *fn)
+{
+    /*
+     * 2-reg-and-shift operations, size == 3 case, where the
+     * function needs to be passed cpu_env.
+     */
+    TCGv_i64 constimm;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * To avoid excessive duplication of ops we implement shift
+     * by immediate using the variable shift operations.
+     */
+    constimm = tcg_const_i64(dup_const(a->size, a->shift));
+
+    for (pass = 0; pass < a->q + 1; pass++) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+
+        neon_load_reg64(tmp, a->vm + pass);
+        fn(tmp, cpu_env, tmp, constimm);
+        neon_store_reg64(tmp, a->vd + pass);
+    }
+    tcg_temp_free_i64(constimm);
+    return true;
+}
+
+static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
+                             NeonGenTwoOpEnvFn *fn)
+{
+    /*
+     * 2-reg-and-shift operations, size < 3 case, where the
+     * helper needs to be passed cpu_env.
+     */
+    TCGv_i32 constimm;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * To avoid excessive duplication of ops we implement shift
+     * by immediate using the variable shift operations.
+     */
+    constimm = tcg_const_i32(dup_const(a->size, a->shift));
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        fn(tmp, cpu_env, tmp, constimm);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_i32(constimm);
+    return true;
+}
+
+#define DO_2SHIFT_ENV(INSN, FUNC)                                       \
+    static bool trans_##INSN##_64_2sh(DisasContext *s, arg_2reg_shift *a) \
+    {                                                                   \
+        return do_2shift_env_64(s, a, gen_helper_neon_##FUNC##64);      \
+    }                                                                   \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        static NeonGenTwoOpEnvFn * const fns[] = {                      \
+            gen_helper_neon_##FUNC##8,                                  \
+            gen_helper_neon_##FUNC##16,                                 \
+            gen_helper_neon_##FUNC##32,                                 \
+        };                                                              \
+        assert(a->size < ARRAY_SIZE(fns));                              \
+        return do_2shift_env_32(s, a, fns[a->size]);                    \
+    }
+
+DO_2SHIFT_ENV(VQSHLU, qshlu_s)
+DO_2SHIFT_ENV(VQSHL_U, qshl_u)
+DO_2SHIFT_ENV(VQSHL_S, qshl_s)
+
+static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
+                                NeonGenTwo64OpFn *shiftfn,
+                                NeonGenNarrowEnvFn *narrowfn)
+{
+    /* 2-reg-and-shift narrowing-shift operations, size == 3 case */
+    TCGv_i64 constimm, rm1, rm2;
+    TCGv_i32 rd;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vm & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This is always a right shift, and the shiftfn is always a
+     * left-shift helper, which thus needs the negated shift count.
+     */
+    constimm = tcg_const_i64(-a->shift);
+    rm1 = tcg_temp_new_i64();
+    rm2 = tcg_temp_new_i64();
+
+    /* Load both inputs first to avoid potential overwrite if rm == rd */
+    neon_load_reg64(rm1, a->vm);
+    neon_load_reg64(rm2, a->vm + 1);
+
+    shiftfn(rm1, rm1, constimm);
+    rd = tcg_temp_new_i32();
+    narrowfn(rd, cpu_env, rm1);
+    neon_store_reg(a->vd, 0, rd);
+
+    shiftfn(rm2, rm2, constimm);
+    rd = tcg_temp_new_i32();
+    narrowfn(rd, cpu_env, rm2);
+    neon_store_reg(a->vd, 1, rd);
+
+    tcg_temp_free_i64(rm1);
+    tcg_temp_free_i64(rm2);
+    tcg_temp_free_i64(constimm);
+
+    return true;
+}
+
+static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
+                                NeonGenTwoOpFn *shiftfn,
+                                NeonGenNarrowEnvFn *narrowfn)
+{
+    /* 2-reg-and-shift narrowing-shift operations, size < 3 case */
+    TCGv_i32 constimm, rm1, rm2, rm3, rm4;
+    TCGv_i64 rtmp;
+    uint32_t imm;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vm & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This is always a right shift, and the shiftfn is always a
+     * left-shift helper, which thus needs the negated shift count
+     * duplicated into each lane of the immediate value.
+     */
+    if (a->size == 1) {
+        imm = (uint16_t)(-a->shift);
+        imm |= imm << 16;
+    } else {
+        /* size == 2 */
+        imm = -a->shift;
+    }
+    constimm = tcg_const_i32(imm);
+
+    /* Load all inputs first to avoid potential overwrite */
+    rm1 = neon_load_reg(a->vm, 0);
+    rm2 = neon_load_reg(a->vm, 1);
+    rm3 = neon_load_reg(a->vm + 1, 0);
+    rm4 = neon_load_reg(a->vm + 1, 1);
+    rtmp = tcg_temp_new_i64();
+
+    shiftfn(rm1, rm1, constimm);
+    shiftfn(rm2, rm2, constimm);
+
+    tcg_gen_concat_i32_i64(rtmp, rm1, rm2);
+    tcg_temp_free_i32(rm2);
+
+    narrowfn(rm1, cpu_env, rtmp);
+    neon_store_reg(a->vd, 0, rm1);
+
+    shiftfn(rm3, rm3, constimm);
+    shiftfn(rm4, rm4, constimm);
+    tcg_temp_free_i32(constimm);
+
+    tcg_gen_concat_i32_i64(rtmp, rm3, rm4);
+    tcg_temp_free_i32(rm4);
+
+    narrowfn(rm3, cpu_env, rtmp);
+    tcg_temp_free_i64(rtmp);
+    neon_store_reg(a->vd, 1, rm3);
+    return true;
+}
+
+#define DO_2SN_64(INSN, FUNC, NARROWFUNC)                               \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        return do_2shift_narrow_64(s, a, FUNC, NARROWFUNC);             \
+    }
+#define DO_2SN_32(INSN, FUNC, NARROWFUNC)                               \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        return do_2shift_narrow_32(s, a, FUNC, NARROWFUNC);             \
+    }
+
+static void gen_neon_narrow_u32(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+{
+    tcg_gen_extrl_i64_i32(dest, src);
+}
+
+static void gen_neon_narrow_u16(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+{
+    gen_helper_neon_narrow_u16(dest, src);
+}
+
+static void gen_neon_narrow_u8(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+{
+    gen_helper_neon_narrow_u8(dest, src);
+}
+
+DO_2SN_64(VSHRN_64, gen_ushl_i64, gen_neon_narrow_u32)
+DO_2SN_32(VSHRN_32, gen_ushl_i32, gen_neon_narrow_u16)
+DO_2SN_32(VSHRN_16, gen_helper_neon_shl_u16, gen_neon_narrow_u8)
+
+DO_2SN_64(VRSHRN_64, gen_helper_neon_rshl_u64, gen_neon_narrow_u32)
+DO_2SN_32(VRSHRN_32, gen_helper_neon_rshl_u32, gen_neon_narrow_u16)
+DO_2SN_32(VRSHRN_16, gen_helper_neon_rshl_u16, gen_neon_narrow_u8)
+
+DO_2SN_64(VQSHRUN_64, gen_sshl_i64, gen_helper_neon_unarrow_sat32)
+DO_2SN_32(VQSHRUN_32, gen_sshl_i32, gen_helper_neon_unarrow_sat16)
+DO_2SN_32(VQSHRUN_16, gen_helper_neon_shl_s16, gen_helper_neon_unarrow_sat8)
+
+DO_2SN_64(VQRSHRUN_64, gen_helper_neon_rshl_s64, gen_helper_neon_unarrow_sat32)
+DO_2SN_32(VQRSHRUN_32, gen_helper_neon_rshl_s32, gen_helper_neon_unarrow_sat16)
+DO_2SN_32(VQRSHRUN_16, gen_helper_neon_rshl_s16, gen_helper_neon_unarrow_sat8)
+DO_2SN_64(VQSHRN_S64, gen_sshl_i64, gen_helper_neon_narrow_sat_s32)
+DO_2SN_32(VQSHRN_S32, gen_sshl_i32, gen_helper_neon_narrow_sat_s16)
+DO_2SN_32(VQSHRN_S16, gen_helper_neon_shl_s16, gen_helper_neon_narrow_sat_s8)
+
+DO_2SN_64(VQRSHRN_S64, gen_helper_neon_rshl_s64, gen_helper_neon_narrow_sat_s32)
+DO_2SN_32(VQRSHRN_S32, gen_helper_neon_rshl_s32, gen_helper_neon_narrow_sat_s16)
+DO_2SN_32(VQRSHRN_S16, gen_helper_neon_rshl_s16, gen_helper_neon_narrow_sat_s8)
+
+DO_2SN_64(VQSHRN_U64, gen_ushl_i64, gen_helper_neon_narrow_sat_u32)
+DO_2SN_32(VQSHRN_U32, gen_ushl_i32, gen_helper_neon_narrow_sat_u16)
+DO_2SN_32(VQSHRN_U16, gen_helper_neon_shl_u16, gen_helper_neon_narrow_sat_u8)
+
+DO_2SN_64(VQRSHRN_U64, gen_helper_neon_rshl_u64, gen_helper_neon_narrow_sat_u32)
+DO_2SN_32(VQRSHRN_U32, gen_helper_neon_rshl_u32, gen_helper_neon_narrow_sat_u16)
+DO_2SN_32(VQRSHRN_U16, gen_helper_neon_rshl_u16, gen_helper_neon_narrow_sat_u8)
+
+static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
+                         NeonGenWidenFn *widenfn, bool u)
+{
+    TCGv_i64 tmp;
+    TCGv_i32 rm0, rm1;
+    uint64_t widen_mask = 0;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This is a widen-and-shift operation. The shift is always less
+     * than the width of the source type, so after widening the input
+     * vector we can simply shift the whole 64-bit widened register,
+     * and then clear the potential overflow bits resulting from left
+     * bits of the narrow input appearing as right bits of the left
+     * neighbour narrow input. Calculate a mask of bits to clear.
+     */
+    if ((a->shift != 0) && (a->size < 2 || u)) {
+        int esize = 8 << a->size;
+        widen_mask = MAKE_64BIT_MASK(0, esize);
+        widen_mask >>= esize - a->shift;
+        widen_mask = dup_const(a->size + 1, widen_mask);
+    }
+
+    rm0 = neon_load_reg(a->vm, 0);
+    rm1 = neon_load_reg(a->vm, 1);
+    tmp = tcg_temp_new_i64();
+
+    widenfn(tmp, rm0);
+    if (a->shift != 0) {
+        tcg_gen_shli_i64(tmp, tmp, a->shift);
+        tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
+    }
+    neon_store_reg64(tmp, a->vd);
+
+    widenfn(tmp, rm1);
+    if (a->shift != 0) {
+        tcg_gen_shli_i64(tmp, tmp, a->shift);
+        tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
+    }
+    neon_store_reg64(tmp, a->vd + 1);
+    tcg_temp_free_i64(tmp);
+    return true;
+}
+
+static bool trans_VSHLL_S_2sh(DisasContext *s, arg_2reg_shift *a)
+{
+    NeonGenWidenFn *widenfn[] = {
+        gen_helper_neon_widen_s8,
+        gen_helper_neon_widen_s16,
+        tcg_gen_ext_i32_i64,
+    };
+    return do_vshll_2sh(s, a, widenfn[a->size], false);
+}
+
+static bool trans_VSHLL_U_2sh(DisasContext *s, arg_2reg_shift *a)
+{
+    NeonGenWidenFn *widenfn[] = {
+        gen_helper_neon_widen_u8,
+        gen_helper_neon_widen_u16,
+        tcg_gen_extu_i32_i64,
+    };
+    return do_vshll_2sh(s, a, widenfn[a->size], true);
+}
+
+static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
+                      NeonGenTwoSingleOPFn *fn)
+{
+    /* FP operations in 2-reg-and-shift group */
+    TCGv_i32 tmp, shiftv;
+    TCGv_ptr fpstatus;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpstatus = get_fpstatus_ptr(1);
+    shiftv = tcg_const_i32(a->shift);
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        tmp = neon_load_reg(a->vm, pass);
+        fn(tmp, tmp, shiftv, fpstatus);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_ptr(fpstatus);
+    tcg_temp_free_i32(shiftv);
+    return true;
+}
+
+#define DO_FP_2SH(INSN, FUNC)                                           \
+    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
+    {                                                                   \
+        return do_fp_2sh(s, a, FUNC);                                   \
+    }
+
+DO_FP_2SH(VCVT_SF, gen_helper_vfp_sltos)
+DO_FP_2SH(VCVT_UF, gen_helper_vfp_ultos)
+DO_FP_2SH(VCVT_FS, gen_helper_vfp_tosls_round_to_zero)
+DO_FP_2SH(VCVT_FU, gen_helper_vfp_touls_round_to_zero)
+
+static uint64_t asimd_imm_const(uint32_t imm, int cmode, int op)
+{
+    /*
+     * Expand the encoded constant.
+     * Note that cmode = 2,3,4,5,6,7,10,11,12,13 imm=0 is UNPREDICTABLE.
+     * We choose to not special-case this and will behave as if a
+     * valid constant encoding of 0 had been given.
+     * cmode = 15 op = 1 must UNDEF; we assume decode has handled that.
+     */
+    switch (cmode) {
+    case 0: case 1:
+        /* no-op */
+        break;
+    case 2: case 3:
+        imm <<= 8;
+        break;
+    case 4: case 5:
+        imm <<= 16;
+        break;
+    case 6: case 7:
+        imm <<= 24;
+        break;
+    case 8: case 9:
+        imm |= imm << 16;
+        break;
+    case 10: case 11:
+        imm = (imm << 8) | (imm << 24);
+        break;
+    case 12:
+        imm = (imm << 8) | 0xff;
+        break;
+    case 13:
+        imm = (imm << 16) | 0xffff;
+        break;
+    case 14:
+        if (op) {
+            /*
+             * This is the only case where the top and bottom 32 bits
+             * of the encoded constant differ.
+             */
+            uint64_t imm64 = 0;
+            int n;
+
+            for (n = 0; n < 8; n++) {
+                if (imm & (1 << n)) {
+                    imm64 |= (0xffULL << (n * 8));
+                }
+            }
+            return imm64;
+        }
+        imm |= (imm << 8) | (imm << 16) | (imm << 24);
+        break;
+    case 15:
+        imm = ((imm & 0x80) << 24) | ((imm & 0x3f) << 19)
+            | ((imm & 0x40) ? (0x1f << 25) : (1 << 30));
+        break;
+    }
+    if (op) {
+        imm = ~imm;
+    }
+    return dup_const(MO_32, imm);
+}
+
+static bool do_1reg_imm(DisasContext *s, arg_1reg_imm *a,
+                        GVecGen2iFn *fn)
+{
+    uint64_t imm;
+    int reg_ofs, vec_size;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    reg_ofs = neon_reg_offset(a->vd, 0);
+    vec_size = a->q ? 16 : 8;
+    imm = asimd_imm_const(a->imm, a->cmode, a->op);
+
+    fn(MO_64, reg_ofs, reg_ofs, imm, vec_size, vec_size);
+    return true;
+}
+
+static void gen_VMOV_1r(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_dup_imm(MO_64, dofs, oprsz, maxsz, c);
+}
+
+static bool trans_Vimm_1r(DisasContext *s, arg_1reg_imm *a)
+{
+    /* Handle decode of cmode/op here between VORR/VBIC/VMOV */
+    GVecGen2iFn *fn;
+
+    if ((a->cmode & 1) && a->cmode < 12) {
+        /* for op=1, the imm will be inverted, so BIC becomes AND. */
+        fn = a->op ? tcg_gen_gvec_andi : tcg_gen_gvec_ori;
+    } else {
+        /* There is one unallocated cmode/op combination in this space */
+        if (a->cmode == 15 && a->op == 1) {
+            return false;
+        }
+        fn = gen_VMOV_1r;
+    }
+    return do_1reg_imm(s, a, fn);
+}

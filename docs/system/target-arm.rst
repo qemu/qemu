@@ -81,6 +81,7 @@ undocumented; you can get a complete list by running
    arm/realview
    arm/versatile
    arm/vexpress
+   arm/aspeed
    arm/musicpal
    arm/nseries
    arm/orangepi

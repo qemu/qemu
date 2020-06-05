@@ -22,7 +22,7 @@
 #include "exec/helper-proto.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "fpu/softfloat.h"
-
+#include "vec_internal.h"
 
 /* Note that vector data is stored in host-endian 64-bit chunks,
    so addressing units smaller than that needs a host-endian fixup.  */
@@ -35,16 +35,6 @@
 #define H2(x)  (x)
 #define H4(x)  (x)
 #endif
-
-static void clear_tail(void *vd, uintptr_t opr_sz, uintptr_t max_sz)
-{
-    uint64_t *d = vd + opr_sz;
-    uintptr_t i;
-
-    for (i = opr_sz; i < max_sz; i += 8) {
-        *d++ = 0;
-    }
-}
 
 /* Signed saturating rounding doubling multiply-accumulate high half, 16-bit */
 static int16_t inl_qrdmlah_s16(int16_t src1, int16_t src2,

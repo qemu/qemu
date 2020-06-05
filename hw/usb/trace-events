@@ -176,6 +176,56 @@ usb_xhci_xfer_error(void *xfer, uint32_t ret) "%p: ret %d"
 usb_xhci_unimplemented(const char *item, int nr) "%s (0x%x)"
 usb_xhci_enforced_limit(const char *item) "%s"
 
+# hcd-dwc2.c
+usb_dwc2_update_irq(uint32_t level) "level=%d"
+usb_dwc2_raise_global_irq(uint32_t intr) "0x%08x"
+usb_dwc2_lower_global_irq(uint32_t intr) "0x%08x"
+usb_dwc2_raise_host_irq(uint32_t intr) "0x%04x"
+usb_dwc2_lower_host_irq(uint32_t intr) "0x%04x"
+usb_dwc2_sof(int64_t next) "next SOF %" PRId64
+usb_dwc2_bus_start(void) "start SOFs"
+usb_dwc2_bus_stop(void) "stop SOFs"
+usb_dwc2_find_device(uint8_t addr) "%d"
+usb_dwc2_port_disabled(uint32_t pnum) "port %d disabled"
+usb_dwc2_device_found(uint32_t pnum) "device found on port %d"
+usb_dwc2_device_not_found(void) "device not found"
+usb_dwc2_handle_packet(uint32_t chan, void *dev, void *pkt, uint32_t ep, const char *type, const char *dir, uint32_t mps, uint32_t len, uint32_t pcnt) "ch %d dev %p pkt %p ep %d type %s dir %s mps %d len %d pcnt %d"
+usb_dwc2_memory_read(uint32_t addr, uint32_t len) "addr %d len %d"
+usb_dwc2_packet_status(const char *status, uint32_t len) "status %s len %d"
+usb_dwc2_packet_error(const char *status) "ERROR %s"
+usb_dwc2_async_packet(void *pkt, uint32_t chan, void *dev, uint32_t ep, const char *dir, uint32_t len) "pkt %p ch %d dev %p ep %d %s len %d"
+usb_dwc2_memory_write(uint32_t addr, uint32_t len) "addr %d len %d"
+usb_dwc2_packet_done(const char *status, uint32_t actual, uint32_t len, uint32_t pcnt) "status %s actual %d len %d pcnt %d"
+usb_dwc2_packet_next(const char *status, uint32_t len, uint32_t pcnt) "status %s len %d pcnt %d"
+usb_dwc2_attach(void *port) "port %p"
+usb_dwc2_attach_speed(const char *speed) "%s-speed device attached"
+usb_dwc2_detach(void *port) "port %p"
+usb_dwc2_child_detach(void *port, void *child) "port %p child %p"
+usb_dwc2_wakeup(void *port) "port %p"
+usb_dwc2_async_packet_complete(void *port, void *pkt, uint32_t chan, void *dev, uint32_t ep, const char *dir, uint32_t len) "port %p packet %p ch %d dev %p ep %d %s len %d"
+usb_dwc2_work_bh(void) ""
+usb_dwc2_work_bh_service(uint32_t first, uint32_t current, void *dev, uint32_t ep) "first %d servicing %d dev %p ep %d"
+usb_dwc2_work_bh_next(uint32_t chan) "next %d"
+usb_dwc2_enable_chan(uint32_t chan, void *dev, void *pkt, uint32_t ep) "ch %d dev %p pkt %p ep %d"
+usb_dwc2_glbreg_read(uint64_t addr, const char *reg, uint32_t val) " 0x%04" PRIx64 " %s val 0x%08x"
+usb_dwc2_glbreg_write(uint64_t addr, const char *reg, uint64_t val, uint32_t old, uint64_t result) "0x%04" PRIx64 " %s val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_fszreg_read(uint64_t addr, uint32_t val) " 0x%04" PRIx64 " HPTXFSIZ  val 0x%08x"
+usb_dwc2_fszreg_write(uint64_t addr, uint64_t val, uint32_t old, uint64_t result) "0x%04" PRIx64 " HPTXFSIZ  val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_hreg0_read(uint64_t addr, const char *reg, uint32_t val) "  0x%04" PRIx64 " %s val 0x%08x"
+usb_dwc2_hreg0_write(uint64_t addr, const char *reg, uint64_t val, uint32_t old, uint64_t result) " 0x%04" PRIx64 " %s val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_hreg1_read(uint64_t addr, const char *reg, uint64_t chan, uint32_t val) "  0x%04" PRIx64 " %s%" PRId64 " val 0x%08x"
+usb_dwc2_hreg1_write(uint64_t addr, const char *reg, uint64_t chan, uint64_t val, uint32_t old, uint64_t result) " 0x%04" PRIx64 " %s%" PRId64 " val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_pcgreg_read(uint64_t addr, const char *reg, uint32_t val) " 0x%04" PRIx64 " %s val 0x%08x"
+usb_dwc2_pcgreg_write(uint64_t addr, const char *reg, uint64_t val, uint32_t old, uint64_t result) "0x%04" PRIx64 " %s val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_hreg2_read(uint64_t addr, uint64_t fifo, uint32_t val) "  0x%04" PRIx64 " FIFO%" PRId64 "     val 0x%08x"
+usb_dwc2_hreg2_write(uint64_t addr, uint64_t fifo, uint64_t val, uint32_t old, uint64_t result) " 0x%04" PRIx64 " FIFO%" PRId64 "     val 0x%08" PRIx64 " old 0x%08x result 0x%08" PRIx64
+usb_dwc2_hreg0_action(const char *s) "%s"
+usb_dwc2_wakeup_endpoint(void *ep, uint32_t stream) "endp %p stream %d"
+usb_dwc2_work_timer(void) ""
+usb_dwc2_reset_enter(void) "=== RESET enter ==="
+usb_dwc2_reset_hold(void) "=== RESET hold ==="
+usb_dwc2_reset_exit(void) "=== RESET exit ==="
+
 # desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
