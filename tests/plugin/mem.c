@@ -28,7 +28,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
     g_string_printf(out, "mem accesses: %" PRIu64 "\n", mem_count);
     if (do_haddr) {
-        g_string_append_printf(out, "io accesses: %" PRIu64 "\n", mem_count);
+        g_string_append_printf(out, "io accesses: %" PRIu64 "\n", io_count);
     }
     qemu_plugin_outs(out->str);
 }
