@@ -151,12 +151,13 @@ static void i440fx_fuzz_qos_fork(QTestState *s,
         i440fx_fuzz_qos(s, Data, Size);
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }
 
 static const char *i440fx_qtest_argv = TARGET_NAME " -machine accel=qtest"
-                                       "-m 0 -display none";
+                                       " -m 0 -display none";
 static const char *i440fx_argv(FuzzTarget *t)
 {
     return i440fx_qtest_argv;

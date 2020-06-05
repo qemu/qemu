@@ -145,6 +145,7 @@ static void virtio_scsi_fork_fuzz(QTestState *s,
         flush_events(s);
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }
@@ -164,6 +165,7 @@ static void virtio_scsi_with_flag_fuzz(QTestState *s,
         }
         _Exit(0);
     } else {
+        flush_events(s);
         wait(NULL);
     }
 }

@@ -28,6 +28,11 @@ SECTIONS
 
       /* Internal Libfuzzer TracePC object which contains the ValueProfileMap */
       FuzzerTracePC*(.bss*);
+      /*
+       * In case the above line fails, explicitly specify the (mangled) name of
+       * the object we care about
+       */
+       *(.bss._ZN6fuzzer3TPCE);
   }
   .data.fuzz_end : ALIGN(4K)
   {
