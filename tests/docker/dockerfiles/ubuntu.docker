@@ -9,7 +9,7 @@
 # system won't pick up that it has changed.
 #
 
-FROM ubuntu:19.04
+FROM ubuntu:20.04
 ENV PACKAGES flex bison \
     ccache \
     clang \
