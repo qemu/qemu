@@ -23,7 +23,7 @@ class QcowHeaderExtension:
     def __init__(self, magic, length, data):
         if length % 8 != 0:
             padding = 8 - (length % 8)
-            data += b"\0" * padding
+            data += b'\0' * padding
 
         self.magic = magic
         self.length = length
@@ -41,26 +41,26 @@ class QcowHeader:
 
     fields = (
         # Version 2 header fields
-        (uint32_t, '%#x',  'magic'),
-        (uint32_t, '%d',   'version'),
-        (uint64_t, '%#x',  'backing_file_offset'),
-        (uint32_t, '%#x',  'backing_file_size'),
-        (uint32_t, '%d',   'cluster_bits'),
-        (uint64_t, '%d',   'size'),
-        (uint32_t, '%d',   'crypt_method'),
-        (uint32_t, '%d',   'l1_size'),
-        (uint64_t, '%#x',  'l1_table_offset'),
-        (uint64_t, '%#x',  'refcount_table_offset'),
-        (uint32_t, '%d',   'refcount_table_clusters'),
-        (uint32_t, '%d',   'nb_snapshots'),
-        (uint64_t, '%#x',  'snapshot_offset'),
+        (uint32_t, '{:#x}', 'magic'),
+        (uint32_t, '{}', 'version'),
+        (uint64_t, '{:#x}', 'backing_file_offset'),
+        (uint32_t, '{:#x}', 'backing_file_size'),
+        (uint32_t, '{}', 'cluster_bits'),
+        (uint64_t, '{}', 'size'),
+        (uint32_t, '{}', 'crypt_method'),
+        (uint32_t, '{}', 'l1_size'),
+        (uint64_t, '{:#x}', 'l1_table_offset'),
+        (uint64_t, '{:#x}', 'refcount_table_offset'),
+        (uint32_t, '{}', 'refcount_table_clusters'),
+        (uint32_t, '{}', 'nb_snapshots'),
+        (uint64_t, '{:#x}', 'snapshot_offset'),
 
         # Version 3 header fields
         (uint64_t, 'mask', 'incompatible_features'),
         (uint64_t, 'mask', 'compatible_features'),
         (uint64_t, 'mask', 'autoclear_features'),
-        (uint32_t, '%d',   'refcount_order'),
-        (uint32_t, '%d',   'header_length'),
+        (uint32_t, '{}', 'refcount_order'),
+        (uint32_t, '{}', 'header_length'),
     )
 
     fmt = '>' + ''.join(field[0] for field in fields)
@@ -118,7 +118,7 @@ class QcowHeader:
 
         fd.seek(self.header_length)
         extensions = self.extensions
-        extensions.append(QcowHeaderExtension(0, 0, b""))
+        extensions.append(QcowHeaderExtension(0, 0, b''))
         for ex in extensions:
             buf = struct.pack('>II', ex.magic, ex.length)
             fd.write(buf)
@@ -129,7 +129,7 @@ class QcowHeader:
             fd.write(self.backing_file)
 
         if fd.tell() > self.cluster_size:
-            raise Exception("I think I just broke the image...")
+            raise Exception('I think I just broke the image...')
 
     def update(self, fd):
         header_bytes = self.header_length
@@ -152,21 +152,21 @@ class QcowHeader:
                         bits.append(bit)
                 value_str = str(bits)
             else:
-                value_str = f[1] % value
+                value_str = f[1].format(value)
 
-            print("%-25s" % f[2], value_str)
+            print(f'{f[2]:<25} {value_str}')
 
     def dump_extensions(self):
         for ex in self.extensions:
 
             data = ex.data[:ex.length]
             if all(c in string.printable.encode('ascii') for c in data):
-                data = "'%s'" % data.decode('ascii')
+                data = f"'{ data.decode('ascii') }'"
             else:
-                data = "<binary>"
+                data = '<binary>'
 
-            print("Header extension:")
-            print("%-25s %#x" % ("magic", ex.magic))
-            print("%-25s %d" % ("length", ex.length))
-            print("%-25s %s" % ("data", data))
-            print("")
+            print('Header extension:')
+            print(f'{"magic":<25} {ex.magic:#x}')
+            print(f'{"length":<25} {ex.length}')
+            print(f'{"data":<25} {data}')
+            print()
