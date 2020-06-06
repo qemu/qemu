@@ -25,7 +25,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -83,7 +83,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -139,7 +139,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -194,7 +194,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -263,7 +263,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -325,7 +325,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
@@ -354,7 +354,7 @@ refcount_order            4
 header_length             112
 
 Header extension:
-magic                     0x6803f857
+magic                     0x6803f857 (Feature table)
 length                    336
 data                      <binary>
 
