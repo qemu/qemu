@@ -97,16 +97,41 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
             print('{:<25} {}'.format(f[2], value_str))
 
 
-class QcowHeaderExtension:
+class QcowHeaderExtension(Qcow2Struct):
 
-    def __init__(self, magic, length, data):
-        if length % 8 != 0:
-            padding = 8 - (length % 8)
-            data += b'\0' * padding
+    fields = (
+        ('u32', '{:#x}', 'magic'),
+        ('u32', '{}', 'length')
+        # length bytes of data follows
+        # then padding to next multiply of 8
+    )
 
-        self.magic = magic
-        self.length = length
-        self.data = data
+    def __init__(self, magic=None, length=None, data=None, fd=None):
+        """
+        Support both loading from fd and creation from user data.
+        For fd-based creation current position in a file will be used to read
+        the data.
+
+        This should be somehow refactored and functionality should be moved to
+        superclass (to allow creation of any qcow2 struct), but then, fields
+        of variable length (data here) should be supported in base class
+        somehow. So, it's a TODO. We'll see how to properly refactor this when
+        we have more qcow2 structures.
+        """
+        if fd is None:
+            assert all(v is not None for v in (magic, length, data))
+            self.magic = magic
+            self.length = length
+            if length % 8 != 0:
+                padding = 8 - (length % 8)
+                data += b'\0' * padding
+            self.data = data
+        else:
+            assert all(v is None for v in (magic, length, data))
+            super().__init__(fd=fd)
+            padded = (self.length + 7) & ~7
+            self.data = fd.read(padded)
+            assert self.data is not None
 
     def dump(self):
         data = self.data[:self.length]
@@ -115,8 +140,7 @@ class QcowHeaderExtension:
         else:
             data = '<binary>'
 
-        print(f'{"magic":<25} {self.magic:#x}')
-        print(f'{"length":<25} {self.length}')
+        super().dump()
         print(f'{"data":<25} {data}')
 
     @classmethod
@@ -182,14 +206,11 @@ class QcowHeader(Qcow2Struct):
             end = self.cluster_size
 
         while fd.tell() < end:
-            (magic, length) = struct.unpack('>II', fd.read(8))
-            if magic == 0:
+            ext = QcowHeaderExtension(fd=fd)
+            if ext.magic == 0:
                 break
             else:
-                padded = (length + 7) & ~7
-                data = fd.read(padded)
-                self.extensions.append(QcowHeaderExtension(magic, length,
-                                                           data))
+                self.extensions.append(ext)
 
     def update_extensions(self, fd):
 
