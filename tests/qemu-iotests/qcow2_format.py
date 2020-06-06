@@ -39,29 +39,29 @@ class QcowHeader:
     uint32_t = 'I'
     uint64_t = 'Q'
 
-    fields = [
+    fields = (
         # Version 2 header fields
-        [uint32_t, '%#x',  'magic'],
-        [uint32_t, '%d',   'version'],
-        [uint64_t, '%#x',  'backing_file_offset'],
-        [uint32_t, '%#x',  'backing_file_size'],
-        [uint32_t, '%d',   'cluster_bits'],
-        [uint64_t, '%d',   'size'],
-        [uint32_t, '%d',   'crypt_method'],
-        [uint32_t, '%d',   'l1_size'],
-        [uint64_t, '%#x',  'l1_table_offset'],
-        [uint64_t, '%#x',  'refcount_table_offset'],
-        [uint32_t, '%d',   'refcount_table_clusters'],
-        [uint32_t, '%d',   'nb_snapshots'],
-        [uint64_t, '%#x',  'snapshot_offset'],
+        (uint32_t, '%#x',  'magic'),
+        (uint32_t, '%d',   'version'),
+        (uint64_t, '%#x',  'backing_file_offset'),
+        (uint32_t, '%#x',  'backing_file_size'),
+        (uint32_t, '%d',   'cluster_bits'),
+        (uint64_t, '%d',   'size'),
+        (uint32_t, '%d',   'crypt_method'),
+        (uint32_t, '%d',   'l1_size'),
+        (uint64_t, '%#x',  'l1_table_offset'),
+        (uint64_t, '%#x',  'refcount_table_offset'),
+        (uint32_t, '%d',   'refcount_table_clusters'),
+        (uint32_t, '%d',   'nb_snapshots'),
+        (uint64_t, '%#x',  'snapshot_offset'),
 
         # Version 3 header fields
-        [uint64_t, 'mask', 'incompatible_features'],
-        [uint64_t, 'mask', 'compatible_features'],
-        [uint64_t, 'mask', 'autoclear_features'],
-        [uint32_t, '%d',   'refcount_order'],
-        [uint32_t, '%d',   'header_length'],
-    ]
+        (uint64_t, 'mask', 'incompatible_features'),
+        (uint64_t, 'mask', 'compatible_features'),
+        (uint64_t, 'mask', 'autoclear_features'),
+        (uint32_t, '%d',   'refcount_order'),
+        (uint32_t, '%d',   'header_length'),
+    )
 
     fmt = '>' + ''.join(field[0] for field in fields)
 
