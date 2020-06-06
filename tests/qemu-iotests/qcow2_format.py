@@ -108,6 +108,17 @@ class QcowHeaderExtension:
         self.length = length
         self.data = data
 
+    def dump(self):
+        data = self.data[:self.length]
+        if all(c in string.printable.encode('ascii') for c in data):
+            data = f"'{ data.decode('ascii') }'"
+        else:
+            data = '<binary>'
+
+        print(f'{"magic":<25} {self.magic:#x}')
+        print(f'{"length":<25} {self.length}')
+        print(f'{"data":<25} {data}')
+
     @classmethod
     def create(cls, magic, data):
         return QcowHeaderExtension(magic, len(data), data)
@@ -210,15 +221,6 @@ class QcowHeader(Qcow2Struct):
 
     def dump_extensions(self):
         for ex in self.extensions:
-
-            data = ex.data[:ex.length]
-            if all(c in string.printable.encode('ascii') for c in data):
-                data = f"'{ data.decode('ascii') }'"
-            else:
-                data = '<binary>'
-
             print('Header extension:')
-            print(f'{"magic":<25} {ex.magic:#x}')
-            print(f'{"length":<25} {ex.length}')
-            print(f'{"data":<25} {data}')
+            ex.dump()
             print()
