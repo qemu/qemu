@@ -155,7 +155,6 @@ class QcowHeader:
                 value_str = f[1] % value
 
             print("%-25s" % f[2], value_str)
-        print("")
 
     def dump_extensions(self):
         for ex in self.extensions:

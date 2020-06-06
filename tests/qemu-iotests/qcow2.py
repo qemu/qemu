@@ -27,6 +27,7 @@ from qcow2_format import (
 def cmd_dump_header(fd):
     h = QcowHeader(fd)
     h.dump()
+    print()
     h.dump_extensions()
 
 
