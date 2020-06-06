@@ -34,36 +34,42 @@ class QcowHeaderExtension:
         return QcowHeaderExtension(magic, len(data), data)
 
 
-class QcowHeader:
+# Mapping from c types to python struct format
+ctypes = {
+    'u8': 'B',
+    'u16': 'H',
+    'u32': 'I',
+    'u64': 'Q'
+}
 
-    uint32_t = 'I'
-    uint64_t = 'Q'
+
+class QcowHeader:
 
     fields = (
         # Version 2 header fields
-        (uint32_t, '{:#x}', 'magic'),
-        (uint32_t, '{}', 'version'),
-        (uint64_t, '{:#x}', 'backing_file_offset'),
-        (uint32_t, '{:#x}', 'backing_file_size'),
-        (uint32_t, '{}', 'cluster_bits'),
-        (uint64_t, '{}', 'size'),
-        (uint32_t, '{}', 'crypt_method'),
-        (uint32_t, '{}', 'l1_size'),
-        (uint64_t, '{:#x}', 'l1_table_offset'),
-        (uint64_t, '{:#x}', 'refcount_table_offset'),
-        (uint32_t, '{}', 'refcount_table_clusters'),
-        (uint32_t, '{}', 'nb_snapshots'),
-        (uint64_t, '{:#x}', 'snapshot_offset'),
+        ('u32', '{:#x}', 'magic'),
+        ('u32', '{}', 'version'),
+        ('u64', '{:#x}', 'backing_file_offset'),
+        ('u32', '{:#x}', 'backing_file_size'),
+        ('u32', '{}', 'cluster_bits'),
+        ('u64', '{}', 'size'),
+        ('u32', '{}', 'crypt_method'),
+        ('u32', '{}', 'l1_size'),
+        ('u64', '{:#x}', 'l1_table_offset'),
+        ('u64', '{:#x}', 'refcount_table_offset'),
+        ('u32', '{}', 'refcount_table_clusters'),
+        ('u32', '{}', 'nb_snapshots'),
+        ('u64', '{:#x}', 'snapshot_offset'),
 
         # Version 3 header fields
-        (uint64_t, 'mask', 'incompatible_features'),
-        (uint64_t, 'mask', 'compatible_features'),
-        (uint64_t, 'mask', 'autoclear_features'),
-        (uint32_t, '{}', 'refcount_order'),
-        (uint32_t, '{}', 'header_length'),
+        ('u64', 'mask', 'incompatible_features'),
+        ('u64', 'mask', 'compatible_features'),
+        ('u64', 'mask', 'autoclear_features'),
+        ('u32', '{}', 'refcount_order'),
+        ('u32', '{}', 'header_length'),
     )
 
-    fmt = '>' + ''.join(field[0] for field in fields)
+    fmt = '>' + ''.join(ctypes[f[0]] for f in fields)
 
     def __init__(self, fd):
 
