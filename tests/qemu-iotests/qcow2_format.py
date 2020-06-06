@@ -103,6 +103,19 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
             print('{:<25} {}'.format(f[2], value_str))
 
 
+class Qcow2BitmapExt(Qcow2Struct):
+
+    fields = (
+        ('u32', '{}', 'nb_bitmaps'),
+        ('u32', '{}', 'reserved32'),
+        ('u64', '{:#x}', 'bitmap_directory_size'),
+        ('u64', '{:#x}', 'bitmap_directory_offset')
+    )
+
+
+QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
+
+
 class QcowHeaderExtension(Qcow2Struct):
 
     class Magic(Enum):
@@ -110,7 +123,7 @@ class QcowHeaderExtension(Qcow2Struct):
             0xe2792aca: 'Backing format',
             0x6803f857: 'Feature table',
             0x0537be77: 'Crypto header',
-            0x23852875: 'Bitmaps',
+            QCOW2_EXT_MAGIC_BITMAPS: 'Bitmaps',
             0x44415441: 'Data file'
         }
 
@@ -130,8 +143,11 @@ class QcowHeaderExtension(Qcow2Struct):
         This should be somehow refactored and functionality should be moved to
         superclass (to allow creation of any qcow2 struct), but then, fields
         of variable length (data here) should be supported in base class
-        somehow. So, it's a TODO. We'll see how to properly refactor this when
-        we have more qcow2 structures.
+        somehow. Note also, that we probably want to parse different
+        extensions. Should they be subclasses of this class, or how to do it
+        better? Should it be something like QAPI union with discriminator field
+        (magic here). So, it's a TODO. We'll see how to properly refactor this
+        when we have more qcow2 structures.
         """
         if fd is None:
             assert all(v is not None for v in (magic, length, data))
@@ -148,15 +164,23 @@ class QcowHeaderExtension(Qcow2Struct):
             self.data = fd.read(padded)
             assert self.data is not None
 
-    def dump(self):
-        data = self.data[:self.length]
-        if all(c in string.printable.encode('ascii') for c in data):
-            data = f"'{ data.decode('ascii') }'"
+        if self.magic == QCOW2_EXT_MAGIC_BITMAPS:
+            self.obj = Qcow2BitmapExt(data=self.data)
         else:
-            data = '<binary>'
+            self.obj = None
 
+    def dump(self):
         super().dump()
-        print(f'{"data":<25} {data}')
+
+        if self.obj is None:
+            data = self.data[:self.length]
+            if all(c in string.printable.encode('ascii') for c in data):
+                data = f"'{ data.decode('ascii') }'"
+            else:
+                data = '<binary>'
+            print(f'{"data":<25} {data}')
+        else:
+            self.obj.dump()
 
     @classmethod
     def create(cls, magic, data):
