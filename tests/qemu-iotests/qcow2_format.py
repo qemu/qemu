@@ -20,6 +20,25 @@ import struct
 import string
 
 
+class Qcow2Field:
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+
+class Flags64(Qcow2Field):
+
+    def __str__(self):
+        bits = []
+        for bit in range(64):
+            if self.value & (1 << bit):
+                bits.append(bit)
+        return str(bits)
+
+
 class Qcow2StructMeta(type):
 
     # Mapping from c types to python struct format
@@ -70,14 +89,10 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
     def dump(self):
         for f in self.fields:
             value = self.__dict__[f[2]]
-            if f[1] == 'mask':
-                bits = []
-                for bit in range(64):
-                    if value & (1 << bit):
-                        bits.append(bit)
-                value_str = str(bits)
-            else:
+            if isinstance(f[1], str):
                 value_str = f[1].format(value)
+            else:
+                value_str = str(f[1](value))
 
             print('{:<25} {}'.format(f[2], value_str))
 
@@ -117,9 +132,9 @@ class QcowHeader(Qcow2Struct):
         ('u64', '{:#x}', 'snapshot_offset'),
 
         # Version 3 header fields
-        ('u64', 'mask', 'incompatible_features'),
-        ('u64', 'mask', 'compatible_features'),
-        ('u64', 'mask', 'autoclear_features'),
+        ('u64', Flags64, 'incompatible_features'),
+        ('u64', Flags64, 'compatible_features'),
+        ('u64', Flags64, 'autoclear_features'),
         ('u32', '{}', 'refcount_order'),
         ('u32', '{}', 'header_length'),
     )
