@@ -2610,21 +2610,24 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_shl_i32:
         if (const_args[2]) {
-            tcg_out_shli32(s, args[0], args[1], args[2]);
+            /* Limit immediate shift count lest we create an illegal insn.  */
+            tcg_out_shli32(s, args[0], args[1], args[2] & 31);
         } else {
             tcg_out32(s, SLW | SAB(args[1], args[0], args[2]));
         }
         break;
     case INDEX_op_shr_i32:
         if (const_args[2]) {
-            tcg_out_shri32(s, args[0], args[1], args[2]);
+            /* Limit immediate shift count lest we create an illegal insn.  */
+            tcg_out_shri32(s, args[0], args[1], args[2] & 31);
         } else {
             tcg_out32(s, SRW | SAB(args[1], args[0], args[2]));
         }
         break;
     case INDEX_op_sar_i32:
         if (const_args[2]) {
-            tcg_out32(s, SRAWI | RS(args[1]) | RA(args[0]) | SH(args[2]));
+            /* Limit immediate shift count lest we create an illegal insn.  */
+            tcg_out32(s, SRAWI | RS(args[1]) | RA(args[0]) | SH(args[2] & 31));
         } else {
             tcg_out32(s, SRAW | SAB(args[1], args[0], args[2]));
         }
@@ -2696,14 +2699,16 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_shl_i64:
         if (const_args[2]) {
-            tcg_out_shli64(s, args[0], args[1], args[2]);
+            /* Limit immediate shift count lest we create an illegal insn.  */
+            tcg_out_shli64(s, args[0], args[1], args[2] & 63);
         } else {
             tcg_out32(s, SLD | SAB(args[1], args[0], args[2]));
         }
         break;
     case INDEX_op_shr_i64:
         if (const_args[2]) {
-            tcg_out_shri64(s, args[0], args[1], args[2]);
+            /* Limit immediate shift count lest we create an illegal insn.  */
+            tcg_out_shri64(s, args[0], args[1], args[2] & 63);
         } else {
             tcg_out32(s, SRD | SAB(args[1], args[0], args[2]));
         }
