@@ -482,6 +482,45 @@ jobs:
               $(exit $BUILD_RC);
           fi
 
+    - name: "[s390x] GCC (other-softmmu)"
+      arch: s390x
+      dist: bionic
+      addons:
+        apt_packages:
+          - libaio-dev
+          - libattr1-dev
+          - libcap-ng-dev
+          - libgnutls28-dev
+          - libiscsi-dev
+          - liblttng-ust-dev
+          - liblzo2-dev
+          - libncurses-dev
+          - libnfs-dev
+          - libnss3-dev
+          - libpixman-1-dev
+          - libsdl2-dev
+          - libsdl2-image-dev
+          - libseccomp-dev
+          - libsnappy-dev
+          - libzstd-dev
+          - nettle-dev
+          - xfslibs-dev
+          # Tests dependencies
+          - genisoimage
+      env:
+        - CONFIG="--disable-containers --audio-drv-list=sdl --disable-user
+                  --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
+
+    - name: "[s390x] GCC (user)"
+      arch: s390x
+      dist: bionic
+      addons:
+        apt_packages:
+          - libgcrypt20-dev
+          - libgnutls28-dev
+      env:
+        - CONFIG="--disable-containers --disable-system"
+
     - name: "[s390x] Clang (disable-tcg)"
       arch: s390x
       dist: bionic
