@@ -1663,6 +1663,10 @@ if [ "$ARCH" = "unknown" ]; then
   linux_user="no"
 fi
 
+if [ "$bsd_user" = "no" -a "$linux_user" = "no" -a "$softmmu" = "no" ] ; then
+  tcg="no"
+fi
+
 default_target_list=""
 
 mak_wilds=""
