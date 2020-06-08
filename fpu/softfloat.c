@@ -5699,10 +5699,11 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
 | `a' with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic,
 | if 'mod' is false; if 'mod' is true, return the remainder based on truncating
-| the quotient toward zero instead.
+| the quotient toward zero instead.  '*quotient' is set to the low 64 bits of
+| the absolute value of the integer quotient.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
+floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod, uint64_t *quotient,
                          float_status *status)
 {
     bool aSign, zSign;
@@ -5710,6 +5711,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
     uint64_t aSig0, aSig1, bSig;
     uint64_t q, term0, term1, alternateASig0, alternateASig1;
 
+    *quotient = 0;
     if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
         float_raise(float_flag_invalid, status);
         return floatx80_default_nan(status);
@@ -5768,7 +5770,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         shift128Right( aSig0, 0, 1, &aSig0, &aSig1 );
         expDiff = 0;
     }
-    q = ( bSig <= aSig0 );
+    *quotient = q = ( bSig <= aSig0 );
     if ( q ) aSig0 -= bSig;
     expDiff -= 64;
     while ( 0 < expDiff ) {
@@ -5778,6 +5780,8 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
         shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
         expDiff -= 62;
+        *quotient <<= 62;
+        *quotient += q;
     }
     expDiff += 64;
     if ( 0 < expDiff ) {
@@ -5791,6 +5795,12 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
             ++q;
             sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
         }
+        if (expDiff < 64) {
+            *quotient <<= expDiff;
+        } else {
+            *quotient = 0;
+        }
+        *quotient += q;
     }
     else {
         term1 = 0;
@@ -5805,6 +5815,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
             aSig0 = alternateASig0;
             aSig1 = alternateASig1;
             zSign = ! zSign;
+            ++*quotient;
         }
     }
     return
@@ -5821,7 +5832,8 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
 
 floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 {
-    return floatx80_modrem(a, b, false, status);
+    uint64_t quotient;
+    return floatx80_modrem(a, b, false, &quotient, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -5832,7 +5844,8 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 
 floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 {
-    return floatx80_modrem(a, b, true, status);
+    uint64_t quotient;
+    return floatx80_modrem(a, b, true, &quotient, status);
 }
 
 /*----------------------------------------------------------------------------
