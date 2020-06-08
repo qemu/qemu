@@ -1313,124 +1313,64 @@ void helper_fxtract(CPUX86State *env)
     merge_exception_flags(env, old_flags);
 }
 
+static void helper_fprem_common(CPUX86State *env, bool mod)
+{
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t quotient;
+    CPU_LDoubleU temp0, temp1;
+    int exp0, exp1, expdiff;
+
+    temp0.d = ST0;
+    temp1.d = ST1;
+    exp0 = EXPD(temp0);
+    exp1 = EXPD(temp1);
+
+    env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
+    if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
+        exp0 == 0x7fff || exp1 == 0x7fff ||
+        floatx80_invalid_encoding(ST0) || floatx80_invalid_encoding(ST1)) {
+        ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
+    } else {
+        if (exp0 == 0) {
+            exp0 = 1 - clz64(temp0.l.lower);
+        }
+        if (exp1 == 0) {
+            exp1 = 1 - clz64(temp1.l.lower);
+        }
+        expdiff = exp0 - exp1;
+        if (expdiff < 64) {
+            ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
+            env->fpus |= (quotient & 0x4) << (8 - 2);  /* (C0) <-- q2 */
+            env->fpus |= (quotient & 0x2) << (14 - 1); /* (C3) <-- q1 */
+            env->fpus |= (quotient & 0x1) << (9 - 0);  /* (C1) <-- q0 */
+        } else {
+            /*
+             * Partial remainder.  This choice of how many bits to
+             * process at once is specified in AMD instruction set
+             * manuals, and empirically is followed by Intel
+             * processors as well; it ensures that the final remainder
+             * operation in a loop does produce the correct low three
+             * bits of the quotient.  AMD manuals specify that the
+             * flags other than C2 are cleared, and empirically Intel
+             * processors clear them as well.
+             */
+            int n = 32 + (expdiff % 32);
+            temp1.d = floatx80_scalbn(temp1.d, expdiff - n, &env->fp_status);
+            ST0 = floatx80_mod(ST0, temp1.d, &env->fp_status);
+            env->fpus |= 0x400;  /* C2 <-- 1 */
+        }
+    }
+    merge_exception_flags(env, old_flags);
+}
+
 void helper_fprem1(CPUX86State *env)
 {
-    double st0, st1, dblq, fpsrcop, fptemp;
-    CPU_LDoubleU fpsrcop1, fptemp1;
-    int expdif;
-    signed long long int q;
-
-    st0 = floatx80_to_double(env, ST0);
-    st1 = floatx80_to_double(env, ST1);
-
-    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(env, 0.0 / 0.0); /* NaN */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        return;
-    }
-
-    fpsrcop = st0;
-    fptemp = st1;
-    fpsrcop1.d = ST0;
-    fptemp1.d = ST1;
-    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
-
-    if (expdif < 0) {
-        /* optimisation? taken from the AMD docs */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* ST0 is unchanged */
-        return;
-    }
-
-    if (expdif < 53) {
-        dblq = fpsrcop / fptemp;
-        /* round dblq towards nearest integer */
-        dblq = rint(dblq);
-        st0 = fpsrcop - fptemp * dblq;
-
-        /* convert dblq to q by truncating towards zero */
-        if (dblq < 0.0) {
-            q = (signed long long int)(-dblq);
-        } else {
-            q = (signed long long int)dblq;
-        }
-
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
-    } else {
-        env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, expdif - 50);
-        fpsrcop = (st0 / st1) / fptemp;
-        /* fpsrcop = integer obtained by chopping */
-        fpsrcop = (fpsrcop < 0.0) ?
-                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        st0 -= (st1 * fpsrcop * fptemp);
-    }
-    ST0 = double_to_floatx80(env, st0);
+    helper_fprem_common(env, false);
 }
 
 void helper_fprem(CPUX86State *env)
 {
-    double st0, st1, dblq, fpsrcop, fptemp;
-    CPU_LDoubleU fpsrcop1, fptemp1;
-    int expdif;
-    signed long long int q;
-
-    st0 = floatx80_to_double(env, ST0);
-    st1 = floatx80_to_double(env, ST1);
-
-    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(env, 0.0 / 0.0); /* NaN */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        return;
-    }
-
-    fpsrcop = st0;
-    fptemp = st1;
-    fpsrcop1.d = ST0;
-    fptemp1.d = ST1;
-    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
-
-    if (expdif < 0) {
-        /* optimisation? taken from the AMD docs */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* ST0 is unchanged */
-        return;
-    }
-
-    if (expdif < 53) {
-        dblq = fpsrcop / fptemp; /* ST0 / ST1 */
-        /* round dblq towards zero */
-        dblq = (dblq < 0.0) ? ceil(dblq) : floor(dblq);
-        st0 = fpsrcop - fptemp * dblq; /* fpsrcop is ST0 */
-
-        /* convert dblq to q by truncating towards zero */
-        if (dblq < 0.0) {
-            q = (signed long long int)(-dblq);
-        } else {
-            q = (signed long long int)dblq;
-        }
-
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
-    } else {
-        int N = 32 + (expdif % 32); /* as per AMD docs */
-
-        env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, (double)(expdif - N));
-        fpsrcop = (st0 / st1) / fptemp;
-        /* fpsrcop = integer obtained by chopping */
-        fpsrcop = (fpsrcop < 0.0) ?
-                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        st0 -= (st1 * fpsrcop * fptemp);
-    }
-    ST0 = double_to_floatx80(env, st0);
+    helper_fprem_common(env, true);
 }
 
 void helper_fyl2xp1(CPUX86State *env)
