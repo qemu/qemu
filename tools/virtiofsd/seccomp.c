@@ -42,6 +42,7 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(exit_group),
     SCMP_SYS(fallocate),
     SCMP_SYS(fchdir),
+    SCMP_SYS(fchmod),
     SCMP_SYS(fchmodat),
     SCMP_SYS(fchownat),
     SCMP_SYS(fcntl),
