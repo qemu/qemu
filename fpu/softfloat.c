@@ -5706,7 +5706,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
                          float_status *status)
 {
     bool aSign, zSign;
-    int32_t aExp, bExp, expDiff;
+    int32_t aExp, bExp, expDiff, aExpOrig;
     uint64_t aSig0, aSig1, bSig;
     uint64_t q, term0, term1, alternateASig0, alternateASig1;
 
@@ -5715,7 +5715,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         return floatx80_default_nan(status);
     }
     aSig0 = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
+    aExpOrig = aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
     bSig = extractFloatx80Frac( b );
     bExp = extractFloatx80Exp( b );
@@ -5729,6 +5729,13 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
     if ( bExp == 0x7FFF ) {
         if ((uint64_t)(bSig << 1)) {
             return propagateFloatx80NaN(a, b, status);
+        }
+        if (aExp == 0 && aSig0 >> 63) {
+            /*
+             * Pseudo-denormal argument must be returned in normalized
+             * form.
+             */
+            return packFloatx80(aSign, 1, aSig0);
         }
         return a;
     }
@@ -5749,7 +5756,16 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
     expDiff = aExp - bExp;
     aSig1 = 0;
     if ( expDiff < 0 ) {
-        if ( mod || expDiff < -1 ) return a;
+        if ( mod || expDiff < -1 ) {
+            if (aExp == 1 && aExpOrig == 0) {
+                /*
+                 * Pseudo-denormal argument must be returned in
+                 * normalized form.
+                 */
+                return packFloatx80(aSign, aExp, aSig0);
+            }
+            return a;
+        }
         shift128Right( aSig0, 0, 1, &aSig0, &aSig1 );
         expDiff = 0;
     }
