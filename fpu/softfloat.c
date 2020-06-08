@@ -5751,7 +5751,6 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         if ( aSig0 == 0 ) return a;
         normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
     }
-    bSig |= UINT64_C(0x8000000000000000);
     zSign = aSign;
     expDiff = aExp - bExp;
     aSig1 = 0;
