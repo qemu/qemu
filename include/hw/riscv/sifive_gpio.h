@@ -68,6 +68,9 @@ typedef struct SIFIVEGPIOState {
     uint32_t out_xor;
     uint32_t in;
     uint32_t in_mask;
+
+    /* config */
+    uint32_t ngpio;
 } SIFIVEGPIOState;
 
 #endif /* SIFIVE_GPIO_H */
