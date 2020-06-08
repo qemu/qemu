@@ -1024,8 +1024,6 @@ def parse_file(f, parent_pat):
         if name == '}' or name == ']':
             if len(toks) != 0:
                 error(start_lineno, 'extra tokens after close brace')
-            if len(parent_pat.pats) < 2:
-                error(lineno, 'less than two patterns within braces')
 
             # Make sure { } and [ ] nest properly.
             if (name == '}') != isinstance(parent_pat, IncMultiPattern):
