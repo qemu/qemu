@@ -76,7 +76,9 @@ static void update_state(SIFIVEGPIOState *s)
             actual_value = pull;
         }
 
-        qemu_set_irq(s->output[i], actual_value);
+        if (output_en) {
+            qemu_set_irq(s->output[i], actual_value);
+        }
 
         /* Input value */
         ival = input_en && actual_value;
