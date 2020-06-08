@@ -75,7 +75,7 @@ static const struct MemmapEntry {
     [SIFIVE_E_DTIM] =     { 0x80000000,     0x4000 }
 };
 
-static void riscv_sifive_e_init(MachineState *machine)
+static void sifive_e_machine_init(MachineState *machine)
 {
     const struct MemmapEntry *memmap = sifive_e_memmap;
 
@@ -147,7 +147,7 @@ static void sifive_e_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with SiFive E SDK";
-    mc->init = riscv_sifive_e_init;
+    mc->init = sifive_e_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = SIFIVE_E_CPU;
 }
@@ -167,7 +167,7 @@ static void sifive_e_machine_init_register_types(void)
 
 type_init(sifive_e_machine_init_register_types)
 
-static void riscv_sifive_e_soc_init(Object *obj)
+static void sifive_e_soc_init(Object *obj)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     SiFiveESoCState *s = RISCV_E_SOC(obj);
@@ -179,7 +179,7 @@ static void riscv_sifive_e_soc_init(Object *obj)
                             TYPE_SIFIVE_GPIO);
 }
 
-static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
+static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     const struct MemmapEntry *memmap = sifive_e_memmap;
@@ -262,26 +262,26 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
         &s->xip_mem);
 }
 
-static void riscv_sifive_e_soc_class_init(ObjectClass *oc, void *data)
+static void sifive_e_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = riscv_sifive_e_soc_realize;
+    dc->realize = sifive_e_soc_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo riscv_sifive_e_soc_type_info = {
+static const TypeInfo sifive_e_soc_type_info = {
     .name = TYPE_RISCV_E_SOC,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SiFiveESoCState),
-    .instance_init = riscv_sifive_e_soc_init,
-    .class_init = riscv_sifive_e_soc_class_init,
+    .instance_init = sifive_e_soc_init,
+    .class_init = sifive_e_soc_class_init,
 };
 
-static void riscv_sifive_e_soc_register_types(void)
+static void sifive_e_soc_register_types(void)
 {
-    type_register_static(&riscv_sifive_e_soc_type_info);
+    type_register_static(&sifive_e_soc_type_info);
 }
 
-type_init(riscv_sifive_e_soc_register_types)
+type_init(sifive_e_soc_register_types)
