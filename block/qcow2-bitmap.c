@@ -1757,19 +1757,20 @@ bool qcow2_supports_persistent_dirty_bitmap(BlockDriverState *bs)
 }
 
 /*
- * Compute the space required for bitmaps in @bs.
+ * Compute the space required to copy bitmaps from @in_bs.
  *
  * The computation is based as if copying to a new image with the
- * given @cluster_size, which may differ from the cluster size in @bs.
+ * given @cluster_size, which may differ from the cluster size in
+ * @in_bs; in fact, @in_bs might be something other than qcow2.
  */
-uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *bs,
+uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *in_bs,
                                                 uint32_t cluster_size)
 {
     uint64_t bitmaps_size = 0;
     BdrvDirtyBitmap *bm;
     size_t bitmap_dir_size = 0;
 
-    FOR_EACH_DIRTY_BITMAP(bs, bm) {
+    FOR_EACH_DIRTY_BITMAP(in_bs, bm) {
         if (bdrv_dirty_bitmap_get_persistence(bm)) {
             const char *name = bdrv_dirty_bitmap_name(bm);
             uint32_t granularity = bdrv_dirty_bitmap_granularity(bm);
