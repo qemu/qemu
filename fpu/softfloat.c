@@ -5741,7 +5741,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
-        if ( (uint64_t) ( aSig0<<1 ) == 0 ) return a;
+        if ( aSig0 == 0 ) return a;
         normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
     }
     bSig |= UINT64_C(0x8000000000000000);
