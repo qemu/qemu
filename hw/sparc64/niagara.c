@@ -68,7 +68,6 @@ typedef struct NiagaraBoardState {
 
 #define NIAGARA_VDISK_BASE  0x1f40000000ULL
 #define NIAGARA_RTC_BASE    0xfff0c1fff8ULL
-#define NIAGARA_UART_BASE   0x1f10000000ULL
 
 /* Firmware layout
  *
