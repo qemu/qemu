@@ -1,5 +1,5 @@
 /*
- * sifive System-on-Chip general purpose input/output register definition
+ * SiFive System-on-Chip general purpose input/output register definition
  *
  * Copyright 2019 AdaCore
  *
@@ -20,7 +20,6 @@
 
 static void update_output_irq(SIFIVEGPIOState *s)
 {
-
     uint32_t pending;
     uint32_t pin;
 
@@ -186,7 +185,7 @@ static uint64_t sifive_gpio_read(void *opaque, hwaddr offset, unsigned int size)
 }
 
 static void sifive_gpio_write(void *opaque, hwaddr offset,
-                       uint64_t value, unsigned int size)
+                              uint64_t value, unsigned int size)
 {
     SIFIVEGPIOState *s = SIFIVE_GPIO(opaque);
 
@@ -318,7 +317,6 @@ static void sifive_gpio_reset(DeviceState *dev)
     s->out_xor = 0;
     s->in = 0;
     s->in_mask = 0;
-
 }
 
 static const VMStateDescription vmstate_sifive_gpio = {
@@ -342,8 +340,8 @@ static const VMStateDescription vmstate_sifive_gpio = {
         VMSTATE_UINT32(iof_en,    SIFIVEGPIOState),
         VMSTATE_UINT32(iof_sel,   SIFIVEGPIOState),
         VMSTATE_UINT32(out_xor,   SIFIVEGPIOState),
-        VMSTATE_UINT32(in, SIFIVEGPIOState),
-        VMSTATE_UINT32(in_mask, SIFIVEGPIOState),
+        VMSTATE_UINT32(in,        SIFIVEGPIOState),
+        VMSTATE_UINT32(in_mask,   SIFIVEGPIOState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -355,7 +353,6 @@ static void sifive_gpio_init(Object *obj)
     memory_region_init_io(&s->mmio, obj, &gpio_ops, s,
             TYPE_SIFIVE_GPIO, SIFIVE_GPIO_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-
 
     for (int i = 0; i < SIFIVE_GPIO_PINS; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq[i]);
@@ -371,7 +368,7 @@ static void sifive_gpio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_sifive_gpio;
     dc->reset = sifive_gpio_reset;
-    dc->desc = "sifive GPIO";
+    dc->desc = "SiFive GPIO";
 }
 
 static const TypeInfo sifive_gpio_info = {
