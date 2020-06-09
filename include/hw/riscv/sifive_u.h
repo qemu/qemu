@@ -31,7 +31,7 @@
 
 typedef struct SiFiveUSoCState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
 
     /*< public >*/
     CPUClusterState e_cluster;
