@@ -242,14 +242,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_VIDEO],
                                 0x1000);
 
-    if (s->num_cpus > sc->num_cpus) {
-        warn_report("%s: invalid number of CPUs %d, using default %d",
-                    sc->name, s->num_cpus, sc->num_cpus);
-        s->num_cpus = sc->num_cpus;
-    }
-
     /* CPU */
-    for (i = 0; i < s->num_cpus; i++) {
+    for (i = 0; i < sc->num_cpus; i++) {
         object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
@@ -460,7 +454,6 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_SDHCI));
 }
 static Property aspeed_soc_properties[] = {
-    DEFINE_PROP_UINT32("num-cpus", AspeedSoCState, num_cpus, 0),
     DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),

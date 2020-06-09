@@ -255,17 +255,11 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_VIDEO],
                                 0x1000);
 
-    if (s->num_cpus > sc->num_cpus) {
-        warn_report("%s: invalid number of CPUs %d, using default %d",
-                    sc->name, s->num_cpus, sc->num_cpus);
-        s->num_cpus = sc->num_cpus;
-    }
-
     /* CPU */
-    for (i = 0; i < s->num_cpus; i++) {
+    for (i = 0; i < sc->num_cpus; i++) {
         object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
                                 "psci-conduit", &error_abort);
-        if (s->num_cpus > 1) {
+        if (sc->num_cpus > 1) {
             object_property_set_int(OBJECT(&s->cpu[i]),
                                     ASPEED_A7MPCORE_ADDR,
                                     "reset-cbar", &error_abort);
@@ -289,7 +283,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* A7MPCORE */
-    object_property_set_int(OBJECT(&s->a7mpcore), s->num_cpus, "num-cpu",
+    object_property_set_int(OBJECT(&s->a7mpcore), sc->num_cpus, "num-cpu",
                             &error_abort);
     object_property_set_int(OBJECT(&s->a7mpcore),
                             ASPEED_SOC_AST2600_MAX_IRQ + GIC_INTERNAL,
@@ -299,18 +293,18 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a7mpcore), 0, ASPEED_A7MPCORE_ADDR);
 
-    for (i = 0; i < s->num_cpus; i++) {
+    for (i = 0; i < sc->num_cpus; i++) {
         SysBusDevice *sbd = SYS_BUS_DEVICE(&s->a7mpcore);
         DeviceState  *d   = DEVICE(qemu_get_cpu(i));
 
         irq = qdev_get_gpio_in(d, ARM_CPU_IRQ);
         sysbus_connect_irq(sbd, i, irq);
         irq = qdev_get_gpio_in(d, ARM_CPU_FIQ);
-        sysbus_connect_irq(sbd, i + s->num_cpus, irq);
+        sysbus_connect_irq(sbd, i + sc->num_cpus, irq);
         irq = qdev_get_gpio_in(d, ARM_CPU_VIRQ);
-        sysbus_connect_irq(sbd, i + 2 * s->num_cpus, irq);
+        sysbus_connect_irq(sbd, i + 2 * sc->num_cpus, irq);
         irq = qdev_get_gpio_in(d, ARM_CPU_VFIQ);
-        sysbus_connect_irq(sbd, i + 3 * s->num_cpus, irq);
+        sysbus_connect_irq(sbd, i + 3 * sc->num_cpus, irq);
     }
 
     /* SRAM */
