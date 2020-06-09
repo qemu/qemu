@@ -97,6 +97,9 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
 {
     BusState *old_parent_bus = dev->parent_bus;
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    assert(dc->bus_type && object_dynamic_cast(OBJECT(bus), dc->bus_type));
 
     if (old_parent_bus) {
         trace_qdev_update_parent_bus(dev, object_get_typename(OBJECT(dev)),
