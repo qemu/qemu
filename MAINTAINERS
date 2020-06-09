@@ -1218,7 +1218,9 @@ S: Maintained
 F: hw/ppc/pnv*
 F: hw/intc/pnv*
 F: hw/intc/xics_pnv.c
+F: hw/pci-host/pnv*
 F: include/hw/ppc/pnv*
+F: include/hw/pci-host/pnv*
 F: pc-bios/skiboot.lid
 F: tests/qtest/pnv*
 
