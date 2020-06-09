@@ -137,8 +137,8 @@ static void nvme_irq_assert(NvmeCtrl *n, NvmeCQueue *cq)
             msix_notify(&(n->parent_obj), cq->vector);
         } else {
             trace_pci_nvme_irq_pin();
-            assert(cq->cqid < 64);
-            n->irq_status |= 1 << cq->cqid;
+            assert(cq->vector < 32);
+            n->irq_status |= 1 << cq->vector;
             nvme_irq_check(n);
         }
     } else {
@@ -152,8 +152,8 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
         if (msix_enabled(&(n->parent_obj))) {
             return;
         } else {
-            assert(cq->cqid < 64);
-            n->irq_status &= ~(1 << cq->cqid);
+            assert(cq->vector < 32);
+            n->irq_status &= ~(1 << cq->vector);
             nvme_irq_check(n);
         }
     }
@@ -651,6 +651,10 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
     if (unlikely(!prp1)) {
         trace_pci_nvme_err_invalid_create_cq_addr(prp1);
         return NVME_INVALID_FIELD | NVME_DNR;
+    }
+    if (unlikely(!msix_enabled(&n->parent_obj) && vector)) {
+        trace_pci_nvme_err_invalid_create_cq_vector(vector);
+        return NVME_INVALID_IRQ_VECTOR | NVME_DNR;
     }
     if (unlikely(vector > n->params.num_queues)) {
         trace_pci_nvme_err_invalid_create_cq_vector(vector);
