@@ -467,7 +467,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
          * It can fail only on 64-bit host with 32-bit target.
          * On any other target/host host mmap() handles this error correctly.
          */
-        if (!guest_range_valid(start, len)) {
+        if (end < start || !guest_range_valid(start, len)) {
             errno = ENOMEM;
             goto fail;
         }

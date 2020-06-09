@@ -1,5 +1,5 @@
 FROM ubuntu:18.04
-ENV PACKAGES flex bison \
+ENV PACKAGES \
     ccache \
     clang \
     gcc \

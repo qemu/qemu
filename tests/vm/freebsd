@@ -38,7 +38,6 @@ class FreeBSDVM(basevm.BaseVM):
         "bash",
         "gmake",
         "gsed",
-        "flex", "bison",
 
         # libs: crypto
         "gnutls",

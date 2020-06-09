@@ -3,7 +3,6 @@ FROM fedora:30
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
     bc \
-    bison \
     brlapi-devel \
     bzip2 \
     bzip2-devel \
@@ -13,7 +12,6 @@ ENV PACKAGES \
     dbus-daemon \
     device-mapper-multipath-devel \
     findutils \
-    flex \
     gcc \
     gcc-c++ \
     gettext \

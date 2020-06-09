@@ -68,6 +68,8 @@ run-semiconsole-arm: semiconsole-arm
 run-plugin-semiconsole-arm-with-%:
 	$(call skip-test, $<, "MANUAL ONLY")
 
+ARM_TESTS += commpage
+
 TESTS += $(ARM_TESTS)
 
 # On ARM Linux only supports 4k pages

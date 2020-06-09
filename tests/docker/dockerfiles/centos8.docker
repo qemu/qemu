@@ -3,11 +3,9 @@ FROM centos:8.1.1911
 RUN dnf -y update
 ENV PACKAGES \
     SDL-devel \
-    bison \
     bzip2 \
     bzip2-devel \
     dbus-daemon \
-    flex \
     gcc \
     gcc-c++ \
     gettext \
