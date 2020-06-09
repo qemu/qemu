@@ -54,6 +54,7 @@
 #include "trace.h"
 #include "nvme.h"
 
+#define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_REG_SIZE 0x1000
 #define NVME_DB_SIZE  4
 #define NVME_CMB_BIR 2
@@ -662,7 +663,7 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
         trace_pci_nvme_err_invalid_create_cq_vector(vector);
         return NVME_INVALID_IRQ_VECTOR | NVME_DNR;
     }
-    if (unlikely(vector > n->params.max_ioqpairs)) {
+    if (unlikely(vector >= n->params.msix_qsize)) {
         trace_pci_nvme_err_invalid_create_cq_vector(vector);
         return NVME_INVALID_IRQ_VECTOR | NVME_DNR;
     }
@@ -1371,9 +1372,16 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
     }
 
     if (params->max_ioqpairs < 1 ||
-        params->max_ioqpairs > PCI_MSIX_FLAGS_QSIZE) {
+        params->max_ioqpairs > NVME_MAX_IOQPAIRS) {
         error_setg(errp, "max_ioqpairs must be between 1 and %d",
-                   PCI_MSIX_FLAGS_QSIZE);
+                   NVME_MAX_IOQPAIRS);
+        return;
+    }
+
+    if (params->msix_qsize < 1 ||
+        params->msix_qsize > PCI_MSIX_FLAGS_QSIZE + 1) {
+        error_setg(errp, "msix_qsize must be between 1 and %d",
+                   PCI_MSIX_FLAGS_QSIZE + 1);
         return;
     }
 
@@ -1527,7 +1535,7 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev)
                           n->reg_size);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_TYPE_64, &n->iomem);
-    msix_init_exclusive_bar(pci_dev, n->params.max_ioqpairs + 1, 4, NULL);
+    msix_init_exclusive_bar(pci_dev, n->params.msix_qsize, 4, NULL);
 
     if (n->params.cmb_size_mb) {
         nvme_init_cmb(n, pci_dev);
@@ -1634,6 +1642,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
     DEFINE_PROP_UINT32("max_ioqpairs", NvmeCtrl, params.max_ioqpairs, 64),
+    DEFINE_PROP_UINT16("msix_qsize", NvmeCtrl, params.msix_qsize, 65),
     DEFINE_PROP_END_OF_LIST(),
 };
 
