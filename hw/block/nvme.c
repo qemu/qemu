@@ -1573,8 +1573,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         id_ns->dps = 0;
         id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
         id_ns->ncap  = id_ns->nuse = id_ns->nsze =
-            cpu_to_le64(n->ns_size >>
-                id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
+            cpu_to_le64(nvme_ns_nlbas(n, ns));
     }
 }
 
