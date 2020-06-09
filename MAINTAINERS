@@ -1864,6 +1864,13 @@ S: Maintained
 F: include/hw/misc/unimp.h
 F: hw/misc/unimp.c
 
+Empty slot
+M: Artyom Tarasenko <atar4qemu@gmail.com>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Maintained
+F: include/hw/misc/empty_slot.h
+F: hw/misc/empty_slot.c
+
 Standard VGA
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained

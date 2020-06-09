@@ -25,6 +25,7 @@
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "hw/misc/grlib_ahb_apb_pnp.h"
+#include "trace.h"
 
 #define GRLIB_PNP_VENDOR_SHIFT (24)
 #define GRLIB_PNP_VENDOR_SIZE   (8)
@@ -132,13 +133,28 @@ void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
 static uint64_t grlib_ahb_pnp_read(void *opaque, hwaddr offset, unsigned size)
 {
     AHBPnp *ahb_pnp = GRLIB_AHB_PNP(opaque);
+    uint32_t val;
 
-    return ahb_pnp->regs[offset >> 2];
+    val = ahb_pnp->regs[offset >> 2];
+    trace_grlib_ahb_pnp_read(offset, val);
+
+    return val;
+}
+
+static void grlib_ahb_pnp_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
 }
 
 static const MemoryRegionOps grlib_ahb_pnp_ops = {
     .read       = grlib_ahb_pnp_read,
+    .write      = grlib_ahb_pnp_write,
     .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void grlib_ahb_pnp_realize(DeviceState *dev, Error **errp)
@@ -228,8 +244,12 @@ void grlib_apb_pnp_add_entry(APBPnp *dev, uint32_t address, uint32_t mask,
 static uint64_t grlib_apb_pnp_read(void *opaque, hwaddr offset, unsigned size)
 {
     APBPnp *apb_pnp = GRLIB_APB_PNP(opaque);
+    uint32_t val;
 
-    return apb_pnp->regs[offset >> 2];
+    val = apb_pnp->regs[offset >> 2];
+    trace_grlib_apb_pnp_read(offset, val);
+
+    return val;
 }
 
 static void grlib_apb_pnp_write(void *opaque, hwaddr addr,
