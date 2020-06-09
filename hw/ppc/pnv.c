@@ -818,7 +818,7 @@ static void pnv_init(MachineState *machine)
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
-        Object *chip = object_new(chip_typename);
+        Object *chip = OBJECT(qdev_create(NULL, chip_typename));
 
         pnv->chips[i] = PNV_CHIP(chip);
 
@@ -1317,8 +1317,8 @@ static void pnv_chip_power9_instance_init(Object *obj)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
 
-    object_initialize_child(obj, "xive", &chip9->xive, sizeof(chip9->xive),
-                            TYPE_PNV_XIVE, &error_abort, NULL);
+    sysbus_init_child_obj(obj, "xive", &chip9->xive, sizeof(chip9->xive),
+                          TYPE_PNV_XIVE);
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
                               "xive-fabric");
 
