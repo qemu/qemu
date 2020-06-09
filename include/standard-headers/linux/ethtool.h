@@ -1666,6 +1666,18 @@ static inline int ethtool_validate_duplex(uint8_t duplex)
 	return 0;
 }
 
+#define MASTER_SLAVE_CFG_UNSUPPORTED		0
+#define MASTER_SLAVE_CFG_UNKNOWN		1
+#define MASTER_SLAVE_CFG_MASTER_PREFERRED	2
+#define MASTER_SLAVE_CFG_SLAVE_PREFERRED	3
+#define MASTER_SLAVE_CFG_MASTER_FORCE		4
+#define MASTER_SLAVE_CFG_SLAVE_FORCE		5
+#define MASTER_SLAVE_STATE_UNSUPPORTED		0
+#define MASTER_SLAVE_STATE_UNKNOWN		1
+#define MASTER_SLAVE_STATE_MASTER		2
+#define MASTER_SLAVE_STATE_SLAVE		3
+#define MASTER_SLAVE_STATE_ERR			4
+
 /* Which connector port. */
 #define PORT_TP			0x00
 #define PORT_AUI		0x01
@@ -1904,7 +1916,9 @@ struct ethtool_link_settings {
 	uint8_t	eth_tp_mdix_ctrl;
 	int8_t	link_mode_masks_nwords;
 	uint8_t	transceiver;
-	uint8_t	reserved1[3];
+	uint8_t	master_slave_cfg;
+	uint8_t	master_slave_state;
+	uint8_t	reserved1[1];
 	uint32_t	reserved[7];
 	uint32_t	link_mode_masks[0];
 	/* layout of link_mode_masks fields:
