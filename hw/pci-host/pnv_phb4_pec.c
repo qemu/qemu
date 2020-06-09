@@ -397,6 +397,9 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    for (; i < PHB4_PEC_MAX_STACKS; i++) {
+        object_unparent(OBJECT(&pec->stacks[i]));
+    }
 
     /* Initialize the XSCOM regions for the PEC registers */
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-nest", pec->chip_id,
