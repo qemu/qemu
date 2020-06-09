@@ -244,7 +244,7 @@ static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge)
 
 static const TypeInfo aux_to_i2c_type_info = {
     .name = TYPE_AUXTOI2C,
-    .parent = TYPE_DEVICE,
+    .parent = TYPE_AUX_SLAVE,
     .class_init = aux_bridge_class_init,
     .instance_size = sizeof(AUXTOI2CState),
     .instance_init = aux_bridge_init
