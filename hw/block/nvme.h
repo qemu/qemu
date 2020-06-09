@@ -5,7 +5,8 @@
 
 typedef struct NvmeParams {
     char     *serial;
-    uint32_t num_queues;
+    uint32_t num_queues; /* deprecated since 5.1 */
+    uint32_t max_ioqpairs;
     uint32_t cmb_size_mb;
 } NvmeParams;
 
