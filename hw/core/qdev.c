@@ -408,8 +408,7 @@ void qdev_init_nofail(DeviceState *dev)
 /*
  * Realize @dev.
  * @dev must not be plugged into a bus.
- * Plug @dev into @bus if non-null, else into the main system bus.
- * This takes a reference to @dev.
+ * Plug @dev into @bus.  This takes a reference to @dev.
  * If @dev has no QOM parent, make one up, taking another reference.
  * On success, return true.
  * On failure, store an error through @errp and return false.
@@ -419,18 +418,7 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     Error *err = NULL;
 
     assert(!dev->realized && !dev->parent_bus);
-
-    if (!bus) {
-        /*
-         * Assert that the device really is a SysBusDevice before we
-         * put it onto the sysbus.  Non-sysbus devices which aren't
-         * being put onto a bus should be realized with
-         * object_property_set_bool(OBJECT(dev), true, "realized",
-         * errp);
-         */
-        g_assert(object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE));
-        bus = sysbus_get_default();
-    }
+    assert(bus);
 
     qdev_set_parent_bus(dev, bus);
 
