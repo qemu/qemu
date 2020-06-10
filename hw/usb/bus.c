@@ -314,6 +314,16 @@ void usb_legacy_register(const char *typename, const char *usbdevice_name,
     }
 }
 
+USBDevice *usb_new(const char *name)
+{
+    return USB_DEVICE(qdev_new(name));
+}
+
+bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **errp)
+{
+    return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
+}
+
 USBDevice *usb_create(USBBus *bus, const char *name)
 {
     DeviceState *dev;
