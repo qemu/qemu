@@ -151,8 +151,7 @@ static void xilinx_pcie_host_init(Object *obj)
     XilinxPCIEHost *s = XILINX_PCIE_HOST(obj);
     XilinxPCIERoot *root = &s->root;
 
-    object_initialize_child(obj, "root",  root, sizeof(*root),
-                            TYPE_XILINX_PCIE_ROOT, &error_abort, NULL);
+    object_initialize_child(obj, "root", root, TYPE_XILINX_PCIE_ROOT);
     qdev_prop_set_int32(DEVICE(root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(root), "multifunction", false);
 }

@@ -53,8 +53,7 @@ static void bcm2836_init(Object *obj)
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[n].core,
-                                sizeof(s->cpu[n].core), info->cpu_type,
-                                &error_abort, NULL);
+                                info->cpu_type);
     }
 
     sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),

@@ -136,8 +136,7 @@ static void serial_isa_initfn(Object *o)
 {
     ISASerialState *self = ISA_SERIAL(o);
 
-    object_initialize_child(o, "serial", &self->state, sizeof(self->state),
-                            TYPE_SERIAL, &error_abort, NULL);
+    object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
 }
 
 static const TypeInfo serial_isa_info = {

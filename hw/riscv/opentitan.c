@@ -60,8 +60,7 @@ static void riscv_opentitan_init(MachineState *machine)
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
-                            sizeof(s->soc), TYPE_RISCV_IBEX_SOC,
-                            &error_abort, NULL);
+                            TYPE_RISCV_IBEX_SOC);
     object_property_set_bool(OBJECT(&s->soc), true, "realized",
                             &error_abort);
 

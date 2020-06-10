@@ -370,8 +370,7 @@ static void pnv_pec_instance_init(Object *obj)
 
     for (i = 0; i < PHB4_PEC_MAX_STACKS; i++) {
         object_initialize_child(obj, "stack[*]", &pec->stacks[i],
-                                sizeof(pec->stacks[i]), TYPE_PNV_PHB4_PEC_STACK,
-                                &error_abort, NULL);
+                                TYPE_PNV_PHB4_PEC_STACK);
     }
 }
 
@@ -522,8 +521,7 @@ static void pnv_pec_stk_instance_init(Object *obj)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(obj);
 
-    object_initialize_child(obj, "phb", &stack->phb, sizeof(stack->phb),
-                            TYPE_PNV_PHB4, &error_abort, NULL);
+    object_initialize_child(obj, "phb", &stack->phb, TYPE_PNV_PHB4);
 }
 
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)

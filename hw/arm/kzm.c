@@ -71,8 +71,7 @@ static void kzm_init(MachineState *machine)
     unsigned int alias_offset;
     unsigned int i;
 
-    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            TYPE_FSL_IMX31, &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_FSL_IMX31);
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 

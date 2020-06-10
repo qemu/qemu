@@ -968,23 +968,19 @@ static void pnv_phb3_instance_init(Object *obj)
     QLIST_INIT(&phb->dma_spaces);
 
     /* LSI sources */
-    object_initialize_child(obj, "lsi", &phb->lsis, sizeof(phb->lsis),
-                             TYPE_ICS, &error_abort, NULL);
+    object_initialize_child(obj, "lsi", &phb->lsis, TYPE_ICS);
 
     /* Default init ... will be fixed by HW inits */
     phb->lsis.offset = 0;
 
     /* MSI sources */
-    object_initialize_child(obj, "msi", &phb->msis, sizeof(phb->msis),
-                            TYPE_PHB3_MSI, &error_abort, NULL);
+    object_initialize_child(obj, "msi", &phb->msis, TYPE_PHB3_MSI);
 
     /* Power Bus Common Queue */
-    object_initialize_child(obj, "pbcq", &phb->pbcq, sizeof(phb->pbcq),
-                            TYPE_PNV_PBCQ, &error_abort, NULL);
+    object_initialize_child(obj, "pbcq", &phb->pbcq, TYPE_PNV_PBCQ);
 
     /* Root Port */
-    object_initialize_child(obj, "root", &phb->root, sizeof(phb->root),
-                            TYPE_PNV_PHB3_ROOT_PORT, &error_abort, NULL);
+    object_initialize_child(obj, "root", &phb->root, TYPE_PNV_PHB3_ROOT_PORT);
     qdev_prop_set_int32(DEVICE(&phb->root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&phb->root), "multifunction", false);
 }

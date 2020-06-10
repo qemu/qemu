@@ -142,9 +142,7 @@ static void aspeed_soc_init(Object *obj)
     }
 
     for (i = 0; i < sc->num_cpus; i++) {
-        object_initialize_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
-                                sizeof(s->cpu[i]), sc->cpu_type,
-                                &error_abort, NULL);
+        object_initialize_child(obj, "cpu[*]", &s->cpu[i], sc->cpu_type);
     }
 
     snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);

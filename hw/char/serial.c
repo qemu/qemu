@@ -1014,8 +1014,7 @@ static void serial_io_instance_init(Object *o)
 {
     SerialIO *sio = SERIAL_IO(o);
 
-    object_initialize_child(o, "serial", &sio->serial, sizeof(sio->serial),
-                            TYPE_SERIAL, &error_abort, NULL);
+    object_initialize_child(o, "serial", &sio->serial, TYPE_SERIAL);
 
     qdev_alias_all_properties(DEVICE(&sio->serial), o);
 }
@@ -1148,8 +1147,7 @@ static void serial_mm_instance_init(Object *o)
 {
     SerialMM *smm = SERIAL_MM(o);
 
-    object_initialize_child(o, "serial", &smm->serial, sizeof(smm->serial),
-                            TYPE_SERIAL, &error_abort, NULL);
+    object_initialize_child(o, "serial", &smm->serial, TYPE_SERIAL);
 
     qdev_alias_all_properties(DEVICE(&smm->serial), o);
 }

@@ -414,9 +414,10 @@ static void mps2tz_common_init(MachineState *machine)
             char *name = g_strdup_printf("mps2-irq-splitter%d", i);
             SplitIRQ *splitter = &mms->cpu_irq_splitter[i];
 
-            object_initialize_child(OBJECT(machine), name,
-                                    splitter, sizeof(*splitter),
-                                    TYPE_SPLIT_IRQ, &error_fatal, NULL);
+            object_initialize_child_with_props(OBJECT(machine), name,
+                                               splitter, sizeof(*splitter),
+                                               TYPE_SPLIT_IRQ, &error_fatal,
+                                               NULL);
             g_free(name);
 
             object_property_set_int(OBJECT(splitter), 2, "num-lines",
@@ -436,9 +437,7 @@ static void mps2tz_common_init(MachineState *machine)
      * lines, one for each of the PPCs we create here, plus one per MSC.
      */
     object_initialize_child(OBJECT(machine), "sec-resp-splitter",
-                            &mms->sec_resp_splitter,
-                            sizeof(mms->sec_resp_splitter),
-                            TYPE_SPLIT_IRQ, &error_abort, NULL);
+                            &mms->sec_resp_splitter, TYPE_SPLIT_IRQ);
     object_property_set_int(OBJECT(&mms->sec_resp_splitter),
                             ARRAY_SIZE(mms->ppc) + ARRAY_SIZE(mms->msc),
                             "num-lines", &error_fatal);
@@ -472,8 +471,7 @@ static void mps2tz_common_init(MachineState *machine)
      * Create the OR gate for this.
      */
     object_initialize_child(OBJECT(mms), "uart-irq-orgate",
-                            &mms->uart_irq_orgate, sizeof(mms->uart_irq_orgate),
-                            TYPE_OR_IRQ, &error_abort, NULL);
+                            &mms->uart_irq_orgate, TYPE_OR_IRQ);
     object_property_set_int(OBJECT(&mms->uart_irq_orgate), 10, "num-lines",
                             &error_fatal);
     object_property_set_bool(OBJECT(&mms->uart_irq_orgate), true,

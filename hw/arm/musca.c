@@ -404,9 +404,9 @@ static void musca_init(MachineState *machine)
         char *name = g_strdup_printf("musca-irq-splitter%d", i);
         SplitIRQ *splitter = &mms->cpu_irq_splitter[i];
 
-        object_initialize_child(OBJECT(machine), name,
-                                splitter, sizeof(*splitter),
-                                TYPE_SPLIT_IRQ, &error_fatal, NULL);
+        object_initialize_child_with_props(OBJECT(machine), name, splitter,
+                                           sizeof(*splitter), TYPE_SPLIT_IRQ,
+                                           &error_fatal, NULL);
         g_free(name);
 
         object_property_set_int(OBJECT(splitter), 2, "num-lines",
@@ -424,10 +424,10 @@ static void musca_init(MachineState *machine)
      * The sec_resp_cfg output from the SSE-200 must be split into multiple
      * lines, one for each of the PPCs we create here.
      */
-    object_initialize_child(OBJECT(machine), "sec-resp-splitter",
-                            &mms->sec_resp_splitter,
-                            sizeof(mms->sec_resp_splitter),
-                            TYPE_SPLIT_IRQ, &error_fatal, NULL);
+    object_initialize_child_with_props(OBJECT(machine), "sec-resp-splitter",
+                                       &mms->sec_resp_splitter,
+                                       sizeof(mms->sec_resp_splitter),
+                                       TYPE_SPLIT_IRQ, &error_fatal, NULL);
 
     object_property_set_int(OBJECT(&mms->sec_resp_splitter),
                             ARRAY_SIZE(mms->ppc), "num-lines", &error_fatal);

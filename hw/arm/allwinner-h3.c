@@ -194,9 +194,8 @@ static void allwinner_h3_init(Object *obj)
     s->memmap = allwinner_h3_memmap;
 
     for (int i = 0; i < AW_H3_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[i], sizeof(s->cpus[i]),
-                                ARM_CPU_TYPE_NAME("cortex-a7"),
-                                &error_abort, NULL);
+        object_initialize_child(obj, "cpu[*]", &s->cpus[i],
+                                ARM_CPU_TYPE_NAME("cortex-a7"));
     }
 
     sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),

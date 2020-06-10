@@ -328,9 +328,7 @@ static void sifive_u_machine_init(MachineState *machine)
     int i;
 
     /* Initialize SoC */
-    object_initialize_child(OBJECT(machine), "soc", &s->soc,
-                            sizeof(s->soc), TYPE_RISCV_U_SOC,
-                            &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
     object_property_set_uint(OBJECT(&s->soc), s->serial, "serial",
                             &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized",
@@ -486,9 +484,7 @@ static void sifive_u_soc_instance_init(Object *obj)
     MachineState *ms = MACHINE(qdev_get_machine());
     SiFiveUSoCState *s = RISCV_U_SOC(obj);
 
-    object_initialize_child(obj, "e-cluster", &s->e_cluster,
-                            sizeof(s->e_cluster), TYPE_CPU_CLUSTER,
-                            &error_abort, NULL);
+    object_initialize_child(obj, "e-cluster", &s->e_cluster, TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->e_cluster), "cluster-id", 0);
 
     sysbus_init_child_obj(OBJECT(&s->e_cluster), "e-cpus",
@@ -498,9 +494,7 @@ static void sifive_u_soc_instance_init(Object *obj)
     qdev_prop_set_uint32(DEVICE(&s->e_cpus), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(&s->e_cpus), "cpu-type", SIFIVE_E_CPU);
 
-    object_initialize_child(obj, "u-cluster", &s->u_cluster,
-                            sizeof(s->u_cluster), TYPE_CPU_CLUSTER,
-                            &error_abort, NULL);
+    object_initialize_child(obj, "u-cluster", &s->u_cluster, TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->u_cluster), "cluster-id", 1);
 
     sysbus_init_child_obj(OBJECT(&s->u_cluster), "u-cpus",

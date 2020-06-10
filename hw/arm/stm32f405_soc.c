@@ -169,9 +169,9 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     /* ADC device, the IRQs are ORed together */
-    object_initialize_child(OBJECT(s), "adc-orirq", &s->adc_irqs,
-                            sizeof(s->adc_irqs), TYPE_OR_IRQ,
-                            &err, NULL);
+    object_initialize_child_with_props(OBJECT(s), "adc-orirq", &s->adc_irqs,
+                                       sizeof(s->adc_irqs), TYPE_OR_IRQ, &err,
+                                       NULL);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

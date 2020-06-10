@@ -1796,11 +1796,9 @@ static void pnv_xive_init(Object *obj)
     PnvXive *xive = PNV_XIVE(obj);
 
     object_initialize_child(obj, "ipi_source", &xive->ipi_source,
-                            sizeof(xive->ipi_source), TYPE_XIVE_SOURCE,
-                            &error_abort, NULL);
+                            TYPE_XIVE_SOURCE);
     object_initialize_child(obj, "end_source", &xive->end_source,
-                            sizeof(xive->end_source), TYPE_XIVE_END_SOURCE,
-                            &error_abort, NULL);
+                            TYPE_XIVE_END_SOURCE);
 }
 
 /*

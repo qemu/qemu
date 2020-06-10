@@ -187,17 +187,15 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
     }
 
     object_initialize_child(OBJECT(s), "rpu-cluster", &s->rpu_cluster,
-                            sizeof(s->rpu_cluster), TYPE_CPU_CLUSTER,
-                            &error_abort, NULL);
+                            TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->rpu_cluster), "cluster-id", 1);
 
     for (i = 0; i < num_rpus; i++) {
         char *name;
 
         object_initialize_child(OBJECT(&s->rpu_cluster), "rpu-cpu[*]",
-                                &s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
-                                ARM_CPU_TYPE_NAME("cortex-r5f"),
-                                &error_abort, NULL);
+                                &s->rpu_cpu[i],
+                                ARM_CPU_TYPE_NAME("cortex-r5f"));
 
         name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
@@ -230,15 +228,13 @@ static void xlnx_zynqmp_init(Object *obj)
     int num_apus = MIN(ms->smp.cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
 
     object_initialize_child(obj, "apu-cluster", &s->apu_cluster,
-                            sizeof(s->apu_cluster), TYPE_CPU_CLUSTER,
-                            &error_abort, NULL);
+                            TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 0);
 
     for (i = 0; i < num_apus; i++) {
         object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
-                                &s->apu_cpu[i], sizeof(s->apu_cpu[i]),
-                                ARM_CPU_TYPE_NAME("cortex-a53"),
-                                &error_abort, NULL);
+                                &s->apu_cpu[i],
+                                ARM_CPU_TYPE_NAME("cortex-a53"));
     }
 
     sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),

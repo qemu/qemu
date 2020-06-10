@@ -36,9 +36,7 @@ static void digic_init(Object *obj)
     DigicState *s = DIGIC(obj);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, sizeof(s->cpu),
-                            ARM_CPU_TYPE_NAME("arm946"),
-                            &error_abort, NULL);
+    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm946"));
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
 #define DIGIC_TIMER_NAME_MLEN    11

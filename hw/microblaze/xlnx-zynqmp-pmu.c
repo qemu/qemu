@@ -61,8 +61,7 @@ static void xlnx_zynqmp_pmu_soc_init(Object *obj)
 {
     XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
 
-    object_initialize_child(obj, "pmu-cpu", &s->cpu, sizeof(s->cpu),
-                            TYPE_MICROBLAZE_CPU, &error_abort, NULL);
+    object_initialize_child(obj, "pmu-cpu", &s->cpu, TYPE_MICROBLAZE_CPU);
 
     sysbus_init_child_obj(obj, "intc", &s->intc, sizeof(s->intc),
                           TYPE_XLNX_PMU_IO_INTC);
@@ -174,8 +173,8 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
                                 pmu_ram);
 
     /* Create the PMU device */
-    object_initialize_child(OBJECT(machine), "pmu", pmu, sizeof(*pmu),
-                            TYPE_XLNX_ZYNQMP_PMU_SOC, &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "pmu", pmu,
+                            TYPE_XLNX_ZYNQMP_PMU_SOC);
     object_property_set_bool(OBJECT(pmu), true, "realized", &error_fatal);
 
     /* Load the kernel */

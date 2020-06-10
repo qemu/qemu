@@ -38,9 +38,8 @@ static void fsl_imx7_init(Object *obj)
 
     for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX7_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i], sizeof(s->cpu[i]),
-                                ARM_CPU_TYPE_NAME("cortex-a7"), &error_abort,
-                                NULL);
+        object_initialize_child(obj, name, &s->cpu[i],
+                                ARM_CPU_TYPE_NAME("cortex-a7"));
     }
 
     /*

@@ -272,12 +272,10 @@ static void spapr_xive_instance_init(Object *obj)
 {
     SpaprXive *xive = SPAPR_XIVE(obj);
 
-    object_initialize_child(obj, "source", &xive->source, sizeof(xive->source),
-                            TYPE_XIVE_SOURCE, &error_abort, NULL);
+    object_initialize_child(obj, "source", &xive->source, TYPE_XIVE_SOURCE);
 
     object_initialize_child(obj, "end_source", &xive->end_source,
-                            sizeof(xive->end_source), TYPE_XIVE_END_SOURCE,
-                            &error_abort, NULL);
+                            TYPE_XIVE_END_SOURCE);
 
     /* Not connected to the KVM XIVE device */
     xive->fd = -1;

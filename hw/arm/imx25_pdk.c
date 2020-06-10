@@ -73,8 +73,7 @@ static void imx25_pdk_init(MachineState *machine)
     unsigned int alias_offset;
     int i;
 
-    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            TYPE_FSL_IMX25, &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_FSL_IMX25);
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 

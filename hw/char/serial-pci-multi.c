@@ -187,9 +187,7 @@ static void multi_serial_init(Object *o)
     size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(dev));
 
     for (i = 0; i < nports; i++) {
-        object_initialize_child(o, "serial[*]", &pms->state[i],
-                                sizeof(pms->state[i]),
-                                TYPE_SERIAL, &error_abort, NULL);
+        object_initialize_child(o, "serial[*]", &pms->state[i], TYPE_SERIAL);
     }
 }
 

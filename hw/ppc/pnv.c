@@ -1061,22 +1061,16 @@ static void pnv_chip_power8_instance_init(Object *obj)
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 
-    object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
-                            TYPE_PNV8_PSI, &error_abort, NULL);
+    object_initialize_child(obj, "psi", &chip8->psi, TYPE_PNV8_PSI);
 
-    object_initialize_child(obj, "lpc",  &chip8->lpc, sizeof(chip8->lpc),
-                            TYPE_PNV8_LPC, &error_abort, NULL);
+    object_initialize_child(obj, "lpc", &chip8->lpc, TYPE_PNV8_LPC);
 
-    object_initialize_child(obj, "occ",  &chip8->occ, sizeof(chip8->occ),
-                            TYPE_PNV8_OCC, &error_abort, NULL);
+    object_initialize_child(obj, "occ", &chip8->occ, TYPE_PNV8_OCC);
 
-    object_initialize_child(obj, "homer",  &chip8->homer, sizeof(chip8->homer),
-                            TYPE_PNV8_HOMER, &error_abort, NULL);
+    object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
 
     for (i = 0; i < pcc->num_phbs; i++) {
-        object_initialize_child(obj, "phb[*]", &chip8->phbs[i],
-                                sizeof(chip8->phbs[i]), TYPE_PNV_PHB3,
-                                &error_abort, NULL);
+        object_initialize_child(obj, "phb[*]", &chip8->phbs[i], TYPE_PNV_PHB3);
     }
 
     /*
@@ -1320,22 +1314,17 @@ static void pnv_chip_power9_instance_init(Object *obj)
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
                               "xive-fabric");
 
-    object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
-                            TYPE_PNV9_PSI, &error_abort, NULL);
+    object_initialize_child(obj, "psi", &chip9->psi, TYPE_PNV9_PSI);
 
-    object_initialize_child(obj, "lpc",  &chip9->lpc, sizeof(chip9->lpc),
-                            TYPE_PNV9_LPC, &error_abort, NULL);
+    object_initialize_child(obj, "lpc", &chip9->lpc, TYPE_PNV9_LPC);
 
-    object_initialize_child(obj, "occ",  &chip9->occ, sizeof(chip9->occ),
-                            TYPE_PNV9_OCC, &error_abort, NULL);
+    object_initialize_child(obj, "occ", &chip9->occ, TYPE_PNV9_OCC);
 
-    object_initialize_child(obj, "homer",  &chip9->homer, sizeof(chip9->homer),
-                            TYPE_PNV9_HOMER, &error_abort, NULL);
+    object_initialize_child(obj, "homer", &chip9->homer, TYPE_PNV9_HOMER);
 
     for (i = 0; i < PNV9_CHIP_MAX_PEC; i++) {
         object_initialize_child(obj, "pec[*]", &chip9->pecs[i],
-                                sizeof(chip9->pecs[i]), TYPE_PNV_PHB4_PEC,
-                                &error_abort, NULL);
+                                TYPE_PNV_PHB4_PEC);
     }
 
     /*
@@ -1359,8 +1348,9 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
         int core_id = CPU_CORE(pnv_core)->core_id;
 
         snprintf(eq_name, sizeof(eq_name), "eq[%d]", core_id);
-        object_initialize_child(OBJECT(chip), eq_name, eq, sizeof(*eq),
-                                TYPE_PNV_QUAD, &error_fatal, NULL);
+        object_initialize_child_with_props(OBJECT(chip), eq_name, eq,
+                                           sizeof(*eq), TYPE_PNV_QUAD,
+                                           &error_fatal, NULL);
 
         object_property_set_int(OBJECT(eq), core_id, "id", &error_fatal);
         object_property_set_bool(OBJECT(eq), true, "realized", &error_fatal);
@@ -1586,10 +1576,8 @@ static void pnv_chip_power10_instance_init(Object *obj)
 {
     Pnv10Chip *chip10 = PNV10_CHIP(obj);
 
-    object_initialize_child(obj, "psi",  &chip10->psi, sizeof(chip10->psi),
-                            TYPE_PNV10_PSI, &error_abort, NULL);
-    object_initialize_child(obj, "lpc",  &chip10->lpc, sizeof(chip10->lpc),
-                            TYPE_PNV10_LPC, &error_abort, NULL);
+    object_initialize_child(obj, "psi", &chip10->psi, TYPE_PNV10_PSI);
+    object_initialize_child(obj, "lpc", &chip10->lpc, TYPE_PNV10_LPC);
 }
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)

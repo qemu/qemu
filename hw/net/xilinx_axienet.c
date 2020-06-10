@@ -1020,13 +1020,10 @@ static void xilinx_enet_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_initialize_child(OBJECT(s), "axistream-connected-target",
-                            &s->rx_data_dev, sizeof(s->rx_data_dev),
-                            TYPE_XILINX_AXI_ENET_DATA_STREAM, &error_abort,
-                            NULL);
+                            &s->rx_data_dev, TYPE_XILINX_AXI_ENET_DATA_STREAM);
     object_initialize_child(OBJECT(s), "axistream-control-connected-target",
-                            &s->rx_control_dev, sizeof(s->rx_control_dev),
-                            TYPE_XILINX_AXI_ENET_CONTROL_STREAM, &error_abort,
-                            NULL);
+                            &s->rx_control_dev,
+                            TYPE_XILINX_AXI_ENET_CONTROL_STREAM);
     sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &enet_ops, s, "enet", 0x40000);

@@ -348,8 +348,8 @@ BusState *sysbus_get_default(void)
 void sysbus_init_child_obj(Object *parent, const char *childname, void *child,
                            size_t childsize, const char *childtype)
 {
-    object_initialize_child(parent, childname, child, childsize, childtype,
-                            &error_abort, NULL);
+    object_initialize_child_with_props(parent, childname, child, childsize,
+                                       childtype, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(child), sysbus_get_default());
 }
 

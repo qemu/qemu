@@ -108,8 +108,7 @@ static void serial_pci_init(Object *o)
 {
     PCISerialState *ps = PCI_SERIAL(o);
 
-    object_initialize_child(o, "serial", &ps->state, sizeof(ps->state),
-                            TYPE_SERIAL, &error_abort, NULL);
+    object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
 }
 
 static const TypeInfo serial_pci_info = {

@@ -524,19 +524,21 @@ void object_initialize(void *data, size_t size, const char *typename)
     object_initialize_with_type(data, size, type);
 }
 
-void object_initialize_child(Object *parentobj, const char *propname,
+void object_initialize_child_with_props(Object *parentobj,
+                             const char *propname,
                              void *childobj, size_t size, const char *type,
                              Error **errp, ...)
 {
     va_list vargs;
 
     va_start(vargs, errp);
-    object_initialize_childv(parentobj, propname, childobj, size, type, errp,
-                             vargs);
+    object_initialize_child_with_propsv(parentobj, propname,
+                                        childobj, size, type, errp, vargs);
     va_end(vargs);
 }
 
-void object_initialize_childv(Object *parentobj, const char *propname,
+void object_initialize_child_with_propsv(Object *parentobj,
+                              const char *propname,
                               void *childobj, size_t size, const char *type,
                               Error **errp, va_list vargs)
 {
@@ -575,6 +577,15 @@ out:
     object_unref(obj);
 
     error_propagate(errp, local_err);
+}
+
+void object_initialize_child_internal(Object *parent,
+                                      const char *propname,
+                                      void *child, size_t size,
+                                      const char *type)
+{
+    object_initialize_child_with_props(parent, propname, child, size, type,
+                                       &error_abort, NULL);
 }
 
 static inline bool object_property_is_child(ObjectProperty *prop)

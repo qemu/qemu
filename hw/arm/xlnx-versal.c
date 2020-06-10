@@ -32,9 +32,8 @@ static void versal_create_apu_cpus(Versal *s)
     for (i = 0; i < ARRAY_SIZE(s->fpd.apu.cpu); i++) {
         Object *obj;
 
-        object_initialize_child(OBJECT(s), "apu-cpu[*]",
-                                &s->fpd.apu.cpu[i], sizeof(s->fpd.apu.cpu[i]),
-                                XLNX_VERSAL_ACPU_TYPE, &error_abort, NULL);
+        object_initialize_child(OBJECT(s), "apu-cpu[*]", &s->fpd.apu.cpu[i],
+                                XLNX_VERSAL_ACPU_TYPE);
         obj = OBJECT(&s->fpd.apu.cpu[i]);
         object_property_set_int(obj, s->cfg.psci_conduit,
                                 "psci-conduit", &error_abort);

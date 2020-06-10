@@ -251,9 +251,7 @@ static void armsse_init(Object *obj)
         char *name;
 
         name = g_strdup_printf("cluster%d", i);
-        object_initialize_child(obj, name, &s->cluster[i],
-                                sizeof(s->cluster[i]), TYPE_CPU_CLUSTER,
-                                &error_abort, NULL);
+        object_initialize_child(obj, name, &s->cluster[i], TYPE_CPU_CLUSTER);
         qdev_prop_set_uint32(DEVICE(&s->cluster[i]), "cluster-id", i);
         g_free(name);
 
@@ -287,15 +285,13 @@ static void armsse_init(Object *obj)
         g_free(name);
     }
     object_initialize_child(obj, "mpc-irq-orgate", &s->mpc_irq_orgate,
-                            sizeof(s->mpc_irq_orgate), TYPE_OR_IRQ,
-                            &error_abort, NULL);
+                            TYPE_OR_IRQ);
 
     for (i = 0; i < IOTS_NUM_EXP_MPC + info->sram_banks; i++) {
         char *name = g_strdup_printf("mpc-irq-splitter-%d", i);
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
 
-        object_initialize_child(obj, name, splitter, sizeof(*splitter),
-                                TYPE_SPLIT_IRQ, &error_abort, NULL);
+        object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
         g_free(name);
     }
     sysbus_init_child_obj(obj, "timer0", &s->timer0, sizeof(s->timer0),
@@ -375,21 +371,16 @@ static void armsse_init(Object *obj)
             g_free(name);
         }
     }
-    object_initialize_child(obj, "nmi-orgate", &s->nmi_orgate,
-                            sizeof(s->nmi_orgate), TYPE_OR_IRQ,
-                            &error_abort, NULL);
+    object_initialize_child(obj, "nmi-orgate", &s->nmi_orgate, TYPE_OR_IRQ);
     object_initialize_child(obj, "ppc-irq-orgate", &s->ppc_irq_orgate,
-                            sizeof(s->ppc_irq_orgate), TYPE_OR_IRQ,
-                            &error_abort, NULL);
+                            TYPE_OR_IRQ);
     object_initialize_child(obj, "sec-resp-splitter", &s->sec_resp_splitter,
-                            sizeof(s->sec_resp_splitter), TYPE_SPLIT_IRQ,
-                            &error_abort, NULL);
+                            TYPE_SPLIT_IRQ);
     for (i = 0; i < ARRAY_SIZE(s->ppc_irq_splitter); i++) {
         char *name = g_strdup_printf("ppc-irq-splitter-%d", i);
         SplitIRQ *splitter = &s->ppc_irq_splitter[i];
 
-        object_initialize_child(obj, name, splitter, sizeof(*splitter),
-                                TYPE_SPLIT_IRQ, &error_abort, NULL);
+        object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
         g_free(name);
     }
     if (info->num_cpus > 1) {
@@ -398,8 +389,7 @@ static void armsse_init(Object *obj)
                 char *name = g_strdup_printf("cpu-irq-splitter%d", i);
                 SplitIRQ *splitter = &s->cpu_irq_splitter[i];
 
-                object_initialize_child(obj, name, splitter, sizeof(*splitter),
-                                        TYPE_SPLIT_IRQ, &error_abort, NULL);
+                object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
                 g_free(name);
             }
         }

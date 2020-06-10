@@ -482,8 +482,7 @@ static void exynos4210_init(Object *obj)
         char *name = g_strdup_printf("pl330-irq-orgate%d", i);
         qemu_or_irq *orgate = &s->pl330_irq_orgate[i];
 
-        object_initialize_child(obj, name, orgate, sizeof(*orgate),
-                                TYPE_OR_IRQ, &error_abort, NULL);
+        object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
         g_free(name);
     }
 }

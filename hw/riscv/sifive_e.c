@@ -85,9 +85,7 @@ static void riscv_sifive_e_init(MachineState *machine)
     int i;
 
     /* Initialize SoC */
-    object_initialize_child(OBJECT(machine), "soc", &s->soc,
-                            sizeof(s->soc), TYPE_RISCV_E_SOC,
-                            &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_E_SOC);
     object_property_set_bool(OBJECT(&s->soc), true, "realized",
                             &error_abort);
 
