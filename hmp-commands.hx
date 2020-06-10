@@ -1806,9 +1806,10 @@ ERST
 
     {
         .name       = "qom-set",
-        .args_type  = "path:s,property:s,value:S",
-        .params     = "path property value",
-        .help       = "set QOM property",
+        .args_type  = "json:-j,path:s,property:s,value:S",
+        .params     = "[-j] path property value",
+        .help       = "set QOM property.\n\t\t\t"
+                      "-j: the value is specified in json format.",
         .cmd        = hmp_qom_set,
         .flags      = "p",
     },
