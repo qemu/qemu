@@ -3671,7 +3671,7 @@ static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
     SpaprDimmState *ds = spapr_pending_dimm_unplugs_find(spapr, PC_DIMM(dev));
 
     pc_dimm_unplug(PC_DIMM(dev), MACHINE(hotplug_dev));
-    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
+    qdev_unrealize(dev);
     spapr_pending_dimm_unplugs_remove(spapr, ds);
 }
 
@@ -3764,7 +3764,7 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 
     assert(core_slot);
     core_slot->cpu = NULL;
-    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
+    qdev_unrealize(dev);
 }
 
 static
@@ -4037,7 +4037,7 @@ void spapr_phb_release(DeviceState *dev)
 
 static void spapr_phb_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
-    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
+    qdev_unrealize(dev);
 }
 
 static void spapr_phb_unplug_request(HotplugHandler *hotplug_dev,
@@ -4073,7 +4073,7 @@ static void spapr_tpm_proxy_unplug(HotplugHandler *hotplug_dev, DeviceState *dev
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
 
-    object_property_set_bool(OBJECT(dev), false, "realized", &error_abort);
+    qdev_unrealize(dev);
     object_unparent(OBJECT(dev));
     spapr->tpm_proxy = NULL;
 }

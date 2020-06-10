@@ -1587,8 +1587,7 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
         return;
     }
 
-    object_property_set_bool(OBJECT(plugged_dev), false, "realized",
-                             &error_abort);
+    qdev_unrealize(plugged_dev);
 }
 
 static void spapr_pci_unplug_request(HotplugHandler *plug_handler,

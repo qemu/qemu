@@ -200,8 +200,7 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
     } else if (!value && bus->realized) {
         QTAILQ_FOREACH(kid, &bus->children, sibling) {
             DeviceState *dev = kid->child;
-            object_property_set_bool(OBJECT(dev), false, "realized",
-                                     &error_abort);
+            qdev_unrealize(dev);
         }
         if (bc->unrealize) {
             bc->unrealize(bus);

@@ -68,7 +68,7 @@ static void serial_pci_exit(PCIDevice *dev)
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
 
-    object_property_set_bool(OBJECT(s), false, "realized", &error_abort);
+    qdev_unrealize(DEVICE(s));
     qemu_free_irq(s->irq);
 }
 
