@@ -620,9 +620,9 @@ static void integratorcp_init(MachineState *machine)
                              0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
-    dev = qdev_create(NULL, TYPE_INTEGRATOR_CM);
+    dev = qdev_new(TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
     dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,

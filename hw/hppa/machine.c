@@ -124,8 +124,8 @@ static void machine_hppa_init(MachineState *machine)
 
     /* Graphics setup. */
     if (machine->enable_graphics && vga_interface_type != VGA_NONE) {
-        dev = qdev_create(NULL, "artist");
-        qdev_init_nofail(dev);
+        dev = qdev_new("artist");
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
         s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, LASI_GFX_HPA);
         sysbus_mmio_map(s, 1, ARTIST_FB_ADDR);

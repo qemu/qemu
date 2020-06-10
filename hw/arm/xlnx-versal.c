@@ -304,13 +304,13 @@ static void versal_unimp_area(Versal *s, const char *name,
                                 MemoryRegion *mr,
                                 hwaddr base, hwaddr size)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_UNIMPLEMENTED_DEVICE);
+    DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
     MemoryRegion *mr_dev;
 
     qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", size);
     object_property_add_child(OBJECT(s), name, OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     mr_dev = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
     memory_region_add_subregion(mr, base, mr_dev);

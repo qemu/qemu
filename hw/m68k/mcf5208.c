@@ -214,9 +214,9 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
     int i;
 
     qemu_check_nic_model(nd, TYPE_MCF_FEC_NET);
-    dev = qdev_create(NULL, TYPE_MCF_FEC_NET);
+    dev = qdev_new(TYPE_MCF_FEC_NET);
     qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < FEC_NUM_IRQ; i++) {

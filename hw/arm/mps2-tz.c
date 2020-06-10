@@ -246,9 +246,9 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
      * except that it doesn't support the checksum-offload feature.
      */
     qemu_check_nic_model(nd, "lan9118");
-    mms->lan9118 = qdev_create(NULL, TYPE_LAN9118);
+    mms->lan9118 = qdev_new(TYPE_LAN9118);
     qdev_set_nic_properties(mms->lan9118, nd);
-    qdev_init_nofail(mms->lan9118);
+    qdev_realize_and_unref(mms->lan9118, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(mms->lan9118);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 16));

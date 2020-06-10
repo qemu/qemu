@@ -218,13 +218,13 @@ static void q800_init(MachineState *machine)
 
     /* VIA */
 
-    via_dev = qdev_create(NULL, TYPE_MAC_VIA);
+    via_dev = qdev_new(TYPE_MAC_VIA);
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
         qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo),
                             &error_abort);
     }
-    qdev_init_nofail(via_dev);
+    qdev_realize_and_unref(via_dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(via_dev);
     sysbus_mmio_map(sysbus, 0, VIA_BASE);
     qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0, pic[0]);
@@ -232,10 +232,10 @@ static void q800_init(MachineState *machine)
 
 
     adb_bus = qdev_get_child_bus(via_dev, "adb.0");
-    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
-    qdev_init_nofail(dev);
-    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_ADB_KEYBOARD);
+    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+    dev = qdev_new(TYPE_ADB_MOUSE);
+    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     /* MACSONIC */
 
@@ -259,13 +259,13 @@ static void q800_init(MachineState *machine)
     nd_table[0].macaddr.a[1] = 0x00;
     nd_table[0].macaddr.a[2] = 0x07;
 
-    dev = qdev_create(NULL, "dp8393x");
+    dev = qdev_new("dp8393x");
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_prop_set_uint8(dev, "it_shift", 2);
     qdev_prop_set_bit(dev, "big_endian", true);
     object_property_set_link(OBJECT(dev), OBJECT(get_system_memory()),
                              "dma_mr", &error_abort);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);
     sysbus_mmio_map(sysbus, 1, SONIC_PROM_BASE);
@@ -273,7 +273,7 @@ static void q800_init(MachineState *machine)
 
     /* SCC */
 
-    dev = qdev_create(NULL, TYPE_ESCC);
+    dev = qdev_new(TYPE_ESCC);
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", MAC_CLOCK);
     qdev_prop_set_uint32(dev, "it_shift", 1);
@@ -282,7 +282,7 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_chr(dev, "chrB", serial_hd(1));
     qdev_prop_set_uint32(dev, "chnBtype", 0);
     qdev_prop_set_uint32(dev, "chnAtype", 0);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(sysbus, 0, pic[3]);
     sysbus_connect_irq(sysbus, 1, pic[3]);
@@ -290,7 +290,7 @@ static void q800_init(MachineState *machine)
 
     /* SCSI */
 
-    dev = qdev_create(NULL, TYPE_ESP);
+    dev = qdev_new(TYPE_ESP);
     sysbus_esp = ESP_STATE(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = NULL;
@@ -298,7 +298,7 @@ static void q800_init(MachineState *machine)
     esp->dma_opaque = NULL;
     sysbus_esp->it_shift = 4;
     esp->dma_enabled = 1;
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via_dev,
@@ -314,14 +314,14 @@ static void q800_init(MachineState *machine)
 
     /* SWIM floppy controller */
 
-    dev = qdev_create(NULL, TYPE_SWIM);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_SWIM);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SWIM_BASE);
 
     /* NuBus */
 
-    dev = qdev_create(NULL, TYPE_MAC_NUBUS_BRIDGE);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_MAC_NUBUS_BRIDGE);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, NUBUS_SUPER_SLOT_BASE);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE);
 
@@ -329,11 +329,11 @@ static void q800_init(MachineState *machine)
 
     /* framebuffer in nubus slot #9 */
 
-    dev = qdev_create(BUS(nubus), TYPE_NUBUS_MACFB);
+    dev = qdev_new(TYPE_NUBUS_MACFB);
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, BUS(nubus), &error_fatal);
 
     cs = CPU(cpu);
     if (linux_boot) {

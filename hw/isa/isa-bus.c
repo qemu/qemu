@@ -61,8 +61,8 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
         return NULL;
     }
     if (!dev) {
-        dev = qdev_create(NULL, "isabus-bridge");
-        qdev_init_nofail(dev);
+        dev = qdev_new("isabus-bridge");
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
     }
 
     isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));

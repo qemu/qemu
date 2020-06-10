@@ -241,13 +241,14 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo)
 {
         DeviceState *card;
 
-        card = qdev_create(qdev_get_child_bus(DEVICE(sdhci), "sd-bus"),
-                           TYPE_SD_CARD);
+        card = qdev_new(TYPE_SD_CARD);
         if (dinfo) {
             qdev_prop_set_drive(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         }
-        object_property_set_bool(OBJECT(card), true, "realized", &error_fatal);
+        qdev_realize_and_unref(card,
+                               qdev_get_child_bus(DEVICE(sdhci), "sd-bus"),
+                               &error_fatal);
 }
 
 static void aspeed_machine_init(MachineState *machine)

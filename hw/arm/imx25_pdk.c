@@ -130,10 +130,9 @@ static void imx25_pdk_init(MachineState *machine)
         di = drive_get_next(IF_SD);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
         bus = qdev_get_child_bus(DEVICE(&s->soc.esdhc[i]), "sd-bus");
-        carddev = qdev_create(bus, TYPE_SD_CARD);
+        carddev = qdev_new(TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
-        object_property_set_bool(OBJECT(carddev), true,
-                                 "realized", &error_fatal);
+        qdev_realize_and_unref(carddev, bus, &error_fatal);
     }
 
     /*

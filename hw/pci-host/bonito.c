@@ -40,6 +40,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
@@ -743,11 +744,11 @@ PCIBus *bonito_init(qemu_irq *pic)
     PCIBonitoState *s;
     PCIDevice *d;
 
-    dev = qdev_create(NULL, TYPE_BONITO_PCI_HOST_BRIDGE);
+    dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
     phb = PCI_HOST_BRIDGE(dev);
     pcihost = BONITO_PCI_HOST_BRIDGE(dev);
     pcihost->pic = pic;
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     d = pci_create(phb->bus, PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
     s = PCI_BONITO(d);

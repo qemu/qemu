@@ -1712,7 +1712,7 @@ static void spapr_machine_reset(MachineState *machine)
 
 static void spapr_create_nvram(SpaprMachineState *spapr)
 {
-    DeviceState *dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
+    DeviceState *dev = qdev_new("spapr-nvram");
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
     if (dinfo) {
@@ -1720,7 +1720,7 @@ static void spapr_create_nvram(SpaprMachineState *spapr)
                             &error_fatal);
     }
 
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, &spapr->vio_bus->bus, &error_fatal);
 
     spapr->nvram = (struct SpaprNvram *)dev;
 }
@@ -2640,9 +2640,9 @@ static PCIHostState *spapr_create_default_phb(void)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
+    dev = qdev_new(TYPE_SPAPR_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "index", 0);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     return PCI_HOST_BRIDGE(dev);
 }

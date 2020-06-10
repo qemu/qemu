@@ -81,10 +81,10 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
     /* This should be a 9215 but the 9118 is close enough */
     if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], "lan9118");
-        dev = qdev_create(NULL, TYPE_LAN9118);
+        dev = qdev_new(TYPE_LAN9118);
         qdev_set_nic_properties(dev, &nd_table[0]);
         qdev_prop_set_uint32(dev, "mode_16bit", 1);
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
         s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, base);
         sysbus_connect_irq(s, 0, irq);

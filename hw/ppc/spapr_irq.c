@@ -325,7 +325,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         DeviceState *dev;
         int i;
 
-        dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
+        dev = qdev_new(TYPE_SPAPR_XIVE);
         qdev_prop_set_uint32(dev, "nr-irqs", smc->nr_xirqs + SPAPR_XIRQ_BASE);
         /*
          * 8 XIVE END structures per CPU. One for each available
@@ -334,7 +334,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
         object_property_set_link(OBJECT(dev), OBJECT(spapr), "xive-fabric",
                                  &error_abort);
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
 
         spapr->xive = SPAPR_XIVE(dev);
 

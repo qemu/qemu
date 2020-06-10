@@ -143,10 +143,9 @@ static void xlnx_zcu102_init(MachineState *machine)
             error_report("No SD bus found for SD card %d", i);
             exit(1);
         }
-        carddev = qdev_create(bus, TYPE_SD_CARD);
+        carddev = qdev_new(TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
-        object_property_set_bool(OBJECT(carddev), true, "realized",
-                                 &error_fatal);
+        qdev_realize_and_unref(carddev, bus, &error_fatal);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {

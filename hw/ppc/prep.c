@@ -35,6 +35,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
@@ -268,7 +269,7 @@ static void ibm_40p_init(MachineState *machine)
     qemu_register_reset(ppc_prep_reset, cpu);
 
     /* PCI host */
-    dev = qdev_create(NULL, "raven-pcihost");
+    dev = qdev_new("raven-pcihost");
     if (!bios_name) {
         bios_name = "openbios-ppc";
     }
@@ -276,7 +277,7 @@ static void ibm_40p_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
     pcihost = SYS_BUS_DEVICE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     if (!pci_bus) {
         error_report("could not create PCI host controller");
@@ -338,13 +339,13 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* Prepare firmware configuration for OpenBIOS */
-    dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
+    dev = qdev_new(TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(fw_cfg));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);

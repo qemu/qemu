@@ -729,12 +729,12 @@ static void pnv_init(MachineState *machine)
     /*
      * Create our simple PNOR device
      */
-    dev = qdev_create(NULL, TYPE_PNV_PNOR);
+    dev = qdev_new(TYPE_PNV_PNOR);
     if (pnor) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(pnor),
                             &error_abort);
     }
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */

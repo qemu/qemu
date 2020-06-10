@@ -485,23 +485,23 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
     PXA2xxMMCIState *s;
     Error *err = NULL;
 
-    dev = qdev_create(NULL, TYPE_PXA2XX_MMCI);
+    dev = qdev_new(TYPE_PXA2XX_MMCI);
     s = PXA2XX_MMCI(dev);
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sbd, 0, base);
     sysbus_connect_irq(sbd, 0, irq);
     qdev_connect_gpio_out_named(dev, "rx-dma", 0, rx_dma);
     qdev_connect_gpio_out_named(dev, "tx-dma", 0, tx_dma);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     /* Create and plug in the sd card */
-    carddev = qdev_create(qdev_get_child_bus(dev, "sd-bus"), TYPE_SD_CARD);
+    carddev = qdev_new(TYPE_SD_CARD);
     qdev_prop_set_drive(carddev, "drive", blk, &err);
     if (err) {
         error_reportf_err(err, "failed to init SD card: ");
         return NULL;
     }
-    object_property_set_bool(OBJECT(carddev), true, "realized", &err);
+    qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"), &err);
     if (err) {
         error_reportf_err(err, "failed to init SD card: ");
         return NULL;

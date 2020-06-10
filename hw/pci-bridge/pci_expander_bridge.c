@@ -231,7 +231,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         dev_name = dev->qdev.id;
     }
 
-    ds = qdev_create(NULL, TYPE_PXB_HOST);
+    ds = qdev_new(TYPE_PXB_HOST);
     if (pcie) {
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else {
@@ -255,7 +255,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         goto err_register_bus;
     }
 
-    qdev_init_nofail(ds);
+    qdev_realize_and_unref(ds, NULL, &error_fatal);
     if (bds) {
         qdev_init_nofail(bds);
     }

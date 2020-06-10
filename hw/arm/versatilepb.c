@@ -223,10 +223,10 @@ static void versatile_init(MachineState *machine, int board_id)
     /* SDRAM at address zero.  */
     memory_region_add_subregion(sysmem, 0, machine->ram);
 
-    sysctl = qdev_create(NULL, "realview_sysctl");
+    sysctl = qdev_new("realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);
     qdev_prop_set_uint32(sysctl, "proc_id", 0x02000000);
-    qdev_init_nofail(sysctl);
+    qdev_realize_and_unref(sysctl, NULL, &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     dev = sysbus_create_varargs("pl190", 0x10140000,
@@ -245,9 +245,9 @@ static void versatile_init(MachineState *machine, int board_id)
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
-    dev = qdev_create(NULL, "versatile_pci");
+    dev = qdev_new("versatile_pci");
     busdev = SYS_BUS_DEVICE(dev);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10001000); /* PCI controller regs */
     sysbus_mmio_map(busdev, 1, 0x41000000); /* PCI self-config */
     sysbus_mmio_map(busdev, 2, 0x42000000); /* PCI config */
@@ -286,10 +286,10 @@ static void versatile_init(MachineState *machine, int board_id)
     pl011_create(0x101f3000, pic[14], serial_hd(2));
     pl011_create(0x10009000, sic[6], serial_hd(3));
 
-    dev = qdev_create(NULL, "pl080");
+    dev = qdev_new("pl080");
     object_property_set_link(OBJECT(dev), OBJECT(sysmem), "downstream",
                              &error_fatal);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0x10130000);
     sysbus_connect_irq(busdev, 0, pic[17]);
@@ -319,9 +319,9 @@ static void versatile_init(MachineState *machine, int board_id)
     i2c_create_slave(i2c, "ds1338", 0x68);
 
     /* Add PL041 AACI Interface to the LM4549 codec */
-    pl041 = qdev_create(NULL, "pl041");
+    pl041 = qdev_new("pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
-    qdev_init_nofail(pl041);
+    qdev_realize_and_unref(pl041, NULL, &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, sic[24]);
 

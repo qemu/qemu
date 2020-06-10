@@ -94,9 +94,9 @@ static void orangepi_init(MachineState *machine)
     bus = qdev_get_child_bus(DEVICE(h3), "sd-bus");
 
     /* Plug in SD card */
-    carddev = qdev_create(bus, TYPE_SD_CARD);
+    carddev = qdev_new(TYPE_SD_CARD);
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
-    object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
+    qdev_realize_and_unref(carddev, bus, &error_fatal);
 
     /* SDRAM */
     memory_region_add_subregion(get_system_memory(), h3->memmap[AW_H3_SDRAM],

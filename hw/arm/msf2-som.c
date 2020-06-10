@@ -61,7 +61,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(sysmem, DDR_BASE_ADDRESS, ddr);
 
-    dev = qdev_create(NULL, TYPE_MSF2_SOC);
+    dev = qdev_new(TYPE_MSF2_SOC);
     qdev_prop_set_string(dev, "part-name", "M2S010");
     qdev_prop_set_string(dev, "cpu-type", mc->default_cpu_type);
 
@@ -77,7 +77,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "apb0div", 2);
     qdev_prop_set_uint32(dev, "apb1div", 2);
 
-    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     soc = MSF2_SOC(dev);
 

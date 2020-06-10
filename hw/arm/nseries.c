@@ -174,7 +174,7 @@ static void n8x0_nand_setup(struct n800_s *s)
     char *otp_region;
     DriveInfo *dinfo;
 
-    s->nand = qdev_create(NULL, "onenand");
+    s->nand = qdev_new("onenand");
     qdev_prop_set_uint16(s->nand, "manufacturer_id", NAND_MFR_SAMSUNG);
     /* Either 0x40 or 0x48 are OK for the device ID */
     qdev_prop_set_uint16(s->nand, "device_id", 0x48);
@@ -185,7 +185,7 @@ static void n8x0_nand_setup(struct n800_s *s)
         qdev_prop_set_drive(s->nand, "drive", blk_by_legacy_dinfo(dinfo),
                             &error_fatal);
     }
-    qdev_init_nofail(s->nand);
+    qdev_realize_and_unref(s->nand, NULL, &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->nand), 0,
                        qdev_get_gpio_in(s->mpu->gpio, N8X0_ONENAND_GPIO));
     omap_gpmc_attach(s->mpu->gpmc, N8X0_ONENAND_CS,
@@ -802,9 +802,9 @@ static void n8x0_uart_setup(struct n800_s *s)
 static void n8x0_usb_setup(struct n800_s *s)
 {
     SysBusDevice *dev;
-    s->usb = qdev_create(NULL, "tusb6010");
+    s->usb = qdev_new("tusb6010");
     dev = SYS_BUS_DEVICE(s->usb);
-    qdev_init_nofail(s->usb);
+    qdev_realize_and_unref(s->usb, NULL, &error_fatal);
     sysbus_connect_irq(dev, 0,
                        qdev_get_gpio_in(s->mpu->gpio, N8X0_TUSB_INT_GPIO));
     /* Using the NOR interface */

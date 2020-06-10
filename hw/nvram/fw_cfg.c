@@ -1099,14 +1099,14 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
     FWCfgState *s;
     bool dma_requested = dma_iobase && dma_as;
 
-    dev = qdev_create(NULL, TYPE_FW_CFG_IO);
+    dev = qdev_new(TYPE_FW_CFG_IO);
     if (!dma_requested) {
         qdev_prop_set_bit(dev, "dma_enabled", false);
     }
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sbd = SYS_BUS_DEVICE(dev);
     ios = FW_CFG_IO(dev);
@@ -1138,7 +1138,7 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
     FWCfgState *s;
     bool dma_requested = dma_addr && dma_as;
 
-    dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
+    dev = qdev_new(TYPE_FW_CFG_MEM);
     qdev_prop_set_uint32(dev, "data_width", data_width);
     if (!dma_requested) {
         qdev_prop_set_bit(dev, "dma_enabled", false);
@@ -1146,7 +1146,7 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sbd, 0, ctl_addr);

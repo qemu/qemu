@@ -1367,13 +1367,13 @@ void ppc460ex_pcie_init(CPUPPCState *env)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE0_BASE);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), env);
 
-    dev = qdev_create(NULL, TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "dcrn-base", DCRN_PCIE1_BASE);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     ppc460ex_pcie_register_dcrs(PPC460EX_PCIE_HOST(dev), env);
 }

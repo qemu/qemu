@@ -227,9 +227,9 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
 
         qemu_check_nic_model(nd, "virtio");
 
-        dev = qdev_create(bus, name);
+        dev = qdev_new(name);
         qdev_set_nic_properties(dev, nd);
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, bus, &error_fatal);
     }
 }
 
@@ -237,9 +237,9 @@ static void s390_create_sclpconsole(const char *type, Chardev *chardev)
 {
     DeviceState *dev;
 
-    dev = qdev_create(sclp_get_event_facility_bus(), type);
+    dev = qdev_new(type);
     qdev_prop_set_chr(dev, "chardev", chardev);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, sclp_get_event_facility_bus(), &error_fatal);
 }
 
 static void ccw_init(MachineState *machine)
@@ -269,10 +269,10 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+    dev = qdev_new(TYPE_S390_PCI_HOST_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
                               OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();

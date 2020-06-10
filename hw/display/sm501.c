@@ -1969,10 +1969,10 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    usb_dev = qdev_create(NULL, "sysbus-ohci");
+    usb_dev = qdev_new("sysbus-ohci");
     qdev_prop_set_uint32(usb_dev, "num-ports", 2);
     qdev_prop_set_uint64(usb_dev, "dma-offset", s->base);
-    qdev_init_nofail(usb_dev);
+    qdev_realize_and_unref(usb_dev, NULL, &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
                        sysbus_mmio_get_region(SYS_BUS_DEVICE(usb_dev), 0));
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(usb_dev));

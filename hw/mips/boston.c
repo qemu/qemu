@@ -400,7 +400,7 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     DeviceState *dev;
     MemoryRegion *cfg, *mmio;
 
-    dev = qdev_create(NULL, TYPE_XILINX_PCIE_HOST);
+    dev = qdev_new(TYPE_XILINX_PCIE_HOST);
 
     qdev_prop_set_uint32(dev, "bus_nr", bus_nr);
     qdev_prop_set_uint64(dev, "cfg_base", cfg_base);
@@ -409,7 +409,7 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     qdev_prop_set_uint64(dev, "mmio_size", mmio_size);
     qdev_prop_set_bit(dev, "link_up", link_up);
 
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     cfg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
     memory_region_add_subregion_overlap(sys_mem, cfg_base, cfg, 0);
@@ -441,8 +441,8 @@ static void boston_mach_init(MachineState *machine)
         exit(1);
     }
 
-    dev = qdev_create(NULL, TYPE_MIPS_BOSTON);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_MIPS_BOSTON);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = BOSTON(dev);
     s->mach = machine;

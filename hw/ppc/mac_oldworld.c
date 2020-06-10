@@ -222,8 +222,8 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* XXX: we register only 1 output pin for heathrow PIC */
-    pic_dev = qdev_create(NULL, TYPE_HEATHROW);
-    qdev_init_nofail(pic_dev);
+    pic_dev = qdev_new(TYPE_HEATHROW);
+    qdev_realize_and_unref(pic_dev, NULL, &error_fatal);
 
     /* Connect the heathrow PIC outputs to the 6xx bus */
     for (i = 0; i < smp_cpus; i++) {
@@ -252,11 +252,11 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* Grackle PCI host bridge */
-    dev = qdev_create(NULL, TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "ofw-addr", 0x80000000);
     object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
                              &error_abort);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, GRACKLE_BASE);
     sysbus_mmio_map(s, 1, GRACKLE_BASE + 0x200000);
@@ -295,10 +295,10 @@ static void ppc_heathrow_init(MachineState *machine)
 
     dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
-    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
-    qdev_init_nofail(dev);
-    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_ADB_KEYBOARD);
+    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+    dev = qdev_new(TYPE_ADB_MOUSE);
+    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     if (machine_usb(machine)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
@@ -309,13 +309,13 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* No PCI init: the BIOS will do it */
 
-    dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
+    dev = qdev_new(TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(fw_cfg));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);

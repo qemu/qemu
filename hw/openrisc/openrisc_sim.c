@@ -59,9 +59,9 @@ static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
     SysBusDevice *s;
     int i;
 
-    dev = qdev_create(NULL, "open_eth");
+    dev = qdev_new("open_eth");
     qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < num_cpus; i++) {
@@ -78,9 +78,9 @@ static void openrisc_sim_ompic_init(hwaddr base, int num_cpus,
     SysBusDevice *s;
     int i;
 
-    dev = qdev_create(NULL, "or1k-ompic");
+    dev = qdev_new("or1k-ompic");
     qdev_prop_set_uint32(dev, "num-cpus", num_cpus);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < num_cpus; i++) {

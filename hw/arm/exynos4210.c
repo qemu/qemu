@@ -173,7 +173,7 @@ static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
     DeviceState *dev;
     int i;
 
-    dev = qdev_create(NULL, "pl330");
+    dev = qdev_new("pl330");
     qdev_prop_set_uint8(dev, "num_events", nevents);
     qdev_prop_set_uint8(dev, "num_chnls",  8);
     qdev_prop_set_uint8(dev, "num_periph_req",  nreq);
@@ -184,7 +184,7 @@ static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
     qdev_prop_set_uint8(dev, "rd_q_dep", 8);
     qdev_prop_set_uint8(dev, "data_width", width);
     qdev_prop_set_uint16(dev, "data_buffer_dep", width);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, base);
 
@@ -232,9 +232,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
-        dev = qdev_create(NULL, "exynos4210.irq_gate");
+        dev = qdev_new("exynos4210.irq_gate");
         qdev_prop_set_uint32(dev, "n_in", EXYNOS4210_IRQ_GATE_NINPUTS);
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
         /* Get IRQ Gate input in gate_irq */
         for (n = 0; n < EXYNOS4210_IRQ_GATE_NINPUTS; n++) {
             gate_irq[i][n] = qdev_get_gpio_in(dev, n);
@@ -247,9 +247,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     }
 
     /* Private memory region and Internal GIC */
-    dev = qdev_create(NULL, TYPE_A9MPCORE_PRIV);
+    dev = qdev_new(TYPE_A9MPCORE_PRIV);
     qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
@@ -263,9 +263,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_create_simple("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
 
     /* External GIC */
-    dev = qdev_create(NULL, "exynos4210.gic");
+    dev = qdev_new("exynos4210.gic");
     qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     /* Map CPU interface */
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_GIC_CPU_BASE_ADDR);
@@ -279,8 +279,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     }
 
     /* Internal Interrupt Combiner */
-    dev = qdev_create(NULL, "exynos4210.combiner");
-    qdev_init_nofail(dev);
+    dev = qdev_new("exynos4210.combiner");
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.int_gic_irq[n]);
@@ -289,9 +289,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_mmio_map(busdev, 0, EXYNOS4210_INT_COMBINER_BASE_ADDR);
 
     /* External Interrupt Combiner */
-    dev = qdev_create(NULL, "exynos4210.combiner");
+    dev = qdev_new("exynos4210.combiner");
     qdev_prop_set_uint32(dev, "external", 1);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.ext_gic_irq[n]);
@@ -353,8 +353,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                           NULL);
 
     /* Multi Core Timer */
-    dev = qdev_create(NULL, "exynos4210.mct");
-    qdev_init_nofail(dev);
+    dev = qdev_new("exynos4210.mct");
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < 4; n++) {
         /* Connect global timer interrupts to Combiner gpio_in */
@@ -379,8 +379,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
             i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
         }
 
-        dev = qdev_create(NULL, "exynos4210.i2c");
-        qdev_init_nofail(dev);
+        dev = qdev_new("exynos4210.i2c");
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
@@ -423,9 +423,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
          * public datasheet which is very similar (implementing
          * MMC Specification Version 4.0 being the only difference noted)
          */
-        dev = qdev_create(NULL, TYPE_S3C_SDHCI);
+        dev = qdev_new(TYPE_S3C_SDHCI);
         qdev_prop_set_uint64(dev, "capareg", EXYNOS4210_SDHCI_CAPABILITIES);
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
 
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, EXYNOS4210_SDHCI_ADDR(n));
@@ -433,9 +433,10 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
-        carddev = qdev_create(qdev_get_child_bus(dev, "sd-bus"), TYPE_SD_CARD);
+        carddev = qdev_new(TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_abort);
-        qdev_init_nofail(carddev);
+        qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"),
+                               &error_fatal);
     }
 
     /*** Display controller (FIMD) ***/

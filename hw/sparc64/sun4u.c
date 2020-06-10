@@ -351,8 +351,8 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     qdev_init_nofail(dev);
 
     /* Power */
-    dev = qdev_create(NULL, TYPE_SUN4U_POWER);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_SUN4U_POWER);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sbd = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
                                 sysbus_mmio_get_region(sbd, 0));
@@ -426,8 +426,8 @@ static void prom_init(hwaddr addr, const char *bios_name)
     char *filename;
     int ret;
 
-    dev = qdev_create(NULL, TYPE_OPENPROM);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_OPENPROM);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
 
     sysbus_mmio_map(s, 0, addr);
@@ -520,12 +520,12 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
     RamDevice *d;
 
     /* allocate RAM */
-    dev = qdev_create(NULL, TYPE_SUN4U_MEMORY);
+    dev = qdev_new(TYPE_SUN4U_MEMORY);
     s = SYS_BUS_DEVICE(dev);
 
     d = SUN4U_RAM(dev);
     d->size = RAM_size;
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 }
@@ -572,8 +572,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
 
     /* IOMMU */
-    iommu = qdev_create(NULL, TYPE_SUN4U_IOMMU);
-    qdev_init_nofail(iommu);
+    iommu = qdev_new(TYPE_SUN4U_IOMMU);
+    qdev_realize_and_unref(iommu, NULL, &error_fatal);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -581,12 +581,12 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     prom_init(hwdef->prom_addr, bios_name);
 
     /* Init sabre (PCI host bridge) */
-    sabre = SABRE_DEVICE(qdev_create(NULL, TYPE_SABRE));
+    sabre = SABRE_DEVICE(qdev_new(TYPE_SABRE));
     qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
     qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
     object_property_set_link(OBJECT(sabre), OBJECT(iommu), "iommu",
                              &error_abort);
-    qdev_init_nofail(DEVICE(sabre));
+    qdev_realize_and_unref(DEVICE(sabre), NULL, &error_fatal);
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
@@ -689,10 +689,10 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            graphic_width, graphic_height, graphic_depth,
                            (uint8_t *)&macaddr);
 
-    dev = qdev_create(NULL, TYPE_FW_CFG_IO);
+    dev = qdev_new(TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev));
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
                                 &FW_CFG_IO(dev)->comb_iomem);
 

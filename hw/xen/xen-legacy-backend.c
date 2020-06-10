@@ -703,8 +703,8 @@ int xen_be_init(void)
         xengnttab_close(gnttabdev);
     }
 
-    xen_sysdev = qdev_create(NULL, TYPE_XENSYSDEV);
-    qdev_init_nofail(xen_sysdev);
+    xen_sysdev = qdev_new(TYPE_XENSYSDEV);
+    qdev_realize_and_unref(xen_sysdev, NULL, &error_fatal);
     xen_sysbus = qbus_create(TYPE_XENSYSBUS, xen_sysdev, "xen-sysbus");
     qbus_set_bus_hotplug_handler(xen_sysbus, &error_abort);
 

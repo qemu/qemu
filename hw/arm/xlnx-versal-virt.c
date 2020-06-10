@@ -432,9 +432,9 @@ static void create_virtio_regions(VersalVirt *s)
         qemu_irq pic_irq;
 
         pic_irq = qdev_get_gpio_in(DEVICE(&s->soc.fpd.apu.gic), irq);
-        dev = qdev_create(NULL, "virtio-mmio");
+        dev = qdev_new("virtio-mmio");
         object_property_add_child(OBJECT(&s->soc), name, OBJECT(dev));
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->soc.mr_ps, base, mr);
@@ -463,10 +463,11 @@ static void sd_plugin_card(SDHCIState *sd, DriveInfo *di)
     BlockBackend *blk = di ? blk_by_legacy_dinfo(di) : NULL;
     DeviceState *card;
 
-    card = qdev_create(qdev_get_child_bus(DEVICE(sd), "sd-bus"), TYPE_SD_CARD);
+    card = qdev_new(TYPE_SD_CARD);
     object_property_add_child(OBJECT(sd), "card[*]", OBJECT(card));
     qdev_prop_set_drive(card, "drive", blk, &error_fatal);
-    object_property_set_bool(OBJECT(card), true, "realized", &error_fatal);
+    qdev_realize_and_unref(card, qdev_get_child_bus(DEVICE(sd), "sd-bus"),
+                           &error_fatal);
 }
 
 static void versal_virt_init(MachineState *machine)

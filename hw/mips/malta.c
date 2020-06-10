@@ -1233,7 +1233,7 @@ void mips_malta_init(MachineState *machine)
     int fl_idx = 0;
     int be;
 
-    DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
+    DeviceState *dev = qdev_new(TYPE_MIPS_MALTA);
     MaltaState *s = MIPS_MALTA(dev);
 
     /*
@@ -1243,7 +1243,7 @@ void mips_malta_init(MachineState *machine)
      */
     empty_slot_init("GT64120", 0, 0x20000000);
 
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
