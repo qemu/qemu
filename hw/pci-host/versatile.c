@@ -409,7 +409,6 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
     h->bus = &s->pci_bus;
 
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
-    qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
 
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
@@ -459,7 +458,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
     }
 
     /* TODO Remove once realize propagates to child devices. */
-    object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
+    qdev_realize(DEVICE(&s->pci_dev), BUS(&s->pci_bus), errp);
 }
 
 static void versatile_pci_host_realize(PCIDevice *d, Error **errp)

@@ -182,9 +182,8 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     i8257_dma_init(isa_bus, 0);
 
     /* RTC */
-    qdev_set_parent_bus(DEVICE(&s->rtc), BUS(isa_bus));
     qdev_prop_set_int32(DEVICE(&s->rtc), "base_year", 2000);
-    object_property_set_bool(OBJECT(&s->rtc), true, "realized", &err);
+    qdev_realize(DEVICE(&s->rtc), BUS(isa_bus), &err);
     if (err) {
         error_propagate(errp, err);
         return;

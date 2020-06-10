@@ -1210,8 +1210,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     /* Add a single Root port */
     qdev_prop_set_uint8(DEVICE(&phb->root), "chassis", phb->chip_id);
     qdev_prop_set_uint16(DEVICE(&phb->root), "slot", phb->phb_id);
-    qdev_set_parent_bus(DEVICE(&phb->root), BUS(pci->bus));
-    qdev_init_nofail(DEVICE(&phb->root));
+    qdev_realize(DEVICE(&phb->root), BUS(pci->bus), &error_fatal);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {

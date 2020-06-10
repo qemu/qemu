@@ -33,9 +33,8 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     int i;
     Error *local_error = NULL;
 
-    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
-    object_property_set_bool(OBJECT(vdev), true, "realized", &local_error);
+    qdev_realize(vdev, BUS(&vpci_dev->bus), &local_error);
 
     if (local_error) {
         error_propagate(errp, local_error);

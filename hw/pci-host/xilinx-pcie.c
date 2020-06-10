@@ -137,8 +137,7 @@ static void xilinx_pcie_host_realize(DeviceState *dev, Error **errp)
                                      pci_swizzle_map_irq_fn, s, &s->mmio,
                                      &s->io, 0, 4, TYPE_PCIE_BUS);
 
-    qdev_set_parent_bus(DEVICE(&s->root), BUS(pci->bus));
-    qdev_init_nofail(DEVICE(&s->root));
+    qdev_realize(DEVICE(&s->root), BUS(pci->bus), &error_fatal);
 }
 
 static const char *xilinx_pcie_host_root_bus_path(PCIHostState *host_bridge,
