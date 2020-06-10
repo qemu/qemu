@@ -514,10 +514,12 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
                       int smm_enabled, DeviceState **piix4_pm)
 {
+    PCIDevice *pci_dev;
     DeviceState *dev;
     PIIX4PMState *s;
 
-    dev = DEVICE(pci_create(bus, devfn, TYPE_PIIX4_PM));
+    pci_dev = pci_new(devfn, TYPE_PIIX4_PM);
+    dev = DEVICE(pci_dev);
     qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
     if (piix4_pm) {
         *piix4_pm = dev;
@@ -531,7 +533,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
         s->use_acpi_pci_hotplug = false;
     }
 
-    qdev_init_nofail(dev);
+    pci_realize_and_unref(pci_dev, bus, &error_fatal);
 
     return s->smb.smbus;
 }

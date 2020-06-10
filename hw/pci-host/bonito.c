@@ -750,11 +750,11 @@ PCIBus *bonito_init(qemu_irq *pic)
     pcihost->pic = pic;
     qdev_realize_and_unref(dev, NULL, &error_fatal);
 
-    d = pci_create(phb->bus, PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
+    d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
     s = PCI_BONITO(d);
     s->pcihost = pcihost;
     pcihost->pci_dev = s;
-    qdev_init_nofail(DEVICE(d));
+    pci_realize_and_unref(d, phb->bus, &error_fatal);
 
     return phb->bus;
 }

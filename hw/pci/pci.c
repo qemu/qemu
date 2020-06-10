@@ -1953,10 +1953,10 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
         exit(1);
     }
 
-    pci_dev = pci_create(bus, devfn, nd->model);
+    pci_dev = pci_new(devfn, nd->model);
     dev = &pci_dev->qdev;
     qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
+    pci_realize_and_unref(pci_dev, bus, &error_fatal);
     g_ptr_array_free(pci_nic_models, true);
     return pci_dev;
 }
@@ -2199,8 +2199,8 @@ PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
                                            bool multifunction,
                                            const char *name)
 {
-    PCIDevice *dev = pci_create_multifunction(bus, devfn, multifunction, name);
-    qdev_init_nofail(&dev->qdev);
+    PCIDevice *dev = pci_new_multifunction(devfn, multifunction, name);
+    pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
 
