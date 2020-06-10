@@ -84,14 +84,14 @@ struct AUXSlave {
 };
 
 /**
- * aux_init_bus: Initialize an AUX bus.
+ * aux_bus_init: Initialize an AUX bus.
  *
  * Returns the new AUX bus created.
  *
  * @parent The device where this bus is located.
  * @name The name of the bus.
  */
-AUXBus *aux_init_bus(DeviceState *parent, const char *name);
+AUXBus *aux_bus_init(DeviceState *parent, const char *name);
 
 /*
  * aux_request: Make a request on the bus.

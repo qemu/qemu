@@ -62,7 +62,7 @@ static void aux_bus_class_init(ObjectClass *klass, void *data)
     k->print_dev = aux_slave_dev_print;
 }
 
-AUXBus *aux_init_bus(DeviceState *parent, const char *name)
+AUXBus *aux_bus_init(DeviceState *parent, const char *name)
 {
     AUXBus *bus;
     Object *auxtoi2c;
@@ -225,7 +225,7 @@ static void aux_bridge_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     /* This device is private and is created only once for each
-     * aux-bus in aux_init_bus(..). So don't allow the user to add one.
+     * aux-bus in aux_bus_init(..). So don't allow the user to add one.
      */
     dc->user_creatable = false;
 }
