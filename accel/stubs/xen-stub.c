@@ -1,17 +1,17 @@
 /*
- * Copyright (C) 2010       Citrix Ltd.
+ * Copyright (C) 2014       Citrix Systems UK Ltd.
  *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
- * Contributions after 2012-01-13 are licensed under the terms of the
- * GNU GPL, version 2 or (at your option) any later version.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  */
 
 #include "qemu/osdep.h"
 #include "hw/xen/xen.h"
-#include "exec/memory.h"
 #include "qapi/qapi-commands-misc.h"
+
+void xenstore_store_pv_console_info(int i, Chardev *chr)
+{
+}
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
