@@ -818,7 +818,7 @@ static void pnv_init(MachineState *machine)
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
-        Object *chip = OBJECT(qdev_create(NULL, chip_typename));
+        Object *chip = OBJECT(qdev_new(chip_typename));
 
         pnv->chips[i] = PNV_CHIP(chip);
 
@@ -850,7 +850,7 @@ static void pnv_init(MachineState *machine)
             object_property_set_link(chip, OBJECT(pnv), "xive-fabric",
                                      &error_abort);
         }
-        object_property_set_bool(chip, true, "realized", &error_fatal);
+        qdev_realize_and_unref(DEVICE(chip), NULL, &error_fatal);
     }
     g_free(chip_typename);
 

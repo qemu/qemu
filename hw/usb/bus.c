@@ -326,21 +326,21 @@ static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
                                         Error **errp)
 {
     Error *err = NULL;
-    USBDevice *dev;
+    DeviceState *dev;
 
-    dev = USB_DEVICE(qdev_try_create(&bus->qbus, name));
+    dev = qdev_try_new(name);
     if (!dev) {
         error_setg(errp, "Failed to create USB device '%s'", name);
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    qdev_realize_and_unref(dev, &bus->qbus, &err);
     if (err) {
         error_propagate_prepend(errp, err,
                                 "Failed to initialize USB device '%s': ",
                                 name);
         return NULL;
     }
-    return dev;
+    return USB_DEVICE(dev);
 }
 
 USBDevice *usb_create_simple(USBBus *bus, const char *name)

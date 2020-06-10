@@ -824,7 +824,7 @@ static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
     Error *local_err = NULL;
     DeviceState *dev;
 
-    dev = qdev_try_create(BUS(s->bus), TYPE_S390_PCI_DEVICE);
+    dev = qdev_try_new(TYPE_S390_PCI_DEVICE);
     if (!dev) {
         error_setg(errp, "zPCI device could not be created");
         return NULL;
@@ -837,7 +837,7 @@ static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
                                 "zPCI device could not be created: ");
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+    qdev_realize_and_unref(dev, BUS(s->bus), &local_err);
     if (local_err) {
         object_unparent(OBJECT(dev));
         error_propagate_prepend(errp, local_err,

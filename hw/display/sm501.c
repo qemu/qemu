@@ -1831,10 +1831,9 @@ static void sm501_init(SM501State *s, DeviceState *dev,
     /* i2c */
     s->i2c_bus = i2c_init_bus(dev, "sm501.i2c");
     /* ddc */
-    I2CDDCState *ddc = I2CDDC(qdev_create(BUS(s->i2c_bus), TYPE_I2CDDC));
+    I2CDDCState *ddc = I2CDDC(qdev_new(TYPE_I2CDDC));
     i2c_set_slave_address(I2C_SLAVE(ddc), 0x50);
-    object_property_set_bool(OBJECT(ddc), true, "realized",
-                             &error_abort);
+    qdev_realize_and_unref(DEVICE(ddc), BUS(s->i2c_bus), &error_abort);
 
     /* mmio */
     memory_region_init(&s->mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);

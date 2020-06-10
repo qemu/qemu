@@ -211,7 +211,7 @@ static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
      * Create a single flash device.  We use the same parameters as
      * the flash devices on the Versatile Express board.
      */
-    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", SBSA_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -243,7 +243,7 @@ static void sbsa_flash_map1(PFlashCFI01 *flash,
     assert(QEMU_IS_ALIGNED(size, SBSA_FLASH_SECTOR_SIZE));
     assert(size / SBSA_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / SBSA_FLASH_SECTOR_SIZE);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),

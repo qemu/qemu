@@ -1205,7 +1205,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
      * when the HPET wants to take over. Thus we have to disable the latter.
      */
     if (!no_hpet && (!kvm_irqchip_in_kernel() || kvm_has_pit_state2())) {
-        hpet = qdev_try_create(NULL, TYPE_HPET);
+        hpet = qdev_try_new(TYPE_HPET);
         if (hpet) {
             /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7
              * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
@@ -1216,7 +1216,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
             if (!compat) {
                 qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
             }
-            qdev_init_nofail(hpet);
+            qdev_realize_and_unref(hpet, NULL, &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
 
             for (i = 0; i < GSI_NUM_PINS; i++) {
