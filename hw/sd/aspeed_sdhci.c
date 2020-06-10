@@ -145,7 +145,7 @@ static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        object_property_set_bool(sdhci_slot, true, "realized", &err);
+        sysbus_realize(sbd_slot, &err);
         if (err) {
             error_propagate(errp, err);
             return;

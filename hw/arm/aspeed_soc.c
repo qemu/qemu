@@ -208,8 +208,8 @@ static void aspeed_soc_init(Object *obj)
 
     /* Init sd card slot class here so that they're under the correct parent */
     for (i = 0; i < ASPEED_SDHCI_NUM_SLOTS; ++i) {
-        sysbus_init_child_obj(obj, "sdhci[*]", &s->sdhci.slots[i],
-                              sizeof(s->sdhci.slots[i]), TYPE_SYSBUS_SDHCI);
+        object_initialize_child(obj, "sdhci[*]", &s->sdhci.slots[i],
+                                TYPE_SYSBUS_SDHCI);
     }
 }
 

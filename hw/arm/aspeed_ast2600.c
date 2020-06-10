@@ -200,9 +200,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     /* Init sd card slot class here so that they're under the correct parent */
     for (i = 0; i < ASPEED_SDHCI_NUM_SLOTS; ++i) {
-        sysbus_init_child_obj(obj, "sd-controller.sdhci[*]",
-                              &s->sdhci.slots[i],
-                              sizeof(s->sdhci.slots[i]), TYPE_SYSBUS_SDHCI);
+        object_initialize_child(obj, "sd-controller.sdhci[*]",
+                                &s->sdhci.slots[i], TYPE_SYSBUS_SDHCI);
     }
 
     object_initialize_child(obj, "emmc-controller", &s->emmc,
@@ -210,9 +209,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     object_property_set_int(OBJECT(&s->emmc), 1, "num-slots", &error_abort);
 
-    sysbus_init_child_obj(obj, "emmc-controller.sdhci",
-                          &s->emmc.slots[0], sizeof(s->emmc.slots[0]),
-                          TYPE_SYSBUS_SDHCI);
+    object_initialize_child(obj, "emmc-controller.sdhci", &s->emmc.slots[0],
+                            TYPE_SYSBUS_SDHCI);
 }
 
 /*
