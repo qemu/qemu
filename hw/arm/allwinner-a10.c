@@ -59,9 +59,9 @@ static void aw_a10_init(Object *obj)
         int i;
 
         for (i = 0; i < AW_A10_NUM_USB; i++) {
-            sysbus_init_child_obj(obj, "ehci[*]", OBJECT(&s->ehci[i]),
+            sysbus_init_child_obj(obj, "ehci[*]", &s->ehci[i],
                                   sizeof(s->ehci[i]), TYPE_PLATFORM_EHCI);
-            sysbus_init_child_obj(obj, "ohci[*]", OBJECT(&s->ohci[i]),
+            sysbus_init_child_obj(obj, "ohci[*]", &s->ohci[i],
                                   sizeof(s->ohci[i]), TYPE_SYSBUS_OHCI);
         }
     }

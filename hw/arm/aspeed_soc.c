@@ -146,8 +146,7 @@ static void aspeed_soc_init(Object *obj)
     }
 
     snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);
-    sysbus_init_child_obj(obj, "scu", OBJECT(&s->scu), sizeof(s->scu),
-                          typename);
+    sysbus_init_child_obj(obj, "scu", &s->scu, sizeof(s->scu), typename);
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
                          sc->silicon_rev);
     object_property_add_alias(obj, "hw-strap1", OBJECT(&s->scu),
@@ -157,39 +156,36 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
                               "hw-prot-key");
 
-    sysbus_init_child_obj(obj, "vic", OBJECT(&s->vic), sizeof(s->vic),
+    sysbus_init_child_obj(obj, "vic", &s->vic, sizeof(s->vic),
                           TYPE_ASPEED_VIC);
 
-    sysbus_init_child_obj(obj, "rtc", OBJECT(&s->rtc), sizeof(s->rtc),
+    sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
                           TYPE_ASPEED_RTC);
 
     snprintf(typename, sizeof(typename), "aspeed.timer-%s", socname);
-    sysbus_init_child_obj(obj, "timerctrl", OBJECT(&s->timerctrl),
+    sysbus_init_child_obj(obj, "timerctrl", &s->timerctrl,
                           sizeof(s->timerctrl), typename);
 
     snprintf(typename, sizeof(typename), "aspeed.i2c-%s", socname);
-    sysbus_init_child_obj(obj, "i2c", OBJECT(&s->i2c), sizeof(s->i2c),
-                          typename);
+    sysbus_init_child_obj(obj, "i2c", &s->i2c, sizeof(s->i2c), typename);
 
     snprintf(typename, sizeof(typename), "aspeed.fmc-%s", socname);
-    sysbus_init_child_obj(obj, "fmc", OBJECT(&s->fmc), sizeof(s->fmc),
-                          typename);
+    sysbus_init_child_obj(obj, "fmc", &s->fmc, sizeof(s->fmc), typename);
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs");
 
     for (i = 0; i < sc->spis_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", i + 1, socname);
-        sysbus_init_child_obj(obj, "spi[*]", OBJECT(&s->spi[i]),
+        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i],
                               sizeof(s->spi[i]), typename);
     }
 
     for (i = 0; i < sc->ehcis_num; i++) {
-        sysbus_init_child_obj(obj, "ehci[*]", OBJECT(&s->ehci[i]),
+        sysbus_init_child_obj(obj, "ehci[*]", &s->ehci[i],
                               sizeof(s->ehci[i]), TYPE_PLATFORM_EHCI);
     }
 
     snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
-    sysbus_init_child_obj(obj, "sdmc", OBJECT(&s->sdmc), sizeof(s->sdmc),
-                          typename);
+    sysbus_init_child_obj(obj, "sdmc", &s->sdmc, sizeof(s->sdmc), typename);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size");
     object_property_add_alias(obj, "max-ram-size", OBJECT(&s->sdmc),
@@ -197,30 +193,29 @@ static void aspeed_soc_init(Object *obj)
 
     for (i = 0; i < sc->wdts_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
-        sysbus_init_child_obj(obj, "wdt[*]", OBJECT(&s->wdt[i]),
+        sysbus_init_child_obj(obj, "wdt[*]", &s->wdt[i],
                               sizeof(s->wdt[i]), typename);
     }
 
     for (i = 0; i < sc->macs_num; i++) {
-        sysbus_init_child_obj(obj, "ftgmac100[*]", OBJECT(&s->ftgmac100[i]),
+        sysbus_init_child_obj(obj, "ftgmac100[*]", &s->ftgmac100[i],
                               sizeof(s->ftgmac100[i]), TYPE_FTGMAC100);
     }
 
-    sysbus_init_child_obj(obj, "xdma", OBJECT(&s->xdma), sizeof(s->xdma),
+    sysbus_init_child_obj(obj, "xdma", &s->xdma, sizeof(s->xdma),
                           TYPE_ASPEED_XDMA);
 
     snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
-    sysbus_init_child_obj(obj, "gpio", OBJECT(&s->gpio), sizeof(s->gpio),
-                          typename);
+    sysbus_init_child_obj(obj, "gpio", &s->gpio, sizeof(s->gpio), typename);
 
-    sysbus_init_child_obj(obj, "sdc", OBJECT(&s->sdhci), sizeof(s->sdhci),
+    sysbus_init_child_obj(obj, "sdc", &s->sdhci, sizeof(s->sdhci),
                           TYPE_ASPEED_SDHCI);
 
     object_property_set_int(OBJECT(&s->sdhci), 2, "num-slots", &error_abort);
 
     /* Init sd card slot class here so that they're under the correct parent */
     for (i = 0; i < ASPEED_SDHCI_NUM_SLOTS; ++i) {
-        sysbus_init_child_obj(obj, "sdhci[*]", OBJECT(&s->sdhci.slots[i]),
+        sysbus_init_child_obj(obj, "sdhci[*]", &s->sdhci.slots[i],
                               sizeof(s->sdhci.slots[i]), TYPE_SYSBUS_SDHCI);
     }
 }
