@@ -408,7 +408,7 @@ void qdev_init_nofail(DeviceState *dev)
 /*
  * Realize @dev.
  * @dev must not be plugged into a bus.
- * Plug @dev into @bus.  This takes a reference to @dev.
+ * If @bus, plug @dev into @bus.  This takes a reference to @dev.
  * If @dev has no QOM parent, make one up, taking another reference.
  * On success, return true.
  * On failure, store an error through @errp and return false.
@@ -418,9 +418,12 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     Error *err = NULL;
 
     assert(!dev->realized && !dev->parent_bus);
-    assert(bus);
 
-    qdev_set_parent_bus(dev, bus);
+    if (bus) {
+        qdev_set_parent_bus(dev, bus);
+    } else {
+        assert(!DEVICE_GET_CLASS(dev)->bus_type);
+    }
 
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err) {
