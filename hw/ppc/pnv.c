@@ -1212,12 +1212,11 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(phb), i, "index", &error_fatal);
         object_property_set_int(OBJECT(phb), chip->chip_id, "chip-id",
                                 &error_fatal);
-        object_property_set_bool(OBJECT(phb), true, "realized", &local_err);
+        qdev_realize(DEVICE(phb), NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
-        qdev_set_parent_bus(DEVICE(phb), sysbus_get_default());
 
         /* Populate the XSCOM address space. */
         pnv_xscom_add_subregion(chip,
@@ -1422,12 +1421,11 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
             object_property_set_int(obj, PNV_PHB4_DEVICE_ID, "device-id",
                                     &error_fatal);
             object_property_set_link(obj, OBJECT(stack), "stack", &error_abort);
-            object_property_set_bool(obj, true, "realized", &local_err);
+            qdev_realize(DEVICE(obj), NULL, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;
             }
-            qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
 
             /* Populate the XSCOM address space. */
             pnv_xscom_add_subregion(chip,
