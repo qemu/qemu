@@ -141,8 +141,8 @@ static void armv7m_instance_init(Object *obj)
                               OBJECT(&s->nvic), "num-irq");
 
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
-        sysbus_init_child_obj(obj, "bitband[*]", &s->bitband[i],
-                              sizeof(s->bitband[i]), TYPE_BITBAND);
+        object_initialize_child(obj, "bitband[*]", &s->bitband[i],
+                                TYPE_BITBAND);
     }
 }
 
@@ -257,7 +257,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             }
             object_property_set_link(obj, OBJECT(s->board_memory),
                                      "source-memory", &error_abort);
-            object_property_set_bool(obj, true, "realized", &err);
+            sysbus_realize(SYS_BUS_DEVICE(obj), &err);
             if (err != NULL) {
                 error_propagate(errp, err);
                 return;

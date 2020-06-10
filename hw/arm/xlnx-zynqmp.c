@@ -251,8 +251,8 @@ static void xlnx_zynqmp_init(Object *obj)
     object_initialize_child(obj, "sata", &s->sata, TYPE_SYSBUS_AHCI);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
-        sysbus_init_child_obj(obj, "sdhci[*]", &s->sdhci[i],
-                              sizeof(s->sdhci[i]), TYPE_SYSBUS_SDHCI);
+        object_initialize_child(obj, "sdhci[*]", &s->sdhci[i],
+                                TYPE_SYSBUS_SDHCI);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
@@ -530,7 +530,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(sdhci, true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(sdhci), &err);
         if (err) {
             error_propagate(errp, err);
             return;

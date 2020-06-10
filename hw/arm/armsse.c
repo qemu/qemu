@@ -256,9 +256,8 @@ static void armsse_init(Object *obj)
         g_free(name);
 
         name = g_strdup_printf("armv7m%d", i);
-        sysbus_init_child_obj(OBJECT(&s->cluster[i]), name,
-                              &s->armv7m[i], sizeof(s->armv7m[i]),
-                              TYPE_ARMV7M);
+        object_initialize_child(OBJECT(&s->cluster[i]), name, &s->armv7m[i],
+                                TYPE_ARMV7M);
         qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
                              ARM_CPU_TYPE_NAME("cortex-m33"));
         g_free(name);
@@ -308,31 +307,26 @@ static void armsse_init(Object *obj)
     object_initialize_child(obj, "armsse-sysinfo", &s->sysinfo,
                             TYPE_IOTKIT_SYSINFO);
     if (info->has_mhus) {
-        sysbus_init_child_obj(obj, "mhu0", &s->mhu[0], sizeof(s->mhu[0]),
-                              TYPE_ARMSSE_MHU);
-        sysbus_init_child_obj(obj, "mhu1", &s->mhu[1], sizeof(s->mhu[1]),
-                              TYPE_ARMSSE_MHU);
+        object_initialize_child(obj, "mhu0", &s->mhu[0], TYPE_ARMSSE_MHU);
+        object_initialize_child(obj, "mhu1", &s->mhu[1], TYPE_ARMSSE_MHU);
     }
     if (info->has_ppus) {
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("CPU%dCORE_PPU", i);
             int ppuidx = CPU0CORE_PPU + i;
 
-            sysbus_init_child_obj(obj, name, &s->ppu[ppuidx],
-                                  sizeof(s->ppu[ppuidx]),
-                                  TYPE_UNIMPLEMENTED_DEVICE);
+            object_initialize_child(obj, name, &s->ppu[ppuidx],
+                                    TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
-        sysbus_init_child_obj(obj, "DBG_PPU", &s->ppu[DBG_PPU],
-                              sizeof(s->ppu[DBG_PPU]),
-                              TYPE_UNIMPLEMENTED_DEVICE);
+        object_initialize_child(obj, "DBG_PPU", &s->ppu[DBG_PPU],
+                                TYPE_UNIMPLEMENTED_DEVICE);
         for (i = 0; i < info->sram_banks; i++) {
             char *name = g_strdup_printf("RAM%d_PPU", i);
             int ppuidx = RAM0_PPU + i;
 
-            sysbus_init_child_obj(obj, name, &s->ppu[ppuidx],
-                                  sizeof(s->ppu[ppuidx]),
-                                  TYPE_UNIMPLEMENTED_DEVICE);
+            object_initialize_child(obj, name, &s->ppu[ppuidx],
+                                    TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
     }
@@ -428,7 +422,7 @@ static void map_ppu(ARMSSE *s, int ppuidx, const char *name, hwaddr addr)
 
     qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", 0x1000);
-    qdev_init_nofail(dev);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu[ppuidx]), 0, addr);
 }
 
@@ -579,7 +573,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(cpuobj, true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(cpuobj), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -815,8 +809,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             int cpunum;
             SysBusDevice *mhu_sbd = SYS_BUS_DEVICE(&s->mhu[i]);
 
-            object_property_set_bool(OBJECT(&s->mhu[i]), true,
-                                     "realized", &err);
+            sysbus_realize(SYS_BUS_DEVICE(&s->mhu[i]), &err);
             if (err) {
                 error_propagate(errp, err);
                 return;
