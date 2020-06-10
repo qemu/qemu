@@ -974,10 +974,10 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_create(bus, TYPE_MC146818_RTC);
+    isadev = isa_new(TYPE_MC146818_RTC);
     dev = DEVICE(isadev);
     qdev_prop_set_int32(dev, "base_year", base_year);
-    qdev_init_nofail(dev);
+    isa_realize_and_unref(isadev, bus, &error_fatal);
     if (intercept_irq) {
         qdev_connect_gpio_out(dev, 0, intercept_irq);
     } else {

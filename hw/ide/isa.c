@@ -27,6 +27,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 
@@ -86,12 +87,12 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
     ISADevice *isadev;
     ISAIDEState *s;
 
-    isadev = isa_create(bus, TYPE_ISA_IDE);
+    isadev = isa_new(TYPE_ISA_IDE);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);
     qdev_prop_set_uint32(dev, "irq",     isairq);
-    qdev_init_nofail(dev);
+    isa_realize_and_unref(isadev, bus, &error_fatal);
 
     s = ISA_IDE(dev);
     if (hd0) {

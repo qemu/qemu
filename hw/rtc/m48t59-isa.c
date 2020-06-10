@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/rtc/m48t59.h"
 #include "m48t59-internal.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 
 #define TYPE_M48TXX_ISA "isa-m48txx"
@@ -61,6 +62,7 @@ static M48txxInfo m48txx_isa_info[] = {
 Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                        int base_year, int model)
 {
+    ISADevice *isa_dev;
     DeviceState *dev;
     int i;
 
@@ -70,10 +72,11 @@ Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
             continue;
         }
 
-        dev = DEVICE(isa_create(bus, m48txx_isa_info[i].bus_name));
+        isa_dev = isa_new(m48txx_isa_info[i].bus_name);
+        dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "iobase", io_base);
         qdev_prop_set_int32(dev, "base-year", base_year);
-        qdev_init_nofail(dev);
+        isa_realize_and_unref(isa_dev, bus, &error_fatal);
         return NVRAM(dev);
     }
 

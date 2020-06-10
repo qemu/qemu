@@ -190,8 +190,8 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
 {
     ISADevice *dev;
 
-    dev = isa_create(bus, name);
-    qdev_init_nofail(DEVICE(dev));
+    dev = isa_new(name);
+    isa_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
 

@@ -160,11 +160,11 @@ static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_create(bus, TYPE_ISA_SERIAL);
+    isadev = isa_new(TYPE_ISA_SERIAL);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_init_nofail(dev);
+    isa_realize_and_unref(isadev, bus, &error_fatal);
 }
 
 void serial_hds_isa_init(ISABus *bus, int from, int to)
