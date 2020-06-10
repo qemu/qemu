@@ -320,8 +320,6 @@ compat_props_add(GPtrArray *arr,
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
-DeviceState *qdev_create(BusState *bus, const char *name);
-DeviceState *qdev_try_create(BusState *bus, const char *name);
 DeviceState *qdev_new(const char *name);
 DeviceState *qdev_try_new(const char *name);
 void qdev_init_nofail(DeviceState *dev);
