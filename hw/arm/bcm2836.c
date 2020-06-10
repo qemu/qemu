@@ -133,8 +133,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpu[n].core), true,
-                                 "realized", &err);
+        qdev_realize(DEVICE(&s->cpu[n].core), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

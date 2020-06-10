@@ -62,7 +62,7 @@ static void digic4_board_init(MachineState *machine, DigicBoard *board)
         exit(EXIT_FAILURE);
     }
 
-    object_property_set_bool(OBJECT(s), true, "realized", &err);
+    qdev_realize(DEVICE(s), NULL, &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't realize DIGIC SoC: ");
         exit(1);

@@ -190,7 +190,7 @@ static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
 
     object_property_set_int(OBJECT(orgate), nevents + 1, "num-lines",
                             &error_abort);
-    object_property_set_bool(OBJECT(orgate), true, "realized", &error_abort);
+    qdev_realize(DEVICE(orgate), NULL, &error_abort);
 
     for (i = 0; i < nevents + 1; i++) {
         sysbus_connect_irq(busdev, i, qdev_get_gpio_in(DEVICE(orgate), i));
@@ -223,7 +223,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                                 "mp-affinity", &error_abort);
         object_property_set_int(cpuobj, EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
                                 "reset-cbar", &error_abort);
-        object_property_set_bool(cpuobj, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
 
     /*** IRQs ***/

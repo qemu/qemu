@@ -106,7 +106,7 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 
     for (i = 0; i < nports; i++) {
         s = pci->state + i;
-        object_property_set_bool(OBJECT(s), true, "realized", &err);
+        qdev_realize(DEVICE(s), NULL, &err);
         if (err != NULL) {
             error_propagate(errp, err);
             multi_serial_pci_exit(dev);

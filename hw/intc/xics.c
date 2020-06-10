@@ -384,7 +384,7 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     object_unref(obj);
     object_property_set_link(obj, OBJECT(xi), ICP_PROP_XICS, &error_abort);
     object_property_set_link(obj, cpu, ICP_PROP_CPU, &error_abort);
-    object_property_set_bool(obj, true, "realized", &local_err);
+    qdev_realize(DEVICE(obj), NULL, &local_err);
     if (local_err) {
         object_unparent(obj);
         error_propagate(errp, local_err);

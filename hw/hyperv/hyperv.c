@@ -140,7 +140,7 @@ void hyperv_synic_add(CPUState *cs)
     synic->cs = cs;
     object_property_add_child(OBJECT(cs), "synic", obj);
     object_unref(obj);
-    object_property_set_bool(obj, true, "realized", &error_abort);
+    qdev_realize(DEVICE(obj), NULL, &error_abort);
     synic_enabled = true;
 }
 

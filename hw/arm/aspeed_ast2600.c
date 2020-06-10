@@ -259,7 +259,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
          * is needed when using -kernel
          */
 
-        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        qdev_realize(DEVICE(&s->cpu[i]), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

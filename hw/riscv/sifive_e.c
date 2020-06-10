@@ -86,8 +86,7 @@ static void riscv_sifive_e_init(MachineState *machine)
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_E_SOC);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized",
-                            &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* Data Tightly Integrated Memory */
     memory_region_init_ram(main_mem, NULL, "riscv.sifive.e.ram",

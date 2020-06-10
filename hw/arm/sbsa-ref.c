@@ -680,7 +680,7 @@ static void sbsa_ref_init(MachineState *machine)
         object_property_set_link(cpuobj, OBJECT(secure_sysmem),
                                  "secure-memory", &error_abort);
 
-        object_property_set_bool(cpuobj, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);
     }
 

@@ -250,7 +250,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el2", true);
 
         /* Mark realized */
-        qdev_init_nofail(DEVICE(&s->cpus[i]));
+        qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);
     }
 
     /* Generic Interrupt Controller */

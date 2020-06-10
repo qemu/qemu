@@ -1138,7 +1138,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                             "bar", &error_fatal);
     object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip8->xics),
                              ICS_PROP_XICS, &error_abort);
-    object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
+    qdev_realize(DEVICE(&chip8->psi), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1149,8 +1149,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Create LPC controller */
     object_property_set_link(OBJECT(&chip8->lpc), OBJECT(&chip8->psi), "psi",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip8->lpc), true, "realized",
-                             &error_fatal);
+    qdev_realize(DEVICE(&chip8->lpc), NULL, &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
 
     chip->dt_isa_nodename = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
@@ -1170,7 +1169,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Create the simplified OCC model */
     object_property_set_link(OBJECT(&chip8->occ), OBJECT(&chip8->psi), "psi",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip8->occ), true, "realized", &local_err);
+    qdev_realize(DEVICE(&chip8->occ), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1184,8 +1183,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* HOMER */
     object_property_set_link(OBJECT(&chip8->homer), OBJECT(chip), "chip",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip8->homer), true, "realized",
-                             &local_err);
+    qdev_realize(DEVICE(&chip8->homer), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1352,7 +1350,7 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
                                            &error_fatal, NULL);
 
         object_property_set_int(OBJECT(eq), core_id, "id", &error_fatal);
-        object_property_set_bool(OBJECT(eq), true, "realized", &error_fatal);
+        qdev_realize(DEVICE(eq), NULL, &error_fatal);
 
         pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
                                 &eq->xscom_regs);
@@ -1384,7 +1382,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
                                  &error_fatal);
         object_property_set_link(OBJECT(pec), OBJECT(get_system_memory()),
                                  "system-memory", &error_abort);
-        object_property_set_bool(OBJECT(pec), true, "realized", &local_err);
+        qdev_realize(DEVICE(pec), NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -1480,7 +1478,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    object_property_set_bool(OBJECT(&chip9->psi), true, "realized", &local_err);
+    qdev_realize(DEVICE(&chip9->psi), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1491,7 +1489,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* LPC */
     object_property_set_link(OBJECT(&chip9->lpc), OBJECT(&chip9->psi), "psi",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip9->lpc), true, "realized", &local_err);
+    qdev_realize(DEVICE(&chip9->lpc), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1505,7 +1503,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Create the simplified OCC model */
     object_property_set_link(OBJECT(&chip9->occ), OBJECT(&chip9->psi), "psi",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip9->occ), true, "realized", &local_err);
+    qdev_realize(DEVICE(&chip9->occ), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1519,8 +1517,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* HOMER */
     object_property_set_link(OBJECT(&chip9->homer), OBJECT(chip), "chip",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip9->homer), true, "realized",
-                             &local_err);
+    qdev_realize(DEVICE(&chip9->homer), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1602,8 +1599,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    object_property_set_bool(OBJECT(&chip10->psi), true, "realized",
-                             &local_err);
+    qdev_realize(DEVICE(&chip10->psi), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1614,8 +1610,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* LPC */
     object_property_set_link(OBJECT(&chip10->lpc), OBJECT(&chip10->psi), "psi",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip10->lpc), true, "realized",
-                             &local_err);
+    qdev_realize(DEVICE(&chip10->lpc), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1734,8 +1729,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                 "hrmor", &error_fatal);
         object_property_set_link(OBJECT(pnv_core), OBJECT(chip), "chip",
                                  &error_abort);
-        object_property_set_bool(OBJECT(pnv_core), true, "realized",
-                                 &error_fatal);
+        qdev_realize(DEVICE(pnv_core), NULL, &error_fatal);
 
         /* Each core has an XSCOM MMIO region */
         xscom_core_base = pcc->xscom_core_base(chip, core_hwid);

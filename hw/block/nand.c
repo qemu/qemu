@@ -651,7 +651,7 @@ DeviceState *nand_init(BlockBackend *blk, int manf_id, int chip_id)
         qdev_prop_set_drive(dev, "drive", blk, &error_fatal);
     }
 
-    qdev_init_nofail(dev);
+    qdev_realize(dev, NULL, &error_fatal);
     return dev;
 }
 

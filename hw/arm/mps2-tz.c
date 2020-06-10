@@ -414,8 +414,7 @@ static void mps2tz_common_init(MachineState *machine)
 
             object_property_set_int(OBJECT(splitter), 2, "num-lines",
                                     &error_fatal);
-            object_property_set_bool(OBJECT(splitter), true, "realized",
-                                     &error_fatal);
+            qdev_realize(DEVICE(splitter), NULL, &error_fatal);
             qdev_connect_gpio_out(DEVICE(splitter), 0,
                                   qdev_get_gpio_in_named(DEVICE(&mms->iotkit),
                                                          "EXP_IRQ", i));
@@ -433,8 +432,7 @@ static void mps2tz_common_init(MachineState *machine)
     object_property_set_int(OBJECT(&mms->sec_resp_splitter),
                             ARRAY_SIZE(mms->ppc) + ARRAY_SIZE(mms->msc),
                             "num-lines", &error_fatal);
-    object_property_set_bool(OBJECT(&mms->sec_resp_splitter), true,
-                             "realized", &error_fatal);
+    qdev_realize(DEVICE(&mms->sec_resp_splitter), NULL, &error_fatal);
     dev_splitter = DEVICE(&mms->sec_resp_splitter);
     qdev_connect_gpio_out_named(iotkitdev, "sec_resp_cfg", 0,
                                 qdev_get_gpio_in(dev_splitter, 0));
@@ -466,8 +464,7 @@ static void mps2tz_common_init(MachineState *machine)
                             &mms->uart_irq_orgate, TYPE_OR_IRQ);
     object_property_set_int(OBJECT(&mms->uart_irq_orgate), 10, "num-lines",
                             &error_fatal);
-    object_property_set_bool(OBJECT(&mms->uart_irq_orgate), true,
-                             "realized", &error_fatal);
+    qdev_realize(DEVICE(&mms->uart_irq_orgate), NULL, &error_fatal);
     qdev_connect_gpio_out(DEVICE(&mms->uart_irq_orgate), 0,
                           get_sse_irq_in(mms, 15));
 

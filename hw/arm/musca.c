@@ -405,8 +405,7 @@ static void musca_init(MachineState *machine)
 
         object_property_set_int(OBJECT(splitter), 2, "num-lines",
                                 &error_fatal);
-        object_property_set_bool(OBJECT(splitter), true, "realized",
-                                 &error_fatal);
+        qdev_realize(DEVICE(splitter), NULL, &error_fatal);
         qdev_connect_gpio_out(DEVICE(splitter), 0,
                               qdev_get_gpio_in_named(ssedev, "EXP_IRQ", i));
         qdev_connect_gpio_out(DEVICE(splitter), 1,
@@ -425,8 +424,7 @@ static void musca_init(MachineState *machine)
 
     object_property_set_int(OBJECT(&mms->sec_resp_splitter),
                             ARRAY_SIZE(mms->ppc), "num-lines", &error_fatal);
-    object_property_set_bool(OBJECT(&mms->sec_resp_splitter), true,
-                             "realized", &error_fatal);
+    qdev_realize(DEVICE(&mms->sec_resp_splitter), NULL, &error_fatal);
     dev_splitter = DEVICE(&mms->sec_resp_splitter);
     qdev_connect_gpio_out_named(ssedev, "sec_resp_cfg", 0,
                                 qdev_get_gpio_in(dev_splitter, 0));

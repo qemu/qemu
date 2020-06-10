@@ -66,7 +66,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     uint16_t i;
     Error *err = NULL;
 
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(&s->cpu), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;

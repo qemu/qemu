@@ -229,7 +229,7 @@ static void mps2_common_init(MachineState *machine)
 
         orgate = object_new(TYPE_OR_IRQ);
         object_property_set_int(orgate, 6, "num-lines", &error_fatal);
-        object_property_set_bool(orgate, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_connect_gpio_out(orgate_dev, 0, qdev_get_gpio_in(armv7m, 12));
 
@@ -266,7 +266,7 @@ static void mps2_common_init(MachineState *machine)
 
         orgate = object_new(TYPE_OR_IRQ);
         object_property_set_int(orgate, 10, "num-lines", &error_fatal);
-        object_property_set_bool(orgate, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_connect_gpio_out(orgate_dev, 0, qdev_get_gpio_in(armv7m, 12));
 
@@ -281,8 +281,7 @@ static void mps2_common_init(MachineState *machine)
 
             txrx_orgate = object_new(TYPE_OR_IRQ);
             object_property_set_int(txrx_orgate, 2, "num-lines", &error_fatal);
-            object_property_set_bool(txrx_orgate, true, "realized",
-                                     &error_fatal);
+            qdev_realize(DEVICE(txrx_orgate), NULL, &error_fatal);
             txrx_orgate_dev = DEVICE(txrx_orgate);
             qdev_connect_gpio_out(txrx_orgate_dev, 0,
                                   qdev_get_gpio_in(armv7m, uart_txrx_irqno[i]));

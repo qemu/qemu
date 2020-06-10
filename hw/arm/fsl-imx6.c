@@ -130,7 +130,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                      "start-powered-off", &error_abort);
         }
 
-        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        qdev_realize(DEVICE(&s->cpu[i]), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

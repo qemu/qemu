@@ -91,7 +91,7 @@ petalogix_ml605_init(MachineState *machine)
     object_property_set_bool(OBJECT(cpu), true, "dcache-writeback",
                              &error_abort);
     object_property_set_bool(OBJECT(cpu), true, "endianness", &error_abort);
-    object_property_set_bool(OBJECT(cpu), true, "realized", &error_abort);
+    qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",

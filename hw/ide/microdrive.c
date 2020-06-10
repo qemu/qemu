@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/pcmcia.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 
@@ -560,7 +561,7 @@ PCMCIACardState *dscm1xxxx_init(DriveInfo *dinfo)
     MicroDriveState *md;
 
     md = MICRODRIVE(object_new(TYPE_DSCM1XXXX));
-    qdev_init_nofail(DEVICE(md));
+    qdev_realize(DEVICE(md), NULL, &error_fatal);
 
     if (dinfo != NULL) {
         ide_create_drive(&md->bus, 0, dinfo);

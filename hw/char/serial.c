@@ -991,7 +991,7 @@ static void serial_io_realize(DeviceState *dev, Error **errp)
     SerialState *s = &sio->serial;
     Error *local_err = NULL;
 
-    object_property_set_bool(OBJECT(s), true, "realized", &local_err);
+    qdev_realize(DEVICE(s), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1098,7 +1098,7 @@ static void serial_mm_realize(DeviceState *dev, Error **errp)
     SerialState *s = &smm->serial;
     Error *local_err = NULL;
 
-    object_property_set_bool(OBJECT(s), true, "realized", &local_err);
+    qdev_realize(DEVICE(s), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

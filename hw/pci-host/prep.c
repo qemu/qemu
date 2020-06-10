@@ -238,8 +238,7 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
         s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
         object_property_set_int(OBJECT(s->or_irq), PCI_NUM_PINS, "num-lines",
                                 &error_fatal);
-        object_property_set_bool(OBJECT(s->or_irq), true, "realized",
-                                 &error_fatal);
+        qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
         sysbus_init_irq(dev, &s->or_irq->out_irq);
 
         for (i = 0; i < PCI_NUM_PINS; i++) {

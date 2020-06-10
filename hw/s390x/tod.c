@@ -29,7 +29,7 @@ void s390_init_tod(void)
     object_property_add_child(qdev_get_machine(), TYPE_S390_TOD, obj);
     object_unref(obj);
 
-    qdev_init_nofail(DEVICE(obj));
+    qdev_realize(DEVICE(obj), NULL, &error_fatal);
 }
 
 S390TODState *s390_get_todstate(void)

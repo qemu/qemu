@@ -369,7 +369,7 @@ SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     g_free(tmp);
     object_unref(OBJECT(tcet));
 
-    object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
+    qdev_realize(DEVICE(tcet), NULL, NULL);
 
     return tcet;
 }

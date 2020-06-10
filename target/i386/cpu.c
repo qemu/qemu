@@ -6167,8 +6167,7 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
     if (cpu->apic_state == NULL) {
         return;
     }
-    object_property_set_bool(OBJECT(cpu->apic_state), true, "realized",
-                             errp);
+    qdev_realize(DEVICE(cpu->apic_state), NULL, errp);
 
     /* Map APIC MMIO area */
     apic = APIC_COMMON(cpu->apic_state);

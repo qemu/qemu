@@ -229,7 +229,7 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
             object_property_set_int(cpuobj, periphbase,
                                     "reset-cbar", &error_abort);
         }
-        object_property_set_bool(cpuobj, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
 
     /* Create the private peripheral devices (including the GIC);

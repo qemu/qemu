@@ -168,8 +168,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
 
     object_property_set_int(OBJECT(&s->cpu), QEMU_PSCI_CONDUIT_SMC,
                             "psci-conduit", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true,
-                             "realized", &error_abort);
+    qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
 
     /*
      * A7MPCORE

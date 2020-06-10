@@ -202,7 +202,7 @@ static void zynq_init(MachineState *machine)
                             &error_fatal);
     object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar",
                             &error_fatal);
-    object_property_set_bool(OBJECT(cpu), true, "realized", &error_fatal);
+    qdev_realize(DEVICE(cpu), NULL, &error_fatal);
 
     /* DDR remapped to address zero.  */
     memory_region_add_subregion(address_space_mem, 0, machine->ram);

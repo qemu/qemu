@@ -174,7 +174,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
                                      "start-powered-off", &error_abort);
         }
 
-        object_property_set_bool(o, true, "realized", &error_abort);
+        qdev_realize(DEVICE(o), NULL, &error_abort);
     }
 
     /*

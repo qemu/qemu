@@ -216,7 +216,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     s->cpu->env.nvic = &s->nvic;
     s->nvic.cpu = s->cpu;
 
-    object_property_set_bool(OBJECT(s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(s->cpu), NULL, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

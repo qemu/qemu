@@ -584,8 +584,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * CPU must exist and have been parented into the cluster before
          * the cluster is realized.
          */
-        object_property_set_bool(OBJECT(&s->cluster[i]),
-                                 true, "realized", &err);
+        qdev_realize(DEVICE(&s->cluster[i]), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -621,7 +620,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                     error_propagate(errp, err);
                     return;
                 }
-                object_property_set_bool(splitter, true, "realized", &err);
+                qdev_realize(DEVICE(splitter), NULL, &err);
                 if (err) {
                     error_propagate(errp, err);
                     return;
@@ -677,8 +676,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(&s->sec_resp_splitter), true,
-                             "realized", &err);
+    qdev_realize(DEVICE(&s->sec_resp_splitter), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -729,8 +727,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(&s->mpc_irq_orgate), true,
-                             "realized", &err);
+    qdev_realize(DEVICE(&s->mpc_irq_orgate), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -889,8 +886,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(&s->ppc_irq_orgate), true,
-                             "realized", &err);
+    qdev_realize(DEVICE(&s->ppc_irq_orgate), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1065,7 +1061,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(&s->nmi_orgate), true, "realized", &err);
+    qdev_realize(DEVICE(&s->nmi_orgate), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1113,7 +1109,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(splitter, true, "realized", &err);
+        qdev_realize(DEVICE(splitter), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -1160,7 +1156,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(OBJECT(splitter), true, "realized", &err);
+        qdev_realize(DEVICE(splitter), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

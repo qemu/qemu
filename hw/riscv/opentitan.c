@@ -61,8 +61,7 @@ static void riscv_opentitan_init(MachineState *machine)
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_IBEX_SOC);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized",
-                            &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     memory_region_init_ram(main_mem, NULL, "riscv.lowrisc.ibex.ram",
         memmap[IBEX_RAM].size, &error_fatal);

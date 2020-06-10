@@ -302,8 +302,7 @@ static void aspeed_machine_init(MachineState *machine)
         object_property_set_int(OBJECT(&bmc->soc), ASPEED_SCU_PROT_KEY,
                                 "hw-prot-key", &error_abort);
     }
-    object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
-                             &error_abort);
+    qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
 
     memory_region_add_subregion(get_system_memory(),
                                 sc->memmap[ASPEED_SDRAM],

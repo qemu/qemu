@@ -75,7 +75,7 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
     if (err != NULL) {
         goto out;
     }
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    qdev_realize(DEVICE(cpu), NULL, &err);
 
 out:
     object_unref(OBJECT(cpu));
@@ -210,7 +210,7 @@ static void s390_init_ipl_dev(const char *kernel_filename,
     object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
                               new);
     object_unref(new);
-    qdev_init_nofail(dev);
+    qdev_realize(dev, NULL, &error_fatal);
 }
 
 static void s390_create_virtio_net(BusState *bus, const char *name)

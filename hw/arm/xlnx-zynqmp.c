@@ -209,15 +209,14 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
 
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
                                  &error_abort);
-        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "realized",
-                                 &err);
+        qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
     }
 
-    qdev_init_nofail(DEVICE(&s->rpu_cluster));
+    qdev_realize(DEVICE(&s->rpu_cluster), NULL, &error_fatal);
 }
 
 static void xlnx_zynqmp_init(Object *obj)
@@ -341,7 +340,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_bit(DEVICE(&s->gic),
                       "has-virtualization-extensions", s->virt);
 
-    qdev_init_nofail(DEVICE(&s->apu_cluster));
+    qdev_realize(DEVICE(&s->apu_cluster), NULL, &error_fatal);
 
     /* Realize APUs before realizing the GIC. KVM requires this.  */
     for (i = 0; i < num_apus; i++) {
@@ -368,8 +367,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                 "reset-cbar", &error_abort);
         object_property_set_int(OBJECT(&s->apu_cpu[i]), num_apus,
                                 "core-count", &error_abort);
-        object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
-                                 &err);
+        qdev_realize(DEVICE(&s->apu_cpu[i]), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

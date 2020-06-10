@@ -390,7 +390,7 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
 
         object_property_set_int(stk_obj, i, "stack-no", &error_abort);
         object_property_set_link(stk_obj, OBJECT(pec), "pec", &error_abort);
-        object_property_set_bool(stk_obj, true, "realized", &local_err);
+        qdev_realize(DEVICE(stk_obj), NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;

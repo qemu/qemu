@@ -47,7 +47,7 @@ static void versal_create_apu_cpus(Versal *s)
                                 "core-count", &error_abort);
         object_property_set_link(obj, OBJECT(&s->fpd.apu.mr), "memory",
                                  &error_abort);
-        object_property_set_bool(obj, true, "realized", &error_fatal);
+        qdev_realize(DEVICE(obj), NULL, &error_fatal);
     }
 }
 

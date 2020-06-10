@@ -86,7 +86,7 @@ static void orangepi_init(MachineState *machine)
                             &error_abort);
 
     /* Mark H3 object realized */
-    object_property_set_bool(OBJECT(h3), true, "realized", &error_abort);
+    qdev_realize(DEVICE(h3), NULL, &error_abort);
 
     /* Retrieve SD bus */
     di = drive_get_next(IF_SD);

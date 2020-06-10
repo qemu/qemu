@@ -331,8 +331,7 @@ static void sifive_u_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
     object_property_set_uint(OBJECT(&s->soc), s->serial, "serial",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized",
-                            &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* register RAM */
     memory_region_init_ram(main_mem, NULL, "riscv.sifive.u.ram",
@@ -530,10 +529,8 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
      * CPU must exist and have been parented into the cluster before the
      * cluster is realized.
      */
-    object_property_set_bool(OBJECT(&s->e_cluster), true, "realized",
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->u_cluster), true, "realized",
-                             &error_abort);
+    qdev_realize(DEVICE(&s->e_cluster), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->u_cluster), NULL, &error_abort);
 
     /* boot rom */
     memory_region_init_rom(mask_rom, OBJECT(dev), "riscv.sifive.u.mrom",

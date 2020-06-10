@@ -1730,8 +1730,7 @@ static void spapr_rtc_create(SpaprMachineState *spapr)
     object_initialize_child_with_props(OBJECT(spapr), "rtc", &spapr->rtc,
                                        sizeof(spapr->rtc), TYPE_SPAPR_RTC,
                                        &error_fatal, NULL);
-    object_property_set_bool(OBJECT(&spapr->rtc), true, "realized",
-                              &error_fatal);
+    qdev_realize(DEVICE(&spapr->rtc), NULL, &error_fatal);
     object_property_add_alias(OBJECT(spapr), "rtc-time", OBJECT(&spapr->rtc),
                               "date");
 }
@@ -2629,7 +2628,7 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
                                     &error_fatal);
             object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
                                     &error_fatal);
-            object_property_set_bool(core, true, "realized", &error_fatal);
+            qdev_realize(DEVICE(core), NULL, &error_fatal);
 
             object_unref(core);
         }

@@ -62,7 +62,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(&s->cpu), NULL, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

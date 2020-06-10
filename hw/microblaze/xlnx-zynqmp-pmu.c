@@ -96,7 +96,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
     object_property_set_str(OBJECT(&s->cpu), "8.40.b", "version",
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), 0, "pvr", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(&s->cpu), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -172,7 +172,7 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
     /* Create the PMU device */
     object_initialize_child(OBJECT(machine), "pmu", pmu,
                             TYPE_XLNX_ZYNQMP_PMU_SOC);
-    object_property_set_bool(OBJECT(pmu), true, "realized", &error_fatal);
+    qdev_realize(DEVICE(pmu), NULL, &error_fatal);
 
     /* Load the kernel */
     microblaze_load_kernel(&pmu->cpu, XLNX_ZYNQMP_PMU_RAM_ADDR,
