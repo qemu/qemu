@@ -273,7 +273,7 @@ DeviceState *aux_create_slave(AUXBus *bus, const char *type)
 {
     DeviceState *dev;
 
-    dev = DEVICE(object_new(type));
+    dev = qdev_new(type);
     assert(dev);
     qdev_set_parent_bus(dev, &bus->qbus);
     return dev;
