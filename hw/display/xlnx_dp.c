@@ -1268,7 +1268,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
 
     aux_bus_realize(s->aux_bus);
 
-    qdev_init_nofail(DEVICE(s->dpcd));
+    qdev_realize(DEVICE(s->dpcd), BUS(s->aux_bus), &error_fatal);
     aux_map_slave(AUX_SLAVE(s->dpcd), 0x0000);
 
     qdev_realize_and_unref(DEVICE(s->edid), BUS(aux_get_i2c_bus(s->aux_bus)),

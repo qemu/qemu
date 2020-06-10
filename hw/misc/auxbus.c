@@ -70,7 +70,6 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
     bus = AUX_BUS(qbus_create(TYPE_AUX_BUS, parent, name));
     auxtoi2c = object_new_with_props(TYPE_AUXTOI2C, OBJECT(bus), "i2c",
                                      &error_abort, NULL);
-    qdev_set_parent_bus(DEVICE(auxtoi2c), BUS(bus));
 
     bus->bridge = AUXTOI2C(auxtoi2c);
 
@@ -83,7 +82,7 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
 
 void aux_bus_realize(AUXBus *bus)
 {
-    qdev_init_nofail(DEVICE(bus->bridge));
+    qdev_realize(DEVICE(bus->bridge), BUS(bus), &error_fatal);
 }
 
 void aux_map_slave(AUXSlave *aux_dev, hwaddr addr)
@@ -280,7 +279,6 @@ DeviceState *aux_create_slave(AUXBus *bus, const char *type)
 
     dev = qdev_new(type);
     assert(dev);
-    qdev_set_parent_bus(dev, &bus->qbus);
     return dev;
 }
 
