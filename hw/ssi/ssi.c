@@ -16,6 +16,7 @@
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 
 struct SSIBus {
     BusState parent_obj;
@@ -96,9 +97,9 @@ DeviceState *ssi_create_slave_no_init(SSIBus *bus, const char *name)
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
 {
-    DeviceState *dev = ssi_create_slave_no_init(bus, name);
+    DeviceState *dev = qdev_new(name);
 
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, &bus->parent_obj, &error_fatal);
     return dev;
 }
 
