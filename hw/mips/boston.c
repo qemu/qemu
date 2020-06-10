@@ -454,14 +454,12 @@ static void boston_mach_init(MachineState *machine)
 
     is_64b = cpu_supports_isa(machine->cpu_type, ISA_MIPS64);
 
-    sysbus_init_child_obj(OBJECT(machine), "cps", &s->cps, sizeof(s->cps),
-                          TYPE_MIPS_CPS);
+    object_initialize_child(OBJECT(machine), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), machine->cpu_type, "cpu-type",
                             &error_fatal);
     object_property_set_int(OBJECT(&s->cps), machine->smp.cpus, "num-vp",
                             &error_fatal);
-    object_property_set_bool(OBJECT(&s->cps), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
 

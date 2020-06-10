@@ -500,13 +500,13 @@ static void versal_virt_init(MachineState *machine)
         psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     }
 
-    sysbus_init_child_obj(OBJECT(machine), "xlnx-versal", &s->soc,
-                          sizeof(s->soc), TYPE_XLNX_VERSAL);
+    object_initialize_child(OBJECT(machine), "xlnx-versal", &s->soc,
+                            TYPE_XLNX_VERSAL);
     object_property_set_link(OBJECT(&s->soc), OBJECT(machine->ram),
                              "ddr", &error_abort);
     object_property_set_int(OBJECT(&s->soc), psci_conduit,
                             "psci-conduit", &error_abort);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     fdt_create(s);
     create_virtio_regions(s);

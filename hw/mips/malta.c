@@ -1183,14 +1183,12 @@ static void create_cpu_without_cps(MachineState *ms,
 static void create_cps(MachineState *ms, MaltaState *s,
                        qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
-    sysbus_init_child_obj(OBJECT(s), "cps", &s->cps, sizeof(s->cps),
-                          TYPE_MIPS_CPS);
+    object_initialize_child(OBJECT(s), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), ms->cpu_type, "cpu-type",
                             &error_fatal);
     object_property_set_int(OBJECT(&s->cps), ms->smp.cpus, "num-vp",
                             &error_fatal);
-    object_property_set_bool(OBJECT(&s->cps), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
 

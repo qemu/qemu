@@ -876,11 +876,11 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     int ret;
 
     /* Init VIAs 1 and 2 */
-    sysbus_init_child_obj(OBJECT(dev), "via1", &m->mos6522_via1,
-                          sizeof(m->mos6522_via1), TYPE_MOS6522_Q800_VIA1);
+    object_initialize_child(OBJECT(dev), "via1", &m->mos6522_via1,
+                            TYPE_MOS6522_Q800_VIA1);
 
-    sysbus_init_child_obj(OBJECT(dev), "via2", &m->mos6522_via2,
-                          sizeof(m->mos6522_via2), TYPE_MOS6522_Q800_VIA2);
+    object_initialize_child(OBJECT(dev), "via2", &m->mos6522_via2,
+                            TYPE_MOS6522_Q800_VIA2);
 
     /* Pass through mos6522 output IRQs */
     ms = MOS6522(&m->mos6522_via1);
@@ -890,10 +890,8 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     object_property_add_alias(OBJECT(dev), "irq[1]", OBJECT(ms),
                               SYSBUS_DEVICE_GPIO_IRQ "[0]");
 
-    object_property_set_bool(OBJECT(&m->mos6522_via1), true, "realized",
-                             &error_abort);
-    object_property_set_bool(OBJECT(&m->mos6522_via2), true, "realized",
-                             &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via1), &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via2), &error_abort);
 
     /* Pass through mos6522 input IRQs */
     qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");

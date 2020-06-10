@@ -2655,12 +2655,10 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
          * as we didn't know then if the CPU had the security extensions;
          * so we have to do it here.
          */
-        sysbus_init_child_obj(OBJECT(dev), "systick-reg-s",
-                              &s->systick[M_REG_S],
-                              sizeof(s->systick[M_REG_S]), TYPE_SYSTICK);
+        object_initialize_child(OBJECT(dev), "systick-reg-s",
+                                &s->systick[M_REG_S], TYPE_SYSTICK);
 
-        object_property_set_bool(OBJECT(&s->systick[M_REG_S]), true,
-                                 "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;

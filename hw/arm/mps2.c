@@ -180,8 +180,7 @@ static void mps2_common_init(MachineState *machine)
         g_assert_not_reached();
     }
 
-    sysbus_init_child_obj(OBJECT(mms), "armv7m", &mms->armv7m,
-                          sizeof(mms->armv7m), TYPE_ARMV7M);
+    object_initialize_child(OBJECT(mms), "armv7m", &mms->armv7m, TYPE_ARMV7M);
     armv7m = DEVICE(&mms->armv7m);
     switch (mmc->fpga_type) {
     case FPGA_AN385:
@@ -197,8 +196,7 @@ static void mps2_common_init(MachineState *machine)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&mms->armv7m), OBJECT(system_memory),
                              "memory", &error_abort);
-    object_property_set_bool(OBJECT(&mms->armv7m), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->armv7m), &error_fatal);
 
     create_unimplemented_device("zbtsmram mirror", 0x00400000, 0x00400000);
     create_unimplemented_device("RESERVED 1", 0x00800000, 0x00800000);
@@ -305,23 +303,20 @@ static void mps2_common_init(MachineState *machine)
     cmsdk_apb_timer_create(0x40000000, qdev_get_gpio_in(armv7m, 8), SYSCLK_FRQ);
     cmsdk_apb_timer_create(0x40001000, qdev_get_gpio_in(armv7m, 9), SYSCLK_FRQ);
 
-    sysbus_init_child_obj(OBJECT(mms), "dualtimer", &mms->dualtimer,
-                          sizeof(mms->dualtimer), TYPE_CMSDK_APB_DUALTIMER);
+    object_initialize_child(OBJECT(mms), "dualtimer", &mms->dualtimer,
+                            TYPE_CMSDK_APB_DUALTIMER);
     qdev_prop_set_uint32(DEVICE(&mms->dualtimer), "pclk-frq", SYSCLK_FRQ);
-    object_property_set_bool(OBJECT(&mms->dualtimer), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->dualtimer), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(&mms->dualtimer), 0,
                        qdev_get_gpio_in(armv7m, 10));
     sysbus_mmio_map(SYS_BUS_DEVICE(&mms->dualtimer), 0, 0x40002000);
 
-    sysbus_init_child_obj(OBJECT(mms), "scc", &mms->scc,
-                          sizeof(mms->scc), TYPE_MPS2_SCC);
+    object_initialize_child(OBJECT(mms), "scc", &mms->scc, TYPE_MPS2_SCC);
     sccdev = DEVICE(&mms->scc);
     qdev_prop_set_uint32(sccdev, "scc-cfg4", 0x2);
     qdev_prop_set_uint32(sccdev, "scc-aid", 0x00200008);
     qdev_prop_set_uint32(sccdev, "scc-id", mmc->scc_id);
-    object_property_set_bool(OBJECT(&mms->scc), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->scc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sccdev), 0, 0x4002f000);
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible

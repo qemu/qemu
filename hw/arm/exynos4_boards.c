@@ -128,10 +128,9 @@ exynos4_boards_init_common(MachineState *machine,
     exynos4_boards_init_ram(s, get_system_memory(),
                             exynos4_board_ram_size[board_type]);
 
-    sysbus_init_child_obj(OBJECT(machine), "soc",
-                          &s->soc, sizeof(s->soc), TYPE_EXYNOS4210_SOC);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized",
-                             &error_fatal);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc,
+                            TYPE_EXYNOS4210_SOC);
+    sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     return s;
 }

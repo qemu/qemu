@@ -27,11 +27,10 @@ static void create_unimp(BCM2835PeripheralState *ps,
                          UnimplementedDeviceState *uds,
                          const char *name, hwaddr ofs, hwaddr size)
 {
-    sysbus_init_child_obj(OBJECT(ps), name, uds, sizeof(*uds),
-                          TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(OBJECT(ps), name, uds, TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(DEVICE(uds), "name", name);
     qdev_prop_set_uint64(DEVICE(uds), "size", size);
-    object_property_set_bool(OBJECT(uds), true, "realized", &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(uds), &error_fatal);
     memory_region_add_subregion_overlap(&ps->peri_mr, ofs,
                     sysbus_mmio_get_region(SYS_BUS_DEVICE(uds), 0), -1000);
 }

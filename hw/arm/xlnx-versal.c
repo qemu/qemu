@@ -62,9 +62,8 @@ static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
     int nr_apu_cpus = ARRAY_SIZE(s->fpd.apu.cpu);
     int i;
 
-    sysbus_init_child_obj(OBJECT(s), "apu-gic",
-                          &s->fpd.apu.gic, sizeof(s->fpd.apu.gic),
-                          gicv3_class_name());
+    object_initialize_child(OBJECT(s), "apu-gic", &s->fpd.apu.gic,
+                            gicv3_class_name());
     gicbusdev = SYS_BUS_DEVICE(&s->fpd.apu.gic);
     gicdev = DEVICE(&s->fpd.apu.gic);
     qdev_prop_set_uint32(gicdev, "revision", 3);
@@ -74,8 +73,7 @@ static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
     qdev_prop_set_uint32(gicdev, "redist-region-count[0]", 2);
     qdev_prop_set_bit(gicdev, "has-security-extensions", true);
 
-    object_property_set_bool(OBJECT(&s->fpd.apu.gic), true, "realized",
-                                    &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->fpd.apu.gic), &error_fatal);
 
     for (i = 0; i < ARRAY_SIZE(addrs); i++) {
         MemoryRegion *mr;
@@ -133,12 +131,11 @@ static void versal_create_uarts(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        sysbus_init_child_obj(OBJECT(s), name,
-                              &s->lpd.iou.uart[i], sizeof(s->lpd.iou.uart[i]),
-                              TYPE_PL011);
+        object_initialize_child(OBJECT(s), name, &s->lpd.iou.uart[i],
+                                TYPE_PL011);
         dev = DEVICE(&s->lpd.iou.uart[i]);
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        qdev_init_nofail(dev);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
@@ -160,9 +157,8 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        sysbus_init_child_obj(OBJECT(s), name,
-                              &s->lpd.iou.gem[i], sizeof(s->lpd.iou.gem[i]),
-                              TYPE_CADENCE_GEM);
+        object_initialize_child(OBJECT(s), name, &s->lpd.iou.gem[i],
+                                TYPE_CADENCE_GEM);
         dev = DEVICE(&s->lpd.iou.gem[i]);
         if (nd->used) {
             qemu_check_nic_model(nd, "cadence_gem");
@@ -174,7 +170,7 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
         object_property_set_link(OBJECT(dev),
                                  OBJECT(&s->mr_ps), "dma",
                                  &error_abort);
-        qdev_init_nofail(dev);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
@@ -193,12 +189,11 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        sysbus_init_child_obj(OBJECT(s), name,
-                              &s->lpd.iou.adma[i], sizeof(s->lpd.iou.adma[i]),
-                              TYPE_XLNX_ZDMA);
+        object_initialize_child(OBJECT(s), name, &s->lpd.iou.adma[i],
+                                TYPE_XLNX_ZDMA);
         dev = DEVICE(&s->lpd.iou.adma[i]);
         object_property_set_int(OBJECT(dev), 128, "bus-width", &error_abort);
-        qdev_init_nofail(dev);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps,
@@ -218,9 +213,8 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
         DeviceState *dev;
         MemoryRegion *mr;
 
-        sysbus_init_child_obj(OBJECT(s), "sd[*]",
-                              &s->pmc.iou.sd[i], sizeof(s->pmc.iou.sd[i]),
-                              TYPE_SYSBUS_SDHCI);
+        object_initialize_child(OBJECT(s), "sd[*]", &s->pmc.iou.sd[i],
+                                TYPE_SYSBUS_SDHCI);
         dev = DEVICE(&s->pmc.iou.sd[i]);
 
         object_property_set_uint(OBJECT(dev),
@@ -228,7 +222,7 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
         object_property_set_uint(OBJECT(dev), SDHCI_CAPABILITIES, "capareg",
                                  &error_fatal);
         object_property_set_uint(OBJECT(dev), UHS_I, "uhs", &error_fatal);
-        qdev_init_nofail(dev);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps,
