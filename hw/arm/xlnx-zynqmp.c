@@ -237,21 +237,18 @@ static void xlnx_zynqmp_init(Object *obj)
                                 ARM_CPU_TYPE_NAME("cortex-a53"));
     }
 
-    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
-                          gic_class_name());
+    object_initialize_child(obj, "gic", &s->gic, gic_class_name());
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
-        sysbus_init_child_obj(obj, "gem[*]", &s->gem[i], sizeof(s->gem[i]),
-                              TYPE_CADENCE_GEM);
+        object_initialize_child(obj, "gem[*]", &s->gem[i], TYPE_CADENCE_GEM);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
-        sysbus_init_child_obj(obj, "uart[*]", &s->uart[i], sizeof(s->uart[i]),
-                              TYPE_CADENCE_UART);
+        object_initialize_child(obj, "uart[*]", &s->uart[i],
+                                TYPE_CADENCE_UART);
     }
 
-    sysbus_init_child_obj(obj, "sata", &s->sata, sizeof(s->sata),
-                          TYPE_SYSBUS_AHCI);
+    object_initialize_child(obj, "sata", &s->sata, TYPE_SYSBUS_AHCI);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
         sysbus_init_child_obj(obj, "sdhci[*]", &s->sdhci[i],
@@ -259,32 +256,25 @@ static void xlnx_zynqmp_init(Object *obj)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
-        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
-                              TYPE_XILINX_SPIPS);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_XILINX_SPIPS);
     }
 
-    sysbus_init_child_obj(obj, "qspi", &s->qspi, sizeof(s->qspi),
-                          TYPE_XLNX_ZYNQMP_QSPIPS);
+    object_initialize_child(obj, "qspi", &s->qspi, TYPE_XLNX_ZYNQMP_QSPIPS);
 
-    sysbus_init_child_obj(obj, "xxxdp", &s->dp, sizeof(s->dp), TYPE_XLNX_DP);
+    object_initialize_child(obj, "xxxdp", &s->dp, TYPE_XLNX_DP);
 
-    sysbus_init_child_obj(obj, "dp-dma", &s->dpdma, sizeof(s->dpdma),
-                          TYPE_XLNX_DPDMA);
+    object_initialize_child(obj, "dp-dma", &s->dpdma, TYPE_XLNX_DPDMA);
 
-    sysbus_init_child_obj(obj, "ipi", &s->ipi, sizeof(s->ipi),
-                          TYPE_XLNX_ZYNQMP_IPI);
+    object_initialize_child(obj, "ipi", &s->ipi, TYPE_XLNX_ZYNQMP_IPI);
 
-    sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
-                          TYPE_XLNX_ZYNQMP_RTC);
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_XLNX_ZYNQMP_RTC);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
-        sysbus_init_child_obj(obj, "gdma[*]", &s->gdma[i], sizeof(s->gdma[i]),
-                              TYPE_XLNX_ZDMA);
+        object_initialize_child(obj, "gdma[*]", &s->gdma[i], TYPE_XLNX_ZDMA);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
-        sysbus_init_child_obj(obj, "adma[*]", &s->adma[i], sizeof(s->adma[i]),
-                              TYPE_XLNX_ZDMA);
+        object_initialize_child(obj, "adma[*]", &s->adma[i], TYPE_XLNX_ZDMA);
     }
 }
 
@@ -386,7 +376,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -482,7 +472,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_int(OBJECT(&s->gem[i]), 2, "num-priority-queues",
                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->gem[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->gem[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -494,7 +484,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
-        object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -506,7 +496,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     object_property_set_int(OBJECT(&s->sata), SATA_NUM_PORTS, "num-ports",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->sata), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sata), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -557,7 +547,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
         gchar *bus_name;
 
-        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -574,7 +564,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(bus_name);
     }
 
-    object_property_set_bool(OBJECT(&s->qspi), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->qspi), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -596,7 +586,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(target_bus);
     }
 
-    object_property_set_bool(OBJECT(&s->dp), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dp), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -604,7 +594,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dp), 0, DP_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dp), 0, gic_spi[DP_IRQ]);
 
-    object_property_set_bool(OBJECT(&s->dpdma), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dpdma), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -614,7 +604,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
 
-    object_property_set_bool(OBJECT(&s->ipi), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ipi), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -622,7 +612,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi), 0, IPI_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ipi), 0, gic_spi[IPI_IRQ]);
 
-    object_property_set_bool(OBJECT(&s->rtc), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -636,7 +626,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(OBJECT(&s->gdma[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->gdma[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -648,7 +638,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
-        object_property_set_bool(OBJECT(&s->adma[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->adma[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;

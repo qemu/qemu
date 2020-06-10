@@ -273,16 +273,12 @@ static void armsse_init(Object *obj)
         }
     }
 
-    sysbus_init_child_obj(obj, "secctl", &s->secctl, sizeof(s->secctl),
-                          TYPE_IOTKIT_SECCTL);
-    sysbus_init_child_obj(obj, "apb-ppc0", &s->apb_ppc0, sizeof(s->apb_ppc0),
-                          TYPE_TZ_PPC);
-    sysbus_init_child_obj(obj, "apb-ppc1", &s->apb_ppc1, sizeof(s->apb_ppc1),
-                          TYPE_TZ_PPC);
+    object_initialize_child(obj, "secctl", &s->secctl, TYPE_IOTKIT_SECCTL);
+    object_initialize_child(obj, "apb-ppc0", &s->apb_ppc0, TYPE_TZ_PPC);
+    object_initialize_child(obj, "apb-ppc1", &s->apb_ppc1, TYPE_TZ_PPC);
     for (i = 0; i < info->sram_banks; i++) {
         char *name = g_strdup_printf("mpc%d", i);
-        sysbus_init_child_obj(obj, name, &s->mpc[i],
-                              sizeof(s->mpc[i]), TYPE_TZ_MPC);
+        object_initialize_child(obj, name, &s->mpc[i], TYPE_TZ_MPC);
         g_free(name);
     }
     object_initialize_child(obj, "mpc-irq-orgate", &s->mpc_irq_orgate,
@@ -295,24 +291,22 @@ static void armsse_init(Object *obj)
         object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
         g_free(name);
     }
-    sysbus_init_child_obj(obj, "timer0", &s->timer0, sizeof(s->timer0),
-                          TYPE_CMSDK_APB_TIMER);
-    sysbus_init_child_obj(obj, "timer1", &s->timer1, sizeof(s->timer1),
-                          TYPE_CMSDK_APB_TIMER);
-    sysbus_init_child_obj(obj, "s32ktimer", &s->s32ktimer, sizeof(s->s32ktimer),
-                          TYPE_CMSDK_APB_TIMER);
-    sysbus_init_child_obj(obj, "dualtimer", &s->dualtimer, sizeof(s->dualtimer),
-                          TYPE_CMSDK_APB_DUALTIMER);
-    sysbus_init_child_obj(obj, "s32kwatchdog", &s->s32kwatchdog,
-                          sizeof(s->s32kwatchdog), TYPE_CMSDK_APB_WATCHDOG);
-    sysbus_init_child_obj(obj, "nswatchdog", &s->nswatchdog,
-                          sizeof(s->nswatchdog), TYPE_CMSDK_APB_WATCHDOG);
-    sysbus_init_child_obj(obj, "swatchdog", &s->swatchdog,
-                          sizeof(s->swatchdog), TYPE_CMSDK_APB_WATCHDOG);
-    sysbus_init_child_obj(obj, "armsse-sysctl", &s->sysctl,
-                          sizeof(s->sysctl), TYPE_IOTKIT_SYSCTL);
-    sysbus_init_child_obj(obj, "armsse-sysinfo", &s->sysinfo,
-                          sizeof(s->sysinfo), TYPE_IOTKIT_SYSINFO);
+    object_initialize_child(obj, "timer0", &s->timer0, TYPE_CMSDK_APB_TIMER);
+    object_initialize_child(obj, "timer1", &s->timer1, TYPE_CMSDK_APB_TIMER);
+    object_initialize_child(obj, "s32ktimer", &s->s32ktimer,
+                            TYPE_CMSDK_APB_TIMER);
+    object_initialize_child(obj, "dualtimer", &s->dualtimer,
+                            TYPE_CMSDK_APB_DUALTIMER);
+    object_initialize_child(obj, "s32kwatchdog", &s->s32kwatchdog,
+                            TYPE_CMSDK_APB_WATCHDOG);
+    object_initialize_child(obj, "nswatchdog", &s->nswatchdog,
+                            TYPE_CMSDK_APB_WATCHDOG);
+    object_initialize_child(obj, "swatchdog", &s->swatchdog,
+                            TYPE_CMSDK_APB_WATCHDOG);
+    object_initialize_child(obj, "armsse-sysctl", &s->sysctl,
+                            TYPE_IOTKIT_SYSCTL);
+    object_initialize_child(obj, "armsse-sysinfo", &s->sysinfo,
+                            TYPE_IOTKIT_SYSINFO);
     if (info->has_mhus) {
         sysbus_init_child_obj(obj, "mhu0", &s->mhu[0], sizeof(s->mhu[0]),
                               TYPE_ARMSSE_MHU);
@@ -346,9 +340,8 @@ static void armsse_init(Object *obj)
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("cachectrl%d", i);
 
-            sysbus_init_child_obj(obj, name, &s->cachectrl[i],
-                                  sizeof(s->cachectrl[i]),
-                                  TYPE_UNIMPLEMENTED_DEVICE);
+            object_initialize_child(obj, name, &s->cachectrl[i],
+                                    TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
     }
@@ -356,9 +349,8 @@ static void armsse_init(Object *obj)
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("cpusecctrl%d", i);
 
-            sysbus_init_child_obj(obj, name, &s->cpusecctrl[i],
-                                  sizeof(s->cpusecctrl[i]),
-                                  TYPE_UNIMPLEMENTED_DEVICE);
+            object_initialize_child(obj, name, &s->cpusecctrl[i],
+                                    TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
     }
@@ -366,9 +358,8 @@ static void armsse_init(Object *obj)
         for (i = 0; i < info->num_cpus; i++) {
             char *name = g_strdup_printf("cpuid%d", i);
 
-            sysbus_init_child_obj(obj, name, &s->cpuid[i],
-                                  sizeof(s->cpuid[i]),
-                                  TYPE_ARMSSE_CPUID);
+            object_initialize_child(obj, name, &s->cpuid[i],
+                                    TYPE_ARMSSE_CPUID);
             g_free(name);
         }
     }
@@ -669,7 +660,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* Security controller */
-    object_property_set_bool(OBJECT(&s->secctl), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->secctl), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -721,7 +712,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        object_property_set_bool(OBJECT(&s->mpc[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->mpc[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -764,7 +755,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * map its upstream ends to the right place in the container.
      */
     qdev_prop_set_uint32(DEVICE(&s->timer0), "pclk-frq", s->mainclk_frq);
-    object_property_set_bool(OBJECT(&s->timer0), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->timer0), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -779,7 +770,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_prop_set_uint32(DEVICE(&s->timer1), "pclk-frq", s->mainclk_frq);
-    object_property_set_bool(OBJECT(&s->timer1), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->timer1), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -795,7 +786,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
 
     qdev_prop_set_uint32(DEVICE(&s->dualtimer), "pclk-frq", s->mainclk_frq);
-    object_property_set_bool(OBJECT(&s->dualtimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -856,7 +847,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    object_property_set_bool(OBJECT(&s->apb_ppc0), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc0), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -929,8 +920,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_string(DEVICE(&s->cachectrl[i]), "name", name);
             g_free(name);
             qdev_prop_set_uint64(DEVICE(&s->cachectrl[i]), "size", 0x1000);
-            object_property_set_bool(OBJECT(&s->cachectrl[i]), true,
-                                     "realized", &err);
+            sysbus_realize(SYS_BUS_DEVICE(&s->cachectrl[i]), &err);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -948,8 +938,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_string(DEVICE(&s->cpusecctrl[i]), "name", name);
             g_free(name);
             qdev_prop_set_uint64(DEVICE(&s->cpusecctrl[i]), "size", 0x1000);
-            object_property_set_bool(OBJECT(&s->cpusecctrl[i]), true,
-                                     "realized", &err);
+            sysbus_realize(SYS_BUS_DEVICE(&s->cpusecctrl[i]), &err);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -964,8 +953,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             MemoryRegion *mr;
 
             qdev_prop_set_uint32(DEVICE(&s->cpuid[i]), "CPUID", i);
-            object_property_set_bool(OBJECT(&s->cpuid[i]), true,
-                                     "realized", &err);
+            sysbus_realize(SYS_BUS_DEVICE(&s->cpuid[i]), &err);
             if (err) {
                 error_propagate(errp, err);
                 return;
@@ -981,7 +969,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      *   0x4002f000: S32K timer
      */
     qdev_prop_set_uint32(DEVICE(&s->s32ktimer), "pclk-frq", S32KCLK);
-    object_property_set_bool(OBJECT(&s->s32ktimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->s32ktimer), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -995,7 +983,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->apb_ppc1), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc1), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1033,7 +1021,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(&s->sysinfo), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1049,7 +1037,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                             "INITSVTOR0_RST", &err);
     object_property_set_int(OBJECT(&s->sysctl), s->init_svtor,
                             "INITSVTOR1_RST", &err);
-    object_property_set_bool(OBJECT(&s->sysctl), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sysctl), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1093,7 +1081,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                           qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
 
     qdev_prop_set_uint32(DEVICE(&s->s32kwatchdog), "wdogclk-frq", S32KCLK);
-    object_property_set_bool(OBJECT(&s->s32kwatchdog), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->s32kwatchdog), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1105,7 +1093,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* 0x40080000 .. 0x4008ffff : ARMSSE second Base peripheral region */
 
     qdev_prop_set_uint32(DEVICE(&s->nswatchdog), "wdogclk-frq", s->mainclk_frq);
-    object_property_set_bool(OBJECT(&s->nswatchdog), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->nswatchdog), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1115,7 +1103,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->nswatchdog), 0, 0x40081000);
 
     qdev_prop_set_uint32(DEVICE(&s->swatchdog), "wdogclk-frq", s->mainclk_frq);
-    object_property_set_bool(OBJECT(&s->swatchdog), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->swatchdog), &err);
     if (err) {
         error_propagate(errp, err);
         return;

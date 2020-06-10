@@ -40,52 +40,43 @@ static void fsl_imx25_init(Object *obj)
 
     object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
 
-    sysbus_init_child_obj(obj, "avic", &s->avic, sizeof(s->avic),
-                          TYPE_IMX_AVIC);
+    object_initialize_child(obj, "avic", &s->avic, TYPE_IMX_AVIC);
 
-    sysbus_init_child_obj(obj, "ccm", &s->ccm, sizeof(s->ccm), TYPE_IMX25_CCM);
+    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX25_CCM);
 
     for (i = 0; i < FSL_IMX25_NUM_UARTS; i++) {
-        sysbus_init_child_obj(obj, "uart[*]", &s->uart[i], sizeof(s->uart[i]),
-                              TYPE_IMX_SERIAL);
+        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_IMX_SERIAL);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_GPTS; i++) {
-        sysbus_init_child_obj(obj, "gpt[*]", &s->gpt[i], sizeof(s->gpt[i]),
-                              TYPE_IMX25_GPT);
+        object_initialize_child(obj, "gpt[*]", &s->gpt[i], TYPE_IMX25_GPT);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_EPITS; i++) {
-        sysbus_init_child_obj(obj, "epit[*]", &s->epit[i], sizeof(s->epit[i]),
-                              TYPE_IMX_EPIT);
+        object_initialize_child(obj, "epit[*]", &s->epit[i], TYPE_IMX_EPIT);
     }
 
-    sysbus_init_child_obj(obj, "fec", &s->fec, sizeof(s->fec), TYPE_IMX_FEC);
+    object_initialize_child(obj, "fec", &s->fec, TYPE_IMX_FEC);
 
-    sysbus_init_child_obj(obj, "rngc", &s->rngc, sizeof(s->rngc),
-                          TYPE_IMX_RNGC);
+    object_initialize_child(obj, "rngc", &s->rngc, TYPE_IMX_RNGC);
 
     for (i = 0; i < FSL_IMX25_NUM_I2CS; i++) {
-        sysbus_init_child_obj(obj, "i2c[*]", &s->i2c[i], sizeof(s->i2c[i]),
-                              TYPE_IMX_I2C);
+        object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_GPIOS; i++) {
-        sysbus_init_child_obj(obj, "gpio[*]", &s->gpio[i], sizeof(s->gpio[i]),
-                              TYPE_IMX_GPIO);
+        object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_IMX_GPIO);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
-        sysbus_init_child_obj(obj, "sdhc[*]", &s->esdhc[i], sizeof(s->esdhc[i]),
-                              TYPE_IMX_USDHC);
+        object_initialize_child(obj, "sdhc[*]", &s->esdhc[i], TYPE_IMX_USDHC);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_USBS; i++) {
-        sysbus_init_child_obj(obj, "usb[*]", &s->usb[i], sizeof(s->usb[i]),
-                              TYPE_CHIPIDEA);
+        object_initialize_child(obj, "usb[*]", &s->usb[i], TYPE_CHIPIDEA);
     }
 
-    sysbus_init_child_obj(obj, "wdt", &s->wdt, sizeof(s->wdt), TYPE_IMX2_WDT);
+    object_initialize_child(obj, "wdt", &s->wdt, TYPE_IMX2_WDT);
 }
 
 static void fsl_imx25_realize(DeviceState *dev, Error **errp)
@@ -100,7 +91,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->avic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -111,7 +102,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 1,
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
-    object_property_set_bool(OBJECT(&s->ccm), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -133,7 +124,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
 
-        object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -158,7 +149,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         s->gpt[i].ccm = IMX_CCM(&s->ccm);
 
-        object_property_set_bool(OBJECT(&s->gpt[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -181,7 +172,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         s->epit[i].ccm = IMX_CCM(&s->ccm);
 
-        object_property_set_bool(OBJECT(&s->epit[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -194,7 +185,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
     qdev_set_nic_properties(DEVICE(&s->fec), &nd_table[0]);
 
-    object_property_set_bool(OBJECT(&s->fec), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->fec), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -203,7 +194,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->fec), 0,
                        qdev_get_gpio_in(DEVICE(&s->avic), FSL_IMX25_FEC_IRQ));
 
-    object_property_set_bool(OBJECT(&s->rngc), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->rngc), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -223,7 +214,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_I2C3_ADDR, FSL_IMX25_I2C3_IRQ }
         };
 
-        object_property_set_bool(OBJECT(&s->i2c[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -246,7 +237,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_GPIO4_ADDR, FSL_IMX25_GPIO4_IRQ }
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -272,7 +263,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
                                  &err);
         object_property_set_uint(OBJECT(&s->esdhc[i]), IMX25_ESDHC_CAPABILITIES,
                                  "capareg", &err);
-        object_property_set_bool(OBJECT(&s->esdhc[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -293,8 +284,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_USB2_ADDR, FSL_IMX25_USB2_IRQ },
         };
 
-        object_property_set_bool(OBJECT(&s->usb[i]), true, "realized",
-                                 &error_abort);
+        sysbus_realize(SYS_BUS_DEVICE(&s->usb[i]), &error_abort);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->usb[i]), 0, usb_table[i].addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->usb[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->avic),
@@ -304,7 +294,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     /* Watchdog */
     object_property_set_bool(OBJECT(&s->wdt), true, "pretimeout-support",
                              &error_abort);
-    object_property_set_bool(OBJECT(&s->wdt), true, "realized", &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, FSL_IMX25_WDT_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->wdt), 0,
                                       qdev_get_gpio_in(DEVICE(&s->avic),

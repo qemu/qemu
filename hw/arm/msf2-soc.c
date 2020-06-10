@@ -71,22 +71,17 @@ static void m2sxxx_soc_initfn(Object *obj)
     MSF2State *s = MSF2_SOC(obj);
     int i;
 
-    sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
-                          TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
 
-    sysbus_init_child_obj(obj, "sysreg", &s->sysreg, sizeof(s->sysreg),
-                          TYPE_MSF2_SYSREG);
+    object_initialize_child(obj, "sysreg", &s->sysreg, TYPE_MSF2_SYSREG);
 
-    sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
-                          TYPE_MSS_TIMER);
+    object_initialize_child(obj, "timer", &s->timer, TYPE_MSS_TIMER);
 
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
-        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
-                          TYPE_MSS_SPI);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_MSS_SPI);
     }
 
-    sysbus_init_child_obj(obj, "emac", &s->emac, sizeof(s->emac),
-                          TYPE_MSS_EMAC);
+    object_initialize_child(obj, "emac", &s->emac, TYPE_MSS_EMAC);
     if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], TYPE_MSS_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
@@ -130,7 +125,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
                                      "memory", &error_abort);
-    object_property_set_bool(OBJECT(&s->armv7m), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -158,7 +153,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->timer);
     /* APB0 clock is the timer input clock */
     qdev_prop_set_uint32(dev, "clock-frequency", s->m3clk / s->apb0div);
-    object_property_set_bool(OBJECT(&s->timer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->timer), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -173,7 +168,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->sysreg);
     qdev_prop_set_uint32(dev, "apb0divisor", s->apb0div);
     qdev_prop_set_uint32(dev, "apb1divisor", s->apb1div);
-    object_property_set_bool(OBJECT(&s->sysreg), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sysreg), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -184,7 +179,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
         gchar *bus_name;
 
-        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -204,7 +199,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->emac);
     object_property_set_link(OBJECT(&s->emac), OBJECT(get_system_memory()),
                              "ahb-bus", &error_abort);
-    object_property_set_bool(OBJECT(&s->emac), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->emac), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

@@ -147,13 +147,11 @@ static void riscv_sifive_e_soc_init(Object *obj)
     MachineState *ms = MACHINE(qdev_get_machine());
     SiFiveESoCState *s = RISCV_E_SOC(obj);
 
-    sysbus_init_child_obj(obj, "cpus", &s->cpus,
-                          sizeof(s->cpus), TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(obj, "cpus", &s->cpus, TYPE_RISCV_HART_ARRAY);
     object_property_set_int(OBJECT(&s->cpus), ms->smp.cpus, "num-harts",
                             &error_abort);
-    sysbus_init_child_obj(obj, "riscv.sifive.e.gpio0",
-                          &s->gpio, sizeof(s->gpio),
-                          TYPE_SIFIVE_GPIO);
+    object_initialize_child(obj, "riscv.sifive.e.gpio0", &s->gpio,
+                            TYPE_SIFIVE_GPIO);
 }
 
 static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
@@ -167,8 +165,7 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     object_property_set_str(OBJECT(&s->cpus), ms->cpu_type, "cpu-type",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpus), true, "realized",
-                            &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_abort);
 
     /* Mask ROM */
     memory_region_init_rom(&s->mask_rom, OBJECT(dev), "riscv.sifive.e.mrom",
@@ -197,7 +194,7 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     /* GPIO */
 
-    object_property_set_bool(OBJECT(&s->gpio), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
     if (err) {
         error_propagate(errp, err);
         return;

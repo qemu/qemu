@@ -487,9 +487,8 @@ static void sifive_u_soc_instance_init(Object *obj)
     object_initialize_child(obj, "e-cluster", &s->e_cluster, TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->e_cluster), "cluster-id", 0);
 
-    sysbus_init_child_obj(OBJECT(&s->e_cluster), "e-cpus",
-                          &s->e_cpus, sizeof(s->e_cpus),
-                          TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(OBJECT(&s->e_cluster), "e-cpus", &s->e_cpus,
+                            TYPE_RISCV_HART_ARRAY);
     qdev_prop_set_uint32(DEVICE(&s->e_cpus), "num-harts", 1);
     qdev_prop_set_uint32(DEVICE(&s->e_cpus), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(&s->e_cpus), "cpu-type", SIFIVE_E_CPU);
@@ -497,19 +496,15 @@ static void sifive_u_soc_instance_init(Object *obj)
     object_initialize_child(obj, "u-cluster", &s->u_cluster, TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->u_cluster), "cluster-id", 1);
 
-    sysbus_init_child_obj(OBJECT(&s->u_cluster), "u-cpus",
-                          &s->u_cpus, sizeof(s->u_cpus),
-                          TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(OBJECT(&s->u_cluster), "u-cpus", &s->u_cpus,
+                            TYPE_RISCV_HART_ARRAY);
     qdev_prop_set_uint32(DEVICE(&s->u_cpus), "num-harts", ms->smp.cpus - 1);
     qdev_prop_set_uint32(DEVICE(&s->u_cpus), "hartid-base", 1);
     qdev_prop_set_string(DEVICE(&s->u_cpus), "cpu-type", SIFIVE_U_CPU);
 
-    sysbus_init_child_obj(obj, "prci", &s->prci, sizeof(s->prci),
-                          TYPE_SIFIVE_U_PRCI);
-    sysbus_init_child_obj(obj, "otp", &s->otp, sizeof(s->otp),
-                          TYPE_SIFIVE_U_OTP);
-    sysbus_init_child_obj(obj, "gem", &s->gem, sizeof(s->gem),
-                          TYPE_CADENCE_GEM);
+    object_initialize_child(obj, "prci", &s->prci, TYPE_SIFIVE_U_PRCI);
+    object_initialize_child(obj, "otp", &s->otp, TYPE_SIFIVE_U_OTP);
+    object_initialize_child(obj, "gem", &s->gem, TYPE_CADENCE_GEM);
 }
 
 static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
@@ -527,10 +522,8 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     NICInfo *nd = &nd_table[0];
 
-    object_property_set_bool(OBJECT(&s->e_cpus), true, "realized",
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->u_cpus), true, "realized",
-                             &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->e_cpus), &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->u_cpus), &error_abort);
     /*
      * The cluster must be realized after the RISC-V hart array container,
      * as the container's CPU object is only created on realize, and the
@@ -597,11 +590,11 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
         memmap[SIFIVE_U_CLINT].size, ms->smp.cpus,
         SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE, false);
 
-    object_property_set_bool(OBJECT(&s->prci), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->prci), &err);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->prci), 0, memmap[SIFIVE_U_PRCI].base);
 
     qdev_prop_set_uint32(DEVICE(&s->otp), "serial", s->serial);
-    object_property_set_bool(OBJECT(&s->otp), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->otp), &err);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->otp), 0, memmap[SIFIVE_U_OTP].base);
 
     for (i = 0; i < SIFIVE_U_PLIC_NUM_SOURCES; i++) {
@@ -614,7 +607,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(&s->gem), GEM_REVISION, "revision",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->gem), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gem), &err);
     if (err) {
         error_propagate(errp, err);
         return;

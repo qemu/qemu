@@ -53,37 +53,34 @@ static void bcm2835_peripherals_init(Object *obj)
                        MBOX_CHAN_COUNT << MBOX_AS_CHAN_SHIFT);
 
     /* Interrupt Controller */
-    sysbus_init_child_obj(obj, "ic", &s->ic, sizeof(s->ic), TYPE_BCM2835_IC);
+    object_initialize_child(obj, "ic", &s->ic, TYPE_BCM2835_IC);
 
     /* SYS Timer */
-    sysbus_init_child_obj(obj, "systimer", &s->systmr, sizeof(s->systmr),
-                          TYPE_BCM2835_SYSTIMER);
+    object_initialize_child(obj, "systimer", &s->systmr,
+                            TYPE_BCM2835_SYSTIMER);
 
     /* UART0 */
-    sysbus_init_child_obj(obj, "uart0", &s->uart0, sizeof(s->uart0),
-                          TYPE_PL011);
+    object_initialize_child(obj, "uart0", &s->uart0, TYPE_PL011);
 
     /* AUX / UART1 */
-    sysbus_init_child_obj(obj, "aux", &s->aux, sizeof(s->aux),
-                          TYPE_BCM2835_AUX);
+    object_initialize_child(obj, "aux", &s->aux, TYPE_BCM2835_AUX);
 
     /* Mailboxes */
-    sysbus_init_child_obj(obj, "mbox", &s->mboxes, sizeof(s->mboxes),
-                          TYPE_BCM2835_MBOX);
+    object_initialize_child(obj, "mbox", &s->mboxes, TYPE_BCM2835_MBOX);
 
     object_property_add_const_link(OBJECT(&s->mboxes), "mbox-mr",
                                    OBJECT(&s->mbox_mr));
 
     /* Framebuffer */
-    sysbus_init_child_obj(obj, "fb", &s->fb, sizeof(s->fb), TYPE_BCM2835_FB);
+    object_initialize_child(obj, "fb", &s->fb, TYPE_BCM2835_FB);
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->fb), "vcram-size");
 
     object_property_add_const_link(OBJECT(&s->fb), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
 
     /* Property channel */
-    sysbus_init_child_obj(obj, "property", &s->property, sizeof(s->property),
-                          TYPE_BCM2835_PROPERTY);
+    object_initialize_child(obj, "property", &s->property,
+                            TYPE_BCM2835_PROPERTY);
     object_property_add_alias(obj, "board-rev", OBJECT(&s->property),
                               "board-rev");
 
@@ -93,31 +90,25 @@ static void bcm2835_peripherals_init(Object *obj)
                                    OBJECT(&s->gpu_bus_mr));
 
     /* Random Number Generator */
-    sysbus_init_child_obj(obj, "rng", &s->rng, sizeof(s->rng),
-                          TYPE_BCM2835_RNG);
+    object_initialize_child(obj, "rng", &s->rng, TYPE_BCM2835_RNG);
 
     /* Extended Mass Media Controller */
-    sysbus_init_child_obj(obj, "sdhci", &s->sdhci, sizeof(s->sdhci),
-                          TYPE_SYSBUS_SDHCI);
+    object_initialize_child(obj, "sdhci", &s->sdhci, TYPE_SYSBUS_SDHCI);
 
     /* SDHOST */
-    sysbus_init_child_obj(obj, "sdhost", &s->sdhost, sizeof(s->sdhost),
-                          TYPE_BCM2835_SDHOST);
+    object_initialize_child(obj, "sdhost", &s->sdhost, TYPE_BCM2835_SDHOST);
 
     /* DMA Channels */
-    sysbus_init_child_obj(obj, "dma", &s->dma, sizeof(s->dma),
-                          TYPE_BCM2835_DMA);
+    object_initialize_child(obj, "dma", &s->dma, TYPE_BCM2835_DMA);
 
     object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
 
     /* Thermal */
-    sysbus_init_child_obj(obj, "thermal", &s->thermal, sizeof(s->thermal),
-                          TYPE_BCM2835_THERMAL);
+    object_initialize_child(obj, "thermal", &s->thermal, TYPE_BCM2835_THERMAL);
 
     /* GPIO */
-    sysbus_init_child_obj(obj, "gpio", &s->gpio, sizeof(s->gpio),
-                          TYPE_BCM2835_GPIO);
+    object_initialize_child(obj, "gpio", &s->gpio, TYPE_BCM2835_GPIO);
 
     object_property_add_const_link(OBJECT(&s->gpio), "sdbus-sdhci",
                                    OBJECT(&s->sdhci.sdbus));
@@ -125,12 +116,10 @@ static void bcm2835_peripherals_init(Object *obj)
                                    OBJECT(&s->sdhost.sdbus));
 
     /* Mphi */
-    sysbus_init_child_obj(obj, "mphi", &s->mphi, sizeof(s->mphi),
-                          TYPE_BCM2835_MPHI);
+    object_initialize_child(obj, "mphi", &s->mphi, TYPE_BCM2835_MPHI);
 
     /* DWC2 */
-    sysbus_init_child_obj(obj, "dwc2", &s->dwc2, sizeof(s->dwc2),
-                          TYPE_DWC2_USB);
+    object_initialize_child(obj, "dwc2", &s->dwc2, TYPE_DWC2_USB);
 
     object_property_add_const_link(OBJECT(&s->dwc2), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
@@ -172,7 +161,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* Interrupt Controller */
-    object_property_set_bool(OBJECT(&s->ic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ic), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -183,7 +172,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(SYS_BUS_DEVICE(s), SYS_BUS_DEVICE(&s->ic));
 
     /* Sys Timer */
-    object_property_set_bool(OBJECT(&s->systmr), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->systmr), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -196,7 +185,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
 
     /* UART0 */
     qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
-    object_property_set_bool(OBJECT(&s->uart0), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->uart0), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -211,7 +200,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     /* AUX / UART1 */
     qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hd(1));
 
-    object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->aux), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -224,7 +213,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_AUX));
 
     /* Mailboxes */
-    object_property_set_bool(OBJECT(&s->mboxes), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mboxes), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -250,7 +239,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->fb), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->fb), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -262,7 +251,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
-    object_property_set_bool(OBJECT(&s->property), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->property), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -275,7 +264,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                       qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_PROPERTY));
 
     /* Random Number Generator */
-    object_property_set_bool(OBJECT(&s->rng), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -304,7 +293,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->sdhci), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -317,7 +306,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_ARASANSDIO));
 
     /* SDHOST */
-    object_property_set_bool(OBJECT(&s->sdhost), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sdhost), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -330,7 +319,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_SDIO));
 
     /* DMA Channels */
-    object_property_set_bool(OBJECT(&s->dma), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dma), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -349,7 +338,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* THERMAL */
-    object_property_set_bool(OBJECT(&s->thermal), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->thermal), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -358,7 +347,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->thermal), 0));
 
     /* GPIO */
-    object_property_set_bool(OBJECT(&s->gpio), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -370,7 +359,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->gpio), "sd-bus");
 
     /* Mphi */
-    object_property_set_bool(OBJECT(&s->mphi), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mphi), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -383,7 +372,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_HOSTPORT));
 
     /* DWC2 */
-    object_property_set_bool(OBJECT(&s->dwc2), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->dwc2), &err);
     if (err) {
         error_propagate(errp, err);
         return;

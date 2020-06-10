@@ -1309,8 +1309,7 @@ static void pnv_chip_power9_instance_init(Object *obj)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
 
-    sysbus_init_child_obj(obj, "xive", &chip9->xive, sizeof(chip9->xive),
-                          TYPE_PNV_XIVE);
+    object_initialize_child(obj, "xive", &chip9->xive, TYPE_PNV_XIVE);
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
                               "xive-fabric");
 
@@ -1470,8 +1469,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             "tm-bar", &error_fatal);
     object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip), "chip",
                              &error_abort);
-    object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
-                             &local_err);
+    sysbus_realize(SYS_BUS_DEVICE(&chip9->xive), &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

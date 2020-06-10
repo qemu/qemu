@@ -136,7 +136,7 @@ static void armv7m_instance_init(Object *obj)
 
     memory_region_init(&s->container, obj, "armv7m-container", UINT64_MAX);
 
-    sysbus_init_child_obj(obj, "nvnic", &s->nvic, sizeof(s->nvic), TYPE_NVIC);
+    object_initialize_child(obj, "nvnic", &s->nvic, TYPE_NVIC);
     object_property_add_alias(obj, "num-irq",
                               OBJECT(&s->nvic), "num-irq");
 
@@ -223,7 +223,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
 
     /* Note that we must realize the NVIC after the CPU */
-    object_property_set_bool(OBJECT(&s->nvic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->nvic), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

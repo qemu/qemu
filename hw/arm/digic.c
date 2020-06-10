@@ -43,12 +43,10 @@ static void digic_init(Object *obj)
         char name[DIGIC_TIMER_NAME_MLEN];
 
         snprintf(name, DIGIC_TIMER_NAME_MLEN, "timer[%d]", i);
-        sysbus_init_child_obj(obj, name, &s->timer[i], sizeof(s->timer[i]),
-                              TYPE_DIGIC_TIMER);
+        object_initialize_child(obj, name, &s->timer[i], TYPE_DIGIC_TIMER);
     }
 
-    sysbus_init_child_obj(obj, "uart", &s->uart, sizeof(s->uart),
-                          TYPE_DIGIC_UART);
+    object_initialize_child(obj, "uart", &s->uart, TYPE_DIGIC_UART);
 }
 
 static void digic_realize(DeviceState *dev, Error **errp)
@@ -71,7 +69,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
-        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -82,7 +80,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hd(0));
-    object_property_set_bool(OBJECT(&s->uart), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

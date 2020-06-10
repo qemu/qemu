@@ -70,7 +70,7 @@ static void realview_mpcore_realize(DeviceState *dev, Error **errp)
     int i;
 
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->priv), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->priv), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -104,8 +104,7 @@ static void mpcore_rirq_init(Object *obj)
     SysBusDevice *privbusdev;
     int i;
 
-    sysbus_init_child_obj(obj, "a11priv", &s->priv, sizeof(s->priv),
-                          TYPE_ARM11MPCORE_PRIV);
+    object_initialize_child(obj, "a11priv", &s->priv, TYPE_ARM11MPCORE_PRIV);
     privbusdev = SYS_BUS_DEVICE(&s->priv);
     sysbus_init_mmio(sbd, sysbus_mmio_get_region(privbusdev, 0));
 

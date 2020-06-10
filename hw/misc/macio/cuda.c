@@ -31,6 +31,7 @@
 #include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/cuda.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
@@ -527,8 +528,7 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd;
     struct tm tm;
 
-    object_property_set_bool(OBJECT(&s->mos6522_cuda), true, "realized",
-                             &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_cuda), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -554,8 +554,8 @@ static void cuda_init(Object *obj)
     CUDAState *s = CUDA(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    sysbus_init_child_obj(obj, "mos6522-cuda", &s->mos6522_cuda,
-                          sizeof(s->mos6522_cuda), TYPE_MOS6522_CUDA);
+    object_initialize_child(obj, "mos6522-cuda", &s->mos6522_cuda,
+                            TYPE_MOS6522_CUDA);
 
     memory_region_init_io(&s->mem, obj, &mos6522_cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(sbd, &s->mem);
