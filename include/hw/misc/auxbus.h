@@ -93,6 +93,13 @@ struct AUXSlave {
  */
 AUXBus *aux_bus_init(DeviceState *parent, const char *name);
 
+/**
+ * aux_bus_realize: Realize an AUX bus.
+ *
+ * @bus: The AUX bus.
+ */
+void aux_bus_realize(AUXBus *bus);
+
 /*
  * aux_request: Make a request on the bus.
  *

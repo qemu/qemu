@@ -81,6 +81,11 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
     return bus;
 }
 
+void aux_bus_realize(AUXBus *bus)
+{
+    qdev_init_nofail(DEVICE(bus->bridge));
+}
+
 void aux_map_slave(AUXSlave *aux_dev, hwaddr addr)
 {
     DeviceState *dev = DEVICE(aux_dev);
