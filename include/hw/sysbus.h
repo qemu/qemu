@@ -90,6 +90,9 @@ void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
                    MemoryRegion *mem);
 MemoryRegion *sysbus_address_space(SysBusDevice *dev);
 
+bool sysbus_realize(SysBusDevice *dev, Error **errp);
+bool sysbus_realize_and_unref(SysBusDevice *dev, Error **errp);
+
 /**
  * sysbus_init_child_obj:
  * @parent: The parent object
@@ -120,6 +123,5 @@ static inline DeviceState *sysbus_create_simple(const char *name,
 {
     return sysbus_create_varargs(name, addr, irq, NULL);
 }
-
 
 #endif /* HW_SYSBUS_H */
