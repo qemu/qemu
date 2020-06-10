@@ -75,13 +75,13 @@ static void sabrelite_init(MachineState *machine)
                 qemu_irq cs_line;
                 DriveInfo *dinfo = drive_get_next(IF_MTD);
 
-                flash_dev = ssi_create_slave_no_init(spi_bus, "sst25vf016b");
+                flash_dev = qdev_new("sst25vf016b");
                 if (dinfo) {
                     qdev_prop_set_drive(flash_dev, "drive",
                                         blk_by_legacy_dinfo(dinfo),
                                         &error_fatal);
                 }
-                qdev_init_nofail(flash_dev);
+                qdev_realize_and_unref(flash_dev, BUS(spi_bus), &error_fatal);
 
                 cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
                 sysbus_connect_irq(SYS_BUS_DEVICE(spi_dev), 1, cs_line);

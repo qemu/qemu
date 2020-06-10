@@ -157,12 +157,12 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
 
         for (j = 0; j < num_ss; ++j) {
             DriveInfo *dinfo = drive_get_next(IF_MTD);
-            flash_dev = ssi_create_slave_no_init(spi, "n25q128");
+            flash_dev = qdev_new("n25q128");
             if (dinfo) {
                 qdev_prop_set_drive(flash_dev, "drive",
                                     blk_by_legacy_dinfo(dinfo), &error_fatal);
             }
-            qdev_init_nofail(flash_dev);
+            qdev_realize_and_unref(flash_dev, BUS(spi), &error_fatal);
 
             cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);

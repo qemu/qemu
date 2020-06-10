@@ -225,12 +225,12 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         qemu_irq cs_line;
 
-        fl->flash = ssi_create_slave_no_init(s->spi, flashtype);
+        fl->flash = qdev_new(flashtype);
         if (dinfo) {
             qdev_prop_set_drive(fl->flash, "drive", blk_by_legacy_dinfo(dinfo),
                                 errp);
         }
-        qdev_init_nofail(fl->flash);
+        qdev_realize_and_unref(fl->flash, BUS(s->spi), &error_fatal);
 
         cs_line = qdev_get_gpio_in_named(fl->flash, SSI_GPIO_CS, 0);
         sysbus_connect_irq(SYS_BUS_DEVICE(s), i + 1, cs_line);

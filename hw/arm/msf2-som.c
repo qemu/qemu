@@ -47,7 +47,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DriveInfo *dinfo = drive_get_next(IF_MTD);
     qemu_irq cs_line;
-    SSIBus *spi_bus;
+    BusState *spi_bus;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ddr = g_new(MemoryRegion, 1);
 
@@ -82,14 +82,14 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     soc = MSF2_SOC(dev);
 
     /* Attach SPI flash to SPI0 controller */
-    spi_bus = (SSIBus *)qdev_get_child_bus(dev, "spi0");
-    spi_flash = ssi_create_slave_no_init(spi_bus, "s25sl12801");
+    spi_bus = qdev_get_child_bus(dev, "spi0");
+    spi_flash = qdev_new("s25sl12801");
     qdev_prop_set_uint8(spi_flash, "spansion-cr2nv", 1);
     if (dinfo) {
         qdev_prop_set_drive(spi_flash, "drive", blk_by_legacy_dinfo(dinfo),
                                     &error_fatal);
     }
-    qdev_init_nofail(spi_flash);
+    qdev_realize_and_unref(spi_flash, spi_bus, &error_fatal);
     cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&soc->spi[0]), 1, cs_line);
 
