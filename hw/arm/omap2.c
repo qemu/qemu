@@ -2310,8 +2310,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
     qdev_prop_set_uint8(s->ih[0], "revision", 0x21);
     omap_intc_set_fclk(OMAP_INTC(s->ih[0]), omap_findclk(s, "mpu_intc_fclk"));
     omap_intc_set_iclk(OMAP_INTC(s->ih[0]), omap_findclk(s, "mpu_intc_iclk"));
-    qdev_realize_and_unref(s->ih[0], NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(s->ih[0]);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(busdev, 1,
@@ -2427,8 +2427,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
     qdev_prop_set_uint8(s->i2c[0], "revision", 0x34);
     omap_i2c_set_iclk(OMAP_I2C(s->i2c[0]), omap_findclk(s, "i2c1.iclk"));
     omap_i2c_set_fclk(OMAP_I2C(s->i2c[0]), omap_findclk(s, "i2c1.fclk"));
-    qdev_realize_and_unref(s->i2c[0], NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(s->i2c[0]);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_I2C1_IRQ));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP24XX_DMA_I2C1_TX]);
@@ -2439,8 +2439,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
     qdev_prop_set_uint8(s->i2c[1], "revision", 0x34);
     omap_i2c_set_iclk(OMAP_I2C(s->i2c[1]), omap_findclk(s, "i2c2.iclk"));
     omap_i2c_set_fclk(OMAP_I2C(s->i2c[1]), omap_findclk(s, "i2c2.fclk"));
-    qdev_realize_and_unref(s->i2c[1], NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(s->i2c[1]);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_I2C2_IRQ));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP24XX_DMA_I2C2_TX]);
@@ -2458,8 +2458,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
         omap2_gpio_set_fclk(OMAP2_GPIO(s->gpio), 4,
                             omap_findclk(s, "gpio5_dbclk"));
     }
-    qdev_realize_and_unref(s->gpio, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(s->gpio);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPIO_BANK1));
     sysbus_connect_irq(busdev, 3,

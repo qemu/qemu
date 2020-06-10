@@ -63,7 +63,7 @@ static void create_pcie(CPUXtensaState *env, int irq_base, hwaddr addr_base)
     int i;
 
     dev = qdev_new(TYPE_GPEX_HOST);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map only the first size_ecam bytes of ECAM space. */
     ecam_alias = g_new0(MemoryRegion, 1);

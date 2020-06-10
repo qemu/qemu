@@ -824,8 +824,8 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     qemu_check_nic_model(nd, "smc91c111");
     dev = qdev_new(TYPE_SMC91C111);
     qdev_set_nic_properties(dev, nd);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

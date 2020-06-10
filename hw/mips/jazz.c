@@ -256,8 +256,8 @@ static void mips_jazz_init(MachineState *machine,
     switch (jazz_model) {
     case JAZZ_MAGNUM:
         dev = qdev_new("sysbus-g364");
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
         sysbus = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, 0x60080000);
         sysbus_mmio_map(sysbus, 1, 0x40000000);
         sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 3));
@@ -292,8 +292,8 @@ static void mips_jazz_init(MachineState *machine,
             qdev_prop_set_uint8(dev, "it_shift", 2);
             object_property_set_link(OBJECT(dev), OBJECT(rc4030_dma_mr),
                                      "dma_mr", &error_abort);
-            qdev_realize_and_unref(dev, NULL, &error_fatal);
             sysbus = SYS_BUS_DEVICE(dev);
+            sysbus_realize_and_unref(sysbus, &error_fatal);
             sysbus_mmio_map(sysbus, 0, 0x80001000);
             sysbus_mmio_map(sysbus, 1, 0x8000b000);
             sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
@@ -317,9 +317,9 @@ static void mips_jazz_init(MachineState *machine,
     sysbus_esp->it_shift = 0;
     /* XXX for now until rc4030 has been changed to use DMA enable signal */
     esp->dma_enabled = 1;
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 5));
     sysbus_mmio_map(sysbus, 0, 0x80002000);
 
@@ -363,8 +363,8 @@ static void mips_jazz_init(MachineState *machine,
 
     /* NVRAM */
     dev = qdev_new("ds1225y");
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */

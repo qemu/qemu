@@ -848,9 +848,9 @@ static void next_escc_init(M68kCPU *cpu)
     qdev_prop_set_chr(dev, "chrA", serial_hd(0));
     qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
     qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, ser_irq[0]);
     sysbus_connect_irq(s, 1,  ser_irq[1]);
     sysbus_mmio_map(s, 0, 0x2118000);
@@ -896,7 +896,7 @@ static void next_cube_init(MachineState *machine)
 
     /* Framebuffer */
     dev = qdev_new(TYPE_NEXTFB);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0B000000);
 
     /* MMIO */
@@ -919,7 +919,7 @@ static void next_cube_init(MachineState *machine)
 
     /* KBD */
     dev = qdev_new(TYPE_NEXTKBD);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0200e000);
 
     /* Load ROM here */

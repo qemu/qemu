@@ -232,7 +232,7 @@ DeviceState *sysbus_create_varargs(const char *name,
 
     dev = qdev_new(name);
     s = SYS_BUS_DEVICE(dev);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(s, 0, addr);
     }

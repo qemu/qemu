@@ -497,7 +497,7 @@ DeviceState *pxa27x_dma_init(hwaddr base, qemu_irq irq)
 
     dev = qdev_new("pxa2xx-dma");
     qdev_prop_set_int32(dev, "channels", PXA27X_DMA_NUM_CHANNELS);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
@@ -511,7 +511,7 @@ DeviceState *pxa255_dma_init(hwaddr base, qemu_irq irq)
 
     dev = qdev_new("pxa2xx-dma");
     qdev_prop_set_int32(dev, "channels", PXA27X_DMA_NUM_CHANNELS);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);

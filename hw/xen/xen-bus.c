@@ -1390,6 +1390,6 @@ void xen_bus_init(void)
     DeviceState *dev = qdev_new(TYPE_XEN_BRIDGE);
     BusState *bus = qbus_create(TYPE_XEN_BUS, dev, NULL);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     qbus_set_bus_hotplug_handler(bus, &error_abort);
 }

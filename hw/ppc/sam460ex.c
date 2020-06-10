@@ -373,8 +373,8 @@ static void sam460ex_init(MachineState *machine)
     dev = qdev_new("sysbus-ohci");
     qdev_prop_set_string(dev, "masterbus", "usb-bus.0");
     qdev_prop_set_uint32(dev, "num-ports", 6);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sbdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbdev, &error_fatal);
     sysbus_mmio_map(sbdev, 0, 0x4bffd0000);
     sysbus_connect_irq(sbdev, 0, uic[2][30]);
     usb_create_simple(usb_bus_find(-1), "usb-kbd");

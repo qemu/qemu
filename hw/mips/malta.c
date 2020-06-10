@@ -1243,7 +1243,7 @@ void mips_malta_init(MachineState *machine)
      */
     empty_slot_init("GT64120", 0, 0x20000000);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);

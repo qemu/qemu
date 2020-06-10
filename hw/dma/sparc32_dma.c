@@ -310,7 +310,7 @@ static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
     esp->dma_opaque = SPARC32_DMA_DEVICE(dev);
     sysbus->it_shift = 2;
     esp->dma_enabled = 1;
-    qdev_realize_and_unref(d, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(d), &error_fatal);
 }
 
 static void sparc32_espdma_device_class_init(ObjectClass *klass, void *data)
@@ -347,7 +347,7 @@ static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
     object_property_add_child(OBJECT(dev), "lance", OBJECT(d));
     qdev_set_nic_properties(d, nd);
     object_property_set_link(OBJECT(d), OBJECT(dev), "dma", errp);
-    qdev_realize_and_unref(d, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(d), &error_fatal);
 }
 
 static void sparc32_ledma_device_class_init(ObjectClass *klass, void *data)
@@ -381,7 +381,7 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
     espdma = qdev_new(TYPE_SPARC32_ESPDMA_DEVICE);
     object_property_set_link(OBJECT(espdma), iommu, "iommu", errp);
     object_property_add_child(OBJECT(s), "espdma", OBJECT(espdma));
-    qdev_realize_and_unref(espdma, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(espdma), &error_fatal);
 
     esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
     sbd = SYS_BUS_DEVICE(esp);
@@ -396,7 +396,7 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
     ledma = qdev_new(TYPE_SPARC32_LEDMA_DEVICE);
     object_property_set_link(OBJECT(ledma), iommu, "iommu", errp);
     object_property_add_child(OBJECT(s), "ledma", OBJECT(ledma));
-    qdev_realize_and_unref(ledma, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ledma), &error_fatal);
 
     lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));
     sbd = SYS_BUS_DEVICE(lance);

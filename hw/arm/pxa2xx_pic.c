@@ -280,7 +280,7 @@ DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
     s->is_fiq[0] = 0;
     s->is_fiq[1] = 0;
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     qdev_init_gpio_in(dev, pxa2xx_pic_set_irq, PXA2XX_PIC_SRCS);
 

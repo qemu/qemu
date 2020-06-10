@@ -163,7 +163,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
     else if (size == FLASH_1024M)
         qdev_prop_set_uint8(dev, "chip_id", 0xf1);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, FLASH_BASE);
 }
 

@@ -748,8 +748,8 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
 
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
@@ -771,7 +771,7 @@ static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
     dev = qdev_new(TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
 
-    qdev_realize_and_unref(dev, NULL, &err);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &err);
     if (err) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));
@@ -916,7 +916,7 @@ void ppce500_init(MachineState *machine)
     dev = qdev_new("e500-ccsr");
     object_property_add_child(qdev_get_machine(), "e500-ccsr",
                               OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     ccsr = CCSR(dev);
     ccsr_addr_space = &ccsr->ccsr_space;
     memory_region_add_subregion(address_space_mem, pmc->ccsrbar_base,
@@ -939,7 +939,7 @@ void ppce500_init(MachineState *machine)
         /* I2C */
     dev = qdev_new("mpc-i2c");
     s = SYS_BUS_DEVICE(dev);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8544_I2C_IRQ));
     memory_region_add_subregion(ccsr_addr_space, MPC8544_I2C_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
@@ -949,8 +949,8 @@ void ppce500_init(MachineState *machine)
 
     /* General Utility device */
     dev = qdev_new("mpc8544-guts");
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     memory_region_add_subregion(ccsr_addr_space, MPC8544_UTIL_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
@@ -959,8 +959,8 @@ void ppce500_init(MachineState *machine)
     object_property_add_child(qdev_get_machine(), "pci-host", OBJECT(dev));
     qdev_prop_set_uint32(dev, "first_slot", pmc->pci_first_slot);
     qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, pci_irq_nrs[i]));
     }
@@ -987,7 +987,7 @@ void ppce500_init(MachineState *machine)
 
         dev = qdev_new("mpc8xxx_gpio");
         s = SYS_BUS_DEVICE(dev);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(s, &error_fatal);
         sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8XXX_GPIO_IRQ));
         memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
@@ -1003,7 +1003,7 @@ void ppce500_init(MachineState *machine)
         dev->id = TYPE_PLATFORM_BUS_DEVICE;
         qdev_prop_set_uint32(dev, "num_irqs", pmc->platform_bus_num_irqs);
         qdev_prop_set_uint32(dev, "mmio_size", pmc->platform_bus_size);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         pms->pbus_dev = PLATFORM_BUS_DEVICE(dev);
 
         s = SYS_BUS_DEVICE(pms->pbus_dev);

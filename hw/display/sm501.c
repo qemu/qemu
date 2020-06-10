@@ -1971,7 +1971,7 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     usb_dev = qdev_new("sysbus-ohci");
     qdev_prop_set_uint32(usb_dev, "num-ports", 2);
     qdev_prop_set_uint64(usb_dev, "dma-offset", s->base);
-    qdev_realize_and_unref(usb_dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(usb_dev), &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
                        sysbus_mmio_get_region(SYS_BUS_DEVICE(usb_dev), 0));
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(usb_dev));

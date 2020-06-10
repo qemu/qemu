@@ -226,7 +226,7 @@ static void versatile_init(MachineState *machine, int board_id)
     sysctl = qdev_new("realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);
     qdev_prop_set_uint32(sysctl, "proc_id", 0x02000000);
-    qdev_realize_and_unref(sysctl, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     dev = sysbus_create_varargs("pl190", 0x10140000,
@@ -247,7 +247,7 @@ static void versatile_init(MachineState *machine, int board_id)
 
     dev = qdev_new("versatile_pci");
     busdev = SYS_BUS_DEVICE(dev);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10001000); /* PCI controller regs */
     sysbus_mmio_map(busdev, 1, 0x41000000); /* PCI self-config */
     sysbus_mmio_map(busdev, 2, 0x42000000); /* PCI config */
@@ -289,8 +289,8 @@ static void versatile_init(MachineState *machine, int board_id)
     dev = qdev_new("pl080");
     object_property_set_link(OBJECT(dev), OBJECT(sysmem), "downstream",
                              &error_fatal);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10130000);
     sysbus_connect_irq(busdev, 0, pic[17]);
 
@@ -321,7 +321,7 @@ static void versatile_init(MachineState *machine, int board_id)
     /* Add PL041 AACI Interface to the LM4549 codec */
     pl041 = qdev_new("pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
-    qdev_realize_and_unref(pl041, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(pl041), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, sic[24]);
 

@@ -84,8 +84,8 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
         dev = qdev_new(TYPE_LAN9118);
         qdev_set_nic_properties(dev, &nd_table[0]);
         qdev_prop_set_uint32(dev, "mode_16bit", 1);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
         s = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, base);
         sysbus_connect_irq(s, 0, irq);
     }

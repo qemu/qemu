@@ -544,7 +544,7 @@ DeviceState *milkymist_tmu2_create(hwaddr base, qemu_irq irq)
     XCloseDisplay(d);
 
     dev = qdev_new(TYPE_MILKYMIST_TMU2);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 

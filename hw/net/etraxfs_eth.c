@@ -668,7 +668,7 @@ etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
      */
     ETRAX_FS_ETH(dev)->dma_out = dma_out;
     ETRAX_FS_ETH(dev)->dma_in = dma_in;
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     return dev;

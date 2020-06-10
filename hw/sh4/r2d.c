@@ -259,7 +259,7 @@ static void r2d_init(MachineState *machine)
 
     dev = qdev_new("sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
@@ -273,7 +273,7 @@ static void r2d_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "vram-size", SM501_VRAM_SIZE);
     qdev_prop_set_uint32(dev, "base", 0x10000000);
     qdev_prop_set_chr(dev, "chardev", serial_hd(2));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10000000);
     sysbus_mmio_map(busdev, 1, 0x13e00000);
     sysbus_connect_irq(busdev, 0, irq[SM501]);
@@ -284,7 +284,7 @@ static void r2d_init(MachineState *machine)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(busdev, 0, irq[CF_IDE]);
     qdev_prop_set_uint32(dev, "shift", 1);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x14001000);
     sysbus_mmio_map(busdev, 1, 0x1400080c);
     mmio_ide_init_drives(dev, dinfo, NULL);

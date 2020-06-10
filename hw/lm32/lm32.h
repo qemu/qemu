@@ -11,8 +11,8 @@ static inline DeviceState *lm32_pic_init(qemu_irq cpu_irq)
     SysBusDevice *d;
 
     dev = qdev_new("lm32-pic");
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     d = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(d, &error_fatal);
     sysbus_connect_irq(d, 0, cpu_irq);
 
     return dev;
@@ -24,7 +24,7 @@ static inline DeviceState *lm32_juart_init(Chardev *chr)
 
     dev = qdev_new(TYPE_LM32_JUART);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return dev;
 }
@@ -39,7 +39,7 @@ static inline DeviceState *lm32_uart_create(hwaddr addr,
     dev = qdev_new("lm32-uart");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, irq);
     return dev;

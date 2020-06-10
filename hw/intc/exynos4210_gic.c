@@ -300,8 +300,8 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
     s->gic = qdev_new("arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", EXYNOS4210_GIC_NIRQ);
-    qdev_realize_and_unref(s->gic, NULL, &error_fatal);
     gicbusdev = SYS_BUS_DEVICE(s->gic);
+    sysbus_realize_and_unref(gicbusdev, &error_fatal);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(sbd, gicbusdev);

@@ -28,7 +28,7 @@ static inline DeviceState *xilinx_uartlite_create(hwaddr addr,
     dev = qdev_new("xlnx.xps-uartlite");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, irq);
 

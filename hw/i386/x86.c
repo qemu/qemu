@@ -351,8 +351,8 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
     }
     object_property_add_child(object_resolve_path(parent_name, NULL),
                               "ioapic", OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     d = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(d, &error_fatal);
     sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {

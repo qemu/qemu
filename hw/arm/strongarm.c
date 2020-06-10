@@ -646,7 +646,7 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     int i;
 
     dev = qdev_new(TYPE_STRONGARM_GPIO);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < 12; i++)
@@ -1629,7 +1629,7 @@ StrongARMState *sa1110_init(const char *cpu_type)
     for (i = 0; sa_serial[i].io_base; i++) {
         DeviceState *dev = qdev_new(TYPE_STRONGARM_UART);
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                 sa_serial[i].io_base);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,

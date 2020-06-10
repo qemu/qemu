@@ -348,7 +348,7 @@ void *mcf_uart_init(qemu_irq irq, Chardev *chrdrv)
     if (chrdrv) {
         qdev_prop_set_chr(dev, "chardev", chrdrv);
     }
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 

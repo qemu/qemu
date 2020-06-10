@@ -255,7 +255,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         goto err_register_bus;
     }
 
-    qdev_realize_and_unref(ds, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ds), &error_fatal);
     if (bds) {
         qdev_realize_and_unref(bds, &bus->qbus, &error_fatal);
     }

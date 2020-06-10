@@ -59,7 +59,7 @@ void sun4v_rtc_init(hwaddr addr)
     dev = qdev_new(TYPE_SUN4V_RTC);
     s = SYS_BUS_DEVICE(dev);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 }

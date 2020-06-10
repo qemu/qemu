@@ -354,8 +354,8 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 
     /* Power */
     dev = qdev_new(TYPE_SUN4U_POWER);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
                                 sysbus_mmio_get_region(sbd, 0));
 
@@ -429,8 +429,8 @@ static void prom_init(hwaddr addr, const char *bios_name)
     int ret;
 
     dev = qdev_new(TYPE_OPENPROM);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 
@@ -527,7 +527,7 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
 
     d = SUN4U_RAM(dev);
     d->size = RAM_size;
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 }
@@ -575,7 +575,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* IOMMU */
     iommu = qdev_new(TYPE_SUN4U_IOMMU);
-    qdev_realize_and_unref(iommu, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu), &error_fatal);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -588,7 +588,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
     object_property_set_link(OBJECT(sabre), OBJECT(iommu), "iommu",
                              &error_abort);
-    qdev_realize_and_unref(DEVICE(sabre), NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(sabre), &error_fatal);
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
@@ -698,7 +698,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     dev = qdev_new(TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
     object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
                                 &FW_CFG_IO(dev)->comb_iomem);
 

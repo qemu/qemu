@@ -1213,7 +1213,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                      &d->pci0_mem,
                                      get_system_io(),
                                      PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d,
                           "isd-mem", 0x1000);
 

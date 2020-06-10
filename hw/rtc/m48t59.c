@@ -582,8 +582,8 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
 
         dev = qdev_new(m48txx_sysbus_info[i].bus_name);
         qdev_prop_set_int32(dev, "base-year", base_year);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
         s = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
         sysbus_connect_irq(s, 0, IRQ);
         if (io_base != 0) {
             memory_region_add_subregion(get_system_io(), io_base,

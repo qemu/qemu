@@ -112,7 +112,7 @@ petalogix_ml605_init(MachineState *machine)
 
     dev = qdev_new("xlnx.xps-intc");
     qdev_prop_set_uint32(dev, "kind-of-intr", 1 << TIMER_IRQ);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(DEVICE(cpu), MB_CPU_IRQ));
@@ -128,7 +128,7 @@ petalogix_ml605_init(MachineState *machine)
     dev = qdev_new("xlnx.xps-timer");
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
@@ -152,7 +152,7 @@ petalogix_ml605_init(MachineState *machine)
                              "axistream-connected", &error_abort);
     object_property_set_link(OBJECT(eth0), cs,
                              "axistream-control-connected", &error_abort);
-    qdev_realize_and_unref(eth0, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(eth0), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
 
@@ -165,7 +165,7 @@ petalogix_ml605_init(MachineState *machine)
                              "axistream-connected", &error_abort);
     object_property_set_link(OBJECT(dma), cs,
                              "axistream-control-connected", &error_abort);
-    qdev_realize_and_unref(dma, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
@@ -175,8 +175,8 @@ petalogix_ml605_init(MachineState *machine)
 
         dev = qdev_new("xlnx.xps-spi");
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
         busdev = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, SPI_BASEADDR);
         sysbus_connect_irq(busdev, 0, irq[SPI_IRQ]);
 

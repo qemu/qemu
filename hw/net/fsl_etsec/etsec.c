@@ -455,7 +455,7 @@ DeviceState *etsec_create(hwaddr         base,
 
     dev = qdev_new("eTSEC");
     qdev_set_nic_properties(dev, nd);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, tx_irq);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, rx_irq);

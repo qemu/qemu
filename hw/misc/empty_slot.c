@@ -60,7 +60,7 @@ void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
         dev = qdev_new(TYPE_EMPTY_SLOT);
 
         qdev_prop_set_uint64(dev, "size", slot_size);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0, addr, -10000);
     }

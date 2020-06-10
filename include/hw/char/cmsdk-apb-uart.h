@@ -66,7 +66,7 @@ static inline DeviceState *cmsdk_apb_uart_create(hwaddr addr,
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint32(dev, "pclk-frq", pclk_frq);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, txint);
     sysbus_connect_irq(s, 1, rxint);

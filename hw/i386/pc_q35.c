@@ -230,7 +230,7 @@ static void pc_q35_init(MachineState *machine)
     object_property_set_int(OBJECT(q35_host), x86ms->above_4g_mem_size,
                             PCI_HOST_ABOVE_4G_MEM_SIZE, NULL);
     /* pci */
-    qdev_realize_and_unref(DEVICE(q35_host), NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(q35_host), &error_fatal);
     phb = PCI_HOST_BRIDGE(q35_host);
     host_bus = phb->bus;
     /* create ISA bus */

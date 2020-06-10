@@ -131,9 +131,9 @@ static void mipsnet_init(int base, qemu_irq irq, NICInfo *nd)
 
     dev = qdev_new("mipsnet");
     qdev_set_nic_properties(dev, nd);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, irq);
     memory_region_add_subregion(get_system_io(),
                                 base,
@@ -220,7 +220,7 @@ mips_mipssim_init(MachineState *machine)
 
         qdev_prop_set_chr(dev, "chardev", serial_hd(0));
         qdev_set_legacy_instance_id(dev, 0x3f8, 2);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, env->irq[4]);
         sysbus_add_io(SYS_BUS_DEVICE(dev), 0x3f8,
                       sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));

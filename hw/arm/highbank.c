@@ -312,8 +312,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     switch (machine_id) {
     case CALXEDA_HIGHBANK:
         dev = qdev_new("l2x0");
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
         busdev = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, 0xfff12000);
 
         dev = qdev_new(TYPE_A9MPCORE_PRIV);
@@ -324,8 +324,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     }
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", NIRQ_GIC);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
@@ -341,15 +341,15 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     dev = qdev_new("sp804");
     qdev_prop_set_uint32(dev, "freq0", 150000000);
     qdev_prop_set_uint32(dev, "freq1", 150000000);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xfff34000);
     sysbus_connect_irq(busdev, 0, pic[18]);
     pl011_create(0xfff36000, pic[20], serial_hd(0));
 
     dev = qdev_new(TYPE_HIGHBANK_REGISTERS);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xfff3c000);
 
     sysbus_create_simple("pl061", 0xfff30000, pic[14]);
@@ -365,7 +365,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         qemu_check_nic_model(&nd_table[0], "xgmac");
         dev = qdev_new("xgmac");
         qdev_set_nic_properties(dev, &nd_table[0]);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff50000);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[77]);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[78]);
@@ -374,7 +374,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         qemu_check_nic_model(&nd_table[1], "xgmac");
         dev = qdev_new("xgmac");
         qdev_set_nic_properties(dev, &nd_table[1]);
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff51000);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[80]);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[81]);

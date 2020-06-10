@@ -61,9 +61,9 @@ static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
 
     dev = qdev_new("open_eth");
     qdev_set_nic_properties(dev, nd);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < num_cpus; i++) {
         sysbus_connect_irq(s, 0, cpu_irqs[i][irq_pin]);
     }
@@ -80,9 +80,9 @@ static void openrisc_sim_ompic_init(hwaddr base, int num_cpus,
 
     dev = qdev_new("or1k-ompic");
     qdev_prop_set_uint32(dev, "num-cpus", num_cpus);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < num_cpus; i++) {
         sysbus_connect_irq(s, i, cpu_irqs[i][irq_pin]);
     }

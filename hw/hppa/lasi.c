@@ -309,7 +309,7 @@ DeviceState *lasi_init(MemoryRegion *address_space)
                           s, "lasi", 0x100000);
     memory_region_add_subregion(address_space, LASI_HPA, &s->this_mem);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* LAN */
     if (enable_lasi_lan()) {

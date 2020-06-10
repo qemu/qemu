@@ -1216,7 +1216,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
             if (!compat) {
                 qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
             }
-            qdev_realize_and_unref(hpet, NULL, &error_fatal);
+            sysbus_realize_and_unref(SYS_BUS_DEVICE(hpet), &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
 
             for (i = 0; i < GSI_NUM_PINS; i++) {

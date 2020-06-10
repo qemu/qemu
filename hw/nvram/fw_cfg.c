@@ -1106,9 +1106,9 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
     ios = FW_CFG_IO(dev);
     sysbus_add_io(sbd, iobase, &ios->comb_iomem);
 
@@ -1146,9 +1146,9 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_mmio_map(sbd, 0, ctl_addr);
     sysbus_mmio_map(sbd, 1, data_addr);
 

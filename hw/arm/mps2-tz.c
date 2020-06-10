@@ -247,9 +247,9 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
     qemu_check_nic_model(nd, "lan9118");
     mms->lan9118 = qdev_new(TYPE_LAN9118);
     qdev_set_nic_properties(mms->lan9118, nd);
-    qdev_realize_and_unref(mms->lan9118, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(mms->lan9118);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 16));
     return sysbus_mmio_get_region(s, 0);
 }

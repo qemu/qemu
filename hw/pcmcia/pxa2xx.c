@@ -152,7 +152,7 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     s = PXA2XX_PCMCIA(dev);
 
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return s;
 }

@@ -216,9 +216,9 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
     qemu_check_nic_model(nd, TYPE_MCF_FEC_NET);
     dev = qdev_new(TYPE_MCF_FEC_NET);
     qdev_set_nic_properties(dev, nd);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < FEC_NUM_IRQ; i++) {
         sysbus_connect_irq(s, i, irqs[i]);
     }

@@ -224,8 +224,8 @@ static void q800_init(MachineState *machine)
         qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo),
                             &error_abort);
     }
-    qdev_realize_and_unref(via_dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(via_dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, VIA_BASE);
     qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0, pic[0]);
     qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1, pic[1]);
@@ -265,8 +265,8 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_bit(dev, "big_endian", true);
     object_property_set_link(OBJECT(dev), OBJECT(get_system_memory()),
                              "dma_mr", &error_abort);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);
     sysbus_mmio_map(sysbus, 1, SONIC_PROM_BASE);
     sysbus_connect_irq(sysbus, 0, pic[2]);
@@ -282,8 +282,8 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_chr(dev, "chrB", serial_hd(1));
     qdev_prop_set_uint32(dev, "chnBtype", 0);
     qdev_prop_set_uint32(dev, "chnAtype", 0);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, pic[3]);
     sysbus_connect_irq(sysbus, 1, pic[3]);
     sysbus_mmio_map(sysbus, 0, SCC_BASE);
@@ -298,9 +298,9 @@ static void q800_init(MachineState *machine)
     esp->dma_opaque = NULL;
     sysbus_esp->it_shift = 4;
     esp->dma_enabled = 1;
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via_dev,
                                                          "via2-irq",
                                                          VIA2_IRQ_SCSI_BIT));
@@ -315,13 +315,13 @@ static void q800_init(MachineState *machine)
     /* SWIM floppy controller */
 
     dev = qdev_new(TYPE_SWIM);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SWIM_BASE);
 
     /* NuBus */
 
     dev = qdev_new(TYPE_MAC_NUBUS_BRIDGE);
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, NUBUS_SUPER_SLOT_BASE);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE);
 

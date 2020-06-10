@@ -71,7 +71,7 @@ void s390_flic_init(void)
         object_property_add_child(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
                                   OBJECT(dev));
     }
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,

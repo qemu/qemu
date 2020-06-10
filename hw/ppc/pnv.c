@@ -733,7 +733,7 @@ static void pnv_init(MachineState *machine)
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(pnor),
                             &error_abort);
     }
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */
@@ -849,7 +849,7 @@ static void pnv_init(MachineState *machine)
             object_property_set_link(chip, OBJECT(pnv), "xive-fabric",
                                      &error_abort);
         }
-        qdev_realize_and_unref(DEVICE(chip), NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(chip), &error_fatal);
     }
     g_free(chip_typename);
 
@@ -1205,7 +1205,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(phb), i, "index", &error_fatal);
         object_property_set_int(OBJECT(phb), chip->chip_id, "chip-id",
                                 &error_fatal);
-        qdev_realize(DEVICE(phb), NULL, &local_err);
+        sysbus_realize(SYS_BUS_DEVICE(phb), &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -1410,7 +1410,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
             object_property_set_int(obj, PNV_PHB4_DEVICE_ID, "device-id",
                                     &error_fatal);
             object_property_set_link(obj, OBJECT(stack), "stack", &error_abort);
-            qdev_realize(DEVICE(obj), NULL, &local_err);
+            sysbus_realize(SYS_BUS_DEVICE(obj), &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return;

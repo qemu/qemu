@@ -1315,7 +1315,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     object_property_set_link(OBJECT(nvic), OBJECT(get_system_memory()),
                                      "memory", &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    qdev_realize_and_unref(nvic, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
 
     qdev_connect_gpio_out_named(nvic, "SYSRESETREQ", 0,
                                 qemu_allocate_irq(&do_sys_reset, NULL, 0));
@@ -1353,7 +1353,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         uint32_t mainclk = NANOSECONDS_PER_SECOND / system_clock_scale;
         qdev_prop_set_uint32(dev, "wdogclk-frq", mainclk);
 
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev),
                         0,
                         0x40000000u);
@@ -1427,7 +1427,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
         enet = qdev_new("stellaris_enet");
         qdev_set_nic_properties(enet, &nd_table[0]);
-        qdev_realize_and_unref(enet, NULL, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(enet), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
         sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, qdev_get_gpio_in(nvic, 42));
     }

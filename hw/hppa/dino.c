@@ -548,7 +548,7 @@ PCIBus *dino_init(MemoryRegion *addr_space,
                               &s->pci_mem, get_system_io(),
                               PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
     s->parent_obj.bus = b;
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Set up windows into PCI bus memory.  */
     for (i = 1; i < 31; i++) {
