@@ -257,7 +257,8 @@ static void armsse_init(Object *obj)
 
         name = g_strdup_printf("armv7m%d", i);
         sysbus_init_child_obj(OBJECT(&s->cluster[i]), name,
-                              &s->armv7m[i], sizeof(s->armv7m), TYPE_ARMV7M);
+                              &s->armv7m[i], sizeof(s->armv7m[i]),
+                              TYPE_ARMV7M);
         qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
                              ARM_CPU_TYPE_NAME("cortex-m33"));
         g_free(name);
