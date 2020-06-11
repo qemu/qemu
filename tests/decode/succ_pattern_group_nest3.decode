@@ -1,0 +1,11 @@
+# This work is licensed under the terms of the GNU LGPL, version 2 or later.
+# See the COPYING.LIB file in the top-level directory.
+
+{
+  [
+    sub1  00000000 a:8 b:8 c:8
+    sub2  00000001 a:8 b:8 c:8
+    sub3  00000010 a:8 b:8 c:8
+  ]
+  sub4    000000 d:2 a:8 b:8 c:8
+}
