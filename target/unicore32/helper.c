@@ -10,14 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
-#include "qemu/host-utils.h"
-#ifndef CONFIG_USER_ONLY
-#include "ui/console.h"
-#endif
+#include "hw/semihosting/console.h"
 
 #undef DEBUG_UC32
 
@@ -108,8 +105,9 @@ void helper_cp0_set(CPUUniCore32State *env, uint32_t val, uint32_t creg,
     }
     return;
 unrecognized:
-    DPRINTF("Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
-            creg, cop);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
+                  creg, cop);
 }
 
 uint32_t helper_cp0_get(CPUUniCore32State *env, uint32_t creg, uint32_t cop)
@@ -155,63 +153,19 @@ uint32_t helper_cp0_get(CPUUniCore32State *env, uint32_t creg, uint32_t cop)
         }
         break;
     }
-    DPRINTF("Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
-            creg, cop);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Wrong register (%d) or wrong operation (%d) in cp0_set!\n",
+                  creg, cop);
     return 0;
 }
 
-#ifdef CONFIG_CURSES
-
-/* KEY_EVENT is defined in wincon.h and in curses.h. Avoid redefinition. */
-#undef KEY_EVENT
-#include <curses.h>
-#undef KEY_EVENT
-
-/*
- * FIXME:
- *     1. curses windows will be blank when switching back
- *     2. backspace is not handled yet
- */
-static void putc_on_screen(unsigned char ch)
+void helper_cp1_putc(target_ulong regval)
 {
-    static WINDOW *localwin;
-    static int init;
+    const char c = regval;
 
-    if (!init) {
-        /* Assume 80 * 30 screen to minimize the implementation */
-        localwin = newwin(30, 80, 0, 0);
-        scrollok(localwin, TRUE);
-        init = TRUE;
-    }
-
-    if (isprint(ch)) {
-        wprintw(localwin, "%c", ch);
-    } else {
-        switch (ch) {
-        case '\n':
-            wprintw(localwin, "%c", ch);
-            break;
-        case '\r':
-            /* If '\r' is put before '\n', the curses window will destroy the
-             * last print line. And meanwhile, '\n' implifies '\r' inside. */
-            break;
-        default: /* Not handled, so just print it hex code */
-            wprintw(localwin, "-- 0x%x --", ch);
-        }
-    }
-
-    wrefresh(localwin);
+    qemu_semihosting_log_out(&c, sizeof(c));
 }
-#else
-#define putc_on_screen(c)               do { } while (0)
-#endif
-
-void helper_cp1_putc(target_ulong x)
-{
-    putc_on_screen((unsigned char)x);   /* Output to screen */
-    DPRINTF("%c", x);                   /* Output to stdout */
-}
-#endif
+#endif /* !CONFIG_USER_ONLY */
 
 bool uc32_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {

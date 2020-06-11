@@ -196,7 +196,7 @@ AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
         }
         break;
     default:
-        DPRINTF("Not implemented!\n");
+        qemu_log_mask(LOG_UNIMP, "AUX cmd=%u not implemented\n", cmd);
         return AUX_NACK;
     }
 

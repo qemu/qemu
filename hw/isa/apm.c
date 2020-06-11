@@ -24,14 +24,8 @@
 #include "hw/isa/apm.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
-//#define DEBUG
-
-#ifdef DEBUG
-# define APM_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
-#else
-# define APM_DPRINTF(format, ...)       do { } while (0)
-#endif
 
 /* fixed I/O location */
 #define APM_STS_IOPORT  0xb3
@@ -41,8 +35,8 @@ static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
 {
     APMState *apm = opaque;
     addr &= 1;
-    APM_DPRINTF("apm_ioport_writeb addr=0x%" HWADDR_PRIx
-                " val=0x%02" PRIx64 "\n", addr, val);
+
+    trace_apm_io_write(addr, val);
     if (addr == 0) {
         apm->apmc = val;
 
@@ -65,7 +59,8 @@ static uint64_t apm_ioport_readb(void *opaque, hwaddr addr, unsigned size)
     } else {
         val = apm->apms;
     }
-    APM_DPRINTF("apm_ioport_readb addr=0x%" HWADDR_PRIx " val=0x%02x\n", addr, val);
+    trace_apm_io_read(addr, val);
+
     return val;
 }
 

@@ -3,3 +3,4 @@
 # Boards:
 #
 CONFIG_PUV3=y
+CONFIG_SEMIHOSTING=y
