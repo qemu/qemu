@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "fpu/softfloat-macros.h"
 
 #ifdef CONFIG_SOFTMMU
 #include "hw/irq.h"
@@ -836,12 +837,390 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
     merge_exception_flags(env, old_flags);
 }
 
+/* 128-bit significand of log(2).  */
+#define ln2_sig_high 0xb17217f7d1cf79abULL
+#define ln2_sig_low 0xc9e3b39803f2f6afULL
+
+/*
+ * Polynomial coefficients for an approximation to (2^x - 1) / x, on
+ * the interval [-1/64, 1/64].
+ */
+#define f2xm1_coeff_0 make_floatx80(0x3ffe, 0xb17217f7d1cf79acULL)
+#define f2xm1_coeff_0_low make_floatx80(0xbfbc, 0xd87edabf495b3762ULL)
+#define f2xm1_coeff_1 make_floatx80(0x3ffc, 0xf5fdeffc162c7543ULL)
+#define f2xm1_coeff_2 make_floatx80(0x3ffa, 0xe35846b82505fcc7ULL)
+#define f2xm1_coeff_3 make_floatx80(0x3ff8, 0x9d955b7dd273b899ULL)
+#define f2xm1_coeff_4 make_floatx80(0x3ff5, 0xaec3ff3c4ef4ac0cULL)
+#define f2xm1_coeff_5 make_floatx80(0x3ff2, 0xa184897c3a7f0de9ULL)
+#define f2xm1_coeff_6 make_floatx80(0x3fee, 0xffe634d0ec30d504ULL)
+#define f2xm1_coeff_7 make_floatx80(0x3feb, 0xb160111d2db515e4ULL)
+
+struct f2xm1_data {
+    /*
+     * A value very close to a multiple of 1/32, such that 2^t and 2^t - 1
+     * are very close to exact floatx80 values.
+     */
+    floatx80 t;
+    /* The value of 2^t.  */
+    floatx80 exp2;
+    /* The value of 2^t - 1.  */
+    floatx80 exp2m1;
+};
+
+static const struct f2xm1_data f2xm1_table[65] = {
+    { make_floatx80(0xbfff, 0x8000000000000000ULL),
+      make_floatx80(0x3ffe, 0x8000000000000000ULL),
+      make_floatx80(0xbffe, 0x8000000000000000ULL) },
+    { make_floatx80(0xbffe, 0xf800000000002e7eULL),
+      make_floatx80(0x3ffe, 0x82cd8698ac2b9160ULL),
+      make_floatx80(0xbffd, 0xfa64f2cea7a8dd40ULL) },
+    { make_floatx80(0xbffe, 0xefffffffffffe960ULL),
+      make_floatx80(0x3ffe, 0x85aac367cc488345ULL),
+      make_floatx80(0xbffd, 0xf4aa7930676ef976ULL) },
+    { make_floatx80(0xbffe, 0xe800000000006f10ULL),
+      make_floatx80(0x3ffe, 0x88980e8092da5c14ULL),
+      make_floatx80(0xbffd, 0xeecfe2feda4b47d8ULL) },
+    { make_floatx80(0xbffe, 0xe000000000008a45ULL),
+      make_floatx80(0x3ffe, 0x8b95c1e3ea8ba2a5ULL),
+      make_floatx80(0xbffd, 0xe8d47c382ae8bab6ULL) },
+    { make_floatx80(0xbffe, 0xd7ffffffffff8a9eULL),
+      make_floatx80(0x3ffe, 0x8ea4398b45cd8116ULL),
+      make_floatx80(0xbffd, 0xe2b78ce97464fdd4ULL) },
+    { make_floatx80(0xbffe, 0xd0000000000019a0ULL),
+      make_floatx80(0x3ffe, 0x91c3d373ab11b919ULL),
+      make_floatx80(0xbffd, 0xdc785918a9dc8dceULL) },
+    { make_floatx80(0xbffe, 0xc7ffffffffff14dfULL),
+      make_floatx80(0x3ffe, 0x94f4efa8fef76836ULL),
+      make_floatx80(0xbffd, 0xd61620ae02112f94ULL) },
+    { make_floatx80(0xbffe, 0xc000000000006530ULL),
+      make_floatx80(0x3ffe, 0x9837f0518db87fbbULL),
+      make_floatx80(0xbffd, 0xcf901f5ce48f008aULL) },
+    { make_floatx80(0xbffe, 0xb7ffffffffff1723ULL),
+      make_floatx80(0x3ffe, 0x9b8d39b9d54eb74cULL),
+      make_floatx80(0xbffd, 0xc8e58c8c55629168ULL) },
+    { make_floatx80(0xbffe, 0xb00000000000b5e1ULL),
+      make_floatx80(0x3ffe, 0x9ef5326091a0c366ULL),
+      make_floatx80(0xbffd, 0xc2159b3edcbe7934ULL) },
+    { make_floatx80(0xbffe, 0xa800000000006f8aULL),
+      make_floatx80(0x3ffe, 0xa27043030c49370aULL),
+      make_floatx80(0xbffd, 0xbb1f79f9e76d91ecULL) },
+    { make_floatx80(0xbffe, 0x9fffffffffff816aULL),
+      make_floatx80(0x3ffe, 0xa5fed6a9b15171cfULL),
+      make_floatx80(0xbffd, 0xb40252ac9d5d1c62ULL) },
+    { make_floatx80(0xbffe, 0x97ffffffffffb621ULL),
+      make_floatx80(0x3ffe, 0xa9a15ab4ea7c30e6ULL),
+      make_floatx80(0xbffd, 0xacbd4a962b079e34ULL) },
+    { make_floatx80(0xbffe, 0x8fffffffffff162bULL),
+      make_floatx80(0x3ffe, 0xad583eea42a1b886ULL),
+      make_floatx80(0xbffd, 0xa54f822b7abc8ef4ULL) },
+    { make_floatx80(0xbffe, 0x87ffffffffff4d34ULL),
+      make_floatx80(0x3ffe, 0xb123f581d2ac7b51ULL),
+      make_floatx80(0xbffd, 0x9db814fc5aa7095eULL) },
+    { make_floatx80(0xbffe, 0x800000000000227dULL),
+      make_floatx80(0x3ffe, 0xb504f333f9de539dULL),
+      make_floatx80(0xbffd, 0x95f619980c4358c6ULL) },
+    { make_floatx80(0xbffd, 0xefffffffffff3978ULL),
+      make_floatx80(0x3ffe, 0xb8fbaf4762fbd0a1ULL),
+      make_floatx80(0xbffd, 0x8e08a1713a085ebeULL) },
+    { make_floatx80(0xbffd, 0xe00000000000df81ULL),
+      make_floatx80(0x3ffe, 0xbd08a39f580bfd8cULL),
+      make_floatx80(0xbffd, 0x85eeb8c14fe804e8ULL) },
+    { make_floatx80(0xbffd, 0xd00000000000bccfULL),
+      make_floatx80(0x3ffe, 0xc12c4cca667062f6ULL),
+      make_floatx80(0xbffc, 0xfb4eccd6663e7428ULL) },
+    { make_floatx80(0xbffd, 0xc00000000000eff0ULL),
+      make_floatx80(0x3ffe, 0xc5672a1155069abeULL),
+      make_floatx80(0xbffc, 0xea6357baabe59508ULL) },
+    { make_floatx80(0xbffd, 0xb000000000000fe6ULL),
+      make_floatx80(0x3ffe, 0xc9b9bd866e2f234bULL),
+      make_floatx80(0xbffc, 0xd91909e6474372d4ULL) },
+    { make_floatx80(0xbffd, 0x9fffffffffff2172ULL),
+      make_floatx80(0x3ffe, 0xce248c151f84bf00ULL),
+      make_floatx80(0xbffc, 0xc76dcfab81ed0400ULL) },
+    { make_floatx80(0xbffd, 0x8fffffffffffafffULL),
+      make_floatx80(0x3ffe, 0xd2a81d91f12afb2bULL),
+      make_floatx80(0xbffc, 0xb55f89b83b541354ULL) },
+    { make_floatx80(0xbffc, 0xffffffffffff81a3ULL),
+      make_floatx80(0x3ffe, 0xd744fccad69d7d5eULL),
+      make_floatx80(0xbffc, 0xa2ec0cd4a58a0a88ULL) },
+    { make_floatx80(0xbffc, 0xdfffffffffff1568ULL),
+      make_floatx80(0x3ffe, 0xdbfbb797daf25a44ULL),
+      make_floatx80(0xbffc, 0x901121a0943696f0ULL) },
+    { make_floatx80(0xbffc, 0xbfffffffffff68daULL),
+      make_floatx80(0x3ffe, 0xe0ccdeec2a94f811ULL),
+      make_floatx80(0xbffb, 0xf999089eab583f78ULL) },
+    { make_floatx80(0xbffc, 0x9fffffffffff4690ULL),
+      make_floatx80(0x3ffe, 0xe5b906e77c83657eULL),
+      make_floatx80(0xbffb, 0xd237c8c41be4d410ULL) },
+    { make_floatx80(0xbffb, 0xffffffffffff8aeeULL),
+      make_floatx80(0x3ffe, 0xeac0c6e7dd24427cULL),
+      make_floatx80(0xbffb, 0xa9f9c8c116ddec20ULL) },
+    { make_floatx80(0xbffb, 0xbfffffffffff2d18ULL),
+      make_floatx80(0x3ffe, 0xefe4b99bdcdb06ebULL),
+      make_floatx80(0xbffb, 0x80da33211927c8a8ULL) },
+    { make_floatx80(0xbffa, 0xffffffffffff8ccbULL),
+      make_floatx80(0x3ffe, 0xf5257d152486d0f4ULL),
+      make_floatx80(0xbffa, 0xada82eadb792f0c0ULL) },
+    { make_floatx80(0xbff9, 0xffffffffffff11feULL),
+      make_floatx80(0x3ffe, 0xfa83b2db722a0846ULL),
+      make_floatx80(0xbff9, 0xaf89a491babef740ULL) },
+    { floatx80_zero,
+      make_floatx80(0x3fff, 0x8000000000000000ULL),
+      floatx80_zero },
+    { make_floatx80(0x3ff9, 0xffffffffffff2680ULL),
+      make_floatx80(0x3fff, 0x82cd8698ac2b9f6fULL),
+      make_floatx80(0x3ff9, 0xb361a62b0ae7dbc0ULL) },
+    { make_floatx80(0x3ffb, 0x800000000000b500ULL),
+      make_floatx80(0x3fff, 0x85aac367cc488345ULL),
+      make_floatx80(0x3ffa, 0xb5586cf9891068a0ULL) },
+    { make_floatx80(0x3ffb, 0xbfffffffffff4b67ULL),
+      make_floatx80(0x3fff, 0x88980e8092da7cceULL),
+      make_floatx80(0x3ffb, 0x8980e8092da7cce0ULL) },
+    { make_floatx80(0x3ffb, 0xffffffffffffff57ULL),
+      make_floatx80(0x3fff, 0x8b95c1e3ea8bd6dfULL),
+      make_floatx80(0x3ffb, 0xb95c1e3ea8bd6df0ULL) },
+    { make_floatx80(0x3ffc, 0x9fffffffffff811fULL),
+      make_floatx80(0x3fff, 0x8ea4398b45cd4780ULL),
+      make_floatx80(0x3ffb, 0xea4398b45cd47800ULL) },
+    { make_floatx80(0x3ffc, 0xbfffffffffff9980ULL),
+      make_floatx80(0x3fff, 0x91c3d373ab11b919ULL),
+      make_floatx80(0x3ffc, 0x8e1e9b9d588dc8c8ULL) },
+    { make_floatx80(0x3ffc, 0xdffffffffffff631ULL),
+      make_floatx80(0x3fff, 0x94f4efa8fef70864ULL),
+      make_floatx80(0x3ffc, 0xa7a77d47f7b84320ULL) },
+    { make_floatx80(0x3ffc, 0xffffffffffff2499ULL),
+      make_floatx80(0x3fff, 0x9837f0518db892d4ULL),
+      make_floatx80(0x3ffc, 0xc1bf828c6dc496a0ULL) },
+    { make_floatx80(0x3ffd, 0x8fffffffffff80fbULL),
+      make_floatx80(0x3fff, 0x9b8d39b9d54e3a79ULL),
+      make_floatx80(0x3ffc, 0xdc69cdceaa71d3c8ULL) },
+    { make_floatx80(0x3ffd, 0x9fffffffffffbc23ULL),
+      make_floatx80(0x3fff, 0x9ef5326091a10313ULL),
+      make_floatx80(0x3ffc, 0xf7a993048d081898ULL) },
+    { make_floatx80(0x3ffd, 0xafffffffffff20ecULL),
+      make_floatx80(0x3fff, 0xa27043030c49370aULL),
+      make_floatx80(0x3ffd, 0x89c10c0c3124dc28ULL) },
+    { make_floatx80(0x3ffd, 0xc00000000000fd2cULL),
+      make_floatx80(0x3fff, 0xa5fed6a9b15171cfULL),
+      make_floatx80(0x3ffd, 0x97fb5aa6c545c73cULL) },
+    { make_floatx80(0x3ffd, 0xd0000000000093beULL),
+      make_floatx80(0x3fff, 0xa9a15ab4ea7c30e6ULL),
+      make_floatx80(0x3ffd, 0xa6856ad3a9f0c398ULL) },
+    { make_floatx80(0x3ffd, 0xe00000000000c2aeULL),
+      make_floatx80(0x3fff, 0xad583eea42a17876ULL),
+      make_floatx80(0x3ffd, 0xb560fba90a85e1d8ULL) },
+    { make_floatx80(0x3ffd, 0xefffffffffff1e3fULL),
+      make_floatx80(0x3fff, 0xb123f581d2abef6cULL),
+      make_floatx80(0x3ffd, 0xc48fd6074aafbdb0ULL) },
+    { make_floatx80(0x3ffd, 0xffffffffffff1c23ULL),
+      make_floatx80(0x3fff, 0xb504f333f9de2cadULL),
+      make_floatx80(0x3ffd, 0xd413cccfe778b2b4ULL) },
+    { make_floatx80(0x3ffe, 0x8800000000006344ULL),
+      make_floatx80(0x3fff, 0xb8fbaf4762fbd0a1ULL),
+      make_floatx80(0x3ffd, 0xe3eebd1d8bef4284ULL) },
+    { make_floatx80(0x3ffe, 0x9000000000005d67ULL),
+      make_floatx80(0x3fff, 0xbd08a39f580c668dULL),
+      make_floatx80(0x3ffd, 0xf4228e7d60319a34ULL) },
+    { make_floatx80(0x3ffe, 0x9800000000009127ULL),
+      make_floatx80(0x3fff, 0xc12c4cca6670e042ULL),
+      make_floatx80(0x3ffe, 0x82589994cce1c084ULL) },
+    { make_floatx80(0x3ffe, 0x9fffffffffff06f9ULL),
+      make_floatx80(0x3fff, 0xc5672a11550655c3ULL),
+      make_floatx80(0x3ffe, 0x8ace5422aa0cab86ULL) },
+    { make_floatx80(0x3ffe, 0xa7fffffffffff80dULL),
+      make_floatx80(0x3fff, 0xc9b9bd866e2f234bULL),
+      make_floatx80(0x3ffe, 0x93737b0cdc5e4696ULL) },
+    { make_floatx80(0x3ffe, 0xafffffffffff1470ULL),
+      make_floatx80(0x3fff, 0xce248c151f83fd69ULL),
+      make_floatx80(0x3ffe, 0x9c49182a3f07fad2ULL) },
+    { make_floatx80(0x3ffe, 0xb800000000000e0aULL),
+      make_floatx80(0x3fff, 0xd2a81d91f12aec5cULL),
+      make_floatx80(0x3ffe, 0xa5503b23e255d8b8ULL) },
+    { make_floatx80(0x3ffe, 0xc00000000000b7faULL),
+      make_floatx80(0x3fff, 0xd744fccad69dd630ULL),
+      make_floatx80(0x3ffe, 0xae89f995ad3bac60ULL) },
+    { make_floatx80(0x3ffe, 0xc800000000003aa6ULL),
+      make_floatx80(0x3fff, 0xdbfbb797daf25a44ULL),
+      make_floatx80(0x3ffe, 0xb7f76f2fb5e4b488ULL) },
+    { make_floatx80(0x3ffe, 0xd00000000000a6aeULL),
+      make_floatx80(0x3fff, 0xe0ccdeec2a954685ULL),
+      make_floatx80(0x3ffe, 0xc199bdd8552a8d0aULL) },
+    { make_floatx80(0x3ffe, 0xd800000000004165ULL),
+      make_floatx80(0x3fff, 0xe5b906e77c837155ULL),
+      make_floatx80(0x3ffe, 0xcb720dcef906e2aaULL) },
+    { make_floatx80(0x3ffe, 0xe00000000000582cULL),
+      make_floatx80(0x3fff, 0xeac0c6e7dd24713aULL),
+      make_floatx80(0x3ffe, 0xd5818dcfba48e274ULL) },
+    { make_floatx80(0x3ffe, 0xe800000000001a5dULL),
+      make_floatx80(0x3fff, 0xefe4b99bdcdb06ebULL),
+      make_floatx80(0x3ffe, 0xdfc97337b9b60dd6ULL) },
+    { make_floatx80(0x3ffe, 0xefffffffffffc1efULL),
+      make_floatx80(0x3fff, 0xf5257d152486a2faULL),
+      make_floatx80(0x3ffe, 0xea4afa2a490d45f4ULL) },
+    { make_floatx80(0x3ffe, 0xf800000000001069ULL),
+      make_floatx80(0x3fff, 0xfa83b2db722a0e5cULL),
+      make_floatx80(0x3ffe, 0xf50765b6e4541cb8ULL) },
+    { make_floatx80(0x3fff, 0x8000000000000000ULL),
+      make_floatx80(0x4000, 0x8000000000000000ULL),
+      make_floatx80(0x3fff, 0x8000000000000000ULL) },
+};
+
 void helper_f2xm1(CPUX86State *env)
 {
-    double val = floatx80_to_double(env, ST0);
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t sig = extractFloatx80Frac(ST0);
+    int32_t exp = extractFloatx80Exp(ST0);
+    bool sign = extractFloatx80Sign(ST0);
 
-    val = pow(2.0, val) - 1.0;
-    ST0 = double_to_floatx80(env, val);
+    if (floatx80_invalid_encoding(ST0)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST0 = floatx80_silence_nan(ST0, &env->fp_status);
+        }
+    } else if (exp > 0x3fff ||
+               (exp == 0x3fff && sig != (0x8000000000000000ULL))) {
+        /* Out of range for the instruction, treat as invalid.  */
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+    } else if (exp == 0x3fff) {
+        /* Argument 1 or -1, exact result 1 or -0.5.  */
+        if (sign) {
+            ST0 = make_floatx80(0xbffe, 0x8000000000000000ULL);
+        }
+    } else if (exp < 0x3fb0) {
+        if (!floatx80_is_zero(ST0)) {
+            /*
+             * Multiplying the argument by an extra-precision version
+             * of log(2) is sufficiently precise.  Zero arguments are
+             * returned unchanged.
+             */
+            uint64_t sig0, sig1, sig2;
+            if (exp == 0) {
+                normalizeFloatx80Subnormal(sig, &exp, &sig);
+            }
+            mul128By64To192(ln2_sig_high, ln2_sig_low, sig, &sig0, &sig1,
+                            &sig2);
+            /* This result is inexact.  */
+            sig1 |= 1;
+            ST0 = normalizeRoundAndPackFloatx80(80, sign, exp, sig0, sig1,
+                                                &env->fp_status);
+        }
+    } else {
+        floatx80 tmp, y, accum;
+        bool asign, bsign;
+        int32_t n, aexp, bexp;
+        uint64_t asig0, asig1, asig2, bsig0, bsig1;
+        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.float_rounding_mode = float_round_nearest_even;
+        env->fp_status.floatx80_rounding_precision = 80;
+
+        /* Find the nearest multiple of 1/32 to the argument.  */
+        tmp = floatx80_scalbn(ST0, 5, &env->fp_status);
+        n = 32 + floatx80_to_int32(tmp, &env->fp_status);
+        y = floatx80_sub(ST0, f2xm1_table[n].t, &env->fp_status);
+
+        if (floatx80_is_zero(y)) {
+            /*
+             * Use the value of 2^t - 1 from the table, to avoid
+             * needing to special-case zero as a result of
+             * multiplication below.
+             */
+            ST0 = f2xm1_table[n].t;
+            set_float_exception_flags(float_flag_inexact, &env->fp_status);
+            env->fp_status.float_rounding_mode = save_mode;
+        } else {
+            /*
+             * Compute the lower parts of a polynomial expansion for
+             * (2^y - 1) / y.
+             */
+            accum = floatx80_mul(f2xm1_coeff_7, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_6, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_5, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_4, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_3, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_2, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_1, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_0_low, accum, &env->fp_status);
+
+            /*
+             * The full polynomial expansion is f2xm1_coeff_0 + accum
+             * (where accum has much lower magnitude, and so, in
+             * particular, carry out of the addition is not possible).
+             * (This expansion is only accurate to about 70 bits, not
+             * 128 bits.)
+             */
+            aexp = extractFloatx80Exp(f2xm1_coeff_0);
+            asign = extractFloatx80Sign(f2xm1_coeff_0);
+            shift128RightJamming(extractFloatx80Frac(accum), 0,
+                                 aexp - extractFloatx80Exp(accum),
+                                 &asig0, &asig1);
+            bsig0 = extractFloatx80Frac(f2xm1_coeff_0);
+            bsig1 = 0;
+            if (asign == extractFloatx80Sign(accum)) {
+                add128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+            } else {
+                sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+            }
+            /* And thus compute an approximation to 2^y - 1.  */
+            mul128By64To192(asig0, asig1, extractFloatx80Frac(y),
+                            &asig0, &asig1, &asig2);
+            aexp += extractFloatx80Exp(y) - 0x3ffe;
+            asign ^= extractFloatx80Sign(y);
+            if (n != 32) {
+                /*
+                 * Multiply this by the precomputed value of 2^t and
+                 * add that of 2^t - 1.
+                 */
+                mul128By64To192(asig0, asig1,
+                                extractFloatx80Frac(f2xm1_table[n].exp2),
+                                &asig0, &asig1, &asig2);
+                aexp += extractFloatx80Exp(f2xm1_table[n].exp2) - 0x3ffe;
+                bexp = extractFloatx80Exp(f2xm1_table[n].exp2m1);
+                bsig0 = extractFloatx80Frac(f2xm1_table[n].exp2m1);
+                bsig1 = 0;
+                if (bexp < aexp) {
+                    shift128RightJamming(bsig0, bsig1, aexp - bexp,
+                                         &bsig0, &bsig1);
+                } else if (aexp < bexp) {
+                    shift128RightJamming(asig0, asig1, bexp - aexp,
+                                         &asig0, &asig1);
+                    aexp = bexp;
+                }
+                /* The sign of 2^t - 1 is always that of the result.  */
+                bsign = extractFloatx80Sign(f2xm1_table[n].exp2m1);
+                if (asign == bsign) {
+                    /* Avoid possible carry out of the addition.  */
+                    shift128RightJamming(asig0, asig1, 1,
+                                         &asig0, &asig1);
+                    shift128RightJamming(bsig0, bsig1, 1,
+                                         &bsig0, &bsig1);
+                    ++aexp;
+                    add128(asig0, asig1, bsig0, bsig1, &asig0, &asig1);
+                } else {
+                    sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+                    asign = bsign;
+                }
+            }
+            env->fp_status.float_rounding_mode = save_mode;
+            /* This result is inexact.  */
+            asig1 |= 1;
+            ST0 = normalizeRoundAndPackFloatx80(80, asign, aexp, asig0, asig1,
+                                                &env->fp_status);
+        }
+
+        env->fp_status.floatx80_rounding_precision = save_prec;
+    }
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fyl2x(CPUX86State *env)
