@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "config-devices.h"
 #include "exec/memop.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
