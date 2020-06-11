@@ -87,4 +87,14 @@ with iotests.FilePath('source.img') as source_img_path, \
             iotests.log(dest_vm.qmp('nbd-server-stop'))
             break
 
+    iotests.log('Wait for migration completion on target...')
+    migr_events = (('MIGRATION', {'data': {'status': 'completed'}}),
+                   ('MIGRATION', {'data': {'status': 'failed'}}))
+    event = dest_vm.events_wait(migr_events)
+    iotests.log(event, filters=[iotests.filter_qmp_event])
+
+    iotests.log('Check bitmaps on source:')
     iotests.log(source_vm.qmp('query-block')['return'][0]['dirty-bitmaps'])
+
+    iotests.log('Check bitmaps on target:')
+    iotests.log(dest_vm.qmp('query-block')['return'][0]['dirty-bitmaps'])
