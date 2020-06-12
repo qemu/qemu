@@ -24,7 +24,6 @@
 #ifndef TPM_TPM_TIS_H
 #define TPM_TPM_TIS_H
 
-#include "qemu/osdep.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_ppi.h"
 
