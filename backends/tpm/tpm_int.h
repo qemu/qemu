@@ -9,8 +9,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef TPM_TPM_INT_H
-#define TPM_TPM_INT_H
+#ifndef BACKENDS_TPM_INT_H
+#define BACKENDS_TPM_INT_H
 
 #include "qemu/option.h"
 #include "sysemu/tpm.h"
@@ -85,4 +85,4 @@ typedef struct TPMSizedBuffer {
 
 void tpm_sized_buffer_reset(TPMSizedBuffer *tsb);
 
-#endif /* TPM_TPM_INT_H */
+#endif /* BACKENDS_TPM_INT_H */

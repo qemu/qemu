@@ -1,0 +1,14 @@
+config TPM_BACKEND
+    bool
+    depends on TPM
+
+config TPM_PASSTHROUGH
+    bool
+    default y
+    # FIXME: should check for x86 host as well
+    depends on TPM_BACKEND && LINUX
+
+config TPM_EMULATOR
+    bool
+    default y
+    depends on TPM_BACKEND

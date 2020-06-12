@@ -232,8 +232,8 @@ Integrity Measurement Architecture (IMA), are not expecting to share
 PCRs.
 
 QEMU files related to the TPM passthrough device:
- - ``hw/tpm/tpm_passthrough.c``
- - ``hw/tpm/tpm_util.c``
+ - ``backends/tpm/tpm_passthrough.c``
+ - ``backends/tpm/tpm_util.c``
  - ``include/sysemu/tpm_util.h``
 
 
@@ -292,8 +292,8 @@ instrumented to initialize a TPM 1.2 or TPM 2 device using this
 command.
 
 QEMU files related to the TPM emulator device:
- - ``hw/tpm/tpm_emulator.c``
- - ``hw/tpm/tpm_util.c``
+ - ``backends/tpm/tpm_emulator.c``
+ - ``backends/tpm/tpm_util.c``
  - ``include/sysemu/tpm_util.h``
 
 The following commands start the swtpm with a UnixIO control channel over
