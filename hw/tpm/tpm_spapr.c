@@ -20,7 +20,6 @@
 #include "migration/vmstate.h"
 
 #include "sysemu/tpm_backend.h"
-#include "tpm_int.h"
 #include "tpm_util.h"
 
 #include "hw/ppc/spapr.h"
