@@ -794,7 +794,31 @@ static inline bool floatx80_unordered_quiet(floatx80 a, floatx80 b,
 *----------------------------------------------------------------------------*/
 static inline bool floatx80_invalid_encoding(floatx80 a)
 {
+#if defined(TARGET_M68K)
+    /*-------------------------------------------------------------------------
+    | With m68k, the explicit integer bit can be zero in the case of:
+    | - zeros                (exp == 0, mantissa == 0)
+    | - denormalized numbers (exp == 0, mantissa != 0)
+    | - unnormalized numbers (exp != 0, exp < 0x7FFF)
+    | - infinities           (exp == 0x7FFF, mantissa == 0)
+    | - not-a-numbers        (exp == 0x7FFF, mantissa != 0)
+    |
+    | For infinities and NaNs, the explicit integer bit can be either one or
+    | zero.
+    |
+    | The IEEE 754 standard does not define a zero integer bit. Such a number
+    | is an unnormalized number. Hardware does not directly support
+    | denormalized and unnormalized numbers, but implicitly supports them by
+    | trapping them as unimplemented data types, allowing efficient conversion
+    | in software.
+    |
+    | See "M68000 FAMILY PROGRAMMER’S REFERENCE MANUAL",
+    |     "1.6 FLOATING-POINT DATA TYPES"
+    *------------------------------------------------------------------------*/
+    return false;
+#else
     return (a.low & (1ULL << 63)) == 0 && (a.high & 0x7FFF) != 0;
+#endif
 }
 
 #define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
