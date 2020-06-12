@@ -357,6 +357,9 @@ void tpm_util_show_buffer(const unsigned char *buffer,
     size_t len, i;
     char *line_buffer, *p;
 
+    if (!trace_event_get_state_backends(TRACE_TPM_UTIL_SHOW_BUFFER)) {
+        return;
+    }
     len = MIN(tpm_cmd_get_size(buffer), buffer_size);
 
     /*
