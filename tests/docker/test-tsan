@@ -1,0 +1,44 @@
+#!/bin/bash -e
+#
+# This test will use TSan as part of a build and a make check.
+#
+# Copyright (c) 2020 Linaro
+# Copyright (c) 2016 Red Hat Inc.
+#
+# Authors:
+#  Robert Foley <robert.foley@linaro.org>
+#  Originally based on test-quick from Fam Zheng <famz@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+. common.rc
+
+setup_tsan()
+{
+    requires clang tsan
+    tsan_log_dir="/tmp/qemu-test/build/tsan"
+    mkdir -p $tsan_log_dir > /dev/null || true
+    EXTRA_CONFIGURE_OPTS="${EXTRA_CONFIGURE_OPTS} --enable-tsan \
+                          --cc=clang-10 --cxx=clang++-10 \
+                          --disable-werror --extra-cflags=-O0"
+    # detect deadlocks is false currently simply because
+    # TSan crashes immediately with deadlock detector enabled.
+    # We have maxed out the history size to get the best chance of finding
+    # warnings during testing.
+    # Note, to get TSan to fail on warning, use exitcode=66 below.
+    tsan_opts="suppressions=/tmp/qemu-test/src/tests/tsan/suppressions.tsan\
+               detect_deadlocks=false history_size=7\
+               halt_on_error=0 exitcode=0 verbose=5\
+               log_path=$tsan_log_dir/tsan_warning"
+    export TSAN_OPTIONS="$tsan_opts"
+}
+
+cd "$BUILD_DIR"
+
+TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
+setup_tsan
+build_qemu
+check_qemu
+install_qemu
