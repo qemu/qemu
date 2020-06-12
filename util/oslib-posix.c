@@ -48,11 +48,13 @@
 #ifdef __FreeBSD__
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <sys/thr.h>
 #include <libutil.h>
 #endif
 
 #ifdef __NetBSD__
 #include <sys/sysctl.h>
+#include <lwp.h>
 #endif
 
 #include "qemu/mmap-alloc.h"
@@ -84,6 +86,13 @@ int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
     return syscall(SYS_gettid);
+#elif defined(__FreeBSD__)
+    /* thread id is up to INT_MAX */
+    long tid;
+    thr_self(&tid);
+    return (int)tid;
+#elif defined(__NetBSD__)
+    return _lwp_self();
 #else
     return getpid();
 #endif

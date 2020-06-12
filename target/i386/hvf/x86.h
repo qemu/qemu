@@ -42,64 +42,6 @@ typedef struct x86_register {
     };
 } __attribute__ ((__packed__)) x86_register;
 
-typedef enum x86_rflags {
-    RFLAGS_CF       = (1L << 0),
-    RFLAGS_PF       = (1L << 2),
-    RFLAGS_AF       = (1L << 4),
-    RFLAGS_ZF       = (1L << 6),
-    RFLAGS_SF       = (1L << 7),
-    RFLAGS_TF       = (1L << 8),
-    RFLAGS_IF       = (1L << 9),
-    RFLAGS_DF       = (1L << 10),
-    RFLAGS_OF       = (1L << 11),
-    RFLAGS_IOPL     = (3L << 12),
-    RFLAGS_NT       = (1L << 14),
-    RFLAGS_RF       = (1L << 16),
-    RFLAGS_VM       = (1L << 17),
-    RFLAGS_AC       = (1L << 18),
-    RFLAGS_VIF      = (1L << 19),
-    RFLAGS_VIP      = (1L << 20),
-    RFLAGS_ID       = (1L << 21),
-} x86_rflags;
-
-/* rflags register */
-typedef struct x86_reg_flags {
-    union {
-        struct {
-            uint64_t rflags;
-        };
-        struct {
-            uint32_t eflags;
-            uint32_t hi32_unused1;
-        };
-        struct {
-            uint32_t cf:1;
-            uint32_t unused1:1;
-            uint32_t pf:1;
-            uint32_t unused2:1;
-            uint32_t af:1;
-            uint32_t unused3:1;
-            uint32_t zf:1;
-            uint32_t sf:1;
-            uint32_t tf:1;
-            uint32_t ief:1;
-            uint32_t df:1;
-            uint32_t of:1;
-            uint32_t iopl:2;
-            uint32_t nt:1;
-            uint32_t unused4:1;
-            uint32_t rf:1;
-            uint32_t vm:1;
-            uint32_t ac:1;
-            uint32_t vif:1;
-            uint32_t vip:1;
-            uint32_t id:1;
-            uint32_t unused5:10;
-            uint32_t hi32_unused2;
-        };
-    };
-} __attribute__ ((__packed__)) x86_reg_flags;
-
 typedef enum x86_reg_cr0 {
     CR0_PE =            (1L << 0),
     CR0_MP =            (1L << 1),
@@ -286,29 +228,10 @@ typedef struct x68_segment_selector {
     };
 } __attribute__ ((__packed__)) x68_segment_selector;
 
-typedef struct lazy_flags {
-    target_ulong result;
-    target_ulong auxbits;
-} lazy_flags;
-
-/* Definition of hvf_x86_state is here */
-struct HVFX86EmulatorState {
-    int interruptable;
-    uint64_t fetch_rip;
-    uint64_t rip;
-    struct x86_register regs[16];
-    struct x86_reg_flags   rflags;
-    struct lazy_flags   lflags;
-    uint8_t mmio_buf[4096];
-};
-
 /* useful register access  macros */
-#define RIP(cpu)    (cpu->hvf_emul->rip)
-#define EIP(cpu)    ((uint32_t)cpu->hvf_emul->rip)
-#define RFLAGS(cpu) (cpu->hvf_emul->rflags.rflags)
-#define EFLAGS(cpu) (cpu->hvf_emul->rflags.eflags)
+#define x86_reg(cpu, reg) ((x86_register *) &cpu->regs[reg])
 
-#define RRX(cpu, reg) (cpu->hvf_emul->regs[reg].rrx)
+#define RRX(cpu, reg)   (x86_reg(cpu, reg)->rrx)
 #define RAX(cpu)        RRX(cpu, R_EAX)
 #define RCX(cpu)        RRX(cpu, R_ECX)
 #define RDX(cpu)        RRX(cpu, R_EDX)
@@ -326,7 +249,7 @@ struct HVFX86EmulatorState {
 #define R14(cpu)        RRX(cpu, R_R14)
 #define R15(cpu)        RRX(cpu, R_R15)
 
-#define ERX(cpu, reg)   (cpu->hvf_emul->regs[reg].erx)
+#define ERX(cpu, reg)   (x86_reg(cpu, reg)->erx)
 #define EAX(cpu)        ERX(cpu, R_EAX)
 #define ECX(cpu)        ERX(cpu, R_ECX)
 #define EDX(cpu)        ERX(cpu, R_EDX)
@@ -336,7 +259,7 @@ struct HVFX86EmulatorState {
 #define ESI(cpu)        ERX(cpu, R_ESI)
 #define EDI(cpu)        ERX(cpu, R_EDI)
 
-#define RX(cpu, reg)   (cpu->hvf_emul->regs[reg].rx)
+#define RX(cpu, reg)   (x86_reg(cpu, reg)->rx)
 #define AX(cpu)        RX(cpu, R_EAX)
 #define CX(cpu)        RX(cpu, R_ECX)
 #define DX(cpu)        RX(cpu, R_EDX)
@@ -346,13 +269,13 @@ struct HVFX86EmulatorState {
 #define SI(cpu)        RX(cpu, R_ESI)
 #define DI(cpu)        RX(cpu, R_EDI)
 
-#define RL(cpu, reg)   (cpu->hvf_emul->regs[reg].lx)
+#define RL(cpu, reg)   (x86_reg(cpu, reg)->lx)
 #define AL(cpu)        RL(cpu, R_EAX)
 #define CL(cpu)        RL(cpu, R_ECX)
 #define DL(cpu)        RL(cpu, R_EDX)
 #define BL(cpu)        RL(cpu, R_EBX)
 
-#define RH(cpu, reg)   (cpu->hvf_emul->regs[reg].hx)
+#define RH(cpu, reg)   (x86_reg(cpu, reg)->hx)
 #define AH(cpu)        RH(cpu, R_EAX)
 #define CH(cpu)        RH(cpu, R_ECX)
 #define DH(cpu)        RH(cpu, R_EDX)

@@ -412,7 +412,7 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
 
     if (!(env->hflags & HF_INHIBIT_IRQ_MASK) &&
         (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (EFLAGS(env) & IF_MASK) && !(info & VMCS_INTR_VALID)) {
+        (env->eflags & IF_MASK) && !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(&x86cpu->env);
         cpu_state->interrupt_request &= ~CPU_INTERRUPT_HARD;
         if (line >= 0) {
@@ -432,7 +432,7 @@ int hvf_process_events(CPUState *cpu_state)
     X86CPU *cpu = X86_CPU(cpu_state);
     CPUX86State *env = &cpu->env;
 
-    EFLAGS(env) = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
+    env->eflags = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
 
     if (cpu_state->interrupt_request & CPU_INTERRUPT_INIT) {
         hvf_cpu_synchronize_state(cpu_state);
@@ -444,7 +444,7 @@ int hvf_process_events(CPUState *cpu_state)
         apic_poll_irq(cpu->apic_state);
     }
     if (((cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (EFLAGS(env) & IF_MASK)) ||
+        (env->eflags & IF_MASK)) ||
         (cpu_state->interrupt_request & CPU_INTERRUPT_NMI)) {
         cpu_state->halted = 0;
     }

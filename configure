@@ -4587,7 +4587,13 @@ fi
 if test "$tcmalloc" = "yes" ; then
   cat > $TMPC << EOF
 #include <stdlib.h>
-int main(void) { malloc(1); return 0; }
+int main(void) {
+    void *tmp = malloc(1);
+    if (tmp != NULL) {
+        return 0;
+    }
+    return 1;
+}
 EOF
 
   if compile_prog "" "-ltcmalloc" ; then
@@ -4603,7 +4609,13 @@ fi
 if test "$jemalloc" = "yes" ; then
   cat > $TMPC << EOF
 #include <stdlib.h>
-int main(void) { malloc(1); return 0; }
+int main(void) {
+    void *tmp = malloc(1);
+    if (tmp != NULL) {
+        return 0;
+    }
+    return 1;
+}
 EOF
 
   if compile_prog "" "-ljemalloc" ; then
@@ -6164,7 +6176,9 @@ if test "$sanitizers" = "yes" ; then
 #include <stdlib.h>
 int main(void) {
     void *tmp = malloc(10);
-    return *(int *)(tmp + 2);
+    if (tmp != NULL) {
+        return *(int *)(tmp + 2);
+    }
 }
 EOF
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
@@ -6394,7 +6408,7 @@ if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
     if test "$virtfs" != no && test "$cap_ng" = yes && test "$attr" = yes ; then
       virtfs=yes
-      tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+      helpers="$helpers fsdev/virtfs-proxy-helper\$(EXESUF)"
     else
       if test "$virtfs" = yes; then
         error_exit "VirtFS requires libcap-ng devel and libattr devel"
@@ -6409,7 +6423,7 @@ if test "$softmmu" = yes ; then
       fi
       mpath=no
     fi
-    tools="$tools scsi/qemu-pr-helper\$(EXESUF)"
+    helpers="$helpers scsi/qemu-pr-helper\$(EXESUF)"
   else
     if test "$virtfs" = yes; then
       error_exit "VirtFS is supported only on Linux"
@@ -7654,6 +7668,7 @@ else
   QEMU_INCLUDES="-iquote \$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
 fi
 
+echo "HELPERS=$helpers" >> $config_host_mak
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak

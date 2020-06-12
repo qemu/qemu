@@ -23,6 +23,7 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
+#include "hw/usb/hcd-musb.h"
 #include "hw/irq.h"
 #include "hw/hw.h"
 
@@ -1539,13 +1540,13 @@ static void musb_writew(void *opaque, hwaddr addr, uint32_t value)
     };
 }
 
-CPUReadMemoryFunc * const musb_read[] = {
+MUSBReadFunc * const musb_read[] = {
     musb_readb,
     musb_readh,
     musb_readw,
 };
 
-CPUWriteMemoryFunc * const musb_write[] = {
+MUSBWriteFunc * const musb_write[] = {
     musb_writeb,
     musb_writeh,
     musb_writew,

@@ -37,10 +37,12 @@ typedef struct AccelClass {
     /*< public >*/
 
     const char *name;
+#ifndef CONFIG_USER_ONLY
     int (*init_machine)(MachineState *ms);
     void (*setup_post)(MachineState *ms, AccelState *accel);
     bool (*has_memory)(MachineState *ms, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
+#endif
     bool *allowed;
     /*
      * Array of global properties that would be applied when specific

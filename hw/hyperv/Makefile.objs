@@ -1,2 +1,3 @@
 obj-y += hyperv.o
 obj-$(CONFIG_HYPERV_TESTDEV) += hyperv_testdev.o
+obj-$(CONFIG_VMBUS) += vmbus.o

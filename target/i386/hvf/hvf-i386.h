@@ -16,13 +16,12 @@
 #ifndef HVF_I386_H
 #define HVF_I386_H
 
+#include "sysemu/accel.h"
 #include "sysemu/hvf.h"
 #include "cpu.h"
 #include "x86.h"
 
 #define HVF_MAX_VCPU 0x10
-#define MAX_VM_ID 0x40
-#define MAX_VCPU_ID 0x40
 
 extern struct hvf_state hvf_global;
 
@@ -36,6 +35,40 @@ struct hvf_state {
     struct hvf_vm *vm;
     uint64_t mem_quota;
 };
+
+/* hvf_slot flags */
+#define HVF_SLOT_LOG (1 << 0)
+
+typedef struct hvf_slot {
+    uint64_t start;
+    uint64_t size;
+    uint8_t *mem;
+    int slot_id;
+    uint32_t flags;
+    MemoryRegion *region;
+} hvf_slot;
+
+typedef struct hvf_vcpu_caps {
+    uint64_t vmx_cap_pinbased;
+    uint64_t vmx_cap_procbased;
+    uint64_t vmx_cap_procbased2;
+    uint64_t vmx_cap_entry;
+    uint64_t vmx_cap_exit;
+    uint64_t vmx_cap_preemption_timer;
+} hvf_vcpu_caps;
+
+typedef struct HVFState {
+    AccelState parent;
+    hvf_slot slots[32];
+    int num_slots;
+
+    hvf_vcpu_caps *hvf_caps;
+} HVFState;
+extern HVFState *hvf_state;
+
+void hvf_set_phys_mem(MemoryRegionSection *, bool);
+void hvf_handle_io(CPUArchState *, uint16_t, void *, int, int, int);
+hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 
 #ifdef NEED_CPU_H
 /* Functions exported to host specific mode */

@@ -150,6 +150,7 @@ trace-events-subdirs += hw/block/dataplane
 trace-events-subdirs += hw/char
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/hppa
+trace-events-subdirs += hw/hyperv
 trace-events-subdirs += hw/i2c
 trace-events-subdirs += hw/i386
 trace-events-subdirs += hw/i386/xen

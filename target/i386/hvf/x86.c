@@ -131,7 +131,7 @@ bool x86_is_v8086(struct CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
-    return x86_is_protected(cpu) && (RFLAGS(env) & RFLAGS_VM);
+    return x86_is_protected(cpu) && (env->eflags & VM_MASK);
 }
 
 bool x86_is_long_mode(struct CPUState *cpu)

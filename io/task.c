@@ -22,6 +22,7 @@
 #include "io/task.h"
 #include "qapi/error.h"
 #include "qemu/thread.h"
+#include "qom/object.h"
 #include "trace.h"
 
 struct QIOTaskThreadData {

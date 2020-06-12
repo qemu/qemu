@@ -29,8 +29,11 @@
 
 # Command line options:
 #   --dry-run : run the tools, but don't actually do the upload
-#   --docker : create and work inside a docker container
+#   --docker : create and work inside a container
+#   --docker-engine : specify the container engine to use (docker/podman/auto);
+#                     implies --docker
 #   --update-tools-only : update the cached copy of the tools, but don't run them
+#   --no-update-tools : do not update the cached copy of the tools
 #   --tokenfile : file to read Coverity token from
 #   --version ver : specify version being analyzed (default: ask git)
 #   --description desc : specify description of this version (default: ask git)
@@ -41,9 +44,10 @@
 #                   is intended mainly for internal use by the Docker support
 #
 # User-specifiable environment variables:
-#  COVERITY_TOKEN -- Coverity token
+#  COVERITY_TOKEN -- Coverity token (default: looks at your
+#                    coverity.token config)
 #  COVERITY_EMAIL -- the email address to use for uploads (default:
-#                    looks at your git user.email config)
+#                    looks at your git coverity.email or user.email config)
 #  COVERITY_BUILD_CMD -- make command (default: 'make -jN' where N is
 #                    number of CPUs as determined by 'nproc')
 #  COVERITY_TOOL_BASE -- set to directory to put coverity tools
@@ -58,11 +62,11 @@ check_upload_permissions() {
     # with status 1 if the check failed (usually a bad token);
     # will exit the script with status 0 if the check indicated that we
     # can't upload yet (ie we are at quota)
-    # Assumes that PROJTOKEN, PROJNAME and DRYRUN have been initialized.
+    # Assumes that COVERITY_TOKEN, PROJNAME and DRYRUN have been initialized.
 
     echo "Checking upload permissions..."
 
-    if ! up_perm="$(wget https://scan.coverity.com/api/upload_permitted --post-data "token=$PROJTOKEN&project=$PROJNAME" -q -O -)"; then
+    if ! up_perm="$(wget https://scan.coverity.com/api/upload_permitted --post-data "token=$COVERITY_TOKEN&project=$PROJNAME" -q -O -)"; then
         echo "Coverity Scan API access denied: bad token?"
         exit 1
     fi
@@ -91,43 +95,62 @@ check_upload_permissions() {
 }
 
 
+build_docker_image() {
+    # build docker container including the coverity-scan tools
+    echo "Building docker container..."
+    # TODO: This re-unpacks the tools every time, rather than caching
+    # and reusing the image produced by the COPY of the .tgz file.
+    # Not sure why.
+    tests/docker/docker.py --engine ${DOCKER_ENGINE} build \
+                   -t coverity-scanner -f scripts/coverity-scan/coverity-scan.docker \
+                   --extra-files scripts/coverity-scan/run-coverity-scan \
+                                 "$COVERITY_TOOL_BASE"/coverity_tool.tgz
+}
+
 update_coverity_tools () {
     # Check for whether we need to download the Coverity tools
     # (either because we don't have a copy, or because it's out of date)
-    # Assumes that COVERITY_TOOL_BASE, PROJTOKEN and PROJNAME are set.
+    # Assumes that COVERITY_TOOL_BASE, COVERITY_TOKEN and PROJNAME are set.
 
     mkdir -p "$COVERITY_TOOL_BASE"
     cd "$COVERITY_TOOL_BASE"
 
     echo "Checking for new version of coverity build tools..."
-    wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME&md5=1" -O coverity_tool.md5.new
+    wget https://scan.coverity.com/download/linux64 --post-data "token=$COVERITY_TOKEN&project=$PROJNAME&md5=1" -O coverity_tool.md5.new
 
     if ! cmp -s coverity_tool.md5 coverity_tool.md5.new; then
         # out of date md5 or no md5: download new build tool
         # blow away the old build tool
         echo "Downloading coverity build tools..."
         rm -rf coverity_tool coverity_tool.tgz
-        wget https://scan.coverity.com/download/linux64 --post-data "token=$PROJTOKEN&project=$PROJNAME" -O coverity_tool.tgz
+        wget https://scan.coverity.com/download/linux64 --post-data "token=$COVERITY_TOKEN&project=$PROJNAME" -O coverity_tool.tgz
         if ! (cat coverity_tool.md5.new; echo "  coverity_tool.tgz") | md5sum -c --status; then
             echo "Downloaded tarball didn't match md5sum!"
             exit 1
         fi
-        # extract the new one, keeping it corralled in a 'coverity_tool' directory
-        echo "Unpacking coverity build tools..."
-        mkdir -p coverity_tool
-        cd coverity_tool
-        tar xf ../coverity_tool.tgz
-        cd ..
-        mv coverity_tool.md5.new coverity_tool.md5
-    fi
 
+        if [ "$DOCKER" != yes ]; then
+            # extract the new one, keeping it corralled in a 'coverity_tool' directory
+            echo "Unpacking coverity build tools..."
+            mkdir -p coverity_tool
+            cd coverity_tool
+            tar xf ../coverity_tool.tgz
+            cd ..
+            mv coverity_tool.md5.new coverity_tool.md5
+        fi
+    fi
     rm -f coverity_tool.md5.new
+    cd "$SRCDIR"
+
+    if [ "$DOCKER" = yes ]; then
+        build_docker_image
+    fi
 }
 
 
 # Check user-provided environment variables and arguments
 DRYRUN=no
-UPDATE_ONLY=no
+UPDATE=yes
 DOCKER=no
 
 while [ "$#" -ge 1 ]; do
@@ -136,9 +159,13 @@ while [ "$#" -ge 1 ]; do
             shift
             DRYRUN=yes
             ;;
+        --no-update-tools)
+            shift
+            UPDATE=no
+            ;;
         --update-tools-only)
             shift
-            UPDATE_ONLY=yes
+            UPDATE=only
             ;;
         --version)
             shift
@@ -196,6 +223,17 @@ while [ "$#" -ge 1 ]; do
             ;;
         --docker)
             DOCKER=yes
+            DOCKER_ENGINE=auto
+            shift
+            ;;
+        --docker-engine)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "--docker-engine needs an argument"
+                exit 1
+            fi
+            DOCKER=yes
+            DOCKER_ENGINE="$1"
             shift
             ;;
         *)
@@ -205,6 +243,9 @@ while [ "$#" -ge 1 ]; do
     esac
 done
 
+if [ -z "$COVERITY_TOKEN" ]; then
+    COVERITY_TOKEN="$(git config coverity.token)"
+fi
 if [ -z "$COVERITY_TOKEN" ]; then
     echo "COVERITY_TOKEN environment variable not set"
     exit 1
@@ -225,19 +266,19 @@ if [ -z "$SRCDIR" ]; then
     SRCDIR="$PWD"
 fi
 
-PROJTOKEN="$COVERITY_TOKEN"
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
-if [ "$UPDATE_ONLY" = yes ] && [ "$DOCKER" = yes ]; then
-    echo "Combining --docker and --update-only is not supported"
-    exit 1
-fi
-
-if [ "$UPDATE_ONLY" = yes ]; then
+if [ "$UPDATE" = only ]; then
     # Just do the tools update; we don't need to check whether
     # we are in a source tree or have upload rights for this,
     # so do it before some of the command line and source tree checks.
+
+    if [ "$DOCKER" = yes ] && [ ! -z "$SRCTARBALL" ]; then
+        echo --update-tools-only --docker is incompatible with --src-tarball.
+        exit 1
+    fi
+
     update_coverity_tools
     exit 0
 fi
@@ -269,17 +310,26 @@ if [ -z "$DESCRIPTION" ]; then
 fi
 
 if [ -z "$COVERITY_EMAIL" ]; then
+    COVERITY_EMAIL="$(git config coverity.email)"
+fi
+if [ -z "$COVERITY_EMAIL" ]; then
     COVERITY_EMAIL="$(git config user.email)"
+fi
+
+# Otherwise, continue with the full build and upload process.
+
+check_upload_permissions
+
+if [ "$UPDATE" != no ]; then
+    update_coverity_tools
 fi
 
 # Run ourselves inside docker if that's what the user wants
 if [ "$DOCKER" = yes ]; then
-    # build docker container including the coverity-scan tools
     # Put the Coverity token into a temporary file that only
     # we have read access to, and then pass it to docker build
-    # using --secret. This requires at least Docker 18.09.
-    # Mostly what we are trying to do here is ensure we don't leak
-    # the token into the Docker image.
+    # using a volume.  A volume is enough for the token not to
+    # leak into the Docker image.
     umask 077
     SECRETDIR=$(mktemp -d)
     if [ -z "$SECRETDIR" ]; then
@@ -290,38 +340,27 @@ if [ "$DOCKER" = yes ]; then
     echo "Created temporary directory $SECRETDIR"
     SECRET="$SECRETDIR/token"
     echo "$COVERITY_TOKEN" > "$SECRET"
-    echo "Building docker container..."
-    # TODO: This re-downloads the tools every time, rather than
-    # caching and reusing the image produced with the downloaded tools.
-    # Not sure why.
-    # TODO: how do you get 'docker build' to print the output of the
-    # commands it is running to its stdout? This would be useful for debug.
-    DOCKER_BUILDKIT=1 docker build -t coverity-scanner \
-                   --secret id=coverity.token,src="$SECRET" \
-                   -f scripts/coverity-scan/coverity-scan.docker \
-                   scripts/coverity-scan
     echo "Archiving sources to be analyzed..."
     ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
+    ARGS="--no-update-tools"
     if [ "$DRYRUN" = yes ]; then
-        DRYRUNARG=--dry-run
+        ARGS="$ARGS --dry-run"
     fi
     echo "Running scanner..."
     # If we need to capture the output tarball, get the inner run to
     # save it to the secrets directory so we can copy it out before the
     # directory is cleaned up.
     if [ ! -z "$RESULTSTARBALL" ]; then
-        RTARGS="--results-tarball /work/cov-int.tar.xz"
-    else
-        RTARGS=""
+        ARGS="$ARGS --results-tarball /work/cov-int.tar.xz"
     fi
     # Arrange for this docker run to get access to the sources with -v.
     # We pass through all the configuration from the outer script to the inner.
     export COVERITY_EMAIL COVERITY_BUILD_CMD
-    docker run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
+    tests/docker/docker.py run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
            -v "$SECRETDIR:/work" coverity-scanner \
            ./run-coverity-scan --version "$VERSION" \
-           --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
-           --srcdir /qemu --src-tarball /work/qemu-sources.tgz $RTARGS
+           --description "$DESCRIPTION" $ARGS --tokenfile /work/token \
+           --srcdir /qemu --src-tarball /work/qemu-sources.tgz
     if [ ! -z "$RESULTSTARBALL" ]; then
         echo "Copying results tarball to $RESULTSTARBALL..."
         cp "$SECRETDIR/cov-int.tar.xz" "$RESULTSTARBALL"
@@ -329,12 +368,6 @@ if [ "$DOCKER" = yes ]; then
     echo "Docker work complete."
     exit 0
 fi
-
-# Otherwise, continue with the full build and upload process.
-
-check_upload_permissions
-
-update_coverity_tools
 
 TOOLBIN="$(cd "$COVERITY_TOOL_BASE" && echo $PWD/coverity_tool/cov-analysis-*/bin)"
 
@@ -393,7 +426,7 @@ if [ "$DRYRUN" = yes ]; then
     exit 0
 fi
 
-curl --form token="$PROJTOKEN" --form email="$COVERITY_EMAIL" \
+curl --form token="$COVERITY_TOKEN" --form email="$COVERITY_EMAIL" \
      --form file=@"$TARBALL" --form version="$VERSION" \
      --form description="$DESCRIPTION" \
      https://scan.coverity.com/builds?project="$PROJNAME"

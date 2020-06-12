@@ -28,7 +28,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qom/object.h"
 #include "hw/pci-host/pam.h"
 
 void init_pam(DeviceState *dev, MemoryRegion *ram_memory,

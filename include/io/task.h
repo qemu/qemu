@@ -21,8 +21,6 @@
 #ifndef QIO_TASK_H
 #define QIO_TASK_H
 
-#include "qom/object.h"
-
 typedef struct QIOTask QIOTask;
 
 typedef void (*QIOTaskFunc)(QIOTask *task,

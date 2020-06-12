@@ -86,34 +86,34 @@ typedef struct MegasasState {
     MemoryRegion queue_io;
     uint32_t frame_hi;
 
-    int fw_state;
+    uint32_t fw_state;
     uint32_t fw_sge;
     uint32_t fw_cmds;
     uint32_t flags;
-    int fw_luns;
-    int intr_mask;
-    int doorbell;
-    int busy;
-    int diag;
-    int adp_reset;
+    uint32_t fw_luns;
+    uint32_t intr_mask;
+    uint32_t doorbell;
+    uint32_t busy;
+    uint32_t diag;
+    uint32_t adp_reset;
     OnOffAuto msi;
     OnOffAuto msix;
 
     MegasasCmd *event_cmd;
-    int event_locale;
+    uint16_t event_locale;
     int event_class;
-    int event_count;
-    int shutdown_event;
-    int boot_event;
+    uint32_t event_count;
+    uint32_t shutdown_event;
+    uint32_t boot_event;
 
     uint64_t sas_addr;
     char *hba_serial;
 
     uint64_t reply_queue_pa;
     void *reply_queue;
-    int reply_queue_len;
-    int reply_queue_head;
-    int reply_queue_tail;
+    uint16_t reply_queue_len;
+    uint16_t reply_queue_head;
+    uint16_t reply_queue_tail;
     uint64_t consumer_pa;
     uint64_t producer_pa;
 
@@ -445,7 +445,7 @@ static MegasasCmd *megasas_lookup_frame(MegasasState *s,
 
     index = s->reply_queue_head;
 
-    while (num < s->fw_cmds) {
+    while (num < s->fw_cmds && index < MEGASAS_MAX_FRAMES) {
         if (s->frames[index].pa && s->frames[index].pa == frame) {
             cmd = &s->frames[index];
             break;
@@ -504,7 +504,7 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     cmd->pa = frame;
     /* Map all possible frames */
     cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
-    if (frame_size_p != frame_size) {
+    if (!cmd->frame || frame_size_p != frame_size) {
         trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
         if (cmd->frame) {
             megasas_unmap_frame(s, cmd);
@@ -2259,9 +2259,9 @@ static const VMStateDescription vmstate_megasas_gen1 = {
         VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
         VMSTATE_MSIX(parent_obj, MegasasState),
 
-        VMSTATE_INT32(fw_state, MegasasState),
-        VMSTATE_INT32(intr_mask, MegasasState),
-        VMSTATE_INT32(doorbell, MegasasState),
+        VMSTATE_UINT32(fw_state, MegasasState),
+        VMSTATE_UINT32(intr_mask, MegasasState),
+        VMSTATE_UINT32(doorbell, MegasasState),
         VMSTATE_UINT64(reply_queue_pa, MegasasState),
         VMSTATE_UINT64(consumer_pa, MegasasState),
         VMSTATE_UINT64(producer_pa, MegasasState),
@@ -2278,9 +2278,9 @@ static const VMStateDescription vmstate_megasas_gen2 = {
         VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
         VMSTATE_MSIX(parent_obj, MegasasState),
 
-        VMSTATE_INT32(fw_state, MegasasState),
-        VMSTATE_INT32(intr_mask, MegasasState),
-        VMSTATE_INT32(doorbell, MegasasState),
+        VMSTATE_UINT32(fw_state, MegasasState),
+        VMSTATE_UINT32(intr_mask, MegasasState),
+        VMSTATE_UINT32(doorbell, MegasasState),
         VMSTATE_UINT64(reply_queue_pa, MegasasState),
         VMSTATE_UINT64(consumer_pa, MegasasState),
         VMSTATE_UINT64(producer_pa, MegasasState),

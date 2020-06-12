@@ -36,6 +36,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
+#include "sysemu/xen.h"
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -178,7 +179,6 @@ static NotifierList exit_notifiers =
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 bool xen_domid_restrict;
@@ -4334,12 +4334,13 @@ void qemu_init(int argc, char **argv, char **envp)
 
     parse_numa_opts(current_machine);
 
+    /* do monitor/qmp handling at preconfig state if requested */
+    qemu_main_loop();
+
     if (machine_class->default_ram_id && current_machine->ram_size &&
         numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
         create_default_memdev(current_machine, mem_path);
     }
-    /* do monitor/qmp handling at preconfig state if requested */
-    qemu_main_loop();
 
     audio_init_audiodevs();
 

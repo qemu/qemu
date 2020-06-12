@@ -251,7 +251,7 @@ void vmx_update_tpr(CPUState *cpu)
     }
 }
 
-void update_apic_tpr(CPUState *cpu)
+static void update_apic_tpr(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     int tpr = rreg(cpu->hvf_fd, HV_X86_TPR) >> 4;
@@ -312,7 +312,8 @@ void hvf_cpu_synchronize_post_reset(CPUState *cpu_state)
     run_on_cpu(cpu_state, do_hvf_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
-void _hvf_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
+static void do_hvf_cpu_synchronize_post_init(CPUState *cpu,
+                                             run_on_cpu_data arg)
 {
     CPUState *cpu_state = cpu;
     hvf_put_registers(cpu_state);
@@ -321,7 +322,7 @@ void _hvf_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 
 void hvf_cpu_synchronize_post_init(CPUState *cpu_state)
 {
-    run_on_cpu(cpu_state, _hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
+    run_on_cpu(cpu_state, do_hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
 static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
@@ -532,7 +533,11 @@ void hvf_reset_vcpu(CPUState *cpu) {
 
 void hvf_vcpu_destroy(CPUState *cpu)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
     hv_return_t ret = hv_vcpu_destroy((hv_vcpuid_t)cpu->hvf_fd);
+    g_free(env->hvf_mmio_buf);
     assert_hvf_ok(ret);
 }
 
@@ -562,7 +567,7 @@ int hvf_init_vcpu(CPUState *cpu)
     init_decoder();
 
     hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
-    env->hvf_emul = g_new0(HVFX86EmulatorState, 1);
+    env->hvf_mmio_buf = g_new(char, 4096);
 
     r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
     cpu->vcpu_dirty = 1;
@@ -722,8 +727,7 @@ int hvf_vcpu_exec(CPUState *cpu)
 
         hvf_store_events(cpu, ins_len, idtvec_info);
         rip = rreg(cpu->hvf_fd, HV_X86_RIP);
-        RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
-        env->eflags = RFLAGS(env);
+        env->eflags = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
 
         qemu_mutex_lock_iothread();
 
@@ -735,7 +739,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         case EXIT_REASON_HLT: {
             macvm_set_rip(cpu, rip + ins_len);
             if (!((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-                (EFLAGS(env) & IF_MASK))
+                (env->eflags & IF_MASK))
                 && !(cpu->interrupt_request & CPU_INTERRUPT_NMI) &&
                 !(idtvec_info & VMCS_IDT_VEC_VALID)) {
                 cpu->halted = 1;
@@ -766,8 +770,6 @@ int hvf_vcpu_exec(CPUState *cpu)
                 struct x86_decode decode;
 
                 load_regs(cpu);
-                env->hvf_emul->fetch_rip = rip;
-
                 decode_instruction(env, &decode);
                 exec_instruction(env, &decode);
                 store_regs(cpu);
@@ -796,7 +798,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 } else {
                     RAX(env) = (uint64_t)val;
                 }
-                RIP(env) += ins_len;
+                env->eip += ins_len;
                 store_regs(cpu);
                 break;
             } else if (!string && !in) {
@@ -808,8 +810,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            env->hvf_emul->fetch_rip = rip;
-
             decode_instruction(env, &decode);
             assert(ins_len == decode.len);
             exec_instruction(env, &decode);
@@ -870,7 +870,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             } else {
                 simulate_wrmsr(cpu);
             }
-            RIP(env) += rvmcs(cpu->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
+            env->eip += ins_len;
             store_regs(cpu);
             break;
         }
@@ -906,7 +906,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 error_report("Unrecognized CR %d", cr);
                 abort();
             }
-            RIP(env) += ins_len;
+            env->eip += ins_len;
             store_regs(cpu);
             break;
         }
@@ -914,8 +914,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            env->hvf_emul->fetch_rip = rip;
-
             decode_instruction(env, &decode);
             exec_instruction(env, &decode);
             store_regs(cpu);

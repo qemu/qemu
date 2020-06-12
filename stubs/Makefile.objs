@@ -49,7 +49,5 @@ stub-obj-y += target-get-monitor-def.o
 stub-obj-y += target-monitor-defs.o
 stub-obj-y += uuid.o
 stub-obj-y += vm-stop.o
-stub-obj-y += xen-common.o
-stub-obj-y += xen-hvm.o
 
 endif # CONFIG_SOFTMMU || CONFIG_TOOLS

@@ -370,7 +370,7 @@ static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
     hwaddr addr = cpu_to_le64(extract64(cmd[0], 3, 49)) << 3;
     uint64_t data = cpu_to_le64(cmd[1]);
 
-    if (extract64(cmd[0], 51, 8)) {
+    if (extract64(cmd[0], 52, 8)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
@@ -395,7 +395,7 @@ static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
     uint16_t devid = cpu_to_le16((uint16_t)extract64(cmd[0], 0, 16));
 
     /* This command should invalidate internal caches of which there isn't */
-    if (extract64(cmd[0], 15, 16) || cmd[1]) {
+    if (extract64(cmd[0], 16, 44) || cmd[1]) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
@@ -405,9 +405,9 @@ static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 
 static void amdvi_complete_ppr(AMDVIState *s, uint64_t *cmd)
 {
-    if (extract64(cmd[0], 15, 16) ||  extract64(cmd[0], 19, 8) ||
+    if (extract64(cmd[0], 16, 16) ||  extract64(cmd[0], 52, 8) ||
         extract64(cmd[1], 0, 2) || extract64(cmd[1], 3, 29)
-        || extract64(cmd[1], 47, 16)) {
+        || extract64(cmd[1], 48, 16)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
@@ -438,8 +438,8 @@ static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t domid = cpu_to_le16((uint16_t)extract64(cmd[0], 32, 16));
 
-    if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 16, 12) ||
-        extract64(cmd[0], 3, 10)) {
+    if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 48, 12) ||
+        extract64(cmd[1], 3, 9)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
@@ -451,7 +451,7 @@ static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 
 static void amdvi_prefetch_pages(AMDVIState *s, uint64_t *cmd)
 {
-    if (extract64(cmd[0], 16, 8) || extract64(cmd[0], 20, 8) ||
+    if (extract64(cmd[0], 16, 8) || extract64(cmd[0], 52, 8) ||
         extract64(cmd[1], 1, 1) || extract64(cmd[1], 3, 1) ||
         extract64(cmd[1], 5, 7)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
@@ -463,7 +463,7 @@ static void amdvi_prefetch_pages(AMDVIState *s, uint64_t *cmd)
 
 static void amdvi_inval_inttable(AMDVIState *s, uint64_t *cmd)
 {
-    if (extract64(cmd[0], 16, 16) || cmd[1]) {
+    if (extract64(cmd[0], 16, 44) || cmd[1]) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
         return;
@@ -479,7 +479,8 @@ static void iommu_inval_iotlb(AMDVIState *s, uint64_t *cmd)
 {
 
     uint16_t devid = extract64(cmd[0], 0, 16);
-    if (extract64(cmd[1], 1, 1) || extract64(cmd[1], 3, 9)) {
+    if (extract64(cmd[1], 1, 1) || extract64(cmd[1], 3, 1) ||
+        extract64(cmd[1], 6, 6)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
         return;
