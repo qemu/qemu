@@ -13,6 +13,7 @@
 #define TPM_TPM_INT_H
 
 #include "qemu/option.h"
+#include "sysemu/tpm.h"
 
 #define TPM_STANDARD_CMDLINE_OPTS \
     { \
@@ -73,5 +74,15 @@ struct tpm_resp_hdr {
 #define TPM_RC_INSUFFICIENT       0x9a
 #define TPM_RC_FAILURE            0x101
 #define TPM_RC_LOCALITY           0x907
+
+int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
+                             size_t *buffersize);
+
+typedef struct TPMSizedBuffer {
+    uint32_t size;
+    uint8_t  *buffer;
+} TPMSizedBuffer;
+
+void tpm_sized_buffer_reset(TPMSizedBuffer *tsb);
 
 #endif /* TPM_TPM_INT_H */
