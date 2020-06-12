@@ -17,6 +17,7 @@
 #include "cpu.h"
 #include "sysemu/memory_mapping.h"
 #include "migration/vmstate.h"
+#include "hw/acpi/tpm.h"
 #include "tpm_ppi.h"
 #include "trace.h"
 
