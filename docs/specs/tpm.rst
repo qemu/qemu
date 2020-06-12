@@ -199,8 +199,8 @@ to be used with the passthrough backend or the swtpm backend.
 
 QEMU files related to TPM backends:
  - ``backends/tpm.c``
+ - ``include/sysemu/tpm.h``
  - ``include/sysemu/tpm_backend.h``
- - ``include/sysemu/tpm_backend_int.h``
 
 The QEMU TPM passthrough device
 -------------------------------
