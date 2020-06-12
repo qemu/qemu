@@ -403,6 +403,8 @@
 #
 # @irq: if an IRQ is assigned to the device, the IRQ number
 #
+# @irq_pin: the IRQ pin, zero means no IRQ (since 5.1)
+#
 # @qdev_id: the device name of the PCI device
 #
 # @pci_bridge: if the device is a PCI bridge, the bridge information
@@ -417,8 +419,8 @@
 { 'struct': 'PciDeviceInfo',
   'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
            'class_info': 'PciDeviceClass', 'id': 'PciDeviceId',
-           '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
-           'regions': ['PciMemoryRegion']} }
+           '*irq': 'int', 'irq_pin': 'int', 'qdev_id': 'str',
+           '*pci_bridge': 'PciBridgeInfo', 'regions': ['PciMemoryRegion'] }}
 
 ##
 # @PciInfo:

@@ -16,4 +16,5 @@ obj-$(CONFIG_VMMOUSE) += vmmouse.o
 obj-$(CONFIG_PC) += port92.o
 
 obj-y += kvmvapic.o
+obj-$(CONFIG_ACPI) += acpi-common.o
 obj-$(CONFIG_PC) += acpi-build.o

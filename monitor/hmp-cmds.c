@@ -688,7 +688,8 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
     }
 
     if (dev->has_irq) {
-        monitor_printf(mon, "      IRQ %" PRId64 ".\n", dev->irq);
+        monitor_printf(mon, "      IRQ %" PRId64 ", pin %c\n",
+                       dev->irq, (char)('A' + dev->irq_pin - 1));
     }
 
     if (dev->has_pci_bridge) {

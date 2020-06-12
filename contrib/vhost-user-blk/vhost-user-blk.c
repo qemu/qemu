@@ -382,9 +382,7 @@ vub_get_features(VuDev *dev)
                1ull << VIRTIO_BLK_F_DISCARD |
                1ull << VIRTIO_BLK_F_WRITE_ZEROES |
                #endif
-               1ull << VIRTIO_BLK_F_CONFIG_WCE |
-               1ull << VIRTIO_F_VERSION_1 |
-               1ull << VHOST_USER_F_PROTOCOL_FEATURES;
+               1ull << VIRTIO_BLK_F_CONFIG_WCE;
 
     if (vdev_blk->enable_ro) {
         features |= 1ull << VIRTIO_BLK_F_RO;

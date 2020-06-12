@@ -1531,7 +1531,7 @@ F: hw/acpi/*
 F: hw/smbios/*
 F: hw/i386/acpi-build.[hc]
 F: hw/arm/virt-acpi-build.c
-F: tests/qtest/bios-tables-test.c
+F: tests/qtest/bios-tables-test*
 F: tests/qtest/acpi-utils.[hc]
 F: tests/data/acpi/
 
@@ -2328,6 +2328,7 @@ S: Maintained
 F: qtest.c
 F: accel/qtest.c
 F: tests/qtest/
+X: tests/qtest/bios-tables-test-allowed-diff.h
 
 Device Fuzzing
 M: Alexander Bulekov <alxndr@bu.edu>

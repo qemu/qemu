@@ -1273,16 +1273,20 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         virtio_queue_set_vector(vdev, vdev->queue_sel, val);
         break;
     case VIRTIO_PCI_COMMON_Q_ENABLE:
-        virtio_queue_set_num(vdev, vdev->queue_sel,
-                             proxy->vqs[vdev->queue_sel].num);
-        virtio_queue_set_rings(vdev, vdev->queue_sel,
+        if (val == 1) {
+            virtio_queue_set_num(vdev, vdev->queue_sel,
+                                 proxy->vqs[vdev->queue_sel].num);
+            virtio_queue_set_rings(vdev, vdev->queue_sel,
                        ((uint64_t)proxy->vqs[vdev->queue_sel].desc[1]) << 32 |
                        proxy->vqs[vdev->queue_sel].desc[0],
                        ((uint64_t)proxy->vqs[vdev->queue_sel].avail[1]) << 32 |
                        proxy->vqs[vdev->queue_sel].avail[0],
                        ((uint64_t)proxy->vqs[vdev->queue_sel].used[1]) << 32 |
                        proxy->vqs[vdev->queue_sel].used[0]);
-        proxy->vqs[vdev->queue_sel].enabled = 1;
+            proxy->vqs[vdev->queue_sel].enabled = 1;
+        } else {
+            virtio_error(vdev, "wrong value for queue_enable %"PRIx64, val);
+        }
         break;
     case VIRTIO_PCI_COMMON_Q_DESCLO:
         proxy->vqs[vdev->queue_sel].desc[0] = val;

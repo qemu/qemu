@@ -199,6 +199,9 @@ static const MemoryRegionOps msix_table_mmio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
         .max_access_size = 4,
     },
 };
@@ -227,6 +230,9 @@ static const MemoryRegionOps msix_pba_mmio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
         .max_access_size = 4,
     },
 };

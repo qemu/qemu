@@ -1381,6 +1381,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
 {
     uint32_t val = 0;
 
+    assert(address + len <= pci_config_size(d));
+
     if (pci_is_express_downstream_port(d) &&
         ranges_overlap(address, len, d->exp.exp_cap + PCI_EXP_LNKSTA, 2)) {
         pcie_sync_bridge_lnk(d);
@@ -1393,6 +1395,8 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
 {
     int i, was_irq_disabled = pci_irq_disabled(d);
     uint32_t val = val_in;
+
+    assert(addr + l <= pci_config_size(d));
 
     for (i = 0; i < l; val >>= 8, ++i) {
         uint8_t wmask = d->wmask[addr + i];
@@ -1772,6 +1776,7 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     info->regions = qmp_query_pci_regions(dev);
     info->qdev_id = g_strdup(dev->qdev.id ? dev->qdev.id : "");
 
+    info->irq_pin = dev->config[PCI_INTERRUPT_PIN];
     if (dev->config[PCI_INTERRUPT_PIN] != 0) {
         info->has_irq = true;
         info->irq = dev->config[PCI_INTERRUPT_LINE];
@@ -1887,7 +1892,18 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
         if (test_bit(DEVICE_CATEGORY_NETWORK, dc->categories) &&
             dc->user_creatable) {
             const char *name = object_class_get_name(list->data);
-            g_ptr_array_add(pci_nic_models, (gpointer)name);
+            /*
+             * A network device might also be something else than a NIC, see
+             * e.g. the "rocker" device. Thus we have to look for the "netdev"
+             * property, too. Unfortunately, some devices like virtio-net only
+             * create this property during instance_init, so we have to create
+             * a temporary instance here to be able to check it.
+             */
+            Object *obj = object_new_with_class(OBJECT_CLASS(dc));
+            if (object_property_find(obj, "netdev", NULL)) {
+                g_ptr_array_add(pci_nic_models, (gpointer)name);
+            }
+            object_unref(obj);
         }
         next = list->next;
         g_slist_free_1(list);

@@ -137,6 +137,9 @@ vu_request_to_string(unsigned int req)
         REQ(VHOST_USER_SET_INFLIGHT_FD),
         REQ(VHOST_USER_GPU_SET_SOCKET),
         REQ(VHOST_USER_VRING_KICK),
+        REQ(VHOST_USER_GET_MAX_MEM_SLOTS),
+        REQ(VHOST_USER_ADD_MEM_REG),
+        REQ(VHOST_USER_REM_MEM_REG),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ
@@ -266,7 +269,7 @@ have_userfault(void)
 static bool
 vu_message_read(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
 {
-    char control[CMSG_SPACE(VHOST_MEMORY_MAX_NREGIONS * sizeof(int))] = { };
+    char control[CMSG_SPACE(VHOST_MEMORY_BASELINE_NREGIONS * sizeof(int))] = {};
     struct iovec iov = {
         .iov_base = (char *)vmsg,
         .iov_len = VHOST_USER_HDR_SIZE,
@@ -337,7 +340,7 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
 {
     int rc;
     uint8_t *p = (uint8_t *)vmsg;
-    char control[CMSG_SPACE(VHOST_MEMORY_MAX_NREGIONS * sizeof(int))] = { };
+    char control[CMSG_SPACE(VHOST_MEMORY_BASELINE_NREGIONS * sizeof(int))] = {};
     struct iovec iov = {
         .iov_base = (char *)vmsg,
         .iov_len = VHOST_USER_HDR_SIZE,
@@ -350,7 +353,7 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
     struct cmsghdr *cmsg;
 
     memset(control, 0, sizeof(control));
-    assert(vmsg->fd_num <= VHOST_MEMORY_MAX_NREGIONS);
+    assert(vmsg->fd_num <= VHOST_MEMORY_BASELINE_NREGIONS);
     if (vmsg->fd_num > 0) {
         size_t fdsize = vmsg->fd_num * sizeof(int);
         msg.msg_controllen = CMSG_SPACE(fdsize);
@@ -495,6 +498,16 @@ static bool
 vu_get_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     vmsg->payload.u64 =
+        /*
+         * The following VIRTIO feature bits are supported by our virtqueue
+         * implementation:
+         */
+        1ULL << VIRTIO_F_NOTIFY_ON_EMPTY |
+        1ULL << VIRTIO_RING_F_INDIRECT_DESC |
+        1ULL << VIRTIO_RING_F_EVENT_IDX |
+        1ULL << VIRTIO_F_VERSION_1 |
+
+        /* vhost-user feature bits */
         1ULL << VHOST_F_LOG_ALL |
         1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
@@ -584,6 +597,244 @@ map_ring(VuDev *dev, VuVirtq *vq)
 }
 
 static bool
+generate_faults(VuDev *dev) {
+    int i;
+    for (i = 0; i < dev->nregions; i++) {
+        VuDevRegion *dev_region = &dev->regions[i];
+        int ret;
+#ifdef UFFDIO_REGISTER
+        /*
+         * We should already have an open ufd. Mark each memory
+         * range as ufd.
+         * Discard any mapping we have here; note I can't use MADV_REMOVE
+         * or fallocate to make the hole since I don't want to lose
+         * data that's already arrived in the shared process.
+         * TODO: How to do hugepage
+         */
+        ret = madvise((void *)(uintptr_t)dev_region->mmap_addr,
+                      dev_region->size + dev_region->mmap_offset,
+                      MADV_DONTNEED);
+        if (ret) {
+            fprintf(stderr,
+                    "%s: Failed to madvise(DONTNEED) region %d: %s\n",
+                    __func__, i, strerror(errno));
+        }
+        /*
+         * Turn off transparent hugepages so we dont get lose wakeups
+         * in neighbouring pages.
+         * TODO: Turn this backon later.
+         */
+        ret = madvise((void *)(uintptr_t)dev_region->mmap_addr,
+                      dev_region->size + dev_region->mmap_offset,
+                      MADV_NOHUGEPAGE);
+        if (ret) {
+            /*
+             * Note: This can happen legally on kernels that are configured
+             * without madvise'able hugepages
+             */
+            fprintf(stderr,
+                    "%s: Failed to madvise(NOHUGEPAGE) region %d: %s\n",
+                    __func__, i, strerror(errno));
+        }
+        struct uffdio_register reg_struct;
+        reg_struct.range.start = (uintptr_t)dev_region->mmap_addr;
+        reg_struct.range.len = dev_region->size + dev_region->mmap_offset;
+        reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
+
+        if (ioctl(dev->postcopy_ufd, UFFDIO_REGISTER, &reg_struct)) {
+            vu_panic(dev, "%s: Failed to userfault region %d "
+                          "@%p + size:%zx offset: %zx: (ufd=%d)%s\n",
+                     __func__, i,
+                     dev_region->mmap_addr,
+                     dev_region->size, dev_region->mmap_offset,
+                     dev->postcopy_ufd, strerror(errno));
+            return false;
+        }
+        if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
+            vu_panic(dev, "%s Region (%d) doesn't support COPY",
+                     __func__, i);
+            return false;
+        }
+        DPRINT("%s: region %d: Registered userfault for %"
+               PRIx64 " + %" PRIx64 "\n", __func__, i,
+               (uint64_t)reg_struct.range.start,
+               (uint64_t)reg_struct.range.len);
+        /* Now it's registered we can let the client at it */
+        if (mprotect((void *)(uintptr_t)dev_region->mmap_addr,
+                     dev_region->size + dev_region->mmap_offset,
+                     PROT_READ | PROT_WRITE)) {
+            vu_panic(dev, "failed to mprotect region %d for postcopy (%s)",
+                     i, strerror(errno));
+            return false;
+        }
+        /* TODO: Stash 'zero' support flags somewhere */
+#endif
+    }
+
+    return true;
+}
+
+static bool
+vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
+    int i;
+    bool track_ramblocks = dev->postcopy_listening;
+    VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
+    VuDevRegion *dev_region = &dev->regions[dev->nregions];
+    void *mmap_addr;
+
+    /*
+     * If we are in postcopy mode and we receive a u64 payload with a 0 value
+     * we know all the postcopy client bases have been recieved, and we
+     * should start generating faults.
+     */
+    if (track_ramblocks &&
+        vmsg->size == sizeof(vmsg->payload.u64) &&
+        vmsg->payload.u64 == 0) {
+        (void)generate_faults(dev);
+        return false;
+    }
+
+    DPRINT("Adding region: %d\n", dev->nregions);
+    DPRINT("    guest_phys_addr: 0x%016"PRIx64"\n",
+           msg_region->guest_phys_addr);
+    DPRINT("    memory_size:     0x%016"PRIx64"\n",
+           msg_region->memory_size);
+    DPRINT("    userspace_addr   0x%016"PRIx64"\n",
+           msg_region->userspace_addr);
+    DPRINT("    mmap_offset      0x%016"PRIx64"\n",
+           msg_region->mmap_offset);
+
+    dev_region->gpa = msg_region->guest_phys_addr;
+    dev_region->size = msg_region->memory_size;
+    dev_region->qva = msg_region->userspace_addr;
+    dev_region->mmap_offset = msg_region->mmap_offset;
+
+    /*
+     * We don't use offset argument of mmap() since the
+     * mapped address has to be page aligned, and we use huge
+     * pages.
+     */
+    if (track_ramblocks) {
+        /*
+         * In postcopy we're using PROT_NONE here to catch anyone
+         * accessing it before we userfault.
+         */
+        mmap_addr = mmap(0, dev_region->size + dev_region->mmap_offset,
+                         PROT_NONE, MAP_SHARED,
+                         vmsg->fds[0], 0);
+    } else {
+        mmap_addr = mmap(0, dev_region->size + dev_region->mmap_offset,
+                         PROT_READ | PROT_WRITE, MAP_SHARED, vmsg->fds[0],
+                         0);
+    }
+
+    if (mmap_addr == MAP_FAILED) {
+        vu_panic(dev, "region mmap error: %s", strerror(errno));
+    } else {
+        dev_region->mmap_addr = (uint64_t)(uintptr_t)mmap_addr;
+        DPRINT("    mmap_addr:       0x%016"PRIx64"\n",
+               dev_region->mmap_addr);
+    }
+
+    close(vmsg->fds[0]);
+
+    if (track_ramblocks) {
+        /*
+         * Return the address to QEMU so that it can translate the ufd
+         * fault addresses back.
+         */
+        msg_region->userspace_addr = (uintptr_t)(mmap_addr +
+                                                 dev_region->mmap_offset);
+
+        /* Send the message back to qemu with the addresses filled in. */
+        vmsg->fd_num = 0;
+        if (!vu_send_reply(dev, dev->sock, vmsg)) {
+            vu_panic(dev, "failed to respond to add-mem-region for postcopy");
+            return false;
+        }
+
+        DPRINT("Successfully added new region in postcopy\n");
+        dev->nregions++;
+        return false;
+
+    } else {
+        for (i = 0; i < dev->max_queues; i++) {
+            if (dev->vq[i].vring.desc) {
+                if (map_ring(dev, &dev->vq[i])) {
+                    vu_panic(dev, "remapping queue %d for new memory region",
+                             i);
+                }
+            }
+        }
+
+        DPRINT("Successfully added new region\n");
+        dev->nregions++;
+        vmsg_set_reply_u64(vmsg, 0);
+        return true;
+    }
+}
+
+static inline bool reg_equal(VuDevRegion *vudev_reg,
+                             VhostUserMemoryRegion *msg_reg)
+{
+    if (vudev_reg->gpa == msg_reg->guest_phys_addr &&
+        vudev_reg->qva == msg_reg->userspace_addr &&
+        vudev_reg->size == msg_reg->memory_size) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool
+vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
+    int i, j;
+    bool found = false;
+    VuDevRegion shadow_regions[VHOST_USER_MAX_RAM_SLOTS] = {};
+    VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
+
+    DPRINT("Removing region:\n");
+    DPRINT("    guest_phys_addr: 0x%016"PRIx64"\n",
+           msg_region->guest_phys_addr);
+    DPRINT("    memory_size:     0x%016"PRIx64"\n",
+           msg_region->memory_size);
+    DPRINT("    userspace_addr   0x%016"PRIx64"\n",
+           msg_region->userspace_addr);
+    DPRINT("    mmap_offset      0x%016"PRIx64"\n",
+           msg_region->mmap_offset);
+
+    for (i = 0, j = 0; i < dev->nregions; i++) {
+        if (!reg_equal(&dev->regions[i], msg_region)) {
+            shadow_regions[j].gpa = dev->regions[i].gpa;
+            shadow_regions[j].size = dev->regions[i].size;
+            shadow_regions[j].qva = dev->regions[i].qva;
+            shadow_regions[j].mmap_offset = dev->regions[i].mmap_offset;
+            j++;
+        } else {
+            found = true;
+            VuDevRegion *r = &dev->regions[i];
+            void *m = (void *) (uintptr_t) r->mmap_addr;
+
+            if (m) {
+                munmap(m, r->size + r->mmap_offset);
+            }
+        }
+    }
+
+    if (found) {
+        memcpy(dev->regions, shadow_regions,
+               sizeof(VuDevRegion) * VHOST_USER_MAX_RAM_SLOTS);
+        DPRINT("Successfully removed a region\n");
+        dev->nregions--;
+        vmsg_set_reply_u64(vmsg, 0);
+    } else {
+        vu_panic(dev, "Specified region not found\n");
+    }
+
+    return true;
+}
+
+static bool
 vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
 {
     int i;
@@ -655,74 +906,7 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
     }
 
     /* OK, now we can go and register the memory and generate faults */
-    for (i = 0; i < dev->nregions; i++) {
-        VuDevRegion *dev_region = &dev->regions[i];
-        int ret;
-#ifdef UFFDIO_REGISTER
-        /* We should already have an open ufd. Mark each memory
-         * range as ufd.
-         * Discard any mapping we have here; note I can't use MADV_REMOVE
-         * or fallocate to make the hole since I don't want to lose
-         * data that's already arrived in the shared process.
-         * TODO: How to do hugepage
-         */
-        ret = madvise((void *)(uintptr_t)dev_region->mmap_addr,
-                      dev_region->size + dev_region->mmap_offset,
-                      MADV_DONTNEED);
-        if (ret) {
-            fprintf(stderr,
-                    "%s: Failed to madvise(DONTNEED) region %d: %s\n",
-                    __func__, i, strerror(errno));
-        }
-        /* Turn off transparent hugepages so we dont get lose wakeups
-         * in neighbouring pages.
-         * TODO: Turn this backon later.
-         */
-        ret = madvise((void *)(uintptr_t)dev_region->mmap_addr,
-                      dev_region->size + dev_region->mmap_offset,
-                      MADV_NOHUGEPAGE);
-        if (ret) {
-            /* Note: This can happen legally on kernels that are configured
-             * without madvise'able hugepages
-             */
-            fprintf(stderr,
-                    "%s: Failed to madvise(NOHUGEPAGE) region %d: %s\n",
-                    __func__, i, strerror(errno));
-        }
-        struct uffdio_register reg_struct;
-        reg_struct.range.start = (uintptr_t)dev_region->mmap_addr;
-        reg_struct.range.len = dev_region->size + dev_region->mmap_offset;
-        reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
-
-        if (ioctl(dev->postcopy_ufd, UFFDIO_REGISTER, &reg_struct)) {
-            vu_panic(dev, "%s: Failed to userfault region %d "
-                          "@%p + size:%zx offset: %zx: (ufd=%d)%s\n",
-                     __func__, i,
-                     dev_region->mmap_addr,
-                     dev_region->size, dev_region->mmap_offset,
-                     dev->postcopy_ufd, strerror(errno));
-            return false;
-        }
-        if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
-            vu_panic(dev, "%s Region (%d) doesn't support COPY",
-                     __func__, i);
-            return false;
-        }
-        DPRINT("%s: region %d: Registered userfault for %"
-               PRIx64 " + %" PRIx64 "\n", __func__, i,
-               (uint64_t)reg_struct.range.start,
-               (uint64_t)reg_struct.range.len);
-        /* Now it's registered we can let the client at it */
-        if (mprotect((void *)(uintptr_t)dev_region->mmap_addr,
-                     dev_region->size + dev_region->mmap_offset,
-                     PROT_READ | PROT_WRITE)) {
-            vu_panic(dev, "failed to mprotect region %d for postcopy (%s)",
-                     i, strerror(errno));
-            return false;
-        }
-        /* TODO: Stash 'zero' support flags somewhere */
-#endif
-    }
+    (void)generate_faults(dev);
 
     return false;
 }
@@ -1220,7 +1404,8 @@ vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
                         1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ |
                         1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER |
                         1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD |
-                        1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK;
+                        1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK |
+                        1ULL << VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS;
 
     if (have_userfault()) {
         features |= 1ULL << VHOST_USER_PROTOCOL_F_PAGEFAULT;
@@ -1554,6 +1739,22 @@ vu_handle_vring_kick(VuDev *dev, VhostUserMsg *vmsg)
     return false;
 }
 
+static bool vu_handle_get_max_memslots(VuDev *dev, VhostUserMsg *vmsg)
+{
+    vmsg->flags = VHOST_USER_REPLY_MASK | VHOST_USER_VERSION;
+    vmsg->size  = sizeof(vmsg->payload.u64);
+    vmsg->payload.u64 = VHOST_USER_MAX_RAM_SLOTS;
+    vmsg->fd_num = 0;
+
+    if (!vu_message_write(dev, dev->sock, vmsg)) {
+        vu_panic(dev, "Failed to send max ram slots: %s\n", strerror(errno));
+    }
+
+    DPRINT("u64: 0x%016"PRIx64"\n", (uint64_t) VHOST_USER_MAX_RAM_SLOTS);
+
+    return false;
+}
+
 static bool
 vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
 {
@@ -1638,6 +1839,12 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
         return vu_set_inflight_fd(dev, vmsg);
     case VHOST_USER_VRING_KICK:
         return vu_handle_vring_kick(dev, vmsg);
+    case VHOST_USER_GET_MAX_MEM_SLOTS:
+        return vu_handle_get_max_memslots(dev, vmsg);
+    case VHOST_USER_ADD_MEM_REG:
+        return vu_add_mem_reg(dev, vmsg);
+    case VHOST_USER_REM_MEM_REG:
+        return vu_rem_mem_reg(dev, vmsg);
     default:
         vmsg_close_fds(vmsg);
         vu_panic(dev, "Unhandled request: %d", vmsg->request);

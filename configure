@@ -7196,6 +7196,9 @@ if test "$vhost_crypto" = "yes" ; then
 fi
 if test "$vhost_vsock" = "yes" ; then
   echo "CONFIG_VHOST_VSOCK=y" >> $config_host_mak
+  if test "$vhost_user" = "yes" ; then
+    echo "CONFIG_VHOST_USER_VSOCK=y" >> $config_host_mak
+  fi
 fi
 if test "$vhost_kernel" = "yes" ; then
   echo "CONFIG_VHOST_KERNEL=y" >> $config_host_mak

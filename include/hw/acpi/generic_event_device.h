@@ -86,7 +86,7 @@
 #define ACPI_GED_NVDIMM_HOTPLUG_EVT 0x4
 
 typedef struct GEDState {
-    MemoryRegion io;
+    MemoryRegion evt;
     uint32_t     sel;
 } GEDState;
 
