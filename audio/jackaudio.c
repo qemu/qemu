@@ -56,7 +56,7 @@ typedef struct QJackClient {
     AudiodevJackPerDirectionOptions *opt;
 
     bool out;
-    bool finished;
+    bool enabled;
     bool connect_ports;
     int  packets;
 
@@ -271,9 +271,17 @@ static int qjack_process(jack_nframes_t nframes, void *arg)
     }
 
     if (c->out) {
-        qjack_buffer_read_l(&c->fifo, buffers, nframes);
+        if (likely(c->enabled)) {
+            qjack_buffer_read_l(&c->fifo, buffers, nframes);
+        } else {
+            for(int i = 0; i < c->nchannels; ++i) {
+                memset(buffers[i], 0, nframes * sizeof(float));
+            }
+        }
     } else {
-        qjack_buffer_write_l(&c->fifo, buffers, nframes);
+        if (likely(c->enabled)) {
+            qjack_buffer_write_l(&c->fifo, buffers, nframes);
+        }
     }
 
     return 0;
@@ -314,8 +322,8 @@ static void qjack_client_recover(QJackClient *c)
     if (c->state == QJACK_STATE_DISCONNECTED &&
         c->packets % 100 == 0) {
 
-        /* if not finished then attempt to recover */
-        if (!c->finished) {
+        /* if enabled then attempt to recover */
+        if (c->enabled) {
             dolog("attempting to reconnect to server\n");
             qjack_client_init(c);
         }
@@ -387,7 +395,6 @@ static int qjack_client_init(QJackClient *c)
     char client_name[jack_client_name_size()];
     jack_options_t options = JackNullOption;
 
-    c->finished      = false;
     c->connect_ports = true;
 
     snprintf(client_name, sizeof(client_name), "%s-%s",
@@ -483,8 +490,10 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     jo->c.out       = true;
+    jo->c.enabled   = false;
     jo->c.nchannels = as->nchannels;
     jo->c.opt       = dev->u.jack.out;
+
     int ret = qjack_client_init(&jo->c);
     if (ret != 0) {
         return ret;
@@ -519,8 +528,10 @@ static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as,
     }
 
     ji->c.out       = false;
+    ji->c.enabled   = false;
     ji->c.nchannels = as->nchannels;
     ji->c.opt       = dev->u.jack.in;
+
     int ret = qjack_client_init(&ji->c);
     if (ret != 0) {
         return ret;
@@ -568,23 +579,25 @@ static void qjack_client_fini(QJackClient *c)
 static void qjack_fini_out(HWVoiceOut *hw)
 {
     QJackOut *jo = (QJackOut *)hw;
-    jo->c.finished = true;
     qjack_client_fini(&jo->c);
 }
 
 static void qjack_fini_in(HWVoiceIn *hw)
 {
     QJackIn *ji = (QJackIn *)hw;
-    ji->c.finished = true;
     qjack_client_fini(&ji->c);
 }
 
 static void qjack_enable_out(HWVoiceOut *hw, bool enable)
 {
+    QJackOut *jo = (QJackOut *)hw;
+    jo->c.enabled = enable;
 }
 
 static void qjack_enable_in(HWVoiceIn *hw, bool enable)
 {
+    QJackIn *ji = (QJackIn *)hw;
+    ji->c.enabled = enable;
 }
 
 static int qjack_thread_creator(jack_native_thread_t *thread,
