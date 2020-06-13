@@ -29324,7 +29324,20 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
         gen_helper_msa_vshf_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_SUBV_df:
-        gen_helper_msa_subv_df(cpu_env, tdf, twd, tws, twt);
+        switch (df) {
+        case DF_BYTE:
+            gen_helper_msa_subv_b(cpu_env, twd, tws, twt);
+            break;
+        case DF_HALF:
+            gen_helper_msa_subv_h(cpu_env, twd, tws, twt);
+            break;
+        case DF_WORD:
+            gen_helper_msa_subv_w(cpu_env, twd, tws, twt);
+            break;
+        case DF_DOUBLE:
+            gen_helper_msa_subv_d(cpu_env, twd, tws, twt);
+            break;
+        }
         break;
     case OPC_SUBS_U_df:
         switch (df) {
