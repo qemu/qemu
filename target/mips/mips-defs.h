@@ -57,9 +57,13 @@
 /*
  *   bits 52-63: vendor-specific ASEs
  */
+/* MultiMedia Instructions defined by R5900 */
 #define ASE_MMI           0x0010000000000000ULL
+/* MIPS eXtension/enhanced Unit defined by Ingenic */
 #define ASE_MXU           0x0020000000000000ULL
+/* Loongson MultiMedia Instructions */
 #define ASE_LMMI          0x0040000000000000ULL
+/* Loongson EXTensions */
 #define ASE_LEXT          0x0080000000000000ULL
 
 /* MIPS CPU defines. */
