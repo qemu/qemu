@@ -54,10 +54,6 @@
 #define MEGASAS_FLAG_USE_QUEUE64   1
 #define MEGASAS_MASK_USE_QUEUE64   (1 << MEGASAS_FLAG_USE_QUEUE64)
 
-static const char *mfi_frame_desc[] = {
-    "MFI init", "LD Read", "LD Write", "LD SCSI", "PD SCSI",
-    "MFI Doorbell", "MFI Abort", "MFI SMP", "MFI Stop"};
-
 typedef struct MegasasCmd {
     uint32_t index;
     uint16_t flags;
@@ -181,6 +177,20 @@ static void megasas_frame_set_scsi_status(MegasasState *s,
 {
     PCIDevice *pci = &s->parent_obj;
     stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, scsi_status), v);
+}
+
+static inline const char *mfi_frame_desc(unsigned int cmd)
+{
+    static const char *mfi_frame_descs[] = {
+        "MFI init", "LD Read", "LD Write", "LD SCSI", "PD SCSI",
+        "MFI Doorbell", "MFI Abort", "MFI SMP", "MFI Stop"
+    };
+
+    if (cmd < ARRAY_SIZE(mfi_frame_descs)) {
+        return mfi_frame_descs[cmd];
+    }
+
+    return "Unknown";
 }
 
 /*
@@ -1670,25 +1680,25 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     if (is_logical) {
         if (target_id >= MFI_MAX_LD || lun_id != 0) {
             trace_megasas_scsi_target_not_present(
-                mfi_frame_desc[frame_cmd], is_logical, target_id, lun_id);
+                mfi_frame_desc(frame_cmd), is_logical, target_id, lun_id);
             return MFI_STAT_DEVICE_NOT_FOUND;
         }
     }
     sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
 
     cmd->iov_size = le32_to_cpu(cmd->frame->header.data_len);
-    trace_megasas_handle_scsi(mfi_frame_desc[frame_cmd], is_logical,
+    trace_megasas_handle_scsi(mfi_frame_desc(frame_cmd), is_logical,
                               target_id, lun_id, sdev, cmd->iov_size);
 
     if (!sdev || (megasas_is_jbod(s) && is_logical)) {
         trace_megasas_scsi_target_not_present(
-            mfi_frame_desc[frame_cmd], is_logical, target_id, lun_id);
+            mfi_frame_desc(frame_cmd), is_logical, target_id, lun_id);
         return MFI_STAT_DEVICE_NOT_FOUND;
     }
 
     if (cdb_len > 16) {
         trace_megasas_scsi_invalid_cdb_len(
-                mfi_frame_desc[frame_cmd], is_logical,
+                mfi_frame_desc(frame_cmd), is_logical,
                 target_id, lun_id, cdb_len);
         megasas_write_sense(cmd, SENSE_CODE(INVALID_OPCODE));
         cmd->frame->header.scsi_status = CHECK_CONDITION;
@@ -1706,7 +1716,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     cmd->req = scsi_req_new(sdev, cmd->index, lun_id, cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
-                mfi_frame_desc[frame_cmd], target_id, lun_id);
+                mfi_frame_desc(frame_cmd), target_id, lun_id);
         megasas_write_sense(cmd, SENSE_CODE(NO_SENSE));
         cmd->frame->header.scsi_status = BUSY;
         s->event_count++;
@@ -1751,17 +1761,17 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
     }
 
     trace_megasas_handle_io(cmd->index,
-                            mfi_frame_desc[frame_cmd], target_id, lun_id,
+                            mfi_frame_desc(frame_cmd), target_id, lun_id,
                             (unsigned long)lba_start, (unsigned long)lba_count);
     if (!sdev) {
         trace_megasas_io_target_not_present(cmd->index,
-            mfi_frame_desc[frame_cmd], target_id, lun_id);
+            mfi_frame_desc(frame_cmd), target_id, lun_id);
         return MFI_STAT_DEVICE_NOT_FOUND;
     }
 
     if (cdb_len > 16) {
         trace_megasas_scsi_invalid_cdb_len(
-            mfi_frame_desc[frame_cmd], 1, target_id, lun_id, cdb_len);
+            mfi_frame_desc(frame_cmd), 1, target_id, lun_id, cdb_len);
         megasas_write_sense(cmd, SENSE_CODE(INVALID_OPCODE));
         cmd->frame->header.scsi_status = CHECK_CONDITION;
         s->event_count++;
@@ -1781,7 +1791,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
                             lun_id, cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
-            mfi_frame_desc[frame_cmd], target_id, lun_id);
+            mfi_frame_desc(frame_cmd), target_id, lun_id);
         megasas_write_sense(cmd, SENSE_CODE(NO_SENSE));
         cmd->frame->header.scsi_status = BUSY;
         s->event_count++;
