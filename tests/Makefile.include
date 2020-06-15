@@ -540,6 +540,10 @@ tests/benchmark-crypto-cipher$(EXESUF): tests/benchmark-crypto-cipher.o $(test-c
 tests/test-crypto-secret$(EXESUF): tests/test-crypto-secret.o $(test-crypto-obj-y)
 tests/test-crypto-xts$(EXESUF): tests/test-crypto-xts.o $(test-crypto-obj-y)
 
+ifeq ($(CONFIG_TEST_SECRET_KEYRING),y)
+tests/test-crypto-secret.o-libs := -lkeyutils
+endif
+
 tests/crypto-tls-x509-helpers.o-cflags := $(TASN1_CFLAGS)
 tests/crypto-tls-x509-helpers.o-libs := $(TASN1_LIBS)
 tests/pkix_asn1_tab.o-cflags := $(TASN1_CFLAGS)

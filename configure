@@ -509,6 +509,8 @@ libpmem=""
 default_devices="yes"
 plugins="no"
 fuzzing="no"
+rng_none="no"
+secret_keyring=""
 
 supported_cpu="no"
 supported_os="no"
@@ -1601,6 +1603,14 @@ for opt do
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
+  --enable-rng-none) rng_none=yes
+  ;;
+  --disable-rng-none) rng_none=no
+  ;;
+  --enable-keyring) secret_keyring="yes"
+  ;;
+  --disable-keyring) secret_keyring="no"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1898,6 +1908,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   debug-mutex     mutex debugging support
   libpmem         libpmem support
   xkbcommon       xkbcommon support
+  rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6284,6 +6295,62 @@ case "$slirp" in
     ;;
 esac
 
+##########################################
+# check for usable __NR_keyctl syscall
+
+if test "$linux" = "yes" ; then
+
+    have_keyring=no
+    cat > $TMPC << EOF
+#include <errno.h>
+#include <asm/unistd.h>
+#include <linux/keyctl.h>
+#include <unistd.h>
+int main(void) {
+    return syscall(__NR_keyctl, KEYCTL_READ, 0, NULL, NULL, 0);
+}
+EOF
+    if compile_prog "" "" ; then
+        have_keyring=yes
+    fi
+fi
+if test "$secret_keyring" != "no"
+then
+    if test "$have_keyring" == "yes"
+    then
+	secret_keyring=yes
+    else
+	if test "$secret_keyring" = "yes"
+	then
+	    error_exit "syscall __NR_keyctl requested, \
+but not implemented on your system"
+	else
+	    secret_keyring=no
+	fi
+    fi
+fi
+
+##########################################
+# check for usable keyutils.h
+
+if test "$linux" = "yes" ; then
+
+    have_keyutils=no
+    cat > $TMPC << EOF
+#include <errno.h>
+#include <asm/unistd.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <keyutils.h>
+int main(void) {
+    return request_key("user", NULL, NULL, 0);
+}
+EOF
+    if compile_prog "" "-lkeyutils"; then
+        have_keyutils=yes
+    fi
+fi
+
 
 ##########################################
 # End of CC checks
@@ -6767,6 +6834,8 @@ echo "default devices   $default_devices"
 echo "plugin support    $plugins"
 echo "fuzzing support   $fuzzing"
 echo "gdb               $gdb_bin"
+echo "rng-none          $rng_none"
+echo "Linux keyring     $secret_keyring"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -7652,6 +7721,13 @@ if test -n "$gdb_bin" ; then
     echo "HAVE_GDB_BIN=$gdb_bin" >> $config_host_mak
 fi
 
+if test "$secret_keyring" = "yes" ; then
+  echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
+  if test "$have_keyutils" = "yes" ; then
+    echo "CONFIG_TEST_SECRET_KEYRING=y" >> $config_host_mak
+  fi
+fi
+
 if test "$tcg_interpreter" = "yes"; then
   QEMU_INCLUDES="-iquote \$(SRC_PATH)/tcg/tci $QEMU_INCLUDES"
 elif test "$ARCH" = "sparc64" ; then
@@ -7742,6 +7818,10 @@ fi
 
 if test "$edk2_blobs" = "yes" ; then
   echo "DECOMPRESS_EDK2_BLOBS=y" >> $config_host_mak
+fi
+
+if test "$rng_none" = "yes"; then
+  echo "CONFIG_RNG_NONE=y" >> $config_host_mak
 fi
 
 # use included Linux headers
