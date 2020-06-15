@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/mps2-fpgaio.h"
+#include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 
@@ -176,12 +177,9 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
 
     switch (offset) {
     case A_LED0:
-        /* LED bits [1:0] control board LEDs. We don't currently have
-         * a mechanism for displaying this graphically, so use a trace event.
-         */
-        trace_mps2_fpgaio_leds(value & 0x02 ? '*' : '.',
-                               value & 0x01 ? '*' : '.');
         s->led0 = value & 0x3;
+        led_set_state(s->led[0], value & 0x01);
+        led_set_state(s->led[1], value & 0x02);
         break;
     case A_PRESCALE:
         resync_counter(s);
@@ -239,6 +237,10 @@ static void mps2_fpgaio_reset(DeviceState *dev)
     s->counter = 0;
     s->pscntr = 0;
     s->pscntr_sync_ticks = now;
+
+    for (size_t i = 0; i < ARRAY_SIZE(s->led); i++) {
+        device_cold_reset(DEVICE(s->led[i]));
+    }
 }
 
 static void mps2_fpgaio_init(Object *obj)
@@ -249,6 +251,16 @@ static void mps2_fpgaio_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &mps2_fpgaio_ops, s,
                           "mps2-fpgaio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)
+{
+    MPS2FPGAIO *s = MPS2_FPGAIO(dev);
+
+    s->led[0] = led_create_simple(OBJECT(dev), GPIO_POLARITY_ACTIVE_HIGH,
+                                  LED_COLOR_GREEN, "USERLED0");
+    s->led[1] = led_create_simple(OBJECT(dev), GPIO_POLARITY_ACTIVE_HIGH,
+                                  LED_COLOR_GREEN, "USERLED1");
 }
 
 static bool mps2_fpgaio_counters_needed(void *opaque)
@@ -299,6 +311,7 @@ static void mps2_fpgaio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &mps2_fpgaio_vmstate;
+    dc->realize = mps2_fpgaio_realize;
     dc->reset = mps2_fpgaio_reset;
     device_class_set_props(dc, mps2_fpgaio_properties);
 }
