@@ -2812,3 +2812,79 @@ static bool trans_VQDMLSL_2sc(DisasContext *s, arg_2scalar *a)
 
     return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);
 }
+
+static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (a->imm > 7 && !a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (!a->q) {
+        /* Extract 64 bits from <Vm:Vn> */
+        TCGv_i64 left, right, dest;
+
+        left = tcg_temp_new_i64();
+        right = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        neon_load_reg64(right, a->vn);
+        neon_load_reg64(left, a->vm);
+        tcg_gen_extract2_i64(dest, right, left, a->imm * 8);
+        neon_store_reg64(dest, a->vd);
+
+        tcg_temp_free_i64(left);
+        tcg_temp_free_i64(right);
+        tcg_temp_free_i64(dest);
+    } else {
+        /* Extract 128 bits from <Vm+1:Vm:Vn+1:Vn> */
+        TCGv_i64 left, middle, right, destleft, destright;
+
+        left = tcg_temp_new_i64();
+        middle = tcg_temp_new_i64();
+        right = tcg_temp_new_i64();
+        destleft = tcg_temp_new_i64();
+        destright = tcg_temp_new_i64();
+
+        if (a->imm < 8) {
+            neon_load_reg64(right, a->vn);
+            neon_load_reg64(middle, a->vn + 1);
+            tcg_gen_extract2_i64(destright, right, middle, a->imm * 8);
+            neon_load_reg64(left, a->vm);
+            tcg_gen_extract2_i64(destleft, middle, left, a->imm * 8);
+        } else {
+            neon_load_reg64(right, a->vn + 1);
+            neon_load_reg64(middle, a->vm);
+            tcg_gen_extract2_i64(destright, right, middle, (a->imm - 8) * 8);
+            neon_load_reg64(left, a->vm + 1);
+            tcg_gen_extract2_i64(destleft, middle, left, (a->imm - 8) * 8);
+        }
+
+        neon_store_reg64(destright, a->vd);
+        neon_store_reg64(destleft, a->vd + 1);
+
+        tcg_temp_free_i64(destright);
+        tcg_temp_free_i64(destleft);
+        tcg_temp_free_i64(right);
+        tcg_temp_free_i64(middle);
+        tcg_temp_free_i64(left);
+    }
+    return true;
+}

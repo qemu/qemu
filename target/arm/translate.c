@@ -5030,10 +5030,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     int pass;
     int u;
     int vec_size;
-    uint32_t imm;
     TCGv_i32 tmp, tmp2, tmp3, tmp5;
     TCGv_ptr ptr1;
-    TCGv_i64 tmp64;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return 1;
@@ -5076,60 +5074,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             return 1;
         } else { /* size == 3 */
             if (!u) {
-                /* Extract.  */
-                imm = (insn >> 8) & 0xf;
-
-                if (imm > 7 && !q)
-                    return 1;
-
-                if (q && ((rd | rn | rm) & 1)) {
-                    return 1;
-                }
-
-                if (imm == 0) {
-                    neon_load_reg64(cpu_V0, rn);
-                    if (q) {
-                        neon_load_reg64(cpu_V1, rn + 1);
-                    }
-                } else if (imm == 8) {
-                    neon_load_reg64(cpu_V0, rn + 1);
-                    if (q) {
-                        neon_load_reg64(cpu_V1, rm);
-                    }
-                } else if (q) {
-                    tmp64 = tcg_temp_new_i64();
-                    if (imm < 8) {
-                        neon_load_reg64(cpu_V0, rn);
-                        neon_load_reg64(tmp64, rn + 1);
-                    } else {
-                        neon_load_reg64(cpu_V0, rn + 1);
-                        neon_load_reg64(tmp64, rm);
-                    }
-                    tcg_gen_shri_i64(cpu_V0, cpu_V0, (imm & 7) * 8);
-                    tcg_gen_shli_i64(cpu_V1, tmp64, 64 - ((imm & 7) * 8));
-                    tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
-                    if (imm < 8) {
-                        neon_load_reg64(cpu_V1, rm);
-                    } else {
-                        neon_load_reg64(cpu_V1, rm + 1);
-                        imm -= 8;
-                    }
-                    tcg_gen_shli_i64(cpu_V1, cpu_V1, 64 - (imm * 8));
-                    tcg_gen_shri_i64(tmp64, tmp64, imm * 8);
-                    tcg_gen_or_i64(cpu_V1, cpu_V1, tmp64);
-                    tcg_temp_free_i64(tmp64);
-                } else {
-                    /* BUGFIX */
-                    neon_load_reg64(cpu_V0, rn);
-                    tcg_gen_shri_i64(cpu_V0, cpu_V0, imm * 8);
-                    neon_load_reg64(cpu_V1, rm);
-                    tcg_gen_shli_i64(cpu_V1, cpu_V1, 64 - (imm * 8));
-                    tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
-                }
-                neon_store_reg64(cpu_V0, rd);
-                if (q) {
-                    neon_store_reg64(cpu_V1, rd + 1);
-                }
+                /* Extract: handled by decodetree */
+                return 1;
             } else if ((insn & (1 << 11)) == 0) {
                 /* Two register misc.  */
                 op = ((insn >> 12) & 0x30) | ((insn >> 7) & 0xf);
