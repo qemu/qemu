@@ -3354,3 +3354,99 @@ static bool trans_VSHLL(DisasContext *s, arg_2misc *a)
     tcg_temp_free_i32(rm1);
     return true;
 }
+
+static bool trans_VCVT_F16_F32(DisasContext *s, arg_2misc *a)
+{
+    TCGv_ptr fpst;
+    TCGv_i32 ahp, tmp, tmp2, tmp3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_fp16_spconv, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm & 1) || (a->size != 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(true);
+    ahp = get_ahp_flag();
+    tmp = neon_load_reg(a->vm, 0);
+    gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
+    tmp2 = neon_load_reg(a->vm, 1);
+    gen_helper_vfp_fcvt_f32_to_f16(tmp2, tmp2, fpst, ahp);
+    tcg_gen_shli_i32(tmp2, tmp2, 16);
+    tcg_gen_or_i32(tmp2, tmp2, tmp);
+    tcg_temp_free_i32(tmp);
+    tmp = neon_load_reg(a->vm, 2);
+    gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
+    tmp3 = neon_load_reg(a->vm, 3);
+    neon_store_reg(a->vd, 0, tmp2);
+    gen_helper_vfp_fcvt_f32_to_f16(tmp3, tmp3, fpst, ahp);
+    tcg_gen_shli_i32(tmp3, tmp3, 16);
+    tcg_gen_or_i32(tmp3, tmp3, tmp);
+    neon_store_reg(a->vd, 1, tmp3);
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(ahp);
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}
+
+static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
+{
+    TCGv_ptr fpst;
+    TCGv_i32 ahp, tmp, tmp2, tmp3;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_fp16_spconv, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vd & 1) || (a->size != 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(true);
+    ahp = get_ahp_flag();
+    tmp3 = tcg_temp_new_i32();
+    tmp = neon_load_reg(a->vm, 0);
+    tmp2 = neon_load_reg(a->vm, 1);
+    tcg_gen_ext16u_i32(tmp3, tmp);
+    gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
+    neon_store_reg(a->vd, 0, tmp3);
+    tcg_gen_shri_i32(tmp, tmp, 16);
+    gen_helper_vfp_fcvt_f16_to_f32(tmp, tmp, fpst, ahp);
+    neon_store_reg(a->vd, 1, tmp);
+    tmp3 = tcg_temp_new_i32();
+    tcg_gen_ext16u_i32(tmp3, tmp2);
+    gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
+    neon_store_reg(a->vd, 2, tmp3);
+    tcg_gen_shri_i32(tmp2, tmp2, 16);
+    gen_helper_vfp_fcvt_f16_to_f32(tmp2, tmp2, fpst, ahp);
+    neon_store_reg(a->vd, 3, tmp2);
+    tcg_temp_free_i32(ahp);
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}

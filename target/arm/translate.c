@@ -4860,7 +4860,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     int pass;
     int u;
     int vec_size;
-    TCGv_i32 tmp, tmp2, tmp3;
+    TCGv_i32 tmp, tmp2;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return 1;
@@ -4927,6 +4927,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VZIP:
                 case NEON_2RM_VMOVN: case NEON_2RM_VQMOVN:
                 case NEON_2RM_VSHLL:
+                case NEON_2RM_VCVT_F16_F32:
+                case NEON_2RM_VCVT_F32_F16:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4942,67 +4944,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         goto elementwise;
                     }
                     break;
-                case NEON_2RM_VCVT_F16_F32:
-                {
-                    TCGv_ptr fpst;
-                    TCGv_i32 ahp;
-
-                    if (!dc_isar_feature(aa32_fp16_spconv, s) ||
-                        q || (rm & 1)) {
-                        return 1;
-                    }
-                    fpst = get_fpstatus_ptr(true);
-                    ahp = get_ahp_flag();
-                    tmp = neon_load_reg(rm, 0);
-                    gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
-                    tmp2 = neon_load_reg(rm, 1);
-                    gen_helper_vfp_fcvt_f32_to_f16(tmp2, tmp2, fpst, ahp);
-                    tcg_gen_shli_i32(tmp2, tmp2, 16);
-                    tcg_gen_or_i32(tmp2, tmp2, tmp);
-                    tcg_temp_free_i32(tmp);
-                    tmp = neon_load_reg(rm, 2);
-                    gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
-                    tmp3 = neon_load_reg(rm, 3);
-                    neon_store_reg(rd, 0, tmp2);
-                    gen_helper_vfp_fcvt_f32_to_f16(tmp3, tmp3, fpst, ahp);
-                    tcg_gen_shli_i32(tmp3, tmp3, 16);
-                    tcg_gen_or_i32(tmp3, tmp3, tmp);
-                    neon_store_reg(rd, 1, tmp3);
-                    tcg_temp_free_i32(tmp);
-                    tcg_temp_free_i32(ahp);
-                    tcg_temp_free_ptr(fpst);
-                    break;
-                }
-                case NEON_2RM_VCVT_F32_F16:
-                {
-                    TCGv_ptr fpst;
-                    TCGv_i32 ahp;
-                    if (!dc_isar_feature(aa32_fp16_spconv, s) ||
-                        q || (rd & 1)) {
-                        return 1;
-                    }
-                    fpst = get_fpstatus_ptr(true);
-                    ahp = get_ahp_flag();
-                    tmp3 = tcg_temp_new_i32();
-                    tmp = neon_load_reg(rm, 0);
-                    tmp2 = neon_load_reg(rm, 1);
-                    tcg_gen_ext16u_i32(tmp3, tmp);
-                    gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
-                    neon_store_reg(rd, 0, tmp3);
-                    tcg_gen_shri_i32(tmp, tmp, 16);
-                    gen_helper_vfp_fcvt_f16_to_f32(tmp, tmp, fpst, ahp);
-                    neon_store_reg(rd, 1, tmp);
-                    tmp3 = tcg_temp_new_i32();
-                    tcg_gen_ext16u_i32(tmp3, tmp2);
-                    gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
-                    neon_store_reg(rd, 2, tmp3);
-                    tcg_gen_shri_i32(tmp2, tmp2, 16);
-                    gen_helper_vfp_fcvt_f16_to_f32(tmp2, tmp2, fpst, ahp);
-                    neon_store_reg(rd, 3, tmp2);
-                    tcg_temp_free_i32(ahp);
-                    tcg_temp_free_ptr(fpst);
-                    break;
-                }
                 case NEON_2RM_AESE: case NEON_2RM_AESMC:
                     if (!dc_isar_feature(aa32_aes, s) || ((rm | rd) & 1)) {
                         return 1;
