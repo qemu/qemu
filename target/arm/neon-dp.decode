@@ -429,6 +429,18 @@ Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
                  vm=%vm_dp vd=%vd_dp size=1
     VDUP_scalar  1111 001 1 1 . 11 index:1 100 .... 11 000 q:1 . 0 .... \
                  vm=%vm_dp vd=%vd_dp size=2
+
+    ##################################################################
+    # 2-reg-misc grouping:
+    # 1111 001 11 D 11 size:2 opc1:2 Vd:4 0 opc2:4 q:1 M 0 Vm:4
+    ##################################################################
+
+    &2misc vd vm q size
+
+    @2misc       .... ... .. . .. size:2 .. .... . .... q:1 . . .... \
+                 &2misc vm=%vm_dp vd=%vd_dp
+
+    VREV64       1111 001 11 . 11 .. 00 .... 0 0000 . . 0 .... @2misc
   ]
 
   # Subgroup for size != 0b11

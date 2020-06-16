@@ -2970,3 +2970,53 @@ static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
                          a->q ? 16 : 8, a->q ? 16 : 8);
     return true;
 }
+
+static bool trans_VREV64(DisasContext *s, arg_VREV64 *a)
+{
+    int pass, half;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (a->size == 3) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    for (pass = 0; pass < (a->q ? 2 : 1); pass++) {
+        TCGv_i32 tmp[2];
+
+        for (half = 0; half < 2; half++) {
+            tmp[half] = neon_load_reg(a->vm, pass * 2 + half);
+            switch (a->size) {
+            case 0:
+                tcg_gen_bswap32_i32(tmp[half], tmp[half]);
+                break;
+            case 1:
+                gen_swap_half(tmp[half]);
+                break;
+            case 2:
+                break;
+            default:
+                g_assert_not_reached();
+            }
+        }
+        neon_store_reg(a->vd, pass * 2, tmp[1]);
+        neon_store_reg(a->vd, pass * 2 + 1, tmp[0]);
+    }
+    return true;
+}

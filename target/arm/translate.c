@@ -5092,28 +5092,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 }
                 switch (op) {
                 case NEON_2RM_VREV64:
-                    for (pass = 0; pass < (q ? 2 : 1); pass++) {
-                        tmp = neon_load_reg(rm, pass * 2);
-                        tmp2 = neon_load_reg(rm, pass * 2 + 1);
-                        switch (size) {
-                        case 0: tcg_gen_bswap32_i32(tmp, tmp); break;
-                        case 1: gen_swap_half(tmp); break;
-                        case 2: /* no-op */ break;
-                        default: abort();
-                        }
-                        neon_store_reg(rd, pass * 2 + 1, tmp);
-                        if (size == 2) {
-                            neon_store_reg(rd, pass * 2, tmp2);
-                        } else {
-                            switch (size) {
-                            case 0: tcg_gen_bswap32_i32(tmp2, tmp2); break;
-                            case 1: gen_swap_half(tmp2); break;
-                            default: abort();
-                            }
-                            neon_store_reg(rd, pass * 2, tmp2);
-                        }
-                    }
-                    break;
+                    /* handled by decodetree */
+                    return 1;
                 case NEON_2RM_VPADDL: case NEON_2RM_VPADDL_U:
                 case NEON_2RM_VPADAL: case NEON_2RM_VPADAL_U:
                     for (pass = 0; pass < q + 1; pass++) {
