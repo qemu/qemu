@@ -476,15 +476,33 @@ Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
 
     @2scalar     .... ... q:1 . . size:2 .... .... .... . . . . .... \
                  &2scalar vm=%vm_dp vn=%vn_dp vd=%vd_dp
+    # For the 'long' ops the Q bit is part of insn decode
+    @2scalar_q0  .... ... . . . size:2 .... .... .... . . . . .... \
+                 &2scalar vm=%vm_dp vn=%vn_dp vd=%vd_dp q=0
 
     VMLA_2sc     1111 001 . 1 . .. .... .... 0000 . 1 . 0 .... @2scalar
     VMLA_F_2sc   1111 001 . 1 . .. .... .... 0001 . 1 . 0 .... @2scalar
 
+    VMLAL_S_2sc  1111 001 0 1 . .. .... .... 0010 . 1 . 0 .... @2scalar_q0
+    VMLAL_U_2sc  1111 001 1 1 . .. .... .... 0010 . 1 . 0 .... @2scalar_q0
+
+    VQDMLAL_2sc  1111 001 0 1 . .. .... .... 0011 . 1 . 0 .... @2scalar_q0
+
     VMLS_2sc     1111 001 . 1 . .. .... .... 0100 . 1 . 0 .... @2scalar
     VMLS_F_2sc   1111 001 . 1 . .. .... .... 0101 . 1 . 0 .... @2scalar
 
+    VMLSL_S_2sc  1111 001 0 1 . .. .... .... 0110 . 1 . 0 .... @2scalar_q0
+    VMLSL_U_2sc  1111 001 1 1 . .. .... .... 0110 . 1 . 0 .... @2scalar_q0
+
+    VQDMLSL_2sc  1111 001 0 1 . .. .... .... 0111 . 1 . 0 .... @2scalar_q0
+
     VMUL_2sc     1111 001 . 1 . .. .... .... 1000 . 1 . 0 .... @2scalar
     VMUL_F_2sc   1111 001 . 1 . .. .... .... 1001 . 1 . 0 .... @2scalar
+
+    VMULL_S_2sc  1111 001 0 1 . .. .... .... 1010 . 1 . 0 .... @2scalar_q0
+    VMULL_U_2sc  1111 001 1 1 . .. .... .... 1010 . 1 . 0 .... @2scalar_q0
+
+    VQDMULL_2sc  1111 001 0 1 . .. .... .... 1011 . 1 . 0 .... @2scalar_q0
 
     VQDMULH_2sc  1111 001 . 1 . .. .... .... 1100 . 1 . 0 .... @2scalar
     VQRDMULH_2sc 1111 001 . 1 . .. .... .... 1101 . 1 . 0 .... @2scalar

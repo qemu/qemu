@@ -2649,3 +2649,166 @@ static bool trans_VQRDMLSH_2sc(DisasContext *s, arg_2scalar *a)
     };
     return do_vqrdmlah_2sc(s, a, opfn[a->size]);
 }
+
+static bool do_2scalar_long(DisasContext *s, arg_2scalar *a,
+                            NeonGenTwoOpWidenFn *opfn,
+                            NeonGenTwo64OpFn *accfn)
+{
+    /*
+     * Two registers and a scalar, long operations: perform an
+     * operation on the input elements and the scalar which produces
+     * a double-width result, and then possibly perform an accumulation
+     * operation of that result into the destination.
+     */
+    TCGv_i32 scalar, rn;
+    TCGv_i64 rn0_64, rn1_64;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    /* Load all inputs before writing any outputs, in case of overlap */
+    rn = neon_load_reg(a->vn, 0);
+    rn0_64 = tcg_temp_new_i64();
+    opfn(rn0_64, rn, scalar);
+    tcg_temp_free_i32(rn);
+
+    rn = neon_load_reg(a->vn, 1);
+    rn1_64 = tcg_temp_new_i64();
+    opfn(rn1_64, rn, scalar);
+    tcg_temp_free_i32(rn);
+    tcg_temp_free_i32(scalar);
+
+    if (accfn) {
+        TCGv_i64 t64 = tcg_temp_new_i64();
+        neon_load_reg64(t64, a->vd);
+        accfn(t64, t64, rn0_64);
+        neon_store_reg64(t64, a->vd);
+        neon_load_reg64(t64, a->vd + 1);
+        accfn(t64, t64, rn1_64);
+        neon_store_reg64(t64, a->vd + 1);
+        tcg_temp_free_i64(t64);
+    } else {
+        neon_store_reg64(rn0_64, a->vd);
+        neon_store_reg64(rn1_64, a->vd + 1);
+    }
+    tcg_temp_free_i64(rn0_64);
+    tcg_temp_free_i64(rn1_64);
+    return true;
+}
+
+static bool trans_VMULL_S_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mull_s16,
+        gen_mull_s32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMULL_U_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mull_u16,
+        gen_mull_u32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+#define DO_VMLAL_2SC(INSN, MULL, ACC)                                   \
+    static bool trans_##INSN##_2sc(DisasContext *s, arg_2scalar *a)     \
+    {                                                                   \
+        static NeonGenTwoOpWidenFn * const opfn[] = {                   \
+            NULL,                                                       \
+            gen_helper_neon_##MULL##16,                                 \
+            gen_##MULL##32,                                             \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const accfn[] = {                     \
+            NULL,                                                       \
+            gen_helper_neon_##ACC##l_u32,                               \
+            tcg_gen_##ACC##_i64,                                        \
+            NULL,                                                       \
+        };                                                              \
+        return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);    \
+    }
+
+DO_VMLAL_2SC(VMLAL_S, mull_s, add)
+DO_VMLAL_2SC(VMLAL_U, mull_u, add)
+DO_VMLAL_2SC(VMLSL_S, mull_s, sub)
+DO_VMLAL_2SC(VMLSL_U, mull_u, sub)
+
+static bool trans_VQDMULL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VQDMLAL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLAL_acc_16,
+        gen_VQDMLAL_acc_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VQDMLSL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLSL_acc_16,
+        gen_VQDMLSL_acc_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);
+}
