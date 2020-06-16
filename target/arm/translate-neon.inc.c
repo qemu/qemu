@@ -1329,6 +1329,7 @@ static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
         neon_load_reg64(tmp, a->vm + pass);
         fn(tmp, cpu_env, tmp, constimm);
         neon_store_reg64(tmp, a->vd + pass);
+        tcg_temp_free_i64(tmp);
     }
     tcg_temp_free_i64(constimm);
     return true;
@@ -1624,6 +1625,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
     tmp = tcg_temp_new_i64();
 
     widenfn(tmp, rm0);
+    tcg_temp_free_i32(rm0);
     if (a->shift != 0) {
         tcg_gen_shli_i64(tmp, tmp, a->shift);
         tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
@@ -1631,6 +1633,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
     neon_store_reg64(tmp, a->vd);
 
     widenfn(tmp, rm1);
+    tcg_temp_free_i32(rm1);
     if (a->shift != 0) {
         tcg_gen_shli_i64(tmp, tmp, a->shift);
         tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
@@ -1642,7 +1645,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
 
 static bool trans_VSHLL_S_2sh(DisasContext *s, arg_2reg_shift *a)
 {
-    NeonGenWidenFn *widenfn[] = {
+    static NeonGenWidenFn * const widenfn[] = {
         gen_helper_neon_widen_s8,
         gen_helper_neon_widen_s16,
         tcg_gen_ext_i32_i64,
@@ -1652,7 +1655,7 @@ static bool trans_VSHLL_S_2sh(DisasContext *s, arg_2reg_shift *a)
 
 static bool trans_VSHLL_U_2sh(DisasContext *s, arg_2reg_shift *a)
 {
-    NeonGenWidenFn *widenfn[] = {
+    static NeonGenWidenFn * const widenfn[] = {
         gen_helper_neon_widen_u8,
         gen_helper_neon_widen_u16,
         tcg_gen_extu_i32_i64,
@@ -1825,4 +1828,1145 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1reg_imm *a)
         fn = gen_VMOV_1r;
     }
     return do_1reg_imm(s, a, fn);
+}
+
+static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
+                           NeonGenWidenFn *widenfn,
+                           NeonGenTwo64OpFn *opfn,
+                           bool src1_wide)
+{
+    /* 3-regs different lengths, prewidening case (VADDL/VSUBL/VAADW/VSUBW) */
+    TCGv_i64 rn0_64, rn1_64, rm_64;
+    TCGv_i32 rm;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!widenfn || !opfn) {
+        /* size == 3 case, which is an entirely different insn group */
+        return false;
+    }
+
+    if ((a->vd & 1) || (src1_wide && (a->vn & 1))) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rn0_64 = tcg_temp_new_i64();
+    rn1_64 = tcg_temp_new_i64();
+    rm_64 = tcg_temp_new_i64();
+
+    if (src1_wide) {
+        neon_load_reg64(rn0_64, a->vn);
+    } else {
+        TCGv_i32 tmp = neon_load_reg(a->vn, 0);
+        widenfn(rn0_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
+    rm = neon_load_reg(a->vm, 0);
+
+    widenfn(rm_64, rm);
+    tcg_temp_free_i32(rm);
+    opfn(rn0_64, rn0_64, rm_64);
+
+    /*
+     * Load second pass inputs before storing the first pass result, to
+     * avoid incorrect results if a narrow input overlaps with the result.
+     */
+    if (src1_wide) {
+        neon_load_reg64(rn1_64, a->vn + 1);
+    } else {
+        TCGv_i32 tmp = neon_load_reg(a->vn, 1);
+        widenfn(rn1_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
+    rm = neon_load_reg(a->vm, 1);
+
+    neon_store_reg64(rn0_64, a->vd);
+
+    widenfn(rm_64, rm);
+    tcg_temp_free_i32(rm);
+    opfn(rn1_64, rn1_64, rm_64);
+    neon_store_reg64(rn1_64, a->vd + 1);
+
+    tcg_temp_free_i64(rn0_64);
+    tcg_temp_free_i64(rn1_64);
+    tcg_temp_free_i64(rm_64);
+
+    return true;
+}
+
+#define DO_PREWIDEN(INSN, S, EXT, OP, SRC1WIDE)                         \
+    static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
+    {                                                                   \
+        static NeonGenWidenFn * const widenfn[] = {                     \
+            gen_helper_neon_widen_##S##8,                               \
+            gen_helper_neon_widen_##S##16,                              \
+            tcg_gen_##EXT##_i32_i64,                                    \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const addfn[] = {                     \
+            gen_helper_neon_##OP##l_u16,                                \
+            gen_helper_neon_##OP##l_u32,                                \
+            tcg_gen_##OP##_i64,                                         \
+            NULL,                                                       \
+        };                                                              \
+        return do_prewiden_3d(s, a, widenfn[a->size],                   \
+                              addfn[a->size], SRC1WIDE);                \
+    }
+
+DO_PREWIDEN(VADDL_S, s, ext, add, false)
+DO_PREWIDEN(VADDL_U, u, extu, add, false)
+DO_PREWIDEN(VSUBL_S, s, ext, sub, false)
+DO_PREWIDEN(VSUBL_U, u, extu, sub, false)
+DO_PREWIDEN(VADDW_S, s, ext, add, true)
+DO_PREWIDEN(VADDW_U, u, extu, add, true)
+DO_PREWIDEN(VSUBW_S, s, ext, sub, true)
+DO_PREWIDEN(VSUBW_U, u, extu, sub, true)
+
+static bool do_narrow_3d(DisasContext *s, arg_3diff *a,
+                         NeonGenTwo64OpFn *opfn, NeonGenNarrowFn *narrowfn)
+{
+    /* 3-regs different lengths, narrowing (VADDHN/VSUBHN/VRADDHN/VRSUBHN) */
+    TCGv_i64 rn_64, rm_64;
+    TCGv_i32 rd0, rd1;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn || !narrowfn) {
+        /* size == 3 case, which is an entirely different insn group */
+        return false;
+    }
+
+    if ((a->vn | a->vm) & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rn_64 = tcg_temp_new_i64();
+    rm_64 = tcg_temp_new_i64();
+    rd0 = tcg_temp_new_i32();
+    rd1 = tcg_temp_new_i32();
+
+    neon_load_reg64(rn_64, a->vn);
+    neon_load_reg64(rm_64, a->vm);
+
+    opfn(rn_64, rn_64, rm_64);
+
+    narrowfn(rd0, rn_64);
+
+    neon_load_reg64(rn_64, a->vn + 1);
+    neon_load_reg64(rm_64, a->vm + 1);
+
+    opfn(rn_64, rn_64, rm_64);
+
+    narrowfn(rd1, rn_64);
+
+    neon_store_reg(a->vd, 0, rd0);
+    neon_store_reg(a->vd, 1, rd1);
+
+    tcg_temp_free_i64(rn_64);
+    tcg_temp_free_i64(rm_64);
+
+    return true;
+}
+
+#define DO_NARROW_3D(INSN, OP, NARROWTYPE, EXTOP)                       \
+    static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
+    {                                                                   \
+        static NeonGenTwo64OpFn * const addfn[] = {                     \
+            gen_helper_neon_##OP##l_u16,                                \
+            gen_helper_neon_##OP##l_u32,                                \
+            tcg_gen_##OP##_i64,                                         \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenNarrowFn * const narrowfn[] = {                   \
+            gen_helper_neon_##NARROWTYPE##_high_u8,                     \
+            gen_helper_neon_##NARROWTYPE##_high_u16,                    \
+            EXTOP,                                                      \
+            NULL,                                                       \
+        };                                                              \
+        return do_narrow_3d(s, a, addfn[a->size], narrowfn[a->size]);   \
+    }
+
+static void gen_narrow_round_high_u32(TCGv_i32 rd, TCGv_i64 rn)
+{
+    tcg_gen_addi_i64(rn, rn, 1u << 31);
+    tcg_gen_extrh_i64_i32(rd, rn);
+}
+
+DO_NARROW_3D(VADDHN, add, narrow, tcg_gen_extrh_i64_i32)
+DO_NARROW_3D(VSUBHN, sub, narrow, tcg_gen_extrh_i64_i32)
+DO_NARROW_3D(VRADDHN, add, narrow_round, gen_narrow_round_high_u32)
+DO_NARROW_3D(VRSUBHN, sub, narrow_round, gen_narrow_round_high_u32)
+
+static bool do_long_3d(DisasContext *s, arg_3diff *a,
+                       NeonGenTwoOpWidenFn *opfn,
+                       NeonGenTwo64OpFn *accfn)
+{
+    /*
+     * 3-regs different lengths, long operations.
+     * These perform an operation on two inputs that returns a double-width
+     * result, and then possibly perform an accumulation operation of
+     * that result into the double-width destination.
+     */
+    TCGv_i64 rd0, rd1, tmp;
+    TCGv_i32 rn, rm;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* size == 3 case, which is an entirely different insn group */
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rd0 = tcg_temp_new_i64();
+    rd1 = tcg_temp_new_i64();
+
+    rn = neon_load_reg(a->vn, 0);
+    rm = neon_load_reg(a->vm, 0);
+    opfn(rd0, rn, rm);
+    tcg_temp_free_i32(rn);
+    tcg_temp_free_i32(rm);
+
+    rn = neon_load_reg(a->vn, 1);
+    rm = neon_load_reg(a->vm, 1);
+    opfn(rd1, rn, rm);
+    tcg_temp_free_i32(rn);
+    tcg_temp_free_i32(rm);
+
+    /* Don't store results until after all loads: they might overlap */
+    if (accfn) {
+        tmp = tcg_temp_new_i64();
+        neon_load_reg64(tmp, a->vd);
+        accfn(tmp, tmp, rd0);
+        neon_store_reg64(tmp, a->vd);
+        neon_load_reg64(tmp, a->vd + 1);
+        accfn(tmp, tmp, rd1);
+        neon_store_reg64(tmp, a->vd + 1);
+        tcg_temp_free_i64(tmp);
+    } else {
+        neon_store_reg64(rd0, a->vd);
+        neon_store_reg64(rd1, a->vd + 1);
+    }
+
+    tcg_temp_free_i64(rd0);
+    tcg_temp_free_i64(rd1);
+
+    return true;
+}
+
+static bool trans_VABDL_S_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_abdl_s16,
+        gen_helper_neon_abdl_s32,
+        gen_helper_neon_abdl_s64,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VABDL_U_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_abdl_u16,
+        gen_helper_neon_abdl_u32,
+        gen_helper_neon_abdl_u64,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VABAL_S_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_abdl_s16,
+        gen_helper_neon_abdl_s32,
+        gen_helper_neon_abdl_s64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const addfn[] = {
+        gen_helper_neon_addl_u16,
+        gen_helper_neon_addl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], addfn[a->size]);
+}
+
+static bool trans_VABAL_U_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_abdl_u16,
+        gen_helper_neon_abdl_u32,
+        gen_helper_neon_abdl_u64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const addfn[] = {
+        gen_helper_neon_addl_u16,
+        gen_helper_neon_addl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], addfn[a->size]);
+}
+
+static void gen_mull_s32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
+
+    tcg_gen_muls2_i32(lo, hi, rn, rm);
+    tcg_gen_concat_i32_i64(rd, lo, hi);
+
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
+}
+
+static void gen_mull_u32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
+
+    tcg_gen_mulu2_i32(lo, hi, rn, rm);
+    tcg_gen_concat_i32_i64(rd, lo, hi);
+
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
+}
+
+static bool trans_VMULL_S_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_mull_s8,
+        gen_helper_neon_mull_s16,
+        gen_mull_s32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMULL_U_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_mull_u8,
+        gen_helper_neon_mull_u16,
+        gen_mull_u32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+#define DO_VMLAL(INSN,MULL,ACC)                                         \
+    static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
+    {                                                                   \
+        static NeonGenTwoOpWidenFn * const opfn[] = {                   \
+            gen_helper_neon_##MULL##8,                                  \
+            gen_helper_neon_##MULL##16,                                 \
+            gen_##MULL##32,                                             \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const accfn[] = {                     \
+            gen_helper_neon_##ACC##l_u16,                               \
+            gen_helper_neon_##ACC##l_u32,                               \
+            tcg_gen_##ACC##_i64,                                        \
+            NULL,                                                       \
+        };                                                              \
+        return do_long_3d(s, a, opfn[a->size], accfn[a->size]);         \
+    }
+
+DO_VMLAL(VMLAL_S,mull_s,add)
+DO_VMLAL(VMLAL_U,mull_u,add)
+DO_VMLAL(VMLSL_S,mull_s,sub)
+DO_VMLAL(VMLSL_U,mull_u,sub)
+
+static void gen_VQDMULL_16(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_mull_s16(rd, rn, rm);
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rd, rd);
+}
+
+static void gen_VQDMULL_32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_mull_s32(rd, rn, rm);
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rd, rd);
+}
+
+static bool trans_VQDMULL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static void gen_VQDMLAL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQDMLAL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQDMLAL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLAL_acc_16,
+        gen_VQDMLAL_acc_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static void gen_VQDMLSL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_negl_u32(rm, rm);
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQDMLSL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    tcg_gen_neg_i64(rm, rm);
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQDMLSL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLSL_acc_16,
+        gen_VQDMLSL_acc_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VMULL_P_3d(DisasContext *s, arg_3diff *a)
+{
+    gen_helper_gvec_3 *fn_gvec;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    switch (a->size) {
+    case 0:
+        fn_gvec = gen_helper_neon_pmull_h;
+        break;
+    case 2:
+        if (!dc_isar_feature(aa32_pmull, s)) {
+            return false;
+        }
+        fn_gvec = gen_helper_gvec_pmull_q;
+        break;
+    default:
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tcg_gen_gvec_3_ool(neon_reg_offset(a->vd, 0),
+                       neon_reg_offset(a->vn, 0),
+                       neon_reg_offset(a->vm, 0),
+                       16, 16, 0, fn_gvec);
+    return true;
+}
+
+static void gen_neon_dup_low16(TCGv_i32 var)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_ext16u_i32(var, var);
+    tcg_gen_shli_i32(tmp, var, 16);
+    tcg_gen_or_i32(var, var, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_neon_dup_high16(TCGv_i32 var)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_andi_i32(var, var, 0xffff0000);
+    tcg_gen_shri_i32(tmp, var, 16);
+    tcg_gen_or_i32(var, var, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static inline TCGv_i32 neon_get_scalar(int size, int reg)
+{
+    TCGv_i32 tmp;
+    if (size == 1) {
+        tmp = neon_load_reg(reg & 7, reg >> 4);
+        if (reg & 8) {
+            gen_neon_dup_high16(tmp);
+        } else {
+            gen_neon_dup_low16(tmp);
+        }
+    } else {
+        tmp = neon_load_reg(reg & 15, reg >> 4);
+    }
+    return tmp;
+}
+
+static bool do_2scalar(DisasContext *s, arg_2scalar *a,
+                       NeonGenTwoOpFn *opfn, NeonGenTwoOpFn *accfn)
+{
+    /*
+     * Two registers and a scalar: perform an operation between
+     * the input elements and the scalar, and then possibly
+     * perform an accumulation operation of that result into the
+     * destination.
+     */
+    TCGv_i32 scalar;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->q && ((a->vd | a->vn) & 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vn, pass);
+        opfn(tmp, tmp, scalar);
+        if (accfn) {
+            TCGv_i32 rd = neon_load_reg(a->vd, pass);
+            accfn(tmp, rd, tmp);
+            tcg_temp_free_i32(rd);
+        }
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_i32(scalar);
+    return true;
+}
+
+static bool trans_VMUL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMLA_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        gen_helper_neon_add_u16,
+        tcg_gen_add_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VMLS_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        gen_helper_neon_sub_u16,
+        tcg_gen_sub_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+/*
+ * Rather than have a float-specific version of do_2scalar just for
+ * three insns, we wrap a NeonGenTwoSingleOpFn to turn it into
+ * a NeonGenTwoOpFn.
+ */
+#define WRAP_FP_FN(WRAPNAME, FUNC)                              \
+    static void WRAPNAME(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm) \
+    {                                                           \
+        TCGv_ptr fpstatus = get_fpstatus_ptr(1);                \
+        FUNC(rd, rn, rm, fpstatus);                             \
+        tcg_temp_free_ptr(fpstatus);                            \
+    }
+
+WRAP_FP_FN(gen_VMUL_F_mul, gen_helper_vfp_muls)
+WRAP_FP_FN(gen_VMUL_F_add, gen_helper_vfp_adds)
+WRAP_FP_FN(gen_VMUL_F_sub, gen_helper_vfp_subs)
+
+static bool trans_VMUL_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMLA_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_add,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VMLS_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_sub,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+WRAP_ENV_FN(gen_VQDMULH_16, gen_helper_neon_qdmulh_s16)
+WRAP_ENV_FN(gen_VQDMULH_32, gen_helper_neon_qdmulh_s32)
+WRAP_ENV_FN(gen_VQRDMULH_16, gen_helper_neon_qrdmulh_s16)
+WRAP_ENV_FN(gen_VQRDMULH_32, gen_helper_neon_qrdmulh_s32)
+
+static bool trans_VQDMULH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_VQDMULH_16,
+        gen_VQDMULH_32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VQRDMULH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_VQRDMULH_16,
+        gen_VQRDMULH_32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
+                            NeonGenThreeOpEnvFn *opfn)
+{
+    /*
+     * VQRDMLAH/VQRDMLSH: this is like do_2scalar, but the opfn
+     * performs a kind of fused op-then-accumulate using a helper
+     * function that takes all of rd, rn and the scalar at once.
+     */
+    TCGv_i32 scalar;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_rdm, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->q && ((a->vd | a->vn) & 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 rn = neon_load_reg(a->vn, pass);
+        TCGv_i32 rd = neon_load_reg(a->vd, pass);
+        opfn(rd, cpu_env, rn, scalar, rd);
+        tcg_temp_free_i32(rn);
+        neon_store_reg(a->vd, pass, rd);
+    }
+    tcg_temp_free_i32(scalar);
+
+    return true;
+}
+
+static bool trans_VQRDMLAH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenThreeOpEnvFn *opfn[] = {
+        NULL,
+        gen_helper_neon_qrdmlah_s16,
+        gen_helper_neon_qrdmlah_s32,
+        NULL,
+    };
+    return do_vqrdmlah_2sc(s, a, opfn[a->size]);
+}
+
+static bool trans_VQRDMLSH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenThreeOpEnvFn *opfn[] = {
+        NULL,
+        gen_helper_neon_qrdmlsh_s16,
+        gen_helper_neon_qrdmlsh_s32,
+        NULL,
+    };
+    return do_vqrdmlah_2sc(s, a, opfn[a->size]);
+}
+
+static bool do_2scalar_long(DisasContext *s, arg_2scalar *a,
+                            NeonGenTwoOpWidenFn *opfn,
+                            NeonGenTwo64OpFn *accfn)
+{
+    /*
+     * Two registers and a scalar, long operations: perform an
+     * operation on the input elements and the scalar which produces
+     * a double-width result, and then possibly perform an accumulation
+     * operation of that result into the destination.
+     */
+    TCGv_i32 scalar, rn;
+    TCGv_i64 rn0_64, rn1_64;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    /* Load all inputs before writing any outputs, in case of overlap */
+    rn = neon_load_reg(a->vn, 0);
+    rn0_64 = tcg_temp_new_i64();
+    opfn(rn0_64, rn, scalar);
+    tcg_temp_free_i32(rn);
+
+    rn = neon_load_reg(a->vn, 1);
+    rn1_64 = tcg_temp_new_i64();
+    opfn(rn1_64, rn, scalar);
+    tcg_temp_free_i32(rn);
+    tcg_temp_free_i32(scalar);
+
+    if (accfn) {
+        TCGv_i64 t64 = tcg_temp_new_i64();
+        neon_load_reg64(t64, a->vd);
+        accfn(t64, t64, rn0_64);
+        neon_store_reg64(t64, a->vd);
+        neon_load_reg64(t64, a->vd + 1);
+        accfn(t64, t64, rn1_64);
+        neon_store_reg64(t64, a->vd + 1);
+        tcg_temp_free_i64(t64);
+    } else {
+        neon_store_reg64(rn0_64, a->vd);
+        neon_store_reg64(rn1_64, a->vd + 1);
+    }
+    tcg_temp_free_i64(rn0_64);
+    tcg_temp_free_i64(rn1_64);
+    return true;
+}
+
+static bool trans_VMULL_S_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mull_s16,
+        gen_mull_s32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMULL_U_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mull_u16,
+        gen_mull_u32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+#define DO_VMLAL_2SC(INSN, MULL, ACC)                                   \
+    static bool trans_##INSN##_2sc(DisasContext *s, arg_2scalar *a)     \
+    {                                                                   \
+        static NeonGenTwoOpWidenFn * const opfn[] = {                   \
+            NULL,                                                       \
+            gen_helper_neon_##MULL##16,                                 \
+            gen_##MULL##32,                                             \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const accfn[] = {                     \
+            NULL,                                                       \
+            gen_helper_neon_##ACC##l_u32,                               \
+            tcg_gen_##ACC##_i64,                                        \
+            NULL,                                                       \
+        };                                                              \
+        return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);    \
+    }
+
+DO_VMLAL_2SC(VMLAL_S, mull_s, add)
+DO_VMLAL_2SC(VMLAL_U, mull_u, add)
+DO_VMLAL_2SC(VMLSL_S, mull_s, sub)
+DO_VMLAL_2SC(VMLSL_U, mull_u, sub)
+
+static bool trans_VQDMULL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VQDMLAL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLAL_acc_16,
+        gen_VQDMLAL_acc_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VQDMLSL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLSL_acc_16,
+        gen_VQDMLSL_acc_32,
+        NULL,
+    };
+
+    return do_2scalar_long(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (a->imm > 7 && !a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (!a->q) {
+        /* Extract 64 bits from <Vm:Vn> */
+        TCGv_i64 left, right, dest;
+
+        left = tcg_temp_new_i64();
+        right = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        neon_load_reg64(right, a->vn);
+        neon_load_reg64(left, a->vm);
+        tcg_gen_extract2_i64(dest, right, left, a->imm * 8);
+        neon_store_reg64(dest, a->vd);
+
+        tcg_temp_free_i64(left);
+        tcg_temp_free_i64(right);
+        tcg_temp_free_i64(dest);
+    } else {
+        /* Extract 128 bits from <Vm+1:Vm:Vn+1:Vn> */
+        TCGv_i64 left, middle, right, destleft, destright;
+
+        left = tcg_temp_new_i64();
+        middle = tcg_temp_new_i64();
+        right = tcg_temp_new_i64();
+        destleft = tcg_temp_new_i64();
+        destright = tcg_temp_new_i64();
+
+        if (a->imm < 8) {
+            neon_load_reg64(right, a->vn);
+            neon_load_reg64(middle, a->vn + 1);
+            tcg_gen_extract2_i64(destright, right, middle, a->imm * 8);
+            neon_load_reg64(left, a->vm);
+            tcg_gen_extract2_i64(destleft, middle, left, a->imm * 8);
+        } else {
+            neon_load_reg64(right, a->vn + 1);
+            neon_load_reg64(middle, a->vm);
+            tcg_gen_extract2_i64(destright, right, middle, (a->imm - 8) * 8);
+            neon_load_reg64(left, a->vm + 1);
+            tcg_gen_extract2_i64(destleft, middle, left, (a->imm - 8) * 8);
+        }
+
+        neon_store_reg64(destright, a->vd);
+        neon_store_reg64(destleft, a->vd + 1);
+
+        tcg_temp_free_i64(destright);
+        tcg_temp_free_i64(destleft);
+        tcg_temp_free_i64(right);
+        tcg_temp_free_i64(middle);
+        tcg_temp_free_i64(left);
+    }
+    return true;
+}
+
+static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
+{
+    int n;
+    TCGv_i32 tmp, tmp2, tmp3, tmp4;
+    TCGv_ptr ptr1;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    n = a->len + 1;
+    if ((a->vn + n) > 32) {
+        /*
+         * This is UNPREDICTABLE; we choose to UNDEF to avoid the
+         * helper function running off the end of the register file.
+         */
+        return false;
+    }
+    n <<= 3;
+    if (a->op) {
+        tmp = neon_load_reg(a->vd, 0);
+    } else {
+        tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, 0);
+    }
+    tmp2 = neon_load_reg(a->vm, 0);
+    ptr1 = vfp_reg_ptr(true, a->vn);
+    tmp4 = tcg_const_i32(n);
+    gen_helper_neon_tbl(tmp2, tmp2, tmp, ptr1, tmp4);
+    tcg_temp_free_i32(tmp);
+    if (a->op) {
+        tmp = neon_load_reg(a->vd, 1);
+    } else {
+        tmp = tcg_temp_new_i32();
+        tcg_gen_movi_i32(tmp, 0);
+    }
+    tmp3 = neon_load_reg(a->vm, 1);
+    gen_helper_neon_tbl(tmp3, tmp3, tmp, ptr1, tmp4);
+    tcg_temp_free_i32(tmp4);
+    tcg_temp_free_ptr(ptr1);
+    neon_store_reg(a->vd, 0, tmp2);
+    neon_store_reg(a->vd, 1, tmp3);
+    tcg_temp_free_i32(tmp);
+    return true;
+}
+
+static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tcg_gen_gvec_dup_mem(a->size, neon_reg_offset(a->vd, 0),
+                         neon_element_offset(a->vm, a->index, a->size),
+                         a->q ? 16 : 8, a->q ? 16 : 8);
+    return true;
 }

@@ -408,3 +408,21 @@ i82596_receive_packet(size_t sz) "len=%zu"
 i82596_new_mac(const char *id_with_mac) "New MAC for: %s"
 i82596_set_multicast(uint16_t count) "Added %d multicast entries"
 i82596_channel_attention(void *s) "%p: Received CHANNEL ATTENTION"
+
+# imx_fec.c
+imx_phy_read(uint32_t val, int reg) "0x%04"PRIx32" <= reg[%d]"
+imx_phy_write(uint32_t val, int reg) "0x%04"PRIx32" => reg[%d]"
+imx_phy_update_link(const char *s) "%s"
+imx_phy_reset(void) ""
+imx_fec_read_bd(uint64_t addr, int flags, int len, int data) "tx_bd 0x%"PRIx64" flags 0x%04x len %d data 0x%08x"
+imx_enet_read_bd(uint64_t addr, int flags, int len, int data, int options, int status) "tx_bd 0x%"PRIx64" flags 0x%04x len %d data 0x%08x option 0x%04x status 0x%04x"
+imx_eth_tx_bd_busy(void) "tx_bd ran out of descriptors to transmit"
+imx_eth_rx_bd_full(void) "RX buffer is full"
+imx_eth_read(int reg, const char *reg_name, uint32_t value) "reg[%d:%s] => 0x%08"PRIx32
+imx_eth_write(int reg, const char *reg_name, uint64_t value) "reg[%d:%s] <= 0x%08"PRIx64
+imx_fec_receive(size_t size) "len %zu"
+imx_fec_receive_len(uint64_t addr, int len) "rx_bd 0x%"PRIx64" length %d"
+imx_fec_receive_last(int last) "rx frame flags 0x%04x"
+imx_enet_receive(size_t size) "len %zu"
+imx_enet_receive_len(uint64_t addr, int len) "rx_bd 0x%"PRIx64" length %d"
+imx_enet_receive_last(int last) "rx frame flags 0x%04x"
