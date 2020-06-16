@@ -2151,3 +2151,74 @@ static bool trans_VABAL_U_3d(DisasContext *s, arg_3diff *a)
 
     return do_long_3d(s, a, opfn[a->size], addfn[a->size]);
 }
+
+static void gen_mull_s32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
+
+    tcg_gen_muls2_i32(lo, hi, rn, rm);
+    tcg_gen_concat_i32_i64(rd, lo, hi);
+
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
+}
+
+static void gen_mull_u32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    TCGv_i32 lo = tcg_temp_new_i32();
+    TCGv_i32 hi = tcg_temp_new_i32();
+
+    tcg_gen_mulu2_i32(lo, hi, rn, rm);
+    tcg_gen_concat_i32_i64(rd, lo, hi);
+
+    tcg_temp_free_i32(lo);
+    tcg_temp_free_i32(hi);
+}
+
+static bool trans_VMULL_S_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_mull_s8,
+        gen_helper_neon_mull_s16,
+        gen_mull_s32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMULL_U_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        gen_helper_neon_mull_u8,
+        gen_helper_neon_mull_u16,
+        gen_mull_u32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+#define DO_VMLAL(INSN,MULL,ACC)                                         \
+    static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
+    {                                                                   \
+        static NeonGenTwoOpWidenFn * const opfn[] = {                   \
+            gen_helper_neon_##MULL##8,                                  \
+            gen_helper_neon_##MULL##16,                                 \
+            gen_##MULL##32,                                             \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const accfn[] = {                     \
+            gen_helper_neon_##ACC##l_u16,                               \
+            gen_helper_neon_##ACC##l_u32,                               \
+            tcg_gen_##ACC##_i64,                                        \
+            NULL,                                                       \
+        };                                                              \
+        return do_long_3d(s, a, opfn[a->size], accfn[a->size]);         \
+    }
+
+DO_VMLAL(VMLAL_S,mull_s,add)
+DO_VMLAL(VMLAL_U,mull_u,add)
+DO_VMLAL(VMLSL_S,mull_s,sub)
+DO_VMLAL(VMLSL_U,mull_u,sub)
