@@ -2222,3 +2222,85 @@ DO_VMLAL(VMLAL_S,mull_s,add)
 DO_VMLAL(VMLAL_U,mull_u,add)
 DO_VMLAL(VMLSL_S,mull_s,sub)
 DO_VMLAL(VMLSL_U,mull_u,sub)
+
+static void gen_VQDMULL_16(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_mull_s16(rd, rn, rm);
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rd, rd);
+}
+
+static void gen_VQDMULL_32(TCGv_i64 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_mull_s32(rd, rn, rm);
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rd, rd);
+}
+
+static bool trans_VQDMULL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], NULL);
+}
+
+static void gen_VQDMLAL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQDMLAL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQDMLAL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLAL_acc_16,
+        gen_VQDMLAL_acc_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static void gen_VQDMLSL_acc_16(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    gen_helper_neon_negl_u32(rm, rm);
+    gen_helper_neon_addl_saturate_s32(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQDMLSL_acc_32(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    tcg_gen_neg_i64(rm, rm);
+    gen_helper_neon_addl_saturate_s64(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQDMLSL_3d(DisasContext *s, arg_3diff *a)
+{
+    static NeonGenTwoOpWidenFn * const opfn[] = {
+        NULL,
+        gen_VQDMULL_16,
+        gen_VQDMULL_32,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        NULL,
+        gen_VQDMLSL_acc_16,
+        gen_VQDMLSL_acc_32,
+        NULL,
+    };
+
+    return do_long_3d(s, a, opfn[a->size], accfn[a->size]);
+}
