@@ -3169,3 +3169,77 @@ static bool trans_VPADAL_U(DisasContext *s, arg_2misc *a)
     return do_2misc_pairwise(s, a, widenfn[a->size], opfn[a->size],
                              accfn[a->size]);
 }
+
+typedef void ZipFn(TCGv_ptr, TCGv_ptr);
+
+static bool do_zip_uzp(DisasContext *s, arg_2misc *a,
+                       ZipFn *fn)
+{
+    TCGv_ptr pd, pm;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!fn) {
+        /* Bad size or size/q combination */
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    pd = vfp_reg_ptr(true, a->vd);
+    pm = vfp_reg_ptr(true, a->vm);
+    fn(pd, pm);
+    tcg_temp_free_ptr(pd);
+    tcg_temp_free_ptr(pm);
+    return true;
+}
+
+static bool trans_VUZP(DisasContext *s, arg_2misc *a)
+{
+    static ZipFn * const fn[2][4] = {
+        {
+            gen_helper_neon_unzip8,
+            gen_helper_neon_unzip16,
+            NULL,
+            NULL,
+        }, {
+            gen_helper_neon_qunzip8,
+            gen_helper_neon_qunzip16,
+            gen_helper_neon_qunzip32,
+            NULL,
+        }
+    };
+    return do_zip_uzp(s, a, fn[a->q][a->size]);
+}
+
+static bool trans_VZIP(DisasContext *s, arg_2misc *a)
+{
+    static ZipFn * const fn[2][4] = {
+        {
+            gen_helper_neon_zip8,
+            gen_helper_neon_zip16,
+            NULL,
+            NULL,
+        }, {
+            gen_helper_neon_qzip8,
+            gen_helper_neon_qzip16,
+            gen_helper_neon_qzip32,
+            NULL,
+        }
+    };
+    return do_zip_uzp(s, a, fn[a->q][a->size]);
+}

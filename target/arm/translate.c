@@ -2934,86 +2934,6 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
     gen_rfe(s, pc, load_cpu_field(spsr));
 }
 
-static int gen_neon_unzip(int rd, int rm, int size, int q)
-{
-    TCGv_ptr pd, pm;
-    
-    if (!q && size == 2) {
-        return 1;
-    }
-    pd = vfp_reg_ptr(true, rd);
-    pm = vfp_reg_ptr(true, rm);
-    if (q) {
-        switch (size) {
-        case 0:
-            gen_helper_neon_qunzip8(pd, pm);
-            break;
-        case 1:
-            gen_helper_neon_qunzip16(pd, pm);
-            break;
-        case 2:
-            gen_helper_neon_qunzip32(pd, pm);
-            break;
-        default:
-            abort();
-        }
-    } else {
-        switch (size) {
-        case 0:
-            gen_helper_neon_unzip8(pd, pm);
-            break;
-        case 1:
-            gen_helper_neon_unzip16(pd, pm);
-            break;
-        default:
-            abort();
-        }
-    }
-    tcg_temp_free_ptr(pd);
-    tcg_temp_free_ptr(pm);
-    return 0;
-}
-
-static int gen_neon_zip(int rd, int rm, int size, int q)
-{
-    TCGv_ptr pd, pm;
-
-    if (!q && size == 2) {
-        return 1;
-    }
-    pd = vfp_reg_ptr(true, rd);
-    pm = vfp_reg_ptr(true, rm);
-    if (q) {
-        switch (size) {
-        case 0:
-            gen_helper_neon_qzip8(pd, pm);
-            break;
-        case 1:
-            gen_helper_neon_qzip16(pd, pm);
-            break;
-        case 2:
-            gen_helper_neon_qzip32(pd, pm);
-            break;
-        default:
-            abort();
-        }
-    } else {
-        switch (size) {
-        case 0:
-            gen_helper_neon_zip8(pd, pm);
-            break;
-        case 1:
-            gen_helper_neon_zip16(pd, pm);
-            break;
-        default:
-            abort();
-        }
-    }
-    tcg_temp_free_ptr(pd);
-    tcg_temp_free_ptr(pm);
-    return 0;
-}
-
 static void gen_neon_trn_u8(TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 rd, tmp;
@@ -5082,6 +5002,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VREV64:
                 case NEON_2RM_VPADDL: case NEON_2RM_VPADDL_U:
                 case NEON_2RM_VPADAL: case NEON_2RM_VPADAL_U:
+                case NEON_2RM_VUZP:
+                case NEON_2RM_VZIP:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -5095,16 +5017,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         }
                     } else {
                         goto elementwise;
-                    }
-                    break;
-                case NEON_2RM_VUZP:
-                    if (gen_neon_unzip(rd, rm, size, q)) {
-                        return 1;
-                    }
-                    break;
-                case NEON_2RM_VZIP:
-                    if (gen_neon_zip(rd, rm, size, q)) {
-                        return 1;
                     }
                     break;
                 case NEON_2RM_VMOVN: case NEON_2RM_VQMOVN:
