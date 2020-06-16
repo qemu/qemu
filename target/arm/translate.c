@@ -4959,6 +4959,11 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VCEQ0_F:
                 case NEON_2RM_VCLE0_F:
                 case NEON_2RM_VCLT0_F:
+                case NEON_2RM_VRINTN:
+                case NEON_2RM_VRINTA:
+                case NEON_2RM_VRINTM:
+                case NEON_2RM_VRINTP:
+                case NEON_2RM_VRINTZ:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4993,32 +4998,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
-                        case NEON_2RM_VRINTN:
-                        case NEON_2RM_VRINTA:
-                        case NEON_2RM_VRINTM:
-                        case NEON_2RM_VRINTP:
-                        case NEON_2RM_VRINTZ:
-                        {
-                            TCGv_i32 tcg_rmode;
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            int rmode;
-
-                            if (op == NEON_2RM_VRINTZ) {
-                                rmode = FPROUNDING_ZERO;
-                            } else {
-                                rmode = fp_decode_rm[((op & 0x6) >> 1) ^ 1];
-                            }
-
-                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
-                                                      cpu_env);
-                            gen_helper_rints(tmp, tmp, fpstatus);
-                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
-                                                      cpu_env);
-                            tcg_temp_free_ptr(fpstatus);
-                            tcg_temp_free_i32(tcg_rmode);
-                            break;
-                        }
                         case NEON_2RM_VCVTAU:
                         case NEON_2RM_VCVTAS:
                         case NEON_2RM_VCVTNU:
