@@ -439,6 +439,8 @@ Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
 
     @2misc       .... ... .. . .. size:2 .. .... . .... q:1 . . .... \
                  &2misc vm=%vm_dp vd=%vd_dp
+    @2misc_q0    .... ... .. . .. size:2 .. .... . .... . . . .... \
+                 &2misc vm=%vm_dp vd=%vd_dp q=0
 
     VREV64       1111 001 11 . 11 .. 00 .... 0 0000 . . 0 .... @2misc
 
@@ -450,6 +452,13 @@ Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
 
     VUZP         1111 001 11 . 11 .. 10 .... 0 0010 . . 0 .... @2misc
     VZIP         1111 001 11 . 11 .. 10 .... 0 0011 . . 0 .... @2misc
+
+    VMOVN        1111 001 11 . 11 .. 10 .... 0 0100 0 . 0 .... @2misc_q0
+    # VQMOVUN: unsigned result (source is always signed)
+    VQMOVUN      1111 001 11 . 11 .. 10 .... 0 0100 1 . 0 .... @2misc_q0
+    # VQMOVN: signed result, source may be signed (_S) or unsigned (_U)
+    VQMOVN_S     1111 001 11 . 11 .. 10 .... 0 0101 0 . 0 .... @2misc_q0
+    VQMOVN_U     1111 001 11 . 11 .. 10 .... 0 0101 1 . 0 .... @2misc_q0
   ]
 
   # Subgroup for size != 0b11

@@ -3243,3 +3243,62 @@ static bool trans_VZIP(DisasContext *s, arg_2misc *a)
     };
     return do_zip_uzp(s, a, fn[a->q][a->size]);
 }
+
+static bool do_vmovn(DisasContext *s, arg_2misc *a,
+                     NeonGenNarrowEnvFn *narrowfn)
+{
+    TCGv_i64 rm;
+    TCGv_i32 rd0, rd1;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vm & 1) {
+        return false;
+    }
+
+    if (!narrowfn) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rm = tcg_temp_new_i64();
+    rd0 = tcg_temp_new_i32();
+    rd1 = tcg_temp_new_i32();
+
+    neon_load_reg64(rm, a->vm);
+    narrowfn(rd0, cpu_env, rm);
+    neon_load_reg64(rm, a->vm + 1);
+    narrowfn(rd1, cpu_env, rm);
+    neon_store_reg(a->vd, 0, rd0);
+    neon_store_reg(a->vd, 1, rd1);
+    tcg_temp_free_i64(rm);
+    return true;
+}
+
+#define DO_VMOVN(INSN, FUNC)                                    \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
+    {                                                           \
+        static NeonGenNarrowEnvFn * const narrowfn[] = {        \
+            FUNC##8,                                            \
+            FUNC##16,                                           \
+            FUNC##32,                                           \
+            NULL,                                               \
+        };                                                      \
+        return do_vmovn(s, a, narrowfn[a->size]);               \
+    }
+
+DO_VMOVN(VMOVN, gen_neon_narrow_u)
+DO_VMOVN(VQMOVUN, gen_helper_neon_unarrow_sat)
+DO_VMOVN(VQMOVN_S, gen_helper_neon_narrow_sat_s)
+DO_VMOVN(VQMOVN_U, gen_helper_neon_narrow_sat_u)
