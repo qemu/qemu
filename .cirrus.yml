@@ -14,7 +14,7 @@ freebsd_12_task:
     - cd build
     - ../configure || { cat config.log; exit 1; }
     - gmake -j8
-    - gmake -j8 V=1 check
+    - gmake V=1 check
 
 macos_task:
   osx_instance:
@@ -26,7 +26,7 @@ macos_task:
     - cd build
     - ../configure --python=/usr/local/bin/python3 || { cat config.log; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check -j$(sysctl -n hw.ncpu)
+    - gmake check
 
 macos_xcode_task:
   osx_instance:
@@ -39,4 +39,4 @@ macos_xcode_task:
     - cd build
     - ../configure --cc=clang || { cat config.log; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check -j$(sysctl -n hw.ncpu)
+    - gmake check
