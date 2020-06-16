@@ -1828,3 +1828,107 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1reg_imm *a)
     }
     return do_1reg_imm(s, a, fn);
 }
+
+static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
+                           NeonGenWidenFn *widenfn,
+                           NeonGenTwo64OpFn *opfn,
+                           bool src1_wide)
+{
+    /* 3-regs different lengths, prewidening case (VADDL/VSUBL/VAADW/VSUBW) */
+    TCGv_i64 rn0_64, rn1_64, rm_64;
+    TCGv_i32 rm;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!widenfn || !opfn) {
+        /* size == 3 case, which is an entirely different insn group */
+        return false;
+    }
+
+    if ((a->vd & 1) || (src1_wide && (a->vn & 1))) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rn0_64 = tcg_temp_new_i64();
+    rn1_64 = tcg_temp_new_i64();
+    rm_64 = tcg_temp_new_i64();
+
+    if (src1_wide) {
+        neon_load_reg64(rn0_64, a->vn);
+    } else {
+        TCGv_i32 tmp = neon_load_reg(a->vn, 0);
+        widenfn(rn0_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
+    rm = neon_load_reg(a->vm, 0);
+
+    widenfn(rm_64, rm);
+    tcg_temp_free_i32(rm);
+    opfn(rn0_64, rn0_64, rm_64);
+
+    /*
+     * Load second pass inputs before storing the first pass result, to
+     * avoid incorrect results if a narrow input overlaps with the result.
+     */
+    if (src1_wide) {
+        neon_load_reg64(rn1_64, a->vn + 1);
+    } else {
+        TCGv_i32 tmp = neon_load_reg(a->vn, 1);
+        widenfn(rn1_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
+    rm = neon_load_reg(a->vm, 1);
+
+    neon_store_reg64(rn0_64, a->vd);
+
+    widenfn(rm_64, rm);
+    tcg_temp_free_i32(rm);
+    opfn(rn1_64, rn1_64, rm_64);
+    neon_store_reg64(rn1_64, a->vd + 1);
+
+    tcg_temp_free_i64(rn0_64);
+    tcg_temp_free_i64(rn1_64);
+    tcg_temp_free_i64(rm_64);
+
+    return true;
+}
+
+#define DO_PREWIDEN(INSN, S, EXT, OP, SRC1WIDE)                         \
+    static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
+    {                                                                   \
+        static NeonGenWidenFn * const widenfn[] = {                     \
+            gen_helper_neon_widen_##S##8,                               \
+            gen_helper_neon_widen_##S##16,                              \
+            tcg_gen_##EXT##_i32_i64,                                    \
+            NULL,                                                       \
+        };                                                              \
+        static NeonGenTwo64OpFn * const addfn[] = {                     \
+            gen_helper_neon_##OP##l_u16,                                \
+            gen_helper_neon_##OP##l_u32,                                \
+            tcg_gen_##OP##_i64,                                         \
+            NULL,                                                       \
+        };                                                              \
+        return do_prewiden_3d(s, a, widenfn[a->size],                   \
+                              addfn[a->size], SRC1WIDE);                \
+    }
+
+DO_PREWIDEN(VADDL_S, s, ext, add, false)
+DO_PREWIDEN(VADDL_U, u, extu, add, false)
+DO_PREWIDEN(VSUBL_S, s, ext, sub, false)
+DO_PREWIDEN(VSUBL_U, u, extu, sub, false)
+DO_PREWIDEN(VADDW_S, s, ext, add, true)
+DO_PREWIDEN(VADDW_U, u, extu, add, true)
+DO_PREWIDEN(VSUBW_S, s, ext, sub, true)
+DO_PREWIDEN(VSUBW_U, u, extu, sub, true)
