@@ -4855,7 +4855,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 {
     int op;
     int q;
-    int rd, rm, rd_ofs, rm_ofs;
+    int rd, rm;
     int size;
     int pass;
     int u;
@@ -4882,8 +4882,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     VFP_DREG_D(rd, insn);
     VFP_DREG_M(rm, insn);
     size = (insn >> 20) & 3;
-    rd_ofs = neon_reg_offset(rd, 0);
-    rm_ofs = neon_reg_offset(rm, 0);
 
     if ((insn & (1 << 23)) == 0) {
         /* Three register same length: handled by decodetree */
@@ -4935,6 +4933,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VCLE0:
                 case NEON_2RM_VCGE0:
                 case NEON_2RM_VCLT0:
+                case NEON_2RM_AESE: case NEON_2RM_AESMC:
+                case NEON_2RM_SHA1H:
+                case NEON_2RM_SHA1SU1:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4949,51 +4950,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     } else {
                         goto elementwise;
                     }
-                    break;
-                case NEON_2RM_AESE: case NEON_2RM_AESMC:
-                    if (!dc_isar_feature(aa32_aes, s) || ((rm | rd) & 1)) {
-                        return 1;
-                    }
-                    /*
-                     * Bit 6 is the lowest opcode bit; it distinguishes
-                     * between encryption (AESE/AESMC) and decryption
-                     * (AESD/AESIMC).
-                     */
-                    if (op == NEON_2RM_AESE) {
-                        tcg_gen_gvec_3_ool(vfp_reg_offset(true, rd),
-                                           vfp_reg_offset(true, rd),
-                                           vfp_reg_offset(true, rm),
-                                           16, 16, extract32(insn, 6, 1),
-                                           gen_helper_crypto_aese);
-                    } else {
-                        tcg_gen_gvec_2_ool(vfp_reg_offset(true, rd),
-                                           vfp_reg_offset(true, rm),
-                                           16, 16, extract32(insn, 6, 1),
-                                           gen_helper_crypto_aesmc);
-                    }
-                    break;
-                case NEON_2RM_SHA1H:
-                    if (!dc_isar_feature(aa32_sha1, s) || ((rm | rd) & 1)) {
-                        return 1;
-                    }
-                    tcg_gen_gvec_2_ool(rd_ofs, rm_ofs, 16, 16, 0,
-                                       gen_helper_crypto_sha1h);
-                    break;
-                case NEON_2RM_SHA1SU1:
-                    if ((rm | rd) & 1) {
-                            return 1;
-                    }
-                    /* bit 6 (q): set -> SHA256SU0, cleared -> SHA1SU1 */
-                    if (q) {
-                        if (!dc_isar_feature(aa32_sha2, s)) {
-                            return 1;
-                        }
-                    } else if (!dc_isar_feature(aa32_sha1, s)) {
-                        return 1;
-                    }
-                    tcg_gen_gvec_2_ool(rd_ofs, rm_ofs, 16, 16, 0,
-                                       q ? gen_helper_crypto_sha256su0
-                                       : gen_helper_crypto_sha1su1);
                     break;
 
                 default:

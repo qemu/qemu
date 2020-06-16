@@ -3505,3 +3505,45 @@ static bool trans_VMVN(DisasContext *s, arg_2misc *a)
     }
     return do_2misc_vec(s, a, tcg_gen_gvec_not);
 }
+
+#define WRAP_2M_3_OOL_FN(WRAPNAME, FUNC, DATA)                          \
+    static void WRAPNAME(unsigned vece, uint32_t rd_ofs,                \
+                         uint32_t rm_ofs, uint32_t oprsz,               \
+                         uint32_t maxsz)                                \
+    {                                                                   \
+        tcg_gen_gvec_3_ool(rd_ofs, rd_ofs, rm_ofs, oprsz, maxsz,        \
+                           DATA, FUNC);                                 \
+    }
+
+#define WRAP_2M_2_OOL_FN(WRAPNAME, FUNC, DATA)                          \
+    static void WRAPNAME(unsigned vece, uint32_t rd_ofs,                \
+                         uint32_t rm_ofs, uint32_t oprsz,               \
+                         uint32_t maxsz)                                \
+    {                                                                   \
+        tcg_gen_gvec_2_ool(rd_ofs, rm_ofs, oprsz, maxsz, DATA, FUNC);   \
+    }
+
+WRAP_2M_3_OOL_FN(gen_AESE, gen_helper_crypto_aese, 0)
+WRAP_2M_3_OOL_FN(gen_AESD, gen_helper_crypto_aese, 1)
+WRAP_2M_2_OOL_FN(gen_AESMC, gen_helper_crypto_aesmc, 0)
+WRAP_2M_2_OOL_FN(gen_AESIMC, gen_helper_crypto_aesmc, 1)
+WRAP_2M_2_OOL_FN(gen_SHA1H, gen_helper_crypto_sha1h, 0)
+WRAP_2M_2_OOL_FN(gen_SHA1SU1, gen_helper_crypto_sha1su1, 0)
+WRAP_2M_2_OOL_FN(gen_SHA256SU0, gen_helper_crypto_sha256su0, 0)
+
+#define DO_2M_CRYPTO(INSN, FEATURE, SIZE)                       \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
+    {                                                           \
+        if (!dc_isar_feature(FEATURE, s) || a->size != SIZE) {  \
+            return false;                                       \
+        }                                                       \
+        return do_2misc_vec(s, a, gen_##INSN);                  \
+    }
+
+DO_2M_CRYPTO(AESE, aa32_aes, 0)
+DO_2M_CRYPTO(AESD, aa32_aes, 0)
+DO_2M_CRYPTO(AESMC, aa32_aes, 0)
+DO_2M_CRYPTO(AESIMC, aa32_aes, 0)
+DO_2M_CRYPTO(SHA1H, aa32_sha1, 2)
+DO_2M_CRYPTO(SHA1SU1, aa32_sha1, 2)
+DO_2M_CRYPTO(SHA256SU0, aa32_sha2, 2)
