@@ -3602,3 +3602,72 @@ static bool trans_VREV16(DisasContext *s, arg_2misc *a)
     }
     return do_2misc(s, a, gen_rev16);
 }
+
+static bool trans_VCLS(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenOneOpFn * const fn[] = {
+        gen_helper_neon_cls_s8,
+        gen_helper_neon_cls_s16,
+        gen_helper_neon_cls_s32,
+        NULL,
+    };
+    return do_2misc(s, a, fn[a->size]);
+}
+
+static void do_VCLZ_32(TCGv_i32 rd, TCGv_i32 rm)
+{
+    tcg_gen_clzi_i32(rd, rm, 32);
+}
+
+static bool trans_VCLZ(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenOneOpFn * const fn[] = {
+        gen_helper_neon_clz_u8,
+        gen_helper_neon_clz_u16,
+        do_VCLZ_32,
+        NULL,
+    };
+    return do_2misc(s, a, fn[a->size]);
+}
+
+static bool trans_VCNT(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 0) {
+        return false;
+    }
+    return do_2misc(s, a, gen_helper_neon_cnt_u8);
+}
+
+static bool trans_VABS_F(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 2) {
+        return false;
+    }
+    /* TODO: FP16 : size == 1 */
+    return do_2misc(s, a, gen_helper_vfp_abss);
+}
+
+static bool trans_VNEG_F(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 2) {
+        return false;
+    }
+    /* TODO: FP16 : size == 1 */
+    return do_2misc(s, a, gen_helper_vfp_negs);
+}
+
+static bool trans_VRECPE(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 2) {
+        return false;
+    }
+    return do_2misc(s, a, gen_helper_recpe_u32);
+}
+
+static bool trans_VRSQRTE(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 2) {
+        return false;
+    }
+    return do_2misc(s, a, gen_helper_rsqrte_u32);
+}

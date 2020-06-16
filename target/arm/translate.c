@@ -4938,6 +4938,13 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_SHA1SU1:
                 case NEON_2RM_VREV32:
                 case NEON_2RM_VREV16:
+                case NEON_2RM_VCLS:
+                case NEON_2RM_VCLZ:
+                case NEON_2RM_VCNT:
+                case NEON_2RM_VABS_F:
+                case NEON_2RM_VNEG_F:
+                case NEON_2RM_VRECPE:
+                case NEON_2RM_VRSQRTE:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4959,25 +4966,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     for (pass = 0; pass < (q ? 4 : 2); pass++) {
                         tmp = neon_load_reg(rm, pass);
                         switch (op) {
-                        case NEON_2RM_VCLS:
-                            switch (size) {
-                            case 0: gen_helper_neon_cls_s8(tmp, tmp); break;
-                            case 1: gen_helper_neon_cls_s16(tmp, tmp); break;
-                            case 2: gen_helper_neon_cls_s32(tmp, tmp); break;
-                            default: abort();
-                            }
-                            break;
-                        case NEON_2RM_VCLZ:
-                            switch (size) {
-                            case 0: gen_helper_neon_clz_u8(tmp, tmp); break;
-                            case 1: gen_helper_neon_clz_u16(tmp, tmp); break;
-                            case 2: tcg_gen_clzi_i32(tmp, tmp, 32); break;
-                            default: abort();
-                            }
-                            break;
-                        case NEON_2RM_VCNT:
-                            gen_helper_neon_cnt_u8(tmp, tmp);
-                            break;
                         case NEON_2RM_VQABS:
                             switch (size) {
                             case 0:
@@ -5051,12 +5039,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
-                        case NEON_2RM_VABS_F:
-                            gen_helper_vfp_abss(tmp, tmp);
-                            break;
-                        case NEON_2RM_VNEG_F:
-                            gen_helper_vfp_negs(tmp, tmp);
-                            break;
                         case NEON_2RM_VSWP:
                             tmp2 = neon_load_reg(rd, pass);
                             neon_store_reg(rm, pass, tmp2);
@@ -5137,12 +5119,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             tcg_temp_free_ptr(fpst);
                             break;
                         }
-                        case NEON_2RM_VRECPE:
-                            gen_helper_recpe_u32(tmp, tmp);
-                            break;
-                        case NEON_2RM_VRSQRTE:
-                            gen_helper_rsqrte_u32(tmp, tmp);
-                            break;
                         case NEON_2RM_VRECPE_F:
                         {
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
