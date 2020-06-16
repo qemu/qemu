@@ -3450,3 +3450,58 @@ static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
 
     return true;
 }
+
+static bool do_2misc_vec(DisasContext *s, arg_2misc *a, GVecGen2Fn *fn)
+{
+    int vec_size = a->q ? 16 : 8;
+    int rd_ofs = neon_reg_offset(a->vd, 0);
+    int rm_ofs = neon_reg_offset(a->vm, 0);
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->size == 3) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fn(a->size, rd_ofs, rm_ofs, vec_size, vec_size);
+
+    return true;
+}
+
+#define DO_2MISC_VEC(INSN, FN)                                  \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
+    {                                                           \
+        return do_2misc_vec(s, a, FN);                          \
+    }
+
+DO_2MISC_VEC(VNEG, tcg_gen_gvec_neg)
+DO_2MISC_VEC(VABS, tcg_gen_gvec_abs)
+DO_2MISC_VEC(VCEQ0, gen_gvec_ceq0)
+DO_2MISC_VEC(VCGT0, gen_gvec_cgt0)
+DO_2MISC_VEC(VCLE0, gen_gvec_cle0)
+DO_2MISC_VEC(VCGE0, gen_gvec_cge0)
+DO_2MISC_VEC(VCLT0, gen_gvec_clt0)
+
+static bool trans_VMVN(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 0) {
+        return false;
+    }
+    return do_2misc_vec(s, a, tcg_gen_gvec_not);
+}

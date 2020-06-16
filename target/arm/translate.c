@@ -4859,7 +4859,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     int size;
     int pass;
     int u;
-    int vec_size;
     TCGv_i32 tmp, tmp2;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -4883,7 +4882,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     VFP_DREG_D(rd, insn);
     VFP_DREG_M(rm, insn);
     size = (insn >> 20) & 3;
-    vec_size = q ? 16 : 8;
     rd_ofs = neon_reg_offset(rd, 0);
     rm_ofs = neon_reg_offset(rm, 0);
 
@@ -4929,6 +4927,14 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VSHLL:
                 case NEON_2RM_VCVT_F16_F32:
                 case NEON_2RM_VCVT_F32_F16:
+                case NEON_2RM_VMVN:
+                case NEON_2RM_VNEG:
+                case NEON_2RM_VABS:
+                case NEON_2RM_VCEQ0:
+                case NEON_2RM_VCGT0:
+                case NEON_2RM_VCLE0:
+                case NEON_2RM_VCGE0:
+                case NEON_2RM_VCLT0:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4988,31 +4994,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     tcg_gen_gvec_2_ool(rd_ofs, rm_ofs, 16, 16, 0,
                                        q ? gen_helper_crypto_sha256su0
                                        : gen_helper_crypto_sha1su1);
-                    break;
-                case NEON_2RM_VMVN:
-                    tcg_gen_gvec_not(0, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VNEG:
-                    tcg_gen_gvec_neg(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VABS:
-                    tcg_gen_gvec_abs(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-
-                case NEON_2RM_VCEQ0:
-                    gen_gvec_ceq0(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VCGT0:
-                    gen_gvec_cgt0(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VCLE0:
-                    gen_gvec_cle0(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VCGE0:
-                    gen_gvec_cge0(size, rd_ofs, rm_ofs, vec_size, vec_size);
-                    break;
-                case NEON_2RM_VCLT0:
-                    gen_gvec_clt0(size, rd_ofs, rm_ofs, vec_size, vec_size);
                     break;
 
                 default:
