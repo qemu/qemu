@@ -3547,3 +3547,58 @@ DO_2M_CRYPTO(AESIMC, aa32_aes, 0)
 DO_2M_CRYPTO(SHA1H, aa32_sha1, 2)
 DO_2M_CRYPTO(SHA1SU1, aa32_sha1, 2)
 DO_2M_CRYPTO(SHA256SU0, aa32_sha2, 2)
+
+static bool do_2misc(DisasContext *s, arg_2misc *a, NeonGenOneOpFn *fn)
+{
+    int pass;
+
+    /* Handle a 2-reg-misc operation by iterating 32 bits at a time */
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!fn) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        fn(tmp, tmp);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+
+    return true;
+}
+
+static bool trans_VREV32(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenOneOpFn * const fn[] = {
+        tcg_gen_bswap32_i32,
+        gen_swap_half,
+        NULL,
+        NULL,
+    };
+    return do_2misc(s, a, fn[a->size]);
+}
+
+static bool trans_VREV16(DisasContext *s, arg_2misc *a)
+{
+    if (a->size != 0) {
+        return false;
+    }
+    return do_2misc(s, a, gen_rev16);
+}
