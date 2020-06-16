@@ -2575,3 +2575,77 @@ static bool trans_VQRDMULH_2sc(DisasContext *s, arg_2scalar *a)
 
     return do_2scalar(s, a, opfn[a->size], NULL);
 }
+
+static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
+                            NeonGenThreeOpEnvFn *opfn)
+{
+    /*
+     * VQRDMLAH/VQRDMLSH: this is like do_2scalar, but the opfn
+     * performs a kind of fused op-then-accumulate using a helper
+     * function that takes all of rd, rn and the scalar at once.
+     */
+    TCGv_i32 scalar;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_rdm, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->q && ((a->vd | a->vn) & 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 rn = neon_load_reg(a->vn, pass);
+        TCGv_i32 rd = neon_load_reg(a->vd, pass);
+        opfn(rd, cpu_env, rn, scalar, rd);
+        tcg_temp_free_i32(rn);
+        neon_store_reg(a->vd, pass, rd);
+    }
+    tcg_temp_free_i32(scalar);
+
+    return true;
+}
+
+static bool trans_VQRDMLAH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenThreeOpEnvFn *opfn[] = {
+        NULL,
+        gen_helper_neon_qrdmlah_s16,
+        gen_helper_neon_qrdmlah_s32,
+        NULL,
+    };
+    return do_vqrdmlah_2sc(s, a, opfn[a->size]);
+}
+
+static bool trans_VQRDMLSH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenThreeOpEnvFn *opfn[] = {
+        NULL,
+        gen_helper_neon_qrdmlsh_s16,
+        gen_helper_neon_qrdmlsh_s32,
+        NULL,
+    };
+    return do_vqrdmlah_2sc(s, a, opfn[a->size]);
+}
