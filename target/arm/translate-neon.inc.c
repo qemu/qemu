@@ -3857,3 +3857,73 @@ DO_VRINT(VRINTA, FPROUNDING_TIEAWAY)
 DO_VRINT(VRINTZ, FPROUNDING_ZERO)
 DO_VRINT(VRINTM, FPROUNDING_NEGINF)
 DO_VRINT(VRINTP, FPROUNDING_POSINF)
+
+static bool do_vcvt(DisasContext *s, arg_2misc *a, int rmode, bool is_signed)
+{
+    /*
+     * Handle a VCVT* operation by iterating 32 bits at a time,
+     * with a specified rounding mode in operation.
+     */
+    int pass;
+    TCGv_ptr fpst;
+    TCGv_i32 tcg_rmode, tcg_shift;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !arm_dc_feature(s, ARM_FEATURE_V8)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->size != 2) {
+        /* TODO: FP16 will be the size == 1 case */
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(1);
+    tcg_shift = tcg_const_i32(0);
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        if (is_signed) {
+            gen_helper_vfp_tosls(tmp, tmp, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_touls(tmp, tmp, tcg_shift, fpst);
+        }
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+    tcg_temp_free_i32(tcg_shift);
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}
+
+#define DO_VCVT(INSN, RMODE, SIGNED)                            \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
+    {                                                           \
+        return do_vcvt(s, a, RMODE, SIGNED);                    \
+    }
+
+DO_VCVT(VCVTAU, FPROUNDING_TIEAWAY, false)
+DO_VCVT(VCVTAS, FPROUNDING_TIEAWAY, true)
+DO_VCVT(VCVTNU, FPROUNDING_TIEEVEN, false)
+DO_VCVT(VCVTNS, FPROUNDING_TIEEVEN, true)
+DO_VCVT(VCVTPU, FPROUNDING_POSINF, false)
+DO_VCVT(VCVTPS, FPROUNDING_POSINF, true)
+DO_VCVT(VCVTMU, FPROUNDING_NEGINF, false)
+DO_VCVT(VCVTMS, FPROUNDING_NEGINF, true)

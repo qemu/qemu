@@ -3042,30 +3042,6 @@ static void gen_neon_trn_u16(TCGv_i32 t0, TCGv_i32 t1)
 #define NEON_2RM_VCVT_SF 62
 #define NEON_2RM_VCVT_UF 63
 
-static bool neon_2rm_is_v8_op(int op)
-{
-    /* Return true if this neon 2reg-misc op is ARMv8 and up */
-    switch (op) {
-    case NEON_2RM_VRINTN:
-    case NEON_2RM_VRINTA:
-    case NEON_2RM_VRINTM:
-    case NEON_2RM_VRINTP:
-    case NEON_2RM_VRINTZ:
-    case NEON_2RM_VRINTX:
-    case NEON_2RM_VCVTAU:
-    case NEON_2RM_VCVTAS:
-    case NEON_2RM_VCVTNU:
-    case NEON_2RM_VCVTNS:
-    case NEON_2RM_VCVTPU:
-    case NEON_2RM_VCVTPS:
-    case NEON_2RM_VCVTMU:
-    case NEON_2RM_VCVTMS:
-        return true;
-    default:
-        return false;
-    }
-}
-
 /* Each entry in this array has bit n set if the insn allows
  * size value n (otherwise it will UNDEF). Since unallocated
  * op values will have no bits set they always UNDEF.
@@ -4908,10 +4884,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 if ((neon_2rm_sizes[op] & (1 << size)) == 0) {
                     return 1;
                 }
-                if (neon_2rm_is_v8_op(op) &&
-                    !arm_dc_feature(s, ARM_FEATURE_V8)) {
-                    return 1;
-                }
                 if (q && ((rm | rd) & 1)) {
                     return 1;
                 }
@@ -4964,6 +4936,14 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VRINTM:
                 case NEON_2RM_VRINTP:
                 case NEON_2RM_VRINTZ:
+                case NEON_2RM_VCVTAU:
+                case NEON_2RM_VCVTAS:
+                case NEON_2RM_VCVTNU:
+                case NEON_2RM_VCVTNS:
+                case NEON_2RM_VCVTPU:
+                case NEON_2RM_VCVTPS:
+                case NEON_2RM_VCVTMU:
+                case NEON_2RM_VCVTMS:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -4998,40 +4978,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
-                        case NEON_2RM_VCVTAU:
-                        case NEON_2RM_VCVTAS:
-                        case NEON_2RM_VCVTNU:
-                        case NEON_2RM_VCVTNS:
-                        case NEON_2RM_VCVTPU:
-                        case NEON_2RM_VCVTPS:
-                        case NEON_2RM_VCVTMU:
-                        case NEON_2RM_VCVTMS:
-                        {
-                            bool is_signed = !extract32(insn, 7, 1);
-                            TCGv_ptr fpst = get_fpstatus_ptr(1);
-                            TCGv_i32 tcg_rmode, tcg_shift;
-                            int rmode = fp_decode_rm[extract32(insn, 8, 2)];
-
-                            tcg_shift = tcg_const_i32(0);
-                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
-                                                      cpu_env);
-
-                            if (is_signed) {
-                                gen_helper_vfp_tosls(tmp, tmp,
-                                                     tcg_shift, fpst);
-                            } else {
-                                gen_helper_vfp_touls(tmp, tmp,
-                                                     tcg_shift, fpst);
-                            }
-
-                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
-                                                      cpu_env);
-                            tcg_temp_free_i32(tcg_rmode);
-                            tcg_temp_free_i32(tcg_shift);
-                            tcg_temp_free_ptr(fpst);
-                            break;
-                        }
                         default:
                             /* Reserved op values were caught by the
                              * neon_2rm_sizes[] check earlier.
