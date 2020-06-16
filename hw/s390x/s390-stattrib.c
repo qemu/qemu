@@ -50,7 +50,7 @@ void s390_stattrib_init(void)
                               obj);
     object_unref(obj);
 
-    qdev_init_nofail(DEVICE(obj));
+    qdev_realize(DEVICE(obj), NULL, &error_fatal);
 }
 
 /* Console commands: */

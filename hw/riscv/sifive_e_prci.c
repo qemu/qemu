@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/hw.h"
@@ -117,8 +118,8 @@ type_init(sifive_e_prci_register_types)
  */
 DeviceState *sifive_e_prci_create(hwaddr addr)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_SIFIVE_E_PRCI);
-    qdev_init_nofail(dev);
+    DeviceState *dev = qdev_new(TYPE_SIFIVE_E_PRCI);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
     return dev;
 }

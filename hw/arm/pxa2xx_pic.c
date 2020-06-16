@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "cpu.h"
 #include "hw/arm/pxa.h"
@@ -267,7 +268,7 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
 
 DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_PXA2XX_PIC);
+    DeviceState *dev = qdev_new(TYPE_PXA2XX_PIC);
     PXA2xxPICState *s = PXA2XX_PIC(dev);
 
     s->cpu = cpu;
@@ -279,7 +280,7 @@ DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
     s->is_fiq[0] = 0;
     s->is_fiq[1] = 0;
 
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     qdev_init_gpio_in(dev, pxa2xx_pic_set_irq, PXA2XX_PIC_SRCS);
 

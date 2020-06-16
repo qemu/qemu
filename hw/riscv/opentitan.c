@@ -60,10 +60,8 @@ static void riscv_opentitan_init(MachineState *machine)
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
-                            sizeof(s->soc), TYPE_RISCV_IBEX_SOC,
-                            &error_abort, NULL);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized",
-                            &error_abort);
+                            TYPE_RISCV_IBEX_SOC);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     memory_region_init_ram(main_mem, NULL, "riscv.lowrisc.ibex.ram",
         memmap[IBEX_RAM].size, &error_fatal);
@@ -94,9 +92,7 @@ static void riscv_lowrisc_ibex_soc_init(Object *obj)
 {
     LowRISCIbexSoCState *s = RISCV_IBEX_SOC(obj);
 
-    object_initialize_child(obj, "cpus", &s->cpus,
-                            sizeof(s->cpus), TYPE_RISCV_HART_ARRAY,
-                            &error_abort, NULL);
+    object_initialize_child(obj, "cpus", &s->cpus, TYPE_RISCV_HART_ARRAY);
 }
 
 static void riscv_lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -110,8 +106,7 @@ static void riscv_lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpus), ms->smp.cpus, "num-harts",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpus), true, "realized",
-                            &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_abort);
 
     /* Boot ROM */
     memory_region_init_rom(&s->rom, OBJECT(dev_soc), "riscv.lowrisc.ibex.rom",

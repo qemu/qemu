@@ -1155,12 +1155,10 @@ static void pnv_phb4_instance_init(Object *obj)
     QLIST_INIT(&phb->dma_spaces);
 
     /* XIVE interrupt source object */
-    object_initialize_child(obj, "source", &phb->xsrc, sizeof(XiveSource),
-                            TYPE_XIVE_SOURCE, &error_abort, NULL);
+    object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 
     /* Root Port */
-    object_initialize_child(obj, "root", &phb->root, sizeof(phb->root),
-                            TYPE_PNV_PHB4_ROOT_PORT, &error_abort, NULL);
+    object_initialize_child(obj, "root", &phb->root, TYPE_PNV_PHB4_ROOT_PORT);
 
     qdev_prop_set_int32(DEVICE(&phb->root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&phb->root), "multifunction", false);
@@ -1210,8 +1208,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     /* Add a single Root port */
     qdev_prop_set_uint8(DEVICE(&phb->root), "chassis", phb->chip_id);
     qdev_prop_set_uint16(DEVICE(&phb->root), "slot", phb->phb_id);
-    qdev_set_parent_bus(DEVICE(&phb->root), BUS(pci->bus));
-    qdev_init_nofail(DEVICE(&phb->root));
+    qdev_realize(DEVICE(&phb->root), BUS(pci->bus), &error_fatal);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {
@@ -1221,7 +1218,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(xsrc), nr_irqs, "nr-irqs", &error_fatal);
     object_property_set_link(OBJECT(xsrc), OBJECT(phb), "xive", &error_fatal);
-    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
+    qdev_realize(DEVICE(xsrc), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

@@ -781,7 +781,7 @@ int object_set_propv(Object *obj,
 void object_initialize(void *obj, size_t size, const char *typename);
 
 /**
- * object_initialize_child:
+ * object_initialize_child_with_props:
  * @parentobj: The parent object to add a property to
  * @propname: The name of the property
  * @childobj: A pointer to the memory to be used for the object.
@@ -801,12 +801,13 @@ void object_initialize(void *obj, size_t size, const char *typename);
  * If the object implements the user creatable interface, the object will
  * be marked complete once all the properties have been processed.
  */
-void object_initialize_child(Object *parentobj, const char *propname,
+void object_initialize_child_with_props(Object *parentobj,
+                             const char *propname,
                              void *childobj, size_t size, const char *type,
                              Error **errp, ...) QEMU_SENTINEL;
 
 /**
- * object_initialize_childv:
+ * object_initialize_child_with_propsv:
  * @parentobj: The parent object to add a property to
  * @propname: The name of the property
  * @childobj: A pointer to the memory to be used for the object.
@@ -817,9 +818,30 @@ void object_initialize_child(Object *parentobj, const char *propname,
  *
  * See object_initialize_child() for documentation.
  */
-void object_initialize_childv(Object *parentobj, const char *propname,
+void object_initialize_child_with_propsv(Object *parentobj,
+                              const char *propname,
                               void *childobj, size_t size, const char *type,
                               Error **errp, va_list vargs);
+
+/**
+ * object_initialize_child:
+ * @parent: The parent object to add a property to
+ * @propname: The name of the property
+ * @child: A precisely typed pointer to the memory to be used for the
+ * object.
+ * @type: The name of the type of the object to instantiate.
+ *
+ * This is like
+ * object_initialize_child_with_props(parent, propname,
+ *                                    child, sizeof(*child), type,
+ *                                    &error_abort, NULL)
+ */
+#define object_initialize_child(parent, propname, child, type)          \
+    object_initialize_child_internal((parent), (propname),              \
+                                     (child), sizeof(*(child)), (type))
+void object_initialize_child_internal(Object *parent, const char *propname,
+                                      void *child, size_t size,
+                                      const char *type);
 
 /**
  * object_dynamic_cast:
@@ -1404,7 +1426,7 @@ Object *object_get_internal_root(void);
  * path is the path within the composition tree starting from the root.
  * %NULL if the object doesn't have a parent (and thus a canonical path).
  */
-char *object_get_canonical_path_component(Object *obj);
+char *object_get_canonical_path_component(const Object *obj);
 
 /**
  * object_get_canonical_path:
@@ -1412,7 +1434,7 @@ char *object_get_canonical_path_component(Object *obj);
  * Returns: The canonical path for a object.  This is the path within the
  * composition tree starting from the root.
  */
-char *object_get_canonical_path(Object *obj);
+char *object_get_canonical_path(const Object *obj);
 
 /**
  * object_resolve_path:

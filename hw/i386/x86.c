@@ -124,7 +124,7 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
     cpu = object_new(MACHINE(x86ms)->cpu_type);
 
     object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
-    object_property_set_bool(cpu, true, "realized", &local_err);
+    qdev_realize(DEVICE(cpu), NULL, &local_err);
 
     object_unref(cpu);
     error_propagate(errp, local_err);
@@ -345,14 +345,14 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
 
     assert(parent_name);
     if (kvm_ioapic_in_kernel()) {
-        dev = qdev_create(NULL, TYPE_KVM_IOAPIC);
+        dev = qdev_new(TYPE_KVM_IOAPIC);
     } else {
-        dev = qdev_create(NULL, TYPE_IOAPIC);
+        dev = qdev_new(TYPE_IOAPIC);
     }
     object_property_add_child(object_resolve_path(parent_name, NULL),
                               "ioapic", OBJECT(dev));
-    qdev_init_nofail(dev);
     d = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(d, &error_fatal);
     sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {

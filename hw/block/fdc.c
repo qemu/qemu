@@ -2516,7 +2516,7 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
             continue;
         }
 
-        dev = qdev_create(&fdctrl->bus.bus, "floppy");
+        dev = qdev_new("floppy");
         qdev_prop_set_uint32(dev, "unit", i);
         qdev_prop_set_enum(dev, "drive-type", fdctrl->qdev_for_drives[i].type);
 
@@ -2531,7 +2531,7 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
             return;
         }
 
-        object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+        qdev_realize_and_unref(dev, &fdctrl->bus.bus, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -2544,7 +2544,7 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_try_create(bus, TYPE_ISA_FDC);
+    isadev = isa_try_new(TYPE_ISA_FDC);
     if (!isadev) {
         return NULL;
     }
@@ -2558,7 +2558,7 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
         qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
                             &error_fatal);
     }
-    qdev_init_nofail(dev);
+    isa_realize_and_unref(isadev, bus, &error_fatal);
 
     return isadev;
 }
@@ -2571,7 +2571,7 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     SysBusDevice *sbd;
     FDCtrlSysBus *sys;
 
-    dev = qdev_create(NULL, "sysbus-fdc");
+    dev = qdev_new("sysbus-fdc");
     sys = SYSBUS_FDC(dev);
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
@@ -2583,8 +2583,8 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
         qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
                             &error_fatal);
     }
-    qdev_init_nofail(dev);
     sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_connect_irq(sbd, 0, irq);
     sysbus_mmio_map(sbd, 0, mmio_base);
 }
@@ -2595,12 +2595,12 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     DeviceState *dev;
     FDCtrlSysBus *sys;
 
-    dev = qdev_create(NULL, "SUNW,fdtwo");
+    dev = qdev_new("SUNW,fdtwo");
     if (fds[0]) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(fds[0]),
                             &error_fatal);
     }
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sys = SYSBUS_FDC(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(sys), 0, irq);
     sysbus_mmio_map(SYS_BUS_DEVICE(sys), 0, io_base);

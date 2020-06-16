@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "hw/mips/mips.h"
@@ -1201,7 +1202,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
     PCIHostState *phb;
     DeviceState *dev;
 
-    dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
+    dev = qdev_new(TYPE_GT64120_PCI_HOST_BRIDGE);
     d = GT64120_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", 4 * GiB);
@@ -1212,7 +1213,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                      &d->pci0_mem,
                                      get_system_io(),
                                      PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d,
                           "isd-mem", 0x1000);
 

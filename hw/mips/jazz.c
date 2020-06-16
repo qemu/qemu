@@ -255,9 +255,9 @@ static void mips_jazz_init(MachineState *machine,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        dev = qdev_create(NULL, "sysbus-g364");
-        qdev_init_nofail(dev);
+        dev = qdev_new("sysbus-g364");
         sysbus = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, 0x60080000);
         sysbus_mmio_map(sysbus, 1, 0x40000000);
         sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 3));
@@ -287,13 +287,13 @@ static void mips_jazz_init(MachineState *machine,
         if (strcmp(nd->model, "dp83932") == 0) {
             qemu_check_nic_model(nd, "dp83932");
 
-            dev = qdev_create(NULL, "dp8393x");
+            dev = qdev_new("dp8393x");
             qdev_set_nic_properties(dev, nd);
             qdev_prop_set_uint8(dev, "it_shift", 2);
             object_property_set_link(OBJECT(dev), OBJECT(rc4030_dma_mr),
                                      "dma_mr", &error_abort);
-            qdev_init_nofail(dev);
             sysbus = SYS_BUS_DEVICE(dev);
+            sysbus_realize_and_unref(sysbus, &error_fatal);
             sysbus_mmio_map(sysbus, 0, 0x80001000);
             sysbus_mmio_map(sysbus, 1, 0x8000b000);
             sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
@@ -308,7 +308,7 @@ static void mips_jazz_init(MachineState *machine,
     }
 
     /* SCSI adapter */
-    dev = qdev_create(NULL, TYPE_ESP);
+    dev = qdev_new(TYPE_ESP);
     sysbus_esp = ESP_STATE(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = rc4030_dma_read;
@@ -317,9 +317,9 @@ static void mips_jazz_init(MachineState *machine,
     sysbus_esp->it_shift = 0;
     /* XXX for now until rc4030 has been changed to use DMA enable signal */
     esp->dma_enabled = 1;
-    qdev_init_nofail(dev);
 
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 5));
     sysbus_mmio_map(sysbus, 0, 0x80002000);
 
@@ -362,9 +362,9 @@ static void mips_jazz_init(MachineState *machine,
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
 
     /* NVRAM */
-    dev = qdev_create(NULL, "ds1225y");
-    qdev_init_nofail(dev);
+    dev = qdev_new("ds1225y");
     sysbus = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */

@@ -483,8 +483,7 @@ static void pnv_psi_power8_instance_init(Object *obj)
 {
     Pnv8Psi *psi8 = PNV8_PSI(obj);
 
-    object_initialize_child(obj, "ics-psi",  &psi8->ics, sizeof(psi8->ics),
-                            TYPE_ICS, &error_abort, NULL);
+    object_initialize_child(obj, "ics-psi", &psi8->ics, TYPE_ICS);
     object_property_add_alias(obj, ICS_PROP_XICS, OBJECT(&psi8->ics),
                               ICS_PROP_XICS);
 }
@@ -511,7 +510,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_bool(OBJECT(ics), true, "realized",  &err);
+    qdev_realize(DEVICE(ics), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -836,8 +835,7 @@ static void pnv_psi_power9_instance_init(Object *obj)
 {
     Pnv9Psi *psi = PNV9_PSI(obj);
 
-    object_initialize_child(obj, "source", &psi->source, sizeof(psi->source),
-                            TYPE_XIVE_SOURCE, &error_abort, NULL);
+    object_initialize_child(obj, "source", &psi->source, TYPE_XIVE_SOURCE);
 }
 
 static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
@@ -853,7 +851,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), PSIHB9_NUM_IRQS, "nr-irqs",
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), OBJECT(psi), "xive", &error_abort);
-    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
+    qdev_realize(DEVICE(xsrc), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -943,7 +941,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pnv_psi_info = {
     .name          = TYPE_PNV_PSI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPsi),
     .class_init    = pnv_psi_class_init,
     .class_size    = sizeof(PnvPsiClass),

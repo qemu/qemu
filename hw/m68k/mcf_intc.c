@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "cpu.h"
@@ -204,8 +205,8 @@ qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
     DeviceState  *dev;
     mcf_intc_state *s;
 
-    dev = qdev_create(NULL, TYPE_MCF_INTC);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_MCF_INTC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     s = MCF_INTC(dev);
     s->cpu = cpu;

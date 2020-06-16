@@ -38,8 +38,10 @@
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/gpio.h"
 #include "hw/misc/macio/pmu.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
+#include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -739,16 +741,19 @@ static void pmu_reset(DeviceState *dev)
 static void pmu_realize(DeviceState *dev, Error **errp)
 {
     PMUState *s = VIA_PMU(dev);
+    Error *err = NULL;
     SysBusDevice *sbd;
-    MOS6522State *ms;
-    DeviceState *d;
     struct tm tm;
 
+    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_pmu), &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
     /* Pass IRQ from 6522 */
-    d = DEVICE(&s->mos6522_pmu);
-    ms = MOS6522(d);
     sbd = SYS_BUS_DEVICE(s);
-    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(ms));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->mos6522_pmu));
 
     qemu_get_timedate(&tm, 0);
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
@@ -775,8 +780,8 @@ static void pmu_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0);
 
-    sysbus_init_child_obj(obj, "mos6522-pmu", &s->mos6522_pmu,
-                          sizeof(s->mos6522_pmu), TYPE_MOS6522_PMU);
+    object_initialize_child(obj, "mos6522-pmu", &s->mos6522_pmu,
+                            TYPE_MOS6522_PMU);
 
     memory_region_init_io(&s->mem, obj, &mos6522_pmu_ops, s, "via-pmu",
                           0x2000);

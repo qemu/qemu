@@ -22,6 +22,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 
 #define CADENCE_UART_RX_FIFO_SIZE           16
@@ -59,10 +60,10 @@ static inline DeviceState *cadence_uart_create(hwaddr addr,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, TYPE_CADENCE_UART);
+    dev = qdev_new(TYPE_CADENCE_UART);
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, irq);
 

@@ -542,7 +542,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
 }
 
-static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
+static USBDevice *usb_braille_init(const char *unused)
 {
     USBDevice *dev;
     Chardev *cdrv;
@@ -551,7 +551,7 @@ static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
     if (!cdrv)
         return NULL;
 
-    dev = usb_create(bus, "usb-braille");
+    dev = usb_new("usb-braille");
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     return dev;
 }

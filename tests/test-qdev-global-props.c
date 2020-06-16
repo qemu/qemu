@@ -26,6 +26,7 @@
 
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 
 
@@ -76,7 +77,7 @@ static void test_static_prop_subprocess(void)
     MyType *mt;
 
     mt = STATIC_TYPE(object_new(TYPE_STATIC_PROPS));
-    qdev_init_nofail(DEVICE(mt));
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, PROP_DEFAULT);
 }
@@ -111,7 +112,7 @@ static void test_static_globalprop_subprocess(void)
     register_global_properties(props);
 
     mt = STATIC_TYPE(object_new(TYPE_STATIC_PROPS));
-    qdev_init_nofail(DEVICE(mt));
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 200);
     g_assert_cmpuint(mt->prop2, ==, PROP_DEFAULT);
@@ -229,7 +230,7 @@ static void test_dynamic_globalprop_subprocess(void)
     register_global_properties(props);
 
     mt = DYNAMIC_TYPE(object_new(TYPE_DYNAMIC_PROPS));
-    qdev_init_nofail(DEVICE(mt));
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
@@ -272,7 +273,7 @@ static void test_subclass_global_props(void)
     register_global_properties(props);
 
     mt = STATIC_TYPE(object_new(TYPE_SUBCLASS));
-    qdev_init_nofail(DEVICE(mt));
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 102);
     g_assert_cmpuint(mt->prop2, ==, 104);

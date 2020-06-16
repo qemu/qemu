@@ -194,50 +194,39 @@ static void allwinner_h3_init(Object *obj)
     s->memmap = allwinner_h3_memmap;
 
     for (int i = 0; i < AW_H3_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[i], sizeof(s->cpus[i]),
-                                ARM_CPU_TYPE_NAME("cortex-a7"),
-                                &error_abort, NULL);
+        object_initialize_child(obj, "cpu[*]", &s->cpus[i],
+                                ARM_CPU_TYPE_NAME("cortex-a7"));
     }
 
-    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
-                          TYPE_ARM_GIC);
+    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
 
-    sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
-                          TYPE_AW_A10_PIT);
+    object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
     object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer),
                               "clk0-freq");
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
                               "clk1-freq");
 
-    sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
-                          TYPE_AW_H3_CCU);
+    object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_H3_CCU);
 
-    sysbus_init_child_obj(obj, "sysctrl", &s->sysctrl, sizeof(s->sysctrl),
-                          TYPE_AW_H3_SYSCTRL);
+    object_initialize_child(obj, "sysctrl", &s->sysctrl, TYPE_AW_H3_SYSCTRL);
 
-    sysbus_init_child_obj(obj, "cpucfg", &s->cpucfg, sizeof(s->cpucfg),
-                          TYPE_AW_CPUCFG);
+    object_initialize_child(obj, "cpucfg", &s->cpucfg, TYPE_AW_CPUCFG);
 
-    sysbus_init_child_obj(obj, "sid", &s->sid, sizeof(s->sid),
-                          TYPE_AW_SID);
+    object_initialize_child(obj, "sid", &s->sid, TYPE_AW_SID);
     object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
                               "identifier");
 
-    sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
-                          TYPE_AW_SDHOST_SUN5I);
+    object_initialize_child(obj, "mmc0", &s->mmc0, TYPE_AW_SDHOST_SUN5I);
 
-    sysbus_init_child_obj(obj, "emac", &s->emac, sizeof(s->emac),
-                          TYPE_AW_SUN8I_EMAC);
+    object_initialize_child(obj, "emac", &s->emac, TYPE_AW_SUN8I_EMAC);
 
-    sysbus_init_child_obj(obj, "dramc", &s->dramc, sizeof(s->dramc),
-                          TYPE_AW_H3_DRAMC);
+    object_initialize_child(obj, "dramc", &s->dramc, TYPE_AW_H3_DRAMC);
     object_property_add_alias(obj, "ram-addr", OBJECT(&s->dramc),
                              "ram-addr");
     object_property_add_alias(obj, "ram-size", OBJECT(&s->dramc),
                               "ram-size");
 
-    sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
-                          TYPE_AW_RTC_SUN6I);
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_AW_RTC_SUN6I);
 }
 
 static void allwinner_h3_realize(DeviceState *dev, Error **errp)
@@ -261,7 +250,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el2", true);
 
         /* Mark realized */
-        qdev_init_nofail(DEVICE(&s->cpus[i]));
+        qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);
     }
 
     /* Generic Interrupt Controller */
@@ -271,7 +260,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", AW_H3_NUM_CPUS);
     qdev_prop_set_bit(DEVICE(&s->gic), "has-security-extensions", false);
     qdev_prop_set_bit(DEVICE(&s->gic), "has-virtualization-extensions", true);
-    qdev_init_nofail(DEVICE(&s->gic));
+    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 0, s->memmap[AW_H3_GIC_DIST]);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 1, s->memmap[AW_H3_GIC_CPU]);
@@ -322,7 +311,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
     }
 
     /* Timer */
-    qdev_init_nofail(DEVICE(&s->timer));
+    sysbus_realize(SYS_BUS_DEVICE(&s->timer), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer), 0, s->memmap[AW_H3_PIT]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 0,
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_TIMER0));
@@ -344,23 +333,23 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
                                 &s->sram_c);
 
     /* Clock Control Unit */
-    qdev_init_nofail(DEVICE(&s->ccu));
+    sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_H3_CCU]);
 
     /* System Control */
-    qdev_init_nofail(DEVICE(&s->sysctrl));
+    sysbus_realize(SYS_BUS_DEVICE(&s->sysctrl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysctrl), 0, s->memmap[AW_H3_SYSCTRL]);
 
     /* CPU Configuration */
-    qdev_init_nofail(DEVICE(&s->cpucfg));
+    sysbus_realize(SYS_BUS_DEVICE(&s->cpucfg), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->cpucfg), 0, s->memmap[AW_H3_CPUCFG]);
 
     /* Security Identifier */
-    qdev_init_nofail(DEVICE(&s->sid));
+    sysbus_realize(SYS_BUS_DEVICE(&s->sid), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_H3_SID]);
 
     /* SD/MMC */
-    qdev_init_nofail(DEVICE(&s->mmc0));
+    sysbus_realize(SYS_BUS_DEVICE(&s->mmc0), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, s->memmap[AW_H3_MMC0]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0,
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_MMC0));
@@ -373,7 +362,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
         qemu_check_nic_model(&nd_table[0], TYPE_AW_SUN8I_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
     }
-    qdev_init_nofail(DEVICE(&s->emac));
+    sysbus_realize(SYS_BUS_DEVICE(&s->emac), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_H3_EMAC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_EMAC));
@@ -423,13 +412,13 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
                    115200, serial_hd(3), DEVICE_NATIVE_ENDIAN);
 
     /* DRAMC */
-    qdev_init_nofail(DEVICE(&s->dramc));
+    sysbus_realize(SYS_BUS_DEVICE(&s->dramc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 0, s->memmap[AW_H3_DRAMCOM]);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 1, s->memmap[AW_H3_DRAMCTL]);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 2, s->memmap[AW_H3_DRAMPHY]);
 
     /* RTC */
-    qdev_init_nofail(DEVICE(&s->rtc));
+    sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, s->memmap[AW_H3_RTC]);
 
     /* Unimplemented devices */

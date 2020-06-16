@@ -743,13 +743,13 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     unsigned int smp_cpus = machine->smp.cpus;
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
 
-    dev = qdev_create(NULL, TYPE_OPENPIC);
+    dev = qdev_new(TYPE_OPENPIC);
     object_property_add_child(OBJECT(machine), "pic", OBJECT(dev));
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
-    qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
 
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
@@ -768,10 +768,10 @@ static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
     DeviceState *dev;
     CPUState *cs;
 
-    dev = qdev_create(NULL, TYPE_KVM_OPENPIC);
+    dev = qdev_new(TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
 
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &err);
     if (err) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));
@@ -913,10 +913,10 @@ void ppce500_init(MachineState *machine)
     /* Register Memory */
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
-    dev = qdev_create(NULL, "e500-ccsr");
+    dev = qdev_new("e500-ccsr");
     object_property_add_child(qdev_get_machine(), "e500-ccsr",
                               OBJECT(dev));
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     ccsr = CCSR(dev);
     ccsr_addr_space = &ccsr->ccsr_space;
     memory_region_add_subregion(address_space_mem, pmc->ccsrbar_base,
@@ -937,9 +937,9 @@ void ppce500_init(MachineState *machine)
                        serial_hd(1), DEVICE_BIG_ENDIAN);
     }
         /* I2C */
-    dev = qdev_create(NULL, "mpc-i2c");
+    dev = qdev_new("mpc-i2c");
     s = SYS_BUS_DEVICE(dev);
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8544_I2C_IRQ));
     memory_region_add_subregion(ccsr_addr_space, MPC8544_I2C_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
@@ -948,19 +948,19 @@ void ppce500_init(MachineState *machine)
 
 
     /* General Utility device */
-    dev = qdev_create(NULL, "mpc8544-guts");
-    qdev_init_nofail(dev);
+    dev = qdev_new("mpc8544-guts");
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     memory_region_add_subregion(ccsr_addr_space, MPC8544_UTIL_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
     /* PCI */
-    dev = qdev_create(NULL, "e500-pcihost");
+    dev = qdev_new("e500-pcihost");
     object_property_add_child(qdev_get_machine(), "pci-host", OBJECT(dev));
     qdev_prop_set_uint32(dev, "first_slot", pmc->pci_first_slot);
     qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
-    qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, pci_irq_nrs[i]));
     }
@@ -985,9 +985,9 @@ void ppce500_init(MachineState *machine)
     if (pmc->has_mpc8xxx_gpio) {
         qemu_irq poweroff_irq;
 
-        dev = qdev_create(NULL, "mpc8xxx_gpio");
+        dev = qdev_new("mpc8xxx_gpio");
         s = SYS_BUS_DEVICE(dev);
-        qdev_init_nofail(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
         sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8XXX_GPIO_IRQ));
         memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
@@ -999,11 +999,11 @@ void ppce500_init(MachineState *machine)
 
     /* Platform Bus Device */
     if (pmc->has_platform_bus) {
-        dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
+        dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
         dev->id = TYPE_PLATFORM_BUS_DEVICE;
         qdev_prop_set_uint32(dev, "num_irqs", pmc->platform_bus_num_irqs);
         qdev_prop_set_uint32(dev, "mmio_size", pmc->platform_bus_size);
-        qdev_init_nofail(dev);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         pms->pbus_dev = PLATFORM_BUS_DEVICE(dev);
 
         s = SYS_BUS_DEVICE(pms->pbus_dev);

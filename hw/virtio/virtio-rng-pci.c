@@ -36,8 +36,7 @@ static void virtio_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     DeviceState *vdev = DEVICE(&vrng->vdev);
     Error *err = NULL;
 
-    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    object_property_set_bool(OBJECT(vdev), true, "realized", &err);
+    qdev_realize(vdev, BUS(&vpci_dev->bus), &err);
     if (err) {
         error_propagate(errp, err);
         return;

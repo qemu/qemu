@@ -39,6 +39,7 @@ typedef struct SCLPEventsBus {
 struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
+    SCLPEvent quiesce, cpu_hotplug;
     /* guest's receive mask */
     union {
         uint32_t receive_mask_pieces[2];
@@ -328,34 +329,9 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 
 #define TYPE_SCLP_EVENTS_BUS "s390-sclp-events-bus"
 
-static void sclp_events_bus_realize(BusState *bus, Error **errp)
-{
-    Error *err = NULL;
-    BusChild *kid;
-
-    /* TODO: recursive realization has to be done in common code */
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        DeviceState *dev = kid->child;
-
-        object_property_set_bool(OBJECT(dev), true, "realized", &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
-    }
-}
-
-static void sclp_events_bus_class_init(ObjectClass *klass, void *data)
-{
-    BusClass *bc = BUS_CLASS(klass);
-
-    bc->realize = sclp_events_bus_realize;
-}
-
 static const TypeInfo sclp_events_bus_info = {
     .name = TYPE_SCLP_EVENTS_BUS,
     .parent = TYPE_BUS,
-    .class_init = sclp_events_bus_class_init,
 };
 
 static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
@@ -443,27 +419,44 @@ static void init_event_facility(Object *obj)
 {
     SCLPEventFacility *event_facility = EVENT_FACILITY(obj);
     DeviceState *sdev = DEVICE(obj);
-    Object *new;
 
     event_facility->mask_length = 4;
     event_facility->allow_all_mask_sizes = true;
     object_property_add_bool(obj, "allow_all_mask_sizes",
                              sclp_event_get_allow_all_mask_sizes,
                              sclp_event_set_allow_all_mask_sizes);
+
     /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
                         TYPE_SCLP_EVENTS_BUS, sdev, NULL);
 
-    new = object_new(TYPE_SCLP_QUIESCE);
-    object_property_add_child(obj, TYPE_SCLP_QUIESCE, new);
-    object_unref(new);
-    qdev_set_parent_bus(DEVICE(new), BUS(&event_facility->sbus));
+    object_initialize_child(obj, TYPE_SCLP_QUIESCE,
+                            &event_facility->quiesce,
+                            TYPE_SCLP_QUIESCE);
 
-    new = object_new(TYPE_SCLP_CPU_HOTPLUG);
-    object_property_add_child(obj, TYPE_SCLP_CPU_HOTPLUG, new);
-    object_unref(new);
-    qdev_set_parent_bus(DEVICE(new), BUS(&event_facility->sbus));
-    /* the facility will automatically realize the devices via the bus */
+    object_initialize_child(obj, TYPE_SCLP_CPU_HOTPLUG,
+                            &event_facility->cpu_hotplug,
+                            TYPE_SCLP_CPU_HOTPLUG);
+}
+
+static void realize_event_facility(DeviceState *dev, Error **errp)
+{
+    SCLPEventFacility *event_facility = EVENT_FACILITY(dev);
+    Error *local_err = NULL;
+
+    qdev_realize(DEVICE(&event_facility->quiesce),
+                 BUS(&event_facility->sbus), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    qdev_realize(DEVICE(&event_facility->cpu_hotplug),
+                 BUS(&event_facility->sbus), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        qdev_unrealize(DEVICE(&event_facility->quiesce));
+        return;
+    }
 }
 
 static void reset_event_facility(DeviceState *dev)
@@ -479,6 +472,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(sbdc);
     SCLPEventFacilityClass *k = EVENT_FACILITY_CLASS(dc);
 
+    dc->realize = realize_event_facility;
     dc->reset = reset_event_facility;
     dc->vmsd = &vmstate_event_facility;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

@@ -376,7 +376,6 @@ static void mss_spi_realize(DeviceState *dev, Error **errp)
     s->spi = ssi_create_bus(dev, "spi");
 
     sysbus_init_irq(sbd, &s->irq);
-    ssi_auto_connect_slaves(dev, &s->cs_line, s->spi);
     sysbus_init_irq(sbd, &s->cs_line);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &spi_ops, s,

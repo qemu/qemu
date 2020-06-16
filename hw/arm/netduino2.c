@@ -34,9 +34,9 @@ static void netduino2_init(MachineState *machine)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, TYPE_STM32F205_SOC);
+    dev = qdev_new(TYPE_STM32F205_SOC);
     qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m3"));
-    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
                        FLASH_SIZE);

@@ -64,8 +64,7 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
                                 s->mch.address_space_io,
                                 0, TYPE_PCIE_BUS);
     PC_MACHINE(qdev_get_machine())->bus = pci->bus;
-    qdev_set_parent_bus(DEVICE(&s->mch), BUS(pci->bus));
-    qdev_init_nofail(DEVICE(&s->mch));
+    qdev_realize(DEVICE(&s->mch), BUS(pci->bus), &error_fatal);
 }
 
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
@@ -213,8 +212,7 @@ static void q35_host_initfn(Object *obj)
     memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
                           "pci-conf-data", 4);
 
-    object_initialize_child(OBJECT(s), "mch",  &s->mch, sizeof(s->mch),
-                            TYPE_MCH_PCI_DEVICE, &error_abort, NULL);
+    object_initialize_child(OBJECT(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
     qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
     /* mch's object_initialize resets the default value, set it again */

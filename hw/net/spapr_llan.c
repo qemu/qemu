@@ -372,11 +372,11 @@ void spapr_vlan_create(SpaprVioBus *bus, NICInfo *nd)
 {
     DeviceState *dev;
 
-    dev = qdev_create(&bus->bus, "spapr-vlan");
+    dev = qdev_new("spapr-vlan");
 
     qdev_set_nic_properties(dev, nd);
 
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
 }
 
 static int spapr_vlan_devnode(SpaprVioDevice *dev, void *fdt, int node_off)

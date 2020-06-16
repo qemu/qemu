@@ -142,12 +142,10 @@ static MemoryRegion *make_unimp_dev(MuscaMachineState *mms,
      */
     UnimplementedDeviceState *uds = opaque;
 
-    sysbus_init_child_obj(OBJECT(mms), name, uds,
-                          sizeof(UnimplementedDeviceState),
-                          TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(OBJECT(mms), name, uds, TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(DEVICE(uds), "name", name);
     qdev_prop_set_uint64(DEVICE(uds), "size", size);
-    object_property_set_bool(OBJECT(uds), true, "realized", &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(uds), &error_fatal);
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(uds), 0);
 }
 
@@ -246,23 +244,21 @@ static MemoryRegion *make_mpc(MuscaMachineState *mms, void *opaque,
     case MPC_CRYPTOISLAND:
         /* We don't implement the CryptoIsland yet */
         uds = &mms->cryptoisland;
-        sysbus_init_child_obj(OBJECT(mms), name, uds,
-                              sizeof(UnimplementedDeviceState),
-                              TYPE_UNIMPLEMENTED_DEVICE);
+        object_initialize_child(OBJECT(mms), name, uds,
+                                TYPE_UNIMPLEMENTED_DEVICE);
         qdev_prop_set_string(DEVICE(uds), "name", mpcinfo[i].name);
         qdev_prop_set_uint64(DEVICE(uds), "size", mpcinfo[i].size);
-        object_property_set_bool(OBJECT(uds), true, "realized", &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(uds), &error_fatal);
         downstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(uds), 0);
         break;
     default:
         g_assert_not_reached();
     }
 
-    sysbus_init_child_obj(OBJECT(mms), mpcname, mpc, sizeof(mms->mpc[0]),
-                          TYPE_TZ_MPC);
+    object_initialize_child(OBJECT(mms), mpcname, mpc, TYPE_TZ_MPC);
     object_property_set_link(OBJECT(mpc), OBJECT(downstream),
                              "downstream", &error_fatal);
-    object_property_set_bool(OBJECT(mpc), true, "realized", &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(mpc), &error_fatal);
     /* Map the upstream end of the MPC into system memory */
     upstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 1);
     memory_region_add_subregion(get_system_memory(), mpcinfo[i].addr, upstream);
@@ -281,8 +277,8 @@ static MemoryRegion *make_rtc(MuscaMachineState *mms, void *opaque,
 {
     PL031State *rtc = opaque;
 
-    sysbus_init_child_obj(OBJECT(mms), name, rtc, sizeof(mms->rtc), TYPE_PL031);
-    object_property_set_bool(OBJECT(rtc), true, "realized", &error_fatal);
+    object_initialize_child(OBJECT(mms), name, rtc, TYPE_PL031);
+    sysbus_realize(SYS_BUS_DEVICE(rtc), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(rtc), 0, get_sse_irq_in(mms, 39));
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(rtc), 0);
 }
@@ -295,10 +291,9 @@ static MemoryRegion *make_uart(MuscaMachineState *mms, void *opaque,
     int irqbase = 7 + i * 6;
     SysBusDevice *s;
 
-    sysbus_init_child_obj(OBJECT(mms), name, uart, sizeof(mms->uart[0]),
-                          TYPE_PL011);
+    object_initialize_child(OBJECT(mms), name, uart, TYPE_PL011);
     qdev_prop_set_chr(DEVICE(uart), "chardev", serial_hd(i));
-    object_property_set_bool(OBJECT(uart), true, "realized", &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(uart), &error_fatal);
     s = SYS_BUS_DEVICE(uart);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqbase + 5)); /* combined */
     sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqbase + 0)); /* RX */
@@ -376,8 +371,8 @@ static void musca_init(MachineState *machine)
         exit(1);
     }
 
-    sysbus_init_child_obj(OBJECT(machine), "sse-200", &mms->sse,
-                          sizeof(mms->sse), TYPE_SSE200);
+    object_initialize_child(OBJECT(machine), "sse-200", &mms->sse,
+                            TYPE_SSE200);
     ssedev = DEVICE(&mms->sse);
     object_property_set_link(OBJECT(&mms->sse), OBJECT(system_memory),
                              "memory", &error_fatal);
@@ -393,8 +388,7 @@ static void musca_init(MachineState *machine)
         qdev_prop_set_bit(ssedev, "CPU0_FPU", true);
         qdev_prop_set_bit(ssedev, "CPU0_DSP", true);
     }
-    object_property_set_bool(OBJECT(&mms->sse), true, "realized",
-                             &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->sse), &error_fatal);
 
     /*
      * We need to create splitters to feed the IRQ inputs
@@ -404,15 +398,14 @@ static void musca_init(MachineState *machine)
         char *name = g_strdup_printf("musca-irq-splitter%d", i);
         SplitIRQ *splitter = &mms->cpu_irq_splitter[i];
 
-        object_initialize_child(OBJECT(machine), name,
-                                splitter, sizeof(*splitter),
-                                TYPE_SPLIT_IRQ, &error_fatal, NULL);
+        object_initialize_child_with_props(OBJECT(machine), name, splitter,
+                                           sizeof(*splitter), TYPE_SPLIT_IRQ,
+                                           &error_fatal, NULL);
         g_free(name);
 
         object_property_set_int(OBJECT(splitter), 2, "num-lines",
                                 &error_fatal);
-        object_property_set_bool(OBJECT(splitter), true, "realized",
-                                 &error_fatal);
+        qdev_realize(DEVICE(splitter), NULL, &error_fatal);
         qdev_connect_gpio_out(DEVICE(splitter), 0,
                               qdev_get_gpio_in_named(ssedev, "EXP_IRQ", i));
         qdev_connect_gpio_out(DEVICE(splitter), 1,
@@ -424,15 +417,14 @@ static void musca_init(MachineState *machine)
      * The sec_resp_cfg output from the SSE-200 must be split into multiple
      * lines, one for each of the PPCs we create here.
      */
-    object_initialize_child(OBJECT(machine), "sec-resp-splitter",
-                            &mms->sec_resp_splitter,
-                            sizeof(mms->sec_resp_splitter),
-                            TYPE_SPLIT_IRQ, &error_fatal, NULL);
+    object_initialize_child_with_props(OBJECT(machine), "sec-resp-splitter",
+                                       &mms->sec_resp_splitter,
+                                       sizeof(mms->sec_resp_splitter),
+                                       TYPE_SPLIT_IRQ, &error_fatal, NULL);
 
     object_property_set_int(OBJECT(&mms->sec_resp_splitter),
                             ARRAY_SIZE(mms->ppc), "num-lines", &error_fatal);
-    object_property_set_bool(OBJECT(&mms->sec_resp_splitter), true,
-                             "realized", &error_fatal);
+    qdev_realize(DEVICE(&mms->sec_resp_splitter), NULL, &error_fatal);
     dev_splitter = DEVICE(&mms->sec_resp_splitter);
     qdev_connect_gpio_out_named(ssedev, "sec_resp_cfg", 0,
                                 qdev_get_gpio_in(dev_splitter, 0));
@@ -534,8 +526,8 @@ static void musca_init(MachineState *machine)
         int port;
         char *gpioname;
 
-        sysbus_init_child_obj(OBJECT(machine), ppcinfo->name, ppc,
-                              sizeof(TZPPC), TYPE_TZ_PPC);
+        object_initialize_child(OBJECT(machine), ppcinfo->name, ppc,
+                                TYPE_TZ_PPC);
         ppcdev = DEVICE(ppc);
 
         for (port = 0; port < TZ_NUM_PORTS; port++) {
@@ -554,7 +546,7 @@ static void musca_init(MachineState *machine)
             g_free(portname);
         }
 
-        object_property_set_bool(OBJECT(ppc), true, "realized", &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(ppc), &error_fatal);
 
         for (port = 0; port < TZ_NUM_PORTS; port++) {
             const PPCPortInfo *pinfo = &ppcinfo->ports[port];

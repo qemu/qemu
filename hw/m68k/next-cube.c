@@ -839,7 +839,7 @@ static void next_escc_init(M68kCPU *cpu)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, TYPE_ESCC);
+    dev = qdev_new(TYPE_ESCC);
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", 9600 * 384);
     qdev_prop_set_uint32(dev, "it_shift", 0);
@@ -848,9 +848,9 @@ static void next_escc_init(M68kCPU *cpu)
     qdev_prop_set_chr(dev, "chrA", serial_hd(0));
     qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
     qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-    qdev_init_nofail(dev);
 
     s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, ser_irq[0]);
     sysbus_connect_irq(s, 1,  ser_irq[1]);
     sysbus_mmio_map(s, 0, 0x2118000);
@@ -895,8 +895,8 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
 
     /* Framebuffer */
-    dev = qdev_create(NULL, TYPE_NEXTFB);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_NEXTFB);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0B000000);
 
     /* MMIO */
@@ -918,8 +918,8 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x02100000, scrmem);
 
     /* KBD */
-    dev = qdev_create(NULL, TYPE_NEXTKBD);
-    qdev_init_nofail(dev);
+    dev = qdev_new(TYPE_NEXTKBD);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0200e000);
 
     /* Load ROM here */

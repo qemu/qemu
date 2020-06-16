@@ -567,7 +567,7 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
                                 spapr_drc_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc));
     object_unref(OBJECT(drc));
-    object_property_set_bool(OBJECT(drc), true, "realized", NULL);
+    qdev_realize(DEVICE(drc), NULL, NULL);
     g_free(prop_name);
 
     return drc;

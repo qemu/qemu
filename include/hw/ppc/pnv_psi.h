@@ -31,7 +31,7 @@
 #define PSIHB_XSCOM_MAX         0x20
 
 typedef struct PnvPsi {
-    SysBusDevice parent;
+    DeviceState parent;
 
     MemoryRegion regs_mr;
     uint64_t bar;

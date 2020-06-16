@@ -61,17 +61,14 @@ static void xlnx_zynqmp_pmu_soc_init(Object *obj)
 {
     XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
 
-    object_initialize_child(obj, "pmu-cpu", &s->cpu, sizeof(s->cpu),
-                            TYPE_MICROBLAZE_CPU, &error_abort, NULL);
+    object_initialize_child(obj, "pmu-cpu", &s->cpu, TYPE_MICROBLAZE_CPU);
 
-    sysbus_init_child_obj(obj, "intc", &s->intc, sizeof(s->intc),
-                          TYPE_XLNX_PMU_IO_INTC);
+    object_initialize_child(obj, "intc", &s->intc, TYPE_XLNX_PMU_IO_INTC);
 
     /* Create the IPI device */
     for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
         char *name = g_strdup_printf("ipi%d", i);
-        sysbus_init_child_obj(obj, name, &s->ipi[i],
-                              sizeof(XlnxZynqMPIPI), TYPE_XLNX_ZYNQMP_IPI);
+        object_initialize_child(obj, name, &s->ipi[i], TYPE_XLNX_ZYNQMP_IPI);
         g_free(name);
     }
 }
@@ -99,7 +96,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
     object_property_set_str(OBJECT(&s->cpu), "8.40.b", "version",
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), 0, "pvr", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(&s->cpu), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -111,7 +108,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->intc), 0xffff, "intc-positive",
                              &error_abort);
-    object_property_set_bool(OBJECT(&s->intc), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -122,8 +119,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
 
     /* Connect the IPI device */
     for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
-        object_property_set_bool(OBJECT(&s->ipi[i]), true, "realized",
-                                 &error_abort);
+        sysbus_realize(SYS_BUS_DEVICE(&s->ipi[i]), &error_abort);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi[i]), 0, ipi_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ipi[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->intc), ipi_irq[i]));
@@ -175,9 +171,8 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
 
     /* Create the PMU device */
     object_initialize_child(OBJECT(machine), "pmu", pmu,
-                            sizeof(XlnxZynqMPPMUSoCState),
-                            TYPE_XLNX_ZYNQMP_PMU_SOC, &error_abort, NULL);
-    object_property_set_bool(OBJECT(pmu), true, "realized", &error_fatal);
+                            TYPE_XLNX_ZYNQMP_PMU_SOC);
+    qdev_realize(DEVICE(pmu), NULL, &error_fatal);
 
     /* Load the kernel */
     microblaze_load_kernel(&pmu->cpu, XLNX_ZYNQMP_PMU_RAM_ADDR,

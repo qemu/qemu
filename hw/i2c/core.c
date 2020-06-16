@@ -11,6 +11,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "trace.h"
 
@@ -270,9 +271,9 @@ DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
 {
     DeviceState *dev;
 
-    dev = qdev_create(&bus->qbus, name);
+    dev = qdev_new(name);
     qdev_prop_set_uint8(dev, "address", addr);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, &bus->qbus, &error_fatal);
     return dev;
 }
 

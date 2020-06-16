@@ -1510,12 +1510,12 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     PXA2xxI2CState *s;
     I2CBus *i2cbus;
 
-    dev = qdev_create(NULL, TYPE_PXA2XX_I2C);
+    dev = qdev_new(TYPE_PXA2XX_I2C);
     qdev_prop_set_uint32(dev, "size", region_size + 1);
     qdev_prop_set_uint32(dev, "offset", base & region_size);
-    qdev_init_nofail(dev);
 
     i2c_dev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(i2c_dev, &error_fatal);
     sysbus_mmio_map(i2c_dev, 0, base & ~region_size);
     sysbus_connect_irq(i2c_dev, 0, irq);
 
@@ -2073,10 +2073,10 @@ static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
     DeviceState *dev;
     SysBusDevice *sbd;
 
-    dev = qdev_create(NULL, TYPE_PXA2XX_FIR);
+    dev = qdev_new(TYPE_PXA2XX_FIR);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_init_nofail(dev);
     sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_mmio_map(sbd, 0, base);
     sysbus_connect_irq(sbd, 0, irq);
     sysbus_connect_irq(sbd, 1, rx_dma);

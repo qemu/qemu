@@ -79,7 +79,7 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
 
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -91,7 +91,7 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
                          ARM11MPCORE_NUM_GIC_PRIORITY_BITS);
 
 
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -104,14 +104,14 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->mptimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
 
     qdev_prop_set_uint32(wdtimerdev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->wdtimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdtimer), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -129,17 +129,15 @@ static void mpcore_priv_initfn(Object *obj)
                        "mpcore-priv-container", 0x2000);
     sysbus_init_mmio(sbd, &s->container);
 
-    sysbus_init_child_obj(obj, "scu", &s->scu, sizeof(s->scu), TYPE_ARM11_SCU);
+    object_initialize_child(obj, "scu", &s->scu, TYPE_ARM11_SCU);
 
-    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
     /* Request the legacy 11MPCore GIC behaviour: */
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 0);
 
-    sysbus_init_child_obj(obj, "mptimer", &s->mptimer, sizeof(s->mptimer),
-                          TYPE_ARM_MPTIMER);
+    object_initialize_child(obj, "mptimer", &s->mptimer, TYPE_ARM_MPTIMER);
 
-    sysbus_init_child_obj(obj, "wdtimer", &s->wdtimer, sizeof(s->wdtimer),
-                          TYPE_ARM_MPTIMER);
+    object_initialize_child(obj, "wdtimer", &s->wdtimer, TYPE_ARM_MPTIMER);
 }
 
 static Property mpcore_priv_properties[] = {

@@ -75,7 +75,7 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     index++;
 
     isa_init_irq(isadev, &s->irq, isa->isairq);
-    object_property_set_bool(OBJECT(s), true, "realized", errp);
+    qdev_realize(DEVICE(s), NULL, errp);
     qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
     memory_region_init_io(&s->io, OBJECT(isa), &serial_io_ops, s, "serial", 8);
@@ -136,8 +136,7 @@ static void serial_isa_initfn(Object *o)
 {
     ISASerialState *self = ISA_SERIAL(o);
 
-    object_initialize_child(o, "serial", &self->state, sizeof(self->state),
-                            TYPE_SERIAL, &error_abort, NULL);
+    object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
 }
 
 static const TypeInfo serial_isa_info = {
@@ -160,11 +159,11 @@ static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_create(bus, TYPE_ISA_SERIAL);
+    isadev = isa_new(TYPE_ISA_SERIAL);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_init_nofail(dev);
+    isa_realize_and_unref(isadev, bus, &error_fatal);
 }
 
 void serial_hds_isa_init(ISABus *bus, int from, int to)

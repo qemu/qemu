@@ -79,16 +79,11 @@ extern const VMStateDescription vmstate_ssi_slave;
 }
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name);
-DeviceState *ssi_create_slave_no_init(SSIBus *bus, const char *name);
 
 /* Master interface.  */
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
-
-/* Automatically connect all children nodes a spi controller as slaves */
-void ssi_auto_connect_slaves(DeviceState *parent, qemu_irq *cs_lines,
-                             SSIBus *bus);
 
 /* max111x.c */
 void max111x_set_input(DeviceState *dev, int line, uint8_t value);

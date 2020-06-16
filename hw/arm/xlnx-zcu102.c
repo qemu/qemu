@@ -116,8 +116,7 @@ static void xlnx_zcu102_init(MachineState *machine)
                  ram_size);
     }
 
-    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            TYPE_XLNX_ZYNQMP, &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_XLNX_ZYNQMP);
 
     object_property_set_link(OBJECT(&s->soc), OBJECT(machine->ram),
                          "ddr-ram", &error_abort);
@@ -126,7 +125,7 @@ static void xlnx_zcu102_init(MachineState *machine)
     object_property_set_bool(OBJECT(&s->soc), s->virt, "virtualization",
                              &error_fatal);
 
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_fatal);
 
     /* Create and plug in the SD cards */
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
@@ -143,28 +142,27 @@ static void xlnx_zcu102_init(MachineState *machine)
             error_report("No SD bus found for SD card %d", i);
             exit(1);
         }
-        carddev = qdev_create(bus, TYPE_SD_CARD);
+        carddev = qdev_new(TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
-        object_property_set_bool(OBJECT(carddev), true, "realized",
-                                 &error_fatal);
+        qdev_realize_and_unref(carddev, bus, &error_fatal);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
-        SSIBus *spi_bus;
+        BusState *spi_bus;
         DeviceState *flash_dev;
         qemu_irq cs_line;
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         gchar *bus_name = g_strdup_printf("spi%d", i);
 
-        spi_bus = (SSIBus *)qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        spi_bus = qdev_get_child_bus(DEVICE(&s->soc), bus_name);
         g_free(bus_name);
 
-        flash_dev = ssi_create_slave_no_init(spi_bus, "sst25wf080");
+        flash_dev = qdev_new("sst25wf080");
         if (dinfo) {
             qdev_prop_set_drive(flash_dev, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         }
-        qdev_init_nofail(flash_dev);
+        qdev_realize_and_unref(flash_dev, spi_bus, &error_fatal);
 
         cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
 
@@ -172,22 +170,22 @@ static void xlnx_zcu102_init(MachineState *machine)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_FLASH; i++) {
-        SSIBus *spi_bus;
+        BusState *spi_bus;
         DeviceState *flash_dev;
         qemu_irq cs_line;
         DriveInfo *dinfo = drive_get_next(IF_MTD);
         int bus = i / XLNX_ZYNQMP_NUM_QSPI_BUS_CS;
         gchar *bus_name = g_strdup_printf("qspi%d", bus);
 
-        spi_bus = (SSIBus *)qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        spi_bus = qdev_get_child_bus(DEVICE(&s->soc), bus_name);
         g_free(bus_name);
 
-        flash_dev = ssi_create_slave_no_init(spi_bus, "n25q512a11");
+        flash_dev = qdev_new("n25q512a11");
         if (dinfo) {
             qdev_prop_set_drive(flash_dev, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         }
-        qdev_init_nofail(flash_dev);
+        qdev_realize_and_unref(flash_dev, spi_bus, &error_fatal);
 
         cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
 

@@ -137,9 +137,8 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     vpci_dev->common.offset = offset;
 
     /* init virtio bits */
-    qdev_set_parent_bus(DEVICE(g), BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
-    object_property_set_bool(OBJECT(g), true, "realized", &err);
+    qdev_realize(DEVICE(g), BUS(&vpci_dev->bus), &err);
     if (err) {
         error_propagate(errp, err);
         return;

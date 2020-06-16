@@ -652,7 +652,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     }
 
     /* create device */
-    dev = DEVICE(object_new(driver));
+    dev = qdev_new(driver);
 
     /* Check whether the hotplug is allowed by the machine */
     if (qdev_hotplug && !qdev_hotplug_allowed(dev, &err)) {
@@ -661,9 +661,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         goto err_del_dev;
     }
 
-    if (bus) {
-        qdev_set_parent_bus(dev, bus);
-    } else if (qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
+    if (!bus && qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
         /* No bus, no machine hotplug handler --> device is not hotpluggable */
         error_setg(&err, "Device '%s' can not be hotplugged on this machine",
                    driver);
@@ -678,7 +676,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     }
 
     dev->opts = opts;
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    qdev_realize(DEVICE(dev), bus, &err);
     if (err != NULL) {
         dev->opts = NULL;
         goto err_del_dev;

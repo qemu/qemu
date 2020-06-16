@@ -53,15 +53,13 @@ static void bcm2836_init(Object *obj)
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[n].core,
-                                sizeof(s->cpu[n].core), info->cpu_type,
-                                &error_abort, NULL);
+                                info->cpu_type);
     }
 
-    sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),
-                          TYPE_BCM2836_CONTROL);
+    object_initialize_child(obj, "control", &s->control, TYPE_BCM2836_CONTROL);
 
-    sysbus_init_child_obj(obj, "peripherals", &s->peripherals,
-                          sizeof(s->peripherals), TYPE_BCM2835_PERIPHERALS);
+    object_initialize_child(obj, "peripherals", &s->peripherals,
+                            TYPE_BCM2835_PERIPHERALS);
     object_property_add_alias(obj, "board-rev", OBJECT(&s->peripherals),
                               "board-rev");
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->peripherals),
@@ -88,7 +86,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
     object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj);
 
-    object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->peripherals), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -101,7 +99,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                             info->peri_base, 1);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
-    object_property_set_bool(OBJECT(&s->control), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->control), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -135,8 +133,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpu[n].core), true,
-                                 "realized", &err);
+        qdev_realize(DEVICE(&s->cpu[n].core), NULL, &err);
         if (err) {
             error_propagate(errp, err);
             return;

@@ -282,12 +282,12 @@ static void raspi_machine_init(MachineState *machine)
                                         machine->ram, 0);
 
     /* Setup the SOC */
-    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            board_soc_type(board_rev), &error_abort, NULL);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc,
+                            board_soc_type(board_rev));
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(machine->ram));
     object_property_set_int(OBJECT(&s->soc), board_rev, "board-rev",
                             &error_abort);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* Create and plug in the SD cards */
     di = drive_get_next(IF_SD);
@@ -297,9 +297,9 @@ static void raspi_machine_init(MachineState *machine)
         error_report("No SD bus found in SOC object");
         exit(1);
     }
-    carddev = qdev_create(bus, TYPE_SD_CARD);
+    carddev = qdev_new(TYPE_SD_CARD);
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
-    object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
+    qdev_realize_and_unref(carddev, bus, &error_fatal);
 
     vcram_size = object_property_get_uint(OBJECT(&s->soc), "vcram-size",
                                           &error_abort);

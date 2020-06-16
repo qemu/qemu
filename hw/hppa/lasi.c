@@ -300,7 +300,7 @@ DeviceState *lasi_init(MemoryRegion *address_space)
     DeviceState *dev;
     LasiState *s;
 
-    dev = qdev_create(NULL, TYPE_LASI_CHIP);
+    dev = qdev_new(TYPE_LASI_CHIP);
     s = LASI_CHIP(dev);
     s->iar = CPU_HPA + 3;
 
@@ -309,7 +309,7 @@ DeviceState *lasi_init(MemoryRegion *address_space)
                           s, "lasi", 0x100000);
     memory_region_add_subregion(address_space, LASI_HPA, &s->this_mem);
 
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* LAN */
     if (enable_lasi_lan()) {

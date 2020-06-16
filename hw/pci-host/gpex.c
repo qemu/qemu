@@ -98,9 +98,8 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
                                      pci_swizzle_map_irq_fn, s, &s->io_mmio,
                                      &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
 
-    qdev_set_parent_bus(DEVICE(&s->gpex_root), BUS(pci->bus));
     pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
-    qdev_init_nofail(DEVICE(&s->gpex_root));
+    qdev_realize(DEVICE(&s->gpex_root), BUS(pci->bus), &error_fatal);
 }
 
 static const char *gpex_host_root_bus_path(PCIHostState *host_bridge,
@@ -125,8 +124,7 @@ static void gpex_host_initfn(Object *obj)
     GPEXHost *s = GPEX_HOST(obj);
     GPEXRootState *root = &s->gpex_root;
 
-    object_initialize_child(obj, "gpex_root",  root, sizeof(*root),
-                            TYPE_GPEX_ROOT_DEVICE, &error_abort, NULL);
+    object_initialize_child(obj, "gpex_root", root, TYPE_GPEX_ROOT_DEVICE);
     qdev_prop_set_int32(DEVICE(root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(root), "multifunction", false);
 }

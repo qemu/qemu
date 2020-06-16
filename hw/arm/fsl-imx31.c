@@ -33,38 +33,31 @@ static void fsl_imx31_init(Object *obj)
     FslIMX31State *s = FSL_IMX31(obj);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, sizeof(s->cpu),
-                            ARM_CPU_TYPE_NAME("arm1136"),
-                            &error_abort, NULL);
+    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm1136"));
 
-    sysbus_init_child_obj(obj, "avic", &s->avic, sizeof(s->avic),
-                          TYPE_IMX_AVIC);
+    object_initialize_child(obj, "avic", &s->avic, TYPE_IMX_AVIC);
 
-    sysbus_init_child_obj(obj, "ccm", &s->ccm, sizeof(s->ccm), TYPE_IMX31_CCM);
+    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX31_CCM);
 
     for (i = 0; i < FSL_IMX31_NUM_UARTS; i++) {
-        sysbus_init_child_obj(obj, "uart[*]", &s->uart[i], sizeof(s->uart[i]),
-                              TYPE_IMX_SERIAL);
+        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_IMX_SERIAL);
     }
 
-    sysbus_init_child_obj(obj, "gpt", &s->gpt, sizeof(s->gpt), TYPE_IMX31_GPT);
+    object_initialize_child(obj, "gpt", &s->gpt, TYPE_IMX31_GPT);
 
     for (i = 0; i < FSL_IMX31_NUM_EPITS; i++) {
-        sysbus_init_child_obj(obj, "epit[*]", &s->epit[i], sizeof(s->epit[i]),
-                              TYPE_IMX_EPIT);
+        object_initialize_child(obj, "epit[*]", &s->epit[i], TYPE_IMX_EPIT);
     }
 
     for (i = 0; i < FSL_IMX31_NUM_I2CS; i++) {
-        sysbus_init_child_obj(obj, "i2c[*]", &s->i2c[i], sizeof(s->i2c[i]),
-                              TYPE_IMX_I2C);
+        object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX31_NUM_GPIOS; i++) {
-        sysbus_init_child_obj(obj, "gpio[*]", &s->gpio[i], sizeof(s->gpio[i]),
-                              TYPE_IMX_GPIO);
+        object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_IMX_GPIO);
     }
 
-    sysbus_init_child_obj(obj, "wdt", &s->wdt, sizeof(s->wdt), TYPE_IMX2_WDT);
+    object_initialize_child(obj, "wdt", &s->wdt, TYPE_IMX2_WDT);
 }
 
 static void fsl_imx31_realize(DeviceState *dev, Error **errp)
@@ -73,13 +66,13 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     uint16_t i;
     Error *err = NULL;
 
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
+    qdev_realize(DEVICE(&s->cpu), NULL, &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->avic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -90,7 +83,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 1,
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
-    object_property_set_bool(OBJECT(&s->ccm), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -109,7 +102,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
 
-        object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -123,7 +116,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
     s->gpt.ccm = IMX_CCM(&s->ccm);
 
-    object_property_set_bool(OBJECT(&s->gpt), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpt), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -145,7 +138,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         s->epit[i].ccm = IMX_CCM(&s->ccm);
 
-        object_property_set_bool(OBJECT(&s->epit[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -169,7 +162,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         };
 
         /* Initialize the I2C */
-        object_property_set_bool(OBJECT(&s->i2c[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -195,7 +188,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         object_property_set_bool(OBJECT(&s->gpio[i]), false, "has-edge-sel",
                                  &error_abort);
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -208,7 +201,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     }
 
     /* Watchdog */
-    object_property_set_bool(OBJECT(&s->wdt), true, "realized", &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, FSL_IMX31_WDT_ADDR);
 
     /* On a real system, the first 16k is a `secure boot rom' */

@@ -1308,14 +1308,14 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                            &error_fatal);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
-    nvic = qdev_create(NULL, TYPE_ARMV7M);
+    nvic = qdev_new(TYPE_ARMV7M);
     qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
     qdev_prop_set_bit(nvic, "enable-bitband", true);
     object_property_set_link(OBJECT(nvic), OBJECT(get_system_memory()),
                                      "memory", &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    qdev_init_nofail(nvic);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
 
     qdev_connect_gpio_out_named(nvic, "SYSRESETREQ", 0,
                                 qemu_allocate_irq(&do_sys_reset, NULL, 0));
@@ -1347,13 +1347,13 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
 
     if (board->dc1 & (1 << 3)) { /* watchdog present */
-        dev = qdev_create(NULL, TYPE_LUMINARY_WATCHDOG);
+        dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
 
         /* system_clock_scale is valid now */
         uint32_t mainclk = NANOSECONDS_PER_SECOND / system_clock_scale;
         qdev_prop_set_uint32(dev, "wdogclk-frq", mainclk);
 
-        qdev_init_nofail(dev);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev),
                         0,
                         0x40000000u);
@@ -1425,9 +1425,9 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
         qemu_check_nic_model(&nd_table[0], "stellaris");
 
-        enet = qdev_create(NULL, "stellaris_enet");
+        enet = qdev_new("stellaris_enet");
         qdev_set_nic_properties(enet, &nd_table[0]);
-        qdev_init_nofail(enet);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(enet), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
         sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, qdev_get_gpio_in(nvic, 42));
     }

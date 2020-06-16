@@ -61,8 +61,8 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
         return NULL;
     }
     if (!dev) {
-        dev = qdev_create(NULL, "isabus-bridge");
-        qdev_init_nofail(dev);
+        dev = qdev_new("isabus-bridge");
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     }
 
     isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));
@@ -160,29 +160,28 @@ static void isa_device_init(Object *obj)
     dev->isairq[1] = -1;
 }
 
-ISADevice *isa_create(ISABus *bus, const char *name)
+ISADevice *isa_new(const char *name)
 {
-    DeviceState *dev;
-
-    dev = qdev_create(BUS(bus), name);
-    return ISA_DEVICE(dev);
+    return ISA_DEVICE(qdev_new(name));
 }
 
-ISADevice *isa_try_create(ISABus *bus, const char *name)
+ISADevice *isa_try_new(const char *name)
 {
-    DeviceState *dev;
-
-    dev = qdev_try_create(BUS(bus), name);
-    return ISA_DEVICE(dev);
+    return ISA_DEVICE(qdev_try_new(name));
 }
 
 ISADevice *isa_create_simple(ISABus *bus, const char *name)
 {
     ISADevice *dev;
 
-    dev = isa_create(bus, name);
-    qdev_init_nofail(DEVICE(dev));
+    dev = isa_new(name);
+    isa_realize_and_unref(dev, bus, &error_fatal);
     return dev;
+}
+
+bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp)
+{
+    return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
 }
 
 ISADevice *isa_vga_init(ISABus *bus)

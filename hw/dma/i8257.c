@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/dma/i8257.h"
+#include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
@@ -638,21 +639,21 @@ void i8257_dma_init(ISABus *bus, bool high_page_enable)
     ISADevice *isa1, *isa2;
     DeviceState *d;
 
-    isa1 = isa_create(bus, TYPE_I8257);
+    isa1 = isa_new(TYPE_I8257);
     d = DEVICE(isa1);
     qdev_prop_set_int32(d, "base", 0x00);
     qdev_prop_set_int32(d, "page-base", 0x80);
     qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x480 : -1);
     qdev_prop_set_int32(d, "dshift", 0);
-    qdev_init_nofail(d);
+    isa_realize_and_unref(isa1, bus, &error_fatal);
 
-    isa2 = isa_create(bus, TYPE_I8257);
+    isa2 = isa_new(TYPE_I8257);
     d = DEVICE(isa2);
     qdev_prop_set_int32(d, "base", 0xc0);
     qdev_prop_set_int32(d, "page-base", 0x88);
     qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x488 : -1);
     qdev_prop_set_int32(d, "dshift", 1);
-    qdev_init_nofail(d);
+    isa_realize_and_unref(isa2, bus, &error_fatal);
 
     isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
 }

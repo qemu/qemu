@@ -158,9 +158,9 @@ void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
 {
     DeviceState *dev;
 
-    dev = qdev_create(&bus->bus, "spapr-vty");
+    dev = qdev_new("spapr-vty");
     qdev_prop_set_chr(dev, "chardev", chardev);
-    qdev_init_nofail(dev);
+    qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
 }
 
 static Property spapr_vty_properties[] = {

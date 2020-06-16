@@ -23,6 +23,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -296,11 +297,11 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
     uint32_t n = s->num_cpu;
     uint32_t i;
 
-    s->gic = qdev_create(NULL, "arm_gic");
+    s->gic = qdev_new("arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", EXYNOS4210_GIC_NIRQ);
-    qdev_init_nofail(s->gic);
     gicbusdev = SYS_BUS_DEVICE(s->gic);
+    sysbus_realize_and_unref(gicbusdev, &error_fatal);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(sbd, gicbusdev);

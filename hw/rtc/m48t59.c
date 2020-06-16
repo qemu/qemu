@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -579,10 +580,10 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
             continue;
         }
 
-        dev = qdev_create(NULL, m48txx_sysbus_info[i].bus_name);
+        dev = qdev_new(m48txx_sysbus_info[i].bus_name);
         qdev_prop_set_int32(dev, "base-year", base_year);
-        qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
         sysbus_connect_irq(s, 0, IRQ);
         if (io_base != 0) {
             memory_region_add_subregion(get_system_io(), io_base,

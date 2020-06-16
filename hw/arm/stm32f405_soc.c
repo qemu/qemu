@@ -37,7 +37,8 @@ static const uint32_t usart_addr[] = { 0x40011000, 0x40004400, 0x40004800,
 /* At the moment only Timer 2 to 5 are modelled */
 static const uint32_t timer_addr[] = { 0x40000000, 0x40000400,
                                        0x40000800, 0x40000C00 };
-#define ADC_ADDR                       0x40012000
+static const uint32_t adc_addr[] = { 0x40012000, 0x40012100, 0x40012200,
+                                     0x40012300, 0x40012400, 0x40012500 };
 static const uint32_t spi_addr[] =   { 0x40013000, 0x40003800, 0x40003C00,
                                        0x40013400, 0x40015000, 0x40015400 };
 #define EXTI_ADDR                      0x40013C00
@@ -56,34 +57,29 @@ static void stm32f405_soc_initfn(Object *obj)
     STM32F405State *s = STM32F405_SOC(obj);
     int i;
 
-    sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
-                          TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
 
-    sysbus_init_child_obj(obj, "syscfg", &s->syscfg, sizeof(s->syscfg),
-                          TYPE_STM32F4XX_SYSCFG);
+    object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32F4XX_SYSCFG);
 
     for (i = 0; i < STM_NUM_USARTS; i++) {
-        sysbus_init_child_obj(obj, "usart[*]", &s->usart[i],
-                              sizeof(s->usart[i]), TYPE_STM32F2XX_USART);
+        object_initialize_child(obj, "usart[*]", &s->usart[i],
+                                TYPE_STM32F2XX_USART);
     }
 
     for (i = 0; i < STM_NUM_TIMERS; i++) {
-        sysbus_init_child_obj(obj, "timer[*]", &s->timer[i],
-                              sizeof(s->timer[i]), TYPE_STM32F2XX_TIMER);
+        object_initialize_child(obj, "timer[*]", &s->timer[i],
+                                TYPE_STM32F2XX_TIMER);
     }
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
-        sysbus_init_child_obj(obj, "adc[*]", &s->adc[i], sizeof(s->adc[i]),
-                              TYPE_STM32F2XX_ADC);
+        object_initialize_child(obj, "adc[*]", &s->adc[i], TYPE_STM32F2XX_ADC);
     }
 
     for (i = 0; i < STM_NUM_SPIS; i++) {
-        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
-                              TYPE_STM32F2XX_SPI);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_STM32F2XX_SPI);
     }
 
-    sysbus_init_child_obj(obj, "exti", &s->exti, sizeof(s->exti),
-                          TYPE_STM32F4XX_EXTI);
+    object_initialize_child(obj, "exti", &s->exti, TYPE_STM32F4XX_EXTI);
 }
 
 static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -122,7 +118,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(system_memory),
                                      "memory", &error_abort);
-    object_property_set_bool(OBJECT(&s->armv7m), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -130,7 +126,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
-    object_property_set_bool(OBJECT(&s->syscfg), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -143,7 +139,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_USARTS; i++) {
         dev = DEVICE(&(s->usart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        object_property_set_bool(OBJECT(&s->usart[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -157,7 +153,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_TIMERS; i++) {
         dev = DEVICE(&(s->timer[i]));
         qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
-        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -168,16 +164,16 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     /* ADC device, the IRQs are ORed together */
-    object_initialize_child(OBJECT(s), "adc-orirq", &s->adc_irqs,
-                            sizeof(s->adc_irqs), TYPE_OR_IRQ,
-                            &err, NULL);
+    object_initialize_child_with_props(OBJECT(s), "adc-orirq", &s->adc_irqs,
+                                       sizeof(s->adc_irqs), TYPE_OR_IRQ, &err,
+                                       NULL);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
     object_property_set_int(OBJECT(&s->adc_irqs), STM_NUM_ADCS,
                             "num-lines", &err);
-    object_property_set_bool(OBJECT(&s->adc_irqs), true, "realized", &err);
+    qdev_realize(DEVICE(&s->adc_irqs), NULL, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -185,21 +181,23 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_connect_gpio_out(DEVICE(&s->adc_irqs), 0,
                           qdev_get_gpio_in(armv7m, ADC_IRQ));
 
-    dev = DEVICE(&(s->adc[i]));
-    object_property_set_bool(OBJECT(&s->adc[i]), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < STM_NUM_ADCS; i++) {
+        dev = DEVICE(&(s->adc[i]));
+        sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, adc_addr[i]);
+        sysbus_connect_irq(busdev, 0,
+                           qdev_get_gpio_in(DEVICE(&s->adc_irqs), i));
     }
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, ADC_ADDR);
-    sysbus_connect_irq(busdev, 0,
-                       qdev_get_gpio_in(DEVICE(&s->adc_irqs), i));
 
     /* SPI devices */
     for (i = 0; i < STM_NUM_SPIS; i++) {
         dev = DEVICE(&(s->spi[i]));
-        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -211,7 +209,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* EXTI device */
     dev = DEVICE(&s->exti);
-    object_property_set_bool(OBJECT(&s->exti), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->exti), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

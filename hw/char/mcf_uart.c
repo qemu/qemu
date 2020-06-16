@@ -10,6 +10,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 #include "hw/m68k/mcf.h"
 #include "hw/qdev-properties.h"
 #include "chardev/char-fe.h"
@@ -343,11 +344,11 @@ void *mcf_uart_init(qemu_irq irq, Chardev *chrdrv)
 {
     DeviceState  *dev;
 
-    dev = qdev_create(NULL, TYPE_MCF_UART);
+    dev = qdev_new(TYPE_MCF_UART);
     if (chrdrv) {
         qdev_prop_set_chr(dev, "chardev", chrdrv);
     }
-    qdev_init_nofail(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 

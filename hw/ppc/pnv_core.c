@@ -173,7 +173,7 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp)
     Error *local_err = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(pc->chip);
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
+    qdev_realize(DEVICE(cpu), NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

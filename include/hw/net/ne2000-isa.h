@@ -13,6 +13,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "net/net.h"
+#include "qapi/error.h"
 
 #define TYPE_ISA_NE2000 "ne2k_isa"
 
@@ -23,14 +24,14 @@ static inline ISADevice *isa_ne2000_init(ISABus *bus, int base, int irq,
 
     qemu_check_nic_model(nd, "ne2k_isa");
 
-    d = isa_try_create(bus, TYPE_ISA_NE2000);
+    d = isa_try_new(TYPE_ISA_NE2000);
     if (d) {
         DeviceState *dev = DEVICE(d);
 
         qdev_prop_set_uint32(dev, "iobase", base);
         qdev_prop_set_uint32(dev, "irq",    irq);
         qdev_set_nic_properties(dev, nd);
-        qdev_init_nofail(dev);
+        isa_realize_and_unref(d, bus, &error_fatal);
     }
     return d;
 }

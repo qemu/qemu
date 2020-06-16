@@ -32,18 +32,15 @@ static void a9mp_priv_initfn(Object *obj)
     memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
 
-    sysbus_init_child_obj(obj, "scu", &s->scu, sizeof(s->scu), TYPE_A9_SCU);
+    object_initialize_child(obj, "scu", &s->scu, TYPE_A9_SCU);
 
-    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
 
-    sysbus_init_child_obj(obj, "gtimer", &s->gtimer, sizeof(s->gtimer),
-                          TYPE_A9_GTIMER);
+    object_initialize_child(obj, "gtimer", &s->gtimer, TYPE_A9_GTIMER);
 
-    sysbus_init_child_obj(obj, "mptimer", &s->mptimer, sizeof(s->mptimer),
-                          TYPE_ARM_MPTIMER);
+    object_initialize_child(obj, "mptimer", &s->mptimer, TYPE_ARM_MPTIMER);
 
-    sysbus_init_child_obj(obj, "wdt", &s->wdt, sizeof(s->wdt),
-                          TYPE_ARM_MPTIMER);
+    object_initialize_child(obj, "wdt", &s->wdt, TYPE_ARM_MPTIMER);
 }
 
 static void a9mp_priv_realize(DeviceState *dev, Error **errp)
@@ -60,7 +57,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     scudev = DEVICE(&s->scu);
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -81,7 +78,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
         object_property_get_bool(cpuobj, "has_el3", &error_abort);
     qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
 
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -96,7 +93,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     gtimerdev = DEVICE(&s->gtimer);
     qdev_prop_set_uint32(gtimerdev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->gtimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gtimer), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -105,7 +102,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     mptimerdev = DEVICE(&s->mptimer);
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->mptimer), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
@@ -114,7 +111,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     wdtdev = DEVICE(&s->wdt);
     qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->wdt), true, "realized", &err);
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
