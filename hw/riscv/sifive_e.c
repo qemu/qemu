@@ -95,14 +95,16 @@ static void sifive_e_machine_init(MachineState *machine)
         memmap[SIFIVE_E_DTIM].base, main_mem);
 
     /* Mask ROM reset vector */
-    uint32_t reset_vec[2];
+    uint32_t reset_vec[4];
 
     if (s->revb) {
-        reset_vec[0] = 0x200102b7;        /* 0x1000: lui     t0,0x20010 */
+        reset_vec[1] = 0x200102b7;  /* 0x1004: lui     t0,0x20010 */
     } else {
-        reset_vec[0] = 0x204002b7;        /* 0x1000: lui     t0,0x20400 */
+        reset_vec[1] = 0x204002b7;  /* 0x1004: lui     t0,0x20400 */
     }
-    reset_vec[1] = 0x00028067;        /* 0x1004: jr      t0 */
+    reset_vec[2] = 0x00028067;      /* 0x1008: jr      t0 */
+
+    reset_vec[0] = reset_vec[3] = 0;
 
     /* copy in the reset vector in little_endian byte order */
     for (i = 0; i < sizeof(reset_vec) >> 2; i++) {
