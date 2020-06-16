@@ -82,6 +82,9 @@ typedef struct FuzzTarget {
 void flush_events(QTestState *);
 void reboot(QTestState *);
 
+/* Use the QTest ASCII protocol or call address_space API directly?*/
+void fuzz_qtest_set_serialize(bool option);
+
 /*
  * makes a copy of *target and adds it to the target-list.
  * i.e. fine to set up target on the caller's stack

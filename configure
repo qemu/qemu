@@ -6600,6 +6600,11 @@ if test "$cpu" = "s390x" ; then
   write_c_skeleton
   if compile_prog "-march=z900" ""; then
     roms="$roms s390-ccw"
+    # SLOF is required for building the s390-ccw firmware on s390x,
+    # since it is using the libnet code from SLOF for network booting.
+    if test -e "${source_path}/.git" ; then
+      git_submodules="${git_submodules} roms/SLOF"
+    fi
   fi
 fi
 
