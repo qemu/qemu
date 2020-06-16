@@ -2348,3 +2348,136 @@ static bool trans_VMULL_P_3d(DisasContext *s, arg_3diff *a)
                        16, 16, 0, fn_gvec);
     return true;
 }
+
+static void gen_neon_dup_low16(TCGv_i32 var)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_ext16u_i32(var, var);
+    tcg_gen_shli_i32(tmp, var, 16);
+    tcg_gen_or_i32(var, var, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_neon_dup_high16(TCGv_i32 var)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_andi_i32(var, var, 0xffff0000);
+    tcg_gen_shri_i32(tmp, var, 16);
+    tcg_gen_or_i32(var, var, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static inline TCGv_i32 neon_get_scalar(int size, int reg)
+{
+    TCGv_i32 tmp;
+    if (size == 1) {
+        tmp = neon_load_reg(reg & 7, reg >> 4);
+        if (reg & 8) {
+            gen_neon_dup_high16(tmp);
+        } else {
+            gen_neon_dup_low16(tmp);
+        }
+    } else {
+        tmp = neon_load_reg(reg & 15, reg >> 4);
+    }
+    return tmp;
+}
+
+static bool do_2scalar(DisasContext *s, arg_2scalar *a,
+                       NeonGenTwoOpFn *opfn, NeonGenTwoOpFn *accfn)
+{
+    /*
+     * Two registers and a scalar: perform an operation between
+     * the input elements and the scalar, and then possibly
+     * perform an accumulation operation of that result into the
+     * destination.
+     */
+    TCGv_i32 scalar;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!opfn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
+
+    if (a->q && ((a->vd | a->vn) & 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    scalar = neon_get_scalar(a->size, a->vm);
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vn, pass);
+        opfn(tmp, tmp, scalar);
+        if (accfn) {
+            TCGv_i32 rd = neon_load_reg(a->vd, pass);
+            accfn(tmp, rd, tmp);
+            tcg_temp_free_i32(rd);
+        }
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_i32(scalar);
+    return true;
+}
+
+static bool trans_VMUL_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMLA_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        gen_helper_neon_add_u16,
+        tcg_gen_add_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VMLS_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_helper_neon_mul_u16,
+        tcg_gen_mul_i32,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        gen_helper_neon_sub_u16,
+        tcg_gen_sub_i32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
