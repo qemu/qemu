@@ -3302,3 +3302,55 @@ DO_VMOVN(VMOVN, gen_neon_narrow_u)
 DO_VMOVN(VQMOVUN, gen_helper_neon_unarrow_sat)
 DO_VMOVN(VQMOVN_S, gen_helper_neon_narrow_sat_s)
 DO_VMOVN(VQMOVN_U, gen_helper_neon_narrow_sat_u)
+
+static bool trans_VSHLL(DisasContext *s, arg_2misc *a)
+{
+    TCGv_i32 rm0, rm1;
+    TCGv_i64 rd;
+    static NeonGenWidenFn * const widenfns[] = {
+        gen_helper_neon_widen_u8,
+        gen_helper_neon_widen_u16,
+        tcg_gen_extu_i32_i64,
+        NULL,
+    };
+    NeonGenWidenFn *widenfn = widenfns[a->size];
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    if (!widenfn) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rd = tcg_temp_new_i64();
+
+    rm0 = neon_load_reg(a->vm, 0);
+    rm1 = neon_load_reg(a->vm, 1);
+
+    widenfn(rd, rm0);
+    tcg_gen_shli_i64(rd, rd, 8 << a->size);
+    neon_store_reg64(rd, a->vd);
+    widenfn(rd, rm1);
+    tcg_gen_shli_i64(rd, rd, 8 << a->size);
+    neon_store_reg64(rd, a->vd + 1);
+
+    tcg_temp_free_i64(rd);
+    tcg_temp_free_i32(rm0);
+    tcg_temp_free_i32(rm1);
+    return true;
+}
