@@ -3706,3 +3706,65 @@ static bool trans_VQNEG(DisasContext *s, arg_2misc *a)
     };
     return do_2misc(s, a, fn[a->size]);
 }
+
+static bool do_2misc_fp(DisasContext *s, arg_2misc *a,
+                        NeonGenOneSingleOpFn *fn)
+{
+    int pass;
+    TCGv_ptr fpst;
+
+    /* Handle a 2-reg-misc operation by iterating 32 bits at a time */
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->size != 2) {
+        /* TODO: FP16 will be the size == 1 case */
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(1);
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        fn(tmp, tmp, fpst);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}
+
+#define DO_2MISC_FP(INSN, FUNC)                                 \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
+    {                                                           \
+        return do_2misc_fp(s, a, FUNC);                         \
+    }
+
+DO_2MISC_FP(VRECPE_F, gen_helper_recpe_f32)
+DO_2MISC_FP(VRSQRTE_F, gen_helper_rsqrte_f32)
+DO_2MISC_FP(VCVT_FS, gen_helper_vfp_sitos)
+DO_2MISC_FP(VCVT_FU, gen_helper_vfp_uitos)
+DO_2MISC_FP(VCVT_SF, gen_helper_vfp_tosizs)
+DO_2MISC_FP(VCVT_UF, gen_helper_vfp_touizs)
+
+static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
+        return false;
+    }
+    return do_2misc_fp(s, a, gen_helper_rints_exact);
+}

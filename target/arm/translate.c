@@ -4947,6 +4947,13 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case NEON_2RM_VRSQRTE:
                 case NEON_2RM_VQABS:
                 case NEON_2RM_VQNEG:
+                case NEON_2RM_VRECPE_F:
+                case NEON_2RM_VRSQRTE_F:
+                case NEON_2RM_VCVT_FS:
+                case NEON_2RM_VCVT_FU:
+                case NEON_2RM_VCVT_SF:
+                case NEON_2RM_VCVT_UF:
+                case NEON_2RM_VRINTX:
                     /* handled by decodetree */
                     return 1;
                 case NEON_2RM_VTRN:
@@ -5052,13 +5059,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             tcg_temp_free_i32(tcg_rmode);
                             break;
                         }
-                        case NEON_2RM_VRINTX:
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_rints_exact(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
                         case NEON_2RM_VCVTAU:
                         case NEON_2RM_VCVTAS:
                         case NEON_2RM_VCVTNU:
@@ -5091,48 +5091,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             tcg_temp_free_i32(tcg_rmode);
                             tcg_temp_free_i32(tcg_shift);
                             tcg_temp_free_ptr(fpst);
-                            break;
-                        }
-                        case NEON_2RM_VRECPE_F:
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_recpe_f32(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
-                        case NEON_2RM_VRSQRTE_F:
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_rsqrte_f32(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
-                        case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_vfp_sitos(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
-                        case NEON_2RM_VCVT_FU: /* VCVT.F32.U32 */
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_vfp_uitos(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
-                        case NEON_2RM_VCVT_SF: /* VCVT.S32.F32 */
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_vfp_tosizs(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
-                            break;
-                        }
-                        case NEON_2RM_VCVT_UF: /* VCVT.U32.F32 */
-                        {
-                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_vfp_touizs(tmp, tmp, fpstatus);
-                            tcg_temp_free_ptr(fpstatus);
                             break;
                         }
                         default:
