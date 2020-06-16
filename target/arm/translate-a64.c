@@ -11917,8 +11917,8 @@ static void handle_2misc_pairwise(DisasContext *s, int opcode, bool u,
     } else {
         for (pass = 0; pass < maxpass; pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
-            NeonGenOneOpFn *genfn;
-            static NeonGenOneOpFn * const fns[2][2] = {
+            NeonGenOne64OpFn *genfn;
+            static NeonGenOne64OpFn * const fns[2][2] = {
                 { gen_helper_neon_addlp_s8,  gen_helper_neon_addlp_u8 },
                 { gen_helper_neon_addlp_s16,  gen_helper_neon_addlp_u16 },
             };
