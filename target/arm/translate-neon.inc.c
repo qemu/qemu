@@ -3671,3 +3671,38 @@ static bool trans_VRSQRTE(DisasContext *s, arg_2misc *a)
     }
     return do_2misc(s, a, gen_helper_rsqrte_u32);
 }
+
+#define WRAP_1OP_ENV_FN(WRAPNAME, FUNC) \
+    static void WRAPNAME(TCGv_i32 d, TCGv_i32 m)        \
+    {                                                   \
+        FUNC(d, cpu_env, m);                            \
+    }
+
+WRAP_1OP_ENV_FN(gen_VQABS_s8, gen_helper_neon_qabs_s8)
+WRAP_1OP_ENV_FN(gen_VQABS_s16, gen_helper_neon_qabs_s16)
+WRAP_1OP_ENV_FN(gen_VQABS_s32, gen_helper_neon_qabs_s32)
+WRAP_1OP_ENV_FN(gen_VQNEG_s8, gen_helper_neon_qneg_s8)
+WRAP_1OP_ENV_FN(gen_VQNEG_s16, gen_helper_neon_qneg_s16)
+WRAP_1OP_ENV_FN(gen_VQNEG_s32, gen_helper_neon_qneg_s32)
+
+static bool trans_VQABS(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenOneOpFn * const fn[] = {
+        gen_VQABS_s8,
+        gen_VQABS_s16,
+        gen_VQABS_s32,
+        NULL,
+    };
+    return do_2misc(s, a, fn[a->size]);
+}
+
+static bool trans_VQNEG(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenOneOpFn * const fn[] = {
+        gen_VQNEG_s8,
+        gen_VQNEG_s16,
+        gen_VQNEG_s32,
+        NULL,
+    };
+    return do_2misc(s, a, fn[a->size]);
+}
