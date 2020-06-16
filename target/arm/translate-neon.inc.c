@@ -2304,3 +2304,46 @@ static bool trans_VQDMLSL_3d(DisasContext *s, arg_3diff *a)
 
     return do_long_3d(s, a, opfn[a->size], accfn[a->size]);
 }
+
+static bool trans_VMULL_P_3d(DisasContext *s, arg_3diff *a)
+{
+    gen_helper_gvec_3 *fn_gvec;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & 1) {
+        return false;
+    }
+
+    switch (a->size) {
+    case 0:
+        fn_gvec = gen_helper_neon_pmull_h;
+        break;
+    case 2:
+        if (!dc_isar_feature(aa32_pmull, s)) {
+            return false;
+        }
+        fn_gvec = gen_helper_gvec_pmull_q;
+        break;
+    default:
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tcg_gen_gvec_3_ool(neon_reg_offset(a->vd, 0),
+                       neon_reg_offset(a->vn, 0),
+                       neon_reg_offset(a->vm, 0),
+                       16, 16, 0, fn_gvec);
+    return true;
+}

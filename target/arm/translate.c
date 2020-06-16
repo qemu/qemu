@@ -5181,7 +5181,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 {
     int op;
     int q;
-    int rd, rn, rm, rd_ofs, rn_ofs, rm_ofs;
+    int rd, rn, rm, rd_ofs, rm_ofs;
     int size;
     int pass;
     int u;
@@ -5215,7 +5215,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     size = (insn >> 20) & 3;
     vec_size = q ? 16 : 8;
     rd_ofs = neon_reg_offset(rd, 0);
-    rn_ofs = neon_reg_offset(rn, 0);
     rm_ofs = neon_reg_offset(rm, 0);
 
     if ((insn & (1 << 23)) == 0) {
@@ -5228,61 +5227,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         if (size != 3) {
             op = (insn >> 8) & 0xf;
             if ((insn & (1 << 6)) == 0) {
-                /* Three registers of different lengths.  */
-                /* undefreq: bit 0 : UNDEF if size == 0
-                 *           bit 1 : UNDEF if size == 1
-                 *           bit 2 : UNDEF if size == 2
-                 *           bit 3 : UNDEF if U == 1
-                 * Note that [2:0] set implies 'always UNDEF'
-                 */
-                int undefreq;
-                /* prewiden, src1_wide, src2_wide, undefreq */
-                static const int neon_3reg_wide[16][4] = {
-                    {0, 0, 0, 7}, /* VADDL: handled by decodetree */
-                    {0, 0, 0, 7}, /* VADDW: handled by decodetree */
-                    {0, 0, 0, 7}, /* VSUBL: handled by decodetree */
-                    {0, 0, 0, 7}, /* VSUBW: handled by decodetree */
-                    {0, 0, 0, 7}, /* VADDHN: handled by decodetree */
-                    {0, 0, 0, 7}, /* VABAL */
-                    {0, 0, 0, 7}, /* VSUBHN: handled by decodetree */
-                    {0, 0, 0, 7}, /* VABDL */
-                    {0, 0, 0, 7}, /* VMLAL */
-                    {0, 0, 0, 7}, /* VQDMLAL */
-                    {0, 0, 0, 7}, /* VMLSL */
-                    {0, 0, 0, 7}, /* VQDMLSL */
-                    {0, 0, 0, 7}, /* Integer VMULL */
-                    {0, 0, 0, 7}, /* VQDMULL */
-                    {0, 0, 0, 0xa}, /* Polynomial VMULL */
-                    {0, 0, 0, 7}, /* Reserved: always UNDEF */
-                };
-
-                undefreq = neon_3reg_wide[op][3];
-
-                if ((undefreq & (1 << size)) ||
-                    ((undefreq & 8) && u)) {
-                    return 1;
-                }
-                if (rd & 1) {
-                    return 1;
-                }
-
-                /* Handle polynomial VMULL in a single pass.  */
-                if (op == 14) {
-                    if (size == 0) {
-                        /* VMULL.P8 */
-                        tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, 16, 16,
-                                           0, gen_helper_neon_pmull_h);
-                    } else {
-                        /* VMULL.P64 */
-                        if (!dc_isar_feature(aa32_pmull, s)) {
-                            return 1;
-                        }
-                        tcg_gen_gvec_3_ool(rd_ofs, rn_ofs, rm_ofs, 16, 16,
-                                           0, gen_helper_gvec_pmull_q);
-                    }
-                    return 0;
-                }
-                abort(); /* all others handled by decodetree */
+                /* Three registers of different lengths: handled by decodetree */
+                return 1;
             } else {
                 /* Two registers and a scalar. NB that for ops of this form
                  * the ARM ARM labels bit 24 as Q, but it is in our variable
