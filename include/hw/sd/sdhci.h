@@ -74,6 +74,7 @@ typedef struct SDHCIState {
     uint16_t acmd12errsts; /* Auto CMD12 error status register */
     uint16_t hostctl2;     /* Host Control 2 */
     uint64_t admasysaddr;  /* ADMA System Address Register */
+    uint16_t vendor_spec;  /* Vendor specific register */
 
     /* Read-only registers */
     uint64_t capareg;      /* Capabilities Register */
@@ -96,7 +97,11 @@ typedef struct SDHCIState {
     uint32_t quirks;
     uint8_t sd_spec_version;
     uint8_t uhs_mode;
+    uint8_t vendor;        /* For vendor specific functionality */
 } SDHCIState;
+
+#define SDHCI_VENDOR_NONE       0
+#define SDHCI_VENDOR_IMX        1
 
 /*
  * Controller does not provide transfer-complete interrupt when not
