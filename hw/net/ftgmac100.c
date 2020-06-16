@@ -80,6 +80,16 @@
 #define FTGMAC100_APTC_TXPOLL_TIME_SEL      (1 << 12)
 
 /*
+ * DMA burst length and arbitration control register
+ */
+#define FTGMAC100_DBLAC_RXBURST_SIZE(x)     (((x) >> 8) & 0x3)
+#define FTGMAC100_DBLAC_TXBURST_SIZE(x)     (((x) >> 10) & 0x3)
+#define FTGMAC100_DBLAC_RXDES_SIZE(x)       ((((x) >> 12) & 0xf) * 8)
+#define FTGMAC100_DBLAC_TXDES_SIZE(x)       ((((x) >> 16) & 0xf) * 8)
+#define FTGMAC100_DBLAC_IFG_CNT(x)          (((x) >> 20) & 0x7)
+#define FTGMAC100_DBLAC_IFG_INC             (1 << 23)
+
+/*
  * PHY control register
  */
 #define FTGMAC100_PHYCR_MIIRD               (1 << 26)
@@ -553,7 +563,7 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         if (bd.des0 & s->txdes0_edotr) {
             addr = tx_ring;
         } else {
-            addr += sizeof(FTGMAC100Desc);
+            addr += FTGMAC100_DBLAC_TXDES_SIZE(s->dblac);
         }
     }
 
@@ -800,6 +810,18 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
         s->phydata = value & 0xffff;
         break;
     case FTGMAC100_DBLAC: /* DMA Burst Length and Arbitration Control */
+        if (FTGMAC100_DBLAC_TXDES_SIZE(s->dblac) < sizeof(FTGMAC100Desc)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: transmit descriptor too small : %d bytes\n",
+                          __func__, FTGMAC100_DBLAC_TXDES_SIZE(s->dblac));
+            break;
+        }
+        if (FTGMAC100_DBLAC_RXDES_SIZE(s->dblac) < sizeof(FTGMAC100Desc)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: receive descriptor too small : %d bytes\n",
+                          __func__, FTGMAC100_DBLAC_RXDES_SIZE(s->dblac));
+            break;
+        }
         s->dblac = value;
         break;
     case FTGMAC100_REVR:  /* Feature Register */
@@ -982,7 +1004,7 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
         if (bd.des0 & s->rxdes0_edorr) {
             addr = s->rx_ring;
         } else {
-            addr += sizeof(FTGMAC100Desc);
+            addr += FTGMAC100_DBLAC_RXDES_SIZE(s->dblac);
         }
     }
     s->rx_descriptor = addr;
