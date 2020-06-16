@@ -3968,3 +3968,93 @@ static bool trans_VSWP(DisasContext *s, arg_2misc *a)
 
     return true;
 }
+static void gen_neon_trn_u8(TCGv_i32 t0, TCGv_i32 t1)
+{
+    TCGv_i32 rd, tmp;
+
+    rd = tcg_temp_new_i32();
+    tmp = tcg_temp_new_i32();
+
+    tcg_gen_shli_i32(rd, t0, 8);
+    tcg_gen_andi_i32(rd, rd, 0xff00ff00);
+    tcg_gen_andi_i32(tmp, t1, 0x00ff00ff);
+    tcg_gen_or_i32(rd, rd, tmp);
+
+    tcg_gen_shri_i32(t1, t1, 8);
+    tcg_gen_andi_i32(t1, t1, 0x00ff00ff);
+    tcg_gen_andi_i32(tmp, t0, 0xff00ff00);
+    tcg_gen_or_i32(t1, t1, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(rd);
+}
+
+static void gen_neon_trn_u16(TCGv_i32 t0, TCGv_i32 t1)
+{
+    TCGv_i32 rd, tmp;
+
+    rd = tcg_temp_new_i32();
+    tmp = tcg_temp_new_i32();
+
+    tcg_gen_shli_i32(rd, t0, 16);
+    tcg_gen_andi_i32(tmp, t1, 0xffff);
+    tcg_gen_or_i32(rd, rd, tmp);
+    tcg_gen_shri_i32(t1, t1, 16);
+    tcg_gen_andi_i32(tmp, t0, 0xffff0000);
+    tcg_gen_or_i32(t1, t1, tmp);
+    tcg_gen_mov_i32(t0, rd);
+
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(rd);
+}
+
+static bool trans_VTRN(DisasContext *s, arg_2misc *a)
+{
+    TCGv_i32 tmp, tmp2;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (a->size == 3) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (a->size == 2) {
+        for (pass = 0; pass < (a->q ? 4 : 2); pass += 2) {
+            tmp = neon_load_reg(a->vm, pass);
+            tmp2 = neon_load_reg(a->vd, pass + 1);
+            neon_store_reg(a->vm, pass, tmp2);
+            neon_store_reg(a->vd, pass + 1, tmp);
+        }
+    } else {
+        for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+            tmp = neon_load_reg(a->vm, pass);
+            tmp2 = neon_load_reg(a->vd, pass);
+            if (a->size == 0) {
+                gen_neon_trn_u8(tmp, tmp2);
+            } else {
+                gen_neon_trn_u16(tmp, tmp2);
+            }
+            neon_store_reg(a->vm, pass, tmp2);
+            neon_store_reg(a->vd, pass, tmp);
+        }
+    }
+    return true;
+}
