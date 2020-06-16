@@ -1644,7 +1644,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
 
 static bool trans_VSHLL_S_2sh(DisasContext *s, arg_2reg_shift *a)
 {
-    NeonGenWidenFn *widenfn[] = {
+    static NeonGenWidenFn * const widenfn[] = {
         gen_helper_neon_widen_s8,
         gen_helper_neon_widen_s16,
         tcg_gen_ext_i32_i64,
@@ -1654,7 +1654,7 @@ static bool trans_VSHLL_S_2sh(DisasContext *s, arg_2reg_shift *a)
 
 static bool trans_VSHLL_U_2sh(DisasContext *s, arg_2reg_shift *a)
 {
-    NeonGenWidenFn *widenfn[] = {
+    static NeonGenWidenFn * const widenfn[] = {
         gen_helper_neon_widen_u8,
         gen_helper_neon_widen_u16,
         tcg_gen_extu_i32_i64,
