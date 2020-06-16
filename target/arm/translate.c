@@ -5243,9 +5243,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     {0, 0, 0, 7}, /* VSUBL: handled by decodetree */
                     {0, 0, 0, 7}, /* VSUBW: handled by decodetree */
                     {0, 0, 0, 7}, /* VADDHN: handled by decodetree */
-                    {0, 0, 0, 0}, /* VABAL */
+                    {0, 0, 0, 7}, /* VABAL */
                     {0, 0, 0, 7}, /* VSUBHN: handled by decodetree */
-                    {0, 0, 0, 0}, /* VABDL */
+                    {0, 0, 0, 7}, /* VABDL */
                     {0, 0, 0, 0}, /* VMLAL */
                     {0, 0, 0, 9}, /* VQDMLAL */
                     {0, 0, 0, 0}, /* VMLSL */
@@ -5306,31 +5306,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         tmp2 = neon_load_reg(rm, pass);
                     }
                     switch (op) {
-                    case 5: case 7: /* VABAL, VABDL */
-                        switch ((size << 1) | u) {
-                        case 0:
-                            gen_helper_neon_abdl_s16(cpu_V0, tmp, tmp2);
-                            break;
-                        case 1:
-                            gen_helper_neon_abdl_u16(cpu_V0, tmp, tmp2);
-                            break;
-                        case 2:
-                            gen_helper_neon_abdl_s32(cpu_V0, tmp, tmp2);
-                            break;
-                        case 3:
-                            gen_helper_neon_abdl_u32(cpu_V0, tmp, tmp2);
-                            break;
-                        case 4:
-                            gen_helper_neon_abdl_s64(cpu_V0, tmp, tmp2);
-                            break;
-                        case 5:
-                            gen_helper_neon_abdl_u64(cpu_V0, tmp, tmp2);
-                            break;
-                        default: abort();
-                        }
-                        tcg_temp_free_i32(tmp2);
-                        tcg_temp_free_i32(tmp);
-                        break;
                     case 8: case 9: case 10: case 11: case 12: case 13:
                         /* VMLAL, VQDMLAL, VMLSL, VQDMLSL, VMULL, VQDMULL */
                         gen_neon_mull(cpu_V0, tmp, tmp2, size, u);
@@ -5349,7 +5324,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         case 10: /* VMLSL */
                             gen_neon_negl(cpu_V0, size);
                             /* Fall through */
-                        case 5: case 8: /* VABAL, VMLAL */
+                        case 8: /* VABAL, VMLAL */
                             gen_neon_addl(size);
                             break;
                         case 9: case 11: /* VQDMLAL, VQDMLSL */
