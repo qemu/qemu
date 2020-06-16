@@ -9,6 +9,7 @@
 #define HW_MISC_LED_H
 
 #include "qom/object.h"
+#include "hw/qdev-core.h"
 
 #define TYPE_LED "led"
 
@@ -37,10 +38,17 @@ struct LEDState {
     /* Public */
 
     uint8_t intensity_percent;
+    qemu_irq irq;
 
     /* Properties */
     char *description;
     char *color;
+    /*
+     * Determines whether a GPIO is using a positive (active-high)
+     * logic (when used with GPIO, the intensity at reset is related
+     * to the GPIO polarity).
+     */
+    bool gpio_active_high;
 };
 typedef struct LEDState LEDState;
 DECLARE_INSTANCE_CHECKER(LEDState, LED, TYPE_LED)
@@ -72,6 +80,7 @@ void led_set_state(LEDState *s, bool is_emitting);
 /**
  * led_create_simple: Create and realize a LED device
  * @parentobj: the parent object
+ * @gpio_polarity: GPIO polarity
  * @color: color of the LED
  * @description: description of the LED (optional)
  *
@@ -81,6 +90,7 @@ void led_set_state(LEDState *s, bool is_emitting);
  * Returns: The newly allocated and instantiated LED object.
  */
 LEDState *led_create_simple(Object *parentobj,
+                            GpioPolarity gpio_polarity,
                             LEDColor color,
                             const char *description);
 
