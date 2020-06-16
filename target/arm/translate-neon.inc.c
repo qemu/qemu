@@ -2546,3 +2546,32 @@ static bool trans_VMLS_F_2sc(DisasContext *s, arg_2scalar *a)
 
     return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
 }
+
+WRAP_ENV_FN(gen_VQDMULH_16, gen_helper_neon_qdmulh_s16)
+WRAP_ENV_FN(gen_VQDMULH_32, gen_helper_neon_qdmulh_s32)
+WRAP_ENV_FN(gen_VQRDMULH_16, gen_helper_neon_qrdmulh_s16)
+WRAP_ENV_FN(gen_VQRDMULH_32, gen_helper_neon_qrdmulh_s32)
+
+static bool trans_VQDMULH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_VQDMULH_16,
+        gen_VQDMULH_32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VQRDMULH_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        gen_VQRDMULH_16,
+        gen_VQRDMULH_32,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}

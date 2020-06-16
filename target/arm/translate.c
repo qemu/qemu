@@ -2973,19 +2973,6 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 
 #define CPU_V001 cpu_V0, cpu_V0, cpu_V1
 
-static TCGv_i32 neon_load_scratch(int scratch)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUARMState, vfp.scratch[scratch]));
-    return tmp;
-}
-
-static void neon_store_scratch(int scratch, TCGv_i32 var)
-{
-    tcg_gen_st_i32(var, cpu_env, offsetof(CPUARMState, vfp.scratch[scratch]));
-    tcg_temp_free_i32(var);
-}
-
 static int gen_neon_unzip(int rd, int rm, int size, int q)
 {
     TCGv_ptr pd, pm;
@@ -5190,35 +5177,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 case 1: /* Float VMLA scalar */
                 case 5: /* Floating point VMLS scalar */
                 case 9: /* Floating point VMUL scalar */
-                    return 1; /* handled by decodetree */
-
                 case 12: /* VQDMULH scalar */
                 case 13: /* VQRDMULH scalar */
-                    if (u && ((rd | rn) & 1)) {
-                        return 1;
-                    }
-                    tmp = neon_get_scalar(size, rm);
-                    neon_store_scratch(0, tmp);
-                    for (pass = 0; pass < (u ? 4 : 2); pass++) {
-                        tmp = neon_load_scratch(0);
-                        tmp2 = neon_load_reg(rn, pass);
-                        if (op == 12) {
-                            if (size == 1) {
-                                gen_helper_neon_qdmulh_s16(tmp, cpu_env, tmp, tmp2);
-                            } else {
-                                gen_helper_neon_qdmulh_s32(tmp, cpu_env, tmp, tmp2);
-                            }
-                        } else {
-                            if (size == 1) {
-                                gen_helper_neon_qrdmulh_s16(tmp, cpu_env, tmp, tmp2);
-                            } else {
-                                gen_helper_neon_qrdmulh_s32(tmp, cpu_env, tmp, tmp2);
-                            }
-                        }
-                        tcg_temp_free_i32(tmp2);
-                        neon_store_reg(rd, pass, tmp);
-                    }
-                    break;
+                    return 1; /* handled by decodetree */
+
                 case 3: /* VQDMLAL scalar */
                 case 7: /* VQDMLSL scalar */
                 case 11: /* VQDMULL scalar */
