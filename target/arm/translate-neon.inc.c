@@ -3020,3 +3020,152 @@ static bool trans_VREV64(DisasContext *s, arg_VREV64 *a)
     }
     return true;
 }
+
+static bool do_2misc_pairwise(DisasContext *s, arg_2misc *a,
+                              NeonGenWidenFn *widenfn,
+                              NeonGenTwo64OpFn *opfn,
+                              NeonGenTwo64OpFn *accfn)
+{
+    /*
+     * Pairwise long operations: widen both halves of the pair,
+     * combine the pairs with the opfn, and then possibly accumulate
+     * into the destination with the accfn.
+     */
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vd | a->vm) & a->q) {
+        return false;
+    }
+
+    if (!widenfn) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    for (pass = 0; pass < a->q + 1; pass++) {
+        TCGv_i32 tmp;
+        TCGv_i64 rm0_64, rm1_64, rd_64;
+
+        rm0_64 = tcg_temp_new_i64();
+        rm1_64 = tcg_temp_new_i64();
+        rd_64 = tcg_temp_new_i64();
+        tmp = neon_load_reg(a->vm, pass * 2);
+        widenfn(rm0_64, tmp);
+        tcg_temp_free_i32(tmp);
+        tmp = neon_load_reg(a->vm, pass * 2 + 1);
+        widenfn(rm1_64, tmp);
+        tcg_temp_free_i32(tmp);
+        opfn(rd_64, rm0_64, rm1_64);
+        tcg_temp_free_i64(rm0_64);
+        tcg_temp_free_i64(rm1_64);
+
+        if (accfn) {
+            TCGv_i64 tmp64 = tcg_temp_new_i64();
+            neon_load_reg64(tmp64, a->vd + pass);
+            accfn(rd_64, tmp64, rd_64);
+            tcg_temp_free_i64(tmp64);
+        }
+        neon_store_reg64(rd_64, a->vd + pass);
+        tcg_temp_free_i64(rd_64);
+    }
+    return true;
+}
+
+static bool trans_VPADDL_S(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenWidenFn * const widenfn[] = {
+        gen_helper_neon_widen_s8,
+        gen_helper_neon_widen_s16,
+        tcg_gen_ext_i32_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const opfn[] = {
+        gen_helper_neon_paddl_u16,
+        gen_helper_neon_paddl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_2misc_pairwise(s, a, widenfn[a->size], opfn[a->size], NULL);
+}
+
+static bool trans_VPADDL_U(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenWidenFn * const widenfn[] = {
+        gen_helper_neon_widen_u8,
+        gen_helper_neon_widen_u16,
+        tcg_gen_extu_i32_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const opfn[] = {
+        gen_helper_neon_paddl_u16,
+        gen_helper_neon_paddl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_2misc_pairwise(s, a, widenfn[a->size], opfn[a->size], NULL);
+}
+
+static bool trans_VPADAL_S(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenWidenFn * const widenfn[] = {
+        gen_helper_neon_widen_s8,
+        gen_helper_neon_widen_s16,
+        tcg_gen_ext_i32_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const opfn[] = {
+        gen_helper_neon_paddl_u16,
+        gen_helper_neon_paddl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        gen_helper_neon_addl_u16,
+        gen_helper_neon_addl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_2misc_pairwise(s, a, widenfn[a->size], opfn[a->size],
+                             accfn[a->size]);
+}
+
+static bool trans_VPADAL_U(DisasContext *s, arg_2misc *a)
+{
+    static NeonGenWidenFn * const widenfn[] = {
+        gen_helper_neon_widen_u8,
+        gen_helper_neon_widen_u16,
+        tcg_gen_extu_i32_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const opfn[] = {
+        gen_helper_neon_paddl_u16,
+        gen_helper_neon_paddl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+    static NeonGenTwo64OpFn * const accfn[] = {
+        gen_helper_neon_addl_u16,
+        gen_helper_neon_addl_u32,
+        tcg_gen_add_i64,
+        NULL,
+    };
+
+    return do_2misc_pairwise(s, a, widenfn[a->size], opfn[a->size],
+                             accfn[a->size]);
+}
