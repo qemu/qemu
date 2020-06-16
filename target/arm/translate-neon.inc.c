@@ -2481,3 +2481,68 @@ static bool trans_VMLS_2sc(DisasContext *s, arg_2scalar *a)
 
     return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
 }
+
+/*
+ * Rather than have a float-specific version of do_2scalar just for
+ * three insns, we wrap a NeonGenTwoSingleOpFn to turn it into
+ * a NeonGenTwoOpFn.
+ */
+#define WRAP_FP_FN(WRAPNAME, FUNC)                              \
+    static void WRAPNAME(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm) \
+    {                                                           \
+        TCGv_ptr fpstatus = get_fpstatus_ptr(1);                \
+        FUNC(rd, rn, rm, fpstatus);                             \
+        tcg_temp_free_ptr(fpstatus);                            \
+    }
+
+WRAP_FP_FN(gen_VMUL_F_mul, gen_helper_vfp_muls)
+WRAP_FP_FN(gen_VMUL_F_add, gen_helper_vfp_adds)
+WRAP_FP_FN(gen_VMUL_F_sub, gen_helper_vfp_subs)
+
+static bool trans_VMUL_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], NULL);
+}
+
+static bool trans_VMLA_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_add,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
+
+static bool trans_VMLS_F_2sc(DisasContext *s, arg_2scalar *a)
+{
+    static NeonGenTwoOpFn * const opfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_mul,
+        NULL,
+    };
+    static NeonGenTwoOpFn * const accfn[] = {
+        NULL,
+        NULL, /* TODO: fp16 support */
+        gen_VMUL_F_sub,
+        NULL,
+    };
+
+    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
+}
