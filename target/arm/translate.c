@@ -5574,31 +5574,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     }
                     break;
                 }
-            } else if ((insn & (1 << 10)) == 0) {
-                /* VTBL, VTBX: handled by decodetree */
-                return 1;
-            } else if ((insn & 0x380) == 0) {
-                /* VDUP */
-                int element;
-                MemOp size;
-
-                if ((insn & (7 << 16)) == 0 || (q && (rd & 1))) {
-                    return 1;
-                }
-                if (insn & (1 << 16)) {
-                    size = MO_8;
-                    element = (insn >> 17) & 7;
-                } else if (insn & (1 << 17)) {
-                    size = MO_16;
-                    element = (insn >> 18) & 3;
-                } else {
-                    size = MO_32;
-                    element = (insn >> 19) & 1;
-                }
-                tcg_gen_gvec_dup_mem(size, neon_reg_offset(rd, 0),
-                                     neon_element_offset(rm, element, size),
-                                     q ? 16 : 8, q ? 16 : 8);
             } else {
+                /* VTBL, VTBX, VDUP: handled by decodetree */
                 return 1;
             }
         }

@@ -422,6 +422,13 @@ Vimm_1r          1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... @1reg_imm
 
     VTBL         1111 001 1 1 . 11 .... .... 10 len:2 . op:1 . 0 .... \
                  vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+    VDUP_scalar  1111 001 1 1 . 11 index:3 1 .... 11 000 q:1 . 0 .... \
+                 vm=%vm_dp vd=%vd_dp size=0
+    VDUP_scalar  1111 001 1 1 . 11 index:2 10 .... 11 000 q:1 . 0 .... \
+                 vm=%vm_dp vd=%vd_dp size=1
+    VDUP_scalar  1111 001 1 1 . 11 index:1 100 .... 11 000 q:1 . 0 .... \
+                 vm=%vm_dp vd=%vd_dp size=2
   ]
 
   # Subgroup for size != 0b11

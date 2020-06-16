@@ -2944,3 +2944,29 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
     tcg_temp_free_i32(tmp);
     return true;
 }
+
+static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (a->vd & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tcg_gen_gvec_dup_mem(a->size, neon_reg_offset(a->vd, 0),
+                         neon_element_offset(a->vm, a->index, a->size),
+                         a->q ? 16 : 8, a->q ? 16 : 8);
+    return true;
+}
