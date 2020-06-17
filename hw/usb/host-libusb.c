@@ -80,6 +80,7 @@ struct USBHostDevice {
 
     /* properties */
     struct USBAutoFilter             match;
+    char                             *hostdevice;
     int32_t                          bootindex;
     uint32_t                         iso_urb_count;
     uint32_t                         iso_urb_frames;
@@ -97,6 +98,7 @@ struct USBHostDevice {
     int                              addr;
     char                             port[16];
 
+    int                              hostfd;
     libusb_device                    *dev;
     libusb_device_handle             *dh;
     struct libusb_device_descriptor  ddesc;
@@ -880,26 +882,45 @@ static void usb_host_ep_update(USBHostDevice *s)
     libusb_free_config_descriptor(conf);
 }
 
-static int usb_host_open(USBHostDevice *s, libusb_device *dev)
+static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
 {
     USBDevice *udev = USB_DEVICE(s);
-    int bus_num = libusb_get_bus_number(dev);
-    int addr    = libusb_get_device_address(dev);
+    int bus_num = 0;
+    int addr = 0;
     int rc;
     Error *local_err = NULL;
 
     if (s->bh_postld_pending) {
         return -1;
     }
-
-    trace_usb_host_open_started(bus_num, addr);
-
     if (s->dh != NULL) {
         goto fail;
     }
-    rc = libusb_open(dev, &s->dh);
-    if (rc != 0) {
-        goto fail;
+
+    if (dev) {
+        bus_num = libusb_get_bus_number(dev);
+        addr = libusb_get_device_address(dev);
+        trace_usb_host_open_started(bus_num, addr);
+
+        rc = libusb_open(dev, &s->dh);
+        if (rc != 0) {
+            goto fail;
+        }
+    } else {
+#if LIBUSB_API_VERSION >= 0x01000107
+        trace_usb_host_open_hostfd(hostfd);
+
+        rc = libusb_wrap_sys_device(ctx, hostfd, &s->dh);
+        if (rc != 0) {
+            goto fail;
+        }
+        s->hostfd  = hostfd;
+        dev = libusb_get_device(s->dh);
+        bus_num = libusb_get_bus_number(dev);
+        addr = libusb_get_device_address(dev);
+#else
+        g_assert_not_reached();
+#endif
     }
 
     s->dev     = dev;
@@ -951,6 +972,7 @@ fail:
 static void usb_host_abort_xfers(USBHostDevice *s)
 {
     USBHostRequest *r, *rtmp;
+    int limit = 100;
 
     QTAILQ_FOREACH_SAFE(r, &s->requests, next, rtmp) {
         usb_host_req_abort(r);
@@ -961,6 +983,19 @@ static void usb_host_abort_xfers(USBHostDevice *s)
         memset(&tv, 0, sizeof(tv));
         tv.tv_usec = 2500;
         libusb_handle_events_timeout(ctx, &tv);
+        if (--limit == 0) {
+            /*
+             * Don't wait forever for libusb calling the complete
+             * callback (which will unlink and free the request).
+             *
+             * Leaking memory here, to make sure libusb will not
+             * access memory which we have released already.
+             */
+            QTAILQ_FOREACH_SAFE(r, &s->requests, next, rtmp) {
+                QTAILQ_REMOVE(&s->requests, r, next);
+            }
+            return;
+        }
     }
 }
 
@@ -987,6 +1022,11 @@ static int usb_host_close(USBHostDevice *s)
     libusb_close(s->dh);
     s->dh = NULL;
     s->dev = NULL;
+
+    if (s->hostfd != -1) {
+        close(s->hostfd);
+        s->hostfd = -1;
+    }
 
     usb_host_auto_check(NULL);
     return 0;
@@ -1025,9 +1065,6 @@ static libusb_device *usb_host_find_ref(int bus, int addr)
     libusb_device *ret = NULL;
     int i, n;
 
-    if (usb_host_init() != 0) {
-        return NULL;
-    }
     n = libusb_get_device_list(ctx, &devs);
     for (i = 0; i < n; i++) {
         if (libusb_get_bus_number(devs[i]) == bus &&
@@ -1046,6 +1083,10 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     libusb_device *ldev;
     int rc;
 
+    if (usb_host_init() != 0) {
+        error_setg(errp, "failed to init libusb");
+        return;
+    }
     if (s->match.vendor_id > 0xffff) {
         error_setg(errp, "vendorid out of range");
         return;
@@ -1064,7 +1105,24 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     udev->auto_attach = 0;
     QTAILQ_INIT(&s->requests);
     QTAILQ_INIT(&s->isorings);
+    s->hostfd = -1;
 
+#if LIBUSB_API_VERSION >= 0x01000107
+    if (s->hostdevice) {
+        int fd;
+        s->needs_autoscan = false;
+        fd = qemu_open(s->hostdevice, O_RDWR);
+        if (fd < 0) {
+            error_setg_errno(errp, errno, "failed to open %s", s->hostdevice);
+            return;
+        }
+        rc = usb_host_open(s, NULL, fd);
+        if (rc < 0) {
+            error_setg(errp, "failed to open host usb device %s", s->hostdevice);
+            return;
+        }
+    } else
+#endif
     if (s->match.addr && s->match.bus_num &&
         !s->match.vendor_id &&
         !s->match.product_id &&
@@ -1077,7 +1135,7 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
                        s->match.bus_num, s->match.addr);
             return;
         }
-        rc = usb_host_open(s, ldev);
+        rc = usb_host_open(s, ldev, 0);
         libusb_unref_device(ldev);
         if (rc < 0) {
             error_setg(errp, "failed to open host usb device %d:%d",
@@ -1605,6 +1663,9 @@ static Property usb_host_dev_properties[] = {
     DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
     DEFINE_PROP_UINT32("vendorid",  USBHostDevice, match.vendor_id,  0),
     DEFINE_PROP_UINT32("productid", USBHostDevice, match.product_id, 0),
+#if LIBUSB_API_VERSION >= 0x01000107
+    DEFINE_PROP_STRING("hostdevice", USBHostDevice, hostdevice),
+#endif
     DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
     DEFINE_PROP_UINT32("isobsize", USBHostDevice, iso_urb_frames,   32),
     DEFINE_PROP_BOOL("guest-reset", USBHostDevice,
@@ -1723,7 +1784,7 @@ static void usb_host_auto_check(void *unused)
                 if (s->dh != NULL) {
                     continue;
                 }
-                if (usb_host_open(s, devs[i]) < 0) {
+                if (usb_host_open(s, devs[i], 0) < 0) {
                     s->errcount++;
                     continue;
                 }
