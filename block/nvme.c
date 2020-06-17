@@ -39,6 +39,8 @@
  */
 #define NVME_NUM_REQS (NVME_QUEUE_SIZE - 1)
 
+typedef struct BDRVNVMeState BDRVNVMeState;
+
 typedef struct {
     int32_t  head, tail;
     uint8_t  *queue;
@@ -59,8 +61,11 @@ typedef struct {
 typedef struct {
     QemuMutex   lock;
 
+    /* Read from I/O code path, initialized under BQL */
+    BDRVNVMeState   *s;
+    int             index;
+
     /* Fields protected by BQL */
-    int         index;
     uint8_t     *prp_list_pages;
 
     /* Fields protected by @lock */
@@ -96,7 +101,7 @@ typedef volatile struct {
 
 QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells) != 0x1000);
 
-typedef struct {
+struct BDRVNVMeState {
     AioContext *aio_context;
     QEMUVFIOState *vfio;
     NVMeRegs *regs;
@@ -130,7 +135,7 @@ typedef struct {
 
     /* PCI address (required for nvme_refresh_filename()) */
     char *device;
-} BDRVNVMeState;
+};
 
 #define NVME_BLOCK_OPT_DEVICE "device"
 #define NVME_BLOCK_OPT_NAMESPACE "namespace"
@@ -174,7 +179,7 @@ static void nvme_init_queue(BlockDriverState *bs, NVMeQueue *q,
     }
 }
 
-static void nvme_free_queue_pair(BlockDriverState *bs, NVMeQueuePair *q)
+static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
     qemu_vfree(q->prp_list_pages);
     qemu_vfree(q->sq.queue);
@@ -205,6 +210,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
     uint64_t prp_list_iova;
 
     qemu_mutex_init(&q->lock);
+    q->s = s;
     q->index = idx;
     qemu_co_queue_init(&q->free_req_queue);
     q->prp_list_pages = qemu_blockalign0(bs, s->page_size * NVME_NUM_REQS);
@@ -240,13 +246,15 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
 
     return q;
 fail:
-    nvme_free_queue_pair(bs, q);
+    nvme_free_queue_pair(q);
     return NULL;
 }
 
 /* With q->lock */
-static void nvme_kick(BDRVNVMeState *s, NVMeQueuePair *q)
+static void nvme_kick(NVMeQueuePair *q)
 {
+    BDRVNVMeState *s = q->s;
+
     if (s->plugged || !q->need_kick) {
         return;
     }
@@ -295,21 +303,20 @@ static void nvme_put_free_req_locked(NVMeQueuePair *q, NVMeRequest *req)
 }
 
 /* With q->lock */
-static void nvme_wake_free_req_locked(BDRVNVMeState *s, NVMeQueuePair *q)
+static void nvme_wake_free_req_locked(NVMeQueuePair *q)
 {
     if (!qemu_co_queue_empty(&q->free_req_queue)) {
-        replay_bh_schedule_oneshot_event(s->aio_context,
+        replay_bh_schedule_oneshot_event(q->s->aio_context,
                 nvme_free_req_queue_cb, q);
     }
 }
 
 /* Insert a request in the freelist and wake waiters */
-static void nvme_put_free_req_and_wake(BDRVNVMeState *s,  NVMeQueuePair *q,
-                                       NVMeRequest *req)
+static void nvme_put_free_req_and_wake(NVMeQueuePair *q, NVMeRequest *req)
 {
     qemu_mutex_lock(&q->lock);
     nvme_put_free_req_locked(q, req);
-    nvme_wake_free_req_locked(s, q);
+    nvme_wake_free_req_locked(q);
     qemu_mutex_unlock(&q->lock);
 }
 
@@ -336,8 +343,9 @@ static inline int nvme_translate_error(const NvmeCqe *c)
 }
 
 /* With q->lock */
-static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
+static bool nvme_process_completion(NVMeQueuePair *q)
 {
+    BDRVNVMeState *s = q->s;
     bool progress = false;
     NVMeRequest *preq;
     NVMeRequest req;
@@ -386,7 +394,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         /* Notify the device so it can post more completions. */
         smp_mb_release();
         *q->cq.doorbell = cpu_to_le32(q->cq.head);
-        nvme_wake_free_req_locked(s, q);
+        nvme_wake_free_req_locked(q);
     }
     q->busy = false;
     return progress;
@@ -403,8 +411,7 @@ static void nvme_trace_command(const NvmeCmd *cmd)
     }
 }
 
-static void nvme_submit_command(BDRVNVMeState *s, NVMeQueuePair *q,
-                                NVMeRequest *req,
+static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
                                 NvmeCmd *cmd, BlockCompletionFunc cb,
                                 void *opaque)
 {
@@ -413,15 +420,15 @@ static void nvme_submit_command(BDRVNVMeState *s, NVMeQueuePair *q,
     req->opaque = opaque;
     cmd->cid = cpu_to_le32(req->cid);
 
-    trace_nvme_submit_command(s, q->index, req->cid);
+    trace_nvme_submit_command(q->s, q->index, req->cid);
     nvme_trace_command(cmd);
     qemu_mutex_lock(&q->lock);
     memcpy((uint8_t *)q->sq.queue +
            q->sq.tail * NVME_SQ_ENTRY_BYTES, cmd, sizeof(*cmd));
     q->sq.tail = (q->sq.tail + 1) % NVME_QUEUE_SIZE;
     q->need_kick++;
-    nvme_kick(s, q);
-    nvme_process_completion(s, q);
+    nvme_kick(q);
+    nvme_process_completion(q);
     qemu_mutex_unlock(&q->lock);
 }
 
@@ -436,13 +443,12 @@ static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
                          NvmeCmd *cmd)
 {
     NVMeRequest *req;
-    BDRVNVMeState *s = bs->opaque;
     int ret = -EINPROGRESS;
     req = nvme_get_free_req(q);
     if (!req) {
         return -EBUSY;
     }
-    nvme_submit_command(s, q, req, cmd, nvme_cmd_sync_cb, &ret);
+    nvme_submit_command(q, req, cmd, nvme_cmd_sync_cb, &ret);
 
     BDRV_POLL_WHILE(bs, ret == -EINPROGRESS);
     return ret;
@@ -554,7 +560,7 @@ static bool nvme_poll_queues(BDRVNVMeState *s)
         }
 
         qemu_mutex_lock(&q->lock);
-        while (nvme_process_completion(s, q)) {
+        while (nvme_process_completion(q)) {
             /* Keep polling */
             progress = true;
         }
@@ -592,7 +598,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     };
     if (nvme_cmd_sync(bs, s->queues[0], &cmd)) {
         error_setg(errp, "Failed to create io queue [%d]", n);
-        nvme_free_queue_pair(bs, q);
+        nvme_free_queue_pair(q);
         return false;
     }
     cmd = (NvmeCmd) {
@@ -603,7 +609,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     };
     if (nvme_cmd_sync(bs, s->queues[0], &cmd)) {
         error_setg(errp, "Failed to create io queue [%d]", n);
-        nvme_free_queue_pair(bs, q);
+        nvme_free_queue_pair(q);
         return false;
     }
     s->queues = g_renew(NVMeQueuePair *, s->queues, n + 1);
@@ -798,7 +804,7 @@ static void nvme_close(BlockDriverState *bs)
     BDRVNVMeState *s = bs->opaque;
 
     for (i = 0; i < s->nr_queues; ++i) {
-        nvme_free_queue_pair(bs, s->queues[i]);
+        nvme_free_queue_pair(s->queues[i]);
     }
     g_free(s->queues);
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
@@ -1028,10 +1034,10 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
     r = nvme_cmd_map_qiov(bs, &cmd, req, qiov);
     qemu_co_mutex_unlock(&s->dma_map_lock);
     if (r) {
-        nvme_put_free_req_and_wake(s, ioq, req);
+        nvme_put_free_req_and_wake(ioq, req);
         return r;
     }
-    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+    nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
 
     data.co = qemu_coroutine_self();
     while (data.ret == -EINPROGRESS) {
@@ -1131,7 +1137,7 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
     assert(s->nr_queues > 1);
     req = nvme_get_free_req(ioq);
     assert(req);
-    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+    nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
 
     data.co = qemu_coroutine_self();
     if (data.ret == -EINPROGRESS) {
@@ -1184,7 +1190,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     req = nvme_get_free_req(ioq);
     assert(req);
 
-    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+    nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
 
     data.co = qemu_coroutine_self();
     while (data.ret == -EINPROGRESS) {
@@ -1245,13 +1251,13 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->dma_map_lock);
 
     if (ret) {
-        nvme_put_free_req_and_wake(s, ioq, req);
+        nvme_put_free_req_and_wake(ioq, req);
         goto out;
     }
 
     trace_nvme_dsm(s, offset, bytes);
 
-    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+    nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
 
     data.co = qemu_coroutine_self();
     while (data.ret == -EINPROGRESS) {
@@ -1333,8 +1339,8 @@ static void nvme_aio_unplug(BlockDriverState *bs)
     for (i = 1; i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
         qemu_mutex_lock(&q->lock);
-        nvme_kick(s, q);
-        nvme_process_completion(s, q);
+        nvme_kick(q);
+        nvme_process_completion(q);
         qemu_mutex_unlock(&q->lock);
     }
 }
