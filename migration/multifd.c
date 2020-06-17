@@ -415,6 +415,12 @@ static int multifd_send_pages(QEMUFile *f)
     }
 
     qemu_sem_wait(&multifd_send_state->channels_ready);
+    /*
+     * next_channel can remain from a previous migration that was
+     * using more channels, so ensure it doesn't overflow if the
+     * limit is lower now.
+     */
+    next_channel %= migrate_multifd_channels();
     for (i = next_channel;; i = (i + 1) % migrate_multifd_channels()) {
         p = &multifd_send_state->params[i];
 
