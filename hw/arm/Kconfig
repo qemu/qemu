@@ -405,6 +405,7 @@ config MPS2
     select PL080    # DMA controller
     select SPLIT_IRQ
     select UNIMP
+    select CMSDK_APB_WATCHDOG
 
 config FSL_IMX7
     bool
