@@ -97,6 +97,11 @@ do_cxx() {
     do_compiler "$cxx" "$@"
 }
 
+# Append $2 to the variable named $1, with space separation
+add_to() {
+    eval $1=\${$1:+\"\$$1 \"}\$2
+}
+
 update_cxxflags() {
     # Set QEMU_CXXFLAGS from QEMU_CFLAGS by filtering out those
     # options which some versions of GCC's C++ compiler complain about
@@ -2024,16 +2029,33 @@ if ! compile_prog "" "" ; then
     error_exit "You need at least GCC v4.8 or Clang v3.4 (or XCode Clang v5.1)"
 fi
 
-gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
-gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
-gcc_flags="-Wno-missing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
-gcc_flags="-Wendif-labels -Wno-shift-negative-value $gcc_flags"
-gcc_flags="-Wno-initializer-overrides -Wexpansion-to-defined $gcc_flags"
-gcc_flags="-Wno-string-plus-int -Wno-typedef-redefinition $gcc_flags"
-# Note that we do not add -Werror to gcc_flags here, because that would
-# enable it for all configure tests. If a configure test failed due
-# to -Werror this would just silently disable some features,
-# so it's too error prone.
+# Accumulate -Wfoo and -Wno-bar separately.
+# We will list all of the enable flags first, and the disable flags second.
+# Note that we do not add -Werror, because that would enable it for all
+# configure tests. If a configure test failed due to -Werror this would
+# just silently disable some features, so it's too error prone.
+
+warn_flags=
+add_to warn_flags -Wold-style-declaration
+add_to warn_flags -Wold-style-definition
+add_to warn_flags -Wtype-limits
+add_to warn_flags -Wformat-security
+add_to warn_flags -Wformat-y2k
+add_to warn_flags -Winit-self
+add_to warn_flags -Wignored-qualifiers
+add_to warn_flags -Wempty-body
+add_to warn_flags -Wnested-externs
+add_to warn_flags -Wendif-labels
+add_to warn_flags -Wexpansion-to-defined
+
+nowarn_flags=
+add_to nowarn_flags -Wno-initializer-overrides
+add_to nowarn_flags -Wno-missing-include-dirs
+add_to nowarn_flags -Wno-shift-negative-value
+add_to nowarn_flags -Wno-string-plus-int
+add_to nowarn_flags -Wno-typedef-redefinition
+
+gcc_flags="$warn_flags $nowarn_flags"
 
 cc_has_warning_flag() {
     write_c_skeleton;
