@@ -65,7 +65,9 @@ typedef struct {
     MemoryRegion blockram_m2;
     MemoryRegion blockram_m3;
     MemoryRegion sram;
+    /* FPGA APB subsystem */
     MPS2SCC scc;
+    /* CMSDK APB subsystem */
     CMSDKAPBDualTimer dualtimer;
 } MPS2MachineState;
 
@@ -299,9 +301,9 @@ static void mps2_common_init(MachineState *machine)
         g_assert_not_reached();
     }
 
+    /* CMSDK APB subsystem */
     cmsdk_apb_timer_create(0x40000000, qdev_get_gpio_in(armv7m, 8), SYSCLK_FRQ);
     cmsdk_apb_timer_create(0x40001000, qdev_get_gpio_in(armv7m, 9), SYSCLK_FRQ);
-
     object_initialize_child(OBJECT(mms), "dualtimer", &mms->dualtimer,
                             TYPE_CMSDK_APB_DUALTIMER);
     qdev_prop_set_uint32(DEVICE(&mms->dualtimer), "pclk-frq", SYSCLK_FRQ);
@@ -310,6 +312,7 @@ static void mps2_common_init(MachineState *machine)
                        qdev_get_gpio_in(armv7m, 10));
     sysbus_mmio_map(SYS_BUS_DEVICE(&mms->dualtimer), 0, 0x40002000);
 
+    /* FPGA APB subsystem */
     object_initialize_child(OBJECT(mms), "scc", &mms->scc, TYPE_MPS2_SCC);
     sccdev = DEVICE(&mms->scc);
     qdev_prop_set_uint32(sccdev, "scc-cfg4", 0x2);
