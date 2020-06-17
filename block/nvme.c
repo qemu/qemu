@@ -33,6 +33,12 @@
 #define NVME_QUEUE_SIZE 128
 #define NVME_BAR_SIZE 8192
 
+/*
+ * We have to leave one slot empty as that is the full queue case where
+ * head == tail + 1.
+ */
+#define NVME_NUM_REQS (NVME_QUEUE_SIZE - 1)
+
 typedef struct {
     int32_t  head, tail;
     uint8_t  *queue;
@@ -47,7 +53,7 @@ typedef struct {
     int cid;
     void *prp_list_page;
     uint64_t prp_list_iova;
-    bool busy;
+    int free_req_next; /* q->reqs[] index of next free req */
 } NVMeRequest;
 
 typedef struct {
@@ -61,7 +67,8 @@ typedef struct {
     /* Fields protected by @lock */
     NVMeQueue   sq, cq;
     int         cq_phase;
-    NVMeRequest reqs[NVME_QUEUE_SIZE];
+    int         free_req_head;
+    NVMeRequest reqs[NVME_NUM_REQS];
     bool        busy;
     int         need_kick;
     int         inflight;
@@ -200,19 +207,23 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
     qemu_mutex_init(&q->lock);
     q->index = idx;
     qemu_co_queue_init(&q->free_req_queue);
-    q->prp_list_pages = qemu_blockalign0(bs, s->page_size * NVME_QUEUE_SIZE);
+    q->prp_list_pages = qemu_blockalign0(bs, s->page_size * NVME_NUM_REQS);
     r = qemu_vfio_dma_map(s->vfio, q->prp_list_pages,
-                          s->page_size * NVME_QUEUE_SIZE,
+                          s->page_size * NVME_NUM_REQS,
                           false, &prp_list_iova);
     if (r) {
         goto fail;
     }
-    for (i = 0; i < NVME_QUEUE_SIZE; i++) {
+    q->free_req_head = -1;
+    for (i = 0; i < NVME_NUM_REQS; i++) {
         NVMeRequest *req = &q->reqs[i];
         req->cid = i + 1;
+        req->free_req_next = q->free_req_head;
+        q->free_req_head = i;
         req->prp_list_page = q->prp_list_pages + i * s->page_size;
         req->prp_list_iova = prp_list_iova + i * s->page_size;
     }
+
     nvme_init_queue(bs, &q->sq, size, NVME_SQ_ENTRY_BYTES, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -254,13 +265,11 @@ static void nvme_kick(BDRVNVMeState *s, NVMeQueuePair *q)
  */
 static NVMeRequest *nvme_get_free_req(NVMeQueuePair *q)
 {
-    int i;
-    NVMeRequest *req = NULL;
+    NVMeRequest *req;
 
     qemu_mutex_lock(&q->lock);
-    while (q->inflight + q->need_kick > NVME_QUEUE_SIZE - 2) {
-        /* We have to leave one slot empty as that is the full queue case (head
-         * == tail + 1). */
+
+    while (q->free_req_head == -1) {
         if (qemu_in_coroutine()) {
             trace_nvme_free_req_queue_wait(q);
             qemu_co_queue_wait(&q->free_req_queue, &q->lock);
@@ -269,18 +278,39 @@ static NVMeRequest *nvme_get_free_req(NVMeQueuePair *q)
             return NULL;
         }
     }
-    for (i = 0; i < NVME_QUEUE_SIZE; i++) {
-        if (!q->reqs[i].busy) {
-            q->reqs[i].busy = true;
-            req = &q->reqs[i];
-            break;
-        }
-    }
-    /* We have checked inflight and need_kick while holding q->lock, so one
-     * free req must be available. */
-    assert(req);
+
+    req = &q->reqs[q->free_req_head];
+    q->free_req_head = req->free_req_next;
+    req->free_req_next = -1;
+
     qemu_mutex_unlock(&q->lock);
     return req;
+}
+
+/* With q->lock */
+static void nvme_put_free_req_locked(NVMeQueuePair *q, NVMeRequest *req)
+{
+    req->free_req_next = q->free_req_head;
+    q->free_req_head = req - q->reqs;
+}
+
+/* With q->lock */
+static void nvme_wake_free_req_locked(BDRVNVMeState *s, NVMeQueuePair *q)
+{
+    if (!qemu_co_queue_empty(&q->free_req_queue)) {
+        replay_bh_schedule_oneshot_event(s->aio_context,
+                nvme_free_req_queue_cb, q);
+    }
+}
+
+/* Insert a request in the freelist and wake waiters */
+static void nvme_put_free_req_and_wake(BDRVNVMeState *s,  NVMeQueuePair *q,
+                                       NVMeRequest *req)
+{
+    qemu_mutex_lock(&q->lock);
+    nvme_put_free_req_locked(q, req);
+    nvme_wake_free_req_locked(s, q);
+    qemu_mutex_unlock(&q->lock);
 }
 
 static inline int nvme_translate_error(const NvmeCqe *c)
@@ -344,7 +374,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         req = *preq;
         assert(req.cid == cid);
         assert(req.cb);
-        preq->busy = false;
+        nvme_put_free_req_locked(q, preq);
         preq->cb = preq->opaque = NULL;
         qemu_mutex_unlock(&q->lock);
         req.cb(req.opaque, ret);
@@ -356,10 +386,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         /* Notify the device so it can post more completions. */
         smp_mb_release();
         *q->cq.doorbell = cpu_to_le32(q->cq.head);
-        if (!qemu_co_queue_empty(&q->free_req_queue)) {
-            replay_bh_schedule_oneshot_event(s->aio_context,
-                                             nvme_free_req_queue_cb, q);
-        }
+        nvme_wake_free_req_locked(s, q);
     }
     q->busy = false;
     return progress;
@@ -1001,7 +1028,7 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
     r = nvme_cmd_map_qiov(bs, &cmd, req, qiov);
     qemu_co_mutex_unlock(&s->dma_map_lock);
     if (r) {
-        req->busy = false;
+        nvme_put_free_req_and_wake(s, ioq, req);
         return r;
     }
     nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
@@ -1218,7 +1245,7 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->dma_map_lock);
 
     if (ret) {
-        req->busy = false;
+        nvme_put_free_req_and_wake(s, ioq, req);
         goto out;
     }
 
