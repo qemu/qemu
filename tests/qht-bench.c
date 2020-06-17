@@ -284,7 +284,8 @@ static void do_threshold(double rate, uint64_t *threshold)
     if (rate == 1.0) {
         *threshold = UINT64_MAX;
     } else {
-        *threshold = rate * UINT64_MAX;
+        *threshold = (rate * 0xffff000000000000ull)
+                   + (rate * 0x0000ffffffffffffull);
     }
 }
 
