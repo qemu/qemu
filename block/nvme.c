@@ -512,6 +512,18 @@ static bool nvme_poll_queues(BDRVNVMeState *s)
 
     for (i = 0; i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
+        const size_t cqe_offset = q->cq.head * NVME_CQ_ENTRY_BYTES;
+        NvmeCqe *cqe = (NvmeCqe *)&q->cq.queue[cqe_offset];
+
+        /*
+         * Do an early check for completions. q->lock isn't needed because
+         * nvme_process_completion() only runs in the event loop thread and
+         * cannot race with itself.
+         */
+        if ((le16_to_cpu(cqe->status) & 0x1) == q->cq_phase) {
+            continue;
+        }
+
         qemu_mutex_lock(&q->lock);
         while (nvme_process_completion(s, q)) {
             /* Keep polling */
