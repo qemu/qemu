@@ -74,9 +74,11 @@ typedef struct {
     int         cq_phase;
     int         free_req_head;
     NVMeRequest reqs[NVME_NUM_REQS];
-    bool        busy;
     int         need_kick;
     int         inflight;
+
+    /* Thread-safe, no lock necessary */
+    QEMUBH      *completion_bh;
 } NVMeQueuePair;
 
 /* Memory mapped registers */
@@ -140,6 +142,8 @@ struct BDRVNVMeState {
 #define NVME_BLOCK_OPT_DEVICE "device"
 #define NVME_BLOCK_OPT_NAMESPACE "namespace"
 
+static void nvme_process_completion_bh(void *opaque);
+
 static QemuOptsList runtime_opts = {
     .name = "nvme",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -181,6 +185,9 @@ static void nvme_init_queue(BlockDriverState *bs, NVMeQueue *q,
 
 static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
+    if (q->completion_bh) {
+        qemu_bh_delete(q->completion_bh);
+    }
     qemu_vfree(q->prp_list_pages);
     qemu_vfree(q->sq.queue);
     qemu_vfree(q->cq.queue);
@@ -214,6 +221,8 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
     q->index = idx;
     qemu_co_queue_init(&q->free_req_queue);
     q->prp_list_pages = qemu_blockalign0(bs, s->page_size * NVME_NUM_REQS);
+    q->completion_bh = aio_bh_new(bdrv_get_aio_context(bs),
+                                  nvme_process_completion_bh, q);
     r = qemu_vfio_dma_map(s->vfio, q->prp_list_pages,
                           s->page_size * NVME_NUM_REQS,
                           false, &prp_list_iova);
@@ -352,11 +361,21 @@ static bool nvme_process_completion(NVMeQueuePair *q)
     NvmeCqe *c;
 
     trace_nvme_process_completion(s, q->index, q->inflight);
-    if (q->busy || s->plugged) {
-        trace_nvme_process_completion_queue_busy(s, q->index);
+    if (s->plugged) {
+        trace_nvme_process_completion_queue_plugged(s, q->index);
         return false;
     }
-    q->busy = true;
+
+    /*
+     * Support re-entrancy when a request cb() function invokes aio_poll().
+     * Pending completions must be visible to aio_poll() so that a cb()
+     * function can wait for the completion of another request.
+     *
+     * The aio_poll() loop will execute our BH and we'll resume completion
+     * processing there.
+     */
+    qemu_bh_schedule(q->completion_bh);
+
     assert(q->inflight >= 0);
     while (q->inflight) {
         int ret;
@@ -384,10 +403,10 @@ static bool nvme_process_completion(NVMeQueuePair *q)
         assert(req.cb);
         nvme_put_free_req_locked(q, preq);
         preq->cb = preq->opaque = NULL;
+        q->inflight--;
         qemu_mutex_unlock(&q->lock);
         req.cb(req.opaque, ret);
         qemu_mutex_lock(&q->lock);
-        q->inflight--;
         progress = true;
     }
     if (progress) {
@@ -396,8 +415,26 @@ static bool nvme_process_completion(NVMeQueuePair *q)
         *q->cq.doorbell = cpu_to_le32(q->cq.head);
         nvme_wake_free_req_locked(q);
     }
-    q->busy = false;
+
+    qemu_bh_cancel(q->completion_bh);
+
     return progress;
+}
+
+static void nvme_process_completion_bh(void *opaque)
+{
+    NVMeQueuePair *q = opaque;
+
+    /*
+     * We're being invoked because a nvme_process_completion() cb() function
+     * called aio_poll(). The callback may be waiting for further completions
+     * so notify the device that it has space to fill in more completions now.
+     */
+    smp_mb_release();
+    *q->cq.doorbell = cpu_to_le32(q->cq.head);
+    nvme_wake_free_req_locked(q);
+
+    nvme_process_completion(q);
 }
 
 static void nvme_trace_command(const NvmeCmd *cmd)
@@ -1309,6 +1346,13 @@ static void nvme_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
 
+    for (int i = 0; i < s->nr_queues; i++) {
+        NVMeQueuePair *q = s->queues[i];
+
+        qemu_bh_delete(q->completion_bh);
+        q->completion_bh = NULL;
+    }
+
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
                            false, NULL, NULL);
 }
@@ -1321,6 +1365,13 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
     s->aio_context = new_context;
     aio_set_event_notifier(new_context, &s->irq_notifier,
                            false, nvme_handle_event, nvme_poll_cb);
+
+    for (int i = 0; i < s->nr_queues; i++) {
+        NVMeQueuePair *q = s->queues[i];
+
+        q->completion_bh =
+            aio_bh_new(new_context, nvme_process_completion_bh, q);
+    }
 }
 
 static void nvme_aio_plug(BlockDriverState *bs)
