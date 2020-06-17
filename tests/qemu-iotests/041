@@ -277,6 +277,8 @@ class TestSingleBlockdev(TestSingleDrive):
         result = self.vm.run_job('job0')
         self.assertEqual(result, 'Source and target image have different sizes')
 
+    # qed does not support shrinking
+    @iotests.skip_for_formats(('qed'))
     def test_small_target(self):
         self.do_test_target_size(self.image_len // 2)
 
