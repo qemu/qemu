@@ -1232,6 +1232,10 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
         qstr = qobject_to(QString, qobj);
         g_assert(qstr);
         mname = qstring_get_str(qstr);
+        /* Ignore machines that cannot be used for qtests */
+        if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
+            continue;
+        }
         if (!skip_old_versioned || !qtest_is_old_versioned_machine(mname)) {
             cb(mname);
         }

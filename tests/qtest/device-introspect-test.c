@@ -287,11 +287,6 @@ static void add_machine_test_case(const char *mname)
 {
     char *path, *args;
 
-    /* Ignore blacklisted machines */
-    if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
-        return;
-    }
-
     path = g_strdup_printf("device/introspect/concrete/defaults/%s", mname);
     args = g_strdup_printf("-M %s", mname);
     qtest_add_data_func(path, args, test_device_intro_concrete);

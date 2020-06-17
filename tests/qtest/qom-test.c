@@ -81,11 +81,6 @@ static void add_machine_test_case(const char *mname)
 {
     char *path;
 
-    /* Ignore blacklisted machines that have known problems */
-    if (!memcmp("xenfv", mname, 5) || g_str_equal("xenpv", mname)) {
-        return;
-    }
-
     path = g_strdup_printf("qom/%s", mname);
     qtest_add_data_func(path, g_strdup(mname), test_machine);
     g_free(path);
