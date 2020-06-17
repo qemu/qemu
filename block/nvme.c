@@ -336,7 +336,6 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
                     cid);
             continue;
         }
-        assert(cid <= NVME_QUEUE_SIZE);
         trace_nvme_complete_command(s, q->index, cid);
         preq = &q->reqs[cid - 1];
         req = *preq;
