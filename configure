@@ -2055,6 +2055,7 @@ add_to nowarn_flags -Wno-shift-negative-value
 add_to nowarn_flags -Wno-string-plus-int
 add_to nowarn_flags -Wno-typedef-redefinition
 add_to nowarn_flags -Wno-tautological-type-limit-compare
+add_to nowarn_flags -Wno-psabi
 
 gcc_flags="$warn_flags $nowarn_flags"
 
