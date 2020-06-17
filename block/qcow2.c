@@ -4239,8 +4239,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             old_file_size = ROUND_UP(old_file_size, s->cluster_size);
         }
 
-        nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
-                                            s->cluster_size);
+        nb_new_data_clusters = (ROUND_UP(offset, s->cluster_size) -
+            start_of_cluster(s, old_length)) >> s->cluster_bits;
 
         /* This is an overestimation; we will not actually allocate space for
          * these in the file but just make sure the new refcount structures are
@@ -4317,10 +4317,21 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             int64_t nb_clusters = MIN(
                 nb_new_data_clusters,
                 s->l2_slice_size - offset_to_l2_slice_index(s, guest_offset));
-            QCowL2Meta allocation = {
+            unsigned cow_start_length = offset_into_cluster(s, guest_offset);
+            QCowL2Meta allocation;
+            guest_offset = start_of_cluster(s, guest_offset);
+            allocation = (QCowL2Meta) {
                 .offset       = guest_offset,
                 .alloc_offset = host_offset,
                 .nb_clusters  = nb_clusters,
+                .cow_start    = {
+                    .offset       = 0,
+                    .nb_bytes     = cow_start_length,
+                },
+                .cow_end      = {
+                    .offset       = nb_clusters << s->cluster_bits,
+                    .nb_bytes     = 0,
+                },
             };
             qemu_co_queue_init(&allocation.dependent_requests);
 
