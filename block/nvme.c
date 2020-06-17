@@ -57,7 +57,6 @@ typedef struct {
 } NVMeRequest;
 
 typedef struct {
-    CoQueue     free_req_queue;
     QemuMutex   lock;
 
     /* Fields protected by BQL */
@@ -65,6 +64,7 @@ typedef struct {
     uint8_t     *prp_list_pages;
 
     /* Fields protected by @lock */
+    CoQueue     free_req_queue;
     NVMeQueue   sq, cq;
     int         cq_phase;
     int         free_req_head;
