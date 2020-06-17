@@ -1,5 +1,6 @@
 /*
- * ARM Versatile I2C controller
+ * ARM SBCon two-wire serial bus interface (I2C bitbang)
+ * a.k.a. ARM Versatile I2C controller
  *
  * Copyright (c) 2006-2007 CodeSourcery.
  * Copyright (c) 2012 Oskar Andero <oskar.andero@gmail.com>
@@ -22,24 +23,16 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "hw/i2c/bitbang_i2c.h"
+#include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/registerfields.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-#define TYPE_VERSATILE_I2C "versatile_i2c"
 #define VERSATILE_I2C(obj) \
     OBJECT_CHECK(VersatileI2CState, (obj), TYPE_VERSATILE_I2C)
 
-typedef struct VersatileI2CState {
-    SysBusDevice parent_obj;
+typedef ArmSbconI2CState VersatileI2CState;
 
-    MemoryRegion iomem;
-    bitbang_i2c_interface bitbang;
-    int out;
-    int in;
-} VersatileI2CState;
 
 REG32(CONTROL_GET, 0)
 REG32(CONTROL_SET, 0)
@@ -99,7 +92,7 @@ static void versatile_i2c_init(Object *obj)
     bus = i2c_init_bus(dev, "i2c");
     bitbang_i2c_init(&s->bitbang, bus);
     memory_region_init_io(&s->iomem, obj, &versatile_i2c_ops, s,
-                          "versatile_i2c", 0x1000);
+                          "arm_sbcon_i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
