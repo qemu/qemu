@@ -2741,8 +2741,7 @@ static const VMStateDescription vmstate_vmbus_bridge = {
 };
 
 static Property vmbus_bridge_props[] = {
-    DEFINE_PROP_UINT8("irq0", VMBusBridge, irq0, 7),
-    DEFINE_PROP_UINT8("irq1", VMBusBridge, irq1, 13),
+    DEFINE_PROP_UINT8("irq", VMBusBridge, irq, 7),
     DEFINE_PROP_END_OF_LIST()
 };
 
