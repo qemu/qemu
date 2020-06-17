@@ -1373,19 +1373,212 @@ void helper_fprem(CPUX86State *env)
     helper_fprem_common(env, true);
 }
 
+/* 128-bit significand of log2(e).  */
+#define log2_e_sig_high 0xb8aa3b295c17f0bbULL
+#define log2_e_sig_low 0xbe87fed0691d3e89ULL
+
+/*
+ * Polynomial coefficients for an approximation to log2((1+x)/(1-x)),
+ * with only odd powers of x used, for x in the interval [2*sqrt(2)-3,
+ * 3-2*sqrt(2)], which corresponds to logarithms of numbers in the
+ * interval [sqrt(2)/2, sqrt(2)].
+ */
+#define fyl2x_coeff_0 make_floatx80(0x4000, 0xb8aa3b295c17f0bcULL)
+#define fyl2x_coeff_0_low make_floatx80(0xbfbf, 0x834972fe2d7bab1bULL)
+#define fyl2x_coeff_1 make_floatx80(0x3ffe, 0xf6384ee1d01febb8ULL)
+#define fyl2x_coeff_2 make_floatx80(0x3ffe, 0x93bb62877cdfa2e3ULL)
+#define fyl2x_coeff_3 make_floatx80(0x3ffd, 0xd30bb153d808f269ULL)
+#define fyl2x_coeff_4 make_floatx80(0x3ffd, 0xa42589eaf451499eULL)
+#define fyl2x_coeff_5 make_floatx80(0x3ffd, 0x864d42c0f8f17517ULL)
+#define fyl2x_coeff_6 make_floatx80(0x3ffc, 0xe3476578adf26272ULL)
+#define fyl2x_coeff_7 make_floatx80(0x3ffc, 0xc506c5f874e6d80fULL)
+#define fyl2x_coeff_8 make_floatx80(0x3ffc, 0xac5cf50cc57d6372ULL)
+#define fyl2x_coeff_9 make_floatx80(0x3ffc, 0xb1ed0066d971a103ULL)
+
 void helper_fyl2xp1(CPUX86State *env)
 {
-    double fptemp = floatx80_to_double(env, ST0);
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t arg0_sig = extractFloatx80Frac(ST0);
+    int32_t arg0_exp = extractFloatx80Exp(ST0);
+    bool arg0_sign = extractFloatx80Sign(ST0);
+    uint64_t arg1_sig = extractFloatx80Frac(ST1);
+    int32_t arg1_exp = extractFloatx80Exp(ST1);
+    bool arg1_sign = extractFloatx80Sign(ST1);
 
-    if ((fptemp + 1.0) > 0.0) {
-        fptemp = log(fptemp + 1.0) / log(2.0); /* log2(ST + 1.0) */
-        fptemp *= floatx80_to_double(env, ST1);
-        ST1 = double_to_floatx80(env, fptemp);
-        fpop(env);
+    if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST0, &env->fp_status);
+    } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST1, &env->fp_status);
+    } else if (floatx80_invalid_encoding(ST0) ||
+               floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        ST1 = ST0;
+    } else if (floatx80_is_any_nan(ST1)) {
+        /* Pass this NaN through.  */
+    } else if (arg0_exp > 0x3ffd ||
+               (arg0_exp == 0x3ffd && arg0_sig > (arg0_sign ?
+                                                  0x95f619980c4336f7ULL :
+                                                  0xd413cccfe7799211ULL))) {
+        /*
+         * Out of range for the instruction (ST0 must have absolute
+         * value less than 1 - sqrt(2)/2 = 0.292..., according to
+         * Intel manuals; AMD manuals allow a range from sqrt(2)/2 - 1
+         * to sqrt(2) - 1, which we allow here), treat as invalid.
+         */
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
+               arg1_exp == 0x7fff) {
+        /*
+         * One argument is zero, or multiplying by infinity; correct
+         * result is exact and can be obtained by multiplying the
+         * arguments.
+         */
+        ST1 = floatx80_mul(ST0, ST1, &env->fp_status);
+    } else if (arg0_exp < 0x3fb0) {
+        /*
+         * Multiplying both arguments and an extra-precision version
+         * of log2(e) is sufficiently precise.
+         */
+        uint64_t sig0, sig1, sig2;
+        int32_t exp;
+        if (arg0_exp == 0) {
+            normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
+        }
+        if (arg1_exp == 0) {
+            normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+        }
+        mul128By64To192(log2_e_sig_high, log2_e_sig_low, arg0_sig,
+                        &sig0, &sig1, &sig2);
+        exp = arg0_exp + 1;
+        mul128By64To192(sig0, sig1, arg1_sig, &sig0, &sig1, &sig2);
+        exp += arg1_exp - 0x3ffe;
+        /* This result is inexact.  */
+        sig1 |= 1;
+        ST1 = normalizeRoundAndPackFloatx80(80, arg0_sign ^ arg1_sign, exp,
+                                            sig0, sig1, &env->fp_status);
     } else {
-        env->fpus &= ~0x4700;
-        env->fpus |= 0x400;
+        bool asign;
+        uint32_t dexp, texp, aexp;
+        uint64_t dsig0, dsig1, tsig0, tsig1, rsig0, rsig1, rsig2;
+        uint64_t msig0, msig1, msig2, t2sig0, t2sig1, t2sig2, t2sig3;
+        uint64_t asig0, asig1, asig2, asig3, bsig0, bsig1;
+        floatx80 t2, accum;
+        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.float_rounding_mode = float_round_nearest_even;
+        env->fp_status.floatx80_rounding_precision = 80;
+
+        /*
+         * Compute an approximation of ST0/(2+ST0), with extra
+         * precision, as the argument to a polynomial approximation.
+         * The extra precision is only needed for the first term of
+         * the approximation, with subsequent terms being
+         * significantly smaller; the approximation only uses odd
+         * exponents, and the square of ST0/(2+ST0) is at most
+         * 17-12*sqrt(2) = 0.029....
+         */
+        if (arg0_sign) {
+            dexp = 0x3fff;
+            shift128RightJamming(arg0_sig, 0, dexp - arg0_exp, &dsig0, &dsig1);
+            sub128(0, 0, dsig0, dsig1, &dsig0, &dsig1);
+        } else {
+            dexp = 0x4000;
+            shift128RightJamming(arg0_sig, 0, dexp - arg0_exp, &dsig0, &dsig1);
+            dsig0 |= 0x8000000000000000ULL;
+        }
+        texp = arg0_exp - dexp + 0x3ffe;
+        rsig0 = arg0_sig;
+        rsig1 = 0;
+        rsig2 = 0;
+        if (dsig0 <= rsig0) {
+            shift128Right(rsig0, rsig1, 1, &rsig0, &rsig1);
+            ++texp;
+        }
+        tsig0 = estimateDiv128To64(rsig0, rsig1, dsig0);
+        mul128By64To192(dsig0, dsig1, tsig0, &msig0, &msig1, &msig2);
+        sub192(rsig0, rsig1, rsig2, msig0, msig1, msig2,
+               &rsig0, &rsig1, &rsig2);
+        while ((int64_t) rsig0 < 0) {
+            --tsig0;
+            add192(rsig0, rsig1, rsig2, 0, dsig0, dsig1,
+                   &rsig0, &rsig1, &rsig2);
+        }
+        tsig1 = estimateDiv128To64(rsig1, rsig2, dsig0);
+        /*
+         * No need to correct any estimation error in tsig1; even with
+         * such error, it is accurate enough.  Now compute the square
+         * of that approximation.
+         */
+        mul128To256(tsig0, tsig1, tsig0, tsig1,
+                    &t2sig0, &t2sig1, &t2sig2, &t2sig3);
+        t2 = normalizeRoundAndPackFloatx80(80, false, texp + texp - 0x3ffe,
+                                           t2sig0, t2sig1, &env->fp_status);
+
+        /* Compute the lower parts of the polynomial expansion.  */
+        accum = floatx80_mul(fyl2x_coeff_9, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_8, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_7, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_6, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_5, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_4, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_3, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_2, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_1, accum, &env->fp_status);
+        accum = floatx80_mul(accum, t2, &env->fp_status);
+        accum = floatx80_add(fyl2x_coeff_0_low, accum, &env->fp_status);
+
+        /*
+         * The full polynomial expansion is fyl2x_coeff_0 + accum
+         * (where accum has much lower magnitude, and so, in
+         * particular, carry out of the addition is not possible),
+         * multiplied by t.  (This expansion is only accurate to about
+         * 70 bits, not 128 bits.)
+         */
+        aexp = extractFloatx80Exp(fyl2x_coeff_0);
+        asign = extractFloatx80Sign(fyl2x_coeff_0);
+        shift128RightJamming(extractFloatx80Frac(accum), 0,
+                             aexp - extractFloatx80Exp(accum),
+                             &asig0, &asig1);
+        bsig0 = extractFloatx80Frac(fyl2x_coeff_0);
+        bsig1 = 0;
+        if (asign == extractFloatx80Sign(accum)) {
+            add128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+        } else {
+            sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+        }
+        /*
+         * Multiply by t and by the second argument to compute the
+         * required result.
+         */
+        mul128To256(asig0, asig1, tsig0, tsig1,
+                    &asig0, &asig1, &asig2, &asig3);
+        aexp += texp - 0x3ffe;
+        if (arg1_exp == 0) {
+            normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+        }
+        mul128By64To192(asig0, asig1, arg1_sig, &asig0, &asig1, &asig2);
+        aexp += arg1_exp - 0x3ffe;
+        /* This result is inexact.  */
+        asig1 |= 1;
+        env->fp_status.float_rounding_mode = save_mode;
+        ST1 = normalizeRoundAndPackFloatx80(80, arg0_sign ^ arg1_sign, aexp,
+                                            asig0, asig1, &env->fp_status);
+        env->fp_status.floatx80_rounding_precision = save_prec;
     }
+    fpop(env);
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fsqrt(CPUX86State *env)
