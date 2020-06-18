@@ -3506,11 +3506,6 @@ void qemu_init(int argc, char **argv, char **envp)
                     g_slist_free(accel_list);
                     exit(0);
                 }
-                if (optarg && strchr(optarg, ':')) {
-                    error_report("Don't use ':' with -accel, "
-                                 "use -M accel=... for now instead");
-                    exit(1);
-                }
                 break;
             case QEMU_OPTION_usb:
                 olist = qemu_find_opts("machine");
