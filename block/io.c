@@ -3310,7 +3310,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
                                   Error **errp)
 {
     BlockDriverState *bs = child->bs;
-    BdrvChild *filtered;
+    BdrvChild *filtered, *backing;
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
     int64_t old_size, new_bytes;
@@ -3363,6 +3363,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     }
 
     filtered = bdrv_filter_child(bs);
+    backing = bdrv_cow_child(bs);
 
     /*
      * If the image has a backing file that is large enough that it would
@@ -3374,10 +3375,10 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
      * backing file, taking care of keeping things consistent with that backing
      * file is the user's responsibility.
      */
-    if (new_bytes && bs->backing) {
+    if (new_bytes && backing) {
         int64_t backing_len;
 
-        backing_len = bdrv_getlength(backing_bs(bs));
+        backing_len = bdrv_getlength(backing->bs);
         if (backing_len < 0) {
             ret = backing_len;
             error_setg_errno(errp, -ret, "Could not get backing file size");
