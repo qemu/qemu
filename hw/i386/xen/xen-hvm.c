@@ -205,7 +205,7 @@ static void xen_ram_init(PCMachineState *pcms,
     ram_addr_t block_len;
     uint64_t user_lowmem =
         object_property_get_uint(qdev_get_machine(),
-                                 X86_MACHINE_MAX_RAM_BELOW_4G,
+                                 PC_MACHINE_MAX_RAM_BELOW_4G,
                                  &error_abort);
 
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
