@@ -705,6 +705,14 @@ typedef struct NvmePSD {
     uint8_t     resv[16];
 } NvmePSD;
 
+#define NVME_IDENTIFY_DATA_SIZE 4096
+
+enum {
+    NVME_ID_CNS_NS             = 0x0,
+    NVME_ID_CNS_CTRL           = 0x1,
+    NVME_ID_CNS_NS_ACTIVE_LIST = 0x2,
+};
+
 typedef struct NvmeIdCtrl {
     uint16_t    vid;
     uint16_t    ssvid;

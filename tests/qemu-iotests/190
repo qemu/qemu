@@ -41,6 +41,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # See 178 for more extensive tests across more formats
 _supported_fmt qcow2
 _supported_proto file
+# compat=0.10 does not support bitmaps
+_unsupported_imgopts 'compat=0.10'
 
 echo "== Huge file without bitmaps =="
 echo

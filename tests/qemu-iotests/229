@@ -46,6 +46,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2 qed
 _supported_proto file
 _supported_os Linux
+# blkdebug can only inject errors on bs->file, so external data files
+# do not work with this test
+_unsupported_imgopts data_file
 
 
 DEST_IMG="$TEST_DIR/d.$IMGFMT"

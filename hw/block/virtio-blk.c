@@ -819,14 +819,10 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     virtio_blk_handle_output_do(s, vq);
 }
 
-static void virtio_blk_dma_restart_bh(void *opaque)
+void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
 {
-    VirtIOBlock *s = opaque;
     VirtIOBlockReq *req = s->rq;
     MultiReqBuffer mrb = {};
-
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
 
     s->rq = NULL;
 
@@ -851,22 +847,38 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
-    blk_dec_in_flight(s->conf.conf.blk);
+    if (is_bh) {
+        blk_dec_in_flight(s->conf.conf.blk);
+    }
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
+}
+
+static void virtio_blk_dma_restart_bh(void *opaque)
+{
+    VirtIOBlock *s = opaque;
+
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
+
+    virtio_blk_process_queued_requests(s, true);
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running,
                                       RunState state)
 {
     VirtIOBlock *s = opaque;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
+    VirtioBusState *bus = VIRTIO_BUS(qbus);
 
     if (!running) {
         return;
     }
 
-    if (!s->bh) {
-        /* FIXME The data plane is not started yet, so these requests are
-         * processed in the main thread. */
+    /*
+     * If ioeventfd is enabled, don't schedule the BH here as queued
+     * requests will be processed while starting the data plane.
+     */
+    if (!s->bh && !virtio_bus_ioeventfd_enabled(bus)) {
         s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
                            virtio_blk_dma_restart_bh, s);
         blk_inc_in_flight(s->conf.conf.blk);
@@ -918,7 +930,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     virtio_stw_p(vdev, &blkcfg.geometry.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
     virtio_stw_p(vdev, &blkcfg.min_io_size, conf->min_io_size / blk_size);
-    virtio_stw_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
+    virtio_stl_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
     blkcfg.geometry.heads = conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
@@ -1162,12 +1174,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    blkconf_blocksizes(&conf->conf);
-
-    if (conf->conf.logical_block_size >
-        conf->conf.physical_block_size) {
-        error_setg(errp,
-                   "logical_block_size > physical_block_size not supported");
+    if (!blkconf_blocksizes(&conf->conf, errp)) {
         return;
     }
 

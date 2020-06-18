@@ -189,7 +189,10 @@ static void swim_drive_realize(DeviceState *qdev, Error **errp)
         assert(ret == 0);
     }
 
-    blkconf_blocksizes(&dev->conf);
+    if (!blkconf_blocksizes(&dev->conf, errp)) {
+        return;
+    }
+
     if (dev->conf.logical_block_size != 512 ||
         dev->conf.physical_block_size != 512)
     {

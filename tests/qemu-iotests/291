@@ -39,6 +39,8 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 _require_command QEMU_NBD
+# compat=0.10 does not support bitmaps
+_unsupported_imgopts 'compat=0.10'
 
 echo
 echo "=== Initial image setup ==="

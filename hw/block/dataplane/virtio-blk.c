@@ -220,6 +220,9 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
         goto fail_guest_notifiers;
     }
 
+    /* Process queued requests before the ones in vring */
+    virtio_blk_process_queued_requests(vblk, false);
+
     /* Kick right away to begin processing requests already in vring */
     for (i = 0; i < nvqs; i++) {
         VirtQueue *vq = virtio_get_queue(s->vdev, i);
@@ -239,6 +242,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     return 0;
 
   fail_guest_notifiers:
+    /*
+     * If we failed to set up the guest notifiers queued requests will be
+     * processed on the main context.
+     */
+    virtio_blk_process_queued_requests(vblk, false);
     vblk->dataplane_disabled = true;
     s->starting = false;
     vblk->dataplane_started = true;

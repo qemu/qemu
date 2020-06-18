@@ -683,11 +683,10 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
         except OSError:
             pass
 
+    # We need backing file support
+    @iotests.skip_for_formats(('vpc', 'parallels', 'qcow', 'vdi', 'vmdk', 'raw',
+                               'vhdx'))
     def test_snapshot_and_commit(self):
-        # We need backing file support
-        if iotests.imgfmt != 'qcow2' and iotests.imgfmt != 'qed':
-            return
-
         result = self.vm.qmp('blockdev-snapshot-sync', device='drive0',
                                                        snapshot_file=new_img,
                                                        format=iotests.imgfmt)

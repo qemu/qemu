@@ -1,6 +1,7 @@
 # Library for manipulations with qcow2 image
 #
 # Copyright (c) 2020 Virtuozzo International GmbH.
+# Copyright (C) 2012 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

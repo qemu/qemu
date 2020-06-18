@@ -44,7 +44,7 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static bool ahci_write_fis_d2h(AHCIDevice *ad);
 static void ahci_init_d2h(AHCIDevice *ad);
-static int ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit);
+static int ahci_dma_prepare_buf(const IDEDMA *dma, int32_t limit);
 static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
@@ -1338,7 +1338,7 @@ out:
 }
 
 /* Transfer PIO data between RAM and device */
-static void ahci_pio_transfer(IDEDMA *dma)
+static void ahci_pio_transfer(const IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1397,7 +1397,7 @@ out:
     }
 }
 
-static void ahci_start_dma(IDEDMA *dma, IDEState *s,
+static void ahci_start_dma(const IDEDMA *dma, IDEState *s,
                            BlockCompletionFunc *dma_cb)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1406,7 +1406,7 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
     dma_cb(s, 0);
 }
 
-static void ahci_restart_dma(IDEDMA *dma)
+static void ahci_restart_dma(const IDEDMA *dma)
 {
     /* Nothing to do, ahci_start_dma already resets s->io_buffer_offset.  */
 }
@@ -1415,7 +1415,7 @@ static void ahci_restart_dma(IDEDMA *dma)
  * IDE/PIO restarts are handled by the core layer, but NCQ commands
  * need an extra kick from the AHCI HBA.
  */
-static void ahci_restart(IDEDMA *dma)
+static void ahci_restart(const IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     int i;
@@ -1432,7 +1432,7 @@ static void ahci_restart(IDEDMA *dma)
  * Called in DMA and PIO R/W chains to read the PRDT.
  * Not shared with NCQ pathways.
  */
-static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
+static int32_t ahci_dma_prepare_buf(const IDEDMA *dma, int32_t limit)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1453,7 +1453,7 @@ static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
  * Called via dma_buf_commit, for both DMA and PIO paths.
  * sglist destruction is handled within dma_buf_commit.
  */
-static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes)
+static void ahci_commit_buf(const IDEDMA *dma, uint32_t tx_bytes)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
@@ -1461,7 +1461,7 @@ static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes)
     ad->cur_cmd->status = cpu_to_le32(tx_bytes);
 }
 
-static int ahci_dma_rw_buf(IDEDMA *dma, bool is_write)
+static int ahci_dma_rw_buf(const IDEDMA *dma, bool is_write)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1486,7 +1486,7 @@ static int ahci_dma_rw_buf(IDEDMA *dma, bool is_write)
     return 1;
 }
 
-static void ahci_cmd_done(IDEDMA *dma)
+static void ahci_cmd_done(const IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
