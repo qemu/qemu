@@ -112,10 +112,12 @@ is recommended.
     cache size: H bytes
     xbzrle transferred: I kbytes
     xbzrle pages: J pages
-    xbzrle cache miss: K
-    xbzrle overflow: L
+    xbzrle cache miss: K pages
+    xbzrle cache miss rate: L
+    xbzrle encoding rate: M
+    xbzrle overflow: N
 
-xbzrle cache-miss: the number of cache misses to date - high cache-miss rate
+xbzrle cache miss: the number of cache misses to date - high cache-miss rate
 indicates that the cache size is set too low.
 xbzrle overflow: the number of overflows in the decoding which where the delta
 could not be compressed. This can happen if the changes in the pages are too

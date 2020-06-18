@@ -299,7 +299,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->bytes >> 10);
         monitor_printf(mon, "xbzrle pages: %" PRIu64 " pages\n",
                        info->xbzrle_cache->pages);
-        monitor_printf(mon, "xbzrle cache miss: %" PRIu64 "\n",
+        monitor_printf(mon, "xbzrle cache miss: %" PRIu64 " pages\n",
                        info->xbzrle_cache->cache_miss);
         monitor_printf(mon, "xbzrle cache miss rate: %0.2f\n",
                        info->xbzrle_cache->cache_miss_rate);
@@ -316,8 +316,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->compression->busy);
         monitor_printf(mon, "compression busy rate: %0.2f\n",
                        info->compression->busy_rate);
-        monitor_printf(mon, "compressed size: %" PRIu64 "\n",
-                       info->compression->compressed_size);
+        monitor_printf(mon, "compressed size: %" PRIu64 " kbytes\n",
+                       info->compression->compressed_size >> 10);
         monitor_printf(mon, "compression rate: %0.2f\n",
                        info->compression->compression_rate);
     }
@@ -443,11 +443,11 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             MigrationParameter_str(MIGRATION_PARAMETER_MAX_BANDWIDTH),
             params->max_bandwidth);
         assert(params->has_downtime_limit);
-        monitor_printf(mon, "%s: %" PRIu64 " milliseconds\n",
+        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_DOWNTIME_LIMIT),
             params->downtime_limit);
         assert(params->has_x_checkpoint_delay);
-        monitor_printf(mon, "%s: %u\n",
+        monitor_printf(mon, "%s: %u ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_X_CHECKPOINT_DELAY),
             params->x_checkpoint_delay);
         assert(params->has_block_incremental);
@@ -460,7 +460,7 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_COMPRESSION),
             MultiFDCompression_str(params->multifd_compression));
-        monitor_printf(mon, "%s: %" PRIu64 "\n",
+        monitor_printf(mon, "%s: %" PRIu64 " bytes\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
         monitor_printf(mon, "%s: %" PRIu64 "\n",
@@ -1189,8 +1189,11 @@ void hmp_migrate_pause(Monitor *mon, const QDict *qdict)
 /* Kept for backwards compatibility */
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
+    Error *err = NULL;
+
     double value = qdict_get_double(qdict, "value");
-    qmp_migrate_set_downtime(value, NULL);
+    qmp_migrate_set_downtime(value, &err);
+    hmp_handle_error(mon, err);
 }
 
 void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
@@ -1499,8 +1502,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
                                 read_only,
                                 BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN, &err);
             if (err) {
-                hmp_handle_error(mon, err);
-                return;
+                goto end;
             }
         }
 
@@ -1509,6 +1511,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
                                    &err);
     }
 
+end:
     hmp_handle_error(mon, err);
 }
 
@@ -1627,16 +1630,15 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
     if (err) {
-        hmp_handle_error(mon, err);
-        return;
+        goto end;
     }
 
     obj = user_creatable_add_opts(opts, &err);
     qemu_opts_del(opts);
 
-    if (err) {
-        hmp_handle_error(mon, err);
-    }
+end:
+    hmp_handle_error(mon, err);
+
     if (obj) {
         object_unref(obj);
     }
