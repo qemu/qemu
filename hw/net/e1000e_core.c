@@ -34,9 +34,9 @@
 */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "net/net.h"
 #include "net/tap.h"
-#include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "sysemu/runstate.h"
@@ -2816,11 +2816,15 @@ e1000e_set_psrctl(E1000ECore *core, int index, uint32_t val)
     if (core->mac[RCTL] & E1000_RCTL_DTYP_MASK) {
 
         if ((val & E1000_PSRCTL_BSIZE0_MASK) == 0) {
-            hw_error("e1000e: PSRCTL.BSIZE0 cannot be zero");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "e1000e: PSRCTL.BSIZE0 cannot be zero");
+            return;
         }
 
         if ((val & E1000_PSRCTL_BSIZE1_MASK) == 0) {
-            hw_error("e1000e: PSRCTL.BSIZE1 cannot be zero");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "e1000e: PSRCTL.BSIZE1 cannot be zero");
+            return;
         }
     }
 
