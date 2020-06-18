@@ -1,3 +1,6 @@
+config TCG
+    bool
+
 config KVM
     bool
 
