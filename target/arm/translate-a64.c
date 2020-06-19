@@ -11370,18 +11370,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn(tcg_res, tcg_op1, tcg_op2);
             }
 
-            if (opcode == 0xf) {
-                /* SABA, UABA: accumulating ops */
-                static NeonGenTwoOpFn * const fns[3] = {
-                    gen_helper_neon_add_u8,
-                    gen_helper_neon_add_u16,
-                    tcg_gen_add_i32,
-                };
-
-                read_vec_element_i32(s, tcg_op1, rd, pass, MO_32);
-                fns[size](tcg_res, tcg_op1, tcg_res);
-            }
-
             write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
 
             tcg_temp_free_i32(tcg_res);
