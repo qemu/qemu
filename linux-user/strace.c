@@ -1357,6 +1357,18 @@ print_access(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_acct
+static void
+print_acct(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_string(arg0, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #ifdef TARGET_NR_brk
 static void
 print_brk(const struct syscallname *name,
@@ -1620,7 +1632,6 @@ print_fcntl(const struct syscallname *name,
 }
 #define print_fcntl64   print_fcntl
 #endif
-
 
 #ifdef TARGET_NR_futimesat
 static void
