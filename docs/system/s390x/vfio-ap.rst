@@ -606,10 +606,11 @@ action.
 
 To hot plug a vfio-ap device, use the QEMU ``device_add`` command::
 
-    (qemu) device_add vfio-ap,sysfsdev="$path-to-mdev"
+    (qemu) device_add vfio-ap,sysfsdev="$path-to-mdev",id="$id"
 
 Where the ``$path-to-mdev`` value specifies the absolute path to a mediated
 device to which AP resources to be used by the guest have been assigned.
+``$id`` is the name value for the optional id parameter.
 
 Note that on Linux guests, the AP devices will be created in the
 ``/sys/bus/ap/devices`` directory when the AP bus subsequently performs its periodic
@@ -632,10 +633,9 @@ or a prior hot plug action.
 
 To hot unplug a vfio-ap device, use the QEMU ``device_del`` command::
 
-    (qemu) device_del vfio-ap,sysfsdev="$path-to-mdev"
+    (qemu) device_del "$id"
 
-Where ``$path-to-mdev`` is the same as the path specified when the vfio-ap
-device was attached to the virtual machine's ap-bus.
+Where ``$id`` is the same id that was specified at device creation.
 
 On a Linux guest, the AP devices will be removed from the ``/sys/bus/ap/devices``
 directory on the guest when the AP bus subsequently performs its periodic scan,

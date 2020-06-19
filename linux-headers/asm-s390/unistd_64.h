@@ -358,5 +358,6 @@
 #define __NR_clone3 435
 #define __NR_openat2 437
 #define __NR_pidfd_getfd 438
+#define __NR_faccessat2 439
 
 #endif /* _ASM_S390_UNISTD_64_H */
