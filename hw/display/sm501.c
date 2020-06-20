@@ -1503,6 +1503,9 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
         s->twoD_background = value;
         break;
     case SM501_2D_STRETCH:
+        if (((value >> 20) & 3) == 3) {
+            value &= ~BIT(20);
+        }
         s->twoD_stretch = value;
         break;
     case SM501_2D_COLOR_COMPARE:
