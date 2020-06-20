@@ -684,10 +684,11 @@ static void sm501_2d_operation(SM501State *s)
 {
     int cmd = (s->twoD_control >> 16) & 0x1F;
     int rtl = s->twoD_control & BIT(27);
-    int format = (s->twoD_stretch >> 20) & 0x3;
-    int rop_mode = (s->twoD_control >> 15) & 0x1; /* 1 for rop2, else rop3 */
+    int format = (s->twoD_stretch >> 20) & 3;
+    int bypp = 1 << format; /* bytes per pixel */
+    int rop_mode = (s->twoD_control >> 15) & 1; /* 1 for rop2, else rop3 */
     /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
-    int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
+    int rop2_source_is_pattern = (s->twoD_control >> 14) & 1;
     int rop = s->twoD_control & 0xFF;
     unsigned int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
     unsigned int dst_y = s->twoD_destination & 0xFFFF;
@@ -724,8 +725,8 @@ static void sm501_2d_operation(SM501State *s)
     }
 
     if (dst_base >= get_local_mem_size(s) ||
-        dst_base + (dst_x + width + (dst_y + height) * dst_pitch) *
-        (1 << format) >= get_local_mem_size(s)) {
+        dst_base + (dst_x + width + (dst_y + height) * dst_pitch) * bypp >=
+        get_local_mem_size(s)) {
         qemu_log_mask(LOG_GUEST_ERROR, "sm501: 2D op dest is outside vram.\n");
         return;
     }
@@ -750,8 +751,8 @@ static void sm501_2d_operation(SM501State *s)
         }
 
         if (src_base >= get_local_mem_size(s) ||
-            src_base + (src_x + width + (src_y + height) * src_pitch) *
-            (1 << format) >= get_local_mem_size(s)) {
+            src_base + (src_x + width + (src_y + height) * src_pitch) * bypp >=
+            get_local_mem_size(s)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "sm501: 2D op src is outside vram.\n");
             return;
@@ -763,8 +764,8 @@ static void sm501_2d_operation(SM501State *s)
             uint8_t *d = s->local_mem + dst_base;
 
             for (y = 0; y < height; y++) {
-                i = (dst_x + (dst_y + y) * dst_pitch) * (1 << format);
-                for (x = 0; x < width; x++, i += (1 << format)) {
+                i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
+                for (x = 0; x < width; x++, i += bypp) {
                     switch (format) {
                     case 0:
                         d[i] = ~d[i];
@@ -801,7 +802,7 @@ static void sm501_2d_operation(SM501State *s)
             de = db + width + height * (width + dst_pitch);
             if (rtl && ((db >= sb && db <= se) || (de >= sb && de <= se))) {
                 /* regions may overlap: copy via temporary */
-                int llb = width * (1 << format);
+                int llb = width * bypp;
                 int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
                 uint32_t *tmp = tmp_buf;
 
@@ -809,13 +810,13 @@ static void sm501_2d_operation(SM501State *s)
                     tmp = g_malloc(tmp_stride * sizeof(uint32_t) * height);
                 }
                 pixman_blt((uint32_t *)&s->local_mem[src_base], tmp,
-                           src_pitch * (1 << format) / sizeof(uint32_t),
-                           tmp_stride, 8 * (1 << format), 8 * (1 << format),
+                           src_pitch * bypp / sizeof(uint32_t),
+                           tmp_stride, 8 * bypp, 8 * bypp,
                            src_x, src_y, 0, 0, width, height);
                 pixman_blt(tmp, (uint32_t *)&s->local_mem[dst_base],
                            tmp_stride,
-                           dst_pitch * (1 << format) / sizeof(uint32_t),
-                           8 * (1 << format), 8 * (1 << format),
+                           dst_pitch * bypp / sizeof(uint32_t),
+                           8 * bypp, 8 * bypp,
                            0, 0, dst_x, dst_y, width, height);
                 if (tmp != tmp_buf) {
                     g_free(tmp);
@@ -823,9 +824,9 @@ static void sm501_2d_operation(SM501State *s)
             } else {
                 pixman_blt((uint32_t *)&s->local_mem[src_base],
                            (uint32_t *)&s->local_mem[dst_base],
-                           src_pitch * (1 << format) / sizeof(uint32_t),
-                           dst_pitch * (1 << format) / sizeof(uint32_t),
-                           8 * (1 << format), 8 * (1 << format),
+                           src_pitch * bypp / sizeof(uint32_t),
+                           dst_pitch * bypp / sizeof(uint32_t),
+                           8 * bypp, 8 * bypp,
                            src_x, src_y, dst_x, dst_y, width, height);
             }
         }
@@ -842,8 +843,8 @@ static void sm501_2d_operation(SM501State *s)
         }
 
         pixman_fill((uint32_t *)&s->local_mem[dst_base],
-                    dst_pitch * (1 << format) / sizeof(uint32_t),
-                    8 * (1 << format), dst_x, dst_y, width, height, color);
+                    dst_pitch * bypp / sizeof(uint32_t),
+                    8 * bypp, dst_x, dst_y, width, height, color);
         break;
     }
     default:
@@ -855,7 +856,7 @@ static void sm501_2d_operation(SM501State *s)
     if (dst_base >= get_fb_addr(s, crt) &&
         dst_base <= get_fb_addr(s, crt) + fb_len) {
         int dst_len = MIN(fb_len, ((dst_y + height - 1) * dst_pitch +
-                          dst_x + width) * (1 << format));
+                          dst_x + width) * bypp);
         if (dst_len) {
             memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
         }
