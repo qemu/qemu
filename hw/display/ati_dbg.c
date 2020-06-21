@@ -42,6 +42,7 @@ static struct ati_regdesc ati_reg_names[] = {
     {"MC_FB_LOCATION", 0x0148},
     {"MC_AGP_LOCATION", 0x014C},
     {"MC_STATUS", 0x0150},
+    {"MEM_SDRAM_MODE_REG", 0x0158},
     {"MEM_POWER_MISC", 0x015c},
     {"AGP_BASE", 0x0170},
     {"AGP_CNTL", 0x0174},

@@ -361,6 +361,11 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case MC_STATUS:
         val = 5;
         break;
+    case MEM_SDRAM_MODE_REG:
+        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            val = BIT(28) | BIT(20);
+        }
+        break;
     case RBBM_STATUS:
     case GUI_STAT:
         val = 64; /* free CMDFIFO entries */
