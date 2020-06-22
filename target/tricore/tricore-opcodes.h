@@ -801,7 +801,7 @@ enum {
 };
 /* OPCM_32_BRC_GE                                   */
 enum {
-    OP2_32_BRC_JGE                               = 0x00,
+    OPC2_32_BRC_JGE                               = 0x00,
     OPC_32_BRC_JGE_U                             = 0x01,
 };
 /* OPCM_32_BRC_JLT                                  */
