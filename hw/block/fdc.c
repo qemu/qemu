@@ -2565,20 +2565,6 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
     }
 }
 
-ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
-{
-    ISADevice *isadev;
-
-    isadev = isa_try_new(TYPE_ISA_FDC);
-    if (!isadev) {
-        return NULL;
-    }
-    isa_realize_and_unref(isadev, bus, &error_fatal);
-
-    isa_fdc_init_drives(isadev, fds);
-    return isadev;
-}
-
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
                         hwaddr mmio_base, DriveInfo **fds)
 {
