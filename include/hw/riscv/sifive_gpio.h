@@ -1,5 +1,5 @@
 /*
- * sifive System-on-Chip general purpose input/output register definition
+ * SiFive System-on-Chip general purpose input/output register definition
  *
  * Copyright 2019 AdaCore
  *
@@ -10,10 +10,12 @@
  * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  */
+
 #ifndef SIFIVE_GPIO_H
 #define SIFIVE_GPIO_H
 
 #include "hw/sysbus.h"
+
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"
 #define SIFIVE_GPIO(obj) OBJECT_CHECK(SIFIVEGPIOState, (obj), TYPE_SIFIVE_GPIO)
 
@@ -67,6 +69,8 @@ typedef struct SIFIVEGPIOState {
     uint32_t in;
     uint32_t in_mask;
 
+    /* config */
+    uint32_t ngpio;
 } SIFIVEGPIOState;
 
-#endif
+#endif /* SIFIVE_GPIO_H */

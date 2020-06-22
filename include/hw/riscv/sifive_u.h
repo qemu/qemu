@@ -22,6 +22,7 @@
 #include "hw/net/cadence_gem.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/sifive_cpu.h"
+#include "hw/riscv/sifive_gpio.h"
 #include "hw/riscv/sifive_u_prci.h"
 #include "hw/riscv/sifive_u_otp.h"
 
@@ -40,6 +41,7 @@ typedef struct SiFiveUSoCState {
     RISCVHartArrayState u_cpus;
     DeviceState *plic;
     SiFiveUPRCIState prci;
+    SIFIVEGPIOState gpio;
     SiFiveUOTPState otp;
     CadenceGEMState gem;
 
@@ -61,6 +63,7 @@ typedef struct SiFiveUState {
     int fdt_size;
 
     bool start_in_flash;
+    uint32_t msel;
     uint32_t serial;
 } SiFiveUState;
 
@@ -73,7 +76,9 @@ enum {
     SIFIVE_U_PRCI,
     SIFIVE_U_UART0,
     SIFIVE_U_UART1,
+    SIFIVE_U_GPIO,
     SIFIVE_U_OTP,
+    SIFIVE_U_DMC,
     SIFIVE_U_FLASH0,
     SIFIVE_U_DRAM,
     SIFIVE_U_GEM,
@@ -83,12 +88,34 @@ enum {
 enum {
     SIFIVE_U_UART0_IRQ = 4,
     SIFIVE_U_UART1_IRQ = 5,
+    SIFIVE_U_GPIO_IRQ0 = 7,
+    SIFIVE_U_GPIO_IRQ1 = 8,
+    SIFIVE_U_GPIO_IRQ2 = 9,
+    SIFIVE_U_GPIO_IRQ3 = 10,
+    SIFIVE_U_GPIO_IRQ4 = 11,
+    SIFIVE_U_GPIO_IRQ5 = 12,
+    SIFIVE_U_GPIO_IRQ6 = 13,
+    SIFIVE_U_GPIO_IRQ7 = 14,
+    SIFIVE_U_GPIO_IRQ8 = 15,
+    SIFIVE_U_GPIO_IRQ9 = 16,
+    SIFIVE_U_GPIO_IRQ10 = 17,
+    SIFIVE_U_GPIO_IRQ11 = 18,
+    SIFIVE_U_GPIO_IRQ12 = 19,
+    SIFIVE_U_GPIO_IRQ13 = 20,
+    SIFIVE_U_GPIO_IRQ14 = 21,
+    SIFIVE_U_GPIO_IRQ15 = 22,
     SIFIVE_U_GEM_IRQ = 0x35
 };
 
 enum {
     SIFIVE_U_HFCLK_FREQ = 33333333,
     SIFIVE_U_RTCCLK_FREQ = 1000000
+};
+
+enum {
+    MSEL_MEMMAP_QSPI0_FLASH = 1,
+    MSEL_L2LIM_QSPI0_FLASH = 6,
+    MSEL_L2LIM_QSPI2_SD = 11
 };
 
 #define SIFIVE_U_MANAGEMENT_CPU_COUNT   1
