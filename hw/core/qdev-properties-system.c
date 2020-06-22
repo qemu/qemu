@@ -98,6 +98,14 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    /*
+     * TODO Should this really be an error?  If no, the old value
+     * needs to be released before we store the new one.
+     */
+    if (!check_prop_still_unset(dev, name, *ptr, str, errp)) {
+        return;
+    }
+
     if (!*str) {
         g_free(str);
         *ptr = NULL;
