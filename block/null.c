@@ -262,6 +262,11 @@ static void null_refresh_filename(BlockDriverState *bs)
              bs->drv->format_name);
 }
 
+static int64_t null_allocated_file_size(BlockDriverState *bs)
+{
+    return 0;
+}
+
 static const char *const null_strong_runtime_opts[] = {
     BLOCK_OPT_SIZE,
     NULL_OPT_ZEROES,
@@ -277,6 +282,7 @@ static BlockDriver bdrv_null_co = {
     .bdrv_file_open         = null_file_open,
     .bdrv_parse_filename    = null_co_parse_filename,
     .bdrv_getlength         = null_getlength,
+    .bdrv_get_allocated_file_size = null_allocated_file_size,
 
     .bdrv_co_preadv         = null_co_preadv,
     .bdrv_co_pwritev        = null_co_pwritev,
@@ -297,6 +303,7 @@ static BlockDriver bdrv_null_aio = {
     .bdrv_file_open         = null_file_open,
     .bdrv_parse_filename    = null_aio_parse_filename,
     .bdrv_getlength         = null_getlength,
+    .bdrv_get_allocated_file_size = null_allocated_file_size,
 
     .bdrv_aio_preadv        = null_aio_preadv,
     .bdrv_aio_pwritev       = null_aio_pwritev,

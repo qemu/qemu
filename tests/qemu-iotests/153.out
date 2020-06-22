@@ -464,7 +464,7 @@ No conflict:
 image: null-co://
 file format: null-co
 virtual size: 1 GiB (1073741824 bytes)
-disk size: unavailable
+disk size: 0 B
 
 Conflict:
 qemu-img: --force-share/-U conflicts with image options

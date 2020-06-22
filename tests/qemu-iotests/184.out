@@ -29,7 +29,8 @@ Testing:
             "image": {
                 "virtual-size": 1073741824,
                 "filename": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"null-co\"}}",
-                "format": "throttle"
+                "format": "throttle",
+                "actual-size": 0
             },
             "iops_wr": 0,
             "ro": false,
@@ -56,7 +57,8 @@ Testing:
             "image": {
                 "virtual-size": 1073741824,
                 "filename": "null-co://",
-                "format": "null-co"
+                "format": "null-co",
+                "actual-size": 0
             },
             "iops_wr": 0,
             "ro": false,
