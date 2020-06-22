@@ -244,6 +244,14 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
+    /*
+     * TODO Should this really be an error?  If no, the old value
+     * needs to be released before we store the new one.
+     */
+    if (!check_prop_still_unset(dev, name, be->chr, str, errp)) {
+        return;
+    }
+
     if (!*str) {
         g_free(str);
         be->chr = NULL;
