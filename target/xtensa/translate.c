@@ -595,9 +595,6 @@ static int gen_postprocess(DisasContext *dc, int slot)
             gen_io_start();
         }
         gen_helper_check_interrupts(cpu_env);
-        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
-        }
     }
 #endif
     if (op_flags & XTENSA_OP_SYNC_REGISTER_WINDOW) {
