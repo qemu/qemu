@@ -2528,6 +2528,7 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
     DeviceState *dev;
     BlockBackend *blk;
     Error *local_err = NULL;
+    const char *fdc_name, *drive_suffix;
 
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
@@ -2542,10 +2543,26 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
             continue;
         }
 
+        fdc_name = object_get_typename(OBJECT(fdc_dev));
+        drive_suffix = !strcmp(fdc_name, "SUNW,fdtwo") ? "" : i ? "B" : "A";
+        warn_report("warning: property %s.drive%s is deprecated",
+                    fdc_name, drive_suffix);
+        error_printf("Use -device floppy,unit=%d,drive=... instead.\n", i);
+
         dev = qdev_new("floppy");
         qdev_prop_set_uint32(dev, "unit", i);
         qdev_prop_set_enum(dev, "drive-type", fdctrl->qdev_for_drives[i].type);
 
+        /*
+         * Hack alert: we move the backend from the floppy controller
+         * device to the floppy device.  We first need to detach the
+         * controller, or else floppy_create()'s qdev_prop_set_drive()
+         * will die when it attaches floppy device.  We also need to
+         * take another reference so that blk_detach_dev() doesn't
+         * free blk while we still need it.
+         *
+         * The hack is probably a bad idea.
+         */
         blk_ref(blk);
         blk_detach_dev(blk, fdc_dev);
         fdctrl->qdev_for_drives[i].blk = NULL;
