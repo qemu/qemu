@@ -460,12 +460,14 @@ static MemoryRegion *vhost_user_get_mr_data(uint64_t addr, ram_addr_t *offset,
 }
 
 static void vhost_user_fill_msg_region(VhostUserMemoryRegion *dst,
-                                       struct vhost_memory_region *src)
+                                       struct vhost_memory_region *src,
+                                       uint64_t mmap_offset)
 {
     assert(src != NULL && dst != NULL);
     dst->userspace_addr = src->userspace_addr;
     dst->memory_size = src->memory_size;
     dst->guest_phys_addr = src->guest_phys_addr;
+    dst->mmap_offset = mmap_offset;
 }
 
 static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
@@ -500,9 +502,8 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                 error_report("Failed preparing vhost-user memory table msg");
                 return -1;
             }
-            vhost_user_fill_msg_region(&region_buffer, reg);
+            vhost_user_fill_msg_region(&region_buffer, reg, offset);
             msg->payload.memory.regions[*fd_num] = region_buffer;
-            msg->payload.memory.regions[*fd_num].mmap_offset = offset;
             fds[(*fd_num)++] = fd;
         } else if (track_ramblocks) {
             u->region_rb_offset[i] = 0;
@@ -649,7 +650,7 @@ static int send_remove_regions(struct vhost_dev *dev,
 
         if (fd > 0) {
             msg->hdr.request = VHOST_USER_REM_MEM_REG;
-            vhost_user_fill_msg_region(&region_buffer, shadow_reg);
+            vhost_user_fill_msg_region(&region_buffer, shadow_reg, 0);
             msg->payload.mem_reg.region = region_buffer;
 
             if (vhost_user_write(dev, msg, &fd, 1) < 0) {
@@ -709,9 +710,8 @@ static int send_add_regions(struct vhost_dev *dev,
                 u->region_rb[reg_idx] = mr->ram_block;
             }
             msg->hdr.request = VHOST_USER_ADD_MEM_REG;
-            vhost_user_fill_msg_region(&region_buffer, reg);
+            vhost_user_fill_msg_region(&region_buffer, reg, offset);
             msg->payload.mem_reg.region = region_buffer;
-            msg->payload.mem_reg.region.mmap_offset = offset;
 
             if (vhost_user_write(dev, msg, &fd, 1) < 0) {
                 return -1;
