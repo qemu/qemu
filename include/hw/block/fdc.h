@@ -9,6 +9,7 @@
 
 #define TYPE_ISA_FDC "isa-fdc"
 
+void isa_fdc_init_drives(ISADevice *fdc, DriveInfo **fds);
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds);
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
                         hwaddr mmio_base, DriveInfo **fds);

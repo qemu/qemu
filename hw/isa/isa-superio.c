@@ -17,6 +17,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"
 #include "chardev/char.h"
+#include "hw/block/fdc.h"
 #include "hw/isa/superio.h"
 #include "hw/qdev-properties.h"
 #include "hw/input/i8042.h"
@@ -31,7 +32,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     ISADevice *isa;
     DeviceState *d;
     Chardev *chr;
-    DriveInfo *drive;
+    DriveInfo *fd[MAX_FD];
     char *name;
     int i;
 
@@ -115,7 +116,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
 
     /* Floppy disc */
     if (!k->floppy.is_enabled || k->floppy.is_enabled(sio, 0)) {
-        isa = isa_new("isa-fdc");
+        isa = isa_new(TYPE_ISA_FDC);
         d = DEVICE(isa);
         if (k->floppy.get_iobase) {
             qdev_prop_set_uint32(d, "iobase", k->floppy.get_iobase(sio, 0));
@@ -124,19 +125,12 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_uint32(d, "irq", k->floppy.get_irq(sio, 0));
         }
         /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 0);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveA", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
-        }
-        /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 1);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveB", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
+        for (i = 0; i < MAX_FD; i++) {
+            fd[i] = drive_get(IF_FLOPPY, 0, i);
         }
         object_property_add_child(OBJECT(sio), "isa-fdc", OBJECT(isa));
         isa_realize_and_unref(isa, bus, &error_fatal);
+        isa_fdc_init_drives(isa, fd);
         sio->floppy = isa;
         trace_superio_create_floppy(0,
                                     k->floppy.get_iobase ?

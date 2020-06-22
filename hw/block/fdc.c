@@ -2497,6 +2497,29 @@ static void fdctrl_result_timer(void *opaque)
 }
 
 /* Init functions */
+
+static void fdctrl_init_drives(FloppyBus *bus, DriveInfo **fds)
+{
+    DeviceState *dev;
+    int i;
+
+    for (i = 0; i < MAX_FD; i++) {
+        if (fds[i]) {
+            dev = qdev_new("floppy");
+            qdev_prop_set_uint32(dev, "unit", i);
+            qdev_prop_set_enum(dev, "drive-type", FLOPPY_DRIVE_TYPE_AUTO);
+            qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(fds[i]),
+                                &error_fatal);
+            qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
+        }
+    }
+}
+
+void isa_fdc_init_drives(ISADevice *fdc, DriveInfo **fds)
+{
+    fdctrl_init_drives(&ISA_FDC(fdc)->state.bus, fds);
+}
+
 static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
                                   Error **errp)
 {
@@ -2544,25 +2567,15 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
 
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
 {
-    DeviceState *dev;
     ISADevice *isadev;
 
     isadev = isa_try_new(TYPE_ISA_FDC);
     if (!isadev) {
         return NULL;
     }
-    dev = DEVICE(isadev);
-
-    if (fds[0]) {
-        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fds[0]),
-                            &error_fatal);
-    }
-    if (fds[1]) {
-        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
-                            &error_fatal);
-    }
     isa_realize_and_unref(isadev, bus, &error_fatal);
 
+    isa_fdc_init_drives(isadev, fds);
     return isadev;
 }
 
@@ -2578,18 +2591,12 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     sys = SYSBUS_FDC(dev);
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
-    if (fds[0]) {
-        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fds[0]),
-                            &error_fatal);
-    }
-    if (fds[1]) {
-        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fds[1]),
-                            &error_fatal);
-    }
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_connect_irq(sbd, 0, irq);
     sysbus_mmio_map(sbd, 0, mmio_base);
+
+    fdctrl_init_drives(&sys->state.bus, fds);
 }
 
 void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
@@ -2599,15 +2606,13 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     FDCtrlSysBus *sys;
 
     dev = qdev_new("SUNW,fdtwo");
-    if (fds[0]) {
-        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(fds[0]),
-                            &error_fatal);
-    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sys = SYSBUS_FDC(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(sys), 0, irq);
     sysbus_mmio_map(SYS_BUS_DEVICE(sys), 0, io_base);
     *fdc_tc = qdev_get_gpio_in(dev, 0);
+
+    fdctrl_init_drives(&sys->state.bus, fds);
 }
 
 static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
