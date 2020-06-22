@@ -2002,7 +2002,7 @@ static void nbd_refresh_filename(BlockDriverState *bs)
         len = snprintf(bs->exact_filename, sizeof(bs->exact_filename),
                        "nbd://%s:%s", host, port);
     }
-    if (len > sizeof(bs->exact_filename)) {
+    if (len >= sizeof(bs->exact_filename)) {
         /* Name is too long to represent exactly, so leave it empty. */
         bs->exact_filename[0] = '\0';
     }
