@@ -706,7 +706,7 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
 
     obj = object_new(TYPE_SD_CARD);
     dev = DEVICE(obj);
-    qdev_prop_set_drive(dev, "drive", blk, &err);
+    qdev_prop_set_drive_err(dev, "drive", blk, &err);
     if (err) {
         error_reportf_err(err, "sd_init failed: ");
         return NULL;

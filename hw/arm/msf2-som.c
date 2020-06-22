@@ -86,8 +86,8 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     spi_flash = qdev_new("s25sl12801");
     qdev_prop_set_uint8(spi_flash, "spansion-cr2nv", 1);
     if (dinfo) {
-        qdev_prop_set_drive(spi_flash, "drive", blk_by_legacy_dinfo(dinfo),
-                                    &error_fatal);
+        qdev_prop_set_drive_err(spi_flash, "drive",
+                                blk_by_legacy_dinfo(dinfo), &error_fatal);
     }
     qdev_realize_and_unref(spi_flash, spi_bus, &error_fatal);
     cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);

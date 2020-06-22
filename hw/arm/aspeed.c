@@ -227,8 +227,8 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
 
         fl->flash = qdev_new(flashtype);
         if (dinfo) {
-            qdev_prop_set_drive(fl->flash, "drive", blk_by_legacy_dinfo(dinfo),
-                                errp);
+            qdev_prop_set_drive_err(fl->flash, "drive",
+                                    blk_by_legacy_dinfo(dinfo), errp);
         }
         qdev_realize_and_unref(fl->flash, BUS(s->spi), &error_fatal);
 
@@ -243,8 +243,8 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo)
 
         card = qdev_new(TYPE_SD_CARD);
         if (dinfo) {
-            qdev_prop_set_drive(card, "drive", blk_by_legacy_dinfo(dinfo),
-                                &error_fatal);
+            qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
+                                    &error_fatal);
         }
         qdev_realize_and_unref(card,
                                qdev_get_child_bus(DEVICE(sdhci), "sd-bus"),

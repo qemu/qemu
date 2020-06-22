@@ -159,8 +159,9 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
             DriveInfo *dinfo = drive_get_next(IF_MTD);
             flash_dev = qdev_new("n25q128");
             if (dinfo) {
-                qdev_prop_set_drive(flash_dev, "drive",
-                                    blk_by_legacy_dinfo(dinfo), &error_fatal);
+                qdev_prop_set_drive_err(flash_dev, "drive",
+                                        blk_by_legacy_dinfo(dinfo),
+                                        &error_fatal);
             }
             qdev_realize_and_unref(flash_dev, BUS(spi), &error_fatal);
 
@@ -290,7 +291,7 @@ static void zynq_init(MachineState *machine)
         di = drive_get_next(IF_SD);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
         carddev = qdev_new(TYPE_SD_CARD);
-        qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+        qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
         qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"),
                                &error_fatal);
     }

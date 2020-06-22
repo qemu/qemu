@@ -233,8 +233,16 @@ extern const PropertyInfo qdev_prop_pcie_link_width;
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
 
-/* Set properties between creation and init.  */
-void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
+/*
+ * Set properties between creation and realization.
+ */
+void qdev_prop_set_drive_err(DeviceState *dev, const char *name,
+                         BlockBackend *value, Error **errp);
+
+/*
+ * Set properties between creation and realization.
+ * @value must be valid.  Each property may be set at most once.
+ */
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
@@ -245,10 +253,12 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
 void qdev_prop_set_chr(DeviceState *dev, const char *name, Chardev *value);
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value);
 void qdev_prop_set_drive(DeviceState *dev, const char *name,
-                         BlockBackend *value, Error **errp);
+                         BlockBackend *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
                            const uint8_t *value);
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
+
+void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
 
 void qdev_prop_register_global(GlobalProperty *prop);
 const GlobalProperty *qdev_find_global_prop(DeviceState *dev,

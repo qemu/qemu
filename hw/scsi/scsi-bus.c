@@ -277,7 +277,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     if (serial && object_property_find(OBJECT(dev), "serial", NULL)) {
         qdev_prop_set_string(dev, "serial", serial);
     }
-    qdev_prop_set_drive(dev, "drive", blk, &err);
+    qdev_prop_set_drive_err(dev, "drive", blk, &err);
     if (err) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));

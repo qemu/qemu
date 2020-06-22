@@ -221,8 +221,7 @@ static void q800_init(MachineState *machine)
     via_dev = qdev_new(TYPE_MAC_VIA);
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
-        qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo),
-                            &error_abort);
+        qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo));
     }
     sysbus = SYS_BUS_DEVICE(via_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);

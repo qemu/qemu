@@ -188,8 +188,9 @@ petalogix_ml605_init(MachineState *machine)
 
             dev = qdev_new("n25q128");
             if (dinfo) {
-                qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
-                                    &error_fatal);
+                qdev_prop_set_drive_err(dev, "drive",
+                                        blk_by_legacy_dinfo(dinfo),
+                                        &error_fatal);
             }
             qdev_realize_and_unref(dev, BUS(spi), &error_fatal);
 

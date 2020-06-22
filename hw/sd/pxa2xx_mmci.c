@@ -496,7 +496,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
 
     /* Create and plug in the sd card */
     carddev = qdev_new(TYPE_SD_CARD);
-    qdev_prop_set_drive(carddev, "drive", blk, &err);
+    qdev_prop_set_drive_err(carddev, "drive", blk, &err);
     if (err) {
         error_reportf_err(err, "failed to init SD card: ");
         return NULL;
