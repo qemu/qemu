@@ -239,6 +239,19 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
+void drive_mark_claimed_by_board(void)
+{
+    BlockBackend *blk;
+    DriveInfo *dinfo;
+
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        dinfo = blk_legacy_dinfo(blk);
+        if (dinfo && blk_get_attached_dev(blk)) {
+            dinfo->claimed_by_board = true;
+        }
+    }
+}
+
 void drive_check_orphaned(void)
 {
     BlockBackend *blk;
@@ -248,8 +261,10 @@ void drive_check_orphaned(void)
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
-        if (!blk_get_attached_dev(blk) && !dinfo->is_default &&
-            dinfo->type != IF_NONE) {
+        if (dinfo->is_default || dinfo->type == IF_NONE) {
+            continue;
+        }
+        if (!blk_get_attached_dev(blk)) {
             loc_push_none(&loc);
             qemu_opts_loc_restore(dinfo->opts);
             error_report("machine type does not support"
@@ -257,6 +272,14 @@ void drive_check_orphaned(void)
                          if_name[dinfo->type], dinfo->bus, dinfo->unit);
             loc_pop(&loc);
             orphans = true;
+            continue;
+        }
+        if (!dinfo->claimed_by_board && dinfo->type != IF_VIRTIO) {
+            loc_push_none(&loc);
+            qemu_opts_loc_restore(dinfo->opts);
+            warn_report("bogus if=%s is deprecated, use if=none",
+                        if_name[dinfo->type]);
+            loc_pop(&loc);
         }
     }
 

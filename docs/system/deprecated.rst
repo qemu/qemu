@@ -190,6 +190,14 @@ become
 
     -device floppy,unit=1,drive=...
 
+``-drive`` with bogus interface type
+''''''''''''''''''''''''''''''''''''
+
+Drives with interface types other than ``if=none`` are for onboard
+devices.  It is possible to use drives the board doesn't pick up with
+-device.  This usage is now deprecated.  Use ``if=none`` instead.
+
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
