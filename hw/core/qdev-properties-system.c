@@ -25,6 +25,28 @@
 #include "sysemu/iothread.h"
 #include "sysemu/tpm_backend.h"
 
+static bool check_prop_still_unset(DeviceState *dev, const char *name,
+                                   const void *old_val, const char *new_val,
+                                   Error **errp)
+{
+    const GlobalProperty *prop = qdev_find_global_prop(dev, name);
+
+    if (!old_val) {
+        return true;
+    }
+
+    if (prop) {
+        error_setg(errp, "-global %s.%s=... conflicts with %s=%s",
+                   prop->driver, prop->property, name, new_val);
+    } else {
+        /* Error message is vague, but a better one would be hard */
+        error_setg(errp, "%s=%s conflicts, and override is not implemented",
+                   name, new_val);
+    }
+    return false;
+}
+
+
 /* --- drive --- */
 
 static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -299,14 +321,16 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     }
 
     for (i = 0; i < queues; i++) {
-
         if (peers[i]->peer) {
             err = -EEXIST;
             goto out;
         }
 
-        if (ncs[i]) {
-            err = -EINVAL;
+        /*
+         * TODO Should this really be an error?  If no, the old value
+         * needs to be released before we store the new one.
+         */
+        if (!check_prop_still_unset(dev, name, ncs[i], str, errp)) {
             goto out;
         }
 
