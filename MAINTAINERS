@@ -2538,6 +2538,7 @@ F: net/filter-replay.c
 F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
+F: tests/acceptance/replay_kernel.py
 
 IOVA Tree
 M: Peter Xu <peterx@redhat.com>
@@ -2944,6 +2945,14 @@ R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
+
+Acceptance (Integration) Testing with the Avocado framework
+W: https://trello.com/b/6Qi1pxVn/avocado-qemu
+R: Cleber Rosa <crosa@redhat.com>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
+R: Wainer dos Santos Moschetta <wainersm@redhat.com>
+S: Odd Fixes
+F: tests/acceptance/
 
 Documentation
 -------------
