@@ -25,29 +25,45 @@
 #include "sysemu/iothread.h"
 #include "sysemu/tpm_backend.h"
 
-static void get_pointer(Object *obj, Visitor *v, Property *prop,
-                        char *(*print)(void *ptr),
-                        const char *name, Error **errp)
+/* --- drive --- */
+
+static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     void **ptr = qdev_get_prop_ptr(dev, prop);
+    const char *value;
     char *p;
 
-    p = *ptr ? print(*ptr) : g_strdup("");
+    if (*ptr) {
+        value = blk_name(*ptr);
+        if (!*value) {
+            BlockDriverState *bs = blk_bs(*ptr);
+            if (bs) {
+                value = bdrv_get_node_name(bs);
+            }
+        }
+    } else {
+        value = "";
+    }
+
+    p = g_strdup(value);
     visit_type_str(v, name, &p, errp);
     g_free(p);
 }
 
-static void set_pointer(Object *obj, Visitor *v, Property *prop,
-                        void (*parse)(DeviceState *dev, const char *str,
-                                      void **ptr, const char *propname,
-                                      Error **errp),
-                        const char *name, Error **errp)
+static void set_drive_helper(Object *obj, Visitor *v, const char *name,
+                             void *opaque, bool iothread, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
+    BlockBackend *blk;
+    bool blk_created = false;
+    int ret;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -59,23 +75,12 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         error_propagate(errp, local_err);
         return;
     }
+
     if (!*str) {
         g_free(str);
         *ptr = NULL;
         return;
     }
-    parse(dev, str, ptr, prop->name, errp);
-    g_free(str);
-}
-
-/* --- drive --- */
-
-static void do_parse_drive(DeviceState *dev, const char *str, void **ptr,
-                           const char *propname, bool iothread, Error **errp)
-{
-    BlockBackend *blk;
-    bool blk_created = false;
-    int ret;
 
     blk = blk_by_name(str);
     if (!blk) {
@@ -101,7 +106,7 @@ static void do_parse_drive(DeviceState *dev, const char *str, void **ptr,
     }
     if (!blk) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
-                   object_get_typename(OBJECT(dev)), propname, str);
+                   object_get_typename(OBJECT(dev)), prop->name, str);
         goto fail;
     }
     if (blk_attach_dev(blk, dev) < 0) {
@@ -126,18 +131,20 @@ fail:
         /* If we need to keep a reference, blk_attach_dev() took it */
         blk_unref(blk);
     }
+
+    g_free(str);
 }
 
-static void parse_drive(DeviceState *dev, const char *str, void **ptr,
-                        const char *propname, Error **errp)
+static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
 {
-    do_parse_drive(dev, str, ptr, propname, false, errp);
+    set_drive_helper(obj, v, name, opaque, false, errp);
 }
 
-static void parse_drive_iothread(DeviceState *dev, const char *str, void **ptr,
-                                 const char *propname, Error **errp)
+static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
 {
-    do_parse_drive(dev, str, ptr, propname, true, errp);
+    set_drive_helper(obj, v, name, opaque, true, errp);
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -154,38 +161,6 @@ static void release_drive(Object *obj, const char *name, void *opaque)
         blk_detach_dev(*ptr, dev);
         aio_context_release(ctx);
     }
-}
-
-static char *print_drive(void *ptr)
-{
-    const char *name;
-
-    name = blk_name(ptr);
-    if (!*name) {
-        BlockDriverState *bs = blk_bs(ptr);
-        if (bs) {
-            name = bdrv_get_node_name(bs);
-        }
-    }
-    return g_strdup(name);
-}
-
-static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
-{
-    get_pointer(obj, v, opaque, print_drive, name, errp);
-}
-
-static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
-{
-    set_pointer(obj, v, opaque, parse_drive, name, errp);
-}
-
-static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    set_pointer(obj, v, opaque, parse_drive_iothread, name, errp);
 }
 
 const PropertyInfo qdev_prop_drive = {
