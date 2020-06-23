@@ -38,7 +38,8 @@ static void adb_device_reset(ADBDevice *d)
     qdev_reset_all(DEVICE(d));
 }
 
-int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
+static int do_adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf,
+                          int len)
 {
     ADBDevice *d;
     ADBDeviceClass *adc;
@@ -83,6 +84,11 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
     return ADB_RET_NOTPRESENT;
 }
 
+int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
+{
+    return do_adb_request(s, obuf, buf, len);
+}
+
 /* XXX: move that to cuda ? */
 int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
 {
@@ -98,7 +104,7 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
         d = s->devices[s->poll_index];
         if ((1 << d->devaddr) & poll_mask) {
             buf[0] = ADB_READREG | (d->devaddr << 4);
-            olen = adb_request(s, obuf + 1, buf, 1);
+            olen = do_adb_request(s, obuf + 1, buf, 1);
             /* if there is data, we poll again the same device */
             if (olen > 0) {
                 s->status |= ADB_STATUS_POLLREPLY;
