@@ -89,10 +89,42 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
     return olen;
 }
 
+static const VMStateDescription vmstate_adb_bus = {
+    .name = "adb_bus",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void adb_bus_realize(BusState *qbus, Error **errp)
+{
+    ADBBusState *adb_bus = ADB_BUS(qbus);
+
+    vmstate_register(NULL, -1, &vmstate_adb_bus, adb_bus);
+}
+
+static void adb_bus_unrealize(BusState *qbus)
+{
+    ADBBusState *adb_bus = ADB_BUS(qbus);
+
+    vmstate_unregister(NULL, &vmstate_adb_bus, adb_bus);
+}
+
+static void adb_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->realize = adb_bus_realize;
+    k->unrealize = adb_bus_unrealize;
+}
+
 static const TypeInfo adb_bus_type_info = {
     .name = TYPE_ADB_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(ADBBusState),
+    .class_init = adb_bus_class_init,
 };
 
 const VMStateDescription vmstate_adb_device = {
