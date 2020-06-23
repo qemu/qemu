@@ -210,8 +210,9 @@ static void cuda_adb_poll(void *opaque)
         obuf[1] = 0x40; /* polled data */
         cuda_send_packet_to_host(s, obuf, olen + 2);
     }
-    timer_mod(s->adb_poll_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-              (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
+
+    timer_mod(s->adb_poll_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+              s->autopoll_rate_ms);
 }
 
 /* description of commands */
@@ -238,8 +239,8 @@ static bool cuda_cmd_autopoll(CUDAState *s,
         s->autopoll = autopoll;
         if (autopoll) {
             timer_mod(s->adb_poll_timer,
-                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                      s->autopoll_rate_ms);
         } else {
             timer_del(s->adb_poll_timer);
         }
@@ -264,8 +265,8 @@ static bool cuda_cmd_set_autorate(CUDAState *s,
     s->autopoll_rate_ms = in_data[0];
     if (s->autopoll) {
         timer_mod(s->adb_poll_timer,
-                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                  (NANOSECONDS_PER_SECOND / (1000 / s->autopoll_rate_ms)));
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                  s->autopoll_rate_ms);
     }
     return true;
 }
@@ -544,7 +545,7 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     s->sr_delay_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_set_sr_int, s);
     s->sr_delay_ns = 20 * SCALE_US;
 
-    s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
+    s->adb_poll_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
     s->adb_poll_mask = 0xffff;
     s->autopoll_rate_ms = 20;
 }
