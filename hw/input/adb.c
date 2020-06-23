@@ -29,9 +29,17 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "adb-internal.h"
+#include "trace.h"
 
 /* error codes */
 #define ADB_RET_NOTPRESENT (-2)
+
+static const char *adb_commands[] = {
+    "RESET", "FLUSH", "(Reserved 0x2)", "(Reserved 0x3)",
+    "Reserved (0x4)", "(Reserved 0x5)", "(Reserved 0x6)", "(Reserved 0x7)",
+    "LISTEN r0", "LISTEN r1", "LISTEN r2", "LISTEN r3",
+    "TALK r0", "TALK r1", "TALK r2", "TALK r3",
+};
 
 static void adb_device_reset(ADBDevice *d)
 {
@@ -86,9 +94,16 @@ static int do_adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf,
 
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
+    int ret;
+
+    trace_adb_bus_request(buf[0] >> 4, adb_commands[buf[0] & 0xf], len);
+
     assert(s->autopoll_blocked);
 
-    return do_adb_request(s, obuf, buf, len);
+    ret = do_adb_request(s, obuf, buf, len);
+
+    trace_adb_bus_request_done(buf[0] >> 4, adb_commands[buf[0] & 0xf], ret);
+    return ret;
 }
 
 int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
@@ -161,6 +176,7 @@ void adb_set_autopoll_mask(ADBBusState *s, uint16_t mask)
 void adb_autopoll_block(ADBBusState *s)
 {
     s->autopoll_blocked = true;
+    trace_adb_bus_autopoll_block(s->autopoll_blocked);
 
     if (s->autopoll_enabled) {
         timer_del(s->autopoll_timer);
@@ -170,6 +186,7 @@ void adb_autopoll_block(ADBBusState *s)
 void adb_autopoll_unblock(ADBBusState *s)
 {
     s->autopoll_blocked = false;
+    trace_adb_bus_autopoll_block(s->autopoll_blocked);
 
     if (s->autopoll_enabled) {
         timer_mod(s->autopoll_timer,
@@ -183,7 +200,9 @@ static void adb_autopoll(void *opaque)
     ADBBusState *s = opaque;
 
     if (!s->autopoll_blocked) {
+        trace_adb_bus_autopoll_cb(s->autopoll_mask);
         s->autopoll_cb(s->autopoll_cb_opaque);
+        trace_adb_bus_autopoll_cb_done(s->autopoll_mask);
     }
 
     timer_mod(s->autopoll_timer,
