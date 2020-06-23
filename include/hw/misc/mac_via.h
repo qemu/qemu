@@ -112,6 +112,7 @@ typedef struct MacVIAState {
     int adb_data_out_index;
     uint8_t adb_data_in[128];
     uint8_t adb_data_out[16];
+    uint8_t adb_autopoll_cmd;
 } MacVIAState;
 
 #endif

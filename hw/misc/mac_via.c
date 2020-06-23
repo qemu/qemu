@@ -599,176 +599,312 @@ static void via1_rtc_update(MacVIAState *m)
     m->cmd = REG_EMPTY;
 }
 
-static int adb_via_poll(MacVIAState *s, int state, uint8_t *data)
+static void adb_via_poll(void *opaque)
 {
+    MacVIAState *m = opaque;
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(&m->mos6522_via1);
+    MOS6522State *s = MOS6522(v1s);
+    ADBBusState *adb_bus = &m->adb_bus;
+    uint8_t obuf[9];
+    uint8_t *data = &s->sr;
+    int olen;
+    uint16_t pending;
+
+    /*
+     * Setting vADBInt below indicates that an autopoll reply has been
+     * received, however we must block autopoll until the point where
+     * the entire reply has been read back to the host
+     */
+    if (adb_bus->autopoll_blocked) {
+        return;
+    } else {
+        adb_autopoll_block(adb_bus);
+    }
+
+    m->adb_data_in_index = 0;
+    m->adb_data_out_index = 0;
+    olen = adb_poll(adb_bus, obuf, adb_bus->autopoll_mask);
+
+    if (olen > 0) {
+        /* Autopoll response */
+        *data = obuf[0];
+        olen--;
+        memcpy(m->adb_data_in, &obuf[1], olen);
+        m->adb_data_in_size = olen;
+
+        s->b &= ~VIA1B_vADBInt;
+        qemu_irq_raise(m->adb_data_ready);
+    } else if (olen < 0) {
+        /* Bus timeout (device does not exist) */
+        *data = 0xff;
+        s->b |= VIA1B_vADBInt;
+        adb_autopoll_unblock(adb_bus);
+    } else {
+        pending = adb_bus->pending & ~(1 << (m->adb_autopoll_cmd >> 4));
+
+        if (pending) {
+            /*
+             * Bus timeout (device exists but another device has data). Block
+             * autopoll so the OS can read out the first EVEN and first ODD
+             * byte to determine bus timeout and SRQ status
+             */
+            *data = m->adb_autopoll_cmd;
+            s->b &= ~VIA1B_vADBInt;
+
+            obuf[0] = 0xff;
+            obuf[1] = 0xff;
+            olen = 2;
+
+            memcpy(m->adb_data_in, obuf, olen);
+            m->adb_data_in_size = olen;
+
+            qemu_irq_raise(m->adb_data_ready);
+        } else {
+            /* Bus timeout (device exists but no other device has data) */
+            *data = 0;
+            s->b |= VIA1B_vADBInt;
+            adb_autopoll_unblock(adb_bus);
+        }
+    }
+
+    trace_via1_adb_poll(*data, (s->b & VIA1B_vADBInt) ? "+" : "-",
+                        adb_bus->status, m->adb_data_in_index, olen);
+}
+
+static int adb_via_send_len(uint8_t data)
+{
+    /* Determine the send length from the given ADB command */
+    uint8_t cmd = data & 0xc;
+    uint8_t reg = data & 0x3;
+
+    switch (cmd) {
+    case 0x8:
+        /* Listen command */
+        switch (reg) {
+        case 2:
+            /* Register 2 is only used for the keyboard */
+            return 3;
+        case 3:
+            /*
+             * Fortunately our devices only implement writes
+             * to register 3 which is fixed at 2 bytes
+             */
+            return 3;
+        default:
+            qemu_log_mask(LOG_UNIMP, "ADB unknown length for register %d\n",
+                          reg);
+            return 1;
+        }
+    default:
+        /* Talk, BusReset */
+        return 1;
+    }
+}
+
+static void adb_via_send(MacVIAState *s, int state, uint8_t data)
+{
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(&s->mos6522_via1);
+    MOS6522State *ms = MOS6522(v1s);
     ADBBusState *adb_bus = &s->adb_bus;
+    uint16_t autopoll_mask;
 
-    if (state != ADB_STATE_IDLE) {
-        return 0;
-    }
+    switch (state) {
+    case ADB_STATE_NEW:
+        /*
+         * Command byte: vADBInt tells host autopoll data already present
+         * in VIA shift register and ADB transceiver
+         */
+        adb_autopoll_block(adb_bus);
 
-    if (s->adb_data_in_size < s->adb_data_in_index) {
-        return 0;
-    }
+        if (adb_bus->status & ADB_STATUS_POLLREPLY) {
+            /* Tell the host the existing data is from autopoll */
+            ms->b &= ~VIA1B_vADBInt;
+        } else {
+            ms->b |= VIA1B_vADBInt;
+            s->adb_data_out_index = 0;
+            s->adb_data_out[s->adb_data_out_index++] = data;
+        }
 
-    if (s->adb_data_out_index != 0) {
-        return 0;
-    }
-
-    s->adb_data_in_index = 0;
-    s->adb_data_out_index = 0;
-    s->adb_data_in_size = adb_poll(adb_bus, s->adb_data_in,
-                                   adb_bus->autopoll_mask);
-
-    if (s->adb_data_in_size) {
-        *data = s->adb_data_in[s->adb_data_in_index++];
+        trace_via1_adb_send(" NEW", data, (ms->b & VIA1B_vADBInt) ? "+" : "-");
         qemu_irq_raise(s->adb_data_ready);
-    }
-
-    return s->adb_data_in_size;
-}
-
-static int adb_via_send(MacVIAState *s, int state, uint8_t data)
-{
-    switch (state) {
-    case ADB_STATE_NEW:
-        s->adb_data_out_index = 0;
         break;
-    case ADB_STATE_EVEN:
-        if ((s->adb_data_out_index & 1) == 0) {
-            return 0;
-        }
-        break;
-    case ADB_STATE_ODD:
-        if (s->adb_data_out_index & 1) {
-            return 0;
-        }
-        break;
-    case ADB_STATE_IDLE:
-        return 0;
-    }
-
-    assert(s->adb_data_out_index < sizeof(s->adb_data_out) - 1);
-
-    s->adb_data_out[s->adb_data_out_index++] = data;
-    qemu_irq_raise(s->adb_data_ready);
-    return 1;
-}
-
-static int adb_via_receive(MacVIAState *s, int state, uint8_t *data)
-{
-    switch (state) {
-    case ADB_STATE_NEW:
-        return 0;
 
     case ADB_STATE_EVEN:
-        if (s->adb_data_in_size <= 0) {
-            qemu_irq_raise(s->adb_data_ready);
-            return 0;
-        }
-
-        if (s->adb_data_in_index >= s->adb_data_in_size) {
-            *data = 0;
-            qemu_irq_raise(s->adb_data_ready);
-            return 1;
-        }
-
-        if ((s->adb_data_in_index & 1) == 0) {
-            return 0;
-        }
-
-        break;
-
     case ADB_STATE_ODD:
-        if (s->adb_data_in_size <= 0) {
-            qemu_irq_raise(s->adb_data_ready);
-            return 0;
-        }
+        ms->b |= VIA1B_vADBInt;
+        s->adb_data_out[s->adb_data_out_index++] = data;
 
-        if (s->adb_data_in_index >= s->adb_data_in_size) {
-            *data = 0;
-            qemu_irq_raise(s->adb_data_ready);
-            return 1;
-        }
-
-        if (s->adb_data_in_index & 1) {
-            return 0;
-        }
-
+        trace_via1_adb_send(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                            data, (ms->b & VIA1B_vADBInt) ? "+" : "-");
+        qemu_irq_raise(s->adb_data_ready);
         break;
 
     case ADB_STATE_IDLE:
-        if (s->adb_data_out_index == 0) {
-            return 0;
-        }
+        return;
+    }
 
-        s->adb_data_in_size = adb_request(&s->adb_bus, s->adb_data_in,
+    /* If the command is complete, execute it */
+    if (s->adb_data_out_index == adb_via_send_len(s->adb_data_out[0])) {
+        s->adb_data_in_size = adb_request(adb_bus, s->adb_data_in,
                                           s->adb_data_out,
                                           s->adb_data_out_index);
-        s->adb_data_out_index = 0;
         s->adb_data_in_index = 0;
-        if (s->adb_data_in_size < 0) {
-            *data = 0xff;
-            qemu_irq_raise(s->adb_data_ready);
-            return -1;
+
+        if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
+            /*
+             * Bus timeout (but allow first EVEN and ODD byte to indicate
+             * timeout via vADBInt and SRQ status)
+             */
+            s->adb_data_in[0] = 0xff;
+            s->adb_data_in[1] = 0xff;
+            s->adb_data_in_size = 2;
         }
 
-        if (s->adb_data_in_size == 0) {
-            return 0;
+        /*
+         * If last command is TALK, store it for use by autopoll and adjust
+         * the autopoll mask accordingly
+         */
+        if ((s->adb_data_out[0] & 0xc) == 0xc) {
+            s->adb_autopoll_cmd = s->adb_data_out[0];
+
+            autopoll_mask = 1 << (s->adb_autopoll_cmd >> 4);
+            adb_set_autopoll_mask(adb_bus, autopoll_mask);
         }
+    }
+}
+
+static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
+{
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(&s->mos6522_via1);
+    MOS6522State *ms = MOS6522(v1s);
+    ADBBusState *adb_bus = &s->adb_bus;
+    uint16_t pending;
+
+    switch (state) {
+    case ADB_STATE_NEW:
+        ms->b |= VIA1B_vADBInt;
+        return;
+
+    case ADB_STATE_IDLE:
+        /*
+         * Since adb_request() will have already consumed the data from the
+         * device, we must detect this extra state change and re-inject the
+         * reponse as either a "fake" autopoll reply or bus timeout
+         * accordingly
+         */
+        if (s->adb_data_in_index == 0) {
+            if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
+                *data = 0xff;
+                ms->b |= VIA1B_vADBInt;
+                qemu_irq_raise(s->adb_data_ready);
+            } else if (s->adb_data_in_size > 0) {
+                adb_bus->status = ADB_STATUS_POLLREPLY;
+                *data = s->adb_autopoll_cmd;
+                ms->b &= ~VIA1B_vADBInt;
+                qemu_irq_raise(s->adb_data_ready);
+            }
+        } else {
+            ms->b |= VIA1B_vADBInt;
+            adb_autopoll_unblock(adb_bus);
+        }
+
+        trace_via1_adb_receive("IDLE", *data,
+                        (ms->b & VIA1B_vADBInt) ? "+" : "-", adb_bus->status,
+                        s->adb_data_in_index, s->adb_data_in_size);
 
         break;
-    }
 
-    assert(s->adb_data_in_index < sizeof(s->adb_data_in) - 1);
+    case ADB_STATE_EVEN:
+    case ADB_STATE_ODD:
+        switch (s->adb_data_in_index) {
+        case 0:
+            /* First EVEN byte: vADBInt indicates bus timeout */
+            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
+                                   adb_bus->status, s->adb_data_in_index,
+                                   s->adb_data_in_size);
 
-    *data = s->adb_data_in[s->adb_data_in_index++];
-    qemu_irq_raise(s->adb_data_ready);
-    if (*data == 0xff || *data == 0) {
-        return 0;
+            *data = s->adb_data_in[s->adb_data_in_index++];
+            if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
+                ms->b &= ~VIA1B_vADBInt;
+            } else {
+                ms->b |= VIA1B_vADBInt;
+            }
+            break;
+
+        case 1:
+            /* First ODD byte: vADBInt indicates SRQ */
+            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
+                                   adb_bus->status, s->adb_data_in_index,
+                                   s->adb_data_in_size);
+
+            *data = s->adb_data_in[s->adb_data_in_index++];
+            pending = adb_bus->pending & ~(1 << (s->adb_autopoll_cmd >> 4));
+            if (pending) {
+                ms->b &= ~VIA1B_vADBInt;
+            } else {
+                ms->b |= VIA1B_vADBInt;
+            }
+            break;
+
+        default:
+            /*
+             * Otherwise vADBInt indicates end of data. Note that Linux
+             * specifically checks for the sequence 0x0 0xff to confirm the
+             * end of the poll reply, so provide these extra bytes below to
+             * keep it happy
+             */
+            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
+                                   adb_bus->status, s->adb_data_in_index,
+                                   s->adb_data_in_size);
+
+            if (s->adb_data_in_index < s->adb_data_in_size) {
+                /* Next data byte */
+                *data = s->adb_data_in[s->adb_data_in_index++];
+                ms->b |= VIA1B_vADBInt;
+            } else if (s->adb_data_in_index == s->adb_data_in_size) {
+                if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
+                    /* Bus timeout (no more data) */
+                    *data = 0xff;
+                } else {
+                    /* Return 0x0 after reply */
+                    *data = 0;
+                }
+                s->adb_data_in_index++;
+                ms->b &= ~VIA1B_vADBInt;
+            } else {
+                /* Bus timeout (no more data) */
+                *data = 0xff;
+                ms->b &= ~VIA1B_vADBInt;
+                adb_bus->status = 0;
+                adb_autopoll_unblock(adb_bus);
+            }
+            break;
+        }
+
+        qemu_irq_raise(s->adb_data_ready);
+        break;
     }
-    return 1;
 }
 
 static void via1_adb_update(MacVIAState *m)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(&m->mos6522_via1);
     MOS6522State *s = MOS6522(v1s);
-    int state;
-    int ret;
+    int oldstate, state;
 
+    oldstate = (v1s->last_b & VIA1B_vADB_StateMask) >> VIA1B_vADB_StateShift;
     state = (s->b & VIA1B_vADB_StateMask) >> VIA1B_vADB_StateShift;
 
-    if (s->acr & VIA1ACR_vShiftOut) {
-        /* output mode */
-        ret = adb_via_send(m, state, s->sr);
-        if (ret > 0) {
-            s->b &= ~VIA1B_vADBInt;
+    if (state != oldstate) {
+        if (s->acr & VIA1ACR_vShiftOut) {
+            /* output mode */
+            adb_via_send(m, state, s->sr);
         } else {
-            s->b |= VIA1B_vADBInt;
-        }
-    } else {
-        /* input mode */
-        ret = adb_via_receive(m, state, &s->sr);
-        if (ret > 0 && s->sr != 0xff) {
-            s->b &= ~VIA1B_vADBInt;
-        } else {
-            s->b |= VIA1B_vADBInt;
-        }
-    }
-}
-
-static void via_adb_poll(void *opaque)
-{
-    MacVIAState *m = opaque;
-    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(&m->mos6522_via1);
-    MOS6522State *s = MOS6522(v1s);
-    int state;
-
-    if (s->b & VIA1B_vADBInt) {
-        state = (s->b & VIA1B_vADB_StateMask) >> VIA1B_vADB_StateShift;
-        if (adb_via_poll(m, state, &s->sr)) {
-            s->b &= ~VIA1B_vADBInt;
+            /* input mode */
+            adb_via_receive(m, state, &s->sr);
         }
     }
 }
@@ -916,7 +1052,7 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     qemu_get_timedate(&tm, 0);
     m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
-    adb_register_autopoll_callback(adb_bus, via_adb_poll, m);
+    adb_register_autopoll_callback(adb_bus, adb_via_poll, m);
     m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
                                                VIA1_IRQ_ADB_READY_BIT);
 
@@ -1019,6 +1155,7 @@ static const VMStateDescription vmstate_mac_via = {
         VMSTATE_INT32(adb_data_out_index, MacVIAState),
         VMSTATE_BUFFER(adb_data_in, MacVIAState),
         VMSTATE_BUFFER(adb_data_out, MacVIAState),
+        VMSTATE_UINT8(adb_autopoll_cmd, MacVIAState),
         VMSTATE_END_OF_LIST()
     }
 };
