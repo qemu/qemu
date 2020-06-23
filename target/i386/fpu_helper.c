@@ -1239,14 +1239,493 @@ void helper_fptan(CPUX86State *env)
     }
 }
 
+/* Values of pi/4, pi/2, 3pi/4 and pi, with 128-bit precision.  */
+#define pi_4_exp 0x3ffe
+#define pi_4_sig_high 0xc90fdaa22168c234ULL
+#define pi_4_sig_low 0xc4c6628b80dc1cd1ULL
+#define pi_2_exp 0x3fff
+#define pi_2_sig_high 0xc90fdaa22168c234ULL
+#define pi_2_sig_low 0xc4c6628b80dc1cd1ULL
+#define pi_34_exp 0x4000
+#define pi_34_sig_high 0x96cbe3f9990e91a7ULL
+#define pi_34_sig_low 0x9394c9e8a0a5159dULL
+#define pi_exp 0x4000
+#define pi_sig_high 0xc90fdaa22168c234ULL
+#define pi_sig_low 0xc4c6628b80dc1cd1ULL
+
+/*
+ * Polynomial coefficients for an approximation to atan(x), with only
+ * odd powers of x used, for x in the interval [-1/16, 1/16].  (Unlike
+ * for some other approximations, no low part is needed for the first
+ * coefficient here to achieve a sufficiently accurate result, because
+ * the coefficient in this minimax approximation is very close to
+ * exactly 1.)
+ */
+#define fpatan_coeff_0 make_floatx80(0x3fff, 0x8000000000000000ULL)
+#define fpatan_coeff_1 make_floatx80(0xbffd, 0xaaaaaaaaaaaaaa43ULL)
+#define fpatan_coeff_2 make_floatx80(0x3ffc, 0xccccccccccbfe4f8ULL)
+#define fpatan_coeff_3 make_floatx80(0xbffc, 0x92492491fbab2e66ULL)
+#define fpatan_coeff_4 make_floatx80(0x3ffb, 0xe38e372881ea1e0bULL)
+#define fpatan_coeff_5 make_floatx80(0xbffb, 0xba2c0104bbdd0615ULL)
+#define fpatan_coeff_6 make_floatx80(0x3ffb, 0x9baf7ebf898b42efULL)
+
+struct fpatan_data {
+    /* High and low parts of atan(x).  */
+    floatx80 atan_high, atan_low;
+};
+
+static const struct fpatan_data fpatan_table[9] = {
+    { floatx80_zero,
+      floatx80_zero },
+    { make_floatx80(0x3ffb, 0xfeadd4d5617b6e33ULL),
+      make_floatx80(0xbfb9, 0xdda19d8305ddc420ULL) },
+    { make_floatx80(0x3ffc, 0xfadbafc96406eb15ULL),
+      make_floatx80(0x3fbb, 0xdb8f3debef442fccULL) },
+    { make_floatx80(0x3ffd, 0xb7b0ca0f26f78474ULL),
+      make_floatx80(0xbfbc, 0xeab9bdba460376faULL) },
+    { make_floatx80(0x3ffd, 0xed63382b0dda7b45ULL),
+      make_floatx80(0x3fbc, 0xdfc88bd978751a06ULL) },
+    { make_floatx80(0x3ffe, 0x8f005d5ef7f59f9bULL),
+      make_floatx80(0x3fbd, 0xb906bc2ccb886e90ULL) },
+    { make_floatx80(0x3ffe, 0xa4bc7d1934f70924ULL),
+      make_floatx80(0x3fbb, 0xcd43f9522bed64f8ULL) },
+    { make_floatx80(0x3ffe, 0xb8053e2bc2319e74ULL),
+      make_floatx80(0xbfbc, 0xd3496ab7bd6eef0cULL) },
+    { make_floatx80(0x3ffe, 0xc90fdaa22168c235ULL),
+      make_floatx80(0xbfbc, 0xece675d1fc8f8cbcULL) },
+};
+
 void helper_fpatan(CPUX86State *env)
 {
-    double fptemp, fpsrcop;
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t arg0_sig = extractFloatx80Frac(ST0);
+    int32_t arg0_exp = extractFloatx80Exp(ST0);
+    bool arg0_sign = extractFloatx80Sign(ST0);
+    uint64_t arg1_sig = extractFloatx80Frac(ST1);
+    int32_t arg1_exp = extractFloatx80Exp(ST1);
+    bool arg1_sign = extractFloatx80Sign(ST1);
 
-    fpsrcop = floatx80_to_double(env, ST1);
-    fptemp = floatx80_to_double(env, ST0);
-    ST1 = double_to_floatx80(env, atan2(fpsrcop, fptemp));
+    if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST0, &env->fp_status);
+    } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST1, &env->fp_status);
+    } else if (floatx80_invalid_encoding(ST0) ||
+               floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        ST1 = ST0;
+    } else if (floatx80_is_any_nan(ST1)) {
+        /* Pass this NaN through.  */
+    } else if (floatx80_is_zero(ST1) && !arg0_sign) {
+        /* Pass this zero through.  */
+    } else if (((floatx80_is_infinity(ST0) && !floatx80_is_infinity(ST1)) ||
+                 arg0_exp - arg1_exp >= 80) &&
+               !arg0_sign) {
+        /*
+         * Dividing ST1 by ST0 gives the correct result up to
+         * rounding, and avoids spurious underflow exceptions that
+         * might result from passing some small values through the
+         * polynomial approximation, but if a finite nonzero result of
+         * division is exact, the result of fpatan is still inexact
+         * (and underflowing where appropriate).
+         */
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.floatx80_rounding_precision = 80;
+        ST1 = floatx80_div(ST1, ST0, &env->fp_status);
+        env->fp_status.floatx80_rounding_precision = save_prec;
+        if (!floatx80_is_zero(ST1) &&
+            !(get_float_exception_flags(&env->fp_status) &
+              float_flag_inexact)) {
+            /*
+             * The mathematical result is very slightly closer to zero
+             * than this exact result.  Round a value with the
+             * significand adjusted accordingly to get the correct
+             * exceptions, and possibly an adjusted result depending
+             * on the rounding mode.
+             */
+            uint64_t sig = extractFloatx80Frac(ST1);
+            int32_t exp = extractFloatx80Exp(ST1);
+            bool sign = extractFloatx80Sign(ST1);
+            if (exp == 0) {
+                normalizeFloatx80Subnormal(sig, &exp, &sig);
+            }
+            ST1 = normalizeRoundAndPackFloatx80(80, sign, exp, sig - 1,
+                                                -1, &env->fp_status);
+        }
+    } else {
+        /* The result is inexact.  */
+        bool rsign = arg1_sign;
+        int32_t rexp;
+        uint64_t rsig0, rsig1;
+        if (floatx80_is_zero(ST1)) {
+            /*
+             * ST0 is negative.  The result is pi with the sign of
+             * ST1.
+             */
+            rexp = pi_exp;
+            rsig0 = pi_sig_high;
+            rsig1 = pi_sig_low;
+        } else if (floatx80_is_infinity(ST1)) {
+            if (floatx80_is_infinity(ST0)) {
+                if (arg0_sign) {
+                    rexp = pi_34_exp;
+                    rsig0 = pi_34_sig_high;
+                    rsig1 = pi_34_sig_low;
+                } else {
+                    rexp = pi_4_exp;
+                    rsig0 = pi_4_sig_high;
+                    rsig1 = pi_4_sig_low;
+                }
+            } else {
+                rexp = pi_2_exp;
+                rsig0 = pi_2_sig_high;
+                rsig1 = pi_2_sig_low;
+            }
+        } else if (floatx80_is_zero(ST0) || arg1_exp - arg0_exp >= 80) {
+            rexp = pi_2_exp;
+            rsig0 = pi_2_sig_high;
+            rsig1 = pi_2_sig_low;
+        } else if (floatx80_is_infinity(ST0) || arg0_exp - arg1_exp >= 80) {
+            /* ST0 is negative.  */
+            rexp = pi_exp;
+            rsig0 = pi_sig_high;
+            rsig1 = pi_sig_low;
+        } else {
+            /*
+             * ST0 and ST1 are finite, nonzero and with exponents not
+             * too far apart.
+             */
+            int32_t adj_exp, num_exp, den_exp, xexp, yexp, n, texp, zexp, aexp;
+            int32_t azexp, axexp;
+            bool adj_sub, ysign, zsign;
+            uint64_t adj_sig0, adj_sig1, num_sig, den_sig, xsig0, xsig1;
+            uint64_t msig0, msig1, msig2, remsig0, remsig1, remsig2;
+            uint64_t ysig0, ysig1, tsig, zsig0, zsig1, asig0, asig1;
+            uint64_t azsig0, azsig1;
+            uint64_t azsig2, azsig3, axsig0, axsig1;
+            floatx80 x8;
+            FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+            signed char save_prec = env->fp_status.floatx80_rounding_precision;
+            env->fp_status.float_rounding_mode = float_round_nearest_even;
+            env->fp_status.floatx80_rounding_precision = 80;
+
+            if (arg0_exp == 0) {
+                normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
+            }
+            if (arg1_exp == 0) {
+                normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+            }
+            if (arg0_exp > arg1_exp ||
+                (arg0_exp == arg1_exp && arg0_sig >= arg1_sig)) {
+                /* Work with abs(ST1) / abs(ST0).  */
+                num_exp = arg1_exp;
+                num_sig = arg1_sig;
+                den_exp = arg0_exp;
+                den_sig = arg0_sig;
+                if (arg0_sign) {
+                    /* The result is subtracted from pi.  */
+                    adj_exp = pi_exp;
+                    adj_sig0 = pi_sig_high;
+                    adj_sig1 = pi_sig_low;
+                    adj_sub = true;
+                } else {
+                    /* The result is used as-is.  */
+                    adj_exp = 0;
+                    adj_sig0 = 0;
+                    adj_sig1 = 0;
+                    adj_sub = false;
+                }
+            } else {
+                /* Work with abs(ST0) / abs(ST1).  */
+                num_exp = arg0_exp;
+                num_sig = arg0_sig;
+                den_exp = arg1_exp;
+                den_sig = arg1_sig;
+                /* The result is added to or subtracted from pi/2.  */
+                adj_exp = pi_2_exp;
+                adj_sig0 = pi_2_sig_high;
+                adj_sig1 = pi_2_sig_low;
+                adj_sub = !arg0_sign;
+            }
+
+            /*
+             * Compute x = num/den, where 0 < x <= 1 and x is not too
+             * small.
+             */
+            xexp = num_exp - den_exp + 0x3ffe;
+            remsig0 = num_sig;
+            remsig1 = 0;
+            if (den_sig <= remsig0) {
+                shift128Right(remsig0, remsig1, 1, &remsig0, &remsig1);
+                ++xexp;
+            }
+            xsig0 = estimateDiv128To64(remsig0, remsig1, den_sig);
+            mul64To128(den_sig, xsig0, &msig0, &msig1);
+            sub128(remsig0, remsig1, msig0, msig1, &remsig0, &remsig1);
+            while ((int64_t) remsig0 < 0) {
+                --xsig0;
+                add128(remsig0, remsig1, 0, den_sig, &remsig0, &remsig1);
+            }
+            xsig1 = estimateDiv128To64(remsig1, 0, den_sig);
+            /*
+             * No need to correct any estimation error in xsig1; even
+             * with such error, it is accurate enough.
+             */
+
+            /*
+             * Split x as x = t + y, where t = n/8 is the nearest
+             * multiple of 1/8 to x.
+             */
+            x8 = normalizeRoundAndPackFloatx80(80, false, xexp + 3, xsig0,
+                                               xsig1, &env->fp_status);
+            n = floatx80_to_int32(x8, &env->fp_status);
+            if (n == 0) {
+                ysign = false;
+                yexp = xexp;
+                ysig0 = xsig0;
+                ysig1 = xsig1;
+                texp = 0;
+                tsig = 0;
+            } else {
+                int shift = clz32(n) + 32;
+                texp = 0x403b - shift;
+                tsig = n;
+                tsig <<= shift;
+                if (texp == xexp) {
+                    sub128(xsig0, xsig1, tsig, 0, &ysig0, &ysig1);
+                    if ((int64_t) ysig0 >= 0) {
+                        ysign = false;
+                        if (ysig0 == 0) {
+                            if (ysig1 == 0) {
+                                yexp = 0;
+                            } else {
+                                shift = clz64(ysig1) + 64;
+                                yexp = xexp - shift;
+                                shift128Left(ysig0, ysig1, shift,
+                                             &ysig0, &ysig1);
+                            }
+                        } else {
+                            shift = clz64(ysig0);
+                            yexp = xexp - shift;
+                            shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                        }
+                    } else {
+                        ysign = true;
+                        sub128(0, 0, ysig0, ysig1, &ysig0, &ysig1);
+                        if (ysig0 == 0) {
+                            shift = clz64(ysig1) + 64;
+                        } else {
+                            shift = clz64(ysig0);
+                        }
+                        yexp = xexp - shift;
+                        shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                    }
+                } else {
+                    /*
+                     * t's exponent must be greater than x's because t
+                     * is positive and the nearest multiple of 1/8 to
+                     * x, and if x has a greater exponent, the power
+                     * of 2 with that exponent is also a multiple of
+                     * 1/8.
+                     */
+                    uint64_t usig0, usig1;
+                    shift128RightJamming(xsig0, xsig1, texp - xexp,
+                                         &usig0, &usig1);
+                    ysign = true;
+                    sub128(tsig, 0, usig0, usig1, &ysig0, &ysig1);
+                    if (ysig0 == 0) {
+                        shift = clz64(ysig1) + 64;
+                    } else {
+                        shift = clz64(ysig0);
+                    }
+                    yexp = texp - shift;
+                    shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                }
+            }
+
+            /*
+             * Compute z = y/(1+tx), so arctan(x) = arctan(t) +
+             * arctan(z).
+             */
+            zsign = ysign;
+            if (texp == 0 || yexp == 0) {
+                zexp = yexp;
+                zsig0 = ysig0;
+                zsig1 = ysig1;
+            } else {
+                /*
+                 * t <= 1, x <= 1 and if both are 1 then y is 0, so tx < 1.
+                 */
+                int32_t dexp = texp + xexp - 0x3ffe;
+                uint64_t dsig0, dsig1, dsig2;
+                mul128By64To192(xsig0, xsig1, tsig, &dsig0, &dsig1, &dsig2);
+                /*
+                 * dexp <= 0x3fff (and if equal, dsig0 has a leading 0
+                 * bit).  Add 1 to produce the denominator 1+tx.
+                 */
+                shift128RightJamming(dsig0, dsig1, 0x3fff - dexp,
+                                     &dsig0, &dsig1);
+                dsig0 |= 0x8000000000000000ULL;
+                zexp = yexp - 1;
+                remsig0 = ysig0;
+                remsig1 = ysig1;
+                remsig2 = 0;
+                if (dsig0 <= remsig0) {
+                    shift128Right(remsig0, remsig1, 1, &remsig0, &remsig1);
+                    ++zexp;
+                }
+                zsig0 = estimateDiv128To64(remsig0, remsig1, dsig0);
+                mul128By64To192(dsig0, dsig1, zsig0, &msig0, &msig1, &msig2);
+                sub192(remsig0, remsig1, remsig2, msig0, msig1, msig2,
+                       &remsig0, &remsig1, &remsig2);
+                while ((int64_t) remsig0 < 0) {
+                    --zsig0;
+                    add192(remsig0, remsig1, remsig2, 0, dsig0, dsig1,
+                           &remsig0, &remsig1, &remsig2);
+                }
+                zsig1 = estimateDiv128To64(remsig1, remsig2, dsig0);
+                /* No need to correct any estimation error in zsig1.  */
+            }
+
+            if (zexp == 0) {
+                azexp = 0;
+                azsig0 = 0;
+                azsig1 = 0;
+            } else {
+                floatx80 z2, accum;
+                uint64_t z2sig0, z2sig1, z2sig2, z2sig3;
+                /* Compute z^2.  */
+                mul128To256(zsig0, zsig1, zsig0, zsig1,
+                            &z2sig0, &z2sig1, &z2sig2, &z2sig3);
+                z2 = normalizeRoundAndPackFloatx80(80, false,
+                                                   zexp + zexp - 0x3ffe,
+                                                   z2sig0, z2sig1,
+                                                   &env->fp_status);
+
+                /* Compute the lower parts of the polynomial expansion.  */
+                accum = floatx80_mul(fpatan_coeff_6, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_5, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_4, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_3, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_2, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_1, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+
+                /*
+                 * The full polynomial expansion is z*(fpatan_coeff_0 + accum).
+                 * fpatan_coeff_0 is 1, and accum is negative and much smaller.
+                 */
+                aexp = extractFloatx80Exp(fpatan_coeff_0);
+                shift128RightJamming(extractFloatx80Frac(accum), 0,
+                                     aexp - extractFloatx80Exp(accum),
+                                     &asig0, &asig1);
+                sub128(extractFloatx80Frac(fpatan_coeff_0), 0, asig0, asig1,
+                       &asig0, &asig1);
+                /* Multiply by z to compute arctan(z).  */
+                azexp = aexp + zexp - 0x3ffe;
+                mul128To256(asig0, asig1, zsig0, zsig1, &azsig0, &azsig1,
+                            &azsig2, &azsig3);
+            }
+
+            /* Add arctan(t) (positive or zero) and arctan(z) (sign zsign).  */
+            if (texp == 0) {
+                /* z is positive.  */
+                axexp = azexp;
+                axsig0 = azsig0;
+                axsig1 = azsig1;
+            } else {
+                bool low_sign = extractFloatx80Sign(fpatan_table[n].atan_low);
+                int32_t low_exp = extractFloatx80Exp(fpatan_table[n].atan_low);
+                uint64_t low_sig0 =
+                    extractFloatx80Frac(fpatan_table[n].atan_low);
+                uint64_t low_sig1 = 0;
+                axexp = extractFloatx80Exp(fpatan_table[n].atan_high);
+                axsig0 = extractFloatx80Frac(fpatan_table[n].atan_high);
+                axsig1 = 0;
+                shift128RightJamming(low_sig0, low_sig1, axexp - low_exp,
+                                     &low_sig0, &low_sig1);
+                if (low_sign) {
+                    sub128(axsig0, axsig1, low_sig0, low_sig1,
+                           &axsig0, &axsig1);
+                } else {
+                    add128(axsig0, axsig1, low_sig0, low_sig1,
+                           &axsig0, &axsig1);
+                }
+                if (azexp >= axexp) {
+                    shift128RightJamming(axsig0, axsig1, azexp - axexp + 1,
+                                         &axsig0, &axsig1);
+                    axexp = azexp + 1;
+                    shift128RightJamming(azsig0, azsig1, 1,
+                                         &azsig0, &azsig1);
+                } else {
+                    shift128RightJamming(axsig0, axsig1, 1,
+                                         &axsig0, &axsig1);
+                    shift128RightJamming(azsig0, azsig1, axexp - azexp + 1,
+                                         &azsig0, &azsig1);
+                    ++axexp;
+                }
+                if (zsign) {
+                    sub128(axsig0, axsig1, azsig0, azsig1,
+                           &axsig0, &axsig1);
+                } else {
+                    add128(axsig0, axsig1, azsig0, azsig1,
+                           &axsig0, &axsig1);
+                }
+            }
+
+            if (adj_exp == 0) {
+                rexp = axexp;
+                rsig0 = axsig0;
+                rsig1 = axsig1;
+            } else {
+                /*
+                 * Add or subtract arctan(x) (exponent axexp,
+                 * significand axsig0 and axsig1, positive, not
+                 * necessarily normalized) to the number given by
+                 * adj_exp, adj_sig0 and adj_sig1, according to
+                 * adj_sub.
+                 */
+                if (adj_exp >= axexp) {
+                    shift128RightJamming(axsig0, axsig1, adj_exp - axexp + 1,
+                                         &axsig0, &axsig1);
+                    rexp = adj_exp + 1;
+                    shift128RightJamming(adj_sig0, adj_sig1, 1,
+                                         &adj_sig0, &adj_sig1);
+                } else {
+                    shift128RightJamming(axsig0, axsig1, 1,
+                                         &axsig0, &axsig1);
+                    shift128RightJamming(adj_sig0, adj_sig1,
+                                         axexp - adj_exp + 1,
+                                         &adj_sig0, &adj_sig1);
+                    rexp = axexp + 1;
+                }
+                if (adj_sub) {
+                    sub128(adj_sig0, adj_sig1, axsig0, axsig1,
+                           &rsig0, &rsig1);
+                } else {
+                    add128(adj_sig0, adj_sig1, axsig0, axsig1,
+                           &rsig0, &rsig1);
+                }
+            }
+
+            env->fp_status.float_rounding_mode = save_mode;
+            env->fp_status.floatx80_rounding_precision = save_prec;
+        }
+        /* This result is inexact.  */
+        rsig1 |= 1;
+        ST1 = normalizeRoundAndPackFloatx80(80, rsign, rexp,
+                                            rsig0, rsig1, &env->fp_status);
+    }
+
     fpop(env);
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fxtract(CPUX86State *env)
