@@ -4,6 +4,7 @@
  *     https://www.nxp.com/docs/en/application-note/AN264.pdf
  *
  * Copyright (c) 2017-2018, IBM Corporation.
+ * Copyright (c) 2020 Philippe Mathieu-Daudé
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or
  * later. See the COPYING file in the top-level directory.
@@ -17,6 +18,20 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+
+typedef struct PCA955xClass {
+    /*< private >*/
+    I2CSlaveClass parent_class;
+    /*< public >*/
+
+    uint8_t pin_count;
+    uint8_t max_reg;
+} PCA955xClass;
+
+#define PCA955X_CLASS(klass) \
+    OBJECT_CLASS_CHECK(PCA955xClass, (klass), TYPE_PCA955X)
+#define PCA955X_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PCA955xClass, (obj), TYPE_PCA955X)
 
 #define PCA9552_LED_ON   0x0
 #define PCA9552_LED_OFF  0x1
@@ -35,9 +50,10 @@ static uint8_t pca955x_pin_get_config(PCA955xState *s, int pin)
 
 static void pca955x_update_pin_input(PCA955xState *s)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
     int i;
 
-    for (i = 0; i < s->pin_count; i++) {
+    for (i = 0; i < k->pin_count; i++) {
         uint8_t input_reg = PCA9552_INPUT0 + (i / 8);
         uint8_t input_shift = (i % 8);
         uint8_t config = pca955x_pin_get_config(s, i);
@@ -112,10 +128,12 @@ static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
  */
 static void pca955x_autoinc(PCA955xState *s)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
+
     if (s->pointer != 0xFF && s->pointer & PCA9552_AUTOINC) {
         uint8_t reg = s->pointer & 0xf;
 
-        reg = (reg + 1) % (s->max_reg + 1);
+        reg = (reg + 1) % (k->max_reg + 1);
         s->pointer = reg | PCA9552_AUTOINC;
     }
 }
@@ -176,6 +194,7 @@ static int pca955x_event(I2CSlave *i2c, enum i2c_event event)
 static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
     int led, rc, reg;
     uint8_t state;
@@ -185,7 +204,7 @@ static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (led < 0 || led > s->pin_count) {
+    if (led < 0 || led > k->pin_count) {
         error_setg(errp, "%s invalid led %s", __func__, name);
         return;
     }
@@ -212,6 +231,7 @@ static inline uint8_t pca955x_ledsel(uint8_t oldval, int led_num, int state)
 static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
     Error *local_err = NULL;
     int led, rc, reg, val;
@@ -228,7 +248,7 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (led < 0 || led > s->pin_count) {
+    if (led < 0 || led > k->pin_count) {
         error_setg(errp, "%s invalid led %s", __func__, name);
         return;
     }
@@ -283,17 +303,11 @@ static void pca9552_reset(DeviceState *dev)
 
 static void pca955x_initfn(Object *obj)
 {
-    PCA955xState *s = PCA955X(obj);
+    PCA955xClass *k = PCA955X_GET_CLASS(obj);
     int led;
 
-    /* If support for the other PCA955X devices are implemented, these
-     * constant values might be part of class structure describing the
-     * PCA955X device
-     */
-    s->max_reg = PCA9552_LS3;
-    s->pin_count = 16;
-
-    for (led = 0; led < s->pin_count; led++) {
+    assert(k->pin_count <= PCA955X_PIN_COUNT_MAX);
+    for (led = 0; led < k->pin_count; led++) {
         char *name;
 
         name = g_strdup_printf("led%d", led);
@@ -303,28 +317,44 @@ static void pca955x_initfn(Object *obj)
     }
 }
 
-static void pca9552_class_init(ObjectClass *klass, void *data)
+static void pca955x_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->event = pca955x_event;
     k->recv = pca955x_recv;
     k->send = pca955x_send;
+}
+
+static const TypeInfo pca955x_info = {
+    .name          = TYPE_PCA955X,
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_init = pca955x_initfn,
+    .instance_size = sizeof(PCA955xState),
+    .class_init    = pca955x_class_init,
+    .abstract      = true,
+};
+
+static void pca9552_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PCA955xClass *pc = PCA955X_CLASS(oc);
+
     dc->reset = pca9552_reset;
     dc->vmsd = &pca9552_vmstate;
+    pc->max_reg = PCA9552_LS3;
+    pc->pin_count = 16;
 }
 
 static const TypeInfo pca9552_info = {
     .name          = TYPE_PCA9552,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca955x_initfn,
-    .instance_size = sizeof(PCA955xState),
+    .parent        = TYPE_PCA955X,
     .class_init    = pca9552_class_init,
 };
 
 static void pca955x_register_types(void)
 {
+    type_register_static(&pca955x_info);
     type_register_static(&pca9552_info);
 }
 
