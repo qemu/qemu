@@ -86,6 +86,7 @@ struct ADBBusState {
 
     QEMUTimer *autopoll_timer;
     bool autopoll_enabled;
+    bool autopoll_blocked;
     uint8_t autopoll_rate_ms;
     uint16_t autopoll_mask;
     void (*autopoll_cb)(void *opaque);
@@ -95,6 +96,9 @@ struct ADBBusState {
 int adb_request(ADBBusState *s, uint8_t *buf_out,
                 const uint8_t *buf, int len);
 int adb_poll(ADBBusState *s, uint8_t *buf_out, uint16_t poll_mask);
+
+void adb_autopoll_block(ADBBusState *s);
+void adb_autopoll_unblock(ADBBusState *s);
 
 void adb_set_autopoll_enabled(ADBBusState *s, bool enabled);
 void adb_set_autopoll_rate_ms(ADBBusState *s, int rate_ms);
