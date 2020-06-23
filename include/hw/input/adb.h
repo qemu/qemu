@@ -70,6 +70,9 @@ typedef struct ADBDeviceClass {
 #define TYPE_ADB_BUS "apple-desktop-bus"
 #define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)
 
+#define ADB_STATUS_BUSTIMEOUT  0x1
+#define ADB_STATUS_POLLREPLY   0x2
+
 struct ADBBusState {
     /*< private >*/
     BusState parent_obj;
@@ -79,6 +82,7 @@ struct ADBBusState {
     uint16_t pending;
     int nb_devices;
     int poll_index;
+    uint8_t status;
 
     QEMUTimer *autopoll_timer;
     bool autopoll_enabled;

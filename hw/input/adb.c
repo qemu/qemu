@@ -42,7 +42,7 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
     ADBDevice *d;
     ADBDeviceClass *adc;
-    int devaddr, cmd, i;
+    int devaddr, cmd, olen, i;
 
     cmd = buf[0] & 0xf;
     if (cmd == ADB_BUSRESET) {
@@ -50,6 +50,7 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
             d = s->devices[i];
             adb_device_reset(d);
         }
+        s->status = 0;
         return 0;
     }
 
@@ -63,16 +64,22 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
         }
     }
 
+    s->status = 0;
     devaddr = buf[0] >> 4;
     for (i = 0; i < s->nb_devices; i++) {
         d = s->devices[i];
         adc = ADB_DEVICE_GET_CLASS(d);
 
         if (d->devaddr == devaddr) {
-            return adc->devreq(d, obuf, buf, len);
+            olen = adc->devreq(d, obuf, buf, len);
+            if (!olen) {
+                s->status |= ADB_STATUS_BUSTIMEOUT;
+            }
+            return olen;
         }
     }
 
+    s->status |= ADB_STATUS_BUSTIMEOUT;
     return ADB_RET_NOTPRESENT;
 }
 
@@ -94,9 +101,10 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
             olen = adb_request(s, obuf + 1, buf, 1);
             /* if there is data, we poll again the same device */
             if (olen > 0) {
+                s->status |= ADB_STATUS_POLLREPLY;
                 obuf[0] = buf[0];
                 olen++;
-                break;
+                return olen;
             }
         }
         s->poll_index++;
