@@ -13,12 +13,14 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/bitops.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/pca9552.h"
 #include "hw/misc/pca9552_regs.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "trace.h"
 
 typedef struct PCA955xClass {
     /*< private >*/
@@ -47,6 +49,39 @@ static uint8_t pca955x_pin_get_config(PCA955xState *s, int pin)
     uint8_t shift = (pin % 4) << 1;
 
     return extract32(s->regs[reg], shift, 2);
+}
+
+/* Return INPUT status (bit #N belongs to GPIO #N) */
+static uint16_t pca955x_pins_get_status(PCA955xState *s)
+{
+    return (s->regs[PCA9552_INPUT1] << 8) | s->regs[PCA9552_INPUT0];
+}
+
+static void pca955x_display_pins_status(PCA955xState *s,
+                                        uint16_t previous_pins_status)
+{
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
+    uint16_t pins_status, pins_changed;
+    int i;
+
+    pins_status = pca955x_pins_get_status(s);
+    pins_changed = previous_pins_status ^ pins_status;
+    if (!pins_changed) {
+        return;
+    }
+    if (trace_event_get_state_backends(TRACE_PCA955X_GPIO_STATUS)) {
+        char *buf = g_newa(char, k->pin_count + 1);
+
+        for (i = 0; i < k->pin_count; i++) {
+            if (extract32(pins_status, i, 1)) {
+                buf[i] = '*';
+            } else {
+                buf[i] = '.';
+            }
+        }
+        buf[i] = '\0';
+        trace_pca955x_gpio_status(s->description, buf);
+    }
 }
 
 static void pca955x_update_pin_input(PCA955xState *s)
@@ -98,6 +133,8 @@ static uint8_t pca955x_read(PCA955xState *s, uint8_t reg)
 
 static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
 {
+    uint16_t pins_status;
+
     switch (reg) {
     case PCA9552_PSC0:
     case PCA9552_PWM0:
@@ -110,8 +147,10 @@ static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
     case PCA9552_LS1:
     case PCA9552_LS2:
     case PCA9552_LS3:
+        pins_status = pca955x_pins_get_status(s);
         s->regs[reg] = data;
         pca955x_update_pin_input(s);
+        pca955x_display_pins_status(s, pins_status);
         break;
 
     case PCA9552_INPUT0:
