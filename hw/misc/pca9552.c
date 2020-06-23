@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/pca9552.h"
 #include "hw/misc/pca9552_regs.h"
+#include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -111,9 +112,11 @@ static void pca955x_update_pin_input(PCA955xState *s)
 
         switch (config) {
         case PCA9552_LED_ON:
+            qemu_set_irq(s->gpio[i], 1);
             s->regs[input_reg] |= 1 << input_shift;
             break;
         case PCA9552_LED_OFF:
+            qemu_set_irq(s->gpio[i], 0);
             s->regs[input_reg] &= ~(1 << input_shift);
             break;
         case PCA9552_LED_PWM0:
@@ -374,11 +377,14 @@ static void pca955x_initfn(Object *obj)
 
 static void pca955x_realize(DeviceState *dev, Error **errp)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(dev);
     PCA955xState *s = PCA955X(dev);
 
     if (!s->description) {
         s->description = g_strdup("pca-unspecified");
     }
+
+    qdev_init_gpio_out(dev, s->gpio, k->pin_count);
 }
 
 static Property pca955x_properties[] = {
