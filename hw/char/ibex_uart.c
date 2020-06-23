@@ -331,7 +331,7 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
         if (value & UART_CTRL_NCO) {
             uint64_t baud = ((value & UART_CTRL_NCO) >> 16);
             baud *= 1000;
-            baud /= 2 ^ 20;
+            baud >>= 20;
 
             s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
         }
