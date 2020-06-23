@@ -76,6 +76,7 @@ struct ADBBusState {
     /*< public >*/
 
     ADBDevice *devices[MAX_ADB_DEVICES];
+    uint16_t pending;
     int nb_devices;
     int poll_index;
 

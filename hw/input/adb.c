@@ -41,6 +41,7 @@ static void adb_device_reset(ADBDevice *d)
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
     ADBDevice *d;
+    ADBDeviceClass *adc;
     int devaddr, cmd, i;
 
     cmd = buf[0] & 0xf;
@@ -51,14 +52,27 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
         }
         return 0;
     }
+
+    s->pending = 0;
+    for (i = 0; i < s->nb_devices; i++) {
+        d = s->devices[i];
+        adc = ADB_DEVICE_GET_CLASS(d);
+
+        if (adc->devhasdata(d)) {
+            s->pending |= (1 << d->devaddr);
+        }
+    }
+
     devaddr = buf[0] >> 4;
     for (i = 0; i < s->nb_devices; i++) {
         d = s->devices[i];
+        adc = ADB_DEVICE_GET_CLASS(d);
+
         if (d->devaddr == devaddr) {
-            ADBDeviceClass *adc = ADB_DEVICE_GET_CLASS(d);
             return adc->devreq(d, obuf, buf, len);
         }
     }
+
     return ADB_RET_NOTPRESENT;
 }
 
