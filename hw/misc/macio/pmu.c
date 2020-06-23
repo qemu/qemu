@@ -175,11 +175,11 @@ static void pmu_cmd_set_adb_autopoll(PMUState *s, uint16_t mask)
 {
     trace_pmu_cmd_set_adb_autopoll(mask);
 
-    if (s->autopoll_mask == mask) {
+    if (s->adb_poll_mask == mask) {
         return;
     }
 
-    s->autopoll_mask = mask;
+    s->adb_poll_mask = mask;
     if (mask) {
         timer_mod(s->adb_poll_timer,
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 30);
@@ -274,9 +274,9 @@ static void pmu_cmd_adb_poll_off(PMUState *s,
         return;
     }
 
-    if (s->has_adb && s->autopoll_mask) {
+    if (s->has_adb && s->adb_poll_mask) {
         timer_del(s->adb_poll_timer);
-        s->autopoll_mask = false;
+        s->adb_poll_mask = 0;
     }
 }
 
@@ -698,8 +698,8 @@ static const VMStateDescription vmstate_pmu_adb = {
 
 static const VMStateDescription vmstate_pmu = {
     .name = "pmu",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(mos6522_pmu.parent_obj, PMUState, 0, vmstate_mos6522,
                        MOS6522State),
@@ -715,7 +715,6 @@ static const VMStateDescription vmstate_pmu = {
         VMSTATE_UINT8(intbits, PMUState),
         VMSTATE_UINT8(intmask, PMUState),
         VMSTATE_UINT8(autopoll_rate_ms, PMUState),
-        VMSTATE_UINT8(autopoll_mask, PMUState),
         VMSTATE_UINT32(tick_offset, PMUState),
         VMSTATE_TIMER_PTR(one_sec_timer, PMUState),
         VMSTATE_INT64(one_sec_target, PMUState),
@@ -735,7 +734,7 @@ static void pmu_reset(DeviceState *dev)
     s->intbits = 0;
 
     s->cmd_state = pmu_state_idle;
-    s->autopoll_mask = 0;
+    s->adb_poll_mask = 0;
 }
 
 static void pmu_realize(DeviceState *dev, Error **errp)
