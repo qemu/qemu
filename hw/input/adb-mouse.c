@@ -121,7 +121,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
         s->dx = 0;
         s->dy = 0;
         s->dz = 0;
-        trace_adb_mouse_flush();
+        trace_adb_device_mouse_flush();
         return 0;
     }
 
@@ -130,7 +130,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     olen = 0;
     switch (cmd) {
     case ADB_WRITEREG:
-        trace_adb_mouse_writereg(reg, buf[1]);
+        trace_adb_device_mouse_writereg(reg, buf[1]);
         switch (reg) {
         case 2:
             break;
@@ -152,7 +152,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
             case ADB_CMD_CHANGE_ID_AND_ACT:
             case ADB_CMD_CHANGE_ID_AND_ENABLE:
                 d->devaddr = buf[1] & 0xf;
-                trace_adb_mouse_request_change_addr(d->devaddr);
+                trace_adb_device_mouse_request_change_addr(d->devaddr);
                 break;
             default:
                 d->devaddr = buf[1] & 0xf;
@@ -172,8 +172,8 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                     d->handler = buf[2];
                 }
 
-                trace_adb_mouse_request_change_addr_and_handler(d->devaddr,
-                                                                d->handler);
+                trace_adb_device_mouse_request_change_addr_and_handler(
+                    d->devaddr, d->handler);
                 break;
             }
         }
@@ -191,7 +191,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
             olen = 2;
             break;
         }
-        trace_adb_mouse_readreg(reg, obuf[0], obuf[1]);
+        trace_adb_device_mouse_readreg(reg, obuf[0], obuf[1]);
         break;
     }
     return olen;
