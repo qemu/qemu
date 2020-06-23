@@ -75,11 +75,24 @@ struct ADBBusState {
     ADBDevice *devices[MAX_ADB_DEVICES];
     int nb_devices;
     int poll_index;
+
+    QEMUTimer *autopoll_timer;
+    bool autopoll_enabled;
+    uint8_t autopoll_rate_ms;
+    uint16_t autopoll_mask;
+    void (*autopoll_cb)(void *opaque);
+    void *autopoll_cb_opaque;
 };
 
 int adb_request(ADBBusState *s, uint8_t *buf_out,
                 const uint8_t *buf, int len);
 int adb_poll(ADBBusState *s, uint8_t *buf_out, uint16_t poll_mask);
+
+void adb_set_autopoll_enabled(ADBBusState *s, bool enabled);
+void adb_set_autopoll_rate_ms(ADBBusState *s, int rate_ms);
+void adb_set_autopoll_mask(ADBBusState *s, uint16_t mask);
+void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
+                                    void *opaque);
 
 #define TYPE_ADB_KEYBOARD "adb-keyboard"
 #define TYPE_ADB_MOUSE "adb-mouse"

@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qemu/timer.h"
 #include "adb-internal.h"
 
 /* error codes */
@@ -89,18 +90,91 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
     return olen;
 }
 
+void adb_set_autopoll_enabled(ADBBusState *s, bool enabled)
+{
+    if (s->autopoll_enabled != enabled) {
+        s->autopoll_enabled = enabled;
+        if (s->autopoll_enabled) {
+            timer_mod(s->autopoll_timer,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                      s->autopoll_rate_ms);
+        } else {
+            timer_del(s->autopoll_timer);
+        }
+    }
+}
+
+void adb_set_autopoll_rate_ms(ADBBusState *s, int rate_ms)
+{
+    s->autopoll_rate_ms = rate_ms;
+
+    if (s->autopoll_enabled) {
+        timer_mod(s->autopoll_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                  s->autopoll_rate_ms);
+    }
+}
+
+void adb_set_autopoll_mask(ADBBusState *s, uint16_t mask)
+{
+    if (s->autopoll_mask != mask) {
+        s->autopoll_mask = mask;
+        if (s->autopoll_enabled && s->autopoll_mask) {
+            timer_mod(s->autopoll_timer,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                      s->autopoll_rate_ms);
+        } else {
+            timer_del(s->autopoll_timer);
+        }
+    }
+}
+
+static void adb_autopoll(void *opaque)
+{
+    ADBBusState *s = opaque;
+
+    s->autopoll_cb(s->autopoll_cb_opaque);
+
+    timer_mod(s->autopoll_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+              s->autopoll_rate_ms);
+}
+
+void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
+                                    void *opaque)
+{
+    s->autopoll_cb = cb;
+    s->autopoll_cb_opaque = opaque;
+}
+
 static const VMStateDescription vmstate_adb_bus = {
     .name = "adb_bus",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
+        VMSTATE_TIMER_PTR(autopoll_timer, ADBBusState),
+        VMSTATE_BOOL(autopoll_enabled, ADBBusState),
+        VMSTATE_UINT8(autopoll_rate_ms, ADBBusState),
+        VMSTATE_UINT16(autopoll_mask, ADBBusState),
         VMSTATE_END_OF_LIST()
     }
 };
 
+static void adb_bus_reset(BusState *qbus)
+{
+    ADBBusState *adb_bus = ADB_BUS(qbus);
+
+    adb_bus->autopoll_enabled = false;
+    adb_bus->autopoll_mask = 0xffff;
+    adb_bus->autopoll_rate_ms = 20;
+}
+
 static void adb_bus_realize(BusState *qbus, Error **errp)
 {
     ADBBusState *adb_bus = ADB_BUS(qbus);
+
+    adb_bus->autopoll_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, adb_autopoll,
+                                           adb_bus);
 
     vmstate_register(NULL, -1, &vmstate_adb_bus, adb_bus);
 }
@@ -108,6 +182,8 @@ static void adb_bus_realize(BusState *qbus, Error **errp)
 static void adb_bus_unrealize(BusState *qbus)
 {
     ADBBusState *adb_bus = ADB_BUS(qbus);
+
+    timer_del(adb_bus->autopoll_timer);
 
     vmstate_unregister(NULL, &vmstate_adb_bus, adb_bus);
 }
@@ -118,6 +194,7 @@ static void adb_bus_class_init(ObjectClass *klass, void *data)
 
     k->realize = adb_bus_realize;
     k->unrealize = adb_bus_unrealize;
+    k->reset = adb_bus_reset;
 }
 
 static const TypeInfo adb_bus_type_info = {
