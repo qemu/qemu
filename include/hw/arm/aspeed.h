@@ -11,7 +11,7 @@
 
 #include "hw/boards.h"
 
-typedef struct AspeedBoardState AspeedBoardState;
+typedef struct AspeedMachineState AspeedMachineState;
 
 #define TYPE_ASPEED_MACHINE       MACHINE_TYPE_NAME("aspeed")
 #define ASPEED_MACHINE(obj) \
@@ -45,7 +45,7 @@ typedef struct AspeedMachineClass {
     const char *spi_model;
     uint32_t num_cs;
     uint32_t macs_mask;
-    void (*i2c_init)(AspeedBoardState *bmc);
+    void (*i2c_init)(AspeedMachineState *bmc);
 } AspeedMachineClass;
 
 
