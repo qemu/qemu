@@ -601,6 +601,8 @@ static void via1_rtc_update(MacVIAState *m)
 
 static int adb_via_poll(MacVIAState *s, int state, uint8_t *data)
 {
+    ADBBusState *adb_bus = &s->adb_bus;
+
     if (state != ADB_STATE_IDLE) {
         return 0;
     }
@@ -615,7 +617,8 @@ static int adb_via_poll(MacVIAState *s, int state, uint8_t *data)
 
     s->adb_data_in_index = 0;
     s->adb_data_out_index = 0;
-    s->adb_data_in_size = adb_poll(&s->adb_bus, s->adb_data_in, 0xffff);
+    s->adb_data_in_size = adb_poll(adb_bus, s->adb_data_in,
+                                   adb_bus->autopoll_mask);
 
     if (s->adb_data_in_size) {
         *data = s->adb_data_in[s->adb_data_in_index++];
@@ -768,10 +771,6 @@ static void via_adb_poll(void *opaque)
             s->b &= ~VIA1B_vADBInt;
         }
     }
-
-    timer_mod(m->adb_poll_timer,
-              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-              (NANOSECONDS_PER_SECOND / VIA_ADB_POLL_FREQ));
 }
 
 static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
@@ -854,10 +853,9 @@ static void mac_via_reset(DeviceState *dev)
 {
     MacVIAState *m = MAC_VIA(dev);
     MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
+    ADBBusState *adb_bus = &m->adb_bus;
 
-    timer_mod(m->adb_poll_timer,
-              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-              (NANOSECONDS_PER_SECOND / VIA_ADB_POLL_FREQ));
+    adb_set_autopoll_enabled(adb_bus, true);
 
     timer_del(v1s->VBL_timer);
     v1s->next_VBL = 0;
@@ -872,6 +870,7 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
 {
     MacVIAState *m = MAC_VIA(dev);
     MOS6522State *ms;
+    ADBBusState *adb_bus = &m->adb_bus;
     struct tm tm;
     int ret;
 
@@ -907,7 +906,7 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     qemu_get_timedate(&tm, 0);
     m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
-    m->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via_adb_poll, m);
+    adb_register_autopoll_callback(adb_bus, via_adb_poll, m);
     m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
                                                VIA1_IRQ_ADB_READY_BIT);
 
@@ -980,8 +979,8 @@ static int mac_via_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_mac_via = {
     .name = "mac-via",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = mac_via_post_load,
     .fields = (VMStateField[]) {
         /* VIAs */
@@ -1005,7 +1004,6 @@ static const VMStateDescription vmstate_mac_via = {
         VMSTATE_INT32(wprotect, MacVIAState),
         VMSTATE_INT32(alt, MacVIAState),
         /* ADB */
-        VMSTATE_TIMER_PTR(adb_poll_timer, MacVIAState),
         VMSTATE_INT32(adb_data_in_size, MacVIAState),
         VMSTATE_INT32(adb_data_in_index, MacVIAState),
         VMSTATE_INT32(adb_data_out_index, MacVIAState),
