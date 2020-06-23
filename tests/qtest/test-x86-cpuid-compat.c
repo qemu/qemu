@@ -256,7 +256,7 @@ int main(int argc, char **argv)
                    "-cpu 486,+invtsc", "xlevel", 0x80000007);
     /* CPUID[8000_000A].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
-                   "-cpu 486,+npt", "xlevel", 0x8000000A);
+                   "-cpu 486,+svm,+npt", "xlevel", 0x8000000A);
     /* CPUID[C000_0001].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
                    "-cpu phenom,+xstore", "xlevel2", 0xC0000001);
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
                    "-machine pc-i440fx-2.4 -cpu SandyBridge,",
                    "xlevel", 0x80000008);
     add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
-                   "-machine pc-i440fx-2.4 -cpu SandyBridge,+npt",
+                   "-machine pc-i440fx-2.4 -cpu SandyBridge,+svm,+npt",
                    "xlevel", 0x80000008);
 
     /* Test feature parsing */
