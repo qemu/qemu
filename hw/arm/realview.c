@@ -26,6 +26,7 @@
 #include "hw/cpu/a9mpcore.h"
 #include "hw/intc/realview_gic.h"
 #include "hw/irq.h"
+#include "hw/i2c/arm_sbcon_i2c.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -282,7 +283,7 @@ static void realview_init(MachineState *machine,
         }
     }
 
-    dev = sysbus_create_simple("versatile_i2c", 0x10002000, NULL);
+    dev = sysbus_create_simple(TYPE_VERSATILE_I2C, 0x10002000, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_create_slave(i2c, "ds1338", 0x68);
 

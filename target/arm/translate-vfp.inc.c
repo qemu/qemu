@@ -119,15 +119,14 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
         if (s->v7m_lspact) {
             /*
              * Lazy state saving affects external memory and also the NVIC,
-             * so we must mark it as an IO operation for icount.
+             * so we must mark it as an IO operation for icount (and cause
+             * this to be the last insn in the TB).
              */
             if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+                s->base.is_jmp = DISAS_UPDATE;
                 gen_io_start();
             }
             gen_helper_v7m_preserve_fp_state(cpu_env);
-            if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                gen_io_end();
-            }
             /*
              * If the preserve_fp_state helper doesn't throw an exception
              * then it will clear LSPACT; we don't need to repeat this for

@@ -59,7 +59,7 @@ config HIGHBANK
     select ARM_TIMER # sp804
     select ARM_V7M
     select PL011 # UART
-    select PL022 # Serial port
+    select PL022 # SPI
     select PL031 # RTC
     select PL061 # GPIO
     select PL310 # cache controller
@@ -222,7 +222,7 @@ config STELLARIS
     select CMSDK_APB_WATCHDOG
     select I2C
     select PL011 # UART
-    select PL022 # Serial port
+    select PL022 # SPI
     select PL061 # GPIO
     select SSD0303 # OLED display
     select SSD0323 # OLED display
@@ -401,10 +401,12 @@ config MPS2
     select MPS2_FPGAIO
     select MPS2_SCC
     select OR_IRQ
-    select PL022    # Serial port
+    select PL022    # SPI
     select PL080    # DMA controller
     select SPLIT_IRQ
     select UNIMP
+    select CMSDK_APB_WATCHDOG
+    select VERSATILE_I2C
 
 config FSL_IMX7
     bool

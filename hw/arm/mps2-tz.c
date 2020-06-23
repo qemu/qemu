@@ -58,6 +58,7 @@
 #include "hw/arm/armsse.h"
 #include "hw/dma/pl080.h"
 #include "hw/ssi/pl022.h"
+#include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 #include "hw/core/split-irq.h"
@@ -87,7 +88,7 @@ typedef struct {
     TZPPC ppc[5];
     TZMPC ssram_mpc[3];
     PL022State spi[5];
-    UnimplementedDeviceState i2c[4];
+    ArmSbconI2CState i2c[4];
     UnimplementedDeviceState i2s_audio;
     UnimplementedDeviceState gpio[4];
     UnimplementedDeviceState gfx;
@@ -365,6 +366,18 @@ static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(s, 0);
 }
 
+static MemoryRegion *make_i2c(MPS2TZMachineState *mms, void *opaque,
+                              const char *name, hwaddr size)
+{
+    ArmSbconI2CState *i2c = opaque;
+    SysBusDevice *s;
+
+    object_initialize_child(OBJECT(mms), name, i2c, TYPE_ARM_SBCON_I2C);
+    s = SYS_BUS_DEVICE(i2c);
+    sysbus_realize(s, &error_fatal);
+    return sysbus_mmio_get_region(s, 0);
+}
+
 static void mps2tz_common_init(MachineState *machine)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
@@ -499,10 +512,10 @@ static void mps2tz_common_init(MachineState *machine)
                 { "uart2", make_uart, &mms->uart[2], 0x40202000, 0x1000 },
                 { "uart3", make_uart, &mms->uart[3], 0x40203000, 0x1000 },
                 { "uart4", make_uart, &mms->uart[4], 0x40204000, 0x1000 },
-                { "i2c0", make_unimp_dev, &mms->i2c[0], 0x40207000, 0x1000 },
-                { "i2c1", make_unimp_dev, &mms->i2c[1], 0x40208000, 0x1000 },
-                { "i2c2", make_unimp_dev, &mms->i2c[2], 0x4020c000, 0x1000 },
-                { "i2c3", make_unimp_dev, &mms->i2c[3], 0x4020d000, 0x1000 },
+                { "i2c0", make_i2c, &mms->i2c[0], 0x40207000, 0x1000 },
+                { "i2c1", make_i2c, &mms->i2c[1], 0x40208000, 0x1000 },
+                { "i2c2", make_i2c, &mms->i2c[2], 0x4020c000, 0x1000 },
+                { "i2c3", make_i2c, &mms->i2c[3], 0x4020d000, 0x1000 },
             },
         }, {
             .name = "apb_ppcexp2",
