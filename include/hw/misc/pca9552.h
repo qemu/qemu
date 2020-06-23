@@ -12,11 +12,11 @@
 #include "hw/i2c/i2c.h"
 
 #define TYPE_PCA9552 "pca9552"
-#define PCA9552(obj) OBJECT_CHECK(PCA9552State, (obj), TYPE_PCA9552)
+#define PCA955X(obj) OBJECT_CHECK(PCA955xState, (obj), TYPE_PCA9552)
 
-#define PCA9552_NR_REGS 10
+#define PCA955X_NR_REGS 10
 
-typedef struct PCA9552State {
+typedef struct PCA955xState {
     /*< private >*/
     I2CSlave i2c;
     /*< public >*/
@@ -24,9 +24,9 @@ typedef struct PCA9552State {
     uint8_t len;
     uint8_t pointer;
 
-    uint8_t regs[PCA9552_NR_REGS];
+    uint8_t regs[PCA955X_NR_REGS];
     uint8_t max_reg;
     uint8_t pin_count;
-} PCA9552State;
+} PCA955xState;
 
 #endif

@@ -25,7 +25,7 @@
 
 static const char *led_state[] = {"on", "off", "pwm0", "pwm1"};
 
-static uint8_t pca9552_pin_get_config(PCA9552State *s, int pin)
+static uint8_t pca955x_pin_get_config(PCA955xState *s, int pin)
 {
     uint8_t reg   = PCA9552_LS0 + (pin / 4);
     uint8_t shift = (pin % 4) << 1;
@@ -33,14 +33,14 @@ static uint8_t pca9552_pin_get_config(PCA9552State *s, int pin)
     return extract32(s->regs[reg], shift, 2);
 }
 
-static void pca9552_update_pin_input(PCA9552State *s)
+static void pca955x_update_pin_input(PCA955xState *s)
 {
     int i;
 
     for (i = 0; i < s->pin_count; i++) {
         uint8_t input_reg = PCA9552_INPUT0 + (i / 8);
         uint8_t input_shift = (i % 8);
-        uint8_t config = pca9552_pin_get_config(s, i);
+        uint8_t config = pca955x_pin_get_config(s, i);
 
         switch (config) {
         case PCA9552_LED_ON:
@@ -58,7 +58,7 @@ static void pca9552_update_pin_input(PCA9552State *s)
     }
 }
 
-static uint8_t pca9552_read(PCA9552State *s, uint8_t reg)
+static uint8_t pca955x_read(PCA955xState *s, uint8_t reg)
 {
     switch (reg) {
     case PCA9552_INPUT0:
@@ -79,7 +79,7 @@ static uint8_t pca9552_read(PCA9552State *s, uint8_t reg)
     }
 }
 
-static void pca9552_write(PCA9552State *s, uint8_t reg, uint8_t data)
+static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
 {
     switch (reg) {
     case PCA9552_PSC0:
@@ -94,7 +94,7 @@ static void pca9552_write(PCA9552State *s, uint8_t reg, uint8_t data)
     case PCA9552_LS2:
     case PCA9552_LS3:
         s->regs[reg] = data;
-        pca9552_update_pin_input(s);
+        pca955x_update_pin_input(s);
         break;
 
     case PCA9552_INPUT0:
@@ -110,7 +110,7 @@ static void pca9552_write(PCA9552State *s, uint8_t reg, uint8_t data)
  * after each byte is sent to or received by the device. The index
  * rollovers to 0 when the maximum register address is reached.
  */
-static void pca9552_autoinc(PCA9552State *s)
+static void pca955x_autoinc(PCA955xState *s)
 {
     if (s->pointer != 0xFF && s->pointer & PCA9552_AUTOINC) {
         uint8_t reg = s->pointer & 0xf;
@@ -120,12 +120,12 @@ static void pca9552_autoinc(PCA9552State *s)
     }
 }
 
-static uint8_t pca9552_recv(I2CSlave *i2c)
+static uint8_t pca955x_recv(I2CSlave *i2c)
 {
-    PCA9552State *s = PCA9552(i2c);
+    PCA955xState *s = PCA955X(i2c);
     uint8_t ret;
 
-    ret = pca9552_read(s, s->pointer & 0xf);
+    ret = pca955x_read(s, s->pointer & 0xf);
 
     /*
      * From the Specs:
@@ -143,40 +143,40 @@ static uint8_t pca9552_recv(I2CSlave *i2c)
                       __func__);
     }
 
-    pca9552_autoinc(s);
+    pca955x_autoinc(s);
 
     return ret;
 }
 
-static int pca9552_send(I2CSlave *i2c, uint8_t data)
+static int pca955x_send(I2CSlave *i2c, uint8_t data)
 {
-    PCA9552State *s = PCA9552(i2c);
+    PCA955xState *s = PCA955X(i2c);
 
     /* First byte sent by is the register address */
     if (s->len == 0) {
         s->pointer = data;
         s->len++;
     } else {
-        pca9552_write(s, s->pointer & 0xf, data);
+        pca955x_write(s, s->pointer & 0xf, data);
 
-        pca9552_autoinc(s);
+        pca955x_autoinc(s);
     }
 
     return 0;
 }
 
-static int pca9552_event(I2CSlave *i2c, enum i2c_event event)
+static int pca955x_event(I2CSlave *i2c, enum i2c_event event)
 {
-    PCA9552State *s = PCA9552(i2c);
+    PCA955xState *s = PCA955X(i2c);
 
     s->len = 0;
     return 0;
 }
 
-static void pca9552_get_led(Object *obj, Visitor *v, const char *name,
+static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
-    PCA9552State *s = PCA9552(obj);
+    PCA955xState *s = PCA955X(obj);
     int led, rc, reg;
     uint8_t state;
 
@@ -195,7 +195,7 @@ static void pca9552_get_led(Object *obj, Visitor *v, const char *name,
      * reading the INPUTx reg
      */
     reg = PCA9552_LS0 + led / 4;
-    state = (pca9552_read(s, reg) >> (led % 8)) & 0x3;
+    state = (pca955x_read(s, reg) >> (led % 8)) & 0x3;
     visit_type_str(v, name, (char **)&led_state[state], errp);
 }
 
@@ -209,10 +209,10 @@ static inline uint8_t pca955x_ledsel(uint8_t oldval, int led_num, int state)
                 ((state & 0x3) << (led_num << 1));
 }
 
-static void pca9552_set_led(Object *obj, Visitor *v, const char *name,
+static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
-    PCA9552State *s = PCA9552(obj);
+    PCA955xState *s = PCA955X(obj);
     Error *local_err = NULL;
     int led, rc, reg, val;
     uint8_t state;
@@ -244,9 +244,9 @@ static void pca9552_set_led(Object *obj, Visitor *v, const char *name,
     }
 
     reg = PCA9552_LS0 + led / 4;
-    val = pca9552_read(s, reg);
+    val = pca955x_read(s, reg);
     val = pca955x_ledsel(val, led % 4, state);
-    pca9552_write(s, reg, val);
+    pca955x_write(s, reg, val);
 }
 
 static const VMStateDescription pca9552_vmstate = {
@@ -254,17 +254,17 @@ static const VMStateDescription pca9552_vmstate = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(len, PCA9552State),
-        VMSTATE_UINT8(pointer, PCA9552State),
-        VMSTATE_UINT8_ARRAY(regs, PCA9552State, PCA9552_NR_REGS),
-        VMSTATE_I2C_SLAVE(i2c, PCA9552State),
+        VMSTATE_UINT8(len, PCA955xState),
+        VMSTATE_UINT8(pointer, PCA955xState),
+        VMSTATE_UINT8_ARRAY(regs, PCA955xState, PCA955X_NR_REGS),
+        VMSTATE_I2C_SLAVE(i2c, PCA955xState),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void pca9552_reset(DeviceState *dev)
 {
-    PCA9552State *s = PCA9552(dev);
+    PCA955xState *s = PCA955X(dev);
 
     s->regs[PCA9552_PSC0] = 0xFF;
     s->regs[PCA9552_PWM0] = 0x80;
@@ -275,15 +275,15 @@ static void pca9552_reset(DeviceState *dev)
     s->regs[PCA9552_LS2] = 0x55;
     s->regs[PCA9552_LS3] = 0x55;
 
-    pca9552_update_pin_input(s);
+    pca955x_update_pin_input(s);
 
     s->pointer = 0xFF;
     s->len = 0;
 }
 
-static void pca9552_initfn(Object *obj)
+static void pca955x_initfn(Object *obj)
 {
-    PCA9552State *s = PCA9552(obj);
+    PCA955xState *s = PCA955X(obj);
     int led;
 
     /* If support for the other PCA955X devices are implemented, these
@@ -297,7 +297,7 @@ static void pca9552_initfn(Object *obj)
         char *name;
 
         name = g_strdup_printf("led%d", led);
-        object_property_add(obj, name, "bool", pca9552_get_led, pca9552_set_led,
+        object_property_add(obj, name, "bool", pca955x_get_led, pca955x_set_led,
                             NULL, NULL);
         g_free(name);
     }
@@ -308,9 +308,9 @@ static void pca9552_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->event = pca9552_event;
-    k->recv = pca9552_recv;
-    k->send = pca9552_send;
+    k->event = pca955x_event;
+    k->recv = pca955x_recv;
+    k->send = pca955x_send;
     dc->reset = pca9552_reset;
     dc->vmsd = &pca9552_vmstate;
 }
@@ -318,14 +318,14 @@ static void pca9552_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pca9552_info = {
     .name          = TYPE_PCA9552,
     .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca9552_initfn,
-    .instance_size = sizeof(PCA9552State),
+    .instance_init = pca955x_initfn,
+    .instance_size = sizeof(PCA955xState),
     .class_init    = pca9552_class_init,
 };
 
-static void pca9552_register_types(void)
+static void pca955x_register_types(void)
 {
     type_register_static(&pca9552_info);
 }
 
-type_init(pca9552_register_types)
+type_init(pca955x_register_types)
