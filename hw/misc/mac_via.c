@@ -801,10 +801,20 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
                                     unsigned size)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
+    MacVIAState *m = container_of(v1s, MacVIAState, mos6522_via1);
     MOS6522State *ms = MOS6522(v1s);
 
     addr = (addr >> 9) & 0xf;
     mos6522_write(ms, addr, val, size);
+
+    switch (addr) {
+    case VIA_REG_B:
+        via1_rtc_update(m);
+        via1_adb_update(m);
+
+        v1s->last_b = ms->b;
+        break;
+    }
 
     via1_one_second_update(v1s);
     via1_VBL_update(v1s);
@@ -1037,18 +1047,6 @@ static TypeInfo mac_via_info = {
 };
 
 /* VIA 1 */
-static void mos6522_q800_via1_portB_write(MOS6522State *s)
-{
-    MOS6522Q800VIA1State *v1s = container_of(s, MOS6522Q800VIA1State,
-                                             parent_obj);
-    MacVIAState *m = container_of(v1s, MacVIAState, mos6522_via1);
-
-    via1_rtc_update(m);
-    via1_adb_update(m);
-
-    v1s->last_b = s->b;
-}
-
 static void mos6522_q800_via1_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
@@ -1071,10 +1069,8 @@ static void mos6522_q800_via1_init(Object *obj)
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
 
     dc->reset = mos6522_q800_via1_reset;
-    mdc->portB_write = mos6522_q800_via1_portB_write;
 }
 
 static const TypeInfo mos6522_q800_via1_type_info = {
