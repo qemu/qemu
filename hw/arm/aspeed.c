@@ -329,12 +329,12 @@ static void aspeed_machine_init(MachineState *machine)
          * needed by the flash modules of the Aspeed machines.
          */
         if (ASPEED_MACHINE(machine)->mmio_exec) {
-            memory_region_init_alias(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
+            memory_region_init_alias(boot_rom, NULL, "aspeed.boot_rom",
                                      &fl->mmio, 0, fl->size);
             memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
                                         boot_rom);
         } else {
-            memory_region_init_rom(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
+            memory_region_init_rom(boot_rom, NULL, "aspeed.boot_rom",
                                    fl->size, &error_abort);
             memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
                                         boot_rom);
@@ -345,7 +345,7 @@ static void aspeed_machine_init(MachineState *machine)
     if (machine->kernel_filename && sc->num_cpus > 1) {
         /* With no u-boot we must set up a boot stub for the secondary CPU */
         MemoryRegion *smpboot = g_new(MemoryRegion, 1);
-        memory_region_init_ram(smpboot, OBJECT(bmc), "aspeed.smpboot",
+        memory_region_init_ram(smpboot, NULL, "aspeed.smpboot",
                                0x80, &error_abort);
         memory_region_add_subregion(get_system_memory(),
                                     AST_SMP_MAILBOX_BASE, smpboot);
