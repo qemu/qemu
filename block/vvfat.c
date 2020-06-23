@@ -520,12 +520,31 @@ static void set_begin_of_direntry(direntry_t* direntry, uint32_t begin)
     direntry->begin_hi = cpu_to_le16((begin >> 16) & 0xffff);
 }
 
+static bool valid_filename(const unsigned char *name)
+{
+    unsigned char c;
+    if (!strcmp((const char*)name, ".") || !strcmp((const char*)name, "..")) {
+        return false;
+    }
+    for (; (c = *name); name++) {
+        if (!((c >= '0' && c <= '9') ||
+              (c >= 'A' && c <= 'Z') ||
+              (c >= 'a' && c <= 'z') ||
+              c > 127 ||
+              strchr("$%'-_@~`!(){}^#&.+,;=[]", c) != NULL))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 static uint8_t to_valid_short_char(gunichar c)
 {
     c = g_unichar_toupper(c);
     if ((c >= '0' && c <= '9') ||
         (c >= 'A' && c <= 'Z') ||
-        strchr("$%'-_@~`!(){}^#&", c) != 0) {
+        strchr("$%'-_@~`!(){}^#&", c) != NULL) {
         return c;
     } else {
         return 0;
@@ -2098,6 +2117,10 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
             }
             lfn.checksum = 0x100; /* cannot use long name twice */
 
+            if (!valid_filename(lfn.name)) {
+                fprintf(stderr, "Invalid file name\n");
+                goto fail;
+            }
             if (path_len + 1 + lfn.len >= PATH_MAX) {
                 fprintf(stderr, "Name too long: %s/%s\n", path, lfn.name);
                 goto fail;
