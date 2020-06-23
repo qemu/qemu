@@ -39,6 +39,8 @@ typedef struct ADBDevice ADBDevice;
 typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
                               const uint8_t *buf, int len);
 
+typedef bool ADBDeviceHasData(ADBDevice *d);
+
 #define TYPE_ADB_DEVICE "adb-device"
 #define ADB_DEVICE(obj) OBJECT_CHECK(ADBDevice, (obj), TYPE_ADB_DEVICE)
 
@@ -62,6 +64,7 @@ typedef struct ADBDeviceClass {
     /*< public >*/
 
     ADBDeviceRequest *devreq;
+    ADBDeviceHasData *devhasdata;
 } ADBDeviceClass;
 
 #define TYPE_ADB_BUS "apple-desktop-bus"

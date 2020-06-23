@@ -197,6 +197,14 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
+static bool adb_mouse_has_data(ADBDevice *d)
+{
+    MouseState *s = ADB_MOUSE(d);
+
+    return !(s->last_buttons_state == s->buttons_state &&
+             s->dx == 0 && s->dy == 0);
+}
+
 static void adb_mouse_reset(DeviceState *dev)
 {
     ADBDevice *d = ADB_DEVICE(dev);
@@ -252,6 +260,7 @@ static void adb_mouse_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_mouse_request;
+    adc->devhasdata = adb_mouse_has_data;
     dc->reset = adb_mouse_reset;
     dc->vmsd = &vmstate_adb_mouse;
 }

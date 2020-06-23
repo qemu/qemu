@@ -300,6 +300,13 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
+static bool adb_kbd_has_data(ADBDevice *d)
+{
+    KBDState *s = ADB_KEYBOARD(d);
+
+    return s->count > 0;
+}
+
 /* This is where keyboard events enter this file */
 static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
@@ -382,6 +389,7 @@ static void adb_kbd_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_kbd_request;
+    adc->devhasdata = adb_kbd_has_data;
     dc->reset = adb_kbd_reset;
     dc->vmsd = &vmstate_adb_kbd;
 }
