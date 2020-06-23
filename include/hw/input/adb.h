@@ -49,7 +49,6 @@ struct ADBDevice {
 
     int devaddr;
     int handler;
-    bool disable_direct_reg3_writes;
 };
 
 #define ADB_DEVICE_CLASS(cls) \
