@@ -86,10 +86,11 @@ static int do_adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf,
 
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
+    assert(s->autopoll_blocked);
+
     return do_adb_request(s, obuf, buf, len);
 }
 
-/* XXX: move that to cuda ? */
 int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
 {
     ADBDevice *d;
@@ -181,7 +182,9 @@ static void adb_autopoll(void *opaque)
 {
     ADBBusState *s = opaque;
 
-    s->autopoll_cb(s->autopoll_cb_opaque);
+    if (!s->autopoll_blocked) {
+        s->autopoll_cb(s->autopoll_cb_opaque);
+    }
 
     timer_mod(s->autopoll_timer,
               qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +

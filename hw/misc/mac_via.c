@@ -615,11 +615,7 @@ static void adb_via_poll(void *opaque)
      * received, however we must block autopoll until the point where
      * the entire reply has been read back to the host
      */
-    if (adb_bus->autopoll_blocked) {
-        return;
-    } else {
-        adb_autopoll_block(adb_bus);
-    }
+    adb_autopoll_block(adb_bus);
 
     m->adb_data_in_index = 0;
     m->adb_data_out_index = 0;
