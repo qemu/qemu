@@ -1256,6 +1256,15 @@ F: include/hw/riscv/opentitan.h
 F: include/hw/char/ibex_uart.h
 F: include/hw/intc/ibex_plic.h
 
+RX Machines
+-----------
+rx-gdbsim
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Maintained
+F: docs/system/target-rx.rst
+F: hw/rx/rx-gdbsim.c
+F: tests/acceptance/machine_rx_gdbsim.py
+
 SH4 Machines
 ------------
 R2D
@@ -1264,13 +1273,15 @@ R: Magnus Damm <magnus.damm@gmail.com>
 S: Maintained
 F: hw/sh4/r2d.c
 F: hw/intc/sh_intc.c
-F: hw/timer/sh_timer.c
+F: include/hw/sh4/sh_intc.h
 
 Shix
 M: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/sh4/shix.c
+F: hw/intc/sh_intc.c
+F: include/hw/sh4/sh_intc.h
 
 SPARC Machines
 --------------
@@ -1964,6 +1975,26 @@ S: Supported
 F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: docs/*/*xive*
+
+Renesas peripherals
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Magnus Damm <magnus.damm@gmail.com>
+S: Maintained
+F: hw/char/renesas_sci.c
+F: hw/char/sh_serial.c
+F: hw/timer/renesas_*.c
+F: hw/timer/sh_timer.c
+F: include/hw/char/renesas_sci.h
+F: include/hw/sh4/sh.h
+F: include/hw/timer/renesas_*.h
+
+Renesas RX peripherals
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Maintained
+F: hw/intc/rx_icu.c
+F: hw/rx/
+F: include/hw/intc/rx_icu.h
+F: include/hw/rx/
 
 Subsystems
 ----------

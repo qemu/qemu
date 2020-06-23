@@ -20,6 +20,7 @@ common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_dist.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_redist.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gicv3_its_common.o
 common-obj-$(CONFIG_OPENPIC) += openpic.o
+common-obj-$(CONFIG_RX_ICU) += rx_icu.o
 common-obj-y += intc.o
 
 obj-$(CONFIG_APIC) += apic.o apic_common.o
