@@ -44,14 +44,14 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 
     cmd = buf[0] & 0xf;
     if (cmd == ADB_BUSRESET) {
-        for(i = 0; i < s->nb_devices; i++) {
+        for (i = 0; i < s->nb_devices; i++) {
             d = s->devices[i];
             adb_device_reset(d);
         }
         return 0;
     }
     devaddr = buf[0] >> 4;
-    for(i = 0; i < s->nb_devices; i++) {
+    for (i = 0; i < s->nb_devices; i++) {
         d = s->devices[i];
         if (d->devaddr == devaddr) {
             ADBDeviceClass *adc = ADB_DEVICE_GET_CLASS(d);
@@ -69,9 +69,10 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
     uint8_t buf[1];
 
     olen = 0;
-    for(i = 0; i < s->nb_devices; i++) {
-        if (s->poll_index >= s->nb_devices)
+    for (i = 0; i < s->nb_devices; i++) {
+        if (s->poll_index >= s->nb_devices) {
             s->poll_index = 0;
+        }
         d = s->devices[s->poll_index];
         if ((1 << d->devaddr) & poll_mask) {
             buf[0] = ADB_READREG | (d->devaddr << 4);
