@@ -269,29 +269,26 @@ void kvm_arm_add_vcpu_properties(Object *obj);
 
 /**
  * kvm_arm_aarch32_supported:
- * @cs: CPUState
  *
- * Returns: true if the KVM VCPU can enable AArch32 mode
+ * Returns: true if KVM can enable AArch32 mode
  * and false otherwise.
  */
-bool kvm_arm_aarch32_supported(CPUState *cs);
+bool kvm_arm_aarch32_supported(void);
 
 /**
  * kvm_arm_pmu_supported:
- * @cs: CPUState
  *
- * Returns: true if the KVM VCPU can enable its PMU
+ * Returns: true if KVM can enable the PMU
  * and false otherwise.
  */
-bool kvm_arm_pmu_supported(CPUState *cs);
+bool kvm_arm_pmu_supported(void);
 
 /**
  * kvm_arm_sve_supported:
- * @cs: CPUState
  *
- * Returns true if the KVM VCPU can enable SVE and false otherwise.
+ * Returns true if KVM can enable SVE and false otherwise.
  */
-bool kvm_arm_sve_supported(CPUState *cs);
+bool kvm_arm_sve_supported(void);
 
 /**
  * kvm_arm_get_max_vm_ipa_size:
@@ -359,17 +356,17 @@ static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 
 static inline void kvm_arm_add_vcpu_properties(Object *obj) {}
 
-static inline bool kvm_arm_aarch32_supported(CPUState *cs)
+static inline bool kvm_arm_aarch32_supported(void)
 {
     return false;
 }
 
-static inline bool kvm_arm_pmu_supported(CPUState *cs)
+static inline bool kvm_arm_pmu_supported(void)
 {
     return false;
 }
 
-static inline bool kvm_arm_sve_supported(CPUState *cs)
+static inline bool kvm_arm_sve_supported(void)
 {
     return false;
 }
