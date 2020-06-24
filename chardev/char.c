@@ -527,7 +527,7 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     const ChardevClass *cc;
     char *typename = g_strdup_printf("chardev-%s", driver);
 
-    oc = object_class_by_name(typename);
+    oc = module_object_class_by_name(typename);
     g_free(typename);
 
     if (!object_class_dynamic_cast(oc, TYPE_CHARDEV)) {

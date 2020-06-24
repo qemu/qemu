@@ -272,6 +272,7 @@ static struct {
     { "vhost-user-gpu-device", "hw-", "display-virtio-gpu"    },
     { "vhost-user-gpu-pci",    "hw-", "display-virtio-gpu"    },
     { "vhost-user-vga",        "hw-", "display-virtio-gpu"    },
+    { "chardev-braille",       "chardev-", "baum"             },
 };
 
 static bool module_loaded_qom_all;

@@ -18,8 +18,11 @@ chardev-obj-$(CONFIG_WIN32) += char-win.o
 chardev-obj-$(CONFIG_WIN32) += char-win-stdio.o
 
 common-obj-y += msmouse.o wctablet.o testdev.o
-common-obj-$(CONFIG_BRLAPI) += baum.o
+
+ifeq ($(CONFIG_BRLAPI),y)
+common-obj-m += baum.o
 baum.o-cflags := $(SDL_CFLAGS)
 baum.o-libs := $(BRLAPI_LIBS)
+endif
 
 common-obj-$(CONFIG_SPICE) += spice.o
