@@ -690,6 +690,7 @@ static void sm501_2d_operation(SM501State *s)
     unsigned int dst_pitch = (s->twoD_pitch >> 16) & 0x1FFF;
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
     int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
+    bool overlap = false;
 
     if ((s->twoD_stretch >> 16) & 0xF) {
         qemu_log_mask(LOG_UNIMP, "sm501: only XY addressing is supported.\n");
@@ -784,16 +785,21 @@ static void sm501_2d_operation(SM501State *s)
                          ldn_he_p(&s->local_mem[src_base + si], bypp));
                 break;
             }
-            /* Check for overlaps, this could be made more exact */
-            uint32_t sb, se, db, de;
-            sb = src_base + src_x + src_y * (width + src_pitch);
-            se = sb + width + height * (width + src_pitch);
-            db = dst_base + dst_x + dst_y * (width + dst_pitch);
-            de = db + width + height * (width + dst_pitch);
-            if (rtl && ((db >= sb && db <= se) || (de >= sb && de <= se))) {
-                /* regions may overlap: copy via temporary */
-                int llb = width * bypp;
-                int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
+            /* If reverse blit do simple check for overlaps */
+            if (rtl && src_base == dst_base && src_pitch == dst_pitch) {
+                overlap = (src_x < dst_x + width && src_x + width > dst_x &&
+                           src_y < dst_y + height && src_y + height > dst_y);
+            } else if (rtl) {
+                unsigned int sb, se, db, de;
+                sb = src_base + (src_x + src_y * src_pitch) * bypp;
+                se = sb + (width + (height - 1) * src_pitch) * bypp;
+                db = dst_base + (dst_x + dst_y * dst_pitch) * bypp;
+                de = db + (width + (height - 1) * dst_pitch) * bypp;
+                overlap = (db < se && sb < de);
+            }
+            if (overlap) {
+                /* pixman can't do reverse blit: copy via temporary */
+                int tmp_stride = DIV_ROUND_UP(width * bypp, sizeof(uint32_t));
                 uint32_t *tmp = tmp_buf;
 
                 if (tmp_stride * sizeof(uint32_t) * height > sizeof(tmp_buf)) {
