@@ -261,6 +261,8 @@ static struct {
     const char *prefix;
     const char *module;
 } const qom_modules[] = {
+    { "ccid-card-passthru",    "hw-", "usb-smartcard"         },
+    { "ccid-card-emulated",    "hw-", "usb-smartcard"         },
 };
 
 static bool module_loaded_qom_all;

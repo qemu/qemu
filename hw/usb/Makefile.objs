@@ -29,10 +29,12 @@ common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
 
 ifeq ($(CONFIG_USB_SMARTCARD),y)
 common-obj-y                          += dev-smartcard-reader.o
-common-obj-$(CONFIG_SMARTCARD)        += smartcard.mo
+ifeq ($(CONFIG_SMARTCARD),y)
+common-obj-m                          += smartcard.mo
 smartcard.mo-objs := ccid-card-passthru.o ccid-card-emulated.o
 smartcard.mo-cflags := $(SMARTCARD_CFLAGS)
 smartcard.mo-libs := $(SMARTCARD_LIBS)
+endif
 endif
 
 ifeq ($(CONFIG_POSIX),y)
