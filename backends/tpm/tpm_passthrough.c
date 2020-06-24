@@ -28,10 +28,10 @@
 #include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "sysemu/tpm_backend.h"
+#include "sysemu/tpm_util.h"
 #include "tpm_int.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-tpm.h"
-#include "tpm_util.h"
 #include "trace.h"
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"

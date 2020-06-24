@@ -12,7 +12,6 @@
 #ifndef TPM_TPM_PPI_H
 #define TPM_TPM_PPI_H
 
-#include "hw/acpi/tpm.h"
 #include "exec/address-spaces.h"
 
 typedef struct TPMPPI {

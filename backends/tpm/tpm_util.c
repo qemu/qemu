@@ -23,11 +23,11 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "tpm_util.h"
 #include "tpm_int.h"
 #include "exec/memory.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/tpm_backend.h"
+#include "sysemu/tpm_util.h"
 #include "trace.h"
 
 /* tpm backend property */
@@ -357,6 +357,9 @@ void tpm_util_show_buffer(const unsigned char *buffer,
     size_t len, i;
     char *line_buffer, *p;
 
+    if (!trace_event_get_state_backends(TRACE_TPM_UTIL_SHOW_BUFFER)) {
+        return;
+    }
     len = MIN(tpm_cmd_get_size(buffer), buffer_size);
 
     /*

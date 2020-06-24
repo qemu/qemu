@@ -1,0 +1,4 @@
+common-obj-y += tpm_backend.o
+common-obj-y += tpm_util.o
+common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o
+common-obj-$(CONFIG_TPM_EMULATOR) += tpm_emulator.o

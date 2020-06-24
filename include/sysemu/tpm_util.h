@@ -19,8 +19,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef TPM_TPM_UTIL_H
-#define TPM_TPM_UTIL_H
+#ifndef SYSEMU_TPM_UTIL_H
+#define SYSEMU_TPM_UTIL_H
 
 #include "sysemu/tpm.h"
 #include "qemu/bswap.h"
@@ -66,20 +66,7 @@ static inline void tpm_cmd_set_error(void *b, uint32_t error)
     stl_be_p(b + 6, error);
 }
 
-int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
-                             size_t *buffersize);
-
-#define DEFINE_PROP_TPMBE(_n, _s, _f)                     \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_tpm, TPMBackend *)
-
-typedef struct TPMSizedBuffer {
-    uint32_t size;
-    uint8_t  *buffer;
-} TPMSizedBuffer;
-
-void tpm_sized_buffer_reset(TPMSizedBuffer *tsb);
-
 void tpm_util_show_buffer(const unsigned char *buffer,
                           size_t buffer_size, const char *string);
 
-#endif /* TPM_TPM_UTIL_H */
+#endif /* SYSEMU_TPM_UTIL_H */

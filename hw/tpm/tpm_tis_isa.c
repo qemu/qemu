@@ -26,7 +26,8 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "tpm_util.h"
+#include "hw/acpi/tpm.h"
+#include "tpm_prop.h"
 #include "tpm_tis.h"
 
 typedef struct TPMStateISA {

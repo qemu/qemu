@@ -24,9 +24,9 @@
 #include "hw/acpi/tpm.h"
 #include "migration/vmstate.h"
 #include "sysemu/tpm_backend.h"
+#include "sysemu/tpm_util.h"
 #include "sysemu/reset.h"
-#include "tpm_int.h"
-#include "tpm_util.h"
+#include "tpm_prop.h"
 #include "tpm_ppi.h"
 #include "trace.h"
 
