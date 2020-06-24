@@ -245,3 +245,58 @@ bool module_load_one(const char *prefix, const char *lib_name)
 #endif
     return success;
 }
+
+/*
+ * Building devices and other qom objects modular is mostly useful in
+ * case they have dependencies to external shared libraries, so we can
+ * cut down the core qemu library dependencies.  Which is the case for
+ * only a very few devices & objects.
+ *
+ * So with the expectation that this will be rather the exception than
+ * to rule and the list will not gain that many entries go with a
+ * simple manually maintained list for now.
+ */
+static struct {
+    const char *type;
+    const char *prefix;
+    const char *module;
+} const qom_modules[] = {
+};
+
+static bool module_loaded_qom_all;
+
+void module_load_qom_one(const char *type)
+{
+    int i;
+
+    if (module_loaded_qom_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(qom_modules); i++) {
+        if (strcmp(qom_modules[i].type, type) == 0) {
+            module_load_one(qom_modules[i].prefix,
+                            qom_modules[i].module);
+            return;
+        }
+    }
+}
+
+void module_load_qom_all(void)
+{
+    int i;
+
+    if (module_loaded_qom_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(qom_modules); i++) {
+        if (i > 0 && (strcmp(qom_modules[i - 1].module,
+                             qom_modules[i].module) == 0 &&
+                      strcmp(qom_modules[i - 1].prefix,
+                             qom_modules[i].prefix) == 0)) {
+            /* one module implementing multiple types -> load only once */
+            continue;
+        }
+        module_load_one(qom_modules[i].prefix, qom_modules[i].module);
+    }
+    module_loaded_qom_all = true;
+}
