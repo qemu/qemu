@@ -64,3 +64,6 @@ config OMPIC
 
 config RX_ICU
     bool
+
+config LOONGSON_LIOINTC
+    bool
