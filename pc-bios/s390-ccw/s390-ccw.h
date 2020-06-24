@@ -74,8 +74,6 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
 bool virtio_is_supported(SubChannelId schid);
 void virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
-u64 get_clock(void);
-ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
@@ -153,11 +151,13 @@ static inline void yield(void)
 
 #define MAX_SECTOR_SIZE 4096
 
+#include "s390-time.h"
+
 static inline void sleep(unsigned int seconds)
 {
-    ulong target = get_second() + seconds;
+    ulong target = get_time_seconds() + seconds;
 
-    while (get_second() < target) {
+    while (get_time_seconds() < target) {
         yield();
     }
 }

@@ -14,6 +14,7 @@
 #include "virtio.h"
 #include "scsi.h"
 #include "virtio-scsi.h"
+#include "s390-time.h"
 
 static ScsiDevice default_scsi_device;
 static VirtioScsiCmdReq req;
