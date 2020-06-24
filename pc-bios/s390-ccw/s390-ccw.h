@@ -50,12 +50,11 @@ typedef unsigned long long __u64;
 #include "iplb.h"
 
 /* start.s */
-void disabled_wait(void);
+void disabled_wait(void) __attribute__ ((__noreturn__));
 void consume_sclp_int(void);
 void consume_io_int(void);
 
 /* main.c */
-void panic(const char *string);
 void write_subsystem_identification(void);
 void write_iplb_location(void);
 extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
@@ -90,6 +89,12 @@ int menu_get_enum_boot_index(bool *valid_entries);
 bool menu_is_enabled_enum(void);
 
 #define MAX_BOOT_ENTRIES  31
+
+static inline void panic(const char *string)
+{
+    sclp_print(string);
+    disabled_wait();
+}
 
 static inline void fill_hex(char *out, unsigned char val)
 {
