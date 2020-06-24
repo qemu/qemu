@@ -263,6 +263,7 @@ static struct {
 } const qom_modules[] = {
     { "ccid-card-passthru",    "hw-", "usb-smartcard"         },
     { "ccid-card-emulated",    "hw-", "usb-smartcard"         },
+    { "usb-redir",             "hw-", "usb-redirect"          },
 };
 
 static bool module_loaded_qom_all;
