@@ -4695,7 +4695,7 @@ SRST
         stored. The file format is libpcap, so it can be analyzed with
         tools such as tcpdump or Wireshark.
 
-    ``-object colo-compare,id=id,primary_in=chardevid,secondary_in=chardevid,outdev=chardevid,iothread=id[,vnet_hdr_support][,notify_dev=id][,compare_timeout=@var{ms}][,expired_scan_cycle=@var{ms}``
+    ``-object colo-compare,id=id,primary_in=chardevid,secondary_in=chardevid,outdev=chardevid,iothread=id[,vnet_hdr_support][,notify_dev=id][,compare_timeout=@var{ms}][,expired_scan_cycle=@var{ms}][,max_queue_size=@var{size}]``
         Colo-compare gets packet from primary\_inchardevid and
         secondary\_inchardevid, than compare primary packet with
         secondary packet. If the packets are same, we will output
@@ -4707,7 +4707,8 @@ SRST
         vnet\_hdr\_len. Then compare\_timeout=@var{ms} determines the
         maximum delay colo-compare wait for the packet.
         The expired\_scan\_cycle=@var{ms} to set the period of scanning
-        expired primary node network packets.
+        expired primary node network packets. The max\_queue\_size=@var{size}
+        is to set the max compare queue size depend on user environment.
         If you want to use Xen COLO, will need the notify\_dev to
         notify Xen colo-frame to do checkpoint.
 
