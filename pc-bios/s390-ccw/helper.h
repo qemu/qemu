@@ -19,7 +19,7 @@
 /* Avoids compiler warnings when casting a pointer to a u32 */
 static inline uint32_t ptr2u32(void *ptr)
 {
-    IPL_assert((uint64_t)ptr <= 0xffffffff, "ptr2u32: ptr too large");
+    IPL_assert((uint64_t)ptr <= 0xffffffffull, "ptr2u32: ptr too large");
     return (uint32_t)(uint64_t)ptr;
 }
 
