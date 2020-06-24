@@ -142,25 +142,7 @@ static inline void debug_print_addr(const char *desc, void *p)
 #define KVM_S390_VIRTIO_SET_STATUS      2
 #define KVM_S390_VIRTIO_CCW_NOTIFY      3
 
-static inline void yield(void)
-{
-    asm volatile ("diag 0,0,0x44"
-                  : :
-                  : "memory", "cc");
-}
-
 #define MAX_SECTOR_SIZE 4096
-
-#include "s390-time.h"
-
-static inline void sleep(unsigned int seconds)
-{
-    ulong target = get_time_seconds() + seconds;
-
-    while (get_time_seconds() < target) {
-        yield();
-    }
-}
 
 static inline void IPL_assert(bool term, const char *message)
 {
