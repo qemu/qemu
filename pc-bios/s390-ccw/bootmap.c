@@ -328,9 +328,7 @@ static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
         msg[0] = '2';
         break;
     default:
-        msg[0] = vlbl->LDL_version;
-        msg[0] &= 0x0f; /* convert EBCDIC   */
-        msg[0] |= 0x30; /* to ASCII (digit) */
+        msg[0] = ebc2asc[vlbl->LDL_version];
         msg[1] = '?';
         break;
     }
