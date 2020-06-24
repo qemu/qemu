@@ -264,6 +264,8 @@ static struct {
     { "ccid-card-passthru",    "hw-", "usb-smartcard"         },
     { "ccid-card-emulated",    "hw-", "usb-smartcard"         },
     { "usb-redir",             "hw-", "usb-redirect"          },
+    { "qxl-vga",               "hw-", "display-qxl"           },
+    { "qxl",                   "hw-", "display-qxl"           },
 };
 
 static bool module_loaded_qom_all;
