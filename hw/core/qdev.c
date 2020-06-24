@@ -137,6 +137,9 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
  */
 DeviceState *qdev_new(const char *name)
 {
+    if (!object_class_by_name(name)) {
+        module_load_qom_one(name);
+    }
     return DEVICE(object_new(name));
 }
 
@@ -147,10 +150,9 @@ DeviceState *qdev_new(const char *name)
  */
 DeviceState *qdev_try_new(const char *name)
 {
-    if (!object_class_by_name(name)) {
+    if (!module_object_class_by_name(name)) {
         return NULL;
     }
-
     return DEVICE(object_new(name));
 }
 

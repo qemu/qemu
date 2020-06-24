@@ -1772,8 +1772,8 @@ static bool vga_interface_available(VGAInterfaceType t)
 
     assert(t < VGA_TYPE_MAX);
     return !ti->class_names[0] ||
-           object_class_by_name(ti->class_names[0]) ||
-           object_class_by_name(ti->class_names[1]);
+           module_object_class_by_name(ti->class_names[0]) ||
+           module_object_class_by_name(ti->class_names[1]);
 }
 
 static const char *
