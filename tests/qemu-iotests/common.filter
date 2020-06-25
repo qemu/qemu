@@ -122,38 +122,99 @@ _filter_actual_image_size()
 # replace driver-specific options in the "Formatting..." line
 _filter_img_create()
 {
-    data_file_filter=()
-    if data_file=$(_get_data_file "$TEST_IMG"); then
-        data_file_filter=(-e "s# data_file=$data_file##")
+    # Split the line into the pre-options part ($filename_part, which
+    # precedes ", fmt=") and the options part ($options, which starts
+    # with "fmt=")
+    # (And just echo everything before the first "^Formatting")
+    readarray formatting_line < <($SED -e 's/, fmt=/\n/')
+
+    filename_part=''
+    options=''
+    lines=${#formatting_line[@]}
+    for ((i = 0; i < $lines; i++)); do
+        line=${formatting_line[i]}
+        unset formatting_line[i]
+
+        filename_part="$filename_part$line"
+
+        if echo "$line" | grep -q '^Formatting'; then
+            next_i=$((i + 1))
+            if [ -n "${formatting_line[next_i]}" ]; then
+                options="fmt=${formatting_line[@]}"
+            fi
+            break
+        fi
+    done
+
+    # Set grep_data_file to '\|data_file' to keep it; make it empty
+    # to drop it.
+    # We want to drop it if it is part of the global $IMGOPTS, and we
+    # want to keep it otherwise (if the test specifically wants to
+    # test data files).
+    grep_data_file=(-e data_file)
+    if _get_data_file "$TEST_IMG" > /dev/null; then
+        grep_data_file=()
     fi
 
-    $SED "${data_file_filter[@]}" \
+    filename_filters=(
         -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
         -e "s#$SOCK_DIR#SOCK_DIR#g" \
         -e "s#$IMGFMT#IMGFMT#g" \
         -e 's#nbd:127.0.0.1:[0-9]\\+#TEST_DIR/t.IMGFMT#g' \
-        -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g' \
-        -e "s# encryption=off##g" \
-        -e "s# cluster_size=[0-9]\\+##g" \
-        -e "s# table_size=[0-9]\\+##g" \
-        -e "s# compat=[^ ]*##g" \
-        -e "s# compat6=\\(on\\|off\\)##g" \
-        -e "s# static=\\(on\\|off\\)##g" \
-        -e "s# zeroed_grain=\\(on\\|off\\)##g" \
-        -e "s# subformat=[^ ]*##g" \
-        -e "s# adapter_type=[^ ]*##g" \
-        -e "s# hwversion=[^ ]*##g" \
-        -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
-        -e "s# block_size=[0-9]\\+##g" \
-        -e "s# block_state_zero=\\(on\\|off\\)##g" \
-        -e "s# log_size=[0-9]\\+##g" \
-        -e "s# refcount_bits=[0-9]\\+##g" \
-        -e "s# key-secret=[a-zA-Z0-9]\\+##g" \
-        -e "s# iter-time=[0-9]\\+##g" \
-        -e "s# force_size=\\(on\\|off\\)##g" \
-        -e "s# compression_type=[a-zA-Z0-9]\\+##g"
+        -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g'
+    )
+
+    filename_part=$(echo "$filename_part" | $SED "${filename_filters[@]}")
+
+    # Break the option line before each option (preserving pre-existing
+    # line breaks by replacing them by \0 and restoring them at the end),
+    # then filter out the options we want to keep and sort them according
+    # to some order that all block drivers used at the time of writing
+    # this function.
+    options=$(
+        echo "$options" \
+        | tr '\n' '\0' \
+        | $SED -e 's/ \([a-z0-9_.-]*\)=/\n\1=/g' \
+        | grep -a -e '^fmt' -e '^size' -e '^backing' -e '^preallocation' \
+                  -e '^encrypt' "${grep_data_file[@]}" \
+        | $SED "${filename_filters[@]}" \
+            -e 's/^\(fmt\)/0-\1/' \
+            -e 's/^\(size\)/1-\1/' \
+            -e 's/^\(backing\)/2-\1/' \
+            -e 's/^\(data_file\)/3-\1/' \
+            -e 's/^\(encryption\)/4-\1/' \
+            -e 's/^\(encrypt\.format\)/5-\1/' \
+            -e 's/^\(encrypt\.key-secret\)/6-\1/' \
+            -e 's/^\(encrypt\.iter-time\)/7-\1/' \
+            -e 's/^\(preallocation\)/8-\1/' \
+        | sort \
+        | $SED -e 's/^[0-9]-//' \
+        | tr '\n\0' ' \n' \
+        | $SED -e 's/^ *$//' -e 's/ *$//'
+    )
+
+    if [ -n "$options" ]; then
+        echo "$filename_part, $options"
+    elif [ -n "$filename_part" ]; then
+        echo "$filename_part"
+    fi
+}
+
+# Filter the "Formatting..." line in QMP output (leaving the QMP output
+# untouched)
+# (In contrast to _filter_img_create(), this function does not support
+# multi-line Formatting output)
+_filter_img_create_in_qmp()
+{
+    while read -r line; do
+        if echo "$line" | grep -q '^Formatting'; then
+            echo "$line" | _filter_img_create
+        else
+            echo "$line"
+        fi
+    done
 }
 
 _filter_img_create_size()
