@@ -31,7 +31,7 @@
 #include "qapi/error.h"
 
 #define IO_BUF_SIZE 32768
-#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
+#define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
     const QEMUFileOps *ops;
