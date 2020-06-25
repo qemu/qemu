@@ -40,6 +40,12 @@ def generate_h_begin(events, group):
     else:
         header = "trace-dtrace.h"
 
+    # Workaround for ust backend, which also includes <sys/sdt.h> and may
+    # require SDT_USE_VARIADIC to be defined. If dtrace includes <sys/sdt.h>
+    # first without defining SDT_USE_VARIADIC then ust breaks because the
+    # STAP_PROBEV() macro is not defined.
+    out('#define SDT_USE_VARIADIC 1')
+
     out('#include "%s"' % header,
         '')
 
