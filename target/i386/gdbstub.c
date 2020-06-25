@@ -184,6 +184,7 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
             return gdb_get_reg32(mem_buf, 0); /* fop */
 
         case IDX_MXCSR_REG:
+            update_mxcsr_from_sse_status(env);
             return gdb_get_reg32(mem_buf, env->mxcsr);
 
         case IDX_CTL_CR0_REG:

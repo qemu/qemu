@@ -843,6 +843,7 @@ int64_t helper_cvttsd2sq(CPUX86State *env, ZMMReg *s)
 
 void helper_rsqrtps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     d->ZMM_S(0) = float32_div(float32_one,
                               float32_sqrt(s->ZMM_S(0), &env->sse_status),
                               &env->sse_status);
@@ -855,26 +856,33 @@ void helper_rsqrtps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
     d->ZMM_S(3) = float32_div(float32_one,
                               float32_sqrt(s->ZMM_S(3), &env->sse_status),
                               &env->sse_status);
+    set_float_exception_flags(old_flags, &env->sse_status);
 }
 
 void helper_rsqrtss(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     d->ZMM_S(0) = float32_div(float32_one,
                               float32_sqrt(s->ZMM_S(0), &env->sse_status),
                               &env->sse_status);
+    set_float_exception_flags(old_flags, &env->sse_status);
 }
 
 void helper_rcpps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     d->ZMM_S(0) = float32_div(float32_one, s->ZMM_S(0), &env->sse_status);
     d->ZMM_S(1) = float32_div(float32_one, s->ZMM_S(1), &env->sse_status);
     d->ZMM_S(2) = float32_div(float32_one, s->ZMM_S(2), &env->sse_status);
     d->ZMM_S(3) = float32_div(float32_one, s->ZMM_S(3), &env->sse_status);
+    set_float_exception_flags(old_flags, &env->sse_status);
 }
 
 void helper_rcpss(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     d->ZMM_S(0) = float32_div(float32_one, s->ZMM_S(0), &env->sse_status);
+    set_float_exception_flags(old_flags, &env->sse_status);
 }
 
 static inline uint64_t helper_extrq(uint64_t src, int shift, int len)
@@ -1764,6 +1772,7 @@ void glue(helper_phminposuw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     signed char prev_rounding_mode;
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
@@ -1789,19 +1798,18 @@ void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     d->ZMM_S(2) = float32_round_to_int(s->ZMM_S(2), &env->sse_status);
     d->ZMM_S(3) = float32_round_to_int(s->ZMM_S(3), &env->sse_status);
 
-#if 0 /* TODO */
-    if (mode & (1 << 3)) {
+    if (mode & (1 << 3) && !(old_flags & float_flag_inexact)) {
         set_float_exception_flags(get_float_exception_flags(&env->sse_status) &
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-#endif
     env->sse_status.float_rounding_mode = prev_rounding_mode;
 }
 
 void glue(helper_roundpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     signed char prev_rounding_mode;
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
@@ -1825,19 +1833,18 @@ void glue(helper_roundpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     d->ZMM_D(0) = float64_round_to_int(s->ZMM_D(0), &env->sse_status);
     d->ZMM_D(1) = float64_round_to_int(s->ZMM_D(1), &env->sse_status);
 
-#if 0 /* TODO */
-    if (mode & (1 << 3)) {
+    if (mode & (1 << 3) && !(old_flags & float_flag_inexact)) {
         set_float_exception_flags(get_float_exception_flags(&env->sse_status) &
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-#endif
     env->sse_status.float_rounding_mode = prev_rounding_mode;
 }
 
 void glue(helper_roundss, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     signed char prev_rounding_mode;
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
@@ -1860,19 +1867,18 @@ void glue(helper_roundss, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 
     d->ZMM_S(0) = float32_round_to_int(s->ZMM_S(0), &env->sse_status);
 
-#if 0 /* TODO */
-    if (mode & (1 << 3)) {
+    if (mode & (1 << 3) && !(old_flags & float_flag_inexact)) {
         set_float_exception_flags(get_float_exception_flags(&env->sse_status) &
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-#endif
     env->sse_status.float_rounding_mode = prev_rounding_mode;
 }
 
 void glue(helper_roundsd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
+    uint8_t old_flags = get_float_exception_flags(&env->sse_status);
     signed char prev_rounding_mode;
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
@@ -1895,13 +1901,11 @@ void glue(helper_roundsd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 
     d->ZMM_D(0) = float64_round_to_int(s->ZMM_D(0), &env->sse_status);
 
-#if 0 /* TODO */
-    if (mode & (1 << 3)) {
+    if (mode & (1 << 3) && !(old_flags & float_flag_inexact)) {
         set_float_exception_flags(get_float_exception_flags(&env->sse_status) &
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-#endif
     env->sse_status.float_rounding_mode = prev_rounding_mode;
 }
 
