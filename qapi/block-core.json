@@ -4675,6 +4675,18 @@
             'options': 'BlockdevCreateOptions' } }
 
 ##
+# @BlockdevAmendOptionsLUKS:
+#
+# Driver specific image amend options for LUKS.
+#
+# Since: 5.1
+##
+{ 'struct': 'BlockdevAmendOptionsLUKS',
+  'base': 'QCryptoBlockAmendOptionsLUKS',
+  'data': { }
+}
+
+##
 # @BlockdevAmendOptions:
 #
 # Options for amending an image format
@@ -4688,7 +4700,7 @@
       'driver':         'BlockdevDriver' },
   'discriminator': 'driver',
   'data': {
-  } }
+      'luks':           'BlockdevAmendOptionsLUKS' } }
 
 ##
 # @x-blockdev-amend:
