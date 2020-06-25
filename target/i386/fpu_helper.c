@@ -2972,7 +2972,7 @@ void update_mxcsr_status(CPUX86State *env)
     set_flush_inputs_to_zero((mxcsr & SSE_DAZ) ? 1 : 0, &env->sse_status);
 
     /* set flush to zero */
-    set_flush_to_zero((mxcsr & SSE_FZ) ? 1 : 0, &env->fp_status);
+    set_flush_to_zero((mxcsr & SSE_FZ) ? 1 : 0, &env->sse_status);
 }
 
 void helper_ldmxcsr(CPUX86State *env, uint32_t val)
