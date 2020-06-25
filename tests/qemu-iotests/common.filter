@@ -178,16 +178,13 @@ _filter_img_create()
         | tr '\n' '\0' \
         | $SED -e 's/ \([a-z0-9_.-]*\)=/\n\1=/g' \
         | grep -a -e '^fmt' -e '^size' -e '^backing' -e '^preallocation' \
-                  -e '^encrypt' "${grep_data_file[@]}" \
+                  -e '^encryption' "${grep_data_file[@]}" \
         | $SED "${filename_filters[@]}" \
             -e 's/^\(fmt\)/0-\1/' \
             -e 's/^\(size\)/1-\1/' \
             -e 's/^\(backing\)/2-\1/' \
             -e 's/^\(data_file\)/3-\1/' \
             -e 's/^\(encryption\)/4-\1/' \
-            -e 's/^\(encrypt\.format\)/5-\1/' \
-            -e 's/^\(encrypt\.key-secret\)/6-\1/' \
-            -e 's/^\(encrypt\.iter-time\)/7-\1/' \
             -e 's/^\(preallocation\)/8-\1/' \
         | sort \
         | $SED -e 's/^[0-9]-//' \
