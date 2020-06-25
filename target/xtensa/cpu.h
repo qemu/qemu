@@ -464,6 +464,7 @@ struct XtensaConfig {
     XtensaMemory sysrom;
     XtensaMemory sysram;
 
+    unsigned hw_version;
     uint32_t configid[2];
 
     void *isa_internal;
