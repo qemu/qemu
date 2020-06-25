@@ -469,7 +469,7 @@ static void test_acpi_asl(test_data *data)
                 fflush(stderr);
                 if (getenv("V")) {
                     const char *diff_env = getenv("DIFF");
-                    const char *diff_cmd = diff_env ? diff_env : "diff -u";
+                    const char *diff_cmd = diff_env ? diff_env : "diff -U 16";
                     char *diff = g_strdup_printf("%s %s %s", diff_cmd,
                                                  exp_sdt->asl_file, sdt->asl_file);
                     int out = dup(STDOUT_FILENO);

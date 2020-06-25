@@ -1,4 +1,5 @@
 stub-obj-y += blk-commit-all.o
+stub-obj-y += cmos.o
 stub-obj-y += cpu-get-clock.o
 stub-obj-y += cpu-get-icount.o
 stub-obj-y += dump.o
