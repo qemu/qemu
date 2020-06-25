@@ -302,10 +302,17 @@ static int st_write_event_mapping(void)
     return 0;
 }
 
-void st_set_trace_file_enabled(bool enable)
+/**
+ * Enable / disable tracing, return whether it was enabled.
+ *
+ * @enable: enable if %true, else disable.
+ */
+bool st_set_trace_file_enabled(bool enable)
 {
+    bool was_enabled = trace_fp;
+
     if (enable == !!trace_fp) {
-        return; /* no change */
+        return was_enabled;     /* no change */
     }
 
     /* Halt trace writeout */
@@ -323,14 +330,14 @@ void st_set_trace_file_enabled(bool enable)
 
         trace_fp = fopen(trace_file_name, "wb");
         if (!trace_fp) {
-            return;
+            return was_enabled;
         }
 
         if (fwrite(&header, sizeof header, 1, trace_fp) != 1 ||
             st_write_event_mapping() < 0) {
             fclose(trace_fp);
             trace_fp = NULL;
-            return;
+            return was_enabled;
         }
 
         /* Resume trace writeout */
@@ -340,6 +347,7 @@ void st_set_trace_file_enabled(bool enable)
         fclose(trace_fp);
         trace_fp = NULL;
     }
+    return was_enabled;
 }
 
 /**
@@ -350,7 +358,7 @@ void st_set_trace_file_enabled(bool enable)
  */
 void st_set_trace_file(const char *file)
 {
-    st_set_trace_file_enabled(false);
+    bool saved_enable = st_set_trace_file_enabled(false);
 
     g_free(trace_file_name);
 
@@ -361,7 +369,7 @@ void st_set_trace_file(const char *file)
         trace_file_name = g_strdup_printf("%s", file);
     }
 
-    st_set_trace_file_enabled(true);
+    st_set_trace_file_enabled(saved_enable);
 }
 
 void st_print_trace_file_status(void)
