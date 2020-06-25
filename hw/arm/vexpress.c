@@ -518,8 +518,7 @@ static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
     DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
 
     if (di) {
-        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di),
-                            &error_abort);
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
     }
 
     qdev_prop_set_uint32(dev, "num-blocks",

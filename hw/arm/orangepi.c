@@ -95,7 +95,7 @@ static void orangepi_init(MachineState *machine)
 
     /* Plug in SD card */
     carddev = qdev_new(TYPE_SD_CARD);
-    qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+    qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
     qdev_realize_and_unref(carddev, bus, &error_fatal);
 
     /* SDRAM */

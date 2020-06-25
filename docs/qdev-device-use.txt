@@ -104,15 +104,10 @@ The -device argument differs in detail for each type of drive:
 
 * if=floppy
 
-  -global isa-fdc.driveA=DRIVE-ID
-  -global isa-fdc.driveB=DRIVE-ID
+  -device floppy,unit=UNIT,drive=DRIVE-ID
 
-  This is -global instead of -device, because the floppy controller is
-  created automatically, and we want to configure that one, not create
-  a second one (which isn't possible anyway).
-
-  Without any -global isa-fdc,... you get an empty driveA and no
-  driveB.  You can use -nodefaults to suppress the default driveA, see
+  Without any -device floppy,... you get an empty unit 0 and no unit
+  1.  You can use -nodefaults to suppress the default unit 0, see
   "Default Devices".
 
 * if=virtio
@@ -385,12 +380,12 @@ some DEVNAMEs:
 
     default device      suppressing DEVNAMEs
     CD-ROM              ide-cd, ide-drive, ide-hd, scsi-cd, scsi-hd
-    isa-fdc's driveA    floppy, isa-fdc
+    floppy              floppy, isa-fdc
     parallel            isa-parallel
     serial              isa-serial
     VGA                 VGA, cirrus-vga, isa-vga, isa-cirrus-vga,
-                        vmware-svga, qxl-vga, virtio-vga
-    virtioconsole       virtio-serial-pci, virtio-serial
+                        vmware-svga, qxl-vga, virtio-vga, ati-vga,
+                        vhost-user-vga
 
 The default NIC is connected to a default part created along with it.
 It is *not* suppressed by configuring a NIC with -device (you may call
