@@ -4071,9 +4071,8 @@ static int print_amend_option_help(const char *format)
     /* Every driver supporting amendment must have amend_opts */
     assert(drv->amend_opts);
 
-    printf("Creation options for '%s':\n", format);
+    printf("Amend options for '%s':\n", format);
     qemu_opts_print_help(drv->amend_opts, false);
-    printf("\nNote that not all of these options may be amendable.\n");
     return 0;
 }
 
@@ -4219,7 +4218,22 @@ static int img_amend(int argc, char **argv)
     amend_opts = qemu_opts_append(amend_opts, bs->drv->amend_opts);
     opts = qemu_opts_create(amend_opts, NULL, 0, &error_abort);
     qemu_opts_do_parse(opts, options, NULL, &err);
+
     if (err) {
+        /* Try to parse options using the create options */
+        Error *err1 = NULL;
+        amend_opts = qemu_opts_append(amend_opts, bs->drv->create_opts);
+        qemu_opts_del(opts);
+        opts = qemu_opts_create(amend_opts, NULL, 0, &error_abort);
+        qemu_opts_do_parse(opts, options, NULL, &err1);
+
+        if (!err1) {
+            error_append_hint(&err,
+                              "This option is only supported for image creation\n");
+        } else {
+            error_free(err1);
+        }
+
         error_report_err(err);
         ret = -1;
         goto out;
