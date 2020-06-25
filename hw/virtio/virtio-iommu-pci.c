@@ -48,7 +48,7 @@ static void virtio_iommu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
                    "%s machine fails to create iommu-map device tree bindings",
                    mc->name);
         error_append_hint(errp,
-                          "Check you machine implements a hotplug handler "
+                          "Check your machine implements a hotplug handler "
                           "for the virtio-iommu-pci device\n");
         error_append_hint(errp, "Check the guest is booted without FW or with "
                           "-no-acpi\n");
