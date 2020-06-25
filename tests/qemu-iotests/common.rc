@@ -605,6 +605,9 @@ _supported_fmt()
     # setting IMGFMT_GENERIC to false.
     for f; do
         if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
+            if [ "$IMGFMT" = "luks" ]; then
+                _require_working_luks
+            fi
             return
         fi
     done

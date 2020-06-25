@@ -24,6 +24,7 @@ import iotests
 from iotests import imgfmt
 
 iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.verify_working_luks()
 
 with iotests.FilePath('t.qcow2') as disk_path, \
      iotests.FilePath('t.qcow2.base') as backing_path, \

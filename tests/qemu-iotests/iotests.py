@@ -1010,11 +1010,16 @@ def _verify_image_format(supported_fmts: Sequence[str] = (),
         # similar to
         #   _supported_fmt generic
         # for bash tests
+        if imgfmt == 'luks':
+            verify_working_luks()
         return
 
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
+
+    if imgfmt == 'luks':
+        verify_working_luks()
 
 def _verify_protocol(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
