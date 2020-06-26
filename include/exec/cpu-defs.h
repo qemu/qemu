@@ -102,8 +102,13 @@ typedef uint64_t target_ulong;
  * Skylake's Level-2 STLB has 16 1G entries.
  * Also, make sure we do not size the TLB past the guest's address space.
  */
-#  define CPU_TLB_DYN_MAX_BITS                                  \
+#  ifdef TARGET_PAGE_BITS_VARY
+#   define CPU_TLB_DYN_MAX_BITS                                  \
     MIN(22, TARGET_VIRT_ADDR_SPACE_BITS - TARGET_PAGE_BITS)
+#  else
+#   define CPU_TLB_DYN_MAX_BITS                                  \
+    MIN_CONST(22, TARGET_VIRT_ADDR_SPACE_BITS - TARGET_PAGE_BITS)
+#  endif
 # endif
 
 typedef struct CPUTLBEntry {

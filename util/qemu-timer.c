@@ -501,7 +501,6 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     bool progress = false;
     QEMUTimerCB *cb;
     void *opaque;
-    bool need_replay_checkpoint = false;
 
     if (!atomic_read(&timer_list->active_timers)) {
         return false;
@@ -517,16 +516,6 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         break;
     default:
     case QEMU_CLOCK_VIRTUAL:
-        if (replay_mode != REPLAY_MODE_NONE) {
-            /* Checkpoint for virtual clock is redundant in cases where
-             * it's being triggered with only non-EXTERNAL timers, because
-             * these timers don't change guest state directly.
-             * Since it has conditional dependence on specific timers, it is
-             * subject to race conditions and requires special handling.
-             * See below.
-             */
-            need_replay_checkpoint = true;
-        }
         break;
     case QEMU_CLOCK_HOST:
         if (!replay_checkpoint(CHECKPOINT_CLOCK_HOST)) {
@@ -559,19 +548,16 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
              */
             break;
         }
-        if (need_replay_checkpoint
-                && !(ts->attributes & QEMU_TIMER_ATTR_EXTERNAL)) {
-            /* once we got here, checkpoint clock only once */
-            need_replay_checkpoint = false;
+        /* Checkpoint for virtual clock is redundant in cases where
+         * it's being triggered with only non-EXTERNAL timers, because
+         * these timers don't change guest state directly.
+         */
+        if (replay_mode != REPLAY_MODE_NONE
+            && timer_list->clock->type == QEMU_CLOCK_VIRTUAL
+            && !(ts->attributes & QEMU_TIMER_ATTR_EXTERNAL)
+            && !replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
             qemu_mutex_unlock(&timer_list->active_timers_lock);
-            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
-                goto out;
-            }
-            qemu_mutex_lock(&timer_list->active_timers_lock);
-            /* The lock was released; start over again in case the list was
-             * modified.
-             */
-            continue;
+            goto out;
         }
 
         /* remove timer from the list before calling the callback */

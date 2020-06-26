@@ -176,11 +176,9 @@ extern unsigned long reserved_va;
  * avoid setting bits at the top of guest addresses that might need
  * to be used for tags.
  */
-#if MIN(TARGET_VIRT_ADDR_SPACE_BITS, TARGET_ABI_BITS) <= 32
-# define GUEST_ADDR_MAX_  UINT32_MAX
-#else
-# define GUEST_ADDR_MAX_  (~0ul)
-#endif
+#define GUEST_ADDR_MAX_                                                 \
+    ((MIN_CONST(TARGET_VIRT_ADDR_SPACE_BITS, TARGET_ABI_BITS) <= 32) ?  \
+     UINT32_MAX : ~0ul)
 #define GUEST_ADDR_MAX    (reserved_va ? reserved_va - 1 : GUEST_ADDR_MAX_)
 
 #else

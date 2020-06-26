@@ -98,6 +98,16 @@ unsigned long qemu_getauxval(unsigned long type)
     return 0;
 }
 
+#elif defined(__FreeBSD__)
+#include <sys/auxv.h>
+
+unsigned long qemu_getauxval(unsigned long type)
+{
+    unsigned long aux = 0;
+    elf_aux_info(type, &aux, sizeof(aux));
+    return aux;
+}
+
 #else
 
 unsigned long qemu_getauxval(unsigned long type)

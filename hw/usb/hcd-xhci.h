@@ -214,7 +214,7 @@ struct XHCIState {
     uint32_t dcbaap_high;
     uint32_t config;
 
-    USBPort  uports[MAX(MAXPORTS_2, MAXPORTS_3)];
+    USBPort  uports[MAX_CONST(MAXPORTS_2, MAXPORTS_3)];
     XHCIPort ports[MAXPORTS];
     XHCISlot slots[MAXSLOTS];
     uint32_t numports;

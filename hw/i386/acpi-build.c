@@ -967,9 +967,7 @@ static Aml *build_vmbus_device_aml(VMBusBridge *vmbus_bridge)
     aml_append(dev, aml_name_decl("_PS3", aml_int(0x0)));
 
     crs = aml_resource_template();
-    aml_append(crs, aml_irq_no_flags(vmbus_bridge->irq0));
-    /* FIXME: newer HyperV gets by with only one IRQ */
-    aml_append(crs, aml_irq_no_flags(vmbus_bridge->irq1));
+    aml_append(crs, aml_irq_no_flags(vmbus_bridge->irq));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     return dev;

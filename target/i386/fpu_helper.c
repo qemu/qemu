@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "fpu/softfloat-macros.h"
 
 #ifdef CONFIG_SOFTMMU
 #include "hw/irq.h"
@@ -836,27 +837,390 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
     merge_exception_flags(env, old_flags);
 }
 
+/* 128-bit significand of log(2).  */
+#define ln2_sig_high 0xb17217f7d1cf79abULL
+#define ln2_sig_low 0xc9e3b39803f2f6afULL
+
+/*
+ * Polynomial coefficients for an approximation to (2^x - 1) / x, on
+ * the interval [-1/64, 1/64].
+ */
+#define f2xm1_coeff_0 make_floatx80(0x3ffe, 0xb17217f7d1cf79acULL)
+#define f2xm1_coeff_0_low make_floatx80(0xbfbc, 0xd87edabf495b3762ULL)
+#define f2xm1_coeff_1 make_floatx80(0x3ffc, 0xf5fdeffc162c7543ULL)
+#define f2xm1_coeff_2 make_floatx80(0x3ffa, 0xe35846b82505fcc7ULL)
+#define f2xm1_coeff_3 make_floatx80(0x3ff8, 0x9d955b7dd273b899ULL)
+#define f2xm1_coeff_4 make_floatx80(0x3ff5, 0xaec3ff3c4ef4ac0cULL)
+#define f2xm1_coeff_5 make_floatx80(0x3ff2, 0xa184897c3a7f0de9ULL)
+#define f2xm1_coeff_6 make_floatx80(0x3fee, 0xffe634d0ec30d504ULL)
+#define f2xm1_coeff_7 make_floatx80(0x3feb, 0xb160111d2db515e4ULL)
+
+struct f2xm1_data {
+    /*
+     * A value very close to a multiple of 1/32, such that 2^t and 2^t - 1
+     * are very close to exact floatx80 values.
+     */
+    floatx80 t;
+    /* The value of 2^t.  */
+    floatx80 exp2;
+    /* The value of 2^t - 1.  */
+    floatx80 exp2m1;
+};
+
+static const struct f2xm1_data f2xm1_table[65] = {
+    { make_floatx80(0xbfff, 0x8000000000000000ULL),
+      make_floatx80(0x3ffe, 0x8000000000000000ULL),
+      make_floatx80(0xbffe, 0x8000000000000000ULL) },
+    { make_floatx80(0xbffe, 0xf800000000002e7eULL),
+      make_floatx80(0x3ffe, 0x82cd8698ac2b9160ULL),
+      make_floatx80(0xbffd, 0xfa64f2cea7a8dd40ULL) },
+    { make_floatx80(0xbffe, 0xefffffffffffe960ULL),
+      make_floatx80(0x3ffe, 0x85aac367cc488345ULL),
+      make_floatx80(0xbffd, 0xf4aa7930676ef976ULL) },
+    { make_floatx80(0xbffe, 0xe800000000006f10ULL),
+      make_floatx80(0x3ffe, 0x88980e8092da5c14ULL),
+      make_floatx80(0xbffd, 0xeecfe2feda4b47d8ULL) },
+    { make_floatx80(0xbffe, 0xe000000000008a45ULL),
+      make_floatx80(0x3ffe, 0x8b95c1e3ea8ba2a5ULL),
+      make_floatx80(0xbffd, 0xe8d47c382ae8bab6ULL) },
+    { make_floatx80(0xbffe, 0xd7ffffffffff8a9eULL),
+      make_floatx80(0x3ffe, 0x8ea4398b45cd8116ULL),
+      make_floatx80(0xbffd, 0xe2b78ce97464fdd4ULL) },
+    { make_floatx80(0xbffe, 0xd0000000000019a0ULL),
+      make_floatx80(0x3ffe, 0x91c3d373ab11b919ULL),
+      make_floatx80(0xbffd, 0xdc785918a9dc8dceULL) },
+    { make_floatx80(0xbffe, 0xc7ffffffffff14dfULL),
+      make_floatx80(0x3ffe, 0x94f4efa8fef76836ULL),
+      make_floatx80(0xbffd, 0xd61620ae02112f94ULL) },
+    { make_floatx80(0xbffe, 0xc000000000006530ULL),
+      make_floatx80(0x3ffe, 0x9837f0518db87fbbULL),
+      make_floatx80(0xbffd, 0xcf901f5ce48f008aULL) },
+    { make_floatx80(0xbffe, 0xb7ffffffffff1723ULL),
+      make_floatx80(0x3ffe, 0x9b8d39b9d54eb74cULL),
+      make_floatx80(0xbffd, 0xc8e58c8c55629168ULL) },
+    { make_floatx80(0xbffe, 0xb00000000000b5e1ULL),
+      make_floatx80(0x3ffe, 0x9ef5326091a0c366ULL),
+      make_floatx80(0xbffd, 0xc2159b3edcbe7934ULL) },
+    { make_floatx80(0xbffe, 0xa800000000006f8aULL),
+      make_floatx80(0x3ffe, 0xa27043030c49370aULL),
+      make_floatx80(0xbffd, 0xbb1f79f9e76d91ecULL) },
+    { make_floatx80(0xbffe, 0x9fffffffffff816aULL),
+      make_floatx80(0x3ffe, 0xa5fed6a9b15171cfULL),
+      make_floatx80(0xbffd, 0xb40252ac9d5d1c62ULL) },
+    { make_floatx80(0xbffe, 0x97ffffffffffb621ULL),
+      make_floatx80(0x3ffe, 0xa9a15ab4ea7c30e6ULL),
+      make_floatx80(0xbffd, 0xacbd4a962b079e34ULL) },
+    { make_floatx80(0xbffe, 0x8fffffffffff162bULL),
+      make_floatx80(0x3ffe, 0xad583eea42a1b886ULL),
+      make_floatx80(0xbffd, 0xa54f822b7abc8ef4ULL) },
+    { make_floatx80(0xbffe, 0x87ffffffffff4d34ULL),
+      make_floatx80(0x3ffe, 0xb123f581d2ac7b51ULL),
+      make_floatx80(0xbffd, 0x9db814fc5aa7095eULL) },
+    { make_floatx80(0xbffe, 0x800000000000227dULL),
+      make_floatx80(0x3ffe, 0xb504f333f9de539dULL),
+      make_floatx80(0xbffd, 0x95f619980c4358c6ULL) },
+    { make_floatx80(0xbffd, 0xefffffffffff3978ULL),
+      make_floatx80(0x3ffe, 0xb8fbaf4762fbd0a1ULL),
+      make_floatx80(0xbffd, 0x8e08a1713a085ebeULL) },
+    { make_floatx80(0xbffd, 0xe00000000000df81ULL),
+      make_floatx80(0x3ffe, 0xbd08a39f580bfd8cULL),
+      make_floatx80(0xbffd, 0x85eeb8c14fe804e8ULL) },
+    { make_floatx80(0xbffd, 0xd00000000000bccfULL),
+      make_floatx80(0x3ffe, 0xc12c4cca667062f6ULL),
+      make_floatx80(0xbffc, 0xfb4eccd6663e7428ULL) },
+    { make_floatx80(0xbffd, 0xc00000000000eff0ULL),
+      make_floatx80(0x3ffe, 0xc5672a1155069abeULL),
+      make_floatx80(0xbffc, 0xea6357baabe59508ULL) },
+    { make_floatx80(0xbffd, 0xb000000000000fe6ULL),
+      make_floatx80(0x3ffe, 0xc9b9bd866e2f234bULL),
+      make_floatx80(0xbffc, 0xd91909e6474372d4ULL) },
+    { make_floatx80(0xbffd, 0x9fffffffffff2172ULL),
+      make_floatx80(0x3ffe, 0xce248c151f84bf00ULL),
+      make_floatx80(0xbffc, 0xc76dcfab81ed0400ULL) },
+    { make_floatx80(0xbffd, 0x8fffffffffffafffULL),
+      make_floatx80(0x3ffe, 0xd2a81d91f12afb2bULL),
+      make_floatx80(0xbffc, 0xb55f89b83b541354ULL) },
+    { make_floatx80(0xbffc, 0xffffffffffff81a3ULL),
+      make_floatx80(0x3ffe, 0xd744fccad69d7d5eULL),
+      make_floatx80(0xbffc, 0xa2ec0cd4a58a0a88ULL) },
+    { make_floatx80(0xbffc, 0xdfffffffffff1568ULL),
+      make_floatx80(0x3ffe, 0xdbfbb797daf25a44ULL),
+      make_floatx80(0xbffc, 0x901121a0943696f0ULL) },
+    { make_floatx80(0xbffc, 0xbfffffffffff68daULL),
+      make_floatx80(0x3ffe, 0xe0ccdeec2a94f811ULL),
+      make_floatx80(0xbffb, 0xf999089eab583f78ULL) },
+    { make_floatx80(0xbffc, 0x9fffffffffff4690ULL),
+      make_floatx80(0x3ffe, 0xe5b906e77c83657eULL),
+      make_floatx80(0xbffb, 0xd237c8c41be4d410ULL) },
+    { make_floatx80(0xbffb, 0xffffffffffff8aeeULL),
+      make_floatx80(0x3ffe, 0xeac0c6e7dd24427cULL),
+      make_floatx80(0xbffb, 0xa9f9c8c116ddec20ULL) },
+    { make_floatx80(0xbffb, 0xbfffffffffff2d18ULL),
+      make_floatx80(0x3ffe, 0xefe4b99bdcdb06ebULL),
+      make_floatx80(0xbffb, 0x80da33211927c8a8ULL) },
+    { make_floatx80(0xbffa, 0xffffffffffff8ccbULL),
+      make_floatx80(0x3ffe, 0xf5257d152486d0f4ULL),
+      make_floatx80(0xbffa, 0xada82eadb792f0c0ULL) },
+    { make_floatx80(0xbff9, 0xffffffffffff11feULL),
+      make_floatx80(0x3ffe, 0xfa83b2db722a0846ULL),
+      make_floatx80(0xbff9, 0xaf89a491babef740ULL) },
+    { floatx80_zero,
+      make_floatx80(0x3fff, 0x8000000000000000ULL),
+      floatx80_zero },
+    { make_floatx80(0x3ff9, 0xffffffffffff2680ULL),
+      make_floatx80(0x3fff, 0x82cd8698ac2b9f6fULL),
+      make_floatx80(0x3ff9, 0xb361a62b0ae7dbc0ULL) },
+    { make_floatx80(0x3ffb, 0x800000000000b500ULL),
+      make_floatx80(0x3fff, 0x85aac367cc488345ULL),
+      make_floatx80(0x3ffa, 0xb5586cf9891068a0ULL) },
+    { make_floatx80(0x3ffb, 0xbfffffffffff4b67ULL),
+      make_floatx80(0x3fff, 0x88980e8092da7cceULL),
+      make_floatx80(0x3ffb, 0x8980e8092da7cce0ULL) },
+    { make_floatx80(0x3ffb, 0xffffffffffffff57ULL),
+      make_floatx80(0x3fff, 0x8b95c1e3ea8bd6dfULL),
+      make_floatx80(0x3ffb, 0xb95c1e3ea8bd6df0ULL) },
+    { make_floatx80(0x3ffc, 0x9fffffffffff811fULL),
+      make_floatx80(0x3fff, 0x8ea4398b45cd4780ULL),
+      make_floatx80(0x3ffb, 0xea4398b45cd47800ULL) },
+    { make_floatx80(0x3ffc, 0xbfffffffffff9980ULL),
+      make_floatx80(0x3fff, 0x91c3d373ab11b919ULL),
+      make_floatx80(0x3ffc, 0x8e1e9b9d588dc8c8ULL) },
+    { make_floatx80(0x3ffc, 0xdffffffffffff631ULL),
+      make_floatx80(0x3fff, 0x94f4efa8fef70864ULL),
+      make_floatx80(0x3ffc, 0xa7a77d47f7b84320ULL) },
+    { make_floatx80(0x3ffc, 0xffffffffffff2499ULL),
+      make_floatx80(0x3fff, 0x9837f0518db892d4ULL),
+      make_floatx80(0x3ffc, 0xc1bf828c6dc496a0ULL) },
+    { make_floatx80(0x3ffd, 0x8fffffffffff80fbULL),
+      make_floatx80(0x3fff, 0x9b8d39b9d54e3a79ULL),
+      make_floatx80(0x3ffc, 0xdc69cdceaa71d3c8ULL) },
+    { make_floatx80(0x3ffd, 0x9fffffffffffbc23ULL),
+      make_floatx80(0x3fff, 0x9ef5326091a10313ULL),
+      make_floatx80(0x3ffc, 0xf7a993048d081898ULL) },
+    { make_floatx80(0x3ffd, 0xafffffffffff20ecULL),
+      make_floatx80(0x3fff, 0xa27043030c49370aULL),
+      make_floatx80(0x3ffd, 0x89c10c0c3124dc28ULL) },
+    { make_floatx80(0x3ffd, 0xc00000000000fd2cULL),
+      make_floatx80(0x3fff, 0xa5fed6a9b15171cfULL),
+      make_floatx80(0x3ffd, 0x97fb5aa6c545c73cULL) },
+    { make_floatx80(0x3ffd, 0xd0000000000093beULL),
+      make_floatx80(0x3fff, 0xa9a15ab4ea7c30e6ULL),
+      make_floatx80(0x3ffd, 0xa6856ad3a9f0c398ULL) },
+    { make_floatx80(0x3ffd, 0xe00000000000c2aeULL),
+      make_floatx80(0x3fff, 0xad583eea42a17876ULL),
+      make_floatx80(0x3ffd, 0xb560fba90a85e1d8ULL) },
+    { make_floatx80(0x3ffd, 0xefffffffffff1e3fULL),
+      make_floatx80(0x3fff, 0xb123f581d2abef6cULL),
+      make_floatx80(0x3ffd, 0xc48fd6074aafbdb0ULL) },
+    { make_floatx80(0x3ffd, 0xffffffffffff1c23ULL),
+      make_floatx80(0x3fff, 0xb504f333f9de2cadULL),
+      make_floatx80(0x3ffd, 0xd413cccfe778b2b4ULL) },
+    { make_floatx80(0x3ffe, 0x8800000000006344ULL),
+      make_floatx80(0x3fff, 0xb8fbaf4762fbd0a1ULL),
+      make_floatx80(0x3ffd, 0xe3eebd1d8bef4284ULL) },
+    { make_floatx80(0x3ffe, 0x9000000000005d67ULL),
+      make_floatx80(0x3fff, 0xbd08a39f580c668dULL),
+      make_floatx80(0x3ffd, 0xf4228e7d60319a34ULL) },
+    { make_floatx80(0x3ffe, 0x9800000000009127ULL),
+      make_floatx80(0x3fff, 0xc12c4cca6670e042ULL),
+      make_floatx80(0x3ffe, 0x82589994cce1c084ULL) },
+    { make_floatx80(0x3ffe, 0x9fffffffffff06f9ULL),
+      make_floatx80(0x3fff, 0xc5672a11550655c3ULL),
+      make_floatx80(0x3ffe, 0x8ace5422aa0cab86ULL) },
+    { make_floatx80(0x3ffe, 0xa7fffffffffff80dULL),
+      make_floatx80(0x3fff, 0xc9b9bd866e2f234bULL),
+      make_floatx80(0x3ffe, 0x93737b0cdc5e4696ULL) },
+    { make_floatx80(0x3ffe, 0xafffffffffff1470ULL),
+      make_floatx80(0x3fff, 0xce248c151f83fd69ULL),
+      make_floatx80(0x3ffe, 0x9c49182a3f07fad2ULL) },
+    { make_floatx80(0x3ffe, 0xb800000000000e0aULL),
+      make_floatx80(0x3fff, 0xd2a81d91f12aec5cULL),
+      make_floatx80(0x3ffe, 0xa5503b23e255d8b8ULL) },
+    { make_floatx80(0x3ffe, 0xc00000000000b7faULL),
+      make_floatx80(0x3fff, 0xd744fccad69dd630ULL),
+      make_floatx80(0x3ffe, 0xae89f995ad3bac60ULL) },
+    { make_floatx80(0x3ffe, 0xc800000000003aa6ULL),
+      make_floatx80(0x3fff, 0xdbfbb797daf25a44ULL),
+      make_floatx80(0x3ffe, 0xb7f76f2fb5e4b488ULL) },
+    { make_floatx80(0x3ffe, 0xd00000000000a6aeULL),
+      make_floatx80(0x3fff, 0xe0ccdeec2a954685ULL),
+      make_floatx80(0x3ffe, 0xc199bdd8552a8d0aULL) },
+    { make_floatx80(0x3ffe, 0xd800000000004165ULL),
+      make_floatx80(0x3fff, 0xe5b906e77c837155ULL),
+      make_floatx80(0x3ffe, 0xcb720dcef906e2aaULL) },
+    { make_floatx80(0x3ffe, 0xe00000000000582cULL),
+      make_floatx80(0x3fff, 0xeac0c6e7dd24713aULL),
+      make_floatx80(0x3ffe, 0xd5818dcfba48e274ULL) },
+    { make_floatx80(0x3ffe, 0xe800000000001a5dULL),
+      make_floatx80(0x3fff, 0xefe4b99bdcdb06ebULL),
+      make_floatx80(0x3ffe, 0xdfc97337b9b60dd6ULL) },
+    { make_floatx80(0x3ffe, 0xefffffffffffc1efULL),
+      make_floatx80(0x3fff, 0xf5257d152486a2faULL),
+      make_floatx80(0x3ffe, 0xea4afa2a490d45f4ULL) },
+    { make_floatx80(0x3ffe, 0xf800000000001069ULL),
+      make_floatx80(0x3fff, 0xfa83b2db722a0e5cULL),
+      make_floatx80(0x3ffe, 0xf50765b6e4541cb8ULL) },
+    { make_floatx80(0x3fff, 0x8000000000000000ULL),
+      make_floatx80(0x4000, 0x8000000000000000ULL),
+      make_floatx80(0x3fff, 0x8000000000000000ULL) },
+};
+
 void helper_f2xm1(CPUX86State *env)
 {
-    double val = floatx80_to_double(env, ST0);
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t sig = extractFloatx80Frac(ST0);
+    int32_t exp = extractFloatx80Exp(ST0);
+    bool sign = extractFloatx80Sign(ST0);
 
-    val = pow(2.0, val) - 1.0;
-    ST0 = double_to_floatx80(env, val);
-}
-
-void helper_fyl2x(CPUX86State *env)
-{
-    double fptemp = floatx80_to_double(env, ST0);
-
-    if (fptemp > 0.0) {
-        fptemp = log(fptemp) / log(2.0); /* log2(ST) */
-        fptemp *= floatx80_to_double(env, ST1);
-        ST1 = double_to_floatx80(env, fptemp);
-        fpop(env);
+    if (floatx80_invalid_encoding(ST0)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST0 = floatx80_silence_nan(ST0, &env->fp_status);
+        }
+    } else if (exp > 0x3fff ||
+               (exp == 0x3fff && sig != (0x8000000000000000ULL))) {
+        /* Out of range for the instruction, treat as invalid.  */
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST0 = floatx80_default_nan(&env->fp_status);
+    } else if (exp == 0x3fff) {
+        /* Argument 1 or -1, exact result 1 or -0.5.  */
+        if (sign) {
+            ST0 = make_floatx80(0xbffe, 0x8000000000000000ULL);
+        }
+    } else if (exp < 0x3fb0) {
+        if (!floatx80_is_zero(ST0)) {
+            /*
+             * Multiplying the argument by an extra-precision version
+             * of log(2) is sufficiently precise.  Zero arguments are
+             * returned unchanged.
+             */
+            uint64_t sig0, sig1, sig2;
+            if (exp == 0) {
+                normalizeFloatx80Subnormal(sig, &exp, &sig);
+            }
+            mul128By64To192(ln2_sig_high, ln2_sig_low, sig, &sig0, &sig1,
+                            &sig2);
+            /* This result is inexact.  */
+            sig1 |= 1;
+            ST0 = normalizeRoundAndPackFloatx80(80, sign, exp, sig0, sig1,
+                                                &env->fp_status);
+        }
     } else {
-        env->fpus &= ~0x4700;
-        env->fpus |= 0x400;
+        floatx80 tmp, y, accum;
+        bool asign, bsign;
+        int32_t n, aexp, bexp;
+        uint64_t asig0, asig1, asig2, bsig0, bsig1;
+        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.float_rounding_mode = float_round_nearest_even;
+        env->fp_status.floatx80_rounding_precision = 80;
+
+        /* Find the nearest multiple of 1/32 to the argument.  */
+        tmp = floatx80_scalbn(ST0, 5, &env->fp_status);
+        n = 32 + floatx80_to_int32(tmp, &env->fp_status);
+        y = floatx80_sub(ST0, f2xm1_table[n].t, &env->fp_status);
+
+        if (floatx80_is_zero(y)) {
+            /*
+             * Use the value of 2^t - 1 from the table, to avoid
+             * needing to special-case zero as a result of
+             * multiplication below.
+             */
+            ST0 = f2xm1_table[n].t;
+            set_float_exception_flags(float_flag_inexact, &env->fp_status);
+            env->fp_status.float_rounding_mode = save_mode;
+        } else {
+            /*
+             * Compute the lower parts of a polynomial expansion for
+             * (2^y - 1) / y.
+             */
+            accum = floatx80_mul(f2xm1_coeff_7, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_6, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_5, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_4, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_3, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_2, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_1, accum, &env->fp_status);
+            accum = floatx80_mul(accum, y, &env->fp_status);
+            accum = floatx80_add(f2xm1_coeff_0_low, accum, &env->fp_status);
+
+            /*
+             * The full polynomial expansion is f2xm1_coeff_0 + accum
+             * (where accum has much lower magnitude, and so, in
+             * particular, carry out of the addition is not possible).
+             * (This expansion is only accurate to about 70 bits, not
+             * 128 bits.)
+             */
+            aexp = extractFloatx80Exp(f2xm1_coeff_0);
+            asign = extractFloatx80Sign(f2xm1_coeff_0);
+            shift128RightJamming(extractFloatx80Frac(accum), 0,
+                                 aexp - extractFloatx80Exp(accum),
+                                 &asig0, &asig1);
+            bsig0 = extractFloatx80Frac(f2xm1_coeff_0);
+            bsig1 = 0;
+            if (asign == extractFloatx80Sign(accum)) {
+                add128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+            } else {
+                sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+            }
+            /* And thus compute an approximation to 2^y - 1.  */
+            mul128By64To192(asig0, asig1, extractFloatx80Frac(y),
+                            &asig0, &asig1, &asig2);
+            aexp += extractFloatx80Exp(y) - 0x3ffe;
+            asign ^= extractFloatx80Sign(y);
+            if (n != 32) {
+                /*
+                 * Multiply this by the precomputed value of 2^t and
+                 * add that of 2^t - 1.
+                 */
+                mul128By64To192(asig0, asig1,
+                                extractFloatx80Frac(f2xm1_table[n].exp2),
+                                &asig0, &asig1, &asig2);
+                aexp += extractFloatx80Exp(f2xm1_table[n].exp2) - 0x3ffe;
+                bexp = extractFloatx80Exp(f2xm1_table[n].exp2m1);
+                bsig0 = extractFloatx80Frac(f2xm1_table[n].exp2m1);
+                bsig1 = 0;
+                if (bexp < aexp) {
+                    shift128RightJamming(bsig0, bsig1, aexp - bexp,
+                                         &bsig0, &bsig1);
+                } else if (aexp < bexp) {
+                    shift128RightJamming(asig0, asig1, bexp - aexp,
+                                         &asig0, &asig1);
+                    aexp = bexp;
+                }
+                /* The sign of 2^t - 1 is always that of the result.  */
+                bsign = extractFloatx80Sign(f2xm1_table[n].exp2m1);
+                if (asign == bsign) {
+                    /* Avoid possible carry out of the addition.  */
+                    shift128RightJamming(asig0, asig1, 1,
+                                         &asig0, &asig1);
+                    shift128RightJamming(bsig0, bsig1, 1,
+                                         &bsig0, &bsig1);
+                    ++aexp;
+                    add128(asig0, asig1, bsig0, bsig1, &asig0, &asig1);
+                } else {
+                    sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+                    asign = bsign;
+                }
+            }
+            env->fp_status.float_rounding_mode = save_mode;
+            /* This result is inexact.  */
+            asig1 |= 1;
+            ST0 = normalizeRoundAndPackFloatx80(80, asign, aexp, asig0, asig1,
+                                                &env->fp_status);
+        }
+
+        env->fp_status.floatx80_rounding_precision = save_prec;
     }
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fptan(CPUX86State *env)
@@ -875,14 +1239,493 @@ void helper_fptan(CPUX86State *env)
     }
 }
 
+/* Values of pi/4, pi/2, 3pi/4 and pi, with 128-bit precision.  */
+#define pi_4_exp 0x3ffe
+#define pi_4_sig_high 0xc90fdaa22168c234ULL
+#define pi_4_sig_low 0xc4c6628b80dc1cd1ULL
+#define pi_2_exp 0x3fff
+#define pi_2_sig_high 0xc90fdaa22168c234ULL
+#define pi_2_sig_low 0xc4c6628b80dc1cd1ULL
+#define pi_34_exp 0x4000
+#define pi_34_sig_high 0x96cbe3f9990e91a7ULL
+#define pi_34_sig_low 0x9394c9e8a0a5159dULL
+#define pi_exp 0x4000
+#define pi_sig_high 0xc90fdaa22168c234ULL
+#define pi_sig_low 0xc4c6628b80dc1cd1ULL
+
+/*
+ * Polynomial coefficients for an approximation to atan(x), with only
+ * odd powers of x used, for x in the interval [-1/16, 1/16].  (Unlike
+ * for some other approximations, no low part is needed for the first
+ * coefficient here to achieve a sufficiently accurate result, because
+ * the coefficient in this minimax approximation is very close to
+ * exactly 1.)
+ */
+#define fpatan_coeff_0 make_floatx80(0x3fff, 0x8000000000000000ULL)
+#define fpatan_coeff_1 make_floatx80(0xbffd, 0xaaaaaaaaaaaaaa43ULL)
+#define fpatan_coeff_2 make_floatx80(0x3ffc, 0xccccccccccbfe4f8ULL)
+#define fpatan_coeff_3 make_floatx80(0xbffc, 0x92492491fbab2e66ULL)
+#define fpatan_coeff_4 make_floatx80(0x3ffb, 0xe38e372881ea1e0bULL)
+#define fpatan_coeff_5 make_floatx80(0xbffb, 0xba2c0104bbdd0615ULL)
+#define fpatan_coeff_6 make_floatx80(0x3ffb, 0x9baf7ebf898b42efULL)
+
+struct fpatan_data {
+    /* High and low parts of atan(x).  */
+    floatx80 atan_high, atan_low;
+};
+
+static const struct fpatan_data fpatan_table[9] = {
+    { floatx80_zero,
+      floatx80_zero },
+    { make_floatx80(0x3ffb, 0xfeadd4d5617b6e33ULL),
+      make_floatx80(0xbfb9, 0xdda19d8305ddc420ULL) },
+    { make_floatx80(0x3ffc, 0xfadbafc96406eb15ULL),
+      make_floatx80(0x3fbb, 0xdb8f3debef442fccULL) },
+    { make_floatx80(0x3ffd, 0xb7b0ca0f26f78474ULL),
+      make_floatx80(0xbfbc, 0xeab9bdba460376faULL) },
+    { make_floatx80(0x3ffd, 0xed63382b0dda7b45ULL),
+      make_floatx80(0x3fbc, 0xdfc88bd978751a06ULL) },
+    { make_floatx80(0x3ffe, 0x8f005d5ef7f59f9bULL),
+      make_floatx80(0x3fbd, 0xb906bc2ccb886e90ULL) },
+    { make_floatx80(0x3ffe, 0xa4bc7d1934f70924ULL),
+      make_floatx80(0x3fbb, 0xcd43f9522bed64f8ULL) },
+    { make_floatx80(0x3ffe, 0xb8053e2bc2319e74ULL),
+      make_floatx80(0xbfbc, 0xd3496ab7bd6eef0cULL) },
+    { make_floatx80(0x3ffe, 0xc90fdaa22168c235ULL),
+      make_floatx80(0xbfbc, 0xece675d1fc8f8cbcULL) },
+};
+
 void helper_fpatan(CPUX86State *env)
 {
-    double fptemp, fpsrcop;
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t arg0_sig = extractFloatx80Frac(ST0);
+    int32_t arg0_exp = extractFloatx80Exp(ST0);
+    bool arg0_sign = extractFloatx80Sign(ST0);
+    uint64_t arg1_sig = extractFloatx80Frac(ST1);
+    int32_t arg1_exp = extractFloatx80Exp(ST1);
+    bool arg1_sign = extractFloatx80Sign(ST1);
 
-    fpsrcop = floatx80_to_double(env, ST1);
-    fptemp = floatx80_to_double(env, ST0);
-    ST1 = double_to_floatx80(env, atan2(fpsrcop, fptemp));
+    if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST0, &env->fp_status);
+    } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST1, &env->fp_status);
+    } else if (floatx80_invalid_encoding(ST0) ||
+               floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        ST1 = ST0;
+    } else if (floatx80_is_any_nan(ST1)) {
+        /* Pass this NaN through.  */
+    } else if (floatx80_is_zero(ST1) && !arg0_sign) {
+        /* Pass this zero through.  */
+    } else if (((floatx80_is_infinity(ST0) && !floatx80_is_infinity(ST1)) ||
+                 arg0_exp - arg1_exp >= 80) &&
+               !arg0_sign) {
+        /*
+         * Dividing ST1 by ST0 gives the correct result up to
+         * rounding, and avoids spurious underflow exceptions that
+         * might result from passing some small values through the
+         * polynomial approximation, but if a finite nonzero result of
+         * division is exact, the result of fpatan is still inexact
+         * (and underflowing where appropriate).
+         */
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.floatx80_rounding_precision = 80;
+        ST1 = floatx80_div(ST1, ST0, &env->fp_status);
+        env->fp_status.floatx80_rounding_precision = save_prec;
+        if (!floatx80_is_zero(ST1) &&
+            !(get_float_exception_flags(&env->fp_status) &
+              float_flag_inexact)) {
+            /*
+             * The mathematical result is very slightly closer to zero
+             * than this exact result.  Round a value with the
+             * significand adjusted accordingly to get the correct
+             * exceptions, and possibly an adjusted result depending
+             * on the rounding mode.
+             */
+            uint64_t sig = extractFloatx80Frac(ST1);
+            int32_t exp = extractFloatx80Exp(ST1);
+            bool sign = extractFloatx80Sign(ST1);
+            if (exp == 0) {
+                normalizeFloatx80Subnormal(sig, &exp, &sig);
+            }
+            ST1 = normalizeRoundAndPackFloatx80(80, sign, exp, sig - 1,
+                                                -1, &env->fp_status);
+        }
+    } else {
+        /* The result is inexact.  */
+        bool rsign = arg1_sign;
+        int32_t rexp;
+        uint64_t rsig0, rsig1;
+        if (floatx80_is_zero(ST1)) {
+            /*
+             * ST0 is negative.  The result is pi with the sign of
+             * ST1.
+             */
+            rexp = pi_exp;
+            rsig0 = pi_sig_high;
+            rsig1 = pi_sig_low;
+        } else if (floatx80_is_infinity(ST1)) {
+            if (floatx80_is_infinity(ST0)) {
+                if (arg0_sign) {
+                    rexp = pi_34_exp;
+                    rsig0 = pi_34_sig_high;
+                    rsig1 = pi_34_sig_low;
+                } else {
+                    rexp = pi_4_exp;
+                    rsig0 = pi_4_sig_high;
+                    rsig1 = pi_4_sig_low;
+                }
+            } else {
+                rexp = pi_2_exp;
+                rsig0 = pi_2_sig_high;
+                rsig1 = pi_2_sig_low;
+            }
+        } else if (floatx80_is_zero(ST0) || arg1_exp - arg0_exp >= 80) {
+            rexp = pi_2_exp;
+            rsig0 = pi_2_sig_high;
+            rsig1 = pi_2_sig_low;
+        } else if (floatx80_is_infinity(ST0) || arg0_exp - arg1_exp >= 80) {
+            /* ST0 is negative.  */
+            rexp = pi_exp;
+            rsig0 = pi_sig_high;
+            rsig1 = pi_sig_low;
+        } else {
+            /*
+             * ST0 and ST1 are finite, nonzero and with exponents not
+             * too far apart.
+             */
+            int32_t adj_exp, num_exp, den_exp, xexp, yexp, n, texp, zexp, aexp;
+            int32_t azexp, axexp;
+            bool adj_sub, ysign, zsign;
+            uint64_t adj_sig0, adj_sig1, num_sig, den_sig, xsig0, xsig1;
+            uint64_t msig0, msig1, msig2, remsig0, remsig1, remsig2;
+            uint64_t ysig0, ysig1, tsig, zsig0, zsig1, asig0, asig1;
+            uint64_t azsig0, azsig1;
+            uint64_t azsig2, azsig3, axsig0, axsig1;
+            floatx80 x8;
+            FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+            signed char save_prec = env->fp_status.floatx80_rounding_precision;
+            env->fp_status.float_rounding_mode = float_round_nearest_even;
+            env->fp_status.floatx80_rounding_precision = 80;
+
+            if (arg0_exp == 0) {
+                normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
+            }
+            if (arg1_exp == 0) {
+                normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+            }
+            if (arg0_exp > arg1_exp ||
+                (arg0_exp == arg1_exp && arg0_sig >= arg1_sig)) {
+                /* Work with abs(ST1) / abs(ST0).  */
+                num_exp = arg1_exp;
+                num_sig = arg1_sig;
+                den_exp = arg0_exp;
+                den_sig = arg0_sig;
+                if (arg0_sign) {
+                    /* The result is subtracted from pi.  */
+                    adj_exp = pi_exp;
+                    adj_sig0 = pi_sig_high;
+                    adj_sig1 = pi_sig_low;
+                    adj_sub = true;
+                } else {
+                    /* The result is used as-is.  */
+                    adj_exp = 0;
+                    adj_sig0 = 0;
+                    adj_sig1 = 0;
+                    adj_sub = false;
+                }
+            } else {
+                /* Work with abs(ST0) / abs(ST1).  */
+                num_exp = arg0_exp;
+                num_sig = arg0_sig;
+                den_exp = arg1_exp;
+                den_sig = arg1_sig;
+                /* The result is added to or subtracted from pi/2.  */
+                adj_exp = pi_2_exp;
+                adj_sig0 = pi_2_sig_high;
+                adj_sig1 = pi_2_sig_low;
+                adj_sub = !arg0_sign;
+            }
+
+            /*
+             * Compute x = num/den, where 0 < x <= 1 and x is not too
+             * small.
+             */
+            xexp = num_exp - den_exp + 0x3ffe;
+            remsig0 = num_sig;
+            remsig1 = 0;
+            if (den_sig <= remsig0) {
+                shift128Right(remsig0, remsig1, 1, &remsig0, &remsig1);
+                ++xexp;
+            }
+            xsig0 = estimateDiv128To64(remsig0, remsig1, den_sig);
+            mul64To128(den_sig, xsig0, &msig0, &msig1);
+            sub128(remsig0, remsig1, msig0, msig1, &remsig0, &remsig1);
+            while ((int64_t) remsig0 < 0) {
+                --xsig0;
+                add128(remsig0, remsig1, 0, den_sig, &remsig0, &remsig1);
+            }
+            xsig1 = estimateDiv128To64(remsig1, 0, den_sig);
+            /*
+             * No need to correct any estimation error in xsig1; even
+             * with such error, it is accurate enough.
+             */
+
+            /*
+             * Split x as x = t + y, where t = n/8 is the nearest
+             * multiple of 1/8 to x.
+             */
+            x8 = normalizeRoundAndPackFloatx80(80, false, xexp + 3, xsig0,
+                                               xsig1, &env->fp_status);
+            n = floatx80_to_int32(x8, &env->fp_status);
+            if (n == 0) {
+                ysign = false;
+                yexp = xexp;
+                ysig0 = xsig0;
+                ysig1 = xsig1;
+                texp = 0;
+                tsig = 0;
+            } else {
+                int shift = clz32(n) + 32;
+                texp = 0x403b - shift;
+                tsig = n;
+                tsig <<= shift;
+                if (texp == xexp) {
+                    sub128(xsig0, xsig1, tsig, 0, &ysig0, &ysig1);
+                    if ((int64_t) ysig0 >= 0) {
+                        ysign = false;
+                        if (ysig0 == 0) {
+                            if (ysig1 == 0) {
+                                yexp = 0;
+                            } else {
+                                shift = clz64(ysig1) + 64;
+                                yexp = xexp - shift;
+                                shift128Left(ysig0, ysig1, shift,
+                                             &ysig0, &ysig1);
+                            }
+                        } else {
+                            shift = clz64(ysig0);
+                            yexp = xexp - shift;
+                            shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                        }
+                    } else {
+                        ysign = true;
+                        sub128(0, 0, ysig0, ysig1, &ysig0, &ysig1);
+                        if (ysig0 == 0) {
+                            shift = clz64(ysig1) + 64;
+                        } else {
+                            shift = clz64(ysig0);
+                        }
+                        yexp = xexp - shift;
+                        shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                    }
+                } else {
+                    /*
+                     * t's exponent must be greater than x's because t
+                     * is positive and the nearest multiple of 1/8 to
+                     * x, and if x has a greater exponent, the power
+                     * of 2 with that exponent is also a multiple of
+                     * 1/8.
+                     */
+                    uint64_t usig0, usig1;
+                    shift128RightJamming(xsig0, xsig1, texp - xexp,
+                                         &usig0, &usig1);
+                    ysign = true;
+                    sub128(tsig, 0, usig0, usig1, &ysig0, &ysig1);
+                    if (ysig0 == 0) {
+                        shift = clz64(ysig1) + 64;
+                    } else {
+                        shift = clz64(ysig0);
+                    }
+                    yexp = texp - shift;
+                    shift128Left(ysig0, ysig1, shift, &ysig0, &ysig1);
+                }
+            }
+
+            /*
+             * Compute z = y/(1+tx), so arctan(x) = arctan(t) +
+             * arctan(z).
+             */
+            zsign = ysign;
+            if (texp == 0 || yexp == 0) {
+                zexp = yexp;
+                zsig0 = ysig0;
+                zsig1 = ysig1;
+            } else {
+                /*
+                 * t <= 1, x <= 1 and if both are 1 then y is 0, so tx < 1.
+                 */
+                int32_t dexp = texp + xexp - 0x3ffe;
+                uint64_t dsig0, dsig1, dsig2;
+                mul128By64To192(xsig0, xsig1, tsig, &dsig0, &dsig1, &dsig2);
+                /*
+                 * dexp <= 0x3fff (and if equal, dsig0 has a leading 0
+                 * bit).  Add 1 to produce the denominator 1+tx.
+                 */
+                shift128RightJamming(dsig0, dsig1, 0x3fff - dexp,
+                                     &dsig0, &dsig1);
+                dsig0 |= 0x8000000000000000ULL;
+                zexp = yexp - 1;
+                remsig0 = ysig0;
+                remsig1 = ysig1;
+                remsig2 = 0;
+                if (dsig0 <= remsig0) {
+                    shift128Right(remsig0, remsig1, 1, &remsig0, &remsig1);
+                    ++zexp;
+                }
+                zsig0 = estimateDiv128To64(remsig0, remsig1, dsig0);
+                mul128By64To192(dsig0, dsig1, zsig0, &msig0, &msig1, &msig2);
+                sub192(remsig0, remsig1, remsig2, msig0, msig1, msig2,
+                       &remsig0, &remsig1, &remsig2);
+                while ((int64_t) remsig0 < 0) {
+                    --zsig0;
+                    add192(remsig0, remsig1, remsig2, 0, dsig0, dsig1,
+                           &remsig0, &remsig1, &remsig2);
+                }
+                zsig1 = estimateDiv128To64(remsig1, remsig2, dsig0);
+                /* No need to correct any estimation error in zsig1.  */
+            }
+
+            if (zexp == 0) {
+                azexp = 0;
+                azsig0 = 0;
+                azsig1 = 0;
+            } else {
+                floatx80 z2, accum;
+                uint64_t z2sig0, z2sig1, z2sig2, z2sig3;
+                /* Compute z^2.  */
+                mul128To256(zsig0, zsig1, zsig0, zsig1,
+                            &z2sig0, &z2sig1, &z2sig2, &z2sig3);
+                z2 = normalizeRoundAndPackFloatx80(80, false,
+                                                   zexp + zexp - 0x3ffe,
+                                                   z2sig0, z2sig1,
+                                                   &env->fp_status);
+
+                /* Compute the lower parts of the polynomial expansion.  */
+                accum = floatx80_mul(fpatan_coeff_6, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_5, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_4, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_3, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_2, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+                accum = floatx80_add(fpatan_coeff_1, accum, &env->fp_status);
+                accum = floatx80_mul(accum, z2, &env->fp_status);
+
+                /*
+                 * The full polynomial expansion is z*(fpatan_coeff_0 + accum).
+                 * fpatan_coeff_0 is 1, and accum is negative and much smaller.
+                 */
+                aexp = extractFloatx80Exp(fpatan_coeff_0);
+                shift128RightJamming(extractFloatx80Frac(accum), 0,
+                                     aexp - extractFloatx80Exp(accum),
+                                     &asig0, &asig1);
+                sub128(extractFloatx80Frac(fpatan_coeff_0), 0, asig0, asig1,
+                       &asig0, &asig1);
+                /* Multiply by z to compute arctan(z).  */
+                azexp = aexp + zexp - 0x3ffe;
+                mul128To256(asig0, asig1, zsig0, zsig1, &azsig0, &azsig1,
+                            &azsig2, &azsig3);
+            }
+
+            /* Add arctan(t) (positive or zero) and arctan(z) (sign zsign).  */
+            if (texp == 0) {
+                /* z is positive.  */
+                axexp = azexp;
+                axsig0 = azsig0;
+                axsig1 = azsig1;
+            } else {
+                bool low_sign = extractFloatx80Sign(fpatan_table[n].atan_low);
+                int32_t low_exp = extractFloatx80Exp(fpatan_table[n].atan_low);
+                uint64_t low_sig0 =
+                    extractFloatx80Frac(fpatan_table[n].atan_low);
+                uint64_t low_sig1 = 0;
+                axexp = extractFloatx80Exp(fpatan_table[n].atan_high);
+                axsig0 = extractFloatx80Frac(fpatan_table[n].atan_high);
+                axsig1 = 0;
+                shift128RightJamming(low_sig0, low_sig1, axexp - low_exp,
+                                     &low_sig0, &low_sig1);
+                if (low_sign) {
+                    sub128(axsig0, axsig1, low_sig0, low_sig1,
+                           &axsig0, &axsig1);
+                } else {
+                    add128(axsig0, axsig1, low_sig0, low_sig1,
+                           &axsig0, &axsig1);
+                }
+                if (azexp >= axexp) {
+                    shift128RightJamming(axsig0, axsig1, azexp - axexp + 1,
+                                         &axsig0, &axsig1);
+                    axexp = azexp + 1;
+                    shift128RightJamming(azsig0, azsig1, 1,
+                                         &azsig0, &azsig1);
+                } else {
+                    shift128RightJamming(axsig0, axsig1, 1,
+                                         &axsig0, &axsig1);
+                    shift128RightJamming(azsig0, azsig1, axexp - azexp + 1,
+                                         &azsig0, &azsig1);
+                    ++axexp;
+                }
+                if (zsign) {
+                    sub128(axsig0, axsig1, azsig0, azsig1,
+                           &axsig0, &axsig1);
+                } else {
+                    add128(axsig0, axsig1, azsig0, azsig1,
+                           &axsig0, &axsig1);
+                }
+            }
+
+            if (adj_exp == 0) {
+                rexp = axexp;
+                rsig0 = axsig0;
+                rsig1 = axsig1;
+            } else {
+                /*
+                 * Add or subtract arctan(x) (exponent axexp,
+                 * significand axsig0 and axsig1, positive, not
+                 * necessarily normalized) to the number given by
+                 * adj_exp, adj_sig0 and adj_sig1, according to
+                 * adj_sub.
+                 */
+                if (adj_exp >= axexp) {
+                    shift128RightJamming(axsig0, axsig1, adj_exp - axexp + 1,
+                                         &axsig0, &axsig1);
+                    rexp = adj_exp + 1;
+                    shift128RightJamming(adj_sig0, adj_sig1, 1,
+                                         &adj_sig0, &adj_sig1);
+                } else {
+                    shift128RightJamming(axsig0, axsig1, 1,
+                                         &axsig0, &axsig1);
+                    shift128RightJamming(adj_sig0, adj_sig1,
+                                         axexp - adj_exp + 1,
+                                         &adj_sig0, &adj_sig1);
+                    rexp = axexp + 1;
+                }
+                if (adj_sub) {
+                    sub128(adj_sig0, adj_sig1, axsig0, axsig1,
+                           &rsig0, &rsig1);
+                } else {
+                    add128(adj_sig0, adj_sig1, axsig0, axsig1,
+                           &rsig0, &rsig1);
+                }
+            }
+
+            env->fp_status.float_rounding_mode = save_mode;
+            env->fp_status.floatx80_rounding_precision = save_prec;
+        }
+        /* This result is inexact.  */
+        rsig1 |= 1;
+        ST1 = normalizeRoundAndPackFloatx80(80, rsign, rexp,
+                                            rsig0, rsig1, &env->fp_status);
+    }
+
     fpop(env);
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fxtract(CPUX86State *env)
@@ -934,139 +1777,438 @@ void helper_fxtract(CPUX86State *env)
     merge_exception_flags(env, old_flags);
 }
 
+static void helper_fprem_common(CPUX86State *env, bool mod)
+{
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t quotient;
+    CPU_LDoubleU temp0, temp1;
+    int exp0, exp1, expdiff;
+
+    temp0.d = ST0;
+    temp1.d = ST1;
+    exp0 = EXPD(temp0);
+    exp1 = EXPD(temp1);
+
+    env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
+    if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
+        exp0 == 0x7fff || exp1 == 0x7fff ||
+        floatx80_invalid_encoding(ST0) || floatx80_invalid_encoding(ST1)) {
+        ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
+    } else {
+        if (exp0 == 0) {
+            exp0 = 1 - clz64(temp0.l.lower);
+        }
+        if (exp1 == 0) {
+            exp1 = 1 - clz64(temp1.l.lower);
+        }
+        expdiff = exp0 - exp1;
+        if (expdiff < 64) {
+            ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
+            env->fpus |= (quotient & 0x4) << (8 - 2);  /* (C0) <-- q2 */
+            env->fpus |= (quotient & 0x2) << (14 - 1); /* (C3) <-- q1 */
+            env->fpus |= (quotient & 0x1) << (9 - 0);  /* (C1) <-- q0 */
+        } else {
+            /*
+             * Partial remainder.  This choice of how many bits to
+             * process at once is specified in AMD instruction set
+             * manuals, and empirically is followed by Intel
+             * processors as well; it ensures that the final remainder
+             * operation in a loop does produce the correct low three
+             * bits of the quotient.  AMD manuals specify that the
+             * flags other than C2 are cleared, and empirically Intel
+             * processors clear them as well.
+             */
+            int n = 32 + (expdiff % 32);
+            temp1.d = floatx80_scalbn(temp1.d, expdiff - n, &env->fp_status);
+            ST0 = floatx80_mod(ST0, temp1.d, &env->fp_status);
+            env->fpus |= 0x400;  /* C2 <-- 1 */
+        }
+    }
+    merge_exception_flags(env, old_flags);
+}
+
 void helper_fprem1(CPUX86State *env)
 {
-    double st0, st1, dblq, fpsrcop, fptemp;
-    CPU_LDoubleU fpsrcop1, fptemp1;
-    int expdif;
-    signed long long int q;
-
-    st0 = floatx80_to_double(env, ST0);
-    st1 = floatx80_to_double(env, ST1);
-
-    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(env, 0.0 / 0.0); /* NaN */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        return;
-    }
-
-    fpsrcop = st0;
-    fptemp = st1;
-    fpsrcop1.d = ST0;
-    fptemp1.d = ST1;
-    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
-
-    if (expdif < 0) {
-        /* optimisation? taken from the AMD docs */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* ST0 is unchanged */
-        return;
-    }
-
-    if (expdif < 53) {
-        dblq = fpsrcop / fptemp;
-        /* round dblq towards nearest integer */
-        dblq = rint(dblq);
-        st0 = fpsrcop - fptemp * dblq;
-
-        /* convert dblq to q by truncating towards zero */
-        if (dblq < 0.0) {
-            q = (signed long long int)(-dblq);
-        } else {
-            q = (signed long long int)dblq;
-        }
-
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
-    } else {
-        env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, expdif - 50);
-        fpsrcop = (st0 / st1) / fptemp;
-        /* fpsrcop = integer obtained by chopping */
-        fpsrcop = (fpsrcop < 0.0) ?
-                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        st0 -= (st1 * fpsrcop * fptemp);
-    }
-    ST0 = double_to_floatx80(env, st0);
+    helper_fprem_common(env, false);
 }
 
 void helper_fprem(CPUX86State *env)
 {
-    double st0, st1, dblq, fpsrcop, fptemp;
-    CPU_LDoubleU fpsrcop1, fptemp1;
-    int expdif;
-    signed long long int q;
+    helper_fprem_common(env, true);
+}
 
-    st0 = floatx80_to_double(env, ST0);
-    st1 = floatx80_to_double(env, ST1);
+/* 128-bit significand of log2(e).  */
+#define log2_e_sig_high 0xb8aa3b295c17f0bbULL
+#define log2_e_sig_low 0xbe87fed0691d3e89ULL
 
-    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(env, 0.0 / 0.0); /* NaN */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        return;
-    }
+/*
+ * Polynomial coefficients for an approximation to log2((1+x)/(1-x)),
+ * with only odd powers of x used, for x in the interval [2*sqrt(2)-3,
+ * 3-2*sqrt(2)], which corresponds to logarithms of numbers in the
+ * interval [sqrt(2)/2, sqrt(2)].
+ */
+#define fyl2x_coeff_0 make_floatx80(0x4000, 0xb8aa3b295c17f0bcULL)
+#define fyl2x_coeff_0_low make_floatx80(0xbfbf, 0x834972fe2d7bab1bULL)
+#define fyl2x_coeff_1 make_floatx80(0x3ffe, 0xf6384ee1d01febb8ULL)
+#define fyl2x_coeff_2 make_floatx80(0x3ffe, 0x93bb62877cdfa2e3ULL)
+#define fyl2x_coeff_3 make_floatx80(0x3ffd, 0xd30bb153d808f269ULL)
+#define fyl2x_coeff_4 make_floatx80(0x3ffd, 0xa42589eaf451499eULL)
+#define fyl2x_coeff_5 make_floatx80(0x3ffd, 0x864d42c0f8f17517ULL)
+#define fyl2x_coeff_6 make_floatx80(0x3ffc, 0xe3476578adf26272ULL)
+#define fyl2x_coeff_7 make_floatx80(0x3ffc, 0xc506c5f874e6d80fULL)
+#define fyl2x_coeff_8 make_floatx80(0x3ffc, 0xac5cf50cc57d6372ULL)
+#define fyl2x_coeff_9 make_floatx80(0x3ffc, 0xb1ed0066d971a103ULL)
 
-    fpsrcop = st0;
-    fptemp = st1;
-    fpsrcop1.d = ST0;
-    fptemp1.d = ST1;
-    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
+/*
+ * Compute an approximation of log2(1+arg), where 1+arg is in the
+ * interval [sqrt(2)/2, sqrt(2)].  It is assumed that when this
+ * function is called, rounding precision is set to 80 and the
+ * round-to-nearest mode is in effect.  arg must not be exactly zero,
+ * and must not be so close to zero that underflow might occur.
+ */
+static void helper_fyl2x_common(CPUX86State *env, floatx80 arg, int32_t *exp,
+                                uint64_t *sig0, uint64_t *sig1)
+{
+    uint64_t arg0_sig = extractFloatx80Frac(arg);
+    int32_t arg0_exp = extractFloatx80Exp(arg);
+    bool arg0_sign = extractFloatx80Sign(arg);
+    bool asign;
+    int32_t dexp, texp, aexp;
+    uint64_t dsig0, dsig1, tsig0, tsig1, rsig0, rsig1, rsig2;
+    uint64_t msig0, msig1, msig2, t2sig0, t2sig1, t2sig2, t2sig3;
+    uint64_t asig0, asig1, asig2, asig3, bsig0, bsig1;
+    floatx80 t2, accum;
 
-    if (expdif < 0) {
-        /* optimisation? taken from the AMD docs */
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* ST0 is unchanged */
-        return;
-    }
-
-    if (expdif < 53) {
-        dblq = fpsrcop / fptemp; /* ST0 / ST1 */
-        /* round dblq towards zero */
-        dblq = (dblq < 0.0) ? ceil(dblq) : floor(dblq);
-        st0 = fpsrcop - fptemp * dblq; /* fpsrcop is ST0 */
-
-        /* convert dblq to q by truncating towards zero */
-        if (dblq < 0.0) {
-            q = (signed long long int)(-dblq);
-        } else {
-            q = (signed long long int)dblq;
-        }
-
-        env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
-        /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
+    /*
+     * Compute an approximation of arg/(2+arg), with extra precision,
+     * as the argument to a polynomial approximation.  The extra
+     * precision is only needed for the first term of the
+     * approximation, with subsequent terms being significantly
+     * smaller; the approximation only uses odd exponents, and the
+     * square of arg/(2+arg) is at most 17-12*sqrt(2) = 0.029....
+     */
+    if (arg0_sign) {
+        dexp = 0x3fff;
+        shift128RightJamming(arg0_sig, 0, dexp - arg0_exp, &dsig0, &dsig1);
+        sub128(0, 0, dsig0, dsig1, &dsig0, &dsig1);
     } else {
-        int N = 32 + (expdif % 32); /* as per AMD docs */
-
-        env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, (double)(expdif - N));
-        fpsrcop = (st0 / st1) / fptemp;
-        /* fpsrcop = integer obtained by chopping */
-        fpsrcop = (fpsrcop < 0.0) ?
-                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        st0 -= (st1 * fpsrcop * fptemp);
+        dexp = 0x4000;
+        shift128RightJamming(arg0_sig, 0, dexp - arg0_exp, &dsig0, &dsig1);
+        dsig0 |= 0x8000000000000000ULL;
     }
-    ST0 = double_to_floatx80(env, st0);
+    texp = arg0_exp - dexp + 0x3ffe;
+    rsig0 = arg0_sig;
+    rsig1 = 0;
+    rsig2 = 0;
+    if (dsig0 <= rsig0) {
+        shift128Right(rsig0, rsig1, 1, &rsig0, &rsig1);
+        ++texp;
+    }
+    tsig0 = estimateDiv128To64(rsig0, rsig1, dsig0);
+    mul128By64To192(dsig0, dsig1, tsig0, &msig0, &msig1, &msig2);
+    sub192(rsig0, rsig1, rsig2, msig0, msig1, msig2,
+           &rsig0, &rsig1, &rsig2);
+    while ((int64_t) rsig0 < 0) {
+        --tsig0;
+        add192(rsig0, rsig1, rsig2, 0, dsig0, dsig1,
+               &rsig0, &rsig1, &rsig2);
+    }
+    tsig1 = estimateDiv128To64(rsig1, rsig2, dsig0);
+    /*
+     * No need to correct any estimation error in tsig1; even with
+     * such error, it is accurate enough.  Now compute the square of
+     * that approximation.
+     */
+    mul128To256(tsig0, tsig1, tsig0, tsig1,
+                &t2sig0, &t2sig1, &t2sig2, &t2sig3);
+    t2 = normalizeRoundAndPackFloatx80(80, false, texp + texp - 0x3ffe,
+                                       t2sig0, t2sig1, &env->fp_status);
+
+    /* Compute the lower parts of the polynomial expansion.  */
+    accum = floatx80_mul(fyl2x_coeff_9, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_8, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_7, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_6, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_5, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_4, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_3, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_2, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_1, accum, &env->fp_status);
+    accum = floatx80_mul(accum, t2, &env->fp_status);
+    accum = floatx80_add(fyl2x_coeff_0_low, accum, &env->fp_status);
+
+    /*
+     * The full polynomial expansion is fyl2x_coeff_0 + accum (where
+     * accum has much lower magnitude, and so, in particular, carry
+     * out of the addition is not possible), multiplied by t.  (This
+     * expansion is only accurate to about 70 bits, not 128 bits.)
+     */
+    aexp = extractFloatx80Exp(fyl2x_coeff_0);
+    asign = extractFloatx80Sign(fyl2x_coeff_0);
+    shift128RightJamming(extractFloatx80Frac(accum), 0,
+                         aexp - extractFloatx80Exp(accum),
+                         &asig0, &asig1);
+    bsig0 = extractFloatx80Frac(fyl2x_coeff_0);
+    bsig1 = 0;
+    if (asign == extractFloatx80Sign(accum)) {
+        add128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+    } else {
+        sub128(bsig0, bsig1, asig0, asig1, &asig0, &asig1);
+    }
+    /* Multiply by t to compute the required result.  */
+    mul128To256(asig0, asig1, tsig0, tsig1,
+                &asig0, &asig1, &asig2, &asig3);
+    aexp += texp - 0x3ffe;
+    *exp = aexp;
+    *sig0 = asig0;
+    *sig1 = asig1;
 }
 
 void helper_fyl2xp1(CPUX86State *env)
 {
-    double fptemp = floatx80_to_double(env, ST0);
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t arg0_sig = extractFloatx80Frac(ST0);
+    int32_t arg0_exp = extractFloatx80Exp(ST0);
+    bool arg0_sign = extractFloatx80Sign(ST0);
+    uint64_t arg1_sig = extractFloatx80Frac(ST1);
+    int32_t arg1_exp = extractFloatx80Exp(ST1);
+    bool arg1_sign = extractFloatx80Sign(ST1);
 
-    if ((fptemp + 1.0) > 0.0) {
-        fptemp = log(fptemp + 1.0) / log(2.0); /* log2(ST + 1.0) */
-        fptemp *= floatx80_to_double(env, ST1);
-        ST1 = double_to_floatx80(env, fptemp);
-        fpop(env);
+    if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST0, &env->fp_status);
+    } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST1, &env->fp_status);
+    } else if (floatx80_invalid_encoding(ST0) ||
+               floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        ST1 = ST0;
+    } else if (floatx80_is_any_nan(ST1)) {
+        /* Pass this NaN through.  */
+    } else if (arg0_exp > 0x3ffd ||
+               (arg0_exp == 0x3ffd && arg0_sig > (arg0_sign ?
+                                                  0x95f619980c4336f7ULL :
+                                                  0xd413cccfe7799211ULL))) {
+        /*
+         * Out of range for the instruction (ST0 must have absolute
+         * value less than 1 - sqrt(2)/2 = 0.292..., according to
+         * Intel manuals; AMD manuals allow a range from sqrt(2)/2 - 1
+         * to sqrt(2) - 1, which we allow here), treat as invalid.
+         */
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
+               arg1_exp == 0x7fff) {
+        /*
+         * One argument is zero, or multiplying by infinity; correct
+         * result is exact and can be obtained by multiplying the
+         * arguments.
+         */
+        ST1 = floatx80_mul(ST0, ST1, &env->fp_status);
+    } else if (arg0_exp < 0x3fb0) {
+        /*
+         * Multiplying both arguments and an extra-precision version
+         * of log2(e) is sufficiently precise.
+         */
+        uint64_t sig0, sig1, sig2;
+        int32_t exp;
+        if (arg0_exp == 0) {
+            normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
+        }
+        if (arg1_exp == 0) {
+            normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+        }
+        mul128By64To192(log2_e_sig_high, log2_e_sig_low, arg0_sig,
+                        &sig0, &sig1, &sig2);
+        exp = arg0_exp + 1;
+        mul128By64To192(sig0, sig1, arg1_sig, &sig0, &sig1, &sig2);
+        exp += arg1_exp - 0x3ffe;
+        /* This result is inexact.  */
+        sig1 |= 1;
+        ST1 = normalizeRoundAndPackFloatx80(80, arg0_sign ^ arg1_sign, exp,
+                                            sig0, sig1, &env->fp_status);
     } else {
-        env->fpus &= ~0x4700;
-        env->fpus |= 0x400;
+        int32_t aexp;
+        uint64_t asig0, asig1, asig2;
+        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.float_rounding_mode = float_round_nearest_even;
+        env->fp_status.floatx80_rounding_precision = 80;
+
+        helper_fyl2x_common(env, ST0, &aexp, &asig0, &asig1);
+        /*
+         * Multiply by the second argument to compute the required
+         * result.
+         */
+        if (arg1_exp == 0) {
+            normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+        }
+        mul128By64To192(asig0, asig1, arg1_sig, &asig0, &asig1, &asig2);
+        aexp += arg1_exp - 0x3ffe;
+        /* This result is inexact.  */
+        asig1 |= 1;
+        env->fp_status.float_rounding_mode = save_mode;
+        ST1 = normalizeRoundAndPackFloatx80(80, arg0_sign ^ arg1_sign, aexp,
+                                            asig0, asig1, &env->fp_status);
+        env->fp_status.floatx80_rounding_precision = save_prec;
     }
+    fpop(env);
+    merge_exception_flags(env, old_flags);
+}
+
+void helper_fyl2x(CPUX86State *env)
+{
+    uint8_t old_flags = save_exception_flags(env);
+    uint64_t arg0_sig = extractFloatx80Frac(ST0);
+    int32_t arg0_exp = extractFloatx80Exp(ST0);
+    bool arg0_sign = extractFloatx80Sign(ST0);
+    uint64_t arg1_sig = extractFloatx80Frac(ST1);
+    int32_t arg1_exp = extractFloatx80Exp(ST1);
+    bool arg1_sign = extractFloatx80Sign(ST1);
+
+    if (floatx80_is_signaling_nan(ST0, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST0, &env->fp_status);
+    } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_silence_nan(ST1, &env->fp_status);
+    } else if (floatx80_invalid_encoding(ST0) ||
+               floatx80_invalid_encoding(ST1)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_any_nan(ST0)) {
+        ST1 = ST0;
+    } else if (floatx80_is_any_nan(ST1)) {
+        /* Pass this NaN through.  */
+    } else if (arg0_sign && !floatx80_is_zero(ST0)) {
+        float_raise(float_flag_invalid, &env->fp_status);
+        ST1 = floatx80_default_nan(&env->fp_status);
+    } else if (floatx80_is_infinity(ST1)) {
+        FloatRelation cmp = floatx80_compare(ST0, floatx80_one,
+                                             &env->fp_status);
+        switch (cmp) {
+        case float_relation_less:
+            ST1 = floatx80_chs(ST1);
+            break;
+        case float_relation_greater:
+            /* Result is infinity of the same sign as ST1.  */
+            break;
+        default:
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST1 = floatx80_default_nan(&env->fp_status);
+            break;
+        }
+    } else if (floatx80_is_infinity(ST0)) {
+        if (floatx80_is_zero(ST1)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST1 = floatx80_default_nan(&env->fp_status);
+        } else if (arg1_sign) {
+            ST1 = floatx80_chs(ST0);
+        } else {
+            ST1 = ST0;
+        }
+    } else if (floatx80_is_zero(ST0)) {
+        if (floatx80_is_zero(ST1)) {
+            float_raise(float_flag_invalid, &env->fp_status);
+            ST1 = floatx80_default_nan(&env->fp_status);
+        } else {
+            /* Result is infinity with opposite sign to ST1.  */
+            float_raise(float_flag_divbyzero, &env->fp_status);
+            ST1 = make_floatx80(arg1_sign ? 0x7fff : 0xffff,
+                                0x8000000000000000ULL);
+        }
+    } else if (floatx80_is_zero(ST1)) {
+        if (floatx80_lt(ST0, floatx80_one, &env->fp_status)) {
+            ST1 = floatx80_chs(ST1);
+        }
+        /* Otherwise, ST1 is already the correct result.  */
+    } else if (floatx80_eq(ST0, floatx80_one, &env->fp_status)) {
+        if (arg1_sign) {
+            ST1 = floatx80_chs(floatx80_zero);
+        } else {
+            ST1 = floatx80_zero;
+        }
+    } else {
+        int32_t int_exp;
+        floatx80 arg0_m1;
+        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        signed char save_prec = env->fp_status.floatx80_rounding_precision;
+        env->fp_status.float_rounding_mode = float_round_nearest_even;
+        env->fp_status.floatx80_rounding_precision = 80;
+
+        if (arg0_exp == 0) {
+            normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
+        }
+        if (arg1_exp == 0) {
+            normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+        }
+        int_exp = arg0_exp - 0x3fff;
+        if (arg0_sig > 0xb504f333f9de6484ULL) {
+            ++int_exp;
+        }
+        arg0_m1 = floatx80_sub(floatx80_scalbn(ST0, -int_exp,
+                                               &env->fp_status),
+                               floatx80_one, &env->fp_status);
+        if (floatx80_is_zero(arg0_m1)) {
+            /* Exact power of 2; multiply by ST1.  */
+            env->fp_status.float_rounding_mode = save_mode;
+            ST1 = floatx80_mul(int32_to_floatx80(int_exp, &env->fp_status),
+                               ST1, &env->fp_status);
+        } else {
+            bool asign = extractFloatx80Sign(arg0_m1);
+            int32_t aexp;
+            uint64_t asig0, asig1, asig2;
+            helper_fyl2x_common(env, arg0_m1, &aexp, &asig0, &asig1);
+            if (int_exp != 0) {
+                bool isign = (int_exp < 0);
+                int32_t iexp;
+                uint64_t isig;
+                int shift;
+                int_exp = isign ? -int_exp : int_exp;
+                shift = clz32(int_exp) + 32;
+                isig = int_exp;
+                isig <<= shift;
+                iexp = 0x403e - shift;
+                shift128RightJamming(asig0, asig1, iexp - aexp,
+                                     &asig0, &asig1);
+                if (asign == isign) {
+                    add128(isig, 0, asig0, asig1, &asig0, &asig1);
+                } else {
+                    sub128(isig, 0, asig0, asig1, &asig0, &asig1);
+                }
+                aexp = iexp;
+                asign = isign;
+            }
+            /*
+             * Multiply by the second argument to compute the required
+             * result.
+             */
+            if (arg1_exp == 0) {
+                normalizeFloatx80Subnormal(arg1_sig, &arg1_exp, &arg1_sig);
+            }
+            mul128By64To192(asig0, asig1, arg1_sig, &asig0, &asig1, &asig2);
+            aexp += arg1_exp - 0x3ffe;
+            /* This result is inexact.  */
+            asig1 |= 1;
+            env->fp_status.float_rounding_mode = save_mode;
+            ST1 = normalizeRoundAndPackFloatx80(80, asign ^ arg1_sign, aexp,
+                                                asig0, asig1, &env->fp_status);
+        }
+
+        env->fp_status.floatx80_rounding_precision = save_prec;
+    }
+    fpop(env);
+    merge_exception_flags(env, old_flags);
 }
 
 void helper_fsqrt(CPUX86State *env)
