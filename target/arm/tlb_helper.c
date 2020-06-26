@@ -166,6 +166,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     int prot, ret;
     MemTxAttrs attrs = {};
     ARMMMUFaultInfo fi = {};
+    ARMCacheAttrs cacheattrs = {};
 
     /*
      * Walk the page table and (if the mapping exists) add the page
@@ -175,7 +176,8 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
      */
     ret = get_phys_addr(&cpu->env, address, access_type,
                         core_to_arm_mmu_idx(&cpu->env, mmu_idx),
-                        &phys_addr, &attrs, &prot, &page_size, &fi, NULL);
+                        &phys_addr, &attrs, &prot, &page_size,
+                        &fi, &cacheattrs);
     if (likely(!ret)) {
         /*
          * Map a single [sub]page. Regions smaller than our declared
