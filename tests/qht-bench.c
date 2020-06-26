@@ -289,11 +289,25 @@ static void pr_params(void)
 
 static void do_threshold(double rate, uint64_t *threshold)
 {
+    /*
+     * For 0 <= rate <= 1, scale to fit in a uint64_t.
+     *
+     * Scale by 2**64, with a special case for 1.0.
+     * The remainder of the possible values are scattered between 0
+     * and 0xfffffffffffff800 (nextafter(0x1p64, 0)).
+     *
+     * Note that we cannot simply scale by UINT64_MAX, because that
+     * value is not representable as an IEEE double value.
+     *
+     * If we scale by the next largest value, nextafter(0x1p64, 0),
+     * then the remainder of the possible values are scattered between
+     * 0 and 0xfffffffffffff000.  Which leaves us with a gap between
+     * the final two inputs that is twice as large as any other.
+     */
     if (rate == 1.0) {
         *threshold = UINT64_MAX;
     } else {
-        *threshold = (rate * 0xffff000000000000ull)
-                   + (rate * 0x0000ffffffffffffull);
+        *threshold = rate * 0x1p64;
     }
 }
 
