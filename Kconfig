@@ -1,0 +1,4 @@
+source Kconfig.host
+source backends/Kconfig
+source accel/Kconfig
+source hw/Kconfig
