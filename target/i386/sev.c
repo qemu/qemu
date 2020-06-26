@@ -680,6 +680,12 @@ sev_guest_init(const char *id)
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
 
+    ret = ram_block_discard_disable(true);
+    if (ret) {
+        error_report("%s: cannot disable RAM discard", __func__);
+        return NULL;
+    }
+
     sev = lookup_sev_guest_info(id);
     if (!sev) {
         error_report("%s: '%s' is not a valid '%s' object",
@@ -751,6 +757,7 @@ sev_guest_init(const char *id)
     return sev;
 err:
     sev_guest = NULL;
+    ram_block_discard_disable(false);
     return NULL;
 }
 
