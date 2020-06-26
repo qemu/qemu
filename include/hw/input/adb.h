@@ -39,6 +39,8 @@ typedef struct ADBDevice ADBDevice;
 typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
                               const uint8_t *buf, int len);
 
+typedef bool ADBDeviceHasData(ADBDevice *d);
+
 #define TYPE_ADB_DEVICE "adb-device"
 #define ADB_DEVICE(obj) OBJECT_CHECK(ADBDevice, (obj), TYPE_ADB_DEVICE)
 
@@ -49,7 +51,6 @@ struct ADBDevice {
 
     int devaddr;
     int handler;
-    bool disable_direct_reg3_writes;
 };
 
 #define ADB_DEVICE_CLASS(cls) \
@@ -63,10 +64,14 @@ typedef struct ADBDeviceClass {
     /*< public >*/
 
     ADBDeviceRequest *devreq;
+    ADBDeviceHasData *devhasdata;
 } ADBDeviceClass;
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
 #define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)
+
+#define ADB_STATUS_BUSTIMEOUT  0x1
+#define ADB_STATUS_POLLREPLY   0x2
 
 struct ADBBusState {
     /*< private >*/
@@ -74,13 +79,32 @@ struct ADBBusState {
     /*< public >*/
 
     ADBDevice *devices[MAX_ADB_DEVICES];
+    uint16_t pending;
     int nb_devices;
     int poll_index;
+    uint8_t status;
+
+    QEMUTimer *autopoll_timer;
+    bool autopoll_enabled;
+    bool autopoll_blocked;
+    uint8_t autopoll_rate_ms;
+    uint16_t autopoll_mask;
+    void (*autopoll_cb)(void *opaque);
+    void *autopoll_cb_opaque;
 };
 
 int adb_request(ADBBusState *s, uint8_t *buf_out,
                 const uint8_t *buf, int len);
 int adb_poll(ADBBusState *s, uint8_t *buf_out, uint16_t poll_mask);
+
+void adb_autopoll_block(ADBBusState *s);
+void adb_autopoll_unblock(ADBBusState *s);
+
+void adb_set_autopoll_enabled(ADBBusState *s, bool enabled);
+void adb_set_autopoll_rate_ms(ADBBusState *s, int rate_ms);
+void adb_set_autopoll_mask(ADBBusState *s, uint16_t mask);
+void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
+                                    void *opaque);
 
 #define TYPE_ADB_KEYBOARD "adb-keyboard"
 #define TYPE_ADB_MOUSE "adb-mouse"

@@ -106,13 +106,13 @@ typedef struct MacVIAState {
 
     /* ADB */
     ADBBusState adb_bus;
-    QEMUTimer *adb_poll_timer;
     qemu_irq adb_data_ready;
     int adb_data_in_size;
     int adb_data_in_index;
     int adb_data_out_index;
     uint8_t adb_data_in[128];
     uint8_t adb_data_out[16];
+    uint8_t adb_autopoll_cmd;
 } MacVIAState;
 
 #endif

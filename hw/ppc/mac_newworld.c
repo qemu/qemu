@@ -404,11 +404,9 @@ static void ppc_core99_init(MachineState *machine)
 
         adb_bus = qdev_get_child_bus(dev, "adb.0");
         dev = qdev_new(TYPE_ADB_KEYBOARD);
-        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", true);
         qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
         dev = qdev_new(TYPE_ADB_MOUSE);
-        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", true);
         qdev_realize_and_unref(dev, adb_bus, &error_fatal);
     }
 

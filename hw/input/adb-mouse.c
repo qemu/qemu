@@ -121,7 +121,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
         s->dx = 0;
         s->dy = 0;
         s->dz = 0;
-        trace_adb_mouse_flush();
+        trace_adb_device_mouse_flush();
         return 0;
     }
 
@@ -130,11 +130,21 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     olen = 0;
     switch (cmd) {
     case ADB_WRITEREG:
-        trace_adb_mouse_writereg(reg, buf[1]);
+        trace_adb_device_mouse_writereg(reg, buf[1]);
         switch (reg) {
         case 2:
             break;
         case 3:
+            /*
+             * MacOS 9 has a bug in its ADB driver whereby after configuring
+             * the ADB bus devices it sends another write of invalid length
+             * to reg 3. Make sure we ignore it to prevent an address clash
+             * with the previous device.
+             */
+            if (len != 3) {
+                return 0;
+            }
+
             switch (buf[2]) {
             case ADB_CMD_SELF_TEST:
                 break;
@@ -142,30 +152,28 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
             case ADB_CMD_CHANGE_ID_AND_ACT:
             case ADB_CMD_CHANGE_ID_AND_ENABLE:
                 d->devaddr = buf[1] & 0xf;
-                trace_adb_mouse_request_change_addr(d->devaddr);
+                trace_adb_device_mouse_request_change_addr(d->devaddr);
                 break;
             default:
-                if (!d->disable_direct_reg3_writes) {
-                    d->devaddr = buf[1] & 0xf;
-
-                    /* we support handlers:
-                     * 0x01: Classic Apple Mouse Protocol / 100 cpi operations
-                     * 0x02: Classic Apple Mouse Protocol / 200 cpi operations
-                     * we don't support handlers (at least):
-                     * 0x03: Mouse systems A3 trackball
-                     * 0x04: Extended Apple Mouse Protocol
-                     * 0x2f: Microspeed mouse
-                     * 0x42: Macally
-                     * 0x5f: Microspeed mouse
-                     * 0x66: Microspeed mouse
-                     */
-                    if (buf[2] == 1 || buf[2] == 2) {
-                        d->handler = buf[2];
-                    }
-
-                    trace_adb_mouse_request_change_addr_and_handler(
-                        d->devaddr, d->handler);
+                d->devaddr = buf[1] & 0xf;
+                /*
+                 * we support handlers:
+                 * 0x01: Classic Apple Mouse Protocol / 100 cpi operations
+                 * 0x02: Classic Apple Mouse Protocol / 200 cpi operations
+                 * we don't support handlers (at least):
+                 * 0x03: Mouse systems A3 trackball
+                 * 0x04: Extended Apple Mouse Protocol
+                 * 0x2f: Microspeed mouse
+                 * 0x42: Macally
+                 * 0x5f: Microspeed mouse
+                 * 0x66: Microspeed mouse
+                 */
+                if (buf[2] == 1 || buf[2] == 2) {
+                    d->handler = buf[2];
                 }
+
+                trace_adb_device_mouse_request_change_addr_and_handler(
+                    d->devaddr, d->handler);
                 break;
             }
         }
@@ -183,10 +191,18 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
             olen = 2;
             break;
         }
-        trace_adb_mouse_readreg(reg, obuf[0], obuf[1]);
+        trace_adb_device_mouse_readreg(reg, obuf[0], obuf[1]);
         break;
     }
     return olen;
+}
+
+static bool adb_mouse_has_data(ADBDevice *d)
+{
+    MouseState *s = ADB_MOUSE(d);
+
+    return !(s->last_buttons_state == s->buttons_state &&
+             s->dx == 0 && s->dy == 0);
 }
 
 static void adb_mouse_reset(DeviceState *dev)
@@ -244,6 +260,7 @@ static void adb_mouse_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_mouse_request;
+    adc->devhasdata = adb_mouse_has_data;
     dc->reset = adb_mouse_reset;
     dc->vmsd = &vmstate_adb_mouse;
 }

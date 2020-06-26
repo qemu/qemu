@@ -243,7 +243,7 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
     olen = 0;
     switch (cmd) {
     case ADB_WRITEREG:
-        trace_adb_kbd_writereg(reg, buf[1]);
+        trace_adb_device_kbd_writereg(reg, buf[1]);
         switch (reg) {
         case 2:
             /* LED status */
@@ -256,24 +256,22 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
             case ADB_CMD_CHANGE_ID_AND_ACT:
             case ADB_CMD_CHANGE_ID_AND_ENABLE:
                 d->devaddr = buf[1] & 0xf;
-                trace_adb_kbd_request_change_addr(d->devaddr);
+                trace_adb_device_kbd_request_change_addr(d->devaddr);
                 break;
             default:
-                if (!d->disable_direct_reg3_writes) {
-                    d->devaddr = buf[1] & 0xf;
-
-                    /* we support handlers:
-                     * 1: Apple Standard Keyboard
-                     * 2: Apple Extended Keyboard (LShift = RShift)
-                     * 3: Apple Extended Keyboard (LShift != RShift)
-                     */
-                    if (buf[2] == 1 || buf[2] == 2 || buf[2] == 3) {
-                        d->handler = buf[2];
-                    }
-
-                    trace_adb_kbd_request_change_addr_and_handler(d->devaddr,
-                                                                  d->handler);
+                d->devaddr = buf[1] & 0xf;
+                /*
+                 * we support handlers:
+                 * 1: Apple Standard Keyboard
+                 * 2: Apple Extended Keyboard (LShift = RShift)
+                 * 3: Apple Extended Keyboard (LShift != RShift)
+                 */
+                if (buf[2] == 1 || buf[2] == 2 || buf[2] == 3) {
+                    d->handler = buf[2];
                 }
+
+                trace_adb_device_kbd_request_change_addr_and_handler(
+                    d->devaddr, d->handler);
                 break;
             }
         }
@@ -296,10 +294,17 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
             olen = 2;
             break;
         }
-        trace_adb_kbd_readreg(reg, obuf[0], obuf[1]);
+        trace_adb_device_kbd_readreg(reg, obuf[0], obuf[1]);
         break;
     }
     return olen;
+}
+
+static bool adb_kbd_has_data(ADBDevice *d)
+{
+    KBDState *s = ADB_KEYBOARD(d);
+
+    return s->count > 0;
 }
 
 /* This is where keyboard events enter this file */
@@ -316,7 +321,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
     /* FIXME: take handler into account when translating qcode */
     keycode = qcode_to_adb_keycode[qcode];
     if (keycode == NO_KEY) {  /* We don't want to send this to the guest */
-        trace_adb_kbd_no_key();
+        trace_adb_device_kbd_no_key();
         return;
     }
     if (evt->u.key.data->down == false) { /* if key release event */
@@ -384,6 +389,7 @@ static void adb_kbd_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_kbd_request;
+    adc->devhasdata = adb_kbd_has_data;
     dc->reset = adb_kbd_reset;
     dc->vmsd = &vmstate_adb_kbd;
 }

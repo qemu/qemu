@@ -1,18 +1,25 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # adb-kbd.c
-adb_kbd_no_key(void) "Ignoring NO_KEY"
-adb_kbd_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
-adb_kbd_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
-adb_kbd_request_change_addr(int devaddr) "change addr to 0x%x"
-adb_kbd_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
+adb_device_kbd_no_key(void) "Ignoring NO_KEY"
+adb_device_kbd_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
+adb_device_kbd_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
+adb_device_kbd_request_change_addr(int devaddr) "change addr to 0x%x"
+adb_device_kbd_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
 
 # adb-mouse.c
-adb_mouse_flush(void) "flush"
-adb_mouse_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
-adb_mouse_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
-adb_mouse_request_change_addr(int devaddr) "change addr to 0x%x"
-adb_mouse_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
+adb_device_mouse_flush(void) "flush"
+adb_device_mouse_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
+adb_device_mouse_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
+adb_device_mouse_request_change_addr(int devaddr) "change addr to 0x%x"
+adb_device_mouse_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
+
+# adb.c
+adb_bus_request(uint8_t addr, const char *cmd, int size) "device 0x%x %s cmdsize=%d"
+adb_bus_request_done(uint8_t addr, const char *cmd, int size) "device 0x%x %s replysize=%d"
+adb_bus_autopoll_block(bool blocked) "blocked: %d"
+adb_bus_autopoll_cb(uint16_t mask) "executing autopoll_cb with autopoll mask 0x%x"
+adb_bus_autopoll_cb_done(uint16_t mask) "done executing autopoll_cb with autopoll mask 0x%x"
 
 # pckbd.c
 pckbd_kbd_read_data(uint32_t val) "0x%02x"

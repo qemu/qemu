@@ -218,10 +218,6 @@ typedef struct PMUState {
     /* ADB */
     bool has_adb;
     ADBBusState adb_bus;
-    uint16_t adb_poll_mask;
-    uint8_t autopoll_rate_ms;
-    uint8_t autopoll_mask;
-    QEMUTimer *adb_poll_timer;
     uint8_t adb_reply_size;
     uint8_t adb_reply[ADB_MAX_OUT_LEN];
 
