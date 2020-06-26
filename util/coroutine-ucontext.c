@@ -45,6 +45,11 @@ typedef struct {
     Coroutine base;
     void *stack;
     size_t stack_size;
+#ifdef CONFIG_SAFESTACK
+    /* Need an unsafe stack for each coroutine */
+    void *unsafe_stack;
+    size_t unsafe_stack_size;
+#endif
     sigjmp_buf env;
 
     void *tsan_co_fiber;
@@ -179,6 +184,10 @@ Coroutine *qemu_coroutine_new(void)
     co = g_malloc0(sizeof(*co));
     co->stack_size = COROUTINE_STACK_SIZE;
     co->stack = qemu_alloc_stack(&co->stack_size);
+#ifdef CONFIG_SAFESTACK
+    co->unsafe_stack_size = COROUTINE_STACK_SIZE;
+    co->unsafe_stack = qemu_alloc_stack(&co->unsafe_stack_size);
+#endif
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     uc.uc_link = &old_uc;
@@ -203,6 +212,22 @@ Coroutine *qemu_coroutine_new(void)
             COROUTINE_YIELD,
             &fake_stack_save,
             co->stack, co->stack_size, co->tsan_co_fiber);
+
+#ifdef CONFIG_SAFESTACK
+        /*
+         * Before we swap the context, set the new unsafe stack
+         * The unsafe stack grows just like the normal stack, so start from
+         * the last usable location of the memory area.
+         * NOTE: we don't have to re-set the usp afterwards because we are
+         * coming back to this context through a siglongjmp.
+         * The compiler already wrapped the corresponding sigsetjmp call with
+         * code that saves the usp on the (safe) stack before the call, and
+         * restores it right after (which is where we return with siglongjmp).
+         */
+        void *usp = co->unsafe_stack + co->unsafe_stack_size;
+        __safestack_unsafe_stack_ptr = usp;
+#endif
+
         swapcontext(&old_uc, &uc);
     }
 
@@ -235,6 +260,9 @@ void qemu_coroutine_delete(Coroutine *co_)
 #endif
 
     qemu_free_stack(co->stack, co->stack_size);
+#ifdef CONFIG_SAFESTACK
+    qemu_free_stack(co->unsafe_stack, co->unsafe_stack_size);
+#endif
     g_free(co);
 }
 
