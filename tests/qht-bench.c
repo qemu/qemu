@@ -25,7 +25,13 @@ struct thread_stats {
 struct thread_info {
     void (*func)(struct thread_info *);
     struct thread_stats stats;
-    uint64_t r;
+    /*
+     * Seed is in the range [1..UINT64_MAX], because the RNG requires
+     * a non-zero seed.  To use, subtract 1 and compare against the
+     * threshold with </>=.  This lets threshold = 0 never match (0% hit),
+     * and threshold = UINT64_MAX always match (100% hit).
+     */
+    uint64_t seed;
     bool write_op; /* writes alternate between insertions and removals */
     bool resize_down;
 } QEMU_ALIGNED(64); /* avoid false sharing among threads */
@@ -131,8 +137,9 @@ static uint64_t xorshift64star(uint64_t x)
 static void do_rz(struct thread_info *info)
 {
     struct thread_stats *stats = &info->stats;
+    uint64_t r = info->seed - 1;
 
-    if (info->r < resize_threshold) {
+    if (r < resize_threshold) {
         size_t size = info->resize_down ? resize_min : resize_max;
         bool resized;
 
@@ -151,13 +158,14 @@ static void do_rz(struct thread_info *info)
 static void do_rw(struct thread_info *info)
 {
     struct thread_stats *stats = &info->stats;
+    uint64_t r = info->seed - 1;
     uint32_t hash;
     long *p;
 
-    if (info->r >= update_threshold) {
+    if (r >= update_threshold) {
         bool read;
 
-        p = &keys[info->r & (lookup_range - 1)];
+        p = &keys[r & (lookup_range - 1)];
         hash = hfunc(*p);
         read = qht_lookup(&ht, p, hash);
         if (read) {
@@ -166,7 +174,7 @@ static void do_rw(struct thread_info *info)
             stats->not_rd++;
         }
     } else {
-        p = &keys[info->r & (update_range - 1)];
+        p = &keys[r & (update_range - 1)];
         hash = hfunc(*p);
         if (info->write_op) {
             bool written = false;
@@ -208,7 +216,7 @@ static void *thread_func(void *p)
 
     rcu_read_lock();
     while (!atomic_read(&test_stop)) {
-        info->r = xorshift64star(info->r);
+        info->seed = xorshift64star(info->seed);
         info->func(info);
     }
     rcu_read_unlock();
@@ -221,7 +229,7 @@ static void *thread_func(void *p)
 static void prepare_thread_info(struct thread_info *info, int i)
 {
     /* seed for the RNG; each thread should have a different one */
-    info->r = (i + 1) ^ time(NULL);
+    info->seed = (i + 1) ^ time(NULL);
     /* the first update will be a write */
     info->write_op = true;
     /* the first resize will be down */
