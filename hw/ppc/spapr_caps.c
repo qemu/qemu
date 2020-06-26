@@ -248,23 +248,18 @@ SpaprCapPossible cap_cfpc_possible = {
 static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
                                  Error **errp)
 {
-    Error *local_err = NULL;
     uint8_t kvm_val =  kvmppc_get_cap_safe_cache();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
-                   "TCG doesn't support requested feature, cap-cfpc=%s",
-                   cap_cfpc_possible.vals[val]);
+        warn_report("TCG doesn't support requested feature, cap-cfpc=%s",
+                    cap_cfpc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
                    "Requested safe cache capability level not supported by kvm,"
                    " try appending -machine cap-cfpc=%s",
                    cap_cfpc_possible.vals[kvm_val]);
     }
-
-    if (local_err != NULL)
-        warn_report_err(local_err);
 }
 
 SpaprCapPossible cap_sbbc_possible = {
@@ -277,23 +272,18 @@ SpaprCapPossible cap_sbbc_possible = {
 static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
                                         Error **errp)
 {
-    Error *local_err = NULL;
     uint8_t kvm_val =  kvmppc_get_cap_safe_bounds_check();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
-                   "TCG doesn't support requested feature, cap-sbbc=%s",
-                   cap_sbbc_possible.vals[val]);
+        warn_report("TCG doesn't support requested feature, cap-sbbc=%s",
+                    cap_sbbc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
 "Requested safe bounds check capability level not supported by kvm,"
                    " try appending -machine cap-sbbc=%s",
                    cap_sbbc_possible.vals[kvm_val]);
     }
-
-    if (local_err != NULL)
-        warn_report_err(local_err);
 }
 
 SpaprCapPossible cap_ibs_possible = {
@@ -309,23 +299,17 @@ SpaprCapPossible cap_ibs_possible = {
 static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
-    Error *local_err = NULL;
     uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
-                   "TCG doesn't support requested feature, cap-ibs=%s",
-                   cap_ibs_possible.vals[val]);
+        warn_report("TCG doesn't support requested feature, cap-ibs=%s",
+                    cap_ibs_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
 "Requested safe indirect branch capability level not supported by kvm,"
                    " try appending -machine cap-ibs=%s",
                    cap_ibs_possible.vals[kvm_val]);
-    }
-
-    if (local_err != NULL) {
-        warn_report_err(local_err);
     }
 }
 

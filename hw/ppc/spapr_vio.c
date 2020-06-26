@@ -420,7 +420,7 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
 }
 
 /*
- * The register property of a VIO device is defined in livirt using
+ * The register property of a VIO device is defined in libvirt using
  * 0x1000 as a base register number plus a 0x1000 increment. For the
  * VIO tty device, the base number is changed to 0x30000000. QEMU uses
  * a base register number of 0x71000000 and then a simple increment.
@@ -450,7 +450,7 @@ static inline uint32_t spapr_vio_reg_to_irq(uint32_t reg)
 
     } else if (reg >= 0x30000000) {
         /*
-         * VIO tty devices register values, when allocated by livirt,
+         * VIO tty devices register values, when allocated by libvirt,
          * are mapped in range [0xf0 - 0xff], gives us a maximum of 16
          * vtys.
          */
@@ -459,7 +459,7 @@ static inline uint32_t spapr_vio_reg_to_irq(uint32_t reg)
     } else {
         /*
          * Other VIO devices register values, when allocated by
-         * livirt, should be mapped in range [0x00 - 0xef]. Conflicts
+         * libvirt, should be mapped in range [0x00 - 0xef]. Conflicts
          * will be detected when IRQ is claimed.
          */
         irq = (reg >> 12) & 0xff;
