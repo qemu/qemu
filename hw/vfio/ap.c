@@ -105,12 +105,12 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
     vapdev->vdev.dev = dev;
 
     /*
-     * vfio-ap devices operate in a way compatible with
-     * memory ballooning, as no pages are pinned in the host.
+     * vfio-ap devices operate in a way compatible with discarding of
+     * memory in RAM blocks, as no pages are pinned in the host.
      * This needs to be set before vfio_get_device() for vfio common to
-     * handle the balloon inhibitor.
+     * handle ram_block_discard_disable().
      */
-    vapdev->vdev.balloon_allowed = true;
+    vapdev->vdev.ram_block_discard_allowed = true;
 
     ret = vfio_get_device(vfio_group, mdevid, &vapdev->vdev, errp);
     if (ret) {
