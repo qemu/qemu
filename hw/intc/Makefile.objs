@@ -51,3 +51,4 @@ obj-$(CONFIG_MIPS_CPS) += mips_gic.o
 obj-$(CONFIG_NIOS2) += nios2_iic.o
 obj-$(CONFIG_OMPIC) += ompic.o
 obj-$(CONFIG_IBEX) += ibex_plic.o
+obj-$(CONFIG_LOONGSON_LIOINTC) += loongson_liointc.o

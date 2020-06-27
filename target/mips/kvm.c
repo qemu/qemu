@@ -21,10 +21,12 @@
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
 #include "kvm_mips.h"
 #include "exec/memattrs.h"
+#include "hw/boards.h"
 
 #define DEBUG_KVM 0
 
@@ -1269,4 +1271,28 @@ int kvm_arch_release_virq_post(int virq)
 int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     abort();
+}
+
+int mips_kvm_type(MachineState *machine, const char *vm_type)
+{
+#if defined(KVM_CAP_MIPS_VZ) || defined(KVM_CAP_MIPS_TE)
+    int r;
+    KVMState *s = KVM_STATE(machine->accelerator);
+#endif
+
+#if defined(KVM_CAP_MIPS_VZ)
+    r = kvm_check_extension(s, KVM_CAP_MIPS_VZ);
+    if (r > 0) {
+        return KVM_VM_MIPS_VZ;
+    }
+#endif
+
+#if defined(KVM_CAP_MIPS_TE)
+    r = kvm_check_extension(s, KVM_CAP_MIPS_TE);
+    if (r > 0) {
+        return KVM_VM_MIPS_TE;
+    }
+#endif
+
+    return -1;
 }
