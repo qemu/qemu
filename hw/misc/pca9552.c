@@ -410,6 +410,7 @@ static const TypeInfo pca955x_info = {
     .instance_init = pca955x_initfn,
     .instance_size = sizeof(PCA955xState),
     .class_init    = pca955x_class_init,
+    .class_size    = sizeof(PCA955xClass),
     .abstract      = true,
 };
 
