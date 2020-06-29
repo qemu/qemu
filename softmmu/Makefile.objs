@@ -2,6 +2,7 @@ softmmu-main-y = softmmu/main.o
 
 obj-y += arch_init.o
 obj-y += cpus.o
+obj-y += cpu-throttle.o
 obj-y += balloon.o
 obj-y += ioport.o
 obj-y += memory.o
