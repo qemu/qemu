@@ -54,6 +54,11 @@ Options
   * flock|no_flock -
     Enable/disable flock.  The default is ``no_flock``.
 
+  * modcaps=CAPLIST
+    Modify the list of capabilities allowed; CAPLIST is a colon separated
+    list of capabilities, each preceded by either + or -, e.g.
+    ''+sys_admin:-chown''.
+
   * log_level=LEVEL -
     Print only log messages matching LEVEL or more severe.  LEVEL is one of
     ``err``, ``warn``, ``info``, or ``debug``.  The default is ``info``.
