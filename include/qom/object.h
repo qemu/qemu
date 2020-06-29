@@ -1047,7 +1047,7 @@ Object *object_ref(Object *obj);
 void object_unref(Object *obj);
 
 /**
- * object_property_add:
+ * object_property_try_add:
  * @obj: the object to add a property to
  * @name: the name of the property.  This can contain any character except for
  *  a forward slash.  In general, you should use hyphens '-' instead of
@@ -1064,9 +1064,22 @@ void object_unref(Object *obj);
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
+ * @errp: pointer to error object
  *
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
+ */
+ObjectProperty *object_property_try_add(Object *obj, const char *name,
+                                        const char *type,
+                                        ObjectPropertyAccessor *get,
+                                        ObjectPropertyAccessor *set,
+                                        ObjectPropertyRelease *release,
+                                        void *opaque, Error **errp);
+
+/**
+ * object_property_add:
+ * Same as object_property_try_add() with @errp hardcoded to
+ * &error_abort.
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
@@ -1518,10 +1531,11 @@ Object *object_resolve_path_type(const char *path, const char *typename,
 Object *object_resolve_path_component(Object *parent, const char *part);
 
 /**
- * object_property_add_child:
+ * object_property_try_add_child:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @child: the child object
+ * @errp: pointer to error object
  *
  * Child properties form the composition tree.  All objects need to be a child
  * of another object.  Objects can only be a child of one object.
@@ -1534,6 +1548,14 @@ Object *object_resolve_path_component(Object *parent, const char *part);
  * The child object itself can be retrieved using object_property_get_link().
  *
  * Returns: The newly added property on success, or %NULL on failure.
+ */
+ObjectProperty *object_property_try_add_child(Object *obj, const char *name,
+                                              Object *child, Error **errp);
+
+/**
+ * object_property_add_child:
+ * Same as object_property_try_add_child() with @errp hardcoded to
+ * &error_abort
  */
 ObjectProperty *object_property_add_child(Object *obj, const char *name,
                                           Object *child);
