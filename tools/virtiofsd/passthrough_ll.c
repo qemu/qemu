@@ -2598,7 +2598,9 @@ static void setup_capabilities(void)
             CAP_SETGID,
             CAP_SETUID,
             CAP_MKNOD,
-            CAP_SETFCAP);
+            CAP_SETFCAP,
+            -1);
+
     capng_apply(CAPNG_SELECT_BOTH);
 
     cap.saved = capng_save_state();
