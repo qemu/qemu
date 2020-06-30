@@ -399,7 +399,7 @@ sev_get_info(void)
 
 static int
 sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
-                 size_t *cert_chain_len)
+                 size_t *cert_chain_len, Error **errp)
 {
     guchar *pdh_data = NULL;
     guchar *cert_chain_data = NULL;
@@ -410,8 +410,8 @@ sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
     r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
     if (r < 0) {
         if (err != SEV_RET_INVALID_LEN) {
-            error_report("failed to export PDH cert ret=%d fw_err=%d (%s)",
-                         r, err, fw_error_to_str(err));
+            error_setg(errp, "failed to export PDH cert ret=%d fw_err=%d (%s)",
+                       r, err, fw_error_to_str(err));
             return 1;
         }
     }
@@ -423,8 +423,8 @@ sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
 
     r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
     if (r < 0) {
-        error_report("failed to export PDH cert ret=%d fw_err=%d (%s)",
-                     r, err, fw_error_to_str(err));
+        error_setg(errp, "failed to export PDH cert ret=%d fw_err=%d (%s)",
+                   r, err, fw_error_to_str(err));
         goto e_free;
     }
 
@@ -441,7 +441,7 @@ e_free:
 }
 
 SevCapability *
-sev_get_capabilities(void)
+sev_get_capabilities(Error **errp)
 {
     SevCapability *cap = NULL;
     guchar *pdh_data = NULL;
@@ -452,13 +452,13 @@ sev_get_capabilities(void)
 
     fd = open(DEFAULT_SEV_DEVICE, O_RDWR);
     if (fd < 0) {
-        error_report("%s: Failed to open %s '%s'", __func__,
-                     DEFAULT_SEV_DEVICE, strerror(errno));
+        error_setg_errno(errp, errno, "Failed to open %s",
+                         DEFAULT_SEV_DEVICE);
         return NULL;
     }
 
     if (sev_get_pdh_info(fd, &pdh_data, &pdh_len,
-                         &cert_chain_data, &cert_chain_len)) {
+                         &cert_chain_data, &cert_chain_len, errp)) {
         goto out;
     }
 
