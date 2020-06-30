@@ -56,7 +56,7 @@ static void virtio_iommu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
     object_property_set_link(OBJECT(dev),
                              OBJECT(pci_get_bus(&vpci_dev->pci_dev)),
-                             "primary-bus", errp);
+                             "primary-bus", &error_abort);
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
