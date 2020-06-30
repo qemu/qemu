@@ -11,7 +11,7 @@
 /**
  * Reference Specs: http://www.nvmexpress.org, 1.2, 1.1, 1.0e
  *
- *  http://www.nvmexpress.org/resources/
+ *  https://nvmexpress.org/developers/nvme-specification/
  */
 
 /**
