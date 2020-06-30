@@ -260,15 +260,13 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
         };
 
         object_property_set_uint(OBJECT(&s->esdhc[i]), 2, "sd-spec-version",
-                                 &err);
+                                 &error_abort);
         object_property_set_uint(OBJECT(&s->esdhc[i]), IMX25_ESDHC_CAPABILITIES,
-                                 "capareg", &err);
+                                 "capareg",
+                                 &error_abort);
         object_property_set_uint(OBJECT(&s->esdhc[i]), SDHCI_VENDOR_IMX,
-                                 "vendor", &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+                                 "vendor",
+                                 &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err);
         if (err) {
             error_propagate(errp, err);
