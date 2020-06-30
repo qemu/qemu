@@ -21,7 +21,7 @@ typedef struct QEMU_PACKED NvmeBar {
     uint32_t    pmrsts;
     uint32_t    pmrebs;
     uint32_t    pmrswtp;
-    uint32_t    pmrmsc;
+    uint64_t    pmrmsc;
 } NvmeBar;
 
 enum NvmeCapShift {
