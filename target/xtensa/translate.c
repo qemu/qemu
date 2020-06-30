@@ -6319,7 +6319,7 @@ enum {
 static void translate_compare_s(DisasContext *dc, const OpcodeArg arg[],
                                 const uint32_t par[])
 {
-    static void (* const helper[])(TCGv_env env, TCGv_i32 bit,
+    static void (* const helper[])(TCGv_i32 res, TCGv_env env,
                                    TCGv_i32 s, TCGv_i32 t) = {
         [COMPARE_UN] = gen_helper_un_s,
         [COMPARE_OEQ] = gen_helper_oeq_s,
@@ -6329,10 +6329,22 @@ static void translate_compare_s(DisasContext *dc, const OpcodeArg arg[],
         [COMPARE_OLE] = gen_helper_ole_s,
         [COMPARE_ULE] = gen_helper_ule_s,
     };
-    TCGv_i32 bit = tcg_const_i32(1 << arg[0].imm);
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 res = tcg_temp_new_i32();
+    TCGv_i32 set_br = tcg_temp_new_i32();
+    TCGv_i32 clr_br = tcg_temp_new_i32();
 
-    helper[par[0]](cpu_env, bit, arg[1].in, arg[2].in);
-    tcg_temp_free(bit);
+    tcg_gen_ori_i32(set_br, arg[0].in, 1 << arg[0].imm);
+    tcg_gen_andi_i32(clr_br, arg[0].in, ~(1 << arg[0].imm));
+
+    helper[par[0]](res, cpu_env, arg[1].in, arg[2].in);
+    tcg_gen_movcond_i32(TCG_COND_NE,
+                        arg[0].out, res, zero,
+                        set_br, clr_br);
+    tcg_temp_free(zero);
+    tcg_temp_free(res);
+    tcg_temp_free(set_br);
+    tcg_temp_free(clr_br);
 }
 
 static void translate_float_s(DisasContext *dc, const OpcodeArg arg[],
