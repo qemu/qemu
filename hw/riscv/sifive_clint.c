@@ -180,7 +180,7 @@ static const MemoryRegionOps sifive_clint_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
-        .max_access_size = 4
+        .max_access_size = 8
     }
 };
 
