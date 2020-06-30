@@ -610,9 +610,7 @@ static void qdict_rename_keys_test(void)
     copy = qdict_clone_shallow(dict);
     qdict_rename_keys(copy, renames, &local_err);
 
-    g_assert(local_err != NULL);
-    error_free(local_err);
-    local_err = NULL;
+    error_free_or_abort(&local_err);
 
     g_assert_cmpstr(qdict_get_str(copy, "abc"), ==, "foo");
     g_assert_cmpstr(qdict_get_str(copy, "abcdef"), ==, "bar");
@@ -649,9 +647,7 @@ static void qdict_crumple_test_bad_inputs(void)
     qdict_put_str(src, "rule.0.policy", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
-    g_assert(error != NULL);
-    error_free(error);
-    error = NULL;
+    error_free_or_abort(&error);
     qobject_unref(src);
 
     src = qdict_new();
@@ -660,9 +656,7 @@ static void qdict_crumple_test_bad_inputs(void)
     qdict_put_str(src, "rule.a", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
-    g_assert(error != NULL);
-    error_free(error);
-    error = NULL;
+    error_free_or_abort(&error);
     qobject_unref(src);
 
     src = qdict_new();
@@ -673,9 +667,7 @@ static void qdict_crumple_test_bad_inputs(void)
     qdict_put_str(src, "rule.b", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
-    g_assert(error != NULL);
-    error_free(error);
-    error = NULL;
+    error_free_or_abort(&error);
     qobject_unref(src);
 
     src = qdict_new();
@@ -684,9 +676,7 @@ static void qdict_crumple_test_bad_inputs(void)
     qdict_put_str(src, "rule.3", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
-    g_assert(error != NULL);
-    error_free(error);
-    error = NULL;
+    error_free_or_abort(&error);
     qobject_unref(src);
 
     src = qdict_new();
@@ -695,9 +685,7 @@ static void qdict_crumple_test_bad_inputs(void)
     qdict_put_str(src, "rule.+1", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
-    g_assert(error != NULL);
-    error_free(error);
-    error = NULL;
+    error_free_or_abort(&error);
     qobject_unref(src);
 }
 

@@ -115,9 +115,7 @@ static void test_update_perm_tree(void)
                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY, &error_abort);
 
     bdrv_append(filter, bs, &local_err);
-
-    g_assert_nonnull(local_err);
-    error_free(local_err);
+    error_free_or_abort(&local_err);
 
     blk_unref(root);
 }

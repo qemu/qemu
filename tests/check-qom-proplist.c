@@ -491,17 +491,14 @@ static void test_dummy_getenum(void)
                                    "av",
                                    "BadAnimal",
                                    &err);
-    g_assert(err != NULL);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
 
     /* A non-enum property name */
     val = object_property_get_enum(OBJECT(dobj),
                                    "iv",
                                    "DummyAnimal",
                                    &err);
-    g_assert(err != NULL);
-    error_free(err);
+    error_free_or_abort(&err);
 
     object_unparent(OBJECT(dobj));
 }

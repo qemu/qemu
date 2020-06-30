@@ -240,9 +240,7 @@ static void test_task_thread_failure(void)
     object_unref(obj);
 
     g_assert(data.source == obj);
-    g_assert(data.err != NULL);
-
-    error_free(data.err);
+    error_free_or_abort(&data.err);
 
     self = g_thread_self();
 

@@ -54,10 +54,9 @@ static void test_base64_bad(const char *input,
                                      &len,
                                      &err);
 
-    g_assert(err != NULL);
+    error_free_or_abort(&err);
     g_assert(actual == NULL);
     g_assert_cmpint(len, ==, 0);
-    error_free(err);
 }
 
 
