@@ -123,6 +123,7 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
     uint64_t old_cr0 = rvmcs(vcpu, VMCS_GUEST_CR0);
     uint64_t changed_cr0 = old_cr0 ^ cr0;
     uint64_t mask = CR0_PG | CR0_CD | CR0_NW | CR0_NE | CR0_ET;
+    uint64_t entry_ctls;
 
     if ((cr0 & CR0_PG) && (rvmcs(vcpu, VMCS_GUEST_CR4) & CR4_PAE) &&
         !(efer & MSR_EFER_LME)) {
@@ -146,6 +147,9 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
                 exit_long_mode(vcpu, cr0, efer);
             }
         }
+    } else {
+        entry_ctls = rvmcs(vcpu, VMCS_ENTRY_CTLS);
+        wvmcs(vcpu, VMCS_ENTRY_CTLS, entry_ctls & ~VM_ENTRY_GUEST_LMA);
     }
 
     /* Filter new CR0 after we are finished examining it above. */

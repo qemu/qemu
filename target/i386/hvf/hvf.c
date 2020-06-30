@@ -459,7 +459,6 @@ void hvf_reset_vcpu(CPUState *cpu) {
     /* TODO: this shouldn't be needed; there is already a call to
      * cpu_synchronize_all_post_reset in vl.c
      */
-    wvmcs(cpu->hvf_fd, VMCS_ENTRY_CTLS, 0);
     wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, 0);
 
     /* Initialize PDPTE */
