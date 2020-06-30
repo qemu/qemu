@@ -38,5 +38,8 @@ s390-netboot.img:
 	@echo "s390-netboot.img not built since roms/SLOF/ is not available."
 endif
 
+ALL_OBJS = $(sort $(OBJECTS) $(NETOBJS) $(LIBCOBJS) $(LIBNETOBJS))
+-include $(ALL_OBJS:%.o=%.d)
+
 clean:
 	rm -f *.o *.d *.img *.elf *~ *.a
