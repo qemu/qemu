@@ -1,7 +1,7 @@
 #ifndef BLOCK_NVME_H
 #define BLOCK_NVME_H
 
-typedef struct NvmeBar {
+typedef struct QEMU_PACKED NvmeBar {
     uint64_t    cap;
     uint32_t    vs;
     uint32_t    intms;
@@ -377,7 +377,7 @@ enum NvmePmrmscMask {
 #define NVME_PMRMSC_SET_CBA(pmrmsc, val)   \
     (pmrmsc |= (uint64_t)(val & PMRMSC_CBA_MASK) << PMRMSC_CBA_SHIFT)
 
-typedef struct NvmeCmd {
+typedef struct QEMU_PACKED NvmeCmd {
     uint8_t     opcode;
     uint8_t     fuse;
     uint16_t    cid;
@@ -422,7 +422,7 @@ enum NvmeIoCommands {
     NVME_CMD_DSM                = 0x09,
 };
 
-typedef struct NvmeDeleteQ {
+typedef struct QEMU_PACKED NvmeDeleteQ {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -432,7 +432,7 @@ typedef struct NvmeDeleteQ {
     uint32_t    rsvd11[5];
 } NvmeDeleteQ;
 
-typedef struct NvmeCreateCq {
+typedef struct QEMU_PACKED NvmeCreateCq {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -449,7 +449,7 @@ typedef struct NvmeCreateCq {
 #define NVME_CQ_FLAGS_PC(cq_flags)  (cq_flags & 0x1)
 #define NVME_CQ_FLAGS_IEN(cq_flags) ((cq_flags >> 1) & 0x1)
 
-typedef struct NvmeCreateSq {
+typedef struct QEMU_PACKED NvmeCreateSq {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -474,7 +474,7 @@ enum NvmeQueueFlags {
     NVME_Q_PRIO_LOW     = 3,
 };
 
-typedef struct NvmeIdentify {
+typedef struct QEMU_PACKED NvmeIdentify {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -486,7 +486,7 @@ typedef struct NvmeIdentify {
     uint32_t    rsvd11[5];
 } NvmeIdentify;
 
-typedef struct NvmeRwCmd {
+typedef struct QEMU_PACKED NvmeRwCmd {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -528,7 +528,7 @@ enum {
     NVME_RW_PRINFO_PRCHK_REF    = 1 << 10,
 };
 
-typedef struct NvmeDsmCmd {
+typedef struct QEMU_PACKED NvmeDsmCmd {
     uint8_t     opcode;
     uint8_t     flags;
     uint16_t    cid;
@@ -547,7 +547,7 @@ enum {
     NVME_DSMGMT_AD  = 1 << 2,
 };
 
-typedef struct NvmeDsmRange {
+typedef struct QEMU_PACKED NvmeDsmRange {
     uint32_t    cattr;
     uint32_t    nlb;
     uint64_t    slba;
@@ -569,14 +569,14 @@ enum NvmeAsyncEventRequest {
     NVME_AER_INFO_SMART_SPARE_THRESH        = 2,
 };
 
-typedef struct NvmeAerResult {
+typedef struct QEMU_PACKED NvmeAerResult {
     uint8_t event_type;
     uint8_t event_info;
     uint8_t log_page;
     uint8_t resv;
 } NvmeAerResult;
 
-typedef struct NvmeCqe {
+typedef struct QEMU_PACKED NvmeCqe {
     uint32_t    result;
     uint32_t    rsvd;
     uint16_t    sq_head;
@@ -634,7 +634,7 @@ enum NvmeStatusCodes {
     NVME_NO_COMPLETE            = 0xffff,
 };
 
-typedef struct NvmeFwSlotInfoLog {
+typedef struct QEMU_PACKED NvmeFwSlotInfoLog {
     uint8_t     afi;
     uint8_t     reserved1[7];
     uint8_t     frs1[8];
@@ -647,7 +647,7 @@ typedef struct NvmeFwSlotInfoLog {
     uint8_t     reserved2[448];
 } NvmeFwSlotInfoLog;
 
-typedef struct NvmeErrorLog {
+typedef struct QEMU_PACKED NvmeErrorLog {
     uint64_t    error_count;
     uint16_t    sqid;
     uint16_t    cid;
@@ -659,7 +659,7 @@ typedef struct NvmeErrorLog {
     uint8_t     resv[35];
 } NvmeErrorLog;
 
-typedef struct NvmeSmartLog {
+typedef struct QEMU_PACKED NvmeSmartLog {
     uint8_t     critical_warning;
     uint8_t     temperature[2];
     uint8_t     available_spare;
@@ -693,7 +693,7 @@ enum LogIdentifier {
     NVME_LOG_FW_SLOT_INFO   = 0x03,
 };
 
-typedef struct NvmePSD {
+typedef struct QEMU_PACKED NvmePSD {
     uint16_t    mp;
     uint16_t    reserved;
     uint32_t    enlat;
@@ -713,7 +713,7 @@ enum {
     NVME_ID_CNS_NS_ACTIVE_LIST = 0x2,
 };
 
-typedef struct NvmeIdCtrl {
+typedef struct QEMU_PACKED NvmeIdCtrl {
     uint16_t    vid;
     uint16_t    ssvid;
     uint8_t     sn[20];
@@ -807,7 +807,7 @@ enum NvmeFeatureIds {
     NVME_SOFTWARE_PROGRESS_MARKER   = 0x80
 };
 
-typedef struct NvmeRangeType {
+typedef struct QEMU_PACKED NvmeRangeType {
     uint8_t     type;
     uint8_t     attributes;
     uint8_t     rsvd2[14];
@@ -817,13 +817,13 @@ typedef struct NvmeRangeType {
     uint8_t     rsvd48[16];
 } NvmeRangeType;
 
-typedef struct NvmeLBAF {
+typedef struct QEMU_PACKED NvmeLBAF {
     uint16_t    ms;
     uint8_t     ds;
     uint8_t     rp;
 } NvmeLBAF;
 
-typedef struct NvmeIdNs {
+typedef struct QEMU_PACKED NvmeIdNs {
     uint64_t    nsze;
     uint64_t    ncap;
     uint64_t    nuse;
