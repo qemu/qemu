@@ -495,6 +495,7 @@ test_file_monitor_events(void)
             if (*op->watchid < 0) {
                 g_printerr("Unable to add watch %s",
                            error_get_pretty(local_err));
+                error_free(local_err);
                 goto cleanup;
             }
             if (debug) {
