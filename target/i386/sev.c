@@ -450,6 +450,15 @@ sev_get_capabilities(Error **errp)
     uint32_t ebx;
     int fd;
 
+    if (!kvm_enabled()) {
+        error_setg(errp, "KVM not enabled");
+        return NULL;
+    }
+    if (kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_OP, NULL) < 0) {
+        error_setg(errp, "SEV is not enabled in KVM");
+        return NULL;
+    }
+
     fd = open(DEFAULT_SEV_DEVICE, O_RDWR);
     if (fd < 0) {
         error_setg_errno(errp, errno, "Failed to open %s",
