@@ -300,11 +300,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* I2C */
-    object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram",
+                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &err);
     if (err) {
         error_propagate(errp, err);
@@ -315,11 +312,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_I2C));
 
     /* FMC, The number of CS is set at the board level */
-    object_property_set_link(OBJECT(&s->fmc), OBJECT(s->dram_mr), "dram", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_set_link(OBJECT(&s->fmc), OBJECT(s->dram_mr), "dram",
+                             &error_abort);
     object_property_set_int(OBJECT(&s->fmc), sc->memmap[ASPEED_SDRAM],
                             "sdram-base", &err);
     if (err) {

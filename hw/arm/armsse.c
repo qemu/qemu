@@ -563,16 +563,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                                                 &s->container, -1);
         }
         object_property_set_link(cpuobj, OBJECT(&s->cpu_container[i]),
-                                 "memory", &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
-        object_property_set_link(cpuobj, OBJECT(s), "idau", &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+                                 "memory", &error_abort);
+        object_property_set_link(cpuobj, OBJECT(s), "idau", &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(cpuobj), &err);
         if (err) {
             error_propagate(errp, err);
@@ -699,11 +691,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             return;
         }
         object_property_set_link(OBJECT(&s->mpc[i]), OBJECT(&s->sram[i]),
-                                 "downstream", &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+                                 "downstream", &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->mpc[i]), &err);
         if (err) {
             error_propagate(errp, err);
@@ -754,11 +742,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer0), 0,
                        armsse_get_common_irq_in(s, 3));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer0), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[0]", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[0]",
+                             &error_abort);
 
     qdev_prop_set_uint32(DEVICE(&s->timer1), "pclk-frq", s->mainclk_frq);
     sysbus_realize(SYS_BUS_DEVICE(&s->timer1), &err);
@@ -769,12 +754,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer1), 0,
                        armsse_get_common_irq_in(s, 4));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer1), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[1]", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
+    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[1]",
+                             &error_abort);
 
     qdev_prop_set_uint32(DEVICE(&s->dualtimer), "pclk-frq", s->mainclk_frq);
     sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), &err);
@@ -785,11 +766,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dualtimer), 0,
                        armsse_get_common_irq_in(s, 5));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dualtimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[2]", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[2]",
+                             &error_abort);
 
     if (info->has_mhus) {
         /*
@@ -814,12 +792,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             port = g_strdup_printf("port[%d]", i + 3);
             mr = sysbus_mmio_get_region(mhu_sbd, 0);
             object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr),
-                                     port, &err);
+                                     port, &error_abort);
             g_free(port);
-            if (err) {
-                error_propagate(errp, err);
-                return;
-            }
 
             /*
              * Each MHU has an irq line for each CPU:
@@ -966,11 +940,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->s32ktimer), 0,
                        armsse_get_common_irq_in(s, 2));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->s32ktimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc1), OBJECT(mr), "port[0]", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    object_property_set_link(OBJECT(&s->apb_ppc1), OBJECT(mr), "port[0]",
+                             &error_abort);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc1), &err);
     if (err) {
