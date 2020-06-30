@@ -23,15 +23,15 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 
-void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
+void qbus_set_hotplug_handler(BusState *bus, Object *handler)
 {
     object_property_set_link(OBJECT(bus), handler,
-                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
+                             QDEV_HOTPLUG_HANDLER_PROPERTY, &error_abort);
 }
 
 void qbus_set_bus_hotplug_handler(BusState *bus)
 {
-    qbus_set_hotplug_handler(bus, OBJECT(bus), &error_abort);
+    qbus_set_hotplug_handler(bus, OBJECT(bus));
 }
 
 int qbus_walk_children(BusState *bus,
