@@ -53,8 +53,7 @@ static void test_visitor_in_int(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "-42");
 
-    visit_type_int(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_int(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, value);
 
     v = visitor_input_test_init(data, "not an int");
@@ -327,44 +326,37 @@ static void test_visitor_in_uintList(TestInputVisitorData *data,
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *err = NULL;
     bool res = false;
     Visitor *v;
 
     v = visitor_input_test_init(data, "true");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, true);
 
     v = visitor_input_test_init(data, "yes");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, true);
 
     v = visitor_input_test_init(data, "on");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, true);
 
     v = visitor_input_test_init(data, "false");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, false);
 
     v = visitor_input_test_init(data, "no");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, false);
 
     v = visitor_input_test_init(data, "off");
 
-    visit_type_bool(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, false);
 }
 
@@ -377,8 +369,7 @@ static void test_visitor_in_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "3.14");
 
-    visit_type_number(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
 
     /* NaN and infinity has to be rejected */
@@ -399,13 +390,11 @@ static void test_visitor_in_string(TestInputVisitorData *data,
                                    const void *unused)
 {
     char *res = NULL, *value = (char *) "Q E M U";
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, value);
 
-    visit_type_str(v, NULL, &res, &err);
-    g_assert(!err);
+    visit_type_str(v, NULL, &res, &error_abort);
     g_assert_cmpstr(res, ==, value);
 
     g_free(res);
@@ -414,7 +403,6 @@ static void test_visitor_in_string(TestInputVisitorData *data,
 static void test_visitor_in_enum(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *err = NULL;
     Visitor *v;
     EnumOne i;
 
@@ -423,8 +411,7 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, EnumOne_str(i));
 
-        visit_type_EnumOne(v, NULL, &res, &err);
-        g_assert(!err);
+        visit_type_EnumOne(v, NULL, &res, &error_abort);
         g_assert_cmpint(i, ==, res);
     }
 }

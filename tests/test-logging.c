@@ -113,7 +113,6 @@ static void test_logfile_write(gconstpointer data)
     QemuLogFile *logfile;
     QemuLogFile *logfile2;
     gchar const *dir = data;
-    Error *err = NULL;
     g_autofree gchar *file_path = NULL;
     g_autofree gchar *file_path1 = NULL;
     FILE *orig_fd;
@@ -132,8 +131,7 @@ static void test_logfile_write(gconstpointer data)
      * Test that even if an open file handle is changed,
      * our handle remains valid due to RCU.
      */
-    qemu_set_log_filename(file_path, &err);
-    g_assert(!err);
+    qemu_set_log_filename(file_path, &error_abort);
     rcu_read_lock();
     logfile = atomic_rcu_read(&qemu_logfile);
     orig_fd = logfile->fd;
@@ -142,8 +140,7 @@ static void test_logfile_write(gconstpointer data)
     fflush(logfile->fd);
 
     /* Change the logfile and ensure that the handle is still valid. */
-    qemu_set_log_filename(file_path1, &err);
-    g_assert(!err);
+    qemu_set_log_filename(file_path1, &error_abort);
     logfile2 = atomic_rcu_read(&qemu_logfile);
     g_assert(logfile->fd == orig_fd);
     g_assert(logfile2->fd != logfile->fd);
@@ -156,7 +153,6 @@ static void test_logfile_lock(gconstpointer data)
 {
     FILE *logfile;
     gchar const *dir = data;
-    Error *err = NULL;
     g_autofree gchar *file_path = NULL;
 
     file_path = g_build_filename(dir, "qemu_test_logfile_lock0.log", NULL);
@@ -166,7 +162,7 @@ static void test_logfile_lock(gconstpointer data)
      * that even if an open file handle is closed,
      * our handle remains valid for use due to RCU.
      */
-    qemu_set_log_filename(file_path, &err);
+    qemu_set_log_filename(file_path, &error_abort);
     logfile = qemu_log_lock();
     g_assert(logfile);
     fprintf(logfile, "%s 1st write to file\n", __func__);
@@ -180,8 +176,6 @@ static void test_logfile_lock(gconstpointer data)
     fprintf(logfile, "%s 2nd write to file\n", __func__);
     fflush(logfile);
     qemu_log_unlock(logfile);
-
-    g_assert(!err);
 }
 
 /* Remove a directory and all its entries (non-recursive). */

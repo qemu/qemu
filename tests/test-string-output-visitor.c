@@ -71,11 +71,9 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
     int64_t value = 42;
-    Error *err = NULL;
     char *str;
 
-    visit_type_int(data->ov, NULL, &value, &err);
-    g_assert(!err);
+    visit_type_int(data->ov, NULL, &value, &error_abort);
 
     str = visitor_get(data);
     if (data->human) {
@@ -120,12 +118,10 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
 static void test_visitor_out_bool(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *err = NULL;
     bool value = true;
     char *str;
 
-    visit_type_bool(data->ov, NULL, &value, &err);
-    g_assert(!err);
+    visit_type_bool(data->ov, NULL, &value, &error_abort);
 
     str = visitor_get(data);
     g_assert_cmpstr(str, ==, "true");
@@ -135,11 +131,9 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
                                     const void *unused)
 {
     double value = 3.14;
-    Error *err = NULL;
     char *str;
 
-    visit_type_number(data->ov, NULL, &value, &err);
-    g_assert(!err);
+    visit_type_number(data->ov, NULL, &value, &error_abort);
 
     str = visitor_get(data);
     g_assert_cmpstr(str, ==, "3.140000");
@@ -150,11 +144,9 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
 {
     char *string = (char *) "Q E M U";
     const char *string_human = "\"Q E M U\"";
-    Error *err = NULL;
     char *str;
 
-    visit_type_str(data->ov, NULL, &string, &err);
-    g_assert(!err);
+    visit_type_str(data->ov, NULL, &string, &error_abort);
 
     str = visitor_get(data);
     if (data->human) {

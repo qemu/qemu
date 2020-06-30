@@ -187,7 +187,6 @@ static void test_qemu_opt_get(void)
 
 static void test_qemu_opt_get_bool(void)
 {
-    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
     bool opt;
@@ -210,16 +209,14 @@ static void test_qemu_opt_get_bool(void)
     opt = qemu_opt_get_bool(opts, "bool1", false);
     g_assert(opt == false);
 
-    qemu_opt_set_bool(opts, "bool1", true, &err);
-    g_assert(!err);
+    qemu_opt_set_bool(opts, "bool1", true, &error_abort);
 
     /* now we have set bool1, should know about it */
     opt = qemu_opt_get_bool(opts, "bool1", false);
     g_assert(opt == true);
 
     /* having reset the value, opt should be the reset one not defval */
-    qemu_opt_set_bool(opts, "bool1", false, &err);
-    g_assert(!err);
+    qemu_opt_set_bool(opts, "bool1", false, &error_abort);
 
     opt = qemu_opt_get_bool(opts, "bool1", true);
     g_assert(opt == false);
@@ -233,7 +230,6 @@ static void test_qemu_opt_get_bool(void)
 
 static void test_qemu_opt_get_number(void)
 {
-    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
     uint64_t opt;
@@ -256,16 +252,14 @@ static void test_qemu_opt_get_number(void)
     opt = qemu_opt_get_number(opts, "number1", 5);
     g_assert(opt == 5);
 
-    qemu_opt_set_number(opts, "number1", 10, &err);
-    g_assert(!err);
+    qemu_opt_set_number(opts, "number1", 10, &error_abort);
 
     /* now we have set number1, should know about it */
     opt = qemu_opt_get_number(opts, "number1", 5);
     g_assert(opt == 10);
 
     /* having reset it, the returned should be the reset one not defval */
-    qemu_opt_set_number(opts, "number1", 15, &err);
-    g_assert(!err);
+    qemu_opt_set_number(opts, "number1", 15, &error_abort);
 
     opt = qemu_opt_get_number(opts, "number1", 5);
     g_assert(opt == 15);
@@ -367,7 +361,6 @@ static void test_qemu_opt_unset(void)
 
 static void test_qemu_opts_reset(void)
 {
-    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
     uint64_t opt;
@@ -390,8 +383,7 @@ static void test_qemu_opts_reset(void)
     opt = qemu_opt_get_number(opts, "number1", 5);
     g_assert(opt == 5);
 
-    qemu_opt_set_number(opts, "number1", 10, &err);
-    g_assert(!err);
+    qemu_opt_set_number(opts, "number1", 10, &error_abort);
 
     /* now we have set number1, should know about it */
     opt = qemu_opt_get_number(opts, "number1", 5);
@@ -406,7 +398,6 @@ static void test_qemu_opts_reset(void)
 
 static void test_qemu_opts_set(void)
 {
-    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
     const char *opt;
@@ -421,8 +412,7 @@ static void test_qemu_opts_set(void)
     g_assert(opts == NULL);
 
     /* implicitly create opts and set str3 value */
-    qemu_opts_set(list, NULL, "str3", "value", &err);
-    g_assert(!err);
+    qemu_opts_set(list, NULL, "str3", "value", &error_abort);
     g_assert(!QTAILQ_EMPTY(&list->head));
 
     /* get the just created opts */
