@@ -29,9 +29,9 @@ void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
                              QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
 }
 
-void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp)
+void qbus_set_bus_hotplug_handler(BusState *bus)
 {
-    qbus_set_hotplug_handler(bus, OBJECT(bus), errp);
+    qbus_set_hotplug_handler(bus, OBJECT(bus), &error_abort);
 }
 
 int qbus_walk_children(BusState *bus,

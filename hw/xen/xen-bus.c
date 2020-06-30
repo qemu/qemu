@@ -1391,5 +1391,5 @@ void xen_bus_init(void)
     BusState *bus = qbus_create(TYPE_XEN_BUS, dev, NULL);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    qbus_set_bus_hotplug_handler(bus, &error_abort);
+    qbus_set_bus_hotplug_handler(bus);
 }

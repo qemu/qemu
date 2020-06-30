@@ -537,7 +537,7 @@ char *qdev_get_dev_path(DeviceState *dev);
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp);
 
-void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp);
+void qbus_set_bus_hotplug_handler(BusState *bus);
 
 static inline bool qbus_is_hotpluggable(BusState *bus)
 {
