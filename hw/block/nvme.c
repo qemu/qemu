@@ -55,7 +55,6 @@
 #include "nvme.h"
 
 #define NVME_MAX_IOQPAIRS 0xffff
-#define NVME_REG_SIZE 0x1000
 #define NVME_DB_SIZE  4
 #define NVME_CMB_BIR 2
 #define NVME_PMR_BIR 2
@@ -1322,7 +1321,7 @@ static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
     NvmeCtrl *n = (NvmeCtrl *)opaque;
     if (addr < sizeof(n->bar)) {
         nvme_write_bar(n, addr, data, size);
-    } else if (addr >= 0x1000) {
+    } else {
         nvme_process_db(n, addr, data);
     }
 }
@@ -1415,7 +1414,7 @@ static void nvme_init_state(NvmeCtrl *n)
 {
     n->num_namespaces = 1;
     /* add one to max_ioqpairs to account for the admin queue pair */
-    n->reg_size = pow2ceil(NVME_REG_SIZE +
+    n->reg_size = pow2ceil(sizeof(NvmeBar) +
                            2 * (n->params.max_ioqpairs + 1) * NVME_DB_SIZE);
     n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
     n->sq = g_new0(NvmeSQueue *, n->params.max_ioqpairs + 1);
