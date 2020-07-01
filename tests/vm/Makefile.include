@@ -6,7 +6,7 @@ IMAGES := freebsd netbsd openbsd centos fedora
 ifneq ($(GENISOIMAGE),)
 IMAGES += ubuntu.i386 centos
 ifneq ($(EFI_AARCH64),)
-IMAGES += ubuntu.aarch64
+IMAGES += ubuntu.aarch64 centos.aarch64
 endif
 endif
 
@@ -28,6 +28,7 @@ ifneq ($(GENISOIMAGE),)
 	@echo "  vm-build-ubuntu.i386            - Build QEMU in ubuntu i386 VM"
 ifneq ($(EFI_AARCH64),)
 	@echo "  vm-build-ubuntu.aarch64         - Build QEMU in ubuntu aarch64 VM"
+	@echo "  vm-build-centos.aarch64         - Build QEMU in CentOS aarch64 VM"
 else
 	@echo "  (to build centos/ubuntu aarch64 images use configure --efi-aarch64)"
 endif
