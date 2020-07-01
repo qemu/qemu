@@ -95,6 +95,11 @@ static inline void set_snan_bit_is_one(bool val, float_status *status)
     status->snan_bit_is_one = val;
 }
 
+static inline void set_no_signaling_nans(bool val, float_status *status)
+{
+    status->no_signaling_nans = val;
+}
+
 static inline bool get_float_detect_tininess(float_status *status)
 {
     return status->tininess_before_rounding;
