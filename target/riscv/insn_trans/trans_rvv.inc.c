@@ -1754,3 +1754,7 @@ GEN_OPIVV_TRANS(vasub_vv, opivv_check)
 GEN_OPIVX_TRANS(vaadd_vx,  opivx_check)
 GEN_OPIVX_TRANS(vasub_vx,  opivx_check)
 GEN_OPIVI_TRANS(vaadd_vi, 0, vaadd_vx, opivx_check)
+
+/* Vector Single-Width Fractional Multiply with Rounding and Saturation */
+GEN_OPIVV_TRANS(vsmul_vv, opivv_check)
+GEN_OPIVX_TRANS(vsmul_vx,  opivx_check)
