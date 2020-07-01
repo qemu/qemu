@@ -52,8 +52,10 @@ typedef struct {
 #endif
     sigjmp_buf env;
 
+#ifdef CONFIG_TSAN
     void *tsan_co_fiber;
     void *tsan_caller_fiber;
+#endif
 
 #ifdef CONFIG_VALGRIND_H
     unsigned int valgrind_stack_id;
@@ -77,7 +79,10 @@ union cc_arg {
     int i[2];
 };
 
-/* QEMU_ALWAYS_INLINE only does so if __OPTIMIZE__, so we cannot use it. */
+/*
+ * QEMU_ALWAYS_INLINE only does so if __OPTIMIZE__, so we cannot use it.
+ * always_inline is required to avoid TSan runtime fatal errors.
+ */
 static inline __attribute__((always_inline))
 void on_new_fiber(CoroutineUContext *co)
 {
@@ -87,6 +92,7 @@ void on_new_fiber(CoroutineUContext *co)
 #endif
 }
 
+/* always_inline is required to avoid TSan runtime fatal errors. */
 static inline __attribute__((always_inline))
 void finish_switch_fiber(void *fake_stack_save)
 {
@@ -109,18 +115,29 @@ void finish_switch_fiber(void *fake_stack_save)
 #endif
 }
 
-static inline __attribute__((always_inline)) void start_switch_fiber(
-    CoroutineAction action, void **fake_stack_save,
-    const void *bottom, size_t size, void *new_fiber)
+/* always_inline is required to avoid TSan runtime fatal errors. */
+static inline __attribute__((always_inline))
+void start_switch_fiber_asan(CoroutineAction action, void **fake_stack_save,
+                             const void *bottom, size_t size)
 {
 #ifdef CONFIG_ASAN
     __sanitizer_start_switch_fiber(
             action == COROUTINE_TERMINATE ? NULL : fake_stack_save,
             bottom, size);
 #endif
+}
+
+/* always_inline is required to avoid TSan runtime fatal errors. */
+static inline __attribute__((always_inline))
+void start_switch_fiber_tsan(void **fake_stack_save,
+                             CoroutineUContext *co,
+                             bool caller)
+{
 #ifdef CONFIG_TSAN
-    void *curr_fiber =
-        __tsan_get_current_fiber();
+    void *new_fiber = caller ?
+                      co->tsan_caller_fiber :
+                      co->tsan_co_fiber;
+    void *curr_fiber = __tsan_get_current_fiber();
     __tsan_acquire(curr_fiber);
 
     *fake_stack_save = curr_fiber;
@@ -144,12 +161,9 @@ static void coroutine_trampoline(int i0, int i1)
 
     /* Initialize longjmp environment and switch back the caller */
     if (!sigsetjmp(self->env, 0)) {
-        start_switch_fiber(
-            COROUTINE_YIELD,
-            &fake_stack_save,
-            leader.stack,
-            leader.stack_size,
-            self->tsan_caller_fiber);
+        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save, leader.stack,
+                                leader.stack_size);
+        start_switch_fiber_tsan(&fake_stack_save, self, true); /* true=caller */
         siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
     }
 
@@ -208,10 +222,10 @@ Coroutine *qemu_coroutine_new(void)
 
     /* swapcontext() in, siglongjmp() back out */
     if (!sigsetjmp(old_env, 0)) {
-        start_switch_fiber(
-            COROUTINE_YIELD,
-            &fake_stack_save,
-            co->stack, co->stack_size, co->tsan_co_fiber);
+        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save, co->stack,
+                                co->stack_size);
+        start_switch_fiber_tsan(&fake_stack_save,
+                                co, false); /* false=not caller */
 
 #ifdef CONFIG_SAFESTACK
         /*
@@ -287,8 +301,10 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
     ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
-        start_switch_fiber(action, &fake_stack_save,
-                           to->stack, to->stack_size, to->tsan_co_fiber);
+        start_switch_fiber_asan(action, &fake_stack_save, to->stack,
+                                to->stack_size);
+        start_switch_fiber_tsan(&fake_stack_save,
+                                to, false); /* false=not caller */
         siglongjmp(to->env, action);
     }
 
