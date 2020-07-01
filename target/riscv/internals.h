@@ -21,4 +21,9 @@
 
 #include "hw/registerfields.h"
 
+/* share data between vector helpers and decode code */
+FIELD(VDATA, MLEN, 0, 8)
+FIELD(VDATA, VM, 8, 1)
+FIELD(VDATA, LMUL, 9, 2)
+FIELD(VDATA, NF, 11, 4)
 #endif
