@@ -50,7 +50,7 @@ class RxGdbSimMachine(Test):
         :avocado: tags=machine:gdbsim-r5f562n7
         :avocado: tags=endian:little
         """
-        dtb_url = ('https://acc.dl.osdn.jp/users/23/23887/rx-qemu.dtb')
+        dtb_url = ('https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb')
         dtb_hash = '7b4e4e2c71905da44e86ce47adee2210b026ac18'
         dtb_path = self.fetch_asset(dtb_url, asset_hash=dtb_hash)
         kernel_url = ('http://acc.dl.osdn.jp/users/23/23845/zImage')
