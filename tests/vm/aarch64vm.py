@@ -46,7 +46,7 @@ def get_config_defaults(vmcls, default_config):
 def aarch_get_config_defaults(vmcls):
     """Set the defaults for current version of QEMU."""
     config = CURRENT_CONFIG
-    args, argv = basevm.parse_args(vmcls)
+    args = basevm.parse_args(vmcls)
     qemu_path = basevm.get_qemu_path(vmcls.arch, args.build_path)
     qemu_version = basevm.get_qemu_version(qemu_path)
     if qemu_version < QEMU_AARCH64_MIN_VERSION:
