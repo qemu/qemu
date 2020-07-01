@@ -643,7 +643,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
                 /* Transparent Translation Register bit */
                 env->mmu.mmusr = M68K_MMU_T_040 | M68K_MMU_R_040;
             }
-            *physical = address & TARGET_PAGE_MASK;
+            *physical = address;
             *page_size = TARGET_PAGE_SIZE;
             return 0;
         }
@@ -771,7 +771,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     }
     *page_size = 1 << page_bits;
     page_mask = ~(*page_size - 1);
-    *physical = next & page_mask;
+    *physical = (next & page_mask) + (address & (*page_size - 1));
 
     if (access_type & ACCESS_PTEST) {
         env->mmu.mmusr |= next & M68K_MMU_SR_MASK_040;
@@ -826,8 +826,6 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         return -1;
     }
 
-    addr &= TARGET_PAGE_MASK;
-    phys_addr += addr & (page_size - 1);
     return phys_addr;
 }
 
@@ -891,10 +889,8 @@ bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     ret = get_physical_address(&cpu->env, &physical, &prot,
                                address, access_type, &page_size);
     if (likely(ret == 0)) {
-        address &= TARGET_PAGE_MASK;
-        physical += address & (page_size - 1);
-        tlb_set_page(cs, address, physical,
-                     prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                     physical & TARGET_PAGE_MASK, prot, mmu_idx, page_size);
         return true;
     }
 
@@ -1383,9 +1379,8 @@ void HELPER(ptest)(CPUM68KState *env, uint32_t addr, uint32_t is_read)
     ret = get_physical_address(env, &physical, &prot, addr,
                                access_type, &page_size);
     if (ret == 0) {
-        addr &= TARGET_PAGE_MASK;
-        physical += addr & (page_size - 1);
-        tlb_set_page(env_cpu(env), addr, physical,
+        tlb_set_page(env_cpu(env), addr & TARGET_PAGE_MASK,
+                     physical & TARGET_PAGE_MASK,
                      prot, access_type & ACCESS_SUPER ?
                      MMU_KERNEL_IDX : MMU_USER_IDX, page_size);
     }
