@@ -1,8 +1,12 @@
+# Currently we have two build stages after our containers are built:
+#  - build (for traditional build and test or first stage build)
+#  - test (for test stages, using build artefacts from a build stage)
 stages:
   - containers
   - containers-layer2
   - containers-layer3
   - build
+  - test
 
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
@@ -24,25 +28,84 @@ include:
         ../configure --enable-werror $CONFIGURE_ARGS ;
       fi
     - make -j"$JOBS"
-    - make -j"$JOBS" $MAKE_CHECK_ARGS
+    - if test -n "$MAKE_CHECK_ARGS";
+      then
+        make $MAKE_CHECK_ARGS ;
+      fi
 
-build-system1:
+.native_test_job_template: &native_test_job_definition
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  script:
+    - cd build
+    - find . -type f -exec touch {} +
+    - make $MAKE_CHECK_ARGS
+
+.post_acceptance_template: &post_acceptance
+  after_script:
+    - cd build
+    - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
+    - du -chs $HOME/avocado/data/cache
+
+build-system-ubuntu-main:
   <<: *native_build_job_definition
   variables:
     IMAGE: ubuntu2004
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu lm32-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu m68k-softmmu ppc-softmmu
       riscv64-softmmu sparc-softmmu
+  artifacts:
+    paths:
+      - build
+
+check-system-ubuntu-main:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-ubuntu-main
+      artifacts: true
+  variables:
+    IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
 
-build-system2:
+acceptance-system-ubuntu-main:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-ubuntu-main
+      artifacts: true
+  variables:
+    IMAGE: ubuntu2004
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *post_acceptance
+
+build-system-fedora-alt:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
     TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
       riscv32-softmmu s390x-softmmu sh4-softmmu sparc64-softmmu x86_64-softmmu
       xtensa-softmmu nios2-softmmu or1k-softmmu
+  artifacts:
+    paths:
+      - build
+
+check-system-fedora-alt:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-fedora-alt
+      artifacts: true
+  variables:
+    IMAGE: fedora
     MAKE_CHECK_ARGS: check
+
+acceptance-system-fedora-alt:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-fedora-alt
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *post_acceptance
 
 build-disabled:
   <<: *native_build_job_definition
