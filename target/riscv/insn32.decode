@@ -44,6 +44,7 @@
 &u    imm rd
 &shift     shamt rs1 rd
 &atomic    aq rl rs2 rs1 rd
+&rmrr      vm rd rs1 rs2
 &rwdvm     vm wd rd rs1 rs2
 &r2nfvm    vm rd rs1 nf
 &rnfvm     vm rd rs1 rs2 nf
@@ -68,6 +69,7 @@
 @r2      .......   ..... ..... ... ..... ....... %rs1 %rd
 @r2_nfvm ... ... vm:1 ..... ..... ... ..... ....... &r2nfvm %nf %rs1 %rd
 @r_nfvm  ... ... vm:1 ..... ..... ... ..... ....... &rnfvm %nf %rs2 %rs1 %rd
+@r_vm    ...... vm:1 ..... ..... ... ..... ....... &rmrr %rs2 %rs1 %rd
 @r_wdvm  ..... wd:1 vm:1 ..... ..... ... ..... ....... &rwdvm %rs2 %rs1 %rd
 @r2_zimm . zimm:11  ..... ... ..... ....... %rs1 %rd
 
@@ -277,5 +279,13 @@ vamominuw_v     11000 . . ..... ..... 110 ..... 0101111 @r_wdvm
 vamomaxuw_v     11100 . . ..... ..... 110 ..... 0101111 @r_wdvm
 
 # *** new major opcode OP-V ***
+vadd_vv         000000 . ..... ..... 000 ..... 1010111 @r_vm
+vadd_vx         000000 . ..... ..... 100 ..... 1010111 @r_vm
+vadd_vi         000000 . ..... ..... 011 ..... 1010111 @r_vm
+vsub_vv         000010 . ..... ..... 000 ..... 1010111 @r_vm
+vsub_vx         000010 . ..... ..... 100 ..... 1010111 @r_vm
+vrsub_vx        000011 . ..... ..... 100 ..... 1010111 @r_vm
+vrsub_vi        000011 . ..... ..... 011 ..... 1010111 @r_vm
+
 vsetvli         0 ........... ..... 111 ..... 1010111  @r2_zimm
 vsetvl          1000000 ..... ..... 111 ..... 1010111  @r
