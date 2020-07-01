@@ -17,7 +17,8 @@ typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
     VHOST_BACKEND_TYPE_KERNEL = 1,
     VHOST_BACKEND_TYPE_USER = 2,
-    VHOST_BACKEND_TYPE_MAX = 3,
+    VHOST_BACKEND_TYPE_VDPA = 3,
+    VHOST_BACKEND_TYPE_MAX = 4,
 } VhostBackendType;
 
 typedef enum VhostSetConfigType {
@@ -170,6 +171,7 @@ typedef struct VhostOps {
 } VhostOps;
 
 extern const VhostOps user_ops;
+extern const VhostOps vdpa_ops;
 
 int vhost_set_backend_type(struct vhost_dev *dev,
                            VhostBackendType backend_type);

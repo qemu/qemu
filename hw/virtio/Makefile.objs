@@ -5,6 +5,7 @@ obj-y += virtio.o
 obj-$(CONFIG_VHOST) += vhost.o vhost-backend.o
 common-obj-$(call lnot,$(CONFIG_VHOST)) += vhost-stub.o
 obj-$(CONFIG_VHOST_USER) += vhost-user.o
+obj-$(CONFIG_VHOST_VDPA) += vhost-vdpa.o
 
 common-obj-$(CONFIG_VIRTIO_RNG) += virtio-rng.o
 common-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o

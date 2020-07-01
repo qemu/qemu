@@ -43,6 +43,7 @@
 #include "monitor/qdev.h"
 #include "hw/pci/pci.h"
 #include "net_rx_pkt.h"
+#include "hw/virtio/vhost.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -125,6 +126,8 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     VirtIONet *n = VIRTIO_NET(vdev);
     struct virtio_net_config netcfg;
 
+    int ret = 0;
+    memset(&netcfg, 0 , sizeof(struct virtio_net_config));
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
     virtio_stw_p(vdev, &netcfg.mtu, n->net_conf.mtu);
@@ -138,6 +141,15 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     virtio_stl_p(vdev, &netcfg.supported_hash_types,
                  VIRTIO_NET_RSS_SUPPORTED_HASHES);
     memcpy(config, &netcfg, n->config_size);
+
+    NetClientState *nc = qemu_get_queue(n->nic);
+    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
+                             n->config_size);
+    if (ret != -1) {
+        memcpy(config, &netcfg, n->config_size);
+    }
+    }
 }
 
 static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
@@ -153,6 +165,13 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
         qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
     }
+
+    NetClientState *nc = qemu_get_queue(n->nic);
+    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        vhost_net_set_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
+                               0, n->config_size,
+                        VHOST_SET_CONFIG_TYPE_MASTER);
+      }
 }
 
 static bool virtio_net_started(VirtIONet *n, uint8_t status)

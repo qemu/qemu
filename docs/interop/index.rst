@@ -20,3 +20,4 @@ Contents:
    qemu-ga
    vhost-user
    vhost-user-gpu
+   vhost-vdpa
