@@ -143,10 +143,9 @@ build-tcg-disabled:
 build-user:
   <<: *native_build_job_definition
   variables:
-    IMAGE: ubuntu2004
-    CONFIGURE_ARGS: --disable-system --disable-guest-agent
-      --disable-capstone --disable-slirp --disable-fdt
-    MAKE_CHECK_ARGS:  run-tcg-tests-i386-linux-user run-tcg-tests-x86_64-linux-user
+    IMAGE: debian-all-test-cross
+    CONFIGURE_ARGS: --disable-tools --disable-system
+    MAKE_CHECK_ARGS: check-tcg
 
 build-clang:
   <<: *native_build_job_definition
