@@ -2624,6 +2624,15 @@ F: tests/uefi-test-tools/
 F: .gitlab-ci.d/edk2.yml
 F: .gitlab-ci.d/edk2/
 
+VT-d Emulation
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Peter Xu <peterx@redhat.com>
+R: Jason Wang <jasowang@redhat.com>
+S: Supported
+F: hw/i386/intel_iommu.c
+F: hw/i386/intel_iommu_internal.h
+F: include/hw/i386/intel_iommu.h
+
 Usermode Emulation
 ------------------
 Overall usermode emulation
