@@ -80,7 +80,12 @@ ENV PACKAGES \
     pixman-devel \
     python3 \
     python3-PyYAML \
+    python3-numpy \
+    python3-opencv \
+    python3-pillow \
+    python3-pip \
     python3-sphinx \
+    python3-virtualenv \
     rdma-core-devel \
     SDL2-devel \
     snappy-devel \
@@ -89,6 +94,8 @@ ENV PACKAGES \
     systemd-devel \
     systemtap-sdt-devel \
     tar \
+    tesseract \
+    tesseract-langpack-eng \
     texinfo \
     usbredir-devel \
     virglrenderer-devel \
