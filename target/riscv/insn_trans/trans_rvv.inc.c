@@ -2324,3 +2324,21 @@ GEN_OPFV_NARROW_TRANS(vfncvt_x_f_v)
 GEN_OPFV_NARROW_TRANS(vfncvt_f_xu_v)
 GEN_OPFV_NARROW_TRANS(vfncvt_f_x_v)
 GEN_OPFV_NARROW_TRANS(vfncvt_f_f_v)
+
+/*
+ *** Vector Reduction Operations
+ */
+/* Vector Single-Width Integer Reduction Instructions */
+static bool reduction_check(DisasContext *s, arg_rmrr *a)
+{
+    return vext_check_isa_ill(s) && vext_check_reg(s, a->rs2, false);
+}
+
+GEN_OPIVV_TRANS(vredsum_vs, reduction_check)
+GEN_OPIVV_TRANS(vredmaxu_vs, reduction_check)
+GEN_OPIVV_TRANS(vredmax_vs, reduction_check)
+GEN_OPIVV_TRANS(vredminu_vs, reduction_check)
+GEN_OPIVV_TRANS(vredmin_vs, reduction_check)
+GEN_OPIVV_TRANS(vredand_vs, reduction_check)
+GEN_OPIVV_TRANS(vredor_vs, reduction_check)
+GEN_OPIVV_TRANS(vredxor_vs, reduction_check)
