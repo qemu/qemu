@@ -56,7 +56,6 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
-#include "exec/address-spaces.h"
 
 #include <libfdt.h>
 
