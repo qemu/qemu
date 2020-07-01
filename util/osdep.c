@@ -341,6 +341,22 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 }
 
 
+int qemu_open(const char *name, int flags, Error **errp)
+{
+    assert(!(flags & O_CREAT));
+
+    return qemu_open_internal(name, flags, 0, errp);
+}
+
+
+int qemu_create(const char *name, int flags, mode_t mode, Error **errp)
+{
+    assert(!(flags & O_CREAT));
+
+    return qemu_open_internal(name, flags | O_CREAT, mode, errp);
+}
+
+
 int qemu_open_old(const char *name, int flags, ...)
 {
     va_list ap;
