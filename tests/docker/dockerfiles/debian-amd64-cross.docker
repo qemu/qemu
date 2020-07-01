@@ -4,7 +4,7 @@
 # This docker target is used on non-x86_64 machines which need the
 # x86_64 cross compilers installed.
 #
-FROM qemu:debian10
+FROM qemu/debian10
 MAINTAINER Alex Bennée <alex.bennee@linaro.org>
 
 # Add the foreign architecture we want and install dependencies

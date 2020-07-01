@@ -29,8 +29,8 @@ build:
   pre_ci:
     - make docker-image-${IMAGE} V=1
   pre_ci_boot:
-    image_name: qemu
-    image_tag: ${IMAGE}
+    image_name: qemu/${IMAGE}
+    image_tag: latest
     pull: false
     options: "-e HOME=/root"
   ci:

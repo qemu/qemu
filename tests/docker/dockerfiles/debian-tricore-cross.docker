@@ -7,7 +7,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-FROM qemu:debian9
+FROM qemu/debian9
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 

@@ -50,12 +50,12 @@ docker-image: ${DOCKER_TARGETS}
 ifdef SKIP_DOCKER_BUILD
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 	$(call quiet-command, \
-		$(DOCKER_SCRIPT) check --quiet qemu:$* $<, \
+		$(DOCKER_SCRIPT) check --quiet qemu/$* $<, \
 		"CHECK", "$*")
 else
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 	$(call quiet-command,\
-		$(DOCKER_SCRIPT) build -t qemu:$* -f $< \
+		$(DOCKER_SCRIPT) build -t qemu/$* -f $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
 		$(if $(NOUSER),,--add-current-user) \
 		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))\
@@ -75,14 +75,14 @@ docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 			DEB_ARCH=$(DEB_ARCH)					\
 			DEB_TYPE=$(DEB_TYPE) 					\
 			$(if $(DEB_URL),DEB_URL=$(DEB_URL),)			\
-			$(DOCKER_SCRIPT) build qemu:debian-$* $< 		\
+			$(DOCKER_SCRIPT) build qemu/debian-$* $< 		\
 			$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
 			$(if $(NOUSER),,--add-current-user) 			\
 			$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
 			$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
 			"BUILD","binfmt debian-$* (debootstrapped)"),		\
 		$(call quiet-command,						\
-			$(DOCKER_SCRIPT) check --quiet qemu:debian-$* $< || 	\
+			$(DOCKER_SCRIPT) check --quiet qemu/debian-$* $< || 	\
 			{ echo "You will need to build $(EXECUTABLE)"; exit 1;},\
 			"CHECK", "debian-$* exists"))
 
@@ -258,7 +258,7 @@ docker-run: docker-qemu-src
 docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
 docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
 docker-run-%:
-	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu:$(IMAGE)
+	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu/$(IMAGE)
 
 docker-clean:
 	$(call quiet-command, $(DOCKER_SCRIPT) clean)
