@@ -64,6 +64,13 @@ amd64-debian-cross-container:
   variables:
     NAME: debian-amd64-cross
 
+amd64-debian-user-cross-container:
+  <<: *container_job_definition
+  stage: containers-layer2
+  needs: ['amd64-debian10-container']
+  variables:
+    NAME: debian-all-test-cross
+
 amd64-debian-container:
   <<: *container_job_definition
   stage: containers-layer2
