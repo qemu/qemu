@@ -810,6 +810,11 @@ static int vhost_dev_set_features(struct vhost_dev *dev,
     if (!vhost_dev_has_iommu(dev)) {
         features &= ~(0x1ULL << VIRTIO_F_IOMMU_PLATFORM);
     }
+    if (dev->vhost_ops->vhost_force_iommu) {
+        if (dev->vhost_ops->vhost_force_iommu(dev) == true) {
+            features |= 0x1ULL << VIRTIO_F_IOMMU_PLATFORM;
+       }
+    }
     r = dev->vhost_ops->vhost_set_features(dev, features);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_features failed");
