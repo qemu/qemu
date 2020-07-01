@@ -478,6 +478,7 @@ static void virt_machine_init(MachineState *machine)
     char *plic_hart_config;
     size_t plic_hart_config_len;
     target_ulong start_addr = memmap[VIRT_DRAM].base;
+    uint32_t fdt_load_addr;
     int i;
     unsigned int smp_cpus = machine->smp.cpus;
 
@@ -532,9 +533,13 @@ static void virt_machine_init(MachineState *machine)
         start_addr = virt_memmap[VIRT_FLASH].base;
     }
 
+    /* Compute the fdt load address in dram */
+    fdt_load_addr = riscv_load_fdt(memmap[VIRT_DRAM].base,
+                                   machine->ram_size, s->fdt);
     /* load the reset vector */
     riscv_setup_rom_reset_vec(start_addr, virt_memmap[VIRT_MROM].base,
-                              virt_memmap[VIRT_MROM].size, s->fdt);
+                              virt_memmap[VIRT_MROM].size,
+                              fdt_load_addr, s->fdt);
 
     /* create PLIC hart topology configuration string */
     plic_hart_config_len = (strlen(VIRT_PLIC_HART_CONFIG) + 1) * smp_cpus;
