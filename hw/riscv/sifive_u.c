@@ -380,6 +380,7 @@ static void sifive_u_machine_init(MachineState *machine)
     target_ulong start_addr = memmap[SIFIVE_U_DRAM].base;
     int i;
     uint32_t fdt_load_addr;
+    uint64_t kernel_entry;
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
@@ -436,8 +437,7 @@ static void sifive_u_machine_init(MachineState *machine)
     riscv_find_and_load_firmware(machine, BIOS_FILENAME, start_addr, NULL);
 
     if (machine->kernel_filename) {
-        uint64_t kernel_entry = riscv_load_kernel(machine->kernel_filename,
-                                                  NULL);
+        kernel_entry = riscv_load_kernel(machine->kernel_filename, NULL);
 
         if (machine->initrd_filename) {
             hwaddr start;
@@ -449,6 +449,12 @@ static void sifive_u_machine_init(MachineState *machine)
             qemu_fdt_setprop_cell(s->fdt, "/chosen", "linux,initrd-end",
                                   end);
         }
+    } else {
+       /*
+        * If dynamic firmware is used, it doesn't know where is the next mode
+        * if kernel argument is not set.
+        */
+        kernel_entry = 0;
     }
 
     /* Compute the fdt load address in dram */
@@ -458,7 +464,8 @@ static void sifive_u_machine_init(MachineState *machine)
     /* reset vector */
     uint32_t reset_vec[11] = {
         s->msel,                       /* MSEL pin state */
-        0x00000297,                    /* 1:  auipc  t0, %pcrel_hi(dtb) */
+        0x00000297,                    /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
+        0x02828613,                    /*     addi   a2, t0, %pcrel_lo(1b) */
         0xf1402573,                    /*     csrr   a0, mhartid  */
 #if defined(TARGET_RISCV32)
         0x0202a583,                    /*     lw     a1, 32(t0) */
@@ -468,12 +475,11 @@ static void sifive_u_machine_init(MachineState *machine)
         0x0182b283,                    /*     ld     t0, 24(t0) */
 #endif
         0x00028067,                    /*     jr     t0 */
-        0x00000000,
         start_addr,                    /* start: .dword */
         0x00000000,
         fdt_load_addr,                 /* fdt_laddr: .dword */
         0x00000000,
-                                       /* dtb: */
+                                       /* fw_dyn: */
     };
 
     /* copy in the reset vector in little_endian byte order */
@@ -482,6 +488,10 @@ static void sifive_u_machine_init(MachineState *machine)
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
                           memmap[SIFIVE_U_MROM].base, &address_space_memory);
+
+    riscv_rom_copy_firmware_info(memmap[SIFIVE_U_MROM].base,
+                                 memmap[SIFIVE_U_MROM].size,
+                                 sizeof(reset_vec), kernel_entry);
 }
 
 static bool sifive_u_machine_get_start_in_flash(Object *obj, Error **errp)
