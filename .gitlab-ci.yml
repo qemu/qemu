@@ -36,7 +36,7 @@ include:
     - make -j"$JOBS"
     - if test -n "$MAKE_CHECK_ARGS";
       then
-        make $MAKE_CHECK_ARGS ;
+        make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
 .native_test_job_template: &native_test_job_definition
@@ -60,6 +60,7 @@ build-system-ubuntu-main:
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu lm32-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu m68k-softmmu ppc-softmmu
       riscv64-softmmu sparc-softmmu
+    MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
       - build
@@ -90,6 +91,7 @@ build-system-fedora-alt:
     TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
       riscv32-softmmu s390x-softmmu sh4-softmmu sparc64-softmmu x86_64-softmmu
       xtensa-softmmu nios2-softmmu or1k-softmmu
+    MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
       - build
