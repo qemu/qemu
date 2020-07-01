@@ -523,19 +523,6 @@ void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
     r->VsrD(0) = 0;
 }
 
-#define VARITH_DO(name, op, element)                                    \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            r->element[i] = a->element[i] op b->element[i];             \
-        }                                                               \
-    }
-VARITH_DO(muluwm, *, u32)
-#undef VARITH_DO
-#undef VARITH
-
 #define VARITHFP(suffix, func)                                          \
     void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
                           ppc_avr_t *b)                                 \

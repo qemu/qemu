@@ -801,7 +801,7 @@ static void trans_vclzd(DisasContext *ctx)
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
-GEN_VXFORM(vmuluwm, 4, 2);
+GEN_VXFORM_V(vmuluwm, MO_32, tcg_gen_gvec_mul, 4, 2);
 GEN_VXFORM_DUAL(vmulouw, PPC_ALTIVEC, PPC_NONE,
                 vmuluwm, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM(vmulosb, 4, 4);
