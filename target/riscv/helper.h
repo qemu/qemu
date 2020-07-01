@@ -81,3 +81,6 @@ DEF_HELPER_1(tlb_flush, void, env)
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(hyp_tlb_flush, void, env)
 #endif
+
+/* Vector functions */
+DEF_HELPER_3(vsetvl, tl, env, tl, tl)
