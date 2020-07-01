@@ -226,7 +226,11 @@ void riscv_setup_rom_reset_vec(hwaddr start_addr, hwaddr rom_base,
                                uint32_t fdt_load_addr, void *fdt)
 {
     int i;
+    uint32_t start_addr_hi32 = 0x00000000;
 
+    #if defined(TARGET_RISCV64)
+    start_addr_hi32 = start_addr >> 32;
+    #endif
     /* reset vector */
     uint32_t reset_vec[10] = {
         0x00000297,                  /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
@@ -241,7 +245,7 @@ void riscv_setup_rom_reset_vec(hwaddr start_addr, hwaddr rom_base,
 #endif
         0x00028067,                  /*     jr     t0 */
         start_addr,                  /* start: .dword */
-        0x00000000,
+        start_addr_hi32,
         fdt_load_addr,               /* fdt_laddr: .dword */
         0x00000000,
                                      /* fw_dyn: */

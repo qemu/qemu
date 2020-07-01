@@ -378,6 +378,7 @@ static void sifive_u_machine_init(MachineState *machine)
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *flash0 = g_new(MemoryRegion, 1);
     target_ulong start_addr = memmap[SIFIVE_U_DRAM].base;
+    uint32_t start_addr_hi32 = 0x00000000;
     int i;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
@@ -460,6 +461,9 @@ static void sifive_u_machine_init(MachineState *machine)
     /* Compute the fdt load address in dram */
     fdt_load_addr = riscv_load_fdt(memmap[SIFIVE_U_DRAM].base,
                                    machine->ram_size, s->fdt);
+    #if defined(TARGET_RISCV64)
+    start_addr_hi32 = start_addr >> 32;
+    #endif
 
     /* reset vector */
     uint32_t reset_vec[11] = {
@@ -476,7 +480,7 @@ static void sifive_u_machine_init(MachineState *machine)
 #endif
         0x00028067,                    /*     jr     t0 */
         start_addr,                    /* start: .dword */
-        0x00000000,
+        start_addr_hi32,
         fdt_load_addr,                 /* fdt_laddr: .dword */
         0x00000000,
                                        /* fw_dyn: */
