@@ -171,6 +171,7 @@ typedef struct float_status {
      * softfloat-specialize.inc.c)
      */
     bool snan_bit_is_one;
+    bool use_first_nan;
     bool no_signaling_nans;
 } float_status;
 

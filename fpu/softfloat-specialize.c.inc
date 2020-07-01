@@ -380,7 +380,7 @@ static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 *----------------------------------------------------------------------------*/
 
 static int pickNaN(FloatClass a_cls, FloatClass b_cls,
-                   bool aIsLargerSignificand)
+                   bool aIsLargerSignificand, float_status *status)
 {
 #if defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_HPPA)
     /* ARM mandated NaN propagation rules (see FPProcessNaNs()), take
@@ -413,7 +413,7 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
     } else {
         return 1;
     }
-#elif defined(TARGET_PPC) || defined(TARGET_XTENSA) || defined(TARGET_M68K)
+#elif defined(TARGET_PPC) || defined(TARGET_M68K)
     /* PowerPC propagation rules:
      *  1. A if it sNaN or qNaN
      *  2. B if it sNaN or qNaN
@@ -437,6 +437,24 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
         return 0;
     } else {
         return 1;
+    }
+#elif defined(TARGET_XTENSA)
+    /*
+     * Xtensa has two NaN propagation modes.
+     * Which one is active is controlled by float_status::use_first_nan.
+     */
+    if (status->use_first_nan) {
+        if (is_nan(a_cls)) {
+            return 0;
+        } else {
+            return 1;
+        }
+    } else {
+        if (is_nan(b_cls)) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 #else
     /* This implements x87 NaN propagation rules:
@@ -625,7 +643,7 @@ static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
         aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
 
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand)) {
+    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
         if (is_snan(b_cls)) {
             return float32_silence_nan(b, status);
         }
@@ -763,7 +781,7 @@ static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
         aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
 
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand)) {
+    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
         if (is_snan(b_cls)) {
             return float64_silence_nan(b, status);
         }
@@ -927,7 +945,7 @@ floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
         aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
 
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand)) {
+    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
         if (is_snan(b_cls)) {
             return floatx80_silence_nan(b, status);
         }
@@ -1075,7 +1093,7 @@ static float128 propagateFloat128NaN(float128 a, float128 b,
         aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
 
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand)) {
+    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
         if (is_snan(b_cls)) {
             return float128_silence_nan(b, status);
         }
