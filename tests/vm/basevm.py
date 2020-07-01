@@ -92,6 +92,7 @@ class BaseVM(object):
         self._guest = None
         self._genisoimage = args.genisoimage
         self._build_path = args.build_path
+        self._efi_aarch64 = args.efi_aarch64
         # Allow input config to override defaults.
         self._config = DEFAULT_CONFIG.copy()
         if config != None:
@@ -496,6 +497,14 @@ def get_qemu_path(arch, build_path=None):
         qemu_path = "qemu-system-" + arch
     return qemu_path
 
+def get_qemu_version(qemu_path):
+    """Get the version number from the current QEMU,
+       and return the major number."""
+    output = subprocess.check_output([qemu_path, '--version'])
+    version_line = output.decode("utf-8")
+    version_num = re.split(' |\(', version_line)[3].split('.')[0]
+    return int(version_num)
+
 def parse_config(config, args):
     """ Parse yaml config and populate our config structure.
         The yaml config allows the user to override the
@@ -573,6 +582,9 @@ def parse_args(vmcls):
     parser.add_option("--config", "-c", default=None,
                       help="Provide config yaml for configuration. "\
                            "See config_example.yaml for example.")
+    parser.add_option("--efi-aarch64",
+                      default="/usr/share/qemu-efi-aarch64/QEMU_EFI.fd",
+                      help="Path to efi image for aarch64 VMs.")
     parser.disable_interspersed_args()
     return parser.parse_args()
 
