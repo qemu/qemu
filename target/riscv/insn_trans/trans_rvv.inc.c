@@ -2649,3 +2649,63 @@ static bool trans_vext_x_v(DisasContext *s, arg_r *a)
     tcg_temp_free_i64(tmp);
     return true;
 }
+
+/* Integer Scalar Move Instruction */
+
+static void store_element(TCGv_i64 val, TCGv_ptr base,
+                          int ofs, int sew)
+{
+    switch (sew) {
+    case MO_8:
+        tcg_gen_st8_i64(val, base, ofs);
+        break;
+    case MO_16:
+        tcg_gen_st16_i64(val, base, ofs);
+        break;
+    case MO_32:
+        tcg_gen_st32_i64(val, base, ofs);
+        break;
+    case MO_64:
+        tcg_gen_st_i64(val, base, ofs);
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+}
+
+/*
+ * Store vreg[idx] = val.
+ * The index must be in range of VLMAX.
+ */
+static void vec_element_storei(DisasContext *s, int vreg,
+                               int idx, TCGv_i64 val)
+{
+    store_element(val, cpu_env, endian_ofs(s, vreg, idx), s->sew);
+}
+
+/* vmv.s.x vd, rs1 # vd[0] = rs1 */
+static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
+{
+    if (vext_check_isa_ill(s)) {
+        /* This instruction ignores LMUL and vector register groups */
+        int maxsz = s->vlen >> 3;
+        TCGv_i64 t1;
+        TCGLabel *over = gen_new_label();
+
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
+        tcg_gen_gvec_dup_imm(SEW64, vreg_ofs(s, a->rd), maxsz, maxsz, 0);
+        if (a->rs1 == 0) {
+            goto done;
+        }
+
+        t1 = tcg_temp_new_i64();
+        tcg_gen_extu_tl_i64(t1, cpu_gpr[a->rs1]);
+        vec_element_storei(s, a->rd, 0, t1);
+        tcg_temp_free_i64(t1);
+    done:
+        gen_set_label(over);
+        return true;
+    }
+    return false;
+}
