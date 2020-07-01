@@ -4542,3 +4542,23 @@ GEN_VEXT_MASK_VV(vmor_mm, DO_OR)
 GEN_VEXT_MASK_VV(vmnor_mm, DO_NOR)
 GEN_VEXT_MASK_VV(vmornot_mm, DO_ORNOT)
 GEN_VEXT_MASK_VV(vmxnor_mm, DO_XNOR)
+
+/* Vector mask population count vmpopc */
+target_ulong HELPER(vmpopc_m)(void *v0, void *vs2, CPURISCVState *env,
+                              uint32_t desc)
+{
+    target_ulong cnt = 0;
+    uint32_t mlen = vext_mlen(desc);
+    uint32_t vm = vext_vm(desc);
+    uint32_t vl = env->vl;
+    int i;
+
+    for (i = 0; i < vl; i++) {
+        if (vm || vext_elem_mask(v0, mlen, i)) {
+            if (vext_elem_mask(vs2, mlen, i)) {
+                cnt++;
+            }
+        }
+    }
+    return cnt;
+}
