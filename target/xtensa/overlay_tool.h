@@ -538,6 +538,7 @@
     .ndepc = (XCHAL_XEA_VERSION >= 2), \
     .inst_fetch_width = XCHAL_INST_FETCH_WIDTH, \
     .max_insn_size = XCHAL_MAX_INSTRUCTION_SIZE, \
+    .use_first_nan = !XCHAL_HAVE_DFPU, \
     EXCEPTIONS_SECTION, \
     INTERRUPTS_SECTION, \
     TLB_SECTION, \

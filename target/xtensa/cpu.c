@@ -31,6 +31,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "fpu/softfloat.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
 
@@ -73,6 +74,8 @@ static void xtensa_cpu_reset(DeviceState *dev)
     XtensaCPU *cpu = XTENSA_CPU(s);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(cpu);
     CPUXtensaState *env = &cpu->env;
+    bool dfpu = xtensa_option_enabled(env->config,
+                                      XTENSA_OPTION_DFP_COPROCESSOR);
 
     xcc->parent_reset(dev);
 
@@ -104,6 +107,8 @@ static void xtensa_cpu_reset(DeviceState *dev)
     reset_mmu(env);
     s->halted = env->runstall;
 #endif
+    set_no_signaling_nans(!dfpu, &env->fp_status);
+    set_use_first_nan(!dfpu, &env->fp_status);
 }
 
 static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
