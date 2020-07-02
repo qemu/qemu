@@ -1219,7 +1219,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
             /* connect PIT to output control line of the HPET */
             qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(DEVICE(pit), 0));
         }
-        pcspk_init(isa_new(TYPE_PC_SPEAKER), isa_bus, pit);
+        pcspk_init(pcms->pcspk, isa_bus, pit);
     }
 
     i8257_dma_init(isa_bus, 0);
@@ -1891,6 +1891,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->pit_enabled = true;
 
     pc_system_flash_create(pcms);
+    pcms->pcspk = isa_new(TYPE_PC_SPEAKER);
 }
 
 static void pc_machine_reset(MachineState *machine)
