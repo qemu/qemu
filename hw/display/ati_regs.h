@@ -60,6 +60,7 @@
 #define MC_FB_LOCATION                          0x0148
 #define MC_AGP_LOCATION                         0x014C
 #define MC_STATUS                               0x0150
+#define MEM_SDRAM_MODE_REG                      0x0158
 #define MEM_POWER_MISC                          0x015c
 #define AGP_BASE                                0x0170
 #define AGP_CNTL                                0x0174

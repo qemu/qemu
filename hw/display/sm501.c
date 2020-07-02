@@ -39,15 +39,7 @@
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"
-
-/*#define DEBUG_SM501*/
-/*#define DEBUG_BITBLT*/
-
-#ifdef DEBUG_SM501
-#define SM501_DPRINTF(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define SM501_DPRINTF(fmt, ...) do {} while (0)
-#endif
+#include "trace.h"
 
 #define MMIO_BASE_OFFSET 0x3e00000
 #define MMIO_SIZE 0x200000
@@ -684,10 +676,11 @@ static void sm501_2d_operation(SM501State *s)
 {
     int cmd = (s->twoD_control >> 16) & 0x1F;
     int rtl = s->twoD_control & BIT(27);
-    int format = (s->twoD_stretch >> 20) & 0x3;
-    int rop_mode = (s->twoD_control >> 15) & 0x1; /* 1 for rop2, else rop3 */
+    int format = (s->twoD_stretch >> 20) & 3;
+    int bypp = 1 << format; /* bytes per pixel */
+    int rop_mode = (s->twoD_control >> 15) & 1; /* 1 for rop2, else rop3 */
     /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
-    int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
+    int rop2_source_is_pattern = (s->twoD_control >> 14) & 1;
     int rop = s->twoD_control & 0xFF;
     unsigned int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
     unsigned int dst_y = s->twoD_destination & 0xFFFF;
@@ -697,6 +690,7 @@ static void sm501_2d_operation(SM501State *s)
     unsigned int dst_pitch = (s->twoD_pitch >> 16) & 0x1FFF;
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
     int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
+    bool overlap = false;
 
     if ((s->twoD_stretch >> 16) & 0xF) {
         qemu_log_mask(LOG_UNIMP, "sm501: only XY addressing is supported.\n");
@@ -723,9 +717,9 @@ static void sm501_2d_operation(SM501State *s)
         dst_y -= height - 1;
     }
 
-    if (dst_base >= get_local_mem_size(s) || dst_base +
-        (dst_x + width + (dst_y + height) * (dst_pitch + width)) *
-        (1 << format) >= get_local_mem_size(s)) {
+    if (dst_base >= get_local_mem_size(s) ||
+        dst_base + (dst_x + width + (dst_y + height) * dst_pitch) * bypp >=
+        get_local_mem_size(s)) {
         qemu_log_mask(LOG_GUEST_ERROR, "sm501: 2D op dest is outside vram.\n");
         return;
     }
@@ -749,9 +743,9 @@ static void sm501_2d_operation(SM501State *s)
             src_y -= height - 1;
         }
 
-        if (src_base >= get_local_mem_size(s) || src_base +
-            (src_x + width + (src_y + height) * (src_pitch + width)) *
-            (1 << format) >= get_local_mem_size(s)) {
+        if (src_base >= get_local_mem_size(s) ||
+            src_base + (src_x + width + (src_y + height) * src_pitch) * bypp >=
+            get_local_mem_size(s)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "sm501: 2D op src is outside vram.\n");
             return;
@@ -763,19 +757,9 @@ static void sm501_2d_operation(SM501State *s)
             uint8_t *d = s->local_mem + dst_base;
 
             for (y = 0; y < height; y++) {
-                i = (dst_x + (dst_y + y) * dst_pitch) * (1 << format);
-                for (x = 0; x < width; x++, i += (1 << format)) {
-                    switch (format) {
-                    case 0:
-                        d[i] = ~d[i];
-                        break;
-                    case 1:
-                        *(uint16_t *)&d[i] = ~*(uint16_t *)&d[i];
-                        break;
-                    case 2:
-                        *(uint32_t *)&d[i] = ~*(uint32_t *)&d[i];
-                        break;
-                    }
+                i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
+                for (x = 0; x < width; x++, i += bypp) {
+                    stn_he_p(&d[i], bypp, ~ldn_he_p(&d[i], bypp));
                 }
             }
         } else {
@@ -788,40 +772,57 @@ static void sm501_2d_operation(SM501State *s)
                               (rop2_source_is_pattern ?
                                   " with pattern source" : ""));
             }
-            /* Check for overlaps, this could be made more exact */
-            uint32_t sb, se, db, de;
-            sb = src_base + src_x + src_y * (width + src_pitch);
-            se = sb + width + height * (width + src_pitch);
-            db = dst_base + dst_x + dst_y * (width + dst_pitch);
-            de = db + width + height * (width + dst_pitch);
-            if (rtl && ((db >= sb && db <= se) || (de >= sb && de <= se))) {
-                /* regions may overlap: copy via temporary */
-                int free_buf = 0, llb = width * (1 << format);
-                int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
+            /* Ignore no-op blits, some guests seem to do this */
+            if (src_base == dst_base && src_pitch == dst_pitch &&
+                src_x == dst_x && src_y == dst_y) {
+                break;
+            }
+            /* Some clients also do 1 pixel blits, avoid overhead for these */
+            if (width == 1 && height == 1) {
+                unsigned int si = (src_x + src_y * src_pitch) * bypp;
+                unsigned int di = (dst_x + dst_y * dst_pitch) * bypp;
+                stn_he_p(&s->local_mem[dst_base + di], bypp,
+                         ldn_he_p(&s->local_mem[src_base + si], bypp));
+                break;
+            }
+            /* If reverse blit do simple check for overlaps */
+            if (rtl && src_base == dst_base && src_pitch == dst_pitch) {
+                overlap = (src_x < dst_x + width && src_x + width > dst_x &&
+                           src_y < dst_y + height && src_y + height > dst_y);
+            } else if (rtl) {
+                unsigned int sb, se, db, de;
+                sb = src_base + (src_x + src_y * src_pitch) * bypp;
+                se = sb + (width + (height - 1) * src_pitch) * bypp;
+                db = dst_base + (dst_x + dst_y * dst_pitch) * bypp;
+                de = db + (width + (height - 1) * dst_pitch) * bypp;
+                overlap = (db < se && sb < de);
+            }
+            if (overlap) {
+                /* pixman can't do reverse blit: copy via temporary */
+                int tmp_stride = DIV_ROUND_UP(width * bypp, sizeof(uint32_t));
                 uint32_t *tmp = tmp_buf;
 
                 if (tmp_stride * sizeof(uint32_t) * height > sizeof(tmp_buf)) {
                     tmp = g_malloc(tmp_stride * sizeof(uint32_t) * height);
-                    free_buf = 1;
                 }
                 pixman_blt((uint32_t *)&s->local_mem[src_base], tmp,
-                           src_pitch * (1 << format) / sizeof(uint32_t),
-                           tmp_stride, 8 * (1 << format), 8 * (1 << format),
+                           src_pitch * bypp / sizeof(uint32_t),
+                           tmp_stride, 8 * bypp, 8 * bypp,
                            src_x, src_y, 0, 0, width, height);
                 pixman_blt(tmp, (uint32_t *)&s->local_mem[dst_base],
                            tmp_stride,
-                           dst_pitch * (1 << format) / sizeof(uint32_t),
-                           8 * (1 << format), 8 * (1 << format),
+                           dst_pitch * bypp / sizeof(uint32_t),
+                           8 * bypp, 8 * bypp,
                            0, 0, dst_x, dst_y, width, height);
-                if (free_buf) {
+                if (tmp != tmp_buf) {
                     g_free(tmp);
                 }
             } else {
                 pixman_blt((uint32_t *)&s->local_mem[src_base],
                            (uint32_t *)&s->local_mem[dst_base],
-                           src_pitch * (1 << format) / sizeof(uint32_t),
-                           dst_pitch * (1 << format) / sizeof(uint32_t),
-                           8 * (1 << format), 8 * (1 << format),
+                           src_pitch * bypp / sizeof(uint32_t),
+                           dst_pitch * bypp / sizeof(uint32_t),
+                           8 * bypp, 8 * bypp,
                            src_x, src_y, dst_x, dst_y, width, height);
             }
         }
@@ -837,9 +838,14 @@ static void sm501_2d_operation(SM501State *s)
             color = cpu_to_le16(color);
         }
 
-        pixman_fill((uint32_t *)&s->local_mem[dst_base],
-                    dst_pitch * (1 << format) / sizeof(uint32_t),
-                    8 * (1 << format), dst_x, dst_y, width, height, color);
+        if (width == 1 && height == 1) {
+            unsigned int i = (dst_x + dst_y * dst_pitch) * bypp;
+            stn_he_p(&s->local_mem[dst_base + i], bypp, color);
+        } else {
+            pixman_fill((uint32_t *)&s->local_mem[dst_base],
+                        dst_pitch * bypp / sizeof(uint32_t),
+                        8 * bypp, dst_x, dst_y, width, height, color);
+        }
         break;
     }
     default:
@@ -851,7 +857,7 @@ static void sm501_2d_operation(SM501State *s)
     if (dst_base >= get_fb_addr(s, crt) &&
         dst_base <= get_fb_addr(s, crt) + fb_len) {
         int dst_len = MIN(fb_len, ((dst_y + height - 1) * dst_pitch +
-                          dst_x + width) * (1 << format));
+                          dst_x + width) * bypp);
         if (dst_len) {
             memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
         }
@@ -863,7 +869,6 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
 {
     SM501State *s = (SM501State *)opaque;
     uint32_t ret = 0;
-    SM501_DPRINTF("sm501 system config regs : read addr=%x\n", (int)addr);
 
     switch (addr) {
     case SM501_SYSTEM_CONTROL:
@@ -915,7 +920,7 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP, "sm501: not implemented system config"
                       "register read. addr=%" HWADDR_PRIx "\n", addr);
     }
-
+    trace_sm501_system_config_read(addr, ret);
     return ret;
 }
 
@@ -923,9 +928,8 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 system config regs : write addr=%x, val=%x\n",
-                  (uint32_t)addr, (uint32_t)value);
 
+    trace_sm501_system_config_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
     case SM501_SYSTEM_CONTROL:
         s->system_control &= 0x10DB0000;
@@ -1011,9 +1015,7 @@ static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_UNIMP, "sm501 i2c : not implemented register read."
                       " addr=0x%" HWADDR_PRIx "\n", addr);
     }
-
-    SM501_DPRINTF("sm501 i2c regs : read addr=%" HWADDR_PRIx " val=%x\n",
-                  addr, ret);
+    trace_sm501_i2c_read((uint32_t)addr, ret);
     return ret;
 }
 
@@ -1021,9 +1023,8 @@ static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
                             unsigned size)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 i2c regs : write addr=%" HWADDR_PRIx
-                  " val=%" PRIx64 "\n", addr, value);
 
+    trace_sm501_i2c_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
     case SM501_I2C_BYTE_COUNT:
         s->i2c_byte_count = value & 0xf;
@@ -1037,25 +1038,19 @@ static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
                 s->i2c_status |= (res ? SM501_I2C_STATUS_ERROR : 0);
                 if (!res) {
                     int i;
-                    SM501_DPRINTF("sm501 i2c : transferring %d bytes to 0x%x\n",
-                                  s->i2c_byte_count + 1, s->i2c_addr >> 1);
                     for (i = 0; i <= s->i2c_byte_count; i++) {
                         res = i2c_send_recv(s->i2c_bus, &s->i2c_data[i],
                                             !(s->i2c_addr & 1));
                         if (res) {
-                            SM501_DPRINTF("sm501 i2c : transfer failed"
-                                          " i=%d, res=%d\n", i, res);
                             s->i2c_status |= SM501_I2C_STATUS_ERROR;
                             return;
                         }
                     }
                     if (i) {
-                        SM501_DPRINTF("sm501 i2c : transferred %d bytes\n", i);
                         s->i2c_status = SM501_I2C_STATUS_COMPLETE;
                     }
                 }
             } else {
-                SM501_DPRINTF("sm501 i2c : end transfer\n");
                 i2c_end_transfer(s->i2c_bus);
                 s->i2c_status &= ~SM501_I2C_STATUS_ERROR;
             }
@@ -1095,7 +1090,8 @@ static const MemoryRegionOps sm501_i2c_ops = {
 static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
+
+    trace_sm501_palette_read((uint32_t)addr);
 
     /* TODO : consider BYTE/WORD access */
     /* TODO : consider endian */
@@ -1108,8 +1104,8 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
                                 uint32_t value)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
-                  (int)addr, value);
+
+    trace_sm501_palette_write((uint32_t)addr, value);
 
     /* TODO : consider BYTE/WORD access */
     /* TODO : consider endian */
@@ -1124,7 +1120,6 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
 {
     SM501State *s = (SM501State *)opaque;
     uint32_t ret = 0;
-    SM501_DPRINTF("sm501 disp ctrl regs : read addr=%x\n", (int)addr);
 
     switch (addr) {
 
@@ -1229,7 +1224,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP, "sm501: not implemented disp ctrl register "
                       "read. addr=%" HWADDR_PRIx "\n", addr);
     }
-
+    trace_sm501_disp_ctrl_read((uint32_t)addr, ret);
     return ret;
 }
 
@@ -1237,9 +1232,8 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 disp ctrl regs : write addr=%x, val=%x\n",
-                  (unsigned)addr, (unsigned)value);
 
+    trace_sm501_disp_ctrl_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
     case SM501_DC_PANEL_CONTROL:
         s->dc_panel_control = value & 0x0FFF73FF;
@@ -1384,7 +1378,6 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
 {
     SM501State *s = (SM501State *)opaque;
     uint32_t ret = 0;
-    SM501_DPRINTF("sm501 2d engine regs : read addr=%x\n", (int)addr);
 
     switch (addr) {
     case SM501_2D_SOURCE:
@@ -1454,7 +1447,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP, "sm501: not implemented disp ctrl register "
                       "read. addr=%" HWADDR_PRIx "\n", addr);
     }
-
+    trace_sm501_2d_engine_read((uint32_t)addr, ret);
     return ret;
 }
 
@@ -1462,9 +1455,8 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State *s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 2d engine regs : write addr=%x, val=%x\n",
-                  (unsigned)addr, (unsigned)value);
 
+    trace_sm501_2d_engine_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
     case SM501_2D_SOURCE:
         s->twoD_source = value;
@@ -1495,6 +1487,9 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
         s->twoD_background = value;
         break;
     case SM501_2D_STRETCH:
+        if (((value >> 20) & 3) == 3) {
+            value &= ~BIT(20);
+        }
         s->twoD_stretch = value;
         break;
     case SM501_2D_COLOR_COMPARE:
@@ -1819,8 +1814,6 @@ static void sm501_init(SM501State *s, DeviceState *dev,
                        uint32_t local_mem_bytes)
 {
     s->local_mem_size_index = get_local_mem_size_index(local_mem_bytes);
-    SM501_DPRINTF("sm501 local mem size=%x. index=%d\n", get_local_mem_size(s),
-                  s->local_mem_size_index);
 
     /* local memory */
     memory_region_init_ram(&s->local_mem_region, OBJECT(dev), "sm501.local",

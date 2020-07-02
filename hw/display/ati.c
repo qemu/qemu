@@ -86,8 +86,8 @@ static void ati_vga_switch_mode(ATIVGAState *s)
                 break;
             default:
                 qemu_log_mask(LOG_UNIMP, "Unsupported bpp value\n");
+                return;
             }
-            assert(bpp != 0);
             DPRINTF("Switching to %dx%d %d %d @ %x\n", h, v, stride, bpp, offs);
             vbe_ioport_write_index(&s->vga, 0, VBE_DISPI_INDEX_ENABLE);
             vbe_ioport_write_data(&s->vga, 0, VBE_DISPI_DISABLED);
@@ -361,6 +361,11 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case MC_STATUS:
         val = 5;
         break;
+    case MEM_SDRAM_MODE_REG:
+        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            val = BIT(28) | BIT(20);
+        }
+        break;
     case RBBM_STATUS:
     case GUI_STAT:
         val = 64; /* free CMDFIFO entries */
@@ -389,22 +394,28 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case 0xf00 ... 0xfff:
         val = pci_default_read_config(&s->dev, addr - 0xf00, size);
         break;
-    case CUR_OFFSET:
-        val = s->regs.cur_offset;
+    case CUR_OFFSET ... CUR_OFFSET + 3:
+        val = ati_reg_read_offs(s->regs.cur_offset, addr - CUR_OFFSET, size);
         break;
-    case CUR_HORZ_VERT_POSN:
-        val = s->regs.cur_hv_pos;
-        val |= s->regs.cur_offset & BIT(31);
+    case CUR_HORZ_VERT_POSN ... CUR_HORZ_VERT_POSN + 3:
+        val = ati_reg_read_offs(s->regs.cur_hv_pos,
+                                addr - CUR_HORZ_VERT_POSN, size);
+        if (addr + size > CUR_HORZ_VERT_POSN + 3) {
+            val |= (s->regs.cur_offset & BIT(31)) >> (4 - size);
+        }
         break;
-    case CUR_HORZ_VERT_OFF:
-        val = s->regs.cur_hv_offs;
-        val |= s->regs.cur_offset & BIT(31);
+    case CUR_HORZ_VERT_OFF ... CUR_HORZ_VERT_OFF + 3:
+        val = ati_reg_read_offs(s->regs.cur_hv_offs,
+                                addr - CUR_HORZ_VERT_OFF, size);
+        if (addr + size > CUR_HORZ_VERT_OFF + 3) {
+            val |= (s->regs.cur_offset & BIT(31)) >> (4 - size);
+        }
         break;
-    case CUR_CLR0:
-        val = s->regs.cur_color0;
+    case CUR_CLR0 ... CUR_CLR0 + 3:
+        val = ati_reg_read_offs(s->regs.cur_color0, addr - CUR_CLR0, size);
         break;
-    case CUR_CLR1:
-        val = s->regs.cur_color1;
+    case CUR_CLR1 ... CUR_CLR1 + 3:
+        val = ati_reg_read_offs(s->regs.cur_color1, addr - CUR_CLR1, size);
         break;
     case DST_OFFSET:
         val = s->regs.dst_offset;
@@ -679,48 +690,71 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case 0xf00 ... 0xfff:
         /* read-only copy of PCI config space so ignore writes */
         break;
-    case CUR_OFFSET:
-        if (s->regs.cur_offset != (data & 0x87fffff0)) {
-            s->regs.cur_offset = data & 0x87fffff0;
+    case CUR_OFFSET ... CUR_OFFSET + 3:
+    {
+        uint32_t t = s->regs.cur_offset;
+
+        ati_reg_write_offs(&t, addr - CUR_OFFSET, data, size);
+        t &= 0x87fffff0;
+        if (s->regs.cur_offset != t) {
+            s->regs.cur_offset = t;
             ati_cursor_define(s);
         }
         break;
-    case CUR_HORZ_VERT_POSN:
-        s->regs.cur_hv_pos = data & 0x3fff0fff;
-        if (data & BIT(31)) {
-            s->regs.cur_offset |= data & BIT(31);
+    }
+    case CUR_HORZ_VERT_POSN ... CUR_HORZ_VERT_POSN + 3:
+    {
+        uint32_t t = s->regs.cur_hv_pos | (s->regs.cur_offset & BIT(31));
+
+        ati_reg_write_offs(&t, addr - CUR_HORZ_VERT_POSN, data, size);
+        s->regs.cur_hv_pos = t & 0x3fff0fff;
+        if (t & BIT(31)) {
+            s->regs.cur_offset |= t & BIT(31);
         } else if (s->regs.cur_offset & BIT(31)) {
             s->regs.cur_offset &= ~BIT(31);
             ati_cursor_define(s);
         }
         if (!s->cursor_guest_mode &&
-            (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) && !(data & BIT(31))) {
+            (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) && !(t & BIT(31))) {
             dpy_mouse_set(s->vga.con, s->regs.cur_hv_pos >> 16,
                           s->regs.cur_hv_pos & 0xffff, 1);
         }
         break;
+    }
     case CUR_HORZ_VERT_OFF:
-        s->regs.cur_hv_offs = data & 0x3f003f;
-        if (data & BIT(31)) {
-            s->regs.cur_offset |= data & BIT(31);
+    {
+        uint32_t t = s->regs.cur_hv_offs | (s->regs.cur_offset & BIT(31));
+
+        ati_reg_write_offs(&t, addr - CUR_HORZ_VERT_OFF, data, size);
+        s->regs.cur_hv_offs = t & 0x3f003f;
+        if (t & BIT(31)) {
+            s->regs.cur_offset |= t & BIT(31);
         } else if (s->regs.cur_offset & BIT(31)) {
             s->regs.cur_offset &= ~BIT(31);
             ati_cursor_define(s);
         }
         break;
-    case CUR_CLR0:
-        if (s->regs.cur_color0 != (data & 0xffffff)) {
-            s->regs.cur_color0 = data & 0xffffff;
+    }
+    case CUR_CLR0 ... CUR_CLR0 + 3:
+    {
+        uint32_t t = s->regs.cur_color0;
+
+        ati_reg_write_offs(&t, addr - CUR_CLR0, data, size);
+        t &= 0xffffff;
+        if (s->regs.cur_color0 != t) {
+            s->regs.cur_color0 = t;
             ati_cursor_define(s);
         }
         break;
-    case CUR_CLR1:
+    }
+    case CUR_CLR1 ... CUR_CLR1 + 3:
         /*
          * Update cursor unconditionally here because some clients set up
          * other registers before actually writing cursor data to memory at
          * offset so we would miss cursor change unless always updating here
          */
-        s->regs.cur_color1 = data & 0xffffff;
+        ati_reg_write_offs(&s->regs.cur_color1, addr - CUR_CLR1, data, size);
+        s->regs.cur_color1 &= 0xffffff;
         ati_cursor_define(s);
         break;
     case DST_OFFSET:

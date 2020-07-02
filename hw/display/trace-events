@@ -161,3 +161,15 @@ cg3_write(uint32_t addr, uint32_t val, unsigned size) "write addr:0x%06"PRIx32" 
 # dpcd.c
 dpcd_read(uint32_t addr, uint8_t val) "read addr:0x%"PRIx32" val:0x%02x"
 dpcd_write(uint32_t addr, uint8_t val) "write addr:0x%"PRIx32" val:0x%02x"
+
+# sm501.c
+sm501_system_config_read(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_system_config_write(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_i2c_read(uint32_t addr, uint8_t val) "addr=0x%x, val=0x%x"
+sm501_i2c_write(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_palette_read(uint32_t addr) "addr=0x%x"
+sm501_palette_write(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_disp_ctrl_read(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_disp_ctrl_write(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_2d_engine_read(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
+sm501_2d_engine_write(uint32_t addr, uint32_t val) "addr=0x%x, val=0x%x"
