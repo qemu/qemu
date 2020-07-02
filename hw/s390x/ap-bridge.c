@@ -58,7 +58,7 @@ void s390_init_ap(void)
     bus = qbus_create(TYPE_AP_BUS, dev, TYPE_AP_BUS);
 
     /* Enable hotplugging */
-    qbus_set_hotplug_handler(bus, OBJECT(dev), &error_abort);
+    qbus_set_hotplug_handler(bus, OBJECT(dev));
  }
 
 static void ap_bridge_class_init(ObjectClass *oc, void *data)

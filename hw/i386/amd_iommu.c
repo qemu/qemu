@@ -1549,7 +1549,9 @@ static void amdvi_realize(DeviceState *dev, Error **errp)
 
     /* This device should take care of IOMMU PCI properties */
     x86_iommu->type = TYPE_AMD;
-    qdev_realize(DEVICE(&s->pci), &bus->qbus, errp);
+    if (!qdev_realize(DEVICE(&s->pci), &bus->qbus, errp)) {
+        return;
+    }
     ret = pci_add_capability(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
                                          AMDVI_CAPAB_SIZE, errp);
     if (ret < 0) {
@@ -1578,7 +1580,7 @@ static void amdvi_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mmio);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, AMDVI_BASE_ADDR);
     pci_setup_iommu(bus, amdvi_host_dma_iommu, s);
-    s->devid = object_property_get_int(OBJECT(&s->pci), "addr", errp);
+    s->devid = object_property_get_int(OBJECT(&s->pci), "addr", &error_abort);
     msi_init(&s->pci.dev, 0, 1, true, false, errp);
     amdvi_init(s);
 }

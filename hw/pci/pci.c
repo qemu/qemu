@@ -2123,7 +2123,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         if (!pci_bus_is_express(pci_get_bus(pci_dev))) {
             error_setg(errp, "failover primary device must be on "
                              "PCIExpress bus");
-            error_propagate(errp, local_err);
             pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
@@ -2131,7 +2130,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         if (class_id != PCI_CLASS_NETWORK_ETHERNET) {
             error_setg(errp, "failover primary device is not an "
                              "Ethernet device");
-            error_propagate(errp, local_err);
             pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
@@ -2141,7 +2139,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         } else {
             error_setg(errp, "failover: primary device must be in its own "
                               "PCI slot");
-            error_propagate(errp, local_err);
             pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }

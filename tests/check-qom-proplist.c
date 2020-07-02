@@ -419,9 +419,7 @@ static void test_dummy_createcmdl(void)
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
 
-    user_creatable_del("dev0", &err);
-    g_assert(err == NULL);
-    error_free(err);
+    user_creatable_del("dev0", &error_abort);
 
     object_unref(OBJECT(dobj));
 
@@ -485,8 +483,7 @@ static void test_dummy_getenum(void)
     val = object_property_get_enum(OBJECT(dobj),
                                    "av",
                                    "DummyAnimal",
-                                   &err);
-    g_assert(err == NULL);
+                                   &error_abort);
     g_assert(val == DUMMY_PLATYPUS);
 
     /* A bad enum type name */
@@ -494,17 +491,14 @@ static void test_dummy_getenum(void)
                                    "av",
                                    "BadAnimal",
                                    &err);
-    g_assert(err != NULL);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
 
     /* A non-enum property name */
     val = object_property_get_enum(OBJECT(dobj),
                                    "iv",
                                    "DummyAnimal",
                                    &err);
-    g_assert(err != NULL);
-    error_free(err);
+    error_free_or_abort(&err);
 
     object_unparent(OBJECT(dobj));
 }

@@ -107,7 +107,7 @@ void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
     qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
-    qbus_set_bus_hotplug_handler(BUS(bus), &error_abort);
+    qbus_set_bus_hotplug_handler(BUS(bus));
 }
 
 static void scsi_dma_restart_bh(void *opaque)

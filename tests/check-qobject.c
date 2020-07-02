@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "block/qdict.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
@@ -213,7 +214,6 @@ static void qobject_is_equal_list_test(void)
 
 static void qobject_is_equal_dict_test(void)
 {
-    Error *local_err = NULL;
     QDict *dict_0, *dict_1, *dict_cloned;
     QDict *dict_different_key, *dict_different_value, *dict_different_null_key;
     QDict *dict_longer, *dict_shorter, *dict_nested;
@@ -276,8 +276,7 @@ static void qobject_is_equal_dict_test(void)
                   dict_different_null_key, dict_longer, dict_shorter,
                   dict_nested);
 
-    dict_crumpled = qobject_to(QDict, qdict_crumple(dict_1, &local_err));
-    g_assert(!local_err);
+    dict_crumpled = qobject_to(QDict, qdict_crumple(dict_1, &error_abort));
     check_equal(dict_crumpled, dict_nested);
 
     qdict_flatten(dict_nested);

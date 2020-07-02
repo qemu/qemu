@@ -66,11 +66,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     object_property_set_link(OBJECT(&s->cpu), OBJECT(&s->container), "memory",
-            &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpu), &err);
     if (err) {
         error_propagate(errp, err);
