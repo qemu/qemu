@@ -62,6 +62,9 @@ typedef struct {
 #define SPITZ_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(SpitzMachineClass, klass, TYPE_SPITZ_MACHINE)
 
+#define zaurus_printf(format, ...)                              \
+    fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
+
 #undef REG_FMT
 #define REG_FMT                         "0x%02lx"
 

@@ -22,9 +22,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-
-#undef REG_FMT
-#define REG_FMT			"0x%02lx"
+#include "qemu/log.h"
 
 /* SCOOP devices */
 
@@ -104,7 +102,9 @@ static uint64_t scoop_read(void *opaque, hwaddr addr,
     case SCOOP_GPRR:
         return s->gpio_level;
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "scoop_read: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
 
     return 0;
@@ -150,7 +150,9 @@ static void scoop_write(void *opaque, hwaddr addr,
         scoop_gpio_handler_update(s);
         break;
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "scoop_write: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
 }
 
