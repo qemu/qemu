@@ -140,8 +140,6 @@ static int max111x_init(SSISlave *d, int inputs)
 
     s->inputs = inputs;
 
-    vmstate_register(VMSTATE_IF(dev), VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_max111x, s);
     return 0;
 }
 
@@ -206,6 +204,7 @@ static void max111x_class_init(ObjectClass *klass, void *data)
 
     k->transfer = max111x_transfer;
     dc->reset = max111x_reset;
+    dc->vmsd = &vmstate_max111x;
 }
 
 static const TypeInfo max111x_info = {
