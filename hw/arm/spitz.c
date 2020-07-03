@@ -23,6 +23,7 @@
 #include "hw/ssi/ssi.h"
 #include "hw/block/flash.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "hw/arm/sharpsl.h"
 #include "ui/console.h"
 #include "hw/audio/wm8750.h"
@@ -64,9 +65,6 @@ typedef struct {
 
 #define zaurus_printf(format, ...)                              \
     fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
-
-#undef REG_FMT
-#define REG_FMT                         "0x%02lx"
 
 /* Spitz Flash */
 #define FLASH_BASE              0x0c000000
@@ -137,7 +135,9 @@ static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
         return ecc_digest(&s->ecc, nand_getio(s->nand));
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sl_read: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
     return 0;
 }
@@ -168,7 +168,9 @@ static void sl_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sl_write: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
 }
 
