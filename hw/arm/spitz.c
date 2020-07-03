@@ -579,6 +579,9 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 #define LCDTG_PICTRL    0x06
 #define LCDTG_POLCTRL   0x07
 
+#define TYPE_SPITZ_LCDTG "spitz-lcdtg"
+#define SPITZ_LCDTG(obj) OBJECT_CHECK(SpitzLCDTG, (obj), TYPE_SPITZ_LCDTG)
+
 typedef struct {
     SSISlave ssidev;
     uint32_t bl_intensity;
@@ -616,7 +619,7 @@ static inline void spitz_bl_power(void *opaque, int line, int level)
 
 static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
 {
-    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+    SpitzLCDTG *s = SPITZ_LCDTG(dev);
     int addr;
     addr = value >> 5;
     value &= 0x1f;
@@ -645,7 +648,7 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
 
 static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 {
-    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, ssi);
+    SpitzLCDTG *s = SPITZ_LCDTG(ssi);
     DeviceState *dev = DEVICE(s);
 
     s->bl_power = 0;
@@ -664,6 +667,9 @@ static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 #define SPITZ_GPIO_MAX1111_CS   20
 #define SPITZ_GPIO_TP_INT       11
 
+#define TYPE_CORGI_SSP "corgi-ssp"
+#define CORGI_SSP(obj) OBJECT_CHECK(CorgiSSPState, (obj), TYPE_CORGI_SSP)
+
 /* "Demux" the signal based on current chipselect */
 typedef struct {
     SSISlave ssidev;
@@ -673,7 +679,7 @@ typedef struct {
 
 static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
 {
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+    CorgiSSPState *s = CORGI_SSP(dev);
     int i;
 
     for (i = 0; i < 3; i++) {
@@ -702,7 +708,7 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 static void corgi_ssp_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, d);
+    CorgiSSPState *s = CORGI_SSP(d);
 
     qdev_init_gpio_in(dev, corgi_ssp_gpio_cs, 3);
     s->bus[0] = ssi_create_bus(dev, "ssi0");
@@ -714,10 +720,11 @@ static void spitz_ssp_attach(SpitzMachineState *sms)
 {
     void *bus;
 
-    sms->mux = ssi_create_slave(sms->mpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
+    sms->mux = ssi_create_slave(sms->mpu->ssp[CORGI_SSP_PORT - 1],
+                                TYPE_CORGI_SSP);
 
     bus = qdev_get_child_bus(sms->mux, "ssi0");
-    sms->lcdtg = ssi_create_slave(bus, "spitz-lcdtg");
+    sms->lcdtg = ssi_create_slave(bus, TYPE_SPITZ_LCDTG);
 
     bus = qdev_get_child_bus(sms->mux, "ssi1");
     sms->ads7846 = ssi_create_slave(bus, "ads7846");
@@ -1220,7 +1227,7 @@ static void corgi_ssp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo corgi_ssp_info = {
-    .name          = "corgi-ssp",
+    .name          = TYPE_CORGI_SSP,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(CorgiSSPState),
     .class_init    = corgi_ssp_class_init,
@@ -1249,7 +1256,7 @@ static void spitz_lcdtg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spitz_lcdtg_info = {
-    .name          = "spitz-lcdtg",
+    .name          = TYPE_SPITZ_LCDTG,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(SpitzLCDTG),
     .class_init    = spitz_lcdtg_class_init,
