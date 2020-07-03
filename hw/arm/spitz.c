@@ -34,25 +34,25 @@
 #include "cpu.h"
 
 #undef REG_FMT
-#define REG_FMT			"0x%02lx"
+#define REG_FMT                         "0x%02lx"
 
 /* Spitz Flash */
-#define FLASH_BASE		0x0c000000
-#define FLASH_ECCLPLB		0x00	/* Line parity 7 - 0 bit */
-#define FLASH_ECCLPUB		0x04	/* Line parity 15 - 8 bit */
-#define FLASH_ECCCP		0x08	/* Column parity 5 - 0 bit */
-#define FLASH_ECCCNTR		0x0c	/* ECC byte counter */
-#define FLASH_ECCCLRR		0x10	/* Clear ECC */
-#define FLASH_FLASHIO		0x14	/* Flash I/O */
-#define FLASH_FLASHCTL		0x18	/* Flash Control */
+#define FLASH_BASE              0x0c000000
+#define FLASH_ECCLPLB           0x00    /* Line parity 7 - 0 bit */
+#define FLASH_ECCLPUB           0x04    /* Line parity 15 - 8 bit */
+#define FLASH_ECCCP             0x08    /* Column parity 5 - 0 bit */
+#define FLASH_ECCCNTR           0x0c    /* ECC byte counter */
+#define FLASH_ECCCLRR           0x10    /* Clear ECC */
+#define FLASH_FLASHIO           0x14    /* Flash I/O */
+#define FLASH_FLASHCTL          0x18    /* Flash Control */
 
-#define FLASHCTL_CE0		(1 << 0)
-#define FLASHCTL_CLE		(1 << 1)
-#define FLASHCTL_ALE		(1 << 2)
-#define FLASHCTL_WP		(1 << 3)
-#define FLASHCTL_CE1		(1 << 4)
-#define FLASHCTL_RYBY		(1 << 5)
-#define FLASHCTL_NCE		(FLASHCTL_CE0 | FLASHCTL_CE1)
+#define FLASHCTL_CE0            (1 << 0)
+#define FLASHCTL_CLE            (1 << 1)
+#define FLASHCTL_ALE            (1 << 2)
+#define FLASHCTL_WP             (1 << 3)
+#define FLASHCTL_CE1            (1 << 4)
+#define FLASHCTL_RYBY           (1 << 5)
+#define FLASHCTL_NCE            (FLASHCTL_CE0 | FLASHCTL_CE1)
 
 #define TYPE_SL_NAND "sl-nand"
 #define SL_NAND(obj) OBJECT_CHECK(SLNANDState, (obj), TYPE_SL_NAND)
@@ -74,12 +74,12 @@ static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
     int ryby;
 
     switch (addr) {
-#define BSHR(byte, from, to)	((s->ecc.lp[byte] >> (from - to)) & (1 << to))
+#define BSHR(byte, from, to)    ((s->ecc.lp[byte] >> (from - to)) & (1 << to))
     case FLASH_ECCLPLB:
         return BSHR(0, 4, 0) | BSHR(0, 5, 2) | BSHR(0, 6, 4) | BSHR(0, 7, 6) |
                 BSHR(1, 4, 1) | BSHR(1, 5, 3) | BSHR(1, 6, 5) | BSHR(1, 7, 7);
 
-#define BSHL(byte, from, to)	((s->ecc.lp[byte] << (to - from)) & (1 << to))
+#define BSHL(byte, from, to)    ((s->ecc.lp[byte] << (to - from)) & (1 << to))
     case FLASH_ECCLPUB:
         return BSHL(0, 0, 0) | BSHL(0, 1, 2) | BSHL(0, 2, 4) | BSHL(0, 3, 6) |
                 BSHL(1, 0, 1) | BSHL(1, 1, 3) | BSHL(1, 2, 5) | BSHL(1, 3, 7);
@@ -191,8 +191,8 @@ static void sl_nand_realize(DeviceState *dev, Error **errp)
 
 /* Spitz Keyboard */
 
-#define SPITZ_KEY_STROBE_NUM	11
-#define SPITZ_KEY_SENSE_NUM	7
+#define SPITZ_KEY_STROBE_NUM    11
+#define SPITZ_KEY_SENSE_NUM     7
 
 static const int spitz_gpio_key_sense[SPITZ_KEY_SENSE_NUM] = {
     12, 17, 91, 34, 36, 38, 39
@@ -214,11 +214,11 @@ static int spitz_keymap[SPITZ_KEY_SENSE_NUM + 1][SPITZ_KEY_STROBE_NUM] = {
     { 0x52, 0x43, 0x01, 0x47, 0x49,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  },
 };
 
-#define SPITZ_GPIO_AK_INT	13	/* Remote control */
-#define SPITZ_GPIO_SYNC		16	/* Sync button */
-#define SPITZ_GPIO_ON_KEY	95	/* Power button */
-#define SPITZ_GPIO_SWA		97	/* Lid */
-#define SPITZ_GPIO_SWB		96	/* Tablet mode */
+#define SPITZ_GPIO_AK_INT       13      /* Remote control */
+#define SPITZ_GPIO_SYNC                 16      /* Sync button */
+#define SPITZ_GPIO_ON_KEY       95      /* Power button */
+#define SPITZ_GPIO_SWA          97      /* Lid */
+#define SPITZ_GPIO_SWB          96      /* Tablet mode */
 
 /* The special buttons are mapped to unused keys */
 static const int spitz_gpiomap[5] = {
@@ -300,7 +300,7 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 #define SPITZ_MOD_CTRL    (1 << 8)
 #define SPITZ_MOD_FN      (1 << 9)
 
-#define QUEUE_KEY(c)	s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
+#define QUEUE_KEY(c)    s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
 
 static void spitz_keyboard_handler(void *opaque, int keycode)
 {
@@ -308,25 +308,25 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
     uint16_t code;
     int mapcode;
     switch (keycode) {
-    case 0x2a:	/* Left Shift */
+    case 0x2a:  /* Left Shift */
         s->modifiers |= 1;
         break;
     case 0xaa:
         s->modifiers &= ~1;
         break;
-    case 0x36:	/* Right Shift */
+    case 0x36:  /* Right Shift */
         s->modifiers |= 2;
         break;
     case 0xb6:
         s->modifiers &= ~2;
         break;
-    case 0x1d:	/* Control */
+    case 0x1d:  /* Control */
         s->modifiers |= 4;
         break;
     case 0x9d:
         s->modifiers &= ~4;
         break;
-    case 0x38:	/* Alt */
+    case 0x38:  /* Alt */
         s->modifiers |= 8;
         break;
     case 0xb8:
@@ -536,14 +536,14 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 
 /* LCD backlight controller */
 
-#define LCDTG_RESCTL	0x00
-#define LCDTG_PHACTRL	0x01
-#define LCDTG_DUTYCTRL	0x02
-#define LCDTG_POWERREG0	0x03
-#define LCDTG_POWERREG1	0x04
-#define LCDTG_GPOR3	0x05
-#define LCDTG_PICTRL	0x06
-#define LCDTG_POLCTRL	0x07
+#define LCDTG_RESCTL    0x00
+#define LCDTG_PHACTRL   0x01
+#define LCDTG_DUTYCTRL  0x02
+#define LCDTG_POWERREG0         0x03
+#define LCDTG_POWERREG1         0x04
+#define LCDTG_GPOR3     0x05
+#define LCDTG_PICTRL    0x06
+#define LCDTG_POLCTRL   0x07
 
 typedef struct {
     SSISlave ssidev;
@@ -623,12 +623,12 @@ static void spitz_lcdtg_realize(SSISlave *dev, Error **errp)
 
 /* SSP devices */
 
-#define CORGI_SSP_PORT		2
+#define CORGI_SSP_PORT          2
 
-#define SPITZ_GPIO_LCDCON_CS	53
-#define SPITZ_GPIO_ADS7846_CS	14
-#define SPITZ_GPIO_MAX1111_CS	20
-#define SPITZ_GPIO_TP_INT	11
+#define SPITZ_GPIO_LCDCON_CS    53
+#define SPITZ_GPIO_ADS7846_CS   14
+#define SPITZ_GPIO_MAX1111_CS   20
+#define SPITZ_GPIO_TP_INT       11
 
 static DeviceState *max1111;
 
@@ -659,13 +659,13 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
     s->enable[line] = !level;
 }
 
-#define MAX1111_BATT_VOLT	1
-#define MAX1111_BATT_TEMP	2
-#define MAX1111_ACIN_VOLT	3
+#define MAX1111_BATT_VOLT       1
+#define MAX1111_BATT_TEMP       2
+#define MAX1111_ACIN_VOLT       3
 
-#define SPITZ_BATTERY_TEMP	0xe0	/* About 2.9V */
-#define SPITZ_BATTERY_VOLT	0xd0	/* About 4.0V */
-#define SPITZ_CHARGEON_ACIN	0x80	/* About 5.0V */
+#define SPITZ_BATTERY_TEMP      0xe0    /* About 2.9V */
+#define SPITZ_BATTERY_VOLT      0xd0    /* About 4.0V */
+#define SPITZ_CHARGEON_ACIN     0x80    /* About 5.0V */
 
 static void spitz_adc_temp_on(void *opaque, int line, int level)
 {
@@ -735,11 +735,11 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
 
 /* Wm8750 and Max7310 on I2C */
 
-#define AKITA_MAX_ADDR	0x18
-#define SPITZ_WM_ADDRL	0x1b
-#define SPITZ_WM_ADDRH	0x1a
+#define AKITA_MAX_ADDR  0x18
+#define SPITZ_WM_ADDRL  0x1b
+#define SPITZ_WM_ADDRH  0x1a
 
-#define SPITZ_GPIO_WM	5
+#define SPITZ_GPIO_WM   5
 
 static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
@@ -806,20 +806,20 @@ static void spitz_out_switch(void *opaque, int line, int level)
     }
 }
 
-#define SPITZ_SCP_LED_GREEN		1
-#define SPITZ_SCP_JK_B			2
-#define SPITZ_SCP_CHRG_ON		3
-#define SPITZ_SCP_MUTE_L		4
-#define SPITZ_SCP_MUTE_R		5
-#define SPITZ_SCP_CF_POWER		6
-#define SPITZ_SCP_LED_ORANGE		7
-#define SPITZ_SCP_JK_A			8
-#define SPITZ_SCP_ADC_TEMP_ON		9
-#define SPITZ_SCP2_IR_ON		1
-#define SPITZ_SCP2_AKIN_PULLUP		2
-#define SPITZ_SCP2_BACKLIGHT_CONT	7
-#define SPITZ_SCP2_BACKLIGHT_ON		8
-#define SPITZ_SCP2_MIC_BIAS		9
+#define SPITZ_SCP_LED_GREEN             1
+#define SPITZ_SCP_JK_B                  2
+#define SPITZ_SCP_CHRG_ON               3
+#define SPITZ_SCP_MUTE_L                4
+#define SPITZ_SCP_MUTE_R                5
+#define SPITZ_SCP_CF_POWER              6
+#define SPITZ_SCP_LED_ORANGE            7
+#define SPITZ_SCP_JK_A                  8
+#define SPITZ_SCP_ADC_TEMP_ON           9
+#define SPITZ_SCP2_IR_ON                1
+#define SPITZ_SCP2_AKIN_PULLUP          2
+#define SPITZ_SCP2_BACKLIGHT_CONT       7
+#define SPITZ_SCP2_BACKLIGHT_ON                 8
+#define SPITZ_SCP2_MIC_BIAS             9
 
 static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
                 DeviceState *scp0, DeviceState *scp1)
@@ -839,15 +839,15 @@ static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
     qdev_connect_gpio_out(scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
 }
 
-#define SPITZ_GPIO_HSYNC		22
-#define SPITZ_GPIO_SD_DETECT		9
-#define SPITZ_GPIO_SD_WP		81
-#define SPITZ_GPIO_ON_RESET		89
-#define SPITZ_GPIO_BAT_COVER		90
-#define SPITZ_GPIO_CF1_IRQ		105
-#define SPITZ_GPIO_CF1_CD		94
-#define SPITZ_GPIO_CF2_IRQ		106
-#define SPITZ_GPIO_CF2_CD		93
+#define SPITZ_GPIO_HSYNC                22
+#define SPITZ_GPIO_SD_DETECT            9
+#define SPITZ_GPIO_SD_WP                81
+#define SPITZ_GPIO_ON_RESET             89
+#define SPITZ_GPIO_BAT_COVER            90
+#define SPITZ_GPIO_CF1_IRQ              105
+#define SPITZ_GPIO_CF1_CD               94
+#define SPITZ_GPIO_CF2_IRQ              106
+#define SPITZ_GPIO_CF2_CD               93
 
 static int spitz_hsync;
 
@@ -907,8 +907,8 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
 /* Board init.  */
 enum spitz_model_e { spitz, akita, borzoi, terrier };
 
-#define SPITZ_RAM	0x04000000
-#define SPITZ_ROM	0x00800000
+#define SPITZ_RAM       0x04000000
+#define SPITZ_ROM       0x00800000
 
 static struct arm_boot_info spitz_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
