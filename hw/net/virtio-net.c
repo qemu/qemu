@@ -3416,6 +3416,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     g_free(n->vlans);
 
     if (n->failover) {
+        device_listener_unregister(&n->primary_listener);
         g_free(n->primary_device_id);
         g_free(n->standby_id);
         qobject_unref(n->primary_device_dict);
