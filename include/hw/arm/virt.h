@@ -125,6 +125,7 @@ typedef struct {
     bool no_highmem_ecam;
     bool no_ged;   /* Machines < 4.2 has no support for ACPI GED device */
     bool kvm_no_adjvtime;
+    bool acpi_expose_flash;
 } VirtMachineClass;
 
 typedef struct {
