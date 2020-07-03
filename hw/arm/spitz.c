@@ -586,12 +586,9 @@ static void spitz_bl_update(SpitzLCDTG *s)
         zaurus_printf("LCD Backlight now off\n");
 }
 
-/* FIXME: Implement GPIO properly and remove this hack.  */
-static SpitzLCDTG *spitz_lcdtg;
-
 static inline void spitz_bl_bit5(void *opaque, int line, int level)
 {
-    SpitzLCDTG *s = spitz_lcdtg;
+    SpitzLCDTG *s = opaque;
     int prev = s->bl_intensity;
 
     if (level)
@@ -605,7 +602,7 @@ static inline void spitz_bl_bit5(void *opaque, int line, int level)
 
 static inline void spitz_bl_power(void *opaque, int line, int level)
 {
-    SpitzLCDTG *s = spitz_lcdtg;
+    SpitzLCDTG *s = opaque;
     s->bl_power = !!level;
     spitz_bl_update(s);
 }
@@ -639,13 +636,16 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static void spitz_lcdtg_realize(SSISlave *dev, Error **errp)
+static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 {
-    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, ssi);
+    DeviceState *dev = DEVICE(s);
 
-    spitz_lcdtg = s;
     s->bl_power = 0;
     s->bl_intensity = 0x20;
+
+    qdev_init_gpio_in_named(dev, spitz_bl_bit5, "bl_bit5", 1);
+    qdev_init_gpio_in_named(dev, spitz_bl_power, "bl_power", 1);
 }
 
 /* SSP devices */
@@ -820,15 +820,11 @@ static void spitz_out_switch(void *opaque, int line, int level)
     case 3:
         zaurus_printf("Orange LED %s.\n", level ? "on" : "off");
         break;
-    case 4:
-        spitz_bl_bit5(opaque, line, level);
-        break;
-    case 5:
-        spitz_bl_power(opaque, line, level);
-        break;
     case 6:
         spitz_adc_temp_on(opaque, line, level);
         break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -858,9 +854,9 @@ static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
 
     if (sms->scp1) {
         qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_CONT,
-                              outsignals[4]);
+                              qdev_get_gpio_in_named(sms->lcdtg, "bl_bit5", 0));
         qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_ON,
-                              outsignals[5]);
+                              qdev_get_gpio_in_named(sms->lcdtg, "bl_power", 0));
     }
 
     qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
