@@ -696,13 +696,14 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 
 static void spitz_adc_temp_on(void *opaque, int line, int level)
 {
+    int batt_temp;
+
     if (!max1111)
         return;
 
-    if (level)
-        max111x_set_input(max1111, MAX1111_BATT_TEMP, SPITZ_BATTERY_TEMP);
-    else
-        max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
+    batt_temp = level ? SPITZ_BATTERY_TEMP : 0;
+
+    qemu_set_irq(qdev_get_gpio_in(max1111, MAX1111_BATT_TEMP), batt_temp);
 }
 
 static void corgi_ssp_realize(SSISlave *d, Error **errp)

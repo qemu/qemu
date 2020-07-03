@@ -131,12 +131,21 @@ static const VMStateDescription vmstate_max111x = {
     }
 };
 
+static void max111x_input_set(void *opaque, int line, int value)
+{
+    MAX111xState *s = MAX_111X(opaque);
+
+    assert(line >= 0 && line < s->inputs);
+    s->input[line] = value;
+}
+
 static int max111x_init(SSISlave *d, int inputs)
 {
     DeviceState *dev = DEVICE(d);
     MAX111xState *s = MAX_111X(dev);
 
     qdev_init_gpio_out(dev, &s->interrupt, 1);
+    qdev_init_gpio_in(dev, max111x_input_set, inputs);
 
     s->inputs = inputs;
 
@@ -151,13 +160,6 @@ static void max1110_realize(SSISlave *dev, Error **errp)
 static void max1111_realize(SSISlave *dev, Error **errp)
 {
     max111x_init(dev, 4);
-}
-
-void max111x_set_input(DeviceState *dev, int line, uint8_t value)
-{
-    MAX111xState *s = MAX_111X(dev);
-    assert(line >= 0 && line < s->inputs);
-    s->input[line] = value;
 }
 
 static void max111x_reset(DeviceState *dev)
