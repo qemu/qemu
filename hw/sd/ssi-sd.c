@@ -74,7 +74,7 @@ typedef struct {
 
 static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
 {
-    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
+    ssi_sd_state *s = SSI_SD(dev);
 
     /* Special case: allow CMD12 (STOP TRANSMISSION) while reading data.  */
     if (s->mode == SSI_SD_DATA_READ && val == 0x4d) {
@@ -241,7 +241,7 @@ static const VMStateDescription vmstate_ssi_sd = {
 
 static void ssi_sd_realize(SSISlave *d, Error **errp)
 {
-    ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
+    ssi_sd_state *s = SSI_SD(d);
     DeviceState *carddev;
     DriveInfo *dinfo;
     Error *err = NULL;

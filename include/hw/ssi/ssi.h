@@ -66,8 +66,6 @@ struct SSISlave {
     bool cs;
 };
 
-#define FROM_SSI_SLAVE(type, dev) DO_UPCAST(type, ssidev, dev)
-
 extern const VMStateDescription vmstate_ssi_slave;
 
 #define VMSTATE_SSI_SLAVE(_field, _state) {                          \
