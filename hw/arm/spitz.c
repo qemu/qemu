@@ -43,6 +43,11 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    PXA2xxState *mpu;
+    DeviceState *mux;
+    DeviceState *lcdtg;
+    DeviceState *ads7846;
+    DeviceState *max1111;
 } SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
@@ -709,34 +714,33 @@ static void corgi_ssp_realize(SSISlave *d, Error **errp)
     s->bus[2] = ssi_create_bus(dev, "ssi2");
 }
 
-static void spitz_ssp_attach(PXA2xxState *cpu)
+static void spitz_ssp_attach(SpitzMachineState *sms)
 {
-    DeviceState *mux;
-    DeviceState *dev;
     void *bus;
 
-    mux = ssi_create_slave(cpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
+    sms->mux = ssi_create_slave(sms->mpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
 
-    bus = qdev_get_child_bus(mux, "ssi0");
-    ssi_create_slave(bus, "spitz-lcdtg");
+    bus = qdev_get_child_bus(sms->mux, "ssi0");
+    sms->lcdtg = ssi_create_slave(bus, "spitz-lcdtg");
 
-    bus = qdev_get_child_bus(mux, "ssi1");
-    dev = ssi_create_slave(bus, "ads7846");
-    qdev_connect_gpio_out(dev, 0,
-                          qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_TP_INT));
+    bus = qdev_get_child_bus(sms->mux, "ssi1");
+    sms->ads7846 = ssi_create_slave(bus, "ads7846");
+    qdev_connect_gpio_out(sms->ads7846, 0,
+                          qdev_get_gpio_in(sms->mpu->gpio, SPITZ_GPIO_TP_INT));
 
-    bus = qdev_get_child_bus(mux, "ssi2");
-    max1111 = ssi_create_slave(bus, "max1111");
-    max111x_set_input(max1111, MAX1111_BATT_VOLT, SPITZ_BATTERY_VOLT);
-    max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
-    max111x_set_input(max1111, MAX1111_ACIN_VOLT, SPITZ_CHARGEON_ACIN);
+    bus = qdev_get_child_bus(sms->mux, "ssi2");
+    sms->max1111 = ssi_create_slave(bus, "max1111");
+    max1111 = sms->max1111;
+    max111x_set_input(sms->max1111, MAX1111_BATT_VOLT, SPITZ_BATTERY_VOLT);
+    max111x_set_input(sms->max1111, MAX1111_BATT_TEMP, 0);
+    max111x_set_input(sms->max1111, MAX1111_ACIN_VOLT, SPITZ_CHARGEON_ACIN);
 
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
-                        qdev_get_gpio_in(mux, 0));
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
-                        qdev_get_gpio_in(mux, 1));
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
-                        qdev_get_gpio_in(mux, 2));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_LCDCON_CS,
+                        qdev_get_gpio_in(sms->mux, 0));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_ADS7846_CS,
+                        qdev_get_gpio_in(sms->mux, 1));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_MAX1111_CS,
+                        qdev_get_gpio_in(sms->mux, 2));
 }
 
 /* CF Microdrive */
@@ -936,6 +940,7 @@ static struct arm_boot_info spitz_binfo = {
 static void spitz_common_init(MachineState *machine)
 {
     SpitzMachineClass *smc = SPITZ_MACHINE_GET_CLASS(machine);
+    SpitzMachineState *sms = SPITZ_MACHINE(machine);
     enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
     DeviceState *scp0, *scp1 = NULL;
@@ -945,6 +950,7 @@ static void spitz_common_init(MachineState *machine)
     /* Setup CPU & memory */
     mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size,
                       machine->cpu_type);
+    sms->mpu = mpu;
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
@@ -954,7 +960,7 @@ static void spitz_common_init(MachineState *machine)
     /* Setup peripherals */
     spitz_keyboard_register(mpu);
 
-    spitz_ssp_attach(mpu);
+    spitz_ssp_attach(sms);
 
     scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
     if (model != akita) {
