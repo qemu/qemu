@@ -48,6 +48,8 @@ typedef struct {
     DeviceState *lcdtg;
     DeviceState *ads7846;
     DeviceState *max1111;
+    DeviceState *scp0;
+    DeviceState *scp1;
 } SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
@@ -845,22 +847,23 @@ static void spitz_out_switch(void *opaque, int line, int level)
 #define SPITZ_SCP2_BACKLIGHT_ON                 8
 #define SPITZ_SCP2_MIC_BIAS             9
 
-static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
-                DeviceState *scp0, DeviceState *scp1)
+static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
 {
-    qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
+    qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, sms->mpu, 8);
 
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_JK_B, outsignals[1]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_JK_B, outsignals[1]);
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
 
-    if (scp1) {
-        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_CONT, outsignals[4]);
-        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_ON, outsignals[5]);
+    if (sms->scp1) {
+        qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_CONT,
+                              outsignals[4]);
+        qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_ON,
+                              outsignals[5]);
     }
 
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
 }
 
 #define SPITZ_GPIO_HSYNC                22
@@ -943,7 +946,6 @@ static void spitz_common_init(MachineState *machine)
     SpitzMachineState *sms = SPITZ_MACHINE(machine);
     enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
-    DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
@@ -962,12 +964,14 @@ static void spitz_common_init(MachineState *machine)
 
     spitz_ssp_attach(sms);
 
-    scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
+    sms->scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
     if (model != akita) {
-        scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
+        sms->scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
+    } else {
+        sms->scp1 = NULL;
     }
 
-    spitz_scoop_gpio_setup(mpu, scp0, scp1);
+    spitz_scoop_gpio_setup(sms);
 
     spitz_gpio_setup(mpu, (model == akita) ? 1 : 2);
 
