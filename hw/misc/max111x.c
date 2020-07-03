@@ -11,33 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/misc/max111x.h"
 #include "hw/irq.h"
-#include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-
-typedef struct {
-    SSISlave parent_obj;
-
-    qemu_irq interrupt;
-    /* Values of inputs at system reset (settable by QOM property) */
-    uint8_t reset_input[8];
-
-    uint8_t tb1, rb2, rb3;
-    int cycle;
-
-    uint8_t input[8];
-    int inputs, com;
-} MAX111xState;
-
-#define TYPE_MAX_111X "max111x"
-
-#define MAX_111X(obj) \
-    OBJECT_CHECK(MAX111xState, (obj), TYPE_MAX_111X)
-
-#define TYPE_MAX_1110 "max1110"
-#define TYPE_MAX_1111 "max1111"
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
