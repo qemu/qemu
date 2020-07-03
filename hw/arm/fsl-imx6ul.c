@@ -428,6 +428,9 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         object_property_set_uint(OBJECT(&s->eth[i]),
+                                 s->phy_num[i],
+                                 "phy-num", &error_abort);
+        object_property_set_uint(OBJECT(&s->eth[i]),
                                  FSL_IMX6UL_ETH_NUM_TX_RINGS,
                                  "tx-ring-num", &error_abort);
         qdev_set_nic_properties(DEVICE(&s->eth[i]), &nd_table[i]);
@@ -607,10 +610,17 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                                 FSL_IMX6UL_OCRAM_ALIAS_ADDR, &s->ocram_alias);
 }
 
+static Property fsl_imx6ul_properties[] = {
+    DEFINE_PROP_UINT32("fec1-phy-num", FslIMX6ULState, phy_num[0], 0),
+    DEFINE_PROP_UINT32("fec2-phy-num", FslIMX6ULState, phy_num[1], 1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void fsl_imx6ul_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, fsl_imx6ul_properties);
     dc->realize = fsl_imx6ul_realize;
     dc->desc = "i.MX6UL SOC";
     /* Reason: Uses serial_hds and nd_table in realize() directly */
