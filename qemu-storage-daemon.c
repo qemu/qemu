@@ -316,6 +316,7 @@ int main(int argc, char *argv[])
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
+    qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_trace_opts);
     qcrypto_init(&error_fatal);
     bdrv_init();
@@ -333,6 +334,10 @@ int main(int argc, char *argv[])
     while (!exit_requested) {
         main_loop_wait(false);
     }
+
+    monitor_cleanup();
+    qemu_chr_cleanup();
+    user_creatable_cleanup();
 
     return EXIT_SUCCESS;
 }

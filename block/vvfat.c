@@ -140,48 +140,16 @@ static inline void* array_insert(array_t* array,unsigned int index,unsigned int 
     return array->pointer+index*array->item_size;
 }
 
-/* this performs a "roll", so that the element which was at index_from becomes
- * index_to, but the order of all other elements is preserved. */
-static inline int array_roll(array_t* array,int index_to,int index_from,int count)
-{
-    char* buf;
-    char* from;
-    char* to;
-    int is;
-
-    if(!array ||
-            index_to<0 || index_to>=array->next ||
-            index_from<0 || index_from>=array->next)
-        return -1;
-
-    if(index_to==index_from)
-        return 0;
-
-    is=array->item_size;
-    from=array->pointer+index_from*is;
-    to=array->pointer+index_to*is;
-    buf=g_malloc(is*count);
-    memcpy(buf,from,is*count);
-
-    if(index_to<index_from)
-        memmove(to+is*count,to,from-to);
-    else
-        memmove(from,from+is*count,to-from);
-
-    memcpy(to,buf,is*count);
-
-    g_free(buf);
-
-    return 0;
-}
-
 static inline int array_remove_slice(array_t* array,int index, int count)
 {
     assert(index >=0);
     assert(count > 0);
     assert(index + count <= array->next);
-    if(array_roll(array,array->next-1,index,count))
-        return -1;
+
+    memmove(array->pointer + index * array->item_size,
+            array->pointer + (index + count) * array->item_size,
+            (array->next - index - count) * array->item_size);
+
     array->next -= count;
     return 0;
 }
@@ -520,12 +488,31 @@ static void set_begin_of_direntry(direntry_t* direntry, uint32_t begin)
     direntry->begin_hi = cpu_to_le16((begin >> 16) & 0xffff);
 }
 
+static bool valid_filename(const unsigned char *name)
+{
+    unsigned char c;
+    if (!strcmp((const char*)name, ".") || !strcmp((const char*)name, "..")) {
+        return false;
+    }
+    for (; (c = *name); name++) {
+        if (!((c >= '0' && c <= '9') ||
+              (c >= 'A' && c <= 'Z') ||
+              (c >= 'a' && c <= 'z') ||
+              c > 127 ||
+              strchr("$%'-_@~`!(){}^#&.+,;=[]", c) != NULL))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 static uint8_t to_valid_short_char(gunichar c)
 {
     c = g_unichar_toupper(c);
     if ((c >= '0' && c <= '9') ||
         (c >= 'A' && c <= 'Z') ||
-        strchr("$%'-_@~`!(){}^#&", c) != 0) {
+        strchr("$%'-_@~`!(){}^#&", c) != NULL) {
         return c;
     } else {
         return 0;
@@ -2098,6 +2085,10 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
             }
             lfn.checksum = 0x100; /* cannot use long name twice */
 
+            if (!valid_filename(lfn.name)) {
+                fprintf(stderr, "Invalid file name\n");
+                goto fail;
+            }
             if (path_len + 1 + lfn.len >= PATH_MAX) {
                 fprintf(stderr, "Name too long: %s/%s\n", path, lfn.name);
                 goto fail;

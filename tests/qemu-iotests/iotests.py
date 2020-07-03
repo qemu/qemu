@@ -146,11 +146,12 @@ def qemu_img_pipe(*args):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
                             universal_newlines=True)
-    exitcode = subp.wait()
-    if exitcode < 0:
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n'
-                         % (-exitcode, ' '.join(qemu_img_args + list(args))))
-    return subp.communicate()[0]
+                         % (-subp.returncode,
+                            ' '.join(qemu_img_args + list(args))))
+    return output
 
 def qemu_img_log(*args):
     result = qemu_img_pipe(*args)
@@ -177,11 +178,11 @@ def qemu_io(*args):
     subp = subprocess.Popen(args, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
                             universal_newlines=True)
-    exitcode = subp.wait()
-    if exitcode < 0:
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n'
-                         % (-exitcode, ' '.join(args)))
-    return subp.communicate()[0]
+                         % (-subp.returncode, ' '.join(args)))
+    return output
 
 def qemu_io_log(*args):
     result = qemu_io(*args)
@@ -257,15 +258,14 @@ def qemu_nbd_early_pipe(*args):
        and its output in case of an error'''
     subp = subprocess.Popen(qemu_nbd_args + ['--fork'] + list(args),
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
                             universal_newlines=True)
-    exitcode = subp.wait()
-    if exitcode < 0:
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
         sys.stderr.write('qemu-nbd received signal %i: %s\n' %
-                         (-exitcode,
+                         (-subp.returncode,
                           ' '.join(qemu_nbd_args + ['--fork'] + list(args))))
 
-    return exitcode, subp.communicate()[0] if exitcode else ''
+    return subp.returncode, output if subp.returncode else ''
 
 def qemu_nbd_popen(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
@@ -1062,11 +1062,11 @@ def qemu_pipe(*args):
     subp = subprocess.Popen(args, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
                             universal_newlines=True)
-    exitcode = subp.wait()
-    if exitcode < 0:
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
         sys.stderr.write('qemu received signal %i: %s\n' %
-                         (-exitcode, ' '.join(args)))
-    return subp.communicate()[0]
+                         (-subp.returncode, ' '.join(args)))
+    return output
 
 def supported_formats(read_only=False):
     '''Set 'read_only' to True to check ro-whitelist
