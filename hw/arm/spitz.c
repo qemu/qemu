@@ -33,6 +33,26 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 
+enum spitz_model_e { spitz, akita, borzoi, terrier };
+
+typedef struct {
+    MachineClass parent;
+    enum spitz_model_e model;
+    int arm_id;
+} SpitzMachineClass;
+
+typedef struct {
+    MachineState parent;
+} SpitzMachineState;
+
+#define TYPE_SPITZ_MACHINE "spitz-common"
+#define SPITZ_MACHINE(obj) \
+    OBJECT_CHECK(SpitzMachineState, obj, TYPE_SPITZ_MACHINE)
+#define SPITZ_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(SpitzMachineClass, obj, TYPE_SPITZ_MACHINE)
+#define SPITZ_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(SpitzMachineClass, klass, TYPE_SPITZ_MACHINE)
+
 #undef REG_FMT
 #define REG_FMT                         "0x%02lx"
 
@@ -905,8 +925,6 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
 }
 
 /* Board init.  */
-enum spitz_model_e { spitz, akita, borzoi, terrier };
-
 #define SPITZ_RAM       0x04000000
 #define SPITZ_ROM       0x00800000
 
@@ -915,9 +933,10 @@ static struct arm_boot_info spitz_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(MachineState *machine,
-                              enum spitz_model_e model, int arm_id)
+static void spitz_common_init(MachineState *machine)
 {
+    SpitzMachineClass *smc = SPITZ_MACHINE_GET_CLASS(machine);
+    enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
     DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
@@ -958,100 +977,100 @@ static void spitz_common_init(MachineState *machine,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(mpu, 0);
 
-    spitz_binfo.board_id = arm_id;
+    spitz_binfo.board_id = smc->arm_id;
     arm_load_kernel(mpu->cpu, machine, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(MachineState *machine)
+static void spitz_common_class_init(ObjectClass *oc, void *data)
 {
-    spitz_common_init(machine, spitz, 0x2c9);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
+    mc->init = spitz_common_init;
 }
 
-static void borzoi_init(MachineState *machine)
-{
-    spitz_common_init(machine, borzoi, 0x33f);
-}
-
-static void akita_init(MachineState *machine)
-{
-    spitz_common_init(machine, akita, 0x2e8);
-}
-
-static void terrier_init(MachineState *machine)
-{
-    spitz_common_init(machine, terrier, 0x33f);
-}
+static const TypeInfo spitz_common_info = {
+    .name = TYPE_SPITZ_MACHINE,
+    .parent = TYPE_MACHINE,
+    .abstract = true,
+    .instance_size = sizeof(SpitzMachineState),
+    .class_size = sizeof(SpitzMachineClass),
+    .class_init = spitz_common_class_init,
+};
 
 static void akitapda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
-    mc->init = akita_init;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = akita;
+    smc->arm_id = 0x2e8;
 }
 
 static const TypeInfo akitapda_type = {
     .name = MACHINE_TYPE_NAME("akita"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = akitapda_class_init,
 };
 
 static void spitzpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3000 (Spitz) PDA (PXA270)";
-    mc->init = spitz_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = spitz;
+    smc->arm_id = 0x2c9;
 }
 
 static const TypeInfo spitzpda_type = {
     .name = MACHINE_TYPE_NAME("spitz"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = spitzpda_class_init,
 };
 
 static void borzoipda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3100 (Borzoi) PDA (PXA270)";
-    mc->init = borzoi_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = borzoi;
+    smc->arm_id = 0x33f;
 }
 
 static const TypeInfo borzoipda_type = {
     .name = MACHINE_TYPE_NAME("borzoi"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = borzoipda_class_init,
 };
 
 static void terrierpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3200 (Terrier) PDA (PXA270)";
-    mc->init = terrier_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
+    smc->model = terrier;
+    smc->arm_id = 0x33f;
 }
 
 static const TypeInfo terrierpda_type = {
     .name = MACHINE_TYPE_NAME("terrier"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = terrierpda_class_init,
 };
 
 static void spitz_machine_init(void)
 {
+    type_register_static(&spitz_common_info);
     type_register_static(&akitapda_type);
     type_register_static(&spitzpda_type);
     type_register_static(&borzoipda_type);
