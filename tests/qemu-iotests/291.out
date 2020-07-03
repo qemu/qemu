@@ -14,25 +14,6 @@ wrote 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 1048576/1048576 bytes at offset 2097152
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Check resulting qcow2 header extensions:
-Header extension:
-magic                     0xe2792aca (Backing format)
-length                    5
-data                      'qcow2'
-
-Header extension:
-magic                     0x6803f857 (Feature table)
-length                    336
-data                      <binary>
-
-Header extension:
-magic                     0x23852875 (Bitmaps)
-length                    24
-nb_bitmaps                2
-reserved32                0
-bitmap_directory_size     0x40
-bitmap_directory_offset   0x510000
-
 
 === Bitmap preservation not possible to non-qcow2 ===
 
@@ -84,20 +65,6 @@ Format specific information:
             granularity: 65536
     refcount bits: 16
     corrupt: false
-Check resulting qcow2 header extensions:
-Header extension:
-magic                     0x6803f857 (Feature table)
-length                    336
-data                      <binary>
-
-Header extension:
-magic                     0x23852875 (Bitmaps)
-length                    24
-nb_bitmaps                3
-reserved32                0
-bitmap_directory_size     0x60
-bitmap_directory_offset   0x520000
-
 
 === Check bitmap contents ===
 
