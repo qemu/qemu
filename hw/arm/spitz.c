@@ -51,6 +51,7 @@ typedef struct {
     DeviceState *max1111;
     DeviceState *scp0;
     DeviceState *scp1;
+    DeviceState *misc_gpio;
 } SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
@@ -658,8 +659,6 @@ static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 #define SPITZ_GPIO_MAX1111_CS   20
 #define SPITZ_GPIO_TP_INT       11
 
-static DeviceState *max1111;
-
 /* "Demux" the signal based on current chipselect */
 typedef struct {
     SSISlave ssidev;
@@ -695,18 +694,6 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 #define SPITZ_BATTERY_VOLT      0xd0    /* About 4.0V */
 #define SPITZ_CHARGEON_ACIN     0x80    /* About 5.0V */
 
-static void spitz_adc_temp_on(void *opaque, int line, int level)
-{
-    int batt_temp;
-
-    if (!max1111)
-        return;
-
-    batt_temp = level ? SPITZ_BATTERY_TEMP : 0;
-
-    qemu_set_irq(qdev_get_gpio_in(max1111, MAX1111_BATT_TEMP), batt_temp);
-}
-
 static void corgi_ssp_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
@@ -734,7 +721,6 @@ static void spitz_ssp_attach(SpitzMachineState *sms)
 
     bus = qdev_get_child_bus(sms->mux, "ssi2");
     sms->max1111 = qdev_new(TYPE_MAX_1111);
-    max1111 = sms->max1111;
     qdev_prop_set_uint8(sms->max1111, "input1" /* BATT_VOLT */,
                         SPITZ_BATTERY_VOLT);
     qdev_prop_set_uint8(sms->max1111, "input2" /* BATT_TEMP */, 0);
@@ -810,27 +796,66 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 
 /* Other peripherals */
 
-static void spitz_out_switch(void *opaque, int line, int level)
+/*
+ * Encapsulation of some miscellaneous GPIO line behaviour for the Spitz boards.
+ *
+ * QEMU interface:
+ *  + named GPIO inputs "green-led", "orange-led", "charging", "discharging":
+ *    these currently just print messages that the line has been signalled
+ *  + named GPIO input "adc-temp-on": set to cause the battery-temperature
+ *    value to be passed to the max111x ADC
+ *  + named GPIO output "adc-temp": the ADC value, to be wired up to the max111x
+ */
+#define TYPE_SPITZ_MISC_GPIO "spitz-misc-gpio"
+#define SPITZ_MISC_GPIO(obj) \
+    OBJECT_CHECK(SpitzMiscGPIOState, (obj), TYPE_SPITZ_MISC_GPIO)
+
+typedef struct SpitzMiscGPIOState {
+    SysBusDevice parent_obj;
+
+    qemu_irq adc_value;
+} SpitzMiscGPIOState;
+
+static void spitz_misc_charging(void *opaque, int n, int level)
 {
-    switch (line) {
-    case 0:
-        zaurus_printf("Charging %s.\n", level ? "off" : "on");
-        break;
-    case 1:
-        zaurus_printf("Discharging %s.\n", level ? "on" : "off");
-        break;
-    case 2:
-        zaurus_printf("Green LED %s.\n", level ? "on" : "off");
-        break;
-    case 3:
-        zaurus_printf("Orange LED %s.\n", level ? "on" : "off");
-        break;
-    case 6:
-        spitz_adc_temp_on(opaque, line, level);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    zaurus_printf("Charging %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_discharging(void *opaque, int n, int level)
+{
+    zaurus_printf("Discharging %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_green_led(void *opaque, int n, int level)
+{
+    zaurus_printf("Green LED %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_orange_led(void *opaque, int n, int level)
+{
+    zaurus_printf("Orange LED %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_adc_temp(void *opaque, int n, int level)
+{
+    SpitzMiscGPIOState *s = SPITZ_MISC_GPIO(opaque);
+    int batt_temp = level ? SPITZ_BATTERY_TEMP : 0;
+
+    qemu_set_irq(s->adc_value, batt_temp);
+}
+
+static void spitz_misc_gpio_init(Object *obj)
+{
+    SpitzMiscGPIOState *s = SPITZ_MISC_GPIO(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in_named(dev, spitz_misc_charging, "charging", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_discharging, "discharging", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_green_led, "green-led", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_orange_led, "orange-led", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_adc_temp, "adc-temp-on", 1);
+
+    qdev_init_gpio_out_named(dev, &s->adc_value, "adc-temp", 1);
 }
 
 #define SPITZ_SCP_LED_GREEN             1
@@ -850,12 +875,22 @@ static void spitz_out_switch(void *opaque, int line, int level)
 
 static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
 {
-    qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, sms->mpu, 8);
+    DeviceState *miscdev = sysbus_create_simple(TYPE_SPITZ_MISC_GPIO, -1, NULL);
 
-    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
-    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_JK_B, outsignals[1]);
-    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
-    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
+    sms->misc_gpio = miscdev;
+
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_CHRG_ON,
+                          qdev_get_gpio_in_named(miscdev, "charging", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_JK_B,
+                          qdev_get_gpio_in_named(miscdev, "discharging", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_GREEN,
+                          qdev_get_gpio_in_named(miscdev, "green-led", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_ORANGE,
+                          qdev_get_gpio_in_named(miscdev, "orange-led", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_ADC_TEMP_ON,
+                          qdev_get_gpio_in_named(miscdev, "adc-temp-on", 0));
+    qdev_connect_gpio_out_named(miscdev, "adc-temp", 0,
+                                qdev_get_gpio_in(sms->max1111, MAX1111_BATT_TEMP));
 
     if (sms->scp1) {
         qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_CONT,
@@ -863,8 +898,6 @@ static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
         qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_ON,
                               qdev_get_gpio_in_named(sms->lcdtg, "bl_power", 0));
     }
-
-    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
 }
 
 #define SPITZ_GPIO_HSYNC                22
@@ -1217,12 +1250,24 @@ static const TypeInfo spitz_lcdtg_info = {
     .class_init    = spitz_lcdtg_class_init,
 };
 
+static const TypeInfo spitz_misc_gpio_info = {
+    .name = TYPE_SPITZ_MISC_GPIO,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SpitzMiscGPIOState),
+    .instance_init = spitz_misc_gpio_init,
+    /*
+     * No class_init required: device has no internal state so does not
+     * need to set up reset or vmstate, and does not have a realize method.
+     */
+};
+
 static void spitz_register_types(void)
 {
     type_register_static(&corgi_ssp_info);
     type_register_static(&spitz_lcdtg_info);
     type_register_static(&spitz_keyboard_info);
     type_register_static(&sl_nand_info);
+    type_register_static(&spitz_misc_gpio_info);
 }
 
 type_init(spitz_register_types)
