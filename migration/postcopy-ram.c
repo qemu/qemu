@@ -389,7 +389,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
      */
     if (munlockall()) {
         error_report("%s: munlockall: %s", __func__,  strerror(errno));
-        return -1;
+        goto out;
     }
 
     /*
