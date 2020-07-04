@@ -47,8 +47,9 @@ memsetxc:
  */
 	.globl disabled_wait
 disabled_wait:
-        larl %r1,disabled_wait_psw
-        lpswe   0(%r1)
+	larl	%r1,disabled_wait_psw
+	lpswe	0(%r1)
+1:	j	1b
 
 
 /*
