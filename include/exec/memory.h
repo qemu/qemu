@@ -51,6 +51,12 @@ extern bool global_dirty_log;
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 
+struct ReservedRegion {
+    hwaddr low;
+    hwaddr high;
+    unsigned type;
+};
+
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;
 
 /* See address_space_translate: bit 0 is read, bit 1 is write.  */

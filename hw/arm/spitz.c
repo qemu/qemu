@@ -23,36 +23,66 @@
 #include "hw/ssi/ssi.h"
 #include "hw/block/flash.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "hw/arm/sharpsl.h"
 #include "ui/console.h"
 #include "hw/audio/wm8750.h"
 #include "audio/audio.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "hw/misc/max111x.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
 
-#undef REG_FMT
-#define REG_FMT			"0x%02lx"
+enum spitz_model_e { spitz, akita, borzoi, terrier };
+
+typedef struct {
+    MachineClass parent;
+    enum spitz_model_e model;
+    int arm_id;
+} SpitzMachineClass;
+
+typedef struct {
+    MachineState parent;
+    PXA2xxState *mpu;
+    DeviceState *mux;
+    DeviceState *lcdtg;
+    DeviceState *ads7846;
+    DeviceState *max1111;
+    DeviceState *scp0;
+    DeviceState *scp1;
+    DeviceState *misc_gpio;
+} SpitzMachineState;
+
+#define TYPE_SPITZ_MACHINE "spitz-common"
+#define SPITZ_MACHINE(obj) \
+    OBJECT_CHECK(SpitzMachineState, obj, TYPE_SPITZ_MACHINE)
+#define SPITZ_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(SpitzMachineClass, obj, TYPE_SPITZ_MACHINE)
+#define SPITZ_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(SpitzMachineClass, klass, TYPE_SPITZ_MACHINE)
+
+#define zaurus_printf(format, ...)                              \
+    fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
 
 /* Spitz Flash */
-#define FLASH_BASE		0x0c000000
-#define FLASH_ECCLPLB		0x00	/* Line parity 7 - 0 bit */
-#define FLASH_ECCLPUB		0x04	/* Line parity 15 - 8 bit */
-#define FLASH_ECCCP		0x08	/* Column parity 5 - 0 bit */
-#define FLASH_ECCCNTR		0x0c	/* ECC byte counter */
-#define FLASH_ECCCLRR		0x10	/* Clear ECC */
-#define FLASH_FLASHIO		0x14	/* Flash I/O */
-#define FLASH_FLASHCTL		0x18	/* Flash Control */
+#define FLASH_BASE              0x0c000000
+#define FLASH_ECCLPLB           0x00    /* Line parity 7 - 0 bit */
+#define FLASH_ECCLPUB           0x04    /* Line parity 15 - 8 bit */
+#define FLASH_ECCCP             0x08    /* Column parity 5 - 0 bit */
+#define FLASH_ECCCNTR           0x0c    /* ECC byte counter */
+#define FLASH_ECCCLRR           0x10    /* Clear ECC */
+#define FLASH_FLASHIO           0x14    /* Flash I/O */
+#define FLASH_FLASHCTL          0x18    /* Flash Control */
 
-#define FLASHCTL_CE0		(1 << 0)
-#define FLASHCTL_CLE		(1 << 1)
-#define FLASHCTL_ALE		(1 << 2)
-#define FLASHCTL_WP		(1 << 3)
-#define FLASHCTL_CE1		(1 << 4)
-#define FLASHCTL_RYBY		(1 << 5)
-#define FLASHCTL_NCE		(FLASHCTL_CE0 | FLASHCTL_CE1)
+#define FLASHCTL_CE0            (1 << 0)
+#define FLASHCTL_CLE            (1 << 1)
+#define FLASHCTL_ALE            (1 << 2)
+#define FLASHCTL_WP             (1 << 3)
+#define FLASHCTL_CE1            (1 << 4)
+#define FLASHCTL_RYBY           (1 << 5)
+#define FLASHCTL_NCE            (FLASHCTL_CE0 | FLASHCTL_CE1)
 
 #define TYPE_SL_NAND "sl-nand"
 #define SL_NAND(obj) OBJECT_CHECK(SLNANDState, (obj), TYPE_SL_NAND)
@@ -74,12 +104,12 @@ static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
     int ryby;
 
     switch (addr) {
-#define BSHR(byte, from, to)	((s->ecc.lp[byte] >> (from - to)) & (1 << to))
+#define BSHR(byte, from, to)    ((s->ecc.lp[byte] >> (from - to)) & (1 << to))
     case FLASH_ECCLPLB:
         return BSHR(0, 4, 0) | BSHR(0, 5, 2) | BSHR(0, 6, 4) | BSHR(0, 7, 6) |
                 BSHR(1, 4, 1) | BSHR(1, 5, 3) | BSHR(1, 6, 5) | BSHR(1, 7, 7);
 
-#define BSHL(byte, from, to)	((s->ecc.lp[byte] << (to - from)) & (1 << to))
+#define BSHL(byte, from, to)    ((s->ecc.lp[byte] << (to - from)) & (1 << to))
     case FLASH_ECCLPUB:
         return BSHL(0, 0, 0) | BSHL(0, 1, 2) | BSHL(0, 2, 4) | BSHL(0, 3, 6) |
                 BSHL(1, 0, 1) | BSHL(1, 1, 3) | BSHL(1, 2, 5) | BSHL(1, 3, 7);
@@ -105,7 +135,9 @@ static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
         return ecc_digest(&s->ecc, nand_getio(s->nand));
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sl_read: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
     return 0;
 }
@@ -136,7 +168,9 @@ static void sl_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        zaurus_printf("Bad register offset " REG_FMT "\n", (unsigned long)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sl_write: bad register offset 0x%02" HWADDR_PRIx "\n",
+                      addr);
     }
 }
 
@@ -191,8 +225,8 @@ static void sl_nand_realize(DeviceState *dev, Error **errp)
 
 /* Spitz Keyboard */
 
-#define SPITZ_KEY_STROBE_NUM	11
-#define SPITZ_KEY_SENSE_NUM	7
+#define SPITZ_KEY_STROBE_NUM    11
+#define SPITZ_KEY_SENSE_NUM     7
 
 static const int spitz_gpio_key_sense[SPITZ_KEY_SENSE_NUM] = {
     12, 17, 91, 34, 36, 38, 39
@@ -214,11 +248,11 @@ static int spitz_keymap[SPITZ_KEY_SENSE_NUM + 1][SPITZ_KEY_STROBE_NUM] = {
     { 0x52, 0x43, 0x01, 0x47, 0x49,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  },
 };
 
-#define SPITZ_GPIO_AK_INT	13	/* Remote control */
-#define SPITZ_GPIO_SYNC		16	/* Sync button */
-#define SPITZ_GPIO_ON_KEY	95	/* Power button */
-#define SPITZ_GPIO_SWA		97	/* Lid */
-#define SPITZ_GPIO_SWB		96	/* Tablet mode */
+#define SPITZ_GPIO_AK_INT       13      /* Remote control */
+#define SPITZ_GPIO_SYNC                 16      /* Sync button */
+#define SPITZ_GPIO_ON_KEY       95      /* Power button */
+#define SPITZ_GPIO_SWA          97      /* Lid */
+#define SPITZ_GPIO_SWB          96      /* Tablet mode */
 
 /* The special buttons are mapped to unused keys */
 static const int spitz_gpiomap[5] = {
@@ -300,7 +334,7 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 #define SPITZ_MOD_CTRL    (1 << 8)
 #define SPITZ_MOD_FN      (1 << 9)
 
-#define QUEUE_KEY(c)	s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
+#define QUEUE_KEY(c)    s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
 
 static void spitz_keyboard_handler(void *opaque, int keycode)
 {
@@ -308,25 +342,25 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
     uint16_t code;
     int mapcode;
     switch (keycode) {
-    case 0x2a:	/* Left Shift */
+    case 0x2a:  /* Left Shift */
         s->modifiers |= 1;
         break;
     case 0xaa:
         s->modifiers &= ~1;
         break;
-    case 0x36:	/* Right Shift */
+    case 0x36:  /* Right Shift */
         s->modifiers |= 2;
         break;
     case 0xb6:
         s->modifiers &= ~2;
         break;
-    case 0x1d:	/* Control */
+    case 0x1d:  /* Control */
         s->modifiers |= 4;
         break;
     case 0x9d:
         s->modifiers &= ~4;
         break;
-    case 0x38:	/* Alt */
+    case 0x38:  /* Alt */
         s->modifiers |= 8;
         break;
     case 0xb8:
@@ -536,14 +570,17 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 
 /* LCD backlight controller */
 
-#define LCDTG_RESCTL	0x00
-#define LCDTG_PHACTRL	0x01
-#define LCDTG_DUTYCTRL	0x02
-#define LCDTG_POWERREG0	0x03
-#define LCDTG_POWERREG1	0x04
-#define LCDTG_GPOR3	0x05
-#define LCDTG_PICTRL	0x06
-#define LCDTG_POLCTRL	0x07
+#define LCDTG_RESCTL    0x00
+#define LCDTG_PHACTRL   0x01
+#define LCDTG_DUTYCTRL  0x02
+#define LCDTG_POWERREG0         0x03
+#define LCDTG_POWERREG1         0x04
+#define LCDTG_GPOR3     0x05
+#define LCDTG_PICTRL    0x06
+#define LCDTG_POLCTRL   0x07
+
+#define TYPE_SPITZ_LCDTG "spitz-lcdtg"
+#define SPITZ_LCDTG(obj) OBJECT_CHECK(SpitzLCDTG, (obj), TYPE_SPITZ_LCDTG)
 
 typedef struct {
     SSISlave ssidev;
@@ -559,12 +596,9 @@ static void spitz_bl_update(SpitzLCDTG *s)
         zaurus_printf("LCD Backlight now off\n");
 }
 
-/* FIXME: Implement GPIO properly and remove this hack.  */
-static SpitzLCDTG *spitz_lcdtg;
-
 static inline void spitz_bl_bit5(void *opaque, int line, int level)
 {
-    SpitzLCDTG *s = spitz_lcdtg;
+    SpitzLCDTG *s = opaque;
     int prev = s->bl_intensity;
 
     if (level)
@@ -578,14 +612,14 @@ static inline void spitz_bl_bit5(void *opaque, int line, int level)
 
 static inline void spitz_bl_power(void *opaque, int line, int level)
 {
-    SpitzLCDTG *s = spitz_lcdtg;
+    SpitzLCDTG *s = opaque;
     s->bl_power = !!level;
     spitz_bl_update(s);
 }
 
 static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
 {
-    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+    SpitzLCDTG *s = SPITZ_LCDTG(dev);
     int addr;
     addr = value >> 5;
     value &= 0x1f;
@@ -612,25 +646,29 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static void spitz_lcdtg_realize(SSISlave *dev, Error **errp)
+static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 {
-    SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
+    SpitzLCDTG *s = SPITZ_LCDTG(ssi);
+    DeviceState *dev = DEVICE(s);
 
-    spitz_lcdtg = s;
     s->bl_power = 0;
     s->bl_intensity = 0x20;
+
+    qdev_init_gpio_in_named(dev, spitz_bl_bit5, "bl_bit5", 1);
+    qdev_init_gpio_in_named(dev, spitz_bl_power, "bl_power", 1);
 }
 
 /* SSP devices */
 
-#define CORGI_SSP_PORT		2
+#define CORGI_SSP_PORT          2
 
-#define SPITZ_GPIO_LCDCON_CS	53
-#define SPITZ_GPIO_ADS7846_CS	14
-#define SPITZ_GPIO_MAX1111_CS	20
-#define SPITZ_GPIO_TP_INT	11
+#define SPITZ_GPIO_LCDCON_CS    53
+#define SPITZ_GPIO_ADS7846_CS   14
+#define SPITZ_GPIO_MAX1111_CS   20
+#define SPITZ_GPIO_TP_INT       11
 
-static DeviceState *max1111;
+#define TYPE_CORGI_SSP "corgi-ssp"
+#define CORGI_SSP(obj) OBJECT_CHECK(CorgiSSPState, (obj), TYPE_CORGI_SSP)
 
 /* "Demux" the signal based on current chipselect */
 typedef struct {
@@ -641,7 +679,7 @@ typedef struct {
 
 static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
 {
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+    CorgiSSPState *s = CORGI_SSP(dev);
     int i;
 
     for (i = 0; i < 3; i++) {
@@ -659,29 +697,18 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
     s->enable[line] = !level;
 }
 
-#define MAX1111_BATT_VOLT	1
-#define MAX1111_BATT_TEMP	2
-#define MAX1111_ACIN_VOLT	3
+#define MAX1111_BATT_VOLT       1
+#define MAX1111_BATT_TEMP       2
+#define MAX1111_ACIN_VOLT       3
 
-#define SPITZ_BATTERY_TEMP	0xe0	/* About 2.9V */
-#define SPITZ_BATTERY_VOLT	0xd0	/* About 4.0V */
-#define SPITZ_CHARGEON_ACIN	0x80	/* About 5.0V */
-
-static void spitz_adc_temp_on(void *opaque, int line, int level)
-{
-    if (!max1111)
-        return;
-
-    if (level)
-        max111x_set_input(max1111, MAX1111_BATT_TEMP, SPITZ_BATTERY_TEMP);
-    else
-        max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
-}
+#define SPITZ_BATTERY_TEMP      0xe0    /* About 2.9V */
+#define SPITZ_BATTERY_VOLT      0xd0    /* About 4.0V */
+#define SPITZ_CHARGEON_ACIN     0x80    /* About 5.0V */
 
 static void corgi_ssp_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, d);
+    CorgiSSPState *s = CORGI_SSP(d);
 
     qdev_init_gpio_in(dev, corgi_ssp_gpio_cs, 3);
     s->bus[0] = ssi_create_bus(dev, "ssi0");
@@ -689,34 +716,36 @@ static void corgi_ssp_realize(SSISlave *d, Error **errp)
     s->bus[2] = ssi_create_bus(dev, "ssi2");
 }
 
-static void spitz_ssp_attach(PXA2xxState *cpu)
+static void spitz_ssp_attach(SpitzMachineState *sms)
 {
-    DeviceState *mux;
-    DeviceState *dev;
     void *bus;
 
-    mux = ssi_create_slave(cpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
+    sms->mux = ssi_create_slave(sms->mpu->ssp[CORGI_SSP_PORT - 1],
+                                TYPE_CORGI_SSP);
 
-    bus = qdev_get_child_bus(mux, "ssi0");
-    ssi_create_slave(bus, "spitz-lcdtg");
+    bus = qdev_get_child_bus(sms->mux, "ssi0");
+    sms->lcdtg = ssi_create_slave(bus, TYPE_SPITZ_LCDTG);
 
-    bus = qdev_get_child_bus(mux, "ssi1");
-    dev = ssi_create_slave(bus, "ads7846");
-    qdev_connect_gpio_out(dev, 0,
-                          qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_TP_INT));
+    bus = qdev_get_child_bus(sms->mux, "ssi1");
+    sms->ads7846 = ssi_create_slave(bus, "ads7846");
+    qdev_connect_gpio_out(sms->ads7846, 0,
+                          qdev_get_gpio_in(sms->mpu->gpio, SPITZ_GPIO_TP_INT));
 
-    bus = qdev_get_child_bus(mux, "ssi2");
-    max1111 = ssi_create_slave(bus, "max1111");
-    max111x_set_input(max1111, MAX1111_BATT_VOLT, SPITZ_BATTERY_VOLT);
-    max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
-    max111x_set_input(max1111, MAX1111_ACIN_VOLT, SPITZ_CHARGEON_ACIN);
+    bus = qdev_get_child_bus(sms->mux, "ssi2");
+    sms->max1111 = qdev_new(TYPE_MAX_1111);
+    qdev_prop_set_uint8(sms->max1111, "input1" /* BATT_VOLT */,
+                        SPITZ_BATTERY_VOLT);
+    qdev_prop_set_uint8(sms->max1111, "input2" /* BATT_TEMP */, 0);
+    qdev_prop_set_uint8(sms->max1111, "input3" /* ACIN_VOLT */,
+                        SPITZ_CHARGEON_ACIN);
+    ssi_realize_and_unref(sms->max1111, bus, &error_fatal);
 
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
-                        qdev_get_gpio_in(mux, 0));
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
-                        qdev_get_gpio_in(mux, 1));
-    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
-                        qdev_get_gpio_in(mux, 2));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_LCDCON_CS,
+                        qdev_get_gpio_in(sms->mux, 0));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_ADS7846_CS,
+                        qdev_get_gpio_in(sms->mux, 1));
+    qdev_connect_gpio_out(sms->mpu->gpio, SPITZ_GPIO_MAX1111_CS,
+                        qdev_get_gpio_in(sms->mux, 2));
 }
 
 /* CF Microdrive */
@@ -735,11 +764,11 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
 
 /* Wm8750 and Max7310 on I2C */
 
-#define AKITA_MAX_ADDR	0x18
-#define SPITZ_WM_ADDRL	0x1b
-#define SPITZ_WM_ADDRH	0x1a
+#define AKITA_MAX_ADDR  0x18
+#define SPITZ_WM_ADDRL  0x1b
+#define SPITZ_WM_ADDRH  0x1a
 
-#define SPITZ_GPIO_WM	5
+#define SPITZ_GPIO_WM   5
 
 static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
@@ -779,75 +808,119 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 
 /* Other peripherals */
 
-static void spitz_out_switch(void *opaque, int line, int level)
+/*
+ * Encapsulation of some miscellaneous GPIO line behaviour for the Spitz boards.
+ *
+ * QEMU interface:
+ *  + named GPIO inputs "green-led", "orange-led", "charging", "discharging":
+ *    these currently just print messages that the line has been signalled
+ *  + named GPIO input "adc-temp-on": set to cause the battery-temperature
+ *    value to be passed to the max111x ADC
+ *  + named GPIO output "adc-temp": the ADC value, to be wired up to the max111x
+ */
+#define TYPE_SPITZ_MISC_GPIO "spitz-misc-gpio"
+#define SPITZ_MISC_GPIO(obj) \
+    OBJECT_CHECK(SpitzMiscGPIOState, (obj), TYPE_SPITZ_MISC_GPIO)
+
+typedef struct SpitzMiscGPIOState {
+    SysBusDevice parent_obj;
+
+    qemu_irq adc_value;
+} SpitzMiscGPIOState;
+
+static void spitz_misc_charging(void *opaque, int n, int level)
 {
-    switch (line) {
-    case 0:
-        zaurus_printf("Charging %s.\n", level ? "off" : "on");
-        break;
-    case 1:
-        zaurus_printf("Discharging %s.\n", level ? "on" : "off");
-        break;
-    case 2:
-        zaurus_printf("Green LED %s.\n", level ? "on" : "off");
-        break;
-    case 3:
-        zaurus_printf("Orange LED %s.\n", level ? "on" : "off");
-        break;
-    case 4:
-        spitz_bl_bit5(opaque, line, level);
-        break;
-    case 5:
-        spitz_bl_power(opaque, line, level);
-        break;
-    case 6:
-        spitz_adc_temp_on(opaque, line, level);
-        break;
+    zaurus_printf("Charging %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_discharging(void *opaque, int n, int level)
+{
+    zaurus_printf("Discharging %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_green_led(void *opaque, int n, int level)
+{
+    zaurus_printf("Green LED %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_orange_led(void *opaque, int n, int level)
+{
+    zaurus_printf("Orange LED %s.\n", level ? "off" : "on");
+}
+
+static void spitz_misc_adc_temp(void *opaque, int n, int level)
+{
+    SpitzMiscGPIOState *s = SPITZ_MISC_GPIO(opaque);
+    int batt_temp = level ? SPITZ_BATTERY_TEMP : 0;
+
+    qemu_set_irq(s->adc_value, batt_temp);
+}
+
+static void spitz_misc_gpio_init(Object *obj)
+{
+    SpitzMiscGPIOState *s = SPITZ_MISC_GPIO(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in_named(dev, spitz_misc_charging, "charging", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_discharging, "discharging", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_green_led, "green-led", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_orange_led, "orange-led", 1);
+    qdev_init_gpio_in_named(dev, spitz_misc_adc_temp, "adc-temp-on", 1);
+
+    qdev_init_gpio_out_named(dev, &s->adc_value, "adc-temp", 1);
+}
+
+#define SPITZ_SCP_LED_GREEN             1
+#define SPITZ_SCP_JK_B                  2
+#define SPITZ_SCP_CHRG_ON               3
+#define SPITZ_SCP_MUTE_L                4
+#define SPITZ_SCP_MUTE_R                5
+#define SPITZ_SCP_CF_POWER              6
+#define SPITZ_SCP_LED_ORANGE            7
+#define SPITZ_SCP_JK_A                  8
+#define SPITZ_SCP_ADC_TEMP_ON           9
+#define SPITZ_SCP2_IR_ON                1
+#define SPITZ_SCP2_AKIN_PULLUP          2
+#define SPITZ_SCP2_BACKLIGHT_CONT       7
+#define SPITZ_SCP2_BACKLIGHT_ON                 8
+#define SPITZ_SCP2_MIC_BIAS             9
+
+static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
+{
+    DeviceState *miscdev = sysbus_create_simple(TYPE_SPITZ_MISC_GPIO, -1, NULL);
+
+    sms->misc_gpio = miscdev;
+
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_CHRG_ON,
+                          qdev_get_gpio_in_named(miscdev, "charging", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_JK_B,
+                          qdev_get_gpio_in_named(miscdev, "discharging", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_GREEN,
+                          qdev_get_gpio_in_named(miscdev, "green-led", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_LED_ORANGE,
+                          qdev_get_gpio_in_named(miscdev, "orange-led", 0));
+    qdev_connect_gpio_out(sms->scp0, SPITZ_SCP_ADC_TEMP_ON,
+                          qdev_get_gpio_in_named(miscdev, "adc-temp-on", 0));
+    qdev_connect_gpio_out_named(miscdev, "adc-temp", 0,
+                                qdev_get_gpio_in(sms->max1111, MAX1111_BATT_TEMP));
+
+    if (sms->scp1) {
+        qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_CONT,
+                              qdev_get_gpio_in_named(sms->lcdtg, "bl_bit5", 0));
+        qdev_connect_gpio_out(sms->scp1, SPITZ_SCP2_BACKLIGHT_ON,
+                              qdev_get_gpio_in_named(sms->lcdtg, "bl_power", 0));
     }
 }
 
-#define SPITZ_SCP_LED_GREEN		1
-#define SPITZ_SCP_JK_B			2
-#define SPITZ_SCP_CHRG_ON		3
-#define SPITZ_SCP_MUTE_L		4
-#define SPITZ_SCP_MUTE_R		5
-#define SPITZ_SCP_CF_POWER		6
-#define SPITZ_SCP_LED_ORANGE		7
-#define SPITZ_SCP_JK_A			8
-#define SPITZ_SCP_ADC_TEMP_ON		9
-#define SPITZ_SCP2_IR_ON		1
-#define SPITZ_SCP2_AKIN_PULLUP		2
-#define SPITZ_SCP2_BACKLIGHT_CONT	7
-#define SPITZ_SCP2_BACKLIGHT_ON		8
-#define SPITZ_SCP2_MIC_BIAS		9
-
-static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
-                DeviceState *scp0, DeviceState *scp1)
-{
-    qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
-
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_JK_B, outsignals[1]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
-
-    if (scp1) {
-        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_CONT, outsignals[4]);
-        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_ON, outsignals[5]);
-    }
-
-    qdev_connect_gpio_out(scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
-}
-
-#define SPITZ_GPIO_HSYNC		22
-#define SPITZ_GPIO_SD_DETECT		9
-#define SPITZ_GPIO_SD_WP		81
-#define SPITZ_GPIO_ON_RESET		89
-#define SPITZ_GPIO_BAT_COVER		90
-#define SPITZ_GPIO_CF1_IRQ		105
-#define SPITZ_GPIO_CF1_CD		94
-#define SPITZ_GPIO_CF2_IRQ		106
-#define SPITZ_GPIO_CF2_CD		93
+#define SPITZ_GPIO_HSYNC                22
+#define SPITZ_GPIO_SD_DETECT            9
+#define SPITZ_GPIO_SD_WP                81
+#define SPITZ_GPIO_ON_RESET             89
+#define SPITZ_GPIO_BAT_COVER            90
+#define SPITZ_GPIO_CF1_IRQ              105
+#define SPITZ_GPIO_CF1_CD               94
+#define SPITZ_GPIO_CF2_IRQ              106
+#define SPITZ_GPIO_CF2_CD               93
 
 static int spitz_hsync;
 
@@ -905,27 +978,27 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
 }
 
 /* Board init.  */
-enum spitz_model_e { spitz, akita, borzoi, terrier };
-
-#define SPITZ_RAM	0x04000000
-#define SPITZ_ROM	0x00800000
+#define SPITZ_RAM       0x04000000
+#define SPITZ_ROM       0x00800000
 
 static struct arm_boot_info spitz_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(MachineState *machine,
-                              enum spitz_model_e model, int arm_id)
+static void spitz_common_init(MachineState *machine)
 {
+    SpitzMachineClass *smc = SPITZ_MACHINE_GET_CLASS(machine);
+    SpitzMachineState *sms = SPITZ_MACHINE(machine);
+    enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
-    DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
     /* Setup CPU & memory */
     mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size,
                       machine->cpu_type);
+    sms->mpu = mpu;
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
@@ -935,14 +1008,16 @@ static void spitz_common_init(MachineState *machine,
     /* Setup peripherals */
     spitz_keyboard_register(mpu);
 
-    spitz_ssp_attach(mpu);
+    spitz_ssp_attach(sms);
 
-    scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
+    sms->scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
     if (model != akita) {
-        scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
+        sms->scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
+    } else {
+        sms->scp1 = NULL;
     }
 
-    spitz_scoop_gpio_setup(mpu, scp0, scp1);
+    spitz_scoop_gpio_setup(sms);
 
     spitz_gpio_setup(mpu, (model == akita) ? 1 : 2);
 
@@ -958,100 +1033,100 @@ static void spitz_common_init(MachineState *machine,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(mpu, 0);
 
-    spitz_binfo.board_id = arm_id;
+    spitz_binfo.board_id = smc->arm_id;
     arm_load_kernel(mpu->cpu, machine, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(MachineState *machine)
+static void spitz_common_class_init(ObjectClass *oc, void *data)
 {
-    spitz_common_init(machine, spitz, 0x2c9);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
+    mc->init = spitz_common_init;
 }
 
-static void borzoi_init(MachineState *machine)
-{
-    spitz_common_init(machine, borzoi, 0x33f);
-}
-
-static void akita_init(MachineState *machine)
-{
-    spitz_common_init(machine, akita, 0x2e8);
-}
-
-static void terrier_init(MachineState *machine)
-{
-    spitz_common_init(machine, terrier, 0x33f);
-}
+static const TypeInfo spitz_common_info = {
+    .name = TYPE_SPITZ_MACHINE,
+    .parent = TYPE_MACHINE,
+    .abstract = true,
+    .instance_size = sizeof(SpitzMachineState),
+    .class_size = sizeof(SpitzMachineClass),
+    .class_init = spitz_common_class_init,
+};
 
 static void akitapda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
-    mc->init = akita_init;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = akita;
+    smc->arm_id = 0x2e8;
 }
 
 static const TypeInfo akitapda_type = {
     .name = MACHINE_TYPE_NAME("akita"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = akitapda_class_init,
 };
 
 static void spitzpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3000 (Spitz) PDA (PXA270)";
-    mc->init = spitz_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = spitz;
+    smc->arm_id = 0x2c9;
 }
 
 static const TypeInfo spitzpda_type = {
     .name = MACHINE_TYPE_NAME("spitz"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = spitzpda_class_init,
 };
 
 static void borzoipda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3100 (Borzoi) PDA (PXA270)";
-    mc->init = borzoi_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
+    smc->model = borzoi;
+    smc->arm_id = 0x33f;
 }
 
 static const TypeInfo borzoipda_type = {
     .name = MACHINE_TYPE_NAME("borzoi"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = borzoipda_class_init,
 };
 
 static void terrierpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    SpitzMachineClass *smc = SPITZ_MACHINE_CLASS(oc);
 
     mc->desc = "Sharp SL-C3200 (Terrier) PDA (PXA270)";
-    mc->init = terrier_init;
-    mc->block_default_type = IF_IDE;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
+    smc->model = terrier;
+    smc->arm_id = 0x33f;
 }
 
 static const TypeInfo terrierpda_type = {
     .name = MACHINE_TYPE_NAME("terrier"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SPITZ_MACHINE,
     .class_init = terrierpda_class_init,
 };
 
 static void spitz_machine_init(void)
 {
+    type_register_static(&spitz_common_info);
     type_register_static(&akitapda_type);
     type_register_static(&spitzpda_type);
     type_register_static(&borzoipda_type);
@@ -1152,7 +1227,7 @@ static void corgi_ssp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo corgi_ssp_info = {
-    .name          = "corgi-ssp",
+    .name          = TYPE_CORGI_SSP,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(CorgiSSPState),
     .class_init    = corgi_ssp_class_init,
@@ -1181,10 +1256,21 @@ static void spitz_lcdtg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spitz_lcdtg_info = {
-    .name          = "spitz-lcdtg",
+    .name          = TYPE_SPITZ_LCDTG,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(SpitzLCDTG),
     .class_init    = spitz_lcdtg_class_init,
+};
+
+static const TypeInfo spitz_misc_gpio_info = {
+    .name = TYPE_SPITZ_MISC_GPIO,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SpitzMiscGPIOState),
+    .instance_init = spitz_misc_gpio_init,
+    /*
+     * No class_init required: device has no internal state so does not
+     * need to set up reset or vmstate, and does not have a realize method.
+     */
 };
 
 static void spitz_register_types(void)
@@ -1193,6 +1279,7 @@ static void spitz_register_types(void)
     type_register_static(&spitz_lcdtg_info);
     type_register_static(&spitz_keyboard_info);
     type_register_static(&sl_nand_info);
+    type_register_static(&spitz_misc_gpio_info);
 }
 
 type_init(spitz_register_types)

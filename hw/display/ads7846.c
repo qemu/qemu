@@ -29,6 +29,9 @@ typedef struct {
     int output;
 } ADS7846State;
 
+#define TYPE_ADS7846 "ads7846"
+#define ADS7846(obj) OBJECT_CHECK(ADS7846State, (obj), TYPE_ADS7846)
+
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
 #define CB_PD1		(1 << 1)
@@ -61,7 +64,7 @@ static void ads7846_int_update(ADS7846State *s)
 
 static uint32_t ads7846_transfer(SSISlave *dev, uint32_t value)
 {
-    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
+    ADS7846State *s = ADS7846(dev);
 
     switch (s->cycle ++) {
     case 0:
@@ -139,7 +142,7 @@ static const VMStateDescription vmstate_ads7846 = {
 static void ads7846_realize(SSISlave *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
-    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, d);
+    ADS7846State *s = ADS7846(d);
 
     qdev_init_gpio_out(dev, &s->interrupt, 1);
 
@@ -166,7 +169,7 @@ static void ads7846_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ads7846_info = {
-    .name          = "ads7846",
+    .name          = TYPE_ADS7846,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ADS7846State),
     .class_init    = ads7846_class_init,

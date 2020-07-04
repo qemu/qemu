@@ -66,8 +66,6 @@ struct SSISlave {
     bool cs;
 };
 
-#define FROM_SSI_SLAVE(type, dev) DO_UPCAST(type, ssidev, dev)
-
 extern const VMStateDescription vmstate_ssi_slave;
 
 #define VMSTATE_SSI_SLAVE(_field, _state) {                          \
@@ -79,13 +77,36 @@ extern const VMStateDescription vmstate_ssi_slave;
 }
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name);
+/**
+ * ssi_realize_and_unref: realize and unref an SSI slave device
+ * @dev: SSI slave device to realize
+ * @bus: SSI bus to put it on
+ * @errp: error pointer
+ *
+ * Call 'realize' on @dev, put it on the specified @bus, and drop the
+ * reference to it. Errors are reported via @errp and by returning
+ * false.
+ *
+ * This function is useful if you have created @dev via qdev_new()
+ * (which takes a reference to the device it returns to you), so that
+ * you can set properties on it before realizing it. If you don't need
+ * to set properties then ssi_create_slave() is probably better (as it
+ * does the create, init and realize in one step).
+ *
+ * If you are embedding the SSI slave into another QOM device and
+ * initialized it via some variant on object_initialize_child() then
+ * do not use this function, because that family of functions arrange
+ * for the only reference to the child device to be held by the parent
+ * via the child<> property, and so the reference-count-drop done here
+ * would be incorrect.  (Instead you would want ssi_realize(), which
+ * doesn't currently exist but would be trivial to create if we had
+ * any code that wanted it.)
+ */
+bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp);
 
 /* Master interface.  */
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
-
-/* max111x.c */
-void max111x_set_input(DeviceState *dev, int line, uint8_t value);
 
 #endif

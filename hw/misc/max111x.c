@@ -11,29 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/misc/max111x.h"
 #include "hw/irq.h"
-#include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-
-typedef struct {
-    SSISlave parent_obj;
-
-    qemu_irq interrupt;
-    uint8_t tb1, rb2, rb3;
-    int cycle;
-
-    uint8_t input[8];
-    int inputs, com;
-} MAX111xState;
-
-#define TYPE_MAX_111X "max111x"
-
-#define MAX_111X(obj) \
-    OBJECT_CHECK(MAX111xState, (obj), TYPE_MAX_111X)
-
-#define TYPE_MAX_1110 "max1110"
-#define TYPE_MAX_1111 "max1111"
+#include "hw/qdev-properties.h"
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
@@ -127,27 +109,24 @@ static const VMStateDescription vmstate_max111x = {
     }
 };
 
+static void max111x_input_set(void *opaque, int line, int value)
+{
+    MAX111xState *s = MAX_111X(opaque);
+
+    assert(line >= 0 && line < s->inputs);
+    s->input[line] = value;
+}
+
 static int max111x_init(SSISlave *d, int inputs)
 {
     DeviceState *dev = DEVICE(d);
     MAX111xState *s = MAX_111X(dev);
 
     qdev_init_gpio_out(dev, &s->interrupt, 1);
+    qdev_init_gpio_in(dev, max111x_input_set, inputs);
 
     s->inputs = inputs;
-    /* TODO: add a user interface for setting these */
-    s->input[0] = 0xf0;
-    s->input[1] = 0xe0;
-    s->input[2] = 0xd0;
-    s->input[3] = 0xc0;
-    s->input[4] = 0xb0;
-    s->input[5] = 0xa0;
-    s->input[6] = 0x90;
-    s->input[7] = 0x80;
-    s->com = 0;
 
-    vmstate_register(VMSTATE_IF(dev), VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_max111x, s);
     return 0;
 }
 
@@ -161,18 +140,51 @@ static void max1111_realize(SSISlave *dev, Error **errp)
     max111x_init(dev, 4);
 }
 
-void max111x_set_input(DeviceState *dev, int line, uint8_t value)
+static void max111x_reset(DeviceState *dev)
 {
     MAX111xState *s = MAX_111X(dev);
-    assert(line >= 0 && line < s->inputs);
-    s->input[line] = value;
+    int i;
+
+    for (i = 0; i < s->inputs; i++) {
+        s->input[i] = s->reset_input[i];
+    }
+    s->com = 0;
+    s->tb1 = 0;
+    s->rb2 = 0;
+    s->rb3 = 0;
+    s->cycle = 0;
 }
+
+static Property max1110_properties[] = {
+    /* Reset values for ADC inputs */
+    DEFINE_PROP_UINT8("input0", MAX111xState, reset_input[0], 0xf0),
+    DEFINE_PROP_UINT8("input1", MAX111xState, reset_input[1], 0xe0),
+    DEFINE_PROP_UINT8("input2", MAX111xState, reset_input[2], 0xd0),
+    DEFINE_PROP_UINT8("input3", MAX111xState, reset_input[3], 0xc0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static Property max1111_properties[] = {
+    /* Reset values for ADC inputs */
+    DEFINE_PROP_UINT8("input0", MAX111xState, reset_input[0], 0xf0),
+    DEFINE_PROP_UINT8("input1", MAX111xState, reset_input[1], 0xe0),
+    DEFINE_PROP_UINT8("input2", MAX111xState, reset_input[2], 0xd0),
+    DEFINE_PROP_UINT8("input3", MAX111xState, reset_input[3], 0xc0),
+    DEFINE_PROP_UINT8("input4", MAX111xState, reset_input[4], 0xb0),
+    DEFINE_PROP_UINT8("input5", MAX111xState, reset_input[5], 0xa0),
+    DEFINE_PROP_UINT8("input6", MAX111xState, reset_input[6], 0x90),
+    DEFINE_PROP_UINT8("input7", MAX111xState, reset_input[7], 0x80),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void max111x_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->transfer = max111x_transfer;
+    dc->reset = max111x_reset;
+    dc->vmsd = &vmstate_max111x;
 }
 
 static const TypeInfo max111x_info = {
@@ -186,8 +198,10 @@ static const TypeInfo max111x_info = {
 static void max1110_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = max1110_realize;
+    device_class_set_props(dc, max1110_properties);
 }
 
 static const TypeInfo max1110_info = {
@@ -199,8 +213,10 @@ static const TypeInfo max1110_info = {
 static void max1111_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = max1111_realize;
+    device_class_set_props(dc, max1111_properties);
 }
 
 static const TypeInfo max1111_info = {

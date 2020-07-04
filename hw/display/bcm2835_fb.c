@@ -282,6 +282,10 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
     newconf.base = s->vcram_base | (value & 0xc0000000);
     newconf.base += BCM2835_FB_OFFSET;
 
+    /* Copy fields which we don't want to change from the existing config */
+    newconf.pixo = s->config.pixo;
+    newconf.alpha = s->config.alpha;
+
     bcm2835_fb_validate_config(&newconf);
 
     pitch = bcm2835_fb_get_pitch(&newconf);

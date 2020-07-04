@@ -87,6 +87,8 @@ typedef struct FslIMX6ULState {
     MemoryRegion       caam;
     MemoryRegion       ocram;
     MemoryRegion       ocram_alias;
+
+    uint32_t           phy_num[FSL_IMX6UL_NUM_ETHS];
 } FslIMX6ULState;
 
 enum FslIMX6ULMemoryMap {
