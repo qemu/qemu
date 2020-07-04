@@ -146,6 +146,110 @@ test madd_s
              FSR_I,      FSR_I,      FSR_I,      FSR_I
 test_end
 
+test madd_s_precision
+    test_op3 madd.s, f0, f1, f2, f0, 0xbf800002, 0x3f800001, 0x3f800001, \
+        0x28800000, 0x28800000, 0x28800000, 0x28800000, \
+             FSR__,      FSR__,      FSR__,      FSR__
+test_end
+
+#if DFPU
+test madd_s_nan_dfpu
+    /* DFPU madd/msub NaN1, NaN2, NaN3 priority: NaN1, NaN3, NaN2 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_1, F32_1, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_QNAN(2), F32_1, \
+        F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_1, F32_QNAN(3), \
+        F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_QNAN(2), F32_1, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_1, F32_QNAN(3), \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_QNAN(2), F32_QNAN(3), \
+        F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_QNAN(2), F32_QNAN(3), \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    /* inf * 0 = default NaN */
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_PINF, F32_0, \
+        F32_DNAN, F32_DNAN, F32_DNAN, F32_DNAN, \
+           FSR_V,    FSR_V,    FSR_V,    FSR_V
+    /* inf * 0 + SNaN1 = QNaN1 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_SNAN(1), F32_PINF, F32_0, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR_V,       FSR_V,       FSR_V,       FSR_V
+    /* inf * 0 + QNaN1 = QNaN1 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_PINF, F32_0, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR_V,       FSR_V,       FSR_V,       FSR_V
+
+    /* madd/msub SNaN turns to QNaN and sets Invalid flag */
+    test_op3 madd.s, f0, f1, f2, f0, F32_SNAN(1), F32_1, F32_1, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR_V,       FSR_V,       FSR_V,       FSR_V
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_SNAN(2), F32_1, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR_V,       FSR_V,       FSR_V,       FSR_V
+test_end
+#else
+test madd_s_nan_fpu2k
+    /* FPU2000 madd/msub NaN1, NaN2, NaN3 priority: NaN2, NaN3, NaN1 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_1, F32_1, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_QNAN(2), F32_1, \
+        F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_1, F32_QNAN(3), \
+        F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_QNAN(2), F32_1, \
+        F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_1, F32_QNAN(3), \
+        F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), F32_QNAN(3), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_QNAN(2), F32_QNAN(3), \
+        F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_QNAN(2), F32_QNAN(3), \
+        F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), F32_QNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    /* inf * 0 = default NaN */
+    test_op3 madd.s, f0, f1, f2, f0, F32_1, F32_PINF, F32_0, \
+        F32_DNAN, F32_DNAN, F32_DNAN, F32_DNAN, \
+           FSR__,    FSR__,    FSR__,    FSR__
+    /* inf * 0 + SNaN1 = SNaN1 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_SNAN(1), F32_PINF, F32_0, \
+        F32_SNAN(1), F32_SNAN(1), F32_SNAN(1), F32_SNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    /* inf * 0 + QNaN1 = QNaN1 */
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_PINF, F32_0, \
+        F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), F32_QNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+
+    /* madd/msub SNaN is preserved */
+    test_op3 madd.s, f0, f1, f2, f0, F32_SNAN(1), F32_1, F32_1, \
+        F32_SNAN(1), F32_SNAN(1), F32_SNAN(1), F32_SNAN(1), \
+              FSR__,       FSR__,       FSR__,       FSR__
+    test_op3 madd.s, f0, f1, f2, f0, F32_QNAN(1), F32_SNAN(2), F32_1, \
+        F32_SNAN(2), F32_SNAN(2), F32_SNAN(2), F32_SNAN(2), \
+              FSR__,       FSR__,       FSR__,       FSR__
+test_end
+#endif
+
 test msub_s
     test_op3 msub.s, f0, f1, f2, f0, 0x3f800000, 0x3f800001, 0x3f800001, \
         0xb4800000, 0xb4800000, 0xb4800000, 0xb4800001, \
