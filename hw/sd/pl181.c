@@ -173,7 +173,7 @@ static uint32_t pl181_fifo_pop(PL181State *s)
     return value;
 }
 
-static void pl181_send_command(PL181State *s)
+static void pl181_do_command(PL181State *s)
 {
     SDRequest request;
     uint8_t response[16];
@@ -402,7 +402,7 @@ static void pl181_write(void *opaque, hwaddr offset,
                 qemu_log_mask(LOG_UNIMP,
                               "pl181: Pending commands not implemented\n");
             } else {
-                pl181_send_command(s);
+                pl181_do_command(s);
                 pl181_fifo_run(s);
             }
             /* The command has completed one way or the other.  */
