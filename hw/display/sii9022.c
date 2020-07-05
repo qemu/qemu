@@ -161,7 +161,7 @@ static void sii9022_realize(DeviceState *dev, Error **errp)
     I2CBus *bus;
 
     bus = I2C_BUS(qdev_get_parent_bus(dev));
-    i2c_create_slave(bus, TYPE_I2CDDC, 0x50);
+    i2c_slave_create_simple(bus, TYPE_I2CDDC, 0x50);
 }
 
 static void sii9022_class_init(ObjectClass *klass, void *data)

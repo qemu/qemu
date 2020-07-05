@@ -281,13 +281,13 @@ bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp)
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
+I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
 {
     I2CSlave *dev = i2c_slave_new(name, addr);
 
-    i2c_slave_realize_and_unref(dev, bus, &error_fatal);
+    i2c_slave_realize_and_unref(dev, bus, &error_abort);
 
-    return DEVICE(dev);
+    return dev;
 }
 
 static void i2c_slave_class_init(ObjectClass *klass, void *data)

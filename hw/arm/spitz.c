@@ -787,7 +787,7 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
     DeviceState *wm;
 
     /* Attach a WM8750 to the bus */
-    wm = i2c_create_slave(bus, TYPE_WM8750, 0);
+    wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0));
 
     spitz_wm8750_addr(wm, 0, 0);
     qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_WM,
@@ -802,7 +802,7 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
 static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 {
     /* Attach a Max7310 to Akita I2C bus.  */
-    i2c_create_slave(pxa2xx_i2c_bus(cpu->i2c[0]), "max7310",
+    i2c_slave_create_simple(pxa2xx_i2c_bus(cpu->i2c[0]), "max7310",
                      AKITA_MAX_ADDR);
 }
 
