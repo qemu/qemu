@@ -480,10 +480,8 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
 {
     DeviceState *dev;
     SysBusDevice *sbd;
-    PXA2xxMMCIState *s;
 
     dev = qdev_new(TYPE_PXA2XX_MMCI);
-    s = PXA2XX_MMCI(dev);
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(sbd, 0, base);
     sysbus_connect_irq(sbd, 0, irq);
@@ -491,7 +489,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
     qdev_connect_gpio_out_named(dev, "tx-dma", 0, tx_dma);
     sysbus_realize_and_unref(sbd, &error_fatal);
 
-    return s;
+    return PXA2XX_MMCI(dev);
 }
 
 static void pxa2xx_mmci_set_inserted(DeviceState *dev, bool inserted)
