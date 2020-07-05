@@ -17,7 +17,6 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
 
 //#define DEBUG_PL181 1
 
@@ -518,30 +517,14 @@ static void pl181_init(Object *obj)
                         TYPE_PL181_BUS, dev, "sd-bus");
 }
 
-static void pl181_realize(DeviceState *dev, Error **errp)
-{
-    DeviceState *card;
-    DriveInfo *dinfo;
-
-    /* FIXME use a qdev drive property instead of drive_get_next() */
-    card = qdev_new(TYPE_SD_CARD);
-    dinfo = drive_get_next(IF_SD);
-    qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
-                            &error_fatal);
-    qdev_realize_and_unref(card,
-                           qdev_get_child_bus(dev, "sd-bus"),
-                           &error_fatal);
-}
-
 static void pl181_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
     k->vmsd = &vmstate_pl181;
     k->reset = pl181_reset;
-    /* Reason: init() method uses drive_get_next() */
+    /* Reason: output IRQs should be wired up */
     k->user_creatable = false;
-    k->realize = pl181_realize;
 }
 
 static const TypeInfo pl181_info = {
