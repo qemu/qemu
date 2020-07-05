@@ -17,15 +17,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-
-//#define DEBUG_PL181 1
-
-#ifdef DEBUG_PL181
-#define DPRINTF(fmt, ...) \
-do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#endif
+#include "trace.h"
 
 #define PL181_FIFO_LEN 16
 
@@ -158,7 +150,7 @@ static void pl181_fifo_push(PL181State *s, uint32_t value)
     n = (s->fifo_pos + s->fifo_len) & (PL181_FIFO_LEN - 1);
     s->fifo_len++;
     s->fifo[n] = value;
-    DPRINTF("FIFO push %08x\n", (int)value);
+    trace_pl181_fifo_push(value);
 }
 
 static uint32_t pl181_fifo_pop(PL181State *s)
@@ -172,7 +164,7 @@ static uint32_t pl181_fifo_pop(PL181State *s)
     value = s->fifo[s->fifo_pos];
     s->fifo_len--;
     s->fifo_pos = (s->fifo_pos + 1) & (PL181_FIFO_LEN - 1);
-    DPRINTF("FIFO pop %08x\n", (int)value);
+    trace_pl181_fifo_pop(value);
     return value;
 }
 
@@ -184,7 +176,7 @@ static void pl181_do_command(PL181State *s)
 
     request.cmd = s->cmd & PL181_CMD_INDEX;
     request.arg = s->cmdarg;
-    DPRINTF("Command %d %08x\n", request.cmd, request.arg);
+    trace_pl181_command_send(request.cmd, request.arg);
     rlen = sdbus_do_command(&s->sdbus, &request, response);
     if (rlen < 0)
         goto error;
@@ -201,16 +193,16 @@ static void pl181_do_command(PL181State *s)
             s->response[2] = ldl_be_p(&response[8]);
             s->response[3] = ldl_be_p(&response[12]) & ~1;
         }
-        DPRINTF("Response received\n");
+        trace_pl181_command_response_pending();
         s->status |= PL181_STATUS_CMDRESPEND;
     } else {
-        DPRINTF("Command sent\n");
+        trace_pl181_command_sent();
         s->status |= PL181_STATUS_CMDSENT;
     }
     return;
 
 error:
-    DPRINTF("Timeout\n");
+    trace_pl181_command_timeout();
     s->status |= PL181_STATUS_CMDTIMEOUT;
 }
 
@@ -262,11 +254,11 @@ static void pl181_fifo_run(PL181State *s)
         s->status |= PL181_STATUS_DATAEND;
         /* HACK: */
         s->status |= PL181_STATUS_DATABLOCKEND;
-        DPRINTF("Transfer Complete\n");
+        trace_pl181_fifo_transfer_complete();
     }
     if (s->datacnt == 0 && s->fifo_len == 0) {
         s->datactrl &= ~PL181_DATA_ENABLE;
-        DPRINTF("Data engine idle\n");
+        trace_pl181_data_engine_idle();
     } else {
         /* Update FIFO bits.  */
         bits = PL181_STATUS_TXACTIVE | PL181_STATUS_RXACTIVE;
