@@ -139,7 +139,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
 
     if (kernel_filename) {
         int kernel_size, fdt_size;
-        uint64_t entry, low, high;
+        uint64_t entry, high;
         int big_endian = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -148,7 +148,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
 
         /* Boots a kernel elf binary. */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &entry, &low, &high, NULL,
+                               &entry, NULL, &high, NULL,
                                big_endian, EM_ALTERA_NIOS2, 0, 0);
         if ((uint32_t)entry == 0xc0000000) {
             /*

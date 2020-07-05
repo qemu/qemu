@@ -67,7 +67,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
 {
     CPUCRISState *env = &cpu->env;
-    uint64_t entry, high;
+    uint64_t entry;
     int kcmdline_len;
     int image_size;
 
@@ -76,7 +76,7 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
        devboard SDK.  */
     image_size = load_elf(li->image_filename, NULL,
                           translate_kernel_address, NULL,
-                          &entry, NULL, &high, NULL, 0, EM_CRIS, 0, 0);
+                          &entry, NULL, NULL, NULL, 0, EM_CRIS, 0, 0);
     li->entry = entry;
     if (image_size < 0) {
         /* Takes a kimage from the axis devboard SDK.  */

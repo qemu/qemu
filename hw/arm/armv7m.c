@@ -292,7 +292,6 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 {
     int image_size;
     uint64_t entry;
-    uint64_t lowaddr;
     int big_endian;
     AddressSpace *as;
     int asidx;
@@ -313,12 +312,11 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 
     if (kernel_filename) {
         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
-                                 &entry, &lowaddr, NULL,
+                                 &entry, NULL, NULL,
                                  NULL, big_endian, EM_ARM, 1, 0, as);
         if (image_size < 0) {
             image_size = load_image_targphys_as(kernel_filename, 0,
                                                 mem_size, as);
-            lowaddr = 0;
         }
         if (image_size < 0) {
             error_report("Could not load kernel '%s'", kernel_filename);

@@ -286,7 +286,6 @@ static void sam460ex_init(MachineState *machine)
     CPUPPCState *env;
     I2CBus *i2c;
     hwaddr entry = UBOOT_ENTRY;
-    hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
     target_long initrd_size = 0;
     DeviceState *dev;
     SysBusDevice *sbdev;
@@ -426,17 +425,16 @@ static void sam460ex_init(MachineState *machine)
 
     /* Load kernel. */
     if (machine->kernel_filename) {
+        hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
         success = load_uimage(machine->kernel_filename, &entry, &loadaddr,
                               NULL, NULL, NULL);
         if (success < 0) {
-            uint64_t elf_entry, elf_lowaddr;
+            uint64_t elf_entry;
 
-            success = load_elf(machine->kernel_filename, NULL,
-                               NULL, NULL, &elf_entry,
-                               &elf_lowaddr, NULL, NULL, 1, PPC_ELF_MACHINE, 0,
-                               0);
+            success = load_elf(machine->kernel_filename, NULL, NULL, NULL,
+                               &elf_entry, NULL, NULL, NULL,
+                               1, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
-            loadaddr = elf_lowaddr;
         }
         /* XXX try again as binary */
         if (success < 0) {

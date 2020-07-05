@@ -107,7 +107,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
 
 static int64_t load_kernel(CPUMIPSState *env)
 {
-    int64_t kernel_entry, kernel_low, kernel_high, initrd_size;
+    int64_t kernel_entry, kernel_high, initrd_size;
     int index = 0;
     long kernel_size;
     ram_addr_t initrd_offset;
@@ -116,9 +116,9 @@ static int64_t load_kernel(CPUMIPSState *env)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&kernel_entry,
-                           (uint64_t *)&kernel_low, (uint64_t *)&kernel_high,
-                           NULL, 0, EM_MIPS, 1, 0);
+                           (uint64_t *)&kernel_entry, NULL,
+                           (uint64_t *)&kernel_high, NULL,
+                           0, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,

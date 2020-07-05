@@ -172,9 +172,6 @@ static void bamboo_init(MachineState *machine)
     PCIBus *pcibus;
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    uint64_t elf_entry;
-    uint64_t elf_lowaddr;
-    hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
     target_long initrd_size = 0;
     DeviceState *dev;
     int success;
@@ -246,14 +243,14 @@ static void bamboo_init(MachineState *machine)
 
     /* Load kernel. */
     if (kernel_filename) {
+        hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
         success = load_uimage(kernel_filename, &entry, &loadaddr, NULL,
                               NULL, NULL);
         if (success < 0) {
+            uint64_t elf_entry;
             success = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
-                               &elf_lowaddr, NULL, NULL, 1, PPC_ELF_MACHINE,
-                               0, 0);
+                               NULL, NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
-            loadaddr = elf_lowaddr;
         }
         /* XXX try again as binary */
         if (success < 0) {

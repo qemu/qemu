@@ -250,12 +250,12 @@ static void virtex_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     if (kernel_filename) {
-        uint64_t entry, low, high;
+        uint64_t entry, high;
         hwaddr boot_offset;
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &entry, &low, &high, NULL, 1, PPC_ELF_MACHINE,
+                               &entry, NULL, &high, NULL, 1, PPC_ELF_MACHINE,
                                0, 0);
         boot_info.bootstrap_pc = entry & 0x00ffffff;
 
