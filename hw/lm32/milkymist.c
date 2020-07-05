@@ -80,6 +80,17 @@ static void main_cpu_reset(void *opaque)
     env->deba = reset_info->flash_base;
 }
 
+static DeviceState *milkymist_memcard_create(hwaddr base)
+{
+    DeviceState *dev;
+
+    dev = qdev_new("milkymist-memcard");
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+
+    return dev;
+}
+
 static void
 milkymist_init(MachineState *machine)
 {
