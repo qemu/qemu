@@ -261,6 +261,9 @@ static void milkymist_memcard_init(Object *obj)
     memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
+
+    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS,
+                        DEVICE(obj), "sd-bus");
 }
 
 static void milkymist_memcard_realize(DeviceState *dev, Error **errp)
@@ -270,9 +273,6 @@ static void milkymist_memcard_realize(DeviceState *dev, Error **errp)
     BlockBackend *blk;
     DriveInfo *dinfo;
     Error *err = NULL;
-
-    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS,
-                        dev, "sd-bus");
 
     /* Create and plug in the sd card */
     /* FIXME use a qdev drive property instead of drive_get_next() */
