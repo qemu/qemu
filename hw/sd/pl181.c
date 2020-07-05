@@ -57,7 +57,7 @@ typedef struct PL181State {
        http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=4446/1
      */
     int32_t linux_hack;
-    uint32_t fifo[PL181_FIFO_LEN];
+    uint32_t fifo[PL181_FIFO_LEN]; /* TODO use Fifo32 */
     qemu_irq irq[2];
     /* GPIO outputs for 'card is readonly' and 'card inserted' */
     qemu_irq cardstatus[2];
