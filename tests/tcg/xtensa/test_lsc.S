@@ -1,4 +1,5 @@
 #include "macros.inc"
+#include "fpu.h"
 
 test_suite lsc
 
@@ -9,9 +10,14 @@ test lsi
     wsr     a2, cpenable
 
     movi    a2, 1f
-    lsi     f0, a2, 0
     lsi     f1, a2, 4
+#if DFPU
+    lsi     f2, a2, 8
+    lsip    f0, a2, 8
+#else
+    lsi     f0, a2, 0
     lsiu    f2, a2, 8
+#endif
     movi    a3, 1f + 8
     assert  eq, a2, a3
     rfr     a2, f0
@@ -34,13 +40,18 @@ test ssi
     movi    a2, 1f
     movi    a3, 0x40800000
     wfr     f3, a3
-    ssi     f3, a2, 0
     movi    a3, 0x40a00000
     wfr     f4, a3
-    ssi     f4, a2, 4
     movi    a3, 0x40c00000
     wfr     f5, a3
+    ssi     f4, a2, 4
+#if DFPU
+    ssi     f5, a2, 8
+    ssip    f3, a2, 8
+#else
+    ssi     f3, a2, 0
     ssiu    f5, a2, 8
+#endif
     movi    a3, 1f + 8
     assert  eq, a2, a3
     l32i    a4, a2, -8
@@ -62,11 +73,16 @@ test_end
 test lsx
     movi    a2, 1f
     movi    a3, 0
+    movi    a4, 4
+    movi    a5, 8
+    lsx     f7, a2, a4
+#if DFPU
+    lsx     f8, a2, a5
+    lsxp    f6, a2, a5
+#else
     lsx     f6, a2, a3
-    movi    a3, 4
-    lsx     f7, a2, a3
-    movi    a3, 8
-    lsxu    f8, a2, a3
+    lsxu    f8, a2, a5
+#endif
     movi    a3, 1f + 8
     assert  eq, a2, a3
     rfr     a2, f6
@@ -87,18 +103,23 @@ test_end
 
 test ssx
     movi    a2, 1f
-    movi    a3, 0
     movi    a4, 0x41200000
     wfr     f9, a4
-    ssx     f9, a2, a3
-    movi    a3, 4
     movi    a4, 0x41300000
     wfr     f10, a4
-    ssx     f10, a2, a3
-    movi    a3, 8
     movi    a4, 0x41400000
     wfr     f11, a4
-    ssxu    f11, a2, a3
+    movi    a3, 0
+    movi    a4, 4
+    movi    a5, 8
+    ssx     f10, a2, a4
+#if DFPU
+    ssx     f11, a2, a5
+    ssxp    f9, a2, a5
+#else
+    ssx     f9, a2, a3
+    ssxu    f11, a2, a5
+#endif
     movi    a3, 1f + 8
     assert  eq, a2, a3
     l32i    a4, a2, -8
