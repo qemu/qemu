@@ -137,9 +137,31 @@ STRUCT(snd_timer_params,
        TYPE_INT, /* filter */
        MK_ARRAY(TYPE_CHAR, 60)) /* reserved */
 
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+STRUCT(timeval,
+       TYPE_LONG, /* tv_sec */
+       TYPE_INT) /* tv_usec */
+
+STRUCT(_kernel_sock_timeval,
+       TYPE_LONG, /* tv_sec */
+       TYPE_INT) /* tv_usec */
+#else
+STRUCT(timeval,
+       TYPE_LONG, /* tv_sec */
+       TYPE_LONG) /* tv_usec */
+
+STRUCT(_kernel_sock_timeval,
+       TYPE_LONGLONG, /* tv_sec */
+       TYPE_LONGLONG) /* tv_usec */
+#endif
+
 STRUCT(timespec,
        TYPE_LONG, /* tv_sec */
        TYPE_LONG) /* tv_nsec */
+
+STRUCT(_kernel_timespec,
+       TYPE_LONGLONG, /* tv_sec */
+       TYPE_LONGLONG) /* tv_nsec */
 
 STRUCT(snd_timer_status,
        MK_STRUCT(STRUCT_timespec), /* tstamp */
@@ -291,6 +313,17 @@ STRUCT(dm_target_versions,
 
 STRUCT(dm_target_msg,
        TYPE_ULONGLONG) /* sector */
+
+STRUCT(drm_version,
+       TYPE_INT, /* version_major */
+       TYPE_INT, /* version_minor */
+       TYPE_INT, /* version_patchlevel */
+       TYPE_ULONG, /* name_len */
+       TYPE_PTRVOID, /* name */
+       TYPE_ULONG, /* date_len */
+       TYPE_PTRVOID, /* date */
+       TYPE_ULONG, /* desc_len */
+       TYPE_PTRVOID) /* desc */
 
 STRUCT(file_clone_range,
        TYPE_LONGLONG, /* src_fd */
