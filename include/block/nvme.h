@@ -664,7 +664,7 @@ enum NvmeStatusCodes {
     NVME_INVALID_QUEUE_DEL      = 0x010c,
     NVME_FID_NOT_SAVEABLE       = 0x010d,
     NVME_FEAT_NOT_CHANGEABLE    = 0x010e,
-    NVME_FID_NOT_NSID_SPEC      = 0x010f,
+    NVME_FEAT_NOT_NS_SPEC       = 0x010f,
     NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
     NVME_CONFLICTING_ATTRS      = 0x0180,
     NVME_INVALID_PROT_INFO      = 0x0181,
@@ -908,8 +908,31 @@ enum NvmeFeatureIds {
     NVME_FID_MAX                    = 0x100,
 };
 
+typedef enum NvmeFeatureCap {
+    NVME_FEAT_CAP_SAVE      = 1 << 0,
+    NVME_FEAT_CAP_NS        = 1 << 1,
+    NVME_FEAT_CAP_CHANGE    = 1 << 2,
+} NvmeFeatureCap;
+
+typedef enum NvmeGetFeatureSelect {
+    NVME_GETFEAT_SELECT_CURRENT = 0x0,
+    NVME_GETFEAT_SELECT_DEFAULT = 0x1,
+    NVME_GETFEAT_SELECT_SAVED   = 0x2,
+    NVME_GETFEAT_SELECT_CAP     = 0x3,
+} NvmeGetFeatureSelect;
+
 #define NVME_GETSETFEAT_FID_MASK 0xff
 #define NVME_GETSETFEAT_FID(dw10) (dw10 & NVME_GETSETFEAT_FID_MASK)
+
+#define NVME_GETFEAT_SELECT_SHIFT 8
+#define NVME_GETFEAT_SELECT_MASK  0x7
+#define NVME_GETFEAT_SELECT(dw10) \
+    ((dw10 >> NVME_GETFEAT_SELECT_SHIFT) & NVME_GETFEAT_SELECT_MASK)
+
+#define NVME_SETFEAT_SAVE_SHIFT 31
+#define NVME_SETFEAT_SAVE_MASK  0x1
+#define NVME_SETFEAT_SAVE(dw10) \
+    ((dw10 >> NVME_SETFEAT_SAVE_SHIFT) & NVME_SETFEAT_SAVE_MASK)
 
 typedef struct QEMU_PACKED NvmeRangeType {
     uint8_t     type;
@@ -926,6 +949,8 @@ typedef struct QEMU_PACKED NvmeLBAF {
     uint8_t     ds;
     uint8_t     rp;
 } NvmeLBAF;
+
+#define NVME_NSID_BROADCAST 0xffffffff
 
 typedef struct QEMU_PACKED NvmeIdNs {
     uint64_t    nsze;
