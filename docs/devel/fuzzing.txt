@@ -48,6 +48,43 @@ Information about these is available by passing -help=1
 Now the only thing left to do is wait for the fuzzer to trigger potential
 crashes.
 
+== Useful libFuzzer flags ==
+
+As mentioned above, libFuzzer accepts some arguments. Passing -help=1 will list
+the available arguments. In particular, these arguments might be helpful:
+
+$CORPUS_DIR/ : Specify a directory as the last argument to libFuzzer. libFuzzer
+stores each "interesting" input in this corpus directory. The next time you run
+libFuzzer, it will read all of the inputs from the corpus, and continue fuzzing
+from there. You can also specify multiple directories. libFuzzer loads existing
+inputs from all specified directories, but will only write new ones to the
+first one specified.
+
+-max_len=4096 : specify the maximum byte-length of the inputs libFuzzer will
+generate.
+
+-close_fd_mask={1,2,3} : close, stderr, or both. Useful for targets that
+trigger many debug/error messages, or create output on the serial console.
+
+-jobs=4 -workers=4 : These arguments configure libFuzzer to run 4 fuzzers in
+parallel (4 fuzzing jobs in 4 worker processes). Alternatively, with only
+-jobs=N, libFuzzer automatically spawns a number of workers less than or equal
+to half the available CPU cores. Replace 4 with a number appropriate for your
+machine. Make sure to specify a $CORPUS_DIR, which will allow the parallel
+fuzzers to share information about the interesting inputs they find.
+
+-use_value_profile=1 : For each comparison operation, libFuzzer computes 
+(caller_pc&4095) | (popcnt(Arg1 ^ Arg2) << 12) and places this in the coverage
+table. Useful for targets with "magic" constants. If Arg1 came from the fuzzer's
+input and Arg2 is a magic constant, then each time the Hamming distance
+between Arg1 and Arg2 decreases, libFuzzer adds the input to the corpus.
+
+-shrink=1 : Tries to make elements of the corpus "smaller". Might lead to
+better coverage performance, depending on the target.
+
+Note that libFuzzer's exact behavior will depend on the version of
+clang and libFuzzer used to build the device fuzzers.
+
 == Adding a new fuzzer ==
 Coverage over virtual devices can be improved by adding additional fuzzers.
 Fuzzers are kept in tests/qtest/fuzz/ and should be added to
