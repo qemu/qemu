@@ -24,18 +24,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/accel.h"
+#include "qemu-common.h"
 #include "sysemu/tcg.h"
-#include "qom/object.h"
-#include "cpu.h"
-#include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
-#include "qemu/main-loop.h"
 #include "tcg/tcg.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "tcg-cpus.h"
 
 struct TCGState {
     AccelState parent_obj;
@@ -124,6 +121,8 @@ static void tcg_accel_instance_init(Object *obj)
     s->mttcg_enabled = default_mttcg_enabled();
 }
 
+bool mttcg_enabled;
+
 static int tcg_init(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
@@ -131,6 +130,8 @@ static int tcg_init(MachineState *ms)
     tcg_exec_init(s->tb_size * 1024 * 1024);
     cpu_interrupt_handler = tcg_handle_interrupt;
     mttcg_enabled = s->mttcg_enabled;
+    cpus_register_accel(&tcg_cpus);
+
     return 0;
 }
 
