@@ -1181,6 +1181,10 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
         break;
     case NVME_VOLATILE_WRITE_CACHE:
+        if (!(dw11 & 0x1) && blk_enable_write_cache(n->conf.blk)) {
+            blk_flush(n->conf.blk);
+        }
+
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
     case NVME_NUMBER_OF_QUEUES:
