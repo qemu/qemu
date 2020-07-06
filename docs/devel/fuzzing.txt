@@ -23,9 +23,12 @@ AddressSanitizer mmaps ~20TB of memory, as part of its detection. This results
 in a large page-map, and a much slower fork().
 
 To build the fuzzers, install a recent version of clang:
-Configure with (substitute the clang binaries with the version you installed):
+Configure with (substitute the clang binaries with the version you installed).
+Here, enable-sanitizers, is optional but it allows us to reliably detect bugs
+such as out-of-bounds accesses, use-after-frees, double-frees etc.
 
-    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing
+    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing \
+                                                --enable-sanitizers
 
 Fuzz targets are built similarly to system/softmmu:
 
