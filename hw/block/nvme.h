@@ -95,6 +95,7 @@ typedef struct NvmeCtrl {
     BlockConf    conf;
     NvmeParams   params;
 
+    bool        qs_created;
     uint32_t    page_size;
     uint16_t    page_bits;
     uint16_t    max_prp_ents;
