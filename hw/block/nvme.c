@@ -85,6 +85,20 @@
             " in %s: " fmt "\n", __func__, ## __VA_ARGS__); \
     } while (0)
 
+static const bool nvme_feature_support[NVME_FID_MAX] = {
+    [NVME_ARBITRATION]              = true,
+    [NVME_POWER_MANAGEMENT]         = true,
+    [NVME_TEMPERATURE_THRESHOLD]    = true,
+    [NVME_ERROR_RECOVERY]           = true,
+    [NVME_VOLATILE_WRITE_CACHE]     = true,
+    [NVME_NUMBER_OF_QUEUES]         = true,
+    [NVME_INTERRUPT_COALESCING]     = true,
+    [NVME_INTERRUPT_VECTOR_CONF]    = true,
+    [NVME_WRITE_ATOMICITY]          = true,
+    [NVME_ASYNCHRONOUS_EVENT_CONF]  = true,
+    [NVME_TIMESTAMP]                = true,
+};
+
 static void nvme_process_sq(void *opaque);
 
 static uint16_t nvme_cid(NvmeRequest *req)
@@ -1085,8 +1099,20 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
     uint32_t result;
+    uint8_t fid = NVME_GETSETFEAT_FID(dw10);
+    uint16_t iv;
 
-    switch (dw10) {
+    static const uint32_t nvme_feature_default[NVME_FID_MAX] = {
+        [NVME_ARBITRATION] = NVME_ARB_AB_NOLIMIT,
+    };
+
+    trace_pci_nvme_getfeat(nvme_cid(req), fid, dw11);
+
+    if (!nvme_feature_support[fid]) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (fid) {
     case NVME_TEMPERATURE_THRESHOLD:
         result = 0;
 
@@ -1117,14 +1143,26 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
             ((n->params.max_ioqpairs - 1) << 16);
         trace_pci_nvme_getfeat_numq(result);
         break;
+    case NVME_INTERRUPT_VECTOR_CONF:
+        iv = dw11 & 0xffff;
+        if (iv >= n->params.max_ioqpairs + 1) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        result = iv;
+        if (iv == n->admin_cq.vector) {
+            result |= NVME_INTVC_NOCOALESCING;
+        }
+
+        break;
     case NVME_ASYNCHRONOUS_EVENT_CONF:
         result = n->features.async_config;
         break;
     case NVME_TIMESTAMP:
         return nvme_get_feature_timestamp(n, cmd);
     default:
-        trace_pci_nvme_err_invalid_getfeat(dw10);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        result = nvme_feature_default[fid];
+        break;
     }
 
     req->cqe.result = cpu_to_le32(result);
@@ -1153,8 +1191,15 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+    uint8_t fid = NVME_GETSETFEAT_FID(dw10);
 
-    switch (dw10) {
+    trace_pci_nvme_setfeat(nvme_cid(req), fid, dw11);
+
+    if (!nvme_feature_support[fid]) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (fid) {
     case NVME_TEMPERATURE_THRESHOLD:
         if (NVME_TEMP_TMPSEL(dw11) != NVME_TEMP_TMPSEL_COMPOSITE) {
             break;
@@ -1201,8 +1246,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     case NVME_TIMESTAMP:
         return nvme_set_feature_timestamp(n, cmd);
     default:
-        trace_pci_nvme_err_invalid_setfeat(dw10);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        return NVME_FEAT_NOT_CHANGEABLE | NVME_DNR;
     }
     return NVME_SUCCESS;
 }
