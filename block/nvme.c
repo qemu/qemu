@@ -518,7 +518,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         error_setg(errp, "Cannot map buffer for DMA");
         goto out;
     }
-    cmd.prp1 = cpu_to_le64(iova);
+    cmd.dptr.prp1 = cpu_to_le64(iova);
 
     if (nvme_cmd_sync(bs, s->queues[0], &cmd)) {
         error_setg(errp, "Failed to identify controller");
@@ -629,7 +629,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     }
     cmd = (NvmeCmd) {
         .opcode = NVME_ADM_CMD_CREATE_CQ,
-        .prp1 = cpu_to_le64(q->cq.iova),
+        .dptr.prp1 = cpu_to_le64(q->cq.iova),
         .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | (n & 0xFFFF)),
         .cdw11 = cpu_to_le32(0x3),
     };
@@ -640,7 +640,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     }
     cmd = (NvmeCmd) {
         .opcode = NVME_ADM_CMD_CREATE_SQ,
-        .prp1 = cpu_to_le64(q->sq.iova),
+        .dptr.prp1 = cpu_to_le64(q->sq.iova),
         .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | (n & 0xFFFF)),
         .cdw11 = cpu_to_le32(0x1 | (n << 16)),
     };
@@ -988,16 +988,16 @@ try_map:
     case 0:
         abort();
     case 1:
-        cmd->prp1 = pagelist[0];
-        cmd->prp2 = 0;
+        cmd->dptr.prp1 = pagelist[0];
+        cmd->dptr.prp2 = 0;
         break;
     case 2:
-        cmd->prp1 = pagelist[0];
-        cmd->prp2 = pagelist[1];
+        cmd->dptr.prp1 = pagelist[0];
+        cmd->dptr.prp2 = pagelist[1];
         break;
     default:
-        cmd->prp1 = pagelist[0];
-        cmd->prp2 = cpu_to_le64(req->prp_list_iova + sizeof(uint64_t));
+        cmd->dptr.prp1 = pagelist[0];
+        cmd->dptr.prp2 = cpu_to_le64(req->prp_list_iova + sizeof(uint64_t));
         break;
     }
     trace_nvme_cmd_map_qiov(s, cmd, req, qiov, entries);
