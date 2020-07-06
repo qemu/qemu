@@ -3627,7 +3627,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         }
 
         ret = bdrv_change_backing_file(blk_bs(blk), qcow2_opts->backing_file,
-                                       backing_format);
+                                       backing_format, false);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not assign backing file '%s' "
                              "with format '%s'", qcow2_opts->backing_file,

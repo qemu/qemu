@@ -3416,7 +3416,8 @@ void qmp_change_backing_file(const char *device,
     }
 
     ret = bdrv_change_backing_file(image_bs, backing_file,
-                               image_bs->drv ? image_bs->drv->format_name : "");
+                                   image_bs->drv ? image_bs->drv->format_name : "",
+                                   false);
 
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not change backing file to '%s'",
