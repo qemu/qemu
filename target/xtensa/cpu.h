@@ -433,6 +433,7 @@ struct XtensaConfig {
     uint32_t exception_vector[EXC_MAX];
     unsigned ninterrupt;
     unsigned nlevel;
+    unsigned nmi_level;
     uint32_t interrupt_vector[MAX_NLEVEL + MAX_NNMI + 1];
     uint32_t level_mask[MAX_NLEVEL + MAX_NNMI + 1];
     uint32_t inttype_mask[INTTYPE_MAX];

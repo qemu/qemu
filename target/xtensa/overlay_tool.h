@@ -216,6 +216,9 @@
 #define XTHAL_INTTYPE_IDMA_ERR INTTYPE_IDMA_ERR
 #define XTHAL_INTTYPE_GS_ERR INTTYPE_GS_ERR
 
+#ifndef XCHAL_NMILEVEL
+#define XCHAL_NMILEVEL (XCHAL_NUM_INTLEVELS + 1)
+#endif
 
 #define INTERRUPT(i) { \
         .level = XCHAL_INT ## i ## _LEVEL, \
@@ -305,7 +308,8 @@
 
 #define INTERRUPTS_SECTION \
     .ninterrupt = XCHAL_NUM_INTERRUPTS, \
-    .nlevel = XCHAL_NUM_INTLEVELS, \
+    .nlevel = XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI, \
+    .nmi_level = XCHAL_NMILEVEL, \
     .interrupt_vector = INTERRUPT_VECTORS, \
     .level_mask = LEVEL_MASKS, \
     .inttype_mask = INTTYPE_MASKS, \
