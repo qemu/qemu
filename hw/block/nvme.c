@@ -814,8 +814,8 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         trace_pci_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
         break;
     case NVME_NUMBER_OF_QUEUES:
-        result = cpu_to_le32((n->params.max_ioqpairs - 1) |
-                             ((n->params.max_ioqpairs - 1) << 16));
+        result = (n->params.max_ioqpairs - 1) |
+            ((n->params.max_ioqpairs - 1) << 16);
         trace_pci_nvme_getfeat_numq(result);
         break;
     case NVME_TIMESTAMP:
@@ -825,7 +825,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    req->cqe.result = result;
+    req->cqe.result = cpu_to_le32(result);
     return NVME_SUCCESS;
 }
 
