@@ -6337,7 +6337,7 @@ fi
 # checks for fuzzer
 if test "$fuzzing" = "yes" ; then
   write_c_fuzzer_skeleton
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address,fuzzer" ""; then
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=fuzzer" ""; then
       have_fuzzer=yes
   fi
 fi
@@ -7893,11 +7893,11 @@ if test "$have_mlockall" = "yes" ; then
 fi
 if test "$fuzzing" = "yes" ; then
   if test "$have_fuzzer" = "yes"; then
-    FUZZ_LDFLAGS=" -fsanitize=address,fuzzer"
-    FUZZ_CFLAGS=" -fsanitize=address,fuzzer"
-    CFLAGS="$CFLAGS -fsanitize=address,fuzzer-no-link"
+    FUZZ_LDFLAGS=" -fsanitize=fuzzer"
+    FUZZ_CFLAGS=" -fsanitize=fuzzer"
+    CFLAGS="$CFLAGS -fsanitize=fuzzer-no-link"
   else
-    error_exit "Your compiler doesn't support -fsanitize=address,fuzzer"
+    error_exit "Your compiler doesn't support -fsanitize=fuzzer"
     exit 1
   fi
 fi
