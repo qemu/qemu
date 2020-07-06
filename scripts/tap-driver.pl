@@ -217,7 +217,7 @@ sub report ($;$)
 
 sub testsuite_error ($)
 {
-  report "ERROR", "- $_[0]";
+  report "ERROR", "$test_name - $_[0]";
 }
 
 sub handle_tap_result ($)
