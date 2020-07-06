@@ -290,6 +290,13 @@ TEST_IMG="$TEST_IMG".orig _make_test_img 64M
 # backing file"
 $QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -n "$TEST_IMG" "$TEST_IMG".orig
 
+echo
+echo '=== -n incompatible with -o ==='
+echo
+
+$QEMU_IMG convert -O $IMGFMT -o preallocation=metadata -n \
+	  "$TEST_IMG" "$TEST_IMG".orig && echo "unexpected success"
+
 # success, all done
 echo '*** done'
 rm -f $seq.full

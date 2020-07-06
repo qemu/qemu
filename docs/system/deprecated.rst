@@ -427,14 +427,6 @@ kernel in 2018, and has also been dropped from glibc.
 Related binaries
 ----------------
 
-``qemu-img convert -n -o`` (since 4.2.0)
-''''''''''''''''''''''''''''''''''''''''
-
-All options specified in ``-o`` are image creation options, so
-they have no effect when used with ``-n`` to skip image creation.
-Silently ignored options can be confusing, so this combination of
-options will be made an error in future versions.
-
 Backwards compatibility
 -----------------------
 
@@ -540,8 +532,8 @@ spec you can use the ``-cpu rv64gcsu,priv_spec=v1.10.0`` command line argument.
 Related binaries
 ----------------
 
-``qemu-nbd --partition`` (removed in 5.0.0)
-'''''''''''''''''''''''''''''''''''''''''''
+``qemu-nbd --partition`` (removed in 5.0)
+'''''''''''''''''''''''''''''''''''''''''
 
 The ``qemu-nbd --partition $digit`` code (also spelled ``-P``)
 could only handle MBR partitions, and never correctly handled logical
@@ -556,6 +548,12 @@ long starting at 1MiB, the old command::
 can be rewritten as::
 
   qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.file.driver=file,file.file.filename=file.qcow2
+
+``qemu-img convert -n -o`` (removed in 5.1)
+'''''''''''''''''''''''''''''''''''''''''''
+
+All options specified in ``-o`` are image creation options, so
+they are now rejected when used with ``-n`` to skip image creation.
 
 Command line options
 --------------------

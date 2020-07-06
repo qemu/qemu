@@ -233,4 +233,8 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
+
+=== -n incompatible with -o ===
+
+qemu-img: -o has no effect when skipping image creation
 *** done

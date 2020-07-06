@@ -2364,8 +2364,8 @@ static int img_convert(int argc, char **argv)
     }
 
     if (skip_create && options) {
-        warn_report("-o has no effect when skipping image creation");
-        warn_report("This will become an error in future QEMU versions.");
+        error_report("-o has no effect when skipping image creation");
+        goto fail_getopt;
     }
 
     if (s.has_zero_init && !skip_create) {
