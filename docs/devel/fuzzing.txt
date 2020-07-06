@@ -85,6 +85,25 @@ better coverage performance, depending on the target.
 Note that libFuzzer's exact behavior will depend on the version of
 clang and libFuzzer used to build the device fuzzers.
 
+== Generating Coverage Reports ==
+Code coverage is a crucial metric for evaluating a fuzzer's performance.
+libFuzzer's output provides a "cov: " column that provides a total number of
+unique blocks/edges covered. To examine coverage on a line-by-line basis we
+can use Clang coverage:
+
+ 1. Configure libFuzzer to store a corpus of all interesting inputs (see
+    CORPUS_DIR above)
+ 2. ./configure the QEMU build with:
+    --enable-fuzzing \
+    --extra-cflags="-fprofile-instr-generate -fcoverage-mapping"
+ 3. Re-run the fuzzer. Specify $CORPUS_DIR/* as an argument, telling libfuzzer
+    to execute all of the inputs in $CORPUS_DIR and exit. Once the process
+    exits, you should find a file, "default.profraw" in the working directory.
+ 4. Execute these commands to generate a detailed HTML coverage-report:
+ llvm-profdata merge -output=default.profdata default.profraw
+ llvm-cov show ./path/to/qemu-fuzz-i386 -instr-profile=default.profdata \
+ --format html -output-dir=/path/to/output/report
+
 == Adding a new fuzzer ==
 Coverage over virtual devices can be improved by adding additional fuzzers.
 Fuzzers are kept in tests/qtest/fuzz/ and should be added to
