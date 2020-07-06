@@ -9,10 +9,12 @@ typedef struct NvmeParams {
     uint32_t max_ioqpairs;
     uint16_t msix_qsize;
     uint32_t cmb_size_mb;
+    uint8_t  aerl;
+    uint32_t aer_max_queued;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
-    QSIMPLEQ_ENTRY(NvmeAsyncEvent) entry;
+    QTAILQ_ENTRY(NvmeAsyncEvent) entry;
     NvmeAerResult result;
 } NvmeAsyncEvent;
 
@@ -94,6 +96,7 @@ typedef struct NvmeCtrl {
     uint32_t    num_namespaces;
     uint32_t    max_q_ents;
     uint64_t    ns_size;
+    uint8_t     outstanding_aers;
     uint8_t     *cmbuf;
     uint32_t    irq_status;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
@@ -102,6 +105,11 @@ typedef struct NvmeCtrl {
     uint16_t    temperature;
 
     HostMemoryBackend *pmrdev;
+
+    uint8_t     aer_mask;
+    NvmeRequest **aer_reqs;
+    QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
+    int         aer_queued;
 
     NvmeNamespace   *namespaces;
     NvmeSQueue      **sq;
