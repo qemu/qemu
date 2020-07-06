@@ -861,7 +861,10 @@ enum NvmeIdCtrlOncs {
 typedef struct NvmeFeatureVal {
     uint32_t    arbitration;
     uint32_t    power_mgmt;
-    uint32_t    temp_thresh;
+    struct {
+        uint16_t temp_thresh_hi;
+        uint16_t temp_thresh_low;
+    };
     uint32_t    err_rec;
     uint32_t    volatile_wc;
     uint32_t    num_queues;
