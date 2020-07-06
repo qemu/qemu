@@ -866,23 +866,6 @@ enum NvmeIdCtrlLpa {
 #define NVME_CTRL_SGLS_MPTR_SGL            (0x1 << 19)
 #define NVME_CTRL_SGLS_ADDR_OFFSET         (0x1 << 20)
 
-typedef struct NvmeFeatureVal {
-    uint32_t    arbitration;
-    uint32_t    power_mgmt;
-    struct {
-        uint16_t temp_thresh_hi;
-        uint16_t temp_thresh_low;
-    };
-    uint32_t    err_rec;
-    uint32_t    volatile_wc;
-    uint32_t    num_queues;
-    uint32_t    int_coalescing;
-    uint32_t    *int_vector_config;
-    uint32_t    write_atomicity;
-    uint32_t    async_config;
-    uint32_t    sw_prog_marker;
-} NvmeFeatureVal;
-
 #define NVME_ARB_AB(arb)    (arb & 0x7)
 #define NVME_ARB_LPW(arb)   ((arb >> 8) & 0xff)
 #define NVME_ARB_MPW(arb)   ((arb >> 16) & 0xff)
