@@ -17,18 +17,15 @@ backing file: TEST_DIR/t.IMGFMT.base
 
 == mismatched command line detection ==
 qemu-img: TEST_DIR/t.IMGFMT: invalid VMDK image descriptor
-Could not open backing image to determine size.
-qemu-img: warning: Could not verify backing image. This may become an error in future versions.
-invalid VMDK image descriptor
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=vmdk
+Could not open backing image.
+qemu-img: TEST_DIR/t.IMGFMT: invalid VMDK image descriptor
+Could not open backing image.
 
 qemu-img: TEST_DIR/t.IMGFMT: Image creation needs a size parameter
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=vmdk
 
-qemu-img: warning: Could not verify backing image. This may become an error in future versions.
-Unknown driver 'garbage'
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=garbage
-qemu-img: TEST_DIR/t.IMGFMT: unrecognized backing format 'garbage'
+qemu-img: TEST_DIR/t.IMGFMT: Unknown driver 'garbage'
+Could not open backing image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=garbage
 qemu-img: TEST_DIR/t.IMGFMT: unrecognized backing format 'garbage'
 image: TEST_DIR/t.IMGFMT
