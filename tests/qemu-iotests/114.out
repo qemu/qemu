@@ -1,5 +1,11 @@
 QA output created by 114
+qemu-img: warning: Deprecated use of backing file without explicit backing format (detected format of raw)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.orig
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+qemu-img: warning: Deprecated use of backing file without explicit backing format
+qemu-img: warning: Deprecated use of backing file without explicit backing format (detected format of IMGFMT)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+qemu-img: warning: Deprecated use of unopened backing file without explicit backing format, use of this image requires potentially unsafe format probing
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -9,6 +15,9 @@ backing file: TEST_DIR/t.IMGFMT.base
 backing file format: foo
 qemu-io: can't open device TEST_DIR/t.qcow2: Could not open backing file: Unknown driver 'foo'
 no file open, try 'help open'
+read 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: warning: Deprecated use of backing file without explicit backing format, use of this image requires potentially unsafe format probing
 read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

@@ -2517,6 +2517,13 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
+    if (out_baseimg_param) {
+        if (!qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT)) {
+            warn_report("Deprecated use of backing file without explicit "
+                        "backing format");
+        }
+    }
+
     /* Check if compression is supported */
     if (s.compressed) {
         bool encryption =
@@ -3797,7 +3804,7 @@ static int img_rebase(int argc, char **argv)
      * doesn't change when we switch the backing file.
      */
     if (out_baseimg && *out_baseimg) {
-        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, false);
+        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, true);
     } else {
         ret = bdrv_change_backing_file(bs, NULL, NULL, false);
     }
