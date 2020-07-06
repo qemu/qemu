@@ -1,9 +1,9 @@
 == Commit tests ==
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 2097152/2097152 bytes at offset 0
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -50,6 +50,7 @@ file format: IMGFMT
 virtual size: 2 MiB (2097152 bytes)
 cluster_size: 65536
 backing file: TEST_DIR/PID-base
+backing file format: IMGFMT
 Format specific information:
     compat: 1.1
     compression type: zlib
@@ -66,9 +67,9 @@ read 1048576/1048576 bytes at offset 1048576
 === Testing HMP commit (top -> mid) ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 2097152/2097152 bytes at offset 0
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -80,6 +81,7 @@ file format: IMGFMT
 virtual size: 2 MiB (2097152 bytes)
 cluster_size: 65536
 backing file: TEST_DIR/PID-base
+backing file format: IMGFMT
 Format specific information:
     compat: 1.1
     compression type: zlib
@@ -96,9 +98,9 @@ read 1048576/1048576 bytes at offset 1048576
 === Testing QMP active commit (top -> mid) ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-mid', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1048576 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=2097152 backing_file=TEST_DIR/PID-mid backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 2097152/2097152 bytes at offset 0
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -116,6 +118,7 @@ file format: IMGFMT
 virtual size: 2 MiB (2097152 bytes)
 cluster_size: 65536
 backing file: TEST_DIR/PID-base
+backing file format: IMGFMT
 Format specific information:
     compat: 1.1
     compression type: zlib
@@ -133,7 +136,7 @@ read 1048576/1048576 bytes at offset 1048576
 === preallocation=off ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=6442450944 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1073741824 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=1073741824 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 5368709120
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -152,7 +155,7 @@ read 65536/65536 bytes at offset 5368709120
 === preallocation=metadata ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=34359738368 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=32212254720 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=32212254720 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 33285996544
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -176,7 +179,7 @@ read 65536/65536 bytes at offset 33285996544
 === preallocation=falloc ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=10485760 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=5242880 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=5242880 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 9437184
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -195,7 +198,7 @@ read 65536/65536 bytes at offset 9437184
 === preallocation=full ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=16777216 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=8388608 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=8388608 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 11534336
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -214,7 +217,7 @@ read 65536/65536 bytes at offset 11534336
 === preallocation=off ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=393216 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=259072 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=259072 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 259072
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -234,7 +237,7 @@ read 65536/65536 bytes at offset 259072
 === preallocation=off ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=409600 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=262144 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=262144 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 344064
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -253,7 +256,7 @@ read 65536/65536 bytes at offset 344064
 === preallocation=off ===
 Formatting 'TEST_DIR/PID-base', fmt=qcow2 cluster_size=65536 compression_type=zlib size=524288 lazy_refcounts=off refcount_bits=16
 
-Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=262144 backing_file=TEST_DIR/PID-base lazy_refcounts=off refcount_bits=16
+Formatting 'TEST_DIR/PID-top', fmt=qcow2 cluster_size=65536 compression_type=zlib size=262144 backing_file=TEST_DIR/PID-base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 
 wrote 65536/65536 bytes at offset 446464
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

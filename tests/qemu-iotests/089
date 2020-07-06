@@ -84,7 +84,7 @@ echo
 echo "=== Testing correct handling of 'backing':null ==="
 echo
 
-_make_test_img -b "$TEST_IMG.base" $IMG_SIZE
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $IMG_SIZE
 
 # This should read 42
 $QEMU_IO -c 'read -P 42 0 512' "$TEST_IMG" | _filter_qemu_io

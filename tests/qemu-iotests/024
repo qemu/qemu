@@ -83,7 +83,7 @@ TEST_IMG="$TEST_IMG_SAVE"
 echo "Creating COW image"
 echo
 
-_make_test_img -b "$TEST_IMG.base_old" 1G
+_make_test_img -b "$TEST_IMG.base_old" -F $IMGFMT 1G
 io_pattern writev 0 $((4 * CLUSTER_SIZE)) 0 1 0x33
 io_pattern writev $((8 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 0 1 0x33
 
@@ -109,7 +109,7 @@ io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 echo
 echo Rebase and test again
 echo
-$QEMU_IMG rebase -b "$TEST_IMG.base_new" "$TEST_IMG"
+$QEMU_IMG rebase -b "$TEST_IMG.base_new" -F $IMGFMT "$TEST_IMG"
 io_pattern readv $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
 io_pattern readv $((1 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
 io_pattern readv $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
@@ -159,7 +159,7 @@ OVERLAY="$TEST_DIR/$OVERLAY_WREL"
 
 TEST_IMG=$BASE_OLD _make_test_img 1M
 TEST_IMG=$BASE_NEW _make_test_img 1M
-TEST_IMG=$OVERLAY _make_test_img -b "$BASE_OLD_OREL" 1M
+TEST_IMG=$OVERLAY _make_test_img -b "$BASE_OLD_OREL" -F $IMGFMT 1M
 
 echo
 
@@ -176,11 +176,11 @@ $QEMU_IO "$BASE_NEW" \
 echo
 
 pushd "$TEST_DIR" >/dev/null
-$QEMU_IMG rebase -f "$IMGFMT" -b "$BASE_NEW_OREL" "$OVERLAY_WREL"
+$QEMU_IMG rebase -f "$IMGFMT" -b "$BASE_NEW_OREL" -F $IMGFMT "$OVERLAY_WREL"
 popd >/dev/null
 
 # Verify the backing path is correct
-TEST_IMG=$OVERLAY _img_info | grep '^backing file'
+TEST_IMG=$OVERLAY _img_info | grep '^backing file:'
 
 echo
 

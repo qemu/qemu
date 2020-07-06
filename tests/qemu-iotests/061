@@ -224,7 +224,7 @@ echo "=== Testing zero expansion on backed image ==="
 echo
 TEST_IMG="$TEST_IMG.base" _make_test_img -o "compat=1.1" 64M
 $QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
-_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" 64M
+_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" -F $IMGFMT 64M
 $QEMU_IO -c "read -P 0x2a 0 128k" -c "write -z 0 64k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
 _check_test_img
@@ -235,7 +235,7 @@ echo "=== Testing zero expansion on backed inactive clusters ==="
 echo
 TEST_IMG="$TEST_IMG.base" _make_test_img -o "compat=1.1" 64M
 $QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
-_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" 64M
+_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" -F $IMGFMT 64M
 $QEMU_IO -c "write -z 0 64k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG snapshot -c foo "$TEST_IMG"
 $QEMU_IO -c "write -P 0x42 0 128k" "$TEST_IMG" | _filter_qemu_io
@@ -251,7 +251,7 @@ echo "=== Testing zero expansion on backed image with shared L2 table ==="
 echo
 TEST_IMG="$TEST_IMG.base" _make_test_img -o "compat=1.1" 64M
 $QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
-_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" 64M
+_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" -F $IMGFMT 64M
 $QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG snapshot -c foo "$TEST_IMG"
 $QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
@@ -274,7 +274,7 @@ echo
 echo "=== Testing progress report without snapshot ==="
 echo
 TEST_IMG="$TEST_IMG.base" _make_test_img -o "compat=1.1" 4G
-_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" 4G
+_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" -F $IMGFMT 4G
 $QEMU_IO -c "write -z 0  64k" \
          -c "write -z 1G 64k" \
          -c "write -z 2G 64k" \
@@ -286,7 +286,7 @@ echo
 echo "=== Testing progress report with snapshot ==="
 echo
 TEST_IMG="$TEST_IMG.base" _make_test_img -o "compat=1.1" 4G
-_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" 4G
+_make_test_img -o "compat=1.1" -b "$TEST_IMG.base" -F $IMGFMT 4G
 $QEMU_IO -c "write -z 0  64k" \
          -c "write -z 1G 64k" \
          -c "write -z 2G 64k" \

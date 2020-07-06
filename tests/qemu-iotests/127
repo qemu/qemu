@@ -48,8 +48,8 @@ _require_devices virtio-scsi scsi-hd
 IMG_SIZE=64K
 
 _make_test_img $IMG_SIZE
-TEST_IMG="$TEST_IMG.overlay0" _make_test_img -b "$TEST_IMG" $IMG_SIZE
-TEST_IMG="$TEST_IMG.overlay1" _make_test_img -b "$TEST_IMG" $IMG_SIZE
+TEST_IMG="$TEST_IMG.overlay0" _make_test_img -b "$TEST_IMG" -F $IMGFMT $IMG_SIZE
+TEST_IMG="$TEST_IMG.overlay1" _make_test_img -b "$TEST_IMG" -F $IMGFMT $IMG_SIZE
 
 # So that we actually have something to mirror and the job does not return
 # immediately (which may be bad because then we cannot know whether the

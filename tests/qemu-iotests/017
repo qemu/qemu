@@ -66,7 +66,7 @@ echo "Creating test image with backing file"
 echo
 
 TEST_IMG=$TEST_IMG_SAVE
-_make_test_img -b "$TEST_IMG.base" 6G
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT 6G
 
 echo "Filling test image"
 echo

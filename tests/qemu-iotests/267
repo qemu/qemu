@@ -73,7 +73,7 @@ size=128M
 run_test()
 {
     if [ -n "$BACKING_FILE" ]; then
-        _make_test_img -b "$BACKING_FILE" $size
+        _make_test_img -b "$BACKING_FILE" -F $IMGFMT $size
     else
         _make_test_img $size
     fi
@@ -149,7 +149,7 @@ echo
 echo "=== -blockdev with NBD server on the backing file ==="
 echo
 
-_make_test_img -b "$TEST_IMG.base" $size
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $size
 cat <<EOF |
 nbd_server_start unix:$SOCK_DIR/nbd
 nbd_server_add -w backing-fmt

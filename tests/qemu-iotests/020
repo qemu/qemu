@@ -70,7 +70,7 @@ echo "Creating test image with backing file"
 echo
 
 TEST_IMG="$TEST_IMG_SAVE"
-_make_test_img -b "$TEST_IMG.base" 6G
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT 6G
 
 echo "Filling test image"
 echo
@@ -131,7 +131,7 @@ backing="json:{'driver': '$IMGFMT',
 # Filter out newlines and collapse spaces
 backing=$(echo "$backing" | tr -d '\n' | tr -s ' ')
 
-_make_test_img -b "$backing"
+_make_test_img -b "$backing" -F $IMGFMT
 
 # Just write anything so committing will not be a no-op
 $QEMU_IO -c 'writev 0 64k' "$TEST_IMG" | _filter_qemu_io

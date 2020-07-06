@@ -31,10 +31,10 @@ size_diff = size_long - size_short
 def create_chain() -> None:
     iotests.qemu_img_log('create', '-f', iotests.imgfmt, base,
                          str(size_long))
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base, mid,
-                         str(size_short))
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', mid, top,
-                         str(size_long))
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base,
+                         '-F', iotests.imgfmt, mid, str(size_short))
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', mid,
+                         '-F', iotests.imgfmt, top, str(size_long))
 
     iotests.qemu_io_log('-c', 'write -P 1 0 %d' % size_long, base)
 
@@ -139,8 +139,8 @@ with iotests.FilePath('base') as base, \
 
         iotests.log('=== preallocation=%s ===' % prealloc)
         iotests.qemu_img_log('create', '-f', iotests.imgfmt, base, base_size)
-        iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base, top,
-                             top_size_old)
+        iotests.qemu_img_log('create', '-f', iotests.imgfmt, '-b', base,
+                             '-F', iotests.imgfmt, top, top_size_old)
         iotests.qemu_io_log('-c', 'write -P 1 %s 64k' % off, base)
 
         # After this, top_size_old to base_size should be allocated/zeroed.

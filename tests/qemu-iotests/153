@@ -94,7 +94,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
 
     echo
     echo "== Creating test image =="
-    _make_test_img -b "${TEST_IMG}.base"
+    _make_test_img -b "${TEST_IMG}.base" -F $IMGFMT
 
     echo
     echo "== Launching QEMU, opts: '$opts1' =="
@@ -125,7 +125,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
         _run_cmd $QEMU_IMG amend -o "size=$size" $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG commit      $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG resize      $L "${TEST_IMG}" $size
-        _run_cmd $QEMU_IMG rebase      $L "${TEST_IMG}" -b "${TEST_IMG}.base"
+        _run_cmd $QEMU_IMG rebase      $L "${TEST_IMG}" -b "${TEST_IMG}.base" -F $IMGFMT
         _run_cmd $QEMU_IMG snapshot -l $L "${TEST_IMG}"
         _run_cmd $QEMU_IMG convert     $L "${TEST_IMG}" "${TEST_IMG}.convert"
         _run_cmd $QEMU_IMG dd          $L if="${TEST_IMG}" of="${TEST_IMG}.convert" bs=512 count=1
@@ -135,7 +135,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
         # qemu-img create does not support -U
         if [ -z "$L" ]; then
             _run_cmd $QEMU_IMG create -f $IMGFMT "${TEST_IMG}" \
-                                      -b ${TEST_IMG}.base
+                                      -b ${TEST_IMG}.base -F $IMGFMT
             # Read the file format.  It used to be the case that
             # file-posix simply truncated the file, but the qcow2
             # driver then failed to format it because it was unable
@@ -167,9 +167,9 @@ done
 
 echo
 echo "== Creating ${TEST_IMG}.[abc] ==" | _filter_testdir
-$QEMU_IMG create -f qcow2 "${TEST_IMG}.a" -b "${TEST_IMG}" | _filter_img_create
-$QEMU_IMG create -f qcow2 "${TEST_IMG}.b" -b "${TEST_IMG}" | _filter_img_create
-$QEMU_IMG create -f qcow2 "${TEST_IMG}.c" -b "${TEST_IMG}.b" \
+$QEMU_IMG create -f qcow2 "${TEST_IMG}.a" -b "${TEST_IMG}" -F $IMGFMT | _filter_img_create
+$QEMU_IMG create -f qcow2 "${TEST_IMG}.b" -b "${TEST_IMG}" -F $IMGFMT | _filter_img_create
+$QEMU_IMG create -f qcow2 "${TEST_IMG}.c" -b "${TEST_IMG}.b" -F $IMGFMT \
     | _filter_img_create
 
 echo
@@ -218,7 +218,7 @@ _send_qemu_cmd $QEMU_HANDLE \
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
 echo "Creating overlay with qemu-img when the guest is running should be allowed"
-_run_cmd $QEMU_IMG create -f $IMGFMT -b "${TEST_IMG}" "${TEST_IMG}.overlay"
+_run_cmd $QEMU_IMG create -f $IMGFMT -b "${TEST_IMG}" -F $IMGFMT "${TEST_IMG}.overlay"
 
 echo "== Closing an image should unlock it =="
 _send_qemu_cmd $QEMU_HANDLE \

@@ -49,8 +49,8 @@ IMG_SIZE=1M
 
 # Create the images
 TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" | _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" | _filter_imgfmt
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT | _filter_imgfmt
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT -F $IMGFMT | _filter_imgfmt
 
 # First test: reopen $TEST.IMG changing the detect-zeroes option on
 # its backing file ($TEST_IMG.int).
@@ -106,8 +106,8 @@ echo "*** Commit and then change an option on the backing file"
 echo
 # Create the images again
 TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" | _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" | _filter_imgfmt
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT| _filter_imgfmt
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT | _filter_imgfmt
 
 _launch_qemu -drive if=none,file="${TEST_IMG}"
 _send_qemu_cmd $QEMU_HANDLE \

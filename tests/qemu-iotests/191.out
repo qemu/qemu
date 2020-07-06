@@ -4,8 +4,8 @@ QA output created by 191
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
-Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=IMGFMT
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 { 'execute': 'qmp_capabilities' }
@@ -413,10 +413,10 @@ backing file format: IMGFMT
 === Preparing and starting VM with -drive ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
-Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
-Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
-Formatting 'TEST_DIR/t.IMGFMT.ovl3', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.ovl2
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.ovl3', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.ovl2 backing_fmt=IMGFMT
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 { 'execute': 'qmp_capabilities' }

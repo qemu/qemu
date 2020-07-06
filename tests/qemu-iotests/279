@@ -42,8 +42,8 @@ _unsupported_imgopts "subformat=monolithicFlat" \
                      "subformat=twoGbMaxExtentFlat" \
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
-TEST_IMG="$TEST_IMG.mid" _make_test_img -b "$TEST_IMG.base"
-_make_test_img -b "$TEST_IMG.mid"
+TEST_IMG="$TEST_IMG.mid" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT
+_make_test_img -b "$TEST_IMG.mid" -F $IMGFMT
 
 echo
 echo '== qemu-img info --backing-chain =='

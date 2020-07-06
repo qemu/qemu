@@ -53,7 +53,7 @@ with iotests.FilePath('base.img') as base_img_path, \
     assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
     assert qemu_io_silent(base_img_path, '-c', 'write -P 1 0M 1M') == 0
     assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                    top_img_path) == 0
+                    '-F', iotests.imgfmt, top_img_path) == 0
     assert qemu_io_silent(top_img_path,  '-c', 'write -P 2 1M 1M') == 0
 
     log('Done')

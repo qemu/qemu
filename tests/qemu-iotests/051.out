@@ -1,6 +1,6 @@
 QA output created by 051
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 
 === Unknown option ===
 

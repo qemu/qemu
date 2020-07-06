@@ -3,8 +3,8 @@ QA output created by 097
 === Test pass 0 ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
-Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd backing_fmt=IMGFMT
 wrote 196608/196608 bytes at offset 2147287040
 192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 2147352576
@@ -40,8 +40,8 @@ Offset          Length          File
 === Test pass 1 ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
-Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd backing_fmt=IMGFMT
 wrote 196608/196608 bytes at offset 2147287040
 192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 2147352576
@@ -78,8 +78,8 @@ Offset          Length          File
 === Test pass 2 ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
-Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd backing_fmt=IMGFMT
 wrote 196608/196608 bytes at offset 2147287040
 192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 2147352576
@@ -116,8 +116,8 @@ Offset          Length          File
 === Test pass 3 ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=2202010112
-Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd
+Formatting 'TEST_DIR/t.IMGFMT.itmd', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202010112 backing_file=TEST_DIR/t.IMGFMT.itmd backing_fmt=IMGFMT
 wrote 196608/196608 bytes at offset 2147287040
 192 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 2147352576

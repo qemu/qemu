@@ -29,7 +29,8 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, "1G")
-        iotests.qemu_img('create', '-f', iotests.imgfmt, self.test_img, "-b", self.base_img)
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.test_img,
+                         "-b", self.base_img, '-F', iotests.imgfmt)
         iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 1M 128M', self.test_img)
         self.vm = iotests.VM().add_drive(self.test_img)
         self.vm.launch()

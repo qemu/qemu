@@ -71,7 +71,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
     def addBlockDriverStateOverlay(self, node):
         self.checkBlockDriverState(node, False)
         iotests.qemu_img('create', '-u', '-f', iotests.imgfmt,
-                         '-b', base_img, new_img, '1M')
+                         '-b', base_img, '-F', iotests.imgfmt, new_img, '1M')
         opts = {'driver': iotests.imgfmt,
                 'node-name': node,
                 'backing': None,
