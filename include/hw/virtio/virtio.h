@@ -396,4 +396,6 @@ static inline bool virtio_device_disabled(VirtIODevice *vdev)
     return unlikely(vdev->disabled || vdev->broken);
 }
 
+bool virtio_legacy_allowed(VirtIODevice *vdev);
+
 #endif
