@@ -605,6 +605,9 @@ _supported_fmt()
     # setting IMGFMT_GENERIC to false.
     for f; do
         if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
+            if [ "$IMGFMT" = "luks" ]; then
+                _require_working_luks
+            fi
             return
         fi
     done
@@ -738,6 +741,33 @@ _unsupported_imgopts()
             _notrun "not suitable for image option: $bad_opt"
         fi
     done
+}
+
+# Caution: Overwrites $TEST_DIR/t.luks
+_require_working_luks()
+{
+    file="$TEST_DIR/t.luks"
+
+    output=$(
+        $QEMU_IMG create -f luks \
+            --object secret,id=sec0,data=hunter0 \
+            -o key-secret=sec0 \
+            -o iter-time=10 \
+            "$file" \
+            1M \
+            2>&1
+    )
+    status=$?
+
+    IMGFMT='luks' _rm_test_img "$file"
+
+    if [ $status != 0 ]; then
+        reason=$(echo "$output" | grep "$file:" | $SED -e "s#.*$file: *##")
+        if [ -z "$reason" ]; then
+            reason="Failed to create a LUKS image"
+        fi
+        _notrun "$reason"
+    fi
 }
 
 # this test requires that a specified command (executable) exists

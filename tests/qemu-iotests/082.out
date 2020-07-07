@@ -3,14 +3,14 @@ QA output created by 082
 === create: Options specified more than once ===
 
 Testing: create -f foo -f qcow2 TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 compression_type=zlib size=134217728 lazy_refcounts=off refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
 cluster_size: 65536
 
 Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=4096 lazy_refcounts=on refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=4096 compression_type=zlib size=134217728 lazy_refcounts=on refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
@@ -23,7 +23,7 @@ Format specific information:
     corrupt: false
 
 Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on -o cluster_size=8k TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=8192 lazy_refcounts=on refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=8192 compression_type=zlib size=134217728 lazy_refcounts=on refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
@@ -36,7 +36,7 @@ Format specific information:
     corrupt: false
 
 Testing: create -f qcow2 -o cluster_size=4k,cluster_size=8k TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=8192 lazy_refcounts=off refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=8192 compression_type=zlib size=134217728 lazy_refcounts=off refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
@@ -237,10 +237,10 @@ Supported options:
   size=<size>            - Virtual disk size
 
 Testing: create -f qcow2 -u -o backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file=TEST_DIR/t.qcow2,,help cluster_size=65536 lazy_refcounts=off refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 compression_type=zlib size=134217728 backing_file=TEST_DIR/t.qcow2,,help lazy_refcounts=off refcount_bits=16
 
 Testing: create -f qcow2 -u -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file=TEST_DIR/t.qcow2,,? cluster_size=65536 lazy_refcounts=off refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 compression_type=zlib size=134217728 backing_file=TEST_DIR/t.qcow2,,? lazy_refcounts=off refcount_bits=16
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2 128M
 qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
@@ -290,7 +290,7 @@ qemu-img: Format driver 'bochs' does not support image creation
 === convert: Options specified more than once ===
 
 Testing: create -f qcow2 TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16 compression_type=zlib
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 compression_type=zlib size=134217728 lazy_refcounts=off refcount_bits=16
 
 Testing: convert -f foo -f qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
@@ -639,204 +639,132 @@ cluster_size: 65536
 === amend: help for -o ===
 
 Testing: amend -f qcow2 -o help TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o ? TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o cluster_size=4k,help TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o cluster_size=4k,? TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o help,cluster_size=4k TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o ?,cluster_size=4k TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o cluster_size=4k -o help TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o cluster_size=4k -o ? TEST_DIR/t.qcow2
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2
 
@@ -856,29 +784,20 @@ Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,, -o help TEST_DIR/
 qemu-img: Invalid option list: ,,
 
 Testing: amend -f qcow2 -o help
-Creation options for 'qcow2':
+Amend options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
-  cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
-  compression_type=<str> - Compression method used for image cluster compression
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
-  encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
-  encrypt.cipher-mode=<str> - Name of encryption cipher mode
-  encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
-  encrypt.hash-alg=<str> - Name of encryption hash algorithm
   encrypt.iter-time=<num> - Time to spend in PBKDF in milliseconds
-  encrypt.ivgen-alg=<str> - Name of IV generator algorithm
-  encrypt.ivgen-hash-alg=<str> - Name of IV generator hash algorithm
-  encrypt.key-secret=<str> - ID of secret providing qcow AES key or LUKS passphrase
-  encryption=<bool (on/off)> - Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+  encrypt.keyslot=<num>  - Select a single keyslot to modify explicitly
+  encrypt.new-secret=<str> - New secret to set in the matching keyslots. Empty string to erase
+  encrypt.old-secret=<str> - Select all keyslots that match this password
+  encrypt.state=<str>    - Select new state of affected keyslots (active/inactive)
   lazy_refcounts=<bool (on/off)> - Postpone refcount updates
-  preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
-
-Note that not all of these options may be amendable.
 
 Testing: amend -o help
 qemu-img: Expecting one image file name

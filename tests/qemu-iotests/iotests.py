@@ -29,7 +29,7 @@ import struct
 import subprocess
 import sys
 from typing import (Any, Callable, Dict, Iterable,
-                    List, Optional, Sequence, TypeVar)
+                    List, Optional, Sequence, Tuple, TypeVar)
 import unittest
 
 # pylint: disable=import-error, wrong-import-position
@@ -90,15 +90,24 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
-def qemu_img(*args):
-    '''Run qemu-img and return the exit code'''
-    devnull = open('/dev/null', 'r+')
-    exitcode = subprocess.call(qemu_img_args + list(args),
-                               stdin=devnull, stdout=devnull)
-    if exitcode < 0:
+def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
+    """
+    Run qemu-img and return both its output and its exit code
+    """
+    subp = subprocess.Popen(qemu_img_args + list(args),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n'
-                         % (-exitcode, ' '.join(qemu_img_args + list(args))))
-    return exitcode
+                         % (-subp.returncode,
+                            ' '.join(qemu_img_args + list(args))))
+    return (output, subp.returncode)
+
+def qemu_img(*args: str) -> int:
+    '''Run qemu-img and return the exit code'''
+    return qemu_img_pipe_and_status(*args)[1]
 
 def ordered_qmp(qmsg, conv_keys=True):
     # Dictionaries are not ordered prior to 3.6, therefore:
@@ -140,18 +149,9 @@ def qemu_img_verbose(*args):
                          % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
 
-def qemu_img_pipe(*args):
+def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
-    subp = subprocess.Popen(qemu_img_args + list(args),
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
-        sys.stderr.write('qemu-img received signal %i: %s\n'
-                         % (-subp.returncode,
-                            ' '.join(qemu_img_args + list(args))))
-    return output
+    return qemu_img_pipe_and_status(*args)[0]
 
 def qemu_img_log(*args):
     result = qemu_img_pipe(*args)
@@ -1010,11 +1010,16 @@ def _verify_image_format(supported_fmts: Sequence[str] = (),
         # similar to
         #   _supported_fmt generic
         # for bash tests
+        if imgfmt == 'luks':
+            verify_working_luks()
         return
 
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
+
+    if imgfmt == 'luks':
+        verify_working_luks()
 
 def _verify_protocol(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
@@ -1051,6 +1056,45 @@ def verify_quorum():
     '''Skip test suite if quorum support is not available'''
     if not supports_quorum():
         notrun('quorum support missing')
+
+def has_working_luks() -> Tuple[bool, str]:
+    """
+    Check whether our LUKS driver can actually create images
+    (this extends to LUKS encryption for qcow2).
+
+    If not, return the reason why.
+    """
+
+    img_file = f'{test_dir}/luks-test.luks'
+    (output, status) = \
+        qemu_img_pipe_and_status('create', '-f', 'luks',
+                                 '--object', luks_default_secret_object,
+                                 '-o', luks_default_key_secret_opt,
+                                 '-o', 'iter-time=10',
+                                 img_file, '1G')
+    try:
+        os.remove(img_file)
+    except OSError:
+        pass
+
+    if status != 0:
+        reason = output
+        for line in output.splitlines():
+            if img_file + ':' in line:
+                reason = line.split(img_file + ':', 1)[1].strip()
+                break
+
+        return (False, reason)
+    else:
+        return (True, '')
+
+def verify_working_luks():
+    """
+    Skip test suite if LUKS does not work
+    """
+    (working, reason) = has_working_luks()
+    if not working:
+        notrun(reason)
 
 def qemu_pipe(*args):
     """
