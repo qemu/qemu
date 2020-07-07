@@ -2379,7 +2379,7 @@ object_class_property_add_tm(ObjectClass *klass, const char *name,
                                      NULL, NULL, prop);
 }
 
-static char *qdev_get_type(Object *obj, Error **errp)
+static char *object_get_type(Object *obj, Error **errp)
 {
     return g_strdup(object_get_typename(obj));
 }
@@ -2730,7 +2730,7 @@ void object_class_property_set_description(ObjectClass *klass,
 
 static void object_class_init(ObjectClass *klass, void *data)
 {
-    object_class_property_add_str(klass, "type", qdev_get_type,
+    object_class_property_add_str(klass, "type", object_get_type,
                                   NULL);
 }
 
