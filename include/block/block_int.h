@@ -53,6 +53,7 @@
 #define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 #define BLOCK_OPT_REDUNDANCY        "redundancy"
 #define BLOCK_OPT_NOCOW             "nocow"
+#define BLOCK_OPT_EXTENT_SIZE_HINT  "extent_size_hint"
 #define BLOCK_OPT_OBJECT_SIZE       "object_size"
 #define BLOCK_OPT_REFCOUNT_BITS     "refcount_bits"
 #define BLOCK_OPT_DATA_FILE         "data_file"

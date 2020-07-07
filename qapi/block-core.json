@@ -4185,14 +4185,17 @@
 #                 falloc (if defined CONFIG_POSIX_FALLOCATE),
 #                 full (if defined CONFIG_POSIX))
 # @nocow: Turn off copy-on-write (valid only on btrfs; default: off)
+# @extent-size-hint: Extent size hint to add to the image file; 0 for not
+#                    adding an extent size hint (default: 1 MB, since 5.1)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsFile',
-  'data': { 'filename':         'str',
-            'size':             'size',
-            '*preallocation':   'PreallocMode',
-            '*nocow':           'bool' } }
+  'data': { 'filename':             'str',
+            'size':                 'size',
+            '*preallocation':       'PreallocMode',
+            '*nocow':               'bool',
+            '*extent-size-hint':    'size'} }
 
 ##
 # @BlockdevCreateOptionsGluster:
