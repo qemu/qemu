@@ -265,6 +265,8 @@
  *         }
  *         ...
  *     }
+ *
+ * For mass-conversion, use scripts/coccinelle/errp-guard.cocci.
  */
 
 #ifndef ERROR_H
