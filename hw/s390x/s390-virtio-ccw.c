@@ -68,20 +68,18 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
                               Error **errp)
 {
     S390CPU *cpu = S390_CPU(object_new(typename));
-    Error *err = NULL;
     S390CPU *ret = NULL;
 
-    if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, &err)) {
+    if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, errp)) {
         goto out;
     }
-    if (!qdev_realize(DEVICE(cpu), NULL, &err)) {
+    if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
         goto out;
     }
     ret = cpu;
 
 out:
     object_unref(OBJECT(cpu));
-    error_propagate(errp, err);
     return ret;
 }
 

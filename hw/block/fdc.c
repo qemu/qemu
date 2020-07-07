@@ -2528,7 +2528,7 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
     FDrive *drive;
     DeviceState *dev;
     BlockBackend *blk;
-    Error *local_err = NULL;
+    bool ok;
     const char *fdc_name, *drive_suffix;
 
     for (i = 0; i < MAX_FD; i++) {
@@ -2567,11 +2567,9 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
         blk_ref(blk);
         blk_detach_dev(blk, fdc_dev);
         fdctrl->qdev_for_drives[i].blk = NULL;
-        qdev_prop_set_drive_err(dev, "drive", blk, &local_err);
+        ok = qdev_prop_set_drive_err(dev, "drive", blk, errp);
         blk_unref(blk);
-
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!ok) {
             return;
         }
 

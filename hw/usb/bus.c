@@ -723,15 +723,13 @@ static bool usb_get_attached(Object *obj, Error **errp)
 static void usb_set_attached(Object *obj, bool value, Error **errp)
 {
     USBDevice *dev = USB_DEVICE(obj);
-    Error *err = NULL;
 
     if (dev->attached == value) {
         return;
     }
 
     if (value) {
-        usb_device_attach(dev, &err);
-        error_propagate(errp, err);
+        usb_device_attach(dev, errp);
     } else {
         usb_device_detach(dev);
     }

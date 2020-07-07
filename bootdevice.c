@@ -303,15 +303,13 @@ static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
     /* check whether bootindex is present in fw_boot_order list  */
     check_boot_index(boot_index, &local_err);
     if (local_err) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
     add_boot_device_path(*prop->bootindex, prop->dev, prop->suffix);
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void property_release_bootindex(Object *obj, const char *name,

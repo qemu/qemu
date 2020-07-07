@@ -5260,16 +5260,13 @@ static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
 static void object_apply_props(Object *obj, QDict *props, Error **errp)
 {
     const QDictEntry *prop;
-    Error *err = NULL;
 
     for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
         if (!object_property_set_qobject(obj, qdict_entry_key(prop),
-                                         qdict_entry_value(prop), &err)) {
+                                         qdict_entry_value(prop), errp)) {
             break;
         }
     }
-
-    error_propagate(errp, err);
 }
 
 /* Create X86CPU object according to model+props specification */
@@ -6327,19 +6324,18 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     FeatureWord w;
     int i;
     GList *l;
-    Error *local_err = NULL;
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
-        if (!object_property_set_bool(OBJECT(cpu), prop, true, &local_err)) {
-            goto out;
+        if (!object_property_set_bool(OBJECT(cpu), prop, true, errp)) {
+            return;
         }
     }
 
     for (l = minus_features; l; l = l->next) {
         const char *prop = l->data;
-        if (!object_property_set_bool(OBJECT(cpu), prop, false, &local_err)) {
-            goto out;
+        if (!object_property_set_bool(OBJECT(cpu), prop, false, errp)) {
+            return;
         }
     }
 
@@ -6436,11 +6432,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
     if (env->cpuid_xlevel2 == UINT32_MAX) {
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
-    }
-
-out:
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
     }
 }
 

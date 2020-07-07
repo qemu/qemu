@@ -549,7 +549,6 @@ bool object_initialize_child_with_propsv(Object *parentobj,
                                          const char *type,
                                          Error **errp, va_list vargs)
 {
-    Error *local_err = NULL;
     bool ok = false;
     Object *obj;
     UserCreatable *uc;
@@ -565,7 +564,7 @@ bool object_initialize_child_with_propsv(Object *parentobj,
 
     uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
     if (uc) {
-        if (!user_creatable_complete(uc, &local_err)) {
+        if (!user_creatable_complete(uc, errp)) {
             object_unparent(obj);
             goto out;
         }
@@ -583,8 +582,6 @@ out:
      * the reference taken by object_property_add_child().
      */
     object_unref(obj);
-
-    error_propagate(errp, local_err);
     return ok;
 }
 
@@ -737,7 +734,6 @@ Object *object_new_with_propv(const char *typename,
 {
     Object *obj;
     ObjectClass *klass;
-    Error *local_err = NULL;
     UserCreatable *uc;
 
     klass = object_class_by_name(typename);
@@ -762,7 +758,7 @@ Object *object_new_with_propv(const char *typename,
 
     uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
     if (uc) {
-        if (!user_creatable_complete(uc, &local_err)) {
+        if (!user_creatable_complete(uc, errp)) {
             if (id != NULL) {
                 object_unparent(obj);
             }
@@ -774,7 +770,6 @@ Object *object_new_with_propv(const char *typename,
     return obj;
 
  error:
-    error_propagate(errp, local_err);
     object_unref(obj);
     return NULL;
 }
@@ -2326,36 +2321,34 @@ static void property_get_tm(Object *obj, Visitor *v, const char *name,
 
     prop->get(obj, &value, &err);
     if (err) {
-        goto out;
+        error_propagate(errp, err);
+        return;
     }
 
-    if (!visit_start_struct(v, name, NULL, 0, &err)) {
-        goto out;
+    if (!visit_start_struct(v, name, NULL, 0, errp)) {
+        return;
     }
-    if (!visit_type_int32(v, "tm_year", &value.tm_year, &err)) {
+    if (!visit_type_int32(v, "tm_year", &value.tm_year, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_mon", &value.tm_mon, &err)) {
+    if (!visit_type_int32(v, "tm_mon", &value.tm_mon, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_mday", &value.tm_mday, &err)) {
+    if (!visit_type_int32(v, "tm_mday", &value.tm_mday, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_hour", &value.tm_hour, &err)) {
+    if (!visit_type_int32(v, "tm_hour", &value.tm_hour, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_min", &value.tm_min, &err)) {
+    if (!visit_type_int32(v, "tm_min", &value.tm_min, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_sec", &value.tm_sec, &err)) {
+    if (!visit_type_int32(v, "tm_sec", &value.tm_sec, errp)) {
         goto out_end;
     }
-    visit_check_struct(v, &err);
+    visit_check_struct(v, errp);
 out_end:
     visit_end_struct(v, NULL);
-out:
-    error_propagate(errp, err);
-
 }
 
 static void property_release_tm(Object *obj, const char *name,

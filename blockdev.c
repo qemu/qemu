@@ -793,7 +793,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     bool read_only = false;
     bool copy_on_read;
     const char *filename;
-    Error *local_err = NULL;
     int i;
 
     /* Change legacy command line options into QMP ones */
@@ -1003,13 +1002,10 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     }
 
     /* Actual block device init: Functionality shared with blockdev-add */
-    blk = blockdev_init(filename, bs_opts, &local_err);
+    blk = blockdev_init(filename, bs_opts, errp);
     bs_opts = NULL;
     if (!blk) {
-        error_propagate(errp, local_err);
         goto fail;
-    } else {
-        assert(!local_err);
     }
 
     /* Create legacy DriveInfo */
@@ -3141,9 +3137,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                            arg->has_copy_mode, arg->copy_mode,
                            arg->has_auto_finalize, arg->auto_finalize,
                            arg->has_auto_dismiss, arg->auto_dismiss,
-                           &local_err);
+                           errp);
     bdrv_unref(target_bs);
-    error_propagate(errp, local_err);
 out:
     aio_context_release(aio_context);
 }
@@ -3171,7 +3166,6 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     AioContext *aio_context;
     AioContext *old_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
-    Error *local_err = NULL;
     bool zero_target;
     int ret;
 
@@ -3213,8 +3207,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                            has_copy_mode, copy_mode,
                            has_auto_finalize, auto_finalize,
                            has_auto_dismiss, auto_dismiss,
-                           &local_err);
-    error_propagate(errp, local_err);
+                           errp);
 out:
     aio_context_release(aio_context);
 }
@@ -3433,8 +3426,7 @@ void qmp_change_backing_file(const char *device,
     }
 
     if (ro) {
-        bdrv_reopen_set_read_only(image_bs, true, &local_err);
-        error_propagate(errp, local_err);
+        bdrv_reopen_set_read_only(image_bs, true, errp);
     }
 
 out:

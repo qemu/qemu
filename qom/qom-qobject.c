@@ -34,15 +34,12 @@ QObject *object_property_get_qobject(Object *obj, const char *name,
                                      Error **errp)
 {
     QObject *ret = NULL;
-    Error *local_err = NULL;
     Visitor *v;
 
     v = qobject_output_visitor_new(&ret);
-    object_property_get(obj, name, v, &local_err);
-    if (!local_err) {
+    if (object_property_get(obj, name, v, errp)) {
         visit_complete(v, &ret);
     }
-    error_propagate(errp, local_err);
     visit_free(v);
     return ret;
 }

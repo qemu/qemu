@@ -743,7 +743,6 @@ static void s390_pcihost_realize(DeviceState *dev, Error **errp)
     BusState *bus;
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
-    Error *local_err = NULL;
 
     DPRINTF("host_init\n");
 
@@ -767,8 +766,7 @@ static void s390_pcihost_realize(DeviceState *dev, Error **errp)
     QTAILQ_INIT(&s->zpci_devs);
 
     css_register_io_adapters(CSS_IO_ADAPTER_PCI, true, false,
-                             S390_ADAPTER_SUPPRESSIBLE, &local_err);
-    error_propagate(errp, local_err);
+                             S390_ADAPTER_SUPPRESSIBLE, errp);
 }
 
 static int s390_pci_msix_init(S390PCIBusDevice *pbdev)

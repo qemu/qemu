@@ -367,7 +367,6 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
 {
     BDRVReplicationState *s = bs->opaque;
     BlockReopenQueue *reopen_queue = NULL;
-    Error *local_err = NULL;
 
     if (writable) {
         s->orig_hidden_read_only = bdrv_is_read_only(s->hidden_disk->bs);
@@ -392,8 +391,7 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     }
 
     if (reopen_queue) {
-        bdrv_reopen_multiple(reopen_queue, &local_err);
-        error_propagate(errp, local_err);
+        bdrv_reopen_multiple(reopen_queue, errp);
     }
 
     bdrv_subtree_drained_end(s->hidden_disk->bs);
