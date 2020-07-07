@@ -69,19 +69,20 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
 {
     S390CPU *cpu = S390_CPU(object_new(typename));
     Error *err = NULL;
+    S390CPU *ret = NULL;
 
     if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, &err)) {
         goto out;
     }
-    qdev_realize(DEVICE(cpu), NULL, &err);
+    if (!qdev_realize(DEVICE(cpu), NULL, &err)) {
+        goto out;
+    }
+    ret = cpu;
 
 out:
     object_unref(OBJECT(cpu));
-    if (err) {
-        error_propagate(errp, err);
-        cpu = NULL;
-    }
-    return cpu;
+    error_propagate(errp, err);
+    return ret;
 }
 
 static void s390_init_cpus(MachineState *machine)

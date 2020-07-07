@@ -166,11 +166,7 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 
 bool qbus_realize(BusState *bus, Error **errp)
 {
-    Error *err = NULL;
-
-    object_property_set_bool(OBJECT(bus), "realized", true, &err);
-    error_propagate(errp, err);
-    return !err;
+    return object_property_set_bool(OBJECT(bus), "realized", true, errp);
 }
 
 void qbus_unrealize(BusState *bus)
