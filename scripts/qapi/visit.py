@@ -41,8 +41,6 @@ def gen_visit_object_members(name, base, members, variants):
 
 bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
-    Error *err = NULL;
-
 ''',
                 c_name=c_name(name))
 
@@ -97,8 +95,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             else:
                 ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, &err);
-        break;
+        return visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, errp);
 ''',
                              case=case_str,
                              c_type=var.type.c_name(), c_name=c_name(var.name))
@@ -111,8 +108,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''')
 
     ret += mcgen('''
-    error_propagate(errp, err);
-    return !err;
+    return true;
 }
 ''')
     return ret
@@ -123,7 +119,7 @@ def gen_visit_list(name, element_type):
 
 bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
-    Error *err = NULL;
+    bool ok = false;
     %(c_name)s *tail;
     size_t size = sizeof(**obj);
 
@@ -133,22 +129,19 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
 
     for (tail = *obj; tail;
          tail = (%(c_name)s *)visit_next_list(v, (GenericList *)tail, size)) {
-        visit_type_%(c_elt_type)s(v, NULL, &tail->value, &err);
-        if (err) {
-            break;
+        if (!visit_type_%(c_elt_type)s(v, NULL, &tail->value, errp)) {
+            goto out_obj;
         }
     }
 
-    if (!err) {
-        visit_check_list(v, &err);
-    }
+    ok = visit_check_list(v, errp);
+out_obj:
     visit_end_list(v, (void **)obj);
-    if (err && visit_is_input(v)) {
+    if (!ok && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 ''',
                  c_name=c_name(name), c_elt_type=element_type.c_name())
@@ -173,7 +166,7 @@ def gen_visit_alternate(name, variants):
 
 bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
-    Error *err = NULL;
+    bool ok = false;
 
     if (!visit_start_alternate(v, name, (GenericAlternate **)obj,
                                sizeof(**obj), errp)) {
@@ -182,6 +175,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     if (!*obj) {
         /* incomplete */
         assert(visit_is_dealloc(v));
+        ok = true;
         goto out_obj;
     }
     switch ((*obj)->type) {
@@ -196,13 +190,11 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
                      case=var.type.alternate_qtype())
         if isinstance(var.type, QAPISchemaObjectType):
             ret += mcgen('''
-        visit_start_struct(v, name, NULL, 0, &err);
-        if (err) {
+        if (!visit_start_struct(v, name, NULL, 0, errp)) {
             break;
         }
-        visit_type_%(c_type)s_members(v, &(*obj)->u.%(c_name)s, &err);
-        if (!err) {
-            visit_check_struct(v, &err);
+        if (visit_type_%(c_type)s_members(v, &(*obj)->u.%(c_name)s, errp)) {
+            ok = visit_check_struct(v, errp);
         }
         visit_end_struct(v, NULL);
 ''',
@@ -210,7 +202,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
                          c_name=c_name(var.name))
         else:
             ret += mcgen('''
-        visit_type_%(c_type)s(v, name, &(*obj)->u.%(c_name)s, &err);
+        ok = visit_type_%(c_type)s(v, name, &(*obj)->u.%(c_name)s, errp);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -224,7 +216,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         abort();
     default:
         assert(visit_is_input(v));
-        error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "%(name)s");
         /* Avoid passing invalid *obj to qapi_free_%(c_name)s() */
         g_free(*obj);
@@ -232,12 +224,11 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
 out_obj:
     visit_end_alternate(v, (void **)obj);
-    if (err && visit_is_input(v)) {
+    if (!ok && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 ''',
                  name=name, c_name=c_name(name))
@@ -250,7 +241,7 @@ def gen_visit_object(name, base, members, variants):
 
 bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
-    Error *err = NULL;
+    bool ok = false;
 
     if (!visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), errp)) {
         return false;
@@ -260,19 +251,17 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         assert(visit_is_dealloc(v));
         goto out_obj;
     }
-    visit_type_%(c_name)s_members(v, *obj, &err);
-    if (err) {
+    if (!visit_type_%(c_name)s_members(v, *obj, errp)) {
         goto out_obj;
     }
-    visit_check_struct(v, &err);
+    ok = visit_check_struct(v, errp);
 out_obj:
     visit_end_struct(v, (void **)obj);
-    if (err && visit_is_input(v)) {
+    if (!ok && visit_is_input(v)) {
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 ''',
                  c_name=c_name(name))

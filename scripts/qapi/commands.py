@@ -47,6 +47,7 @@ def gen_call(name, arg_type, boxed, ret_type):
     ret = mcgen('''
 
     %(lhs)sqmp_%(c_name)s(%(args)s&err);
+    error_propagate(errp, err);
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
@@ -55,7 +56,7 @@ def gen_call(name, arg_type, boxed, ret_type):
         goto out;
     }
 
-    qmp_marshal_output_%(c_name)s(retval, ret, &err);
+    qmp_marshal_output_%(c_name)s(retval, ret, errp);
 ''',
                      c_name=ret_type.c_name())
     return ret
@@ -66,15 +67,12 @@ def gen_marshal_output(ret_type):
 
 static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
 {
-    Error *err = NULL;
     Visitor *v;
 
     v = qobject_output_visitor_new(ret_out);
-    visit_type_%(c_name)s(v, "unused", &ret_in, &err);
-    if (!err) {
+    if (visit_type_%(c_name)s(v, "unused", &ret_in, errp)) {
         visit_complete(v, ret_out);
     }
-    error_propagate(errp, err);
     visit_free(v);
     v = qapi_dealloc_visitor_new();
     visit_type_%(c_name)s(v, "unused", &ret_in, NULL);
@@ -104,6 +102,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 %(proto)s
 {
     Error *err = NULL;
+    bool ok = false;
     Visitor *v;
 ''',
                 proto=build_marshal_proto(name))
@@ -123,28 +122,26 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     ret += mcgen('''
 
     v = qobject_input_visitor_new(QOBJECT(args));
-    visit_start_struct(v, NULL, NULL, 0, &err);
-    if (err) {
+    if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         goto out;
     }
 ''')
 
     if have_args:
         ret += mcgen('''
-    visit_type_%(c_arg_type)s_members(v, &arg, &err);
-    if (!err) {
-        visit_check_struct(v, &err);
+    if (visit_type_%(c_arg_type)s_members(v, &arg, errp)) {
+        ok = visit_check_struct(v, errp);
     }
 ''',
                      c_arg_type=arg_type.c_name())
     else:
         ret += mcgen('''
-    visit_check_struct(v, &err);
+    ok = visit_check_struct(v, errp);
 ''')
 
     ret += mcgen('''
     visit_end_struct(v, NULL);
-    if (err) {
+    if (!ok) {
         goto out;
     }
 ''')
@@ -154,7 +151,6 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     ret += mcgen('''
 
 out:
-    error_propagate(errp, err);
     visit_free(v);
 ''')
 
