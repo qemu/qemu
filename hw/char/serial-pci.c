@@ -49,8 +49,7 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
     SerialState *s = &pci->state;
     Error *err = NULL;
 
-    qdev_realize(DEVICE(s), NULL, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(s), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }

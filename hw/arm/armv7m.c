@@ -213,15 +213,13 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     s->cpu->env.nvic = &s->nvic;
     s->nvic.cpu = s->cpu;
 
-    qdev_realize(DEVICE(s->cpu), NULL, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(s->cpu), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
 
     /* Note that we must realize the NVIC after the CPU */
-    sysbus_realize(SYS_BUS_DEVICE(&s->nvic), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -254,8 +252,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             }
             object_property_set_link(obj, OBJECT(s->board_memory),
                                      "source-memory", &error_abort);
-            sysbus_realize(SYS_BUS_DEVICE(obj), &err);
-            if (err != NULL) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(obj), &err)) {
                 error_propagate(errp, err);
                 return;
             }

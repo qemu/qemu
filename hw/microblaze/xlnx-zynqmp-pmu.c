@@ -96,8 +96,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
     object_property_set_str(OBJECT(&s->cpu), "8.40.b", "version",
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), 0, "pvr", &error_abort);
-    qdev_realize(DEVICE(&s->cpu), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -108,8 +107,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->intc), 0xffff, "intc-positive",
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err)) {
         error_propagate(errp, err);
         return;
     }

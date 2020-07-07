@@ -66,14 +66,12 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     uint16_t i;
     Error *err = NULL;
 
-    qdev_realize(DEVICE(&s->cpu), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -83,8 +81,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 1,
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -102,8 +99,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -116,8 +112,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
     s->gpt.ccm = IMX_CCM(&s->ccm);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpt), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -138,8 +133,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         s->epit[i].ccm = IMX_CCM(&s->ccm);
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -162,8 +156,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         };
 
         /* Initialize the I2C */
-        sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -188,8 +181,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
 
         object_property_set_bool(OBJECT(&s->gpio[i]), false, "has-edge-sel",
                                  &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err)) {
             error_propagate(errp, err);
             return;
         }

@@ -704,8 +704,7 @@ USBDevice *usbdevice_create(const char *cmdline)
         error_report("Failed to create USB device '%s'", f->name);
         return NULL;
     }
-    usb_realize_and_unref(dev, bus, &err);
-    if (err) {
+    if (!usb_realize_and_unref(dev, bus, &err)) {
         error_reportf_err(err, "Failed to initialize USB device '%s': ",
                           f->name);
         object_unparent(OBJECT(dev));

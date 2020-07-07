@@ -2640,8 +2640,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 
     s->num_prio_bits = arm_feature(&s->cpu->env, ARM_FEATURE_V7) ? 8 : 2;
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -2657,8 +2656,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
         object_initialize_child(OBJECT(dev), "systick-reg-s",
                                 &s->systick[M_REG_S], TYPE_SYSTICK);
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), &err)) {
             error_propagate(errp, err);
             return;
         }

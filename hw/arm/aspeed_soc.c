@@ -230,8 +230,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
-        qdev_realize(DEVICE(&s->cpu[i]), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -248,16 +247,14 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                                 sc->memmap[ASPEED_SRAM], &s->sram);
 
     /* SCU */
-    sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err)) {
         error_propagate(errp, err);
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, sc->memmap[ASPEED_SCU]);
 
     /* VIC */
-    sysbus_realize(SYS_BUS_DEVICE(&s->vic), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->vic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -268,8 +265,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
     /* RTC */
-    sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -280,8 +276,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     /* Timer */
     object_property_set_link(OBJECT(&s->timerctrl),
                              OBJECT(&s->scu), "scu", &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->timerctrl), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timerctrl), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -302,8 +297,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     /* I2C */
     object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram",
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -320,8 +314,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_realize(SYS_BUS_DEVICE(&s->fmc), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->fmc), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -335,8 +328,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->spis_num; i++) {
         object_property_set_int(OBJECT(&s->spi[i]), 1, "num-cs",
                                 &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -348,8 +340,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
     /* EHCI */
     for (i = 0; i < sc->ehcis_num; i++) {
-        sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -360,8 +351,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* SDMC - SDRAM Memory Controller */
-    sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -373,8 +363,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
         object_property_set_link(OBJECT(&s->wdt[i]),
                                  OBJECT(&s->scu), "scu", &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -386,8 +375,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->macs_num; i++) {
         object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
                                  &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -398,8 +386,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* XDMA */
-    sysbus_realize(SYS_BUS_DEVICE(&s->xdma), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->xdma), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -409,8 +396,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_XDMA));
 
     /* GPIO */
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -419,8 +405,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_GPIO));
 
     /* SDHCI */
-    sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err)) {
         error_propagate(errp, err);
         return;
     }

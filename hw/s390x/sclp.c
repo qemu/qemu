@@ -338,8 +338,7 @@ static void sclp_realize(DeviceState *dev, Error **errp)
      * as we can't find a fitting bus via the qom tree, we have to add the
      * event facility to the sysbus, so e.g. a sclp console can be created.
      */
-    sysbus_realize(SYS_BUS_DEVICE(sclp->event_facility), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(sclp->event_facility), &err)) {
         goto out;
     }
 

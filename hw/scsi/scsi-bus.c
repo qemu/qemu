@@ -293,8 +293,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     qdev_prop_set_enum(dev, "rerror", rerror);
     qdev_prop_set_enum(dev, "werror", werror);
 
-    qdev_realize_and_unref(dev, &bus->qbus, &err);
-    if (err != NULL) {
+    if (!qdev_realize_and_unref(dev, &bus->qbus, &err)) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));
         return NULL;

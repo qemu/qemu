@@ -266,8 +266,7 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
         goto fail;
     }
 
-    qdev_realize_and_unref(carddev, BUS(&s->sdbus), &err);
-    if (err) {
+    if (!qdev_realize_and_unref(carddev, BUS(&s->sdbus), &err)) {
         goto fail;
     }
 

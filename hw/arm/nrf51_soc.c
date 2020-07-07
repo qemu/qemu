@@ -67,8 +67,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     object_property_set_link(OBJECT(&s->cpu), OBJECT(&s->container), "memory",
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->cpu), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -84,8 +83,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(&s->container, NRF51_SRAM_BASE, &s->sram);
 
     /* UART */
-    sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -96,8 +94,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                        BASE_TO_IRQ(NRF51_UART_BASE)));
 
     /* RNG */
-    sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -116,8 +113,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->nvm), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvm), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -132,8 +128,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion_overlap(&s->container, NRF51_FLASH_BASE, mr, 0);
 
     /* GPIO */
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -151,8 +146,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
             error_propagate(errp, err);
             return;
         }

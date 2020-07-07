@@ -125,8 +125,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
                                      "memory", &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -153,8 +152,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->timer);
     /* APB0 clock is the timer input clock */
     qdev_prop_set_uint32(dev, "clock-frequency", s->m3clk / s->apb0div);
-    sysbus_realize(SYS_BUS_DEVICE(&s->timer), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -168,8 +166,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->sysreg);
     qdev_prop_set_uint32(dev, "apb0divisor", s->apb0div);
     qdev_prop_set_uint32(dev, "apb1divisor", s->apb1div);
-    sysbus_realize(SYS_BUS_DEVICE(&s->sysreg), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysreg), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -179,8 +176,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
         gchar *bus_name;
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -199,8 +195,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     dev = DEVICE(&s->emac);
     object_property_set_link(OBJECT(&s->emac), OBJECT(get_system_memory()),
                              "ahb-bus", &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->emac), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), &err)) {
         error_propagate(errp, err);
         return;
     }

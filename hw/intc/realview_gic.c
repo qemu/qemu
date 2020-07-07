@@ -34,8 +34,7 @@ static void realview_gic_realize(DeviceState *dev, Error **errp)
     int numirq = 96;
 
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", numirq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
         error_propagate(errp, err);
         return;
     }

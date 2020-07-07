@@ -710,8 +710,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(&s->gem), GEM_REVISION, "revision",
                             &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->gem), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem), &err)) {
         error_propagate(errp, err);
         return;
     }

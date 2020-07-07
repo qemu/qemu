@@ -86,8 +86,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
     object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->peripherals), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->peripherals), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -99,8 +98,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                             info->peri_base, 1);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
-    sysbus_realize(SYS_BUS_DEVICE(&s->control), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->control), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -133,8 +131,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        qdev_realize(DEVICE(&s->cpu[n].core), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->cpu[n].core), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }

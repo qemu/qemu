@@ -1218,8 +1218,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(xsrc), nr_irqs, "nr-irqs", &error_fatal);
     object_property_set_link(OBJECT(xsrc), OBJECT(phb), "xive", &error_fatal);
-    qdev_realize(DEVICE(xsrc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

@@ -239,8 +239,7 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     CPUState *cs = CPU(cpu);
     Error *local_err = NULL;
 
-    qdev_realize(DEVICE(cpu), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(cpu), NULL, &local_err)) {
         goto error;
     }
 

@@ -130,8 +130,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                      "start-powered-off", &error_abort);
         }
 
-        qdev_realize(DEVICE(&s->cpu[i]), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -144,8 +143,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                             FSL_IMX6_MAX_IRQ + GIC_INTERNAL, "num-irq",
                             &error_abort);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->a9mpcore), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->a9mpcore), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -158,15 +156,13 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_FIQ));
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err)) {
         error_propagate(errp, err);
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccm), 0, FSL_IMX6_CCM_ADDR);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->src), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->src), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -187,8 +183,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -201,8 +196,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
     s->gpt.ccm = IMX_CCM(&s->ccm);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpt), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -224,8 +218,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
         s->epit[i].ccm = IMX_CCM(&s->ccm);
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -247,8 +240,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             { FSL_IMX6_I2C3_ADDR, FSL_IMX6_I2C3_IRQ }
         };
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -307,8 +299,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                  &error_abort);
         object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-upper-pin-irq",
                                  &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -343,8 +334,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         object_property_set_uint(OBJECT(&s->esdhc[i]), SDHCI_VENDOR_IMX,
                                  "vendor",
                                  &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -390,8 +380,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         };
 
         /* Initialize the SPI */
-        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -403,8 +392,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_set_nic_properties(DEVICE(&s->eth), &nd_table[0]);
-    sysbus_realize(SYS_BUS_DEVICE(&s->eth), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->eth), &err)) {
         error_propagate(errp, err);
         return;
     }

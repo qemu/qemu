@@ -183,8 +183,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
     /* RTC */
     qdev_prop_set_int32(DEVICE(&s->rtc), "base_year", 2000);
-    qdev_realize(DEVICE(&s->rtc), BUS(isa_bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->rtc), BUS(isa_bus), &err)) {
         error_propagate(errp, err);
         return;
     }

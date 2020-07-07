@@ -79,8 +79,7 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
 
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -91,8 +90,7 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
                          ARM11MPCORE_NUM_GIC_PRIORITY_BITS);
 
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -104,15 +102,13 @@ static void mpcore_priv_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
-    sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), &err)) {
         error_propagate(errp, err);
         return;
     }
 
     qdev_prop_set_uint32(wdtimerdev, "num-cpu", s->num_cpu);
-    sysbus_realize(SYS_BUS_DEVICE(&s->wdtimer), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdtimer), &err)) {
         error_propagate(errp, err);
         return;
     }

@@ -771,8 +771,7 @@ static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
     dev = qdev_new(TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &err);
-    if (err) {
+    if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &err)) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));
         return NULL;

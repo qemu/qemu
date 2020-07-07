@@ -100,8 +100,7 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     SysBusDevice *sysbus_dev;
     Error *err = NULL;
 
-    qdev_realize(DEVICE(&s->dbdma), BUS(&s->macio_bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->dbdma), BUS(&s->macio_bus), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -116,8 +115,7 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     qdev_prop_set_chr(DEVICE(&s->escc), "chrB", serial_hd(1));
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnBtype", escc_serial);
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnAtype", escc_serial);
-    qdev_realize(DEVICE(&s->escc), BUS(&s->macio_bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->escc), BUS(&s->macio_bus), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -159,8 +157,7 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 
     qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                          s->frequency);
-    qdev_realize(DEVICE(&s->cuda), BUS(&s->macio_bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->cuda), BUS(&s->macio_bus), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -176,8 +173,7 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev,
                                                        OLDWORLD_ESCCA_IRQ));
 
-    qdev_realize(DEVICE(&os->nvram), BUS(&s->macio_bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&os->nvram), BUS(&s->macio_bus), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -345,8 +341,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         object_property_set_link(OBJECT(&s->pmu), OBJECT(sysbus_dev), "gpio",
                                  &error_abort);
         qdev_prop_set_bit(DEVICE(&s->pmu), "has-adb", ns->has_adb);
-        qdev_realize(DEVICE(&s->pmu), BUS(&s->macio_bus), &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->pmu), BUS(&s->macio_bus), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -363,8 +358,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                              s->frequency);
 
-        qdev_realize(DEVICE(&s->cuda), BUS(&s->macio_bus), &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->cuda), BUS(&s->macio_bus), &err)) {
             error_propagate(errp, err);
             return;
         }

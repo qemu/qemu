@@ -312,8 +312,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), OBJECT(xive), "xive",
                              &error_abort);
-    qdev_realize(DEVICE(xsrc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -326,8 +325,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_link(OBJECT(end_xsrc), OBJECT(xive), "xive",
                              &error_abort);
-    qdev_realize(DEVICE(end_xsrc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(end_xsrc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

@@ -221,8 +221,7 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     /* GPIO */
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err)) {
         error_propagate(errp, err);
         return;
     }

@@ -85,14 +85,12 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     uint8_t i;
     Error *err = NULL;
 
-    qdev_realize(DEVICE(&s->cpu), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->avic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -102,8 +100,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 1,
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -124,8 +121,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -149,8 +145,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         s->gpt[i].ccm = IMX_CCM(&s->ccm);
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -172,8 +167,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
         s->epit[i].ccm = IMX_CCM(&s->ccm);
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -185,8 +179,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
     qdev_set_nic_properties(DEVICE(&s->fec), &nd_table[0]);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->fec), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->fec), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -194,8 +187,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->fec), 0,
                        qdev_get_gpio_in(DEVICE(&s->avic), FSL_IMX25_FEC_IRQ));
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->rngc), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rngc), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -214,8 +206,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_I2C3_ADDR, FSL_IMX25_I2C3_IRQ }
         };
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -237,8 +228,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_GPIO4_ADDR, FSL_IMX25_GPIO4_IRQ }
         };
 
-        sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -267,8 +257,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
         object_property_set_uint(OBJECT(&s->esdhc[i]), SDHCI_VENDOR_IMX,
                                  "vendor",
                                  &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err)) {
             error_propagate(errp, err);
             return;
         }

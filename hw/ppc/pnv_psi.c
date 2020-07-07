@@ -510,8 +510,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    qdev_realize(DEVICE(ics), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(ics), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -851,8 +850,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), PSIHB9_NUM_IRQS, "nr-irqs",
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), OBJECT(psi), "xive", &error_abort);
-    qdev_realize(DEVICE(xsrc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

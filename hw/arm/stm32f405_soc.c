@@ -118,16 +118,14 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(system_memory),
                                      "memory", &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err)) {
         error_propagate(errp, err);
         return;
     }
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
-    sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -139,8 +137,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_USARTS; i++) {
         dev = DEVICE(&(s->usart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -153,8 +150,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_TIMERS; i++) {
         dev = DEVICE(&(s->timer[i]));
         qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
-        sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -173,8 +169,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     object_property_set_int(OBJECT(&s->adc_irqs), STM_NUM_ADCS,
                             "num-lines", &error_abort);
-    qdev_realize(DEVICE(&s->adc_irqs), NULL, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(&s->adc_irqs), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -183,8 +178,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
         dev = DEVICE(&(s->adc[i]));
-        sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -197,8 +191,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     /* SPI devices */
     for (i = 0; i < STM_NUM_SPIS; i++) {
         dev = DEVICE(&(s->spi[i]));
-        sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -209,8 +202,7 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* EXTI device */
     dev = DEVICE(&s->exti);
-    sysbus_realize(SYS_BUS_DEVICE(&s->exti), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->exti), &err)) {
         error_propagate(errp, err);
         return;
     }

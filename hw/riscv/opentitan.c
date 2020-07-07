@@ -127,8 +127,7 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
                                 &s->flash_mem);
 
     /* PLIC */
-    sysbus_realize(SYS_BUS_DEVICE(&s->plic), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->plic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -136,8 +135,7 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* UART */
     qdev_prop_set_chr(DEVICE(&(s->uart)), "chardev", serial_hd(0));
-    sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err)) {
         error_propagate(errp, err);
         return;
     }

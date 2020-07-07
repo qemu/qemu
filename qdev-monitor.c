@@ -679,8 +679,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     }
 
     dev->opts = opts;
-    qdev_realize(DEVICE(dev), bus, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(dev), bus, &err)) {
         dev->opts = NULL;
         goto err_del_dev;
     }

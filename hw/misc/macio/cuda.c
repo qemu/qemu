@@ -526,8 +526,7 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     ADBBusState *adb_bus = &s->adb_bus;
     struct tm tm;
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_cuda), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_cuda), &err)) {
         error_propagate(errp, err);
         return;
     }

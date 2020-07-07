@@ -444,15 +444,13 @@ static void realize_event_facility(DeviceState *dev, Error **errp)
     SCLPEventFacility *event_facility = EVENT_FACILITY(dev);
     Error *local_err = NULL;
 
-    qdev_realize(DEVICE(&event_facility->quiesce),
-                 BUS(&event_facility->sbus), &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&event_facility->quiesce),
+                      BUS(&event_facility->sbus), &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
-    qdev_realize(DEVICE(&event_facility->cpu_hotplug),
-                 BUS(&event_facility->sbus), &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&event_facility->cpu_hotplug),
+                      BUS(&event_facility->sbus), &local_err)) {
         error_propagate(errp, local_err);
         qdev_unrealize(DEVICE(&event_facility->quiesce));
         return;

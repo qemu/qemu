@@ -80,8 +80,7 @@ static void cubieboard_init(MachineState *machine)
         exit(1);
     }
 
-    qdev_realize(DEVICE(a10), NULL, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(a10), NULL, &err)) {
         error_reportf_err(err, "Couldn't realize Allwinner A10: ");
         exit(1);
     }

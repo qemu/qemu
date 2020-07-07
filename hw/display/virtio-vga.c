@@ -138,8 +138,7 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 
     /* init virtio bits */
     virtio_pci_force_virtio_1(vpci_dev);
-    qdev_realize(DEVICE(g), BUS(&vpci_dev->bus), &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(g), BUS(&vpci_dev->bus), &err)) {
         error_propagate(errp, err);
         return;
     }

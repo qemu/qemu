@@ -765,8 +765,7 @@ Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
     object_unref(obj);
     object_property_set_link(obj, cpu, "cpu", &error_abort);
     object_property_set_link(obj, OBJECT(xptr), "presenter", &error_abort);
-    qdev_realize(DEVICE(obj), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(obj), NULL, &local_err)) {
         goto error;
     }
 

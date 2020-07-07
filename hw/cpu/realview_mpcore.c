@@ -70,8 +70,7 @@ static void realview_mpcore_realize(DeviceState *dev, Error **errp)
     int i;
 
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
-    sysbus_realize(SYS_BUS_DEVICE(&s->priv), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->priv), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -81,8 +80,7 @@ static void realview_mpcore_realize(DeviceState *dev, Error **errp)
     }
     /* ??? IRQ routing is hardcoded to "normal" mode.  */
     for (n = 0; n < 4; n++) {
-        sysbus_realize(SYS_BUS_DEVICE(&s->gic[n]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic[n]), &err)) {
             error_propagate(errp, err);
             return;
         }

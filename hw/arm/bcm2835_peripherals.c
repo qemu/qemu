@@ -161,8 +161,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* Interrupt Controller */
-    sysbus_realize(SYS_BUS_DEVICE(&s->ic), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ic), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -172,8 +171,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(SYS_BUS_DEVICE(s), SYS_BUS_DEVICE(&s->ic));
 
     /* Sys Timer */
-    sysbus_realize(SYS_BUS_DEVICE(&s->systmr), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->systmr), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -185,8 +183,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
 
     /* UART0 */
     qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
-    sysbus_realize(SYS_BUS_DEVICE(&s->uart0), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart0), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -200,8 +197,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     /* AUX / UART1 */
     qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hd(1));
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->aux), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->aux), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -213,8 +209,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_AUX));
 
     /* Mailboxes */
-    sysbus_realize(SYS_BUS_DEVICE(&s->mboxes), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mboxes), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -239,8 +234,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->fb), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->fb), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -251,8 +245,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
-    sysbus_realize(SYS_BUS_DEVICE(&s->property), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->property), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -264,8 +257,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                       qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_PROPERTY));
 
     /* Random Number Generator */
-    sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -289,8 +281,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_bool(OBJECT(&s->sdhci), true, "pending-insert-quirk",
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -302,8 +293,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_ARASANSDIO));
 
     /* SDHOST */
-    sysbus_realize(SYS_BUS_DEVICE(&s->sdhost), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhost), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -315,8 +305,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_SDIO));
 
     /* DMA Channels */
-    sysbus_realize(SYS_BUS_DEVICE(&s->dma), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dma), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -334,8 +323,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* THERMAL */
-    sysbus_realize(SYS_BUS_DEVICE(&s->thermal), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->thermal), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -343,8 +331,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->thermal), 0));
 
     /* GPIO */
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -355,8 +342,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->gpio), "sd-bus");
 
     /* Mphi */
-    sysbus_realize(SYS_BUS_DEVICE(&s->mphi), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mphi), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -368,8 +354,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_HOSTPORT));
 
     /* DWC2 */
-    sysbus_realize(SYS_BUS_DEVICE(&s->dwc2), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dwc2), &err)) {
         error_propagate(errp, err);
         return;
     }

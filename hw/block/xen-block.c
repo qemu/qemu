@@ -961,8 +961,7 @@ static void xen_block_device_create(XenBackendInstance *backend,
     blockdev->iothread = iothread;
     blockdev->drive = drive;
 
-    qdev_realize_and_unref(DEVICE(xendev), BUS(xenbus), &local_err);
-    if (local_err) {
+    if (!qdev_realize_and_unref(DEVICE(xendev), BUS(xenbus), &local_err)) {
         error_propagate_prepend(errp, local_err,
                                 "realization of device %s failed: ",
                                 type);

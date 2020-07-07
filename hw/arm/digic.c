@@ -62,15 +62,13 @@ static void digic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_realize(DEVICE(&s->cpu), NULL, &err);
-    if (err != NULL) {
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
-        sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err);
-        if (err != NULL) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -80,8 +78,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hd(0));
-    sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err);
-    if (err != NULL) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err)) {
         error_propagate(errp, err);
         return;
     }

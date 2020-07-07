@@ -1140,8 +1140,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                             "bar", &error_fatal);
     object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip8->xics),
                              ICS_PROP_XICS, &error_abort);
-    qdev_realize(DEVICE(&chip8->psi), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip8->psi), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1171,8 +1170,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Create the simplified OCC model */
     object_property_set_link(OBJECT(&chip8->occ), OBJECT(&chip8->psi), "psi",
                              &error_abort);
-    qdev_realize(DEVICE(&chip8->occ), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip8->occ), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1185,8 +1183,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* HOMER */
     object_property_set_link(OBJECT(&chip8->homer), OBJECT(chip), "chip",
                              &error_abort);
-    qdev_realize(DEVICE(&chip8->homer), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip8->homer), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1205,8 +1202,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(phb), i, "index", &error_fatal);
         object_property_set_int(OBJECT(phb), chip->chip_id, "chip-id",
                                 &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(phb), &local_err);
-        if (local_err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(phb), &local_err)) {
             error_propagate(errp, local_err);
             return;
         }
@@ -1384,8 +1380,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
                                  &error_fatal);
         object_property_set_link(OBJECT(pec), OBJECT(get_system_memory()),
                                  "system-memory", &error_abort);
-        qdev_realize(DEVICE(pec), NULL, &local_err);
-        if (local_err) {
+        if (!qdev_realize(DEVICE(pec), NULL, &local_err)) {
             error_propagate(errp, local_err);
             return;
         }
@@ -1409,8 +1404,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
             object_property_set_int(obj, PNV_PHB4_DEVICE_ID, "device-id",
                                     &error_fatal);
             object_property_set_link(obj, OBJECT(stack), "stack", &error_abort);
-            sysbus_realize(SYS_BUS_DEVICE(obj), &local_err);
-            if (local_err) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(obj), &local_err)) {
                 error_propagate(errp, local_err);
                 return;
             }
@@ -1469,8 +1463,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             "tm-bar", &error_fatal);
     object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip), "chip",
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&chip9->xive), &local_err);
-    if (local_err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&chip9->xive), &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1480,8 +1473,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    qdev_realize(DEVICE(&chip9->psi), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip9->psi), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1491,8 +1483,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* LPC */
     object_property_set_link(OBJECT(&chip9->lpc), OBJECT(&chip9->psi), "psi",
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->lpc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip9->lpc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1505,8 +1496,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Create the simplified OCC model */
     object_property_set_link(OBJECT(&chip9->occ), OBJECT(&chip9->psi), "psi",
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->occ), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip9->occ), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1519,8 +1509,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* HOMER */
     object_property_set_link(OBJECT(&chip9->homer), OBJECT(chip), "chip",
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->homer), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip9->homer), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1601,8 +1590,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    qdev_realize(DEVICE(&chip10->psi), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip10->psi), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1612,8 +1600,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* LPC */
     object_property_set_link(OBJECT(&chip10->lpc), OBJECT(&chip10->psi), "psi",
                              &error_abort);
-    qdev_realize(DEVICE(&chip10->lpc), NULL, &local_err);
-    if (local_err) {
+    if (!qdev_realize(DEVICE(&chip10->lpc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

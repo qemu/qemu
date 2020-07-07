@@ -311,8 +311,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
                                  &error_abort);
         object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &error_abort);
-        qdev_realize(DEVICE(obj), NULL, &local_err);
-        if (local_err) {
+        if (!qdev_realize(DEVICE(obj), NULL, &local_err)) {
             error_propagate(errp, local_err);
             return;
         }

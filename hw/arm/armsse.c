@@ -565,8 +565,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         object_property_set_link(cpuobj, OBJECT(&s->cpu_container[i]),
                                  "memory", &error_abort);
         object_property_set_link(cpuobj, OBJECT(s), "idau", &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(cpuobj), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(cpuobj), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -576,8 +575,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * CPU must exist and have been parented into the cluster before
          * the cluster is realized.
          */
-        qdev_realize(DEVICE(&s->cluster[i]), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(&s->cluster[i]), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -612,8 +610,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                     error_propagate(errp, err);
                     return;
                 }
-                qdev_realize(DEVICE(splitter), NULL, &err);
-                if (err) {
+                if (!qdev_realize(DEVICE(splitter), NULL, &err)) {
                     error_propagate(errp, err);
                     return;
                 }
@@ -645,8 +642,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* Security controller */
-    sysbus_realize(SYS_BUS_DEVICE(&s->secctl), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->secctl), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -668,8 +664,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    qdev_realize(DEVICE(&s->sec_resp_splitter), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->sec_resp_splitter), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -692,8 +687,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
         object_property_set_link(OBJECT(&s->mpc[i]), OBJECT(&s->sram[i]),
                                  "downstream", &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->mpc[i]), &err);
-        if (err) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->mpc[i]), &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -715,8 +709,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    qdev_realize(DEVICE(&s->mpc_irq_orgate), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->mpc_irq_orgate), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -734,8 +727,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * map its upstream ends to the right place in the container.
      */
     qdev_prop_set_uint32(DEVICE(&s->timer0), "pclk-frq", s->mainclk_frq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->timer0), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer0), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -746,8 +738,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                              &error_abort);
 
     qdev_prop_set_uint32(DEVICE(&s->timer1), "pclk-frq", s->mainclk_frq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->timer1), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer1), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -758,8 +749,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                              &error_abort);
 
     qdev_prop_set_uint32(DEVICE(&s->dualtimer), "pclk-frq", s->mainclk_frq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -784,8 +774,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             int cpunum;
             SysBusDevice *mhu_sbd = SYS_BUS_DEVICE(&s->mhu[i]);
 
-            sysbus_realize(SYS_BUS_DEVICE(&s->mhu[i]), &err);
-            if (err) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(&s->mhu[i]), &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -811,8 +800,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc0), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc0), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -860,8 +848,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    qdev_realize(DEVICE(&s->ppc_irq_orgate), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->ppc_irq_orgate), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -883,8 +870,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_string(DEVICE(&s->cachectrl[i]), "name", name);
             g_free(name);
             qdev_prop_set_uint64(DEVICE(&s->cachectrl[i]), "size", 0x1000);
-            sysbus_realize(SYS_BUS_DEVICE(&s->cachectrl[i]), &err);
-            if (err) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(&s->cachectrl[i]), &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -901,8 +887,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_string(DEVICE(&s->cpusecctrl[i]), "name", name);
             g_free(name);
             qdev_prop_set_uint64(DEVICE(&s->cpusecctrl[i]), "size", 0x1000);
-            sysbus_realize(SYS_BUS_DEVICE(&s->cpusecctrl[i]), &err);
-            if (err) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpusecctrl[i]), &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -916,8 +901,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             MemoryRegion *mr;
 
             qdev_prop_set_uint32(DEVICE(&s->cpuid[i]), "CPUID", i);
-            sysbus_realize(SYS_BUS_DEVICE(&s->cpuid[i]), &err);
-            if (err) {
+            if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpuid[i]), &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -932,8 +916,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      *   0x4002f000: S32K timer
      */
     qdev_prop_set_uint32(DEVICE(&s->s32ktimer), "pclk-frq", S32KCLK);
-    sysbus_realize(SYS_BUS_DEVICE(&s->s32ktimer), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->s32ktimer), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -943,8 +926,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     object_property_set_link(OBJECT(&s->apb_ppc1), OBJECT(mr), "port[0]",
                              &error_abort);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc1), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc1), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -981,8 +963,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -997,8 +978,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                             "INITSVTOR0_RST", &error_abort);
     object_property_set_int(OBJECT(&s->sysctl), s->init_svtor,
                             "INITSVTOR1_RST", &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->sysctl), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysctl), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1032,8 +1012,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    qdev_realize(DEVICE(&s->nmi_orgate), NULL, &err);
-    if (err) {
+    if (!qdev_realize(DEVICE(&s->nmi_orgate), NULL, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1041,8 +1020,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                           qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
 
     qdev_prop_set_uint32(DEVICE(&s->s32kwatchdog), "wdogclk-frq", S32KCLK);
-    sysbus_realize(SYS_BUS_DEVICE(&s->s32kwatchdog), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->s32kwatchdog), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1053,8 +1031,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* 0x40080000 .. 0x4008ffff : ARMSSE second Base peripheral region */
 
     qdev_prop_set_uint32(DEVICE(&s->nswatchdog), "wdogclk-frq", s->mainclk_frq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->nswatchdog), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nswatchdog), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1063,8 +1040,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->nswatchdog), 0, 0x40081000);
 
     qdev_prop_set_uint32(DEVICE(&s->swatchdog), "wdogclk-frq", s->mainclk_frq);
-    sysbus_realize(SYS_BUS_DEVICE(&s->swatchdog), &err);
-    if (err) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->swatchdog), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1080,8 +1056,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        qdev_realize(DEVICE(splitter), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(splitter), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -1127,8 +1102,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        qdev_realize(DEVICE(splitter), NULL, &err);
-        if (err) {
+        if (!qdev_realize(DEVICE(splitter), NULL, &err)) {
             error_propagate(errp, err);
             return;
         }
