@@ -465,22 +465,18 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
                                  const char *base_filename,
                                  const char *base_fmt)
 {
-    Error *err = NULL;
-
     if (base_filename) {
         if (!qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename,
-                          &err)) {
+                          NULL)) {
             error_report("Backing file not supported for file format '%s'",
                          fmt);
-            error_free(err);
             return -1;
         }
     }
     if (base_fmt) {
-        if (!qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt, &err)) {
+        if (!qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt, NULL)) {
             error_report("Backing file format not supported for file "
                          "format '%s'", fmt);
-            error_free(err);
             return -1;
         }
     }
@@ -4214,17 +4210,12 @@ static int img_amend(int argc, char **argv)
     opts = qemu_opts_create(amend_opts, NULL, 0, &error_abort);
     if (!qemu_opts_do_parse(opts, options, NULL, &err)) {
         /* Try to parse options using the create options */
-        Error *err1 = NULL;
         amend_opts = qemu_opts_append(amend_opts, bs->drv->create_opts);
         qemu_opts_del(opts);
         opts = qemu_opts_create(amend_opts, NULL, 0, &error_abort);
-        qemu_opts_do_parse(opts, options, NULL, &err1);
-
-        if (!err1) {
+        if (qemu_opts_do_parse(opts, options, NULL, NULL)) {
             error_append_hint(&err,
                               "This option is only supported for image creation\n");
-        } else {
-            error_free(err1);
         }
 
         error_report_err(err);
