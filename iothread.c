@@ -243,8 +243,7 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int64(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int64(v, name, &value, &local_err)) {
         goto out;
     }
 

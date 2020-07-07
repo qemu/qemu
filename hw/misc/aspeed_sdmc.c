@@ -227,8 +227,7 @@ static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,
     AspeedSDMCState *s = ASPEED_SDMC(obj);
     AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

@@ -2094,8 +2094,7 @@ static void property_set_str(Object *obj, Visitor *v, const char *name,
     char *value;
     Error *local_err = NULL;
 
-    visit_type_str(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2175,8 +2174,7 @@ static void property_set_bool(Object *obj, Visitor *v, const char *name,
     bool value;
     Error *local_err = NULL;
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_bool(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2248,8 +2246,7 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
     int value;
     Error *err = NULL;
 
-    visit_type_enum(v, name, &value, prop->lookup, &err);
-    if (err) {
+    if (!visit_type_enum(v, name, &value, prop->lookup, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -2319,32 +2316,25 @@ static void property_get_tm(Object *obj, Visitor *v, const char *name,
         goto out;
     }
 
-    visit_start_struct(v, name, NULL, 0, &err);
-    if (err) {
+    if (!visit_start_struct(v, name, NULL, 0, &err)) {
         goto out;
     }
-    visit_type_int32(v, "tm_year", &value.tm_year, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_year", &value.tm_year, &err)) {
         goto out_end;
     }
-    visit_type_int32(v, "tm_mon", &value.tm_mon, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_mon", &value.tm_mon, &err)) {
         goto out_end;
     }
-    visit_type_int32(v, "tm_mday", &value.tm_mday, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_mday", &value.tm_mday, &err)) {
         goto out_end;
     }
-    visit_type_int32(v, "tm_hour", &value.tm_hour, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_hour", &value.tm_hour, &err)) {
         goto out_end;
     }
-    visit_type_int32(v, "tm_min", &value.tm_min, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_min", &value.tm_min, &err)) {
         goto out_end;
     }
-    visit_type_int32(v, "tm_sec", &value.tm_sec, &err);
-    if (err) {
+    if (!visit_type_int32(v, "tm_sec", &value.tm_sec, &err)) {
         goto out_end;
     }
     visit_check_struct(v, &err);
@@ -2408,8 +2398,7 @@ static void property_set_uint8_ptr(Object *obj, Visitor *v, const char *name,
     uint8_t value;
     Error *local_err = NULL;
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint8(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2431,8 +2420,7 @@ static void property_set_uint16_ptr(Object *obj, Visitor *v, const char *name,
     uint16_t value;
     Error *local_err = NULL;
 
-    visit_type_uint16(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint16(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2454,8 +2442,7 @@ static void property_set_uint32_ptr(Object *obj, Visitor *v, const char *name,
     uint32_t value;
     Error *local_err = NULL;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2477,8 +2464,7 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
     uint64_t value;
     Error *local_err = NULL;
 
-    visit_type_uint64(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint64(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

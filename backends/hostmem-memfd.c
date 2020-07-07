@@ -85,8 +85,7 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
         goto out;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &value, &local_err)) {
         goto out;
     }
     if (!value) {

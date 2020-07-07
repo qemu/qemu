@@ -1096,8 +1096,7 @@ static void compare_set_timeout(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         goto out;
     }
     if (!value) {
@@ -1129,8 +1128,7 @@ static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         goto out;
     }
     if (!value) {

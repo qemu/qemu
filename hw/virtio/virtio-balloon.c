@@ -239,22 +239,18 @@ static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
     VirtIOBalloon *s = opaque;
     int i;
 
-    visit_start_struct(v, name, NULL, 0, &err);
-    if (err) {
+    if (!visit_start_struct(v, name, NULL, 0, &err)) {
         goto out;
     }
-    visit_type_int(v, "last-update", &s->stats_last_update, &err);
-    if (err) {
+    if (!visit_type_int(v, "last-update", &s->stats_last_update, &err)) {
         goto out_end;
     }
 
-    visit_start_struct(v, "stats", NULL, 0, &err);
-    if (err) {
+    if (!visit_start_struct(v, "stats", NULL, 0, &err)) {
         goto out_end;
     }
     for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
-        visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err);
-        if (err) {
+        if (!visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err)) {
             goto out_nested;
         }
     }
@@ -287,8 +283,7 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

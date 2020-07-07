@@ -1509,8 +1509,7 @@ static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
         return;
     }
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint8(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

@@ -53,8 +53,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
         goto out;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &value, &local_err)) {
         goto out;
     }
     if (value < MIN_NAMESPACE_LABEL_SIZE) {
@@ -89,8 +88,7 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     char *value;
 
-    visit_type_str(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &value, &local_err)) {
         goto out;
     }
 

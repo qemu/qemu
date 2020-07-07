@@ -75,8 +75,7 @@ static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     int64_t temp;
 
-    visit_type_int(v, name, &temp, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &temp, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

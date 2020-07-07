@@ -195,8 +195,7 @@ static void filter_dump_set_maxlen(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         goto out;
     }
     if (value == 0) {

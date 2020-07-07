@@ -4420,8 +4420,7 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -4463,8 +4462,7 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -4501,8 +4499,7 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -4606,8 +4603,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -6816,8 +6812,7 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_bool(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

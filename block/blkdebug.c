@@ -375,8 +375,7 @@ static int blkdebug_parse_perm_list(uint64_t *dest, QDict *options,
     }
 
     v = qobject_input_visitor_new(crumpled_subqdict);
-    visit_type_BlockPermissionList(v, NULL, &perm_list, &local_err);
-    if (local_err) {
+    if (!visit_type_BlockPermissionList(v, NULL, &perm_list, &local_err)) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto out;

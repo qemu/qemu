@@ -1862,8 +1862,7 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     Error *error = NULL;
     uint64_t value;
 
-    visit_type_size(v, name, &value, &error);
-    if (error) {
+    if (!visit_type_size(v, name, &value, &error)) {
         error_propagate(errp, error);
         return;
     }

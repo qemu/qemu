@@ -412,8 +412,7 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

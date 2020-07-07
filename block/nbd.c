@@ -1739,8 +1739,7 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
         goto done;
     }
 
-    visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
-    if (local_err) {
+    if (!visit_type_SocketAddress(iv, NULL, &saddr, &local_err)) {
         error_propagate(errp, local_err);
         goto done;
     }

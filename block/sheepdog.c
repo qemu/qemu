@@ -541,8 +541,7 @@ static SocketAddress *sd_server_config(QDict *options, Error **errp)
         goto done;
     }
 
-    visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
-    if (local_err) {
+    if (!visit_type_SocketAddress(iv, NULL, &saddr, &local_err)) {
         error_propagate(errp, local_err);
         goto done;
     }

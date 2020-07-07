@@ -2387,8 +2387,7 @@ static void set_css_devid(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

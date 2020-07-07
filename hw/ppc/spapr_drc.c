@@ -327,8 +327,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
         case FDT_BEGIN_NODE:
             fdt_depth++;
             name = fdt_get_name(fdt, fdt_offset, &name_len);
-            visit_start_struct(v, name, NULL, 0, &err);
-            if (err) {
+            if (!visit_start_struct(v, name, NULL, 0, &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -348,14 +347,13 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             int i;
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
-            visit_start_list(v, name, NULL, 0, &err);
-            if (err) {
+            if (!visit_start_list(v, name, NULL, 0, &err)) {
                 error_propagate(errp, err);
                 return;
             }
             for (i = 0; i < prop_len; i++) {
-                visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i], &err);
-                if (err) {
+                if (!visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i],
+                                      &err)) {
                     error_propagate(errp, err);
                     return;
                 }

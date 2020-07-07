@@ -119,8 +119,7 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
         goto out;
     }
 
-    visit_type_size(v, name, &val, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &val, &local_err)) {
         goto out;
     }
     fb->align = val;

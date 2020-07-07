@@ -63,8 +63,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
         goto out;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &value, &local_err)) {
         goto out;
     }
     if (!value) {
@@ -257,8 +256,7 @@ static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         goto out;
     }
     if (value <= 0) {

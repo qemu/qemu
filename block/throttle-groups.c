@@ -823,8 +823,7 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
         goto ret;
     }
 
-    visit_type_int64(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_int64(v, name, &value, &local_err)) {
         goto ret;
     }
     if (value < 0) {
@@ -896,8 +895,7 @@ static void throttle_group_set_limits(Object *obj, Visitor *v,
     ThrottleLimits *argp;
     Error *local_err = NULL;
 
-    visit_type_ThrottleLimits(v, name, &argp, &local_err);
-    if (local_err) {
+    if (!visit_type_ThrottleLimits(v, name, &argp, &local_err)) {
         goto ret;
     }
     qemu_mutex_lock(&tg->lock);

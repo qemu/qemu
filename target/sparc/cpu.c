@@ -804,8 +804,7 @@ static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
     Error *err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &err);
-    if (err) {
+    if (!visit_type_int(v, name, &value, &err)) {
         error_propagate(errp, err);
         return;
     }

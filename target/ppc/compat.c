@@ -264,8 +264,7 @@ static void ppc_compat_prop_set(Object *obj, Visitor *v, const char *name,
     char *value;
     uint32_t compat_pvr;
 
-    visit_type_str(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

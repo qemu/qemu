@@ -173,8 +173,7 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
     Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, &value, &local_err)) {
         goto out;
     }
     if (!value) {

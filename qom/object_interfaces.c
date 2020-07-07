@@ -63,8 +63,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
+    if (!visit_start_struct(v, NULL, NULL, 0, &local_err)) {
         goto out;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {

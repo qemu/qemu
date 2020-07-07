@@ -510,8 +510,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
 
     if (qdict) {
         visitor = qobject_input_visitor_new(info->props);
-        visit_start_struct(visitor, NULL, NULL, 0, &err);
-        if (err) {
+        if (!visit_start_struct(visitor, NULL, NULL, 0, &err)) {
             error_propagate(errp, err);
             visit_free(visitor);
             object_unref(obj);
@@ -1017,8 +1016,7 @@ static void set_feature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &err);
-    if (err) {
+    if (!visit_type_bool(v, name, &value, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1076,8 +1074,7 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &err);
-    if (err) {
+    if (!visit_type_bool(v, name, &value, &err)) {
         error_propagate(errp, err);
         return;
     }

@@ -92,8 +92,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -238,8 +237,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -316,8 +314,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -398,8 +395,7 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

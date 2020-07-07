@@ -147,8 +147,7 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
     int offset = ext_range * 64 * 256;
     int tempid;
 
-    visit_type_int(v, name, &temp, &local_err);
-    if (local_err) {
+    if (!visit_type_int(v, name, &temp, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }

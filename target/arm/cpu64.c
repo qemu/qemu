@@ -467,8 +467,7 @@ static void cpu_max_set_sve_max_vq(Object *obj, Visitor *v, const char *name,
     Error *err = NULL;
     uint32_t max_vq;
 
-    visit_type_uint32(v, name, &max_vq, &err);
-    if (err) {
+    if (!visit_type_uint32(v, name, &max_vq, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -513,8 +512,7 @@ static void cpu_arm_set_sve_vq(Object *obj, Visitor *v, const char *name,
     Error *err = NULL;
     bool value;
 
-    visit_type_bool(v, name, &value, &err);
-    if (err) {
+    if (!visit_type_bool(v, name, &value, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -550,8 +548,7 @@ static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,
     bool value;
     uint64_t t;
 
-    visit_type_bool(v, name, &value, &err);
-    if (err) {
+    if (!visit_type_bool(v, name, &value, &err)) {
         error_propagate(errp, err);
         return;
     }

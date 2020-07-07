@@ -3116,8 +3116,7 @@ static void kvm_set_kvm_shadow_mem(Object *obj, Visitor *v,
     Error *error = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &error);
-    if (error) {
+    if (!visit_type_int(v, name, &value, &error)) {
         error_propagate(errp, error);
         return;
     }

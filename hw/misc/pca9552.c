@@ -296,8 +296,7 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
     uint8_t state;
     char *state_str;
 
-    visit_type_str(v, name, &state_str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &state_str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
