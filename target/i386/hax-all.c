@@ -32,8 +32,9 @@
 #include "sysemu/accel.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "qemu/main-loop.h"
 #include "hw/boards.h"
+
+#include "hax-cpus.h"
 
 #define DEBUG_HAX 0
 
@@ -373,6 +374,9 @@ static int hax_accel_init(MachineState *ms)
         fprintf(stdout, "HAX is %s and emulator runs in %s mode.\n",
                 !ret ? "working" : "not working",
                 !ret ? "fast virt" : "emulation");
+    }
+    if (ret == 0) {
+        cpus_register_accel(&hax_cpus);
     }
     return ret;
 }
