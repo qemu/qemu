@@ -52,24 +52,20 @@ static void digic_init(Object *obj)
 static void digic_realize(DeviceState *dev, Error **errp)
 {
     DigicState *s = DIGIC(dev);
-    Error *err = NULL;
     SysBusDevice *sbd;
     int i;
 
     if (!object_property_set_bool(OBJECT(&s->cpu), "reset-hivecs", true,
-                                  &err)) {
-        error_propagate(errp, err);
+                                  errp)) {
         return;
     }
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
         return;
     }
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
             return;
         }
 
@@ -78,8 +74,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hd(0));
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), errp)) {
         return;
     }
 

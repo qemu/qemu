@@ -54,7 +54,6 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    Error *local_err = NULL;
     uint64_t value;
 
     if (host_memory_backend_mr_inited(backend)) {
@@ -63,8 +62,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_size(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
     if (!value) {
@@ -252,11 +250,9 @@ static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,
     const char *name, void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
     if (value <= 0) {

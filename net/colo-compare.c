@@ -1093,11 +1093,9 @@ static void compare_set_timeout(Object *obj, Visitor *v,
                                 Error **errp)
 {
     CompareState *s = COLO_COMPARE(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
     if (!value) {
@@ -1123,11 +1121,9 @@ static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,
                                            Error **errp)
 {
     CompareState *s = COLO_COMPARE(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
     if (!value) {

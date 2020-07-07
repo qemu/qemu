@@ -81,7 +81,6 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     STM32F205State *s = STM32F205_SOC(dev_soc);
     DeviceState *dev, *armv7m;
     SysBusDevice *busdev;
-    Error *err = NULL;
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
@@ -107,15 +106,13 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
         return;
     }
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
@@ -126,8 +123,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_USARTS; i++) {
         dev = DEVICE(&(s->usart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -139,8 +135,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_TIMERS; i++) {
         dev = DEVICE(&(s->timer[i]));
         qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -151,8 +146,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     /* ADC 1 to 3 */
     object_property_set_int(OBJECT(s->adc_irqs), "num-lines", STM_NUM_ADCS,
                             &error_abort);
-    if (!qdev_realize(DEVICE(s->adc_irqs), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(s->adc_irqs), NULL, errp)) {
         return;
     }
     qdev_connect_gpio_out(DEVICE(s->adc_irqs), 0,
@@ -160,8 +154,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
         dev = DEVICE(&(s->adc[i]));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -173,8 +166,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     /* SPI 1 and 2 */
     for (i = 0; i < STM_NUM_SPIS; i++) {
         dev = DEVICE(&(s->spi[i]));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);

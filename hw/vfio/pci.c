@@ -116,7 +116,6 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
 #ifdef CONFIG_KVM
     int irq_fd = event_notifier_get_fd(&vdev->intx.interrupt);
-    Error *err = NULL;
 
     if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
@@ -147,8 +146,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
                                VFIO_IRQ_SET_ACTION_UNMASK,
                                event_notifier_get_fd(&vdev->intx.unmask),
-                               &err)) {
-        error_propagate(errp, err);
+                               errp)) {
         goto fail_vfio;
     }
 
@@ -2741,9 +2739,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (!pdev->failover_pair_id) {
         error_setg(&vdev->migration_blocker,
                 "VFIO device doesn't support migration");
-        ret = migrate_add_blocker(vdev->migration_blocker, &err);
+        ret = migrate_add_blocker(vdev->migration_blocker, errp);
         if (ret) {
-            error_propagate(errp, err);
             error_free(vdev->migration_blocker);
             vdev->migration_blocker = NULL;
             return;

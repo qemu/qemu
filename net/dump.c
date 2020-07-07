@@ -192,11 +192,9 @@ static void filter_dump_set_maxlen(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     NetFilterDumpState *nfds = FILTER_DUMP(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
     if (value == 0) {

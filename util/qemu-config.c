@@ -479,7 +479,6 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
     QemuOpts *subopts;
     QDict *subqdict;
     QList *list = NULL;
-    Error *local_err = NULL;
     size_t orig_size, enum_size;
     char *prefix;
 
@@ -496,8 +495,7 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
         goto out;
     }
 
-    if (!qemu_opts_absorb_qdict(subopts, subqdict, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qemu_opts_absorb_qdict(subopts, subqdict, errp)) {
         goto out;
     }
 
@@ -540,8 +538,7 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
                 goto out;
             }
 
-            if (!qemu_opts_absorb_qdict(subopts, section, &local_err)) {
-                error_propagate(errp, local_err);
+            if (!qemu_opts_absorb_qdict(subopts, section, errp)) {
                 qemu_opts_del(subopts);
                 goto out;
             }

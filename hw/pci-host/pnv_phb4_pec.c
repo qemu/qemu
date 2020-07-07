@@ -377,7 +377,6 @@ static void pnv_pec_instance_init(Object *obj)
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecState *pec = PNV_PHB4_PEC(dev);
-    Error *local_err = NULL;
     char name[64];
     int i;
 
@@ -390,8 +389,7 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
-        if (!qdev_realize(DEVICE(stk_obj), NULL, &local_err)) {
-            error_propagate(errp, local_err);
+        if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
             return;
         }
     }

@@ -141,14 +141,12 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
-    Error *local_err = NULL;
     int64_t temp;
     bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
     int offset = ext_range * 64 * 256;
     int tempid;
 
-    if (!visit_type_int(v, name, &temp, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &temp, errp)) {
         return;
     }
 

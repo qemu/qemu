@@ -19,10 +19,8 @@ static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {
     VirtIOCryptoCcw *dev = VIRTIO_CRYPTO_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    Error *err = NULL;
 
-    if (!qdev_realize(vdev, BUS(&ccw_dev->bus), &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(vdev, BUS(&ccw_dev->bus), errp)) {
         return;
     }
 

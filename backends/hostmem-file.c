@@ -110,7 +110,6 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
-    Error *local_err = NULL;
     uint64_t val;
 
     if (host_memory_backend_mr_inited(backend)) {
@@ -119,8 +118,7 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
         return;
     }
 
-    if (!visit_type_size(v, name, &val, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &val, errp)) {
         return;
     }
     fb->align = val;

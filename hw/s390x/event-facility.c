@@ -442,16 +442,13 @@ static void init_event_facility(Object *obj)
 static void realize_event_facility(DeviceState *dev, Error **errp)
 {
     SCLPEventFacility *event_facility = EVENT_FACILITY(dev);
-    Error *local_err = NULL;
 
     if (!qdev_realize(DEVICE(&event_facility->quiesce),
-                      BUS(&event_facility->sbus), &local_err)) {
-        error_propagate(errp, local_err);
+                      BUS(&event_facility->sbus), errp)) {
         return;
     }
     if (!qdev_realize(DEVICE(&event_facility->cpu_hotplug),
-                      BUS(&event_facility->sbus), &local_err)) {
-        error_propagate(errp, local_err);
+                      BUS(&event_facility->sbus), errp)) {
         qdev_unrealize(DEVICE(&event_facility->quiesce));
         return;
     }

@@ -72,7 +72,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     BCM283XClass *bc = BCM283X_GET_CLASS(dev);
     const BCM283XInfo *info = bc->info;
     Object *obj;
-    Error *err = NULL;
     int n;
 
     /* common peripherals from bcm2835 */
@@ -81,8 +80,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
     object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->peripherals), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->peripherals), errp)) {
         return;
     }
 
@@ -93,8 +91,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                             info->peri_base, 1);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->control), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->control), errp)) {
         return;
     }
 
@@ -111,8 +108,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
         /* set periphbase/CBAR value for CPU-local registers */
         if (!object_property_set_int(OBJECT(&s->cpu[n].core), "reset-cbar",
-                                     info->peri_base, &err)) {
-            error_propagate(errp, err);
+                                     info->peri_base, errp)) {
             return;
         }
 
@@ -120,13 +116,11 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         if (!object_property_set_bool(OBJECT(&s->cpu[n].core),
                                       "start-powered-off",
                                       n >= s->enabled_cpus,
-                                      &err)) {
-            error_propagate(errp, err);
+                                      errp)) {
             return;
         }
 
-        if (!qdev_realize(DEVICE(&s->cpu[n].core), NULL, &err)) {
-            error_propagate(errp, err);
+        if (!qdev_realize(DEVICE(&s->cpu[n].core), NULL, errp)) {
             return;
         }
 

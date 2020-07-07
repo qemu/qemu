@@ -790,9 +790,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        fd = monitor_fd_param(cur_mon, tap->fd, &err);
+        fd = monitor_fd_param(cur_mon, tap->fd, errp);
         if (fd == -1) {
-            error_propagate(errp, err);
             return -1;
         }
 

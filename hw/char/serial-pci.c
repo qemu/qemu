@@ -47,10 +47,8 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
-    Error *err = NULL;
 
-    if (!qdev_realize(DEVICE(s), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(s), NULL, errp)) {
         return;
     }
 

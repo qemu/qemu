@@ -989,10 +989,8 @@ static void serial_io_realize(DeviceState *dev, Error **errp)
 {
     SerialIO *sio = SERIAL_IO(dev);
     SerialState *s = &sio->serial;
-    Error *local_err = NULL;
 
-    if (!qdev_realize(DEVICE(s), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(s), NULL, errp)) {
         return;
     }
 
@@ -1095,10 +1093,8 @@ static void serial_mm_realize(DeviceState *dev, Error **errp)
 {
     SerialMM *smm = SERIAL_MM(dev);
     SerialState *s = &smm->serial;
-    Error *local_err = NULL;
 
-    if (!qdev_realize(DEVICE(s), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(s), NULL, errp)) {
         return;
     }
 

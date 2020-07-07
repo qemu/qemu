@@ -71,7 +71,6 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     CPUMIPSState *env;
     MIPSCPU *cpu;
     int i;
-    Error *err = NULL;
     target_ulong gcr_base;
     bool itu_present = false;
     bool saar_present = false;
@@ -109,8 +108,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         if (saar_present) {
             s->itu.saar = &env->CP0_SAAR;
         }
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->itu), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->itu), errp)) {
             return;
         }
 
@@ -124,8 +122,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpc), "vp-start-running", 1,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpc), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpc), errp)) {
         return;
     }
 
@@ -138,8 +135,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                             &error_abort);
     object_property_set_int(OBJECT(&s->gic), "num-irq", 128,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
         return;
     }
 
@@ -160,8 +156,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_link(OBJECT(&s->gcr), "cpc", OBJECT(&s->cpc.mr),
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gcr), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gcr), errp)) {
         return;
     }
 

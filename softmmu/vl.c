@@ -2463,14 +2463,11 @@ static int object_parse_property_opt(Object *obj,
                                      const char *name, const char *value,
                                      const char *skip, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (g_str_equal(name, skip)) {
         return 0;
     }
 
-    if (!object_property_parse(obj, name, value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!object_property_parse(obj, name, value, errp)) {
         return -1;
     }
 

@@ -2575,8 +2575,7 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
             return;
         }
 
-        if (!qdev_realize_and_unref(dev, &fdctrl->bus.bus, &local_err)) {
-            error_propagate(errp, local_err);
+        if (!qdev_realize_and_unref(dev, &fdctrl->bus.bus, errp)) {
             return;
         }
     }

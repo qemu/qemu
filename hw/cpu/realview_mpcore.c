@@ -65,13 +65,11 @@ static void realview_mpcore_realize(DeviceState *dev, Error **errp)
     DeviceState *priv = DEVICE(&s->priv);
     DeviceState *gic;
     SysBusDevice *gicbusdev;
-    Error *err = NULL;
     int n;
     int i;
 
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->priv), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->priv), errp)) {
         return;
     }
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->priv));
@@ -80,8 +78,7 @@ static void realview_mpcore_realize(DeviceState *dev, Error **errp)
     }
     /* ??? IRQ routing is hardcoded to "normal" mode.  */
     for (n = 0; n < 4; n++) {
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic[n]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic[n]), errp)) {
             return;
         }
         gic = DEVICE(&s->gic[n]);

@@ -20,10 +20,8 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {
     VirtIORNGCcw *dev = VIRTIO_RNG_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    Error *err = NULL;
 
-    if (!qdev_realize(vdev, BUS(&ccw_dev->bus), &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(vdev, BUS(&ccw_dev->bus), errp)) {
         return;
     }
 

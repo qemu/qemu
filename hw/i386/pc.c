@@ -1847,11 +1847,9 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
                                             Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    Error *error = NULL;
     uint64_t value;
 
-    if (!visit_type_size(v, name, &value, &error)) {
-        error_propagate(errp, error);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
     if (value > 4 * GiB) {

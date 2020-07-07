@@ -2195,9 +2195,8 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     }
 
     server = os_version.wProductType != VER_NT_WORKSTATION;
-    product_name = ga_get_win_product_name(&local_err);
+    product_name = ga_get_win_product_name(errp);
     if (product_name == NULL) {
-        error_propagate(errp, local_err);
         return NULL;
     }
 

@@ -45,7 +45,6 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
-    Error *local_err = NULL;
     uint64_t value;
 
     if (nvdimm->nvdimm_mr) {
@@ -53,8 +52,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_size(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
     if (value < MIN_NAMESPACE_LABEL_SIZE) {

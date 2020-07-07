@@ -1169,7 +1169,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     PnvPHB4 *phb = PNV_PHB4(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     XiveSource *xsrc = &phb->xsrc;
-    Error *local_err = NULL;
     int nr_irqs;
     char name[32];
 
@@ -1218,8 +1217,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(xsrc), "nr-irqs", nr_irqs, &error_fatal);
     object_property_set_link(OBJECT(xsrc), "xive", OBJECT(phb), &error_fatal);
-    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
 

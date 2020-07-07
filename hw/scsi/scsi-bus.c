@@ -248,7 +248,6 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     const char *driver;
     char *name;
     DeviceState *dev;
-    Error *err = NULL;
     DriveInfo *dinfo;
 
     if (blk_is_sg(blk)) {
@@ -277,13 +276,11 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     if (serial && object_property_find(OBJECT(dev), "serial", NULL)) {
         qdev_prop_set_string(dev, "serial", serial);
     }
-    if (!qdev_prop_set_drive_err(dev, "drive", blk, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_prop_set_drive_err(dev, "drive", blk, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    if (!object_property_set_bool(OBJECT(dev), "share-rw", share_rw, &err)) {
-        error_propagate(errp, err);
+    if (!object_property_set_bool(OBJECT(dev), "share-rw", share_rw, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
@@ -291,8 +288,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     qdev_prop_set_enum(dev, "rerror", rerror);
     qdev_prop_set_enum(dev, "werror", werror);
 
-    if (!qdev_realize_and_unref(dev, &bus->qbus, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize_and_unref(dev, &bus->qbus, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

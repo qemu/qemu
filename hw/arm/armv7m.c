@@ -175,27 +175,23 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
     if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
         if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
-                                      s->init_svtor, &err)) {
-            error_propagate(errp, err);
+                                      s->init_svtor, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
         if (!object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
-                                      s->start_powered_off, &err)) {
-            error_propagate(errp, err);
+                                      s->start_powered_off, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "vfp", NULL)) {
-        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, &err)) {
-            error_propagate(errp, err);
+        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "dsp", NULL)) {
-        if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, &err)) {
-            error_propagate(errp, err);
+        if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
             return;
         }
     }
@@ -207,14 +203,12 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     s->cpu->env.nvic = &s->nvic;
     s->nvic.cpu = s->cpu;
 
-    if (!qdev_realize(DEVICE(s->cpu), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(s->cpu), NULL, errp)) {
         return;
     }
 
     /* Note that we must realize the NVIC after the CPU */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvic), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvic), errp)) {
         return;
     }
 
@@ -240,14 +234,12 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
             if (!object_property_set_int(obj, "base",
-                                         bitband_input_addr[i], &err)) {
-                error_propagate(errp, err);
+                                         bitband_input_addr[i], errp)) {
                 return;
             }
             object_property_set_link(obj, "source-memory",
                                      OBJECT(s->board_memory), &error_abort);
-            if (!sysbus_realize(SYS_BUS_DEVICE(obj), &err)) {
-                error_propagate(errp, err);
+            if (!sysbus_realize(SYS_BUS_DEVICE(obj), errp)) {
                 return;
             }
 

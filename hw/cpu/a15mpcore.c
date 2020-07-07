@@ -53,7 +53,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     DeviceState *gicdev;
     SysBusDevice *busdev;
     int i;
-    Error *err = NULL;
     bool has_el3;
     bool has_el2 = false;
     Object *cpuobj;
@@ -76,8 +75,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_bit(gicdev, "has-virtualization-extensions", has_el2);
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(&s->gic);

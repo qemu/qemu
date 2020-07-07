@@ -1832,8 +1832,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), "nr-irqs", PNV_XIVE_NR_IRQS,
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), "xive", OBJECT(xive), &error_abort);
-    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
 
@@ -1841,8 +1840,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
                              &error_abort);
-    if (!qdev_realize(DEVICE(end_xsrc), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(end_xsrc), NULL, errp)) {
         return;
     }
 

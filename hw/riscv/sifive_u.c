@@ -608,7 +608,6 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     char *plic_hart_config;
     size_t plic_hart_config_len;
     int i;
-    Error *err = NULL;
     NICInfo *nd = &nd_table[0];
 
     sysbus_realize(SYS_BUS_DEVICE(&s->e_cpus), &error_abort);
@@ -710,8 +709,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(&s->gem), "revision", GEM_REVISION,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem), 0, memmap[SIFIVE_U_GEM].base);

@@ -67,8 +67,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     object_property_set_link(OBJECT(&s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu), errp)) {
         return;
     }
 
@@ -83,8 +82,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(&s->container, NRF51_SRAM_BASE, &s->sram);
 
     /* UART */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), errp)) {
         return;
     }
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0);
@@ -94,8 +92,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                        BASE_TO_IRQ(NRF51_UART_BASE)));
 
     /* RNG */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rng), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rng), errp)) {
         return;
     }
 
@@ -107,13 +104,11 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* UICR, FICR, NVMC, FLASH */
     if (!object_property_set_uint(OBJECT(&s->nvm), "flash-size",
-                                  s->flash_size, &err)) {
-        error_propagate(errp, err);
+                                  s->flash_size, errp)) {
         return;
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvm), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvm), errp)) {
         return;
     }
 
@@ -127,8 +122,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion_overlap(&s->container, NRF51_FLASH_BASE, mr, 0);
 
     /* GPIO */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
         return;
     }
 
@@ -140,12 +134,10 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
-        if (!object_property_set_uint(OBJECT(&s->timer[i]), "id", i, &err)) {
-            error_propagate(errp, err);
+        if (!object_property_set_uint(OBJECT(&s->timer[i]), "id", i, errp)) {
             return;
         }
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
             return;
         }
 

@@ -77,7 +77,6 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(obj);
-    Error *local_err = NULL;
     uint64_t value;
 
     if (host_memory_backend_mr_inited(MEMORY_BACKEND(obj))) {
@@ -85,8 +84,7 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_size(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
     if (!value) {

@@ -93,7 +93,6 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOVGABase *vvga = VIRTIO_VGA_BASE(vpci_dev);
     VirtIOGPUBase *g = vvga->vgpu;
     VGACommonState *vga = &vvga->vga;
-    Error *err = NULL;
     uint32_t offset;
     int i;
 
@@ -138,8 +137,7 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 
     /* init virtio bits */
     virtio_pci_force_virtio_1(vpci_dev);
-    if (!qdev_realize(DEVICE(g), BUS(&vpci_dev->bus), &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(g), BUS(&vpci_dev->bus), errp)) {
         return;
     }
 

@@ -315,12 +315,10 @@ static bool parse_type_size(Visitor *v, const char *name, uint64_t *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
-    Error *err = NULL;
     uint64_t val;
 
     assert(siv->lm == LM_NONE);
-    if (!parse_option_size(name, siv->string, &val, &err)) {
-        error_propagate(errp, err);
+    if (!parse_option_size(name, siv->string, &val, errp)) {
         return false;
     }
 

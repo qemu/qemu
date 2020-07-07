@@ -169,9 +169,8 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 
     iothread->stopping = false;
     iothread->running = true;
-    iothread->ctx = aio_context_new(&local_error);
+    iothread->ctx = aio_context_new(errp);
     if (!iothread->ctx) {
-        error_propagate(errp, local_error);
         return;
     }
 
@@ -240,11 +239,9 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     IOThread *iothread = IOTHREAD(obj);
     PollParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
-    Error *local_err = NULL;
     int64_t value;
 
-    if (!visit_type_int64(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int64(v, name, &value, errp)) {
         return;
     }
 

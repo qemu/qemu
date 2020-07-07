@@ -176,7 +176,6 @@ static inline int arm_gic_ppi_index(int cpu_nr, int ppi_index)
 static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
                                    const char *boot_cpu, Error **errp)
 {
-    Error *err = NULL;
     int i;
     int num_rpus = MIN(ms->smp.cpus - XLNX_ZYNQMP_NUM_APU_CPUS,
                        XLNX_ZYNQMP_NUM_RPU_CPUS);
@@ -209,8 +208,7 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
 
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), "reset-hivecs", true,
                                  &error_abort);
-        if (!qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, &err)) {
-            error_propagate(errp, err);
+        if (!qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, errp)) {
             return;
         }
     }
@@ -366,14 +364,12 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                 GIC_BASE_ADDR, &error_abort);
         object_property_set_int(OBJECT(&s->apu_cpu[i]), "core-count",
                                 num_apus, &error_abort);
-        if (!qdev_realize(DEVICE(&s->apu_cpu[i]), NULL, &err)) {
-            error_propagate(errp, err);
+        if (!qdev_realize(DEVICE(&s->apu_cpu[i]), NULL, errp)) {
             return;
         }
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
         return;
     }
 
@@ -467,8 +463,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_int(OBJECT(&s->gem[i]), "num-priority-queues", 2,
                                 &error_abort);
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem[i]), errp)) {
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem[i]), 0, gem_addr[i]);
@@ -478,8 +473,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), errp)) {
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, uart_addr[i]);
@@ -489,8 +483,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     object_property_set_int(OBJECT(&s->sata), "num-ports", SATA_NUM_PORTS,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), errp)) {
         return;
     }
 
@@ -507,21 +500,17 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
          * - SDIO Specification Version 3.0
          * - eMMC Specification Version 4.51
          */
-        if (!object_property_set_uint(sdhci, "sd-spec-version", 3, &err)) {
-            error_propagate(errp, err);
+        if (!object_property_set_uint(sdhci, "sd-spec-version", 3, errp)) {
             return;
         }
         if (!object_property_set_uint(sdhci, "capareg", SDHCI_CAPABILITIES,
-                                      &err)) {
-            error_propagate(errp, err);
+                                      errp)) {
             return;
         }
-        if (!object_property_set_uint(sdhci, "uhs", UHS_I, &err)) {
-            error_propagate(errp, err);
+        if (!object_property_set_uint(sdhci, "uhs", UHS_I, errp)) {
             return;
         }
-        if (!sysbus_realize(SYS_BUS_DEVICE(sdhci), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(sdhci), errp)) {
             return;
         }
         sysbus_mmio_map(sbd, 0, sdhci_addr[i]);
@@ -536,8 +525,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
         gchar *bus_name;
 
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), errp)) {
             return;
         }
 
@@ -552,8 +540,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(bus_name);
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->qspi), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->qspi), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
@@ -573,15 +560,13 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(target_bus);
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dp), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dp), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dp), 0, DP_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dp), 0, gic_spi[DP_IRQ]);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dpdma), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dpdma), errp)) {
         return;
     }
     object_property_set_link(OBJECT(&s->dp), "dpdma", OBJECT(&s->dpdma),
@@ -589,15 +574,13 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ipi), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ipi), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi), 0, IPI_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ipi), 0, gic_spi[IPI_IRQ]);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, RTC_ADDR);
@@ -605,12 +588,10 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
         if (!object_property_set_uint(OBJECT(&s->gdma[i]), "bus-width", 128,
-                                      &err)) {
-            error_propagate(errp, err);
+                                      errp)) {
             return;
         }
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gdma[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gdma[i]), errp)) {
             return;
         }
 
@@ -620,8 +601,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adma[i]), &err)) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adma[i]), errp)) {
             return;
         }
 

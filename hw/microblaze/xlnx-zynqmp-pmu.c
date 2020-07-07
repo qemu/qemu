@@ -76,7 +76,6 @@ static void xlnx_zynqmp_pmu_soc_init(Object *obj)
 static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
 {
     XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(dev);
-    Error *err = NULL;
 
     object_property_set_uint(OBJECT(&s->cpu), "base-vectors",
                              XLNX_ZYNQMP_PMU_ROM_ADDR, &error_abort);
@@ -96,8 +95,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
     object_property_set_str(OBJECT(&s->cpu), "version", "8.40.b",
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), "pvr", 0, &error_abort);
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
         return;
     }
 
@@ -107,8 +105,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->intc), "intc-positive", 0xffff,
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0, XLNX_ZYNQMP_PMU_INTC_ADDR);

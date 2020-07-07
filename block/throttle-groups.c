@@ -811,7 +811,6 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
     ThrottleGroup *tg = THROTTLE_GROUP(obj);
     ThrottleConfig *cfg;
     ThrottleParamInfo *info = opaque;
-    Error *local_err = NULL;
     int64_t value;
 
     /* If we have finished initialization, don't accept individual property
@@ -823,8 +822,7 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
         return;
     }
 
-    if (!visit_type_int64(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int64(v, name, &value, errp)) {
         return;
     }
     if (value < 0) {

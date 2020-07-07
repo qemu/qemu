@@ -170,11 +170,9 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
                                        Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
     if (!value) {

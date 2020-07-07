@@ -182,11 +182,9 @@ static void tcg_set_tb_size(Object *obj, Visitor *v,
                             Error **errp)
 {
     TCGState *s = TCG_STATE(obj);
-    Error *error = NULL;
     uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, &error)) {
-        error_propagate(errp, error);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
 

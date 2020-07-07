@@ -311,8 +311,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(xsrc), "nr-irqs", xive->nr_irqs,
                             &error_fatal);
     object_property_set_link(OBJECT(xsrc), "xive", OBJECT(xive), &error_abort);
-    if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
@@ -324,8 +323,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
                              &error_abort);
-    if (!qdev_realize(DEVICE(end_xsrc), NULL, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(end_xsrc), NULL, errp)) {
         return;
     }
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);

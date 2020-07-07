@@ -72,15 +72,12 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
 {
     AwA10State *s = AW_A10(dev);
     SysBusDevice *sysbusdev;
-    Error *err = NULL;
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, &err)) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
         return;
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), errp)) {
         return;
     }
     sysbusdev = SYS_BUS_DEVICE(&s->intc);
@@ -91,8 +88,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
     qdev_pass_gpios(DEVICE(&s->intc), dev, NULL);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), errp)) {
         return;
     }
     sysbusdev = SYS_BUS_DEVICE(&s->timer);
@@ -114,16 +110,14 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
         qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
     }
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), errp)) {
         return;
     }
     sysbusdev = SYS_BUS_DEVICE(&s->emac);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
     sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 55));
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), &err)) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, AW_A10_SATA_BASE);

@@ -80,7 +80,6 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
     BlockBackend *blk;
@@ -92,8 +91,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -226,7 +224,6 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    Error *local_err = NULL;
     Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
     Chardev *s;
@@ -237,8 +234,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -305,7 +301,6 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
-    Error *local_err = NULL;
     int queues, err = 0, i = 0;
     char *str;
 
@@ -314,8 +309,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -386,7 +380,6 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
     Property *prop = opaque;
     QEMUSoundCard *card = qdev_get_prop_ptr(dev, prop);
     AudioState *state;
-    Error *local_err = NULL;
     int err = 0;
     char *str;
 
@@ -395,8 +388,7 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 

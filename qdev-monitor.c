@@ -179,15 +179,13 @@ static int set_property(void *opaque, const char *name, const char *value,
                         Error **errp)
 {
     Object *obj = opaque;
-    Error *err = NULL;
 
     if (strcmp(name, "driver") == 0)
         return 0;
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    if (!object_property_parse(obj, name, value, &err)) {
-        error_propagate(errp, err);
+    if (!object_property_parse(obj, name, value, errp)) {
         return -1;
     }
     return 0;
@@ -797,7 +795,6 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict)
 
 void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 {
-    Error *local_err = NULL;
     QemuOpts *opts;
     DeviceState *dev;
 
@@ -809,9 +806,8 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
         qemu_opts_del(opts);
         return;
     }
-    dev = qdev_device_add(opts, &local_err);
+    dev = qdev_device_add(opts, errp);
     if (!dev) {
-        error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return;
     }
