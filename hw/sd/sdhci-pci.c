@@ -29,13 +29,12 @@ static Property sdhci_pci_properties[] = {
 
 static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
 {
+    ERRP_GUARD();
     SDHCIState *s = PCI_SDHCI(dev);
-    Error *local_err = NULL;
 
     sdhci_initfn(s);
-    sdhci_common_realize(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    sdhci_common_realize(s, errp);
+    if (*errp) {
         return;
     }
 
