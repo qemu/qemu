@@ -27,7 +27,6 @@
 #include "qemu/notify.h"
 #include "qemu/rcu.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/balloon.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/boards.h"
@@ -521,20 +520,6 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis)
 }
 
 /*
- * Manage a single vote to the QEMU balloon inhibitor for all postcopy usage,
- * last caller wins.
- */
-static void postcopy_balloon_inhibit(bool state)
-{
-    static bool cur_state = false;
-
-    if (state != cur_state) {
-        qemu_balloon_inhibit(state);
-        cur_state = state;
-    }
-}
-
-/*
  * At the end of a migration where postcopy_ram_incoming_init was called.
  */
 int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
@@ -564,8 +549,6 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         close(mis->userfault_event_fd);
         mis->have_fault_thread = false;
     }
-
-    postcopy_balloon_inhibit(false);
 
     if (enable_mlock) {
         if (os_mlock() < 0) {
@@ -1159,12 +1142,6 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         return -e;
     }
     memset(mis->postcopy_tmp_zero_page, '\0', mis->largest_page_size);
-
-    /*
-     * Ballooning can mark pages as absent while we're postcopying
-     * that would cause false userfaults.
-     */
-    postcopy_balloon_inhibit(true);
 
     trace_postcopy_ram_enable_notify();
 

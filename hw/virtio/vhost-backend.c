@@ -15,6 +15,7 @@
 #include "qemu/main-loop.h"
 #include "standard-headers/linux/vhost_types.h"
 
+#include "hw/virtio/vhost-vdpa.h"
 #ifdef CONFIG_VHOST_KERNEL
 #include <linux/vhost.h>
 #include <sys/ioctl.h>
@@ -284,6 +285,11 @@ int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)
 #ifdef CONFIG_VHOST_USER
     case VHOST_BACKEND_TYPE_USER:
         dev->vhost_ops = &user_ops;
+        break;
+#endif
+#ifdef CONFIG_VHOST_VDPA
+    case VHOST_BACKEND_TYPE_VDPA:
+        dev->vhost_ops = &vdpa_ops;
         break;
 #endif
     default:

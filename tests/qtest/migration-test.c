@@ -1211,7 +1211,7 @@ static void test_migrate_auto_converge(void)
      * without throttling.
      */
     migrate_set_parameter_int(from, "downtime-limit", 1);
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000); /* ~1Mb/s */
+    migrate_set_parameter_int(from, "max-bandwidth", 100000000); /* ~100Mb/s */
 
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);

@@ -47,3 +47,14 @@ config VIRTIO_PMEM
     depends on VIRTIO
     depends on VIRTIO_PMEM_SUPPORTED
     select MEM_DEVICE
+
+config VIRTIO_MEM_SUPPORTED
+    bool
+
+config VIRTIO_MEM
+    bool
+    default y
+    depends on VIRTIO
+    depends on LINUX
+    depends on VIRTIO_MEM_SUPPORTED
+    select MEM_DEVICE

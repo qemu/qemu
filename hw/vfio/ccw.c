@@ -574,12 +574,13 @@ static void vfio_ccw_get_device(VFIOGroup *group, VFIOCCWDevice *vcdev,
 
     /*
      * All vfio-ccw devices are believed to operate in a way compatible with
-     * memory ballooning, ie. pages pinned in the host are in the current
-     * working set of the guest driver and therefore never overlap with pages
-     * available to the guest balloon driver.  This needs to be set before
-     * vfio_get_device() for vfio common to handle the balloon inhibitor.
+     * discarding of memory in RAM blocks, ie. pages pinned in the host are
+     * in the current working set of the guest driver and therefore never
+     * overlap e.g., with pages available to the guest balloon driver.  This
+     * needs to be set before vfio_get_device() for vfio common to handle
+     * ram_block_discard_disable().
      */
-    vcdev->vdev.balloon_allowed = true;
+    vcdev->vdev.ram_block_discard_allowed = true;
 
     if (vfio_get_device(group, vcdev->cdev.mdevid, &vcdev->vdev, errp)) {
         goto out_err;

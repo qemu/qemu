@@ -92,6 +92,13 @@ struct vhost_dev {
     const VhostDevConfigOps *config_ops;
 };
 
+struct vhost_net {
+    struct vhost_dev dev;
+    struct vhost_virtqueue vqs[2];
+    int backend;
+    NetClientState *nc;
+};
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type,
                    uint32_t busyloop_timeout);

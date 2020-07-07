@@ -1575,6 +1575,10 @@ for opt do
   ;;
   --enable-vhost-user) vhost_user="yes"
   ;;
+  --disable-vhost-vdpa) vhost_vdpa="no"
+  ;;
+  --enable-vhost-vdpa) vhost_vdpa="yes"
+  ;;
   --disable-vhost-kernel) vhost_kernel="no"
   ;;
   --enable-vhost-kernel) vhost_kernel="yes"
@@ -1883,6 +1887,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhost-crypto    vhost-user-crypto backend support
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
+  vhost-vdpa      vhost-vdpa kernel backend support
   spice           spice
   rbd             rados block device (rbd)
   libiscsi        iscsi support
@@ -2394,6 +2399,10 @@ test "$vhost_user" = "" && vhost_user=yes
 if test "$vhost_user" = "yes" && test "$mingw32" = "yes"; then
   error_exit "vhost-user isn't available on win32"
 fi
+test "$vhost_vdpa" = "" && vhost_vdpa=$linux
+if test "$vhost_vdpa" = "yes" && test "$linux" != "yes"; then
+  error_exit "vhost-vdpa is only available on Linux"
+fi
 test "$vhost_kernel" = "" && vhost_kernel=$linux
 if test "$vhost_kernel" = "yes" && test "$linux" != "yes"; then
   error_exit "vhost-kernel is only available on Linux"
@@ -2421,6 +2430,11 @@ fi
 test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
 if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
+fi
+#vhost-vdpa backends
+test "$vhost_net_vdpa" = "" && vhost_net_vdpa=$vhost_vdpa
+if test "$vhost_net_vdpa" = "yes" && test "$vhost_vdpa" = "no"; then
+  error_exit "--enable-vhost-net-vdpa requires --enable-vhost-vdpa"
 fi
 
 # OR the vhost-kernel and vhost-user values for simplicity
@@ -6947,6 +6961,7 @@ echo "vhost-scsi support $vhost_scsi"
 echo "vhost-vsock support $vhost_vsock"
 echo "vhost-user support $vhost_user"
 echo "vhost-user-fs support $vhost_user_fs"
+echo "vhost-vdpa support $vhost_vdpa"
 echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
@@ -7454,6 +7469,9 @@ fi
 if test "$vhost_net_user" = "yes" ; then
   echo "CONFIG_VHOST_NET_USER=y" >> $config_host_mak
 fi
+if test "$vhost_net_vdpa" = "yes" ; then
+  echo "CONFIG_VHOST_NET_VDPA=y" >> $config_host_mak
+fi
 if test "$vhost_crypto" = "yes" ; then
   echo "CONFIG_VHOST_CRYPTO=y" >> $config_host_mak
 fi
@@ -7468,6 +7486,9 @@ if test "$vhost_kernel" = "yes" ; then
 fi
 if test "$vhost_user" = "yes" ; then
   echo "CONFIG_VHOST_USER=y" >> $config_host_mak
+fi
+if test "$vhost_vdpa" = "yes" ; then
+  echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
 fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
