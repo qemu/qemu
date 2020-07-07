@@ -15,6 +15,33 @@
 /*
  * Error reporting system loosely patterned after Glib's GError.
  *
+ * = Rules =
+ *
+ * - Functions that use Error to report errors have an Error **errp
+ *   parameter.  It should be the last parameter, except for functions
+ *   taking variable arguments.
+ *
+ * - You may pass NULL to not receive the error, &error_abort to abort
+ *   on error, &error_fatal to exit(1) on error, or a pointer to a
+ *   variable containing NULL to receive the error.
+ *
+ * - Separation of concerns: the function is responsible for detecting
+ *   errors and failing cleanly; handling the error is its caller's
+ *   job.  Since the value of @errp is about handling the error, the
+ *   function should not examine it.
+ *
+ * - On success, the function should not touch *errp.  On failure, it
+ *   should set a new error, e.g. with error_setg(errp, ...), or
+ *   propagate an existing one, e.g. with error_propagate(errp, ...).
+ *
+ * - Whenever practical, also return a value that indicates success /
+ *   failure.  This can make the error checking more concise, and can
+ *   avoid useless error object creation and destruction.  Note that
+ *   we still have many functions returning void.  We recommend
+ *   • bool-valued functions return true on success / false on failure,
+ *   • pointer-valued functions return non-null / null pointer, and
+ *   • integer-valued functions return non-negative / negative.
+ *
  * = Creating errors =
  *
  * Create an error:
@@ -95,14 +122,13 @@
  * Create a new error and pass it to the caller:
  *     error_setg(errp, "situation normal, all fouled up");
  *
- * Call a function and receive an error from it:
- *     Error *err = NULL;
- *     foo(arg, &err);
- *     if (err) {
+ * Call a function, receive an error from it, and pass it to the caller
+ * - when the function returns a value that indicates failure, say
+ *   false:
+ *     if (!foo(arg, errp)) {
  *         handle the error...
  *     }
- *
- * Receive an error and pass it on to the caller:
+ * - when it does not, say because it is a void function:
  *     Error *err = NULL;
  *     foo(arg, &err);
  *     if (err) {
@@ -119,6 +145,20 @@
  * But when all you do with the error is pass it on, please use
  *     foo(arg, errp);
  * for readability.
+ *
+ * Receive an error, and handle it locally
+ * - when the function returns a value that indicates failure, say
+ *   false:
+ *     Error *err = NULL;
+ *     if (!foo(arg, &err)) {
+ *         handle the error...
+ *     }
+ * - when it does not, say because it is a void function:
+ *     Error *err = NULL;
+ *     foo(arg, &err);
+ *     if (err) {
+ *         handle the error...
+ *     }
  *
  * Receive and accumulate multiple errors (first one wins):
  *     Error *err = NULL, *local_err = NULL;
