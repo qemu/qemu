@@ -504,9 +504,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
     id = qdict_get_try_str(bs_opts, "id");
-    opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
-    if (error) {
-        error_propagate(errp, error);
+    opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, errp);
+    if (!opts) {
         goto err_no_opts;
     }
 
