@@ -277,7 +277,6 @@ static void qemu_opt_del_all(QemuOpts *opts, const char *name)
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
-    const char *def_val;
 
     if (opts == NULL) {
         return NULL;
@@ -285,12 +284,10 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
 
     opt = qemu_opt_find(opts, name);
     if (!opt) {
-        def_val = find_default_by_name(opts, name);
-        if (def_val) {
-            return def_val;
-        }
+        return find_default_by_name(opts, name);
     }
-    return opt ? opt->str : NULL;
+
+    return opt->str;
 }
 
 void qemu_opt_iter_init(QemuOptsIter *iter, QemuOpts *opts, const char *name)
@@ -319,8 +316,7 @@ const char *qemu_opt_iter_next(QemuOptsIter *iter)
 char *qemu_opt_get_del(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
-    const char *def_val;
-    char *str = NULL;
+    char *str;
 
     if (opts == NULL) {
         return NULL;
@@ -328,11 +324,7 @@ char *qemu_opt_get_del(QemuOpts *opts, const char *name)
 
     opt = qemu_opt_find(opts, name);
     if (!opt) {
-        def_val = find_default_by_name(opts, name);
-        if (def_val) {
-            str = g_strdup(def_val);
-        }
-        return str;
+        return g_strdup(find_default_by_name(opts, name));
     }
     str = opt->str;
     opt->str = NULL;
