@@ -39,19 +39,18 @@ void visit_free(Visitor *v)
 bool visit_start_struct(Visitor *v, const char *name, void **obj,
                         size_t size, Error **errp)
 {
-    Error *err = NULL;
+    bool ok;
 
     trace_visit_start_struct(v, name, obj, size);
     if (obj) {
         assert(size);
         assert(!(v->type & VISITOR_OUTPUT) || *obj);
     }
-    v->start_struct(v, name, obj, size, &err);
+    ok = v->start_struct(v, name, obj, size, errp);
     if (obj && (v->type & VISITOR_INPUT)) {
-        assert(!err != !*obj);
+        assert(ok != !*obj);
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 
 bool visit_check_struct(Visitor *v, Error **errp)
@@ -69,16 +68,15 @@ void visit_end_struct(Visitor *v, void **obj)
 bool visit_start_list(Visitor *v, const char *name, GenericList **list,
                       size_t size, Error **errp)
 {
-    Error *err = NULL;
+    bool ok;
 
     assert(!list || size >= sizeof(GenericList));
     trace_visit_start_list(v, name, list, size);
-    v->start_list(v, name, list, size, &err);
+    ok = v->start_list(v, name, list, size, errp);
     if (list && (v->type & VISITOR_INPUT)) {
-        assert(!(err && *list));
+        assert(ok || !*list);
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 
 GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size)
@@ -104,19 +102,20 @@ bool visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
                            Error **errp)
 {
-    Error *err = NULL;
+    bool ok;
 
     assert(obj && size >= sizeof(GenericAlternate));
     assert(!(v->type & VISITOR_OUTPUT) || *obj);
     trace_visit_start_alternate(v, name, obj, size);
-    if (v->start_alternate) {
-        v->start_alternate(v, name, obj, size, &err);
+    if (!v->start_alternate) {
+        assert(!(v->type & VISITOR_INPUT));
+        return true;
     }
+    ok = v->start_alternate(v, name, obj, size, errp);
     if (v->type & VISITOR_INPUT) {
-        assert(v->start_alternate && !err != !*obj);
+        assert(ok != !*obj);
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 
 void visit_end_alternate(Visitor *v, void **obj)
@@ -309,7 +308,7 @@ bool visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 
 bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 {
-    Error *err = NULL;
+    bool ok;
 
     assert(obj);
     /* TODO: Fix callers to not pass NULL when they mean "", so that we
@@ -317,12 +316,11 @@ bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
     assert(!(v->type & VISITOR_OUTPUT) || *obj);
      */
     trace_visit_type_str(v, name, obj);
-    v->type_str(v, name, obj, &err);
+    ok = v->type_str(v, name, obj, errp);
     if (v->type & VISITOR_INPUT) {
-        assert(!err != !*obj);
+        assert(ok != !*obj);
     }
-    error_propagate(errp, err);
-    return !err;
+    return ok;
 }
 
 bool visit_type_number(Visitor *v, const char *name, double *obj,
