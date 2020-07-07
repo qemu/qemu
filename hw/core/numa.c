@@ -516,10 +516,10 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     Error *err = NULL;
     Visitor *v = opts_visitor_new(opts);
 
-    visit_type_NumaOptions(v, NULL, &object, &err);
+    visit_type_NumaOptions(v, NULL, &object, errp);
     visit_free(v);
-    if (err) {
-        goto end;
+    if (!object) {
+        return -1;
     }
 
     /* Fix up legacy suffix-less format */
@@ -530,7 +530,6 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 
     set_numa_options(ms, object, &err);
 
-end:
     qapi_free_NumaOptions(object);
     if (err) {
         error_propagate(errp, err);

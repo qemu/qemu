@@ -239,7 +239,6 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
 void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     AcpiTableOptions *hdrs = NULL;
-    Error *err = NULL;
     char **pathnames = NULL;
     char **cur;
     size_t bloblen = 0;
@@ -249,11 +248,11 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         Visitor *v;
 
         v = opts_visitor_new(opts);
-        visit_type_AcpiTableOptions(v, NULL, &hdrs, &err);
+        visit_type_AcpiTableOptions(v, NULL, &hdrs, errp);
         visit_free(v);
     }
 
-    if (err) {
+    if (!hdrs) {
         goto out;
     }
     if (hdrs->has_file == hdrs->has_data) {

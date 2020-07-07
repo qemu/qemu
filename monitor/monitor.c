@@ -657,25 +657,18 @@ int monitor_init_opts(QemuOpts *opts, Error **errp)
 {
     Visitor *v;
     MonitorOptions *options;
-    Error *local_err = NULL;
+    int ret;
 
     v = opts_visitor_new(opts);
-    visit_type_MonitorOptions(v, NULL, &options, &local_err);
+    visit_type_MonitorOptions(v, NULL, &options, errp);
     visit_free(v);
-
-    if (local_err) {
-        goto out;
-    }
-
-    monitor_init(options, true, &local_err);
-    qapi_free_MonitorOptions(options);
-
-out:
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!options) {
         return -1;
     }
-    return 0;
+
+    ret = monitor_init(options, true, errp);
+    qapi_free_MonitorOptions(options);
+    return ret;
 }
 
 QemuOptsList qemu_mon_opts = {

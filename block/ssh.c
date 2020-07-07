@@ -616,7 +616,6 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
 {
     BlockdevOptionsSsh *result = NULL;
     QemuOpts *opts = NULL;
-    Error *local_err = NULL;
     const QDictEntry *e;
     Visitor *v;
 
@@ -636,11 +635,9 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
         goto fail;
     }
 
-    visit_type_BlockdevOptionsSsh(v, NULL, &result, &local_err);
+    visit_type_BlockdevOptionsSsh(v, NULL, &result, errp);
     visit_free(v);
-
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!result) {
         goto fail;
     }
 

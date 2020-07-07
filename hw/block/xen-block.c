@@ -682,11 +682,9 @@ static char *xen_block_blockdev_add(const char *id, QDict *qdict,
     trace_xen_block_blockdev_add(node_name);
 
     v = qobject_input_visitor_new(QOBJECT(qdict));
-    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    visit_type_BlockdevOptions(v, NULL, &options, errp);
     visit_free(v);
-
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!options) {
         goto fail;
     }
 
