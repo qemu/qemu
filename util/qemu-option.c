@@ -142,6 +142,13 @@ static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
     return NULL;
 }
 
+static const char *find_default_by_name(QemuOpts *opts, const char *name)
+{
+    const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
+
+    return desc ? desc->def_value_str : NULL;
+}
+
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp)
 {
@@ -270,7 +277,7 @@ static void qemu_opt_del_all(QemuOpts *opts, const char *name)
 const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
-    const QemuOptDesc *desc;
+    const char *def_val;
 
     if (opts == NULL) {
         return NULL;
@@ -278,9 +285,9 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
 
     opt = qemu_opt_find(opts, name);
     if (!opt) {
-        desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            return desc->def_value_str;
+        def_val = find_default_by_name(opts, name);
+        if (def_val) {
+            return def_val;
         }
     }
     return opt ? opt->str : NULL;
@@ -312,7 +319,7 @@ const char *qemu_opt_iter_next(QemuOptsIter *iter)
 char *qemu_opt_get_del(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
-    const QemuOptDesc *desc;
+    const char *def_val;
     char *str = NULL;
 
     if (opts == NULL) {
@@ -321,9 +328,9 @@ char *qemu_opt_get_del(QemuOpts *opts, const char *name)
 
     opt = qemu_opt_find(opts, name);
     if (!opt) {
-        desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            str = g_strdup(desc->def_value_str);
+        def_val = find_default_by_name(opts, name);
+        if (def_val) {
+            str = g_strdup(def_val);
         }
         return str;
     }
@@ -349,7 +356,7 @@ static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
                                      bool defval, bool del)
 {
     QemuOpt *opt;
-    const QemuOptDesc *desc;
+    const char *def_val;
     bool ret = defval;
 
     if (opts == NULL) {
@@ -358,9 +365,9 @@ static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
 
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
-        desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_bool(name, desc->def_value_str, &ret, &error_abort);
+        def_val = find_default_by_name(opts, name);
+        if (def_val) {
+            parse_option_bool(name, def_val, &ret, &error_abort);
         }
         return ret;
     }
@@ -386,7 +393,7 @@ static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
                                            uint64_t defval, bool del)
 {
     QemuOpt *opt;
-    const QemuOptDesc *desc;
+    const char *def_val;
     uint64_t ret = defval;
 
     if (opts == NULL) {
@@ -395,9 +402,9 @@ static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
 
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
-        desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_number(name, desc->def_value_str, &ret, &error_abort);
+        def_val = find_default_by_name(opts, name);
+        if (def_val) {
+            parse_option_number(name, def_val, &ret, &error_abort);
         }
         return ret;
     }
@@ -424,7 +431,7 @@ static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
                                          uint64_t defval, bool del)
 {
     QemuOpt *opt;
-    const QemuOptDesc *desc;
+    const char *def_val;
     uint64_t ret = defval;
 
     if (opts == NULL) {
@@ -433,9 +440,9 @@ static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
 
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
-        desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_size(name, desc->def_value_str, &ret, &error_abort);
+        def_val = find_default_by_name(opts, name);
+        if (def_val) {
+            parse_option_size(name, def_val, &ret, &error_abort);
         }
         return ret;
     }
