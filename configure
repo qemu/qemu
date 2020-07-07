@@ -6343,6 +6343,7 @@ int main(void) {
     if (tmp != NULL) {
         return *(int *)(tmp + 2);
     }
+    return 1;
 }
 EOF
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
