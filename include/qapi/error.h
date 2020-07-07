@@ -15,6 +15,8 @@
 /*
  * Error reporting system loosely patterned after Glib's GError.
  *
+ * = Creating errors =
+ *
  * Create an error:
  *     error_setg(&err, "situation normal, all fouled up");
  *
@@ -26,6 +28,8 @@
  * Do *not* contract this to
  *     error_setg(&err, "invalid quark\n" // WRONG!
  *                "Valid quarks are up, down, strange, charm, top, bottom.");
+ *
+ * = Reporting and destroying errors =
  *
  * Report an error to the current monitor if we have one, else stderr:
  *     error_report_err(err);
@@ -40,12 +44,41 @@
  *     error_free(err);
  * Note that this loses hints added with error_append_hint().
  *
+ * Call a function ignoring errors:
+ *     foo(arg, NULL);
+ * This is more concise than
+ *     Error *err = NULL;
+ *     foo(arg, &err);
+ *     error_free(err); // don't do this
+ *
+ * Call a function aborting on errors:
+ *     foo(arg, &error_abort);
+ * This is more concise and fails more nicely than
+ *     Error *err = NULL;
+ *     foo(arg, &err);
+ *     assert(!err); // don't do this
+ *
+ * Call a function treating errors as fatal:
+ *     foo(arg, &error_fatal);
+ * This is more concise than
+ *     Error *err = NULL;
+ *     foo(arg, &err);
+ *     if (err) { // don't do this
+ *         error_report_err(err);
+ *         exit(1);
+ *     }
+ *
  * Handle an error without reporting it (just for completeness):
  *     error_free(err);
  *
  * Assert that an expected error occurred, but clean it up without
  * reporting it (primarily useful in testsuites):
  *     error_free_or_abort(&err);
+ *
+ * = Passing errors around =
+ *
+ * Errors get passed to the caller through the conventional @errp
+ * parameter.
  *
  * Pass an existing error to the caller:
  *     error_propagate(errp, err);
@@ -54,11 +87,10 @@
  * Pass an existing error to the caller with the message modified:
  *     error_propagate_prepend(errp, err,
  *                             "Could not frobnicate '%s': ", name);
- *
- * Avoid
- *     error_propagate(errp, err);
+ * This is more concise than
+ *     error_propagate(errp, err); // don't do this
  *     error_prepend(errp, "Could not frobnicate '%s': ", name);
- * because this fails to prepend when @errp is &error_fatal.
+ * and works even when @errp is &error_fatal.
  *
  * Create a new error and pass it to the caller:
  *     error_setg(errp, "situation normal, all fouled up");
@@ -70,15 +102,6 @@
  *         handle the error...
  *     }
  *
- * Call a function ignoring errors:
- *     foo(arg, NULL);
- *
- * Call a function aborting on errors:
- *     foo(arg, &error_abort);
- *
- * Call a function treating errors as fatal:
- *     foo(arg, &error_fatal);
- *
  * Receive an error and pass it on to the caller:
  *     Error *err = NULL;
  *     foo(arg, &err);
@@ -86,8 +109,6 @@
  *         handle the error...
  *         error_propagate(errp, err);
  *     }
- * where Error **errp is a parameter, by convention the last one.
- *
  * Do *not* "optimize" this to
  *     foo(arg, errp);
  *     if (*errp) { // WRONG!
