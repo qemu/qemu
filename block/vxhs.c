@@ -318,8 +318,7 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     tcp_opts = qemu_opts_create(&runtime_tcp_opts, NULL, 0, &error_abort);
 
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
+    if (!qemu_opts_absorb_qdict(opts, options, &local_err)) {
         ret = -EINVAL;
         goto out;
     }
@@ -346,8 +345,7 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
     /* get the 'server.' arguments */
     qdict_extract_subqdict(options, &backing_options, VXHS_OPT_SERVER".");
 
-    qemu_opts_absorb_qdict(tcp_opts, backing_options, &local_err);
-    if (local_err != NULL) {
+    if (!qemu_opts_absorb_qdict(tcp_opts, backing_options, &local_err)) {
         ret = -EINVAL;
         goto out;
     }

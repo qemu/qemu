@@ -103,8 +103,8 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             break;
 
         case 'l': /* shm size */
-            parse_option_size("shm_size", optarg, &args->shm_size, &err);
-            if (err) {
+            if (!parse_option_size("shm_size", optarg, &args->shm_size,
+                                   &err)) {
                 error_report_err(err);
                 ivshmem_server_help(argv[0]);
                 exit(1);

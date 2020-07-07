@@ -116,8 +116,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     }
 
     /* validate backend specific opts */
-    qemu_opts_validate(opts, be->opts, &local_err);
-    if (local_err) {
+    if (!qemu_opts_validate(opts, be->opts, &local_err)) {
         error_propagate(errp, local_err);
         return 1;
     }

@@ -509,8 +509,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         goto err_no_opts;
     }
 
-    qemu_opts_absorb_qdict(opts, bs_opts, &error);
-    if (error) {
+    if (!qemu_opts_absorb_qdict(opts, bs_opts, &error)) {
         error_propagate(errp, error);
         goto early_err;
     }
@@ -827,9 +826,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     };
 
     for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
-        qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to,
-                        &local_err);
-        if (local_err) {
+        if (!qemu_opt_rename(all_opts, opt_renames[i].from,
+                             opt_renames[i].to, &local_err)) {
             error_propagate(errp, local_err);
             return NULL;
         }
@@ -867,8 +865,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
 
     legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
                                    &error_abort);
-    qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
-    if (local_err) {
+    if (!qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err)) {
         error_propagate(errp, local_err);
         goto fail;
     }

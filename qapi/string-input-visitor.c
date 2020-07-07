@@ -318,8 +318,7 @@ static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
     uint64_t val;
 
     assert(siv->lm == LM_NONE);
-    parse_option_size(name, siv->string, &val, &err);
-    if (err) {
+    if (!parse_option_size(name, siv->string, &val, &err)) {
         error_propagate(errp, err);
         return;
     }

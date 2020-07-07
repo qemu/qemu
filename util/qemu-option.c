@@ -536,8 +536,7 @@ static bool opt_validate(QemuOpt *opt, bool *help_wanted,
     }
 
     opt->desc = desc;
-    qemu_opt_parse(opt, &local_err);
-    if (local_err) {
+    if (!qemu_opt_parse(opt, &local_err)) {
         error_propagate(errp, local_err);
         return false;
     }
@@ -929,8 +928,8 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
         return NULL;
     }
 
-    opts_do_parse(opts, params, firstname, defaults, help_wanted, &local_err);
-    if (local_err) {
+    if (!opts_do_parse(opts, params, firstname, defaults, help_wanted,
+                       &local_err)) {
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return NULL;
@@ -1045,8 +1044,7 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
     for (entry = qdict_first(qdict);
          entry;
          entry = qdict_next(qdict, entry)) {
-        qemu_opts_from_qdict_entry(opts, entry, &local_err);
-        if (local_err) {
+        if (!qemu_opts_from_qdict_entry(opts, entry, &local_err)) {
             error_propagate(errp, local_err);
             qemu_opts_del(opts);
             return NULL;
@@ -1073,8 +1071,7 @@ bool qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
         next = qdict_next(qdict, entry);
 
         if (find_desc_by_name(opts->list->desc, entry->key)) {
-            qemu_opts_from_qdict_entry(opts, entry, &local_err);
-            if (local_err) {
+            if (!qemu_opts_from_qdict_entry(opts, entry, &local_err)) {
                 error_propagate(errp, local_err);
                 return false;
             }
@@ -1158,8 +1155,7 @@ bool qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
             return false;
         }
 
-        qemu_opt_parse(opt, &local_err);
-        if (local_err) {
+        if (!qemu_opt_parse(opt, &local_err)) {
             error_propagate(errp, local_err);
             return false;
         }
