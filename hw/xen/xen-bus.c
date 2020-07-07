@@ -53,9 +53,9 @@ static char *xen_device_get_frontend_path(XenDevice *xendev)
 
 static void xen_device_unplug(XenDevice *xendev, Error **errp)
 {
+    ERRP_GUARD();
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     const char *type = object_get_typename(OBJECT(xendev));
-    Error *local_err = NULL;
     xs_transaction_t tid;
 
     trace_xen_device_unplug(type, xendev->name);
@@ -69,14 +69,14 @@ again:
     }
 
     xs_node_printf(xenbus->xsh, tid, xendev->backend_path, "online",
-                   &local_err, "%u", 0);
-    if (local_err) {
+                   errp, "%u", 0);
+    if (*errp) {
         goto abort;
     }
 
     xs_node_printf(xenbus->xsh, tid, xendev->backend_path, "state",
-                   &local_err, "%u", XenbusStateClosing);
-    if (local_err) {
+                   errp, "%u", XenbusStateClosing);
+    if (*errp) {
         goto abort;
     }
 
@@ -96,7 +96,6 @@ abort:
      * from ending the transaction.
      */
     xs_transaction_end(xenbus->xsh, tid, true);
-    error_propagate(errp, local_err);
 }
 
 static void xen_bus_print_dev(Monitor *mon, DeviceState *dev, int indent)
@@ -205,15 +204,13 @@ static XenWatch *watch_list_add(XenWatchList *watch_list, const char *node,
                                 const char *key, XenWatchHandler handler,
                                 void *opaque, Error **errp)
 {
+    ERRP_GUARD();
     XenWatch *watch = new_watch(node, key, handler, opaque);
-    Error *local_err = NULL;
 
     notifier_list_add(&watch_list->notifiers, &watch->notifier);
 
-    xs_node_watch(watch_list->xsh, node, key, watch->token, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-
+    xs_node_watch(watch_list->xsh, node, key, watch->token, errp);
+    if (*errp) {
         notifier_remove(&watch->notifier);
         free_watch(watch);
 
@@ -255,11 +252,11 @@ static void xen_bus_backend_create(XenBus *xenbus, const char *type,
                                    const char *name, char *path,
                                    Error **errp)
 {
+    ERRP_GUARD();
     xs_transaction_t tid;
     char **key;
     QDict *opts;
     unsigned int i, n;
-    Error *local_err = NULL;
 
     trace_xen_bus_backend_create(type, path);
 
@@ -314,13 +311,11 @@ again:
         return;
     }
 
-    xen_backend_device_create(xenbus, type, name, opts, &local_err);
+    xen_backend_device_create(xenbus, type, name, opts, errp);
     qobject_unref(opts);
 
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to create '%s' device '%s': ",
-                                type, name);
+    if (*errp) {
+        error_prepend(errp, "failed to create '%s' device '%s': ", type, name);
     }
 }
 
@@ -692,9 +687,9 @@ static void xen_device_remove_watch(XenDevice *xendev, XenWatch *watch,
 
 static void xen_device_backend_create(XenDevice *xendev, Error **errp)
 {
+    ERRP_GUARD();
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     struct xs_permissions perms[2];
-    Error *local_err = NULL;
 
     xendev->backend_path = xen_device_get_backend_path(xendev);
 
@@ -706,30 +701,27 @@ static void xen_device_backend_create(XenDevice *xendev, Error **errp)
     g_assert(xenbus->xsh);
 
     xs_node_create(xenbus->xsh, XBT_NULL, xendev->backend_path, perms,
-                   ARRAY_SIZE(perms), &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to create backend: ");
+                   ARRAY_SIZE(perms), errp);
+    if (*errp) {
+        error_prepend(errp, "failed to create backend: ");
         return;
     }
 
     xendev->backend_state_watch =
         xen_device_add_watch(xendev, xendev->backend_path,
                              "state", xen_device_backend_changed,
-                             &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to watch backend state: ");
+                             errp);
+    if (*errp) {
+        error_prepend(errp, "failed to watch backend state: ");
         return;
     }
 
     xendev->backend_online_watch =
         xen_device_add_watch(xendev, xendev->backend_path,
                              "online", xen_device_backend_changed,
-                             &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to watch backend online: ");
+                             errp);
+    if (*errp) {
+        error_prepend(errp, "failed to watch backend online: ");
         return;
     }
 }
@@ -866,9 +858,9 @@ static bool xen_device_frontend_exists(XenDevice *xendev)
 
 static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
 {
+    ERRP_GUARD();
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     struct xs_permissions perms[2];
-    Error *local_err = NULL;
 
     xendev->frontend_path = xen_device_get_frontend_path(xendev);
 
@@ -885,20 +877,18 @@ static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
         g_assert(xenbus->xsh);
 
         xs_node_create(xenbus->xsh, XBT_NULL, xendev->frontend_path, perms,
-                       ARRAY_SIZE(perms), &local_err);
-        if (local_err) {
-            error_propagate_prepend(errp, local_err,
-                                    "failed to create frontend: ");
+                       ARRAY_SIZE(perms), errp);
+        if (*errp) {
+            error_prepend(errp, "failed to create frontend: ");
             return;
         }
     }
 
     xendev->frontend_state_watch =
         xen_device_add_watch(xendev, xendev->frontend_path, "state",
-                             xen_device_frontend_changed, &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to watch frontend state: ");
+                             xen_device_frontend_changed, errp);
+    if (*errp) {
+        error_prepend(errp, "failed to watch frontend state: ");
     }
 }
 
@@ -1247,11 +1237,11 @@ static void xen_device_exit(Notifier *n, void *data)
 
 static void xen_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     XenDevice *xendev = XEN_DEVICE(dev);
     XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     const char *type = object_get_typename(OBJECT(xendev));
-    Error *local_err = NULL;
 
     if (xendev->frontend_id == DOMID_INVALID) {
         xendev->frontend_id = xen_domid;
@@ -1267,10 +1257,9 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
         goto unrealize;
     }
 
-    xendev->name = xendev_class->get_name(xendev, &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to get device name: ");
+    xendev->name = xendev_class->get_name(xendev, errp);
+    if (*errp) {
+        error_prepend(errp, "failed to get device name: ");
         goto unrealize;
     }
 
@@ -1293,22 +1282,19 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xendev->feature_grant_copy =
         (xengnttab_grant_copy(xendev->xgth, 0, NULL) == 0);
 
-    xen_device_backend_create(xendev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    xen_device_backend_create(xendev, errp);
+    if (*errp) {
         goto unrealize;
     }
 
-    xen_device_frontend_create(xendev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    xen_device_frontend_create(xendev, errp);
+    if (*errp) {
         goto unrealize;
     }
 
     if (xendev_class->realize) {
-        xendev_class->realize(xendev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xendev_class->realize(xendev, errp);
+        if (*errp) {
             goto unrealize;
         }
     }

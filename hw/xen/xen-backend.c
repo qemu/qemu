@@ -98,9 +98,9 @@ static void xen_backend_list_remove(XenBackendInstance *backend)
 void xen_backend_device_create(XenBus *xenbus, const char *type,
                                const char *name, QDict *opts, Error **errp)
 {
+    ERRP_GUARD();
     const XenBackendImpl *impl = xen_backend_table_lookup(type);
     XenBackendInstance *backend;
-    Error *local_error = NULL;
 
     if (!impl) {
         return;
@@ -110,9 +110,8 @@ void xen_backend_device_create(XenBus *xenbus, const char *type,
     backend->xenbus = xenbus;
     backend->name = g_strdup(name);
 
-    impl->create(backend, opts, &local_error);
-    if (local_error) {
-        error_propagate(errp, local_error);
+    impl->create(backend, opts, errp);
+    if (*errp) {
         g_free(backend->name);
         g_free(backend);
         return;
