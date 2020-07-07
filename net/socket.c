@@ -725,13 +725,18 @@ int net_init_socket(const Netdev *netdev, const char *name,
     }
 
     if (sock->has_fd) {
-        int fd;
+        int fd, ret;
 
         fd = monitor_fd_param(cur_mon, sock->fd, errp);
         if (fd == -1) {
             return -1;
         }
-        qemu_set_nonblock(fd);
+        ret = qemu_try_set_nonblock(fd);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "%s: Can't use file descriptor %d",
+                             name, fd);
+            return -1;
+        }
         if (!net_socket_fd_init(peer, "socket", name, fd, 1, sock->mcast,
                                 errp)) {
             return -1;

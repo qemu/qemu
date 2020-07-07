@@ -260,25 +260,35 @@ void qemu_set_block(int fd)
     assert(f != -1);
 }
 
-void qemu_set_nonblock(int fd)
+int qemu_try_set_nonblock(int fd)
 {
     int f;
     f = fcntl(fd, F_GETFL);
-    assert(f != -1);
-    f = fcntl(fd, F_SETFL, f | O_NONBLOCK);
-#ifdef __OpenBSD__
     if (f == -1) {
+        return -errno;
+    }
+    if (fcntl(fd, F_SETFL, f | O_NONBLOCK) == -1) {
+#ifdef __OpenBSD__
         /*
          * Previous to OpenBSD 6.3, fcntl(F_SETFL) is not permitted on
          * memory devices and sets errno to ENODEV.
          * It's OK if we fail to set O_NONBLOCK on devices like /dev/null,
          * because they will never block anyway.
          */
-        assert(errno == ENODEV);
-    }
-#else
-    assert(f != -1);
+        if (errno == ENODEV) {
+            return 0;
+        }
 #endif
+        return -errno;
+    }
+    return 0;
+}
+
+void qemu_set_nonblock(int fd)
+{
+    int f;
+    f = qemu_try_set_nonblock(fd);
+    assert(f == 0);
 }
 
 int socket_set_fast_reuse(int fd)
