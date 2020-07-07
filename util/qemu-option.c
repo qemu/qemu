@@ -516,36 +516,39 @@ static QemuOpt *opt_create(QemuOpts *opts, const char *name, char *value,
     return opt;
 }
 
-static void opt_set(QemuOpts *opts, const char *name, char *value,
-                    bool prepend, bool *help_wanted, Error **errp)
+static bool opt_validate(QemuOpt *opt, bool *help_wanted,
+                         Error **errp)
 {
-    QemuOpt *opt;
     const QemuOptDesc *desc;
     Error *local_err = NULL;
 
-    desc = find_desc_by_name(opts->list->desc, name);
-    if (!desc && !opts_accepts_any(opts)) {
-        g_free(value);
-        error_setg(errp, QERR_INVALID_PARAMETER, name);
-        if (help_wanted && is_help_option(name)) {
+    desc = find_desc_by_name(opt->opts->list->desc, opt->name);
+    if (!desc && !opts_accepts_any(opt->opts)) {
+        error_setg(errp, QERR_INVALID_PARAMETER, opt->name);
+        if (help_wanted && is_help_option(opt->name)) {
             *help_wanted = true;
         }
-        return;
+        return false;
     }
 
-    opt = opt_create(opts, name, value, prepend);
     opt->desc = desc;
     qemu_opt_parse(opt, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        qemu_opt_del(opt);
+        return false;
     }
+
+    return true;
 }
 
 void qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
                   Error **errp)
 {
-    opt_set(opts, name, g_strdup(value), false, NULL, errp);
+    QemuOpt *opt = opt_create(opts, name, g_strdup(value), false);
+
+    if (!opt_validate(opt, NULL, errp)) {
+        qemu_opt_del(opt);
+    }
 }
 
 void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
@@ -817,9 +820,9 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
                           const char *firstname, bool prepend,
                           bool *help_wanted, Error **errp)
 {
-    Error *local_err = NULL;
     char *option, *value;
     const char *p;
+    QemuOpt *opt;
 
     for (p = params; *p;) {
         p = get_opt_name_value(p, firstname, &option, &value);
@@ -831,10 +834,10 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
             continue;
         }
 
-        opt_set(opts, option, value, prepend, help_wanted, &local_err);
+        opt = opt_create(opts, option, value, prepend);
         g_free(option);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!opt_validate(opt, help_wanted, errp)) {
+            qemu_opt_del(opt);
             return;
         }
     }
