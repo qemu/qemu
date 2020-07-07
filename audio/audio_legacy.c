@@ -421,11 +421,12 @@ typedef struct {
     GList *path;
 } LegacyPrintVisitor;
 
-static void lv_start_struct(Visitor *v, const char *name, void **obj,
+static bool lv_start_struct(Visitor *v, const char *name, void **obj,
                             size_t size, Error **errp)
 {
     LegacyPrintVisitor *lv = (LegacyPrintVisitor *) v;
     lv->path = g_list_append(lv->path, g_strdup(name));
+    return true;
 }
 
 static void lv_end_struct(Visitor *v, void **obj)
@@ -453,27 +454,30 @@ static void lv_print_key(Visitor *v, const char *name)
     printf("%s=", name);
 }
 
-static void lv_type_int64(Visitor *v, const char *name, int64_t *obj,
+static bool lv_type_int64(Visitor *v, const char *name, int64_t *obj,
                           Error **errp)
 {
     lv_print_key(v, name);
     printf("%" PRIi64, *obj);
+    return true;
 }
 
-static void lv_type_uint64(Visitor *v, const char *name, uint64_t *obj,
+static bool lv_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                            Error **errp)
 {
     lv_print_key(v, name);
     printf("%" PRIu64, *obj);
+    return true;
 }
 
-static void lv_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
+static bool lv_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
     lv_print_key(v, name);
     printf("%s", *obj ? "on" : "off");
+    return true;
 }
 
-static void lv_type_str(Visitor *v, const char *name, char **obj, Error **errp)
+static bool lv_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 {
     const char *str = *obj;
     lv_print_key(v, name);
@@ -484,6 +488,7 @@ static void lv_type_str(Visitor *v, const char *name, char **obj, Error **errp)
         }
         putchar(*str++);
     }
+    return true;
 }
 
 static void lv_complete(Visitor *v, void *opaque)

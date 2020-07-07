@@ -1408,42 +1408,38 @@ Example:
     #include "example-qapi-types.h"
 
 
-    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
-    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
-    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
+    bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
+    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
+    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
 
-    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
+    bool visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
 
     #endif /* EXAMPLE_QAPI_VISIT_H */
     $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
-    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
+    bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
     {
         Error *err = NULL;
 
-        visit_type_int(v, "integer", &obj->integer, &err);
-        if (err) {
-            goto out;
+        if (!visit_type_int(v, "integer", &obj->integer, errp)) {
+            return false;
         }
         if (visit_optional(v, "string", &obj->has_string)) {
-            visit_type_str(v, "string", &obj->string, &err);
-            if (err) {
-                goto out;
+            if (!visit_type_str(v, "string", &obj->string, errp)) {
+                return false;
             }
         }
-
-    out:
         error_propagate(errp, err);
+        return !err;
     }
 
-    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
+    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
     {
         Error *err = NULL;
 
-        visit_start_struct(v, name, (void **)obj, sizeof(UserDefOne), &err);
-        if (err) {
-            goto out;
+        if (!visit_start_struct(v, name, (void **)obj, sizeof(UserDefOne), errp)) {
+            return false;
         }
         if (!*obj) {
             /* incomplete */
@@ -1461,19 +1457,18 @@ Example:
             qapi_free_UserDefOne(*obj);
             *obj = NULL;
         }
-    out:
         error_propagate(errp, err);
+        return !err;
     }
 
-    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
+    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
     {
         Error *err = NULL;
         UserDefOneList *tail;
         size_t size = sizeof(**obj);
 
-        visit_start_list(v, name, (GenericList **)obj, size, &err);
-        if (err) {
-            goto out;
+        if (!visit_start_list(v, name, (GenericList **)obj, size, errp)) {
+            return false;
         }
 
         for (tail = *obj; tail;
@@ -1492,21 +1487,19 @@ Example:
             qapi_free_UserDefOneList(*obj);
             *obj = NULL;
         }
-    out:
         error_propagate(errp, err);
+        return !err;
     }
 
-    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp)
+    bool visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp)
     {
         Error *err = NULL;
 
-        visit_type_UserDefOneList(v, "arg1", &obj->arg1, &err);
-        if (err) {
-            goto out;
+        if (!visit_type_UserDefOneList(v, "arg1", &obj->arg1, errp)) {
+            return false;
         }
-
-    out:
         error_propagate(errp, err);
+        return !err;
     }
 
 [Uninteresting stuff omitted...]

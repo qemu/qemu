@@ -237,7 +237,7 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
 }
 
 
-static void qobject_input_check_struct(Visitor *v, Error **errp)
+static bool qobject_input_check_struct(Visitor *v, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
@@ -250,7 +250,9 @@ static void qobject_input_check_struct(Visitor *v, Error **errp)
     if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
         error_setg(errp, "Parameter '%s' is unexpected",
                    full_name(qiv, key));
+        return false;
     }
+    return true;
 }
 
 static void qobject_input_stack_object_free(StackObject *tos)
@@ -272,7 +274,7 @@ static void qobject_input_pop(Visitor *v, void **obj)
     qobject_input_stack_object_free(tos);
 }
 
-static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
+static bool qobject_input_start_struct(Visitor *v, const char *name, void **obj,
                                        size_t size, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -282,12 +284,12 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
         *obj = NULL;
     }
     if (!qobj) {
-        return;
+        return false;
     }
     if (qobject_type(qobj) != QTYPE_QDICT) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "object");
-        return;
+        return false;
     }
 
     qobject_input_push(qiv, name, qobj, obj);
@@ -295,6 +297,7 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
     if (obj) {
         *obj = g_malloc0(size);
     }
+    return true;
 }
 
 static void qobject_input_end_struct(Visitor *v, void **obj)
@@ -307,7 +310,7 @@ static void qobject_input_end_struct(Visitor *v, void **obj)
 }
 
 
-static void qobject_input_start_list(Visitor *v, const char *name,
+static bool qobject_input_start_list(Visitor *v, const char *name,
                                      GenericList **list, size_t size,
                                      Error **errp)
 {
@@ -319,18 +322,19 @@ static void qobject_input_start_list(Visitor *v, const char *name,
         *list = NULL;
     }
     if (!qobj) {
-        return;
+        return false;
     }
     if (qobject_type(qobj) != QTYPE_QLIST) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "array");
-        return;
+        return false;
     }
 
     entry = qobject_input_push(qiv, name, qobj, list);
     if (entry && list) {
         *list = g_malloc0(size);
     }
+    return true;
 }
 
 static GenericList *qobject_input_next_list(Visitor *v, GenericList *tail,
@@ -348,7 +352,7 @@ static GenericList *qobject_input_next_list(Visitor *v, GenericList *tail,
     return tail->next;
 }
 
-static void qobject_input_check_list(Visitor *v, Error **errp)
+static bool qobject_input_check_list(Visitor *v, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
@@ -358,7 +362,9 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
     if (tos->entry) {
         error_setg(errp, "Only %u list elements expected in %s",
                    tos->index + 1, full_name_nth(qiv, NULL, 1));
+        return false;
     }
+    return true;
 }
 
 static void qobject_input_end_list(Visitor *v, void **obj)
@@ -370,7 +376,7 @@ static void qobject_input_end_list(Visitor *v, void **obj)
     qobject_input_pop(v, obj);
 }
 
-static void qobject_input_start_alternate(Visitor *v, const char *name,
+static bool qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
                                           Error **errp)
 {
@@ -379,13 +385,14 @@ static void qobject_input_start_alternate(Visitor *v, const char *name,
 
     if (!qobj) {
         *obj = NULL;
-        return;
+        return false;
     }
     *obj = g_malloc0(size);
     (*obj)->type = qobject_type(qobj);
+    return true;
 }
 
-static void qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
+static bool qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
                                      Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -393,33 +400,37 @@ static void qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
     QNum *qnum;
 
     if (!qobj) {
-        return;
+        return false;
     }
     qnum = qobject_to(QNum, qobj);
     if (!qnum || !qnum_get_try_int(qnum, obj)) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "integer");
+        return false;
     }
+    return true;
 }
 
-static void qobject_input_type_int64_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_int64_keyval(Visitor *v, const char *name,
                                             int64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     const char *str = qobject_input_get_keyval(qiv, name, errp);
 
     if (!str) {
-        return;
+        return false;
     }
 
     if (qemu_strtoi64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    full_name(qiv, name), "integer");
+        return false;
     }
+    return true;
 }
 
-static void qobject_input_type_uint64(Visitor *v, const char *name,
+static bool qobject_input_type_uint64(Visitor *v, const char *name,
                                       uint64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -428,7 +439,7 @@ static void qobject_input_type_uint64(Visitor *v, const char *name,
     int64_t val;
 
     if (!qobj) {
-        return;
+        return false;
     }
     qnum = qobject_to(QNum, qobj);
     if (!qnum) {
@@ -436,38 +447,41 @@ static void qobject_input_type_uint64(Visitor *v, const char *name,
     }
 
     if (qnum_get_try_uint(qnum, obj)) {
-        return;
+        return true;
     }
 
     /* Need to accept negative values for backward compatibility */
     if (qnum_get_try_int(qnum, &val)) {
         *obj = val;
-        return;
+        return true;
     }
 
 err:
     error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                full_name(qiv, name), "uint64");
+    return false;
 }
 
-static void qobject_input_type_uint64_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_uint64_keyval(Visitor *v, const char *name,
                                              uint64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     const char *str = qobject_input_get_keyval(qiv, name, errp);
 
     if (!str) {
-        return;
+        return false;
     }
 
     if (qemu_strtou64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    full_name(qiv, name), "integer");
+        return false;
     }
+    return true;
 }
 
-static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
+static bool qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
                                     Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -475,26 +489,27 @@ static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
     QBool *qbool;
 
     if (!qobj) {
-        return;
+        return false;
     }
     qbool = qobject_to(QBool, qobj);
     if (!qbool) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "boolean");
-        return;
+        return false;
     }
 
     *obj = qbool_get_bool(qbool);
+    return true;
 }
 
-static void qobject_input_type_bool_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_bool_keyval(Visitor *v, const char *name,
                                            bool *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     const char *str = qobject_input_get_keyval(qiv, name, errp);
 
     if (!str) {
-        return;
+        return false;
     }
 
     if (!strcmp(str, "on")) {
@@ -504,10 +519,12 @@ static void qobject_input_type_bool_keyval(Visitor *v, const char *name,
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    full_name(qiv, name), "'on' or 'off'");
+        return false;
     }
+    return true;
 }
 
-static void qobject_input_type_str(Visitor *v, const char *name, char **obj,
+static bool qobject_input_type_str(Visitor *v, const char *name, char **obj,
                                    Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -516,28 +533,30 @@ static void qobject_input_type_str(Visitor *v, const char *name, char **obj,
 
     *obj = NULL;
     if (!qobj) {
-        return;
+        return false;
     }
     qstr = qobject_to(QString, qobj);
     if (!qstr) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "string");
-        return;
+        return false;
     }
 
     *obj = g_strdup(qstring_get_str(qstr));
+    return true;
 }
 
-static void qobject_input_type_str_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_str_keyval(Visitor *v, const char *name,
                                           char **obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     const char *str = qobject_input_get_keyval(qiv, name, errp);
 
     *obj = g_strdup(str);
+    return !!str;
 }
 
-static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
+static bool qobject_input_type_number(Visitor *v, const char *name, double *obj,
                                       Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -545,19 +564,20 @@ static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
     QNum *qnum;
 
     if (!qobj) {
-        return;
+        return false;
     }
     qnum = qobject_to(QNum, qobj);
     if (!qnum) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "number");
-        return;
+        return false;
     }
 
     *obj = qnum_get_double(qnum);
+    return true;
 }
 
-static void qobject_input_type_number_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_number_keyval(Visitor *v, const char *name,
                                              double *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -565,20 +585,21 @@ static void qobject_input_type_number_keyval(Visitor *v, const char *name,
     double val;
 
     if (!str) {
-        return;
+        return false;
     }
 
     if (qemu_strtod_finite(str, NULL, &val)) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "number");
-        return;
+        return false;
     }
 
     *obj = val;
+    return true;
 }
 
-static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
+static bool qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
                                    Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -586,13 +607,14 @@ static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
 
     *obj = NULL;
     if (!qobj) {
-        return;
+        return false;
     }
 
     *obj = qobject_ref(qobj);
+    return true;
 }
 
-static void qobject_input_type_null(Visitor *v, const char *name,
+static bool qobject_input_type_null(Visitor *v, const char *name,
                                     QNull **obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
@@ -600,32 +622,35 @@ static void qobject_input_type_null(Visitor *v, const char *name,
 
     *obj = NULL;
     if (!qobj) {
-        return;
+        return false;
     }
 
     if (qobject_type(qobj) != QTYPE_QNULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "null");
-        return;
+        return false;
     }
     *obj = qnull();
+    return true;
 }
 
-static void qobject_input_type_size_keyval(Visitor *v, const char *name,
+static bool qobject_input_type_size_keyval(Visitor *v, const char *name,
                                            uint64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     const char *str = qobject_input_get_keyval(qiv, name, errp);
 
     if (!str) {
-        return;
+        return false;
     }
 
     if (qemu_strtosz(str, NULL, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    full_name(qiv, name), "size");
+        return false;
     }
+    return true;
 }
 
 static void qobject_input_optional(Visitor *v, const char *name, bool *present)

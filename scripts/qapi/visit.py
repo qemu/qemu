@@ -23,7 +23,7 @@ def gen_visit_decl(name, scalar=False):
     if not scalar:
         c_type += '*'
     return mcgen('''
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **errp);
+bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **errp);
 ''',
                  c_name=c_name(name), c_type=c_type)
 
@@ -31,7 +31,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_type)sobj, Error **
 def gen_visit_members_decl(name):
     return mcgen('''
 
-void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
+bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 ''',
                  c_name=c_name(name))
 
@@ -39,7 +39,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 def gen_visit_object_members(name, base, members, variants):
     ret = mcgen('''
 
-void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
+bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
     Error *err = NULL;
 
@@ -48,9 +48,8 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 
     if base:
         ret += mcgen('''
-    visit_type_%(c_type)s_members(v, (%(c_type)s *)obj, &err);
-    if (err) {
-        goto out;
+    if (!visit_type_%(c_type)s_members(v, (%(c_type)s *)obj, errp)) {
+        return false;
     }
 ''',
                      c_type=base.c_name())
@@ -64,9 +63,8 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                          name=memb.name, c_name=c_name(memb.name))
             push_indent()
         ret += mcgen('''
-    visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
-    if (err) {
-        goto out;
+    if (!visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, errp)) {
+        return false;
     }
 ''',
                      c_type=memb.type.c_name(), name=memb.name,
@@ -112,15 +110,9 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
     }
 ''')
 
-    # 'goto out' produced for base, for each member, and if variants were
-    # present
-    if base or members or variants:
-        ret += mcgen('''
-
-out:
-''')
     ret += mcgen('''
     error_propagate(errp, err);
+    return !err;
 }
 ''')
     return ret
@@ -129,15 +121,14 @@ out:
 def gen_visit_list(name, element_type):
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
+bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
     %(c_name)s *tail;
     size_t size = sizeof(**obj);
 
-    visit_start_list(v, name, (GenericList **)obj, size, &err);
-    if (err) {
-        goto out;
+    if (!visit_start_list(v, name, (GenericList **)obj, size, errp)) {
+        return false;
     }
 
     for (tail = *obj; tail;
@@ -156,8 +147,8 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-out:
     error_propagate(errp, err);
+    return !err;
 }
 ''',
                  c_name=c_name(name), c_elt_type=element_type.c_name())
@@ -166,11 +157,12 @@ out:
 def gen_visit_enum(name):
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error **errp)
+bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error **errp)
 {
     int value = *obj;
-    visit_type_enum(v, name, &value, &%(c_name)s_lookup, errp);
+    bool ok = visit_type_enum(v, name, &value, &%(c_name)s_lookup, errp);
     *obj = value;
+    return ok;
 }
 ''',
                  c_name=c_name(name))
@@ -179,14 +171,13 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error 
 def gen_visit_alternate(name, variants):
     ret = mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
+bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_alternate(v, name, (GenericAlternate **)obj, sizeof(**obj),
-                          &err);
-    if (err) {
-        goto out;
+    if (!visit_start_alternate(v, name, (GenericAlternate **)obj,
+                               sizeof(**obj), errp)) {
+        return false;
     }
     if (!*obj) {
         /* incomplete */
@@ -245,8 +236,8 @@ out_obj:
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-out:
     error_propagate(errp, err);
+    return !err;
 }
 ''',
                  name=name, c_name=c_name(name))
@@ -257,13 +248,12 @@ out:
 def gen_visit_object(name, base, members, variants):
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
+bool visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), &err);
-    if (err) {
-        goto out;
+    if (!visit_start_struct(v, name, (void **)obj, sizeof(%(c_name)s), errp)) {
+        return false;
     }
     if (!*obj) {
         /* incomplete */
@@ -281,8 +271,8 @@ out_obj:
         qapi_free_%(c_name)s(*obj);
         *obj = NULL;
     }
-out:
     error_propagate(errp, err);
+    return !err;
 }
 ''',
                  c_name=c_name(name))
