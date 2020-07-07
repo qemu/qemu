@@ -842,6 +842,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
                                        &local_err);
     g_free(buf);
     if (local_err != NULL) {
+        error_propagate(errp, local_err);
         goto fail_options;
     }
 
@@ -872,15 +873,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
 fail_format:
     error_setg(errp, "Image not in Parallels format");
+fail_options:
     ret = -EINVAL;
 fail:
     qemu_vfree(s->header);
     return ret;
-
-fail_options:
-    error_propagate(errp, local_err);
-    ret = -EINVAL;
-    goto fail;
 }
 
 
