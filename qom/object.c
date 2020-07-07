@@ -557,7 +557,7 @@ bool object_initialize_child_with_propsv(Object *parentobj,
     object_initialize(childobj, size, type);
     obj = OBJECT(childobj);
 
-    if (object_set_propv(obj, errp, vargs) < 0) {
+    if (!object_set_propv(obj, errp, vargs)) {
         goto out;
     }
 
@@ -752,7 +752,7 @@ Object *object_new_with_propv(const char *typename,
     }
     obj = object_new_with_type(klass->type);
 
-    if (object_set_propv(obj, errp, vargs) < 0) {
+    if (!object_set_propv(obj, errp, vargs)) {
         goto error;
     }
 
@@ -780,12 +780,12 @@ Object *object_new_with_propv(const char *typename,
 }
 
 
-int object_set_props(Object *obj,
+bool object_set_props(Object *obj,
                      Error **errp,
                      ...)
 {
     va_list vargs;
-    int ret;
+    bool ret;
 
     va_start(vargs, errp);
     ret = object_set_propv(obj, errp, vargs);
@@ -795,7 +795,7 @@ int object_set_props(Object *obj,
 }
 
 
-int object_set_propv(Object *obj,
+bool object_set_propv(Object *obj,
                      Error **errp,
                      va_list vargs)
 {
@@ -809,12 +809,12 @@ int object_set_propv(Object *obj,
         g_assert(value != NULL);
         if (!object_property_parse(obj, propname, value, &local_err)) {
             error_propagate(errp, local_err);
-            return -1;
+            return false;
         }
         propname = va_arg(vargs, char *);
     }
 
-    return 0;
+    return true;
 }
 
 

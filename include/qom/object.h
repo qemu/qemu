@@ -729,15 +729,13 @@ void object_apply_compat_props(Object *obj);
  *   Error *err = NULL;
  *   Object *obj = ...get / create object...;
  *
- *   obj = object_set_props(obj,
- *                          &err,
- *                          "share", "yes",
- *                          "mem-path", "/dev/shm/somefile",
- *                          "prealloc", "yes",
- *                          "size", "1048576",
- *                          NULL);
- *
- *   if (!obj) {
+ *   if (!object_set_props(obj,
+ *                         &err,
+ *                         "share", "yes",
+ *                         "mem-path", "/dev/shm/somefile",
+ *                         "prealloc", "yes",
+ *                         "size", "1048576",
+ *                         NULL)) {
  *     error_reportf_err(err, "Cannot set properties: ");
  *   }
  *   </programlisting>
@@ -746,11 +744,9 @@ void object_apply_compat_props(Object *obj);
  * The returned object will have one stable reference maintained
  * for as long as it is present in the object hierarchy.
  *
- * Returns: -1 on error, 0 on success
+ * Returns: %true on success, %false on error.
  */
-int object_set_props(Object *obj,
-                     Error **errp,
-                     ...) QEMU_SENTINEL;
+bool object_set_props(Object *obj, Error **errp, ...) QEMU_SENTINEL;
 
 /**
  * object_set_propv:
@@ -760,11 +756,9 @@ int object_set_props(Object *obj,
  *
  * See object_set_props() for documentation.
  *
- * Returns: -1 on error, 0 on success
+ * Returns: %true on success, %false on error.
  */
-int object_set_propv(Object *obj,
-                     Error **errp,
-                     va_list vargs);
+bool object_set_propv(Object *obj, Error **errp, va_list vargs);
 
 /**
  * object_initialize:
