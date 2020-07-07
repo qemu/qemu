@@ -5141,10 +5141,14 @@ extern int openpty(int *am, int *as, char *name, void *termp, void *winp);
 int main(void) { return openpty(0, 0, 0, 0, 0); }
 EOF
 
-if ! compile_prog "" "" ; then
+have_openpty="no"
+if compile_prog "" "" ; then
+  have_openpty="yes"
+else
   if compile_prog "" "-lutil" ; then
     libs_softmmu="-lutil $libs_softmmu"
     libs_tools="-lutil $libs_tools"
+    have_openpty="yes"
   fi
 fi
 
@@ -7389,6 +7393,9 @@ if test "$have_drm_h" = "yes" ; then
 fi
 if test "$have_broken_size_max" = "yes" ; then
     echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
+fi
+if test "$have_openpty" = "yes" ; then
+    echo "HAVE_OPENPTY=y" >> $config_host_mak
 fi
 
 # Work around a system header bug with some kernel/XFS header

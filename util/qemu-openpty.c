@@ -52,7 +52,9 @@
 #endif
 
 #ifdef __sun__
-/* Once Solaris has openpty(), this is going to be removed. */
+
+#if !defined(HAVE_OPENPTY)
+/* Once illumos has openpty(), this is going to be removed. */
 static int openpty(int *amaster, int *aslave, char *name,
                    struct termios *termp, struct winsize *winp)
 {
@@ -93,6 +95,7 @@ err:
         close(mfd);
         return -1;
 }
+#endif
 
 static void cfmakeraw (struct termios *termios_p)
 {
