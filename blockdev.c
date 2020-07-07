@@ -863,8 +863,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
 
     legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
                                    &error_abort);
-    if (!qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qemu_opts_absorb_qdict(legacy_opts, bs_opts, errp)) {
         goto fail;
     }
 

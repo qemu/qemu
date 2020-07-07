@@ -2250,7 +2250,6 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 {
     int ret;
     BlockBackend *blk = NULL;
-    Error *local_err = NULL;
 
     ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
@@ -2259,9 +2258,8 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     blk = blk_new_open(filename, NULL, NULL,
                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
+                       errp);
     if (blk == NULL) {
-        error_propagate(errp, local_err);
         ret = -EIO;
         goto exit;
     }
