@@ -158,16 +158,15 @@ cryptodev_backend_set_queues(Object *obj, Visitor *v, const char *name,
     uint32_t value;
 
     if (!visit_type_uint32(v, name, &value, &local_err)) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
     if (!value) {
-        error_setg(&local_err, "Property '%s.%s' doesn't take value '%"
-                   PRIu32 "'", object_get_typename(obj), name, value);
-        goto out;
+        error_setg(errp, "Property '%s.%s' doesn't take value '%" PRIu32 "'",
+                   object_get_typename(obj), name, value);
+        return;
     }
     backend->conf.peers.queues = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void

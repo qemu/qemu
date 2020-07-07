@@ -326,14 +326,14 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
     /* vdisk-id is the disk UUID */
     vdisk_id_opt = qemu_opt_get(opts, VXHS_OPT_VDISK_ID);
     if (!vdisk_id_opt) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, VXHS_OPT_VDISK_ID);
+        error_setg(errp, QERR_MISSING_PARAMETER, VXHS_OPT_VDISK_ID);
         ret = -EINVAL;
         goto out;
     }
 
     /* vdisk-id may contain a leading '/' */
     if (strlen(vdisk_id_opt) > UUID_FMT_LEN + 1) {
-        error_setg(&local_err, "vdisk-id cannot be more than %d characters",
+        error_setg(errp, "vdisk-id cannot be more than %d characters",
                    UUID_FMT_LEN);
         ret = -EINVAL;
         goto out;
@@ -352,14 +352,14 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
 
     server_host_opt = qemu_opt_get(tcp_opts, VXHS_OPT_HOST);
     if (!server_host_opt) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER,
+        error_setg(errp, QERR_MISSING_PARAMETER,
                    VXHS_OPT_SERVER"."VXHS_OPT_HOST);
         ret = -EINVAL;
         goto out;
     }
 
     if (strlen(server_host_opt) > MAXHOSTNAMELEN) {
-        error_setg(&local_err, "server.host cannot be more than %d characters",
+        error_setg(errp, "server.host cannot be more than %d characters",
                    MAXHOSTNAMELEN);
         ret = -EINVAL;
         goto out;
@@ -412,7 +412,6 @@ out:
 
     if (ret < 0) {
         vxhs_unref();
-        error_propagate(errp, local_err);
         g_free(s->vdisk_hostinfo.host);
         g_free(s->vdisk_guid);
         g_free(s->tlscredsid);

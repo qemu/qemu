@@ -244,13 +244,14 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     int64_t value;
 
     if (!visit_type_int64(v, name, &value, &local_err)) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
 
     if (value < 0) {
-        error_setg(&local_err, "%s value must be in range [0, %"PRId64"]",
+        error_setg(errp, "%s value must be in range [0, %" PRId64 "]",
                    info->name, INT64_MAX);
-        goto out;
+        return;
     }
 
     *field = value;
@@ -260,11 +261,8 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
                                     iothread->poll_max_ns,
                                     iothread->poll_grow,
                                     iothread->poll_shrink,
-                                    &local_err);
+                                    errp);
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void iothread_class_init(ObjectClass *klass, void *class_data)

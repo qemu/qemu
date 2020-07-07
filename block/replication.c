@@ -105,7 +105,7 @@ static int replication_open(BlockDriverState *bs, QDict *options,
 
     mode = qemu_opt_get(opts, REPLICATION_MODE);
     if (!mode) {
-        error_setg(&local_err, "Missing the option mode");
+        error_setg(errp, "Missing the option mode");
         goto fail;
     }
 
@@ -113,7 +113,8 @@ static int replication_open(BlockDriverState *bs, QDict *options,
         s->mode = REPLICATION_MODE_PRIMARY;
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
         if (top_id) {
-            error_setg(&local_err, "The primary side does not support option top-id");
+            error_setg(errp,
+                       "The primary side does not support option top-id");
             goto fail;
         }
     } else if (!strcmp(mode, "secondary")) {
@@ -121,11 +122,11 @@ static int replication_open(BlockDriverState *bs, QDict *options,
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
         s->top_id = g_strdup(top_id);
         if (!s->top_id) {
-            error_setg(&local_err, "Missing the option top-id");
+            error_setg(errp, "Missing the option top-id");
             goto fail;
         }
     } else {
-        error_setg(&local_err,
+        error_setg(errp,
                    "The option mode's value should be primary or secondary");
         goto fail;
     }
@@ -136,8 +137,6 @@ static int replication_open(BlockDriverState *bs, QDict *options,
 
 fail:
     qemu_opts_del(opts);
-    error_propagate(errp, local_err);
-
     return ret;
 }
 

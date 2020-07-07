@@ -819,16 +819,17 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
      * transaction, as certain combinations are invalid.
      */
     if (tg->is_initialized) {
-        error_setg(&local_err, "Property cannot be set after initialization");
-        goto ret;
+        error_setg(errp, "Property cannot be set after initialization");
+        return;
     }
 
     if (!visit_type_int64(v, name, &value, &local_err)) {
-        goto ret;
+        error_propagate(errp, local_err);
+        return;
     }
     if (value < 0) {
-        error_setg(&local_err, "Property values cannot be negative");
-        goto ret;
+        error_setg(errp, "Property values cannot be negative");
+        return;
     }
 
     cfg = &tg->ts.cfg;
@@ -841,9 +842,9 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
         break;
     case BURST_LENGTH:
         if (value > UINT_MAX) {
-            error_setg(&local_err, "%s value must be in the"
-                       "range [0, %u]", info->name, UINT_MAX);
-            goto ret;
+            error_setg(errp, "%s value must be in the" "range [0, %u]",
+                       info->name, UINT_MAX);
+            return;
         }
         cfg->buckets[info->type].burst_length = value;
         break;
@@ -851,11 +852,6 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
         cfg->op_size = value;
         break;
     }
-
-ret:
-    error_propagate(errp, local_err);
-    return;
-
 }
 
 static void throttle_group_get(Object *obj, Visitor *v, const char *name,

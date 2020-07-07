@@ -81,21 +81,20 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
     uint64_t value;
 
     if (host_memory_backend_mr_inited(MEMORY_BACKEND(obj))) {
-        error_setg(&local_err, "cannot change property value");
-        goto out;
+        error_setg(errp, "cannot change property value");
+        return;
     }
 
     if (!visit_type_size(v, name, &value, &local_err)) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
     if (!value) {
-        error_setg(&local_err, "Property '%s.%s' doesn't take value '%"
-                   PRIu64 "'", object_get_typename(obj), name, value);
-        goto out;
+        error_setg(errp, "Property '%s.%s' doesn't take value '%" PRIu64 "'",
+                   object_get_typename(obj), name, value);
+        return;
     }
     m->hugetlbsize = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void

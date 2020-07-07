@@ -2497,23 +2497,23 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
     unsigned int smp_threads = ms->smp.threads;
 
     if (!kvm_enabled() && (smp_threads > 1)) {
-        error_setg(&local_err, "TCG cannot support more than 1 thread/core "
-                     "on a pseries machine");
-        goto out;
+        error_setg(errp, "TCG cannot support more than 1 thread/core "
+                   "on a pseries machine");
+        return;
     }
     if (!is_power_of_2(smp_threads)) {
-        error_setg(&local_err, "Cannot support %d threads/core on a pseries "
-                     "machine because it must be a power of 2", smp_threads);
-        goto out;
+        error_setg(errp, "Cannot support %d threads/core on a pseries "
+                   "machine because it must be a power of 2", smp_threads);
+        return;
     }
 
     /* Detemine the VSMT mode to use: */
     if (vsmt_user) {
         if (spapr->vsmt < smp_threads) {
-            error_setg(&local_err, "Cannot support VSMT mode %d"
-                         " because it must be >= threads/core (%d)",
-                         spapr->vsmt, smp_threads);
-            goto out;
+            error_setg(errp, "Cannot support VSMT mode %d"
+                       " because it must be >= threads/core (%d)",
+                       spapr->vsmt, smp_threads);
+            return;
         }
         /* In this case, spapr->vsmt has been set by the command line */
     } else if (!smc->smp_threads_vsmt) {
@@ -2543,8 +2543,6 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
              * behaviour will be correct */
             if ((kvm_smt >= smp_threads) && ((spapr->vsmt % kvm_smt) == 0)) {
                 warn_report_err(local_err);
-                local_err = NULL;
-                goto out;
             } else {
                 if (!vsmt_user) {
                     error_append_hint(&local_err,
@@ -2554,13 +2552,11 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
                                       smp_threads, kvm_smt, spapr->vsmt);
                 }
                 kvmppc_error_append_smt_possible_hint(&local_err);
-                goto out;
+                error_propagate(errp, local_err);
             }
         }
     }
     /* else TCG: nothing to do currently */
-out:
-    error_propagate(errp, local_err);
 }
 
 static void spapr_init_cpus(SpaprMachineState *spapr)
@@ -3686,9 +3682,8 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     SpaprDrc *drc;
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        error_setg(&local_err,
-                   "nvdimm device hot unplug is not supported yet.");
-        goto out;
+        error_setg(errp, "nvdimm device hot unplug is not supported yet.");
+        return;
     }
 
     size = memory_device_get_region_size(MEMORY_DEVICE(dimm), &error_abort);
@@ -3697,7 +3692,8 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
                                          &local_err);
     if (local_err) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
 
     /*
@@ -3707,10 +3703,9 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
      * bail out to avoid detaching DRCs that were already released.
      */
     if (spapr_pending_dimm_unplugs_find(spapr, dimm)) {
-        error_setg(&local_err,
-                   "Memory unplug already in progress for device %s",
+        error_setg(errp, "Memory unplug already in progress for device %s",
                    dev->id);
-        goto out;
+        return;
     }
 
     spapr_pending_dimm_unplugs_add(spapr, nr_lmbs, dimm);
@@ -3729,8 +3724,6 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
                           addr_start / SPAPR_MEMORY_BLOCK_SIZE);
     spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
                                               nr_lmbs, spapr_drc_index(drc));
-out:
-    error_propagate(errp, local_err);
 }
 
 /* Callback to be called during DRC release. */
@@ -3891,7 +3884,6 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     MachineState *machine = MACHINE(OBJECT(hotplug_dev));
     MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
-    Error *local_err = NULL;
     CPUCore *cc = CPU_CORE(dev);
     const char *base_core_type = spapr_get_cpu_core_type(machine->cpu_type);
     const char *type = object_get_typename(OBJECT(dev));
@@ -3900,18 +3892,18 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     unsigned int smp_threads = machine->smp.threads;
 
     if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
-        error_setg(&local_err, "CPU hotplug not supported for this machine");
-        goto out;
+        error_setg(errp, "CPU hotplug not supported for this machine");
+        return;
     }
 
     if (strcmp(base_core_type, type)) {
-        error_setg(&local_err, "CPU core type should be %s", base_core_type);
-        goto out;
+        error_setg(errp, "CPU core type should be %s", base_core_type);
+        return;
     }
 
     if (cc->core_id % smp_threads) {
-        error_setg(&local_err, "invalid core id %d", cc->core_id);
-        goto out;
+        error_setg(errp, "invalid core id %d", cc->core_id);
+        return;
     }
 
     /*
@@ -3921,26 +3913,23 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
      * total vcpus not a multiple of threads-per-core.
      */
     if (mc->has_hotpluggable_cpus && (cc->nr_threads != smp_threads)) {
-        error_setg(&local_err, "invalid nr-threads %d, must be %d",
-                   cc->nr_threads, smp_threads);
-        goto out;
+        error_setg(errp, "invalid nr-threads %d, must be %d", cc->nr_threads,
+                   smp_threads);
+        return;
     }
 
     core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
     if (!core_slot) {
-        error_setg(&local_err, "core id %d out of range", cc->core_id);
-        goto out;
+        error_setg(errp, "core id %d out of range", cc->core_id);
+        return;
     }
 
     if (core_slot->cpu) {
-        error_setg(&local_err, "core %d already populated", cc->core_id);
-        goto out;
+        error_setg(errp, "core %d already populated", cc->core_id);
+        return;
     }
 
-    numa_cpu_pre_plug(core_slot, dev, &local_err);
-
-out:
-    error_propagate(errp, local_err);
+    numa_cpu_pre_plug(core_slot, dev, errp);
 }
 
 int spapr_phb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,

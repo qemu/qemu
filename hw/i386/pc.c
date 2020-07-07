@@ -1327,7 +1327,6 @@ out:
 static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
     /*
@@ -1336,21 +1335,18 @@ static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
      * addition to cover this case.
      */
     if (!pcms->acpi_dev || !x86_machine_is_acpi_enabled(X86_MACHINE(pcms))) {
-        error_setg(&local_err,
+        error_setg(errp,
                    "memory hotplug is not enabled: missing acpi device or acpi disabled");
-        goto out;
+        return;
     }
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        error_setg(&local_err,
-                   "nvdimm device hot unplug is not supported yet.");
-        goto out;
+        error_setg(errp, "nvdimm device hot unplug is not supported yet.");
+        return;
     }
 
     hotplug_handler_unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev,
-                                   &local_err);
-out:
-    error_propagate(errp, local_err);
+                                   errp);
 }
 
 static void pc_memory_unplug(HotplugHandler *hotplug_dev,
@@ -1430,31 +1426,23 @@ static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     int idx = -1;
-    Error *local_err = NULL;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
     if (!pcms->acpi_dev) {
-        error_setg(&local_err, "CPU hot unplug not supported without ACPI");
-        goto out;
+        error_setg(errp, "CPU hot unplug not supported without ACPI");
+        return;
     }
 
     pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, &idx);
     assert(idx != -1);
     if (idx == 0) {
-        error_setg(&local_err, "Boot CPU is unpluggable");
-        goto out;
+        error_setg(errp, "Boot CPU is unpluggable");
+        return;
     }
 
     hotplug_handler_unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev,
-                                   &local_err);
-    if (local_err) {
-        goto out;
-    }
-
- out:
-    error_propagate(errp, local_err);
-
+                                   errp);
 }
 
 static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
@@ -1867,10 +1855,9 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
         return;
     }
     if (value > 4 * GiB) {
-        error_setg(&error,
+        error_setg(errp,
                    "Machine option 'max-ram-below-4g=%"PRIu64
                    "' expects size less than or equal to 4G", value);
-        error_propagate(errp, error);
         return;
     }
 

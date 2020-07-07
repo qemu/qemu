@@ -278,13 +278,10 @@ out:
 static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
                           Error **errp)
 {
-    Error *local_err = NULL;
-
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to dispatch asynchronous command");
-        error_propagate(errp, local_err);
     }
 }
 
@@ -1270,35 +1267,31 @@ typedef enum {
 static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
 {
     SYSTEM_POWER_CAPABILITIES sys_pwr_caps;
-    Error *local_err = NULL;
 
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to determine guest suspend capabilities");
-        goto out;
+        return;
     }
 
     switch (mode) {
     case GUEST_SUSPEND_MODE_DISK:
         if (!sys_pwr_caps.SystemS4) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "suspend-to-disk not supported by OS");
         }
         break;
     case GUEST_SUSPEND_MODE_RAM:
         if (!sys_pwr_caps.SystemS3) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "suspend-to-ram not supported by OS");
         }
         break;
     default:
-        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
                    "GuestSuspendMode");
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static DWORD WINAPI do_suspend(LPVOID opaque)

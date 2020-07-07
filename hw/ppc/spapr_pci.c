@@ -1499,10 +1499,10 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
          * we need to let them know it's not enabled
          */
         if (plugged_dev->hotplugged) {
-            error_setg(&local_err, QERR_BUS_NO_HOTPLUG,
+            error_setg(errp, QERR_BUS_NO_HOTPLUG,
                        object_get_typename(OBJECT(phb)));
         }
-        goto out;
+        return;
     }
 
     g_assert(drc);
@@ -1517,15 +1517,16 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
      */
     if (plugged_dev->hotplugged && bus->devices[PCI_DEVFN(slotnr, 0)] &&
         PCI_FUNC(pdev->devfn) != 0) {
-        error_setg(&local_err, "PCI: slot %d function 0 already ocuppied by %s,"
+        error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
                    " additional functions can no longer be exposed to guest.",
                    slotnr, bus->devices[PCI_DEVFN(slotnr, 0)]->name);
-        goto out;
+        return;
     }
 
     spapr_drc_attach(drc, DEVICE(pdev), &local_err);
     if (local_err) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
 
     /* If this is function 0, signal hotplug for all the device functions.
@@ -1551,9 +1552,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
             }
         }
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void spapr_pci_bridge_unplug(SpaprPhbState *phb,

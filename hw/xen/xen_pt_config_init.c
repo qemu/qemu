@@ -2052,10 +2052,9 @@ void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp)
                                                   reg_grp_offset,
                                                   &reg_grp_entry->size);
             if (rc < 0) {
-                error_setg(&err, "Failed to initialize %d/%zu, type = 0x%x,"
+                error_setg(errp, "Failed to initialize %d/%zu, type = 0x%x,"
                            " rc: %d", i, ARRAY_SIZE(xen_pt_emu_reg_grps),
                            xen_pt_emu_reg_grps[i].grp_type, rc);
-                error_propagate(errp, err);
                 xen_pt_config_delete(s);
                 return;
             }
