@@ -1274,15 +1274,8 @@ static void dwc2_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     DWC2State *s = DWC2_USB(dev);
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &err);
-    if (err) {
-        error_setg(errp, "dwc2: required dma-mr link not found: %s",
-                   error_get_pretty(err));
-        return;
-    }
-    assert(obj != NULL);
+    obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
 
     s->dma_mr = MEMORY_REGION(obj);
     address_space_init(&s->dma_as, s->dma_mr, "dwc2");
