@@ -14,13 +14,16 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 
-void user_creatable_complete(UserCreatable *uc, Error **errp)
+bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
+    Error *err = NULL;
 
     if (ucc->complete) {
-        ucc->complete(uc, errp);
+        ucc->complete(uc, &err);
+        error_propagate(errp, err);
     }
+    return !err;
 }
 
 bool user_creatable_can_be_deleted(UserCreatable *uc)
@@ -101,7 +104,7 @@ out:
     return obj;
 }
 
-void user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
+bool user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
 {
     Visitor *v;
     Object *obj;
@@ -111,14 +114,14 @@ void user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
     type = g_strdup(qdict_get_try_str(qdict, "qom-type"));
     if (!type) {
         error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
-        return;
+        return false;
     }
     qdict_del(qdict, "qom-type");
 
     id = g_strdup(qdict_get_try_str(qdict, "id"));
     if (!id) {
         error_setg(errp, QERR_MISSING_PARAMETER, "id");
-        return;
+        return false;
     }
     qdict_del(qdict, "id");
 
@@ -130,6 +133,7 @@ void user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
     obj = user_creatable_add_type(type, id, qdict, v, errp);
     visit_free(v);
     object_unref(obj);
+    return !!obj;
 }
 
 Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
@@ -260,7 +264,7 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
     return false;
 }
 
-void user_creatable_del(const char *id, Error **errp)
+bool user_creatable_del(const char *id, Error **errp)
 {
     Object *container;
     Object *obj;
@@ -269,12 +273,12 @@ void user_creatable_del(const char *id, Error **errp)
     obj = object_resolve_path_component(container, id);
     if (!obj) {
         error_setg(errp, "object '%s' not found", id);
-        return;
+        return false;
     }
 
     if (!user_creatable_can_be_deleted(USER_CREATABLE(obj))) {
         error_setg(errp, "object '%s' is in use, can not be deleted", id);
-        return;
+        return false;
     }
 
     /*
@@ -285,6 +289,7 @@ void user_creatable_del(const char *id, Error **errp)
                                  id));
 
     object_unparent(obj);
+    return true;
 }
 
 void user_creatable_cleanup(void)

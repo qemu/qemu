@@ -385,12 +385,13 @@ static void object_post_init_with_type(Object *obj, TypeImpl *ti)
     }
 }
 
-void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp)
+bool object_apply_global_props(Object *obj, const GPtrArray *props,
+                               Error **errp)
 {
     int i;
 
     if (!props) {
-        return;
+        return true;
     }
 
     for (i = 0; i < props->len; i++) {
@@ -415,12 +416,14 @@ void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp
              */
             if (errp) {
                 error_propagate(errp, err);
-                return;
+                return false;
             } else {
                 warn_report_err(err);
             }
         }
     }
+
+    return true;
 }
 
 /*
@@ -524,25 +527,31 @@ void object_initialize(void *data, size_t size, const char *typename)
     object_initialize_with_type(data, size, type);
 }
 
-void object_initialize_child_with_props(Object *parentobj,
-                             const char *propname,
-                             void *childobj, size_t size, const char *type,
-                             Error **errp, ...)
+bool object_initialize_child_with_props(Object *parentobj,
+                                        const char *propname,
+                                        void *childobj, size_t size,
+                                        const char *type,
+                                        Error **errp, ...)
 {
     va_list vargs;
+    bool ok;
 
     va_start(vargs, errp);
-    object_initialize_child_with_propsv(parentobj, propname,
-                                        childobj, size, type, errp, vargs);
+    ok = object_initialize_child_with_propsv(parentobj, propname,
+                                             childobj, size, type, errp,
+                                             vargs);
     va_end(vargs);
+    return ok;
 }
 
-void object_initialize_child_with_propsv(Object *parentobj,
-                              const char *propname,
-                              void *childobj, size_t size, const char *type,
-                              Error **errp, va_list vargs)
+bool object_initialize_child_with_propsv(Object *parentobj,
+                                         const char *propname,
+                                         void *childobj, size_t size,
+                                         const char *type,
+                                         Error **errp, va_list vargs)
 {
     Error *local_err = NULL;
+    bool ok = false;
     Object *obj;
     UserCreatable *uc;
 
@@ -564,6 +573,8 @@ void object_initialize_child_with_propsv(Object *parentobj,
         }
     }
 
+    ok = true;
+
 out:
     /*
      * We want @obj's reference to be 1 on success, 0 on failure.
@@ -576,6 +587,7 @@ out:
     object_unref(obj);
 
     error_propagate(errp, local_err);
+    return ok;
 }
 
 void object_initialize_child_internal(Object *parent,
@@ -1312,43 +1324,52 @@ void object_property_del(Object *obj, const char *name)
     g_hash_table_remove(obj->properties, name);
 }
 
-void object_property_get(Object *obj, const char *name, Visitor *v,
+bool object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
+    Error *err = NULL;
     ObjectProperty *prop = object_property_find(obj, name, errp);
+
     if (prop == NULL) {
-        return;
+        return false;
     }
 
     if (!prop->get) {
         error_setg(errp, QERR_PERMISSION_DENIED);
-    } else {
-        prop->get(obj, v, name, prop->opaque, errp);
+        return false;
     }
+    prop->get(obj, v, name, prop->opaque, &err);
+    error_propagate(errp, err);
+    return !err;
 }
 
-void object_property_set(Object *obj, const char *name, Visitor *v,
+bool object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
+    Error *err = NULL;
     ObjectProperty *prop = object_property_find(obj, name, errp);
+
     if (prop == NULL) {
-        return;
+        return false;
     }
 
     if (!prop->set) {
         error_setg(errp, QERR_PERMISSION_DENIED);
-    } else {
-        prop->set(obj, v, name, prop->opaque, errp);
+        return false;
     }
+    prop->set(obj, v, name, prop->opaque, &err);
+    error_propagate(errp, err);
+    return !err;
 }
 
-void object_property_set_str(Object *obj, const char *name,
+bool object_property_set_str(Object *obj, const char *name,
                              const char *value, Error **errp)
 {
     QString *qstr = qstring_from_str(value);
-    object_property_set_qobject(obj, name, QOBJECT(qstr), errp);
+    bool ok = object_property_set_qobject(obj, name, QOBJECT(qstr), errp);
 
     qobject_unref(qstr);
+    return ok;
 }
 
 char *object_property_get_str(Object *obj, const char *name,
@@ -1370,16 +1391,15 @@ char *object_property_get_str(Object *obj, const char *name,
     return retval;
 }
 
-void object_property_set_link(Object *obj, const char *name,
+bool object_property_set_link(Object *obj, const char *name,
                               Object *value, Error **errp)
 {
+    g_autofree char *path = NULL;
+
     if (value) {
-        char *path = object_get_canonical_path(value);
-        object_property_set_str(obj, name, path, errp);
-        g_free(path);
-    } else {
-        object_property_set_str(obj, name, "", errp);
+        path = object_get_canonical_path(value);
     }
+    return object_property_set_str(obj, name, path ?: "", errp);
 }
 
 Object *object_property_get_link(Object *obj, const char *name,
@@ -1400,13 +1420,14 @@ Object *object_property_get_link(Object *obj, const char *name,
     return target;
 }
 
-void object_property_set_bool(Object *obj, const char *name,
+bool object_property_set_bool(Object *obj, const char *name,
                               bool value, Error **errp)
 {
     QBool *qbool = qbool_from_bool(value);
-    object_property_set_qobject(obj, name, QOBJECT(qbool), errp);
+    bool ok = object_property_set_qobject(obj, name, QOBJECT(qbool), errp);
 
     qobject_unref(qbool);
+    return ok;
 }
 
 bool object_property_get_bool(Object *obj, const char *name,
@@ -1431,13 +1452,14 @@ bool object_property_get_bool(Object *obj, const char *name,
     return retval;
 }
 
-void object_property_set_int(Object *obj, const char *name,
+bool object_property_set_int(Object *obj, const char *name,
                              int64_t value, Error **errp)
 {
     QNum *qnum = qnum_from_int(value);
-    object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
+    bool ok = object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
 
     qobject_unref(qnum);
+    return ok;
 }
 
 int64_t object_property_get_int(Object *obj, const char *name,
@@ -1500,13 +1522,14 @@ void object_property_set_default_uint(ObjectProperty *prop, uint64_t value)
     object_property_set_default(prop, QOBJECT(qnum_from_uint(value)));
 }
 
-void object_property_set_uint(Object *obj, const char *name,
+bool object_property_set_uint(Object *obj, const char *name,
                               uint64_t value, Error **errp)
 {
     QNum *qnum = qnum_from_uint(value);
+    bool ok = object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
 
-    object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
     qobject_unref(qnum);
+    return ok;
 }
 
 uint64_t object_property_get_uint(Object *obj, const char *name,
@@ -1567,12 +1590,14 @@ int object_property_get_enum(Object *obj, const char *name,
     return ret;
 }
 
-void object_property_parse(Object *obj, const char *name,
+bool object_property_parse(Object *obj, const char *name,
                            const char *string, Error **errp)
 {
     Visitor *v = string_input_visitor_new(string);
-    object_property_set(obj, name, v, errp);
+    bool ok = object_property_set(obj, name, v, errp);
+
     visit_free(v);
+    return ok;
 }
 
 char *object_property_print(Object *obj, const char *name, bool human,

@@ -703,7 +703,7 @@ Object *object_new_with_propv(const char *typename,
                               Error **errp,
                               va_list vargs);
 
-void object_apply_global_props(Object *obj, const GPtrArray *props,
+bool object_apply_global_props(Object *obj, const GPtrArray *props,
                                Error **errp);
 void object_set_machine_compat_props(GPtrArray *compat_props);
 void object_set_accelerator_compat_props(GPtrArray *compat_props);
@@ -798,8 +798,10 @@ void object_initialize(void *obj, size_t size, const char *typename);
  * strings. The propname of %NULL indicates the end of the property list.
  * If the object implements the user creatable interface, the object will
  * be marked complete once all the properties have been processed.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_initialize_child_with_props(Object *parentobj,
+bool object_initialize_child_with_props(Object *parentobj,
                              const char *propname,
                              void *childobj, size_t size, const char *type,
                              Error **errp, ...) QEMU_SENTINEL;
@@ -815,8 +817,10 @@ void object_initialize_child_with_props(Object *parentobj,
  * @vargs: list of property names and values
  *
  * See object_initialize_child() for documentation.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_initialize_child_with_propsv(Object *parentobj,
+bool object_initialize_child_with_propsv(Object *parentobj,
                               const char *propname,
                               void *childobj, size_t size, const char *type,
                               Error **errp, va_list vargs);
@@ -1209,8 +1213,10 @@ void object_unparent(Object *obj);
  * @errp: returns an error if this function fails
  *
  * Reads a property from a object.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_get(Object *obj, const char *name, Visitor *v,
+bool object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp);
 
 /**
@@ -1220,8 +1226,10 @@ void object_property_get(Object *obj, const char *name, Visitor *v,
  * @errp: returns an error if this function fails
  *
  * Writes a string value to a property.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set_str(Object *obj, const char *name,
+bool object_property_set_str(Object *obj, const char *name,
                              const char *value, Error **errp);
 
 /**
@@ -1249,8 +1257,9 @@ char *object_property_get_str(Object *obj, const char *name,
  * <code>OBJ_PROP_LINK_STRONG</code> bit, the old target object is
  * unreferenced, and a reference is added to the new target object.
  *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set_link(Object *obj, const char *name,
+bool object_property_set_link(Object *obj, const char *name,
                               Object *value, Error **errp);
 
 /**
@@ -1273,8 +1282,10 @@ Object *object_property_get_link(Object *obj, const char *name,
  * @errp: returns an error if this function fails
  *
  * Writes a bool value to a property.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set_bool(Object *obj, const char *name,
+bool object_property_set_bool(Object *obj, const char *name,
                               bool value, Error **errp);
 
 /**
@@ -1296,8 +1307,10 @@ bool object_property_get_bool(Object *obj, const char *name,
  * @errp: returns an error if this function fails
  *
  * Writes an integer value to a property.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set_int(Object *obj, const char *name,
+bool object_property_set_int(Object *obj, const char *name,
                              int64_t value, Error **errp);
 
 /**
@@ -1319,8 +1332,10 @@ int64_t object_property_get_int(Object *obj, const char *name,
  * @errp: returns an error if this function fails
  *
  * Writes an unsigned integer value to a property.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set_uint(Object *obj, const char *name,
+bool object_property_set_uint(Object *obj, const char *name,
                               uint64_t value, Error **errp);
 
 /**
@@ -1359,8 +1374,10 @@ int object_property_get_enum(Object *obj, const char *name,
  * @errp: returns an error if this function fails
  *
  * Writes a property to a object.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_set(Object *obj, const char *name, Visitor *v,
+bool object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp);
 
 /**
@@ -1371,8 +1388,10 @@ void object_property_set(Object *obj, const char *name, Visitor *v,
  * @errp: returns an error if this function fails
  *
  * Parses a string and writes the result into a property of an object.
+ *
+ * Returns: %true on success, %false on failure.
  */
-void object_property_parse(Object *obj, const char *name,
+bool object_property_parse(Object *obj, const char *name,
                            const char *string, Error **errp);
 
 /**
@@ -1815,6 +1834,7 @@ ObjectProperty *object_property_add_const_link(Object *obj, const char *name,
  *
  * Set an object property's description.
  *
+ * Returns: %true on success, %false on failure.
  */
 void object_property_set_description(Object *obj, const char *name,
                                      const char *description);
