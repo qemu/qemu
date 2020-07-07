@@ -989,8 +989,8 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
                              (Object **) &cs->enet,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
-    object_property_set_link(OBJECT(ds), OBJECT(s), "enet", &error_abort);
-    object_property_set_link(OBJECT(cs), OBJECT(s), "enet", &error_abort);
+    object_property_set_link(OBJECT(ds), "enet", OBJECT(s), &error_abort);
+    object_property_set_link(OBJECT(cs), "enet", OBJECT(s), &error_abort);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,

@@ -101,12 +101,12 @@ static void rx_gdbsim_init(MachineState *machine)
 
     /* Initialize MCU */
     object_initialize_child(OBJECT(machine), "mcu", &s->mcu, rxc->mcu_name);
-    object_property_set_link(OBJECT(&s->mcu), OBJECT(sysmem),
-                             "main-bus", &error_abort);
-    object_property_set_uint(OBJECT(&s->mcu), rxc->xtal_freq_hz,
-                             "xtal-frequency-hz", &error_abort);
-    object_property_set_bool(OBJECT(&s->mcu), kernel_filename != NULL,
-                             "load-kernel", &error_abort);
+    object_property_set_link(OBJECT(&s->mcu), "main-bus", OBJECT(sysmem),
+                             &error_abort);
+    object_property_set_uint(OBJECT(&s->mcu), "xtal-frequency-hz",
+                             rxc->xtal_freq_hz, &error_abort);
+    object_property_set_bool(OBJECT(&s->mcu), "load-kernel",
+                             kernel_filename != NULL, &error_abort);
     qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
 
     /* Load kernel and dtb */

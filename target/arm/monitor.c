@@ -184,7 +184,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         i = 0;
         while ((name = cpu_model_advertised_features[i++]) != NULL) {
             if (qdict_get(qdict_in, name)) {
-                object_property_set(obj, visitor, name, &err);
+                object_property_set(obj, name, visitor, &err);
                 if (err) {
                     break;
                 }

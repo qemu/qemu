@@ -107,11 +107,11 @@ static void realview_init(MachineState *machine,
          * before realization.
          */
         if (object_property_find(cpuobj, "has_el3", NULL)) {
-            object_property_set_bool(cpuobj, false, "has_el3", &error_fatal);
+            object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
         }
 
         if (is_pb && is_mpcore) {
-            object_property_set_int(cpuobj, periphbase, "reset-cbar",
+            object_property_set_int(cpuobj, "reset-cbar", periphbase,
                                     &error_fatal);
         }
 
@@ -205,7 +205,7 @@ static void realview_init(MachineState *machine,
 
     /* DMA controller is optional, apparently.  */
     dev = qdev_new("pl081");
-    object_property_set_link(OBJECT(dev), OBJECT(sysmem), "downstream",
+    object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),
                              &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);

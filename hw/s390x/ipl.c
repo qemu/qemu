@@ -555,9 +555,9 @@ static void update_machine_ipl_properties(IplParameterBlock *iplb)
             ascii_loadparm[i] = ebcdic2ascii[(uint8_t) ebcdic_loadparm[i]];
         }
         ascii_loadparm[i] = 0;
-        object_property_set_str(machine, ascii_loadparm, "loadparm", &err);
+        object_property_set_str(machine, "loadparm", ascii_loadparm, &err);
     } else {
-        object_property_set_str(machine, "", "loadparm", &err);
+        object_property_set_str(machine, "loadparm", "", &err);
     }
     if (err) {
         warn_report_err(err);

@@ -196,7 +196,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "sd-controller", &s->sdhci,
                             TYPE_ASPEED_SDHCI);
 
-    object_property_set_int(OBJECT(&s->sdhci), 2, "num-slots", &error_abort);
+    object_property_set_int(OBJECT(&s->sdhci), "num-slots", 2, &error_abort);
 
     /* Init sd card slot class here so that they're under the correct parent */
     for (i = 0; i < ASPEED_SDHCI_NUM_SLOTS; ++i) {
@@ -207,7 +207,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "emmc-controller", &s->emmc,
                             TYPE_ASPEED_SDHCI);
 
-    object_property_set_int(OBJECT(&s->emmc), 1, "num-slots", &error_abort);
+    object_property_set_int(OBJECT(&s->emmc), "num-slots", 1, &error_abort);
 
     object_initialize_child(obj, "emmc-controller.sdhci", &s->emmc.slots[0],
                             TYPE_SYSBUS_SDHCI);
@@ -241,17 +241,16 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
-        object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
-                                "psci-conduit", &error_abort);
+        object_property_set_int(OBJECT(&s->cpu[i]), "psci-conduit",
+                                QEMU_PSCI_CONDUIT_SMC, &error_abort);
         if (sc->num_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]),
-                                    ASPEED_A7MPCORE_ADDR,
-                                    "reset-cbar", &error_abort);
+            object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
+                                    ASPEED_A7MPCORE_ADDR, &error_abort);
         }
-        object_property_set_int(OBJECT(&s->cpu[i]), aspeed_calc_affinity(i),
-                                "mp-affinity", &error_abort);
+        object_property_set_int(OBJECT(&s->cpu[i]), "mp-affinity",
+                                aspeed_calc_affinity(i), &error_abort);
 
-        object_property_set_int(OBJECT(&s->cpu[i]), 1125000000, "cntfrq",
+        object_property_set_int(OBJECT(&s->cpu[i]), "cntfrq", 1125000000,
                                 &error_abort);
 
         /*
@@ -266,11 +265,11 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* A7MPCORE */
-    object_property_set_int(OBJECT(&s->a7mpcore), sc->num_cpus, "num-cpu",
+    object_property_set_int(OBJECT(&s->a7mpcore), "num-cpu", sc->num_cpus,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->a7mpcore),
+    object_property_set_int(OBJECT(&s->a7mpcore), "num-irq",
                             ASPEED_SOC_AST2600_MAX_IRQ + GIC_INTERNAL,
-                            "num-irq", &error_abort);
+                            &error_abort);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->a7mpcore), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a7mpcore), 0, ASPEED_A7MPCORE_ADDR);
@@ -316,8 +315,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_RTC));
 
     /* Timer */
-    object_property_set_link(OBJECT(&s->timerctrl),
-                             OBJECT(&s->scu), "scu", &error_abort);
+    object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),
+                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->timerctrl), &err)) {
         error_propagate(errp, err);
         return;
@@ -337,7 +336,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* I2C */
-    object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram",
+    object_property_set_link(OBJECT(&s->i2c), "dram", OBJECT(s->dram_mr),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &err)) {
         error_propagate(errp, err);
@@ -355,10 +354,10 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* FMC, The number of CS is set at the board level */
-    object_property_set_link(OBJECT(&s->fmc), OBJECT(s->dram_mr), "dram",
+    object_property_set_link(OBJECT(&s->fmc), "dram", OBJECT(s->dram_mr),
                              &error_abort);
-    object_property_set_int(OBJECT(&s->fmc), sc->memmap[ASPEED_SDRAM],
-                            "sdram-base", &err);
+    object_property_set_int(OBJECT(&s->fmc), "sdram-base",
+                            sc->memmap[ASPEED_SDRAM], &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -375,10 +374,9 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
     /* SPI */
     for (i = 0; i < sc->spis_num; i++) {
-        object_property_set_link(OBJECT(&s->spi[i]), OBJECT(s->dram_mr),
-                                 "dram", &error_abort);
-        object_property_set_int(OBJECT(&s->spi[i]), 1, "num-cs",
-                                &error_abort);
+        object_property_set_link(OBJECT(&s->spi[i]), "dram",
+                                 OBJECT(s->dram_mr), &error_abort);
+        object_property_set_int(OBJECT(&s->spi[i]), "num-cs", 1, &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -412,8 +410,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->wdts_num; i++) {
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
 
-        object_property_set_link(OBJECT(&s->wdt[i]),
-                                 OBJECT(&s->scu), "scu", &error_abort);
+        object_property_set_link(OBJECT(&s->wdt[i]), "scu", OBJECT(&s->scu),
+                                 &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -424,7 +422,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
     /* Net */
     for (i = 0; i < sc->macs_num; i++) {
-        object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
+        object_property_set_bool(OBJECT(&s->ftgmac100[i]), "aspeed", true,
                                  &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), &err)) {
             error_propagate(errp, err);
@@ -435,8 +433,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ftgmac100[i]), 0,
                            aspeed_soc_get_irq(s, ASPEED_ETH1 + i));
 
-        object_property_set_link(OBJECT(&s->mii[i]), OBJECT(&s->ftgmac100[i]),
-                                 "nic", &error_abort);
+        object_property_set_link(OBJECT(&s->mii[i]), "nic",
+                                 OBJECT(&s->ftgmac100[i]), &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->mii[i]), &err)) {
             error_propagate(errp, err);
             return;

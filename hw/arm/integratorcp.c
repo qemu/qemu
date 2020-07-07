@@ -604,7 +604,7 @@ static void integratorcp_init(MachineState *machine)
      * realization.
      */
     if (object_property_find(cpuobj, "has_el3", NULL)) {
-        object_property_set_bool(cpuobj, false, "has_el3", &error_fatal);
+        object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
     }
 
     qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);

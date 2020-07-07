@@ -640,8 +640,8 @@ void pc_cmos_init(PCMachineState *pcms,
                              (Object **)&x86ms->rtc,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
-    object_property_set_link(OBJECT(pcms), OBJECT(s),
-                             "rtc_state", &error_abort);
+    object_property_set_link(OBJECT(pcms), "rtc_state", OBJECT(s),
+                             &error_abort);
 
     set_boot_dev(s, MACHINE(pcms)->boot_order, &error_fatal);
 
@@ -1143,8 +1143,8 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl, bool no_vmport)
         vmmouse = NULL;
     }
     if (vmmouse) {
-        object_property_set_link(OBJECT(vmmouse), OBJECT(i8042),
-                                 "i8042", &error_abort);
+        object_property_set_link(OBJECT(vmmouse), "i8042", OBJECT(i8042),
+                                 &error_abort);
         isa_realize_and_unref(vmmouse, isa_bus, &error_fatal);
     }
     port92 = isa_create_simple(isa_bus, TYPE_PORT92);

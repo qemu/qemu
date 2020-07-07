@@ -200,14 +200,14 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
         name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true,
-                                     "start-powered-off", &error_abort);
+            object_property_set_bool(OBJECT(&s->rpu_cpu[i]),
+                                     "start-powered-off", true, &error_abort);
         } else {
             s->boot_cpu_ptr = &s->rpu_cpu[i];
         }
         g_free(name);
 
-        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
+        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), "reset-hivecs", true,
                                  &error_abort);
         if (!qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, &err)) {
             error_propagate(errp, err);
@@ -345,27 +345,27 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < num_apus; i++) {
         char *name;
 
-        object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
-                                "psci-conduit", &error_abort);
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), "psci-conduit",
+                                QEMU_PSCI_CONDUIT_SMC, &error_abort);
 
         name = object_get_canonical_path_component(OBJECT(&s->apu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(OBJECT(&s->apu_cpu[i]), true,
-                                     "start-powered-off", &error_abort);
+            object_property_set_bool(OBJECT(&s->apu_cpu[i]),
+                                     "start-powered-off", true, &error_abort);
         } else {
             s->boot_cpu_ptr = &s->apu_cpu[i];
         }
         g_free(name);
 
-        object_property_set_bool(OBJECT(&s->apu_cpu[i]),
-                                 s->secure, "has_el3", NULL);
-        object_property_set_bool(OBJECT(&s->apu_cpu[i]),
-                                 s->virt, "has_el2", NULL);
-        object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
-                                "reset-cbar", &error_abort);
-        object_property_set_int(OBJECT(&s->apu_cpu[i]), num_apus,
-                                "core-count", &error_abort);
+        object_property_set_bool(OBJECT(&s->apu_cpu[i]), "has_el3", s->secure,
+                                 NULL);
+        object_property_set_bool(OBJECT(&s->apu_cpu[i]), "has_el2", s->virt,
+                                 NULL);
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), "reset-cbar",
+                                GIC_BASE_ADDR, &error_abort);
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), "core-count",
+                                num_apus, &error_abort);
         if (!qdev_realize(DEVICE(&s->apu_cpu[i]), NULL, &err)) {
             error_propagate(errp, err);
             return;
@@ -463,9 +463,9 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
             qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
             qdev_set_nic_properties(DEVICE(&s->gem[i]), nd);
         }
-        object_property_set_int(OBJECT(&s->gem[i]), GEM_REVISION, "revision",
+        object_property_set_int(OBJECT(&s->gem[i]), "revision", GEM_REVISION,
                                 &error_abort);
-        object_property_set_int(OBJECT(&s->gem[i]), 2, "num-priority-queues",
+        object_property_set_int(OBJECT(&s->gem[i]), "num-priority-queues", 2,
                                 &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem[i]), &err)) {
             error_propagate(errp, err);
@@ -487,7 +487,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                            gic_spi[uart_intr[i]]);
     }
 
-    object_property_set_int(OBJECT(&s->sata), SATA_NUM_PORTS, "num-ports",
+    object_property_set_int(OBJECT(&s->sata), "num-ports", SATA_NUM_PORTS,
                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), &err)) {
         error_propagate(errp, err);
@@ -507,17 +507,17 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
          * - SDIO Specification Version 3.0
          * - eMMC Specification Version 4.51
          */
-        object_property_set_uint(sdhci, 3, "sd-spec-version", &err);
+        object_property_set_uint(sdhci, "sd-spec-version", 3, &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
-        object_property_set_uint(sdhci, SDHCI_CAPABILITIES, "capareg", &err);
+        object_property_set_uint(sdhci, "capareg", SDHCI_CAPABILITIES, &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
-        object_property_set_uint(sdhci, UHS_I, "uhs", &err);
+        object_property_set_uint(sdhci, "uhs", UHS_I, &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -586,7 +586,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    object_property_set_link(OBJECT(&s->dp), OBJECT(&s->dpdma), "dpdma",
+    object_property_set_link(OBJECT(&s->dp), "dpdma", OBJECT(&s->dpdma),
                              &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
@@ -606,7 +606,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0, gic_spi[RTC_IRQ]);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
-        object_property_set_uint(OBJECT(&s->gdma[i]), 128, "bus-width", &err);
+        object_property_set_uint(OBJECT(&s->gdma[i]), "bus-width", 128, &err);
         if (err) {
             error_propagate(errp, err);
             return;

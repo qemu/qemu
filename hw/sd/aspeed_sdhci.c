@@ -132,14 +132,14 @@ static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
         Object *sdhci_slot = OBJECT(&sdhci->slots[i]);
         SysBusDevice *sbd_slot = SYS_BUS_DEVICE(&sdhci->slots[i]);
 
-        object_property_set_int(sdhci_slot, 2, "sd-spec-version", &err);
+        object_property_set_int(sdhci_slot, "sd-spec-version", 2, &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
 
-        object_property_set_uint(sdhci_slot, ASPEED_SDHCI_CAPABILITIES,
-                                 "capareg", &err);
+        object_property_set_uint(sdhci_slot, "capareg",
+                                 ASPEED_SDHCI_CAPABILITIES, &err);
         if (err) {
             error_propagate(errp, err);
             return;

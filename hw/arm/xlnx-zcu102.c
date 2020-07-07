@@ -118,11 +118,11 @@ static void xlnx_zcu102_init(MachineState *machine)
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_XLNX_ZYNQMP);
 
-    object_property_set_link(OBJECT(&s->soc), OBJECT(machine->ram),
-                         "ddr-ram", &error_abort);
-    object_property_set_bool(OBJECT(&s->soc), s->secure, "secure",
+    object_property_set_link(OBJECT(&s->soc), "ddr-ram", OBJECT(machine->ram),
+                             &error_abort);
+    object_property_set_bool(OBJECT(&s->soc), "secure", s->secure,
                              &error_fatal);
-    object_property_set_bool(OBJECT(&s->soc), s->virt, "virtualization",
+    object_property_set_bool(OBJECT(&s->soc), "virtualization", s->virt,
                              &error_fatal);
 
     qdev_realize(DEVICE(&s->soc), NULL, &error_fatal);

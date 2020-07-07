@@ -499,7 +499,7 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus)
 
     dev = qdev_new("arm-smmuv3");
 
-    object_property_set_link(OBJECT(dev), OBJECT(bus), "primary-bus",
+    object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
@@ -659,8 +659,8 @@ static void sbsa_ref_init(MachineState *machine)
         }
 
         cpuobj = object_new(possible_cpus->cpus[n].type);
-        object_property_set_int(cpuobj, possible_cpus->cpus[n].arch_id,
-                                "mp-affinity", NULL);
+        object_property_set_int(cpuobj, "mp-affinity",
+                                possible_cpus->cpus[n].arch_id, NULL);
 
         cs = CPU(cpuobj);
         cs->cpu_index = n;
@@ -669,16 +669,16 @@ static void sbsa_ref_init(MachineState *machine)
                           &error_fatal);
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
-            object_property_set_int(cpuobj,
+            object_property_set_int(cpuobj, "reset-cbar",
                                     sbsa_ref_memmap[SBSA_CPUPERIPHS].base,
-                                    "reset-cbar", &error_abort);
+                                    &error_abort);
         }
 
-        object_property_set_link(cpuobj, OBJECT(sysmem), "memory",
+        object_property_set_link(cpuobj, "memory", OBJECT(sysmem),
                                  &error_abort);
 
-        object_property_set_link(cpuobj, OBJECT(secure_sysmem),
-                                 "secure-memory", &error_abort);
+        object_property_set_link(cpuobj, "secure-memory",
+                                 OBJECT(secure_sysmem), &error_abort);
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);

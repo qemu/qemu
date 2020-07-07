@@ -1203,26 +1203,26 @@ void object_unparent(Object *obj);
 /**
  * object_property_get:
  * @obj: the object
+ * @name: the name of the property
  * @v: the visitor that will receive the property value.  This should be an
  *   Output visitor and the data will be written with @name as the name.
- * @name: the name of the property
  * @errp: returns an error if this function fails
  *
  * Reads a property from a object.
  */
-void object_property_get(Object *obj, Visitor *v, const char *name,
+void object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp);
 
 /**
  * object_property_set_str:
- * @value: the value to be written to the property
  * @name: the name of the property
+ * @value: the value to be written to the property
  * @errp: returns an error if this function fails
  *
  * Writes a string value to a property.
  */
-void object_property_set_str(Object *obj, const char *value,
-                             const char *name, Error **errp);
+void object_property_set_str(Object *obj, const char *name,
+                             const char *value, Error **errp);
 
 /**
  * object_property_get_str:
@@ -1239,8 +1239,8 @@ char *object_property_get_str(Object *obj, const char *name,
 
 /**
  * object_property_set_link:
- * @value: the value to be written to the property
  * @name: the name of the property
+ * @value: the value to be written to the property
  * @errp: returns an error if this function fails
  *
  * Writes an object's canonical path to a property.
@@ -1250,8 +1250,8 @@ char *object_property_get_str(Object *obj, const char *name,
  * unreferenced, and a reference is added to the new target object.
  *
  */
-void object_property_set_link(Object *obj, Object *value,
-                              const char *name, Error **errp);
+void object_property_set_link(Object *obj, const char *name,
+                              Object *value, Error **errp);
 
 /**
  * object_property_get_link:
@@ -1268,14 +1268,14 @@ Object *object_property_get_link(Object *obj, const char *name,
 
 /**
  * object_property_set_bool:
- * @value: the value to be written to the property
  * @name: the name of the property
+ * @value: the value to be written to the property
  * @errp: returns an error if this function fails
  *
  * Writes a bool value to a property.
  */
-void object_property_set_bool(Object *obj, bool value,
-                              const char *name, Error **errp);
+void object_property_set_bool(Object *obj, const char *name,
+                              bool value, Error **errp);
 
 /**
  * object_property_get_bool:
@@ -1291,14 +1291,14 @@ bool object_property_get_bool(Object *obj, const char *name,
 
 /**
  * object_property_set_int:
- * @value: the value to be written to the property
  * @name: the name of the property
+ * @value: the value to be written to the property
  * @errp: returns an error if this function fails
  *
  * Writes an integer value to a property.
  */
-void object_property_set_int(Object *obj, int64_t value,
-                             const char *name, Error **errp);
+void object_property_set_int(Object *obj, const char *name,
+                             int64_t value, Error **errp);
 
 /**
  * object_property_get_int:
@@ -1314,14 +1314,14 @@ int64_t object_property_get_int(Object *obj, const char *name,
 
 /**
  * object_property_set_uint:
- * @value: the value to be written to the property
  * @name: the name of the property
+ * @value: the value to be written to the property
  * @errp: returns an error if this function fails
  *
  * Writes an unsigned integer value to a property.
  */
-void object_property_set_uint(Object *obj, uint64_t value,
-                              const char *name, Error **errp);
+void object_property_set_uint(Object *obj, const char *name,
+                              uint64_t value, Error **errp);
 
 /**
  * object_property_get_uint:
@@ -1352,28 +1352,28 @@ int object_property_get_enum(Object *obj, const char *name,
 /**
  * object_property_set:
  * @obj: the object
+ * @name: the name of the property
  * @v: the visitor that will be used to write the property value.  This should
  *   be an Input visitor and the data will be first read with @name as the
  *   name and then written as the property value.
- * @name: the name of the property
  * @errp: returns an error if this function fails
  *
  * Writes a property to a object.
  */
-void object_property_set(Object *obj, Visitor *v, const char *name,
+void object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp);
 
 /**
  * object_property_parse:
  * @obj: the object
- * @string: the string that will be used to parse the property value.
  * @name: the name of the property
+ * @string: the string that will be used to parse the property value.
  * @errp: returns an error if this function fails
  *
  * Parses a string and writes the result into a property of an object.
  */
-void object_property_parse(Object *obj, const char *string,
-                           const char *name, Error **errp);
+void object_property_parse(Object *obj, const char *name,
+                           const char *string, Error **errp);
 
 /**
  * object_property_print:

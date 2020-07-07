@@ -277,7 +277,7 @@ static void aspeed_machine_init(MachineState *machine)
     /*
      * This will error out if isize is not supported by memory controller.
      */
-    object_property_set_uint(OBJECT(&bmc->soc), ram_size, "ram-size",
+    object_property_set_uint(OBJECT(&bmc->soc), "ram-size", ram_size,
                              &error_fatal);
 
     for (i = 0; i < sc->macs_num; i++) {
@@ -288,22 +288,22 @@ static void aspeed_machine_init(MachineState *machine)
         }
     }
 
-    object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap1, "hw-strap1",
+    object_property_set_int(OBJECT(&bmc->soc), "hw-strap1", amc->hw_strap1,
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), amc->hw_strap2, "hw-strap2",
+    object_property_set_int(OBJECT(&bmc->soc), "hw-strap2", amc->hw_strap2,
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), amc->num_cs, "num-cs",
+    object_property_set_int(OBJECT(&bmc->soc), "num-cs", amc->num_cs,
                             &error_abort);
-    object_property_set_link(OBJECT(&bmc->soc), OBJECT(&bmc->ram_container),
-                             "dram", &error_abort);
+    object_property_set_link(OBJECT(&bmc->soc), "dram",
+                             OBJECT(&bmc->ram_container), &error_abort);
     if (machine->kernel_filename) {
         /*
          * When booting with a -kernel command line there is no u-boot
          * that runs to unlock the SCU. In this case set the default to
          * be unlocked as the kernel expects
          */
-        object_property_set_int(OBJECT(&bmc->soc), ASPEED_SCU_PROT_KEY,
-                                "hw-prot-key", &error_abort);
+        object_property_set_int(OBJECT(&bmc->soc), "hw-prot-key",
+                                ASPEED_SCU_PROT_KEY, &error_abort);
     }
     qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
 
@@ -393,10 +393,10 @@ static void palmetto_bmc_i2c_init(AspeedMachineState *bmc)
     /* add a TMP423 temperature sensor */
     dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 2),
                            "tmp423", 0x4c);
-    object_property_set_int(OBJECT(dev), 31000, "temperature0", &error_abort);
-    object_property_set_int(OBJECT(dev), 28000, "temperature1", &error_abort);
-    object_property_set_int(OBJECT(dev), 20000, "temperature2", &error_abort);
-    object_property_set_int(OBJECT(dev), 110000, "temperature3", &error_abort);
+    object_property_set_int(OBJECT(dev), "temperature0", 31000, &error_abort);
+    object_property_set_int(OBJECT(dev), "temperature1", 28000, &error_abort);
+    object_property_set_int(OBJECT(dev), "temperature2", 20000, &error_abort);
+    object_property_set_int(OBJECT(dev), "temperature3", 110000, &error_abort);
 }
 
 static void ast2500_evb_i2c_init(AspeedMachineState *bmc)

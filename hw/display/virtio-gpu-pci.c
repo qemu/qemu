@@ -40,9 +40,8 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 
     for (i = 0; i < g->conf.max_outputs; i++) {
-        object_property_set_link(OBJECT(g->scanout[i].con),
-                                 OBJECT(vpci_dev),
-                                 "device", &error_abort);
+        object_property_set_link(OBJECT(g->scanout[i].con), "device",
+                                 OBJECT(vpci_dev), &error_abort);
     }
 }
 

@@ -100,11 +100,11 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     /* Inter-Thread Communication Unit */
     if (itu_present) {
         object_initialize_child(OBJECT(dev), "itu", &s->itu, TYPE_MIPS_ITU);
-        object_property_set_int(OBJECT(&s->itu), 16, "num-fifo",
+        object_property_set_int(OBJECT(&s->itu), "num-fifo", 16,
                                 &error_abort);
-        object_property_set_int(OBJECT(&s->itu), 16, "num-semaphores",
+        object_property_set_int(OBJECT(&s->itu), "num-semaphores", 16,
                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->itu), saar_present, "saar-present",
+        object_property_set_bool(OBJECT(&s->itu), "saar-present", saar_present,
                                  &error_abort);
         if (saar_present) {
             s->itu.saar = &env->CP0_SAAR;
@@ -120,9 +120,9 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     /* Cluster Power Controller */
     object_initialize_child(OBJECT(dev), "cpc", &s->cpc, TYPE_MIPS_CPC);
-    object_property_set_int(OBJECT(&s->cpc), s->num_vp, "num-vp",
+    object_property_set_int(OBJECT(&s->cpc), "num-vp", s->num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->cpc), 1, "vp-start-running",
+    object_property_set_int(OBJECT(&s->cpc), "vp-start-running", 1,
                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpc), &err)) {
         error_propagate(errp, err);
@@ -134,9 +134,9 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     /* Global Interrupt Controller */
     object_initialize_child(OBJECT(dev), "gic", &s->gic, TYPE_MIPS_GIC);
-    object_property_set_int(OBJECT(&s->gic), s->num_vp, "num-vp",
+    object_property_set_int(OBJECT(&s->gic), "num-vp", s->num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gic), 128, "num-irq",
+    object_property_set_int(OBJECT(&s->gic), "num-irq", 128,
                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), &err)) {
         error_propagate(errp, err);
@@ -150,15 +150,15 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     gcr_base = env->CP0_CMGCRBase << 4;
 
     object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
-    object_property_set_int(OBJECT(&s->gcr), s->num_vp, "num-vp",
+    object_property_set_int(OBJECT(&s->gcr), "num-vp", s->num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gcr), 0x800, "gcr-rev",
+    object_property_set_int(OBJECT(&s->gcr), "gcr-rev", 0x800,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gcr), gcr_base, "gcr-base",
+    object_property_set_int(OBJECT(&s->gcr), "gcr-base", gcr_base,
                             &error_abort);
-    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->gic.mr), "gic",
+    object_property_set_link(OBJECT(&s->gcr), "gic", OBJECT(&s->gic.mr),
                              &error_abort);
-    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->cpc.mr), "cpc",
+    object_property_set_link(OBJECT(&s->gcr), "cpc", OBJECT(&s->cpc.mr),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gcr), &err)) {
         error_propagate(errp, err);

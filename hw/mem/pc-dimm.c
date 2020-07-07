@@ -54,7 +54,7 @@ void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
     if (local_err) {
         goto out;
     }
-    object_property_set_int(OBJECT(dimm), slot, PC_DIMM_SLOT_PROP,
+    object_property_set_int(OBJECT(dimm), PC_DIMM_SLOT_PROP, slot,
                             &error_abort);
     trace_mhp_pc_dimm_assigned_slot(slot);
 
@@ -225,7 +225,7 @@ static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
 static void pc_dimm_md_set_addr(MemoryDeviceState *md, uint64_t addr,
                                 Error **errp)
 {
-    object_property_set_uint(OBJECT(md), addr, PC_DIMM_ADDR_PROP, errp);
+    object_property_set_uint(OBJECT(md), PC_DIMM_ADDR_PROP, addr, errp);
 }
 
 static MemoryRegion *pc_dimm_md_get_memory_region(MemoryDeviceState *md,

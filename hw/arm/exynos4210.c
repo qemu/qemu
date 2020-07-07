@@ -188,7 +188,7 @@ static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, base);
 
-    object_property_set_int(OBJECT(orgate), nevents + 1, "num-lines",
+    object_property_set_int(OBJECT(orgate), "num-lines", nevents + 1,
                             &error_abort);
     qdev_realize(DEVICE(orgate), NULL, &error_abort);
 
@@ -215,14 +215,15 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
          * support EL3 so the CPU EL3 property is disabled before realization.
          */
         if (object_property_find(cpuobj, "has_el3", NULL)) {
-            object_property_set_bool(cpuobj, false, "has_el3", &error_fatal);
+            object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
         }
 
         s->cpu[n] = ARM_CPU(cpuobj);
-        object_property_set_int(cpuobj, exynos4210_calc_affinity(n),
-                                "mp-affinity", &error_abort);
-        object_property_set_int(cpuobj, EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
-                                "reset-cbar", &error_abort);
+        object_property_set_int(cpuobj, "mp-affinity",
+                                exynos4210_calc_affinity(n), &error_abort);
+        object_property_set_int(cpuobj, "reset-cbar",
+                                EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
+                                &error_abort);
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
 

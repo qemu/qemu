@@ -121,7 +121,7 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
     Error *local_err = NULL;
     Object *cpu = object_new(MACHINE(x86ms)->cpu_type);
 
-    object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
+    object_property_set_uint(cpu, "apic-id", apic_id, &local_err);
     if (local_err) {
         goto out;
     }

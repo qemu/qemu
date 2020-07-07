@@ -83,14 +83,14 @@ petalogix_ml605_init(MachineState *machine)
 
     /* init CPUs */
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
-    object_property_set_str(OBJECT(cpu), "8.10.a", "version", &error_abort);
+    object_property_set_str(OBJECT(cpu), "version", "8.10.a", &error_abort);
     /* Use FPU but don't use floating point conversion and square
      * root instructions
      */
-    object_property_set_int(OBJECT(cpu), 1, "use-fpu", &error_abort);
-    object_property_set_bool(OBJECT(cpu), true, "dcache-writeback",
+    object_property_set_int(OBJECT(cpu), "use-fpu", 1, &error_abort);
+    object_property_set_bool(OBJECT(cpu), "dcache-writeback", true,
                              &error_abort);
-    object_property_set_bool(OBJECT(cpu), true, "endianness", &error_abort);
+    object_property_set_bool(OBJECT(cpu), "endianness", true, &error_abort);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
@@ -148,10 +148,10 @@ petalogix_ml605_init(MachineState *machine)
     qdev_set_nic_properties(eth0, &nd_table[0]);
     qdev_prop_set_uint32(eth0, "rxmem", 0x1000);
     qdev_prop_set_uint32(eth0, "txmem", 0x1000);
-    object_property_set_link(OBJECT(eth0), ds,
-                             "axistream-connected", &error_abort);
-    object_property_set_link(OBJECT(eth0), cs,
-                             "axistream-control-connected", &error_abort);
+    object_property_set_link(OBJECT(eth0), "axistream-connected", ds,
+                             &error_abort);
+    object_property_set_link(OBJECT(eth0), "axistream-control-connected", cs,
+                             &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(eth0), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
@@ -161,10 +161,10 @@ petalogix_ml605_init(MachineState *machine)
     cs = object_property_get_link(OBJECT(eth0),
                                   "axistream-control-connected-target", NULL);
     qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
-    object_property_set_link(OBJECT(dma), ds,
-                             "axistream-connected", &error_abort);
-    object_property_set_link(OBJECT(dma), cs,
-                             "axistream-control-connected", &error_abort);
+    object_property_set_link(OBJECT(dma), "axistream-connected", ds,
+                             &error_abort);
+    object_property_set_link(OBJECT(dma), "axistream-control-connected", cs,
+                             &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);

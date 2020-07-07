@@ -41,7 +41,7 @@ static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
      */
     if (addr == 0 && data == 0) {
         AcpiCpuHotplug *cpus = opaque;
-        object_property_set_bool(cpus->device, false, "cpu-hotplug-legacy",
+        object_property_set_bool(cpus->device, "cpu-hotplug-legacy", false,
                                  &error_abort);
     }
 }
@@ -63,7 +63,7 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu)
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        object_property_set_bool(g->device, false, "cpu-hotplug-legacy",
+        object_property_set_bool(g->device, "cpu-hotplug-legacy", false,
                                  &error_abort);
         return;
     }

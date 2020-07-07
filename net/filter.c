@@ -338,7 +338,7 @@ static void default_handle_event(NetFilterState *nf, int event, Error **errp)
     case COLO_EVENT_CHECKPOINT:
         break;
     case COLO_EVENT_FAILOVER:
-        object_property_set_str(OBJECT(nf), "off", "status", errp);
+        object_property_set_str(OBJECT(nf), "status", "off", errp);
         break;
     default:
         break;

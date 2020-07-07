@@ -1690,8 +1690,8 @@ static void musicpal_init(MachineState *machine)
     wm8750_dev = i2c_create_slave(i2c, TYPE_WM8750, MP_WM_ADDR);
     dev = qdev_new(TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);
-    object_property_set_link(OBJECT(dev), OBJECT(wm8750_dev),
-                             "wm8750", NULL);
+    object_property_set_link(OBJECT(dev), "wm8750", OBJECT(wm8750_dev),
+                             NULL);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, pic[MP_AUDIO_IRQ]);

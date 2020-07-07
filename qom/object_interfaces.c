@@ -67,7 +67,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
         goto out;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        object_property_set(obj, v, e->key, &local_err);
+        object_property_set(obj, e->key, v, &local_err);
         if (local_err) {
             break;
         }

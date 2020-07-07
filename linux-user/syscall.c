@@ -7722,7 +7722,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         if (CPU_NEXT(first_cpu)) {
             TaskState *ts = cpu->opaque;
 
-            object_property_set_bool(OBJECT(cpu), false, "realized", NULL);
+            object_property_set_bool(OBJECT(cpu), "realized", false, NULL);
             object_unref(OBJECT(cpu));
             /*
              * At this point the CPU should be unrealized and removed

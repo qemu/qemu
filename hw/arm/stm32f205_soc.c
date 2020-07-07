@@ -105,8 +105,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_uint32(armv7m, "num-irq", 96);
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
-                                     "memory", &error_abort);
+    object_property_set_link(OBJECT(&s->armv7m), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err)) {
         error_propagate(errp, err);
         return;
@@ -149,8 +149,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     /* ADC 1 to 3 */
-    object_property_set_int(OBJECT(s->adc_irqs), STM_NUM_ADCS,
-                            "num-lines", &error_abort);
+    object_property_set_int(OBJECT(s->adc_irqs), "num-lines", STM_NUM_ADCS,
+                            &error_abort);
     if (!qdev_realize(DEVICE(s->adc_irqs), NULL, &err)) {
         error_propagate(errp, err);
         return;

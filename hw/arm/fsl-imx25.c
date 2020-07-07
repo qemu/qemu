@@ -249,14 +249,12 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
             { FSL_IMX25_ESDHC2_ADDR, FSL_IMX25_ESDHC2_IRQ },
         };
 
-        object_property_set_uint(OBJECT(&s->esdhc[i]), 2, "sd-spec-version",
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "sd-spec-version", 2,
                                  &error_abort);
-        object_property_set_uint(OBJECT(&s->esdhc[i]), IMX25_ESDHC_CAPABILITIES,
-                                 "capareg",
-                                 &error_abort);
-        object_property_set_uint(OBJECT(&s->esdhc[i]), SDHCI_VENDOR_IMX,
-                                 "vendor",
-                                 &error_abort);
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "capareg",
+                                 IMX25_ESDHC_CAPABILITIES, &error_abort);
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "vendor",
+                                 SDHCI_VENDOR_IMX, &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -285,7 +283,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     }
 
     /* Watchdog */
-    object_property_set_bool(OBJECT(&s->wdt), true, "pretimeout-support",
+    object_property_set_bool(OBJECT(&s->wdt), "pretimeout-support", true,
                              &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, FSL_IMX25_WDT_ADDR);

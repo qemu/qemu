@@ -1256,37 +1256,37 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
 
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
-    object_property_set_bool(OBJECT(dev), value, name, &error_abort);
+    object_property_set_bool(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
 {
-    object_property_set_int(OBJECT(dev), value, name, &error_abort);
+    object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 {
-    object_property_set_int(OBJECT(dev), value, name, &error_abort);
+    object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
-    object_property_set_int(OBJECT(dev), value, name, &error_abort);
+    object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value)
 {
-    object_property_set_int(OBJECT(dev), value, name, &error_abort);
+    object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
-    object_property_set_int(OBJECT(dev), value, name, &error_abort);
+    object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
 {
-    object_property_set_str(OBJECT(dev), value, name, &error_abort);
+    object_property_set_str(OBJECT(dev), name, value, &error_abort);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
@@ -1296,7 +1296,7 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
     snprintf(str, sizeof(str), "%02x:%02x:%02x:%02x:%02x:%02x",
              value[0], value[1], value[2], value[3], value[4], value[5]);
 
-    object_property_set_str(OBJECT(dev), str, name, &error_abort);
+    object_property_set_str(OBJECT(dev), name, str, &error_abort);
 }
 
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
@@ -1304,9 +1304,9 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
     Property *prop;
 
     prop = qdev_prop_find(dev, name);
-    object_property_set_str(OBJECT(dev),
+    object_property_set_str(OBJECT(dev), name,
                             qapi_enum_lookup(prop->info->enum_table, value),
-                            name, &error_abort);
+                            &error_abort);
 }
 
 static GPtrArray *global_props(void)

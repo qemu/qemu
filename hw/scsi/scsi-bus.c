@@ -268,7 +268,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
 
     qdev_prop_set_uint32(dev, "scsi-id", unit);
     if (bootindex >= 0) {
-        object_property_set_int(OBJECT(dev), bootindex, "bootindex",
+        object_property_set_int(OBJECT(dev), "bootindex", bootindex,
                                 &error_abort);
     }
     if (object_property_find(OBJECT(dev), "removable", NULL)) {
@@ -283,7 +283,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), share_rw, "share-rw", &err);
+    object_property_set_bool(OBJECT(dev), "share-rw", share_rw, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));

@@ -57,7 +57,7 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
             error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
                       "Device '%s' not found", path);
         } else {
-            object_property_parse(obj, value, property, &err);
+            object_property_parse(obj, property, value, &err);
         }
     } else {
         QObject *obj = qobject_from_json(value, &err);

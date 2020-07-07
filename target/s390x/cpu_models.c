@@ -517,7 +517,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
             return;
         }
         for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-            object_property_set(obj, visitor, e->key, &err);
+            object_property_set(obj, e->key, visitor, &err);
             if (err) {
                 break;
             }

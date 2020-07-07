@@ -84,7 +84,7 @@ static void set_init_vtor(uint64_t cpuid, uint32_t vtor)
 
     if (cpuobj) {
         if (object_property_find(cpuobj, "init-svtor", NULL)) {
-            object_property_set_uint(cpuobj, vtor, "init-svtor", &error_abort);
+            object_property_set_uint(cpuobj, "init-svtor", vtor, &error_abort);
         }
     }
 }

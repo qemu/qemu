@@ -293,8 +293,8 @@ static void pc_init1(MachineState *machine,
                                  (Object **)&pcms->acpi_dev,
                                  object_property_allow_set_link,
                                  OBJ_PROP_LINK_STRONG);
-        object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),
-                                 PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
+        object_property_set_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
+                                 OBJECT(piix4_pm), &error_abort);
     }
 
     if (machine->nvdimms_state->is_enabled) {

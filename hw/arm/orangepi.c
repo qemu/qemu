@@ -63,9 +63,8 @@ static void orangepi_init(MachineState *machine)
     object_unref(OBJECT(h3));
 
     /* Setup timer properties */
-    object_property_set_int(OBJECT(h3), 32768, "clk0-freq",
-                            &error_abort);
-    object_property_set_int(OBJECT(h3), 24 * 1000 * 1000, "clk1-freq",
+    object_property_set_int(OBJECT(h3), "clk0-freq", 32768, &error_abort);
+    object_property_set_int(OBJECT(h3), "clk1-freq", 24 * 1000 * 1000,
                             &error_abort);
 
     /* Setup SID properties. Currently using a default fixed SID identifier. */
@@ -77,12 +76,12 @@ static void orangepi_init(MachineState *machine)
     }
 
     /* Setup EMAC properties */
-    object_property_set_int(OBJECT(&h3->emac), 1, "phy-addr", &error_abort);
+    object_property_set_int(OBJECT(&h3->emac), "phy-addr", 1, &error_abort);
 
     /* DRAMC */
-    object_property_set_uint(OBJECT(h3), h3->memmap[AW_H3_SDRAM],
-                             "ram-addr", &error_abort);
-    object_property_set_int(OBJECT(h3), machine->ram_size / MiB, "ram-size",
+    object_property_set_uint(OBJECT(h3), "ram-addr", h3->memmap[AW_H3_SDRAM],
+                             &error_abort);
+    object_property_set_int(OBJECT(h3), "ram-size", machine->ram_size / MiB,
                             &error_abort);
 
     /* Mark H3 object realized */

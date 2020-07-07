@@ -186,7 +186,7 @@ static int set_property(void *opaque, const char *name, const char *value,
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    object_property_parse(obj, value, name, &err);
+    object_property_parse(obj, name, value, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return -1;

@@ -108,9 +108,9 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
     MemoryRegion *sys_mem = get_system_memory();
     Error *err = NULL;
 
-    object_property_set_str(OBJECT(&s->cpus), ms->cpu_type, "cpu-type",
+    object_property_set_str(OBJECT(&s->cpus), "cpu-type", ms->cpu_type,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->cpus), ms->smp.cpus, "num-harts",
+    object_property_set_int(OBJECT(&s->cpus), "num-harts", ms->smp.cpus,
                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_abort);
 

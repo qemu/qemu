@@ -196,12 +196,12 @@ static void zynq_init(MachineState *machine)
      * realization.
      */
     if (object_property_find(OBJECT(cpu), "has_el3", NULL)) {
-        object_property_set_bool(OBJECT(cpu), false, "has_el3", &error_fatal);
+        object_property_set_bool(OBJECT(cpu), "has_el3", false, &error_fatal);
     }
 
-    object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr",
+    object_property_set_int(OBJECT(cpu), "midr", ZYNQ_BOARD_MIDR,
                             &error_fatal);
-    object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar",
+    object_property_set_int(OBJECT(cpu), "reset-cbar", MPCORE_PERIPHBASE,
                             &error_fatal);
     qdev_realize(DEVICE(cpu), NULL, &error_fatal);
 

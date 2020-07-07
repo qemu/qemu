@@ -265,8 +265,8 @@ static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
     memory_region_init_ram(ssram, NULL, name, ramsize[i], &error_fatal);
 
     object_initialize_child(OBJECT(mms), mpcname, mpc, TYPE_TZ_MPC);
-    object_property_set_link(OBJECT(mpc), OBJECT(ssram),
-                             "downstream", &error_fatal);
+    object_property_set_link(OBJECT(mpc), "downstream", OBJECT(ssram),
+                             &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(mpc), &error_fatal);
     /* Map the upstream end of the MPC into system memory */
     upstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 1);
@@ -308,10 +308,9 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
      */
     object_initialize_child(OBJECT(mms), mscname, msc, TYPE_TZ_MSC);
     msc_downstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(&mms->iotkit), 0);
-    object_property_set_link(OBJECT(msc), OBJECT(msc_downstream),
-                             "downstream", &error_fatal);
-    object_property_set_link(OBJECT(msc), OBJECT(mms),
-                             "idau", &error_fatal);
+    object_property_set_link(OBJECT(msc), "downstream",
+                             OBJECT(msc_downstream), &error_fatal);
+    object_property_set_link(OBJECT(msc), "idau", OBJECT(mms), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(msc), &error_fatal);
 
     qdev_connect_gpio_out_named(DEVICE(msc), "irq", 0,
@@ -330,8 +329,8 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
     msc_upstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc), 0);
 
     object_initialize_child(OBJECT(mms), name, dma, TYPE_PL081);
-    object_property_set_link(OBJECT(dma), OBJECT(msc_upstream),
-                             "downstream", &error_fatal);
+    object_property_set_link(OBJECT(dma), "downstream", OBJECT(msc_upstream),
+                             &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(dma), &error_fatal);
 
     s = SYS_BUS_DEVICE(dma);
@@ -404,8 +403,8 @@ static void mps2tz_common_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), TYPE_IOTKIT, &mms->iotkit,
                             mmc->armsse_type);
     iotkitdev = DEVICE(&mms->iotkit);
-    object_property_set_link(OBJECT(&mms->iotkit), OBJECT(system_memory),
-                             "memory", &error_abort);
+    object_property_set_link(OBJECT(&mms->iotkit), "memory",
+                             OBJECT(system_memory), &error_abort);
     qdev_prop_set_uint32(iotkitdev, "EXP_NUMIRQ", MPS2TZ_NUMIRQ);
     qdev_prop_set_uint32(iotkitdev, "MAINCLK", SYSCLK_FRQ);
     sysbus_realize(SYS_BUS_DEVICE(&mms->iotkit), &error_fatal);
@@ -425,7 +424,7 @@ static void mps2tz_common_init(MachineState *machine)
                                                NULL);
             g_free(name);
 
-            object_property_set_int(OBJECT(splitter), 2, "num-lines",
+            object_property_set_int(OBJECT(splitter), "num-lines", 2,
                                     &error_fatal);
             qdev_realize(DEVICE(splitter), NULL, &error_fatal);
             qdev_connect_gpio_out(DEVICE(splitter), 0,
@@ -442,9 +441,9 @@ static void mps2tz_common_init(MachineState *machine)
      */
     object_initialize_child(OBJECT(machine), "sec-resp-splitter",
                             &mms->sec_resp_splitter, TYPE_SPLIT_IRQ);
-    object_property_set_int(OBJECT(&mms->sec_resp_splitter),
+    object_property_set_int(OBJECT(&mms->sec_resp_splitter), "num-lines",
                             ARRAY_SIZE(mms->ppc) + ARRAY_SIZE(mms->msc),
-                            "num-lines", &error_fatal);
+                            &error_fatal);
     qdev_realize(DEVICE(&mms->sec_resp_splitter), NULL, &error_fatal);
     dev_splitter = DEVICE(&mms->sec_resp_splitter);
     qdev_connect_gpio_out_named(iotkitdev, "sec_resp_cfg", 0,
@@ -475,7 +474,7 @@ static void mps2tz_common_init(MachineState *machine)
      */
     object_initialize_child(OBJECT(mms), "uart-irq-orgate",
                             &mms->uart_irq_orgate, TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(&mms->uart_irq_orgate), 10, "num-lines",
+    object_property_set_int(OBJECT(&mms->uart_irq_orgate), "num-lines", 10,
                             &error_fatal);
     qdev_realize(DEVICE(&mms->uart_irq_orgate), NULL, &error_fatal);
     qdev_connect_gpio_out(DEVICE(&mms->uart_irq_orgate), 0,
@@ -568,8 +567,8 @@ static void mps2tz_common_init(MachineState *machine)
 
             mr = pinfo->devfn(mms, pinfo->opaque, pinfo->name, pinfo->size);
             portname = g_strdup_printf("port[%d]", port);
-            object_property_set_link(OBJECT(ppc), OBJECT(mr),
-                                     portname, &error_fatal);
+            object_property_set_link(OBJECT(ppc), portname, OBJECT(mr),
+                                     &error_fatal);
             g_free(portname);
         }
 

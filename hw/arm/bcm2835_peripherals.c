@@ -222,8 +222,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_uint(OBJECT(&s->fb), ram_size - vcram_size,
-                             "vcram-base", &err);
+    object_property_set_uint(OBJECT(&s->fb), "vcram-base",
+                             ram_size - vcram_size, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -270,11 +270,11 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
      * For the exact details please refer to the Arasan documentation:
      *   SD3.0_Host_AHB_eMMC4.4_Usersguide_ver5.9_jan11_10.pdf
      */
-    object_property_set_uint(OBJECT(&s->sdhci), 3, "sd-spec-version",
+    object_property_set_uint(OBJECT(&s->sdhci), "sd-spec-version", 3,
                              &error_abort);
-    object_property_set_uint(OBJECT(&s->sdhci), BCM2835_SDHC_CAPAREG, "capareg",
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->sdhci), true, "pending-insert-quirk",
+    object_property_set_uint(OBJECT(&s->sdhci), "capareg",
+                             BCM2835_SDHC_CAPAREG, &error_abort);
+    object_property_set_bool(OBJECT(&s->sdhci), "pending-insert-quirk", true,
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), &err)) {
         error_propagate(errp, err);

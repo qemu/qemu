@@ -810,8 +810,8 @@ void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
         /* due to bug in libvirt, it doesn't pass node-id from props on
          * device_add as expected, so we have to fix it up here */
         if (slot->props.has_node_id) {
-            object_property_set_int(OBJECT(dev), slot->props.node_id,
-                                    "node-id", errp);
+            object_property_set_int(OBJECT(dev), "node-id",
+                                    slot->props.node_id, errp);
         }
     } else if (node_id != slot->props.node_id) {
         error_setg(errp, "invalid node-id, must be %"PRId64,

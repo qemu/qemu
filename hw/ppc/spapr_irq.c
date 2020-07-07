@@ -308,9 +308,9 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         obj = object_new(TYPE_ICS_SPAPR);
 
         object_property_add_child(OBJECT(spapr), "ics", obj);
-        object_property_set_link(obj, OBJECT(spapr), ICS_PROP_XICS,
+        object_property_set_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                  &error_abort);
-        object_property_set_int(obj, smc->nr_xirqs, "nr-irqs", &error_abort);
+        object_property_set_int(obj, "nr-irqs", smc->nr_xirqs, &error_abort);
         if (!qdev_realize(DEVICE(obj), NULL, &local_err)) {
             error_propagate(errp, local_err);
             return;
@@ -331,7 +331,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
          * priority
          */
         qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
-        object_property_set_link(OBJECT(dev), OBJECT(spapr), "xive-fabric",
+        object_property_set_link(OBJECT(dev), "xive-fabric", OBJECT(spapr),
                                  &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 

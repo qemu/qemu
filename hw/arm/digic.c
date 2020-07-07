@@ -56,7 +56,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd;
     int i;
 
-    object_property_set_bool(OBJECT(&s->cpu), true, "reset-hivecs", &err);
+    object_property_set_bool(OBJECT(&s->cpu), "reset-hivecs", true, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;

@@ -254,7 +254,7 @@ static void ppc_heathrow_init(MachineState *machine)
     /* Grackle PCI host bridge */
     dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "ofw-addr", 0x80000000);
-    object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+    object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
                              &error_abort);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
@@ -281,7 +281,7 @@ static void ppc_heathrow_init(MachineState *machine)
     macio = pci_new(-1, TYPE_OLDWORLD_MACIO);
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
+    object_property_set_link(OBJECT(macio), "pic", OBJECT(pic_dev),
                              &error_abort);
     pci_realize_and_unref(macio, pci_bus, &error_fatal);
 

@@ -25,8 +25,8 @@
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler)
 {
-    object_property_set_link(OBJECT(bus), handler,
-                             QDEV_HOTPLUG_HANDLER_PROPERTY, &error_abort);
+    object_property_set_link(OBJECT(bus), QDEV_HOTPLUG_HANDLER_PROPERTY,
+                             handler, &error_abort);
 }
 
 void qbus_set_bus_hotplug_handler(BusState *bus)
@@ -168,14 +168,14 @@ bool qbus_realize(BusState *bus, Error **errp)
 {
     Error *err = NULL;
 
-    object_property_set_bool(OBJECT(bus), true, "realized", &err);
+    object_property_set_bool(OBJECT(bus), "realized", true, &err);
     error_propagate(errp, err);
     return !err;
 }
 
 void qbus_unrealize(BusState *bus)
 {
-    object_property_set_bool(OBJECT(bus), false, "realized", &error_abort);
+    object_property_set_bool(OBJECT(bus), "realized", false, &error_abort);
 }
 
 static bool bus_get_realized(Object *obj, Error **errp)

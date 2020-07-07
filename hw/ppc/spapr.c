@@ -2624,9 +2624,9 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
                 nr_threads = smp_cpus - i * smp_threads;
             }
 
-            object_property_set_int(core, nr_threads, "nr-threads",
+            object_property_set_int(core, "nr-threads", nr_threads,
                                     &error_fatal);
-            object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
+            object_property_set_int(core, CPU_CORE_PROP_CORE_ID, core_id,
                                     &error_fatal);
             qdev_realize(DEVICE(core), NULL, &error_fatal);
 

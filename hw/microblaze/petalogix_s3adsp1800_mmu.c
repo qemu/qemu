@@ -70,7 +70,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
-    object_property_set_str(OBJECT(cpu), "7.10.d", "version", &error_abort);
+    object_property_set_str(OBJECT(cpu), "version", "7.10.d", &error_abort);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */

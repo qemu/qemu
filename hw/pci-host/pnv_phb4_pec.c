@@ -388,8 +388,8 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
 
-        object_property_set_int(stk_obj, i, "stack-no", &error_abort);
-        object_property_set_link(stk_obj, OBJECT(pec), "pec", &error_abort);
+        object_property_set_int(stk_obj, "stack-no", i, &error_abort);
+        object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
         if (!qdev_realize(DEVICE(stk_obj), NULL, &local_err)) {
             error_propagate(errp, local_err);
             return;

@@ -65,9 +65,9 @@ static void virtio_iommu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
             error_append_hint(errp, "Valid values are 0 and 1\n");
         }
     }
-    object_property_set_link(OBJECT(dev),
+    object_property_set_link(OBJECT(dev), "primary-bus",
                              OBJECT(pci_get_bus(&vpci_dev->pci_dev)),
-                             "primary-bus", &error_abort);
+                             &error_abort);
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 

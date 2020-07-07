@@ -774,7 +774,7 @@ qcrypto_tls_creds_x509_prop_get_sanity(Object *obj,
 static void
 qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
 {
-    object_property_set_bool(OBJECT(uc), true, "loaded", errp);
+    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
 }
 
 

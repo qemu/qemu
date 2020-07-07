@@ -142,15 +142,15 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
 
             sprintf(bus, "usb-bus.%d", i);
 
-            object_property_set_bool(OBJECT(&s->ehci[i]), true,
-                                     "companion-enable", &error_fatal);
+            object_property_set_bool(OBJECT(&s->ehci[i]), "companion-enable",
+                                     true, &error_fatal);
             sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
                             AW_A10_EHCI_BASE + i * 0x8000);
             sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
                                qdev_get_gpio_in(dev, 39 + i));
 
-            object_property_set_str(OBJECT(&s->ohci[i]), bus, "masterbus",
+            object_property_set_str(OBJECT(&s->ohci[i]), "masterbus", bus,
                                     &error_fatal);
             sysbus_realize(SYS_BUS_DEVICE(&s->ohci[i]), &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(&s->ohci[i]), 0,

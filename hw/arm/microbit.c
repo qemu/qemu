@@ -40,8 +40,8 @@ static void microbit_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "nrf51", &s->nrf51,
                             TYPE_NRF51_SOC);
     qdev_prop_set_chr(DEVICE(&s->nrf51), "serial0", serial_hd(0));
-    object_property_set_link(OBJECT(&s->nrf51), OBJECT(system_memory),
-                             "memory", &error_fatal);
+    object_property_set_link(OBJECT(&s->nrf51), "memory",
+                             OBJECT(system_memory), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->nrf51), &error_fatal);
 
     /*

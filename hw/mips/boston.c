@@ -455,9 +455,9 @@ static void boston_mach_init(MachineState *machine)
     is_64b = cpu_supports_isa(machine->cpu_type, ISA_MIPS64);
 
     object_initialize_child(OBJECT(machine), "cps", &s->cps, TYPE_MIPS_CPS);
-    object_property_set_str(OBJECT(&s->cps), machine->cpu_type, "cpu-type",
+    object_property_set_str(OBJECT(&s->cps), "cpu-type", machine->cpu_type,
                             &error_fatal);
-    object_property_set_int(OBJECT(&s->cps), machine->smp.cpus, "num-vp",
+    object_property_set_int(OBJECT(&s->cps), "num-vp", machine->smp.cpus,
                             &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 

@@ -505,7 +505,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     unsigned int i;
 
     /* Create PSI interrupt control source */
-    object_property_set_int(OBJECT(ics), PSI_NUM_INTERRUPTS, "nr-irqs", &err);
+    object_property_set_int(OBJECT(ics), "nr-irqs", PSI_NUM_INTERRUPTS, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -845,11 +845,10 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     int i;
 
     /* This is the only device with 4k ESB pages */
-    object_property_set_int(OBJECT(xsrc), XIVE_ESB_4K, "shift",
+    object_property_set_int(OBJECT(xsrc), "shift", XIVE_ESB_4K, &error_fatal);
+    object_property_set_int(OBJECT(xsrc), "nr-irqs", PSIHB9_NUM_IRQS,
                             &error_fatal);
-    object_property_set_int(OBJECT(xsrc), PSIHB9_NUM_IRQS, "nr-irqs",
-                            &error_fatal);
-    object_property_set_link(OBJECT(xsrc), OBJECT(psi), "xive", &error_abort);
+    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(psi), &error_abort);
     if (!qdev_realize(DEVICE(xsrc), NULL, &local_err)) {
         error_propagate(errp, local_err);
         return;

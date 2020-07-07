@@ -123,8 +123,8 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_uint32(armv7m, "num-irq", 81);
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
-                                     "memory", &error_abort);
+    object_property_set_link(OBJECT(&s->armv7m), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &err)) {
         error_propagate(errp, err);
         return;
@@ -193,8 +193,8 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     dev = DEVICE(&s->emac);
-    object_property_set_link(OBJECT(&s->emac), OBJECT(get_system_memory()),
-                             "ahb-bus", &error_abort);
+    object_property_set_link(OBJECT(&s->emac), "ahb-bus",
+                             OBJECT(get_system_memory()), &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), &err)) {
         error_propagate(errp, err);
         return;

@@ -436,7 +436,7 @@ void qdev_prop_set_drive_err(DeviceState *dev, const char *name,
         }
     }
 
-    object_property_set_str(OBJECT(dev), ref, name, errp);
+    object_property_set_str(OBJECT(dev), name, ref, errp);
 }
 
 void qdev_prop_set_drive(DeviceState *dev, const char *name,
@@ -449,16 +449,16 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name,
                        Chardev *value)
 {
     assert(!value || value->label);
-    object_property_set_str(OBJECT(dev),
-                            value ? value->label : "", name, &error_abort);
+    object_property_set_str(OBJECT(dev), name, value ? value->label : "",
+                            &error_abort);
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name,
                           NetClientState *value)
 {
     assert(!value || value->name);
-    object_property_set_str(OBJECT(dev),
-                            value ? value->name : "", name, &error_abort);
+    object_property_set_str(OBJECT(dev), name, value ? value->name : "",
+                            &error_abort);
 }
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)

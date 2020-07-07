@@ -120,14 +120,14 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
         /* On uniprocessor, the CBAR is set to 0 */
         if (smp_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]), FSL_IMX6_A9MPCORE_ADDR,
-                                    "reset-cbar", &error_abort);
+            object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
+                                    FSL_IMX6_A9MPCORE_ADDR, &error_abort);
         }
 
         /* All CPU but CPU 0 start in power off mode */
         if (i) {
-            object_property_set_bool(OBJECT(&s->cpu[i]), true,
-                                     "start-powered-off", &error_abort);
+            object_property_set_bool(OBJECT(&s->cpu[i]), "start-powered-off",
+                                     true, &error_abort);
         }
 
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, &err)) {
@@ -136,12 +136,11 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    object_property_set_int(OBJECT(&s->a9mpcore), smp_cpus, "num-cpu",
+    object_property_set_int(OBJECT(&s->a9mpcore), "num-cpu", smp_cpus,
                             &error_abort);
 
-    object_property_set_int(OBJECT(&s->a9mpcore),
-                            FSL_IMX6_MAX_IRQ + GIC_INTERNAL, "num-irq",
-                            &error_abort);
+    object_property_set_int(OBJECT(&s->a9mpcore), "num-irq",
+                            FSL_IMX6_MAX_IRQ + GIC_INTERNAL, &error_abort);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->a9mpcore), &err)) {
         error_propagate(errp, err);
@@ -295,10 +294,10 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             },
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-edge-sel",
+        object_property_set_bool(OBJECT(&s->gpio[i]), "has-edge-sel", true,
                                  &error_abort);
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-upper-pin-irq",
-                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->gpio[i]), "has-upper-pin-irq",
+                                 true, &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -326,14 +325,12 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         };
 
         /* UHS-I SDIO3.0 SDR104 1.8V ADMA */
-        object_property_set_uint(OBJECT(&s->esdhc[i]), 3, "sd-spec-version",
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "sd-spec-version", 3,
                                  &error_abort);
-        object_property_set_uint(OBJECT(&s->esdhc[i]), IMX6_ESDHC_CAPABILITIES,
-                                 "capareg",
-                                 &error_abort);
-        object_property_set_uint(OBJECT(&s->esdhc[i]), SDHCI_VENDOR_IMX,
-                                 "vendor",
-                                 &error_abort);
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "capareg",
+                                 IMX6_ESDHC_CAPABILITIES, &error_abort);
+        object_property_set_uint(OBJECT(&s->esdhc[i]), "vendor",
+                                 SDHCI_VENDOR_IMX, &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->esdhc[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -417,8 +414,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             FSL_IMX6_WDOG2_IRQ,
         };
 
-        object_property_set_bool(OBJECT(&s->wdt[i]), true, "pretimeout-support",
-                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->wdt[i]), "pretimeout-support",
+                                 true, &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &error_abort);
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0, FSL_IMX6_WDOGn_ADDR[i]);

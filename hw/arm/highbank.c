@@ -267,18 +267,18 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         cpuobj = object_new(machine->cpu_type);
         cpu = ARM_CPU(cpuobj);
 
-        object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_SMC,
-                                "psci-conduit", &error_abort);
+        object_property_set_int(cpuobj, "psci-conduit", QEMU_PSCI_CONDUIT_SMC,
+                                &error_abort);
 
         if (n) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(cpuobj, true,
-                                     "start-powered-off", &error_abort);
+            object_property_set_bool(cpuobj, "start-powered-off", true,
+                                     &error_abort);
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
-            object_property_set_int(cpuobj, MPCORE_PERIPHBASE,
-                                    "reset-cbar", &error_abort);
+            object_property_set_int(cpuobj, "reset-cbar", MPCORE_PERIPHBASE,
+                                    &error_abort);
         }
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);

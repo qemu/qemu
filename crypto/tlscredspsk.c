@@ -234,7 +234,7 @@ qcrypto_tls_creds_psk_prop_get_loaded(Object *obj G_GNUC_UNUSED,
 static void
 qcrypto_tls_creds_psk_complete(UserCreatable *uc, Error **errp)
 {
-    object_property_set_bool(OBJECT(uc), true, "loaded", errp);
+    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
 }
 
 

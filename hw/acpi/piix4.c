@@ -244,7 +244,7 @@ static bool vmstate_test_use_cpuhp(void *opaque)
 static int vmstate_cpuhp_pre_load(void *opaque)
 {
     Object *obj = OBJECT(opaque);
-    object_property_set_bool(obj, false, "cpu-hotplug-legacy", &error_abort);
+    object_property_set_bool(obj, "cpu-hotplug-legacy", false, &error_abort);
     return 0;
 }
 

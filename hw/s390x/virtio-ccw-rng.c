@@ -27,8 +27,7 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
         return;
     }
 
-    object_property_set_link(OBJECT(dev),
-                             OBJECT(dev->vdev.conf.rng), "rng",
+    object_property_set_link(OBJECT(dev), "rng", OBJECT(dev->vdev.conf.rng),
                              NULL);
 }
 

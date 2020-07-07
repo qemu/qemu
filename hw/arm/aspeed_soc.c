@@ -204,7 +204,7 @@ static void aspeed_soc_init(Object *obj)
 
     object_initialize_child(obj, "sdc", &s->sdhci, TYPE_ASPEED_SDHCI);
 
-    object_property_set_int(OBJECT(&s->sdhci), 2, "num-slots", &error_abort);
+    object_property_set_int(OBJECT(&s->sdhci), "num-slots", 2, &error_abort);
 
     /* Init sd card slot class here so that they're under the correct parent */
     for (i = 0; i < ASPEED_SDHCI_NUM_SLOTS; ++i) {
@@ -274,8 +274,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_RTC));
 
     /* Timer */
-    object_property_set_link(OBJECT(&s->timerctrl),
-                             OBJECT(&s->scu), "scu", &error_abort);
+    object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),
+                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->timerctrl), &err)) {
         error_propagate(errp, err);
         return;
@@ -295,7 +295,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* I2C */
-    object_property_set_link(OBJECT(&s->i2c), OBJECT(s->dram_mr), "dram",
+    object_property_set_link(OBJECT(&s->i2c), "dram", OBJECT(s->dram_mr),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &err)) {
         error_propagate(errp, err);
@@ -306,10 +306,10 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_I2C));
 
     /* FMC, The number of CS is set at the board level */
-    object_property_set_link(OBJECT(&s->fmc), OBJECT(s->dram_mr), "dram",
+    object_property_set_link(OBJECT(&s->fmc), "dram", OBJECT(s->dram_mr),
                              &error_abort);
-    object_property_set_int(OBJECT(&s->fmc), sc->memmap[ASPEED_SDRAM],
-                            "sdram-base", &err);
+    object_property_set_int(OBJECT(&s->fmc), "sdram-base",
+                            sc->memmap[ASPEED_SDRAM], &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -326,8 +326,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
     /* SPI */
     for (i = 0; i < sc->spis_num; i++) {
-        object_property_set_int(OBJECT(&s->spi[i]), 1, "num-cs",
-                                &error_abort);
+        object_property_set_int(OBJECT(&s->spi[i]), "num-cs", 1, &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -361,8 +360,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->wdts_num; i++) {
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
 
-        object_property_set_link(OBJECT(&s->wdt[i]),
-                                 OBJECT(&s->scu), "scu", &error_abort);
+        object_property_set_link(OBJECT(&s->wdt[i]), "scu", OBJECT(&s->scu),
+                                 &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &err)) {
             error_propagate(errp, err);
             return;
@@ -373,7 +372,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
     /* Net */
     for (i = 0; i < sc->macs_num; i++) {
-        object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
+        object_property_set_bool(OBJECT(&s->ftgmac100[i]), "aspeed", true,
                                  &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), &err)) {
             error_propagate(errp, err);

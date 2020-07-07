@@ -383,8 +383,8 @@ static void sifive_u_machine_init(MachineState *machine)
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
-    object_property_set_uint(OBJECT(&s->soc), s->serial, "serial",
-                            &error_abort);
+    object_property_set_uint(OBJECT(&s->soc), "serial", s->serial,
+                             &error_abort);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* register RAM */
@@ -708,7 +708,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
         qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
         qdev_set_nic_properties(DEVICE(&s->gem), nd);
     }
-    object_property_set_int(OBJECT(&s->gem), GEM_REVISION, "revision",
+    object_property_set_int(OBJECT(&s->gem), "revision", GEM_REVISION,
                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem), &err)) {
         error_propagate(errp, err);

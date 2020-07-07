@@ -547,8 +547,8 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
                              (Object **)&cs->dma,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
-    object_property_set_link(OBJECT(ds), OBJECT(s), "dma", &error_abort);
-    object_property_set_link(OBJECT(cs), OBJECT(s), "dma", &error_abort);
+    object_property_set_link(OBJECT(ds), "dma", OBJECT(s), &error_abort);
+    object_property_set_link(OBJECT(cs), "dma", OBJECT(s), &error_abort);
 
     for (i = 0; i < 2; i++) {
         struct Stream *st = &s->streams[i];

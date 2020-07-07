@@ -71,7 +71,7 @@ void qmp_qom_set(const char *path, const char *property, QObject *value,
         return;
     }
 
-    object_property_set_qobject(obj, value, property, errp);
+    object_property_set_qobject(obj, property, value, errp);
 }
 
 QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
