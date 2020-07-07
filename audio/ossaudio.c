@@ -691,6 +691,7 @@ static size_t oss_read(HWVoiceIn *hw, void *buf, size_t len)
                            len, dst);
                 break;
             }
+            break;
         }
 
         pos += nread;
