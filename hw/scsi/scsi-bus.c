@@ -283,8 +283,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), "share-rw", share_rw, &err);
-    if (err != NULL) {
+    if (!object_property_set_bool(OBJECT(dev), "share-rw", share_rw, &err)) {
         error_propagate(errp, err);
         object_unparent(OBJECT(dev));
         return NULL;

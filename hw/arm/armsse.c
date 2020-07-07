@@ -534,22 +534,20 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * later if necessary.
          */
         if (extract32(info->cpuwait_rst, i, 1)) {
-            object_property_set_bool(cpuobj, "start-powered-off", true, &err);
-            if (err) {
+            if (!object_property_set_bool(cpuobj, "start-powered-off", true,
+                                          &err)) {
                 error_propagate(errp, err);
                 return;
             }
         }
         if (!s->cpu_fpu[i]) {
-            object_property_set_bool(cpuobj, "vfp", false, &err);
-            if (err) {
+            if (!object_property_set_bool(cpuobj, "vfp", false, &err)) {
                 error_propagate(errp, err);
                 return;
             }
         }
         if (!s->cpu_dsp[i]) {
-            object_property_set_bool(cpuobj, "dsp", false, &err);
-            if (err) {
+            if (!object_property_set_bool(cpuobj, "dsp", false, &err)) {
                 error_propagate(errp, err);
                 return;
             }
@@ -604,9 +602,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 DeviceState *devs = DEVICE(splitter);
                 int cpunum;
 
-                object_property_set_int(splitter, "num-lines", info->num_cpus,
-                                        &err);
-                if (err) {
+                if (!object_property_set_int(splitter, "num-lines",
+                                             info->num_cpus, &err)) {
                     error_propagate(errp, err);
                     return;
                 }
@@ -658,9 +655,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * multiple lines, one for each of the PPCs within the ARMSSE and one
      * that will be an output from the ARMSSE to the system.
      */
-    object_property_set_int(OBJECT(&s->sec_resp_splitter), "num-lines", 3,
-                            &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->sec_resp_splitter),
+                                 "num-lines", 3, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -702,9 +698,9 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* We must OR together lines from the MPC splitters to go to the NVIC */
-    object_property_set_int(OBJECT(&s->mpc_irq_orgate), "num-lines",
-                            IOTS_NUM_EXP_MPC + info->sram_banks, &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->mpc_irq_orgate), "num-lines",
+                                 IOTS_NUM_EXP_MPC + info->sram_banks,
+                                 &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -841,9 +837,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * ones) are sent individually to the security controller, and also
      * ORed together to give a single combined PPC interrupt to the NVIC.
      */
-    object_property_set_int(OBJECT(&s->ppc_irq_orgate), "num-lines", NUM_PPCS,
-                            &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->ppc_irq_orgate),
+                                 "num-lines", NUM_PPCS, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -949,15 +944,13 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                           qdev_get_gpio_in_named(dev_apb_ppc1,
                                                  "cfg_sec_resp", 0));
 
-    object_property_set_int(OBJECT(&s->sysinfo), "SYS_VERSION",
-                            info->sys_version, &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->sysinfo), "SYS_VERSION",
+                                 info->sys_version, &err)) {
         error_propagate(errp, err);
         return;
     }
-    object_property_set_int(OBJECT(&s->sysinfo), "SYS_CONFIG",
-                            armsse_sys_config_value(s, info), &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->sysinfo), "SYS_CONFIG",
+                                 armsse_sys_config_value(s, info), &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1005,8 +998,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* This OR gate wires together outputs from the secure watchdogs to NMI */
-    object_property_set_int(OBJECT(&s->nmi_orgate), "num-lines", 2, &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->nmi_orgate), "num-lines", 2,
+                                 &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -1049,8 +1042,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ARRAY_SIZE(s->ppc_irq_splitter); i++) {
         Object *splitter = OBJECT(&s->ppc_irq_splitter[i]);
 
-        object_property_set_int(splitter, "num-lines", 2, &err);
-        if (err) {
+        if (!object_property_set_int(splitter, "num-lines", 2, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -1095,8 +1087,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
         DeviceState *dev_splitter = DEVICE(splitter);
 
-        object_property_set_int(OBJECT(splitter), "num-lines", 2, &err);
-        if (err) {
+        if (!object_property_set_int(OBJECT(splitter), "num-lines", 2,
+                                     &err)) {
             error_propagate(errp, err);
             return;
         }

@@ -261,8 +261,7 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
         }
     }
 
-    object_property_set_bool(OBJECT(carddev), "spi", true, &err);
-    if (err) {
+    if (!object_property_set_bool(OBJECT(carddev), "spi", true, &err)) {
         goto fail;
     }
 

@@ -106,9 +106,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                        BASE_TO_IRQ(NRF51_RNG_BASE)));
 
     /* UICR, FICR, NVMC, FLASH */
-    object_property_set_uint(OBJECT(&s->nvm), "flash-size", s->flash_size,
-                             &err);
-    if (err) {
+    if (!object_property_set_uint(OBJECT(&s->nvm), "flash-size",
+                                  s->flash_size, &err)) {
         error_propagate(errp, err);
         return;
     }
@@ -141,8 +140,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
-        object_property_set_uint(OBJECT(&s->timer[i]), "id", i, &err);
-        if (err) {
+        if (!object_property_set_uint(OBJECT(&s->timer[i]), "id", i, &err)) {
             error_propagate(errp, err);
             return;
         }

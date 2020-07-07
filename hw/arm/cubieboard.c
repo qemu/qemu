@@ -62,20 +62,19 @@ static void cubieboard_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "soc", OBJECT(a10));
     object_unref(OBJECT(a10));
 
-    object_property_set_int(OBJECT(&a10->emac), "phy-addr", 1, &err);
-    if (err != NULL) {
+    if (!object_property_set_int(OBJECT(&a10->emac), "phy-addr", 1, &err)) {
         error_reportf_err(err, "Couldn't set phy address: ");
         exit(1);
     }
 
-    object_property_set_int(OBJECT(&a10->timer), "clk0-freq", 32768, &err);
-    if (err != NULL) {
+    if (!object_property_set_int(OBJECT(&a10->timer), "clk0-freq", 32768,
+                                 &err)) {
         error_reportf_err(err, "Couldn't set clk0 frequency: ");
         exit(1);
     }
 
-    object_property_set_int(OBJECT(&a10->timer), "clk1-freq", 24000000, &err);
-    if (err != NULL) {
+    if (!object_property_set_int(OBJECT(&a10->timer), "clk1-freq", 24000000,
+                                 &err)) {
         error_reportf_err(err, "Couldn't set clk1 frequency: ");
         exit(1);
     }

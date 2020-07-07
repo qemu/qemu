@@ -174,31 +174,27 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
                                  &error_abort);
     }
     if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
-        object_property_set_uint(OBJECT(s->cpu), "init-svtor", s->init_svtor,
-                                 &err);
-        if (err != NULL) {
+        if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
+                                      s->init_svtor, &err)) {
             error_propagate(errp, err);
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
-                                 s->start_powered_off, &err);
-        if (err != NULL) {
+        if (!object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
+                                      s->start_powered_off, &err)) {
             error_propagate(errp, err);
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "vfp", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, &err);
-        if (err != NULL) {
+        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, &err)) {
             error_propagate(errp, err);
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "dsp", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, &err);
-        if (err != NULL) {
+        if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -243,8 +239,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             Object *obj = OBJECT(&s->bitband[i]);
             SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
-            object_property_set_int(obj, "base", bitband_input_addr[i], &err);
-            if (err != NULL) {
+            if (!object_property_set_int(obj, "base",
+                                         bitband_input_addr[i], &err)) {
                 error_propagate(errp, err);
                 return;
             }

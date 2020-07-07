@@ -2469,9 +2469,7 @@ static int object_parse_property_opt(Object *obj,
         return 0;
     }
 
-    object_property_parse(obj, name, value, &local_err);
-
-    if (local_err) {
+    if (!object_property_parse(obj, name, value, &local_err)) {
         error_propagate(errp, local_err);
         return -1;
     }

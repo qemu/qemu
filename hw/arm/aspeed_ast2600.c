@@ -356,9 +356,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     /* FMC, The number of CS is set at the board level */
     object_property_set_link(OBJECT(&s->fmc), "dram", OBJECT(s->dram_mr),
                              &error_abort);
-    object_property_set_int(OBJECT(&s->fmc), "sdram-base",
-                            sc->memmap[ASPEED_SDRAM], &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(&s->fmc), "sdram-base",
+                                 sc->memmap[ASPEED_SDRAM], &err)) {
         error_propagate(errp, err);
         return;
     }

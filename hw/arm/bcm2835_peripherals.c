@@ -222,9 +222,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_uint(OBJECT(&s->fb), "vcram-base",
-                             ram_size - vcram_size, &err);
-    if (err) {
+    if (!object_property_set_uint(OBJECT(&s->fb), "vcram-base",
+                                  ram_size - vcram_size, &err)) {
         error_propagate(errp, err);
         return;
     }

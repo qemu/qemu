@@ -5271,9 +5271,8 @@ static void object_apply_props(Object *obj, QDict *props, Error **errp)
     Error *err = NULL;
 
     for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
-        object_property_set_qobject(obj, qdict_entry_key(prop),
-                                    qdict_entry_value(prop), &err);
-        if (err) {
+        if (!object_property_set_qobject(obj, qdict_entry_key(prop),
+                                         qdict_entry_value(prop), &err)) {
             break;
         }
     }
@@ -6340,16 +6339,14 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), prop, true, &local_err);
-        if (local_err) {
+        if (!object_property_set_bool(OBJECT(cpu), prop, true, &local_err)) {
             goto out;
         }
     }
 
     for (l = minus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), prop, false, &local_err);
-        if (local_err) {
+        if (!object_property_set_bool(OBJECT(cpu), prop, false, &local_err)) {
             goto out;
         }
     }

@@ -70,8 +70,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
         goto out;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        object_property_set(obj, e->key, v, &local_err);
-        if (local_err) {
+        if (!object_property_set(obj, e->key, v, &local_err)) {
             break;
         }
     }
@@ -88,8 +87,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
                                   id, obj);
     }
 
-    user_creatable_complete(USER_CREATABLE(obj), &local_err);
-    if (local_err) {
+    if (!user_creatable_complete(USER_CREATABLE(obj), &local_err)) {
         if (id != NULL) {
             object_property_del(object_get_objects_root(), id);
         }

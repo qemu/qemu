@@ -405,8 +405,7 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
             continue;
         }
         p->used = true;
-        object_property_parse(obj, p->property, p->value, &err);
-        if (err != NULL) {
+        if (!object_property_parse(obj, p->property, p->value, &err)) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
             /*
@@ -566,8 +565,7 @@ bool object_initialize_child_with_propsv(Object *parentobj,
 
     uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
     if (uc) {
-        user_creatable_complete(uc, &local_err);
-        if (local_err) {
+        if (!user_creatable_complete(uc, &local_err)) {
             object_unparent(obj);
             goto out;
         }
@@ -764,8 +762,7 @@ Object *object_new_with_propv(const char *typename,
 
     uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
     if (uc) {
-        user_creatable_complete(uc, &local_err);
-        if (local_err) {
+        if (!user_creatable_complete(uc, &local_err)) {
             if (id != NULL) {
                 object_unparent(obj);
             }
@@ -810,8 +807,7 @@ int object_set_propv(Object *obj,
         const char *value = va_arg(vargs, char *);
 
         g_assert(value != NULL);
-        object_property_parse(obj, propname, value, &local_err);
-        if (local_err) {
+        if (!object_property_parse(obj, propname, value, &local_err)) {
             error_propagate(errp, local_err);
             return -1;
         }
@@ -1608,8 +1604,7 @@ char *object_property_print(Object *obj, const char *name, bool human,
     Error *local_err = NULL;
 
     v = string_output_visitor_new(human, &string);
-    object_property_get(obj, name, v, &local_err);
-    if (local_err) {
+    if (!object_property_get(obj, name, v, &local_err)) {
         error_propagate(errp, local_err);
         goto out;
     }

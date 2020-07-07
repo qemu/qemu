@@ -824,8 +824,7 @@ static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
         return NULL;
     }
 
-    object_property_set_str(OBJECT(dev), "target", target, &local_err);
-    if (local_err) {
+    if (!object_property_set_str(OBJECT(dev), "target", target, &local_err)) {
         object_unparent(OBJECT(dev));
         error_propagate_prepend(errp, local_err,
                                 "zPCI device could not be created: ");

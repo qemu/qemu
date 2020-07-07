@@ -398,8 +398,7 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
         assert(!DEVICE_GET_CLASS(dev)->bus_type);
     }
 
-    object_property_set_bool(OBJECT(dev), "realized", true, &err);
-    if (err) {
+    if (!object_property_set_bool(OBJECT(dev), "realized", true, &err)) {
         error_propagate(errp, err);
     }
     return !err;

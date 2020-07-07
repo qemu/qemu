@@ -110,17 +110,17 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         s->cpu[n].core.mp_affinity = (info->clusterid << 8) | n;
 
         /* set periphbase/CBAR value for CPU-local registers */
-        object_property_set_int(OBJECT(&s->cpu[n].core), "reset-cbar",
-                                info->peri_base, &err);
-        if (err) {
+        if (!object_property_set_int(OBJECT(&s->cpu[n].core), "reset-cbar",
+                                     info->peri_base, &err)) {
             error_propagate(errp, err);
             return;
         }
 
         /* start powered off if not enabled */
-        object_property_set_bool(OBJECT(&s->cpu[n].core), "start-powered-off",
-                                 n >= s->enabled_cpus, &err);
-        if (err) {
+        if (!object_property_set_bool(OBJECT(&s->cpu[n].core),
+                                      "start-powered-off",
+                                      n >= s->enabled_cpus,
+                                      &err)) {
             error_propagate(errp, err);
             return;
         }

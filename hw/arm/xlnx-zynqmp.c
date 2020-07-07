@@ -507,18 +507,16 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
          * - SDIO Specification Version 3.0
          * - eMMC Specification Version 4.51
          */
-        object_property_set_uint(sdhci, "sd-spec-version", 3, &err);
-        if (err) {
+        if (!object_property_set_uint(sdhci, "sd-spec-version", 3, &err)) {
             error_propagate(errp, err);
             return;
         }
-        object_property_set_uint(sdhci, "capareg", SDHCI_CAPABILITIES, &err);
-        if (err) {
+        if (!object_property_set_uint(sdhci, "capareg", SDHCI_CAPABILITIES,
+                                      &err)) {
             error_propagate(errp, err);
             return;
         }
-        object_property_set_uint(sdhci, "uhs", UHS_I, &err);
-        if (err) {
+        if (!object_property_set_uint(sdhci, "uhs", UHS_I, &err)) {
             error_propagate(errp, err);
             return;
         }
@@ -606,8 +604,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0, gic_spi[RTC_IRQ]);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
-        object_property_set_uint(OBJECT(&s->gdma[i]), "bus-width", 128, &err);
-        if (err) {
+        if (!object_property_set_uint(OBJECT(&s->gdma[i]), "bus-width", 128,
+                                      &err)) {
             error_propagate(errp, err);
             return;
         }

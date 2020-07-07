@@ -121,8 +121,7 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
     Error *local_err = NULL;
     Object *cpu = object_new(MACHINE(x86ms)->cpu_type);
 
-    object_property_set_uint(cpu, "apic-id", apic_id, &local_err);
-    if (local_err) {
+    if (!object_property_set_uint(cpu, "apic-id", apic_id, &local_err)) {
         goto out;
     }
     qdev_realize(DEVICE(cpu), NULL, &local_err);

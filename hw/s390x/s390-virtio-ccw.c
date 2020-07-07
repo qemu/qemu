@@ -70,8 +70,7 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
     S390CPU *cpu = S390_CPU(object_new(typename));
     Error *err = NULL;
 
-    object_property_set_int(OBJECT(cpu), "core-id", core_id, &err);
-    if (err != NULL) {
+    if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, &err)) {
         goto out;
     }
     qdev_realize(DEVICE(cpu), NULL, &err);

@@ -935,22 +935,21 @@ static void xen_block_device_create(XenBackendInstance *backend,
     xendev = XEN_DEVICE(qdev_new(type));
     blockdev = XEN_BLOCK_DEVICE(xendev);
 
-    object_property_set_str(OBJECT(xendev), "vdev", vdev, &local_err);
-    if (local_err) {
+    if (!object_property_set_str(OBJECT(xendev), "vdev", vdev,
+                                 &local_err)) {
         error_propagate_prepend(errp, local_err, "failed to set 'vdev': ");
         goto fail;
     }
 
-    object_property_set_str(OBJECT(xendev), "drive",
-                            xen_block_drive_get_node_name(drive), &local_err);
-    if (local_err) {
+    if (!object_property_set_str(OBJECT(xendev), "drive",
+                                 xen_block_drive_get_node_name(drive),
+                                 &local_err)) {
         error_propagate_prepend(errp, local_err, "failed to set 'drive': ");
         goto fail;
     }
 
-    object_property_set_str(OBJECT(xendev), "iothread", iothread->id,
-                            &local_err);
-    if (local_err) {
+    if (!object_property_set_str(OBJECT(xendev), "iothread", iothread->id,
+                                 &local_err)) {
         error_propagate_prepend(errp, local_err,
                                 "failed to set 'iothread': ");
         goto fail;

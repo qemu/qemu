@@ -505,8 +505,8 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     unsigned int i;
 
     /* Create PSI interrupt control source */
-    object_property_set_int(OBJECT(ics), "nr-irqs", PSI_NUM_INTERRUPTS, &err);
-    if (err) {
+    if (!object_property_set_int(OBJECT(ics), "nr-irqs", PSI_NUM_INTERRUPTS,
+                                 &err)) {
         error_propagate(errp, err);
         return;
     }
