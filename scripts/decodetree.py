@@ -1327,12 +1327,10 @@ def main():
     # but we can't tell which ones.  Prevent issues from the compiler by
     # suppressing redundant declaration warnings.
     if anyextern:
-        output("#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE\n",
-               "# pragma GCC diagnostic push\n",
-               "# pragma GCC diagnostic ignored \"-Wredundant-decls\"\n",
-               "# ifdef __clang__\n"
+        output("#pragma GCC diagnostic push\n",
+               "#pragma GCC diagnostic ignored \"-Wredundant-decls\"\n",
+               "#ifdef __clang__\n"
                "#  pragma GCC diagnostic ignored \"-Wtypedef-redefinition\"\n",
-               "# endif\n",
                "#endif\n\n")
 
     out_pats = {}
@@ -1347,9 +1345,7 @@ def main():
     output('\n')
 
     if anyextern:
-        output("#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE\n",
-               "# pragma GCC diagnostic pop\n",
-               "#endif\n\n")
+        output("#pragma GCC diagnostic pop\n\n")
 
     for n in sorted(formats.keys()):
         f = formats[n]
