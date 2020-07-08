@@ -1415,12 +1415,6 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     AUD_register_card ("sb16", &s->card);
 }
 
-static int SB16_init (ISABus *bus)
-{
-    isa_create_simple (bus, TYPE_SB16);
-    return 0;
-}
-
 static Property sb16_properties[] = {
     DEFINE_AUDIO_PROPERTIES(SB16State, card),
     DEFINE_PROP_UINT32 ("version", SB16State, ver,  0x0405), /* 4.5 */
@@ -1453,7 +1447,8 @@ static const TypeInfo sb16_info = {
 static void sb16_register_types (void)
 {
     type_register_static (&sb16_info);
-    isa_register_soundhw("sb16", "Creative Sound Blaster 16", SB16_init);
+    deprecated_register_soundhw("sb16", "Creative Sound Blaster 16",
+                                1, TYPE_SB16);
 }
 
 type_init (sb16_register_types)
