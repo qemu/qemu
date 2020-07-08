@@ -731,7 +731,7 @@ print_syscall_err(abi_long ret)
 
     qemu_log(" = ");
     if (ret < 0) {
-        qemu_log("-1 errno=%d", errno);
+        qemu_log("-1 errno=%d", (int)-ret);
         errstr = target_strerror(-ret);
         if (errstr) {
             qemu_log(" (%s)", errstr);
