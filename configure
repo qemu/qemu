@@ -7926,7 +7926,7 @@ if test "$fuzzing" = "yes" ; then
   if test "$have_fuzzer" = "yes"; then
     FUZZ_LDFLAGS=" -fsanitize=address,fuzzer"
     FUZZ_CFLAGS=" -fsanitize=address,fuzzer"
-    CFLAGS=" -fsanitize=address,fuzzer-no-link"
+    CFLAGS="$CFLAGS -fsanitize=address,fuzzer-no-link"
   else
     error_exit "Your compiler doesn't support -fsanitize=address,fuzzer"
     exit 1
