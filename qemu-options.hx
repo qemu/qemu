@@ -3688,11 +3688,11 @@ SRST
 
     ::
 
-        qemu -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,share=on \
-             -numa node,memdev=mem \
-             -chardev socket,id=chr0,path=/path/to/socket \
-             -netdev type=vhost-user,id=net0,chardev=chr0 \
-             -device virtio-net-pci,netdev=net0
+        qemu-kvm -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,share=on \
+                 -numa node,memdev=mem \
+                 -chardev socket,id=chr0,path=/path/to/socket \
+                 -netdev type=vhost-user,id=net0,chardev=chr0 \
+                 -device virtio-net-pci,netdev=net0
 
 ``-netdev vhost-vdpa[,vhostdev=/path/to/dev][,vhostfd=h]``
     Establish a vhost-vdpa netdev.
