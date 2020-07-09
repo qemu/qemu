@@ -23,6 +23,7 @@ Contents:
    decodetree
    secure-coding-practices
    tcg
+   tcg-icount
    multi-thread-tcg
    tcg-plugins
    bitops
