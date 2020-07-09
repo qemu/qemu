@@ -994,6 +994,18 @@ bool object_class_is_abstract(ObjectClass *klass);
  */
 ObjectClass *object_class_by_name(const char *typename);
 
+/**
+ * module_object_class_by_name:
+ * @typename: The QOM typename to obtain the class for.
+ *
+ * For objects which might be provided by a module.  Behaves like
+ * object_class_by_name, but additionally tries to load the module
+ * needed in case the class is not available.
+ *
+ * Returns: The class for @typename or %NULL if not found.
+ */
+ObjectClass *module_object_class_by_name(const char *typename);
+
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
                           const char *implements_type, bool include_abstract,
                           void *opaque);

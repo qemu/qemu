@@ -43,4 +43,6 @@ devices-dirs-y += smbios/
 endif
 
 common-obj-y += $(devices-dirs-y)
+common-obj-m += display/
+common-obj-m += usb/
 obj-y += $(devices-dirs-y)
