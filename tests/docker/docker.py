@@ -306,13 +306,14 @@ class Docker(object):
         checksum = _text_checksum(_dockerfile_preprocess(dockerfile))
 
         if registry is not None:
-            dockerfile = dockerfile.replace("FROM qemu/",
-                                            "FROM %s/qemu/" %
-                                            (registry))
             # see if we can fetch a cache copy, may fail...
             pull_args = ["pull", "%s/%s" % (registry, tag)]
-            self._do(pull_args, quiet=quiet)
-
+            if self._do(pull_args, quiet=quiet) == 0:
+                dockerfile = dockerfile.replace("FROM qemu/",
+                                                "FROM %s/qemu/" %
+                                                (registry))
+            else:
+                registry = None
 
         tmp_df = tempfile.NamedTemporaryFile(mode="w+t",
                                              encoding='utf-8',
