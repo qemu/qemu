@@ -72,6 +72,7 @@
 #define IBEX_UART_TIMEOUT_CTRL 0x2c
 
 #define IBEX_UART_TX_FIFO_SIZE 16
+#define IBEX_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_IBEX_UART "ibex-uart"
 #define IBEX_UART(obj) \
@@ -100,6 +101,8 @@ typedef struct {
     uint32_t uart_ovrd;
     uint32_t uart_val;
     uint32_t uart_timeout_ctrl;
+
+    Clock *f_clk;
 
     CharBackend chr;
     qemu_irq tx_watermark;

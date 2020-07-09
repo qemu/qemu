@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/ibex_uart.h"
 #include "hw/irq.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -203,6 +204,17 @@ static void ibex_uart_reset(DeviceState *dev)
     ibex_uart_update_irqs(s);
 }
 
+static uint64_t ibex_uart_get_baud(IbexUartState *s)
+{
+    uint64_t baud;
+
+    baud = ((s->uart_ctrl & UART_CTRL_NCO) >> 16);
+    baud *= clock_get_hz(s->f_clk);
+    baud >>= 20;
+
+    return baud;
+}
+
 static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
@@ -329,9 +341,7 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
                           "%s: UART_CTRL_RXBLVL is not supported\n", __func__);
         }
         if (value & UART_CTRL_NCO) {
-            uint64_t baud = ((value & UART_CTRL_NCO) >> 16);
-            baud *= 1000;
-            baud >>= 20;
+            uint64_t baud = ibex_uart_get_baud(s);
 
             s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
         }
@@ -383,6 +393,16 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
     }
+}
+
+static void ibex_uart_clk_update(void *opaque)
+{
+    IbexUartState *s = opaque;
+
+    /* recompute uart's speed on clock change */
+    uint64_t baud = ibex_uart_get_baud(s);
+
+    s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
 }
 
 static void fifo_trigger_update(void *opaque)
@@ -443,6 +463,10 @@ static Property ibex_uart_properties[] = {
 static void ibex_uart_init(Object *obj)
 {
     IbexUartState *s = IBEX_UART(obj);
+
+    s->f_clk = qdev_init_clock_in(DEVICE(obj), "f_clock",
+                                  ibex_uart_clk_update, s);
+    clock_set_hz(s->f_clk, IBEX_UART_CLOCK);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_watermark);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_watermark);
