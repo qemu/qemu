@@ -191,7 +191,7 @@ static void register_virtio_scsi_fuzz_targets(void)
 {
     fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-scsi-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking"
+                .description = "Fuzz the virtio-scsi virtual queues, forking "
                                 "for each fuzz run",
                 .pre_vm_init = &counter_shm_init,
                 .pre_fuzz = &virtio_scsi_pre_fuzz,
@@ -202,7 +202,7 @@ static void register_virtio_scsi_fuzz_targets(void)
 
     fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-scsi-flags-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking"
+                .description = "Fuzz the virtio-scsi virtual queues, forking "
                 "for each fuzz run (also fuzzes the virtio flags)",
                 .pre_vm_init = &counter_shm_init,
                 .pre_fuzz = &virtio_scsi_pre_fuzz,
