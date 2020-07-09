@@ -182,7 +182,7 @@ for target in $target_list; do
       container_image=debian-xtensa-cross
 
       # default to the dc232b cpu
-      container_cross_cc=/opt/2018.02/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-gcc
+      container_cross_cc=/opt/2020.07/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-gcc
       ;;
   esac
 
