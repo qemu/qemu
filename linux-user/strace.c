@@ -889,8 +889,12 @@ print_syscall_ret_ioctl(const struct syscallname *name, abi_long ret,
             arg_type++;
             target_size = thunk_type_size(arg_type, 0);
             argptr = lock_user(VERIFY_READ, arg2, target_size, 1);
-            thunk_print(argptr, arg_type);
-            unlock_user(argptr, arg2, target_size);
+            if (argptr) {
+                thunk_print(argptr, arg_type);
+                unlock_user(argptr, arg2, target_size);
+            } else {
+                print_pointer(arg2, 1);
+            }
             qemu_log(")");
         }
     }
@@ -3119,8 +3123,12 @@ print_ioctl(const struct syscallname *name,
                     arg_type++;
                     target_size = thunk_type_size(arg_type, 0);
                     argptr = lock_user(VERIFY_READ, arg2, target_size, 1);
-                    thunk_print(argptr, arg_type);
-                    unlock_user(argptr, arg2, target_size);
+                    if (argptr) {
+                        thunk_print(argptr, arg_type);
+                        unlock_user(argptr, arg2, target_size);
+                    } else {
+                        print_pointer(arg2, 1);
+                    }
                     break;
                 }
                 break;
