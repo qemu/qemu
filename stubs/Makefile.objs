@@ -21,10 +21,10 @@ stub-obj-y += replay.o
 stub-obj-y += runstate-check.o
 stub-obj-$(CONFIG_SOFTMMU) += semihost.o
 stub-obj-y += set-fd-handler.o
-stub-obj-y += vmgenid.o
 stub-obj-y += sysbus.o
 stub-obj-y += tpm.o
 stub-obj-y += trace-control.o
+stub-obj-y += vmgenid.o
 stub-obj-y += vmstate.o
 stub-obj-$(CONFIG_SOFTMMU) += win32-kbd-hook.o
 

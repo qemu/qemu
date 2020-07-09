@@ -3758,7 +3758,7 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     /* Currently only address widths supported are 39 and 48 bits */
     if ((s->aw_bits != VTD_HOST_AW_39BIT) &&
         (s->aw_bits != VTD_HOST_AW_48BIT)) {
-        error_setg(errp, "Supported values for x-aw-bits are: %d, %d",
+        error_setg(errp, "Supported values for aw-bits are: %d, %d",
                    VTD_HOST_AW_39BIT, VTD_HOST_AW_48BIT);
         return false;
     }
