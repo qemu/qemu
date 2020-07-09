@@ -53,7 +53,7 @@ static const struct MemmapEntry {
     hwaddr size;
 } virt_memmap[] = {
     [VIRT_DEBUG] =       {        0x0,         0x100 },
-    [VIRT_MROM] =        {     0x1000,       0x11000 },
+    [VIRT_MROM] =        {     0x1000,        0xf000 },
     [VIRT_TEST] =        {   0x100000,        0x1000 },
     [VIRT_RTC] =         {   0x101000,        0x1000 },
     [VIRT_CLINT] =       {  0x2000000,       0x10000 },
