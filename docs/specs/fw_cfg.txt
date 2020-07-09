@@ -219,7 +219,7 @@ To check the result, read the "control" field:
 
 = Externally Provided Items =
 
-As of v2.4, "file" fw_cfg items (i.e., items with selector keys above
+Since v2.4, "file" fw_cfg items (i.e., items with selector keys above
 FW_CFG_FILE_FIRST, and with a corresponding entry in the fw_cfg file
 directory structure) may be inserted via the QEMU command line, using
 the following syntax:
@@ -229,6 +229,13 @@ the following syntax:
 Or
 
     -fw_cfg [name=]<item_name>,string=<string>
+
+Since v5.1, QEMU allows some objects to generate fw_cfg-specific content,
+the content is then associated with a "file" item using the 'gen_id' option
+in the command line, using the following syntax:
+
+    -object <generator-type>,id=<generated_id>,[generator-specific-options] \
+    -fw_cfg [name=]<item_name>,gen_id=<generated_id>
 
 See QEMU man page for more documentation.
 
@@ -250,5 +257,9 @@ Prefix "opt/org.qemu/" is reserved for QEMU itself.
 
 Use of names not beginning with "opt/" is potentially dangerous and
 entirely unsupported.  QEMU will warn if you try.
+
+Use of names not beginning with "opt/" is tolerated with 'gen_id' (that
+is, the warning is suppressed), but you must know exactly what you're
+doing.
 
 All externally provided fw_cfg items are read-only to the guest.
