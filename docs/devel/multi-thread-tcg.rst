@@ -1,15 +1,17 @@
-Copyright (c) 2015-2016 Linaro Ltd.
+..
+  Copyright (c) 2015-2020 Linaro Ltd.
 
-This work is licensed under the terms of the GNU GPL, version 2 or
-later. See the COPYING file in the top-level directory.
+  This work is licensed under the terms of the GNU GPL, version 2 or
+  later. See the COPYING file in the top-level directory.
 
 Introduction
 ============
 
-This document outlines the design for multi-threaded TCG system-mode
-emulation. The current user-mode emulation mirrors the thread
-structure of the translated executable. Some of the work will be
-applicable to both system and linux-user emulation.
+This document outlines the design for multi-threaded TCG (a.k.a MTTCG)
+system-mode emulation. user-mode emulation has always mirrored the
+thread structure of the translated executable although some of the
+changes done for MTTCG system emulation have improved the stability of
+linux-user emulation.
 
 The original system-mode TCG implementation was single threaded and
 dealt with multiple CPUs with simple round-robin scheduling. This
@@ -21,9 +23,18 @@ vCPU Scheduling
 ===============
 
 We introduce a new running mode where each vCPU will run on its own
-user-space thread. This will be enabled by default for all FE/BE
-combinations that have had the required work done to support this
-safely.
+user-space thread. This is enabled by default for all FE/BE
+combinations where the host memory model is able to accommodate the
+guest (TCG_GUEST_DEFAULT_MO & ~TCG_TARGET_DEFAULT_MO is zero) and the
+guest has had the required work done to support this safely
+(TARGET_SUPPORTS_MTTCG).
+
+System emulation will fall back to the original round robin approach
+if:
+
+* forced by --accel tcg,thread=single
+* enabling --icount mode
+* 64 bit guests on 32 bit hosts (TCG_OVERSIZED_GUEST)
 
 In the general case of running translated code there should be no
 inter-vCPU dependencies and all vCPUs should be able to run at full
@@ -61,7 +72,9 @@ have their block-to-block jumps patched.
 Global TCG State
 ----------------
 
-### User-mode emulation
+User-mode emulation
+~~~~~~~~~~~~~~~~~~~
+
 We need to protect the entire code generation cycle including any post
 generation patching of the translated code. This also implies a shared
 translation buffer which contains code running on all cores. Any
@@ -78,9 +91,11 @@ patching.
 
 Code generation is serialised with mmap_lock().
 
-### !User-mode emulation
+!User-mode emulation
+~~~~~~~~~~~~~~~~~~~~
+
 Each vCPU has its own TCG context and associated TCG region, thereby
-requiring no locking.
+requiring no locking during translation.
 
 Translation Blocks
 ------------------
@@ -92,6 +107,7 @@ including:
 
   - debugging operations (breakpoint insertion/removal)
   - some CPU helper functions
+  - linux-user spawning it's first thread
 
 This is done with the async_safe_run_on_cpu() mechanism to ensure all
 vCPUs are quiescent when changes are being made to shared global
@@ -250,8 +266,10 @@ to enforce a particular ordering of memory operations from the point
 of view of external observers (e.g. another processor core). They can
 apply to any memory operations as well as just loads or stores.
 
-The Linux kernel has an excellent write-up on the various forms of
-memory barrier and the guarantees they can provide [1].
+The Linux kernel has an excellent `write-up
+<https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/Documentation/memory-barriers.txt>`
+on the various forms of memory barrier and the guarantees they can
+provide.
 
 Barriers are often wrapped around synchronisation primitives to
 provide explicit memory ordering semantics. However they can be used
@@ -352,7 +370,3 @@ an exclusive lock which ensures all emulation is serialised.
 While the atomic helpers look good enough for now there may be a need
 to look at solutions that can more closely model the guest
 architectures semantics.
-
-==========
-
-[1] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/Documentation/memory-barriers.txt
