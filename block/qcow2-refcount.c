@@ -1669,12 +1669,18 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
+                bool contains_data;
                 res->corruptions++;
 
-                if (qcow2_get_cluster_type(bs, l2_entry) ==
-                    QCOW2_CLUSTER_ZERO_ALLOC)
-                {
-                    fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
+                if (has_subclusters(s)) {
+                    uint64_t l2_bitmap = get_l2_bitmap(s, l2_table, i);
+                    contains_data = (l2_bitmap & QCOW_L2_BITMAP_ALL_ALLOC);
+                } else {
+                    contains_data = !(l2_entry & QCOW_OFLAG_ZERO);
+                }
+
+                if (!contains_data) {
+                    fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated "
                             "cluster is not properly aligned; L2 entry "
                             "corrupted.\n",
                             fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR",
@@ -1686,7 +1692,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         int ign = active ? QCOW2_OL_ACTIVE_L2 :
                                            QCOW2_OL_INACTIVE_L2;
 
-                        l2_entry = QCOW_OFLAG_ZERO;
+                        l2_entry = has_subclusters(s) ? 0 : QCOW_OFLAG_ZERO;
                         set_l2_entry(s, l2_table, i, l2_entry);
                         ret = qcow2_pre_write_overlap_check(bs, ign,
                                 l2e_offset, l2_entry_size(s), false);
