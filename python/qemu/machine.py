@@ -294,6 +294,10 @@ class QEMUMachine:
             self._qmp.accept()
 
     def _post_shutdown(self):
+        if self._qmp:
+            self._qmp.close()
+            self._qmp = None
+
         self._load_io_log()
 
         if self._qemu_log_file is not None:
@@ -366,8 +370,6 @@ class QEMUMachine:
         Wait for the VM to power off
         """
         self._popen.wait()
-        if self._qmp:
-            self._qmp.close()
         self._post_shutdown()
 
     def shutdown(self, has_quit=False, hard=False):
@@ -388,7 +390,6 @@ class QEMUMachine:
                 try:
                     if not has_quit:
                         self._qmp.cmd('quit')
-                    self._qmp.close()
                     self._popen.wait(timeout=3)
                 except:
                     self._popen.kill()
