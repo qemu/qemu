@@ -380,6 +380,7 @@ class QEMUMachine:
         """
         Wait for the VM to power off
         """
+        self._early_cleanup()
         self._popen.wait()
         self._post_shutdown()
 
