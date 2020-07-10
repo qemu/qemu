@@ -2987,7 +2987,7 @@ F: block/vpc.c
 vvfat
 M: Kevin Wolf <kwolf@redhat.com>
 L: qemu-block@nongnu.org
-S: Supported
+S: Odd Fixes
 F: block/vvfat.c
 
 Image format fuzzer
