@@ -2166,6 +2166,9 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
     int ret;
     int i, j;
 
+    /* qcow2_downgrade() is not allowed in images with subclusters */
+    assert(!has_subclusters(s));
+
     slice_size2 = s->l2_slice_size * l2_entry_size(s);
     n_slices = s->cluster_size / slice_size2;
 
@@ -2233,8 +2236,11 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
                 if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                     if (!bs->backing) {
-                        /* not backed; therefore we can simply deallocate the
-                         * cluster */
+                        /*
+                         * not backed; therefore we can simply deallocate the
+                         * cluster. No need to call set_l2_bitmap(), this
+                         * function doesn't support images with subclusters.
+                         */
                         set_l2_entry(s, l2_slice, j, 0);
                         l2_dirty = true;
                         continue;
@@ -2305,6 +2311,10 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 } else {
                     set_l2_entry(s, l2_slice, j, offset);
                 }
+                /*
+                 * No need to call set_l2_bitmap() after set_l2_entry() because
+                 * this function doesn't support images with subclusters.
+                 */
                 l2_dirty = true;
             }
 
