@@ -49,19 +49,16 @@ common-obj-m += qxl.mo
 qxl.mo-objs = qxl.o qxl-logger.o qxl-render.o
 endif
 
-ifeq ($(CONFIG_VIRTIO_GPU),y)
-common-obj-m += virtio-gpu.mo
-virtio-gpu-obj-$(CONFIG_VIRTIO_GPU) += virtio-gpu-base.o virtio-gpu.o virtio-gpu-3d.o
-virtio-gpu-obj-$(CONFIG_VHOST_USER_GPU) += vhost-user-gpu.o
-virtio-gpu-obj-$(call land,$(CONFIG_VIRTIO_GPU),$(CONFIG_VIRTIO_PCI)) += virtio-gpu-pci.o
-virtio-gpu-obj-$(call land,$(CONFIG_VHOST_USER_GPU),$(CONFIG_VIRTIO_PCI)) += vhost-user-gpu-pci.o
-virtio-gpu-obj-$(CONFIG_VIRTIO_VGA) += virtio-vga.o
-virtio-gpu-obj-$(CONFIG_VHOST_USER_VGA) += vhost-user-vga.o
-virtio-gpu.mo-objs := $(virtio-gpu-obj-y)
-virtio-gpu.mo-cflags := $(VIRGL_CFLAGS)
-virtio-gpu.mo-libs := $(VIRGL_LIBS)
-endif
-
+common-obj-$(CONFIG_VIRTIO_GPU) += virtio-gpu-base.o virtio-gpu.o virtio-gpu-3d.o
+common-obj-$(CONFIG_VHOST_USER_GPU) += vhost-user-gpu.o
+common-obj-$(call land,$(CONFIG_VIRTIO_GPU),$(CONFIG_VIRTIO_PCI)) += virtio-gpu-pci.o
+common-obj-$(call land,$(CONFIG_VHOST_USER_GPU),$(CONFIG_VIRTIO_PCI)) += vhost-user-gpu-pci.o
+common-obj-$(CONFIG_VIRTIO_VGA) += virtio-vga.o
+common-obj-$(CONFIG_VHOST_USER_VGA) += vhost-user-vga.o
+virtio-gpu.o-cflags := $(VIRGL_CFLAGS)
+virtio-gpu.o-libs += $(VIRGL_LIBS)
+virtio-gpu-3d.o-cflags := $(VIRGL_CFLAGS)
+virtio-gpu-3d.o-libs += $(VIRGL_LIBS)
 common-obj-$(CONFIG_DPCD) += dpcd.o
 common-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx_dp.o
 

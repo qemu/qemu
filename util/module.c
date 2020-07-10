@@ -266,12 +266,6 @@ static struct {
     { "usb-redir",             "hw-", "usb-redirect"          },
     { "qxl-vga",               "hw-", "display-qxl"           },
     { "qxl",                   "hw-", "display-qxl"           },
-    { "virtio-gpu-device",     "hw-", "display-virtio-gpu"    },
-    { "virtio-gpu-pci",        "hw-", "display-virtio-gpu"    },
-    { "virtio-vga",            "hw-", "display-virtio-gpu"    },
-    { "vhost-user-gpu-device", "hw-", "display-virtio-gpu"    },
-    { "vhost-user-gpu-pci",    "hw-", "display-virtio-gpu"    },
-    { "vhost-user-vga",        "hw-", "display-virtio-gpu"    },
     { "chardev-braille",       "chardev-", "baum"             },
 };
 
