@@ -365,6 +365,17 @@ class QEMUMachine:
                                        close_fds=False)
         self._post_launch()
 
+    def _early_cleanup(self) -> None:
+        """
+        Perform any cleanup that needs to happen before the VM exits.
+        """
+        # If we keep the console socket open, we may deadlock waiting
+        # for QEMU to exit, while QEMU is waiting for the socket to
+        # become writeable.
+        if self._console_socket is not None:
+            self._console_socket.close()
+            self._console_socket = None
+
     def wait(self):
         """
         Wait for the VM to power off
@@ -376,12 +387,7 @@ class QEMUMachine:
         """
         Terminate the VM and clean up
         """
-        # If we keep the console socket open, we may deadlock waiting
-        # for QEMU to exit, while QEMU is waiting for the socket to
-        # become writeable.
-        if self._console_socket is not None:
-            self._console_socket.close()
-            self._console_socket = None
+        self._early_cleanup()
 
         if self.is_running():
             if hard:
