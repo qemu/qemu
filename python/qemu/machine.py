@@ -486,12 +486,12 @@ class QEMUMachine:
         """
         self.shutdown(hard=True)
 
-    def wait(self, timeout: Optional[int] = None) -> None:
+    def wait(self, timeout: Optional[int] = 3) -> None:
         """
         Wait for the VM to power off and perform post-shutdown cleanup.
 
         :param timeout: Optional timeout in seconds.
-                        Default None, an infinite wait.
+                        Default 3 seconds, A value of None is an infinite wait.
         """
         self.shutdown(has_quit=True, timeout=timeout)
 
