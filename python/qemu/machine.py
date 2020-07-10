@@ -385,14 +385,6 @@ class QEMUMachine:
             self._console_socket.close()
             self._console_socket = None
 
-    def wait(self):
-        """
-        Wait for the VM to power off
-        """
-        self._early_cleanup()
-        self._popen.wait()
-        self._post_shutdown()
-
     def shutdown(self, has_quit: bool = False,
                  hard: bool = False,
                  timeout: Optional[int] = 3) -> None:
@@ -420,6 +412,15 @@ class QEMUMachine:
 
     def kill(self):
         self.shutdown(hard=True)
+
+    def wait(self, timeout: Optional[int] = None) -> None:
+        """
+        Wait for the VM to power off and perform post-shutdown cleanup.
+
+        :param timeout: Optional timeout in seconds.
+                        Default None, an infinite wait.
+        """
+        self.shutdown(has_quit=True, timeout=timeout)
 
     def set_qmp_monitor(self, enabled=True):
         """
