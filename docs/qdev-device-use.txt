@@ -125,12 +125,7 @@ The -device argument differs in detail for each type of drive:
 
 * if=pflash, if=mtd, if=sd, if=xen are not yet available with -device
 
-For USB devices, the old way is actually different:
-
-    -usbdevice disk:format=FMT:FILENAME
-
-Provides much less control than -drive's OPTS...  The new way fixes
-that:
+For USB storage devices, you can use something like:
 
     -device usb-storage,drive=DRIVE-ID,removable=RMB
 
@@ -176,8 +171,6 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
 * -parallel becomes -device isa-parallel,iobase=IOADDR,irq=IRQ,index=IDX
 
   This lets you control I/O ports and IRQs.
-
-* -usbdevice serial::chardev becomes -device usb-serial,chardev=dev.
 
 * -usbdevice braille doesn't support LEGACY-CHARDEV syntax.  It always
   uses "braille".  With -device, this useful default is gone, so you
@@ -237,10 +230,6 @@ Host and guest part of network devices have always been separate.
 The old way to define the guest part looks like this:
 
     -net nic,netdev=NET-ID,macaddr=MACADDR,model=MODEL,name=ID,addr=STR,vectors=V
-
-Except for USB it looks like this:
-
-    -usbdevice net:netdev=NET-ID,macaddr=MACADDR,name=ID
 
 The new way is -device:
 
@@ -336,12 +325,7 @@ The new way is -device DEVNAME,DEV-OPTS...  Details depend on DRIVER:
 * mouse           -device usb-mouse
 * tablet          -device usb-tablet
 * wacom-tablet    -device usb-wacom-tablet
-* host:...        See "Host Device Assignment"
-* disk:...        See "Block Devices"
-* serial:...      See "Character Devices"
 * braille         See "Character Devices"
-* net:...         See "Network Devices"
-* bt:...          not yet available with -device
 
 === Watchdog Devices ===
 
@@ -358,17 +342,11 @@ and host USB devices.  PCI devices can only be assigned with -device:
 
     -device vfio-pci,host=ADDR,id=ID
 
-The old way to assign a host USB device is
-
-    -usbdevice host:auto:BUS.ADDR:VID:PRID
-
-where any of BUS, ADDR, VID, PRID can be the wildcard *.
-
-The new way is
+To assign a host USB device use:
 
     -device usb-host,hostbus=BUS,hostaddr=ADDR,vendorid=VID,productid=PRID
 
-Omitted options match anything, just like the old way's wildcard.
+Omitted options match anything.
 
 === Default Devices ===
 
