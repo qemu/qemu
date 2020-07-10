@@ -294,6 +294,8 @@ class QEMUMachine:
             self._qmp.accept()
 
     def _post_shutdown(self):
+        self._load_io_log()
+
         if self._qemu_log_file is not None:
             self._qemu_log_file.close()
             self._qemu_log_file = None
@@ -306,6 +308,17 @@ class QEMUMachine:
 
         while len(self._remove_files) > 0:
             self._remove_if_exists(self._remove_files.pop())
+
+        exitcode = self.exitcode()
+        if exitcode is not None and exitcode < 0:
+            msg = 'qemu received signal %i; command: "%s"'
+            if self._qemu_full_args:
+                command = ' '.join(self._qemu_full_args)
+            else:
+                command = ''
+            LOG.warning(msg, -int(exitcode), command)
+
+        self._launched = False
 
     def launch(self):
         """
@@ -355,7 +368,6 @@ class QEMUMachine:
         self._popen.wait()
         if self._qmp:
             self._qmp.close()
-        self._load_io_log()
         self._post_shutdown()
 
     def shutdown(self, has_quit=False, hard=False):
@@ -382,20 +394,7 @@ class QEMUMachine:
                     self._popen.kill()
             self._popen.wait()
 
-        self._load_io_log()
         self._post_shutdown()
-
-        exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0 and \
-                not (exitcode == -9 and hard):
-            msg = 'qemu received signal %i: %s'
-            if self._qemu_full_args:
-                command = ' '.join(self._qemu_full_args)
-            else:
-                command = ''
-            LOG.warning(msg, -int(exitcode), command)
-
-        self._launched = False
 
     def kill(self):
         self.shutdown(hard=True)
