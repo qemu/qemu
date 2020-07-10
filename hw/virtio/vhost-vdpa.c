@@ -19,8 +19,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/vhost-vdpa.h"
 #include "qemu/main-loop.h"
-#include <linux/kvm.h>
-#include "sysemu/kvm.h"
+#include "cpu.h"
 
 static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section)
 {
