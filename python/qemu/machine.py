@@ -393,7 +393,9 @@ class QEMUMachine:
         self._popen.wait()
         self._post_shutdown()
 
-    def shutdown(self, has_quit=False, hard=False):
+    def shutdown(self, has_quit: bool = False,
+                 hard: bool = False,
+                 timeout: Optional[int] = 3) -> None:
         """
         Terminate the VM and clean up
         """
@@ -409,10 +411,10 @@ class QEMUMachine:
                 try:
                     if not has_quit:
                         self._qmp.cmd('quit')
-                    self._popen.wait(timeout=3)
+                    self._popen.wait(timeout=timeout)
                 except:
                     self._popen.kill()
-            self._popen.wait()
+            self._popen.wait(timeout=timeout)
 
         self._post_shutdown()
 
