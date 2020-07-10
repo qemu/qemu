@@ -26,7 +26,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 magic                     0x514649fb
@@ -84,7 +84,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 magic                     0x514649fb
@@ -140,7 +140,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -195,7 +195,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 magic                     0x514649fb
@@ -264,7 +264,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 read 65536/65536 bytes at offset 44040192
@@ -326,7 +326,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 ERROR cluster 5 refcount=0 reference=1
@@ -355,7 +355,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 read 131072/131072 bytes at offset 0
@@ -530,6 +530,7 @@ Format specific information:
     data file: TEST_DIR/t.IMGFMT.data
     data file raw: false
     corrupt: false
+    extended l2: false
 No errors were found on the image.
 
 === Try changing the external data file ===
@@ -551,6 +552,7 @@ Format specific information:
     data file: foo
     data file raw: false
     corrupt: false
+    extended l2: false
 
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'data-file' is required for this image
 image: TEST_DIR/t.IMGFMT
@@ -564,6 +566,7 @@ Format specific information:
     refcount bits: 16
     data file raw: false
     corrupt: false
+    extended l2: false
 
 === Clearing and setting data-file-raw ===
 
@@ -580,6 +583,7 @@ Format specific information:
     data file: TEST_DIR/t.IMGFMT.data
     data file raw: true
     corrupt: false
+    extended l2: false
 No errors were found on the image.
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -593,6 +597,7 @@ Format specific information:
     data file: TEST_DIR/t.IMGFMT.data
     data file raw: false
     corrupt: false
+    extended l2: false
 No errors were found on the image.
 qemu-img: data-file-raw cannot be set on existing images
 image: TEST_DIR/t.IMGFMT
@@ -607,5 +612,6 @@ Format specific information:
     data file: TEST_DIR/t.IMGFMT.data
     data file raw: false
     corrupt: false
+    extended l2: false
 No errors were found on the image.
 *** done

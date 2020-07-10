@@ -47,7 +47,7 @@ header_length             112
 
 Header extension:
 magic                     0x6803f857 (Feature table)
-length                    336
+length                    384
 data                      <binary>
 
 Header extension:
@@ -105,7 +105,7 @@ Bitmap table   type            size         offset
     {
         "name": "Feature table",
         "magic": 1745090647,
-        "length": 336,
+        "length": 384,
         "data_str": "<binary>"
     },
     {

@@ -1449,6 +1449,12 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     s->subcluster_size = s->cluster_size / s->subclusters_per_cluster;
     s->subcluster_bits = ctz32(s->subcluster_size);
 
+    if (s->subcluster_size < (1 << MIN_CLUSTER_BITS)) {
+        error_setg(errp, "Unsupported subcluster size: %d", s->subcluster_size);
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* Check support for various header values */
     if (header.refcount_order > 6) {
         error_setg(errp, "Reference count entry width too large; may not "
@@ -2935,6 +2941,11 @@ int qcow2_update_header(BlockDriverState *bs)
                 .name = "compression type",
             },
             {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_EXTL2_BITNR,
+                .name = "extended L2 entries",
+            },
+            {
                 .type = QCOW2_FEAT_TYPE_COMPATIBLE,
                 .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
                 .name = "lazy refcounts",
@@ -3270,7 +3281,8 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
     return meta_size + aligned_total_size;
 }
 
-static bool validate_cluster_size(size_t cluster_size, Error **errp)
+static bool validate_cluster_size(size_t cluster_size, bool extended_l2,
+                                  Error **errp)
 {
     int cluster_bits = ctz32(cluster_size);
     if (cluster_bits < MIN_CLUSTER_BITS || cluster_bits > MAX_CLUSTER_BITS ||
@@ -3280,16 +3292,28 @@ static bool validate_cluster_size(size_t cluster_size, Error **errp)
                    "%dk", 1 << MIN_CLUSTER_BITS, 1 << (MAX_CLUSTER_BITS - 10));
         return false;
     }
+
+    if (extended_l2) {
+        unsigned min_cluster_size =
+            (1 << MIN_CLUSTER_BITS) * QCOW_EXTL2_SUBCLUSTERS_PER_CLUSTER;
+        if (cluster_size < min_cluster_size) {
+            error_setg(errp, "Extended L2 entries are only supported with "
+                       "cluster sizes of at least %u bytes", min_cluster_size);
+            return false;
+        }
+    }
+
     return true;
 }
 
-static size_t qcow2_opt_get_cluster_size_del(QemuOpts *opts, Error **errp)
+static size_t qcow2_opt_get_cluster_size_del(QemuOpts *opts, bool extended_l2,
+                                             Error **errp)
 {
     size_t cluster_size;
 
     cluster_size = qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE,
                                          DEFAULT_CLUSTER_SIZE);
-    if (!validate_cluster_size(cluster_size, errp)) {
+    if (!validate_cluster_size(cluster_size, extended_l2, errp)) {
         return 0;
     }
     return cluster_size;
@@ -3403,7 +3427,20 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         cluster_size = DEFAULT_CLUSTER_SIZE;
     }
 
-    if (!validate_cluster_size(cluster_size, errp)) {
+    if (!qcow2_opts->has_extended_l2) {
+        qcow2_opts->extended_l2 = false;
+    }
+    if (qcow2_opts->extended_l2) {
+        if (version < 3) {
+            error_setg(errp, "Extended L2 entries are only supported with "
+                       "compatibility level 1.1 and above (use version=v3 or "
+                       "greater)");
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    if (!validate_cluster_size(cluster_size, qcow2_opts->extended_l2, errp)) {
         ret = -EINVAL;
         goto out;
     }
@@ -3552,6 +3589,11 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     if (compression_type != QCOW2_COMPRESSION_TYPE_ZLIB) {
         header->incompatible_features |=
             cpu_to_be64(QCOW2_INCOMPAT_COMPRESSION);
+    }
+
+    if (qcow2_opts->extended_l2) {
+        header->incompatible_features |=
+            cpu_to_be64(QCOW2_INCOMPAT_EXTL2);
     }
 
     ret = blk_pwrite(blk, 0, header, cluster_size, 0);
@@ -3731,6 +3773,7 @@ static int coroutine_fn qcow2_co_create_opts(BlockDriver *drv,
         { BLOCK_OPT_BACKING_FMT,        "backing-fmt" },
         { BLOCK_OPT_CLUSTER_SIZE,       "cluster-size" },
         { BLOCK_OPT_LAZY_REFCOUNTS,     "lazy-refcounts" },
+        { BLOCK_OPT_EXTL2,              "extended-l2" },
         { BLOCK_OPT_REFCOUNT_BITS,      "refcount-bits" },
         { BLOCK_OPT_ENCRYPT,            BLOCK_OPT_ENCRYPT_FORMAT },
         { BLOCK_OPT_COMPAT_LEVEL,       "version" },
@@ -4847,11 +4890,14 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     PreallocMode prealloc;
     bool has_backing_file;
     bool has_luks;
-    bool extended_l2 = false; /* Set to false until the option is added */
+    bool extended_l2;
     size_t l2e_size;
 
     /* Parse image creation options */
-    cluster_size = qcow2_opt_get_cluster_size_del(opts, &local_err);
+    extended_l2 = qemu_opt_get_bool_del(opts, BLOCK_OPT_EXTL2, false);
+
+    cluster_size = qcow2_opt_get_cluster_size_del(opts, extended_l2,
+                                                  &local_err);
     if (local_err) {
         goto err;
     }
@@ -5047,6 +5093,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
             .corrupt            = s->incompatible_features &
                                   QCOW2_INCOMPAT_CORRUPT,
             .has_corrupt        = true,
+            .has_extended_l2    = true,
+            .extended_l2        = has_subclusters(s),
             .refcount_bits      = s->refcount_bits,
             .has_bitmaps        = !!bitmaps,
             .bitmaps            = bitmaps,
@@ -5773,6 +5821,12 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_SIZE,                                      \
             .help = "qcow2 cluster size",                               \
             .def_value_str = stringify(DEFAULT_CLUSTER_SIZE)            \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_EXTL2,                                    \
+            .type = QEMU_OPT_BOOL,                                      \
+            .help = "Extended L2 tables",                               \
+            .def_value_str = "off"                                      \
         },                                                              \
         {                                                               \
             .name = BLOCK_OPT_PREALLOC,                                 \
