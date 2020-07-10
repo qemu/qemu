@@ -294,6 +294,13 @@ class QEMUMachine:
             self._qmp.accept()
 
     def _post_shutdown(self):
+        """
+        Called to cleanup the VM instance after the process has exited.
+        May also be called after a failed launch.
+        """
+        # Comprehensive reset for the failed launch case:
+        self._early_cleanup()
+
         if self._qmp:
             self._qmp.close()
             self._qmp = None
@@ -339,7 +346,7 @@ class QEMUMachine:
             self._launch()
             self._launched = True
         except:
-            self.shutdown()
+            self._post_shutdown()
 
             LOG.debug('Error launching VM')
             if self._qemu_full_args:
@@ -368,6 +375,8 @@ class QEMUMachine:
     def _early_cleanup(self) -> None:
         """
         Perform any cleanup that needs to happen before the VM exits.
+
+        Called additionally by _post_shutdown for comprehensive cleanup.
         """
         # If we keep the console socket open, we may deadlock waiting
         # for QEMU to exit, while QEMU is waiting for the socket to
@@ -388,6 +397,9 @@ class QEMUMachine:
         """
         Terminate the VM and clean up
         """
+        if not self._launched:
+            return
+
         self._early_cleanup()
 
         if self.is_running():
