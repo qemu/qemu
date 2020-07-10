@@ -80,6 +80,10 @@
 
 #define QCOW_EXTL2_SUBCLUSTERS_PER_CLUSTER 32
 
+/* Size of normal and extended L2 entries */
+#define L2E_SIZE_NORMAL   (sizeof(uint64_t))
+#define L2E_SIZE_EXTENDED (sizeof(uint64_t) * 2)
+
 #define MIN_CLUSTER_BITS 9
 #define MAX_CLUSTER_BITS 21
 
@@ -519,6 +523,11 @@ static inline bool has_subclusters(BDRVQcow2State *s)
 {
     /* FIXME: Return false until this feature is complete */
     return false;
+}
+
+static inline size_t l2_entry_size(BDRVQcow2State *s)
+{
+    return has_subclusters(s) ? L2E_SIZE_EXTENDED : L2E_SIZE_NORMAL;
 }
 
 static inline uint64_t get_l2_entry(BDRVQcow2State *s, uint64_t *l2_slice,
