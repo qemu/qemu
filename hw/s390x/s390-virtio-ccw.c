@@ -68,21 +68,19 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
                               Error **errp)
 {
     S390CPU *cpu = S390_CPU(object_new(typename));
-    Error *err = NULL;
+    S390CPU *ret = NULL;
 
-    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
-    if (err != NULL) {
+    if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, errp)) {
         goto out;
     }
-    qdev_realize(DEVICE(cpu), NULL, &err);
+    if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
+        goto out;
+    }
+    ret = cpu;
 
 out:
     object_unref(OBJECT(cpu));
-    if (err) {
-        error_propagate(errp, err);
-        cpu = NULL;
-    }
-    return cpu;
+    return ret;
 }
 
 static void s390_init_cpus(MachineState *machine)
@@ -736,14 +734,14 @@ static inline void s390_machine_initfn(Object *obj)
                              machine_set_aes_key_wrap);
     object_property_set_description(obj, "aes-key-wrap",
             "enable/disable AES key wrapping using the CPACF wrapping key");
-    object_property_set_bool(obj, true, "aes-key-wrap", NULL);
+    object_property_set_bool(obj, "aes-key-wrap", true, NULL);
 
     object_property_add_bool(obj, "dea-key-wrap",
                              machine_get_dea_key_wrap,
                              machine_set_dea_key_wrap);
     object_property_set_description(obj, "dea-key-wrap",
             "enable/disable DEA key wrapping using the CPACF wrapping key");
-    object_property_set_bool(obj, true, "dea-key-wrap", NULL);
+    object_property_set_bool(obj, "dea-key-wrap", true, NULL);
     object_property_add_str(obj, "loadparm",
             machine_get_loadparm, machine_set_loadparm);
     object_property_set_description(obj, "loadparm",

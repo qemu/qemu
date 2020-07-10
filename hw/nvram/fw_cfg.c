@@ -1035,8 +1035,8 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
 void fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
                                const char *gen_id, Error **errp)
 {
+    ERRP_GUARD();
     FWCfgDataGeneratorClass *klass;
-    Error *local_err = NULL;
     GByteArray *array;
     Object *obj;
     gsize size;
@@ -1052,9 +1052,8 @@ void fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
         return;
     }
     klass = FW_CFG_DATA_GENERATOR_GET_CLASS(obj);
-    array = klass->get_data(obj, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    array = klass->get_data(obj, errp);
+    if (*errp) {
         return;
     }
     size = array->len;
@@ -1260,12 +1259,11 @@ static Property fw_cfg_io_properties[] = {
 
 static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     FWCfgIoState *s = FW_CFG_IO(dev);
-    Error *local_err = NULL;
 
-    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    fw_cfg_file_slots_allocate(FW_CFG(s), errp);
+    if (*errp) {
         return;
     }
 
@@ -1311,14 +1309,13 @@ static Property fw_cfg_mem_properties[] = {
 
 static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     FWCfgMemState *s = FW_CFG_MEM(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     const MemoryRegionOps *data_ops = &fw_cfg_data_mem_ops;
-    Error *local_err = NULL;
 
-    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    fw_cfg_file_slots_allocate(FW_CFG(s), errp);
+    if (*errp) {
         return;
     }
 

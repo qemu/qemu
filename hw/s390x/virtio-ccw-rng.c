@@ -20,16 +20,12 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {
     VirtIORNGCcw *dev = VIRTIO_RNG_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    Error *err = NULL;
 
-    qdev_realize(vdev, BUS(&ccw_dev->bus), &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!qdev_realize(vdev, BUS(&ccw_dev->bus), errp)) {
         return;
     }
 
-    object_property_set_link(OBJECT(dev),
-                             OBJECT(dev->vdev.conf.rng), "rng",
+    object_property_set_link(OBJECT(dev), "rng", OBJECT(dev->vdev.conf.rng),
                              NULL);
 }
 

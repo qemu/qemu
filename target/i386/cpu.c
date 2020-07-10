@@ -4260,12 +4260,12 @@ static void max_x86_cpu_initfn(Object *obj)
         host_vendor_fms(vendor, &family, &model, &stepping);
         cpu_x86_fill_model_id(model_id);
 
-        object_property_set_str(OBJECT(cpu), vendor, "vendor", &error_abort);
-        object_property_set_int(OBJECT(cpu), family, "family", &error_abort);
-        object_property_set_int(OBJECT(cpu), model, "model", &error_abort);
-        object_property_set_int(OBJECT(cpu), stepping, "stepping",
+        object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
+        object_property_set_int(OBJECT(cpu), "family", family, &error_abort);
+        object_property_set_int(OBJECT(cpu), "model", model, &error_abort);
+        object_property_set_int(OBJECT(cpu), "stepping", stepping,
                                 &error_abort);
-        object_property_set_str(OBJECT(cpu), model_id, "model-id",
+        object_property_set_str(OBJECT(cpu), "model-id", model_id,
                                 &error_abort);
 
         if (kvm_enabled()) {
@@ -4285,20 +4285,20 @@ static void max_x86_cpu_initfn(Object *obj)
         }
 
         if (lmce_supported()) {
-            object_property_set_bool(OBJECT(cpu), true, "lmce", &error_abort);
+            object_property_set_bool(OBJECT(cpu), "lmce", true, &error_abort);
         }
     } else {
-        object_property_set_str(OBJECT(cpu), CPUID_VENDOR_AMD,
-                                "vendor", &error_abort);
-        object_property_set_int(OBJECT(cpu), 6, "family", &error_abort);
-        object_property_set_int(OBJECT(cpu), 6, "model", &error_abort);
-        object_property_set_int(OBJECT(cpu), 3, "stepping", &error_abort);
-        object_property_set_str(OBJECT(cpu),
+        object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
+                                &error_abort);
+        object_property_set_int(OBJECT(cpu), "family", 6, &error_abort);
+        object_property_set_int(OBJECT(cpu), "model", 6, &error_abort);
+        object_property_set_int(OBJECT(cpu), "stepping", 3, &error_abort);
+        object_property_set_str(OBJECT(cpu), "model-id",
                                 "QEMU TCG CPU version " QEMU_HW_VERSION,
-                                "model-id", &error_abort);
+                                &error_abort);
     }
 
-    object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
+    object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
 }
 
 static const TypeInfo max_x86_cpu_type_info = {
@@ -4417,12 +4417,9 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xff + 0xf;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &value, errp)) {
         return;
     }
     if (value < min || value > max) {
@@ -4460,12 +4457,9 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xff;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &value, errp)) {
         return;
     }
     if (value < min || value > max) {
@@ -4498,12 +4492,9 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xf;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &value, errp)) {
         return;
     }
     if (value < min || value > max) {
@@ -4603,12 +4594,9 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     X86CPU *cpu = X86_CPU(obj);
     const int64_t min = 0;
     const int64_t max = INT64_MAX;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &value, errp)) {
         return;
     }
     if (value < min || value > max) {
@@ -5071,7 +5059,7 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
         if (!pv->value) {
             continue;
         }
-        object_property_parse(OBJECT(cpu), pv->value, pv->prop,
+        object_property_parse(OBJECT(cpu), pv->prop, pv->value,
                               &error_abort);
     }
 }
@@ -5090,7 +5078,7 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
         PropValue *p;
 
         for (p = vdef->props; p && p->prop; p++) {
-            object_property_parse(OBJECT(cpu), p->value, p->prop,
+            object_property_parse(OBJECT(cpu), p->prop, p->value,
                                   &error_abort);
         }
 
@@ -5121,18 +5109,16 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
      */
 
     /* CPU models only set _minimum_ values for level/xlevel: */
-    object_property_set_uint(OBJECT(cpu), def->level, "min-level",
+    object_property_set_uint(OBJECT(cpu), "min-level", def->level,
                              &error_abort);
-    object_property_set_uint(OBJECT(cpu), def->xlevel, "min-xlevel",
+    object_property_set_uint(OBJECT(cpu), "min-xlevel", def->xlevel,
                              &error_abort);
 
-    object_property_set_int(OBJECT(cpu), def->family, "family",
+    object_property_set_int(OBJECT(cpu), "family", def->family, &error_abort);
+    object_property_set_int(OBJECT(cpu), "model", def->model, &error_abort);
+    object_property_set_int(OBJECT(cpu), "stepping", def->stepping,
                             &error_abort);
-    object_property_set_int(OBJECT(cpu), def->model, "model",
-                            &error_abort);
-    object_property_set_int(OBJECT(cpu), def->stepping, "stepping",
-                            &error_abort);
-    object_property_set_str(OBJECT(cpu), def->model_id, "model-id",
+    object_property_set_str(OBJECT(cpu), "model-id", def->model_id,
                             &error_abort);
     for (w = 0; w < FEATURE_WORDS; w++) {
         env->features[w] = def->features[w];
@@ -5170,8 +5156,7 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
         vendor = host_vendor;
     }
 
-    object_property_set_str(OBJECT(cpu), vendor, "vendor",
-                            &error_abort);
+    object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
 
     x86_cpu_apply_version_props(cpu, model);
 }
@@ -5275,17 +5260,13 @@ static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
 static void object_apply_props(Object *obj, QDict *props, Error **errp)
 {
     const QDictEntry *prop;
-    Error *err = NULL;
 
     for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
-        object_property_set_qobject(obj, qdict_entry_value(prop),
-                                         qdict_entry_key(prop), &err);
-        if (err) {
+        if (!object_property_set_qobject(obj, qdict_entry_key(prop),
+                                         qdict_entry_value(prop), errp)) {
             break;
         }
     }
-
-    error_propagate(errp, err);
 }
 
 /* Create X86CPU object according to model+props specification */
@@ -6343,21 +6324,18 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     FeatureWord w;
     int i;
     GList *l;
-    Error *local_err = NULL;
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), true, prop, &local_err);
-        if (local_err) {
-            goto out;
+        if (!object_property_set_bool(OBJECT(cpu), prop, true, errp)) {
+            return;
         }
     }
 
     for (l = minus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), false, prop, &local_err);
-        if (local_err) {
-            goto out;
+        if (!object_property_set_bool(OBJECT(cpu), prop, false, errp)) {
+            return;
         }
     }
 
@@ -6454,11 +6432,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
     if (env->cpuid_xlevel2 == UINT32_MAX) {
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
-    }
-
-out:
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
     }
 }
 
@@ -6808,7 +6781,6 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
-    Error *local_err = NULL;
     bool value;
 
     if (dev->realized) {
@@ -6816,9 +6788,7 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
 

@@ -2463,16 +2463,11 @@ static int object_parse_property_opt(Object *obj,
                                      const char *name, const char *value,
                                      const char *skip, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (g_str_equal(name, skip)) {
         return 0;
     }
 
-    object_property_parse(obj, value, name, &local_err);
-
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!object_property_parse(obj, name, value, errp)) {
         return -1;
     }
 
@@ -2817,17 +2812,17 @@ static void create_default_memdev(MachineState *ms, const char *path)
 
     obj = object_new(path ? TYPE_MEMORY_BACKEND_FILE : TYPE_MEMORY_BACKEND_RAM);
     if (path) {
-        object_property_set_str(obj, path, "mem-path", &error_fatal);
+        object_property_set_str(obj, "mem-path", path, &error_fatal);
     }
-    object_property_set_int(obj, ms->ram_size, "size", &error_fatal);
+    object_property_set_int(obj, "size", ms->ram_size, &error_fatal);
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
                               obj);
     /* Ensure backend's memory region name is equal to mc->default_ram_id */
-    object_property_set_bool(obj, false, "x-use-canonical-path-for-ramblock-id",
-                             &error_fatal);
+    object_property_set_bool(obj, "x-use-canonical-path-for-ramblock-id",
+                             false, &error_fatal);
     user_creatable_complete(USER_CREATABLE(obj), &error_fatal);
     object_unref(obj);
-    object_property_set_str(OBJECT(ms), mc->default_ram_id, "memory-backend",
+    object_property_set_str(OBJECT(ms), "memory-backend", mc->default_ram_id,
                             &error_fatal);
 }
 

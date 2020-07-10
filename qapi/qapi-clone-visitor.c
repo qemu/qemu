@@ -24,7 +24,7 @@ static QapiCloneVisitor *to_qcv(Visitor *v)
     return container_of(v, QapiCloneVisitor, visitor);
 }
 
-static void qapi_clone_start_struct(Visitor *v, const char *name, void **obj,
+static bool qapi_clone_start_struct(Visitor *v, const char *name, void **obj,
                                     size_t size, Error **errp)
 {
     QapiCloneVisitor *qcv = to_qcv(v);
@@ -34,11 +34,12 @@ static void qapi_clone_start_struct(Visitor *v, const char *name, void **obj,
         /* Only possible when visiting an alternate's object
          * branch. Nothing further to do here, since the earlier
          * visit_start_alternate() already copied memory. */
-        return;
+        return true;
     }
 
     *obj = g_memdup(*obj, size);
     qcv->depth++;
+    return true;
 }
 
 static void qapi_clone_end(Visitor *v, void **obj)
@@ -51,11 +52,11 @@ static void qapi_clone_end(Visitor *v, void **obj)
     }
 }
 
-static void qapi_clone_start_list(Visitor *v, const char *name,
+static bool qapi_clone_start_list(Visitor *v, const char *name,
                                   GenericList **listp, size_t size,
                                   Error **errp)
 {
-    qapi_clone_start_struct(v, name, (void **)listp, size, errp);
+    return qapi_clone_start_struct(v, name, (void **)listp, size, errp);
 }
 
 static GenericList *qapi_clone_next_list(Visitor *v, GenericList *tail,
@@ -69,42 +70,45 @@ static GenericList *qapi_clone_next_list(Visitor *v, GenericList *tail,
     return tail->next;
 }
 
-static void qapi_clone_start_alternate(Visitor *v, const char *name,
+static bool qapi_clone_start_alternate(Visitor *v, const char *name,
                                        GenericAlternate **obj, size_t size,
                                        Error **errp)
 {
-    qapi_clone_start_struct(v, name, (void **)obj, size, errp);
+    return qapi_clone_start_struct(v, name, (void **)obj, size, errp);
 }
 
-static void qapi_clone_type_int64(Visitor *v, const char *name, int64_t *obj,
-                                   Error **errp)
-{
-    QapiCloneVisitor *qcv = to_qcv(v);
-
-    assert(qcv->depth);
-    /* Value was already cloned by g_memdup() */
-}
-
-static void qapi_clone_type_uint64(Visitor *v, const char *name,
-                                    uint64_t *obj, Error **errp)
-{
-    QapiCloneVisitor *qcv = to_qcv(v);
-
-    assert(qcv->depth);
-    /* Value was already cloned by g_memdup() */
-}
-
-static void qapi_clone_type_bool(Visitor *v, const char *name, bool *obj,
+static bool qapi_clone_type_int64(Visitor *v, const char *name, int64_t *obj,
                                   Error **errp)
 {
     QapiCloneVisitor *qcv = to_qcv(v);
 
     assert(qcv->depth);
     /* Value was already cloned by g_memdup() */
+    return true;
 }
 
-static void qapi_clone_type_str(Visitor *v, const char *name, char **obj,
+static bool qapi_clone_type_uint64(Visitor *v, const char *name,
+                                   uint64_t *obj, Error **errp)
+{
+    QapiCloneVisitor *qcv = to_qcv(v);
+
+    assert(qcv->depth);
+    /* Value was already cloned by g_memdup() */
+    return true;
+}
+
+static bool qapi_clone_type_bool(Visitor *v, const char *name, bool *obj,
                                  Error **errp)
+{
+    QapiCloneVisitor *qcv = to_qcv(v);
+
+    assert(qcv->depth);
+    /* Value was already cloned by g_memdup() */
+    return true;
+}
+
+static bool qapi_clone_type_str(Visitor *v, const char *name, char **obj,
+                                Error **errp)
 {
     QapiCloneVisitor *qcv = to_qcv(v);
 
@@ -117,24 +121,27 @@ static void qapi_clone_type_str(Visitor *v, const char *name, char **obj,
      * string is intended.
      */
     *obj = g_strdup(*obj ?: "");
+    return true;
 }
 
-static void qapi_clone_type_number(Visitor *v, const char *name, double *obj,
-                                    Error **errp)
+static bool qapi_clone_type_number(Visitor *v, const char *name, double *obj,
+                                   Error **errp)
 {
     QapiCloneVisitor *qcv = to_qcv(v);
 
     assert(qcv->depth);
     /* Value was already cloned by g_memdup() */
+    return true;
 }
 
-static void qapi_clone_type_null(Visitor *v, const char *name, QNull **obj,
+static bool qapi_clone_type_null(Visitor *v, const char *name, QNull **obj,
                                  Error **errp)
 {
     QapiCloneVisitor *qcv = to_qcv(v);
 
     assert(qcv->depth);
     *obj = qnull();
+    return true;
 }
 
 static void qapi_clone_free(Visitor *v)
@@ -167,7 +174,7 @@ static Visitor *qapi_clone_visitor_new(void)
     return &v->visitor;
 }
 
-void *qapi_clone(const void *src, void (*visit_type)(Visitor *, const char *,
+void *qapi_clone(const void *src, bool (*visit_type)(Visitor *, const char *,
                                                      void **, Error **))
 {
     Visitor *v;
@@ -184,7 +191,7 @@ void *qapi_clone(const void *src, void (*visit_type)(Visitor *, const char *,
 }
 
 void qapi_clone_members(void *dst, const void *src, size_t sz,
-                        void (*visit_type_members)(Visitor *, void *,
+                        bool (*visit_type_members)(Visitor *, void *,
                                                    Error **))
 {
     Visitor *v;

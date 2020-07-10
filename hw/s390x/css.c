@@ -2377,7 +2377,6 @@ static void set_css_devid(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     CssDevId *dev_id = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     char *str;
     int num, n1, n2;
     unsigned int cssid, ssid, devid;
@@ -2387,9 +2386,7 @@ static void set_css_devid(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 

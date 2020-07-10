@@ -239,7 +239,6 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
 void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     AcpiTableOptions *hdrs = NULL;
-    Error *err = NULL;
     char **pathnames = NULL;
     char **cur;
     size_t bloblen = 0;
@@ -249,21 +248,21 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         Visitor *v;
 
         v = opts_visitor_new(opts);
-        visit_type_AcpiTableOptions(v, NULL, &hdrs, &err);
+        visit_type_AcpiTableOptions(v, NULL, &hdrs, errp);
         visit_free(v);
     }
 
-    if (err) {
+    if (!hdrs) {
         goto out;
     }
     if (hdrs->has_file == hdrs->has_data) {
-        error_setg(&err, "'-acpitable' requires one of 'data' or 'file'");
+        error_setg(errp, "'-acpitable' requires one of 'data' or 'file'");
         goto out;
     }
 
     pathnames = g_strsplit(hdrs->has_file ? hdrs->file : hdrs->data, ":", 0);
     if (pathnames == NULL || pathnames[0] == NULL) {
-        error_setg(&err, "'-acpitable' requires at least one pathname");
+        error_setg(errp, "'-acpitable' requires at least one pathname");
         goto out;
     }
 
@@ -272,7 +271,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         int fd = open(*cur, O_RDONLY | O_BINARY);
 
         if (fd < 0) {
-            error_setg(&err, "can't open file %s: %s", *cur, strerror(errno));
+            error_setg(errp, "can't open file %s: %s", *cur, strerror(errno));
             goto out;
         }
 
@@ -288,8 +287,8 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
                 memcpy(blob + bloblen, data, r);
                 bloblen += r;
             } else if (errno != EINTR) {
-                error_setg(&err, "can't read file %s: %s",
-                           *cur, strerror(errno));
+                error_setg(errp, "can't read file %s: %s", *cur,
+                           strerror(errno));
                 close(fd);
                 goto out;
             }
@@ -298,14 +297,12 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         close(fd);
     }
 
-    acpi_table_install(blob, bloblen, hdrs->has_file, hdrs, &err);
+    acpi_table_install(blob, bloblen, hdrs->has_file, hdrs, errp);
 
 out:
     g_free(blob);
     g_strfreev(pathnames);
     qapi_free_AcpiTableOptions(hdrs);
-
-    error_propagate(errp, err);
 }
 
 unsigned acpi_table_len(void *current)

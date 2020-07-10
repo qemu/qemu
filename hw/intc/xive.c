@@ -757,25 +757,18 @@ static const TypeInfo xive_tctx_info = {
 
 Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
 {
-    Error *local_err = NULL;
     Object *obj;
 
     obj = object_new(TYPE_XIVE_TCTX);
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj);
     object_unref(obj);
-    object_property_set_link(obj, cpu, "cpu", &error_abort);
-    object_property_set_link(obj, OBJECT(xptr), "presenter", &error_abort);
-    qdev_realize(DEVICE(obj), NULL, &local_err);
-    if (local_err) {
-        goto error;
+    object_property_set_link(obj, "cpu", cpu, &error_abort);
+    object_property_set_link(obj, "presenter", OBJECT(xptr), &error_abort);
+    if (!qdev_realize(DEVICE(obj), NULL, errp)) {
+        object_unparent(obj);
+        return NULL;
     }
-
     return obj;
-
-error:
-    object_unparent(obj);
-    error_propagate(errp, local_err);
-    return NULL;
 }
 
 void xive_tctx_destroy(XiveTCTX *tctx)

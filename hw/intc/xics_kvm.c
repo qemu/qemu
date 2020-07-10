@@ -309,16 +309,14 @@ int ics_set_kvm_state(ICSState *ics, Error **errp)
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
-        Error *local_err = NULL;
         int ret;
 
         if (ics_irq_free(ics, i)) {
             continue;
         }
 
-        ret = ics_set_kvm_state_one(ics, i, &local_err);
+        ret = ics_set_kvm_state_one(ics, i, errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
     }

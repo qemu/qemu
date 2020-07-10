@@ -1459,8 +1459,8 @@ static void create_channels(VMBus *vmbus, VMBusDevice *dev, Error **errp)
 
     dev->num_channels = vdc->num_channels ? vdc->num_channels(dev) : 1;
     if (dev->num_channels < 1) {
-        error_setg(&err, "invalid #channels: %u", dev->num_channels);
-        goto error_out;
+        error_setg(errp, "invalid #channels: %u", dev->num_channels);
+        return;
     }
 
     dev->channels = g_new0(VMBusChannel, dev->num_channels);
@@ -1477,7 +1477,6 @@ err_init:
     while (i--) {
         deinit_channel(&dev->channels[i]);
     }
-error_out:
     error_propagate(errp, err);
 }
 

@@ -285,7 +285,7 @@ static void raspi_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             board_soc_type(board_rev));
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(machine->ram));
-    object_property_set_int(OBJECT(&s->soc), board_rev, "board-rev",
+    object_property_set_int(OBJECT(&s->soc), "board-rev", board_rev,
                             &error_abort);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 

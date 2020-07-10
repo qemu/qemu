@@ -115,7 +115,6 @@ static void aspeed_sdhci_set_irq(void *opaque, int n, int level)
 
 static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
 {
-    Error *err = NULL;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedSDHCIState *sdhci = ASPEED_SDHCI(dev);
 
@@ -132,22 +131,16 @@ static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
         Object *sdhci_slot = OBJECT(&sdhci->slots[i]);
         SysBusDevice *sbd_slot = SYS_BUS_DEVICE(&sdhci->slots[i]);
 
-        object_property_set_int(sdhci_slot, 2, "sd-spec-version", &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!object_property_set_int(sdhci_slot, "sd-spec-version", 2, errp)) {
             return;
         }
 
-        object_property_set_uint(sdhci_slot, ASPEED_SDHCI_CAPABILITIES,
-                                 "capareg", &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!object_property_set_uint(sdhci_slot, "capareg",
+                                      ASPEED_SDHCI_CAPABILITIES, errp)) {
             return;
         }
 
-        sysbus_realize(sbd_slot, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!sysbus_realize(sbd_slot, errp)) {
             return;
         }
 

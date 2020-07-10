@@ -359,7 +359,6 @@ static int blkdebug_parse_perm_list(uint64_t *dest, QDict *options,
     QObject *crumpled_subqdict = NULL;
     Visitor *v = NULL;
     BlockPermissionList *perm_list = NULL, *element;
-    Error *local_err = NULL;
 
     *dest = 0;
 
@@ -375,9 +374,7 @@ static int blkdebug_parse_perm_list(uint64_t *dest, QDict *options,
     }
 
     v = qobject_input_visitor_new(crumpled_subqdict);
-    visit_type_BlockPermissionList(v, NULL, &perm_list, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_BlockPermissionList(v, NULL, &perm_list, errp)) {
         ret = -EINVAL;
         goto out;
     }
@@ -472,9 +469,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t align;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         ret = -EINVAL;
         goto out;
     }

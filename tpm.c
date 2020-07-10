@@ -85,7 +85,6 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     const char *id;
     const TPMBackendClass *be;
     TPMBackend *drv;
-    Error *local_err = NULL;
     int i;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
@@ -116,9 +115,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     }
 
     /* validate backend specific opts */
-    qemu_opts_validate(opts, be->opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qemu_opts_validate(opts, be->opts, errp)) {
         return 1;
     }
 

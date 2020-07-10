@@ -990,7 +990,6 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     PnvPHB3 *phb = PNV_PHB3(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-    Error *local_err = NULL;
     int i;
 
     if (phb->phb_id >= PNV8_CHIP_PHB3_MAX) {
@@ -999,13 +998,11 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     }
 
     /* LSI sources */
-    object_property_set_link(OBJECT(&phb->lsis), OBJECT(pnv), "xics",
-                                   &error_abort);
-    object_property_set_int(OBJECT(&phb->lsis), PNV_PHB3_NUM_LSI, "nr-irqs",
+    object_property_set_link(OBJECT(&phb->lsis), "xics", OBJECT(pnv),
+                             &error_abort);
+    object_property_set_int(OBJECT(&phb->lsis), "nr-irqs", PNV_PHB3_NUM_LSI,
                             &error_abort);
-    qdev_realize(DEVICE(&phb->lsis), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&phb->lsis), NULL, errp)) {
         return;
     }
 
@@ -1016,24 +1013,20 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     phb->qirqs = qemu_allocate_irqs(ics_set_irq, &phb->lsis, phb->lsis.nr_irqs);
 
     /* MSI sources */
-    object_property_set_link(OBJECT(&phb->msis), OBJECT(phb), "phb",
-                                   &error_abort);
-    object_property_set_link(OBJECT(&phb->msis), OBJECT(pnv), "xics",
-                                   &error_abort);
-    object_property_set_int(OBJECT(&phb->msis), PHB3_MAX_MSI, "nr-irqs",
+    object_property_set_link(OBJECT(&phb->msis), "phb", OBJECT(phb),
+                             &error_abort);
+    object_property_set_link(OBJECT(&phb->msis), "xics", OBJECT(pnv),
+                             &error_abort);
+    object_property_set_int(OBJECT(&phb->msis), "nr-irqs", PHB3_MAX_MSI,
                             &error_abort);
-    qdev_realize(DEVICE(&phb->msis), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&phb->msis), NULL, errp)) {
         return;
     }
 
     /* Power Bus Common Queue */
-    object_property_set_link(OBJECT(&phb->pbcq), OBJECT(phb), "phb",
-                                   &error_abort);
-    qdev_realize(DEVICE(&phb->pbcq), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_link(OBJECT(&phb->pbcq), "phb", OBJECT(phb),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&phb->pbcq), NULL, errp)) {
         return;
     }
 

@@ -203,8 +203,8 @@ static void mps2_common_init(MachineState *machine)
     }
     qdev_prop_set_string(armv7m, "cpu-type", machine->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    object_property_set_link(OBJECT(&mms->armv7m), OBJECT(system_memory),
-                             "memory", &error_abort);
+    object_property_set_link(OBJECT(&mms->armv7m), "memory",
+                             OBJECT(system_memory), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&mms->armv7m), &error_fatal);
 
     create_unimplemented_device("zbtsmram mirror", 0x00400000, 0x00400000);
@@ -237,7 +237,7 @@ static void mps2_common_init(MachineState *machine)
         DeviceState *orgate_dev;
 
         orgate = object_new(TYPE_OR_IRQ);
-        object_property_set_int(orgate, 6, "num-lines", &error_fatal);
+        object_property_set_int(orgate, "num-lines", 6, &error_fatal);
         qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_connect_gpio_out(orgate_dev, 0, qdev_get_gpio_in(armv7m, 12));
@@ -273,7 +273,7 @@ static void mps2_common_init(MachineState *machine)
         DeviceState *orgate_dev;
 
         orgate = object_new(TYPE_OR_IRQ);
-        object_property_set_int(orgate, 10, "num-lines", &error_fatal);
+        object_property_set_int(orgate, "num-lines", 10, &error_fatal);
         qdev_realize(DEVICE(orgate), NULL, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_connect_gpio_out(orgate_dev, 0, qdev_get_gpio_in(armv7m, 12));
@@ -288,7 +288,7 @@ static void mps2_common_init(MachineState *machine)
             DeviceState *txrx_orgate_dev;
 
             txrx_orgate = object_new(TYPE_OR_IRQ);
-            object_property_set_int(txrx_orgate, 2, "num-lines", &error_fatal);
+            object_property_set_int(txrx_orgate, "num-lines", 2, &error_fatal);
             qdev_realize(DEVICE(txrx_orgate), NULL, &error_fatal);
             txrx_orgate_dev = DEVICE(txrx_orgate);
             qdev_connect_gpio_out(txrx_orgate_dev, 0,
@@ -356,7 +356,7 @@ static void mps2_common_init(MachineState *machine)
         int j;
 
         orgate = object_new(TYPE_OR_IRQ);
-        object_property_set_int(orgate, 2, "num-lines", &error_fatal);
+        object_property_set_int(orgate, "num-lines", 2, &error_fatal);
         orgate_dev = DEVICE(orgate);
         qdev_realize(orgate_dev, NULL, &error_fatal);
         qdev_connect_gpio_out(orgate_dev, 0,

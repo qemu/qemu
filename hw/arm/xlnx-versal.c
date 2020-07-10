@@ -35,17 +35,17 @@ static void versal_create_apu_cpus(Versal *s)
         object_initialize_child(OBJECT(s), "apu-cpu[*]", &s->fpd.apu.cpu[i],
                                 XLNX_VERSAL_ACPU_TYPE);
         obj = OBJECT(&s->fpd.apu.cpu[i]);
-        object_property_set_int(obj, s->cfg.psci_conduit,
-                                "psci-conduit", &error_abort);
+        object_property_set_int(obj, "psci-conduit", s->cfg.psci_conduit,
+                                &error_abort);
         if (i) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(obj, true,
-                                     "start-powered-off", &error_abort);
+            object_property_set_bool(obj, "start-powered-off", true,
+                                     &error_abort);
         }
 
-        object_property_set_int(obj, ARRAY_SIZE(s->fpd.apu.cpu),
-                                "core-count", &error_abort);
-        object_property_set_link(obj, OBJECT(&s->fpd.apu.mr), "memory",
+        object_property_set_int(obj, "core-count", ARRAY_SIZE(s->fpd.apu.cpu),
+                                &error_abort);
+        object_property_set_link(obj, "memory", OBJECT(&s->fpd.apu.mr),
                                  &error_abort);
         qdev_realize(DEVICE(obj), NULL, &error_fatal);
     }
@@ -164,11 +164,9 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
             qemu_check_nic_model(nd, "cadence_gem");
             qdev_set_nic_properties(dev, nd);
         }
-        object_property_set_int(OBJECT(dev),
-                                2, "num-priority-queues",
+        object_property_set_int(OBJECT(dev), "num-priority-queues", 2,
                                 &error_abort);
-        object_property_set_link(OBJECT(dev),
-                                 OBJECT(&s->mr_ps), "dma",
+        object_property_set_link(OBJECT(dev), "dma", OBJECT(&s->mr_ps),
                                  &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
@@ -192,7 +190,7 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
         object_initialize_child(OBJECT(s), name, &s->lpd.iou.adma[i],
                                 TYPE_XLNX_ZDMA);
         dev = DEVICE(&s->lpd.iou.adma[i]);
-        object_property_set_int(OBJECT(dev), 128, "bus-width", &error_abort);
+        object_property_set_int(OBJECT(dev), "bus-width", 128, &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
@@ -217,11 +215,11 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
                                 TYPE_SYSBUS_SDHCI);
         dev = DEVICE(&s->pmc.iou.sd[i]);
 
-        object_property_set_uint(OBJECT(dev),
-                                 3, "sd-spec-version", &error_fatal);
-        object_property_set_uint(OBJECT(dev), SDHCI_CAPABILITIES, "capareg",
+        object_property_set_uint(OBJECT(dev), "sd-spec-version", 3,
                                  &error_fatal);
-        object_property_set_uint(OBJECT(dev), UHS_I, "uhs", &error_fatal);
+        object_property_set_uint(OBJECT(dev), "capareg", SDHCI_CAPABILITIES,
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), "uhs", UHS_I, &error_fatal);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);

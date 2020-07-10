@@ -487,9 +487,9 @@ static void virt_machine_init(MachineState *machine)
     /* Initialize SOC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_HART_ARRAY);
-    object_property_set_str(OBJECT(&s->soc), machine->cpu_type, "cpu-type",
+    object_property_set_str(OBJECT(&s->soc), "cpu-type", machine->cpu_type,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->soc), smp_cpus, "num-harts",
+    object_property_set_int(OBJECT(&s->soc), "num-harts", smp_cpus,
                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_abort);
 

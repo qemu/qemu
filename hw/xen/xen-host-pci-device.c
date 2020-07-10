@@ -333,8 +333,8 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
                              uint8_t bus, uint8_t dev, uint8_t func,
                              Error **errp)
 {
+    ERRP_GUARD();
     unsigned int v;
-    Error *err = NULL;
 
     d->config_fd = -1;
     d->domain = domain;
@@ -342,36 +342,36 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     d->dev = dev;
     d->func = func;
 
-    xen_host_pci_config_open(d, &err);
-    if (err) {
+    xen_host_pci_config_open(d, errp);
+    if (*errp) {
         goto error;
     }
 
-    xen_host_pci_get_resource(d, &err);
-    if (err) {
+    xen_host_pci_get_resource(d, errp);
+    if (*errp) {
         goto error;
     }
 
-    xen_host_pci_get_hex_value(d, "vendor", &v, &err);
-    if (err) {
+    xen_host_pci_get_hex_value(d, "vendor", &v, errp);
+    if (*errp) {
         goto error;
     }
     d->vendor_id = v;
 
-    xen_host_pci_get_hex_value(d, "device", &v, &err);
-    if (err) {
+    xen_host_pci_get_hex_value(d, "device", &v, errp);
+    if (*errp) {
         goto error;
     }
     d->device_id = v;
 
-    xen_host_pci_get_dec_value(d, "irq", &v, &err);
-    if (err) {
+    xen_host_pci_get_dec_value(d, "irq", &v, errp);
+    if (*errp) {
         goto error;
     }
     d->irq = v;
 
-    xen_host_pci_get_hex_value(d, "class", &v, &err);
-    if (err) {
+    xen_host_pci_get_hex_value(d, "class", &v, errp);
+    if (*errp) {
         goto error;
     }
     d->class_code = v;
@@ -381,7 +381,6 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     return;
 
 error:
-    error_propagate(errp, err);
 
     if (d->config_fd >= 0) {
         close(d->config_fd);

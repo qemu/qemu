@@ -297,22 +297,19 @@ static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
     int32_t boot_index;
     Error *local_err = NULL;
 
-    visit_type_int32(v, name, &boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    if (!visit_type_int32(v, name, &boot_index, errp)) {
+        return;
     }
     /* check whether bootindex is present in fw_boot_order list  */
     check_boot_index(boot_index, &local_err);
     if (local_err) {
-        goto out;
+        error_propagate(errp, local_err);
+        return;
     }
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
     add_boot_device_path(*prop->bootindex, prop->dev, prop->suffix);
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void property_release_bootindex(Object *obj, const char *name,
@@ -342,7 +339,7 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                         prop);
 
     /* initialize devices' bootindex property to -1 */
-    object_property_set_int(obj, -1, name, NULL);
+    object_property_set_int(obj, name, -1, NULL);
 }
 
 typedef struct FWLCHSEntry FWLCHSEntry;

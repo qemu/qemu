@@ -521,14 +521,11 @@ static void cuda_reset(DeviceState *dev)
 static void cuda_realize(DeviceState *dev, Error **errp)
 {
     CUDAState *s = CUDA(dev);
-    Error *err = NULL;
     SysBusDevice *sbd;
     ADBBusState *adb_bus = &s->adb_bus;
     struct tm tm;
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_cuda), &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_cuda), errp)) {
         return;
     }
 

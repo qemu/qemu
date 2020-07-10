@@ -117,7 +117,6 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
     uint64_t pentry;
     char *magic;
     int kernel_size;
-    Error *err = NULL;
 
     int bios_size;
     char *bios_filename;
@@ -135,8 +134,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (bios_filename == NULL) {
-            error_setg(&err, "could not find stage1 bootloader");
-            goto error;
+            error_setg(errp, "could not find stage1 bootloader");
+            return;
         }
 
         bios_size = load_elf(bios_filename, NULL,
@@ -155,8 +154,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
         g_free(bios_filename);
 
         if (bios_size == -1) {
-            error_setg(&err, "could not load bootloader '%s'", bios_name);
-            goto error;
+            error_setg(errp, "could not load bootloader '%s'", bios_name);
+            return;
         }
 
         /* default boot target is the bios */
@@ -170,8 +169,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
             if (kernel_size < 0) {
-                error_setg(&err, "could not load kernel '%s'", ipl->kernel);
-                goto error;
+                error_setg(errp, "could not load kernel '%s'", ipl->kernel);
+                return;
             }
             /* if this is Linux use KERN_IMAGE_START */
             magic = rom_ptr(LINUX_MAGIC_ADDR, 6);
@@ -183,8 +182,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                 if (ipl_psw) {
                     pentry = be32_to_cpu(*ipl_psw) & PSW_MASK_SHORT_ADDR;
                 } else {
-                    error_setg(&err, "Could not get IPL PSW");
-                    goto error;
+                    error_setg(errp, "Could not get IPL PSW");
+                    return;
                 }
             }
         }
@@ -217,8 +216,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
                                               ram_size - initrd_offset);
             if (initrd_size == -1) {
-                error_setg(&err, "could not load initrd '%s'", ipl->initrd);
-                goto error;
+                error_setg(errp, "could not load initrd '%s'", ipl->initrd);
+                return;
             }
 
             /*
@@ -248,8 +247,6 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
      * TODO: there should be a better way to do this.
      */
     qemu_register_reset(resettable_cold_reset_fn, dev);
-error:
-    error_propagate(errp, err);
 }
 
 static Property s390_ipl_properties[] = {
@@ -555,9 +552,9 @@ static void update_machine_ipl_properties(IplParameterBlock *iplb)
             ascii_loadparm[i] = ebcdic2ascii[(uint8_t) ebcdic_loadparm[i]];
         }
         ascii_loadparm[i] = 0;
-        object_property_set_str(machine, ascii_loadparm, "loadparm", &err);
+        object_property_set_str(machine, "loadparm", ascii_loadparm, &err);
     } else {
-        object_property_set_str(machine, "", "loadparm", &err);
+        object_property_set_str(machine, "loadparm", "", &err);
     }
     if (err) {
         warn_report_err(err);

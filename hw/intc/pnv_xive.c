@@ -1829,23 +1829,18 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
      * resized dynamically when the controller is configured by the FW
      * to limit accesses to resources not provisioned.
      */
-    object_property_set_int(OBJECT(xsrc), PNV_XIVE_NR_IRQS, "nr-irqs",
+    object_property_set_int(OBJECT(xsrc), "nr-irqs", PNV_XIVE_NR_IRQS,
                             &error_fatal);
-    object_property_set_link(OBJECT(xsrc), OBJECT(xive), "xive",
-                             &error_abort);
-    qdev_realize(DEVICE(xsrc), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(xive), &error_abort);
+    if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
 
-    object_property_set_int(OBJECT(end_xsrc), PNV_XIVE_NR_ENDS, "nr-ends",
+    object_property_set_int(OBJECT(end_xsrc), "nr-ends", PNV_XIVE_NR_ENDS,
                             &error_fatal);
-    object_property_set_link(OBJECT(end_xsrc), OBJECT(xive), "xive",
+    object_property_set_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
                              &error_abort);
-    qdev_realize(DEVICE(end_xsrc), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(end_xsrc), NULL, errp)) {
         return;
     }
 

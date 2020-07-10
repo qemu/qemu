@@ -167,41 +167,31 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_property_set_link(OBJECT(s->cpu), OBJECT(&s->container), "memory",
+    object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
     if (object_property_find(OBJECT(s->cpu), "idau", NULL)) {
-        object_property_set_link(OBJECT(s->cpu), s->idau, "idau",
+        object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
     }
     if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
-        object_property_set_uint(OBJECT(s->cpu), s->init_svtor,
-                                 "init-svtor", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
+                                      s->init_svtor, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), s->start_powered_off,
-                                 "start-powered-off", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        if (!object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
+                                      s->start_powered_off, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "vfp", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), s->vfp,
-                                 "vfp", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "dsp", NULL)) {
-        object_property_set_bool(OBJECT(s->cpu), s->dsp,
-                                 "dsp", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
             return;
         }
     }
@@ -213,16 +203,12 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     s->cpu->env.nvic = &s->nvic;
     s->nvic.cpu = s->cpu;
 
-    qdev_realize(DEVICE(s->cpu), NULL, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    if (!qdev_realize(DEVICE(s->cpu), NULL, errp)) {
         return;
     }
 
     /* Note that we must realize the NVIC after the CPU */
-    sysbus_realize(SYS_BUS_DEVICE(&s->nvic), &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvic), errp)) {
         return;
     }
 
@@ -247,16 +233,13 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             Object *obj = OBJECT(&s->bitband[i]);
             SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
-            object_property_set_int(obj, bitband_input_addr[i], "base", &err);
-            if (err != NULL) {
-                error_propagate(errp, err);
+            if (!object_property_set_int(obj, "base",
+                                         bitband_input_addr[i], errp)) {
                 return;
             }
-            object_property_set_link(obj, OBJECT(s->board_memory),
-                                     "source-memory", &error_abort);
-            sysbus_realize(SYS_BUS_DEVICE(obj), &err);
-            if (err != NULL) {
-                error_propagate(errp, err);
+            object_property_set_link(obj, "source-memory",
+                                     OBJECT(s->board_memory), &error_abort);
+            if (!sysbus_realize(SYS_BUS_DEVICE(obj), errp)) {
                 return;
             }
 

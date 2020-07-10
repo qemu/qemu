@@ -105,7 +105,7 @@ qcrypto_secret_prop_get_key(Object *obj, Visitor *v,
 static void
 qcrypto_secret_keyring_complete(UserCreatable *uc, Error **errp)
 {
-    object_property_set_bool(OBJECT(uc), true, "loaded", errp);
+    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
 }
 
 

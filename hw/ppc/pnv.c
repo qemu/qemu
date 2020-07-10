@@ -699,8 +699,8 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
 {
     ISADevice *dev = isa_new("isa-ipmi-bt");
 
-    object_property_set_link(OBJECT(dev), OBJECT(bmc), "bmc", &error_fatal);
-    object_property_set_int(OBJECT(dev), irq, "irq", &error_fatal);
+    object_property_set_link(OBJECT(dev), "bmc", OBJECT(bmc), &error_fatal);
+    object_property_set_int(OBJECT(dev), "irq", irq, &error_fatal);
     isa_realize_and_unref(dev, bus, &error_fatal);
 }
 
@@ -828,27 +828,27 @@ static void pnv_init(MachineState *machine)
          * way to specify different ranges for each chip
          */
         if (i == 0) {
-            object_property_set_int(chip, machine->ram_size, "ram-size",
+            object_property_set_int(chip, "ram-size", machine->ram_size,
                                     &error_fatal);
         }
 
         snprintf(chip_name, sizeof(chip_name), "chip[%d]", PNV_CHIP_HWID(i));
         object_property_add_child(OBJECT(pnv), chip_name, chip);
-        object_property_set_int(chip, PNV_CHIP_HWID(i), "chip-id",
+        object_property_set_int(chip, "chip-id", PNV_CHIP_HWID(i),
                                 &error_fatal);
-        object_property_set_int(chip, machine->smp.cores,
-                                "nr-cores", &error_fatal);
-        object_property_set_int(chip, machine->smp.threads,
-                                "nr-threads", &error_fatal);
+        object_property_set_int(chip, "nr-cores", machine->smp.cores,
+                                &error_fatal);
+        object_property_set_int(chip, "nr-threads", machine->smp.threads,
+                                &error_fatal);
         /*
          * The POWER8 machine use the XICS interrupt interface.
          * Propagate the XICS fabric to the chip and its controllers.
          */
         if (object_dynamic_cast(OBJECT(pnv), TYPE_XICS_FABRIC)) {
-            object_property_set_link(chip, OBJECT(pnv), "xics", &error_abort);
+            object_property_set_link(chip, "xics", OBJECT(pnv), &error_abort);
         }
         if (object_dynamic_cast(OBJECT(pnv), TYPE_XIVE_FABRIC)) {
-            object_property_set_link(chip, OBJECT(pnv), "xive-fabric",
+            object_property_set_link(chip, "xive-fabric", OBJECT(pnv),
                                      &error_abort);
         }
         sysbus_realize_and_unref(SYS_BUS_DEVICE(chip), &error_fatal);
@@ -1136,20 +1136,18 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     }
 
     /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip8->psi), PNV_PSIHB_BASE(chip),
-                            "bar", &error_fatal);
-    object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip8->xics),
-                             ICS_PROP_XICS, &error_abort);
-    qdev_realize(DEVICE(&chip8->psi), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_int(OBJECT(&chip8->psi), "bar", PNV_PSIHB_BASE(chip),
+                            &error_fatal);
+    object_property_set_link(OBJECT(&chip8->psi), ICS_PROP_XICS,
+                             OBJECT(chip8->xics), &error_abort);
+    if (!qdev_realize(DEVICE(&chip8->psi), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE,
                             &PNV_PSI(psi8)->xscom_regs);
 
     /* Create LPC controller */
-    object_property_set_link(OBJECT(&chip8->lpc), OBJECT(&chip8->psi), "psi",
+    object_property_set_link(OBJECT(&chip8->lpc), "psi", OBJECT(&chip8->psi),
                              &error_abort);
     qdev_realize(DEVICE(&chip8->lpc), NULL, &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
@@ -1169,11 +1167,9 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     }
 
     /* Create the simplified OCC model */
-    object_property_set_link(OBJECT(&chip8->occ), OBJECT(&chip8->psi), "psi",
+    object_property_set_link(OBJECT(&chip8->occ), "psi", OBJECT(&chip8->psi),
                              &error_abort);
-    qdev_realize(DEVICE(&chip8->occ), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&chip8->occ), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
@@ -1183,11 +1179,9 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->occ.sram_regs);
 
     /* HOMER */
-    object_property_set_link(OBJECT(&chip8->homer), OBJECT(chip), "chip",
+    object_property_set_link(OBJECT(&chip8->homer), "chip", OBJECT(chip),
                              &error_abort);
-    qdev_realize(DEVICE(&chip8->homer), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&chip8->homer), NULL, errp)) {
         return;
     }
     /* Homer Xscom region */
@@ -1202,12 +1196,10 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         PnvPHB3 *phb = &chip8->phbs[i];
         PnvPBCQState *pbcq = &phb->pbcq;
 
-        object_property_set_int(OBJECT(phb), i, "index", &error_fatal);
-        object_property_set_int(OBJECT(phb), chip->chip_id, "chip-id",
+        object_property_set_int(OBJECT(phb), "index", i, &error_fatal);
+        object_property_set_int(OBJECT(phb), "chip-id", chip->chip_id,
                                 &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(phb), &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
             return;
         }
 
@@ -1351,7 +1343,7 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
                                            sizeof(*eq), TYPE_PNV_QUAD,
                                            &error_fatal, NULL);
 
-        object_property_set_int(OBJECT(eq), core_id, "id", &error_fatal);
+        object_property_set_int(OBJECT(eq), "id", core_id, &error_fatal);
         qdev_realize(DEVICE(eq), NULL, &error_fatal);
 
         pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
@@ -1362,7 +1354,6 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
 static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
-    Error *local_err = NULL;
     int i, j;
     int phb_id = 0;
 
@@ -1372,21 +1363,19 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
         uint32_t pec_nest_base;
         uint32_t pec_pci_base;
 
-        object_property_set_int(OBJECT(pec), i, "index", &error_fatal);
+        object_property_set_int(OBJECT(pec), "index", i, &error_fatal);
         /*
          * PEC0 -> 1 stack
          * PEC1 -> 2 stacks
          * PEC2 -> 3 stacks
          */
-        object_property_set_int(OBJECT(pec), i + 1, "num-stacks",
+        object_property_set_int(OBJECT(pec), "num-stacks", i + 1,
                                 &error_fatal);
-        object_property_set_int(OBJECT(pec), chip->chip_id, "chip-id",
-                                 &error_fatal);
-        object_property_set_link(OBJECT(pec), OBJECT(get_system_memory()),
-                                 "system-memory", &error_abort);
-        qdev_realize(DEVICE(pec), NULL, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        object_property_set_int(OBJECT(pec), "chip-id", chip->chip_id,
+                                &error_fatal);
+        object_property_set_link(OBJECT(pec), "system-memory",
+                                 OBJECT(get_system_memory()), &error_abort);
+        if (!qdev_realize(DEVICE(pec), NULL, errp)) {
             return;
         }
 
@@ -1401,17 +1390,16 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
             PnvPhb4PecStack *stack = &pec->stacks[j];
             Object *obj = OBJECT(&stack->phb);
 
-            object_property_set_int(obj, phb_id, "index", &error_fatal);
-            object_property_set_int(obj, chip->chip_id, "chip-id",
+            object_property_set_int(obj, "index", phb_id, &error_fatal);
+            object_property_set_int(obj, "chip-id", chip->chip_id,
                                     &error_fatal);
-            object_property_set_int(obj, PNV_PHB4_VERSION, "version",
+            object_property_set_int(obj, "version", PNV_PHB4_VERSION,
                                     &error_fatal);
-            object_property_set_int(obj, PNV_PHB4_DEVICE_ID, "device-id",
+            object_property_set_int(obj, "device-id", PNV_PHB4_DEVICE_ID,
                                     &error_fatal);
-            object_property_set_link(obj, OBJECT(stack), "stack", &error_abort);
-            sysbus_realize(SYS_BUS_DEVICE(obj), &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            object_property_set_link(obj, "stack", OBJECT(stack),
+                                     &error_abort);
+            if (!sysbus_realize(SYS_BUS_DEVICE(obj), errp)) {
                 return;
             }
 
@@ -1459,41 +1447,35 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
 
     /* XIVE interrupt controller (POWER9) */
-    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_IC_BASE(chip),
-                            "ic-bar", &error_fatal);
-    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_VC_BASE(chip),
-                            "vc-bar", &error_fatal);
-    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_PC_BASE(chip),
-                            "pc-bar", &error_fatal);
-    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_TM_BASE(chip),
-                            "tm-bar", &error_fatal);
-    object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip), "chip",
+    object_property_set_int(OBJECT(&chip9->xive), "ic-bar",
+                            PNV9_XIVE_IC_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), "vc-bar",
+                            PNV9_XIVE_VC_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), "pc-bar",
+                            PNV9_XIVE_PC_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), "tm-bar",
+                            PNV9_XIVE_TM_BASE(chip), &error_fatal);
+    object_property_set_link(OBJECT(&chip9->xive), "chip", OBJECT(chip),
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&chip9->xive), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&chip9->xive), errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_XIVE_BASE,
                             &chip9->xive.xscom_regs);
 
     /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
-                            "bar", &error_fatal);
-    qdev_realize(DEVICE(&chip9->psi), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_int(OBJECT(&chip9->psi), "bar", PNV9_PSIHB_BASE(chip),
+                            &error_fatal);
+    if (!qdev_realize(DEVICE(&chip9->psi), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PSIHB_BASE,
                             &PNV_PSI(psi9)->xscom_regs);
 
     /* LPC */
-    object_property_set_link(OBJECT(&chip9->lpc), OBJECT(&chip9->psi), "psi",
+    object_property_set_link(OBJECT(&chip9->lpc), "psi", OBJECT(&chip9->psi),
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->lpc), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&chip9->lpc), NULL, errp)) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
@@ -1503,11 +1485,9 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV9_LPCM_BASE(chip));
 
     /* Create the simplified OCC model */
-    object_property_set_link(OBJECT(&chip9->occ), OBJECT(&chip9->psi), "psi",
+    object_property_set_link(OBJECT(&chip9->occ), "psi", OBJECT(&chip9->psi),
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->occ), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&chip9->occ), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
@@ -1517,11 +1497,9 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                 &chip9->occ.sram_regs);
 
     /* HOMER */
-    object_property_set_link(OBJECT(&chip9->homer), OBJECT(chip), "chip",
+    object_property_set_link(OBJECT(&chip9->homer), "chip", OBJECT(chip),
                              &error_abort);
-    qdev_realize(DEVICE(&chip9->homer), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qdev_realize(DEVICE(&chip9->homer), NULL, errp)) {
         return;
     }
     /* Homer Xscom region */
@@ -1599,22 +1577,18 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     }
 
     /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
-                            "bar", &error_fatal);
-    qdev_realize(DEVICE(&chip10->psi), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_int(OBJECT(&chip10->psi), "bar",
+                            PNV10_PSIHB_BASE(chip), &error_fatal);
+    if (!qdev_realize(DEVICE(&chip10->psi), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_PSIHB_BASE,
                             &PNV_PSI(&chip10->psi)->xscom_regs);
 
     /* LPC */
-    object_property_set_link(OBJECT(&chip10->lpc), OBJECT(&chip10->psi), "psi",
-                             &error_abort);
-    qdev_realize(DEVICE(&chip10->lpc), NULL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_link(OBJECT(&chip10->lpc), "psi",
+                             OBJECT(&chip10->psi), &error_abort);
+    if (!qdev_realize(DEVICE(&chip10->lpc), NULL, errp)) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
@@ -1720,16 +1694,15 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
         object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core));
         chip->cores[i] = pnv_core;
-        object_property_set_int(OBJECT(pnv_core), chip->nr_threads,
-                                "nr-threads", &error_fatal);
-        object_property_set_int(OBJECT(pnv_core), core_hwid,
-                                CPU_CORE_PROP_CORE_ID, &error_fatal);
-        object_property_set_int(OBJECT(pnv_core),
-                                pcc->core_pir(chip, core_hwid),
-                                "pir", &error_fatal);
-        object_property_set_int(OBJECT(pnv_core), pnv->fw_load_addr,
-                                "hrmor", &error_fatal);
-        object_property_set_link(OBJECT(pnv_core), OBJECT(chip), "chip",
+        object_property_set_int(OBJECT(pnv_core), "nr-threads",
+                                chip->nr_threads, &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), CPU_CORE_PROP_CORE_ID,
+                                core_hwid, &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), "pir",
+                                pcc->core_pir(chip, core_hwid), &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), "hrmor", pnv->fw_load_addr,
+                                &error_fatal);
+        object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),
                                  &error_abort);
         qdev_realize(DEVICE(pnv_core), NULL, &error_fatal);
 

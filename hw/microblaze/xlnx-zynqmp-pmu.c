@@ -76,41 +76,36 @@ static void xlnx_zynqmp_pmu_soc_init(Object *obj)
 static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
 {
     XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(dev);
-    Error *err = NULL;
 
-    object_property_set_uint(OBJECT(&s->cpu), XLNX_ZYNQMP_PMU_ROM_ADDR,
-                             "base-vectors", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "use-stack-protection",
+    object_property_set_uint(OBJECT(&s->cpu), "base-vectors",
+                             XLNX_ZYNQMP_PMU_ROM_ADDR, &error_abort);
+    object_property_set_bool(OBJECT(&s->cpu), "use-stack-protection", true,
                              &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), 0, "use-fpu", &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), 0, "use-hw-mul", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "use-barrel",
+    object_property_set_uint(OBJECT(&s->cpu), "use-fpu", 0, &error_abort);
+    object_property_set_uint(OBJECT(&s->cpu), "use-hw-mul", 0, &error_abort);
+    object_property_set_bool(OBJECT(&s->cpu), "use-barrel", true,
                              &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "use-msr-instr",
+    object_property_set_bool(OBJECT(&s->cpu), "use-msr-instr", true,
                              &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "use-pcmp-instr",
+    object_property_set_bool(OBJECT(&s->cpu), "use-pcmp-instr", true,
                              &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), false, "use-mmu", &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), true, "endianness",
+    object_property_set_bool(OBJECT(&s->cpu), "use-mmu", false, &error_abort);
+    object_property_set_bool(OBJECT(&s->cpu), "endianness", true,
                              &error_abort);
-    object_property_set_str(OBJECT(&s->cpu), "8.40.b", "version",
+    object_property_set_str(OBJECT(&s->cpu), "version", "8.40.b",
                             &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), 0, "pvr", &error_abort);
-    qdev_realize(DEVICE(&s->cpu), NULL, &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_uint(OBJECT(&s->cpu), "pvr", 0, &error_abort);
+    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
         return;
     }
 
-    object_property_set_uint(OBJECT(&s->intc), 0x10, "intc-intr-size",
+    object_property_set_uint(OBJECT(&s->intc), "intc-intr-size", 0x10,
                              &error_abort);
-    object_property_set_uint(OBJECT(&s->intc), 0x0, "intc-level-edge",
+    object_property_set_uint(OBJECT(&s->intc), "intc-level-edge", 0x0,
                              &error_abort);
-    object_property_set_uint(OBJECT(&s->intc), 0xffff, "intc-positive",
+    object_property_set_uint(OBJECT(&s->intc), "intc-positive", 0xffff,
                              &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->intc), &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0, XLNX_ZYNQMP_PMU_INTC_ADDR);

@@ -60,7 +60,7 @@ static StringInputVisitor *to_siv(Visitor *v)
     return container_of(v, StringInputVisitor, visitor);
 }
 
-static void start_list(Visitor *v, const char *name, GenericList **list,
+static bool start_list(Visitor *v, const char *name, GenericList **list,
                        size_t size, Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -80,6 +80,7 @@ static void start_list(Visitor *v, const char *name, GenericList **list,
         }
         siv->lm = LM_UNPARSED;
     }
+    return true;
 }
 
 static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
@@ -102,7 +103,7 @@ static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
     return tail->next;
 }
 
-static void check_list(Visitor *v, Error **errp)
+static bool check_list(Visitor *v, Error **errp)
 {
     const StringInputVisitor *siv = to_siv(v);
 
@@ -111,9 +112,9 @@ static void check_list(Visitor *v, Error **errp)
     case LM_UINT64_RANGE:
     case LM_UNPARSED:
         error_setg(errp, "Fewer list elements expected");
-        return;
+        return false;
     case LM_END:
-        return;
+        return true;
     default:
         abort();
     }
@@ -178,7 +179,7 @@ static int try_parse_int64_list_entry(StringInputVisitor *siv, int64_t *obj)
     return 0;
 }
 
-static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
+static bool parse_type_int64(Visitor *v, const char *name, int64_t *obj,
                              Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -188,17 +189,17 @@ static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
     case LM_NONE:
         /* just parse a simple int64, bail out if not completely consumed */
         if (qemu_strtoi64(siv->string, NULL, 0, &val)) {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                           name ? name : "null", "int64");
-            return;
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "int64");
+            return false;
         }
         *obj = val;
-        return;
+        return true;
     case LM_UNPARSED:
         if (try_parse_int64_list_entry(siv, obj)) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
                        "list of int64 values or ranges");
-            return;
+            return false;
         }
         assert(siv->lm == LM_INT64_RANGE);
         /* fall through */
@@ -211,10 +212,10 @@ static void parse_type_int64(Visitor *v, const char *name, int64_t *obj,
             /* end of range, check if there is more to parse */
             siv->lm = siv->unparsed_string[0] ? LM_UNPARSED : LM_END;
         }
-        return;
+        return true;
     case LM_END:
         error_setg(errp, "Fewer list elements expected");
-        return;
+        return false;
     default:
         abort();
     }
@@ -268,7 +269,7 @@ static int try_parse_uint64_list_entry(StringInputVisitor *siv, uint64_t *obj)
     return 0;
 }
 
-static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
+static bool parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                               Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -280,15 +281,15 @@ static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
         if (qemu_strtou64(siv->string, NULL, 0, &val)) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
                        "uint64");
-            return;
+            return false;
         }
         *obj = val;
-        return;
+        return true;
     case LM_UNPARSED:
         if (try_parse_uint64_list_entry(siv, obj)) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
                        "list of uint64 values or ranges");
-            return;
+            return false;
         }
         assert(siv->lm == LM_UINT64_RANGE);
         /* fall through */
@@ -301,33 +302,31 @@ static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
             /* end of range, check if there is more to parse */
             siv->lm = siv->unparsed_string[0] ? LM_UNPARSED : LM_END;
         }
-        return;
+        return true;
     case LM_END:
         error_setg(errp, "Fewer list elements expected");
-        return;
+        return false;
     default:
         abort();
     }
 }
 
-static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
+static bool parse_type_size(Visitor *v, const char *name, uint64_t *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
-    Error *err = NULL;
     uint64_t val;
 
     assert(siv->lm == LM_NONE);
-    parse_option_size(name, siv->string, &val, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    if (!parse_option_size(name, siv->string, &val, errp)) {
+        return false;
     }
 
     *obj = val;
+    return true;
 }
 
-static void parse_type_bool(Visitor *v, const char *name, bool *obj,
+static bool parse_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -337,29 +336,31 @@ static void parse_type_bool(Visitor *v, const char *name, bool *obj,
         !strcasecmp(siv->string, "yes") ||
         !strcasecmp(siv->string, "true")) {
         *obj = true;
-        return;
+        return true;
     }
     if (!strcasecmp(siv->string, "off") ||
         !strcasecmp(siv->string, "no") ||
         !strcasecmp(siv->string, "false")) {
         *obj = false;
-        return;
+        return true;
     }
 
     error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                "boolean");
+    return false;
 }
 
-static void parse_type_str(Visitor *v, const char *name, char **obj,
+static bool parse_type_str(Visitor *v, const char *name, char **obj,
                            Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 
     assert(siv->lm == LM_NONE);
     *obj = g_strdup(siv->string);
+    return true;
 }
 
-static void parse_type_number(Visitor *v, const char *name, double *obj,
+static bool parse_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -369,13 +370,14 @@ static void parse_type_number(Visitor *v, const char *name, double *obj,
     if (qemu_strtod_finite(siv->string, NULL, &val)) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "number");
-        return;
+        return false;
     }
 
     *obj = val;
+    return true;
 }
 
-static void parse_type_null(Visitor *v, const char *name, QNull **obj,
+static bool parse_type_null(Visitor *v, const char *name, QNull **obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -386,10 +388,11 @@ static void parse_type_null(Visitor *v, const char *name, QNull **obj,
     if (siv->string[0]) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "null");
-        return;
+        return false;
     }
 
     *obj = qnull();
+    return true;
 }
 
 static void string_input_free(Visitor *v)

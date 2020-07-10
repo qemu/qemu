@@ -735,14 +735,11 @@ static void pmu_reset(DeviceState *dev)
 static void pmu_realize(DeviceState *dev, Error **errp)
 {
     PMUState *s = VIA_PMU(dev);
-    Error *err = NULL;
     SysBusDevice *sbd;
     ADBBusState *adb_bus = &s->adb_bus;
     struct tm tm;
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_pmu), &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_pmu), errp)) {
         return;
     }
 

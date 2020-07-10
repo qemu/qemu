@@ -502,10 +502,10 @@ static void versal_virt_init(MachineState *machine)
 
     object_initialize_child(OBJECT(machine), "xlnx-versal", &s->soc,
                             TYPE_XLNX_VERSAL);
-    object_property_set_link(OBJECT(&s->soc), OBJECT(machine->ram),
-                             "ddr", &error_abort);
-    object_property_set_int(OBJECT(&s->soc), psci_conduit,
-                            "psci-conduit", &error_abort);
+    object_property_set_link(OBJECT(&s->soc), "ddr", OBJECT(machine->ram),
+                             &error_abort);
+    object_property_set_int(OBJECT(&s->soc), "psci-conduit", psci_conduit,
+                            &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     fdt_create(s);

@@ -10482,7 +10482,7 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
 
         if (compat_str) {
             char *v = compat_str + strlen("compat=");
-            object_property_set_str(machine, v, "max-cpu-compat", &local_err);
+            object_property_set_str(machine, "max-cpu-compat", v, &local_err);
         }
         g_strfreev(inpieces);
         if (local_err) {

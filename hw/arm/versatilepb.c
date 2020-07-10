@@ -213,7 +213,7 @@ static void versatile_init(MachineState *machine, int board_id)
      * realization.
      */
     if (object_property_find(cpuobj, "has_el3", NULL)) {
-        object_property_set_bool(cpuobj, false, "has_el3", &error_fatal);
+        object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
     }
 
     qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
@@ -288,7 +288,7 @@ static void versatile_init(MachineState *machine, int board_id)
     pl011_create(0x10009000, sic[6], serial_hd(3));
 
     dev = qdev_new("pl080");
-    object_property_set_link(OBJECT(dev), OBJECT(sysmem), "downstream",
+    object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),
                              &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);

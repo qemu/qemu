@@ -245,9 +245,8 @@ static void ide_dev_set_bootindex(Object *obj, Visitor *v, const char *name,
     int32_t boot_index;
     Error *local_err = NULL;
 
-    visit_type_int32(v, name, &boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    if (!visit_type_int32(v, name, &boot_index, errp)) {
+        return;
     }
     /* check whether bootindex is present in fw_boot_order list  */
     check_boot_index(boot_index, &local_err);
@@ -270,7 +269,7 @@ static void ide_dev_instance_init(Object *obj)
     object_property_add(obj, "bootindex", "int32",
                         ide_dev_get_bootindex,
                         ide_dev_set_bootindex, NULL, NULL);
-    object_property_set_int(obj, -1, "bootindex", NULL);
+    object_property_set_int(obj, "bootindex", -1, NULL);
 }
 
 static void ide_hd_realize(IDEDevice *dev, Error **errp)

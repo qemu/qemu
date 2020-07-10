@@ -1655,7 +1655,8 @@ static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
             continue;
         }
         drc = SPAPR_DR_CONNECTOR(object_property_get_link(drc_container,
-                                                          prop->name, NULL));
+                                                          prop->name,
+                                                          &error_abort));
 
         if (spapr_drc_transient(drc)) {
             spapr_drc_reset(drc);

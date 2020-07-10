@@ -953,7 +953,6 @@ static void save_opt_list(size_t *ndest, const char ***dest,
 
 void smbios_entry_add(QemuOpts *opts, Error **errp)
 {
-    Error *err = NULL;
     const char *val;
 
     assert(!smbios_immutable);
@@ -964,9 +963,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
         int size;
         struct smbios_table *table; /* legacy mode only */
 
-        qemu_opts_validate(opts, qemu_smbios_file_opts, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!qemu_opts_validate(opts, qemu_smbios_file_opts, errp)) {
             return;
         }
 
@@ -1051,9 +1048,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
 
         switch (type) {
         case 0:
-            qemu_opts_validate(opts, qemu_smbios_type0_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type0_opts, errp)) {
                 return;
             }
             save_opt(&type0.vendor, opts, "vendor");
@@ -1071,9 +1066,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             }
             return;
         case 1:
-            qemu_opts_validate(opts, qemu_smbios_type1_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type1_opts, errp)) {
                 return;
             }
             save_opt(&type1.manufacturer, opts, "manufacturer");
@@ -1093,9 +1086,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             }
             return;
         case 2:
-            qemu_opts_validate(opts, qemu_smbios_type2_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type2_opts, errp)) {
                 return;
             }
             save_opt(&type2.manufacturer, opts, "manufacturer");
@@ -1106,9 +1097,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type2.location, opts, "location");
             return;
         case 3:
-            qemu_opts_validate(opts, qemu_smbios_type3_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type3_opts, errp)) {
                 return;
             }
             save_opt(&type3.manufacturer, opts, "manufacturer");
@@ -1118,9 +1107,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type3.sku, opts, "sku");
             return;
         case 4:
-            qemu_opts_validate(opts, qemu_smbios_type4_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type4_opts, errp)) {
                 return;
             }
             save_opt(&type4.sock_pfx, opts, "sock_pfx");
@@ -1131,17 +1118,13 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type4.part, opts, "part");
             return;
         case 11:
-            qemu_opts_validate(opts, qemu_smbios_type11_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type11_opts, errp)) {
                 return;
             }
             save_opt_list(&type11.nvalues, &type11.values, opts, "value");
             return;
         case 17:
-            qemu_opts_validate(opts, qemu_smbios_type17_opts, &err);
-            if (err) {
-                error_propagate(errp, err);
+            if (!qemu_opts_validate(opts, qemu_smbios_type17_opts, errp)) {
                 return;
             }
             save_opt(&type17.loc_pfx, opts, "loc_pfx");

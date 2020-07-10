@@ -169,9 +169,8 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 
     iothread->stopping = false;
     iothread->running = true;
-    iothread->ctx = aio_context_new(&local_error);
+    iothread->ctx = aio_context_new(errp);
     if (!iothread->ctx) {
-        error_propagate(errp, local_error);
         return;
     }
 
@@ -240,18 +239,16 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     IOThread *iothread = IOTHREAD(obj);
     PollParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int64(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    if (!visit_type_int64(v, name, &value, errp)) {
+        return;
     }
 
     if (value < 0) {
-        error_setg(&local_err, "%s value must be in range [0, %"PRId64"]",
+        error_setg(errp, "%s value must be in range [0, %" PRId64 "]",
                    info->name, INT64_MAX);
-        goto out;
+        return;
     }
 
     *field = value;
@@ -261,11 +258,8 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
                                     iothread->poll_max_ns,
                                     iothread->poll_grow,
                                     iothread->poll_shrink,
-                                    &local_err);
+                                    errp);
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void iothread_class_init(ObjectClass *klass, void *class_data)

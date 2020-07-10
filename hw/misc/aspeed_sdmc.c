@@ -223,13 +223,10 @@ static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,
     int i;
     char *sz;
     int64_t value;
-    Error *local_err = NULL;
     AspeedSDMCState *s = ASPEED_SDMC(obj);
     AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_int(v, name, &value, errp)) {
         return;
     }
 
@@ -241,9 +238,8 @@ static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,
     }
 
     sz = size_to_str(value);
-    error_setg(&local_err, "Invalid RAM size %s", sz);
+    error_setg(errp, "Invalid RAM size %s", sz);
     g_free(sz);
-    error_propagate(errp, local_err);
 }
 
 static void aspeed_sdmc_initfn(Object *obj)

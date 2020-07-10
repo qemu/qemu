@@ -291,14 +291,11 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
     PCA955xState *s = PCA955X(obj);
-    Error *local_err = NULL;
     int led, rc, reg, val;
     uint8_t state;
     char *state_str;
 
-    visit_type_str(v, name, &state_str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &state_str, errp)) {
         return;
     }
     rc = sscanf(name, "led%2d", &led);

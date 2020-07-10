@@ -239,9 +239,8 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     CPUState *cs = CPU(cpu);
     Error *local_err = NULL;
 
-    qdev_realize(DEVICE(cpu), NULL, &local_err);
-    if (local_err) {
-        goto error;
+    if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
+        return;
     }
 
     /* Set time-base frequency to 512 MHz */
@@ -251,20 +250,14 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     kvmppc_set_papr(cpu);
 
     if (spapr_irq_cpu_intc_create(spapr, cpu, &local_err) < 0) {
-        goto error_intc_create;
+        cpu_remove_sync(CPU(cpu));
+        return;
     }
 
     if (!sc->pre_3_0_migration) {
         vmstate_register(NULL, cs->cpu_index, &vmstate_spapr_cpu_state,
                          cpu->machine_data);
     }
-
-    return;
-
-error_intc_create:
-    cpu_remove_sync(CPU(cpu));
-error:
-    error_propagate(errp, local_err);
 }
 
 static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)

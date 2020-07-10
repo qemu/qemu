@@ -1408,105 +1408,87 @@ Example:
     #include "example-qapi-types.h"
 
 
-    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
-    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
-    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
+    bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
+    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
+    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
 
-    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
+    bool visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
 
     #endif /* EXAMPLE_QAPI_VISIT_H */
     $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
-    void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
+    bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
     {
-        Error *err = NULL;
-
-        visit_type_int(v, "integer", &obj->integer, &err);
-        if (err) {
-            goto out;
+        if (!visit_type_int(v, "integer", &obj->integer, errp)) {
+            return false;
         }
         if (visit_optional(v, "string", &obj->has_string)) {
-            visit_type_str(v, "string", &obj->string, &err);
-            if (err) {
-                goto out;
+            if (!visit_type_str(v, "string", &obj->string, errp)) {
+                return false;
             }
         }
-
-    out:
-        error_propagate(errp, err);
+        return true;
     }
 
-    void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
+    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
     {
-        Error *err = NULL;
+        bool ok = false;
 
-        visit_start_struct(v, name, (void **)obj, sizeof(UserDefOne), &err);
-        if (err) {
-            goto out;
+        if (!visit_start_struct(v, name, (void **)obj, sizeof(UserDefOne), errp)) {
+            return false;
         }
         if (!*obj) {
             /* incomplete */
             assert(visit_is_dealloc(v));
             goto out_obj;
         }
-        visit_type_UserDefOne_members(v, *obj, &err);
-        if (err) {
+        if (!visit_type_UserDefOne_members(v, *obj, errp)) {
             goto out_obj;
         }
-        visit_check_struct(v, &err);
+        ok = visit_check_struct(v, errp);
     out_obj:
         visit_end_struct(v, (void **)obj);
-        if (err && visit_is_input(v)) {
+        if (!ok && visit_is_input(v)) {
             qapi_free_UserDefOne(*obj);
             *obj = NULL;
         }
-    out:
-        error_propagate(errp, err);
+        return ok;
     }
 
-    void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
+    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
     {
-        Error *err = NULL;
+        bool ok = false;
         UserDefOneList *tail;
         size_t size = sizeof(**obj);
 
-        visit_start_list(v, name, (GenericList **)obj, size, &err);
-        if (err) {
-            goto out;
+        if (!visit_start_list(v, name, (GenericList **)obj, size, errp)) {
+            return false;
         }
 
         for (tail = *obj; tail;
              tail = (UserDefOneList *)visit_next_list(v, (GenericList *)tail, size)) {
-            visit_type_UserDefOne(v, NULL, &tail->value, &err);
-            if (err) {
-                break;
+            if (!visit_type_UserDefOne(v, NULL, &tail->value, errp)) {
+                goto out_obj;
             }
         }
 
-        if (!err) {
-            visit_check_list(v, &err);
-        }
+        ok = visit_check_list(v, errp);
+    out_obj:
         visit_end_list(v, (void **)obj);
-        if (err && visit_is_input(v)) {
+        if (!ok && visit_is_input(v)) {
             qapi_free_UserDefOneList(*obj);
             *obj = NULL;
         }
-    out:
-        error_propagate(errp, err);
+        return ok;
     }
 
-    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp)
+    bool visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp)
     {
-        Error *err = NULL;
-
-        visit_type_UserDefOneList(v, "arg1", &obj->arg1, &err);
-        if (err) {
-            goto out;
+        if (!visit_type_UserDefOneList(v, "arg1", &obj->arg1, errp)) {
+            return false;
         }
-
-    out:
-        error_propagate(errp, err);
+        return true;
     }
 
 [Uninteresting stuff omitted...]
@@ -1561,15 +1543,12 @@ Example:
 
     static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
     {
-        Error *err = NULL;
         Visitor *v;
 
         v = qobject_output_visitor_new(ret_out);
-        visit_type_UserDefOne(v, "unused", &ret_in, &err);
-        if (!err) {
+        if (visit_type_UserDefOne(v, "unused", &ret_in, errp)) {
             visit_complete(v, ret_out);
         }
-        error_propagate(errp, err);
         visit_free(v);
         v = qapi_dealloc_visitor_new();
         visit_type_UserDefOne(v, "unused", &ret_in, NULL);
@@ -1579,33 +1558,32 @@ Example:
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *err = NULL;
+        bool ok = false;
         Visitor *v;
         UserDefOne *retval;
         q_obj_my_command_arg arg = {0};
 
         v = qobject_input_visitor_new(QOBJECT(args));
-        visit_start_struct(v, NULL, NULL, 0, &err);
-        if (err) {
+        if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
             goto out;
         }
-        visit_type_q_obj_my_command_arg_members(v, &arg, &err);
-        if (!err) {
-            visit_check_struct(v, &err);
+        if (visit_type_q_obj_my_command_arg_members(v, &arg, errp)) {
+            ok = visit_check_struct(v, errp);
         }
         visit_end_struct(v, NULL);
-        if (err) {
+        if (!ok) {
             goto out;
         }
 
         retval = qmp_my_command(arg.arg1, &err);
+        error_propagate(errp, err);
         if (err) {
             goto out;
         }
 
-        qmp_marshal_output_UserDefOne(retval, ret, &err);
+        qmp_marshal_output_UserDefOne(retval, ret, errp);
 
     out:
-        error_propagate(errp, err);
         visit_free(v);
         v = qapi_dealloc_visitor_new();
         visit_start_struct(v, NULL, NULL, 0, NULL);
@@ -1613,6 +1591,7 @@ Example:
         visit_end_struct(v, NULL);
         visit_free(v);
     }
+
 [Uninteresting stuff omitted...]
     $ cat qapi-generated/example-qapi-init-commands.h
 [Uninteresting stuff omitted...]

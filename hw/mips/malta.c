@@ -1184,9 +1184,9 @@ static void create_cps(MachineState *ms, MaltaState *s,
                        qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     object_initialize_child(OBJECT(s), "cps", &s->cps, TYPE_MIPS_CPS);
-    object_property_set_str(OBJECT(&s->cps), ms->cpu_type, "cpu-type",
+    object_property_set_str(OBJECT(&s->cps), "cpu-type", ms->cpu_type,
                             &error_fatal);
-    object_property_set_int(OBJECT(&s->cps), ms->smp.cpus, "num-vp",
+    object_property_set_int(OBJECT(&s->cps), "num-vp", ms->smp.cpus,
                             &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 

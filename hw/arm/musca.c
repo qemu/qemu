@@ -256,8 +256,8 @@ static MemoryRegion *make_mpc(MuscaMachineState *mms, void *opaque,
     }
 
     object_initialize_child(OBJECT(mms), mpcname, mpc, TYPE_TZ_MPC);
-    object_property_set_link(OBJECT(mpc), OBJECT(downstream),
-                             "downstream", &error_fatal);
+    object_property_set_link(OBJECT(mpc), "downstream", OBJECT(downstream),
+                             &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(mpc), &error_fatal);
     /* Map the upstream end of the MPC into system memory */
     upstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 1);
@@ -374,8 +374,8 @@ static void musca_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "sse-200", &mms->sse,
                             TYPE_SSE200);
     ssedev = DEVICE(&mms->sse);
-    object_property_set_link(OBJECT(&mms->sse), OBJECT(system_memory),
-                             "memory", &error_fatal);
+    object_property_set_link(OBJECT(&mms->sse), "memory",
+                             OBJECT(system_memory), &error_fatal);
     qdev_prop_set_uint32(ssedev, "EXP_NUMIRQ", mmc->num_irqs);
     qdev_prop_set_uint32(ssedev, "init-svtor", mmc->init_svtor);
     qdev_prop_set_uint32(ssedev, "SRAM_ADDR_WIDTH", mmc->sram_addr_width);
@@ -403,7 +403,7 @@ static void musca_init(MachineState *machine)
                                            &error_fatal, NULL);
         g_free(name);
 
-        object_property_set_int(OBJECT(splitter), 2, "num-lines",
+        object_property_set_int(OBJECT(splitter), "num-lines", 2,
                                 &error_fatal);
         qdev_realize(DEVICE(splitter), NULL, &error_fatal);
         qdev_connect_gpio_out(DEVICE(splitter), 0,
@@ -422,8 +422,8 @@ static void musca_init(MachineState *machine)
                                        sizeof(mms->sec_resp_splitter),
                                        TYPE_SPLIT_IRQ, &error_fatal, NULL);
 
-    object_property_set_int(OBJECT(&mms->sec_resp_splitter),
-                            ARRAY_SIZE(mms->ppc), "num-lines", &error_fatal);
+    object_property_set_int(OBJECT(&mms->sec_resp_splitter), "num-lines",
+                            ARRAY_SIZE(mms->ppc), &error_fatal);
     qdev_realize(DEVICE(&mms->sec_resp_splitter), NULL, &error_fatal);
     dev_splitter = DEVICE(&mms->sec_resp_splitter);
     qdev_connect_gpio_out_named(ssedev, "sec_resp_cfg", 0,
@@ -541,8 +541,8 @@ static void musca_init(MachineState *machine)
 
             mr = pinfo->devfn(mms, pinfo->opaque, pinfo->name, pinfo->size);
             portname = g_strdup_printf("port[%d]", port);
-            object_property_set_link(OBJECT(ppc), OBJECT(mr),
-                                     portname, &error_fatal);
+            object_property_set_link(OBJECT(ppc), portname, OBJECT(mr),
+                                     &error_fatal);
             g_free(portname);
         }
 
