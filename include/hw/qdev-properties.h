@@ -282,6 +282,19 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop);
 
+/**
+ * qdev_alias_all_properties: Create aliases on source for all target properties
+ * @target: Device which has properties to be aliased
+ * @source: Object to add alias properties to
+ *
+ * Add alias properties to the @source object for all qdev properties on
+ * the @target DeviceState.
+ *
+ * This is useful when @target is an internal implementation object
+ * owned by @source, and you want to expose all the properties of that
+ * implementation object as properties on the @source object so that users
+ * of @source can set them.
+ */
 void qdev_alias_all_properties(DeviceState *target, Object *source);
 
 /**

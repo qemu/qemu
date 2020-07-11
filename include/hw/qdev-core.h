@@ -320,9 +320,66 @@ compat_props_add(GPtrArray *arr,
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
+/**
+ * qdev_new: Create a device on the heap
+ * @name: device type to create (we assert() that this type exists)
+ *
+ * This only allocates the memory and initializes the device state
+ * structure, ready for the caller to set properties if they wish.
+ * The device still needs to be realized.
+ * The returned object has a reference count of 1.
+ */
 DeviceState *qdev_new(const char *name);
+/**
+ * qdev_try_new: Try to create a device on the heap
+ * @name: device type to create
+ *
+ * This is like qdev_new(), except it returns %NULL when type @name
+ * does not exist, rather than asserting.
+ */
 DeviceState *qdev_try_new(const char *name);
+/**
+ * qdev_realize: Realize @dev.
+ * @dev: device to realize
+ * @bus: bus to plug it into (may be NULL)
+ * @errp: pointer to error object
+ *
+ * "Realize" the device, i.e. perform the second phase of device
+ * initialization.
+ * @dev must not be plugged into a bus already.
+ * If @bus, plug @dev into @bus.  This takes a reference to @dev.
+ * If @dev has no QOM parent, make one up, taking another reference.
+ * On success, return true.
+ * On failure, store an error through @errp and return false.
+ *
+ * If you created @dev using qdev_new(), you probably want to use
+ * qdev_realize_and_unref() instead.
+ */
 bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
+/**
+ * qdev_realize_and_unref: Realize @dev and drop a reference
+ * @dev: device to realize
+ * @bus: bus to plug it into (may be NULL)
+ * @errp: pointer to error object
+ *
+ * Realize @dev and drop a reference.
+ * This is like qdev_realize(), except the caller must hold a
+ * (private) reference, which is dropped on return regardless of
+ * success or failure.  Intended use::
+ *
+ *     dev = qdev_new();
+ *     [...]
+ *     qdev_realize_and_unref(dev, bus, errp);
+ *
+ * Now @dev can go away without further ado.
+ *
+ * If you are embedding the device into some other QOM device and
+ * initialized it via some variant on object_initialize_child() then
+ * do not use this function, because that family of functions arrange
+ * for the only reference to the child device to be held by the parent
+ * via the child<> property, and so the reference-count-drop done here
+ * would be incorrect. For that use case you want qdev_realize().
+ */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
 void qdev_unrealize(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
