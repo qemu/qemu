@@ -381,6 +381,25 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
  * would be incorrect. For that use case you want qdev_realize().
  */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
+/**
+ * qdev_unrealize: Unrealize a device
+ * @dev: device to unrealize
+ *
+ * This function will "unrealize" a device, which is the first phase
+ * of correctly destroying a device that has been realized. It will:
+ *
+ *  - unrealize any child buses by calling qbus_unrealize()
+ *    (this will recursively unrealize any devices on those buses)
+ *  - call the the unrealize method of @dev
+ *
+ * The device can then be freed by causing its reference count to go
+ * to zero.
+ *
+ * Warning: most devices in QEMU do not expect to be unrealized.  Only
+ * devices which are hot-unpluggable should be unrealized (as part of
+ * the unplugging process); all other devices are expected to last for
+ * the life of the simulation and should not be unrealized and freed.
+ */
 void qdev_unrealize(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
