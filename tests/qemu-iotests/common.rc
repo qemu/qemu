@@ -124,7 +124,6 @@ fi
 : ${VALGRIND_QEMU_IMG=$VALGRIND_QEMU}
 : ${VALGRIND_QEMU_IO=$VALGRIND_QEMU}
 : ${VALGRIND_QEMU_NBD=$VALGRIND_QEMU}
-: ${VALGRIND_QEMU_VXHS=$VALGRIND_QEMU}
 
 # The Valgrind own parameters may be set with
 # its environment variable VALGRIND_OPTS, e.g.
@@ -212,19 +211,6 @@ _qemu_nbd_wrapper()
     return $RETVAL
 }
 
-_qemu_vxhs_wrapper()
-{
-    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
-    (
-        echo $BASHPID > "${TEST_DIR}/qemu-vxhs.pid"
-        VALGRIND_QEMU="${VALGRIND_QEMU_VXHS}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
-            "$QEMU_VXHS_PROG" $QEMU_VXHS_OPTIONS "$@"
-    )
-    RETVAL=$?
-    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
-    return $RETVAL
-}
-
 # Valgrind bug #409141 https://bugs.kde.org/show_bug.cgi?id=409141
 # Until valgrind 3.16+ is ubiquitous, we must work around a hang in
 # valgrind when issuing sigkill. Disable valgrind for this invocation.
@@ -237,7 +223,6 @@ export QEMU=_qemu_wrapper
 export QEMU_IMG=_qemu_img_wrapper
 export QEMU_IO=_qemu_io_wrapper
 export QEMU_NBD=_qemu_nbd_wrapper
-export QEMU_VXHS=_qemu_vxhs_wrapper
 
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     DRIVER="driver=$IMGFMT"
@@ -279,9 +264,6 @@ else
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         REMOTE_TEST_DIR="nfs://127.0.0.1$TEST_DIR"
         TEST_IMG="nfs://127.0.0.1$TEST_IMG_FILE"
-    elif [ "$IMGPROTO" = "vxhs" ]; then
-        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
-        TEST_IMG="vxhs://127.0.0.1:9999/t.$IMGFMT"
     else
         TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
     fi
@@ -436,12 +418,6 @@ _make_test_img()
         eval "$QEMU_NBD -v -t -k '$SOCK_DIR/nbd' -f $IMGFMT -e 42 -x '' $TEST_IMG_FILE >/dev/null &"
         sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
     fi
-
-    # Start QNIO server on image directory for vxhs protocol
-    if [ $IMGPROTO = "vxhs" ]; then
-        eval "$QEMU_VXHS -d  $TEST_DIR > /dev/null &"
-        sleep 1 # Wait for server to come up.
-    fi
 }
 
 _rm_test_img()
@@ -466,15 +442,6 @@ _cleanup_test_img()
 
         nbd)
             _stop_nbd_server
-            rm -f "$TEST_IMG_FILE"
-            ;;
-        vxhs)
-            if [ -f "${TEST_DIR}/qemu-vxhs.pid" ]; then
-                local QEMU_VXHS_PID
-                read QEMU_VXHS_PID < "${TEST_DIR}/qemu-vxhs.pid"
-                kill ${QEMU_VXHS_PID} >/dev/null 2>&1
-                rm -f "${TEST_DIR}/qemu-vxhs.pid"
-            fi
             rm -f "$TEST_IMG_FILE"
             ;;
 

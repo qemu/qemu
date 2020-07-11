@@ -2790,7 +2790,6 @@
 #
 # Drivers that are supported in block device operations.
 #
-# @vxhs: Since 2.10
 # @throttle: Since 2.11
 # @nvme: Since 2.12
 # @copy-on-read: Since 3.0
@@ -2808,7 +2807,7 @@
             'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
             { 'name': 'replication', 'if': 'defined(CONFIG_REPLICATION)' },
             'sheepdog',
-            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
+            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -3896,22 +3895,6 @@
   'data': { '*offset': 'int', '*size': 'int' } }
 
 ##
-# @BlockdevOptionsVxHS:
-#
-# Driver specific block device options for VxHS
-#
-# @vdisk-id: UUID of VxHS volume
-# @server: vxhs server IP, port
-# @tls-creds: TLS credentials ID
-#
-# Since: 2.10
-##
-{ 'struct': 'BlockdevOptionsVxHS',
-  'data': { 'vdisk-id': 'str',
-            'server': 'InetSocketAddressBase',
-            '*tls-creds': 'str' } }
-
-##
 # @BlockdevOptionsThrottle:
 #
 # Driver specific block device options for the throttle driver
@@ -4010,8 +3993,7 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT',
-      'vxhs':       'BlockdevOptionsVxHS'
+      'vvfat':      'BlockdevOptionsVVFAT'
   } }
 
 ##
