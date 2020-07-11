@@ -49,7 +49,7 @@ Version: $V
 
 Options:
   -q, --quiet                quiet
-  --no-tree                  run without a kernel tree
+  --no-tree                  run without a qemu tree
   --no-signoff               do not check for 'Signed-off-by' line
   --patch                    treat FILE as patchfile
   --branch                   treat args as GIT revision list
@@ -57,7 +57,7 @@ Options:
   --terse                    one line per report
   -f, --file                 treat FILE as regular source file
   --strict                   fail if only warnings are found
-  --root=PATH                PATH to the kernel tree root
+  --root=PATH                PATH to the qemu tree root
   --no-summary               suppress the per-file summary
   --mailback                 only produce a report in case of warnings/errors
   --summary-file             include the filename in summary
@@ -203,7 +203,7 @@ if ($tree) {
 	}
 
 	if (!defined $root) {
-		print "Must be run from the top-level dir. of a kernel tree\n";
+		print "Must be run from the top-level dir. of a qemu tree\n";
 		exit(2);
 	}
 }

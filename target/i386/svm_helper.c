@@ -209,15 +209,20 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     nested_ctl = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.nested_ctl));
+
+    env->nested_pg_mode = 0;
+
     if (nested_ctl & SVM_NPT_ENABLED) {
         env->nested_cr3 = x86_ldq_phys(cs,
                                 env->vm_vmcb + offsetof(struct vmcb,
                                                         control.nested_cr3));
         env->hflags2 |= HF2_NPT_MASK;
 
-        env->nested_pg_mode = 0;
         if (env->cr[4] & CR4_PAE_MASK) {
             env->nested_pg_mode |= SVM_NPT_PAE;
+        }
+        if (env->cr[4] & CR4_PSE_MASK) {
+            env->nested_pg_mode |= SVM_NPT_PSE;
         }
         if (env->hflags & HF_LMA_MASK) {
             env->nested_pg_mode |= SVM_NPT_LMA;

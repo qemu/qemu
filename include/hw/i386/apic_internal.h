@@ -211,6 +211,7 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
                              TPRAccess access);
 
 int apic_get_ppr(APICCommonState *s);
+uint32_t apic_get_current_count(APICCommonState *s);
 
 static inline void apic_set_bit(uint32_t *tab, int index)
 {

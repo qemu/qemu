@@ -2,9 +2,6 @@
 # down to Kconfig.  See also MINIKCONF_ARGS in the Makefile:
 # these two need to be kept in sync.
 
-config KVM
-    bool
-
 config LINUX
     bool
 
@@ -30,10 +27,6 @@ config VHOST_USER
 config VHOST_KERNEL
     bool
     select VHOST
-
-config XEN
-    bool
-    select FSDEV_9P if VIRTFS
 
 config VIRTFS
     bool

@@ -250,7 +250,8 @@ extern int daemon(int, int);
  * Note that neither form is usable as an #if condition; if you truly
  * need to write conditional code that depends on a minimum or maximum
  * determined by the pre-processor instead of the compiler, you'll
- * have to open-code it.
+ * have to open-code it.  Sadly, Coverity is severely confused by the
+ * constant variants, so we have to dumb things down there.
  */
 #undef MIN
 #define MIN(a, b)                                       \
@@ -258,22 +259,28 @@ extern int daemon(int, int);
         typeof(1 ? (a) : (b)) _a = (a), _b = (b);       \
         _a < _b ? _a : _b;                              \
     })
-#define MIN_CONST(a, b)                                         \
-    __builtin_choose_expr(                                      \
-        __builtin_constant_p(a) && __builtin_constant_p(b),     \
-        (a) < (b) ? (a) : (b),                                  \
-        ((void)0))
 #undef MAX
 #define MAX(a, b)                                       \
     ({                                                  \
         typeof(1 ? (a) : (b)) _a = (a), _b = (b);       \
         _a > _b ? _a : _b;                              \
     })
-#define MAX_CONST(a, b)                                         \
+
+#ifdef __COVERITY__
+# define MIN_CONST(a, b) ((a) < (b) ? (a) : (b))
+# define MAX_CONST(a, b) ((a) > (b) ? (a) : (b))
+#else
+# define MIN_CONST(a, b)                                        \
+    __builtin_choose_expr(                                      \
+        __builtin_constant_p(a) && __builtin_constant_p(b),     \
+        (a) < (b) ? (a) : (b),                                  \
+        ((void)0))
+# define MAX_CONST(a, b)                                        \
     __builtin_choose_expr(                                      \
         __builtin_constant_p(a) && __builtin_constant_p(b),     \
         (a) > (b) ? (a) : (b),                                  \
         ((void)0))
+#endif
 
 /*
  * Minimum function that returns zero only if both values are zero.

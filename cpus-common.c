@@ -72,6 +72,8 @@ static int cpu_get_free_index(void)
     return max_cpu_index;
 }
 
+CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
+
 void cpu_list_add(CPUState *cpu)
 {
     QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
@@ -95,6 +97,22 @@ void cpu_list_remove(CPUState *cpu)
     QTAILQ_REMOVE_RCU(&cpus, cpu, node);
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
 }
+
+CPUState *qemu_get_cpu(int index)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->cpu_index == index) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
+/* current CPU in the current thread. It is only valid inside cpu_exec() */
+__thread CPUState *current_cpu;
 
 struct qemu_work_item {
     QSIMPLEQ_ENTRY(qemu_work_item) node;

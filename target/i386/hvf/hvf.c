@@ -282,47 +282,54 @@ void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
     }
 }
 
-/* TODO: synchronize vcpu state */
 static void do_hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
-    CPUState *cpu_state = cpu;
-    if (cpu_state->vcpu_dirty == 0) {
-        hvf_get_registers(cpu_state);
-    }
-
-    cpu_state->vcpu_dirty = 1;
-}
-
-void hvf_cpu_synchronize_state(CPUState *cpu_state)
-{
-    if (cpu_state->vcpu_dirty == 0) {
-        run_on_cpu(cpu_state, do_hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
+    if (!cpu->vcpu_dirty) {
+        hvf_get_registers(cpu);
+        cpu->vcpu_dirty = true;
     }
 }
 
-static void do_hvf_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
+void hvf_cpu_synchronize_state(CPUState *cpu)
 {
-    CPUState *cpu_state = cpu;
-    hvf_put_registers(cpu_state);
-    cpu_state->vcpu_dirty = false;
+    if (!cpu->vcpu_dirty) {
+        run_on_cpu(cpu, do_hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
+    }
 }
 
-void hvf_cpu_synchronize_post_reset(CPUState *cpu_state)
+static void do_hvf_cpu_synchronize_post_reset(CPUState *cpu,
+                                              run_on_cpu_data arg)
 {
-    run_on_cpu(cpu_state, do_hvf_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
+    hvf_put_registers(cpu);
+    cpu->vcpu_dirty = false;
+}
+
+void hvf_cpu_synchronize_post_reset(CPUState *cpu)
+{
+    run_on_cpu(cpu, do_hvf_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
 static void do_hvf_cpu_synchronize_post_init(CPUState *cpu,
                                              run_on_cpu_data arg)
 {
-    CPUState *cpu_state = cpu;
-    hvf_put_registers(cpu_state);
-    cpu_state->vcpu_dirty = false;
+    hvf_put_registers(cpu);
+    cpu->vcpu_dirty = false;
 }
 
-void hvf_cpu_synchronize_post_init(CPUState *cpu_state)
+void hvf_cpu_synchronize_post_init(CPUState *cpu)
 {
-    run_on_cpu(cpu_state, do_hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
+    run_on_cpu(cpu, do_hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
+}
+
+static void do_hvf_cpu_synchronize_pre_loadvm(CPUState *cpu,
+                                              run_on_cpu_data arg)
+{
+    cpu->vcpu_dirty = true;
+}
+
+void hvf_cpu_synchronize_pre_loadvm(CPUState *cpu)
+{
+    run_on_cpu(cpu, do_hvf_cpu_synchronize_pre_loadvm, RUN_ON_CPU_NULL);
 }
 
 static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
@@ -440,96 +447,6 @@ static MemoryListener hvf_memory_listener = {
     .log_stop = hvf_log_stop,
     .log_sync = hvf_log_sync,
 };
-
-void hvf_reset_vcpu(CPUState *cpu) {
-    uint64_t pdpte[4] = {0, 0, 0, 0};
-    int i;
-
-    /* TODO: this shouldn't be needed; there is already a call to
-     * cpu_synchronize_all_post_reset in vl.c
-     */
-    wvmcs(cpu->hvf_fd, VMCS_ENTRY_CTLS, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, 0);
-
-    /* Initialize PDPTE */
-    for (i = 0; i < 4; i++) {
-        wvmcs(cpu->hvf_fd, VMCS_GUEST_PDPTE0 + i * 2, pdpte[i]);
-    }
-
-    macvm_set_cr0(cpu->hvf_fd, 0x60000010);
-
-    wvmcs(cpu->hvf_fd, VMCS_CR4_MASK, CR4_VMXE_MASK);
-    wvmcs(cpu->hvf_fd, VMCS_CR4_SHADOW, 0x0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CR4, CR4_VMXE_MASK);
-
-    /* set VMCS guest state fields */
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CS_SELECTOR, 0xf000);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CS_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CS_ACCESS_RIGHTS, 0x9b);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CS_BASE, 0xffff0000);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_DS_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_DS_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_DS_ACCESS_RIGHTS, 0x93);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_DS_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_ES_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_ES_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_ES_ACCESS_RIGHTS, 0x93);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_ES_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_ACCESS_RIGHTS, 0x93);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_ACCESS_RIGHTS, 0x93);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_SS_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_SS_LIMIT, 0xffff);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_SS_ACCESS_RIGHTS, 0x93);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_SS_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_LIMIT, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_ACCESS_RIGHTS, 0x10000);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_TR_SELECTOR, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_TR_LIMIT, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_TR_ACCESS_RIGHTS, 0x83);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_TR_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GDTR_LIMIT, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_GDTR_BASE, 0);
-
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_LIMIT, 0);
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_BASE, 0);
-
-    /*wvmcs(cpu->hvf_fd, VMCS_GUEST_CR2, 0x0);*/
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CR3, 0x0);
-
-    wreg(cpu->hvf_fd, HV_X86_RIP, 0xfff0);
-    wreg(cpu->hvf_fd, HV_X86_RDX, 0x623);
-    wreg(cpu->hvf_fd, HV_X86_RFLAGS, 0x2);
-    wreg(cpu->hvf_fd, HV_X86_RSP, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RAX, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RBX, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RCX, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RSI, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RDI, 0x0);
-    wreg(cpu->hvf_fd, HV_X86_RBP, 0x0);
-
-    for (int i = 0; i < 8; i++) {
-        wreg(cpu->hvf_fd, HV_X86_R8 + i, 0x0);
-    }
-
-    hv_vcpu_invalidate_tlb(cpu->hvf_fd);
-    hv_vcpu_flush(cpu->hvf_fd);
-}
 
 void hvf_vcpu_destroy(CPUState *cpu)
 {

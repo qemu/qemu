@@ -135,6 +135,7 @@
 #define SVM_NPT_PAE         (1 << 0)
 #define SVM_NPT_LMA         (1 << 1)
 #define SVM_NPT_NXE         (1 << 2)
+#define SVM_NPT_PSE         (1 << 3)
 
 #define SVM_NPTEXIT_P       (1ULL << 0)
 #define SVM_NPTEXIT_RW      (1ULL << 1)

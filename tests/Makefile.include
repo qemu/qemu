@@ -637,7 +637,7 @@ define do_test_tap
           { export MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} $2; \
             $(foreach COMMAND, $1, \
 	      $(COMMAND) -m=$(SPEED) -k --tap < /dev/null \
-	      | sed "s/^[a-z][a-z]* [0-9]* /&$(notdir $(COMMAND)) /" || true; ) } \
+	      | sed "s/^\(not \)\?ok [0-9]* /&$(notdir $(COMMAND)) /" || true; ) } \
 	      | ./scripts/tap-merge.pl | tee "$@" \
 	      | ./scripts/tap-driver.pl $(if $(V),, --show-failures-only), \
 	  "TAP","$@")

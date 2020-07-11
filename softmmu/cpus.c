@@ -61,6 +61,8 @@
 #include "hw/boards.h"
 #include "hw/hw.h"
 
+#include "sysemu/cpu-throttle.h"
+
 #ifdef CONFIG_LINUX
 
 #include <sys/prctl.h>
@@ -83,14 +85,6 @@ static QemuMutex qemu_global_mutex;
 
 int64_t max_delay;
 int64_t max_advance;
-
-/* vcpu throttling controls */
-static QEMUTimer *throttle_timer;
-static unsigned int throttle_percentage;
-
-#define CPU_THROTTLE_PCT_MIN 1
-#define CPU_THROTTLE_PCT_MAX 99
-#define CPU_THROTTLE_TIMESLICE_NS 10000000
 
 bool cpu_is_stopped(CPUState *cpu)
 {
@@ -738,90 +732,12 @@ static const VMStateDescription vmstate_timers = {
     }
 };
 
-static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
-{
-    double pct;
-    double throttle_ratio;
-    int64_t sleeptime_ns, endtime_ns;
-
-    if (!cpu_throttle_get_percentage()) {
-        return;
-    }
-
-    pct = (double)cpu_throttle_get_percentage()/100;
-    throttle_ratio = pct / (1 - pct);
-    /* Add 1ns to fix double's rounding error (like 0.9999999...) */
-    sleeptime_ns = (int64_t)(throttle_ratio * CPU_THROTTLE_TIMESLICE_NS + 1);
-    endtime_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + sleeptime_ns;
-    while (sleeptime_ns > 0 && !cpu->stop) {
-        if (sleeptime_ns > SCALE_MS) {
-            qemu_cond_timedwait(cpu->halt_cond, &qemu_global_mutex,
-                                sleeptime_ns / SCALE_MS);
-        } else {
-            qemu_mutex_unlock_iothread();
-            g_usleep(sleeptime_ns / SCALE_US);
-            qemu_mutex_lock_iothread();
-        }
-        sleeptime_ns = endtime_ns - qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    }
-    atomic_set(&cpu->throttle_thread_scheduled, 0);
-}
-
-static void cpu_throttle_timer_tick(void *opaque)
-{
-    CPUState *cpu;
-    double pct;
-
-    /* Stop the timer if needed */
-    if (!cpu_throttle_get_percentage()) {
-        return;
-    }
-    CPU_FOREACH(cpu) {
-        if (!atomic_xchg(&cpu->throttle_thread_scheduled, 1)) {
-            async_run_on_cpu(cpu, cpu_throttle_thread,
-                             RUN_ON_CPU_NULL);
-        }
-    }
-
-    pct = (double)cpu_throttle_get_percentage()/100;
-    timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
-                                   CPU_THROTTLE_TIMESLICE_NS / (1-pct));
-}
-
-void cpu_throttle_set(int new_throttle_pct)
-{
-    /* Ensure throttle percentage is within valid range */
-    new_throttle_pct = MIN(new_throttle_pct, CPU_THROTTLE_PCT_MAX);
-    new_throttle_pct = MAX(new_throttle_pct, CPU_THROTTLE_PCT_MIN);
-
-    atomic_set(&throttle_percentage, new_throttle_pct);
-
-    timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
-                                       CPU_THROTTLE_TIMESLICE_NS);
-}
-
-void cpu_throttle_stop(void)
-{
-    atomic_set(&throttle_percentage, 0);
-}
-
-bool cpu_throttle_active(void)
-{
-    return (cpu_throttle_get_percentage() != 0);
-}
-
-int cpu_throttle_get_percentage(void)
-{
-    return atomic_read(&throttle_percentage);
-}
-
 void cpu_ticks_init(void)
 {
     seqlock_init(&timers_state.vm_clock_seqlock);
     qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
-    throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                           cpu_throttle_timer_tick, NULL);
+    cpu_throttle_init();
 }
 
 void configure_icount(QemuOpts *opts, Error **errp)
@@ -1017,10 +933,6 @@ void cpu_synchronize_all_states(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_state(cpu);
-        /* TODO: move to cpu_synchronize_state() */
-        if (hvf_enabled()) {
-            hvf_cpu_synchronize_state(cpu);
-        }
     }
 }
 
@@ -1030,10 +942,6 @@ void cpu_synchronize_all_post_reset(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_post_reset(cpu);
-        /* TODO: move to cpu_synchronize_post_reset() */
-        if (hvf_enabled()) {
-            hvf_cpu_synchronize_post_reset(cpu);
-        }
     }
 }
 
@@ -1043,10 +951,6 @@ void cpu_synchronize_all_post_init(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_post_init(cpu);
-        /* TODO: move to cpu_synchronize_post_init() */
-        if (hvf_enabled()) {
-            hvf_cpu_synchronize_post_init(cpu);
-        }
     }
 }
 
@@ -1889,6 +1793,11 @@ void qemu_mutex_unlock_iothread(void)
 void qemu_cond_wait_iothread(QemuCond *cond)
 {
     qemu_cond_wait(cond, &qemu_global_mutex);
+}
+
+void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
+{
+    qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
 
 static bool all_vcpus_paused(void)

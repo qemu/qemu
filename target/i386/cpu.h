@@ -777,6 +777,10 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EDX_AVX512_4FMAPS     (1U << 3)
 /* AVX512 Vector Pair Intersection to a Pair of Mask Registers */
 #define CPUID_7_0_EDX_AVX512_VP2INTERSECT (1U << 8)
+/* SERIALIZE instruction */
+#define CPUID_7_0_EDX_SERIALIZE         (1U << 14)
+/* TSX Suspend Load Address Tracking instruction */
+#define CPUID_7_0_EDX_TSX_LDTRK         (1U << 16)
 /* Speculation Control */
 #define CPUID_7_0_EDX_SPEC_CTRL         (1U << 26)
 /* Single Thread Indirect Branch Predictors */
@@ -2118,6 +2122,11 @@ static inline bool cpu_has_vmx(CPUX86State *env)
     return env->features[FEAT_1_ECX] & CPUID_EXT_VMX;
 }
 
+static inline bool cpu_has_svm(CPUX86State *env)
+{
+    return env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM;
+}
+
 /*
  * In order for a vCPU to enter VMX operation it must have CR4.VMXE set.
  * Since it was set, CR4.VMXE must remain set as long as vCPU is in
@@ -2143,6 +2152,7 @@ static inline bool cpu_vmx_maybe_enabled(CPUX86State *env)
 /* fpu_helper.c */
 void update_fp_status(CPUX86State *env);
 void update_mxcsr_status(CPUX86State *env);
+void update_mxcsr_from_sse_status(CPUX86State *env);
 
 static inline void cpu_set_mxcsr(CPUX86State *env, uint32_t mxcsr)
 {

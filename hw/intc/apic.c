@@ -615,24 +615,6 @@ int apic_accept_pic_intr(DeviceState *dev)
     return 0;
 }
 
-static uint32_t apic_get_current_count(APICCommonState *s)
-{
-    int64_t d;
-    uint32_t val;
-    d = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->initial_count_load_time) >>
-        s->count_shift;
-    if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
-        /* periodic */
-        val = s->initial_count - (d % ((uint64_t)s->initial_count + 1));
-    } else {
-        if (d >= s->initial_count)
-            val = 0;
-        else
-            val = s->initial_count - d;
-    }
-    return val;
-}
-
 static void apic_timer_update(APICCommonState *s, int64_t current_time)
 {
     if (apic_next_timer(s, current_time)) {

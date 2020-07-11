@@ -200,16 +200,116 @@ static void add_query_tests(QmpSchema *schema)
     }
 }
 
-static void test_object_add_without_props(void)
+static void test_object_add_failure_modes(void)
 {
     QTestState *qts;
     QDict *resp;
 
+    /* attempt to create an object without props */
     qts = qtest_init(common_args);
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
-                    " {'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
     g_assert_nonnull(resp);
     qmp_assert_error_class(resp, "GenericError");
+
+    /* attempt to create an object without qom-type */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+
+    /* attempt to delete an object that does not exist */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+
+    /* attempt to create 2 objects with duplicate id */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+
+    /* delete ram1 object */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* attempt to create an object with a property of a wrong type */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': '1048576' } } }");
+    g_assert_nonnull(resp);
+    /* now do it right */
+    qmp_assert_error_class(resp, "GenericError");
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* delete ram1 object */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* attempt to create an object without the id */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+    /* now do it right */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* delete ram1 object */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* attempt to set a non existing property */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'sized': 1048576 } } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+    /* now do it right */
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                     " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
+                     " 'props': {'size': 1048576 } } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* delete ram1 object without id */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'ida': 'ram1' } }");
+    g_assert_nonnull(resp);
+
+    /* delete ram1 object */
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    g_assert(qdict_haskey(resp, "return"));
+
+    /* delete ram1 object that does not exist anymore*/
+    resp = qtest_qmp(qts, "{'execute': 'object-del', 'arguments':"
+                     " {'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+
     qtest_quit(qts);
 }
 
@@ -223,9 +323,8 @@ int main(int argc, char *argv[])
     qmp_schema_init(&schema);
     add_query_tests(&schema);
 
-    qtest_add_func("qmp/object-add-without-props",
-                   test_object_add_without_props);
-    /* TODO: add coverage of generic object-add failure modes */
+    qtest_add_func("qmp/object-add-failure-modes",
+                   test_object_add_failure_modes);
 
     ret = g_test_run();
 

@@ -26,6 +26,8 @@ typedef enum {
 
 /* Prepend timestamp to messages */
 bool error_with_timestamp;
+bool error_with_guestname;
+const char *error_guest_name;
 
 int error_printf(const char *fmt, ...)
 {
@@ -211,6 +213,11 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         timestr = g_time_val_to_iso8601(&tv);
         error_printf("%s ", timestr);
         g_free(timestr);
+    }
+
+    /* Only prepend guest name if -msg guest-name and -name guest=... are set */
+    if (error_with_guestname && error_guest_name && !cur_mon) {
+        error_printf("%s ", error_guest_name);
     }
 
     print_loc();

@@ -10,6 +10,10 @@ ALL_X86_TESTS=$(I386_SRCS:.c=)
 SKIP_I386_TESTS=test-i386-ssse3
 X86_64_TESTS:=$(filter test-i386-ssse3, $(ALL_X86_TESTS))
 
+test-i386-sse-exceptions: CFLAGS += -msse4.1 -mfpmath=sse
+run-test-i386-sse-exceptions: QEMU_OPTS += -cpu max
+run-plugin-test-i386-sse-exceptions-%: QEMU_OPTS += -cpu max
+
 test-i386-pcmpistri: CFLAGS += -msse4.2
 run-test-i386-pcmpistri: QEMU_OPTS += -cpu max
 run-plugin-test-i386-pcmpistri-%: QEMU_OPTS += -cpu max
