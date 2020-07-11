@@ -19,3 +19,4 @@ Contents:
    target-xtensa
    target-s390x
    target-rx
+   target-avr

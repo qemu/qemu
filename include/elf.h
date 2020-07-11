@@ -160,6 +160,8 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define EM_CRIS         76      /* Axis Communications 32-bit embedded processor */
 
+#define EM_AVR          83      /* AVR 8-bit microcontroller */
+
 #define EM_V850		87	/* NEC v850 */
 
 #define EM_H8_300H      47      /* Hitachi H8/300H */
@@ -201,6 +203,8 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define EM_MOXIE           223     /* Moxie processor family */
 #define EM_MOXIE_OLD       0xFEED
+
+#define EF_AVR_MACH     0x7F       /* Mask for AVR e_flags to get core type */
 
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0

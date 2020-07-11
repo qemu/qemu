@@ -167,6 +167,14 @@ S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
 
+AVR TCG CPUs
+M: Michael Rolnik <mrolnik@gmail.com>
+R: Sarah Harris <S.E.Harris@kent.ac.uk>
+S: Maintained
+F: gdb-xml/avr-cpu.xml
+F: target/avr/
+F: tests/acceptance/machine_avr6.py
+
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
@@ -981,6 +989,28 @@ F: hw/*/microbit*.c
 F: include/hw/*/nrf51*.h
 F: include/hw/*/microbit*.h
 F: tests/qtest/microbit-test.c
+
+AVR Machines
+-------------
+
+AVR MCUs
+M: Michael Rolnik <mrolnik@gmail.com>
+R: Sarah Harris <S.E.Harris@kent.ac.uk>
+S: Maintained
+F: default-configs/avr-softmmu.mak
+F: hw/avr/
+F: include/hw/char/avr_usart.h
+F: hw/char/avr_usart.c
+F: include/hw/timer/avr_timer16.h
+F: hw/timer/avr_timer16.c
+F: include/hw/misc/avr_power.h
+F: hw/misc/avr_power.c
+
+Arduino
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Sarah Harris <S.E.Harris@kent.ac.uk>
+S: Maintained
+F: hw/avr/arduino.c
 
 CRIS Machines
 -------------

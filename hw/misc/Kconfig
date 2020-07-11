@@ -131,4 +131,7 @@ config MAC_VIA
     select MOS6522
     select ADB
 
+config AVR_POWER
+    bool
+
 source macio/Kconfig

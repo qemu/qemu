@@ -1,0 +1,3 @@
+obj-y += boot.o
+obj-$(CONFIG_AVR_ATMEGA_MCU) += atmega.o
+obj-$(CONFIG_ARDUINO) += arduino.o
