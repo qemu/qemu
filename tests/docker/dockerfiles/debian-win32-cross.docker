@@ -3,7 +3,7 @@
 #
 # This docker target builds on the debian Stretch MXE base image.
 #
-FROM qemu:debian9-mxe
+FROM qemu/debian9-mxe
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 

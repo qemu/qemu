@@ -289,29 +289,6 @@ jobs:
       python: 3.6
 
 
-    # Acceptance (Functional) tests
-    - name: "GCC check-acceptance"
-      dist: bionic
-      env:
-        - CONFIG="--enable-tools --target-list=aarch64-softmmu,alpha-softmmu,arm-softmmu,m68k-softmmu,microblaze-softmmu,mips-softmmu,mips64el-softmmu,nios2-softmmu,or1k-softmmu,ppc-softmmu,ppc64-softmmu,s390x-softmmu,sh4-softmmu,sparc-softmmu,x86_64-softmmu,xtensa-softmmu"
-        - TEST_CMD="make check-acceptance"
-        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-acceptance"
-      after_script:
-        - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
-        - du -chs $HOME/avocado/data/cache
-      addons:
-        apt:
-          packages:
-            - python3-pil
-            - python3-pip
-            - python3-numpy
-            - python3-opencv
-            - python3-venv
-            - rpm2cpio
-            - tesseract-ocr
-            - tesseract-ocr-eng
-
-
     # Using newer GCC with sanitizers
     - name: "GCC9 with sanitizers (softmmu)"
       addons:
@@ -504,6 +481,45 @@ jobs:
           else
               $(exit $BUILD_RC);
           fi
+
+    - name: "[s390x] GCC (other-softmmu)"
+      arch: s390x
+      dist: bionic
+      addons:
+        apt_packages:
+          - libaio-dev
+          - libattr1-dev
+          - libcap-ng-dev
+          - libgnutls28-dev
+          - libiscsi-dev
+          - liblttng-ust-dev
+          - liblzo2-dev
+          - libncurses-dev
+          - libnfs-dev
+          - libnss3-dev
+          - libpixman-1-dev
+          - libsdl2-dev
+          - libsdl2-image-dev
+          - libseccomp-dev
+          - libsnappy-dev
+          - libzstd-dev
+          - nettle-dev
+          - xfslibs-dev
+          # Tests dependencies
+          - genisoimage
+      env:
+        - CONFIG="--disable-containers --audio-drv-list=sdl --disable-user
+                  --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
+
+    - name: "[s390x] GCC (user)"
+      arch: s390x
+      dist: bionic
+      addons:
+        apt_packages:
+          - libgcrypt20-dev
+          - libgnutls28-dev
+      env:
+        - CONFIG="--disable-containers --disable-system"
 
     - name: "[s390x] Clang (disable-tcg)"
       arch: s390x

@@ -186,7 +186,7 @@ _filter_img_create()
             -e 's/^\(data_file\)/3-\1/' \
             -e 's/^\(encryption\)/4-\1/' \
             -e 's/^\(preallocation\)/8-\1/' \
-        | sort \
+        | LC_ALL=C sort \
         | $SED -e 's/^[0-9]-//' \
         | tr '\n\0' ' \n' \
         | $SED -e 's/^ *$//' -e 's/ *$//'

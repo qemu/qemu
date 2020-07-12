@@ -46,9 +46,17 @@ ENV PACKAGES flex bison \
     libxen-dev \
     libzstd-dev \
     make \
-    python3-yaml \
+    python3-numpy \
+    python3-opencv \
+    python3-pil \
+    python3-pip \
     python3-sphinx \
+    python3-venv \
+    python3-yaml \
+    rpm2cpio \
     sparse \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     texinfo \
     xfslibs-dev\
     vim

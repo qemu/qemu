@@ -2294,7 +2294,7 @@ static void pgb_dynamic(const char *image_name, long align)
 static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
                             abi_ulong guest_hiaddr, long align)
 {
-    const int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+    int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
     void *addr, *test;
 
     if (guest_hiaddr > reserved_va) {
@@ -2307,15 +2307,19 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     /* Widen the "image" to the entire reserved address space. */
     pgb_static(image_name, 0, reserved_va, align);
 
+#ifdef MAP_FIXED_NOREPLACE
+    flags |= MAP_FIXED_NOREPLACE;
+#endif
+
     /* Reserve the memory on the host. */
     assert(guest_base != 0);
     test = g2h(0);
     addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
     if (addr == MAP_FAILED) {
         error_report("Unable to reserve 0x%lx bytes of virtual address "
-                     "space for use as guest address space (check your "
+                     "space (%s) for use as guest address space (check your "
                      "virtual memory ulimit setting or reserve less "
-                     "using -R option)", reserved_va);
+                     "using -R option)", reserved_va, strerror(errno));
         exit(EXIT_FAILURE);
     }
     assert(addr == test);

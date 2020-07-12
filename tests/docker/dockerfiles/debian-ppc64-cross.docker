@@ -2,7 +2,7 @@
 # Docker ppc64 cross-compiler target
 #
 # This docker target builds on the debian Buster base image.
-FROM qemu:debian10
+FROM qemu/debian10
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \

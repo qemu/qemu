@@ -47,7 +47,7 @@ ifneq ($(DOCKER_IMAGE),)
 
 DOCKER_COMPILE_CMD="$(DOCKER_SCRIPT) cc \
 		--cc $(DOCKER_CROSS_CC_GUEST) \
-		-i qemu:$(DOCKER_IMAGE) \
+		-i qemu/$(DOCKER_IMAGE) \
 		-s $(SRC_PATH) -- "
 
 .PHONY: docker-build-guest-tests
@@ -57,7 +57,7 @@ docker-build-guest-tests: docker-image-$(DOCKER_IMAGE)
 	   $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC=$(DOCKER_COMPILE_CMD) \
 			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=y \
 			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
-	"BUILD","$(TARGET) guest-tests with docker qemu:$(DOCKER_IMAGE)")
+	"BUILD","$(TARGET) guest-tests with docker qemu/$(DOCKER_IMAGE)")
 
 GUEST_BUILD=docker-build-guest-tests
 

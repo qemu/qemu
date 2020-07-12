@@ -47,7 +47,7 @@ build_qemu()
 check_qemu()
 {
     # default to make check unless the caller specifies
-    if test -z "$@"; then
+    if [ $# = 0 ]; then
         INVOCATION="check"
     else
         INVOCATION="$@"

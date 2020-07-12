@@ -1,0 +1,53 @@
+#
+# Docker all cross-compiler target (tests only)
+#
+# While the normal cross builds take care to setup proper multiarch
+# build environments which can cross build QEMU this just installs the
+# basic compilers for as many targets as possible. We shall use this
+# to build and run linux-user tests on GitLab
+#
+FROM qemu/debian10
+
+# What we need to build QEMU itself
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt build-dep -yy qemu
+
+# Add the foreign architecture we want and install dependencies
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+        apt install -y --no-install-recommends \
+        gcc-aarch64-linux-gnu \
+        libc6-dev-arm64-cross \
+        gcc-alpha-linux-gnu \
+        libc6.1-dev-alpha-cross \
+        gcc-arm-linux-gnueabihf \
+        libc6-dev-armhf-cross \
+        gcc-hppa-linux-gnu \
+        libc6-dev-hppa-cross \
+        gcc-m68k-linux-gnu \
+        libc6-dev-m68k-cross \
+        gcc-mips-linux-gnu \
+        libc6-dev-mips-cross \
+        gcc-mips64-linux-gnuabi64 \
+        libc6-dev-mips64-cross \
+        gcc-mips64el-linux-gnuabi64 \
+        libc6-dev-mips64el-cross \
+        gcc-mipsel-linux-gnu \
+        libc6-dev-mipsel-cross \
+        gcc-powerpc-linux-gnu \
+        libc6-dev-powerpc-cross \
+        gcc-powerpc64-linux-gnu \
+        libc6-dev-ppc64-cross \
+        gcc-powerpc64le-linux-gnu \
+        libc6-dev-ppc64el-cross \
+        gcc-riscv64-linux-gnu \
+        libc6-dev-riscv64-cross \
+        gcc-s390x-linux-gnu \
+        libc6-dev-s390x-cross \
+        gcc-sh4-linux-gnu \
+        libc6-dev-sh4-cross \
+        gcc-sparc64-linux-gnu \
+        libc6-dev-sparc64-cross
+
+ENV QEMU_CONFIGURE_OPTS --disable-system --disable-docs --disable-tools
+ENV DEF_TARGET_LIST aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user
