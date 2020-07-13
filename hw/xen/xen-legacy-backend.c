@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <sys/signal.h>
 
 #include "hw/sysbus.h"
 #include "hw/boards.h"
