@@ -1026,10 +1026,8 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
         switch (dc->opcode) {
             case CRISV10_IND_MOVE_M_R:
                 return dec10_ind_move_m_r(env, dc, size);
-                break;
             case CRISV10_IND_MOVE_R_M:
                 return dec10_ind_move_r_m(dc, size);
-                break;
             case CRISV10_IND_CMP:
                 LOG_DIS("cmp size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
