@@ -84,6 +84,7 @@ undocumented; you can get a complete list by running
    arm/aspeed
    arm/digic
    arm/musicpal
+   arm/gumstix
    arm/nseries
    arm/orangepi
    arm/palm
