@@ -2402,6 +2402,12 @@ else
   l2tpv3=no
 fi
 
+if check_include "pty.h" ; then
+  pty_h=yes
+else
+  pty_h=no
+fi
+
 #########################################
 # vhost interdependencies and host support
 
@@ -7892,6 +7898,9 @@ if test "$parallels" = "yes" ; then
 fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
+fi
+if test "$pty_h" = "yes" ; then
+  echo "HAVE_PTY_H=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
   if test "$have_fuzzer" = "yes"; then
