@@ -502,10 +502,8 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
         break;
     case R_RISCV_JAL:
         return reloc_jimm20(code_ptr, (tcg_insn_unit *)value);
-        break;
     case R_RISCV_CALL:
         return reloc_call(code_ptr, (tcg_insn_unit *)value);
-        break;
     default:
         tcg_abort();
     }
