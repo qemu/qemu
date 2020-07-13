@@ -33,7 +33,6 @@ typedef struct BCM283XState {
     DeviceState parent_obj;
     /*< public >*/
 
-    char *cpu_type;
     uint32_t enabled_cpus;
 
     struct {
