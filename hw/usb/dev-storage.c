@@ -546,8 +546,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                     }
                 }
             }
-            if (p->actual_length < p->iov.size && (p->short_not_ok ||
-                    s->scsi_len >= p->ep->max_packet_size)) {
+            if (p->actual_length < p->iov.size && s->mode == USB_MSDM_DATAIN) {
                 DPRINTF("Deferring packet %p [wait data-in]\n", p);
                 s->packet = p;
                 p->status = USB_RET_ASYNC;
