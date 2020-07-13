@@ -40,12 +40,12 @@
 #include "qemu/id.h"
 #include "qemu/coroutine.h"
 
-#include "chardev/char-mux.h"
+#include "chardev-internal.h"
 
 /***********************************************************/
 /* character device */
 
-static Object *get_chardevs_root(void)
+Object *get_chardevs_root(void)
 {
     return container_get(object_get_root(), "/chardevs");
 }
@@ -303,33 +303,6 @@ static const TypeInfo char_type_info = {
     .abstract = true,
     .class_size = sizeof(ChardevClass),
     .class_init = char_class_init,
-};
-
-static int chardev_machine_done_notify_one(Object *child, void *opaque)
-{
-    Chardev *chr = (Chardev *)child;
-    ChardevClass *class = CHARDEV_GET_CLASS(chr);
-
-    if (class->chr_machine_done) {
-        return class->chr_machine_done(chr);
-    }
-
-    return 0;
-}
-
-static void chardev_machine_done_hook(Notifier *notifier, void *unused)
-{
-    int ret = object_child_foreach(get_chardevs_root(),
-                                   chardev_machine_done_notify_one, NULL);
-
-    if (ret) {
-        error_report("Failed to call chardev machine_done hooks");
-        exit(1);
-    }
-}
-
-static Notifier chardev_machine_done_notify = {
-    .notify = chardev_machine_done_hook,
 };
 
 static bool qemu_chr_is_busy(Chardev *s)
@@ -996,7 +969,11 @@ static Chardev *chardev_new(const char *id, const char *typename,
     }
 
     if (id) {
-        object_property_add_child(get_chardevs_root(), id, obj);
+        object_property_try_add_child(get_chardevs_root(), id, obj,
+                                      &local_err);
+        if (local_err) {
+            goto end;
+        }
         object_unref(obj);
     }
 
@@ -1194,12 +1171,6 @@ void qemu_chr_cleanup(void)
 static void register_types(void)
 {
     type_register_static(&char_type_info);
-
-    /* this must be done after machine init, since we register FEs with muxes
-     * as part of realize functions like serial_isa_realizefn when -nographic
-     * is specified
-     */
-    qemu_add_machine_init_done_notifier(&chardev_machine_done_notify);
 }
 
 type_init(register_types);

@@ -29,7 +29,7 @@
 #include "chardev/char.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
-#include "chardev/char-mux.h"
+#include "chardev-internal.h"
 
 /* MUX driver for serial I/O splitting */
 

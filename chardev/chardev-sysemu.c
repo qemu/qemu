@@ -21,41 +21,49 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_MUX_H
-#define CHAR_MUX_H
 
+#include "qemu/osdep.h"
+#include "sysemu/sysemu.h"
 #include "chardev/char.h"
-#include "chardev/char-fe.h"
+#include "qemu/error-report.h"
+#include "chardev-internal.h"
 
-#define MAX_MUX 4
-#define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
-#define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
-typedef struct MuxChardev {
-    Chardev parent;
-    CharBackend *backends[MAX_MUX];
-    CharBackend chr;
-    int focus;
-    int mux_cnt;
-    int term_got_escape;
-    int max_size;
-    /* Intermediate input buffer catches escape sequences even if the
-       currently active device is not accepting any input - but only until it
-       is full as well. */
-    unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
-    int prod[MAX_MUX];
-    int cons[MAX_MUX];
-    int timestamps;
+static int chardev_machine_done_notify_one(Object *child, void *opaque)
+{
+    Chardev *chr = (Chardev *)child;
+    ChardevClass *class = CHARDEV_GET_CLASS(chr);
 
-    /* Protected by the Chardev chr_write_lock.  */
-    int linestart;
-    int64_t timestamps_start;
-} MuxChardev;
+    if (class->chr_machine_done) {
+        return class->chr_machine_done(chr);
+    }
 
-#define MUX_CHARDEV(obj) OBJECT_CHECK(MuxChardev, (obj), TYPE_CHARDEV_MUX)
-#define CHARDEV_IS_MUX(chr)                             \
-    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
+    return 0;
+}
 
-void mux_set_focus(Chardev *chr, int focus);
-void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event);
+static void chardev_machine_done_hook(Notifier *notifier, void *unused)
+{
+    int ret = object_child_foreach(get_chardevs_root(),
+                                   chardev_machine_done_notify_one, NULL);
 
-#endif /* CHAR_MUX_H */
+    if (ret) {
+        error_report("Failed to call chardev machine_done hooks");
+        exit(1);
+    }
+}
+
+
+static Notifier chardev_machine_done_notify = {
+    .notify = chardev_machine_done_hook,
+};
+
+static void register_types(void)
+{
+    /*
+     * This must be done after machine init, since we register FEs with muxes
+     * as part of realize functions like serial_isa_realizefn when -nographic
+     * is specified.
+     */
+    qemu_add_machine_init_done_notifier(&chardev_machine_done_notify);
+}
+
+type_init(register_types);

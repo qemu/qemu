@@ -1,4 +1,5 @@
 chardev-obj-y += char.o
+chardev-obj-$(CONFIG_SOFTMMU) += chardev-sysemu.o
 chardev-obj-$(CONFIG_WIN32) += char-console.o
 chardev-obj-$(CONFIG_POSIX) += char-fd.o
 chardev-obj-y += char-fe.o
@@ -17,7 +18,7 @@ chardev-obj-y += char-udp.o
 chardev-obj-$(CONFIG_WIN32) += char-win.o
 chardev-obj-$(CONFIG_WIN32) += char-win-stdio.o
 
-common-obj-y += msmouse.o wctablet.o testdev.o
+common-obj-$(CONFIG_SOFTMMU) += msmouse.o wctablet.o testdev.o
 
 ifeq ($(CONFIG_BRLAPI),y)
 common-obj-m += baum.o
