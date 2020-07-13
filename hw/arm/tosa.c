@@ -65,24 +65,39 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
     pxa2xx_pcmcia_attach(cpu->pcmcia[0], md);
 }
 
-static void tosa_out_switch(void *opaque, int line, int level)
+/*
+ * Encapsulation of some GPIO line behaviour for the Tosa board
+ *
+ * QEMU interface:
+ *  + named GPIO inputs "leds[0..3]": assert to light LEDs
+ *  + named GPIO input "reset": when asserted, resets the system
+ */
+
+#define TYPE_TOSA_MISC_GPIO "tosa-misc-gpio"
+#define TOSA_MISC_GPIO(obj) \
+    OBJECT_CHECK(TosaMiscGPIOState, (obj), TYPE_TOSA_MISC_GPIO)
+
+typedef struct TosaMiscGPIOState {
+    SysBusDevice parent_obj;
+} TosaMiscGPIOState;
+
+static void tosa_gpio_leds(void *opaque, int line, int level)
 {
     switch (line) {
-        case 0:
-            fprintf(stderr, "blue LED %s.\n", level ? "on" : "off");
-            break;
-        case 1:
-            fprintf(stderr, "green LED %s.\n", level ? "on" : "off");
-            break;
-        case 2:
-            fprintf(stderr, "amber LED %s.\n", level ? "on" : "off");
-            break;
-        case 3:
-            fprintf(stderr, "wlan LED %s.\n", level ? "on" : "off");
-            break;
-        default:
-            fprintf(stderr, "Uhandled out event: %d = %d\n", line, level);
-            break;
+    case 0:
+        fprintf(stderr, "blue LED %s.\n", level ? "on" : "off");
+        break;
+    case 1:
+        fprintf(stderr, "green LED %s.\n", level ? "on" : "off");
+        break;
+    case 2:
+        fprintf(stderr, "amber LED %s.\n", level ? "on" : "off");
+        break;
+    case 3:
+        fprintf(stderr, "wlan LED %s.\n", level ? "on" : "off");
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -93,13 +108,22 @@ static void tosa_reset(void *opaque, int line, int level)
     }
 }
 
+static void tosa_misc_gpio_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in_named(dev, tosa_gpio_leds, "leds", 4);
+    qdev_init_gpio_in_named(dev, tosa_reset, "reset", 1);
+}
+
 static void tosa_gpio_setup(PXA2xxState *cpu,
                 DeviceState *scp0,
                 DeviceState *scp1,
                 TC6393xbState *tmio)
 {
-    qemu_irq *outsignals = qemu_allocate_irqs(tosa_out_switch, cpu, 4);
-    qemu_irq reset;
+    DeviceState *misc_gpio;
+
+    misc_gpio = sysbus_create_simple(TYPE_TOSA_MISC_GPIO, -1, NULL);
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
@@ -107,8 +131,8 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
                     qemu_irq_invert(qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_nSD_DETECT)));
 
     /* Handle reset */
-    reset = qemu_allocate_irq(tosa_reset, cpu, 0);
-    qdev_connect_gpio_out(cpu->gpio, TOSA_GPIO_ON_RESET, reset);
+    qdev_connect_gpio_out(cpu->gpio, TOSA_GPIO_ON_RESET,
+                          qdev_get_gpio_in_named(misc_gpio, "reset", 0));
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
     pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
@@ -119,10 +143,14 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
                         qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_JC_CF_IRQ),
                         NULL);
 
-    qdev_connect_gpio_out(scp1, TOSA_GPIO_BT_LED, outsignals[0]);
-    qdev_connect_gpio_out(scp1, TOSA_GPIO_NOTE_LED, outsignals[1]);
-    qdev_connect_gpio_out(scp1, TOSA_GPIO_CHRG_ERR_LED, outsignals[2]);
-    qdev_connect_gpio_out(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_BT_LED,
+                          qdev_get_gpio_in_named(misc_gpio, "leds", 0));
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_NOTE_LED,
+                          qdev_get_gpio_in_named(misc_gpio, "leds", 1));
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_CHRG_ERR_LED,
+                          qdev_get_gpio_in_named(misc_gpio, "leds", 2));
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_WLAN_LED,
+                          qdev_get_gpio_in_named(misc_gpio, "leds", 3));
 
     qdev_connect_gpio_out(scp1, TOSA_GPIO_TC6393XB_L3V_ON, tc6393xb_l3v_get(tmio));
 
@@ -287,10 +315,22 @@ static const TypeInfo tosa_ssp_info = {
     .class_init    = tosa_ssp_class_init,
 };
 
+static const TypeInfo tosa_misc_gpio_info = {
+    .name          = "tosa-misc-gpio",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(TosaMiscGPIOState),
+    .instance_init = tosa_misc_gpio_init,
+    /*
+     * No class init required: device has no internal state so does not
+     * need to set up reset or vmstate, and has no realize method.
+     */
+};
+
 static void tosa_register_types(void)
 {
     type_register_static(&tosa_dac_info);
     type_register_static(&tosa_ssp_info);
+    type_register_static(&tosa_misc_gpio_info);
 }
 
 type_init(tosa_register_types)
