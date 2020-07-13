@@ -59,6 +59,48 @@
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
 
+#include "afl-qemu-common.h"
+#include "tcg-op.h"
+
+void HELPER(afl_maybe_log)(target_ulong cur_loc) {
+
+  register uintptr_t afl_idx = cur_loc ^ afl_prev_loc;
+
+  INC_AFL_AREA(afl_idx);
+
+  afl_prev_loc = cur_loc >> 1;
+
+}
+
+/* Generates TCG code for AFL's tracing instrumentation. */
+static void afl_gen_trace(target_ulong cur_loc) {
+
+  /* Optimize for cur_loc > afl_end_code, which is the most likely case on
+     Linux systems. */
+
+  if (cur_loc > afl_end_code ||
+      cur_loc < afl_start_code /*|| !afl_area_ptr*/)  // not needed because of
+                                                      // static dummy buffer
+    return;
+
+  /* Looks like QEMU always maps to fixed locations, so ASLR is not a
+     concern. Phew. But instruction addresses may be aligned. Let's mangle
+     the value to get something quasi-uniform. */
+
+  cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
+  cur_loc &= MAP_SIZE - 1;
+
+  /* Implement probabilistic instrumentation by looking at scrambled block
+     address. This keeps the instrumented locations stable across runs. */
+
+  if (cur_loc >= afl_inst_rms) return;
+
+  TCGv cur_loc_v = tcg_const_tl(cur_loc);
+  gen_helper_afl_maybe_log(cur_loc_v);
+  tcg_temp_free(cur_loc_v);
+
+}
+
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
 /* make various TB consistency checks */
@@ -1735,6 +1777,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_func_start(tcg_ctx);
 
     tcg_ctx->cpu = env_cpu(env);
+    afl_gen_trace(pc);
     gen_intermediate_code(cpu, tb, max_insns);
     tcg_ctx->cpu = NULL;
 

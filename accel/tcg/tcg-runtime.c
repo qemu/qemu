@@ -32,6 +32,14 @@
 #include "exec/log.h"
 #include "tcg/tcg.h"
 
+#include "afl-qemu-common.h"
+
+void HELPER(afl_entry_routine)(CPUArchState *env) {
+
+  afl_forkserver(ENV_GET_CPU(env));
+
+}
+
 /* 32-bit helpers */
 
 int32_t HELPER(div_i32)(int32_t arg1, int32_t arg2)

@@ -1698,6 +1698,17 @@ bool tcg_op_supported(TCGOpcode op)
     }
 }
 
+void afl_gen_tcg_plain_call(void *func)
+{
+    TCGOp *op = tcg_emit_op(INDEX_op_call);
+
+    TCGOP_CALLO(op) = 0;
+
+    op->args[0] = (uintptr_t)func;
+    op->args[1] = 0;
+    TCGOP_CALLI(op) = 0;
+}
+
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
