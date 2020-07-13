@@ -405,6 +405,7 @@ static void vfio_display_region_update(void *opaque)
     if (!plane.drm_format || !plane.size) {
         if (dpy->ramfb) {
             ramfb_display_update(dpy->con, dpy->ramfb);
+            dpy->region.surface = NULL;
         }
         return;
     }
