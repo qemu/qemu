@@ -26,32 +26,32 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 
-#define TOSA_RAM    0x04000000
-#define TOSA_ROM	0x00800000
+#define TOSA_RAM 0x04000000
+#define TOSA_ROM 0x00800000
 
-#define TOSA_GPIO_USB_IN		(5)
-#define TOSA_GPIO_nSD_DETECT	(9)
-#define TOSA_GPIO_ON_RESET		(19)
-#define TOSA_GPIO_CF_IRQ		(21)	/* CF slot0 Ready */
-#define TOSA_GPIO_CF_CD			(13)
-#define TOSA_GPIO_TC6393XB_INT  (15)
-#define TOSA_GPIO_JC_CF_IRQ		(36)	/* CF slot1 Ready */
+#define TOSA_GPIO_USB_IN                (5)
+#define TOSA_GPIO_nSD_DETECT            (9)
+#define TOSA_GPIO_ON_RESET              (19)
+#define TOSA_GPIO_CF_IRQ                (21)    /* CF slot0 Ready */
+#define TOSA_GPIO_CF_CD                 (13)
+#define TOSA_GPIO_TC6393XB_INT          (15)
+#define TOSA_GPIO_JC_CF_IRQ             (36)    /* CF slot1 Ready */
 
-#define TOSA_SCOOP_GPIO_BASE	1
-#define TOSA_GPIO_IR_POWERDWN	(TOSA_SCOOP_GPIO_BASE + 2)
-#define TOSA_GPIO_SD_WP			(TOSA_SCOOP_GPIO_BASE + 3)
-#define TOSA_GPIO_PWR_ON		(TOSA_SCOOP_GPIO_BASE + 4)
+#define TOSA_SCOOP_GPIO_BASE            1
+#define TOSA_GPIO_IR_POWERDWN           (TOSA_SCOOP_GPIO_BASE + 2)
+#define TOSA_GPIO_SD_WP                 (TOSA_SCOOP_GPIO_BASE + 3)
+#define TOSA_GPIO_PWR_ON                (TOSA_SCOOP_GPIO_BASE + 4)
 
-#define TOSA_SCOOP_JC_GPIO_BASE		1
-#define TOSA_GPIO_BT_LED		(TOSA_SCOOP_JC_GPIO_BASE + 0)
-#define TOSA_GPIO_NOTE_LED		(TOSA_SCOOP_JC_GPIO_BASE + 1)
-#define TOSA_GPIO_CHRG_ERR_LED		(TOSA_SCOOP_JC_GPIO_BASE + 2)
-#define TOSA_GPIO_TC6393XB_L3V_ON	(TOSA_SCOOP_JC_GPIO_BASE + 5)
-#define TOSA_GPIO_WLAN_LED		(TOSA_SCOOP_JC_GPIO_BASE + 7)
+#define TOSA_SCOOP_JC_GPIO_BASE         1
+#define TOSA_GPIO_BT_LED                (TOSA_SCOOP_JC_GPIO_BASE + 0)
+#define TOSA_GPIO_NOTE_LED              (TOSA_SCOOP_JC_GPIO_BASE + 1)
+#define TOSA_GPIO_CHRG_ERR_LED          (TOSA_SCOOP_JC_GPIO_BASE + 2)
+#define TOSA_GPIO_TC6393XB_L3V_ON       (TOSA_SCOOP_JC_GPIO_BASE + 5)
+#define TOSA_GPIO_WLAN_LED              (TOSA_SCOOP_JC_GPIO_BASE + 7)
 
-#define	DAC_BASE	0x4e
-#define DAC_CH1		0
-#define DAC_CH2		1
+#define DAC_BASE 0x4e
+#define DAC_CH1 0
+#define DAC_CH2 1
 
 static void tosa_microdrive_attach(PXA2xxState *cpu)
 {
