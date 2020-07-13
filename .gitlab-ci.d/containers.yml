@@ -24,6 +24,7 @@
     - changes:
       - .gitlab-ci.d/containers.yml
       - tests/docker/*
+      - tests/docker/dockerfiles/*
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_REF_NAME == "testing/next"'
 
