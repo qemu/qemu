@@ -1073,6 +1073,24 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     return val;
 }
 
+/*
+ * Save a potentially trashed IOTLB entry for later lookup by plugin.
+ *
+ * We also need to track the thread storage address because the RCU
+ * cleanup that runs when we leave the critical region (the current
+ * execution) is actually in a different thread.
+ */
+static void save_iotlb_data(CPUState *cs, hwaddr addr,
+                            MemoryRegionSection *section, hwaddr mr_offset)
+{
+#ifdef CONFIG_PLUGIN
+    SavedIOTLB *saved = &cs->saved_iotlb;
+    saved->addr = addr;
+    saved->section = section;
+    saved->mr_offset = mr_offset;
+#endif
+}
+
 static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                       int mmu_idx, uint64_t val, target_ulong addr,
                       uintptr_t retaddr, MemOp op)
@@ -1091,6 +1109,12 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         cpu_io_recompile(cpu, retaddr);
     }
     cpu->mem_io_pc = retaddr;
+
+    /*
+     * The memory_region_dispatch may trigger a flush/resize
+     * so for plugins we save the iotlb_data just in case.
+     */
+    save_iotlb_data(cpu, iotlbentry->addr, section, mr_offset);
 
     if (mr->global_locking && !qemu_mutex_iothread_locked()) {
         qemu_mutex_lock_iothread();
@@ -1381,8 +1405,11 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
  * in the softmmu lookup code (or helper). We don't handle re-fills or
  * checking the victim table. This is purely informational.
  *
- * This should never fail as the memory access being instrumented
- * should have just filled the TLB.
+ * This almost never fails as the memory access being instrumented
+ * should have just filled the TLB. The one corner case is io_writex
+ * which can cause TLB flushes and potential resizing of the TLBs
+ * loosing the information we need. In those cases we need to recover
+ * data from a copy of the io_tlb entry.
  */
 
 bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
@@ -1406,8 +1433,13 @@ bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
             data->v.ram.hostaddr = addr + tlbe->addend;
         }
         return true;
+    } else {
+        SavedIOTLB *saved = &cpu->saved_iotlb;
+        data->is_io = true;
+        data->v.io.section = saved->section;
+        data->v.io.offset = saved->mr_offset;
+        return true;
     }
-    return false;
 }
 
 #endif
