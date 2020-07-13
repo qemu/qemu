@@ -907,7 +907,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
             goto fail;
         }
     } else {
-#if LIBUSB_API_VERSION >= 0x01000107
+#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN32)
         trace_usb_host_open_hostfd(hostfd);
 
         rc = libusb_wrap_sys_device(ctx, hostfd, &s->dh);
@@ -1107,7 +1107,7 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     QTAILQ_INIT(&s->isorings);
     s->hostfd = -1;
 
-#if LIBUSB_API_VERSION >= 0x01000107
+#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN32)
     if (s->hostdevice) {
         int fd;
         s->needs_autoscan = false;
