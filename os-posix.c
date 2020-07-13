@@ -337,6 +337,7 @@ bool is_daemonized(void)
 
 int os_mlock(void)
 {
+#ifdef HAVE_MLOCKALL
     int ret = 0;
 
     ret = mlockall(MCL_CURRENT | MCL_FUTURE);
@@ -345,4 +346,7 @@ int os_mlock(void)
     }
 
     return ret;
+#else
+    return -ENOSYS;
+#endif
 }

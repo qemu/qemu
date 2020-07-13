@@ -2408,6 +2408,18 @@ else
   pty_h=no
 fi
 
+cat > $TMPC <<EOF
+#include <sys/mman.h>
+int main(int argc, char *argv[]) {
+    return mlockall(MCL_FUTURE);
+}
+EOF
+if compile_prog "" "" ; then
+  have_mlockall=yes
+else
+  have_mlockall=no
+fi
+
 #########################################
 # vhost interdependencies and host support
 
@@ -7901,6 +7913,9 @@ if test "$sheepdog" = "yes" ; then
 fi
 if test "$pty_h" = "yes" ; then
   echo "HAVE_PTY_H=y" >> $config_host_mak
+fi
+if test "$have_mlockall" = "yes" ; then
+  echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
   if test "$have_fuzzer" = "yes"; then
