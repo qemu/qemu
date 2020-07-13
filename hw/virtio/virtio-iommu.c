@@ -534,6 +534,7 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
             ptail = (struct virtio_iommu_req_tail *)
                         (buf + s->config.probe_size);
             ptail->status = virtio_iommu_handle_probe(s, iov, iov_cnt, buf);
+            break;
         }
         default:
             tail.status = VIRTIO_IOMMU_S_UNSUPP;
