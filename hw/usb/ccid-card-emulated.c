@@ -350,7 +350,6 @@ static void *event_thread(void *arg)
         case VEVENT_LAST: /* quit */
             vevent_delete(event);
             return NULL;
-            break;
         default:
             break;
         }

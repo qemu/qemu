@@ -192,10 +192,8 @@ static uint64_t pxa2xx_keypad_read(void *opaque, hwaddr offset,
             s->kpc &= ~(KPC_DI);
         qemu_irq_lower(s->irq);
         return tmp;
-        break;
     case KPDK:
         return s->kpdk;
-        break;
     case KPREC:
         tmp = s->kprec;
         if(tmp & KPREC_OF1)
@@ -207,31 +205,23 @@ static uint64_t pxa2xx_keypad_read(void *opaque, hwaddr offset,
         if(tmp & KPREC_UF0)
             s->kprec &= ~(KPREC_UF0);
         return tmp;
-        break;
     case KPMK:
         tmp = s->kpmk;
         if(tmp & KPMK_MKP)
             s->kpmk &= ~(KPMK_MKP);
         return tmp;
-        break;
     case KPAS:
         return s->kpas;
-        break;
     case KPASMKP0:
         return s->kpasmkp[0];
-        break;
     case KPASMKP1:
         return s->kpasmkp[1];
-        break;
     case KPASMKP2:
         return s->kpasmkp[2];
-        break;
     case KPASMKP3:
         return s->kpasmkp[3];
-        break;
     case KPKDI:
         return s->kpkdi;
-        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad read offset 0x%"HWADDR_PRIx"\n",

@@ -51,11 +51,9 @@ static uint8_t max7310_rx(I2CSlave *i2c)
     switch (s->command) {
     case 0x00:	/* Input port */
         return s->level ^ s->polarity;
-        break;
 
     case 0x01:	/* Output port */
         return s->level & ~s->direction;
-        break;
 
     case 0x02:	/* Polarity inversion */
         return s->polarity;
@@ -65,7 +63,6 @@ static uint8_t max7310_rx(I2CSlave *i2c)
 
     case 0x04:	/* Timeout */
         return s->status;
-        break;
 
     case 0xff:	/* Reserved */
         return 0xff;
