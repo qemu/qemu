@@ -149,7 +149,7 @@ static void t_gen_helper_raise_exception(DisasContext *dc,
     tcg_gen_movi_tl(dc->cpu_R[R_PC], dc->pc);
     gen_helper_raise_exception(dc->cpu_env, tmp);
     tcg_temp_free_i32(tmp);
-    dc->is_jmp = DISAS_UPDATE;
+    dc->is_jmp = DISAS_NORETURN;
 }
 
 static bool use_goto_tb(DisasContext *dc, uint32_t dest)
@@ -802,7 +802,7 @@ static void gen_exception(DisasContext *dc, uint32_t excp)
     tcg_gen_movi_tl(cpu_R[R_PC], dc->pc);
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
-    dc->is_jmp = DISAS_UPDATE;
+    dc->is_jmp = DISAS_NORETURN;
 }
 
 /* generate intermediate code for basic block 'tb'.  */
@@ -877,6 +877,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         tcg_gen_exit_tb(NULL, 0);
         break;
 
+    case DISAS_NORETURN:
     case DISAS_TB_JUMP:
         /* nothing more to generate */
         break;
