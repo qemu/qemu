@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+#
+# Copyright (c) 2019-2020 Red Hat, Inc.
+#
+# Author:
+#  Cleber Rosa <crosa@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or
+# later.  See the COPYING file in the top-level directory.
+
+"""
+Checks the GitLab pipeline status for a given commit ID
+"""
+
+# pylint: disable=C0103
+
+import argparse
+import http.client
+import json
+import os
+import subprocess
+import time
+import sys
+
+
+def get_local_staging_branch_commit():
+    """
+    Returns the commit sha1 for the *local* branch named "staging"
+    """
+    result = subprocess.run(['git', 'rev-parse', 'staging'],
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL,
+                            cwd=os.path.dirname(__file__),
+                            universal_newlines=True).stdout.strip()
+    if result == 'staging':
+        raise ValueError("There's no local branch named 'staging'")
+    if len(result) != 40:
+        raise ValueError("Branch staging HEAD doesn't look like a sha1")
+    return result
+
+
+def get_pipeline_status(project_id, commit_sha1):
+    """
+    Returns the JSON content of the pipeline status API response
+    """
+    url = '/api/v4/projects/{}/pipelines?sha={}'.format(project_id,
+                                                        commit_sha1)
+    connection = http.client.HTTPSConnection('gitlab.com')
+    connection.request('GET', url=url)
+    response = connection.getresponse()
+    if response.code != http.HTTPStatus.OK:
+        raise ValueError("Failed to receive a successful response")
+    json_response = json.loads(response.read())
+
+    # As far as I can tell, there should be only one pipeline for the same
+    # project + commit. If this assumption is false, we can add further
+    # filters to the url, such as username, and order_by.
+    if not json_response:
+        raise ValueError("No pipeline found")
+    return json_response[0]
+
+
+def wait_on_pipeline_success(timeout, interval,
+                             project_id, commit_sha):
+    """
+    Waits for the pipeline to finish within the given timeout
+    """
+    start = time.time()
+    while True:
+        if time.time() >= (start + timeout):
+            print("Waiting on the pipeline timed out")
+            return False
+
+        status = get_pipeline_status(project_id, commit_sha)
+        if status['status'] == 'running':
+            time.sleep(interval)
+            print('running...')
+            continue
+
+        if status['status'] == 'success':
+            return True
+
+        msg = "Pipeline failed, check: %s" % status['web_url']
+        print(msg)
+        return False
+
+
+def main():
+    """
+    Script entry point
+    """
+    parser = argparse.ArgumentParser(
+        prog='pipeline-status',
+        description='check or wait on a pipeline status')
+
+    parser.add_argument('-t', '--timeout', type=int, default=7200,
+                        help=('Amount of time (in seconds) to wait for the '
+                              'pipeline to complete.  Defaults to '
+                              '%(default)s'))
+    parser.add_argument('-i', '--interval', type=int, default=60,
+                        help=('Amount of time (in seconds) to wait between '
+                              'checks of the pipeline status.  Defaults '
+                              'to %(default)s'))
+    parser.add_argument('-w', '--wait', action='store_true', default=False,
+                        help=('Wether to wait, instead of checking only once '
+                              'the status of a pipeline'))
+    parser.add_argument('-p', '--project-id', type=int, default=11167699,
+                        help=('The GitLab project ID. Defaults to the project '
+                              'for https://gitlab.com/qemu-project/qemu, that '
+                              'is, "%(default)s"'))
+    try:
+        default_commit = get_local_staging_branch_commit()
+        commit_required = False
+    except ValueError:
+        default_commit = ''
+        commit_required = True
+    parser.add_argument('-c', '--commit', required=commit_required,
+                        default=default_commit,
+                        help=('Look for a pipeline associated with the given '
+                              'commit.  If one is not explicitly given, the '
+                              'commit associated with the local branch named '
+                              '"staging" is used.  Default: %(default)s'))
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help=('A minimal verbosity level that prints the '
+                              'overall result of the check/wait'))
+
+    args = parser.parse_args()
+
+    try:
+        if args.wait:
+            success = wait_on_pipeline_success(
+                args.timeout,
+                args.interval,
+                args.project_id,
+                args.commit)
+        else:
+            status = get_pipeline_status(args.project_id,
+                                         args.commit)
+            success = status['status'] == 'success'
+    except Exception as error:      # pylint: disable=W0703
+        success = False
+        if args.verbose:
+            print("ERROR: %s" % error.args[0])
+
+    if success:
+        if args.verbose:
+            print('success')
+        sys.exit(0)
+    else:
+        if args.verbose:
+            print('failure')
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

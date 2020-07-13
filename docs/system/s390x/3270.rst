@@ -1,9 +1,15 @@
 3270 devices
 ============
 
-QEMU supports connecting an external 3270 terminal emulator (such as
-``x3270``) to make a single 3270 device available to a guest. Note that this
-supports basic features only.
+The 3270 is the classic 'green-screen' console of the mainframes (see the
+`IBM 3270 Wikipedia article <https://en.wikipedia.org/wiki/IBM_3270>`__).
+
+The 3270 data stream is not implemented within QEMU; the device only provides
+TN3270 (a telnet extension; see `RFC 854 <https://tools.ietf.org/html/rfc854>`__
+and `RFC 1576 <https://tools.ietf.org/html/rfc1576>`__) and leaves the heavy
+lifting to an external 3270 terminal emulator (such as ``x3270``) to make a
+single 3270 device available to a guest. Note that this supports basic
+features only.
 
 To provide a 3270 device to a guest, create a ``x-terminal3270`` linked to
 a ``tn3270`` chardev. The guest will see a 3270 channel device. In order
@@ -12,10 +18,14 @@ to actually be able to use it, attach the ``x3270`` emulator to the chardev.
 Example configuration
 ---------------------
 
+* Make sure that 3270 support is enabled in the guest's Linux kernel. You need
+  ``CONFIG_TN3270`` and at least one of ``CONFIG_TN3270_TTY`` (for additional
+  ttys) or ``CONFIG_TN3270_CONSOLE`` (for a 3270 console).
+
 * Add a ``tn3270`` chardev and a ``x-terminal3270`` to the QEMU command line::
 
-    -chardev socket,id=char_0,host=0.0.0.0,port=2300,nowait,server,tn3270
-    -device x-terminal3270,chardev=char_0,devno=fe.0.000a,id=terminal_0
+   -chardev socket,id=ch0,host=0.0.0.0,port=2300,nowait,server,tn3270
+   -device x-terminal3270,chardev=ch0,devno=fe.0.000a,id=terminal0
 
 * Start the guest. In the guest, use ``chccwdev -e 0.0.000a`` to enable
   the device.
@@ -29,4 +39,25 @@ Example configuration
 
     systemctl start serial-getty@3270-tty1.service
 
-This should get you an addtional tty for logging into the guest.
+  This should get you an additional tty for logging into the guest.
+
+* If you want to use the 3270 device as the Linux kernel console instead of
+  an additional tty, you can also append ``conmode=3270 condev=000a`` to
+  the guest's kernel command line. The kernel then should use the 3270 as
+  console after the next boot.
+
+Restrictions
+------------
+
+3270 support is very basic. In particular:
+
+* Only one 3270 device is supported.
+
+* It has only been tested with Linux guests and the x3270 emulator.
+
+* TLS/SSL is not supported.
+
+* Resizing on reattach is not supported.
+
+* Multiple commands in one inbound buffer (for example, when the reset key
+  is pressed while the network is slow) are not supported.
