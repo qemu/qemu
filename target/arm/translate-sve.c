@@ -5275,7 +5275,7 @@ static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm,
         desc = FIELD_DP32(desc, MTEDESC, ESIZE, 1 << msz);
         desc <<= SVE_MTEDESC_SHIFT;
     }
-    desc = simd_desc(vsz, vsz, scale);
+    desc = simd_desc(vsz, vsz, desc | scale);
     t_desc = tcg_const_i32(desc);
 
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
