@@ -54,7 +54,8 @@ static void nios2_pic_cpu_handler(void *opaque, int irq, int level)
 
 void nios2_check_interrupts(CPUNios2State *env)
 {
-    if (env->irq_pending) {
+    if (env->irq_pending &&
+        (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
         env->irq_pending = 0;
         cpu_interrupt(env_cpu(env), CPU_INTERRUPT_HARD);
     }
