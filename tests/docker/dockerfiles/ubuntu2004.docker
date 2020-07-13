@@ -65,9 +65,6 @@ RUN apt-get update && \
 RUN dpkg -l $PACKAGES | sort > /packages.txt
 ENV FEATURES clang tsan pyyaml sdl2
 
-# https://bugs.launchpad.net/qemu/+bug/1838763
-ENV QEMU_CONFIGURE_OPTS --disable-libssh
-
 # Apply patch https://reviews.llvm.org/D75820
 # This is required for TSan in clang-10 to compile with QEMU.
 RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h
