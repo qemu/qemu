@@ -60,7 +60,7 @@ static const char *avr_elf_e_flags_to_cpu_type(uint32_t flags)
 bool avr_load_firmware(AVRCPU *cpu, MachineState *ms,
                        MemoryRegion *program_mr, const char *firmware)
 {
-    const char *filename;
+    g_autofree char *filename = NULL;
     int bytes_loaded;
     uint64_t entry;
     uint32_t e_flags;
