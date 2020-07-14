@@ -3034,6 +3034,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ }
                 }
             },
+            {
+                .version = 4,
+                .props = (PropValue[]) {
+                    { "vmx-eptp-switching", "on" },
+                    { /* end of list */ }
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -3155,6 +3162,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
               .props = (PropValue[]) {
                   { "hle", "off" },
                   { "rtm", "off" },
+                  { /* end of list */ }
+              },
+            },
+            { .version = 4,
+              .note = "ARCH_CAPABILITIES, no TSX",
+              .props = (PropValue[]) {
+                  { "vmx-eptp-switching", "on" },
                   { /* end of list */ }
               },
             },
