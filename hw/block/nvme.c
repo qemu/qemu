@@ -1397,9 +1397,8 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 
     if (!n->params.cmb_size_mb && n->pmrdev) {
         if (host_memory_backend_is_mapped(n->pmrdev)) {
-            char *path = object_get_canonical_path_component(OBJECT(n->pmrdev));
-            error_setg(errp, "can't use already busy memdev: %s", path);
-            g_free(path);
+            error_setg(errp, "can't use already busy memdev: %s",
+                       object_get_canonical_path_component(OBJECT(n->pmrdev)));
             return;
         }
 

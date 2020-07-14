@@ -96,10 +96,8 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent);
 
 static int qom_composition_compare(const void *a, const void *b, void *ignore)
 {
-    g_autofree char *ac = object_get_canonical_path_component(a);
-    g_autofree char *bc = object_get_canonical_path_component(b);
-
-    return g_strcmp0(ac, bc);
+    return g_strcmp0(object_get_canonical_path_component(a),
+                     object_get_canonical_path_component(b));
 }
 
 static int insert_qom_composition_child(Object *obj, void *opaque)
@@ -112,18 +110,17 @@ static int insert_qom_composition_child(Object *obj, void *opaque)
 
 static void print_qom_composition(Monitor *mon, Object *obj, int indent)
 {
-    char *name;
+    const char *name;
     GQueue children;
     Object *child;
 
     if (obj == object_get_root()) {
-        name = g_strdup("");
+        name = "";
     } else {
         name = object_get_canonical_path_component(obj);
     }
     monitor_printf(mon, "%*s/%s (%s)\n", indent, "", name,
                    object_get_typename(obj));
-    g_free(name);
 
     g_queue_init(&children);
     object_child_foreach(obj, insert_qom_composition_child, &children);

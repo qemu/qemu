@@ -1764,7 +1764,7 @@ const char *memory_region_name(const MemoryRegion *mr)
 {
     if (!mr->name) {
         ((MemoryRegion *)mr)->name =
-            object_get_canonical_path_component(OBJECT(mr));
+            g_strdup(object_get_canonical_path_component(OBJECT(mr)));
     }
     return mr->name;
 }

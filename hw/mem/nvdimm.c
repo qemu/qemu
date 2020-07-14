@@ -137,13 +137,12 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
 
     if (size <= nvdimm->label_size || !pmem_size) {
         HostMemoryBackend *hostmem = dimm->hostmem;
-        char *path = object_get_canonical_path_component(OBJECT(hostmem));
 
         error_setg(errp, "the size of memdev %s (0x%" PRIx64 ") is too "
                    "small to contain nvdimm label (0x%" PRIx64 ") and "
                    "aligned PMEM (0x%" PRIx64 ")",
-                   path, memory_region_size(mr), nvdimm->label_size, align);
-        g_free(path);
+                   object_get_canonical_path_component(OBJECT(hostmem)),
+                   memory_region_size(mr), nvdimm->label_size, align);
         return;
     }
 

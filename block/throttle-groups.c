@@ -771,7 +771,7 @@ static void throttle_group_obj_complete(UserCreatable *obj, Error **errp)
 
     /* set group name to object id if it exists */
     if (!tg->name && tg->parent_obj.parent) {
-        tg->name = object_get_canonical_path_component(OBJECT(obj));
+        tg->name = g_strdup(object_get_canonical_path_component(OBJECT(obj)));
     }
     /* We must have a group name at this point */
     assert(tg->name);
