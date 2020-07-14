@@ -96,8 +96,10 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent);
 
 static int qom_composition_compare(const void *a, const void *b, void *ignore)
 {
-    return g_strcmp0(a ? object_get_canonical_path_component(a) : NULL,
-                     b ? object_get_canonical_path_component(b) : NULL);
+    g_autofree char *ac = object_get_canonical_path_component(a);
+    g_autofree char *bc = object_get_canonical_path_component(b);
+
+    return g_strcmp0(ac, bc);
 }
 
 static int insert_qom_composition_child(Object *obj, void *opaque)
