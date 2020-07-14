@@ -26,52 +26,47 @@
 #define HW_IBEX_UART_H
 
 #include "hw/sysbus.h"
+#include "hw/registerfields.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
 
-#define IBEX_UART_INTR_STATE   0x00
-    #define INTR_STATE_TX_WATERMARK (1 << 0)
-    #define INTR_STATE_RX_WATERMARK (1 << 1)
-    #define INTR_STATE_TX_EMPTY     (1 << 2)
-    #define INTR_STATE_RX_OVERFLOW  (1 << 3)
-#define IBEX_UART_INTR_ENABLE  0x04
-#define IBEX_UART_INTR_TEST    0x08
-
-#define IBEX_UART_CTRL         0x0c
-    #define UART_CTRL_TX_ENABLE     (1 << 0)
-    #define UART_CTRL_RX_ENABLE     (1 << 1)
-    #define UART_CTRL_NF            (1 << 2)
-    #define UART_CTRL_SLPBK         (1 << 4)
-    #define UART_CTRL_LLPBK         (1 << 5)
-    #define UART_CTRL_PARITY_EN     (1 << 6)
-    #define UART_CTRL_PARITY_ODD    (1 << 7)
-    #define UART_CTRL_RXBLVL        (3 << 8)
-    #define UART_CTRL_NCO           (0xFFFF << 16)
-
-#define IBEX_UART_STATUS       0x10
-    #define UART_STATUS_TXFULL  (1 << 0)
-    #define UART_STATUS_RXFULL  (1 << 1)
-    #define UART_STATUS_TXEMPTY (1 << 2)
-    #define UART_STATUS_RXIDLE  (1 << 4)
-    #define UART_STATUS_RXEMPTY (1 << 5)
-
-#define IBEX_UART_RDATA        0x14
-#define IBEX_UART_WDATA        0x18
-
-#define IBEX_UART_FIFO_CTRL    0x1c
-    #define FIFO_CTRL_RXRST          (1 << 0)
-    #define FIFO_CTRL_TXRST          (1 << 1)
-    #define FIFO_CTRL_RXILVL         (7 << 2)
-    #define FIFO_CTRL_RXILVL_SHIFT   (2)
-    #define FIFO_CTRL_TXILVL         (3 << 5)
-    #define FIFO_CTRL_TXILVL_SHIFT   (5)
-
-#define IBEX_UART_FIFO_STATUS  0x20
-#define IBEX_UART_OVRD         0x24
-#define IBEX_UART_VAL          0x28
-#define IBEX_UART_TIMEOUT_CTRL 0x2c
+REG32(INTR_STATE, 0x00)
+    FIELD(INTR_STATE, TX_WATERMARK, 0, 1)
+    FIELD(INTR_STATE, RX_WATERMARK, 1, 1)
+    FIELD(INTR_STATE, TX_EMPTY, 2, 1)
+    FIELD(INTR_STATE, RX_OVERFLOW, 3, 1)
+REG32(INTR_ENABLE, 0x04)
+REG32(INTR_TEST, 0x08)
+REG32(CTRL, 0x0C)
+    FIELD(CTRL, TX_ENABLE, 0, 1)
+    FIELD(CTRL, RX_ENABLE, 1, 1)
+    FIELD(CTRL, NF, 2, 1)
+    FIELD(CTRL, SLPBK, 4, 1)
+    FIELD(CTRL, LLPBK, 5, 1)
+    FIELD(CTRL, PARITY_EN, 6, 1)
+    FIELD(CTRL, PARITY_ODD, 7, 1)
+    FIELD(CTRL, RXBLVL, 8, 2)
+    FIELD(CTRL, NCO, 16, 16)
+REG32(STATUS, 0x10)
+    FIELD(STATUS, TXFULL, 0, 1)
+    FIELD(STATUS, RXFULL, 1, 1)
+    FIELD(STATUS, TXEMPTY, 2, 1)
+    FIELD(STATUS, RXIDLE, 4, 1)
+    FIELD(STATUS, RXEMPTY, 5, 1)
+REG32(RDATA, 0x14)
+REG32(WDATA, 0x18)
+REG32(FIFO_CTRL, 0x1c)
+    FIELD(FIFO_CTRL, RXRST, 0, 1)
+    FIELD(FIFO_CTRL, TXRST, 1, 1)
+    FIELD(FIFO_CTRL, RXILVL, 2, 3)
+    FIELD(FIFO_CTRL, TXILVL, 5, 2)
+REG32(FIFO_STATUS, 0x20)
+REG32(OVRD, 0x24)
+REG32(VAL, 0x28)
+REG32(TIMEOUT_CTRL, 0x2c)
 
 #define IBEX_UART_TX_FIFO_SIZE 16
+#define IBEX_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_IBEX_UART "ibex-uart"
 #define IBEX_UART(obj) \
@@ -100,6 +95,8 @@ typedef struct {
     uint32_t uart_ovrd;
     uint32_t uart_val;
     uint32_t uart_timeout_ctrl;
+
+    Clock *f_clk;
 
     CharBackend chr;
     qemu_irq tx_watermark;
