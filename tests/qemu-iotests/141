@@ -68,7 +68,7 @@ test_blockjob()
     _send_qemu_cmd $QEMU_HANDLE \
         "$1" \
         "$2" \
-        | _filter_img_create_in_qmp | _filter_qmp_empty_return
+        | _filter_img_create | _filter_qmp_empty_return
 
     # We want this to return an error because the block job is still running
     _send_qemu_cmd $QEMU_HANDLE \
@@ -89,8 +89,8 @@ test_blockjob()
 
 
 TEST_IMG="$TEST_DIR/b.$IMGFMT" _make_test_img 1M
-TEST_IMG="$TEST_DIR/m.$IMGFMT" _make_test_img -b "$TEST_DIR/b.$IMGFMT" 1M
-_make_test_img -b "$TEST_DIR/m.$IMGFMT" 1M
+TEST_IMG="$TEST_DIR/m.$IMGFMT" _make_test_img -b "$TEST_DIR/b.$IMGFMT" -F $IMGFMT 1M
+_make_test_img -b "$TEST_DIR/m.$IMGFMT" 1M -F $IMGFMT
 
 _launch_qemu -nodefaults
 

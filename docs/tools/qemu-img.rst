@@ -258,6 +258,10 @@ Command description:
   Amends the image format specific *OPTIONS* for the image file
   *FILENAME*. Not all file formats support this operation.
 
+  The set of options that can be amended are dependent on the image
+  format, but note that amending the backing chain relationship should
+  instead be performed with ``qemu-img rebase``.
+
   --force allows some unsafe operations. Currently for -f luks, it allows to
   erase the last encryption key, and to overwrite an active encryption key.
 

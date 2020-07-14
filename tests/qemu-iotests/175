@@ -89,20 +89,20 @@ min_blocks=$(stat -c '%b' "$TEST_DIR/empty")
 
 echo
 echo "== creating image with default preallocation =="
-_make_test_img $size | _filter_imgfmt
+_make_test_img -o extent_size_hint=0 $size | _filter_imgfmt
 stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $size
 
 for mode in off full falloc; do
     echo
     echo "== creating image with preallocation $mode =="
-    _make_test_img -o preallocation=$mode $size | _filter_imgfmt
+    _make_test_img -o preallocation=$mode,extent_size_hint=0 $size | _filter_imgfmt
     stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $size
 done
 
 for new_size in 4096 1048576; do
     echo
     echo "== resize empty image with block_resize =="
-    _make_test_img 0 | _filter_imgfmt
+    _make_test_img -o extent_size_hint=0 0 | _filter_imgfmt
     _block_resize $TEST_IMG $new_size >/dev/null
     stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $new_size
 done

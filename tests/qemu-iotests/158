@@ -64,7 +64,7 @@ echo "== verify pattern =="
 $QEMU_IO --object $SECRET -c "read -P 0xa 0 $size" --image-opts $IMGSPECBASE | _filter_qemu_io | _filter_testdir
 
 echo "== create overlay =="
-_make_test_img -u --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" -b "$TEST_IMG_BASE" $size
+_make_test_img -u --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" -b "$TEST_IMG_BASE" -F $IMGFMT $size
 
 echo
 echo "== writing part of a cluster =="

@@ -101,7 +101,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 echo
 
-$QEMU_IMG rebase -b "$TEST_IMG.base_new" "$TEST_IMG"
+$QEMU_IMG rebase -b "$TEST_IMG.base_new" -F $IMGFMT "$TEST_IMG"
 
 # Verify the data is correct
 $QEMU_IO "$TEST_IMG" \

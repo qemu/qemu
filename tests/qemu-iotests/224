@@ -49,9 +49,9 @@ for filter_node_name in False, True:
         assert qemu_img('create', '-f', iotests.imgfmt,
                         base_img_path, '64M') == 0
         assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                        mid_img_path) == 0
+                        '-F', iotests.imgfmt, mid_img_path) == 0
         assert qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
-                        top_img_path) == 0
+                        '-F', iotests.imgfmt, top_img_path) == 0
 
         # Something to commit
         assert qemu_io_silent(mid_img_path, '-c', 'write -P 1 0 1M') == 0

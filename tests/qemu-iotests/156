@@ -56,7 +56,7 @@ _unsupported_imgopts data_file
 
 # Create source disk
 TEST_IMG="$TEST_IMG.backing" _make_test_img 1M
-_make_test_img -b "$TEST_IMG.backing" 1M
+_make_test_img -b "$TEST_IMG.backing" -F $IMGFMT 1M
 
 $QEMU_IO -c 'write -P 1 0 256k' "$TEST_IMG.backing" | _filter_qemu_io
 $QEMU_IO -c 'write -P 2 64k 192k' "$TEST_IMG" | _filter_qemu_io
@@ -68,7 +68,7 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 # Create snapshot
-TEST_IMG="$TEST_IMG.overlay" _make_test_img -u -b "$TEST_IMG" 1M
+TEST_IMG="$TEST_IMG.overlay" _make_test_img -u -b "$TEST_IMG" -F $IMGFMT 1M
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'blockdev-snapshot-sync',
        'arguments': { 'device': 'source',
@@ -85,7 +85,8 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 # Create target image
-TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -u -b "$TEST_IMG.target" 1M
+TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -u -b "$TEST_IMG.target" \
+    -F $IMGFMT 1M
 
 # Mirror snapshot
 _send_qemu_cmd $QEMU_HANDLE \
@@ -111,7 +112,7 @@ _send_qemu_cmd $QEMU_HANDLE \
 # Copy source backing chain to the target before completing the job
 cp "$TEST_IMG.backing" "$TEST_IMG.target.backing"
 cp "$TEST_IMG" "$TEST_IMG.target"
-$QEMU_IMG rebase -u -b "$TEST_IMG.target.backing" "$TEST_IMG.target"
+$QEMU_IMG rebase -u -b "$TEST_IMG.target.backing" -F $IMGFMT "$TEST_IMG.target"
 
 # Complete block job
 _send_qemu_cmd $QEMU_HANDLE \

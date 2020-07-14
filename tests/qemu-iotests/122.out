@@ -5,7 +5,7 @@ wrote 67108864/67108864 bytes at offset 0
 
 === Check allocation status regression with -B ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 wrote 3145728/3145728 bytes at offset 0
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Offset          Length          File
@@ -14,7 +14,7 @@ Offset          Length          File
 
 === Check that zero clusters are kept in overlay ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 wrote 3145728/3145728 bytes at offset 0
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 3145728/3145728 bytes at offset 0
@@ -31,7 +31,7 @@ read 3145728/3145728 bytes at offset 0
 === Converting to an overlay larger than its backing file ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=268435456
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=805306368 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=805306368 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 Offset          Length          File
 
 wrote 1048576/1048576 bytes at offset 267386880
@@ -141,7 +141,7 @@ read 63963136/63963136 bytes at offset 3145728
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 33554432/33554432 bytes at offset 0
 32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 wrote 3145728/3145728 bytes at offset 0
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -233,4 +233,8 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
+
+=== -n incompatible with -o ===
+
+qemu-img: -o has no effect when skipping image creation
 *** done

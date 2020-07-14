@@ -30,6 +30,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/units.h"
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
@@ -2318,6 +2319,14 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     if (!file_opts->has_preallocation) {
         file_opts->preallocation = PREALLOC_MODE_OFF;
     }
+    if (!file_opts->has_extent_size_hint) {
+        file_opts->extent_size_hint = 1 * MiB;
+    }
+    if (file_opts->extent_size_hint > UINT32_MAX) {
+        result = -EINVAL;
+        error_setg(errp, "Extent size hint is too large");
+        goto out;
+    }
 
     /* Create file */
     fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_BINARY, 0644);
@@ -2375,6 +2384,27 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
         }
 #endif
     }
+#ifdef FS_IOC_FSSETXATTR
+    /*
+     * Try to set the extent size hint. Failure is not fatal, and a warning is
+     * only printed if the option was explicitly specified.
+     */
+    {
+        struct fsxattr attr;
+        result = ioctl(fd, FS_IOC_FSGETXATTR, &attr);
+        if (result == 0) {
+            attr.fsx_xflags |= FS_XFLAG_EXTSIZE;
+            attr.fsx_extsize = file_opts->extent_size_hint;
+            result = ioctl(fd, FS_IOC_FSSETXATTR, &attr);
+        }
+        if (result < 0 && file_opts->has_extent_size_hint &&
+            file_opts->extent_size_hint)
+        {
+            warn_report("Failed to set extent size hint: %s",
+                        strerror(errno));
+        }
+    }
+#endif
 
     /* Resize and potentially preallocate the file to the desired
      * final size */
@@ -2410,6 +2440,8 @@ static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
 {
     BlockdevCreateOptions options;
     int64_t total_size = 0;
+    int64_t extent_size_hint = 0;
+    bool has_extent_size_hint = false;
     bool nocow = false;
     PreallocMode prealloc;
     char *buf = NULL;
@@ -2421,6 +2453,11 @@ static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
     /* Read out options */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                           BDRV_SECTOR_SIZE);
+    if (qemu_opt_get(opts, BLOCK_OPT_EXTENT_SIZE_HINT)) {
+        has_extent_size_hint = true;
+        extent_size_hint =
+            qemu_opt_get_size_del(opts, BLOCK_OPT_EXTENT_SIZE_HINT, -1);
+    }
     nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
@@ -2440,6 +2477,8 @@ static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
             .preallocation      = prealloc,
             .has_nocow          = true,
             .nocow              = nocow,
+            .has_extent_size_hint = has_extent_size_hint,
+            .extent_size_hint   = extent_size_hint,
         },
     };
     return raw_co_create(&options, errp);
@@ -2929,6 +2968,11 @@ static QemuOptsList raw_create_opts = {
                     ", falloc"
 #endif
                     ", full)"
+        },
+        {
+            .name = BLOCK_OPT_EXTENT_SIZE_HINT,
+            .type = QEMU_OPT_SIZE,
+            .help = "Extent size hint for the image file, 0 to disable"
         },
         { /* end of list */ }
     }

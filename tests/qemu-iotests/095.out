@@ -1,7 +1,7 @@
 QA output created by 095
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=5242880
-Formatting 'TEST_DIR/t.IMGFMT.snp1', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.base
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.snp1
+Formatting 'TEST_DIR/t.IMGFMT.snp1', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.snp1 backing_fmt=IMGFMT
 
 === Base image info before commit and resize ===
 image: TEST_DIR/t.IMGFMT.base

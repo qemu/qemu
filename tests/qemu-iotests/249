@@ -49,8 +49,8 @@ IMG_SIZE=1M
 
 # Create the images: base <- int <- active
 TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" | _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" | _filter_imgfmt
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT | _filter_imgfmt
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT | _filter_imgfmt
 
 # Launch QEMU with these two drives:
 # none0: base (read-only)

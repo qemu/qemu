@@ -80,8 +80,11 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', mid_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % mid_img,
+                 '-F', iotests.imgfmt, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
         self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=mid,backing.backing.node-name=base", interface="none")
@@ -305,10 +308,16 @@ class TestRelativePaths(ImageCommitTestCase):
             if exception.errno != errno.EEXIST:
                 raise
         iotests.create_image(self.backing_img_abs, TestRelativePaths.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img_abs, self.mid_img_abs)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.mid_img_abs, self.test_img)
-        qemu_img('rebase', '-u', '-b', self.backing_img, self.mid_img_abs)
-        qemu_img('rebase', '-u', '-b', self.mid_img, self.test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % self.backing_img_abs,
+                 '-F', 'raw', self.mid_img_abs)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % self.mid_img_abs,
+                 '-F', iotests.imgfmt, self.test_img)
+        qemu_img('rebase', '-u', '-b', self.backing_img,
+                 '-F', 'raw', self.mid_img_abs)
+        qemu_img('rebase', '-u', '-b', self.mid_img,
+                 '-F', iotests.imgfmt, self.test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', self.backing_img_abs)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', self.mid_img_abs)
         self.vm = iotests.VM().add_drive(self.test_img)
@@ -371,8 +380,11 @@ class TestSetSpeed(ImageCommitTestCase):
 
     def setUp(self):
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', mid_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % mid_img,
+                 '-F', iotests.imgfmt, test_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 0 512', test_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
         self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
@@ -410,9 +422,14 @@ class TestReopenOverlay(ImageCommitTestCase):
 
     def setUp(self):
         iotests.create_image(self.img0, self.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img0, self.img1)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img1, self.img2)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img2, self.img3)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % self.img0, '-F', 'raw', self.img1)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % self.img1,
+                 '-F', iotests.imgfmt, self.img2)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % self.img2,
+                 '-F', iotests.imgfmt, self.img3)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xab 0 128K', self.img1)
         self.vm = iotests.VM().add_drive(self.img3)
         self.vm.launch()
@@ -435,8 +452,12 @@ class TestErrorHandling(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img,
+                 '-F', 'raw', mid_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % mid_img,
+                 '-F', iotests.imgfmt, test_img)
 
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x11 0 512k', mid_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x22 0 512k', test_img)

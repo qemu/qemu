@@ -128,7 +128,7 @@ ID        TAG                 VM SIZE                DATE       VM CLOCK
 === -blockdev with a backing file ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT.base,node-name=backing-file -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=file -blockdev driver=IMGFMT,file=file,backing=backing-file,node-name=fmt
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
@@ -139,7 +139,7 @@ ID        TAG                 VM SIZE                DATE       VM CLOCK
 (qemu) loadvm snap0
 (qemu) quit
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT.base,node-name=backing-file -blockdev driver=IMGFMT,file=backing-file,node-name=backing-fmt -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=file -blockdev driver=IMGFMT,file=file,backing=backing-fmt,node-name=fmt
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
@@ -158,7 +158,7 @@ Internal snapshots on backing file:
 
 === -blockdev with NBD server on the backing file ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT.base,node-name=backing-file -blockdev driver=IMGFMT,file=backing-file,node-name=backing-fmt -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=file -blockdev driver=IMGFMT,file=file,backing=backing-fmt,node-name=fmt
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) nbd_server_start unix:SOCK_DIR/nbd

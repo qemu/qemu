@@ -54,7 +54,8 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
 
     def setUp(self):
         create_image(backing_img, TestSyncModesNoneAndTop.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', test_img)
         qemu_io('-c', 'write -P0x41 0 512', test_img)
         qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
         qemu_io('-c', 'write -P0xdc 32M 124k', test_img)

@@ -58,7 +58,7 @@ $QEMU_IO -c "write -P 0x55 0 1M" "$TEST_IMG" | _filter_qemu_io
 
 TEST_IMG="$TEST_IMG_SAVE"
 
-_make_test_img -b "$TEST_IMG.base" 6G
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT 6G
 
 echo
 echo "== zero write with backing file =="

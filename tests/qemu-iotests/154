@@ -50,7 +50,7 @@ echo
 echo == backing file contains zeros ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Make sure that the whole cluster is allocated even for partial write_zeroes
 # when the backing file contains zeros
@@ -74,7 +74,7 @@ echo
 echo == backing file contains non-zero data before write_zeroes ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Single cluster; non-zero data at the cluster start
 # ... | XX -- 00 -- | ...
@@ -97,7 +97,7 @@ echo
 echo == backing file contains non-zero data after write_zeroes ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Single cluster; non-zero data directly after request
 # ... | -- 00 XX -- | ...
@@ -120,7 +120,7 @@ echo
 echo == write_zeroes covers non-zero data ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # non-zero data at front of request
 # Backing file: -- XX -- --
@@ -160,7 +160,7 @@ echo
 echo == spanning two clusters, non-zero before request ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Two clusters; non-zero data before request:
 # 1. At cluster start:          32k: XX -- -- 00 | 00 -- -- --
@@ -190,7 +190,7 @@ echo
 echo == spanning two clusters, non-zero after request ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Two clusters; non-zero data after request:
 # 1. Directly after request:    32k: -- -- -- 00 | 00 XX -- --
@@ -220,7 +220,7 @@ echo
 echo == spanning two clusters, partially overwriting backing file ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Backing file: -- -- XX XX | XX XX -- --
 # Active layer: -- -- XX 00 | 00 XX -- --
@@ -239,7 +239,7 @@ echo
 echo == spanning multiple clusters, non-zero in first cluster ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Backing file: 64k: XX XX -- -- | -- -- -- -- | -- -- -- --
 # Active layer: 64k: XX XX 00 00 | 00 00 00 00 | 00 -- -- --
@@ -255,7 +255,7 @@ echo
 echo == spanning multiple clusters, non-zero in intermediate cluster ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Backing file: 64k: -- -- -- -- | -- XX XX -- | -- -- -- --
 # Active layer: 64k: -- -- 00 00 | 00 00 00 00 | 00 -- -- --
@@ -270,7 +270,7 @@ echo
 echo == spanning multiple clusters, non-zero in final cluster ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Backing file: 64k: -- -- -- -- | -- -- -- -- | -- -- XX XX
 # Active layer: 64k: -- -- 00 00 | 00 00 00 00 | 00 -- XX XX
@@ -286,7 +286,7 @@ echo
 echo == spanning multiple clusters, partially overwriting backing file ==
 
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $size
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Backing file: 64k: -- XX XX XX | XX XX XX XX | XX XX XX --
 # Active layer: 64k: -- XX 00 00 | 00 00 00 00 | 00 XX XX --
@@ -338,7 +338,7 @@ CLUSTER_SIZE=2048 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
 # Write at the front: sector-wise, the request is:
 # backing: 128m... | -- --
 # active:  128m... | 00 -- -- --
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $size 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -346,7 +346,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write at the back: sector-wise, the request is:
 # backing: 128m... | -- --
 # active:  128m... | -- -- -- 00
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -354,7 +354,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write at middle: sector-wise, the request is:
 # backing: 128m... | -- --
 # active:  128m... | -- 00 00 --
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $((size + 512)) 1024" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -362,7 +362,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write entire cluster: sector-wise, the request is:
 # backing: 128m... | -- --
 # active:  128m... | 00 00 00 00
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -373,7 +373,7 @@ $QEMU_IO -c "write -z $size 512" "$TEST_IMG.base" | _filter_qemu_io
 # Write at the front: sector-wise, the request is:
 # backing: 128m... | 00 00
 # active:  128m... | 00 -- -- --
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $size 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -381,7 +381,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write at the back: sector-wise, the request is:
 # backing: 128m... | 00 00
 # active:  128m... | -- -- -- 00
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $((size + 1536)) 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -389,7 +389,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write at middle: sector-wise, the request is:
 # backing: 128m... | 00 00
 # active:  128m... | -- 00 00 --
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $((size + 512)) 1024" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -397,7 +397,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Write entire cluster: sector-wise, the request is:
 # backing: 128m... | 00 00
 # active:  128m... | 00 00 00 00
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -z $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
@@ -427,7 +427,7 @@ echo == unaligned image tail cluster, allocation required ==
 # Backing file: 128m... | XX --
 # Active layer: 128m... | -- -- 00 --
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -P 1 $((size)) 512" "$TEST_IMG.base" | _filter_qemu_io
 $QEMU_IO -c "write -z $((size + 1024)) 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -P 1 $((size)) 512" "$TEST_IMG" | _filter_qemu_io
@@ -438,7 +438,7 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # Backing file: 128m: ... | -- XX
 # Active layer: 128m: ... | 00 -- -- 00
 CLUSTER_SIZE=512 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
-_make_test_img -b "$TEST_IMG.base" $((size + 2048))
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $((size + 2048))
 $QEMU_IO -c "write -P 1 $((size + 512)) 512" "$TEST_IMG.base" | _filter_qemu_io
 $QEMU_IO -c "write -z $((size)) 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -P 0 $((size)) 512" "$TEST_IMG" | _filter_qemu_io

@@ -50,7 +50,7 @@ echo '=== Reconstructable filename ==='
 echo
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
-_make_test_img -b "$TEST_IMG_REL.base" 64M
+_make_test_img -b "$TEST_IMG_REL.base" -F $IMGFMT 64M
 # qemu should be able to reconstruct the filename, so relative backing names
 # should work
 # (We have to filter the backing file format because vmdk always
@@ -91,7 +91,7 @@ echo '=== Backing name is always relative to the backed image ==='
 echo
 
 # omit the image size; it should work anyway
-_make_test_img -b "$TEST_IMG_REL.base"
+_make_test_img -b "$TEST_IMG_REL.base" -F $IMGFMT
 
 echo
 echo '=== Nodes without a common directory ==='

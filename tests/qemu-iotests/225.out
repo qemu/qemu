@@ -1,7 +1,7 @@
 QA output created by 225
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=1048576
 Formatting 'TEST_DIR/t.IMGFMT.not_base', fmt=IMGFMT size=1048576
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 
 === Testing fitting VMDK backing image ===
 

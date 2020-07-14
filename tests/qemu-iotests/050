@@ -58,13 +58,13 @@ $QEMU_IO -c "write -P 0x5a 0 1048576" "$TEST_IMG" | _filter_qemu_io
 
 TEST_IMG="$TEST_IMG_SAVE"
 
-_make_test_img -b "$TEST_IMG.old" $size
+_make_test_img -b "$TEST_IMG.old" -F $IMGFMT $size
 $QEMU_IO -c "write -z 0 1048576" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== Rebasing the image =="
 
-$QEMU_IMG rebase -b "$TEST_IMG.new" "$TEST_IMG"
+$QEMU_IMG rebase -b "$TEST_IMG.new" -F $IMGFMT "$TEST_IMG"
 $QEMU_IO -c "read -P 0x00 0 1048576" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done

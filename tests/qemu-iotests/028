@@ -76,7 +76,7 @@ echo "Creating test image with backing file"
 echo
 
 TEST_IMG="$TEST_IMG_SAVE"
-_make_test_img -b "$TEST_IMG.base" $image_size
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $image_size
 
 echo "Filling test image"
 echo
@@ -101,7 +101,7 @@ io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
 _check_test_img
 
 # Rebase it on top of its base image
-$QEMU_IMG rebase -b "$TEST_IMG.base" "$TEST_IMG"
+$QEMU_IMG rebase -b "$TEST_IMG.base" -F $IMGFMT "$TEST_IMG"
 
 echo
 echo block-backup

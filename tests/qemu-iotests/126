@@ -61,7 +61,7 @@ BASE_IMG="$TEST_DIR/image:base.$IMGFMT"
 TOP_IMG="$TEST_DIR/image:top.$IMGFMT"
 
 TEST_IMG=$BASE_IMG _make_test_img 64M
-TEST_IMG=$TOP_IMG _make_test_img -b ./image:base.$IMGFMT
+TEST_IMG=$TOP_IMG _make_test_img -b ./image:base.$IMGFMT -F $IMGFMT
 
 # (1) The default cluster size depends on the image format
 # (2) vmdk only supports vmdk backing files, so it always reports the
@@ -82,7 +82,7 @@ BASE_IMG="base.$IMGFMT"
 TOP_IMG="file:image:top.$IMGFMT"
 
 TEST_IMG=$BASE_IMG _make_test_img 64M
-TEST_IMG=$TOP_IMG _make_test_img -b "$BASE_IMG"
+TEST_IMG=$TOP_IMG _make_test_img -b "$BASE_IMG" -F $IMGFMT
 
 TEST_IMG=$TOP_IMG _img_info | grep -ve 'cluster_size' -e 'backing file format'
 

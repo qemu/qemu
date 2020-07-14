@@ -32,8 +32,12 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, TestSingleDrive.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img,
+                 '-F', 'raw', mid_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % mid_img,
+                 '-F', iotests.imgfmt, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
         self.vm = iotests.VM().add_drive("blkdebug::" + test_img,
@@ -199,7 +203,8 @@ class TestParallelOps(iotests.QMPTestCase):
         iotests.create_image(self.imgs[0], self.image_len)
         for i in range(1, self.num_imgs):
             qemu_img('create', '-f', iotests.imgfmt,
-                     '-o', 'backing_file=%s' % self.imgs[i-1], self.imgs[i])
+                     '-o', 'backing_file=%s' % self.imgs[i-1],
+                     '-F', 'raw' if i == 1 else iotests.imgfmt, self.imgs[i])
 
         # Put data into the images we are copying data from
         odd_img_indexes = [x for x in reversed(range(self.num_imgs)) if x % 2 == 1]
@@ -544,7 +549,8 @@ class TestQuorum(iotests.QMPTestCase):
             qemu_io('-f', iotests.imgfmt,
                     '-c', 'write -P 0x55 0 1024', backing_img)
             qemu_img('create', '-f', iotests.imgfmt,
-                     '-o', 'backing_file=%s' % backing_img, child_img)
+                     '-o', 'backing_file=%s' % backing_img,
+                     '-F', iotests.imgfmt, child_img)
             opts.append("children.%d.file.filename=%s" % (i, child_img))
             opts.append("children.%d.node-name=node%d" % (i, i))
 
@@ -585,7 +591,9 @@ class TestSmallerBackingFile(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, self.backing_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img,
+                 '-F', 'raw', test_img, str(self.image_len))
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -848,7 +856,9 @@ class TestStreamStop(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', backing_img, str(TestStreamStop.image_len))
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img,
+                 '-F', 'raw', test_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 32M 32M', test_img)
         self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
         self.vm.launch()
@@ -879,7 +889,9 @@ class TestSetSpeed(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img,
+                 '-F', 'raw', test_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 32M 32M', test_img)
         self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
         self.vm.launch()

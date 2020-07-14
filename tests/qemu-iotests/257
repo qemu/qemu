@@ -238,7 +238,8 @@ def compare_images(image, reference, baseimg=None, expected_match=True):
     """
     expected_ret = 0 if expected_match else 1
     if baseimg:
-        assert qemu_img("rebase", "-u", "-b", baseimg, image) == 0
+        assert qemu_img("rebase", "-u", "-b", baseimg, '-F', iotests.imgfmt,
+                        image) == 0
     ret = qemu_img("compare", image, reference)
     log('qemu_img compare "{:s}" "{:s}" ==> {:s}, {:s}'.format(
         image, reference,
