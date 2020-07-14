@@ -588,7 +588,10 @@ char *qemu_get_local_state_pathname(const char *relative_pathname);
 void qemu_init_exec_dir(const char *argv0);
 
 /* Get the saved exec dir.
- * Caller needs to release the returned string by g_free() */
+ *
+ * The caller is responsible for releasing the value returned with g_free()
+ * after use.
+ */
 char *qemu_get_exec_dir(void);
 
 /**
