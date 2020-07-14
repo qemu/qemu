@@ -924,6 +924,7 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
     g_free(variant);
     g_free(tmp_path);
     g_free(tmp_dir_name);
+    g_free(args);
     free_test_data(&data);
 #else
     g_test_skip("TPM disabled");
