@@ -50,10 +50,10 @@ typedef struct FuzzTarget {
 
 
     /*
-     * returns the arg-list that is passed to qemu/softmmu init()
-     * Cannot be NULL
+     * Returns the arguments that are passed to qemu/softmmu init(). Freed by
+     * the caller.
      */
-    const char* (*get_init_cmdline)(struct FuzzTarget *);
+    GString *(*get_init_cmdline)(struct FuzzTarget *);
 
     /*
      * will run once, prior to running qemu/softmmu init.

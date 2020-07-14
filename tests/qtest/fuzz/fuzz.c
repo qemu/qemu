@@ -199,16 +199,15 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     }
 
     /* Run QEMU's softmmu main with the fuzz-target dependent arguments */
-    const char *init_cmdline = fuzz_target->get_init_cmdline(fuzz_target);
-    init_cmdline = g_strdup_printf("%s -qtest /dev/null -qtest-log %s",
-                                   init_cmdline,
-                                   getenv("QTEST_LOG") ? "/dev/fd/2"
-                                                       : "/dev/null");
-
+    GString *cmd_line = fuzz_target->get_init_cmdline(fuzz_target);
+    g_string_append_printf(cmd_line,
+                           " -qtest /dev/null -qtest-log %s",
+                           getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null");
 
     /* Split the runcmd into an argv and argc */
     wordexp_t result;
-    wordexp(init_cmdline, &result, 0);
+    wordexp(cmd_line->str, &result, 0);
+    g_string_free(cmd_line, true);
 
     qemu_init(result.we_wordc, result.we_wordv, NULL);
 

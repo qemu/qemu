@@ -66,7 +66,7 @@ void *qos_allocate_objects(QTestState *qts, QGuestAllocator **p_alloc)
     return allocate_objects(qts, current_path + 1, p_alloc);
 }
 
-static const char *qos_build_main_args(void)
+static GString *qos_build_main_args(void)
 {
     char **path = fuzz_path_vec;
     QOSGraphNode *test_node;
@@ -88,7 +88,7 @@ static const char *qos_build_main_args(void)
     /* Prepend the arguments that we need */
     g_string_prepend(cmd_line,
             TARGET_NAME " -display none -machine accel=qtest -m 64 ");
-    return cmd_line->str;
+    return cmd_line;
 }
 
 /*
@@ -189,7 +189,7 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     g_free(path_str);
 }
 
-static const char *qos_get_cmdline(FuzzTarget *t)
+static GString *qos_get_cmdline(FuzzTarget *t)
 {
     /*
      * Set a global variable that we use to identify the qos_path for our
