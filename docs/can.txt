@@ -8,12 +8,21 @@ can be connected to host system CAN API (at this time only Linux
 SocketCAN is supported).
 
 The concept of busses is generic and different CAN controllers
-can be implemented for it but at this time only SJA1000 chip
-controller is implemented.
+can be implemented.
+
+The initial submission implemented SJA1000 controller which
+is common and well supported by by drivers for the most operating
+systems.
 
 The PCI addon card hardware has been selected as the first CAN
 interface to implement because such device can be easily connected
 to systems with different CPU architectures (x86, PowerPC, Arm, etc.).
+
+In 2020, CTU CAN FD controller model has been added as part
+of the bachelor theses of Jan Charvat. This controller is complete
+open-source/design/hardware solution. The core designer
+of the project is Ondrej Ille, the financial support has been
+provided by CTU, and more companies including Volkswagen subsidiaries.
 
 The project has been initially started in frame of RTEMS GSoC 2013
 slot by Jin Yang under our mentoring  The initial idea was to provide generic
@@ -22,8 +31,8 @@ testing lead to goal change to provide environment which provides complete
 emulated environment for testing and RTEMS GSoC slot has been donated
 to work on CAN hardware emulation on QEMU.
 
-Examples how to use CAN emulation
-=================================
+Examples how to use CAN emulation for SJA1000 based borads
+==========================================================
 
 When QEMU with CAN PCI support is compiled then one of the next
 CAN boards can be selected
@@ -90,18 +99,100 @@ traffic with "candump" command which is included in "can-utils".
 
   candump can0
 
+CTU CAN FD support examples
+===========================
+
+This open-source core provides CAN FD support. CAN FD drames are
+delivered even to the host systems when SocketCAN interface is found
+CAN FD capable.
+
+The PCIe borad emulation is provided for now (the device identifier is
+ctucan_pci). The defauld build defines two CTU CAN FD cores
+on the board.
+
+Example how to connect the canbus0-bus (virtual wire) to the host
+Linux system (SocketCAN used) and to both CTU CAN FD cores emulated
+on the corresponding PCI card expects that host system CAN bus
+is setup according to the previous SJA1000 section.
+
+  qemu-system-x86_64 -enable-kvm -kernel /boot/vmlinuz-4.19.52+ \
+      -initrd ramdisk.cpio \
+      -virtfs local,path=shareddir,security_model=none,mount_tag=shareddir \
+      -vga cirrus \
+      -append "console=ttyS0" \
+      -object can-bus,id=canbus0-bus \
+      -object can-host-socketcan,if=can0,canbus=canbus0-bus,id=canbus0-socketcan \
+      -device ctucan_pci,canbus0=canbus0-bus,canbus1=canbus0-bus \
+      -nographic
+
+Setup of CTU CAN FD controller in a guest Linux system
+
+  insmod ctucanfd.ko || modprobe ctucanfd
+  insmod ctucanfd_pci.ko || modprobe ctucanfd_pci
+
+  for ifc in /sys/class/net/can* ; do
+    if [ -e  $ifc/device/vendor ] ; then
+      if ! grep -q 0x1760 $ifc/device/vendor ; then
+        continue;
+      fi
+    else
+      continue;
+    fi
+    if [ -e  $ifc/device/device ] ; then
+       if ! grep -q 0xff00 $ifc/device/device ; then
+         continue;
+       fi
+    else
+      continue;
+    fi
+    ifc=$(basename $ifc)
+    /bin/ip link set $ifc type can bitrate 1000000 dbitrate 10000000 fd on
+    /bin/ip link set $ifc up
+  done
+
+The test can run for example
+
+  candump can1
+
+in the guest system and next commands in the host system for basic CAN
+
+  cangen can0
+
+for CAN FD without bitrate switch
+
+  cangen can0 -f
+
+and with bitrate switch
+
+  cangen can0 -b
+
+The test can be run viceversa, generate messages in the guest system and capture them
+in the host one and much more combinations.
+
 Links to other resources
 ========================
 
- (1) Repository with development branch can-pci at Czech Technical University
-     https://gitlab.fel.cvut.cz/canbus/qemu-canbus
- (2) GitHub repository with can-pci and our other changes included
+ (1) CAN related projects at Czech Technical University, Faculty of Electrical Engineering
+     http://canbus.pages.fel.cvut.cz/
+ (2) Repository with development can-pci branch at Czech Technical University
      https://gitlab.fel.cvut.cz/canbus/qemu-canbus
  (3) RTEMS page describing project
      https://devel.rtems.org/wiki/Developer/Simulators/QEMU/CANEmulation
  (4) RTLWS 2015 article about the project and its use with CANopen emulation
-     http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can.pdf
-     Slides
-     http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can-slides.pdf
- (5) Linux SocketCAN utilities
+     http://cmp.felk.cvut.cz/~pisa/can/doc/rtlws-17-pisa-qemu-can.pdf
+ (5) GNU/Linux, CAN and CANopen in Real-time Control Applications
+     Slides from LinuxDays 2017 (include updated RTLWS 2015 content)
+     https://www.linuxdays.cz/2017/video/Pavel_Pisa-CAN_canopen.pdf
+ (6) Linux SocketCAN utilities
      https://github.com/linux-can/can-utils/
+ (7) CTU CAN FD project including core VHDL design, Linux driver,
+     test utilities etc.
+     https://gitlab.fel.cvut.cz/canbus/ctucanfd_ip_core
+ (8) CTU CAN FD Core Datasheet Documentation
+     http://canbus.pages.fel.cvut.cz/ctucanfd_ip_core/Progdokum.pdf
+ (9) CTU CAN FD Core System Architecture Documentation
+     http://canbus.pages.fel.cvut.cz/ctucanfd_ip_core/ctu_can_fd_architecture.pdf
+ (10) CTU CAN FD Driver Documentation
+     http://canbus.pages.fel.cvut.cz/ctucanfd_ip_core/driver_doc/ctucanfd-driver.html
+ (11) Integration with PCIe interfacing for Intel/Altera Cyclone IV based board
+     https://gitlab.fel.cvut.cz/canbus/pcie-ctu_can_fd
