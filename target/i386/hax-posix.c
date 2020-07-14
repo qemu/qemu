@@ -23,7 +23,7 @@ hax_fd hax_mod_open(void)
         fprintf(stderr, "Failed to open the hax module\n");
     }
 
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    qemu_set_cloexec(fd);
 
     return fd;
 }
@@ -147,7 +147,7 @@ hax_fd hax_host_open_vm(struct hax_state *hax, int vm_id)
     fd = open(vm_name, O_RDWR);
     g_free(vm_name);
 
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    qemu_set_cloexec(fd);
 
     return fd;
 }
@@ -200,7 +200,7 @@ hax_fd hax_host_open_vcpu(int vmid, int vcpuid)
     if (fd < 0) {
         fprintf(stderr, "Failed to open the vcpu devfs\n");
     }
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    qemu_set_cloexec(fd);
     return fd;
 }
 
