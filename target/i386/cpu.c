@@ -3512,6 +3512,20 @@ static X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ }
                 },
             },
+            {
+                .version = 4,
+                .props = (PropValue[]) {
+                    { "sha-ni", "on" },
+                    { "avx512ifma", "on" },
+                    { "rdpid", "on" },
+                    { "fsrm", "on" },
+                    { "vmx-rdseed-exit", "on" },
+                    { "vmx-pml", "on" },
+                    { "vmx-eptp-switching", "on" },
+                    { "model", "106" },
+                    { /* end of list */ }
+                },
+            },
             { /* end of list */ }
         }
     },
