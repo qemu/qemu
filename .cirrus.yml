@@ -12,7 +12,7 @@ freebsd_12_task:
   script:
     - mkdir build
     - cd build
-    - ../configure || { cat config.log; exit 1; }
+    - ../configure --enable-werror || { cat config.log; exit 1; }
     - gmake -j8
     - gmake V=1 check
 
