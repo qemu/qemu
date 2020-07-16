@@ -382,6 +382,8 @@ static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
                                     uint8_t val, Error **errp)
 {
     ERRP_GUARD();
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+
     if (!val) {
         /* capability disabled by default */
         return;
@@ -391,6 +393,14 @@ static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
         error_setg(errp, "No Nested KVM-HV support in TCG");
         error_append_hint(errp, "Try appending -machine cap-nested-hv=off\n");
     } else if (kvm_enabled()) {
+        if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+                              spapr->max_compat_pvr)) {
+            error_setg(errp, "Nested KVM-HV only supported on POWER9");
+            error_append_hint(errp,
+                              "Try appending -machine max-cpu-compat=power9\n");
+            return;
+        }
+
         if (!kvmppc_has_cap_nested_kvm_hv()) {
             error_setg(errp,
                        "KVM implementation does not support Nested KVM-HV");
