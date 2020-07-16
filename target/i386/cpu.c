@@ -6267,6 +6267,8 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
     uint64_t mask;
 
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
+        env->features[FEAT_XSAVE_COMP_LO] = 0;
+        env->features[FEAT_XSAVE_COMP_HI] = 0;
         return;
     }
 
