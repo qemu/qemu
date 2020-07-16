@@ -164,22 +164,20 @@ build-clang:
       ppc-softmmu s390x-softmmu arm-linux-user
     MAKE_CHECK_ARGS: check
 
-build-fuzzer:
+build-oss-fuzz:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
   script:
-    - mkdir build
-    - cd build
-    - ../configure --cc=clang --cxx=clang++ --enable-fuzzing
-                   --enable-sanitizers --target-list=x86_64-softmmu
-    - make -j"$JOBS" all check-build x86_64-softmmu/fuzz
-    - make check
-    - for fuzzer in i440fx-qos-fork-fuzz i440fx-qos-noreset-fuzz
-        i440fx-qtest-reboot-fuzz virtio-scsi-flags-fuzz virtio-scsi-fuzz ; do
-          echo Testing ${fuzzer} ... ;
-          x86_64-softmmu/qemu-fuzz-x86_64 --fuzz-target=${fuzzer} -runs=1000
-            || exit 1 ;
+    - mkdir build-oss-fuzz
+    - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
+      ./scripts/oss-fuzz/build.sh
+    - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
+                      | grep -v slirp); do
+        grep "LLVMFuzzerTestOneInput" ${fuzzer} > /dev/null 2>&1 || continue ;
+        echo Testing ${fuzzer} ... ;
+        ASAN_OPTIONS="fast_unwind_on_malloc=0"
+         "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
       done
 
 build-tci:
