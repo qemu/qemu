@@ -62,10 +62,12 @@
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/syscall.h>
+#include <sys/vfs.h>
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #include <linux/fs.h>
 #include <linux/hdreg.h>
+#include <linux/magic.h>
 #include <scsi/sg.h>
 #ifdef __s390__
 #include <asm/dasd.h>
@@ -298,6 +300,28 @@ static int probe_physical_blocksize(int fd, unsigned int *blk_size)
 #else
     return -ENOTSUP;
 #endif
+}
+
+/*
+ * Returns true if no alignment restrictions are necessary even for files
+ * opened with O_DIRECT.
+ *
+ * raw_probe_alignment() probes the required alignment and assume that 1 means
+ * the probing failed, so it falls back to a safe default of 4k. This can be
+ * avoided if we know that byte alignment is okay for the file.
+ */
+static bool dio_byte_aligned(int fd)
+{
+#ifdef __linux__
+    struct statfs buf;
+    int ret;
+
+    ret = fstatfs(fd, &buf);
+    if (ret == 0 && buf.f_type == NFS_SUPER_MAGIC) {
+        return true;
+    }
+#endif
+    return false;
 }
 
 /* Check if read is allowed with given memory buffer and length.
@@ -629,7 +653,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->has_discard = true;
     s->has_write_zeroes = true;
-    if ((bs->open_flags & BDRV_O_NOCACHE) != 0) {
+    if ((bs->open_flags & BDRV_O_NOCACHE) != 0 && !dio_byte_aligned(s->fd)) {
         s->needs_alignment = true;
     }
 
