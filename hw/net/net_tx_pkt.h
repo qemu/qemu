@@ -187,4 +187,18 @@ bool net_tx_pkt_parse(struct NetTxPkt *pkt);
 */
 bool net_tx_pkt_has_fragments(struct NetTxPkt *pkt);
 
+/**
+ * Fix IPv6 'plen' field.
+ * If ipv6 payload length field is 0 - then there should be Hop-by-Hop
+ * option for packets greater than 65,535.
+ * For packets with a payload less than 65,535: fix 'plen' field.
+ * For backends with vheader, we need just one packet with proper
+ * payload size. For now, qemu drops every packet with size greater 64K
+ * (see net_tx_pkt_send()) so, there is no reason to add jumbo option to ip6
+ * hop-by-hop extension if it's missed
+ *
+ * @pkt            packet
+ */
+void net_tx_pkt_fix_ip6_payload_len(struct NetTxPkt *pkt);
+
 #endif
