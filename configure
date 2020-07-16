@@ -4198,7 +4198,7 @@ pthread_setname_np_wo_tid=no
 cat > $TMPC << EOF
 #include <pthread.h>
 
-static void *f(void *p) { pthread_setname_np("QEMU"); }
+static void *f(void *p) { pthread_setname_np("QEMU"); return NULL; }
 int main(void)
 {
     pthread_t thread;
