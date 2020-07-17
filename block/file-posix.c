@@ -773,6 +773,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     ret = 0;
 fail:
+    if (ret < 0 && s->fd != -1) {
+        qemu_close(s->fd);
+    }
     if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
         unlink(filename);
     }
