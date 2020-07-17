@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"
@@ -312,10 +313,12 @@ void ich9_generate_smi(void)
     cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
 }
 
+/* Returns -1 on error, IRQ number on success */
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc)
 {
-    switch (lpc->d.config[ICH9_LPC_ACPI_CTRL] &
-            ICH9_LPC_ACPI_CTRL_SCI_IRQ_SEL_MASK) {
+    uint8_t sel = lpc->d.config[ICH9_LPC_ACPI_CTRL] &
+                  ICH9_LPC_ACPI_CTRL_SCI_IRQ_SEL_MASK;
+    switch (sel) {
     case ICH9_LPC_ACPI_CTRL_9:
         return 9;
     case ICH9_LPC_ACPI_CTRL_10:
@@ -328,6 +331,8 @@ static int ich9_lpc_sci_irq(ICH9LPCState *lpc)
         return 21;
     default:
         /* reserved */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ICH9 LPC: SCI IRQ SEL #%u is reserved\n", sel);
         break;
     }
     return -1;
@@ -459,7 +464,7 @@ ich9_lpc_pmbase_sci_update(ICH9LPCState *lpc)
 {
     uint32_t pm_io_base = pci_get_long(lpc->d.config + ICH9_LPC_PMBASE);
     uint8_t acpi_cntl = pci_get_long(lpc->d.config + ICH9_LPC_ACPI_CTRL);
-    uint8_t new_gsi;
+    int new_gsi;
 
     if (acpi_cntl & ICH9_LPC_ACPI_CTRL_ACPI_EN) {
         pm_io_base &= ICH9_LPC_PMBASE_BASE_ADDRESS_MASK;
@@ -470,6 +475,9 @@ ich9_lpc_pmbase_sci_update(ICH9LPCState *lpc)
     ich9_pm_iospace_update(&lpc->pm, pm_io_base);
 
     new_gsi = ich9_lpc_sci_irq(lpc);
+    if (new_gsi == -1) {
+        return;
+    }
     if (lpc->sci_level && new_gsi != lpc->sci_gsi) {
         qemu_set_irq(lpc->pm.irq, 0);
         lpc->sci_gsi = new_gsi;
