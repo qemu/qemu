@@ -588,7 +588,13 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         else {
             if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
                 replay_interrupt();
-                cpu->exception_index = -1;
+                /*
+                 * After processing the interrupt, ensure an EXCP_DEBUG is
+                 * raised when single-stepping so that GDB doesn't miss the
+                 * next instruction.
+                 */
+                cpu->exception_index =
+                    (cpu->singlestep_enabled ? EXCP_DEBUG : -1);
                 *last_tb = NULL;
             }
             /* The target hook may have updated the 'cpu->interrupt_request';
