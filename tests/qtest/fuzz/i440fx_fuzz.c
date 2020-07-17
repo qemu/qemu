@@ -158,9 +158,9 @@ static void i440fx_fuzz_qos_fork(QTestState *s,
 
 static const char *i440fx_qtest_argv = TARGET_NAME " -machine accel=qtest"
                                        " -m 0 -display none";
-static const char *i440fx_argv(FuzzTarget *t)
+static GString *i440fx_argv(FuzzTarget *t)
 {
-    return i440fx_qtest_argv;
+    return g_string_new(i440fx_qtest_argv);
 }
 
 static void fork_init(void)
