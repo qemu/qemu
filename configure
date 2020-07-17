@@ -501,7 +501,6 @@ numa=""
 tcmalloc="no"
 jemalloc="no"
 replication="yes"
-vxhs=""
 bochs="yes"
 cloop="yes"
 dmg="yes"
@@ -1541,10 +1540,6 @@ for opt do
   ;;
   --enable-replication) replication="yes"
   ;;
-  --disable-vxhs) vxhs="no"
-  ;;
-  --enable-vxhs) vxhs="yes"
-  ;;
   --disable-bochs) bochs="no"
   ;;
   --enable-bochs) bochs="yes"
@@ -1932,7 +1927,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   xfsctl          xfsctl support
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-img tools
-  vxhs            Veritas HyperScale vDisk backend support
   bochs           bochs image format support
   cloop           cloop image format support
   dmg             dmg image format support
@@ -6250,33 +6244,6 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# Veritas HyperScale block driver VxHS
-# Check if libvxhs is installed
-
-if test "$vxhs" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdint.h>
-#include <qnio/qnio_api.h>
-
-void *vxhs_callback;
-
-int main(void) {
-    iio_init(QNIO_VERSION, vxhs_callback);
-    return 0;
-}
-EOF
-  vxhs_libs="-lvxhs -lssl"
-  if compile_prog "" "$vxhs_libs" ; then
-    vxhs=yes
-  else
-    if test "$vxhs" = "yes" ; then
-      feature_not_found "vxhs block device" "Install libvxhs See github"
-    fi
-    vxhs=no
-  fi
-fi
-
-##########################################
 # check for _Static_assert()
 
 have_static_assert=no
@@ -7033,7 +7000,6 @@ echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
 echo "avx512f optimization $avx512f_opt"
 echo "replication support $replication"
-echo "VxHS block device $vxhs"
 echo "bochs support     $bochs"
 echo "cloop support     $cloop"
 echo "dmg support       $dmg"
@@ -7882,11 +7848,6 @@ if test "$pthread_setname_np_w_tid" = "yes" ; then
 elif test "$pthread_setname_np_wo_tid" = "yes" ; then
   echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
   echo "CONFIG_PTHREAD_SETNAME_NP_WO_TID=y" >> $config_host_mak
-fi
-
-if test "$vxhs" = "yes" ; then
-  echo "CONFIG_VXHS=y" >> $config_host_mak
-  echo "VXHS_LIBS=$vxhs_libs" >> $config_host_mak
 fi
 
 if test "$libpmem" = "yes" ; then

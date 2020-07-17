@@ -272,7 +272,6 @@ image protocol options
     -nbd                test nbd
     -ssh                test ssh
     -nfs                test nfs
-    -vxhs               test vxhs
 
 other options
     -xdiff              graphical mode diff
@@ -380,11 +379,6 @@ testlist options
 
         -nbd)
             IMGPROTO=nbd
-            xpand=false
-            ;;
-
-        -vxhs)
-            IMGPROTO=vxhs
             xpand=false
             ;;
 
@@ -645,10 +639,6 @@ if [ -z $QEMU_NBD_PROG ]; then
     fi
 fi
 export QEMU_NBD_PROG="$(type -p "$QEMU_NBD_PROG")"
-
-if [ -z "$QEMU_VXHS_PROG" ]; then
-    export QEMU_VXHS_PROG="$(set_prog_path qnio_server)"
-fi
 
 if [ -x "$build_iotests/socket_scm_helper" ]
 then

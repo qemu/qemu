@@ -618,3 +618,11 @@ to achieve the same fake NUMA effect or a properly configured
 New machine versions (since 5.1) will not accept the option but it will still
 work with old machine types. User can check the QAPI schema to see if the legacy
 option is supported by looking at MachineInfo::numa-mem-supported property.
+
+Block devices
+-------------
+
+VXHS backend (removed in 5.1)
+'''''''''''''''''''''''''''''
+
+The VXHS code does not compile since v2.12.0. It was removed in 5.1.

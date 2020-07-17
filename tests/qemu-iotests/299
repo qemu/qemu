@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+#
+# Test shutdown when bitmap is exported through NBD server
+#
+# Copyright (c) 2020 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+# The test is unrelated to formats, restrict it to qcow2 to avoid extra runs
+iotests.script_initialize(
+    supported_fmts=['qcow2'],
+)
+
+nbd_sock = iotests.file_path('nbd.sock', base_dir=iotests.sock_dir)
+nbd_uri = 'nbd+unix:///disk?socket=' + nbd_sock
+size = 1024 * 1024
+
+vm = iotests.VM()
+vm.launch()
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'disk',
+    'driver': 'null-co',
+    'size': 1024 * 1024,
+})
+
+vm.qmp_log('block-dirty-bitmap-add', **{
+    'node': 'disk',
+    'name': 'bitmap0'
+})
+
+vm.qmp_log('nbd-server-start', **{
+    'addr': {
+        'type': 'unix',
+        'data': {'path': nbd_sock}
+    }
+}, filters=[iotests.filter_qmp_testfiles])
+
+vm.qmp_log('nbd-server-add', **{
+    'device': 'disk',
+    'writable': True,
+    'bitmap': 'bitmap0'
+})
+
+p = iotests.QemuIoInteractive('-f', 'raw', nbd_uri)
+# wait for connection and check it:
+iotests.log(p.cmd('read 0 512').rstrip(), filters=[iotests.filter_qemu_io])
+
+vm.shutdown()
+
+p.close()
