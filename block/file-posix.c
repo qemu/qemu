@@ -425,7 +425,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 }
 
-static int check_hdev_writable(BDRVRawState *s)
+static int check_hdev_writable(int fd)
 {
 #if defined(BLKROGET)
     /* Linux block devices can be configured "read-only" using blockdev(8).
@@ -439,7 +439,7 @@ static int check_hdev_writable(BDRVRawState *s)
     struct stat st;
     int readonly = 0;
 
-    if (fstat(s->fd, &st)) {
+    if (fstat(fd, &st)) {
         return -errno;
     }
 
@@ -447,7 +447,7 @@ static int check_hdev_writable(BDRVRawState *s)
         return 0;
     }
 
-    if (ioctl(s->fd, BLKROGET, &readonly) < 0) {
+    if (ioctl(fd, BLKROGET, &readonly) < 0) {
         return -errno;
     }
 
@@ -641,6 +641,15 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
     s->fd = fd;
+
+    /* Check s->open_flags rather than bdrv_flags due to auto-read-only */
+    if (s->open_flags & O_RDWR) {
+        ret = check_hdev_writable(s->fd);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "The device is not writable");
+            goto fail;
+        }
+    }
 
     s->perm = 0;
     s->shared_perm = BLK_PERM_ALL;
@@ -1031,6 +1040,15 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
                 error_setg_errno(errp, errno, "Could not reopen file");
                 return -1;
             }
+        }
+    }
+
+    if (fd != -1 && (*open_flags & O_RDWR)) {
+        ret = check_hdev_writable(fd);
+        if (ret < 0) {
+            qemu_close(fd);
+            error_setg_errno(errp, -ret, "The device is not writable");
+            return -1;
         }
     }
 
@@ -3477,15 +3495,6 @@ hdev_open_Mac_error:
 
     /* Since this does ioctl the device must be already opened */
     bs->sg = hdev_is_sg(bs);
-
-    if (flags & BDRV_O_RDWR) {
-        ret = check_hdev_writable(s);
-        if (ret < 0) {
-            raw_close(bs);
-            error_setg_errno(errp, -ret, "The device is not writable");
-            return ret;
-        }
-    }
 
     return ret;
 }
