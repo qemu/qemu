@@ -806,7 +806,7 @@ SRST
 
     Some drivers are:
 
-``-device ipmi-bmc-sim,id=id[,slave_addr=val][,sdrfile=file][,furareasize=val][,furdatafile=file][,guid=uuid]``
+``-device ipmi-bmc-sim,id=id[,prop[=value][,...]]``
     Add an IPMI BMC. This is a simulation of a hardware management
     interface processor that normally sits on a system. It provides a
     watchdog and the ability to reset and power control the system. You
