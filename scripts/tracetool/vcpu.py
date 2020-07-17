@@ -24,7 +24,7 @@ def transform_event(event):
         assert "tcg-trans" not in event.properties
         assert "tcg-exec" not in event.properties
 
-        event.args = Arguments([("CPUState *", "__cpu"), event.args])
+        event.args = Arguments([("void *", "__cpu"), event.args])
         if "tcg" in event.properties:
             fmt = "\"cpu=%p \""
             event.fmt = [fmt + event.fmt[0],
