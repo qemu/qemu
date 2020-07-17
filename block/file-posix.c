@@ -425,6 +425,39 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 }
 
+static int check_hdev_writable(BDRVRawState *s)
+{
+#if defined(BLKROGET)
+    /* Linux block devices can be configured "read-only" using blockdev(8).
+     * This is independent of device node permissions and therefore open(2)
+     * with O_RDWR succeeds.  Actual writes fail with EPERM.
+     *
+     * bdrv_open() is supposed to fail if the disk is read-only.  Explicitly
+     * check for read-only block devices so that Linux block devices behave
+     * properly.
+     */
+    struct stat st;
+    int readonly = 0;
+
+    if (fstat(s->fd, &st)) {
+        return -errno;
+    }
+
+    if (!S_ISBLK(st.st_mode)) {
+        return 0;
+    }
+
+    if (ioctl(s->fd, BLKROGET, &readonly) < 0) {
+        return -errno;
+    }
+
+    if (readonly) {
+        return -EACCES;
+    }
+#endif /* defined(BLKROGET) */
+    return 0;
+}
+
 static void raw_parse_flags(int bdrv_flags, int *open_flags, bool has_writers)
 {
     bool read_write = false;
@@ -3320,39 +3353,6 @@ static int hdev_probe_device(const char *filename)
         return 100;
     }
 
-    return 0;
-}
-
-static int check_hdev_writable(BDRVRawState *s)
-{
-#if defined(BLKROGET)
-    /* Linux block devices can be configured "read-only" using blockdev(8).
-     * This is independent of device node permissions and therefore open(2)
-     * with O_RDWR succeeds.  Actual writes fail with EPERM.
-     *
-     * bdrv_open() is supposed to fail if the disk is read-only.  Explicitly
-     * check for read-only block devices so that Linux block devices behave
-     * properly.
-     */
-    struct stat st;
-    int readonly = 0;
-
-    if (fstat(s->fd, &st)) {
-        return -errno;
-    }
-
-    if (!S_ISBLK(st.st_mode)) {
-        return 0;
-    }
-
-    if (ioctl(s->fd, BLKROGET, &readonly) < 0) {
-        return -errno;
-    }
-
-    if (readonly) {
-        return -EACCES;
-    }
-#endif /* defined(BLKROGET) */
     return 0;
 }
 
