@@ -111,7 +111,7 @@ error_exit() {
 do_compiler() {
     # Run the compiler, capturing its output to the log. First argument
     # is compiler binary to execute.
-    local compiler="$1"
+    compiler="$1"
     shift
     if test -n "$BASH_VERSION"; then eval '
         echo >>config.log "
