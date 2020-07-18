@@ -274,7 +274,11 @@ static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
     DirtyBitmapMigBitmapState *dbms;
     Error *local_err = NULL;
 
-    bitmap = bdrv_dirty_bitmap_first(bs);
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        if (bdrv_dirty_bitmap_name(bitmap)) {
+            break;
+        }
+    }
     if (!bitmap) {
         return 0;
     }
