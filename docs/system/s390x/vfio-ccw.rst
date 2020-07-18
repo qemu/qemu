@@ -29,7 +29,7 @@ automatically, use
 
    [root@host ~]# driverctl -b css set-override 0.0.0313 vfio_ccw
    [root@host ~]# mdevctl define -u 7e270a25-e163-4922-af60-757fc8ed48c6 \
-                  -p 0.0.0313 -t vfio-ccw_io -a
+                  -p 0.0.0313 -t vfio_ccw-io -a
 
 If using ``mdevctl`` is not possible or wanted, follow the manual procedure
 below.
