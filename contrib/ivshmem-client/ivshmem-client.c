@@ -178,7 +178,7 @@ ivshmem_client_init(IvshmemClient *client, const char *unix_sock_path,
 int
 ivshmem_client_connect(IvshmemClient *client)
 {
-    struct sockaddr_un sun;
+    struct sockaddr_un s_un;
     int fd, ret;
     int64_t tmp;
 
@@ -192,16 +192,16 @@ ivshmem_client_connect(IvshmemClient *client)
         return -1;
     }
 
-    sun.sun_family = AF_UNIX;
-    ret = snprintf(sun.sun_path, sizeof(sun.sun_path), "%s",
+    s_un.sun_family = AF_UNIX;
+    ret = snprintf(s_un.sun_path, sizeof(s_un.sun_path), "%s",
                    client->unix_sock_path);
-    if (ret < 0 || ret >= sizeof(sun.sun_path)) {
+    if (ret < 0 || ret >= sizeof(s_un.sun_path)) {
         IVSHMEM_CLIENT_DEBUG(client, "could not copy unix socket path\n");
         goto err_close;
     }
 
-    if (connect(client->sock_fd, (struct sockaddr *)&sun, sizeof(sun)) < 0) {
-        IVSHMEM_CLIENT_DEBUG(client, "cannot connect to %s: %s\n", sun.sun_path,
+    if (connect(client->sock_fd, (struct sockaddr *)&s_un, sizeof(s_un)) < 0) {
+        IVSHMEM_CLIENT_DEBUG(client, "cannot connect to %s: %s\n", s_un.sun_path,
                              strerror(errno));
         goto err_close;
     }
