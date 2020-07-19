@@ -133,6 +133,21 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         )
         self.assert_qmp(result, 'return', {})
 
+
+    ###########################################################################
+    # add virtio-blk consumer for a block device
+    def addImageUser(self, vm, id, disk_id, share_rw=False):
+        result = vm.qmp('device_add', **
+            {
+                'driver': 'virtio-blk',
+                'id': id,
+                'drive': disk_id,
+                'share-rw' : share_rw
+            }
+        )
+
+        iotests.log(result)
+
     # close the encrypted block device
     def closeImageQmp(self, vm, id):
         result = vm.qmp('blockdev-del', **{ 'node-name': id })
@@ -159,7 +174,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         vm.run_job('job0')
 
     # test that when the image opened by two qemu processes,
-    # neither of them can update the image
+    # neither of them can update the encryption keys
     def test1(self):
         self.createImg(test_img, self.secrets[0]);
 
@@ -193,6 +208,9 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         os.remove(test_img)
 
 
+    # test that when the image opened by two qemu processes,
+    # even if first VM opens it read-only, the second can't update encryption
+    # keys
     def test2(self):
         self.createImg(test_img, self.secrets[0]);
 
@@ -225,6 +243,30 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
         self.closeImageQmp(self.vm1, "testdev")
         os.remove(test_img)
+
+    # test that two VMs can't open the same luks image by default
+    # and attach it to a guest device
+    def test3(self):
+        self.createImg(test_img, self.secrets[0]);
+
+        self.openImageQmp(self.vm1, "testdev", test_img, self.secrets[0])
+        self.addImageUser(self.vm1, "testctrl", "testdev")
+
+        self.openImageQmp(self.vm2, "testdev", test_img, self.secrets[0])
+        self.addImageUser(self.vm2, "testctrl", "testdev")
+
+
+    # test that two VMs can attach the same luks image to a guest device,
+    # if both use share-rw=on
+    def test4(self):
+        self.createImg(test_img, self.secrets[0]);
+
+        self.openImageQmp(self.vm1, "testdev", test_img, self.secrets[0])
+        self.addImageUser(self.vm1, "testctrl", "testdev", share_rw=True)
+
+        self.openImageQmp(self.vm2, "testdev", test_img, self.secrets[0])
+        self.addImageUser(self.vm2, "testctrl", "testdev", share_rw=True)
+
 
 
 if __name__ == '__main__':
