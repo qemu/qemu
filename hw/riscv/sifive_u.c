@@ -72,6 +72,7 @@ static const struct MemmapEntry {
     [SIFIVE_U_DEBUG] =    {        0x0,      0x100 },
     [SIFIVE_U_MROM] =     {     0x1000,     0xf000 },
     [SIFIVE_U_CLINT] =    {  0x2000000,    0x10000 },
+    [SIFIVE_U_L2CC] =     {  0x2010000,     0x1000 },
     [SIFIVE_U_L2LIM] =    {  0x8000000,  0x2000000 },
     [SIFIVE_U_PLIC] =     {  0xc000000,  0x4000000 },
     [SIFIVE_U_PRCI] =     { 0x10000000,     0x1000 },
@@ -300,6 +301,24 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cells(fdt, nodename, "gpios", gpio_phandle, 10, 1);
     qemu_fdt_setprop_string(fdt, nodename, "compatible", "gpio-restart");
+    g_free(nodename);
+
+    nodename = g_strdup_printf("/soc/cache-controller@%lx",
+        (long)memmap[SIFIVE_U_L2CC].base);
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_cells(fdt, nodename, "reg",
+        0x0, memmap[SIFIVE_U_L2CC].base,
+        0x0, memmap[SIFIVE_U_L2CC].size);
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupts",
+        SIFIVE_U_L2CC_IRQ0, SIFIVE_U_L2CC_IRQ1, SIFIVE_U_L2CC_IRQ2);
+    qemu_fdt_setprop_cell(fdt, nodename, "interrupt-parent", plic_phandle);
+    qemu_fdt_setprop(fdt, nodename, "cache-unified", NULL, 0);
+    qemu_fdt_setprop_cell(fdt, nodename, "cache-size", 2097152);
+    qemu_fdt_setprop_cell(fdt, nodename, "cache-sets", 1024);
+    qemu_fdt_setprop_cell(fdt, nodename, "cache-level", 2);
+    qemu_fdt_setprop_cell(fdt, nodename, "cache-block-size", 64);
+    qemu_fdt_setprop_string(fdt, nodename, "compatible",
+                            "sifive,fu540-c000-ccache");
     g_free(nodename);
 
     phy_phandle = phandle++;
@@ -733,6 +752,9 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
 
     create_unimplemented_device("riscv.sifive.u.dmc",
         memmap[SIFIVE_U_DMC].base, memmap[SIFIVE_U_DMC].size);
+
+    create_unimplemented_device("riscv.sifive.u.l2cc",
+        memmap[SIFIVE_U_L2CC].base, memmap[SIFIVE_U_L2CC].size);
 }
 
 static Property sifive_u_soc_props[] = {
