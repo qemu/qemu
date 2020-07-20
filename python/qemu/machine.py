@@ -394,15 +394,15 @@ class QEMUMachine:
         self._popen.kill()
         self._popen.wait(timeout=60)
 
-    def _soft_shutdown(self, has_quit: bool = False,
-                       timeout: Optional[int] = 3) -> None:
+    def _soft_shutdown(self, timeout: Optional[int],
+                       has_quit: bool = False) -> None:
         """
         Perform early cleanup, attempt to gracefully shut down the VM, and wait
         for it to terminate.
 
+        :param timeout: Timeout in seconds for graceful shutdown.
+                        A value of None is an infinite wait.
         :param has_quit: When True, don't attempt to issue 'quit' QMP command
-        :param timeout: Optional timeout in seconds for graceful shutdown.
-                        Default 3 seconds, A value of None is an infinite wait.
 
         :raise ConnectionReset: On QMP communication errors
         :raise subprocess.TimeoutExpired: When timeout is exceeded waiting for
@@ -418,14 +418,14 @@ class QEMUMachine:
         # May raise subprocess.TimeoutExpired
         self._popen.wait(timeout=timeout)
 
-    def _do_shutdown(self, has_quit: bool = False,
-                     timeout: Optional[int] = 3) -> None:
+    def _do_shutdown(self, timeout: Optional[int],
+                     has_quit: bool = False) -> None:
         """
         Attempt to shutdown the VM gracefully; fallback to a hard shutdown.
 
+        :param timeout: Timeout in seconds for graceful shutdown.
+                        A value of None is an infinite wait.
         :param has_quit: When True, don't attempt to issue 'quit' QMP command
-        :param timeout: Optional timeout in seconds for graceful shutdown.
-                        Default 3 seconds, A value of None is an infinite wait.
 
         :raise AbnormalShutdown: When the VM could not be shut down gracefully.
             The inner exception will likely be ConnectionReset or
@@ -433,7 +433,7 @@ class QEMUMachine:
             may result in its own exceptions, likely subprocess.TimeoutExpired.
         """
         try:
-            self._soft_shutdown(has_quit, timeout)
+            self._soft_shutdown(timeout, has_quit)
         except Exception as exc:
             self._hard_shutdown()
             raise AbnormalShutdown("Could not perform graceful shutdown") \
@@ -441,7 +441,7 @@ class QEMUMachine:
 
     def shutdown(self, has_quit: bool = False,
                  hard: bool = False,
-                 timeout: Optional[int] = 3) -> None:
+                 timeout: Optional[int] = 30) -> None:
         """
         Terminate the VM (gracefully if possible) and perform cleanup.
         Cleanup will always be performed.
@@ -453,7 +453,7 @@ class QEMUMachine:
         :param hard: When true, do not attempt graceful shutdown, and
                      suppress the SIGKILL warning log message.
         :param timeout: Optional timeout in seconds for graceful shutdown.
-                        Default 3 seconds, A value of None is an infinite wait.
+                        Default 30 seconds, A `None` value is an infinite wait.
         """
         if not self._launched:
             return
@@ -463,7 +463,7 @@ class QEMUMachine:
                 self._user_killed = True
                 self._hard_shutdown()
             else:
-                self._do_shutdown(has_quit, timeout=timeout)
+                self._do_shutdown(timeout, has_quit)
         finally:
             self._post_shutdown()
 
@@ -473,12 +473,12 @@ class QEMUMachine:
         """
         self.shutdown(hard=True)
 
-    def wait(self, timeout: Optional[int] = 3) -> None:
+    def wait(self, timeout: Optional[int] = 30) -> None:
         """
         Wait for the VM to power off and perform post-shutdown cleanup.
 
-        :param timeout: Optional timeout in seconds.
-                        Default 3 seconds, A value of None is an infinite wait.
+        :param timeout: Optional timeout in seconds. Default 30 seconds.
+                        A value of `None` is an infinite wait.
         """
         self.shutdown(has_quit=True, timeout=timeout)
 
