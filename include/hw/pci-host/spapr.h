@@ -94,6 +94,7 @@ struct SpaprPhbState {
     hwaddr nv2_gpa_win_addr;
     hwaddr nv2_atsd_win_addr;
     SpaprPhbPciNvGpuConfig *nvgpus;
+    bool pre_5_1_assoc;
 };
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL

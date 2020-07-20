@@ -929,6 +929,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV PSI Controller";
     device_class_set_props(dc, pnv_psi_properties);
     dc->reset = pnv_psi_reset;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pnv_psi_info = {

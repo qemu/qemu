@@ -362,9 +362,9 @@ void spapr_phb_nvgpu_ram_populate_dt(SpaprPhbState *sphb, void *fdt)
                                                     &error_abort);
         uint32_t associativity[] = {
             cpu_to_be32(0x4),
-            SPAPR_GPU_NUMA_ID,
-            SPAPR_GPU_NUMA_ID,
-            SPAPR_GPU_NUMA_ID,
+            cpu_to_be32(nvslot->numa_id),
+            cpu_to_be32(nvslot->numa_id),
+            cpu_to_be32(nvslot->numa_id),
             cpu_to_be32(nvslot->numa_id)
         };
         uint64_t size = object_property_get_uint(nv_mrobj, "size", NULL);
@@ -375,6 +375,13 @@ void spapr_phb_nvgpu_ram_populate_dt(SpaprPhbState *sphb, void *fdt)
         _FDT(off);
         _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
         _FDT((fdt_setprop(fdt, off, "reg", mem_reg, sizeof(mem_reg))));
+
+        if (sphb->pre_5_1_assoc) {
+            associativity[1] = SPAPR_GPU_NUMA_ID;
+            associativity[2] = SPAPR_GPU_NUMA_ID;
+            associativity[3] = SPAPR_GPU_NUMA_ID;
+        }
+
         _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
                           sizeof(associativity))));
 
