@@ -646,8 +646,9 @@ static void aarch64_max_initfn(Object *obj)
         t = cpu->isar.id_aa64pfr1;
         t = FIELD_DP64(t, ID_AA64PFR1, BT, 1);
         /*
-         * Begin with full support for MTE; will be downgraded to MTE=1
-         * during realize if the board provides no tag memory.
+         * Begin with full support for MTE. This will be downgraded to MTE=0
+         * during realize if the board provides no tag memory, much like
+         * we do for EL2 with the virtualization=on property.
          */
         t = FIELD_DP64(t, ID_AA64PFR1, MTE, 2);
         cpu->isar.id_aa64pfr1 = t;

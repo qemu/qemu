@@ -320,10 +320,86 @@ compat_props_add(GPtrArray *arr,
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
+/**
+ * qdev_new: Create a device on the heap
+ * @name: device type to create (we assert() that this type exists)
+ *
+ * This only allocates the memory and initializes the device state
+ * structure, ready for the caller to set properties if they wish.
+ * The device still needs to be realized.
+ * The returned object has a reference count of 1.
+ */
 DeviceState *qdev_new(const char *name);
+/**
+ * qdev_try_new: Try to create a device on the heap
+ * @name: device type to create
+ *
+ * This is like qdev_new(), except it returns %NULL when type @name
+ * does not exist, rather than asserting.
+ */
 DeviceState *qdev_try_new(const char *name);
+/**
+ * qdev_realize: Realize @dev.
+ * @dev: device to realize
+ * @bus: bus to plug it into (may be NULL)
+ * @errp: pointer to error object
+ *
+ * "Realize" the device, i.e. perform the second phase of device
+ * initialization.
+ * @dev must not be plugged into a bus already.
+ * If @bus, plug @dev into @bus.  This takes a reference to @dev.
+ * If @dev has no QOM parent, make one up, taking another reference.
+ * On success, return true.
+ * On failure, store an error through @errp and return false.
+ *
+ * If you created @dev using qdev_new(), you probably want to use
+ * qdev_realize_and_unref() instead.
+ */
 bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
+/**
+ * qdev_realize_and_unref: Realize @dev and drop a reference
+ * @dev: device to realize
+ * @bus: bus to plug it into (may be NULL)
+ * @errp: pointer to error object
+ *
+ * Realize @dev and drop a reference.
+ * This is like qdev_realize(), except the caller must hold a
+ * (private) reference, which is dropped on return regardless of
+ * success or failure.  Intended use::
+ *
+ *     dev = qdev_new();
+ *     [...]
+ *     qdev_realize_and_unref(dev, bus, errp);
+ *
+ * Now @dev can go away without further ado.
+ *
+ * If you are embedding the device into some other QOM device and
+ * initialized it via some variant on object_initialize_child() then
+ * do not use this function, because that family of functions arrange
+ * for the only reference to the child device to be held by the parent
+ * via the child<> property, and so the reference-count-drop done here
+ * would be incorrect. For that use case you want qdev_realize().
+ */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
+/**
+ * qdev_unrealize: Unrealize a device
+ * @dev: device to unrealize
+ *
+ * This function will "unrealize" a device, which is the first phase
+ * of correctly destroying a device that has been realized. It will:
+ *
+ *  - unrealize any child buses by calling qbus_unrealize()
+ *    (this will recursively unrealize any devices on those buses)
+ *  - call the the unrealize method of @dev
+ *
+ * The device can then be freed by causing its reference count to go
+ * to zero.
+ *
+ * Warning: most devices in QEMU do not expect to be unrealized.  Only
+ * devices which are hot-unpluggable should be unrealized (as part of
+ * the unplugging process); all other devices are expected to last for
+ * the life of the simulation and should not be unrealized and freed.
+ */
 void qdev_unrealize(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
@@ -348,13 +424,132 @@ void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
 void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
 
+/**
+ * qdev_get_gpio_in: Get one of a device's anonymous input GPIO lines
+ * @dev: Device whose GPIO we want
+ * @n: Number of the anonymous GPIO line (which must be in range)
+ *
+ * Returns the qemu_irq corresponding to an anonymous input GPIO line
+ * (which the device has set up with qdev_init_gpio_in()). The index
+ * @n of the GPIO line must be valid (i.e. be at least 0 and less than
+ * the total number of anonymous input GPIOs the device has); this
+ * function will assert() if passed an invalid index.
+ *
+ * This function is intended to be used by board code or SoC "container"
+ * device models to wire up the GPIO lines; usually the return value
+ * will be passed to qdev_connect_gpio_out() or a similar function to
+ * connect another device's output GPIO line to this input.
+ *
+ * For named input GPIO lines, use qdev_get_gpio_in_named().
+ */
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
+/**
+ * qdev_get_gpio_in_named: Get one of a device's named input GPIO lines
+ * @dev: Device whose GPIO we want
+ * @name: Name of the input GPIO array
+ * @n: Number of the GPIO line in that array (which must be in range)
+ *
+ * Returns the qemu_irq corresponding to a named input GPIO line
+ * (which the device has set up with qdev_init_gpio_in_named()).
+ * The @name string must correspond to an input GPIO array which exists on
+ * the device, and the index @n of the GPIO line must be valid (i.e.
+ * be at least 0 and less than the total number of input GPIOs in that
+ * array); this function will assert() if passed an invalid name or index.
+ *
+ * For anonymous input GPIO lines, use qdev_get_gpio_in().
+ */
 qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
 
+/**
+ * qdev_connect_gpio_out: Connect one of a device's anonymous output GPIO lines
+ * @dev: Device whose GPIO to connect
+ * @n: Number of the anonymous output GPIO line (which must be in range)
+ * @pin: qemu_irq to connect the output line to
+ *
+ * This function connects an anonymous output GPIO line on a device
+ * up to an arbitrary qemu_irq, so that when the device asserts that
+ * output GPIO line, the qemu_irq's callback is invoked.
+ * The index @n of the GPIO line must be valid (i.e. be at least 0 and
+ * less than the total number of anonymous output GPIOs the device has
+ * created with qdev_init_gpio_out()); otherwise this function will assert().
+ *
+ * Outbound GPIO lines can be connected to any qemu_irq, but the common
+ * case is connecting them to another device's inbound GPIO line, using
+ * the qemu_irq returned by qdev_get_gpio_in() or qdev_get_gpio_in_named().
+ *
+ * It is not valid to try to connect one outbound GPIO to multiple
+ * qemu_irqs at once, or to connect multiple outbound GPIOs to the
+ * same qemu_irq. (Warning: there is no assertion or other guard to
+ * catch this error: the model will just not do the right thing.)
+ * Instead, for fan-out you can use the TYPE_IRQ_SPLIT device: connect
+ * a device's outbound GPIO to the splitter's input, and connect each
+ * of the splitter's outputs to a different device.  For fan-in you
+ * can use the TYPE_OR_IRQ device, which is a model of a logical OR
+ * gate with multiple inputs and one output.
+ *
+ * For named output GPIO lines, use qdev_connect_gpio_out_named().
+ */
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
+/**
+ * qdev_connect_gpio_out: Connect one of a device's anonymous output GPIO lines
+ * @dev: Device whose GPIO to connect
+ * @name: Name of the output GPIO array
+ * @n: Number of the anonymous output GPIO line (which must be in range)
+ * @pin: qemu_irq to connect the output line to
+ *
+ * This function connects an anonymous output GPIO line on a device
+ * up to an arbitrary qemu_irq, so that when the device asserts that
+ * output GPIO line, the qemu_irq's callback is invoked.
+ * The @name string must correspond to an output GPIO array which exists on
+ * the device, and the index @n of the GPIO line must be valid (i.e.
+ * be at least 0 and less than the total number of input GPIOs in that
+ * array); this function will assert() if passed an invalid name or index.
+ *
+ * Outbound GPIO lines can be connected to any qemu_irq, but the common
+ * case is connecting them to another device's inbound GPIO line, using
+ * the qemu_irq returned by qdev_get_gpio_in() or qdev_get_gpio_in_named().
+ *
+ * It is not valid to try to connect one outbound GPIO to multiple
+ * qemu_irqs at once, or to connect multiple outbound GPIOs to the
+ * same qemu_irq; see qdev_connect_gpio_out() for details.
+ *
+ * For named output GPIO lines, use qdev_connect_gpio_out_named().
+ */
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq pin);
+/**
+ * qdev_get_gpio_out_connector: Get the qemu_irq connected to an output GPIO
+ * @dev: Device whose output GPIO we are interested in
+ * @name: Name of the output GPIO array
+ * @n: Number of the output GPIO line within that array
+ *
+ * Returns whatever qemu_irq is currently connected to the specified
+ * output GPIO line of @dev. This will be NULL if the output GPIO line
+ * has never been wired up to the anything.  Note that the qemu_irq
+ * returned does not belong to @dev -- it will be the input GPIO or
+ * IRQ of whichever device the board code has connected up to @dev's
+ * output GPIO.
+ *
+ * You probably don't need to use this function -- it is used only
+ * by the platform-bus subsystem.
+ */
 qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n);
+/**
+ * qdev_intercept_gpio_out: Intercept an existing GPIO connection
+ * @dev: Device to intercept the outbound GPIO line from
+ * @icpt: New qemu_irq to connect instead
+ * @name: Name of the output GPIO array
+ * @n: Number of the GPIO line in the array
+ *
+ * This function is provided only for use by the qtest testing framework
+ * and is not suitable for use in non-testing parts of QEMU.
+ *
+ * This function breaks an existing connection of an outbound GPIO
+ * line from @dev, and replaces it with the new qemu_irq @icpt, as if
+ * ``qdev_connect_gpio_out_named(dev, icpt, name, n)`` had been called.
+ * The previously connected qemu_irq is returned, so it can be restored
+ * by a second call to qdev_intercept_gpio_out() if desired.
+ */
 qemu_irq qdev_intercept_gpio_out(DeviceState *dev, qemu_irq icpt,
                                  const char *name, int n);
 
@@ -362,10 +557,59 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
-/* Register device properties.  */
-/* GPIO inputs also double as IRQ sinks.  */
+/**
+ * qdev_init_gpio_in: create an array of anonymous input GPIO lines
+ * @dev: Device to create input GPIOs for
+ * @handler: Function to call when GPIO line value is set
+ * @n: Number of GPIO lines to create
+ *
+ * Devices should use functions in the qdev_init_gpio_in* family in
+ * their instance_init or realize methods to create any input GPIO
+ * lines they need. There is no functional difference between
+ * anonymous and named GPIO lines. Stylistically, named GPIOs are
+ * preferable (easier to understand at callsites) unless a device
+ * has exactly one uniform kind of GPIO input whose purpose is obvious.
+ * Note that input GPIO lines can serve as 'sinks' for IRQ lines.
+ *
+ * See qdev_get_gpio_in() for how code that uses such a device can get
+ * hold of an input GPIO line to manipulate it.
+ */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
+/**
+ * qdev_init_gpio_out: create an array of anonymous output GPIO lines
+ * @dev: Device to create output GPIOs for
+ * @pins: Pointer to qemu_irq or qemu_irq array for the GPIO lines
+ * @n: Number of GPIO lines to create
+ *
+ * Devices should use functions in the qdev_init_gpio_out* family
+ * in their instance_init or realize methods to create any output
+ * GPIO lines they need. There is no functional difference between
+ * anonymous and named GPIO lines. Stylistically, named GPIOs are
+ * preferable (easier to understand at callsites) unless a device
+ * has exactly one uniform kind of GPIO output whose purpose is obvious.
+ *
+ * The @pins argument should be a pointer to either a "qemu_irq"
+ * (if @n == 1) or a "qemu_irq []" array (if @n > 1) in the device's
+ * state structure. The device implementation can then raise and
+ * lower the GPIO line by calling qemu_set_irq(). (If anything is
+ * connected to the other end of the GPIO this will cause the handler
+ * function for that input GPIO to be called.)
+ *
+ * See qdev_connect_gpio_out() for how code that uses such a device
+ * can connect to one of its output GPIO lines.
+ */
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
+/**
+ * qdev_init_gpio_out: create an array of named output GPIO lines
+ * @dev: Device to create output GPIOs for
+ * @pins: Pointer to qemu_irq or qemu_irq array for the GPIO lines
+ * @name: Name to give this array of GPIO lines
+ * @n: Number of GPIO lines to create
+ *
+ * Like qdev_init_gpio_out(), but creates an array of GPIO output lines
+ * with a name. Code using the device can then connect these GPIO lines
+ * using qdev_connect_gpio_out_named().
+ */
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n);
 /**
@@ -397,6 +641,25 @@ static inline void qdev_init_gpio_in_named(DeviceState *dev,
     qdev_init_gpio_in_named_with_opaque(dev, handler, dev, name, n);
 }
 
+/**
+ * qdev_pass_gpios: create GPIO lines on container which pass through to device
+ * @dev: Device which has GPIO lines
+ * @container: Container device which needs to expose them
+ * @name: Name of GPIO array to pass through (NULL for the anonymous GPIO array)
+ *
+ * In QEMU, complicated devices like SoCs are often modelled with a
+ * "container" QOM device which itself contains other QOM devices and
+ * which wires them up appropriately. This function allows the container
+ * to create GPIO arrays on itself which simply pass through to a GPIO
+ * array of one of its internal devices.
+ *
+ * If @dev has both input and output GPIOs named @name then both will
+ * be passed through. It is not possible to pass a subset of the array
+ * with this function.
+ *
+ * To users of the container device, the GPIO array created on @container
+ * behaves exactly like any other.
+ */
 void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
                      const char *name);
 

@@ -1698,6 +1698,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         cpu->id_pfr1 &= ~0xf000;
     }
 
+#ifndef CONFIG_USER_ONLY
+    if (cpu->tag_memory == NULL && cpu_isar_feature(aa64_mte, cpu)) {
+        /*
+         * Disable the MTE feature bits if we do not have tag-memory
+         * provided by the machine.
+         */
+        cpu->isar.id_aa64pfr1 =
+            FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
+    }
+#endif
+
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu
      * to false or by setting pmsav7-dregion to 0.
      */
@@ -1787,14 +1798,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             cpu_address_space_init(cs, ARMASIdx_TagS, "cpu-tag-memory",
                                    cpu->secure_tag_memory);
         }
-    } else if (cpu_isar_feature(aa64_mte, cpu)) {
-        /*
-         * Since there is no tag memory, we can't meaningfully support MTE
-         * to its fullest.  To avoid problems later, when we would come to
-         * use the tag memory, downgrade support to insns only.
-         */
-        cpu->isar.id_aa64pfr1 =
-            FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 1);
     }
 
     cpu_address_space_init(cs, ARMASIdx_NS, "cpu-memory", cs->memory);

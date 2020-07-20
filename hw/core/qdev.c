@@ -128,13 +128,6 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
     }
 }
 
-/*
- * Create a device on the heap.
- * A type @name must exist.
- * This only initializes the device state structure and allows
- * properties to be set.  The device still needs to be realized.  See
- * qdev-core.h.
- */
 DeviceState *qdev_new(const char *name)
 {
     if (!object_class_by_name(name)) {
@@ -143,11 +136,6 @@ DeviceState *qdev_new(const char *name)
     return DEVICE(object_new(name));
 }
 
-/*
- * Try to create a device on the heap.
- * This is like qdev_new(), except it returns %NULL when type @name
- * does not exist.
- */
 DeviceState *qdev_try_new(const char *name)
 {
     if (!module_object_class_by_name(name)) {
@@ -378,14 +366,6 @@ void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
     qdev_unrealize(dev);
 }
 
-/*
- * Realize @dev.
- * @dev must not be plugged into a bus.
- * If @bus, plug @dev into @bus.  This takes a reference to @dev.
- * If @dev has no QOM parent, make one up, taking another reference.
- * On success, return true.
- * On failure, store an error through @errp and return false.
- */
 bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
 {
     assert(!dev->realized && !dev->parent_bus);
@@ -399,16 +379,6 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     return object_property_set_bool(OBJECT(dev), "realized", true, errp);
 }
 
-/*
- * Realize @dev and drop a reference.
- * This is like qdev_realize(), except the caller must hold a
- * (private) reference, which is dropped on return regardless of
- * success or failure.  Intended use:
- *     dev = qdev_new();
- *     [...]
- *     qdev_realize_and_unref(dev, bus, errp);
- * Now @dev can go away without further ado.
- */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp)
 {
     bool ret;
@@ -814,9 +784,6 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
                                           prop->info->description);
 }
 
-/* @qdev_alias_all_properties - Add alias properties to the source object for
- * all qdev properties on the target DeviceState.
- */
 void qdev_alias_all_properties(DeviceState *target, Object *source)
 {
     ObjectClass *class;

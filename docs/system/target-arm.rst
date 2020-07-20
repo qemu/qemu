@@ -82,13 +82,17 @@ undocumented; you can get a complete list by running
    arm/versatile
    arm/vexpress
    arm/aspeed
+   arm/digic
    arm/musicpal
+   arm/gumstix
    arm/nseries
    arm/orangepi
    arm/palm
    arm/xscale
+   arm/collie
    arm/sx1
    arm/stellaris
+   arm/virt
 
 Arm CPU features
 ================

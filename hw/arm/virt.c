@@ -1773,6 +1773,12 @@ static void machvirt_init(MachineState *machine)
         exit(1);
     }
 
+    if (vms->mte && kvm_enabled()) {
+        error_report("mach-virt: KVM does not support providing "
+                     "MTE to the guest CPU");
+        exit(1);
+    }
+
     create_fdt(vms);
 
     possible_cpus = mc->possible_cpu_arch_ids(machine);
@@ -1837,12 +1843,19 @@ static void machvirt_init(MachineState *machine)
                                      OBJECT(secure_sysmem), &error_abort);
         }
 
-        /*
-         * The cpu adds the property if and only if MemTag is supported.
-         * If it is, we must allocate the ram to back that up.
-         */
-        if (object_property_find(cpuobj, "tag-memory", NULL)) {
+        if (vms->mte) {
+            /* Create the memory region only once, but link to all cpus. */
             if (!tag_sysmem) {
+                /*
+                 * The property exists only if MemTag is supported.
+                 * If it is, we must allocate the ram to back that up.
+                 */
+                if (!object_property_find(cpuobj, "tag-memory", NULL)) {
+                    error_report("MTE requested, but not supported "
+                                 "by the guest CPU");
+                    exit(1);
+                }
+
                 tag_sysmem = g_new(MemoryRegion, 1);
                 memory_region_init(tag_sysmem, OBJECT(machine),
                                    "tag-memory", UINT64_MAX / 32);
@@ -2061,6 +2074,20 @@ static void virt_set_ras(Object *obj, bool value, Error **errp)
     vms->ras = value;
 }
 
+static bool virt_get_mte(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->mte;
+}
+
+static void virt_set_mte(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->mte = value;
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -2164,6 +2191,11 @@ static void virt_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (!vms->acpi_dev) {
         error_setg(errp,
                    "memory hotplug is not enabled: missing acpi-ged device");
+        return;
+    }
+
+    if (vms->mte) {
+        error_setg(errp, "memory hotplug is not enabled: MTE is enabled");
         return;
     }
 
@@ -2480,6 +2512,14 @@ static void virt_instance_init(Object *obj)
     object_property_set_description(obj, "ras",
                                     "Set on/off to enable/disable reporting host memory errors "
                                     "to a KVM guest using ACPI and guest external abort exceptions");
+
+    /* MTE is disabled by default.  */
+    vms->mte = false;
+    object_property_add_bool(obj, "mte", virt_get_mte, virt_set_mte);
+    object_property_set_description(obj, "mte",
+                                    "Set on/off to enable/disable emulating a "
+                                    "guest CPU which implements the ARM "
+                                    "Memory Tagging Extension");
 
     vms->irqmap = a15irqmap;
 
