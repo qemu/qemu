@@ -1773,6 +1773,12 @@ static void machvirt_init(MachineState *machine)
         exit(1);
     }
 
+    if (vms->mte && kvm_enabled()) {
+        error_report("mach-virt: KVM does not support providing "
+                     "MTE to the guest CPU");
+        exit(1);
+    }
+
     create_fdt(vms);
 
     possible_cpus = mc->possible_cpu_arch_ids(machine);
