@@ -234,7 +234,7 @@ static uint8_t tosa_dac_recv(I2CSlave *s)
 static void tosa_tg_init(PXA2xxState *cpu)
 {
     I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    i2c_create_slave(bus, TYPE_TOSA_DAC, DAC_BASE);
+    i2c_slave_create_simple(bus, TYPE_TOSA_DAC, DAC_BASE);
     ssi_create_slave(cpu->ssp[1], "tosa-ssp");
 }
 

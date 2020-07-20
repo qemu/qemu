@@ -93,6 +93,6 @@ typedef struct AspeedI2CClass {
 
 } AspeedI2CClass;
 
-I2CBus *aspeed_i2c_get_bus(DeviceState *dev, int busnr);
+I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr);
 
 #endif /* ASPEED_I2C_H */

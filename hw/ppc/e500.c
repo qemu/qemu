@@ -941,7 +941,7 @@ void ppce500_init(MachineState *machine)
     memory_region_add_subregion(ccsr_addr_space, MPC8544_I2C_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-    i2c_create_slave(i2c, "ds1338", RTC_REGS_OFFSET);
+    i2c_slave_create_simple(i2c, "ds1338", RTC_REGS_OFFSET);
 
 
     /* General Utility device */

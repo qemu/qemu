@@ -1,4 +1,5 @@
-common-obj-$(CONFIG_I2C) += core.o smbus_slave.o smbus_master.o
+common-obj-$(CONFIG_I2C) += core.o
+common-obj-$(CONFIG_SMBUS) += smbus_slave.o smbus_master.o
 common-obj-$(CONFIG_SMBUS_EEPROM) += smbus_eeprom.o
 common-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
 common-obj-$(CONFIG_ACPI_X86_ICH) += smbus_ich9.o
