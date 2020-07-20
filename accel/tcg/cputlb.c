@@ -1075,10 +1075,8 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
 
 /*
  * Save a potentially trashed IOTLB entry for later lookup by plugin.
- *
- * We also need to track the thread storage address because the RCU
- * cleanup that runs when we leave the critical region (the current
- * execution) is actually in a different thread.
+ * This is read by tlb_plugin_lookup if the iotlb entry doesn't match
+ * because of the side effect of io_writex changing memory layout.
  */
 static void save_iotlb_data(CPUState *cs, hwaddr addr,
                             MemoryRegionSection *section, hwaddr mr_offset)
@@ -1408,8 +1406,9 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
  * This almost never fails as the memory access being instrumented
  * should have just filled the TLB. The one corner case is io_writex
  * which can cause TLB flushes and potential resizing of the TLBs
- * loosing the information we need. In those cases we need to recover
- * data from a copy of the io_tlb entry.
+ * losing the information we need. In those cases we need to recover
+ * data from a copy of the iotlbentry. As long as this always occurs
+ * from the same thread (which a mem callback will be) this is safe.
  */
 
 bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
