@@ -881,7 +881,7 @@ block_crypto_child_perms(BlockDriverState *bs, BdrvChild *c,
      * For backward compatibility, manually share the write
      * and resize permission
      */
-    *nshared |= (BLK_PERM_WRITE | BLK_PERM_RESIZE);
+    *nshared |= shared & (BLK_PERM_WRITE | BLK_PERM_RESIZE);
     /*
      * Since we are not fully a format driver, don't always request
      * the read/resize permission but only when explicitly
