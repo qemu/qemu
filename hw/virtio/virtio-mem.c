@@ -409,11 +409,9 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'%s' property is not set", VIRTIO_MEM_MEMDEV_PROP);
         return;
     } else if (host_memory_backend_is_mapped(vmem->memdev)) {
-        char *path = object_get_canonical_path_component(OBJECT(vmem->memdev));
-
         error_setg(errp, "'%s' property specifies a busy memdev: %s",
-                   VIRTIO_MEM_MEMDEV_PROP, path);
-        g_free(path);
+                   VIRTIO_MEM_MEMDEV_PROP,
+                   object_get_canonical_path_component(OBJECT(vmem->memdev)));
         return;
     } else if (!memory_region_is_ram(&vmem->memdev->mr) ||
         memory_region_is_rom(&vmem->memdev->mr) ||

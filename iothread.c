@@ -165,7 +165,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 {
     Error *local_error = NULL;
     IOThread *iothread = IOTHREAD(obj);
-    char *name, *thread_name;
+    char *thread_name;
 
     iothread->stopping = false;
     iothread->running = true;
@@ -195,12 +195,11 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     /* This assumes we are called from a thread with useful CPU affinity for us
      * to inherit.
      */
-    name = object_get_canonical_path_component(OBJECT(obj));
-    thread_name = g_strdup_printf("IO %s", name);
+    thread_name = g_strdup_printf("IO %s",
+                        object_get_canonical_path_component(OBJECT(obj)));
     qemu_thread_create(&iothread->thread, thread_name, iothread_run,
                        iothread, QEMU_THREAD_JOINABLE);
     g_free(thread_name);
-    g_free(name);
 
     /* Wait for initialization to complete */
     while (iothread->thread_id == -1) {
@@ -303,7 +302,7 @@ type_init(iothread_register_types)
 
 char *iothread_get_id(IOThread *iothread)
 {
-    return object_get_canonical_path_component(OBJECT(iothread));
+    return g_strdup(object_get_canonical_path_component(OBJECT(iothread)));
 }
 
 AioContext *iothread_get_aio_context(IOThread *iothread)

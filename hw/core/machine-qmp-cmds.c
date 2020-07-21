@@ -315,7 +315,7 @@ static int query_memdev(Object *obj, void *opaque)
 
         m->value = g_malloc0(sizeof(*m->value));
 
-        m->value->id = object_get_canonical_path_component(obj);
+        m->value->id = g_strdup(object_get_canonical_path_component(obj));
         m->value->has_id = !!m->value->id;
 
         m->value->size = object_property_get_uint(obj, "size",

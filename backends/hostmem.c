@@ -33,7 +33,7 @@ char *
 host_memory_backend_get_name(HostMemoryBackend *backend)
 {
     if (!backend->use_canonical_path) {
-        return object_get_canonical_path_component(OBJECT(backend));
+        return g_strdup(object_get_canonical_path_component(OBJECT(backend)));
     }
 
     return object_get_canonical_path(OBJECT(backend));
