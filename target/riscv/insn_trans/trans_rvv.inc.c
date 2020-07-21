@@ -733,6 +733,7 @@ static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
             g_assert_not_reached();
 #endif
         } else {
+            assert(seq < ARRAY_SIZE(fnsw));
             fn = fnsw[seq];
         }
     }
