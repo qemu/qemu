@@ -24,9 +24,6 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     if (!qdev_realize(vdev, BUS(&ccw_dev->bus), errp)) {
         return;
     }
-
-    object_property_set_link(OBJECT(dev), "rng", OBJECT(dev->vdev.conf.rng),
-                             NULL);
 }
 
 static void virtio_ccw_rng_instance_init(Object *obj)

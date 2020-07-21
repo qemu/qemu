@@ -57,8 +57,6 @@ static void virtio_crypto_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     if (!qdev_realize(vdev, BUS(&vpci_dev->bus), errp)) {
         return;
     }
-    object_property_set_link(OBJECT(vcrypto), "cryptodev",
-                             OBJECT(vcrypto->vdev.conf.cryptodev), NULL);
 }
 
 static void virtio_crypto_pci_class_init(ObjectClass *klass, void *data)
