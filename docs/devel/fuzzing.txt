@@ -23,9 +23,12 @@ AddressSanitizer mmaps ~20TB of memory, as part of its detection. This results
 in a large page-map, and a much slower fork().
 
 To build the fuzzers, install a recent version of clang:
-Configure with (substitute the clang binaries with the version you installed):
+Configure with (substitute the clang binaries with the version you installed).
+Here, enable-sanitizers, is optional but it allows us to reliably detect bugs
+such as out-of-bounds accesses, use-after-frees, double-frees etc.
 
-    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing
+    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing \
+                                                --enable-sanitizers
 
 Fuzz targets are built similarly to system/softmmu:
 
@@ -44,6 +47,62 @@ Information about these is available by passing -help=1
 
 Now the only thing left to do is wait for the fuzzer to trigger potential
 crashes.
+
+== Useful libFuzzer flags ==
+
+As mentioned above, libFuzzer accepts some arguments. Passing -help=1 will list
+the available arguments. In particular, these arguments might be helpful:
+
+$CORPUS_DIR/ : Specify a directory as the last argument to libFuzzer. libFuzzer
+stores each "interesting" input in this corpus directory. The next time you run
+libFuzzer, it will read all of the inputs from the corpus, and continue fuzzing
+from there. You can also specify multiple directories. libFuzzer loads existing
+inputs from all specified directories, but will only write new ones to the
+first one specified.
+
+-max_len=4096 : specify the maximum byte-length of the inputs libFuzzer will
+generate.
+
+-close_fd_mask={1,2,3} : close, stderr, or both. Useful for targets that
+trigger many debug/error messages, or create output on the serial console.
+
+-jobs=4 -workers=4 : These arguments configure libFuzzer to run 4 fuzzers in
+parallel (4 fuzzing jobs in 4 worker processes). Alternatively, with only
+-jobs=N, libFuzzer automatically spawns a number of workers less than or equal
+to half the available CPU cores. Replace 4 with a number appropriate for your
+machine. Make sure to specify a $CORPUS_DIR, which will allow the parallel
+fuzzers to share information about the interesting inputs they find.
+
+-use_value_profile=1 : For each comparison operation, libFuzzer computes 
+(caller_pc&4095) | (popcnt(Arg1 ^ Arg2) << 12) and places this in the coverage
+table. Useful for targets with "magic" constants. If Arg1 came from the fuzzer's
+input and Arg2 is a magic constant, then each time the Hamming distance
+between Arg1 and Arg2 decreases, libFuzzer adds the input to the corpus.
+
+-shrink=1 : Tries to make elements of the corpus "smaller". Might lead to
+better coverage performance, depending on the target.
+
+Note that libFuzzer's exact behavior will depend on the version of
+clang and libFuzzer used to build the device fuzzers.
+
+== Generating Coverage Reports ==
+Code coverage is a crucial metric for evaluating a fuzzer's performance.
+libFuzzer's output provides a "cov: " column that provides a total number of
+unique blocks/edges covered. To examine coverage on a line-by-line basis we
+can use Clang coverage:
+
+ 1. Configure libFuzzer to store a corpus of all interesting inputs (see
+    CORPUS_DIR above)
+ 2. ./configure the QEMU build with:
+    --enable-fuzzing \
+    --extra-cflags="-fprofile-instr-generate -fcoverage-mapping"
+ 3. Re-run the fuzzer. Specify $CORPUS_DIR/* as an argument, telling libfuzzer
+    to execute all of the inputs in $CORPUS_DIR and exit. Once the process
+    exits, you should find a file, "default.profraw" in the working directory.
+ 4. Execute these commands to generate a detailed HTML coverage-report:
+ llvm-profdata merge -output=default.profdata default.profraw
+ llvm-cov show ./path/to/qemu-fuzz-i386 -instr-profile=default.profdata \
+ --format html -output-dir=/path/to/output/report
 
 == Adding a new fuzzer ==
 Coverage over virtual devices can be improved by adding additional fuzzers.

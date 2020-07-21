@@ -455,6 +455,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
         NICInfo *nd = &nd_table[i];
 
+        /* FIXME use qdev NIC properties instead of nd_table[] */
         if (nd->used) {
             qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
             qdev_set_nic_properties(DEVICE(&s->gem[i]), nd);
