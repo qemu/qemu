@@ -32,7 +32,9 @@ typedef struct FWCfgDataGeneratorClass {
      * @obj: the object implementing this interface
      * @errp: pointer to a NULL-initialized error object
      *
-     * Returns: reference to a byte array containing the data.
+     * Returns: reference to a byte array containing the data on success,
+     *          or NULL on error.
+     *
      * The caller should release the reference when no longer
      * required.
      */
