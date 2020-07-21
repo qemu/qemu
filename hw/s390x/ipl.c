@@ -630,7 +630,8 @@ void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
         }
     }
     if (reset_type == S390_RESET_MODIFIED_CLEAR ||
-        reset_type == S390_RESET_LOAD_NORMAL) {
+        reset_type == S390_RESET_LOAD_NORMAL ||
+        reset_type == S390_RESET_PV) {
         /* ignore -no-reboot, send no event  */
         qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);
     } else {
