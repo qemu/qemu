@@ -229,6 +229,23 @@ wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Images are identical.
 
+=== -n to an empty image ===
+
+Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+
+=== -n to an empty image with a backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+[{ "start": 0, "length": 67108864, "depth": 0, "zero": false, "data": true, "offset": 327680}]
+
 === -n -B to an image without a backing file ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
