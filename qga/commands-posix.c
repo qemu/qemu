@@ -2822,6 +2822,8 @@ GList *ga_command_blacklist_init(GList *blacklist)
     blacklist = g_list_append(blacklist, g_strdup("guest-fstrim"));
 #endif
 
+    blacklist = g_list_append(blacklist, g_strdup("guest-get-devices"));
+
     return blacklist;
 }
 
@@ -3041,4 +3043,11 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     }
 
     return info;
+}
+
+GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+
+    return NULL;
 }
