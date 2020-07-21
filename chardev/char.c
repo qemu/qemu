@@ -235,7 +235,7 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
         } else {
             flags |= O_TRUNC;
         }
-        chr->logfd = qemu_open(common->logfile, flags, 0666);
+        chr->logfd = qemu_open_old(common->logfile, flags, 0666);
         if (chr->logfd < 0) {
             error_setg_errno(errp, errno,
                              "Unable to open logfile %s",

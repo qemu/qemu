@@ -2013,7 +2013,7 @@ static int kvm_init(MachineState *ms)
 #endif
     QLIST_INIT(&s->kvm_parked_vcpus);
     s->vmfd = -1;
-    s->fd = qemu_open("/dev/kvm", O_RDWR);
+    s->fd = qemu_open_old("/dev/kvm", O_RDWR);
     if (s->fd == -1) {
         fprintf(stderr, "Could not access KVM kernel module: %m\n");
         ret = -errno;

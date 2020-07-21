@@ -184,7 +184,7 @@ static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
     snprintf(nc->info_str, sizeof(nc->info_str), TYPE_VHOST_VDPA);
     nc->queue_index = 0;
     s = DO_UPCAST(VhostVDPAState, nc, nc);
-    vdpa_device_fd = qemu_open(vhostdev, O_RDWR);
+    vdpa_device_fd = qemu_open_old(vhostdev, O_RDWR);
     if (vdpa_device_fd == -1) {
         return -errno;
     }

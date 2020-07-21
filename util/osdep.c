@@ -296,7 +296,7 @@ static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
 /*
  * Opens a file with FD_CLOEXEC set
  */
-int qemu_open(const char *name, int flags, ...)
+int qemu_open_old(const char *name, int flags, ...)
 {
     int ret;
     int mode = 0;

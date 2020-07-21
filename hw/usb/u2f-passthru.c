@@ -383,7 +383,7 @@ static int u2f_passthru_open_from_device(struct udev_device *device)
 {
     const char *devnode = udev_device_get_devnode(device);
 
-    int fd = qemu_open(devnode, O_RDWR);
+    int fd = qemu_open_old(devnode, O_RDWR);
     if (fd < 0) {
         return -1;
     } else if (!u2f_passthru_is_u2f_device(fd)) {
@@ -482,7 +482,7 @@ static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
         return;
 #endif
     } else {
-        fd = qemu_open(key->hidraw, O_RDWR);
+        fd = qemu_open_old(key->hidraw, O_RDWR);
         if (fd < 0) {
             error_setg(errp, "%s: Failed to open %s", TYPE_U2F_PASSTHRU,
                        key->hidraw);
