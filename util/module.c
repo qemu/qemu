@@ -275,6 +275,9 @@ void module_load_qom_one(const char *type)
 {
     int i;
 
+    if (!type) {
+        return;
+    }
     if (module_loaded_qom_all) {
         return;
     }

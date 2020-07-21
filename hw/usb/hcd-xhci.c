@@ -3184,7 +3184,7 @@ static const MemoryRegionOps xhci_oper_ops = {
     .read = xhci_oper_read,
     .write = xhci_oper_write,
     .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid.max_access_size = sizeof(dma_addr_t),
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -3200,7 +3200,7 @@ static const MemoryRegionOps xhci_runtime_ops = {
     .read = xhci_runtime_read,
     .write = xhci_runtime_write,
     .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid.max_access_size = sizeof(dma_addr_t),
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
