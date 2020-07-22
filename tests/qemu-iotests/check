@@ -595,15 +595,19 @@ then
 fi
 export QEMU_PROG="$(type -p "$QEMU_PROG")"
 
+export QEMU_OPTIONS="-nodefaults -display none -accel qtest"
 case "$QEMU_PROG" in
     *qemu-system-arm|*qemu-system-aarch64)
-        export QEMU_OPTIONS="-nodefaults -display none -machine virt -accel qtest"
+        export QEMU_OPTIONS="$QEMU_OPTIONS -machine virt"
+        ;;
+    *qemu-system-avr)
+        export QEMU_OPTIONS="$QEMU_OPTIONS -machine mega2560"
+        ;;
+    *qemu-system-rx)
+        export QEMU_OPTIONS="$QEMU_OPTIONS -machine gdbsim-r5f562n8"
         ;;
     *qemu-system-tricore)
-        export QEMU_OPTIONS="-nodefaults -display none -machine tricore_testboard -accel qtest"
-        ;;
-    *)
-        export QEMU_OPTIONS="-nodefaults -display none -accel qtest"
+        export QEMU_OPTIONS="-$QEMU_OPTIONS -machine tricore_testboard"
         ;;
 esac
 
