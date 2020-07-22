@@ -1032,10 +1032,9 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
     return NULL;
 }
 
-void fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
+bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
                                const char *gen_id, Error **errp)
 {
-    ERRP_GUARD();
     FWCfgDataGeneratorClass *klass;
     GByteArray *array;
     Object *obj;
@@ -1044,20 +1043,22 @@ void fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
     obj = object_resolve_path_component(object_get_objects_root(), gen_id);
     if (!obj) {
         error_setg(errp, "Cannot find object ID '%s'", gen_id);
-        return;
+        return false;
     }
     if (!object_dynamic_cast(obj, TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)) {
         error_setg(errp, "Object ID '%s' is not a '%s' subclass",
                    gen_id, TYPE_FW_CFG_DATA_GENERATOR_INTERFACE);
-        return;
+        return false;
     }
     klass = FW_CFG_DATA_GENERATOR_GET_CLASS(obj);
     array = klass->get_data(obj, errp);
-    if (*errp) {
-        return;
+    if (!array) {
+        return false;
     }
     size = array->len;
     fw_cfg_add_file(s, filename, g_byte_array_free(array, TRUE), size);
+
+    return true;
 }
 
 static void fw_cfg_machine_reset(void *opaque)
