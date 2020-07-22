@@ -58,7 +58,6 @@ migration_tls_get_creds(MigrationState *s,
         return NULL;
     }
 
-    object_ref(OBJECT(ret));
     return ret;
 }
 
