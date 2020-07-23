@@ -10,8 +10,9 @@
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 
-void tpm_init(void)
+int tpm_init(void)
 {
+    return 0;
 }
 
 void tpm_cleanup(void)

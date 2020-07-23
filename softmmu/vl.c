@@ -4258,7 +4258,9 @@ void qemu_init(int argc, char **argv, char **envp)
                       user_creatable_add_opts_foreach,
                       object_create_delayed, &error_fatal);
 
-    tpm_init();
+    if (tpm_init() < 0) {
+        exit(1);
+    }
 
     blk_mig_init();
     ram_mig_init();
