@@ -45,8 +45,10 @@ class QOMFS(Operations):
             return False
 
     def is_property(self, path):
+        path, prop = path.rsplit('/', 1)
+        if path == '':
+            path = '/'
         try:
-            path, prop = path.rsplit('/', 1)
             for item in self.qmp.command('qom-list', path=path):
                 if item['name'] == prop:
                     return True
@@ -55,8 +57,10 @@ class QOMFS(Operations):
             return False
 
     def is_link(self, path):
+        path, prop = path.rsplit('/', 1)
+        if path == '':
+            path = '/'
         try:
-            path, prop = path.rsplit('/', 1)
             for item in self.qmp.command('qom-list', path=path):
                 if item['name'] == prop:
                     if item['type'].startswith('link<'):
@@ -71,6 +75,8 @@ class QOMFS(Operations):
             return -ENOENT
 
         path, prop = path.rsplit('/', 1)
+        if path == '':
+            path = '/'
         try:
             data = self.qmp.command('qom-get', path=path, property=prop)
             data += '\n' # make values shell friendly
