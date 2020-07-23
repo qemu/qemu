@@ -513,13 +513,21 @@ static bool ld_index_op(DisasContext *s, arg_rnfvm *a, uint8_t seq)
     return ldst_index_trans(a->rd, a->rs1, a->rs2, data, fn, s);
 }
 
+/*
+ * For vector indexed segment loads, the destination vector register
+ * groups cannot overlap the source vector register group (specified by
+ * `vs2`), else an illegal instruction exception is raised.
+ */
 static bool ld_index_check(DisasContext *s, arg_rnfvm* a)
 {
     return (vext_check_isa_ill(s) &&
             vext_check_overlap_mask(s, a->rd, a->vm, false) &&
             vext_check_reg(s, a->rd, false) &&
             vext_check_reg(s, a->rs2, false) &&
-            vext_check_nf(s, a->nf));
+            vext_check_nf(s, a->nf) &&
+            ((a->nf == 1) ||
+             vext_check_overlap_group(a->rd, a->nf << s->lmul,
+                                      a->rs2, 1 << s->lmul)));
 }
 
 GEN_VEXT_TRANS(vlxb_v, 0, rnfvm, ld_index_op, ld_index_check)
@@ -733,6 +741,7 @@ static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
             g_assert_not_reached();
 #endif
         } else {
+            assert(seq < ARRAY_SIZE(fnsw));
             fn = fnsw[seq];
         }
     }
