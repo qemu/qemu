@@ -5,13 +5,17 @@
 
 #define TARGET_NCCS 23
 
+typedef unsigned char   target_cc_t;        /* cc_t */
+typedef unsigned int    target_speed_t;     /* speed_t */
+typedef unsigned int    target_tcflag_t;    /* tcflag_t */
+
 struct target_termios {
-    unsigned int c_iflag;               /* input mode flags */
-    unsigned int c_oflag;               /* output mode flags */
-    unsigned int c_cflag;               /* control mode flags */
-    unsigned int c_lflag;               /* local mode flags */
-    unsigned char c_line;                    /* line discipline */
-    unsigned char c_cc[TARGET_NCCS];                /* control characters */
+    target_tcflag_t c_iflag;               /* input mode flags */
+    target_tcflag_t c_oflag;               /* output mode flags */
+    target_tcflag_t c_cflag;               /* control mode flags */
+    target_tcflag_t c_lflag;               /* local mode flags */
+    target_cc_t c_line;                    /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS];         /* control characters */
 };
 
 /* c_iflag bits */
@@ -133,6 +137,7 @@ struct target_termios {
 #define TARGET_PENDIN  0040000
 #define TARGET_TOSTOP  0100000
 #define TARGET_ITOSTOP TARGET_TOSTOP
+#define TARGET_EXTPROC 0200000
 
 /* c_cc character offsets */
 #define TARGET_VINTR	0

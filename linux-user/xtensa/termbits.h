@@ -15,40 +15,42 @@
 
 #include <linux/posix_types.h>
 
-typedef unsigned char   cc_t;
-typedef unsigned int    speed_t;
-typedef unsigned int    tcflag_t;
-
 #define TARGET_NCCS 19
+
+typedef unsigned char   target_cc_t;        /* cc_t */
+typedef unsigned int    target_speed_t;     /* speed_t */
+typedef unsigned int    target_tcflag_t;    /* tcflag_t */
+
 struct target_termios {
-    tcflag_t c_iflag;       /* input mode flags */
-    tcflag_t c_oflag;       /* output mode flags */
-    tcflag_t c_cflag;       /* control mode flags */
-    tcflag_t c_lflag;       /* local mode flags */
-    cc_t c_line;            /* line discipline */
-    cc_t c_cc[TARGET_NCCS]; /* control characters */
+    target_tcflag_t c_iflag;               /* input mode flags */
+    target_tcflag_t c_oflag;               /* output mode flags */
+    target_tcflag_t c_cflag;               /* control mode flags */
+    target_tcflag_t c_lflag;               /* local mode flags */
+    target_cc_t c_line;                    /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS];         /* control characters */
 };
 
+
 struct target_termios2 {
-    tcflag_t c_iflag;       /* input mode flags */
-    tcflag_t c_oflag;       /* output mode flags */
-    tcflag_t c_cflag;       /* control mode flags */
-    tcflag_t c_lflag;       /* local mode flags */
-    cc_t c_line;            /* line discipline */
-    cc_t c_cc[TARGET_NCCS]; /* control characters */
-    speed_t c_ispeed;       /* input speed */
-    speed_t c_ospeed;       /* output speed */
+    target_tcflag_t c_iflag;       /* input mode flags */
+    target_tcflag_t c_oflag;       /* output mode flags */
+    target_tcflag_t c_cflag;       /* control mode flags */
+    target_tcflag_t c_lflag;       /* local mode flags */
+    target_cc_t c_line;            /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS]; /* control characters */
+    target_speed_t c_ispeed;       /* input speed */
+    target_speed_t c_ospeed;       /* output speed */
 };
 
 struct target_ktermios {
-    tcflag_t c_iflag;       /* input mode flags */
-    tcflag_t c_oflag;       /* output mode flags */
-    tcflag_t c_cflag;       /* control mode flags */
-    tcflag_t c_lflag;       /* local mode flags */
-    cc_t c_line;            /* line discipline */
-    cc_t c_cc[TARGET_NCCS]; /* control characters */
-    speed_t c_ispeed;       /* input speed */
-    speed_t c_ospeed;       /* output speed */
+    target_tcflag_t c_iflag;       /* input mode flags */
+    target_tcflag_t c_oflag;       /* output mode flags */
+    target_tcflag_t c_cflag;       /* control mode flags */
+    target_tcflag_t c_lflag;       /* local mode flags */
+    target_cc_t c_line;            /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS]; /* control characters */
+    target_speed_t c_ispeed;       /* input speed */
+    target_speed_t c_ospeed;       /* output speed */
 };
 
 /* c_cc characters */
@@ -195,6 +197,7 @@ struct target_ktermios {
 #define TARGET_FLUSHO   0010000
 #define TARGET_PENDIN   0040000
 #define TARGET_IEXTEN   0100000
+#define TARGET_EXTPROC  0200000
 
 /* tcflow() and TCXONC use these */
 
