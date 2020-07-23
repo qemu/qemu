@@ -47,18 +47,23 @@ tpm_be_find_by_type(enum TpmType type)
  */
 static void tpm_display_backend_drivers(void)
 {
+    bool got_one = false;
     int i;
-
-    fprintf(stderr, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
         const TPMBackendClass *bc = tpm_be_find_by_type(i);
         if (!bc) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n", TpmType_str(i), bc->desc);
+        if (!got_one) {
+            error_printf("Supported TPM types (choose only one):\n");
+            got_one = true;
+        }
+        error_printf("%12s   %s\n", TpmType_str(i), bc->desc);
     }
-    fprintf(stderr, "\n");
+    if (!got_one) {
+        error_printf("No TPM backend types are available\n");
+    }
 }
 
 /*
