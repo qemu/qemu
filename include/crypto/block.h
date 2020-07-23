@@ -311,7 +311,5 @@ uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block);
 void qcrypto_block_free(QCryptoBlock *block);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoBlock, qcrypto_block_free)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoBlockCreateOptions,
-                              qapi_free_QCryptoBlockCreateOptions)
 
 #endif /* QCRYPTO_BLOCK_H */

@@ -417,7 +417,7 @@ static void test_visitor_in_struct(TestInputVisitorData *data,
 static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                           const void *unused)
 {
-    UserDefTwo *udp = NULL;
+    g_autoptr(UserDefTwo) udp = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "{ 'string0': 'string0', "
@@ -433,8 +433,6 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
     g_assert_cmpstr(udp->dict1->dict2->userdef->string, ==, "string");
     g_assert_cmpstr(udp->dict1->dict2->string, ==, "string2");
     g_assert(udp->dict1->has_dict3 == false);
-
-    qapi_free_UserDefTwo(udp);
 }
 
 static void test_visitor_in_list(TestInputVisitorData *data,
@@ -546,7 +544,7 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
                                        const void *unused)
 {
     Visitor *v;
-    UserDefFlatUnion *tmp;
+    g_autoptr(UserDefFlatUnion) tmp = NULL;
     UserDefUnionBase *base;
 
     v = visitor_input_test_init(data,
@@ -563,8 +561,6 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
 
     base = qapi_UserDefFlatUnion_base(tmp);
     g_assert(&base->enum1 == &tmp->enum1);
-
-    qapi_free_UserDefFlatUnion(tmp);
 }
 
 static void test_visitor_in_alternate(TestInputVisitorData *data,
@@ -690,7 +686,7 @@ static void test_list_union_integer_helper(TestInputVisitorData *data,
                                            const void *unused,
                                            UserDefListUnionKind kind)
 {
-    UserDefListUnion *cvalue = NULL;
+    g_autoptr(UserDefListUnion) cvalue = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -782,7 +778,6 @@ static void test_list_union_integer_helper(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefListUnion(cvalue);
 }
 
 static void test_visitor_in_list_union_int(TestInputVisitorData *data,
@@ -851,7 +846,7 @@ static void test_visitor_in_list_union_uint64(TestInputVisitorData *data,
 static void test_visitor_in_list_union_bool(TestInputVisitorData *data,
                                             const void *unused)
 {
-    UserDefListUnion *cvalue = NULL;
+    g_autoptr(UserDefListUnion) cvalue = NULL;
     boolList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -879,13 +874,12 @@ static void test_visitor_in_list_union_bool(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefListUnion(cvalue);
 }
 
 static void test_visitor_in_list_union_string(TestInputVisitorData *data,
                                               const void *unused)
 {
-    UserDefListUnion *cvalue = NULL;
+    g_autoptr(UserDefListUnion) cvalue = NULL;
     strList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -914,7 +908,6 @@ static void test_visitor_in_list_union_string(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefListUnion(cvalue);
 }
 
 #define DOUBLE_STR_MAX 16
@@ -922,7 +915,7 @@ static void test_visitor_in_list_union_string(TestInputVisitorData *data,
 static void test_visitor_in_list_union_number(TestInputVisitorData *data,
                                               const void *unused)
 {
-    UserDefListUnion *cvalue = NULL;
+    g_autoptr(UserDefListUnion) cvalue = NULL;
     numberList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -957,7 +950,6 @@ static void test_visitor_in_list_union_number(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefListUnion(cvalue);
 }
 
 static void input_visitor_test_add(const char *testpath,
@@ -1253,7 +1245,7 @@ static void test_visitor_in_fail_alternate(TestInputVisitorData *data,
 static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
                                               const QLitObject *qlit)
 {
-    SchemaInfoList *schema = NULL;
+    g_autoptr(SchemaInfoList) schema = NULL;
     QObject *obj = qobject_from_qlit(qlit);
     Visitor *v;
 
@@ -1262,7 +1254,6 @@ static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
     visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
     g_assert(schema);
 
-    qapi_free_SchemaInfoList(schema);
     qobject_unref(obj);
     visit_free(v);
 }
