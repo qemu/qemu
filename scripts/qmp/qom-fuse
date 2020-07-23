@@ -3,16 +3,18 @@
 # QEMU Object Model test tools
 #
 # Copyright IBM, Corp. 2012
+# Copyright (C) 2020 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori   <aliguori@us.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or later.  See
 # the COPYING file in the top-level directory.
 ##
 
 import fuse, stat
-from fuse import Fuse
+from fuse import FUSE, FuseOSError, Operations
 import os, posix, sys
 from errno import *
 
@@ -21,9 +23,8 @@ from qemu.qmp import QEMUMonitorProtocol
 
 fuse.fuse_python_api = (0, 2)
 
-class QOMFS(Fuse):
-    def __init__(self, qmp, *args, **kwds):
-        Fuse.__init__(self, *args, **kwds)
+class QOMFS(Operations):
+    def __init__(self, qmp):
         self.qmp = qmp
         self.qmp.connect()
         self.ino_map = {}
@@ -65,21 +66,21 @@ class QOMFS(Fuse):
         except:
             return False
 
-    def read(self, path, length, offset):
+    def read(self, path, length, offset, fh):
         if not self.is_property(path):
             return -ENOENT
 
         path, prop = path.rsplit('/', 1)
         try:
-            data = str(self.qmp.command('qom-get', path=path, property=prop))
+            data = self.qmp.command('qom-get', path=path, property=prop)
             data += '\n' # make values shell friendly
         except:
-            return -EPERM
+            raise FuseOSError(EPERM)
 
         if offset > len(data):
             return ''
 
-        return str(data[offset:][:length])
+        return bytes(data[offset:][:length], encoding='utf-8')
 
     def readlink(self, path):
         if not self.is_link(path):
@@ -89,52 +90,52 @@ class QOMFS(Fuse):
         return prefix + str(self.qmp.command('qom-get', path=path,
                                              property=prop))
 
-    def getattr(self, path):
+    def getattr(self, path, fh=None):
         if self.is_link(path):
-            value = posix.stat_result((0o755 | stat.S_IFLNK,
-                                       self.get_ino(path),
-                                       0,
-                                       2,
-                                       1000,
-                                       1000,
-                                       4096,
-                                       0,
-                                       0,
-                                       0))
+            value = { 'st_mode': 0o755 | stat.S_IFLNK,
+                      'st_ino': self.get_ino(path),
+                      'st_dev': 0,
+                      'st_nlink': 2,
+                      'st_uid': 1000,
+                      'st_gid': 1000,
+                      'st_size': 4096,
+                      'st_atime': 0,
+                      'st_mtime': 0,
+                      'st_ctime': 0 }
         elif self.is_object(path):
-            value = posix.stat_result((0o755 | stat.S_IFDIR,
-                                       self.get_ino(path),
-                                       0,
-                                       2,
-                                       1000,
-                                       1000,
-                                       4096,
-                                       0,
-                                       0,
-                                       0))
+            value = { 'st_mode': 0o755 | stat.S_IFDIR,
+                      'st_ino': self.get_ino(path),
+                      'st_dev': 0,
+                      'st_nlink': 2,
+                      'st_uid': 1000,
+                      'st_gid': 1000,
+                      'st_size': 4096,
+                      'st_atime': 0,
+                      'st_mtime': 0,
+                      'st_ctime': 0 }
         elif self.is_property(path):
-            value = posix.stat_result((0o644 | stat.S_IFREG,
-                                       self.get_ino(path),
-                                       0,
-                                       1,
-                                       1000,
-                                       1000,
-                                       4096,
-                                       0,
-                                       0,
-                                       0))
+            value = { 'st_mode': 0o644 | stat.S_IFREG,
+                      'st_ino': self.get_ino(path),
+                      'st_dev': 0,
+                      'st_nlink': 1,
+                      'st_uid': 1000,
+                      'st_gid': 1000,
+                      'st_size': 4096,
+                      'st_atime': 0,
+                      'st_mtime': 0,
+                      'st_ctime': 0 }
         else:
-            value = -ENOENT
+            raise FuseOSError(ENOENT)
         return value
 
-    def readdir(self, path, offset):
-        yield fuse.Direntry('.')
-        yield fuse.Direntry('..')
+    def readdir(self, path, fh):
+        yield '.'
+        yield '..'
         for item in self.qmp.command('qom-list', path=path):
-            yield fuse.Direntry(str(item['name']))
+            yield str(item['name'])
 
 if __name__ == '__main__':
     import os
 
-    fs = QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET']))
-    fs.main(sys.argv)
+    fuse = FUSE(QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET'])),
+                sys.argv[1], foreground=True)
