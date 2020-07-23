@@ -23,9 +23,6 @@ static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     if (!qdev_realize(vdev, BUS(&ccw_dev->bus), errp)) {
         return;
     }
-
-    object_property_set_link(OBJECT(vdev), "cryptodev",
-                             OBJECT(dev->vdev.conf.cryptodev), NULL);
 }
 
 static void virtio_ccw_crypto_instance_init(Object *obj)
