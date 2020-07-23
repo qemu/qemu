@@ -13,7 +13,7 @@
 
 import fuse, stat
 from fuse import Fuse
-import os, posix
+import os, posix, sys
 from errno import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
@@ -134,7 +134,7 @@ class QOMFS(Fuse):
             yield fuse.Direntry(str(item['name']))
 
 if __name__ == '__main__':
-    import sys, os
+    import os
 
     fs = QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET']))
     fs.main(sys.argv)
