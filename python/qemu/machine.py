@@ -23,7 +23,6 @@ import os
 import subprocess
 import shutil
 import signal
-import socket
 import tempfile
 from typing import Optional, Type
 from types import TracebackType
@@ -673,12 +672,8 @@ class QEMUMachine:
         Returns a socket connected to the console
         """
         if self._console_socket is None:
-            if self._drain_console:
-                self._console_socket = console_socket.ConsoleSocket(
-                    self._console_address,
-                    file=self._console_log_path)
-            else:
-                self._console_socket = socket.socket(socket.AF_UNIX,
-                                                     socket.SOCK_STREAM)
-                self._console_socket.connect(self._console_address)
+            self._console_socket = console_socket.ConsoleSocket(
+                self._console_address,
+                file=self._console_log_path,
+                drain=self._drain_console)
         return self._console_socket
