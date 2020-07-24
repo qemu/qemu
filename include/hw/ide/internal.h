@@ -29,6 +29,17 @@ OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 
 #define MAX_IDE_DEVS 2
 
+/* Device/Head ("select") Register */
+#define ATA_DEV_SELECT          0x10
+/* ATA1,3: Defined as '1'.
+ * ATA2:   Reserved.
+ * ATA3-7: obsolete. */
+#define ATA_DEV_ALWAYS_ON       0xA0
+#define ATA_DEV_LBA             0x40
+#define ATA_DEV_LBA_MSB         0x0F  /* LBA 24:27 */
+#define ATA_DEV_HS              0x0F  /* HS 3:0 */
+
+
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
 #define INDEX_STAT		0x02

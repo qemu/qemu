@@ -367,7 +367,7 @@ fill_buffer:
 
 static void ide_set_signature(IDEState *s)
 {
-    s->select &= 0xf0; /* clear head */
+    s->select &= ~(ATA_DEV_HS); /* clear head */
     /* put signature */
     s->nsector = 1;
     s->sector = 1;
@@ -586,7 +586,7 @@ void ide_transfer_stop(IDEState *s)
 int64_t ide_get_sector(IDEState *s)
 {
     int64_t sector_num;
-    if (s->select & 0x40) {
+    if (s->select & (ATA_DEV_LBA)) {
         if (s->lba48) {
             sector_num = ((int64_t)s->hob_hcyl << 40) |
                 ((int64_t) s->hob_lcyl << 32) |
@@ -595,13 +595,13 @@ int64_t ide_get_sector(IDEState *s)
                 ((int64_t) s->lcyl << 8) | s->sector;
         } else {
             /* LBA28 */
-            sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
-                (s->lcyl << 8) | s->sector;
+            sector_num = ((s->select & (ATA_DEV_LBA_MSB)) << 24) |
+                (s->hcyl << 16) | (s->lcyl << 8) | s->sector;
         }
     } else {
         /* CHS */
         sector_num = ((s->hcyl << 8) | s->lcyl) * s->heads * s->sectors +
-            (s->select & 0x0f) * s->sectors + (s->sector - 1);
+            (s->select & (ATA_DEV_HS)) * s->sectors + (s->sector - 1);
     }
 
     return sector_num;
@@ -610,7 +610,7 @@ int64_t ide_get_sector(IDEState *s)
 void ide_set_sector(IDEState *s, int64_t sector_num)
 {
     unsigned int cyl, r;
-    if (s->select & 0x40) {
+    if (s->select & (ATA_DEV_LBA)) {
         if (s->lba48) {
             s->sector = sector_num;
             s->lcyl = sector_num >> 8;
@@ -620,7 +620,8 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
             s->hob_hcyl = sector_num >> 40;
         } else {
             /* LBA28 */
-            s->select = (s->select & 0xf0) | (sector_num >> 24);
+            s->select = (s->select & ~(ATA_DEV_LBA_MSB)) |
+                ((sector_num >> 24) & (ATA_DEV_LBA_MSB));
             s->hcyl = (sector_num >> 16);
             s->lcyl = (sector_num >> 8);
             s->sector = (sector_num);
@@ -631,7 +632,8 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
         r = sector_num % (s->heads * s->sectors);
         s->hcyl = cyl >> 8;
         s->lcyl = cyl;
-        s->select = (s->select & 0xf0) | ((r / s->sectors) & 0x0f);
+        s->select = (s->select & ~(ATA_DEV_HS)) |
+            ((r / s->sectors) & (ATA_DEV_HS));
         s->sector = (r % s->sectors) + 1;
     }
 }
@@ -1302,10 +1304,10 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case ATA_IOPORT_WR_DEVICE_HEAD:
         ide_clear_hob(bus);
-        bus->ifs[0].select = val | 0xa0;
-        bus->ifs[1].select = val | 0xa0;
+        bus->ifs[0].select = val | (ATA_DEV_ALWAYS_ON);
+        bus->ifs[1].select = val | (ATA_DEV_ALWAYS_ON);
         /* select drive */
-        bus->unit = (val >> 4) & 1;
+        bus->unit = (val & (ATA_DEV_SELECT)) ? 1 : 0;
         break;
     default:
     case ATA_IOPORT_WR_COMMAND:
@@ -1343,7 +1345,7 @@ static void ide_reset(IDEState *s)
     s->hob_lcyl = 0;
     s->hob_hcyl = 0;
 
-    s->select = 0xa0;
+    s->select = (ATA_DEV_ALWAYS_ON);
     s->status = READY_STAT | SEEK_STAT;
 
     s->lba48 = 0;
