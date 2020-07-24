@@ -1215,8 +1215,7 @@ static void ide_cmd_lba48_transform(IDEState *s, int lba48)
 static void ide_clear_hob(IDEBus *bus)
 {
     /* any write clears HOB high bit of device control register */
-    bus->ifs[0].select &= ~(1 << 7);
-    bus->ifs[1].select &= ~(1 << 7);
+    bus->cmd &= ~(IDE_CTRL_HOB);
 }
 
 /* IOport [W]rite [R]egisters */
@@ -1256,12 +1255,14 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         return;
     }
 
+    /* NOTE: Device0 and Device1 both receive incoming register writes.
+     * (They're on the same bus! They have to!) */
+
     switch (reg_num) {
     case 0:
         break;
     case ATA_IOPORT_WR_FEATURES:
         ide_clear_hob(bus);
-        /* NOTE: data is written to the two drives */
         bus->ifs[0].hob_feature = bus->ifs[0].feature;
         bus->ifs[1].hob_feature = bus->ifs[1].feature;
         bus->ifs[0].feature = val;
@@ -1296,7 +1297,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         bus->ifs[1].hcyl = val;
         break;
     case ATA_IOPORT_WR_DEVICE_HEAD:
-        /* FIXME: HOB readback uses bit 7 */
+        ide_clear_hob(bus);
         bus->ifs[0].select = val | 0xa0;
         bus->ifs[1].select = val | 0xa0;
         /* select drive */
@@ -1304,7 +1305,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     default:
     case ATA_IOPORT_WR_COMMAND:
-        /* command */
+        ide_clear_hob(bus);
         ide_exec_cmd(bus, val);
         break;
     }
@@ -2142,9 +2143,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
     int ret, hob;
 
     reg_num = addr & 7;
-    /* FIXME: HOB readback uses bit 7, but it's always set right now */
-    //hob = s->select & (1 << 7);
-    hob = 0;
+    hob = bus->cmd & (IDE_CTRL_HOB);
     switch (reg_num) {
     case ATA_IOPORT_RR_DATA:
         ret = 0xff;

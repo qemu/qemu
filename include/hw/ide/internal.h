@@ -58,6 +58,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 #define TAG_MASK		0xf8
 
 /* Bits of Device Control register */
+#define IDE_CTRL_HOB            0x80
 #define IDE_CTRL_RESET          0x04
 #define IDE_CTRL_DISABLE_IRQ    0x02
 
