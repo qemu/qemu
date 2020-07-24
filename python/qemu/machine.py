@@ -27,7 +27,7 @@ import socket
 import tempfile
 from typing import Optional, Type
 from types import TracebackType
-from qemu.console_socket import ConsoleSocket
+from . import console_socket
 
 from . import qmp
 
@@ -674,8 +674,9 @@ class QEMUMachine:
         """
         if self._console_socket is None:
             if self._drain_console:
-                self._console_socket = ConsoleSocket(self._console_address,
-                                                    file=self._console_log_path)
+                self._console_socket = console_socket.ConsoleSocket(
+                    self._console_address,
+                    file=self._console_log_path)
             else:
                 self._console_socket = socket.socket(socket.AF_UNIX,
                                                      socket.SOCK_STREAM)
