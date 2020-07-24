@@ -1297,8 +1297,8 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case ATA_IOPORT_WR_DEVICE_HEAD:
         /* FIXME: HOB readback uses bit 7 */
-        bus->ifs[0].select = (val & ~0x10) | 0xa0;
-        bus->ifs[1].select = (val | 0x10) | 0xa0;
+        bus->ifs[0].select = val | 0xa0;
+        bus->ifs[1].select = val | 0xa0;
         /* select drive */
         bus->unit = (val >> 4) & 1;
         break;
