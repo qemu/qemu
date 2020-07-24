@@ -329,7 +329,7 @@ static void pmac_ide_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x8:
     case 0x16:
         if (size == 1) {
-            ide_cmd_write(&d->bus, 0, val);
+            ide_ctrl_write(&d->bus, 0, val);
         }
         break;
     case 0x20:

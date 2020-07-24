@@ -38,7 +38,7 @@
         (IDE_RETRY_DMA | IDE_RETRY_PIO | \
         IDE_RETRY_READ | IDE_RETRY_FLUSH)
 
-static uint64_t pci_ide_cmd_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t pci_ide_status_read(void *opaque, hwaddr addr, unsigned size)
 {
     IDEBus *bus = opaque;
 
@@ -48,20 +48,20 @@ static uint64_t pci_ide_cmd_read(void *opaque, hwaddr addr, unsigned size)
     return ide_status_read(bus, addr + 2);
 }
 
-static void pci_ide_cmd_write(void *opaque, hwaddr addr,
-                              uint64_t data, unsigned size)
+static void pci_ide_ctrl_write(void *opaque, hwaddr addr,
+                               uint64_t data, unsigned size)
 {
     IDEBus *bus = opaque;
 
     if (addr != 2 || size != 1) {
         return;
     }
-    ide_cmd_write(bus, addr + 2, data);
+    ide_ctrl_write(bus, addr + 2, data);
 }
 
 const MemoryRegionOps pci_ide_cmd_le_ops = {
-    .read = pci_ide_cmd_read,
-    .write = pci_ide_cmd_write,
+    .read = pci_ide_status_read,
+    .write = pci_ide_ctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

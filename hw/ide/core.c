@@ -2235,25 +2235,25 @@ uint32_t ide_status_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
+void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
     IDEState *s;
     int i;
 
-    trace_ide_cmd_write(addr, val, bus);
+    trace_ide_ctrl_write(addr, val, bus);
 
     /* common for both drives */
-    if (!(bus->cmd & IDE_CMD_RESET) &&
-        (val & IDE_CMD_RESET)) {
+    if (!(bus->cmd & IDE_CTRL_RESET) &&
+        (val & IDE_CTRL_RESET)) {
         /* reset low to high */
         for(i = 0;i < 2; i++) {
             s = &bus->ifs[i];
             s->status = BUSY_STAT | SEEK_STAT;
             s->error = 0x01;
         }
-    } else if ((bus->cmd & IDE_CMD_RESET) &&
-               !(val & IDE_CMD_RESET)) {
+    } else if ((bus->cmd & IDE_CTRL_RESET) &&
+               !(val & IDE_CTRL_RESET)) {
         /* high to low */
         for(i = 0;i < 2; i++) {
             s = &bus->ifs[i];
