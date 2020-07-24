@@ -587,21 +587,23 @@ int64_t ide_get_sector(IDEState *s)
 {
     int64_t sector_num;
     if (s->select & 0x40) {
-        /* lba */
-        if (!s->lba48) {
-            sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
-                (s->lcyl << 8) | s->sector;
-        } else {
+        if (s->lba48) {
             sector_num = ((int64_t)s->hob_hcyl << 40) |
                 ((int64_t) s->hob_lcyl << 32) |
                 ((int64_t) s->hob_sector << 24) |
                 ((int64_t) s->hcyl << 16) |
                 ((int64_t) s->lcyl << 8) | s->sector;
+        } else {
+            /* LBA28 */
+            sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
+                (s->lcyl << 8) | s->sector;
         }
     } else {
+        /* CHS */
         sector_num = ((s->hcyl << 8) | s->lcyl) * s->heads * s->sectors +
             (s->select & 0x0f) * s->sectors + (s->sector - 1);
     }
+
     return sector_num;
 }
 
@@ -609,20 +611,22 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
 {
     unsigned int cyl, r;
     if (s->select & 0x40) {
-        if (!s->lba48) {
-            s->select = (s->select & 0xf0) | (sector_num >> 24);
-            s->hcyl = (sector_num >> 16);
-            s->lcyl = (sector_num >> 8);
-            s->sector = (sector_num);
-        } else {
+        if (s->lba48) {
             s->sector = sector_num;
             s->lcyl = sector_num >> 8;
             s->hcyl = sector_num >> 16;
             s->hob_sector = sector_num >> 24;
             s->hob_lcyl = sector_num >> 32;
             s->hob_hcyl = sector_num >> 40;
+        } else {
+            /* LBA28 */
+            s->select = (s->select & 0xf0) | (sector_num >> 24);
+            s->hcyl = (sector_num >> 16);
+            s->lcyl = (sector_num >> 8);
+            s->sector = (sector_num);
         }
     } else {
+        /* CHS */
         cyl = sector_num / (s->heads * s->sectors);
         r = sector_num % (s->heads * s->sectors);
         s->hcyl = cyl >> 8;
