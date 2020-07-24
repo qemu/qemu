@@ -2241,6 +2241,37 @@ uint32_t ide_status_read(void *opaque, uint32_t addr)
     return ret;
 }
 
+static void ide_perform_srst(IDEState *s)
+{
+    s->status |= BUSY_STAT;
+
+    /* Halt PIO (Via register state); PIO BH remains scheduled. */
+    ide_transfer_halt(s);
+
+    /* Cancel DMA -- may drain block device and invoke callbacks */
+    ide_cancel_dma_sync(s);
+
+    /* Cancel PIO callback, reset registers/signature, etc */
+    ide_reset(s);
+
+    if (s->drive_kind == IDE_CD) {
+        /* ATAPI drives do not set READY or SEEK */
+        s->status = 0x00;
+    }
+}
+
+static void ide_bus_perform_srst(void *opaque)
+{
+    IDEBus *bus = opaque;
+    IDEState *s;
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        s = &bus->ifs[i];
+        ide_perform_srst(s);
+    }
+}
+
 void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
@@ -2249,26 +2280,17 @@ void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 
     trace_ide_ctrl_write(addr, val, bus);
 
-    /* common for both drives */
-    if (!(bus->cmd & IDE_CTRL_RESET) &&
-        (val & IDE_CTRL_RESET)) {
-        /* reset low to high */
-        for(i = 0;i < 2; i++) {
+    /* Device0 and Device1 each have their own control register,
+     * but QEMU models it as just one register in the controller. */
+    if ((bus->cmd & IDE_CTRL_RESET) &&
+        !(val & IDE_CTRL_RESET)) {
+        /* SRST triggers on falling edge */
+        for (i = 0; i < 2; i++) {
             s = &bus->ifs[i];
-            s->status = BUSY_STAT | SEEK_STAT;
-            s->error = 0x01;
+            s->status |= BUSY_STAT;
         }
-    } else if ((bus->cmd & IDE_CTRL_RESET) &&
-               !(val & IDE_CTRL_RESET)) {
-        /* high to low */
-        for(i = 0;i < 2; i++) {
-            s = &bus->ifs[i];
-            if (s->drive_kind == IDE_CD)
-                s->status = 0x00; /* NOTE: READY is _not_ set */
-            else
-                s->status = READY_STAT | SEEK_STAT;
-            ide_set_signature(s);
-        }
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                ide_bus_perform_srst, bus);
     }
 
     bus->cmd = val;
