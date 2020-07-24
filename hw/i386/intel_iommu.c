@@ -2356,7 +2356,7 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     if ((inv_desc->lo & VTD_INV_DESC_IOTLB_RSVD_LO) ||
         (inv_desc->hi & VTD_INV_DESC_IOTLB_RSVD_HI)) {
         error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
-                          ", lo=0x%"PRIx64" (reserved bits unzero)\n",
+                          ", lo=0x%"PRIx64" (reserved bits unzero)",
                           __func__, inv_desc->hi, inv_desc->lo);
         return false;
     }
@@ -2377,7 +2377,7 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         am = VTD_INV_DESC_IOTLB_AM(inv_desc->hi);
         if (am > VTD_MAMV) {
             error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
-                              ", lo=0x%"PRIx64" (am=%u > VTD_MAMV=%u)\n",
+                              ", lo=0x%"PRIx64" (am=%u > VTD_MAMV=%u)",
                               __func__, inv_desc->hi, inv_desc->lo,
                               am, (unsigned)VTD_MAMV);
             return false;
@@ -2387,7 +2387,7 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 
     default:
         error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
-                          ", lo=0x%"PRIx64" (type mismatch: 0x%llx)\n",
+                          ", lo=0x%"PRIx64" (type mismatch: 0x%llx)",
                           __func__, inv_desc->hi, inv_desc->lo,
                           inv_desc->lo & VTD_INV_DESC_IOTLB_G);
         return false;
