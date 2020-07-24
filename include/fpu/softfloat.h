@@ -822,6 +822,7 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
 }
 
 #define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
+#define floatx80_zero_init make_floatx80_init(0x0000, 0x0000000000000000LL)
 #define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
 #define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
 #define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
