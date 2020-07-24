@@ -1312,6 +1312,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     default:
     case ATA_IOPORT_WR_COMMAND:
         ide_clear_hob(bus);
+        qemu_irq_lower(bus->irq);
         ide_exec_cmd(bus, val);
         break;
     }
