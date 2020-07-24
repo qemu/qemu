@@ -18,7 +18,7 @@ freebsd_12_task:
 
 macos_task:
   osx_instance:
-    image: mojave-base
+    image: catalina-base
   install_script:
     - brew install pkg-config python gnu-sed glib pixman make sdl2 bash
   script:
@@ -33,7 +33,7 @@ macos_task:
 macos_xcode_task:
   osx_instance:
     # this is an alias for the latest Xcode
-    image: mojave-xcode
+    image: catalina-xcode
   install_script:
     - brew install pkg-config gnu-sed glib pixman make sdl2 bash
   script:
