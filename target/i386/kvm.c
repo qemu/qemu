@@ -3877,7 +3877,9 @@ static int kvm_put_nested_state(X86CPU *cpu)
     } else {
         env->nested_state->flags &= ~KVM_STATE_NESTED_GUEST_MODE;
     }
-    if (env->hflags2 & HF2_GIF_MASK) {
+
+    /* Don't set KVM_STATE_NESTED_GIF_SET on VMX as it is illegal */
+    if (cpu_has_svm(env) && (env->hflags2 & HF2_GIF_MASK)) {
         env->nested_state->flags |= KVM_STATE_NESTED_GIF_SET;
     } else {
         env->nested_state->flags &= ~KVM_STATE_NESTED_GIF_SET;
@@ -3919,10 +3921,14 @@ static int kvm_get_nested_state(X86CPU *cpu)
     } else {
         env->hflags &= ~HF_GUEST_MASK;
     }
-    if (env->nested_state->flags & KVM_STATE_NESTED_GIF_SET) {
-        env->hflags2 |= HF2_GIF_MASK;
-    } else {
-        env->hflags2 &= ~HF2_GIF_MASK;
+
+    /* Keep HF2_GIF_MASK set on !SVM as x86_cpu_pending_interrupt() needs it */
+    if (cpu_has_svm(env)) {
+        if (env->nested_state->flags & KVM_STATE_NESTED_GIF_SET) {
+            env->hflags2 |= HF2_GIF_MASK;
+        } else {
+            env->hflags2 &= ~HF2_GIF_MASK;
+        }
     }
 
     return ret;
