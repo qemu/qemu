@@ -121,6 +121,9 @@ static uint64_t ibex_plic_read(void *opaque, hwaddr addr,
         s->pending[pending_num] &= ~(1 << (s->claim % 32));
 
         ret = s->claim;
+
+        /* Update the interrupt status after the claim */
+        ibex_plic_update(s);
     }
 
     return ret;
@@ -140,6 +143,7 @@ static void ibex_plic_write(void *opaque, hwaddr addr,
     } else if (addr_between(addr, s->priority_base, s->priority_num)) {
         uint32_t irq = ((addr - s->priority_base) >> 2) + 1;
         s->priority[irq] = value & 7;
+        ibex_plic_update(s);
     } else if (addr_between(addr, s->enable_base, s->enable_num)) {
         uint32_t enable_reg = (addr - s->enable_base) / 4;
 
