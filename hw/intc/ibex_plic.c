@@ -57,6 +57,8 @@ static void ibex_plic_irqs_set_pending(IbexPlicState *s, int irq, bool level)
 static bool ibex_plic_irqs_pending(IbexPlicState *s, uint32_t context)
 {
     int i;
+    uint32_t max_irq = 0;
+    uint32_t max_prio = s->threshold;
 
     for (i = 0; i < s->pending_num; i++) {
         uint32_t irq_num = ctz64(s->pending[i]) + (i * 32);
@@ -66,12 +68,15 @@ static bool ibex_plic_irqs_pending(IbexPlicState *s, uint32_t context)
             continue;
         }
 
-        if (s->priority[irq_num] > s->threshold) {
-            if (!s->claim) {
-                s->claim = irq_num;
-            }
-            return true;
+        if (s->priority[irq_num] > max_prio) {
+            max_irq = irq_num;
+            max_prio = s->priority[irq_num];
         }
+    }
+
+    if (max_irq) {
+        s->claim = max_irq;
+        return true;
     }
 
     return false;
