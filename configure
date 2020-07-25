@@ -4065,7 +4065,7 @@ fi
 ##########################################
 # pixman support probe
 
-if test "$want_tools" = "no" && test "$softmmu" = "no"; then
+if test "$softmmu" = "no"; then
   pixman_cflags=
   pixman_libs=
 elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
