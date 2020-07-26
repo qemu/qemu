@@ -2,9 +2,10 @@
 #define WHP_DISPATCH_H
 
 #include <windows.h>
-
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
+
+#define WHV_E_UNKNOWN_CAPABILITY 0x80370300L
 
 #define LIST_WINHVPLATFORM_FUNCTIONS(X) \
   X(HRESULT, WHvGetCapability, (WHV_CAPABILITY_CODE CapabilityCode, VOID* CapabilityBuffer, UINT32 CapabilityBufferSizeInBytes, UINT32* WrittenSizeInBytes)) \
