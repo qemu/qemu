@@ -2532,7 +2532,7 @@ if test "$xen" != "disabled" ; then
     xen_ctrl_version="$(printf '%d%02d%02d' \
       $($pkg_config --modversion xencontrol | sed 's/\./ /g') )"
     xen=enabled
-    xen_pc="xencontrol xenstore xenguest xenforeignmemory xengnttab"
+    xen_pc="xencontrol xenstore xenforeignmemory xengnttab"
     xen_pc="$xen_pc xenevtchn xendevicemodel"
     if $pkg_config --exists xentoolcore; then
       xen_pc="$xen_pc xentoolcore"
@@ -2541,7 +2541,7 @@ if test "$xen" != "disabled" ; then
     xen_libs="$($pkg_config --libs $xen_pc)"
   else
 
-    xen_libs="-lxenstore -lxenctrl -lxenguest"
+    xen_libs="-lxenstore -lxenctrl"
     xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
 
     # First we test whether Xen headers and libraries are available.
