@@ -3309,6 +3309,11 @@ hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.desc;
 }
 
+bool virtio_queue_enabled_legacy(VirtIODevice *vdev, int n)
+{
+    return virtio_queue_get_desc_addr(vdev, n) != 0;
+}
+
 bool virtio_queue_enabled(VirtIODevice *vdev, int n)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -3317,7 +3322,7 @@ bool virtio_queue_enabled(VirtIODevice *vdev, int n)
     if (k->queue_enabled) {
         return k->queue_enabled(qbus->parent, n);
     }
-    return virtio_queue_get_desc_addr(vdev, n) != 0;
+    return virtio_queue_enabled_legacy(vdev, n);
 }
 
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n)

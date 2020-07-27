@@ -1116,7 +1116,7 @@ static bool virtio_pci_queue_enabled(DeviceState *d, int n)
         return proxy->vqs[vdev->queue_sel].enabled;
     }
 
-    return virtio_queue_enabled(vdev, n);
+    return virtio_queue_enabled_legacy(vdev, n);
 }
 
 static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
