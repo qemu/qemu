@@ -949,6 +949,22 @@ int virtio_session_mount(struct fuse_session *se)
 {
     int ret;
 
+    /*
+     * Test that unshare(CLONE_FS) works. fv_queue_worker() will need it. It's
+     * an unprivileged system call but some Docker/Moby versions are known to
+     * reject it via seccomp when CAP_SYS_ADMIN is not given.
+     *
+     * Note that the program is single-threaded here so this syscall has no
+     * visible effect and is safe to make.
+     */
+    ret = unshare(CLONE_FS);
+    if (ret == -1 && errno == EPERM) {
+        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_FS) failed with EPERM. If "
+                "running in a container please check that the container "
+                "runtime seccomp policy allows unshare.\n");
+        return -1;
+    }
+
     ret = fv_create_listen_socket(se);
     if (ret < 0) {
         return ret;
