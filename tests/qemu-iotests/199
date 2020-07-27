@@ -217,6 +217,30 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
             sha = self.discards1_sha256 if i % 2 else self.all_discards_sha256
             self.assert_qmp(result, 'return/sha256', sha)
 
+    def test_early_shutdown_destination(self):
+        self.start_postcopy()
+
+        self.vm_b_events += self.vm_b.get_qmp_events()
+        self.vm_b.shutdown()
+        # recreate vm_b, so there is no incoming option, which prevents
+        # loading bitmaps from disk
+        self.vm_b = iotests.VM(path_suffix='b').add_drive(disk_b)
+        self.vm_b.launch()
+        check_bitmaps(self.vm_b, 0)
+
+        # Bitmaps will be lost if we just shutdown the vm, as they are marked
+        # to skip storing to disk when prepared for migration. And that's
+        # correct, as actual data may be modified in target vm, so we play
+        # safe.
+        # Still, this mark would be taken away if we do 'cont', and bitmaps
+        # become persistent again. (see iotest 169 for such behavior case)
+        result = self.vm_a.qmp('query-status')
+        assert not result['return']['running']
+        self.vm_a_events += self.vm_a.get_qmp_events()
+        self.vm_a.shutdown()
+        self.vm_a.launch()
+        check_bitmaps(self.vm_a, 0)
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'])
