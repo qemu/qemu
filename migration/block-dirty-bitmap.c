@@ -97,7 +97,7 @@
 
 #define DIRTY_BITMAP_MIG_START_FLAG_ENABLED          0x01
 #define DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT       0x02
-/* 0x04 was "AUTOLOAD" flags on elder versions, no it is ignored */
+/* 0x04 was "AUTOLOAD" flags on older versions, now it is ignored */
 #define DIRTY_BITMAP_MIG_START_FLAG_RESERVED_MASK    0xf8
 
 /* State of one bitmap during save process */
@@ -180,7 +180,7 @@ static uint32_t qemu_get_bitmap_flags(QEMUFile *f)
 
 static void qemu_put_bitmap_flags(QEMUFile *f, uint32_t flags)
 {
-    /* The code currently do not send flags more than one byte */
+    /* The code currently does not send flags as more than one byte */
     assert(!(flags & (0xffffff00 | DIRTY_BITMAP_MIG_EXTRA_FLAGS)));
 
     qemu_put_byte(f, flags);
