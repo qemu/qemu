@@ -141,6 +141,12 @@ def qemu_img_create(*args):
 
     return qemu_img(*args)
 
+def qemu_img_measure(*args):
+    return json.loads(qemu_img_pipe("measure", "--output", "json", *args))
+
+def qemu_img_check(*args):
+    return json.loads(qemu_img_pipe("check", "--output", "json", *args))
+
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
     exitcode = subprocess.call(qemu_img_args + list(args))
