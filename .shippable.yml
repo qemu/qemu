@@ -27,7 +27,7 @@ env:
       TARGET_LIST=ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
 build:
   pre_ci_boot:
-    image_name: registry.gitlab.com/qemu-project/qemu/${IMAGE}
+    image_name: registry.gitlab.com/qemu-project/qemu/qemu/${IMAGE}
     image_tag: latest
     pull: true
     options: "-e HOME=/root"

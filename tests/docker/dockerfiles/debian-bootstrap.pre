@@ -80,6 +80,13 @@ else
 fi
 
 #
+# Add optional args
+#
+if [ -n "${DEB_KEYRING}" ]; then
+    DEBOOTSTRAP="${DEBOOTSTRAP} --keyring=${DEB_KEYRING}"
+fi
+
+#
 # Finally check to see if any qemu's are installed
 #
 BINFMT_DIR=/proc/sys/fs/binfmt_misc

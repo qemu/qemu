@@ -828,3 +828,14 @@ char *qemu_get_host_name(Error **errp)
 
     return g_utf16_to_utf8(tmp, size, NULL, NULL, NULL);
 }
+
+size_t qemu_get_host_physmem(void)
+{
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+
+    if (GlobalMemoryStatusEx(&statex)) {
+        return statex.ullTotalPhys;
+    }
+    return 0;
+}

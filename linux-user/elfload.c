@@ -2134,12 +2134,15 @@ static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
             /* we have run out of space */
             return -1;
         } else {
-            int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE | MAP_FIXED;
+            int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE |
+                MAP_FIXED_NOREPLACE;
             void * mmap_start = mmap((void *) align_start, guest_size,
                                      PROT_NONE, flags, -1, 0);
             if (mmap_start != MAP_FAILED) {
                 munmap((void *) align_start, guest_size);
-                return (uintptr_t) mmap_start + offset;
+                if (MAP_FIXED_NOREPLACE || mmap_start == (void *) align_start) {
+                    return (uintptr_t) mmap_start + offset;
+                }
             }
             base += qemu_host_page_size;
         }
@@ -2307,9 +2310,8 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     /* Widen the "image" to the entire reserved address space. */
     pgb_static(image_name, 0, reserved_va, align);
 
-#ifdef MAP_FIXED_NOREPLACE
+    /* osdep.h defines this as 0 if it's missing */
     flags |= MAP_FIXED_NOREPLACE;
-#endif
 
     /* Reserve the memory on the host. */
     assert(guest_base != 0);
