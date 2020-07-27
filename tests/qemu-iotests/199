@@ -29,6 +29,8 @@ disk_b = os.path.join(iotests.test_dir, 'disk_b')
 size = '256G'
 fifo = os.path.join(iotests.test_dir, 'mig_fifo')
 
+granularity = 512
+nb_bitmaps = 15
 
 GiB = 1024 * 1024 * 1024
 
@@ -59,6 +61,15 @@ def event_seconds(event):
 
 def event_dist(e1, e2):
     return event_seconds(e2) - event_seconds(e1)
+
+
+def check_bitmaps(vm, count):
+    result = vm.qmp('query-block')
+
+    if count == 0:
+        assert 'dirty-bitmaps' not in result['return'][0]
+    else:
+        assert len(result['return'][0]['dirty-bitmaps']) == count
 
 
 class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
@@ -101,10 +112,8 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.vm_a_events = []
         self.vm_b_events = []
 
-    def test_postcopy(self):
-        granularity = 512
-        nb_bitmaps = 15
-
+    def start_postcopy(self):
+        """ Run migration until RESUME event on target. Return this event. """
         for i in range(nb_bitmaps):
             result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
                                    name='bitmap{}'.format(i),
@@ -119,10 +128,10 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
                                node='drive0', name='bitmap0')
-        discards1_sha256 = result['return']['sha256']
+        self.discards1_sha256 = result['return']['sha256']
 
         # Check, that updating the bitmap by discards works
-        assert discards1_sha256 != empty_sha256
+        assert self.discards1_sha256 != empty_sha256
 
         # We want to calculate resulting sha256. Do it in bitmap0, so, disable
         # other bitmaps
@@ -135,7 +144,7 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
                                node='drive0', name='bitmap0')
-        all_discards_sha256 = result['return']['sha256']
+        self.all_discards_sha256 = result['return']['sha256']
 
         # Now, enable some bitmaps, to be updated during migration
         for i in range(2, nb_bitmaps, 2):
@@ -160,6 +169,10 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         event_resume = self.vm_b.event_wait('RESUME')
         self.vm_b_events.append(event_resume)
+        return event_resume
+
+    def test_postcopy_success(self):
+        event_resume = self.start_postcopy()
 
         # enabled bitmaps should be updated
         apply_discards(self.vm_b, discards2)
@@ -180,18 +193,15 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
             print('downtime:', downtime)
             print('postcopy_time:', postcopy_time)
 
-        # Assert that bitmap migration is finished (check that successor bitmap
-        # is removed)
-        result = self.vm_b.qmp('query-block')
-        assert len(result['return'][0]['dirty-bitmaps']) == nb_bitmaps
+        check_bitmaps(self.vm_b, nb_bitmaps)
 
         # Check content of migrated bitmaps. Still, don't waste time checking
         # every bitmap
         for i in range(0, nb_bitmaps, 5):
             result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
                                    node='drive0', name='bitmap{}'.format(i))
-            sha256 = discards1_sha256 if i % 2 else all_discards_sha256
-            self.assert_qmp(result, 'return/sha256', sha256)
+            sha = self.discards1_sha256 if i % 2 else self.all_discards_sha256
+            self.assert_qmp(result, 'return/sha256', sha)
 
 
 if __name__ == '__main__':
