@@ -259,7 +259,7 @@ static void send_bitmap_bits(QEMUFile *f, SaveBitmapState *dbms,
 }
 
 /* Called with iothread lock taken.  */
-static void dirty_bitmap_mig_cleanup(void)
+static void dirty_bitmap_do_save_cleanup(void)
 {
     SaveBitmapState *dbms;
 
@@ -406,7 +406,7 @@ static int init_dirty_bitmap_migration(void)
 
 fail:
     g_hash_table_destroy(handled_by_blk);
-    dirty_bitmap_mig_cleanup();
+    dirty_bitmap_do_save_cleanup();
 
     return -1;
 }
@@ -445,7 +445,7 @@ static void bulk_phase(QEMUFile *f, bool limit)
 /* for SaveVMHandlers */
 static void dirty_bitmap_save_cleanup(void *opaque)
 {
-    dirty_bitmap_mig_cleanup();
+    dirty_bitmap_do_save_cleanup();
 }
 
 static int dirty_bitmap_save_iterate(QEMUFile *f, void *opaque)
@@ -480,7 +480,7 @@ static int dirty_bitmap_save_complete(QEMUFile *f, void *opaque)
 
     trace_dirty_bitmap_save_complete_finish();
 
-    dirty_bitmap_mig_cleanup();
+    dirty_bitmap_do_save_cleanup();
     return 0;
 }
 
