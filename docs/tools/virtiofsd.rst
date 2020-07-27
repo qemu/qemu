@@ -67,7 +67,7 @@ Options
     Disable racy fallback.  The default is false.
 
   * posix_lock|no_posix_lock -
-    Enable/disable remote POSIX locks.  The default is ``posix_lock``.
+    Enable/disable remote POSIX locks.  The default is ``no_posix_lock``.
 
   * readdirplus|no_readdirplus -
     Enable/disable readdirplus.  The default is ``readdirplus``.

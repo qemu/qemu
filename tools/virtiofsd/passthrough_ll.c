@@ -2823,7 +2823,7 @@ int main(int argc, char *argv[])
     struct lo_data lo = {
         .debug = 0,
         .writeback = 0,
-        .posix_lock = 1,
+        .posix_lock = 0,
         .proc_self_fd = -1,
     };
     struct lo_map_elem *root_elem;
