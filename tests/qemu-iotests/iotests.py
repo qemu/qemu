@@ -28,9 +28,12 @@ import signal
 import struct
 import subprocess
 import sys
+import time
 from typing import (Any, Callable, Dict, Iterable,
                     List, Optional, Sequence, Tuple, TypeVar)
 import unittest
+
+from contextlib import contextmanager
 
 # pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
@@ -270,9 +273,30 @@ def qemu_nbd_early_pipe(*args):
 
     return subp.returncode, output if subp.returncode else ''
 
+@contextmanager
 def qemu_nbd_popen(*args):
-    '''Run qemu-nbd in daemon mode and return the parent's exit code'''
-    return subprocess.Popen(qemu_nbd_args + ['--persistent'] + list(args))
+    '''Context manager running qemu-nbd within the context'''
+    pid_file = file_path("pid")
+
+    cmd = list(qemu_nbd_args)
+    cmd.extend(('--persistent', '--pid-file', pid_file))
+    cmd.extend(args)
+
+    log('Start NBD server')
+    p = subprocess.Popen(cmd)
+    try:
+        while not os.path.exists(pid_file):
+            if p.poll() is not None:
+                raise RuntimeError(
+                    "qemu-nbd terminated with exit code {}: {}"
+                    .format(p.returncode, ' '.join(cmd)))
+
+            time.sleep(0.01)
+        yield
+    finally:
+        log('Kill NBD server')
+        p.kill()
+        p.wait()
 
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
