@@ -10204,21 +10204,11 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
         int s2prot;
         int ret;
         ARMCacheAttrs cacheattrs = {};
-        ARMCacheAttrs *pcacheattrs = NULL;
-
-        if (env->cp15.hcr_el2 & HCR_PTW) {
-            /*
-             * PTW means we must fault if this S1 walk touches S2 Device
-             * memory; otherwise we don't care about the attributes and can
-             * save the S2 translation the effort of computing them.
-             */
-            pcacheattrs = &cacheattrs;
-        }
 
         ret = get_phys_addr_lpae(env, addr, MMU_DATA_LOAD, ARMMMUIdx_Stage2,
                                  false,
                                  &s2pa, &txattrs, &s2prot, &s2size, fi,
-                                 pcacheattrs);
+                                 &cacheattrs);
         if (ret) {
             assert(fi->type != ARMFault_None);
             fi->s2addr = addr;
@@ -10226,8 +10216,11 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
             fi->s1ptw = true;
             return ~0;
         }
-        if (pcacheattrs && (pcacheattrs->attrs & 0xf0) == 0) {
-            /* Access was to Device memory: generate Permission fault */
+        if ((env->cp15.hcr_el2 & HCR_PTW) && (cacheattrs.attrs & 0xf0) == 0) {
+            /*
+             * PTW set and S1 walk touched S2 Device memory:
+             * generate Permission fault.
+             */
             fi->type = ARMFault_Permission;
             fi->s2addr = addr;
             fi->stage2 = true;
