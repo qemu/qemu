@@ -531,8 +531,8 @@ static inline void gen_evmwsmia(DisasContext *ctx)
 
 static inline void gen_evmwsmiaa(DisasContext *ctx)
 {
-    TCGv_i64 acc = tcg_temp_new_i64();
-    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 acc;
+    TCGv_i64 tmp;
 
     gen_evmwsmi(ctx);           /* rD := rA * rB */
 
