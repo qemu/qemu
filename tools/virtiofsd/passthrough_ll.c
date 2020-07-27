@@ -2596,7 +2596,6 @@ static void setup_capabilities(char *modcaps_in)
     if (capng_updatev(CAPNG_ADD, CAPNG_PERMITTED | CAPNG_EFFECTIVE,
             CAP_CHOWN,
             CAP_DAC_OVERRIDE,
-            CAP_DAC_READ_SEARCH,
             CAP_FOWNER,
             CAP_FSETID,
             CAP_SETGID,
