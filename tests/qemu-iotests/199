@@ -241,6 +241,21 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.vm_a.launch()
         check_bitmaps(self.vm_a, 0)
 
+    def test_early_kill_source(self):
+        self.start_postcopy()
+
+        self.vm_a_events = self.vm_a.get_qmp_events()
+        self.vm_a.kill()
+
+        self.vm_a.launch()
+
+        match = {'data': {'status': 'completed'}}
+        e_complete = self.vm_b.event_wait('MIGRATION', match=match)
+        self.vm_b_events.append(e_complete)
+
+        check_bitmaps(self.vm_a, 0)
+        check_bitmaps(self.vm_b, 0)
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'])
