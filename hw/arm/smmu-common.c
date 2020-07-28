@@ -316,7 +316,7 @@ static int smmu_ptw_64(SMMUTransCfg *cfg,
         if (is_table_pte(pte, level)) {
             ap = PTE_APTABLE(pte);
 
-            if (is_permission_fault(ap, perm)) {
+            if (is_permission_fault(ap, perm) && !tt->had) {
                 info->type = SMMU_PTW_ERR_PERMISSION;
                 goto error;
             }
