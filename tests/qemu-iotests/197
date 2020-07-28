@@ -112,7 +112,9 @@ echo
 echo '=== Partial final cluster ==='
 echo
 
-_make_test_img 1024
+# Force compat=1.1, because writing zeroes on a v2 image without a
+# backing file would just result in an unallocated cluster
+_make_test_img -o compat=1.1 1024
 $QEMU_IO -f $IMGFMT -C -c 'read 0 1024' "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -f $IMGFMT -c map "$TEST_IMG"
 _check_test_img

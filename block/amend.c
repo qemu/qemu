@@ -69,8 +69,12 @@ void qmp_x_blockdev_amend(const char *job_id,
     BlockdevAmendJob *s;
     const char *fmt = BlockdevDriver_str(options->driver);
     BlockDriver *drv = bdrv_find_format(fmt);
-    BlockDriverState *bs = bdrv_find_node(node_name);
+    BlockDriverState *bs;
 
+    bs = bdrv_lookup_bs(NULL, node_name, errp);
+    if (!bs) {
+        return;
+    }
 
     if (!drv) {
         error_setg(errp, "Block driver '%s' not found or not supported", fmt);
