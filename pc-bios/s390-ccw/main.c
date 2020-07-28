@@ -182,19 +182,7 @@ static void boot_setup(void)
 static void find_boot_device(void)
 {
     VDev *vdev = virtio_get_device();
-    int ssid;
     bool found;
-
-    if (!have_iplb) {
-        for (ssid = 0; ssid < 0x3; ssid++) {
-            blk_schid.ssid = ssid;
-            found = find_subch(-1);
-            if (found) {
-                return;
-            }
-        }
-        panic("Could not find a suitable boot device (none specified)\n");
-    }
 
     switch (iplb.pbt) {
     case S390_IPL_TYPE_CCW:
@@ -261,14 +249,42 @@ static void ipl_boot_device(void)
     }
 }
 
+/*
+ * No boot device has been specified, so we have to scan through the
+ * channels to find one.
+ */
+static void probe_boot_device(void)
+{
+    int ssid, sch_no, ret;
+
+    for (ssid = 0; ssid < 0x3; ssid++) {
+        blk_schid.ssid = ssid;
+        for (sch_no = 0; sch_no < 0x10000; sch_no++) {
+            ret = is_dev_possibly_bootable(-1, sch_no);
+            if (ret < 0) {
+                break;
+            }
+            if (ret == true) {
+                ipl_boot_device();      /* Only returns if unsuccessful */
+            }
+        }
+    }
+
+    sclp_print("Could not find a suitable boot device (none specified)\n");
+}
+
 int main(void)
 {
     sclp_setup();
     css_setup();
     boot_setup();
-    find_boot_device();
-    enable_subchannel(blk_schid);
-    ipl_boot_device();
+    if (have_iplb) {
+        find_boot_device();
+        enable_subchannel(blk_schid);
+        ipl_boot_device();
+    } else {
+        probe_boot_device();
+    }
 
     panic("Failed to load OS from hard disk\n");
     return 0; /* make compiler happy */
