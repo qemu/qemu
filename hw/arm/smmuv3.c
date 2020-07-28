@@ -636,7 +636,6 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         .addr_mask = ~(hwaddr)0,
         .perm = IOMMU_NONE,
     };
-    SMMUIOTLBKey key, *new_key;
 
     qemu_mutex_lock(&s->mutex);
 
@@ -675,16 +674,8 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     page_mask = (1ULL << (tt->granule_sz)) - 1;
     aligned_addr = addr & ~page_mask;
 
-    key.asid = cfg->asid;
-    key.iova = aligned_addr;
-
-    cached_entry = g_hash_table_lookup(bs->iotlb, &key);
+    cached_entry = smmu_iotlb_lookup(bs, cfg, aligned_addr);
     if (cached_entry) {
-        cfg->iotlb_hits++;
-        trace_smmu_iotlb_cache_hit(cfg->asid, aligned_addr,
-                                   cfg->iotlb_hits, cfg->iotlb_misses,
-                                   100 * cfg->iotlb_hits /
-                                   (cfg->iotlb_hits + cfg->iotlb_misses));
         if ((flag & IOMMU_WO) && !(cached_entry->perm & IOMMU_WO)) {
             status = SMMU_TRANS_ERROR;
             if (event.record_trans_faults) {
@@ -696,16 +687,6 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             status = SMMU_TRANS_SUCCESS;
         }
         goto epilogue;
-    }
-
-    cfg->iotlb_misses++;
-    trace_smmu_iotlb_cache_miss(cfg->asid, addr & ~page_mask,
-                                cfg->iotlb_hits, cfg->iotlb_misses,
-                                100 * cfg->iotlb_hits /
-                                (cfg->iotlb_hits + cfg->iotlb_misses));
-
-    if (g_hash_table_size(bs->iotlb) >= SMMU_IOTLB_MAX_SIZE) {
-        smmu_iotlb_inv_all(bs);
     }
 
     cached_entry = g_new0(IOMMUTLBEntry, 1);
@@ -753,10 +734,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         }
         status = SMMU_TRANS_ERROR;
     } else {
-        new_key = g_new0(SMMUIOTLBKey, 1);
-        new_key->asid = cfg->asid;
-        new_key->iova = aligned_addr;
-        g_hash_table_insert(bs->iotlb, new_key, cached_entry);
+        smmu_iotlb_insert(bs, cfg, cached_entry);
         status = SMMU_TRANS_SUCCESS;
     }
 

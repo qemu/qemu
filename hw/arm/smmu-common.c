@@ -32,6 +32,42 @@
 
 /* IOTLB Management */
 
+IOMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
+                                 hwaddr iova)
+{
+    SMMUIOTLBKey key = {.asid = cfg->asid, .iova = iova};
+    IOMMUTLBEntry *entry = g_hash_table_lookup(bs->iotlb, &key);
+
+    if (entry) {
+        cfg->iotlb_hits++;
+        trace_smmu_iotlb_lookup_hit(cfg->asid, iova,
+                                    cfg->iotlb_hits, cfg->iotlb_misses,
+                                    100 * cfg->iotlb_hits /
+                                    (cfg->iotlb_hits + cfg->iotlb_misses));
+    } else {
+        cfg->iotlb_misses++;
+        trace_smmu_iotlb_lookup_miss(cfg->asid, iova,
+                                     cfg->iotlb_hits, cfg->iotlb_misses,
+                                     100 * cfg->iotlb_hits /
+                                     (cfg->iotlb_hits + cfg->iotlb_misses));
+    }
+    return entry;
+}
+
+void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, IOMMUTLBEntry *entry)
+{
+    SMMUIOTLBKey *key = g_new0(SMMUIOTLBKey, 1);
+
+    if (g_hash_table_size(bs->iotlb) >= SMMU_IOTLB_MAX_SIZE) {
+        smmu_iotlb_inv_all(bs);
+    }
+
+    key->asid = cfg->asid;
+    key->iova = entry->iova;
+    trace_smmu_iotlb_insert(cfg->asid, entry->iova);
+    g_hash_table_insert(bs->iotlb, key, entry);
+}
+
 inline void smmu_iotlb_inv_all(SMMUState *s)
 {
     trace_smmu_iotlb_inv_all();
