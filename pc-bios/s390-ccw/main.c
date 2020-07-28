@@ -223,14 +223,8 @@ static void virtio_setup(void)
     }
 }
 
-int main(void)
+static void ipl_boot_device(void)
 {
-    sclp_setup();
-    css_setup();
-    boot_setup();
-    find_boot_device();
-    enable_subchannel(blk_schid);
-
     switch (cutype) {
     case CU_TYPE_DASD_3990:
     case CU_TYPE_DASD_2107:
@@ -242,8 +236,18 @@ int main(void)
         break;
     default:
         print_int("Attempting to boot from unexpected device type", cutype);
-        panic("");
+        panic("\nBoot failed.\n");
     }
+}
+
+int main(void)
+{
+    sclp_setup();
+    css_setup();
+    boot_setup();
+    find_boot_device();
+    enable_subchannel(blk_schid);
+    ipl_boot_device();
 
     panic("Failed to load OS from hard disk\n");
     return 0; /* make compiler happy */
