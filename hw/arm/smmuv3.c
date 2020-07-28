@@ -1251,6 +1251,9 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
     case A_IIDR:
         *data = s->iidr;
         return MEMTX_OK;
+    case A_AIDR:
+        *data = s->aidr;
+        return MEMTX_OK;
     case A_CR0:
         *data = s->cr[0];
         return MEMTX_OK;
