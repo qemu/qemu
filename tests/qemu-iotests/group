@@ -112,7 +112,7 @@
 088 rw quick
 089 rw auto quick
 090 rw auto quick
-091 rw migration
+091 rw migration quick
 092 rw quick
 093 throttle
 094 rw quick
@@ -186,7 +186,7 @@
 162 quick
 163 rw
 165 rw quick
-169 rw quick migration
+169 rw migration
 170 rw auto quick
 171 rw quick
 172 auto
@@ -197,9 +197,9 @@
 177 rw auto quick
 178 img
 179 rw auto quick
-181 rw auto migration
+181 rw auto migration quick
 182 rw quick
-183 rw migration
+183 rw migration quick
 184 rw auto quick
 185 rw
 186 rw auto
@@ -216,9 +216,9 @@
 198 rw
 199 rw migration
 200 rw
-201 rw migration
+201 rw migration quick
 202 rw quick
-203 rw auto migration
+203 rw auto migration quick
 204 rw quick
 205 rw quick
 206 rw
