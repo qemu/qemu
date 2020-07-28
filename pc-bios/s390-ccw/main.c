@@ -51,6 +51,60 @@ unsigned int get_loadparm_index(void)
     return atoui(loadparm_str);
 }
 
+static int is_dev_possibly_bootable(int dev_no, int sch_no)
+{
+    bool is_virtio;
+    Schib schib;
+    int r;
+
+    blk_schid.sch_no = sch_no;
+    r = stsch_err(blk_schid, &schib);
+    if (r == 3 || r == -EIO) {
+        return -ENODEV;
+    }
+    if (!schib.pmcw.dnv) {
+        return false;
+    }
+
+    enable_subchannel(blk_schid);
+    cutype = cu_type(blk_schid);
+
+    /*
+     * Note: we always have to run virtio_is_supported() here to make
+     * sure that the vdev.senseid data gets pre-initialized correctly
+     */
+    is_virtio = virtio_is_supported(blk_schid);
+
+    /* No specific devno given, just return whether the device is possibly bootable */
+    if (dev_no < 0) {
+        switch (cutype) {
+        case CU_TYPE_VIRTIO:
+            if (is_virtio) {
+                /*
+                 * Skip net devices since no IPLB is created and therefore
+                 * no network bootloader has been loaded
+                 */
+                if (virtio_get_device_type() != VIRTIO_ID_NET) {
+                    return true;
+                }
+            }
+            return false;
+        case CU_TYPE_DASD_3990:
+        case CU_TYPE_DASD_2107:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /* Caller asked for a specific devno */
+    if (schib.pmcw.dev == dev_no) {
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Find the subchannel connected to the given device (dev_no) and fill in the
  * subchannel information block (schib) with the connected subchannel's info.
@@ -62,53 +116,14 @@ unsigned int get_loadparm_index(void)
  */
 static bool find_subch(int dev_no)
 {
-    Schib schib;
     int i, r;
-    bool is_virtio;
 
     for (i = 0; i < 0x10000; i++) {
-        blk_schid.sch_no = i;
-        r = stsch_err(blk_schid, &schib);
-        if ((r == 3) || (r == -EIO)) {
+        r = is_dev_possibly_bootable(dev_no, i);
+        if (r < 0) {
             break;
         }
-        if (!schib.pmcw.dnv) {
-            continue;
-        }
-
-        enable_subchannel(blk_schid);
-        cutype = cu_type(blk_schid);
-
-        /*
-         * Note: we always have to run virtio_is_supported() here to make
-         * sure that the vdev.senseid data gets pre-initialized correctly
-         */
-        is_virtio = virtio_is_supported(blk_schid);
-
-        /* No specific devno given, just return 1st possibly bootable device */
-        if (dev_no < 0) {
-            switch (cutype) {
-            case CU_TYPE_VIRTIO:
-                if (is_virtio) {
-                    /*
-                     * Skip net devices since no IPLB is created and therefore
-                     * no network bootloader has been loaded
-                     */
-                    if (virtio_get_device_type() != VIRTIO_ID_NET) {
-                        return true;
-                    }
-                }
-                continue;
-            case CU_TYPE_DASD_3990:
-            case CU_TYPE_DASD_2107:
-                return true;
-            default:
-                continue;
-            }
-        }
-
-        /* Caller asked for a specific devno */
-        if (schib.pmcw.dev == dev_no) {
+        if (r == true) {
             return true;
         }
     }
