@@ -250,6 +250,9 @@ void qemu_net_queue_purge(NetQueue *queue, NetClientState *from)
 
 bool qemu_net_queue_flush(NetQueue *queue)
 {
+    if (queue->delivering)
+        return false;
+
     while (!QTAILQ_EMPTY(&queue->packets)) {
         NetPacket *packet;
         int ret;
