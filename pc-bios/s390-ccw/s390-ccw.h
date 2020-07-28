@@ -69,7 +69,7 @@ int sclp_read(char *str, size_t count);
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
                                  ulong subchan_id, void *load_addr);
 bool virtio_is_supported(SubChannelId schid);
-void virtio_blk_setup_device(SubChannelId schid);
+int virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 
 /* bootmap.c */
