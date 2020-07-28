@@ -24,6 +24,8 @@
 #include "exec/ram_addr.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
+#include "qapi/error.h"
+#include "qemu/guest-random.h"
 
 
 static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
@@ -211,16 +213,37 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
 
 uint64_t HELPER(irg)(CPUARMState *env, uint64_t rn, uint64_t rm)
 {
-    int rtag;
-
-    /*
-     * Our IMPDEF choice for GCR_EL1.RRND==1 is to behave as if
-     * GCR_EL1.RRND==0, always producing deterministic results.
-     */
     uint16_t exclude = extract32(rm | env->cp15.gcr_el1, 0, 16);
+    int rrnd = extract32(env->cp15.gcr_el1, 16, 1);
     int start = extract32(env->cp15.rgsr_el1, 0, 4);
     int seed = extract32(env->cp15.rgsr_el1, 8, 16);
-    int offset, i;
+    int offset, i, rtag;
+
+    /*
+     * Our IMPDEF choice for GCR_EL1.RRND==1 is to continue to use the
+     * deterministic algorithm.  Except that with RRND==1 the kernel is
+     * not required to have set RGSR_EL1.SEED != 0, which is required for
+     * the deterministic algorithm to function.  So we force a non-zero
+     * SEED for that case.
+     */
+    if (unlikely(seed == 0) && rrnd) {
+        do {
+            Error *err = NULL;
+            uint16_t two;
+
+            if (qemu_guest_getrandom(&two, sizeof(two), &err) < 0) {
+                /*
+                 * Failed, for unknown reasons in the crypto subsystem.
+                 * Best we can do is log the reason and use a constant seed.
+                 */
+                qemu_log_mask(LOG_UNIMP, "IRG: Crypto failure: %s\n",
+                              error_get_pretty(err));
+                error_free(err);
+                two = 1;
+            }
+            seed = two;
+        } while (seed == 0);
+    }
 
     /* RandomTag */
     for (i = offset = 0; i < 4; ++i) {
