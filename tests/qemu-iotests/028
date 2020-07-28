@@ -142,6 +142,25 @@ TEST_IMG="${TEST_IMG}.copy" io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
 
 _check_test_img
 
+echo
+echo '=== Reading across backing EOF in one operation ==='
+echo
+
+# Use a cluster boundary as the base end here
+base_size=$((3 * 1024 * 1024 * 1024))
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $base_size
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $image_size
+
+# Write 16 times 42 at the end of the base image
+$QEMU_IO -c "write -P 42 $((base_size - 16)) 16" "$TEST_IMG.base" \
+    | _filter_qemu_io
+
+# Read 32 bytes across the base EOF from the top;
+# should be 16 times 0x2a, then 16 times 0x00
+$QEMU_IO -c "read -v $((base_size - 16)) 32" "$TEST_IMG" \
+    | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

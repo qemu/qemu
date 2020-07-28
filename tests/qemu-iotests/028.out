@@ -730,4 +730,15 @@ read 512/512 bytes at offset 3221257728
 read 512/512 bytes at offset 3221258752
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
+
+=== Reading across backing EOF in one operation ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=3221225472
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294968832 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+wrote 16/16 bytes at offset 3221225456
+16 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+bffffff0:  2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a  ................
+c0000000:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+read 32/32 bytes at offset 3221225456
+32 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
