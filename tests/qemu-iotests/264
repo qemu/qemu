@@ -36,48 +36,32 @@ wait_step = 0.2
 
 qemu_img_create('-f', iotests.imgfmt, disk_a, str(size))
 qemu_img_create('-f', iotests.imgfmt, disk_b, str(size))
-srv = qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b)
 
-# Wait for NBD server availability
-t = 0
-ok = False
-while t < wait_limit:
-    ok = qemu_io_silent_check('-f', 'raw', '-c', 'read 0 512', nbd_uri)
-    if ok:
-        break
-    time.sleep(wait_step)
-    t += wait_step
+with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
+    vm = iotests.VM().add_drive(disk_a)
+    vm.launch()
+    vm.hmp_qemu_io('drive0', 'write 0 {}'.format(size))
 
-assert ok
+    vm.qmp_log('blockdev-add', filters=[iotests.filter_qmp_testfiles],
+               **{'node_name': 'backup0',
+                  'driver': 'raw',
+                  'file': {'driver': 'nbd',
+                           'server': {'type': 'unix', 'path': nbd_sock},
+                           'reconnect-delay': 10}})
+    vm.qmp_log('blockdev-backup', device='drive0', sync='full', target='backup0',
+               speed=(1 * 1024 * 1024))
 
-vm = iotests.VM().add_drive(disk_a)
-vm.launch()
-vm.hmp_qemu_io('drive0', 'write 0 {}'.format(size))
+    # Wait for some progress
+    t = 0
+    while t < wait_limit:
+        jobs = vm.qmp('query-block-jobs')['return']
+        if jobs and jobs[0]['offset'] > 0:
+            break
+        time.sleep(wait_step)
+        t += wait_step
 
-vm.qmp_log('blockdev-add', filters=[iotests.filter_qmp_testfiles],
-           **{'node_name': 'backup0',
-              'driver': 'raw',
-              'file': {'driver': 'nbd',
-                       'server': {'type': 'unix', 'path': nbd_sock},
-                       'reconnect-delay': 10}})
-vm.qmp_log('blockdev-backup', device='drive0', sync='full', target='backup0',
-           speed=(1 * 1024 * 1024))
-
-# Wait for some progress
-t = 0
-while t < wait_limit:
-    jobs = vm.qmp('query-block-jobs')['return']
     if jobs and jobs[0]['offset'] > 0:
-        break
-    time.sleep(wait_step)
-    t += wait_step
-
-if jobs and jobs[0]['offset'] > 0:
-    log('Backup job is started')
-
-log('Kill NBD server')
-srv.kill()
-srv.wait()
+        log('Backup job is started')
 
 jobs = vm.qmp('query-block-jobs')['return']
 if jobs and jobs[0]['offset'] < jobs[0]['len']:
@@ -88,12 +72,8 @@ vm.qmp_log('block-job-set-speed', device='drive0', speed=0)
 # Emulate server down time for 1 second
 time.sleep(1)
 
-log('Start NBD server')
-srv = qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b)
-
-e = vm.event_wait('BLOCK_JOB_COMPLETED')
-log('Backup completed: {}'.format(e['data']['offset']))
-
-vm.qmp_log('blockdev-del', node_name='backup0')
-srv.kill()
-vm.shutdown()
+with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
+    e = vm.event_wait('BLOCK_JOB_COMPLETED')
+    log('Backup completed: {}'.format(e['data']['offset']))
+    vm.qmp_log('blockdev-del', node_name='backup0')
+    vm.shutdown()

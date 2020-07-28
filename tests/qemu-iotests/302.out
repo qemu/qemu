@@ -1,0 +1,31 @@
+Start NBD server
+=== Target image info ===
+image: nbd+unix:///exp?socket=SOCK_DIR/PID-nbd-sock
+file format: raw
+virtual size: 448 KiB (458752 bytes)
+disk size: unavailable
+
+=== Converted image info ===
+image: nbd+unix:///exp?socket=SOCK_DIR/PID-nbd-sock
+file format: qcow2
+virtual size: 1 GiB (1073741824 bytes)
+disk size: unavailable
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    compression type: zlib
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+
+=== Converted image check ===
+No errors were found on the image.
+1/16384 = 0.01% allocated, 100.00% fragmented, 100.00% compressed clusters
+Image end offset: 393216
+
+=== Comparing to source disk ===
+Images are identical.
+
+Kill NBD server
+=== OVA file contents ===
+[{"name": "vm.ovf", "offset": 512, "size": 6}, {"name": "disk", "offset": 1536, "size": 393216}]

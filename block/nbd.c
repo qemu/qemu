@@ -93,7 +93,10 @@ typedef struct BDRVNBDState {
     char *x_dirty_bitmap;
 } BDRVNBDState;
 
-static int nbd_client_connect(BlockDriverState *bs, Error **errp);
+static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
+                                                  Error **errp);
+static int nbd_client_handshake(BlockDriverState *bs, QIOChannelSocket *sioc,
+                                Error **errp);
 
 static void nbd_clear_bdrvstate(BDRVNBDState *s)
 {
@@ -206,11 +209,15 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    if (s->state == NBD_CLIENT_CONNECTED) {
+    if (s->ioc) {
         /* finish any pending coroutines */
-        assert(s->ioc);
         qio_channel_shutdown(s->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+    } else if (s->sioc) {
+        /* abort negotiation */
+        qio_channel_shutdown(QIO_CHANNEL(s->sioc), QIO_CHANNEL_SHUTDOWN_BOTH,
+                             NULL);
     }
+
     s->state = NBD_CLIENT_QUIT;
     if (s->connection_co) {
         if (s->connection_co_sleep_ns_state) {
@@ -241,7 +248,9 @@ static bool nbd_client_connecting_wait(BDRVNBDState *s)
 
 static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 {
+    int ret;
     Error *local_err = NULL;
+    QIOChannelSocket *sioc;
 
     if (!nbd_client_connecting(s)) {
         return;
@@ -280,19 +289,39 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    s->connect_status = nbd_client_connect(s->bs, &local_err);
+    sioc = nbd_establish_connection(s->saddr, &local_err);
+    if (!sioc) {
+        ret = -ECONNREFUSED;
+        goto out;
+    }
+
+    bdrv_dec_in_flight(s->bs);
+
+    ret = nbd_client_handshake(s->bs, sioc, &local_err);
+
+    if (s->drained) {
+        s->wait_drained_end = true;
+        while (s->drained) {
+            /*
+             * We may be entered once from nbd_client_attach_aio_context_bh
+             * and then from nbd_client_co_drain_end. So here is a loop.
+             */
+            qemu_coroutine_yield();
+        }
+    }
+    bdrv_inc_in_flight(s->bs);
+
+out:
+    s->connect_status = ret;
     error_free(s->connect_err);
     s->connect_err = NULL;
     error_propagate(&s->connect_err, local_err);
 
-    if (s->connect_status < 0) {
-        /* failed attempt */
-        return;
+    if (ret >= 0) {
+        /* successfully connected */
+        s->state = NBD_CLIENT_CONNECTED;
+        qemu_co_queue_restart_all(&s->free_sema);
     }
-
-    /* successfully connected */
-    s->state = NBD_CLIENT_CONNECTED;
-    qemu_co_queue_restart_all(&s->free_sema);
 }
 
 static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
@@ -312,8 +341,6 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
             qemu_co_queue_restart_all(&s->free_sema);
         }
 
-        qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
-                                  &s->connection_co_sleep_ns_state);
         if (s->drained) {
             bdrv_dec_in_flight(s->bs);
             s->wait_drained_end = true;
@@ -325,9 +352,12 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
                 qemu_coroutine_yield();
             }
             bdrv_inc_in_flight(s->bs);
-        }
-        if (timeout < max_timeout) {
-            timeout *= 2;
+        } else {
+            qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
+                                      &s->connection_co_sleep_ns_state);
+            if (timeout < max_timeout) {
+                timeout *= 2;
+            }
         }
 
         nbd_reconnect_attempt(s);
@@ -1425,24 +1455,18 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
     return sioc;
 }
 
-static int nbd_client_connect(BlockDriverState *bs, Error **errp)
+/* nbd_client_handshake takes ownership on sioc. On failure it is unref'ed. */
+static int nbd_client_handshake(BlockDriverState *bs, QIOChannelSocket *sioc,
+                                Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
 
-    /*
-     * establish TCP connection, return error if it fails
-     * TODO: Configurable retry-until-timeout behaviour.
-     */
-    QIOChannelSocket *sioc = nbd_establish_connection(s->saddr, errp);
+    trace_nbd_client_handshake(s->export);
 
-    if (!sioc) {
-        return -ECONNREFUSED;
-    }
+    s->sioc = sioc;
 
-    /* NBD handshake */
-    trace_nbd_client_connect(s->export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
     qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
 
@@ -1457,6 +1481,7 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
     g_free(s->info.name);
     if (ret < 0) {
         object_unref(OBJECT(sioc));
+        s->sioc = NULL;
         return ret;
     }
     if (s->x_dirty_bitmap && !s->info.base_allocation) {
@@ -1482,14 +1507,12 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
         }
     }
 
-    s->sioc = sioc;
-
     if (!s->ioc) {
         s->ioc = QIO_CHANNEL(sioc);
         object_ref(OBJECT(s->ioc));
     }
 
-    trace_nbd_client_connect_success(s->export);
+    trace_nbd_client_handshake_success(s->export);
 
     return 0;
 
@@ -1504,6 +1527,7 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
         nbd_send_request(s->ioc ?: QIO_CHANNEL(sioc), &request);
 
         object_unref(OBJECT(sioc));
+        s->sioc = NULL;
 
         return ret;
     }
@@ -1894,6 +1918,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 {
     int ret;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    QIOChannelSocket *sioc;
 
     ret = nbd_process_options(bs, options, errp);
     if (ret < 0) {
@@ -1904,7 +1929,16 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->send_mutex);
     qemu_co_queue_init(&s->free_sema);
 
-    ret = nbd_client_connect(bs, errp);
+    /*
+     * establish TCP connection, return error if it fails
+     * TODO: Configurable retry-until-timeout behaviour.
+     */
+    sioc = nbd_establish_connection(s->saddr, errp);
+    if (!sioc) {
+        return -ECONNREFUSED;
+    }
+
+    ret = nbd_client_handshake(bs, sioc, errp);
     if (ret < 0) {
         nbd_clear_bdrvstate(s);
         return ret;
@@ -1964,6 +1998,33 @@ static void nbd_close(BlockDriverState *bs)
 
     nbd_client_close(bs);
     nbd_clear_bdrvstate(s);
+}
+
+/*
+ * NBD cannot truncate, but if the caller asks to truncate to the same size, or
+ * to a smaller size with exact=false, there is no reason to fail the
+ * operation.
+ *
+ * Preallocation mode is ignored since it does not seems useful to fail when
+ * we never change anything.
+ */
+static int coroutine_fn nbd_co_truncate(BlockDriverState *bs, int64_t offset,
+                                        bool exact, PreallocMode prealloc,
+                                        BdrvRequestFlags flags, Error **errp)
+{
+    BDRVNBDState *s = bs->opaque;
+
+    if (offset != s->info.size && exact) {
+        error_setg(errp, "Cannot resize NBD nodes");
+        return -ENOTSUP;
+    }
+
+    if (offset > s->info.size) {
+        error_setg(errp, "Cannot grow NBD nodes");
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 static int64_t nbd_getlength(BlockDriverState *bs)
@@ -2045,6 +2106,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
+    .bdrv_co_truncate           = nbd_co_truncate,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
@@ -2072,6 +2134,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
+    .bdrv_co_truncate           = nbd_co_truncate,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
@@ -2099,6 +2162,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
+    .bdrv_co_truncate           = nbd_co_truncate,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
