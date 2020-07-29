@@ -18,28 +18,38 @@
 #include "qemu/main-loop.h"
 #include "coth.h"
 
+/*
+ * Intended to be called from bottom-half (e.g. background I/O thread)
+ * context.
+ */
+static int do_readdir(V9fsPDU *pdu, V9fsFidState *fidp, struct dirent **dent)
+{
+    int err = 0;
+    V9fsState *s = pdu->s;
+    struct dirent *entry;
+
+    errno = 0;
+    entry = s->ops->readdir(&s->ctx, &fidp->fs);
+    if (!entry && errno) {
+        *dent = NULL;
+        err = -errno;
+    } else {
+        *dent = entry;
+    }
+    return err;
+}
+
 int coroutine_fn v9fs_co_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
                                  struct dirent **dent)
 {
     int err;
-    V9fsState *s = pdu->s;
 
     if (v9fs_request_cancelled(pdu)) {
         return -EINTR;
     }
-    v9fs_co_run_in_worker(
-        {
-            struct dirent *entry;
-
-            errno = 0;
-            entry = s->ops->readdir(&s->ctx, &fidp->fs);
-            if (!entry && errno) {
-                err = -errno;
-            } else {
-                *dent = entry;
-                err = 0;
-            }
-        });
+    v9fs_co_run_in_worker({
+        err = do_readdir(pdu, fidp, dent);
+    });
     return err;
 }
 
