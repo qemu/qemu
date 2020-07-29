@@ -1,4 +1,5 @@
 # *-*- Mode: Python -*-*
+# vim: filetype=python
 
 # Sub-module of sub-module include/sub-module.json of qapi-schema-test.json
 

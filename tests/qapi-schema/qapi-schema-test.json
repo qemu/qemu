@@ -1,4 +1,5 @@
 # *-*- Mode: Python -*-*
+# vim: filetype=python
 
 # This file is a stress test of supported qapi constructs that must
 # parse and compile correctly.
