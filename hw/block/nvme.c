@@ -299,14 +299,17 @@ static uint16_t nvme_map_addr(NvmeCtrl *n, QEMUSGList *qsg, QEMUIOVector *iov,
     return NVME_SUCCESS;
 }
 
-static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
-                             uint64_t prp2, uint32_t len, NvmeCtrl *n)
+static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
+                             uint32_t len, NvmeRequest *req)
 {
     hwaddr trans_len = n->page_size - (prp1 % n->page_size);
     trans_len = MIN(len, trans_len);
     int num_prps = (len >> n->page_bits) + 1;
     uint16_t status;
     bool prp_list_in_cmb = false;
+
+    QEMUSGList *qsg = &req->qsg;
+    QEMUIOVector *iov = &req->iov;
 
     trace_pci_nvme_map_prp(trans_len, len, prp1, prp2, num_prps);
 
@@ -401,7 +404,7 @@ static uint16_t nvme_dma_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
 {
     uint16_t status = NVME_SUCCESS;
 
-    status = nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, len, n);
+    status = nvme_map_prp(n, prp1, prp2, len, req);
     if (status) {
         return status;
     }
@@ -446,7 +449,7 @@ static uint16_t nvme_map_dptr(NvmeCtrl *n, size_t len, NvmeRequest *req)
     uint64_t prp1 = le64_to_cpu(cmd->dptr.prp1);
     uint64_t prp2 = le64_to_cpu(cmd->dptr.prp2);
 
-    return nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, len, n);
+    return nvme_map_prp(n, prp1, prp2, len, req);
 }
 
 static void nvme_post_cqes(void *opaque)
