@@ -289,6 +289,8 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
     int num_prps = (len >> n->page_bits) + 1;
     uint16_t status;
 
+    trace_pci_nvme_map_prp(trans_len, len, prp1, prp2, num_prps);
+
     if (unlikely(!prp1)) {
         trace_pci_nvme_err_invalid_prp();
         return NVME_INVALID_FIELD | NVME_DNR;
