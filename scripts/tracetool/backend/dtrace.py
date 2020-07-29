@@ -44,10 +44,14 @@ def generate_h_begin(events, group):
     # require SDT_USE_VARIADIC to be defined. If dtrace includes <sys/sdt.h>
     # first without defining SDT_USE_VARIADIC then ust breaks because the
     # STAP_PROBEV() macro is not defined.
+    out('#ifndef SDT_USE_VARIADIC')
     out('#define SDT_USE_VARIADIC 1')
+    out('#endif')
 
     out('#include "%s"' % header,
         '')
+
+    out('#undef SDT_USE_VARIADIC')
 
     # SystemTap defines <provider>_<name>_ENABLED() but other DTrace
     # implementations might not.
