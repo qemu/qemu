@@ -2109,6 +2109,13 @@ static int64_t round_to_int_and_pack(FloatParts in, FloatRoundMode rmode,
     }
 }
 
+int8_t float16_to_int8_scalbn(float16 a, FloatRoundMode rmode, int scale,
+                              float_status *s)
+{
+    return round_to_int_and_pack(float16_unpack_canonical(a, s),
+                                 rmode, scale, INT8_MIN, INT8_MAX, s);
+}
+
 int16_t float16_to_int16_scalbn(float16 a, FloatRoundMode rmode, int scale,
                                 float_status *s)
 {
@@ -2170,6 +2177,11 @@ int64_t float64_to_int64_scalbn(float64 a, FloatRoundMode rmode, int scale,
 {
     return round_to_int_and_pack(float64_unpack_canonical(a, s),
                                  rmode, scale, INT64_MIN, INT64_MAX, s);
+}
+
+int8_t float16_to_int8(float16 a, float_status *s)
+{
+    return float16_to_int8_scalbn(a, s->float_rounding_mode, 0, s);
 }
 
 int16_t float16_to_int16(float16 a, float_status *s)
@@ -2322,6 +2334,13 @@ static uint64_t round_to_uint_and_pack(FloatParts in, FloatRoundMode rmode,
     }
 }
 
+uint8_t float16_to_uint8_scalbn(float16 a, FloatRoundMode rmode, int scale,
+                                float_status *s)
+{
+    return round_to_uint_and_pack(float16_unpack_canonical(a, s),
+                                  rmode, scale, UINT8_MAX, s);
+}
+
 uint16_t float16_to_uint16_scalbn(float16 a, FloatRoundMode rmode, int scale,
                                   float_status *s)
 {
@@ -2383,6 +2402,11 @@ uint64_t float64_to_uint64_scalbn(float64 a, FloatRoundMode rmode, int scale,
 {
     return round_to_uint_and_pack(float64_unpack_canonical(a, s),
                                   rmode, scale, UINT64_MAX, s);
+}
+
+uint8_t float16_to_uint8(float16 a, float_status *s)
+{
+    return float16_to_uint8_scalbn(a, s->float_rounding_mode, 0, s);
 }
 
 uint16_t float16_to_uint16(float16 a, float_status *s)
@@ -2539,6 +2563,11 @@ float16 int16_to_float16(int16_t a, float_status *status)
     return int64_to_float16_scalbn(a, 0, status);
 }
 
+float16 int8_to_float16(int8_t a, float_status *status)
+{
+    return int64_to_float16_scalbn(a, 0, status);
+}
+
 float32 int64_to_float32_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts pa = int_to_float(a, scale, status);
@@ -2660,6 +2689,11 @@ float16 uint32_to_float16(uint32_t a, float_status *status)
 }
 
 float16 uint16_to_float16(uint16_t a, float_status *status)
+{
+    return uint64_to_float16_scalbn(a, 0, status);
+}
+
+float16 uint8_to_float16(uint8_t a, float_status *status)
 {
     return uint64_to_float16_scalbn(a, 0, status);
 }
