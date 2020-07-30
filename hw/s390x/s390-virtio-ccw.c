@@ -701,12 +701,9 @@ bool hpage_1m_allowed(void)
 static char *machine_get_loadparm(Object *obj, Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
-    char *loadparm_str;
 
     /* make a NUL-terminated string */
-    loadparm_str = g_memdup(ms->loadparm, sizeof(ms->loadparm) + 1);
-    loadparm_str[sizeof(ms->loadparm)] = 0;
-    return loadparm_str;
+    return g_strndup((char *) ms->loadparm, sizeof(ms->loadparm));
 }
 
 static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
