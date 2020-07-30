@@ -27,6 +27,8 @@
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
 
+#define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
+
 struct whpx_state {
     uint64_t mem_quota;
     WHV_PARTITION_HANDLE partition;
@@ -1061,6 +1063,18 @@ static int whpx_vcpu_run(CPUState *cpu)
             cpu_x86_cpuid(env, cpuid_fn, 0, (UINT32 *)&rax, (UINT32 *)&rbx,
                 (UINT32 *)&rcx, (UINT32 *)&rdx);
             switch (cpuid_fn) {
+            case 0x40000000:
+                /* Expose the vmware cpu frequency cpuid leaf */
+                rax = 0x40000010;
+                rbx = rcx = rdx = 0;
+                break;
+
+            case 0x40000010:
+                rax = env->tsc_khz;
+                rbx = env->apic_bus_freq / 1000; /* Hz to KHz */
+                rcx = rdx = 0;
+                break;
+
             case 0x80000001:
                 /* Remove any support of OSVW */
                 rcx &= ~CPUID_EXT3_OSVW;
@@ -1191,8 +1205,12 @@ int whpx_init_vcpu(CPUState *cpu)
 {
     HRESULT hr;
     struct whpx_state *whpx = &whpx_global;
-    struct whpx_vcpu *vcpu;
+    struct whpx_vcpu *vcpu = NULL;
     Error *local_error = NULL;
+    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    UINT64 freq = 0;
+    int ret;
 
     /* Add migration blockers for all unsupported features of the
      * Windows Hypervisor Platform
@@ -1207,7 +1225,8 @@ int whpx_init_vcpu(CPUState *cpu)
             error_report_err(local_error);
             migrate_del_blocker(whpx_migration_blocker);
             error_free(whpx_migration_blocker);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto error;
         }
     }
 
@@ -1215,7 +1234,8 @@ int whpx_init_vcpu(CPUState *cpu)
 
     if (!vcpu) {
         error_report("WHPX: Failed to allocte VCPU context.");
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto error;
     }
 
     hr = whp_dispatch.WHvEmulatorCreateEmulator(
@@ -1224,8 +1244,8 @@ int whpx_init_vcpu(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to setup instruction completion support,"
                      " hr=%08lx", hr);
-        g_free(vcpu);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto error;
     }
 
     hr = whp_dispatch.WHvCreateVirtualProcessor(
@@ -1234,17 +1254,72 @@ int whpx_init_vcpu(CPUState *cpu)
         error_report("WHPX: Failed to create a virtual processor,"
                      " hr=%08lx", hr);
         whp_dispatch.WHvEmulatorDestroyEmulator(vcpu->emulator);
-        g_free(vcpu);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto error;
+    }
+
+    /*
+     * vcpu's TSC frequency is either specified by user, or use the value
+     * provided by Hyper-V if the former is not present. In the latter case, we
+     * query it from Hyper-V and record in env->tsc_khz, so that vcpu's TSC
+     * frequency can be migrated later via this field.
+     */
+    if (!env->tsc_khz) {
+        hr = whp_dispatch.WHvGetCapability(
+            WHvCapabilityCodeProcessorClockFrequency, &freq, sizeof(freq),
+                NULL);
+        if (hr != WHV_E_UNKNOWN_CAPABILITY) {
+            if (FAILED(hr)) {
+                printf("WHPX: Failed to query tsc frequency, hr=0x%08lx\n", hr);
+            } else {
+                env->tsc_khz = freq / 1000; /* Hz to KHz */
+            }
+        }
+    }
+
+    env->apic_bus_freq = HYPERV_APIC_BUS_FREQUENCY;
+    hr = whp_dispatch.WHvGetCapability(
+        WHvCapabilityCodeInterruptClockFrequency, &freq, sizeof(freq), NULL);
+    if (hr != WHV_E_UNKNOWN_CAPABILITY) {
+        if (FAILED(hr)) {
+            printf("WHPX: Failed to query apic bus frequency hr=0x%08lx\n", hr);
+        } else {
+            env->apic_bus_freq = freq;
+        }
+    }
+
+    /*
+     * If the vmware cpuid frequency leaf option is set, and we have a valid
+     * tsc value, trap the corresponding cpuid's.
+     */
+    if (x86_cpu->vmware_cpuid_freq && env->tsc_khz) {
+        UINT32 cpuidExitList[] = {1, 0x80000001, 0x40000000, 0x40000010};
+
+        hr = whp_dispatch.WHvSetPartitionProperty(
+                whpx->partition,
+                WHvPartitionPropertyCodeCpuidExitList,
+                cpuidExitList,
+                RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
+                        hr);
+            ret = -EINVAL;
+            goto error;
+        }
     }
 
     vcpu->interruptable = true;
-
     cpu->vcpu_dirty = true;
     cpu->hax_vcpu = (struct hax_vcpu_state *)vcpu;
     qemu_add_vm_change_state_handler(whpx_cpu_update_state, cpu->env_ptr);
 
     return 0;
+
+error:
+    g_free(vcpu);
+
+    return ret;
 }
 
 int whpx_vcpu_exec(CPUState *cpu)
@@ -1493,6 +1568,7 @@ static int whpx_accel_init(MachineState *ms)
     WHV_CAPABILITY whpx_cap;
     UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
+    UINT32 cpuidExitList[] = {1, 0x80000001};
 
     whpx = &whpx_global;
 
@@ -1551,7 +1627,6 @@ static int whpx_accel_init(MachineState *ms)
         goto error;
     }
 
-    UINT32 cpuidExitList[] = {1, 0x80000001};
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
         WHvPartitionPropertyCodeCpuidExitList,
@@ -1579,13 +1654,12 @@ static int whpx_accel_init(MachineState *ms)
     printf("Windows Hypervisor Platform accelerator is operational\n");
     return 0;
 
-  error:
+error:
 
     if (NULL != whpx->partition) {
         whp_dispatch.WHvDeletePartition(whpx->partition);
         whpx->partition = NULL;
     }
-
 
     return ret;
 }
