@@ -70,9 +70,8 @@ void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);
 
 /*
- * return the time elapsed in VM between vm_start and vm_stop.  Unless
- * icount is active, cpu_get_ticks() uses units of the host CPU cycle
- * counter.
+ * return the time elapsed in VM between vm_start and vm_stop.
+ * cpu_get_ticks() uses units of the host CPU cycle counter.
  */
 int64_t cpu_get_ticks(void);
 
@@ -83,5 +82,9 @@ int64_t cpu_get_ticks(void);
 int64_t cpu_get_clock(void);
 
 void qemu_timer_notify_cb(void *opaque, QEMUClockType type);
+
+/* get the VIRTUAL clock and VM elapsed ticks via the cpus accel interface */
+int64_t cpus_get_virtual_clock(void);
+int64_t cpus_get_elapsed_ticks(void);
 
 #endif /* SYSEMU_CPU_TIMERS_H */

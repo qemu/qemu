@@ -635,13 +635,7 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         return get_clock();
     default:
     case QEMU_CLOCK_VIRTUAL:
-        if (icount_enabled()) {
-            return icount_get();
-        } else if (qtest_enabled()) { /* for qtest_clock_warp */
-            return qtest_get_virtual_clock();
-        } else {
-            return cpu_get_clock();
-        }
+        return cpus_get_virtual_clock();
     case QEMU_CLOCK_HOST:
         return REPLAY_CLOCK(REPLAY_CLOCK_HOST, get_clock_realtime());
     case QEMU_CLOCK_VIRTUAL_RT:

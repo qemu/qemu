@@ -61,17 +61,12 @@ static int64_t cpu_get_ticks_locked(void)
 }
 
 /*
- * return the time elapsed in VM between vm_start and vm_stop.  Unless
- * icount is active, cpu_get_ticks() uses units of the host CPU cycle
- * counter.
+ * return the time elapsed in VM between vm_start and vm_stop.
+ * cpu_get_ticks() uses units of the host CPU cycle counter.
  */
 int64_t cpu_get_ticks(void)
 {
     int64_t ticks;
-
-    if (icount_enabled()) {
-        return icount_get();
-    }
 
     qemu_spin_lock(&timers_state.vm_clock_lock);
     ticks = cpu_get_ticks_locked();

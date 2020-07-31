@@ -87,7 +87,7 @@ bool cpu_is_stopped(CPUState *cpu)
     return cpu->stopped || !runstate_is_running();
 }
 
-static inline bool cpu_work_list_empty(CPUState *cpu)
+bool cpu_work_list_empty(CPUState *cpu)
 {
     bool ret;
 
@@ -97,7 +97,7 @@ static inline bool cpu_work_list_empty(CPUState *cpu)
     return ret;
 }
 
-static bool cpu_thread_is_idle(CPUState *cpu)
+bool cpu_thread_is_idle(CPUState *cpu)
 {
     if (cpu->stop || !cpu_work_list_empty(cpu)) {
         return false;
@@ -215,6 +215,11 @@ void hw_error(const char *fmt, ...)
     abort();
 }
 
+/*
+ * The chosen accelerator is supposed to register this.
+ */
+static const CpusAccel *cpus_accel;
+
 void cpu_synchronize_all_states(void)
 {
     CPUState *cpu;
@@ -251,6 +256,102 @@ void cpu_synchronize_all_pre_loadvm(void)
     }
 }
 
+void cpu_synchronize_state(CPUState *cpu)
+{
+    if (cpus_accel && cpus_accel->synchronize_state) {
+        cpus_accel->synchronize_state(cpu);
+    }
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_state(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_state(cpu);
+    }
+    if (whpx_enabled()) {
+        whpx_cpu_synchronize_state(cpu);
+    }
+}
+
+void cpu_synchronize_post_reset(CPUState *cpu)
+{
+    if (cpus_accel && cpus_accel->synchronize_post_reset) {
+        cpus_accel->synchronize_post_reset(cpu);
+    }
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_post_reset(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_post_reset(cpu);
+    }
+    if (whpx_enabled()) {
+        whpx_cpu_synchronize_post_reset(cpu);
+    }
+}
+
+void cpu_synchronize_post_init(CPUState *cpu)
+{
+    if (cpus_accel && cpus_accel->synchronize_post_init) {
+        cpus_accel->synchronize_post_init(cpu);
+    }
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_post_init(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_post_init(cpu);
+    }
+    if (whpx_enabled()) {
+        whpx_cpu_synchronize_post_init(cpu);
+    }
+}
+
+void cpu_synchronize_pre_loadvm(CPUState *cpu)
+{
+    if (cpus_accel && cpus_accel->synchronize_pre_loadvm) {
+        cpus_accel->synchronize_pre_loadvm(cpu);
+    }
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_pre_loadvm(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_pre_loadvm(cpu);
+    }
+    if (hvf_enabled()) {
+        hvf_cpu_synchronize_pre_loadvm(cpu);
+    }
+    if (whpx_enabled()) {
+        whpx_cpu_synchronize_pre_loadvm(cpu);
+    }
+}
+
+int64_t cpus_get_virtual_clock(void)
+{
+    if (cpus_accel && cpus_accel->get_virtual_clock) {
+        return cpus_accel->get_virtual_clock();
+    }
+    if (icount_enabled()) {
+        return icount_get();
+    } else if (qtest_enabled()) { /* for qtest_clock_warp */
+        return qtest_get_virtual_clock();
+    }
+    return cpu_get_clock();
+}
+
+/*
+ * return the time elapsed in VM between vm_start and vm_stop.  Unless
+ * icount is active, cpus_get_elapsed_ticks() uses units of the host CPU cycle
+ * counter.
+ */
+int64_t cpus_get_elapsed_ticks(void)
+{
+    if (cpus_accel && cpus_accel->get_elapsed_ticks) {
+        return cpus_accel->get_elapsed_ticks();
+    }
+    if (icount_enabled()) {
+        return icount_get();
+    }
+    return cpu_get_ticks();
+}
+
 static int do_vm_stop(RunState state, bool send_stop)
 {
     int ret = 0;
@@ -279,7 +380,7 @@ int vm_shutdown(void)
     return do_vm_stop(RUN_STATE_SHUTDOWN, false);
 }
 
-static bool cpu_can_run(CPUState *cpu)
+bool cpu_can_run(CPUState *cpu)
 {
     if (cpu->stop) {
         return false;
@@ -290,7 +391,7 @@ static bool cpu_can_run(CPUState *cpu)
     return true;
 }
 
-static void cpu_handle_guest_debug(CPUState *cpu)
+void cpu_handle_guest_debug(CPUState *cpu)
 {
     gdb_set_stop_cpu(cpu);
     qemu_system_debug_request();
@@ -396,7 +497,7 @@ static void qemu_cpu_stop(CPUState *cpu, bool exit)
     qemu_cond_broadcast(&qemu_pause_cond);
 }
 
-static void qemu_wait_io_event_common(CPUState *cpu)
+void qemu_wait_io_event_common(CPUState *cpu)
 {
     qatomic_mb_set(&cpu->thread_kicked, false);
     if (cpu->stop) {
@@ -421,7 +522,7 @@ static void qemu_tcg_rr_wait_io_event(void)
     }
 }
 
-static void qemu_wait_io_event(CPUState *cpu)
+void qemu_wait_io_event(CPUState *cpu)
 {
     bool slept = false;
 
@@ -437,8 +538,8 @@ static void qemu_wait_io_event(CPUState *cpu)
     }
 
 #ifdef _WIN32
-    /* Eat dummy APC queued by qemu_cpu_kick_thread.  */
-    if (!tcg_enabled()) {
+    /* Eat dummy APC queued by cpus_kick_thread. */
+    if (hax_enabled()) {
         SleepEx(0, TRUE);
     }
 #endif
@@ -467,8 +568,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     kvm_init_cpu_signals(cpu);
 
     /* signal CPU creation */
-    cpu->created = true;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
@@ -482,8 +582,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     qemu_kvm_destroy_vcpu(cpu);
-    cpu->created = false;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_destroyed(cpu);
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
@@ -511,8 +610,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     sigaddset(&waitset, SIG_IPI);
 
     /* signal CPU creation */
-    cpu->created = true;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
@@ -660,8 +758,7 @@ static void deal_with_unplugged_cpus(void)
     CPU_FOREACH(cpu) {
         if (cpu->unplug && !cpu_can_run(cpu)) {
             qemu_tcg_destroy_vcpu(cpu);
-            cpu->created = false;
-            qemu_cond_signal(&qemu_cpu_cond);
+            cpu_thread_signal_destroyed(cpu);
             break;
         }
     }
@@ -688,9 +785,8 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
-    cpu->created = true;
     cpu->can_do_io = 1;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     /* wait for initial kick-off after machine start */
@@ -800,11 +896,9 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
-    cpu->created = true;
     current_cpu = cpu;
-
     hax_init_vcpu(cpu);
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
@@ -843,8 +937,7 @@ static void *qemu_hvf_cpu_thread_fn(void *arg)
     hvf_init_vcpu(cpu);
 
     /* signal CPU creation */
-    cpu->created = true;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
@@ -858,8 +951,7 @@ static void *qemu_hvf_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     hvf_vcpu_destroy(cpu);
-    cpu->created = false;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_destroyed(cpu);
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
@@ -884,8 +976,7 @@ static void *qemu_whpx_cpu_thread_fn(void *arg)
     }
 
     /* signal CPU creation */
-    cpu->created = true;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     do {
@@ -902,8 +993,7 @@ static void *qemu_whpx_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     whpx_destroy_vcpu(cpu);
-    cpu->created = false;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_destroyed(cpu);
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
@@ -936,10 +1026,9 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
 
     cpu->thread_id = qemu_get_thread_id();
-    cpu->created = true;
     cpu->can_do_io = 1;
     current_cpu = cpu;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_created(cpu);
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     /* process any pending work */
@@ -980,14 +1069,13 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     qemu_tcg_destroy_vcpu(cpu);
-    cpu->created = false;
-    qemu_cond_signal(&qemu_cpu_cond);
+    cpu_thread_signal_destroyed(cpu);
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
 }
 
-static void qemu_cpu_kick_thread(CPUState *cpu)
+void cpus_kick_thread(CPUState *cpu)
 {
 #ifndef _WIN32
     int err;
@@ -1017,7 +1105,10 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
-    if (tcg_enabled()) {
+
+    if (cpus_accel && cpus_accel->kick_vcpu_thread) {
+        cpus_accel->kick_vcpu_thread(cpu);
+    } else if (tcg_enabled()) {
         if (qemu_tcg_mttcg_enabled()) {
             cpu_exit(cpu);
         } else {
@@ -1031,14 +1122,14 @@ void qemu_cpu_kick(CPUState *cpu)
              */
             cpu->exit_request = 1;
         }
-        qemu_cpu_kick_thread(cpu);
+        cpus_kick_thread(cpu);
     }
 }
 
 void qemu_cpu_kick_self(void)
 {
     assert(current_cpu);
-    qemu_cpu_kick_thread(current_cpu);
+    cpus_kick_thread(current_cpu);
 }
 
 bool qemu_cpu_is_self(CPUState *cpu)
@@ -1087,6 +1178,21 @@ void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
 {
     qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
+
+/* signal CPU creation */
+void cpu_thread_signal_created(CPUState *cpu)
+{
+    cpu->created = true;
+    qemu_cond_signal(&qemu_cpu_cond);
+}
+
+/* signal CPU destruction */
+void cpu_thread_signal_destroyed(CPUState *cpu)
+{
+    cpu->created = false;
+    qemu_cond_signal(&qemu_cpu_cond);
+}
+
 
 static bool all_vcpus_paused(void)
 {
@@ -1162,9 +1268,6 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_thread_join(cpu->thread);
     qemu_mutex_lock_iothread();
 }
-
-/* For temporary buffers for forming a name */
-#define VCPU_THREAD_NAME_SIZE 16
 
 static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
@@ -1295,6 +1398,13 @@ static void qemu_whpx_start_vcpu(CPUState *cpu)
 #endif
 }
 
+void cpus_register_accel(const CpusAccel *ca)
+{
+    assert(ca != NULL);
+    assert(ca->create_vcpu_thread != NULL); /* mandatory */
+    cpus_accel = ca;
+}
+
 static void qemu_dummy_start_vcpu(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
@@ -1325,7 +1435,10 @@ void qemu_init_vcpu(CPUState *cpu)
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
 
-    if (kvm_enabled()) {
+    if (cpus_accel) {
+        /* accelerator already implements the CpusAccel interface */
+        cpus_accel->create_vcpu_thread(cpu);
+    } else if (kvm_enabled()) {
         qemu_kvm_start_vcpu(cpu);
     } else if (hax_enabled()) {
         qemu_hax_start_vcpu(cpu);

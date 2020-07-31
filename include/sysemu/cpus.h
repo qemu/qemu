@@ -4,7 +4,43 @@
 #include "qemu/timer.h"
 
 /* cpus.c */
+
+/* CPU execution threads */
+
+typedef struct CpusAccel {
+    void (*create_vcpu_thread)(CPUState *cpu); /* MANDATORY */
+    void (*kick_vcpu_thread)(CPUState *cpu);
+
+    void (*synchronize_post_reset)(CPUState *cpu);
+    void (*synchronize_post_init)(CPUState *cpu);
+    void (*synchronize_state)(CPUState *cpu);
+    void (*synchronize_pre_loadvm)(CPUState *cpu);
+
+    int64_t (*get_virtual_clock)(void);
+    int64_t (*get_elapsed_ticks)(void);
+} CpusAccel;
+
+/* register accel-specific cpus interface implementation */
+void cpus_register_accel(const CpusAccel *i);
+
+/* interface available for cpus accelerator threads */
+
+/* For temporary buffers for forming a name */
+#define VCPU_THREAD_NAME_SIZE 16
+
+void cpus_kick_thread(CPUState *cpu);
+bool cpu_work_list_empty(CPUState *cpu);
+bool cpu_thread_is_idle(CPUState *cpu);
 bool all_cpu_threads_idle(void);
+bool cpu_can_run(CPUState *cpu);
+void qemu_wait_io_event_common(CPUState *cpu);
+void qemu_wait_io_event(CPUState *cpu);
+void cpu_thread_signal_created(CPUState *cpu);
+void cpu_thread_signal_destroyed(CPUState *cpu);
+void cpu_handle_guest_debug(CPUState *cpu);
+
+/* end interface for cpus accelerator threads */
+
 bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);

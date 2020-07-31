@@ -33,6 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "trace/trace-root.h"
 #include "qemu/plugin.h"
+#include "sysemu/hw_accel.h"
 
 CPUInterruptHandler cpu_interrupt_handler;
 
