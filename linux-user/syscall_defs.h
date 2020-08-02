@@ -1177,6 +1177,9 @@ struct target_rtc_pll_info {
 /* drm ioctls */
 #define TARGET_DRM_IOCTL_VERSION      TARGET_IOWRU('d', 0x00)
 
+/* drm i915 ioctls */
+#define TARGET_DRM_IOCTL_I915_GETPARAM              TARGET_IOWRU('d', 0x46)
+
 /* from asm/termbits.h */
 
 #define TARGET_NCC 8
@@ -2618,6 +2621,11 @@ struct target_drm_version {
     abi_ulong date;
     abi_ulong desc_len;
     abi_ulong desc;
+};
+
+struct target_drm_i915_getparam {
+    int param;
+    abi_ulong value;
 };
 
 #include "socket.h"
