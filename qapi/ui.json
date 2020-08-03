@@ -1,4 +1,5 @@
 # -*- Mode: Python -*-
+# vim: filetype=python
 #
 
 ##
@@ -1081,8 +1082,8 @@
  # Since: 3.0
  #
  ##
- { 'enum'    : 'DisplayGLMode',
-   'data'    : [ 'off', 'on', 'core', 'es' ] }
+{ 'enum'    : 'DisplayGLMode',
+  'data'    : [ 'off', 'on', 'core', 'es' ] }
 
 ##
 # @DisplayCurses:

@@ -1,4 +1,5 @@
 # -*- Mode: Python -*-
+# vim: filetype=python
 
 # Note that modules are shared with the QEMU main schema under the assumption
 # that the storage daemon schema is a subset of the main schema. For the shared
