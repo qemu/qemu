@@ -57,8 +57,9 @@
 #define IS_USER(s) (s->user)
 #endif
 
-/* We reuse the same 64-bit temporaries for efficiency.  */
+/* These are TCG temporaries used only by the legacy iwMMXt decoder */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
+/* These are TCG globals which alias CPUARMState fields */
 static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
@@ -8566,7 +8567,6 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     cpu_V0 = tcg_temp_new_i64();
     cpu_V1 = tcg_temp_new_i64();
-    /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
     cpu_M0 = tcg_temp_new_i64();
 }
 
