@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "trace.h"
@@ -170,8 +171,11 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         /* read-only.  */
         break;
     case LASI_IMR:
-        s->imr = val;  /* 0x20 ?? */
-        assert((val & LASI_IRQ_BITS) == val);
+        s->imr = val;
+        if (((val & LASI_IRQ_BITS) != val) && (val != 0xffffffff))
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "LASI: tried to set invalid %lx IMR value.\n",
+                (unsigned long) val);
         break;
     case LASI_IPR:
         /* Any write to IPR clears the register. */
