@@ -8342,26 +8342,18 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         return;
     }
     /* fall back to legacy decoder */
-
-    switch ((insn >> 24) & 0xf) {
-    case 0xc:
-    case 0xd:
-    case 0xe:
-    {
-        /* First check for coprocessor space used for XScale/iwMMXt insns */
-        int cpnum = (insn >> 8) & 0xf;
-
-        if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
+    /* TODO: convert xscale/iwmmxt decoder to decodetree ?? */
+    if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
+        if (((insn & 0x0c000e00) == 0x0c000000)
+            && ((insn & 0x03000000) != 0x03000000)) {
+            /* Coprocessor insn, coprocessor 0 or 1 */
             disas_xscale_insn(s, insn);
-            break;
+            return;
         }
-        /* fall through */
     }
-    default:
-    illegal_op:
-        unallocated_encoding(s);
-        break;
-    }
+
+illegal_op:
+    unallocated_encoding(s);
 }
 
 static bool thumb_insn_is_16bit(DisasContext *s, uint32_t pc, uint32_t insn)
