@@ -4791,37 +4791,6 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
     return;
 }
 
-static int disas_coproc_insn(DisasContext *s, uint32_t insn)
-{
-    int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
-
-    cpnum = (insn >> 8) & 0xf;
-
-    is64 = (insn & (1 << 25)) == 0;
-    if (!is64 && ((insn & (1 << 4)) == 0)) {
-        /* cdp */
-        return 1;
-    }
-
-    crm = insn & 0xf;
-    if (is64) {
-        crn = 0;
-        opc1 = (insn >> 4) & 0xf;
-        opc2 = 0;
-        rt2 = (insn >> 16) & 0xf;
-    } else {
-        crn = (insn >> 16) & 0xf;
-        opc1 = (insn >> 21) & 7;
-        opc2 = (insn >> 5) & 7;
-        rt2 = 0;
-    }
-    isread = (insn >> 20) & 1;
-    rt = (insn >> 12) & 0xf;
-
-    do_coproc_insn(s, cpnum, is64, opc1, crn, crm, opc2, isread, rt, rt2);
-    return 0;
-}
-
 /* Decode XScale DSP or iWMMXt insn (in the copro space, cp=0 or 1) */
 static void disas_xscale_insn(DisasContext *s, uint32_t insn)
 {
@@ -8485,38 +8454,9 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         ((insn >> 28) == 0xe && disas_vfp(s, insn))) {
         return;
     }
-    /* fall back to legacy decoder */
 
-    switch ((insn >> 25) & 0xf) {
-    case 0: case 1: case 2: case 3:
-        /* 16-bit instructions.  Should never happen.  */
-        abort();
-    case 6: case 7: case 14: case 15:
-        /* Coprocessor.  */
-        if (arm_dc_feature(s, ARM_FEATURE_M)) {
-            /* 0b111x_11xx_xxxx_xxxx_xxxx_xxxx_xxxx_xxxx */
-            goto illegal_op;
-        }
-        if (((insn >> 24) & 3) == 3) {
-            /* Neon DP, but failed disas_neon_dp() */
-            goto illegal_op;
-        } else if (((insn >> 8) & 0xe) == 10) {
-            /* VFP, but failed disas_vfp.  */
-            goto illegal_op;
-        } else {
-            if (insn & (1 << 28))
-                goto illegal_op;
-            if (disas_coproc_insn(s, insn)) {
-                goto illegal_op;
-            }
-        }
-        break;
-    case 12:
-        goto illegal_op;
-    default:
-    illegal_op:
-        unallocated_encoding(s);
-    }
+illegal_op:
+    unallocated_encoding(s);
 }
 
 static void disas_thumb_insn(DisasContext *s, uint32_t insn)
