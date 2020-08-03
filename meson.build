@@ -51,6 +51,7 @@ targetos = host_machine.system()
 
 m = cc.find_library('m', required: false)
 util = cc.find_library('util', required: false)
+winmm = []
 socket = []
 version_res = []
 coref = []
@@ -59,6 +60,7 @@ cocoa = []
 hvf = []
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
+  winmm = cc.find_library('winmm')
 
   win = import('windows')
   version_res = win.compile_resources('version.rc',
@@ -293,6 +295,11 @@ if 'CONFIG_VNC_SASL' in config_host
   sasl = declare_dependency(compile_args: config_host['SASL_CFLAGS'].split(),
                             link_args: config_host['SASL_LIBS'].split())
 endif
+fdt = not_found
+if 'CONFIG_FDT' in config_host
+  fdt = declare_dependency(compile_args: config_host['FDT_CFLAGS'].split(),
+                           link_args: config_host['FDT_LIBS'].split())
+endif
 
 create_config = find_program('scripts/create_config')
 minikconf = find_program('scripts/minikconf.py')
@@ -459,6 +466,7 @@ util_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
 block_ss = ss.source_set()
+blockdev_ss = ss.source_set()
 common_ss = ss.source_set()
 softmmu_ss = ss.source_set()
 user_ss = ss.source_set()
@@ -611,6 +619,31 @@ block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
 subdir('nbd')
 subdir('scsi')
 subdir('block')
+
+blockdev_ss.add(files(
+  'blockdev.c',
+  'blockdev-nbd.c',
+  'iothread.c',
+  'job-qmp.c',
+))
+
+# os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
+# os-win32.c does not
+blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
+softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+
+softmmu_ss.add_all(blockdev_ss)
+softmmu_ss.add(files(
+  'bootdevice.c',
+  'dma-helpers.c',
+  'qdev-monitor.c',
+), sdl)
+
+softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
+softmmu_ss.add(when: 'CONFIG_SECCOMP', if_true: [files('qemu-seccomp.c'), seccomp])
+softmmu_ss.add(when: ['CONFIG_FDT', fdt],  if_true: [files('device_tree.c')])
+
+common_ss.add(files('cpus-common.c'))
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
