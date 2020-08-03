@@ -35,7 +35,9 @@ typedef struct {
 
 /* ARMv7M container object.
  * + Unnamed GPIO input lines: external IRQ lines for the NVIC
- * + Named GPIO output SYSRESETREQ: signalled for guest AIRCR.SYSRESETREQ
+ * + Named GPIO output SYSRESETREQ: signalled for guest AIRCR.SYSRESETREQ.
+ *   If this GPIO is not wired up then the NVIC will default to performing
+ *   a qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET).
  * + Property "cpu-type": CPU type to instantiate
  * + Property "num-irq": number of external IRQ lines
  * + Property "memory": MemoryRegion defining the physical address space
