@@ -894,7 +894,7 @@ F: hw/misc/zynq*
 F: include/hw/misc/zynq*
 X: hw/ssi/xilinx_*
 
-Xilinx ZynqMP
+Xilinx ZynqMP and Versal
 M: Alistair Francis <alistair@alistair23.me>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -905,6 +905,7 @@ F: include/hw/*/xlnx*.h
 F: include/hw/ssi/xilinx_spips.h
 F: hw/display/dpcd.c
 F: include/hw/display/dpcd.h
+F: docs/system/arm/xlnx-versal-virt.rst
 
 ARM ACPI Subsystem
 M: Shannon Zhao <shannon.zhaosl@gmail.com>
