@@ -32,6 +32,9 @@
 
 #define BASE_TO_IRQ(base) ((base >> 12) & 0x1F)
 
+/* HCLK (the main CPU clock) on this SoC is always 16MHz */
+#define HCLK_FRQ 16000000
+
 static uint64_t clock_read(void *opaque, hwaddr addr, unsigned int size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
@@ -64,6 +67,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
         error_setg(errp, "memory property was not set");
         return;
     }
+
+    system_clock_scale = NANOSECONDS_PER_SECOND / HCLK_FRQ;
 
     object_property_set_link(OBJECT(&s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
