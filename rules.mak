@@ -21,7 +21,6 @@ MAKEFLAGS += -rR
 %.cpp:
 %.m:
 %.mak:
-clean-target:
 
 # Flags for dependency generation
 QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(@D)/$(*F).d

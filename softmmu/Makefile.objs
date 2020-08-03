@@ -1,2 +1,0 @@
-softmmu-main-y = softmmu/main.o
-main.o-cflags := $(SDL_CFLAGS)

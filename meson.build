@@ -215,10 +215,12 @@ brlapi = not_found
 if 'CONFIG_BRLAPI' in config_host
   brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
 endif
+sdlwindows = false
 sdl = not_found
 if 'CONFIG_SDL' in config_host
   sdl = declare_dependency(compile_args: config_host['SDL_CFLAGS'].split(),
                            link_args: config_host['SDL_LIBS'].split())
+  sdlwindows = config_host['SDL_LIBS'].contains('-mwindows')
 endif
 rbd = not_found
 if 'CONFIG_RBD' in config_host
@@ -529,6 +531,7 @@ user_ss = ss.source_set()
 bsd_user_ss = ss.source_set()
 linux_user_ss = ss.source_set()
 specific_ss = ss.source_set()
+specific_fuzz_ss = ss.source_set()
 
 modules = {}
 hw_arch = {}
@@ -743,6 +746,7 @@ specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
+subdir('tests/qtest/fuzz')
 
 block_mods = []
 softmmu_mods = []
@@ -805,7 +809,10 @@ foreach m : block_mods + softmmu_mods
                 install_dir: config_host['qemu_moddir'])
 endforeach
 
-common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: softmmu_ss)
+softmmu_ss.add(authz, block, chardev, crypto, io, qmp)
+common_ss.add(qom, qemuutil)
+
+common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: [softmmu_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
 
 common_all = common_ss.apply(config_all, strict: false)
@@ -817,11 +824,17 @@ common_all = static_library('common',
 
 feature_to_c = find_program('scripts/feature_to_c.sh')
 
+emulators = []
 foreach target : target_dirs
   config_target = config_target_mak[target]
   target_name = config_target['TARGET_NAME']
   arch = config_target['TARGET_BASE_ARCH']
   arch_srcs = []
+  arch_deps = []
+  c_args = ['-DNEED_CPU_H',
+            '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
+            '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
+  link_args = []
 
   target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
   if targetos == 'linux'
@@ -832,12 +845,15 @@ foreach target : target_dirs
     target_type='system'
     t = target_softmmu_arch[arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
+    arch_deps += t.dependencies()
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : arch
     hw = hw_arch[hw_dir].apply(config_target, strict: false)
     arch_srcs += hw.sources()
+    arch_deps += hw.dependencies()
 
     arch_srcs += config_devices_h[target]
+    link_args += ['@block.syms', '@qemu.syms']
   else
     abi = config_target['TARGET_ABI_DIR']
     target_type='user'
@@ -874,9 +890,11 @@ foreach target : target_dirs
 
   t = target_arch[arch].apply(config_target, strict: false)
   arch_srcs += t.sources()
+  arch_deps += t.dependencies()
 
   target_common = common_ss.apply(config_target, strict: false)
   objects = common_all.extract_objects(target_common.sources())
+  deps = target_common.dependencies()
 
   # TODO: Change to generator once obj-y goes away
   config_target_h = custom_target(target + '-config-target.h',
@@ -887,15 +905,60 @@ foreach target : target_dirs
 
   target_specific = specific_ss.apply(config_target, strict: false)
   arch_srcs += target_specific.sources()
+  arch_deps += target_specific.dependencies()
 
-  static_library('qemu-' + target,
+  lib = static_library('qemu-' + target,
                  sources: arch_srcs + [config_target_h] + genh,
                  objects: objects,
                  include_directories: target_inc,
-                 c_args: ['-DNEED_CPU_H',
-                          '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
-                          '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)],
+                 c_args: c_args,
+                 build_by_default: false,
                  name_suffix: 'fa')
+
+  if target.endswith('-softmmu')
+    execs = [{
+      'name': 'qemu-system-' + target_name,
+      'gui': false,
+      'sources': files('softmmu/main.c'),
+      'dependencies': []
+    }]
+    if sdlwindows
+      execs += [{
+        'name': 'qemu-system-' + target_name + 'w',
+        'gui': true,
+        'sources': files('softmmu/main.c'),
+        'dependencies': []
+      }]
+    endif
+    if config_host.has_key('CONFIG_FUZZ')
+      specific_fuzz = specific_fuzz_ss.apply(config_target, strict: false)
+      execs += [{
+        'name': 'qemu-fuzz-' + target_name,
+        'gui': false,
+        'sources': specific_fuzz.sources(),
+        'dependencies': specific_fuzz.dependencies(),
+        'link_depends': [files('tests/qtest/fuzz/fork_fuzz.ld')],
+      }]
+    endif
+  else
+    execs = [{
+      'name': 'qemu-' + target_name,
+      'gui': false,
+      'sources': [],
+      'dependencies': []
+    }]
+  endif
+  foreach exe: execs
+    emulators += executable(exe['name'], exe['sources'],
+               install: true,
+               c_args: c_args,
+               dependencies: arch_deps + deps + exe['dependencies'],
+               objects: lib.extract_all_objects(recursive: true),
+               link_language: link_language,
+               link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
+               link_args: link_args,
+               gui_app: exe['gui'])
+  endforeach
 endforeach
 
 # Other build targets
