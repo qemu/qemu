@@ -4551,20 +4551,6 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
 
     cpnum = (insn >> 8) & 0xf;
 
-    /* First check for coprocessor space used for XScale/iwMMXt insns */
-    if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
-        if (extract32(s->c15_cpar, cpnum, 1) == 0) {
-            return 1;
-        }
-        if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
-            return disas_iwmmxt_insn(s, insn);
-        } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
-            return disas_dsp_insn(s, insn);
-        }
-        return 1;
-    }
-
-    /* Otherwise treat as a generic register access */
     is64 = (insn & (1 << 25)) == 0;
     if (!is64 && ((insn & (1 << 4)) == 0)) {
         /* cdp */
@@ -4823,6 +4809,23 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
     return 1;
 }
 
+/* Decode XScale DSP or iWMMXt insn (in the copro space, cp=0 or 1) */
+static void disas_xscale_insn(DisasContext *s, uint32_t insn)
+{
+    int cpnum = (insn >> 8) & 0xf;
+
+    if (extract32(s->c15_cpar, cpnum, 1) == 0) {
+        unallocated_encoding(s);
+    } else if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
+        if (disas_iwmmxt_insn(s, insn)) {
+            unallocated_encoding(s);
+        }
+    } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
+        if (disas_dsp_insn(s, insn)) {
+            unallocated_encoding(s);
+        }
+    }
+}
 
 /* Store a 64-bit value to a register pair.  Clobbers val.  */
 static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
@@ -8270,15 +8273,26 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
     case 0xc:
     case 0xd:
     case 0xe:
-        if (((insn >> 8) & 0xe) == 10) {
+    {
+        /* First check for coprocessor space used for XScale/iwMMXt insns */
+        int cpnum = (insn >> 8) & 0xf;
+
+        if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
+            disas_xscale_insn(s, insn);
+            break;
+        }
+
+        if ((cpnum & 0xe) == 10) {
             /* VFP, but failed disas_vfp.  */
             goto illegal_op;
         }
+
         if (disas_coproc_insn(s, insn)) {
             /* Coprocessor.  */
             goto illegal_op;
         }
         break;
+    }
     default:
     illegal_op:
         unallocated_encoding(s);
