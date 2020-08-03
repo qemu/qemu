@@ -47,6 +47,8 @@
 &bfi             rd rn lsb msb
 &sat             rd rn satimm imm sh
 &pkh             rd rn rm imm tb
+&mcr             cp opc1 crn crm opc2 rt
+&mcrr            cp opc1 crm rt rt2
 
 # Data-processing (register)
 
@@ -528,6 +530,23 @@ LDM_a32          ---- 100 b:1 i:1 u:1 w:1 1 rn:4 list:16   &ldst_block
 
 B                .... 1010 ........................           @branch
 BL               .... 1011 ........................           @branch
+
+# Coprocessor instructions
+
+# We decode MCR, MCR, MRRC and MCRR only, because for QEMU the
+# other coprocessor instructions always UNDEF.
+# The trans_ functions for these will ignore cp values 8..13 for v7 or
+# earlier, and 0..13 for v8 and later, because those areas of the
+# encoding space may be used for other things, such as VFP or Neon.
+
+@mcr             ---- .... opc1:3 . crn:4 rt:4 cp:4 opc2:3 . crm:4 &mcr
+@mcrr            ---- .... .... rt2:4 rt:4 cp:4 opc1:4 crm:4       &mcrr
+
+MCRR             .... 1100 0100 .... .... .... .... .... @mcrr
+MRRC             .... 1100 0101 .... .... .... .... .... @mcrr
+
+MCR              .... 1110 ... 0 .... .... .... ... 1 .... @mcr
+MRC              .... 1110 ... 1 .... .... .... ... 1 .... @mcr
 
 # Supervisor call
 
