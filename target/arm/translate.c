@@ -49,8 +49,6 @@
 #define ENABLE_ARCH_7     arm_dc_feature(s, ARM_FEATURE_V7)
 #define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
-#define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
-
 #include "translate.h"
 
 #if defined(CONFIG_USER_ONLY)
@@ -7909,7 +7907,7 @@ static bool trans_BLX_i(DisasContext *s, arg_BLX_i *a)
 {
     TCGv_i32 tmp;
 
-    /* For A32, ARCH(5) is checked near the start of the uncond block. */
+    /* For A32, ARM_FEATURE_V5 is checked near the start of the uncond block. */
     if (s->thumb && (a->imm & 2)) {
         return false;
     }
@@ -8275,7 +8273,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
          * choose to UNDEF. In ARMv5 and above the space is used
          * for miscellaneous unconditional instructions.
          */
-        ARCH(5);
+        if (!arm_dc_feature(s, ARM_FEATURE_V5)) {
+            unallocated_encoding(s);
+            return;
+        }
 
         /* Unconditional instructions.  */
         /* TODO: Perhaps merge these into one decodetree output file.  */
@@ -8400,7 +8401,10 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             goto illegal_op;
         }
     } else if ((insn & 0xf800e800) != 0xf000e800)  {
-        ARCH(6T2);
+        if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
+            unallocated_encoding(s);
+            return;
+        }
     }
 
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
