@@ -5,6 +5,7 @@ gen = [
   decodetree.process('neon-ls.decode', extra_args: '--static-decode=disas_neon_ls'),
   decodetree.process('vfp.decode', extra_args: '--static-decode=disas_vfp'),
   decodetree.process('vfp-uncond.decode', extra_args: '--static-decode=disas_vfp_uncond'),
+  decodetree.process('m-nocp.decode', extra_args: '--static-decode=disas_m_nocp'),
   decodetree.process('a32.decode', extra_args: '--static-decode=disas_a32'),
   decodetree.process('a32-uncond.decode', extra_args: '--static-decode=disas_a32_uncond'),
   decodetree.process('t32.decode', extra_args: '--static-decode=disas_t32'),

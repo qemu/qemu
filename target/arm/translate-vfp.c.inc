@@ -95,14 +95,11 @@ static inline long vfp_f16_offset(unsigned reg, bool top)
 static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
 {
     if (s->fp_excp_el) {
-        if (arm_dc_feature(s, ARM_FEATURE_M)) {
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP, syn_uncategorized(),
-                               s->fp_excp_el);
-        } else {
-            gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
-                               syn_fp_access_trap(1, 0xe, false),
-                               s->fp_excp_el);
-        }
+        /* M-profile handled this earlier, in disas_m_nocp() */
+        assert (!arm_dc_feature(s, ARM_FEATURE_M));
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, false),
+                           s->fp_excp_el);
         return false;
     }
 
@@ -2842,9 +2839,14 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
         !arm_dc_feature(s, ARM_FEATURE_V8)) {
         return false;
     }
-    /* If not secure, UNDEF. */
+    /*
+     * If not secure, UNDEF. We must emit code for this
+     * rather than returning false so that this takes
+     * precedence over the m-nocp.decode NOCP fallback.
+     */
     if (!s->v8m_secure) {
-        return false;
+        unallocated_encoding(s);
+        return true;
     }
     /* If no fpu, NOP. */
     if (!dc_isar_feature(aa32_vfp, s)) {
@@ -2862,4 +2864,34 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
     /* End the TB, because we have updated FP control bits */
     s->base.is_jmp = DISAS_UPDATE_EXIT;
     return true;
+}
+
+static bool trans_NOCP(DisasContext *s, arg_NOCP *a)
+{
+    /*
+     * Handle M-profile early check for disabled coprocessor:
+     * all we need to do here is emit the NOCP exception if
+     * the coprocessor is disabled. Otherwise we return false
+     * and the real VFP/etc decode will handle the insn.
+     */
+    assert(arm_dc_feature(s, ARM_FEATURE_M));
+
+    if (a->cp == 11) {
+        a->cp = 10;
+    }
+    /* TODO: in v8.1M cp 8, 9, 14, 15 also are governed by the cp10 enable */
+
+    if (a->cp != 10) {
+        gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                           syn_uncategorized(), default_exception_el(s));
+        return true;
+    }
+
+    if (s->fp_excp_el != 0) {
+        gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                           syn_uncategorized(), s->fp_excp_el);
+        return true;
+    }
+
+    return false;
 }

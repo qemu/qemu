@@ -1176,6 +1176,7 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 #define ARM_CP_RW_BIT   (1 << 20)
 
 /* Include the VFP and Neon decoders */
+#include "decode-m-nocp.c.inc"
 #include "translate-vfp.c.inc"
 #include "translate-neon.c.inc"
 
@@ -8433,6 +8434,19 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         ARCH(6T2);
     }
 
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        /*
+         * NOCP takes precedence over any UNDEF for (almost) the
+         * entire wide range of coprocessor-space encodings, so check
+         * for it first before proceeding to actually decode eg VFP
+         * insns. This decode also handles the few insns which are
+         * in copro space but do not have NOCP checks (eg VLLDM, VLSTM).
+         */
+        if (disas_m_nocp(s, insn)) {
+            return;
+        }
+    }
+
     if ((insn & 0xef000000) == 0xef000000) {
         /*
          * T32 encodings 0b111p_1111_qqqq_qqqq_qqqq_qqqq_qqqq_qqqq
@@ -8481,21 +8495,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         /* Coprocessor.  */
         if (arm_dc_feature(s, ARM_FEATURE_M)) {
             /* 0b111x_11xx_xxxx_xxxx_xxxx_xxxx_xxxx_xxxx */
-            if (extract32(insn, 24, 2) == 3) {
-                goto illegal_op; /* op0 = 0b11 : unallocated */
-            }
-
-            if (((insn >> 8) & 0xe) == 10 &&
-                dc_isar_feature(aa32_fpsp_v2, s)) {
-                /* FP, and the CPU supports it */
-                goto illegal_op;
-            } else {
-                /* All other insns: NOCP */
-                gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                                   syn_uncategorized(),
-                                   default_exception_el(s));
-            }
-            break;
+            goto illegal_op;
         }
         if (((insn >> 24) & 3) == 3) {
             /* Neon DP, but failed disas_neon_dp() */
