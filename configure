@@ -849,6 +849,7 @@ case $targetos in
 MINGW32*)
   mingw32="yes"
   hax="yes"
+  whpx=""
   vhost_user="no"
   audio_possible_drivers="dsound sdl"
   if check_include dsound.h; then
