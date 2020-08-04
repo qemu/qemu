@@ -1442,9 +1442,7 @@ static void colo_compare_finalize(Object *obj)
         qemu_chr_fe_deinit(&s->chr_notify_dev, false);
     }
 
-    if (s->iothread) {
-        colo_compare_timer_del(s);
-    }
+    colo_compare_timer_del(s);
 
     qemu_bh_delete(s->event_bh);
 
@@ -1470,9 +1468,7 @@ static void colo_compare_finalize(Object *obj)
         g_hash_table_destroy(s->connection_track_table);
     }
 
-    if (s->iothread) {
-        object_unref(OBJECT(s->iothread));
-    }
+    object_unref(OBJECT(s->iothread));
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);

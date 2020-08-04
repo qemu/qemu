@@ -379,7 +379,10 @@ bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
     hwaddr mapped_len = 0;
     struct iovec *ventry;
     assert(pkt);
-    assert(pkt->max_raw_frags > pkt->raw_frags);
+
+    if (pkt->raw_frags >= pkt->max_raw_frags) {
+        return false;
+    }
 
     if (!len) {
         return true;
