@@ -13,9 +13,9 @@
 #ifndef LIBQOS_PCI_PC_H
 #define LIBQOS_PCI_PC_H
 
-#include "libqos/pci.h"
-#include "libqos/malloc.h"
-#include "libqos/qgraph.h"
+#include "pci.h"
+#include "malloc.h"
+#include "qgraph.h"
 
 typedef struct QPCIBusPC {
     QOSGraphObject obj;

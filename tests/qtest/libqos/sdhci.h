@@ -19,7 +19,7 @@
 #ifndef QGRAPH_QSDHCI_H
 #define QGRAPH_QSDHCI_H
 
-#include "libqos/qgraph.h"
+#include "qgraph.h"
 #include "pci.h"
 
 typedef struct QSDHCI QSDHCI;

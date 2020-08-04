@@ -13,7 +13,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/cutils.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 static void test_properties(QTestState *qts, const char *path, bool recurse)
 {

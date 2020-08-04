@@ -14,7 +14,7 @@
 #include "hw/acpi/acpi-defs.h"
 #include "boot-sector.h"
 #include "acpi-utils.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qapi/qmp/qdict.h"
 
 #define VGID_GUID "324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"

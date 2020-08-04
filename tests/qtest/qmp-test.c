@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"

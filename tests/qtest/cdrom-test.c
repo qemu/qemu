@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "boot-sector.h"
 #include "qapi/qmp/qdict.h"
 

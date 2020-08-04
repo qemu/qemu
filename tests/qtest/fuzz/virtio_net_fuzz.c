@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_config.h"
-#include "tests/qtest/libqtest.h"
+#include "tests/qtest/libqos/libqtest.h"
 #include "tests/qtest/libqos/virtio-net.h"
 #include "fuzz.h"
 #include "fork_fuzz.h"

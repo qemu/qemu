@@ -19,7 +19,7 @@
 #ifndef QGRAPH_E1000E_H
 #define QGRAPH_E1000E_H
 
-#include "libqos/qgraph.h"
+#include "qgraph.h"
 #include "pci.h"
 
 #define E1000E_RX0_MSG_ID           (0)

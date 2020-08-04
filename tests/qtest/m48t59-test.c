@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 #define RTC_SECONDS             0x9
 #define RTC_MINUTES             0xa

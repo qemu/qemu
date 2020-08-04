@@ -20,8 +20,8 @@
 #include "libqtest.h"
 #include "qemu/module.h"
 #include "standard-headers/linux/virtio_blk.h"
-#include "libqos/qgraph.h"
-#include "libqos/virtio-blk.h"
+#include "qgraph.h"
+#include "virtio-blk.h"
 
 #define PCI_SLOT                0x04
 #define PCI_FN                  0x00

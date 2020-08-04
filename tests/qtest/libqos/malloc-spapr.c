@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/malloc-spapr.h"
+#include "malloc-spapr.h"
 
 #include "qemu-common.h"
 

@@ -10,7 +10,7 @@
 #define LIBQOS_I2C_H
 
 #include "libqtest.h"
-#include "libqos/qgraph.h"
+#include "qgraph.h"
 
 typedef struct I2CAdapter I2CAdapter;
 struct I2CAdapter {

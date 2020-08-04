@@ -11,11 +11,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/pci.h"
+#include "pci.h"
 
 #include "hw/pci/pci_regs.h"
 #include "qemu/host-utils.h"
-#include "libqos/qgraph.h"
+#include "qgraph.h"
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void (*func)(QPCIDevice *dev, int devfn, void *data),

@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 #include "hw/arm/nrf51.h"
 #include "hw/char/nrf51_uart.h"

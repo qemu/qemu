@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "libqos/qgraph.h"
 #include "libqos/i2c.h"
 #include "hw/misc/pca9552_regs.h"

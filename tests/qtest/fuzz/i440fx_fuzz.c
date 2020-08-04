@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu/main-loop.h"
-#include "tests/qtest/libqtest.h"
+#include "tests/qtest/libqos/libqtest.h"
 #include "tests/qtest/libqos/pci.h"
 #include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"

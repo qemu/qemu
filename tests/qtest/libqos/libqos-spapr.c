@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
-#include "libqos/libqos-spapr.h"
-#include "libqos/malloc-spapr.h"
-#include "libqos/pci-spapr.h"
+#include "libqos-spapr.h"
+#include "malloc-spapr.h"
+#include "pci-spapr.h"
 
 static QOSOps qos_ops = {
     .alloc_init = spapr_alloc_init,

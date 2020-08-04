@@ -25,8 +25,8 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
-#include "libqos/ahci.h"
-#include "libqos/pci-pc.h"
+#include "ahci.h"
+#include "pci-pc.h"
 
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
@@ -579,7 +579,7 @@ void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd)
     /* NCQ commands use exclusively 8 bit fields and needs no adjustment.
      * Only the count field needs to be adjusted for non-NCQ commands.
      * The auxiliary FIS fields are defined per-command and are not currently
-     * implemented in libqos/ahci.o, but may or may not need to be flipped. */
+     * implemented in ahci.o, but may or may not need to be flipped. */
     if (!cmd->props->ncq) {
         tmp.count = cpu_to_le16(tmp.count);
     }

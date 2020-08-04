@@ -1,7 +1,7 @@
 #ifndef LIBQOS_PC_H
 #define LIBQOS_PC_H
 
-#include "libqos/libqos.h"
+#include "libqos.h"
 
 QOSState *qtest_pc_vboot(const char *cmdline_fmt, va_list ap);
 QOSState *qtest_pc_boot(const char *cmdline_fmt, ...);

@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "boot-sector.h"
 #include "qemu-common.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 #define LOW(x) ((x) & 0xff)
 #define HIGH(x) ((x) >> 8)

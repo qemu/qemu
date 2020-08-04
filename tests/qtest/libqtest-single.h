@@ -11,7 +11,7 @@
 #ifndef LIBQTEST_SINGLE_H
 #define LIBQTEST_SINGLE_H
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 QTestState *global_qtest __attribute__((common, weak));
 

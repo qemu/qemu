@@ -8,3 +8,4 @@ if 'CONFIG_TCG' in config_host
 endif
 
 subdir('qapi-schema')
+subdir('qtest')

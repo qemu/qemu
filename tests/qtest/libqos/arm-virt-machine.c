@@ -19,9 +19,9 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/module.h"
-#include "libqos/malloc.h"
-#include "libqos/qgraph.h"
-#include "libqos/virtio-mmio.h"
+#include "malloc.h"
+#include "qgraph.h"
+#include "virtio-mmio.h"
 
 #define ARM_PAGE_SIZE               4096
 #define VIRTIO_MMIO_BASE_ADDR       0x0A003E00

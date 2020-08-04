@@ -20,9 +20,9 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "libqos/malloc.h"
-#include "libqos/qgraph.h"
-#include "libqos/i2c.h"
+#include "malloc.h"
+#include "qgraph.h"
+#include "i2c.h"
 
 #define ARM_PAGE_SIZE            4096
 #define IMX25_PDK_RAM_START      0x80000000
