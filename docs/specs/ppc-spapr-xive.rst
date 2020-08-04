@@ -61,6 +61,11 @@ depend on the XIVE KVM capability of the host. On older kernels
 without XIVE KVM support, QEMU will use the emulated XIVE device as a
 fallback and on newer kernels (>=5.2), the KVM XIVE device.
 
+XIVE native exploitation mode is not supported for KVM nested guests,
+VMs running under a L1 hypervisor (KVM on pSeries). In that case, the
+hypervisor will not advertise the KVM capability and QEMU will use the
+emulated XIVE device, same as for older versions of KVM.
+
 As a final refinement, the user can also switch the use of the KVM
 device with the machine option ``kernel_irqchip``.
 
