@@ -4036,9 +4036,7 @@
 ##
 # @blockdev-add:
 #
-# Creates a new block device. If the @id option is given at the top level, a
-# BlockBackend will be created; otherwise, @node-name is mandatory at the top
-# level and no BlockBackend will be created.
+# Creates a new block device.
 #
 # Since: 2.9
 #
