@@ -1,0 +1,2 @@
+@set VERSION @VERSION@
+@set CONFDIR @qemu_confdir@

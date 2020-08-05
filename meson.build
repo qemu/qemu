@@ -1052,6 +1052,91 @@ subdir('pc-bios')
 subdir('tests')
 subdir('docs')
 
+if build_docs
+  makeinfo = find_program('makeinfo', required: build_docs)
+
+  docs_inc = [
+    '-I', meson.current_source_dir(),
+    '-I', meson.current_build_dir() / 'docs',
+    '-I', '@OUTDIR@',
+  ]
+
+  version_texi = configure_file(output: 'version.texi',
+                              input: 'version.texi.in',
+                              configuration: {'VERSION': meson.project_version(),
+                                              'qemu_confdir': config_host['qemu_confdir']})
+
+  texi = {
+    'qemu-qmp-ref': ['docs/interop/qemu-qmp-ref.texi', qapi_doc_texi, version_texi],
+  }
+  if 'CONFIG_GUEST_AGENT' in config_host
+    texi += {'qemu-ga-ref': ['docs/interop/qemu-ga-ref.texi', qga_qapi_doc_texi, version_texi]}
+  endif
+
+  if makeinfo.found()
+    cmd = [
+      'env', 'LC_ALL=C', makeinfo, '--no-split', '--number-sections', docs_inc,
+      '@INPUT0@', '-o', '@OUTPUT@',
+    ]
+    foreach ext, args: {
+        'info': [],
+        'html': ['--no-headers', '--html'],
+        'txt': ['--no-headers', '--plaintext'],
+    }
+      t = []
+      foreach doc, input: texi
+        output = doc + '.' + ext
+        t += custom_target(output,
+                      input: input,
+                      output: output,
+                      install: true,
+                      install_dir: config_host['qemu_docdir'] / 'interop',
+                      command: cmd + args)
+      endforeach
+      alias_target(ext, t)
+    endforeach
+  endif
+
+  texi2pdf = find_program('texi2pdf', required: false)
+
+  if texi2pdf.found()
+    pdfs = []
+    foreach doc, input: texi
+      output = doc + '.pdf'
+      pdfs += custom_target(output,
+                    input: input,
+                    output: output,
+                    command: [texi2pdf, '-q', docs_inc, '@INPUT0@', '-o', '@OUTPUT@'],
+                    build_by_default: false)
+    endforeach
+    alias_target('pdf', pdfs)
+  endif
+
+  texi2pod = find_program('scripts/texi2pod.pl')
+  pod2man = find_program('pod2man', required: build_docs)
+
+  if pod2man.found()
+    foreach doc, input: texi
+      man = doc + '.7'
+      pod = custom_target(man + '.pod',
+                          input: input,
+                          output: man + '.pod',
+                          command: [texi2pod,
+                                    '-DVERSION="' + meson.project_version() + '"',
+                                    '-DCONFDIR="' + config_host['qemu_confdir'] + '"',
+                                    '@INPUT0@', '@OUTPUT@'])
+      man = custom_target(man,
+                          input: pod,
+                          output: man,
+                          capture: true,
+                          install: true,
+                          install_dir: config_host['mandir'] / 'man7',
+                          command: [pod2man, '--utf8', '--section=7', '--center=" "',
+                                    '--release=" "', '@INPUT@'])
+    endforeach
+  endif
+endif
+
 summary_info = {}
 summary_info += {'Install prefix':    config_host['prefix']}
 summary_info += {'BIOS directory':    config_host['qemu_datadir']}

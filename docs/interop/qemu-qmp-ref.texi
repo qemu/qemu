@@ -65,7 +65,7 @@ along with this manual.  If not, see http://www.gnu.org/licenses/.
 @c for texi2pod:
 @c man begin DESCRIPTION
 
-@include qemu-qmp-qapi.texi
+@include qapi/qapi-doc.texi
 
 @c man end
 
