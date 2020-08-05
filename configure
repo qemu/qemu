@@ -362,7 +362,6 @@ audio_drv_list=""
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
-libs_softmmu=""
 libs_tools=""
 audio_win_int=""
 libs_qga=""
@@ -911,7 +910,6 @@ Darwin)
   audio_drv_list="coreaudio try-sdl"
   audio_possible_drivers="coreaudio sdl"
   QEMU_LDFLAGS="-framework CoreFoundation -framework IOKit $QEMU_LDFLAGS"
-  libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
   QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
@@ -2604,7 +2602,6 @@ if test "$lzo" != "no" ; then
 int main(void) { lzo_version(); return 0; }
 EOF
     if compile_prog "" "-llzo2" ; then
-        libs_softmmu="$libs_softmmu -llzo2"
         lzo_libs="-llzo2"
         lzo="yes"
     else
@@ -2624,7 +2621,6 @@ if test "$snappy" != "no" ; then
 int main(void) { snappy_max_compressed_length(4096); return 0; }
 EOF
     if compile_prog "" "-lsnappy" ; then
-        libs_softmmu="$libs_softmmu -lsnappy"
         snappy_libs='-lsnappy'
         snappy="yes"
     else
@@ -2724,7 +2720,6 @@ if test "$xen" != "no" ; then
       xen_pc="$xen_pc xentoolcore"
     fi
     QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags $xen_pc)"
-    libs_softmmu="$($pkg_config --libs $xen_pc) $libs_softmmu"
     xen_cflags="$($pkg_config --cflags $xen_pc)"
     xen_libs="$($pkg_config --libs $xen_pc)"
   else
@@ -3469,7 +3464,6 @@ EOF
   rdma_libs="-lrdmacm -libverbs -libumad"
   if compile_prog "" "$rdma_libs" ; then
     rdma="yes"
-    libs_softmmu="$libs_softmmu $rdma_libs"
   else
     if test "$rdma" = "yes" ; then
         error_exit \
@@ -4500,8 +4494,6 @@ EOF
   fi
 fi
 
-libs_softmmu="$libs_softmmu $fdt_libs"
-
 ##########################################
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
 
@@ -4725,7 +4717,6 @@ EOF
 
   if compile_prog "" "-lnuma" ; then
     numa=yes
-    libs_softmmu="-lnuma $libs_softmmu"
     numa_libs="-lnuma"
   else
     if test "$numa" = "yes" ; then
@@ -5267,7 +5258,6 @@ if compile_prog "" "" ; then
   have_openpty="yes"
 else
   if compile_prog "" "-lutil" ; then
-    libs_softmmu="-lutil $libs_softmmu"
     libs_tools="-lutil $libs_tools"
     have_openpty="yes"
   fi
@@ -5286,7 +5276,6 @@ EOF
      $pkg_config --atleast-version=0.12.3 spice-protocol && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
-    libs_softmmu="$libs_softmmu $spice_libs"
     QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
   else
     if test "$spice" = "yes" ; then
@@ -6439,7 +6428,6 @@ if test "$libpmem" != "no"; then
 		libpmem="yes"
 		libpmem_libs=$($pkg_config --libs libpmem)
 		libpmem_cflags=$($pkg_config --cflags libpmem)
-		libs_softmmu="$libs_softmmu $libpmem_libs"
 		QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
 	else
 		if test "$libpmem" = "yes" ; then
@@ -6457,7 +6445,6 @@ if test "$libdaxctl" != "no"; then
 		libdaxctl="yes"
 		libdaxctl_libs=$($pkg_config --libs libdaxctl)
 		libdaxctl_cflags=$($pkg_config --cflags libdaxctl)
-		libs_softmmu="$libs_softmmu $libdaxctl_libs"
 		QEMU_CFLAGS="$QEMU_CFLAGS $libdaxctl_cflags"
 	else
 		if test "$libdaxctl" = "yes" ; then
@@ -6886,7 +6873,6 @@ echo_version() {
 # prepend pixman and ftd flags after all config tests are done
 QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
 QEMU_LDFLAGS="$fdt_ldflags $QEMU_LDFLAGS"
-libs_softmmu="$pixman_libs $libs_softmmu"
 
 config_host_mak="config-host.mak"
 
@@ -6915,7 +6901,6 @@ echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
 echo "qemu_icondir=$qemu_icondir" >> $config_host_mak
 echo "qemu_desktopdir=$qemu_desktopdir" >> $config_host_mak
-echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
 echo "GIT_UPDATE=$git_update" >> $config_host_mak
