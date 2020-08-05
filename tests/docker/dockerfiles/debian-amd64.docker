@@ -20,7 +20,9 @@ RUN apt update && \
         librdmacm-dev \
         libsasl2-dev \
         libsnappy-dev \
-        libvte-dev
+        libvte-dev \
+        netcat-openbsd \
+        python3-venv
 
 # virgl
 RUN apt update && \
