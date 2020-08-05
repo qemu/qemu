@@ -126,6 +126,9 @@ xics            XICS KVM       XICS emul.     XICS KVM
 
 (1) QEMU warns with ``warning: kernel_irqchip requested but unavailable:
     IRQ_XIVE capability must be present for KVM``
+    In some cases (old host kernels or KVM nested guests), one may hit a
+    QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
+    with ``KVM is incompatible with ic-mode=dual,kernel-irqchip=on``
 (2) QEMU fails with ``kernel_irqchip requested but unavailable:
     IRQ_XIVE capability must be present for KVM``
 
@@ -148,7 +151,7 @@ xics            XICS KVM       XICS emul.     XICS KVM
     mode (XICS), either don't set the ic-mode machine property or try
     ic-mode=xics or ic-mode=dual``
 (4) QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
-    with ``KVM is too old to support ic-mode=dual,kernel-irqchip=on``
+    with ``KVM is incompatible with ic-mode=dual,kernel-irqchip=on``
 
 
 XIVE Device tree properties
