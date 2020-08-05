@@ -28,9 +28,9 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/ioport.h"
-#include "trace/trace-root.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 
 typedef struct MemoryRegionPortioList {
     MemoryRegion mr;
