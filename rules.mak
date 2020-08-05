@@ -375,53 +375,5 @@ define unnest-vars
         $(eval $v := $(filter-out %/,$($v))))
 endef
 
-TEXI2MAN = $(call quiet-command, \
-	perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $(TEXI2PODFLAGS) $< $@.pod && \
-	$(POD2MAN) --section=$(subst .,,$(suffix $@)) --center=" " --release=" " $@.pod > $@, \
-	"GEN","$@")
-
-%.1:
-	$(call TEXI2MAN)
-%.7:
-	$(call TEXI2MAN)
-%.8:
-	$(call TEXI2MAN)
-
-# Support for building multiple output files by atomically executing
-# a single rule which depends on several input files (so the rule
-# will be executed exactly once, not once per output file, and
-# not multiple times in parallel.) For more explanation see:
-# https://www.cmcrossroads.com/article/atomic-rules-gnu-make
-
-# Given a space-separated list of filenames, create the name of
-# a 'sentinel' file to use to indicate that they have been built.
-# We use fixed text on the end to avoid accidentally triggering
-# automatic pattern rules, and . on the start to make the file
-# not show up in ls output.
-sentinel = .$(subst $(SPACE),_,$(subst /,_,$1)).sentinel.
-
-# Define an atomic rule that builds multiple outputs from multiple inputs.
-# To use:
-#    $(call atomic,out1 out2 ...,in1 in2 ...)
-#    <TAB>rule to do the operation
-#
-# Make 4.3 will have native support for this, and you would be able
-# to instead write:
-#    out1 out2 ... &: in1 in2 ...
-#    <TAB>rule to do the operation
-#
-# The way this works is that it creates a make rule
-# "out1 out2 ... : sentinel-file ; @:" which says that the sentinel
-# depends on the dependencies, and the rule to do that is "do nothing".
-# Then we have a rule
-# "sentinel-file : in1 in2 ..."
-# whose commands start with "touch sentinel-file" and then continue
-# with the rule text provided by the user of this 'atomic' function.
-# The foreach... is there to delete the sentinel file if any of the
-# output files don't exist, so that we correctly rebuild in that situation.
-atomic = $(eval $1: $(call sentinel,$1) ; @:) \
-         $(call sentinel,$1) : $2 ; @touch $$@ \
-         $(foreach t,$1,$(if $(wildcard $t),,$(shell rm -f $(call sentinel,$1))))
-
 print-%:
 	@echo '$*=$($*)'

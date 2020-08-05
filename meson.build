@@ -11,6 +11,7 @@ cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 config_all_disas = keyval.load(meson.current_build_dir() / 'config-all-disas.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
+build_docs = 'BUILD_DOCS' in config_host
 
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
@@ -1049,6 +1050,7 @@ endif
 subdir('tools')
 subdir('pc-bios')
 subdir('tests')
+subdir('docs')
 
 summary_info = {}
 summary_info += {'Install prefix':    config_host['prefix']}
