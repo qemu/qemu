@@ -27,12 +27,10 @@ typedef unsigned long long __u64;
 #define false 0
 #define PAGE_SIZE 4096
 
-#ifndef EIO
 #define EIO     1
-#endif
-#ifndef EBUSY
 #define EBUSY   2
-#endif
+#define ENODEV  3
+
 #ifndef NULL
 #define NULL    0
 #endif
