@@ -74,6 +74,7 @@ build-system-ubuntu:
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -104,6 +105,7 @@ build-system-debian:
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -134,6 +136,7 @@ build-system-fedora:
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -164,6 +167,7 @@ build-system-centos:
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
