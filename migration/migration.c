@@ -384,7 +384,8 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     if (!strcmp(uri, "defer")) {
         deferred_incoming_migration(errp);
     } else if (strstart(uri, "tcp:", &p) ||
-               strstart(uri, "unix:", NULL)) {
+               strstart(uri, "unix:", NULL) ||
+               strstart(uri, "vsock:", NULL)) {
         socket_start_incoming_migration(p ? p : uri, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
@@ -2102,7 +2103,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (strstart(uri, "tcp:", &p) ||
-        strstart(uri, "unix:", NULL)) {
+        strstart(uri, "unix:", NULL) ||
+        strstart(uri, "vsock:", NULL)) {
         socket_start_outgoing_migration(s, p ? p : uri, &local_err);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
