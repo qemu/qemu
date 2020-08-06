@@ -26,16 +26,19 @@ from qcow2_format import (
 )
 
 
+is_json = False
+
+
 def cmd_dump_header(fd):
     h = QcowHeader(fd)
-    h.dump()
+    h.dump(is_json)
     print()
-    h.dump_extensions()
+    h.dump_extensions(is_json)
 
 
 def cmd_dump_header_exts(fd):
     h = QcowHeader(fd)
-    h.dump_extensions()
+    h.dump_extensions(is_json)
 
 
 def cmd_set_header(fd, name, value):
@@ -151,16 +154,23 @@ def main(filename, cmd, args):
 
 
 def usage():
-    print("Usage: %s <file> <cmd> [<arg>, ...]" % sys.argv[0])
+    print("Usage: %s <file> <cmd> [<arg>, ...] [<key>, ...]" % sys.argv[0])
     print("")
     print("Supported commands:")
     for name, handler, num_args, desc in cmds:
         print("    %-20s - %s" % (name, desc))
+    print("")
+    print("Supported keys:")
+    print("    %-20s - %s" % ('-j', 'Dump in JSON format'))
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         usage()
         sys.exit(1)
+
+    is_json = '-j' in sys.argv
+    if is_json:
+        sys.argv.remove('-j')
 
     main(sys.argv[1], sys.argv[2], sys.argv[3:])
