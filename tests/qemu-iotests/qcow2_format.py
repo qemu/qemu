@@ -175,6 +175,10 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         entry_raw_size = self.bitmap_dir_entry_raw_size()
         padding = ((entry_raw_size + 7) & ~7) - entry_raw_size
         fd.seek(padding, 1)
+        self.bitmap_table = Qcow2BitmapTable(fd=fd,
+                                             offset=self.bitmap_table_offset,
+                                             nb_entries=self.bitmap_table_size,
+                                             cluster_size=self.cluster_size)
 
     def bitmap_dir_entry_raw_size(self):
         return struct.calcsize(self.fmt) + self.name_size + \
@@ -183,6 +187,52 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
     def dump(self):
         print(f'{"Bitmap name":<25} {self.name}')
         super(Qcow2BitmapDirEntry, self).dump()
+        self.bitmap_table.dump()
+
+
+class Qcow2BitmapTableEntry(Qcow2Struct):
+
+    fields = (
+        ('u64',  '{}', 'entry'),
+    )
+
+    BME_TABLE_ENTRY_RESERVED_MASK = 0xff000000000001fe
+    BME_TABLE_ENTRY_OFFSET_MASK = 0x00fffffffffffe00
+    BME_TABLE_ENTRY_FLAG_ALL_ONES = 1
+
+    def __init__(self, fd):
+        super().__init__(fd=fd)
+        self.reserved = self.entry & self.BME_TABLE_ENTRY_RESERVED_MASK
+        self.offset = self.entry & self.BME_TABLE_ENTRY_OFFSET_MASK
+        if self.offset:
+            if self.entry & self.BME_TABLE_ENTRY_FLAG_ALL_ONES:
+                self.type = 'invalid'
+            else:
+                self.type = 'serialized'
+        elif self.entry & self.BME_TABLE_ENTRY_FLAG_ALL_ONES:
+            self.type = 'all-ones'
+        else:
+            self.type = 'all-zeroes'
+
+
+class Qcow2BitmapTable:
+
+    def __init__(self, fd, offset, nb_entries, cluster_size):
+        self.cluster_size = cluster_size
+        position = fd.tell()
+        fd.seek(offset)
+        self.entries = [Qcow2BitmapTableEntry(fd) for _ in range(nb_entries)]
+        fd.seek(position)
+
+    def dump(self):
+        bitmap_table = enumerate(self.entries)
+        print(f'{"Bitmap table":<14} {"type":<15} {"size":<12} {"offset"}')
+        for i, entry in bitmap_table:
+            if entry.type == 'serialized':
+                size = self.cluster_size
+            else:
+                size = 0
+            print(f'{i:<14} {entry.type:<15} {size:<12} {entry.offset}')
 
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875

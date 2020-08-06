@@ -66,6 +66,8 @@ type                      1
 granularity_bits          15
 name_size                 8
 extra_data_size           0
+Bitmap table   type            size         offset
+0              serialized      65536        10092544
 
 Bitmap name               bitmap-2
 bitmap_table_offset       0x9c0000
@@ -75,4 +77,6 @@ type                      1
 granularity_bits          16
 name_size                 8
 extra_data_size           0
+Bitmap table   type            size         offset
+0              all-zeroes      0            0
 
