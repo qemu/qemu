@@ -165,6 +165,13 @@ class QcowHeaderExtension(Qcow2Struct):
             self.data = fd.read(padded)
             assert self.data is not None
 
+        data_str = self.data[:self.length]
+        if all(c in string.printable.encode('ascii') for c in data_str):
+            data_str = f"'{ data_str.decode('ascii') }'"
+        else:
+            data_str = '<binary>'
+        self.data_str = data_str
+
         if self.magic == QCOW2_EXT_MAGIC_BITMAPS:
             self.obj = Qcow2BitmapExt(data=self.data)
         else:
@@ -174,12 +181,7 @@ class QcowHeaderExtension(Qcow2Struct):
         super().dump()
 
         if self.obj is None:
-            data = self.data[:self.length]
-            if all(c in string.printable.encode('ascii') for c in data):
-                data = f"'{ data.decode('ascii') }'"
-            else:
-                data = '<binary>'
-            print(f'{"data":<25} {data}')
+            print(f'{"data":<25} {self.data_str}')
         else:
             self.obj.dump()
 
