@@ -119,6 +119,9 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
 
             print('{:<25} {}'.format(f[2], value_str))
 
+    def to_json(self):
+        return dict((f[2], self.__dict__[f[2]]) for f in self.fields)
+
 
 class Qcow2BitmapExt(Qcow2Struct):
 
@@ -150,6 +153,11 @@ class Qcow2BitmapExt(Qcow2Struct):
         for entry in self.bitmap_directory:
             print()
             entry.dump()
+
+    def to_json(self):
+        fields_dict = super().to_json()
+        fields_dict['bitmap_directory'] = self.bitmap_directory
+        return fields_dict
 
 
 class Qcow2BitmapDirEntry(Qcow2Struct):
@@ -189,6 +197,14 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         super(Qcow2BitmapDirEntry, self).dump()
         self.bitmap_table.dump()
 
+    def to_json(self):
+        # Put the name ahead of the dict
+        return {
+            'name': self.name,
+            **super().to_json(),
+            'bitmap_table': self.bitmap_table
+        }
+
 
 class Qcow2BitmapTableEntry(Qcow2Struct):
 
@@ -214,6 +230,10 @@ class Qcow2BitmapTableEntry(Qcow2Struct):
         else:
             self.type = 'all-zeroes'
 
+    def to_json(self):
+        return {'type': self.type, 'offset': self.offset,
+                'reserved': self.reserved}
+
 
 class Qcow2BitmapTable:
 
@@ -234,6 +254,9 @@ class Qcow2BitmapTable:
                 size = 0
             print(f'{i:<14} {entry.type:<15} {size:<12} {entry.offset}')
 
+    def to_json(self):
+        return self.entries
+
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
 
@@ -248,6 +271,9 @@ class QcowHeaderExtension(Qcow2Struct):
             QCOW2_EXT_MAGIC_BITMAPS: 'Bitmaps',
             0x44415441: 'Data file'
         }
+
+        def to_json(self):
+            return self.mapping.get(self.value, "<unknown>")
 
     fields = (
         ('u32', Magic, 'magic'),
@@ -310,6 +336,16 @@ class QcowHeaderExtension(Qcow2Struct):
             print(f'{"data":<25} {self.data_str}')
         else:
             self.obj.dump()
+
+    def to_json(self):
+        # Put the name ahead of the dict
+        res = {'name': self.Magic(self.magic), **super().to_json()}
+        if self.obj is not None:
+            res['data'] = self.obj
+        else:
+            res['data_str'] = self.data_str
+
+        return res
 
     @classmethod
     def create(cls, magic, data):
