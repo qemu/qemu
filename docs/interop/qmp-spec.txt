@@ -110,6 +110,9 @@ or
   if provided.  The "id" member can be any json-value.  A json-number
   incremented for each successive command works fine.
 
+The actual commands are documented in the QEMU QMP reference manual
+docs/interop/qemu-qmp-ref.{7,html,info,pdf,txt}.
+
 2.3.1 Out-of-band execution
 ---------------------------
 
@@ -207,13 +210,13 @@ The format of asynchronous events is:
   there is a failure to retrieve host time, both members of the
   timestamp will be set to -1.
 
-For a listing of supported asynchronous events, please, refer to the
-qmp-events.txt file.
+The actual asynchronous events are documented in the QEMU QMP
+reference manual docs/interop/qemu-qmp-ref.{7,html,info,pdf,txt}.
 
 Some events are rate-limited to at most one per second.  If additional
 "similar" events arrive within one second, all but the last one are
 dropped, and the last one is delayed.  "Similar" normally means same
-event type.  See qmp-events.txt for details.
+event type.
 
 2.6 Forcing the JSON parser into known-good state
 -------------------------------------------------
