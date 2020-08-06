@@ -445,12 +445,12 @@ static void aio_timerlist_notify(void *opaque, QEMUClockType type)
     aio_notify(opaque);
 }
 
-static void event_notifier_dummy_cb(EventNotifier *e)
+static void aio_context_notifier_dummy_cb(EventNotifier *e)
 {
 }
 
 /* Returns true if aio_notify() was called (e.g. a BH was scheduled) */
-static bool event_notifier_poll(void *opaque)
+static bool aio_context_notifier_poll(void *opaque)
 {
     EventNotifier *e = opaque;
     AioContext *ctx = container_of(e, AioContext, notifier);
@@ -508,8 +508,8 @@ AioContext *aio_context_new(Error **errp)
 
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
-                           event_notifier_dummy_cb,
-                           event_notifier_poll);
+                           aio_context_notifier_dummy_cb,
+                           aio_context_notifier_poll);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif
