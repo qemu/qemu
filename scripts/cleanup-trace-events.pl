@@ -15,12 +15,15 @@ use warnings;
 use strict;
 use File::Basename;
 
-my $buf = '';
+my @files = ();
+my $events = '';
 my %seen = ();
 
 sub out {
-    print $buf;
-    $buf = '';
+    print sort @files;
+    print $events;
+    @files = ();
+    $events = '';
     %seen = ();
 }
 
@@ -42,7 +45,7 @@ while (<IN>) {
             chomp $fname;
             next if $seen{$fname} || $fname eq 'trace-events';
             $seen{$fname} = 1;
-            $buf = "# $fname\n" . $buf;
+            push @files, "# $fname\n";
         }
         unless (close GREP) {
             die "close git grep: $!"
@@ -55,7 +58,7 @@ while (<IN>) {
     } elsif (!/^#|^$/) {
         warn "unintelligible line";
     }
-    $buf .= $_;
+    $events .= $_;
 }
 
 out;
