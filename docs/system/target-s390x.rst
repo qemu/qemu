@@ -31,4 +31,5 @@ Architectural features
 ======================
 
 .. toctree::
+   s390x/bootdevices
    s390x/protvirt
