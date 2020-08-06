@@ -745,6 +745,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
+    int fd;
 
     /*
      * The KVM XIVE device already in use. This is the case when
@@ -760,11 +761,12 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     }
 
     /* First, create the KVM XIVE device */
-    xive->fd = kvm_create_device(kvm_state, KVM_DEV_TYPE_XIVE, false);
-    if (xive->fd < 0) {
-        error_setg_errno(errp, -xive->fd, "XIVE: error creating KVM device");
+    fd = kvm_create_device(kvm_state, KVM_DEV_TYPE_XIVE, false);
+    if (fd < 0) {
+        error_setg_errno(errp, -fd, "XIVE: error creating KVM device");
         return -1;
     }
+    xive->fd = fd;
 
     /* Tell KVM about the # of VCPUs we may have */
     if (kvm_device_check_attr(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
