@@ -873,10 +873,8 @@ void kvmppc_xive_disconnect(SpaprInterruptController *intc)
      * and removed from the list of devices of the VM. The VCPU
      * presenters are also detached from the device.
      */
-    if (xive->fd != -1) {
-        close(xive->fd);
-        xive->fd = -1;
-    }
+    close(xive->fd);
+    xive->fd = -1;
 
     kvm_kernel_irqchip = false;
     kvm_msi_via_irqfd_allowed = false;
