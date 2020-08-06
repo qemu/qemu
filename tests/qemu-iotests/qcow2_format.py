@@ -134,6 +134,53 @@ class Qcow2BitmapExt(Qcow2Struct):
         tail = struct.calcsize(self.fmt) % 8
         if tail:
             fd.seek(8 - tail, 1)
+        position = fd.tell()
+        self.read_bitmap_directory(fd)
+        fd.seek(position)
+
+    def read_bitmap_directory(self, fd):
+        fd.seek(self.bitmap_directory_offset)
+        self.bitmap_directory = \
+            [Qcow2BitmapDirEntry(fd) for _ in range(self.nb_bitmaps)]
+
+    def dump(self):
+        super().dump()
+        for entry in self.bitmap_directory:
+            print()
+            entry.dump()
+
+
+class Qcow2BitmapDirEntry(Qcow2Struct):
+
+    fields = (
+        ('u64', '{:#x}', 'bitmap_table_offset'),
+        ('u32', '{}', 'bitmap_table_size'),
+        ('u32', BitmapFlags, 'flags'),
+        ('u8',  '{}', 'type'),
+        ('u8',  '{}', 'granularity_bits'),
+        ('u16', '{}', 'name_size'),
+        ('u32', '{}', 'extra_data_size')
+    )
+
+    def __init__(self, fd):
+        super().__init__(fd=fd)
+        # Seek relative to the current position in the file
+        fd.seek(self.extra_data_size, 1)
+        bitmap_name = fd.read(self.name_size)
+        self.name = bitmap_name.decode('ascii')
+        # Move position to the end of the entry in the directory
+        entry_raw_size = self.bitmap_dir_entry_raw_size()
+        padding = ((entry_raw_size + 7) & ~7) - entry_raw_size
+        fd.seek(padding, 1)
+
+    def bitmap_dir_entry_raw_size(self):
+        return struct.calcsize(self.fmt) + self.name_size + \
+            self.extra_data_size
+
+    def dump(self):
+        print(f'{"Bitmap name":<25} {self.name}')
+        super(Qcow2BitmapDirEntry, self).dump()
+
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
 
