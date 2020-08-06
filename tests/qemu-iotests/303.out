@@ -80,3 +80,79 @@ extra_data_size           0
 Bitmap table   type            size         offset
 0              all-zeroes      0            0
 
+{
+    "magic": 1363560955,
+    "version": 3,
+    "backing_file_offset": 0,
+    "backing_file_size": 0,
+    "cluster_bits": 16,
+    "size": 10485760,
+    "crypt_method": 0,
+    "l1_size": 1,
+    "l1_table_offset": 196608,
+    "refcount_table_offset": 65536,
+    "refcount_table_clusters": 1,
+    "nb_snapshots": 0,
+    "snapshot_offset": 0,
+    "incompatible_features": 0,
+    "compatible_features": 0,
+    "autoclear_features": 1,
+    "refcount_order": 4,
+    "header_length": 112
+}
+
+[
+    {
+        "name": "Feature table",
+        "magic": 1745090647,
+        "length": 336,
+        "data_str": "<binary>"
+    },
+    {
+        "name": "Bitmaps",
+        "magic": 595929205,
+        "length": 24,
+        "data": {
+            "nb_bitmaps": 2,
+            "reserved32": 0,
+            "bitmap_directory_size": 64,
+            "bitmap_directory_offset": 10289152,
+            "bitmap_directory": [
+                {
+                    "name": "bitmap-1",
+                    "bitmap_table_offset": 10158080,
+                    "bitmap_table_size": 1,
+                    "flags": 2,
+                    "type": 1,
+                    "granularity_bits": 15,
+                    "name_size": 8,
+                    "extra_data_size": 0,
+                    "bitmap_table": [
+                        {
+                            "type": "serialized",
+                            "offset": 10092544,
+                            "reserved": 0
+                        }
+                    ]
+                },
+                {
+                    "name": "bitmap-2",
+                    "bitmap_table_offset": 10223616,
+                    "bitmap_table_size": 1,
+                    "flags": 0,
+                    "type": 1,
+                    "granularity_bits": 16,
+                    "name_size": 8,
+                    "extra_data_size": 0,
+                    "bitmap_table": [
+                        {
+                            "type": "all-zeroes",
+                            "offset": 0,
+                            "reserved": 0
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+]
