@@ -23,13 +23,8 @@
 void socket_send_channel_create(QIOTaskFunc f, void *data);
 int socket_send_channel_destroy(QIOChannel *send);
 
-void tcp_start_incoming_migration(const char *host_port, Error **errp);
+void socket_start_incoming_migration(const char *str, Error **errp);
 
-void tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
-                                  Error **errp);
-
-void unix_start_incoming_migration(const char *path, Error **errp);
-
-void unix_start_outgoing_migration(MigrationState *s, const char *path,
-                                   Error **errp);
+void socket_start_outgoing_migration(MigrationState *s, const char *str,
+                                     Error **errp);
 #endif
