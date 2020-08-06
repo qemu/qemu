@@ -40,6 +40,22 @@ class Flags64(Qcow2Field):
         return str(bits)
 
 
+class BitmapFlags(Qcow2Field):
+
+    flags = {
+        0x1: 'in-use',
+        0x2: 'auto'
+    }
+
+    def __str__(self):
+        bits = []
+        for bit in range(64):
+            flag = self.value & (1 << bit)
+            if flag:
+                bits.append(self.flags.get(flag, f'bit-{bit}'))
+        return f'{self.value:#x} ({bits})'
+
+
 class Enum(Qcow2Field):
 
     def __str__(self):
