@@ -1094,19 +1094,6 @@ static inline void gen_hlt(DisasContext *s, int imm)
     unallocated_encoding(s);
 }
 
-static TCGv_ptr get_fpstatus_ptr(int neon)
-{
-    TCGv_ptr statusptr = tcg_temp_new_ptr();
-    int offset;
-    if (neon) {
-        offset = offsetof(CPUARMState, vfp.standard_fp_status);
-    } else {
-        offset = offsetof(CPUARMState, vfp.fp_status);
-    }
-    tcg_gen_addi_ptr(statusptr, cpu_env, offset);
-    return statusptr;
-}
-
 static inline long vfp_reg_offset(bool dp, unsigned reg)
 {
     if (dp) {

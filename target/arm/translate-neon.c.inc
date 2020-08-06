@@ -181,7 +181,7 @@ static bool trans_VCMLA(DisasContext *s, arg_VCMLA *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     fn_gvec_ptr = a->size ? gen_helper_gvec_fcmlas : gen_helper_gvec_fcmlah;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
@@ -218,7 +218,7 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     fn_gvec_ptr = a->size ? gen_helper_gvec_fcadds : gen_helper_gvec_fcaddh;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
@@ -322,7 +322,7 @@ static bool trans_VCMLA_scalar(DisasContext *s, arg_VCMLA_scalar *a)
     fn_gvec_ptr = (a->size ? gen_helper_gvec_fcmlas_idx
                    : gen_helper_gvec_fcmlah_idx);
     opr_sz = (1 + a->q) * 8;
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -358,7 +358,7 @@ static bool trans_VDOT_scalar(DisasContext *s, arg_VDOT_scalar *a)
 
     fn_gvec = a->u ? gen_helper_gvec_udot_idx_b : gen_helper_gvec_sdot_idx_b;
     opr_sz = (1 + a->q) * 8;
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     tcg_gen_gvec_3_ool(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->rm),
@@ -1063,7 +1063,7 @@ static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn,
         return true;
     }
 
-    TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+    TCGv_ptr fpstatus = fpstatus_ptr(FPST_STD);
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         tmp = neon_load_reg(a->vn, pass);
         tmp2 = neon_load_reg(a->vm, pass);
@@ -1091,7 +1091,7 @@ static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn,
                                 uint32_t rn_ofs, uint32_t rm_ofs,       \
                                 uint32_t oprsz, uint32_t maxsz)         \
     {                                                                   \
-        TCGv_ptr fpst = get_fpstatus_ptr(1);                            \
+        TCGv_ptr fpst = fpstatus_ptr(FPST_STD);                         \
         tcg_gen_gvec_3_ptr(rd_ofs, rn_ofs, rm_ofs, fpst,                \
                            oprsz, maxsz, 0, FUNC);                      \
         tcg_temp_free_ptr(fpst);                                        \
@@ -1287,7 +1287,7 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
      * early. Since Q is 0 there are always just two passes, so instead
      * of a complicated loop over each pass we just unroll.
      */
-    fpstatus = get_fpstatus_ptr(1);
+    fpstatus = fpstatus_ptr(FPST_STD);
     tmp = neon_load_reg(a->vn, 0);
     tmp2 = neon_load_reg(a->vn, 1);
     fn(tmp, tmp, tmp2, fpstatus);
@@ -1790,7 +1790,7 @@ static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
         return true;
     }
 
-    fpstatus = get_fpstatus_ptr(1);
+    fpstatus = fpstatus_ptr(FPST_STD);
     shiftv = tcg_const_i32(a->shift);
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         tmp = neon_load_reg(a->vm, pass);
@@ -2591,7 +2591,7 @@ static bool trans_VMLS_2sc(DisasContext *s, arg_2scalar *a)
 #define WRAP_FP_FN(WRAPNAME, FUNC)                              \
     static void WRAPNAME(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm) \
     {                                                           \
-        TCGv_ptr fpstatus = get_fpstatus_ptr(1);                \
+        TCGv_ptr fpstatus = fpstatus_ptr(FPST_STD);             \
         FUNC(rd, rn, rm, fpstatus);                             \
         tcg_temp_free_ptr(fpstatus);                            \
     }
@@ -3480,7 +3480,7 @@ static bool trans_VCVT_F16_F32(DisasContext *s, arg_2misc *a)
         return true;
     }
 
-    fpst = get_fpstatus_ptr(true);
+    fpst = fpstatus_ptr(FPST_STD);
     ahp = get_ahp_flag();
     tmp = neon_load_reg(a->vm, 0);
     gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
@@ -3528,7 +3528,7 @@ static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
         return true;
     }
 
-    fpst = get_fpstatus_ptr(true);
+    fpst = fpstatus_ptr(FPST_STD);
     ahp = get_ahp_flag();
     tmp3 = tcg_temp_new_i32();
     tmp = neon_load_reg(a->vm, 0);
@@ -3838,7 +3838,7 @@ static bool do_2misc_fp(DisasContext *s, arg_2misc *a,
         return true;
     }
 
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         TCGv_i32 tmp = neon_load_reg(a->vm, pass);
         fn(tmp, tmp, fpst);
@@ -3932,7 +3932,7 @@ static bool do_vrint(DisasContext *s, arg_2misc *a, int rmode)
         return true;
     }
 
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
     gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
@@ -3993,7 +3993,7 @@ static bool do_vcvt(DisasContext *s, arg_2misc *a, int rmode, bool is_signed)
         return true;
     }
 
-    fpst = get_fpstatus_ptr(1);
+    fpst = fpstatus_ptr(FPST_STD);
     tcg_shift = tcg_const_i32(0);
     tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
     gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
