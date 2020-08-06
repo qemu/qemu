@@ -19,6 +19,15 @@
 
 import struct
 import string
+import json
+
+
+class ComplexEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'to_json'):
+            return obj.to_json()
+        else:
+            return json.JSONEncoder.default(self, obj)
 
 
 class Qcow2Field:
@@ -110,6 +119,10 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
                              for i, field in enumerate(self.fields))
 
     def dump(self, is_json=False):
+        if is_json:
+            print(json.dumps(self.to_json(), indent=4, cls=ComplexEncoder))
+            return
+
         for f in self.fields:
             value = self.__dict__[f[2]]
             if isinstance(f[1], str):
@@ -445,6 +458,10 @@ class QcowHeader(Qcow2Struct):
         fd.write(buf)
 
     def dump_extensions(self, is_json=False):
+        if is_json:
+            print(json.dumps(self.extensions, indent=4, cls=ComplexEncoder))
+            return
+
         for ex in self.extensions:
             print('Header extension:')
             ex.dump()
