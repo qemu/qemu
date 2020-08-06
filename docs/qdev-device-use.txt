@@ -125,7 +125,14 @@ The -device argument differs in detail for each type of drive:
 
 * if=pflash, if=mtd, if=sd, if=xen are not yet available with -device
 
-For USB storage devices, you can use something like:
+For USB devices, the old way was actually different:
+
+    -usbdevice disk:format=FMT:FILENAME
+
+"Was" because "disk:" is gone since v2.12.0.
+
+The old way provided much less control than -drive's OPTS...  The new
+way fixes that:
 
     -device usb-storage,drive=DRIVE-ID,removable=RMB
 
@@ -177,6 +184,9 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
   have to use something like
 
   -device usb-braille,chardev=braille -chardev braille,id=braille
+
+* -usbdevice serial::chardev is gone since v2.12.0.  It became
+  -device usb-serial,chardev=dev.
 
 LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
@@ -230,6 +240,12 @@ Host and guest part of network devices have always been separate.
 The old way to define the guest part looks like this:
 
     -net nic,netdev=NET-ID,macaddr=MACADDR,model=MODEL,name=ID,addr=STR,vectors=V
+
+Except for USB it looked like this:
+
+    -usbdevice net:netdev=NET-ID,macaddr=MACADDR,name=ID
+
+"Looked" because "net:" is gone since v2.12.0.
 
 The new way is -device:
 
@@ -328,6 +344,13 @@ The new way is -device DEVNAME,DEV-OPTS...  Details depend on DRIVER:
 * u2f             -device u2f-{emulated,passthru}
 * braille         See "Character Devices"
 
+Until v2.12.0, we additionally had
+
+* host:...        See "Host Device Assignment"
+* disk:...        See "Block Devices"
+* serial:...      See "Character Devices"
+* net:...         See "Network Devices"
+
 === Watchdog Devices ===
 
 Host and guest part of watchdog devices have always been separate.
@@ -343,7 +366,14 @@ and host USB devices.  PCI devices can only be assigned with -device:
 
     -device vfio-pci,host=ADDR,id=ID
 
-To assign a host USB device use:
+The old way to assign a USB host device
+
+    -usbdevice host:auto:BUS.ADDR:VID:PRID
+
+was removed in v2.12.0.  Any of BUS, ADDR, VID, PRID could be the
+wildcard *.
+
+The new way is
 
     -device usb-host,hostbus=BUS,hostaddr=ADDR,vendorid=VID,productid=PRID
 
