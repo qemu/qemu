@@ -436,7 +436,8 @@ static inline TCGv_ptr fpstatus_ptr(ARMFPStatusFlavour flavour)
         offset = offsetof(CPUARMState, vfp.standard_fp_status);
         break;
     case FPST_STD_F16:
-        /* Not yet used or implemented: fall through to assert */
+        offset = offsetof(CPUARMState, vfp.standard_fp_status_f16);
+        break;
     default:
         g_assert_not_reached();
     }
