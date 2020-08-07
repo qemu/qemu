@@ -742,7 +742,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;
     Error *local_err = NULL;
-    size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+    size_t esb_len = xive_source_esb_len(xsrc);
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
     int fd;
@@ -788,7 +788,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     }
 
     memory_region_init_ram_device_ptr(&xsrc->esb_mmio_kvm, OBJECT(xsrc),
-                                      "xive.esb", esb_len, xsrc->esb_mmap);
+                                      "xive.esb-kvm", esb_len, xsrc->esb_mmap);
     memory_region_add_subregion_overlap(&xsrc->esb_mmio, 0,
                                         &xsrc->esb_mmio_kvm, 1);
 

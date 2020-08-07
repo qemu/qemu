@@ -191,6 +191,7 @@ typedef struct XiveSource {
     uint64_t        esb_flags;
     uint32_t        esb_shift;
     MemoryRegion    esb_mmio;
+    MemoryRegion    esb_mmio_emulated;
 
     /* KVM support */
     void            *esb_mmap;
@@ -213,6 +214,11 @@ static inline bool xive_source_esb_has_2page(XiveSource *xsrc)
 {
     return xsrc->esb_shift == XIVE_ESB_64K_2PAGE ||
         xsrc->esb_shift == XIVE_ESB_4K_2PAGE;
+}
+
+static inline size_t xive_source_esb_len(XiveSource *xsrc)
+{
+    return (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
 }
 
 /* The trigger page is always the first/even page */

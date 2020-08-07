@@ -1128,6 +1128,7 @@ static void xive_source_reset(void *dev)
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+    size_t esb_len = xive_source_esb_len(xsrc);
 
     assert(xsrc->xive);
 
@@ -1147,11 +1148,11 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    if (!kvm_irqchip_in_kernel()) {
-        memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                              &xive_source_esb_ops, xsrc, "xive.esb",
-                              (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
-    }
+    memory_region_init(&xsrc->esb_mmio, OBJECT(xsrc), "xive.esb", esb_len);
+    memory_region_init_io(&xsrc->esb_mmio_emulated, OBJECT(xsrc),
+                          &xive_source_esb_ops, xsrc, "xive.esb-emulated",
+                          esb_len);
+    memory_region_add_subregion(&xsrc->esb_mmio, 0, &xsrc->esb_mmio_emulated);
 
     qemu_register_reset(xive_source_reset, dev);
 }
