@@ -79,10 +79,7 @@ void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
     uint64_t state[2];
     int ret;
 
-    /* The KVM XIVE device is not in use yet */
-    if (xive->fd == -1) {
-        return;
-    }
+    assert(xive->fd != -1);
 
     /* word0 and word1 of the OS ring. */
     state[0] = *((uint64_t *) &tctx->regs[TM_QW1_OS]);
@@ -101,10 +98,7 @@ void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
     uint64_t state[2] = { 0 };
     int ret;
 
-    /* The KVM XIVE device is not in use */
-    if (xive->fd == -1) {
-        return;
-    }
+    assert(xive->fd != -1);
 
     ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_VP_STATE, state);
     if (ret != 0) {
@@ -156,10 +150,7 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     unsigned long vcpu_id;
     int ret;
 
-    /* The KVM XIVE device is not in use */
-    if (xive->fd == -1) {
-        return;
-    }
+    assert(xive->fd != -1);
 
     /* Check if CPU was hot unplugged and replugged. */
     if (kvm_cpu_is_enabled(tctx->cs)) {
@@ -245,10 +236,7 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     uint64_t state = 0;
 
-    /* The KVM XIVE device is not in use */
-    if (xive->fd == -1) {
-        return -ENODEV;
-    }
+    assert(xive->fd != -1);
 
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
         state |= KVM_XIVE_LEVEL_SENSITIVE;
@@ -592,10 +580,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
 
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp)
 {
-    /* The KVM XIVE device is not in use */
-    if (xive->fd == -1) {
-        return;
-    }
+    assert(xive->fd != -1);
 
     /*
      * When the VM is stopped, the sources are masked and the previous
@@ -622,10 +607,7 @@ int kvmppc_xive_pre_save(SpaprXive *xive)
 {
     Error *local_err = NULL;
 
-    /* The KVM XIVE device is not in use */
-    if (xive->fd == -1) {
-        return 0;
-    }
+    assert(xive->fd != -1);
 
     /* EAT: there is no extra state to query from KVM */
 
@@ -845,10 +827,7 @@ void kvmppc_xive_disconnect(SpaprInterruptController *intc)
     XiveSource *xsrc;
     size_t esb_len;
 
-    /* The KVM XIVE device is not in use */
-    if (!xive || xive->fd == -1) {
-        return;
-    }
+    assert(xive->fd != -1);
 
     /* Clear the KVM mapping */
     xsrc = &xive->source;
