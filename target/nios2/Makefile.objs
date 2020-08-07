@@ -1,4 +1,0 @@
-obj-y += translate.o op_helper.o helper.o cpu.o mmu.o nios2-semi.o
-obj-$(CONFIG_SOFTMMU) += monitor.o
-
-$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

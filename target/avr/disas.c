@@ -60,7 +60,7 @@ static int append_16(DisasContext *ctx, int x)
 
 /* Include the auto-generated decoder.  */
 static bool decode_insn(DisasContext *ctx, uint16_t insn);
-#include "decode_insn.c.inc"
+#include "decode-insn.c.inc"
 
 #define output(mnemonic, format, ...) \
     (pctx->info->fprintf_func(pctx->info->stream, "%-9s " format, \

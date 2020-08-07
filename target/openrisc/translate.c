@@ -65,7 +65,7 @@ static inline bool is_user(DisasContext *dc)
 }
 
 /* Include the auto-generated decoder.  */
-#include "decode.c.inc"
+#include "decode-insns.c.inc"
 
 static TCGv cpu_sr;
 static TCGv cpu_regs[32];

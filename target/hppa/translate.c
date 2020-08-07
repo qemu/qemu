@@ -334,7 +334,7 @@ static int expand_shl11(DisasContext *ctx, int val)
 
 
 /* Include the auto-generated decoder.  */
-#include "decode.c.inc"
+#include "decode-insns.c.inc"
 
 /* We are not using a goto_tb (for whatever reason), but have updated
    the iaq (for whatever reason), so don't do it again on exit.  */

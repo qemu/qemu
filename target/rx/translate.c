@@ -124,7 +124,7 @@ static int bdsp_s(DisasContext *ctx, int d)
 }
 
 /* Include the auto-generated decoder. */
-#include "decode.c.inc"
+#include "decode-insns.c.inc"
 
 void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {

@@ -647,10 +647,15 @@ libqemuutil = static_library('qemuutil',
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
+decodetree = generator(find_program('scripts/decodetree.py'),
+                       output: 'decode-@BASENAME@.c.inc',
+                       arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
+
 subdir('audio')
 subdir('io')
 subdir('chardev')
 subdir('fsdev')
+subdir('libdecnumber')
 subdir('target')
 subdir('dump')
 
@@ -787,6 +792,9 @@ foreach target : target_dirs
   if target.endswith('-softmmu')
     qemu_target_name = 'qemu-system-' + target_name
     target_type='system'
+    t = target_softmmu_arch[arch].apply(config_target, strict: false)
+    arch_srcs += t.sources()
+
     hw_dir = target_name == 'sparc64' ? 'sparc64' : arch
     hw = hw_arch[hw_dir].apply(config_target, strict: false)
     arch_srcs += hw.sources()
@@ -806,6 +814,9 @@ foreach target : target_dirs
       base_dir / config_target['TARGET_ABI_DIR'],
     )
   endif
+
+  t = target_arch[arch].apply(config_target, strict: false)
+  arch_srcs += t.sources()
 
   target_common = common_ss.apply(config_target, strict: false)
   objects = common_all.extract_objects(target_common.sources())
