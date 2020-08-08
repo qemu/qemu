@@ -662,7 +662,6 @@ static void draw_line(ARTISTState *s,
         }
 
         if (e > 0) {
-            artist_invalidate_lines(buf, y, 1);
             y  += incy;
             e  += diago;
         } else {
@@ -670,6 +669,10 @@ static void draw_line(ARTISTState *s,
         }
         x++;
     } while (x <= x2 && (max_pix == -1 || --max_pix > 0));
+    if (c1)
+        artist_invalidate_lines(buf, x, dy+1);
+    else
+        artist_invalidate_lines(buf, y, dx+1);
 }
 
 static void draw_line_pattern_start(ARTISTState *s)
