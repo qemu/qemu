@@ -206,7 +206,12 @@ static void artist_invalidate_lines(struct vram_buffer *buf,
                                     int starty, int height)
 {
     int start = starty * buf->width;
-    int size = height * buf->width;
+    int size;
+
+    if (starty + height > buf->height)
+        height = buf->height - starty;
+
+    size = height * buf->width;
 
     if (start + size <= buf->size) {
         memory_region_set_dirty(&buf->mr, start, size);
