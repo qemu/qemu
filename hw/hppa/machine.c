@@ -58,6 +58,12 @@ static uint64_t cpu_hppa_to_phys(void *opaque, uint64_t addr)
 static HPPACPU *cpu[HPPA_MAX_CPUS];
 static uint64_t firmware_entry;
 
+static void fw_cfg_boot_set(void *opaque, const char *boot_device,
+                            Error **errp)
+{
+    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+}
+
 static FWCfgState *create_fw_cfg(MachineState *ms)
 {
     FWCfgState *fw_cfg;
@@ -79,6 +85,9 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     val = cpu_to_le64(HPPA_BTLB_ENTRIES);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/btlb_entries",
                     g_memdup(&val, sizeof(val)), sizeof(val));
+
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_order[0]);
+    qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 
     return fw_cfg;
 }
