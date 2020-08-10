@@ -144,8 +144,9 @@ void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
     }
 }
 
-void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
+int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
+    ERRP_GUARD();
     SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     unsigned long vcpu_id;
     int ret;
@@ -154,7 +155,7 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 
     /* Check if CPU was hot unplugged and replugged. */
     if (kvm_cpu_is_enabled(tctx->cs)) {
-        return;
+        return 0;
     }
 
     vcpu_id = kvm_arch_vcpu_id(tctx->cs);
@@ -162,20 +163,18 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     ret = kvm_vcpu_enable_cap(tctx->cs, KVM_CAP_PPC_IRQ_XIVE, 0, xive->fd,
                               vcpu_id, 0);
     if (ret < 0) {
-        Error *local_err = NULL;
-
-        error_setg(&local_err,
-                   "XIVE: unable to connect CPU%ld to KVM device: %s",
-                   vcpu_id, strerror(errno));
-        if (errno == ENOSPC) {
-            error_append_hint(&local_err, "Try -smp maxcpus=N with N < %u\n",
+        error_setg_errno(errp, -ret,
+                         "XIVE: unable to connect CPU%ld to KVM device",
+                         vcpu_id);
+        if (ret == -ENOSPC) {
+            error_append_hint(errp, "Try -smp maxcpus=N with N < %u\n",
                               MACHINE(qdev_get_machine())->smp.max_cpus);
         }
-        error_propagate(errp, local_err);
-        return;
+        return ret;
     }
 
     kvm_cpu_enable(tctx->cs);
+    return 0;
 }
 
 /*
