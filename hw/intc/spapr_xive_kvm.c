@@ -248,24 +248,25 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
                              true, errp);
 }
 
-static void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
+static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
     for (i = 0; i < xsrc->nr_irqs; i++) {
-        Error *local_err = NULL;
+        int ret;
 
         if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
         }
 
-        kvmppc_xive_source_reset_one(xsrc, i, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
+        ret = kvmppc_xive_source_reset_one(xsrc, i, errp);
+        if (ret < 0) {
+            return ret;
         }
     }
+
+    return 0;
 }
 
 /*
