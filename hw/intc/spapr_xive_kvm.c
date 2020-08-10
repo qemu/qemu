@@ -467,23 +467,24 @@ void kvmppc_xive_reset(SpaprXive *xive, Error **errp)
                       NULL, true, errp);
 }
 
-static void kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
+static int kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
 {
-    Error *local_err = NULL;
     int i;
+    int ret;
 
     for (i = 0; i < xive->nr_ends; i++) {
         if (!xive_end_is_valid(&xive->endt[i])) {
             continue;
         }
 
-        kvmppc_xive_get_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
-                                     &xive->endt[i], &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
+        ret = kvmppc_xive_get_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
+                                           &xive->endt[i], errp);
+        if (ret < 0) {
+            return ret;
         }
     }
+
+    return 0;
 }
 
 /*
