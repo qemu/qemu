@@ -337,7 +337,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         images_url = ('http://ports.ubuntu.com/ubuntu-ports/dists/'
                       'bionic-updates/main/installer-arm64/'
-                      'current/images/')
+                      '20101020ubuntu543.15/images/')
         kernel_url = images_url + 'netboot/ubuntu-installer/arm64/linux'
         kernel_hash = '5bfc54cf7ed8157d93f6e5b0241e727b6dc22c50'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
@@ -821,7 +821,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:clipper
         """
         kernel_url = ('http://archive.debian.org/debian/dists/lenny/main/'
-                      'installer-alpha/current/images/cdrom/vmlinuz')
+                      'installer-alpha/20090123lenny10/images/cdrom/vmlinuz')
         kernel_hash = '3a943149335529e2ed3e74d0d787b85fb5671ba3'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
