@@ -186,8 +186,8 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
  * XIVE Interrupt Source (KVM)
  */
 
-void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
-                                   Error **errp)
+int kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
+                                  Error **errp)
 {
     uint32_t end_idx;
     uint32_t end_blk;
@@ -196,7 +196,6 @@ void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
     bool masked;
     uint32_t eisn;
     uint64_t kvm_src;
-    Error *local_err = NULL;
 
     assert(xive_eas_is_valid(eas));
 
@@ -216,12 +215,8 @@ void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
     kvm_src |= ((uint64_t)eisn << KVM_XIVE_SOURCE_EISN_SHIFT) &
         KVM_XIVE_SOURCE_EISN_MASK;
 
-    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE_CONFIG, lisn,
-                      &kvm_src, true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+    return kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE_CONFIG, lisn,
+                             &kvm_src, true, errp);
 }
 
 void kvmppc_xive_sync_source(SpaprXive *xive, uint32_t lisn, Error **errp)
