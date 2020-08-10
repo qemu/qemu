@@ -695,12 +695,13 @@ static int vmstate_xive_tctx_pre_save(void *opaque)
 {
     XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
+    int ret;
 
     if (xive_in_kernel(tctx->xptr)) {
-        kvmppc_xive_cpu_get_state(tctx, &local_err);
-        if (local_err) {
+        ret = kvmppc_xive_cpu_get_state(tctx, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -1;
+            return ret;
         }
     }
 
@@ -711,16 +712,17 @@ static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
 {
     XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
+    int ret;
 
     if (xive_in_kernel(tctx->xptr)) {
         /*
          * Required for hotplugged CPU, for which the state comes
          * after all states of the machine.
          */
-        kvmppc_xive_cpu_set_state(tctx, &local_err);
-        if (local_err) {
+        ret = kvmppc_xive_cpu_set_state(tctx, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -1;
+            return ret;
         }
     }
 
