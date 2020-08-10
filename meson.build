@@ -3,7 +3,11 @@ project('qemu', ['c'], meson_version: '>=0.55.0',
         version: run_command('head', meson.source_root() / 'VERSION').stdout().strip())
 
 not_found = dependency('', required: false)
-keyval = import('unstable-keyval')
+if meson.version().version_compare('>=0.56.0')
+  keyval = import('keyval')
+else
+  keyval = import('unstable-keyval')
+endif
 ss = import('sourceset')
 
 sh = find_program('sh')
