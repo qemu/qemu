@@ -374,15 +374,15 @@ void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 /*
  * sPAPR XIVE interrupt controller (KVM)
  */
-void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
-                                  uint32_t end_idx, XiveEND *end,
-                                  Error **errp)
+int kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                 uint32_t end_idx, XiveEND *end,
+                                 Error **errp)
 {
     struct kvm_ppc_xive_eq kvm_eq = { 0 };
     uint64_t kvm_eq_idx;
     uint8_t priority;
     uint32_t server;
-    Error *local_err = NULL;
+    int ret;
 
     assert(xive_end_is_valid(end));
 
@@ -394,11 +394,10 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
     kvm_eq_idx |= server << KVM_XIVE_EQ_SERVER_SHIFT &
         KVM_XIVE_EQ_SERVER_MASK;
 
-    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
-                      &kvm_eq, false, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    ret = kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
+                            &kvm_eq, false, errp);
+    if (ret < 0) {
+        return ret;
     }
 
     /*
@@ -408,17 +407,18 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
      */
     end->w1 = xive_set_field32(END_W1_GENERATION, 0ul, kvm_eq.qtoggle) |
         xive_set_field32(END_W1_PAGE_OFF, 0ul, kvm_eq.qindex);
+
+    return 0;
 }
 
-void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
-                                  uint32_t end_idx, XiveEND *end,
-                                  Error **errp)
+int kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                 uint32_t end_idx, XiveEND *end,
+                                 Error **errp)
 {
     struct kvm_ppc_xive_eq kvm_eq = { 0 };
     uint64_t kvm_eq_idx;
     uint8_t priority;
     uint32_t server;
-    Error *local_err = NULL;
 
     /*
      * Build the KVM state from the local END structure.
@@ -456,12 +456,9 @@ void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
     kvm_eq_idx |= server << KVM_XIVE_EQ_SERVER_SHIFT &
         KVM_XIVE_EQ_SERVER_MASK;
 
-    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
-                      &kvm_eq, true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+    return
+        kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
+                          &kvm_eq, true, errp);
 }
 
 void kvmppc_xive_reset(SpaprXive *xive, Error **errp)
