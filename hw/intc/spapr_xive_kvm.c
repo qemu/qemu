@@ -73,7 +73,7 @@ static void kvm_cpu_disable_all(void)
  * XIVE Thread Interrupt Management context (KVM)
  */
 
-void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
+int kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     uint64_t state[2];
@@ -86,13 +86,16 @@ void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 
     ret = kvm_set_one_reg(tctx->cs, KVM_REG_PPC_VP_STATE, state);
     if (ret != 0) {
-        error_setg_errno(errp, errno,
+        error_setg_errno(errp, -ret,
                          "XIVE: could not restore KVM state of CPU %ld",
                          kvm_arch_vcpu_id(tctx->cs));
+        return ret;
     }
+
+    return 0;
 }
 
-void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
+int kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(tctx->xptr);
     uint64_t state[2] = { 0 };
@@ -102,14 +105,16 @@ void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 
     ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_VP_STATE, state);
     if (ret != 0) {
-        error_setg_errno(errp, errno,
+        error_setg_errno(errp, -ret,
                          "XIVE: could not capture KVM state of CPU %ld",
                          kvm_arch_vcpu_id(tctx->cs));
-        return;
+        return ret;
     }
 
     /* word0 and word1 of the OS ring. */
     *((uint64_t *) &tctx->regs[TM_QW1_OS]) = state[0];
+
+    return 0;
 }
 
 typedef struct {
