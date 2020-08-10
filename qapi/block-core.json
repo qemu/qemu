@@ -373,7 +373,7 @@
 #
 # Features:
 # @deprecated: Member @encryption_key_missing is deprecated.  It is
-#     always false.
+#              always false.
 #
 # Since: 0.14.0
 #
@@ -508,7 +508,7 @@
 #
 # Features:
 # @deprecated: Member @status is deprecated.  Use @recording and
-#     @locked instead.
+#              @locked instead.
 #
 # Since: 1.3
 ##
@@ -618,7 +618,7 @@
 #
 # Features:
 # @deprecated: Member @dirty-bitmaps is deprecated.  Use @inserted
-#     member @dirty-bitmaps instead.
+#              member @dirty-bitmaps instead.
 #
 # Since:  0.14.0
 ##
@@ -1646,7 +1646,7 @@
 #
 # Features:
 # @deprecated: Members @base and @top are deprecated.  Use @base-node
-#     and @top-node instead.
+#              and @top-node instead.
 #
 # Returns: - Nothing on success
 #          - If @device does not exist, DeviceNotFound

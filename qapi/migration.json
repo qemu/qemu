@@ -1362,7 +1362,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # Returns: nothing on success
 #
@@ -1386,7 +1386,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # Returns: nothing on success
 #
@@ -1410,7 +1410,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # The size will be rounded down to the nearest power of 2.
 # The cache size can be modified before and during ongoing migration
@@ -1436,7 +1436,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'query-migrate-parameters' instead.
+#              'query-migrate-parameters' instead.
 #
 # Returns: XBZRLE cache size in bytes
 #
