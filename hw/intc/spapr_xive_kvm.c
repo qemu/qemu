@@ -631,6 +631,7 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     Error *local_err = NULL;
     CPUState *cs;
     int i;
+    int ret;
 
     /* The KVM XIVE device should be in use */
     assert(xive->fd != -1);
@@ -641,11 +642,10 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
             continue;
         }
 
-        kvmppc_xive_set_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
-                                     &xive->endt[i], &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return -1;
+        ret = kvmppc_xive_set_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
+                                           &xive->endt[i], &local_err);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
@@ -660,16 +660,14 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
          * previously set in KVM. Since we don't do that for all interrupts
          * at reset time anymore, let's do it now.
          */
-        kvmppc_xive_source_reset_one(&xive->source, i, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return -1;
+        ret = kvmppc_xive_source_reset_one(&xive->source, i, &local_err);
+        if (ret < 0) {
+            goto fail;
         }
 
-        kvmppc_xive_set_source_config(xive, i, &xive->eat[i], &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return -1;
+        ret = kvmppc_xive_set_source_config(xive, i, &xive->eat[i], &local_err);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
@@ -686,15 +684,18 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        kvmppc_xive_cpu_set_state(spapr_cpu_state(cpu)->tctx, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return -1;
+        ret = kvmppc_xive_cpu_set_state(spapr_cpu_state(cpu)->tctx, &local_err);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
     /* The source states will be restored when the machine starts running */
     return 0;
+
+fail:
+    error_report_err(local_err);
+    return ret;
 }
 
 /* Returns MAP_FAILED on error and sets errno */
