@@ -662,7 +662,6 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     XiveTCTX *tctx = XIVE_TCTX(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    Error *local_err = NULL;
 
     assert(tctx->cs);
     assert(tctx->xptr);
@@ -683,9 +682,7 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
 
     /* Connect the presenter to the VCPU (required for CPU hotplug) */
     if (xive_in_kernel(tctx->xptr)) {
-        kvmppc_xive_cpu_connect(tctx, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (kvmppc_xive_cpu_connect(tctx, errp) < 0) {
             return;
         }
     }
