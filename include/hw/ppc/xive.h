@@ -488,7 +488,7 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb);
 int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp);
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val);
 int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
-void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
+int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
 int kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp);
 int kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp);
 

@@ -119,7 +119,8 @@ int kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 
 typedef struct {
     XiveTCTX *tctx;
-    Error *err;
+    Error **errp;
+    int ret;
 } XiveCpuGetState;
 
 static void kvmppc_xive_cpu_do_synchronize_state(CPUState *cpu,
@@ -127,14 +128,14 @@ static void kvmppc_xive_cpu_do_synchronize_state(CPUState *cpu,
 {
     XiveCpuGetState *s = arg.host_ptr;
 
-    kvmppc_xive_cpu_get_state(s->tctx, &s->err);
+    s->ret = kvmppc_xive_cpu_get_state(s->tctx, s->errp);
 }
 
-void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
+int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
 {
     XiveCpuGetState s = {
         .tctx = tctx,
-        .err = NULL,
+        .errp = errp,
     };
 
     /*
@@ -143,10 +144,7 @@ void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
     run_on_cpu(tctx->cs, kvmppc_xive_cpu_do_synchronize_state,
                RUN_ON_CPU_HOST_PTR(&s));
 
-    if (s.err) {
-        error_propagate(errp, s.err);
-        return;
-    }
+    return s.ret;
 }
 
 int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
