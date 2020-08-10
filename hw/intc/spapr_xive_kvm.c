@@ -604,16 +604,17 @@ void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp)
 int kvmppc_xive_pre_save(SpaprXive *xive)
 {
     Error *local_err = NULL;
+    int ret;
 
     assert(xive->fd != -1);
 
     /* EAT: there is no extra state to query from KVM */
 
     /* ENDT */
-    kvmppc_xive_get_queues(xive, &local_err);
-    if (local_err) {
+    ret = kvmppc_xive_get_queues(xive, &local_err);
+    if (ret < 0) {
         error_report_err(local_err);
-        return -1;
+        return ret;
     }
 
     return 0;
