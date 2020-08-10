@@ -723,12 +723,12 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;
-    Error *local_err = NULL;
     size_t esb_len = xive_source_esb_len(xsrc);
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
     int fd;
     void *addr;
+    int ret;
 
     /*
      * The KVM XIVE device already in use. This is the case when
@@ -754,9 +754,10 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /* Tell KVM about the # of VCPUs we may have */
     if (kvm_device_check_attr(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
                               KVM_DEV_XIVE_NR_SERVERS)) {
-        if (kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
-                              KVM_DEV_XIVE_NR_SERVERS, &nr_servers, true,
-                              &local_err)) {
+        ret = kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
+                                KVM_DEV_XIVE_NR_SERVERS, &nr_servers, true,
+                                errp);
+        if (ret < 0) {
             goto fail;
         }
     }
@@ -764,8 +765,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /*
      * 1. Source ESB pages - KVM mapping
      */
-    addr = kvmppc_xive_mmap(xive, KVM_XIVE_ESB_PAGE_OFFSET, esb_len,
-                            &local_err);
+    addr = kvmppc_xive_mmap(xive, KVM_XIVE_ESB_PAGE_OFFSET, esb_len, errp);
     if (addr == MAP_FAILED) {
         goto fail;
     }
@@ -783,8 +783,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /*
      * 3. TIMA pages - KVM mapping
      */
-    addr = kvmppc_xive_mmap(xive, KVM_XIVE_TIMA_PAGE_OFFSET, tima_len,
-                            &local_err);
+    addr = kvmppc_xive_mmap(xive, KVM_XIVE_TIMA_PAGE_OFFSET, tima_len, errp);
     if (addr == MAP_FAILED) {
         goto fail;
     }
@@ -802,15 +801,15 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        kvmppc_xive_cpu_connect(spapr_cpu_state(cpu)->tctx, &local_err);
-        if (local_err) {
+        ret = kvmppc_xive_cpu_connect(spapr_cpu_state(cpu)->tctx, errp);
+        if (ret < 0) {
             goto fail;
         }
     }
 
     /* Update the KVM sources */
-    kvmppc_xive_source_reset(xsrc, &local_err);
-    if (local_err) {
+    ret = kvmppc_xive_source_reset(xsrc, errp);
+    if (ret < 0) {
         goto fail;
     }
 
@@ -820,7 +819,6 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     return 0;
 
 fail:
-    error_propagate(errp, local_err);
     kvmppc_xive_disconnect(intc);
     return -1;
 }
