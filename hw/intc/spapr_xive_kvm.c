@@ -698,6 +698,7 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     return 0;
 }
 
+/* Returns MAP_FAILED on error and sets errno */
 static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
                               Error **errp)
 {
@@ -708,7 +709,6 @@ static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
                 pgoff << page_shift);
     if (addr == MAP_FAILED) {
         error_setg_errno(errp, errno, "XIVE: unable to set memory mapping");
-        return NULL;
     }
 
     return addr;
@@ -728,6 +728,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
     int fd;
+    void *addr;
 
     /*
      * The KVM XIVE device already in use. This is the case when
@@ -763,11 +764,12 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /*
      * 1. Source ESB pages - KVM mapping
      */
-    xsrc->esb_mmap = kvmppc_xive_mmap(xive, KVM_XIVE_ESB_PAGE_OFFSET, esb_len,
-                                      &local_err);
-    if (local_err) {
+    addr = kvmppc_xive_mmap(xive, KVM_XIVE_ESB_PAGE_OFFSET, esb_len,
+                            &local_err);
+    if (addr == MAP_FAILED) {
         goto fail;
     }
+    xsrc->esb_mmap = addr;
 
     memory_region_init_ram_device_ptr(&xsrc->esb_mmio_kvm, OBJECT(xsrc),
                                       "xive.esb-kvm", esb_len, xsrc->esb_mmap);
@@ -781,11 +783,13 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /*
      * 3. TIMA pages - KVM mapping
      */
-    xive->tm_mmap = kvmppc_xive_mmap(xive, KVM_XIVE_TIMA_PAGE_OFFSET, tima_len,
-                                     &local_err);
-    if (local_err) {
+    addr = kvmppc_xive_mmap(xive, KVM_XIVE_TIMA_PAGE_OFFSET, tima_len,
+                            &local_err);
+    if (addr == MAP_FAILED) {
         goto fail;
     }
+    xive->tm_mmap = addr;
+
     memory_region_init_ram_device_ptr(&xive->tm_mmio_kvm, OBJECT(xive),
                                       "xive.tima", tima_len, xive->tm_mmap);
     memory_region_add_subregion_overlap(&xive->tm_mmio, 0,
