@@ -13,6 +13,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   build-system
    kconfig
    loads-stores
    memory
