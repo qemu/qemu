@@ -34,16 +34,21 @@ if build_docs
   sphinxmans = []
   foreach manual : manuals
     private_dir = meson.current_build_dir() / (manual + '.p')
+    output_dir = meson.current_build_dir() / manual
     input_dir = meson.current_source_dir() / manual
-    sphinxdocs += custom_target(manual + ' manual',
-                build_always_stale: true,
+
+    this_manual = custom_target(manual + ' manual',
                 build_by_default: build_docs,
-                output: manual,
-                command: [SPHINX_ARGS, '-b', 'html', '-d', private_dir,
-                          input_dir, meson.current_build_dir() / manual])
+                output: [manual + '.stamp'],
+                input: [files('conf.py'), files(manual / 'conf.py')],
+                depfile: manual + '.d',
+                command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
+                          '-Ddepfile_stamp=@OUTPUT0@',
+                          '-b', 'html', '-d', private_dir,
+                          input_dir, output_dir])
+    sphinxdocs += this_manual
     if build_docs and manual != 'devel'
-      install_subdir(meson.current_build_dir() / manual,
-                     install_dir: config_host['qemu_docdir'])
+      install_subdir(output_dir, install_dir: config_host['qemu_docdir'])
     endif
 
     these_man_pages = []
@@ -54,9 +59,9 @@ if build_docs
     endforeach
     if these_man_pages.length() > 0
       sphinxmans += custom_target(manual + ' man pages',
-                         build_always_stale: true,
                          build_by_default: build_docs,
                          output: these_man_pages,
+                         input: this_manual,
                          install: build_docs,
                          install_dir: install_dirs,
                          command: [SPHINX_ARGS, '-b', 'man', '-d', private_dir,
