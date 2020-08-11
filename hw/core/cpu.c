@@ -35,8 +35,6 @@
 #include "qemu/plugin.h"
 #include "sysemu/hw_accel.h"
 
-CPUInterruptHandler cpu_interrupt_handler;
-
 CPUState *cpu_by_arch_id(int64_t id)
 {
     CPUState *cpu;
@@ -393,17 +391,6 @@ static vaddr cpu_adjust_watchpoint_address(CPUState *cpu, vaddr addr, int len)
 {
     return addr;
 }
-
-static void generic_handle_interrupt(CPUState *cpu, int mask)
-{
-    cpu->interrupt_request |= mask;
-
-    if (!qemu_cpu_is_self(cpu)) {
-        qemu_cpu_kick(cpu);
-    }
-}
-
-CPUInterruptHandler cpu_interrupt_handler = generic_handle_interrupt;
 
 static void cpu_class_init(ObjectClass *klass, void *data)
 {

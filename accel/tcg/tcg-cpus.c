@@ -543,9 +543,37 @@ static int64_t tcg_get_elapsed_ticks(void)
     return cpu_get_ticks();
 }
 
+/* mask must never be zero, except for A20 change call */
+static void tcg_handle_interrupt(CPUState *cpu, int mask)
+{
+    int old_mask;
+    g_assert(qemu_mutex_iothread_locked());
+
+    old_mask = cpu->interrupt_request;
+    cpu->interrupt_request |= mask;
+
+    /*
+     * If called from iothread context, wake the target cpu in
+     * case its halted.
+     */
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    } else {
+        qatomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
+        if (icount_enabled() &&
+            !cpu->can_do_io
+            && (mask & ~old_mask) != 0) {
+            cpu_abort(cpu, "Raised interrupt while not in I/O function");
+        }
+    }
+}
+
 const CpusAccel tcg_cpus = {
     .create_vcpu_thread = tcg_start_vcpu_thread,
     .kick_vcpu_thread = tcg_kick_vcpu_thread,
+
+    .handle_interrupt = tcg_handle_interrupt,
+
     .get_virtual_clock = tcg_get_virtual_clock,
     .get_elapsed_ticks = tcg_get_elapsed_ticks,
 };

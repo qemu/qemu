@@ -16,6 +16,8 @@ typedef struct CpusAccel {
     void (*synchronize_state)(CPUState *cpu);
     void (*synchronize_pre_loadvm)(CPUState *cpu);
 
+    void (*handle_interrupt)(CPUState *cpu, int mask);
+
     int64_t (*get_virtual_clock)(void);
     int64_t (*get_elapsed_ticks)(void);
 } CpusAccel;
