@@ -52,9 +52,23 @@ struct flags {
 /* end of flags array */
 #define FLAG_END           { 0, NULL }
 
+/* Structure used to translate enumerated values into strings */
+struct enums {
+    abi_long    e_value;   /* enum value */
+    const char  *e_string; /* stringified enum */
+};
+
+/* common enums for all architectures */
+#define ENUM_GENERIC(name) { name, #name }
+/* target specific enums */
+#define ENUM_TARGET(name)  { TARGET_ ## name, #name }
+/* end of enums array */
+#define ENUM_END           { 0, NULL }
+
 UNUSED static const char *get_comma(int);
 UNUSED static void print_pointer(abi_long, int);
 UNUSED static void print_flags(const struct flags *, abi_long, int);
+UNUSED static void print_enums(const struct enums *, abi_long, int);
 UNUSED static void print_at_dirfd(abi_long, int);
 UNUSED static void print_file_mode(abi_long, int);
 UNUSED static void print_open_flags(abi_long, int);
@@ -1250,6 +1264,23 @@ print_flags(const struct flags *f, abi_long flags, int last)
         /* no string version of flags found, print them in hex then */
         qemu_log("%#x%s", (unsigned int)flags, get_comma(last));
     }
+}
+
+static void
+print_enums(const struct enums *e, abi_long enum_arg, int last)
+{
+    for (; e->e_string != NULL; e++) {
+        if (e->e_value == enum_arg) {
+            qemu_log("%s", e->e_string);
+            break;
+        }
+    }
+
+    if (e->e_string == NULL) {
+        qemu_log("%#x", (unsigned int)enum_arg);
+    }
+
+    qemu_log("%s", get_comma(last));
 }
 
 static void
