@@ -14,9 +14,8 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include "target/i386/hax-i386.h"
-
 #include "sysemu/cpus.h"
+#include "hax-cpus.h"
 
 hax_fd hax_mod_open(void)
 {
