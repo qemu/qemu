@@ -340,22 +340,13 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
      * was called. Background registers will be used if the guest has
      * forced a two stage translation to be on (in HS or M mode).
      */
+    if (riscv_cpu_two_stage_lookup(env) && access_type != MMU_INST_FETCH) {
+        use_background = true;
+    }
+
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
         if (get_field(env->mstatus, MSTATUS_MPRV)) {
             mode = get_field(env->mstatus, MSTATUS_MPP);
-
-            if (riscv_has_ext(env, RVH) &&
-                MSTATUS_MPV_ISSET(env)) {
-                use_background = true;
-            }
-        }
-    }
-
-    if (mode == PRV_S && access_type != MMU_INST_FETCH &&
-        riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
-        if (get_field(env->hstatus, HSTATUS_SPRV)) {
-            mode = get_field(env->mstatus, SSTATUS_SPP);
-            use_background = true;
         }
     }
 
@@ -608,7 +599,8 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         }
         break;
     case MMU_DATA_LOAD:
-        if (riscv_cpu_virt_enabled(env) && !first_stage) {
+        if ((riscv_cpu_virt_enabled(env) || riscv_cpu_two_stage_lookup(env)) &&
+            !first_stage) {
             cs->exception_index = RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT;
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -616,7 +608,8 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         }
         break;
     case MMU_DATA_STORE:
-        if (riscv_cpu_virt_enabled(env) && !first_stage) {
+        if ((riscv_cpu_virt_enabled(env) || riscv_cpu_two_stage_lookup(env)) &&
+            !first_stage) {
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -706,8 +699,6 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     hwaddr pa = 0;
     int prot, prot2;
     bool pmp_violation = false;
-    bool m_mode_two_stage = false;
-    bool hs_mode_two_stage = false;
     bool first_stage_error = true;
     int ret = TRANSLATE_FAIL;
     int mode = mmu_idx;
@@ -718,30 +709,21 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     qemu_log_mask(CPU_LOG_MMU, "%s ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
                   __func__, address, access_type, mmu_idx);
 
-    /*
-     * Determine if we are in M mode and MPRV is set or in HS mode and SPRV is
-     * set and we want to access a virtulisation address.
-     */
-    if (riscv_has_ext(env, RVH)) {
-        m_mode_two_stage = env->priv == PRV_M &&
-                           access_type != MMU_INST_FETCH &&
-                           get_field(env->mstatus, MSTATUS_MPRV) &&
-                           MSTATUS_MPV_ISSET(env);
-
-        hs_mode_two_stage = env->priv == PRV_S &&
-                            !riscv_cpu_virt_enabled(env) &&
-                            access_type != MMU_INST_FETCH &&
-                            get_field(env->hstatus, HSTATUS_SPRV) &&
-                            get_field(env->hstatus, HSTATUS_SPV);
-    }
-
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
         if (get_field(env->mstatus, MSTATUS_MPRV)) {
             mode = get_field(env->mstatus, MSTATUS_MPP);
         }
     }
 
-    if (riscv_cpu_virt_enabled(env) || m_mode_two_stage || hs_mode_two_stage) {
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
+        access_type != MMU_INST_FETCH &&
+        get_field(env->mstatus, MSTATUS_MPRV) &&
+        MSTATUS_MPV_ISSET(env)) {
+        riscv_cpu_set_two_stage_lookup(env, true);
+    }
+
+    if (riscv_cpu_virt_enabled(env) ||
+        (riscv_cpu_two_stage_lookup(env) && access_type != MMU_INST_FETCH)) {
         /* Two stage lookup */
         ret = get_physical_address(env, &pa, &prot, address, access_type,
                                    mmu_idx, true, true);
@@ -791,6 +773,14 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       "%s address=%" VADDR_PRIx " ret %d physical "
                       TARGET_FMT_plx " prot %d\n",
                       __func__, address, ret, pa, prot);
+    }
+
+    /* We did the two stage lookup based on MPRV, unset the lookup */
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
+        access_type != MMU_INST_FETCH &&
+        get_field(env->mstatus, MSTATUS_MPRV) &&
+        MSTATUS_MPV_ISSET(env)) {
+        riscv_cpu_set_two_stage_lookup(env, false);
     }
 
     if (riscv_feature(env, RISCV_FEATURE_PMP) &&
