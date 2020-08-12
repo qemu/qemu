@@ -207,4 +207,118 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
     riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
 }
 
+target_ulong helper_hyp_load(CPURISCVState *env, target_ulong address,
+                             target_ulong attrs, target_ulong memop)
+{
+    if (env->priv == PRV_M ||
+        (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
+        (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
+            get_field(env->hstatus, HSTATUS_HU))) {
+        target_ulong pte;
+
+        riscv_cpu_set_two_stage_lookup(env, true);
+
+        switch (memop) {
+        case MO_SB:
+            pte = cpu_ldsb_data_ra(env, address, GETPC());
+            break;
+        case MO_UB:
+            pte = cpu_ldub_data_ra(env, address, GETPC());
+            break;
+        case MO_TESW:
+            pte = cpu_ldsw_data_ra(env, address, GETPC());
+            break;
+        case MO_TEUW:
+            pte = cpu_lduw_data_ra(env, address, GETPC());
+            break;
+        case MO_TESL:
+            pte = cpu_ldl_data_ra(env, address, GETPC());
+            break;
+        case MO_TEUL:
+            pte = cpu_ldl_data_ra(env, address, GETPC());
+            break;
+        case MO_TEQ:
+            pte = cpu_ldq_data_ra(env, address, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        riscv_cpu_set_two_stage_lookup(env, false);
+
+        return pte;
+    }
+
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    return 0;
+}
+
+void helper_hyp_store(CPURISCVState *env, target_ulong address,
+                      target_ulong val, target_ulong attrs, target_ulong memop)
+{
+    if (env->priv == PRV_M ||
+        (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
+        (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
+            get_field(env->hstatus, HSTATUS_HU))) {
+        riscv_cpu_set_two_stage_lookup(env, true);
+
+        switch (memop) {
+        case MO_SB:
+        case MO_UB:
+            cpu_stb_data_ra(env, address, val, GETPC());
+            break;
+        case MO_TESW:
+        case MO_TEUW:
+            cpu_stw_data_ra(env, address, val, GETPC());
+            break;
+        case MO_TESL:
+        case MO_TEUL:
+            cpu_stl_data_ra(env, address, val, GETPC());
+            break;
+        case MO_TEQ:
+            cpu_stq_data_ra(env, address, val, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        riscv_cpu_set_two_stage_lookup(env, false);
+
+        return;
+    }
+
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+}
+
+target_ulong helper_hyp_x_load(CPURISCVState *env, target_ulong address,
+                               target_ulong attrs, target_ulong memop)
+{
+    if (env->priv == PRV_M ||
+        (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
+        (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
+            get_field(env->hstatus, HSTATUS_HU))) {
+        target_ulong pte;
+
+        riscv_cpu_set_two_stage_lookup(env, true);
+
+        switch (memop) {
+        case MO_TEUL:
+            pte = cpu_ldub_data_ra(env, address, GETPC());
+            break;
+        case MO_TEUW:
+            pte = cpu_lduw_data_ra(env, address, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        riscv_cpu_set_two_stage_lookup(env, false);
+
+        return pte;
+    }
+
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    return 0;
+}
+
 #endif /* !CONFIG_USER_ONLY */
