@@ -929,9 +929,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             } else if (riscv_cpu_virt_enabled(env)) {
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env);
-                env->hstatus = set_field(env->hstatus, HSTATUS_SP2V,
-                                         get_field(env->hstatus, HSTATUS_SPV));
-                env->hstatus = set_field(env->hstatus, HSTATUS_SP2P,
+                env->hstatus = set_field(env->hstatus, HSTATUS_SPVP,
                                          get_field(env->mstatus, SSTATUS_SPP));
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
                                          riscv_cpu_virt_enabled(env));
@@ -942,13 +940,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 riscv_cpu_set_force_hs_excep(env, 0);
             } else {
                 /* Trap into HS mode */
-                env->hstatus = set_field(env->hstatus, HSTATUS_SP2V,
-                                         get_field(env->hstatus, HSTATUS_SPV));
-                env->hstatus = set_field(env->hstatus, HSTATUS_SP2P,
-                                         get_field(env->mstatus, SSTATUS_SPP));
-                env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
-                                         riscv_cpu_virt_enabled(env));
-
+                if (!riscv_cpu_two_stage_lookup(env)) {
+                    env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
+                                             riscv_cpu_virt_enabled(env));
+                }
+                riscv_cpu_set_two_stage_lookup(env, false);
                 htval = env->guest_phys_fault_addr;
             }
         }
