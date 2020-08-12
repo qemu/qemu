@@ -360,7 +360,7 @@ static bool trans_hfence_gvma(DisasContext *ctx, arg_sfence_vma *a)
 {
     REQUIRE_EXT(ctx, RVH);
 #ifndef CONFIG_USER_ONLY
-    gen_helper_hyp_tlb_flush(cpu_env);
+    gen_helper_hyp_gvma_tlb_flush(cpu_env);
     return true;
 #endif
     return false;
