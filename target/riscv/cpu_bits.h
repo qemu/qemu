@@ -197,9 +197,12 @@
 #define CSR_HIDELEG         0x603
 #define CSR_HIE             0x604
 #define CSR_HCOUNTEREN      0x606
+#define CSR_HGEIE           0x607
 #define CSR_HTVAL           0x643
+#define CSR_HVIP            0x645
 #define CSR_HIP             0x644
 #define CSR_HTINST          0x64A
+#define CSR_HGEIP           0xE12
 #define CSR_HGATP           0x680
 #define CSR_HTIMEDELTA      0x605
 #define CSR_HTIMEDELTAH     0x615

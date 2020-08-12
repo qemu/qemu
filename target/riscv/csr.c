@@ -883,11 +883,24 @@ static int write_hideleg(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int rmw_hvip(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                   target_ulong new_value, target_ulong write_mask)
+{
+    int ret = rmw_mip(env, 0, ret_value, new_value,
+                      write_mask & hip_writable_mask);
+
+    *ret_value &= hip_writable_mask;
+
+    return ret;
+}
+
 static int rmw_hip(CPURISCVState *env, int csrno, target_ulong *ret_value,
                    target_ulong new_value, target_ulong write_mask)
 {
     int ret = rmw_mip(env, 0, ret_value, new_value,
                       write_mask & hip_writable_mask);
+
+    *ret_value &= hip_writable_mask;
 
     return ret;
 }
@@ -916,6 +929,18 @@ static int write_hcounteren(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int read_hgeie(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    return 0;
+}
+
+static int write_hgeie(CPURISCVState *env, int csrno, target_ulong val)
+{
+    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    return 0;
+}
+
 static int read_htval(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->htval;
@@ -936,6 +961,18 @@ static int read_htinst(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int write_htinst(CPURISCVState *env, int csrno, target_ulong val)
 {
+    return 0;
+}
+
+static int read_hgeip(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    return 0;
+}
+
+static int write_hgeip(CPURISCVState *env, int csrno, target_ulong val)
+{
+    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
     return 0;
 }
 
@@ -1341,11 +1378,14 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_HSTATUS] =             { hmode,   read_hstatus,     write_hstatus    },
     [CSR_HEDELEG] =             { hmode,   read_hedeleg,     write_hedeleg    },
     [CSR_HIDELEG] =             { hmode,   read_hideleg,     write_hideleg    },
+    [CSR_HVIP] =                { hmode,   NULL,     NULL,     rmw_hvip       },
     [CSR_HIP] =                 { hmode,   NULL,     NULL,     rmw_hip        },
     [CSR_HIE] =                 { hmode,   read_hie,         write_hie        },
     [CSR_HCOUNTEREN] =          { hmode,   read_hcounteren,  write_hcounteren },
+    [CSR_HGEIE] =               { hmode,   read_hgeie,       write_hgeie      },
     [CSR_HTVAL] =               { hmode,   read_htval,       write_htval      },
     [CSR_HTINST] =              { hmode,   read_htinst,      write_htinst     },
+    [CSR_HGEIP] =               { hmode,   read_hgeip,       write_hgeip      },
     [CSR_HGATP] =               { hmode,   read_hgatp,       write_hgatp      },
     [CSR_HTIMEDELTA] =          { hmode,   read_htimedelta,  write_htimedelta },
 #if defined(TARGET_RISCV32)
