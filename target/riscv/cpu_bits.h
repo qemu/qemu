@@ -379,10 +379,10 @@
 #define MSTATUS_TW          0x20000000 /* since: priv-1.10 */
 #define MSTATUS_TSR         0x40000000 /* since: priv-1.10 */
 #if defined(TARGET_RISCV64)
-#define MSTATUS_MTL         0x4000000000ULL
+#define MSTATUS_GVA         0x4000000000ULL
 #define MSTATUS_MPV         0x8000000000ULL
 #elif defined(TARGET_RISCV32)
-#define MSTATUS_MTL         0x00000040
+#define MSTATUS_GVA         0x00000040
 #define MSTATUS_MPV         0x00000080
 #endif
 
@@ -444,6 +444,7 @@
 #define HSTATUS_VTVM         0x00100000
 #define HSTATUS_VTSR         0x00400000
 #define HSTATUS_HU           0x00000200
+#define HSTATUS_GVA          0x00000040
 
 #define HSTATUS32_WPRI       0xFF8FF87E
 #define HSTATUS64_WPRI       0xFFFFFFFFFF8FF87EULL

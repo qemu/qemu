@@ -403,10 +403,10 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
         MSTATUS_TW;
 #if defined(TARGET_RISCV64)
     /*
-     * RV32: MPV and MTL are not in mstatus. The current plan is to
+     * RV32: MPV and GVA are not in mstatus. The current plan is to
      * add them to mstatush. For now, we just don't support it.
      */
-    mask |= MSTATUS_MTL | MSTATUS_MPV;
+    mask |= MSTATUS_MPV | MSTATUS_GVA;
 #endif
 
     mstatus = (mstatus & ~mask) | (val & mask);
@@ -432,7 +432,7 @@ static int write_mstatush(CPURISCVState *env, int csrno, target_ulong val)
         tlb_flush(env_cpu(env));
     }
 
-    val &= MSTATUS_MPV | MSTATUS_MTL;
+    val &= MSTATUS_MPV | MSTATUS_GVA;
 
     env->mstatush = val;
 

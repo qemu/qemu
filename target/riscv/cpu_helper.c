@@ -901,6 +901,19 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         if (riscv_has_ext(env, RVH)) {
             target_ulong hdeleg = async ? env->hideleg : env->hedeleg;
 
+            if ((riscv_cpu_virt_enabled(env) ||
+                 riscv_cpu_two_stage_lookup(env)) && tval) {
+                /*
+                 * If we are writing a guest virtual address to stval, set
+                 * this to 1. If we are trapping to VS we will set this to 0
+                 * later.
+                 */
+                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 1);
+            } else {
+                /* For other HS-mode traps, we set this to 0. */
+                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 0);
+            }
+
             if (riscv_cpu_virt_enabled(env) && ((hdeleg >> cause) & 1) &&
                 !force_hs_execp) {
                 /*
@@ -911,6 +924,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                     cause == IRQ_VS_EXT)
                     cause = cause - 1;
                 /* Trap to VS mode */
+                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 0);
             } else if (riscv_cpu_virt_enabled(env)) {
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env);
@@ -959,13 +973,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #ifdef TARGET_RISCV32
             env->mstatush = set_field(env->mstatush, MSTATUS_MPV,
                                        riscv_cpu_virt_enabled(env));
-            env->mstatush = set_field(env->mstatush, MSTATUS_MTL,
-                                       riscv_cpu_force_hs_excep_enabled(env));
+            if (riscv_cpu_virt_enabled(env) && tval) {
+                env->mstatush = set_field(env->mstatush, MSTATUS_GVA, 1);
+            }
 #else
             env->mstatus = set_field(env->mstatus, MSTATUS_MPV,
                                       riscv_cpu_virt_enabled(env));
-            env->mstatus = set_field(env->mstatus, MSTATUS_MTL,
-                                      riscv_cpu_force_hs_excep_enabled(env));
+            if (riscv_cpu_virt_enabled(env) && tval) {
+                env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
+            }
 #endif
 
             mtval2 = env->guest_phys_fault_addr;
