@@ -109,6 +109,7 @@ void float_raise(uint8_t flags, float_status *status);
 float16 float16_squash_input_denormal(float16 a, float_status *status);
 float32 float32_squash_input_denormal(float32 a, float_status *status);
 float64 float64_squash_input_denormal(float64 a, float_status *status);
+bfloat16 bfloat16_squash_input_denormal(bfloat16 a, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Options to indicate which negations to perform in float*_muladd()
@@ -346,6 +347,43 @@ static inline bool float16_unordered_quiet(float16 a, float16 b,
 #define float16_two make_float16(0x4000)
 #define float16_three make_float16(0x4200)
 #define float16_infinity make_float16(0x7c00)
+
+/*----------------------------------------------------------------------------
+| Software bfloat16 operations.
+*----------------------------------------------------------------------------*/
+
+bfloat16 bfloat16_add(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_sub(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_mul(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_div(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_muladd(bfloat16, bfloat16, bfloat16, int,
+                         float_status *status);
+float16 bfloat16_scalbn(bfloat16, int, float_status *status);
+bfloat16 bfloat16_min(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_max(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_minnum(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_maxnum(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_minnummag(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_maxnummag(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_sqrt(bfloat16, float_status *status);
+FloatRelation bfloat16_compare(bfloat16, bfloat16, float_status *status);
+FloatRelation bfloat16_compare_quiet(bfloat16, bfloat16, float_status *status);
+
+bfloat16 bfloat16_silence_nan(bfloat16, float_status *status);
+bfloat16 bfloat16_default_nan(float_status *status);
+
+static inline bfloat16 bfloat16_set_sign(bfloat16 a, int sign)
+{
+    return (a & 0x7fff) | (sign << 15);
+}
+
+#define bfloat16_zero 0
+#define bfloat16_half 0x3f00
+#define bfloat16_one 0x3f80
+#define bfloat16_one_point_five 0x3fc0
+#define bfloat16_two 0x4000
+#define bfloat16_three 0x4040
+#define bfloat16_infinity 0x7f80
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.

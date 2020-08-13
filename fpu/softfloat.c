@@ -554,6 +554,10 @@ static const FloatFmt float16_params_ahp = {
     .arm_althp = true
 };
 
+static const FloatFmt bfloat16_params = {
+    FLOAT_PARAMS(8, 7)
+};
+
 static const FloatFmt float32_params = {
     FLOAT_PARAMS(8, 23)
 };
@@ -580,6 +584,11 @@ static inline FloatParts float16_unpack_raw(float16 f)
     return unpack_raw(float16_params, f);
 }
 
+static inline FloatParts bfloat16_unpack_raw(bfloat16 f)
+{
+    return unpack_raw(bfloat16_params, f);
+}
+
 static inline FloatParts float32_unpack_raw(float32 f)
 {
     return unpack_raw(float32_params, f);
@@ -601,6 +610,11 @@ static inline uint64_t pack_raw(FloatFmt fmt, FloatParts p)
 static inline float16 float16_pack_raw(FloatParts p)
 {
     return make_float16(pack_raw(float16_params, p));
+}
+
+static inline bfloat16 bfloat16_pack_raw(FloatParts p)
+{
+    return pack_raw(bfloat16_params, p);
 }
 
 static inline float32 float32_pack_raw(FloatParts p)
@@ -820,6 +834,11 @@ static FloatParts float16_unpack_canonical(float16 f, float_status *s)
     return float16a_unpack_canonical(f, s, &float16_params);
 }
 
+static FloatParts bfloat16_unpack_canonical(bfloat16 f, float_status *s)
+{
+    return sf_canonicalize(bfloat16_unpack_raw(f), &bfloat16_params, s);
+}
+
 static float16 float16a_round_pack_canonical(FloatParts p, float_status *s,
                                              const FloatFmt *params)
 {
@@ -829,6 +848,11 @@ static float16 float16a_round_pack_canonical(FloatParts p, float_status *s,
 static float16 float16_round_pack_canonical(FloatParts p, float_status *s)
 {
     return float16a_round_pack_canonical(p, s, &float16_params);
+}
+
+static bfloat16 bfloat16_round_pack_canonical(FloatParts p, float_status *s)
+{
+    return bfloat16_pack_raw(round_canonical(p, s, &bfloat16_params));
 }
 
 static FloatParts float32_unpack_canonical(float32 f, float_status *s)
@@ -1159,6 +1183,28 @@ float64_sub(float64 a, float64 b, float_status *s)
 }
 
 /*
+ * Returns the result of adding or subtracting the bfloat16
+ * values `a' and `b'.
+ */
+bfloat16 QEMU_FLATTEN bfloat16_add(bfloat16 a, bfloat16 b, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pb = bfloat16_unpack_canonical(b, status);
+    FloatParts pr = addsub_floats(pa, pb, false, status);
+
+    return bfloat16_round_pack_canonical(pr, status);
+}
+
+bfloat16 QEMU_FLATTEN bfloat16_sub(bfloat16 a, bfloat16 b, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pb = bfloat16_unpack_canonical(b, status);
+    FloatParts pr = addsub_floats(pa, pb, true, status);
+
+    return bfloat16_round_pack_canonical(pr, status);
+}
+
+/*
  * Returns the result of multiplying the floating-point values `a' and
  * `b'. The operation is performed according to the IEC/IEEE Standard
  * for Binary Floating-Point Arithmetic.
@@ -1258,6 +1304,20 @@ float64_mul(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_mul, soft_f64_mul,
                         f64_is_zon2, f64_addsubmul_post);
+}
+
+/*
+ * Returns the result of multiplying the bfloat16
+ * values `a' and `b'.
+ */
+
+bfloat16 QEMU_FLATTEN bfloat16_mul(bfloat16 a, bfloat16 b, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pb = bfloat16_unpack_canonical(b, status);
+    FloatParts pr = mul_floats(pa, pb, status);
+
+    return bfloat16_round_pack_canonical(pr, status);
 }
 
 /*
@@ -1643,6 +1703,23 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
 }
 
 /*
+ * Returns the result of multiplying the bfloat16 values `a'
+ * and `b' then adding 'c', with no intermediate rounding step after the
+ * multiplication.
+ */
+
+bfloat16 QEMU_FLATTEN bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
+                                      int flags, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pb = bfloat16_unpack_canonical(b, status);
+    FloatParts pc = bfloat16_unpack_canonical(c, status);
+    FloatParts pr = muladd_floats(pa, pb, pc, flags, status);
+
+    return bfloat16_round_pack_canonical(pr, status);
+}
+
+/*
  * Returns the result of dividing the floating-point value `a' by the
  * corresponding value `b'. The operation is performed according to
  * the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -1806,6 +1883,20 @@ float64_div(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_div, soft_f64_div,
                         f64_div_pre, f64_div_post);
+}
+
+/*
+ * Returns the result of dividing the bfloat16
+ * value `a' by the corresponding value `b'.
+ */
+
+bfloat16 bfloat16_div(bfloat16 a, bfloat16 b, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pb = bfloat16_unpack_canonical(b, status);
+    FloatParts pr = div_floats(pa, pb, status);
+
+    return bfloat16_round_pack_canonical(pr, status);
 }
 
 /*
@@ -2881,6 +2972,25 @@ MINMAX(64, maxnummag, false, true, true)
 
 #undef MINMAX
 
+#define BF16_MINMAX(name, ismin, isiee, ismag)                          \
+bfloat16 bfloat16_ ## name(bfloat16 a, bfloat16 b, float_status *s)     \
+{                                                                       \
+    FloatParts pa = bfloat16_unpack_canonical(a, s);                    \
+    FloatParts pb = bfloat16_unpack_canonical(b, s);                    \
+    FloatParts pr = minmax_floats(pa, pb, ismin, isiee, ismag, s);      \
+                                                                        \
+    return bfloat16_round_pack_canonical(pr, s);                        \
+}
+
+BF16_MINMAX(min, true, false, false)
+BF16_MINMAX(minnum, true, true, false)
+BF16_MINMAX(minnummag, true, true, true)
+BF16_MINMAX(max, false, false, false)
+BF16_MINMAX(maxnum, false, true, false)
+BF16_MINMAX(maxnummag, false, true, true)
+
+#undef BF16_MINMAX
+
 /* Floating point compare */
 static FloatRelation compare_floats(FloatParts a, FloatParts b, bool is_quiet,
                                     float_status *s)
@@ -3042,6 +3152,24 @@ FloatRelation float64_compare_quiet(float64 a, float64 b, float_status *s)
     return f64_compare(a, b, true, s);
 }
 
+static FloatRelation QEMU_FLATTEN
+soft_bf16_compare(bfloat16 a, bfloat16 b, bool is_quiet, float_status *s)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, s);
+    FloatParts pb = bfloat16_unpack_canonical(b, s);
+    return compare_floats(pa, pb, is_quiet, s);
+}
+
+FloatRelation bfloat16_compare(bfloat16 a, bfloat16 b, float_status *s)
+{
+    return soft_bf16_compare(a, b, false, s);
+}
+
+FloatRelation bfloat16_compare_quiet(bfloat16 a, bfloat16 b, float_status *s)
+{
+    return soft_bf16_compare(a, b, true, s);
+}
+
 /* Multiply A by 2 raised to the power N.  */
 static FloatParts scalbn_decomposed(FloatParts a, int n, float_status *s)
 {
@@ -3079,6 +3207,13 @@ float64 float64_scalbn(float64 a, int n, float_status *status)
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pr = scalbn_decomposed(pa, n, status);
     return float64_round_pack_canonical(pr, status);
+}
+
+bfloat16 bfloat16_scalbn(bfloat16 a, int n, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pr = scalbn_decomposed(pa, n, status);
+    return bfloat16_round_pack_canonical(pr, status);
 }
 
 /*
@@ -3231,6 +3366,13 @@ float64 QEMU_FLATTEN float64_sqrt(float64 xa, float_status *s)
     return soft_f64_sqrt(ua.s, s);
 }
 
+bfloat16 QEMU_FLATTEN bfloat16_sqrt(bfloat16 a, float_status *status)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, status);
+    FloatParts pr = sqrt_float(pa, status, &bfloat16_params);
+    return bfloat16_round_pack_canonical(pr, status);
+}
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated NaN.
 *----------------------------------------------------------------------------*/
@@ -3273,6 +3415,13 @@ float128 float128_default_nan(float_status *status)
     return r;
 }
 
+bfloat16 bfloat16_default_nan(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+    p.frac >>= bfloat16_params.frac_shift;
+    return bfloat16_pack_raw(p);
+}
+
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN from a signalling NaN for the floating point value `a'.
 *----------------------------------------------------------------------------*/
@@ -3304,6 +3453,14 @@ float64 float64_silence_nan(float64 a, float_status *status)
     return float64_pack_raw(p);
 }
 
+bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
+{
+    FloatParts p = bfloat16_unpack_raw(a);
+    p.frac <<= bfloat16_params.frac_shift;
+    p = parts_silence_nan(p, status);
+    p.frac >>= bfloat16_params.frac_shift;
+    return bfloat16_pack_raw(p);
+}
 
 /*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
@@ -3348,6 +3505,17 @@ float64 float64_squash_input_denormal(float64 a, float_status *status)
         FloatParts p = float64_unpack_raw(a);
         if (parts_squash_denormal(p, status)) {
             return float64_set_sign(float64_zero, p.sign);
+        }
+    }
+    return a;
+}
+
+bfloat16 bfloat16_squash_input_denormal(bfloat16 a, float_status *status)
+{
+    if (status->flush_inputs_to_zero) {
+        FloatParts p = bfloat16_unpack_raw(a);
+        if (parts_squash_denormal(p, status)) {
+            return bfloat16_set_sign(bfloat16_zero, p.sign);
         }
     }
     return a;

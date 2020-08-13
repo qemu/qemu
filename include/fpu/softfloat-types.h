@@ -113,6 +113,11 @@ typedef struct {
 #define make_float128_init(high_, low_) { .high = high_, .low = low_ }
 
 /*
+ * Software neural-network floating-point types.
+ */
+typedef uint16_t bfloat16;
+
+/*
  * Software IEC/IEEE floating-point underflow tininess-detection mode.
  */
 
