@@ -349,6 +349,60 @@ static inline bool float16_unordered_quiet(float16 a, float16 b,
 #define float16_infinity make_float16(0x7c00)
 
 /*----------------------------------------------------------------------------
+| Software bfloat16 conversion routines.
+*----------------------------------------------------------------------------*/
+
+bfloat16 bfloat16_round_to_int(bfloat16, float_status *status);
+bfloat16 float32_to_bfloat16(float32, float_status *status);
+float32 bfloat16_to_float32(bfloat16, float_status *status);
+bfloat16 float64_to_bfloat16(float64 a, float_status *status);
+float64 bfloat16_to_float64(bfloat16 a, float_status *status);
+
+int16_t bfloat16_to_int16_scalbn(bfloat16, FloatRoundMode,
+                                 int, float_status *status);
+int32_t bfloat16_to_int32_scalbn(bfloat16, FloatRoundMode,
+                                 int, float_status *status);
+int64_t bfloat16_to_int64_scalbn(bfloat16, FloatRoundMode,
+                                 int, float_status *status);
+
+int16_t bfloat16_to_int16(bfloat16, float_status *status);
+int32_t bfloat16_to_int32(bfloat16, float_status *status);
+int64_t bfloat16_to_int64(bfloat16, float_status *status);
+
+int16_t bfloat16_to_int16_round_to_zero(bfloat16, float_status *status);
+int32_t bfloat16_to_int32_round_to_zero(bfloat16, float_status *status);
+int64_t bfloat16_to_int64_round_to_zero(bfloat16, float_status *status);
+
+uint16_t bfloat16_to_uint16_scalbn(bfloat16 a, FloatRoundMode,
+                                   int, float_status *status);
+uint32_t bfloat16_to_uint32_scalbn(bfloat16 a, FloatRoundMode,
+                                   int, float_status *status);
+uint64_t bfloat16_to_uint64_scalbn(bfloat16 a, FloatRoundMode,
+                                   int, float_status *status);
+
+uint16_t bfloat16_to_uint16(bfloat16 a, float_status *status);
+uint32_t bfloat16_to_uint32(bfloat16 a, float_status *status);
+uint64_t bfloat16_to_uint64(bfloat16 a, float_status *status);
+
+uint16_t bfloat16_to_uint16_round_to_zero(bfloat16 a, float_status *status);
+uint32_t bfloat16_to_uint32_round_to_zero(bfloat16 a, float_status *status);
+uint64_t bfloat16_to_uint64_round_to_zero(bfloat16 a, float_status *status);
+
+bfloat16 int16_to_bfloat16_scalbn(int16_t a, int, float_status *status);
+bfloat16 int32_to_bfloat16_scalbn(int32_t a, int, float_status *status);
+bfloat16 int64_to_bfloat16_scalbn(int64_t a, int, float_status *status);
+bfloat16 uint16_to_bfloat16_scalbn(uint16_t a, int, float_status *status);
+bfloat16 uint32_to_bfloat16_scalbn(uint32_t a, int, float_status *status);
+bfloat16 uint64_to_bfloat16_scalbn(uint64_t a, int, float_status *status);
+
+bfloat16 int16_to_bfloat16(int16_t a, float_status *status);
+bfloat16 int32_to_bfloat16(int32_t a, float_status *status);
+bfloat16 int64_to_bfloat16(int64_t a, float_status *status);
+bfloat16 uint16_to_bfloat16(uint16_t a, float_status *status);
+bfloat16 uint32_to_bfloat16(uint32_t a, float_status *status);
+bfloat16 uint64_to_bfloat16(uint64_t a, float_status *status);
+
+/*----------------------------------------------------------------------------
 | Software bfloat16 operations.
 *----------------------------------------------------------------------------*/
 

@@ -2014,6 +2014,34 @@ float32 float64_to_float32(float64 a, float_status *s)
     return float32_round_pack_canonical(pr, s);
 }
 
+float32 bfloat16_to_float32(bfloat16 a, float_status *s)
+{
+    FloatParts p = bfloat16_unpack_canonical(a, s);
+    FloatParts pr = float_to_float(p, &float32_params, s);
+    return float32_round_pack_canonical(pr, s);
+}
+
+float64 bfloat16_to_float64(bfloat16 a, float_status *s)
+{
+    FloatParts p = bfloat16_unpack_canonical(a, s);
+    FloatParts pr = float_to_float(p, &float64_params, s);
+    return float64_round_pack_canonical(pr, s);
+}
+
+bfloat16 float32_to_bfloat16(float32 a, float_status *s)
+{
+    FloatParts p = float32_unpack_canonical(a, s);
+    FloatParts pr = float_to_float(p, &bfloat16_params, s);
+    return bfloat16_round_pack_canonical(pr, s);
+}
+
+bfloat16 float64_to_bfloat16(float64 a, float_status *s)
+{
+    FloatParts p = float64_unpack_canonical(a, s);
+    FloatParts pr = float_to_float(p, &bfloat16_params, s);
+    return bfloat16_round_pack_canonical(pr, s);
+}
+
 /*
  * Rounds the floating-point value `a' to an integer, and returns the
  * result as a floating-point value. The operation is performed
@@ -2141,6 +2169,18 @@ float64 float64_round_to_int(float64 a, float_status *s)
     FloatParts pa = float64_unpack_canonical(a, s);
     FloatParts pr = round_to_int(pa, s->float_rounding_mode, 0, s);
     return float64_round_pack_canonical(pr, s);
+}
+
+/*
+ * Rounds the bfloat16 value `a' to an integer, and returns the
+ * result as a bfloat16 value.
+ */
+
+bfloat16 bfloat16_round_to_int(bfloat16 a, float_status *s)
+{
+    FloatParts pa = bfloat16_unpack_canonical(a, s);
+    FloatParts pr = round_to_int(pa, s->float_rounding_mode, 0, s);
+    return bfloat16_round_pack_canonical(pr, s);
 }
 
 /*
@@ -2363,6 +2403,62 @@ int32_t float64_to_int32_round_to_zero(float64 a, float_status *s)
 int64_t float64_to_int64_round_to_zero(float64 a, float_status *s)
 {
     return float64_to_int64_scalbn(a, float_round_to_zero, 0, s);
+}
+
+/*
+ * Returns the result of converting the floating-point value `a' to
+ * the two's complement integer format.
+ */
+
+int16_t bfloat16_to_int16_scalbn(bfloat16 a, FloatRoundMode rmode, int scale,
+                                 float_status *s)
+{
+    return round_to_int_and_pack(bfloat16_unpack_canonical(a, s),
+                                 rmode, scale, INT16_MIN, INT16_MAX, s);
+}
+
+int32_t bfloat16_to_int32_scalbn(bfloat16 a, FloatRoundMode rmode, int scale,
+                                 float_status *s)
+{
+    return round_to_int_and_pack(bfloat16_unpack_canonical(a, s),
+                                 rmode, scale, INT32_MIN, INT32_MAX, s);
+}
+
+int64_t bfloat16_to_int64_scalbn(bfloat16 a, FloatRoundMode rmode, int scale,
+                                 float_status *s)
+{
+    return round_to_int_and_pack(bfloat16_unpack_canonical(a, s),
+                                 rmode, scale, INT64_MIN, INT64_MAX, s);
+}
+
+int16_t bfloat16_to_int16(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int16_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+int32_t bfloat16_to_int32(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int32_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+int64_t bfloat16_to_int64(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int64_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+int16_t bfloat16_to_int16_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int16_scalbn(a, float_round_to_zero, 0, s);
+}
+
+int32_t bfloat16_to_int32_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int32_scalbn(a, float_round_to_zero, 0, s);
+}
+
+int64_t bfloat16_to_int64_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_int64_scalbn(a, float_round_to_zero, 0, s);
 }
 
 /*
@@ -2591,6 +2687,62 @@ uint64_t float64_to_uint64_round_to_zero(float64 a, float_status *s)
 }
 
 /*
+ *  Returns the result of converting the bfloat16 value `a' to
+ *  the unsigned integer format.
+ */
+
+uint16_t bfloat16_to_uint16_scalbn(bfloat16 a, FloatRoundMode rmode,
+                                   int scale, float_status *s)
+{
+    return round_to_uint_and_pack(bfloat16_unpack_canonical(a, s),
+                                  rmode, scale, UINT16_MAX, s);
+}
+
+uint32_t bfloat16_to_uint32_scalbn(bfloat16 a, FloatRoundMode rmode,
+                                   int scale, float_status *s)
+{
+    return round_to_uint_and_pack(bfloat16_unpack_canonical(a, s),
+                                  rmode, scale, UINT32_MAX, s);
+}
+
+uint64_t bfloat16_to_uint64_scalbn(bfloat16 a, FloatRoundMode rmode,
+                                   int scale, float_status *s)
+{
+    return round_to_uint_and_pack(bfloat16_unpack_canonical(a, s),
+                                  rmode, scale, UINT64_MAX, s);
+}
+
+uint16_t bfloat16_to_uint16(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint16_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+uint32_t bfloat16_to_uint32(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint32_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+uint64_t bfloat16_to_uint64(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint64_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
+uint16_t bfloat16_to_uint16_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint16_scalbn(a, float_round_to_zero, 0, s);
+}
+
+uint32_t bfloat16_to_uint32_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint32_scalbn(a, float_round_to_zero, 0, s);
+}
+
+uint64_t bfloat16_to_uint64_round_to_zero(bfloat16 a, float_status *s)
+{
+    return bfloat16_to_uint64_scalbn(a, float_round_to_zero, 0, s);
+}
+
+/*
  * Integer to float conversions
  *
  * Returns the result of converting the two's complement integer `a'
@@ -2721,6 +2873,41 @@ float64 int16_to_float64(int16_t a, float_status *status)
     return int64_to_float64_scalbn(a, 0, status);
 }
 
+/*
+ * Returns the result of converting the two's complement integer `a'
+ * to the bfloat16 format.
+ */
+
+bfloat16 int64_to_bfloat16_scalbn(int64_t a, int scale, float_status *status)
+{
+    FloatParts pa = int_to_float(a, scale, status);
+    return bfloat16_round_pack_canonical(pa, status);
+}
+
+bfloat16 int32_to_bfloat16_scalbn(int32_t a, int scale, float_status *status)
+{
+    return int64_to_bfloat16_scalbn(a, scale, status);
+}
+
+bfloat16 int16_to_bfloat16_scalbn(int16_t a, int scale, float_status *status)
+{
+    return int64_to_bfloat16_scalbn(a, scale, status);
+}
+
+bfloat16 int64_to_bfloat16(int64_t a, float_status *status)
+{
+    return int64_to_bfloat16_scalbn(a, 0, status);
+}
+
+bfloat16 int32_to_bfloat16(int32_t a, float_status *status)
+{
+    return int64_to_bfloat16_scalbn(a, 0, status);
+}
+
+bfloat16 int16_to_bfloat16(int16_t a, float_status *status)
+{
+    return int64_to_bfloat16_scalbn(a, 0, status);
+}
 
 /*
  * Unsigned Integer to float conversions
@@ -2849,6 +3036,42 @@ float64 uint32_to_float64(uint32_t a, float_status *status)
 float64 uint16_to_float64(uint16_t a, float_status *status)
 {
     return uint64_to_float64_scalbn(a, 0, status);
+}
+
+/*
+ * Returns the result of converting the unsigned integer `a' to the
+ * bfloat16 format.
+ */
+
+bfloat16 uint64_to_bfloat16_scalbn(uint64_t a, int scale, float_status *status)
+{
+    FloatParts pa = uint_to_float(a, scale, status);
+    return bfloat16_round_pack_canonical(pa, status);
+}
+
+bfloat16 uint32_to_bfloat16_scalbn(uint32_t a, int scale, float_status *status)
+{
+    return uint64_to_bfloat16_scalbn(a, scale, status);
+}
+
+bfloat16 uint16_to_bfloat16_scalbn(uint16_t a, int scale, float_status *status)
+{
+    return uint64_to_bfloat16_scalbn(a, scale, status);
+}
+
+bfloat16 uint64_to_bfloat16(uint64_t a, float_status *status)
+{
+    return uint64_to_bfloat16_scalbn(a, 0, status);
+}
+
+bfloat16 uint32_to_bfloat16(uint32_t a, float_status *status)
+{
+    return uint64_to_bfloat16_scalbn(a, 0, status);
+}
+
+bfloat16 uint16_to_bfloat16(uint16_t a, float_status *status)
+{
+    return uint64_to_bfloat16_scalbn(a, 0, status);
 }
 
 /* Float Min/Max */
