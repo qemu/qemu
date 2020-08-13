@@ -1229,8 +1229,10 @@ static void dec_br(DisasContext *dc)
     /* Memory barrier.  */
     mbar = (dc->ir >> 16) & 31;
     if (mbar == 2 && dc->imm == 4) {
+        uint16_t mbar_imm = dc->rd;
+
         /* mbar IMM & 16 decodes to sleep.  */
-        if (dc->rd & 16) {
+        if (mbar_imm & 16) {
             TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
             TCGv_i32 tmp_1 = tcg_const_i32(1);
 
@@ -1246,7 +1248,7 @@ static void dec_br(DisasContext *dc)
             tcg_temp_free_i32(tmp_1);
             return;
         }
-        LOG_DIS("mbar %d\n", dc->rd);
+        LOG_DIS("mbar %d\n", mbar_imm);
         /* Break the TB.  */
         dc->cpustate_changed = 1;
         return;
