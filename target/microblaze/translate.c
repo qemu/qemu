@@ -1233,6 +1233,11 @@ static void dec_br(DisasContext *dc)
 
         LOG_DIS("mbar %d\n", mbar_imm);
 
+        /* Data access memory barrier.  */
+        if ((mbar_imm & 2) == 0) {
+            tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
+        }
+
         /* mbar IMM & 16 decodes to sleep.  */
         if (mbar_imm & 16) {
             TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
