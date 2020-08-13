@@ -19,6 +19,7 @@ ENV PACKAGES \
     make \
     mesa-libEGL-devel \
     nettle-devel \
+    ninja-build \
     perl-Test-Harness \
     pixman-devel \
     python36 \

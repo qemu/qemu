@@ -23,7 +23,7 @@ import aarch64vm
 DEFAULT_CONFIG = {
     'cpu'          : "max",
     'machine'      : "virt,gic-version=max",
-    'install_cmds' : "yum install -y make git python3 gcc gcc-c++ flex bison, "\
+    'install_cmds' : "yum install -y make ninja-build git python3 gcc gcc-c++ flex bison, "\
         "yum install -y glib2-devel pixman-devel zlib-devel, "\
         "yum install -y perl-Test-Harness, "\
         "alternatives --set python /usr/bin/python3, "\

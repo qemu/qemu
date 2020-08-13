@@ -49,6 +49,7 @@ addons:
       - libvdeplug-dev
       - libvte-2.91-dev
       - libzstd-dev
+      - ninja-build
       - sparse
       - uuid-dev
       - gcovr
@@ -177,6 +178,7 @@ jobs:
       addons:
         apt:
           packages:
+            - ninja-build
             - python3-sphinx
             - perl
 
@@ -211,6 +213,10 @@ jobs:
     # gprof/gcov are GCC features
     - name: "GCC gprof/gcov"
       dist: bionic
+      addons:
+        apt:
+          packages:
+            - ninja-build
       env:
         - CONFIG="--enable-gprof --enable-gcov --disable-libssh
                   --target-list=${MAIN_SOFTMMU_TARGETS}"
@@ -281,6 +287,7 @@ jobs:
             - liburcu-dev
             - libusb-1.0-0-dev
             - libvte-2.91-dev
+            - ninja-build
             - sparse
             - uuid-dev
       language: generic
@@ -346,6 +353,7 @@ jobs:
           - libusb-1.0-0-dev
           - libvdeplug-dev
           - libvte-2.91-dev
+          - ninja-build
           # Tests dependencies
           - genisoimage
       env:
@@ -379,6 +387,7 @@ jobs:
           - libusb-1.0-0-dev
           - libvdeplug-dev
           - libvte-2.91-dev
+          - ninja-build
           # Tests dependencies
           - genisoimage
       env:
@@ -411,6 +420,7 @@ jobs:
           - libusb-1.0-0-dev
           - libvdeplug-dev
           - libvte-2.91-dev
+          - ninja-build
           # Tests dependencies
           - genisoimage
       env:
@@ -450,6 +460,7 @@ jobs:
           - libzstd-dev
           - nettle-dev
           - xfslibs-dev
+          - ninja-build
           # Tests dependencies
           - genisoimage
       env:
@@ -463,6 +474,7 @@ jobs:
         apt_packages:
           - libgcrypt20-dev
           - libgnutls28-dev
+          - ninja-build
       env:
         - CONFIG="--disable-containers --disable-system"
 
@@ -493,6 +505,7 @@ jobs:
           - libusb-1.0-0-dev
           - libvdeplug-dev
           - libvte-2.91-dev
+          - ninja-build
       env:
         - TEST_CMD="make check-unit"
         - CONFIG="--disable-containers --disable-tcg --enable-kvm

@@ -27,6 +27,7 @@ ENV PACKAGES \
     mesa-libEGL-devel \
     mesa-libgbm-devel \
     nettle-devel \
+    ninja-build \
     perl-Test-Harness \
     pixman-devel \
     python3 \

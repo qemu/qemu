@@ -32,7 +32,7 @@ class FedoraVM(basevm.BaseVM):
     pkgs = [
         # tools
         'git-core',
-        'gcc', 'binutils', 'make',
+        'gcc', 'binutils', 'make', 'ninja-build',
 
         # perl
         'perl-Test-Harness',

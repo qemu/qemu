@@ -9,7 +9,7 @@ freebsd_12_task:
   install_script:
     - ASSUME_ALWAYS_YES=yes pkg bootstrap -f ;
     - pkg install -y bash curl cyrus-sasl git glib gmake gnutls gsed
-          nettle perl5 pixman pkgconf png usbredir
+          nettle perl5 pixman pkgconf png usbredir ninja
   script:
     - mkdir build
     - cd build
@@ -21,7 +21,7 @@ macos_task:
   osx_instance:
     image: catalina-base
   install_script:
-    - brew install pkg-config python gnu-sed glib pixman make sdl2 bash
+    - brew install pkg-config python gnu-sed glib pixman make sdl2 bash ninja
   script:
     - mkdir build
     - cd build
@@ -36,7 +36,7 @@ macos_xcode_task:
     # this is an alias for the latest Xcode
     image: catalina-xcode
   install_script:
-    - brew install pkg-config gnu-sed glib pixman make sdl2 bash
+    - brew install pkg-config gnu-sed glib pixman make sdl2 bash ninja
   script:
     - mkdir build
     - cd build
