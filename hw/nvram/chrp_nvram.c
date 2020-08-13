@@ -21,14 +21,21 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "sysemu/sysemu.h"
 
-static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str)
+static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str,
+                              int max_len)
 {
     int len;
 
     len = strlen(str) + 1;
+
+    if (max_len < len) {
+        return -1;
+    }
+
     memcpy(&nvram[addr], str, len);
 
     return addr + len;
@@ -38,11 +45,15 @@ static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str)
  * Create a "system partition", used for the Open Firmware
  * environment variables.
  */
-int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
+int chrp_nvram_create_system_partition(uint8_t *data, int min_len, int max_len)
 {
     ChrpNvramPartHdr *part_header;
     unsigned int i;
     int end;
+
+    if (max_len < sizeof(*part_header)) {
+        goto fail;
+    }
 
     part_header = (ChrpNvramPartHdr *)data;
     part_header->signature = CHRP_NVPART_SYSTEM;
@@ -50,7 +61,10 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
 
     end = sizeof(ChrpNvramPartHdr);
     for (i = 0; i < nb_prom_envs; i++) {
-        end = chrp_nvram_set_var(data, end, prom_envs[i]);
+        end = chrp_nvram_set_var(data, end, prom_envs[i], max_len - end);
+        if (end == -1) {
+            goto fail;
+        }
     }
 
     /* End marker */
@@ -65,6 +79,10 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
     chrp_nvram_finish_partition(part_header, end);
 
     return end;
+
+fail:
+    error_report("NVRAM is too small. Try to pass less data to -prom-env");
+    exit(EXIT_FAILURE);
 }
 
 /**
