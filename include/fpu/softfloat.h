@@ -423,8 +423,56 @@ bfloat16 bfloat16_sqrt(bfloat16, float_status *status);
 FloatRelation bfloat16_compare(bfloat16, bfloat16, float_status *status);
 FloatRelation bfloat16_compare_quiet(bfloat16, bfloat16, float_status *status);
 
+bool bfloat16_is_quiet_nan(bfloat16, float_status *status);
+bool bfloat16_is_signaling_nan(bfloat16, float_status *status);
 bfloat16 bfloat16_silence_nan(bfloat16, float_status *status);
 bfloat16 bfloat16_default_nan(float_status *status);
+
+static inline bool bfloat16_is_any_nan(bfloat16 a)
+{
+    return ((a & ~0x8000) > 0x7F80);
+}
+
+static inline bool bfloat16_is_neg(bfloat16 a)
+{
+    return a >> 15;
+}
+
+static inline bool bfloat16_is_infinity(bfloat16 a)
+{
+    return (a & 0x7fff) == 0x7F80;
+}
+
+static inline bool bfloat16_is_zero(bfloat16 a)
+{
+    return (a & 0x7fff) == 0;
+}
+
+static inline bool bfloat16_is_zero_or_denormal(bfloat16 a)
+{
+    return (a & 0x7F80) == 0;
+}
+
+static inline bool bfloat16_is_normal(bfloat16 a)
+{
+    return (((a >> 7) + 1) & 0xff) >= 2;
+}
+
+static inline bfloat16 bfloat16_abs(bfloat16 a)
+{
+    /* Note that abs does *not* handle NaN specially, nor does
+     * it flush denormal inputs to zero.
+     */
+    return a & 0x7fff;
+}
+
+static inline bfloat16 bfloat16_chs(bfloat16 a)
+{
+    /* Note that chs does *not* handle NaN specially, nor does
+     * it flush denormal inputs to zero.
+     */
+    return a ^ 0x8000;
+}
 
 static inline bfloat16 bfloat16_set_sign(bfloat16 a, int sign)
 {
