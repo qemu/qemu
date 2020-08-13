@@ -1586,6 +1586,11 @@ void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
         memory_region_dispatch_read(env->itc_tag, index, &env->CP0_TagLo,
                                     MO_64, MEMTXATTRS_UNSPECIFIED);
         break;
+    case 0b000: /* Index Invalidate */
+    case 0b100: /* Hit Invalidate */
+    case 0b110: /* Hit Writeback */
+        /* no-op */
+        break;
     default:
         break;
     }
