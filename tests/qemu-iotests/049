@@ -119,6 +119,10 @@ test_qemu_img create -f $IMGFMT -o compat=1.1,lazy_refcounts=on "$TEST_IMG" 64M
 test_qemu_img create -f $IMGFMT -o compat=0.10,lazy_refcounts=off "$TEST_IMG" 64M
 test_qemu_img create -f $IMGFMT -o compat=0.10,lazy_refcounts=on "$TEST_IMG" 64M
 
+echo "== Expect error when backing file name is empty string =="
+echo
+test_qemu_img create -f $IMGFMT -b '' $TEST_IMG 1M
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
