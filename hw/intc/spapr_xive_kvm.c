@@ -831,7 +831,7 @@ void kvmppc_xive_disconnect(SpaprInterruptController *intc)
 
     /* Clear the KVM mapping */
     xsrc = &xive->source;
-    esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+    esb_len = xive_source_esb_len(xsrc);
 
     if (xsrc->esb_mmap) {
         memory_region_del_subregion(&xsrc->esb_mmio, &xsrc->esb_mmio_kvm);
