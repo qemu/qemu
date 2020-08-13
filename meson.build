@@ -47,10 +47,6 @@ supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv32', 'riscv64', 'x86', 'x86_64'
 cpu = host_machine.cpu_family()
 targetos = host_machine.system()
 
-configure_file(input: files('scripts/ninjatool.py'),
-               output: 'ninjatool',
-               configuration: config_host)
-
 if cpu in ['x86', 'x86_64']
   kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
 elif cpu == 'aarch64'

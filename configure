@@ -1905,7 +1905,7 @@ case "$meson" in
     *) meson=$(command -v "$meson") ;;
 esac
 
-# Probe for ninja (used for compdb)
+# Probe for ninja
 
 if test -z "$ninja"; then
     for c in ninja ninja-build samu; do
@@ -1914,6 +1914,9 @@ if test -z "$ninja"; then
             break
         fi
     done
+    if test -z "$ninja"; then
+      error_exit "Cannot find Ninja"
+    fi
 fi
 
 # Check that the C compiler works. Doing this here before testing
@@ -6779,6 +6782,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "SPHINX_BUILD=$sphinx_build" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
+echo "NINJA=$ninja" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
   echo "CONFIG_IASL=$iasl" >> $config_host_mak
@@ -7030,7 +7034,7 @@ fi
 mv $cross config-meson.cross
 
 rm -rf meson-private meson-info meson-logs
-NINJA=${ninja:-$PWD/ninjatool} $meson setup \
+NINJA=$ninja $meson setup \
         --prefix "$prefix" \
         --libdir "$libdir" \
         --libexecdir "$libexecdir" \
@@ -7063,7 +7067,6 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 if test "$?" -ne 0 ; then
     error_exit "meson setup failed"
 fi
-touch ninjatool.stamp
 fi
 
 if test -n "${deprecated_features}"; then

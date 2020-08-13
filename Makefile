@@ -72,27 +72,8 @@ git-submodule-update:
 endif
 endif
 
-export NINJA=./ninjatool
+# 0. ensure the build tree is okay
 
-# Running meson regenerates both build.ninja and ninjatool, and that is
-# enough to prime the rest of the build.
-ninjatool: build.ninja
-
-Makefile.ninja: build.ninja ninjatool
-	./ninjatool -t ninja2make --omit clean dist uninstall cscope TAGS ctags < $< > $@
--include Makefile.ninja
-
-${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.command += -MP
-
-# If MESON is empty, the rule will be re-evaluated after Makefiles are
-# reread (and MESON won't be empty anymore).
-ifneq ($(MESON),)
-Makefile.mtest: build.ninja scripts/mtest2make.py
-	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
--include Makefile.mtest
-endif
-
-# Ensure the build tree is okay.
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
 ifneq ($(realpath $(SRC_PATH)),$(realpath .))
@@ -117,6 +98,7 @@ ifeq ($(wildcard build.ninja),)
 x := $(shell rm -rf meson-private meson-info meson-logs)
 endif
 
+# 1. ensure config-host.mak is up-to-date
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	@echo $@ is out-of-date, running configure
 	@if test -f meson-private/coredata.dat; then \
@@ -124,6 +106,46 @@ config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	else \
 	  ./config.status; \
 	fi
+
+# 2. ensure generated build files are up-to-date
+
+ifneq ($(NINJA),)
+# A separate rule is needed for Makefile dependencies to avoid -n
+export NINJA
+Makefile.ninja: build.ninja
+	$(quiet-@){ echo 'ninja-targets = \'; $(NINJA) -t targets all | sed 's/:.*//; $$!s/$$/ \\/'; } > $@
+-include Makefile.ninja
+endif
+
+ifneq ($(MESON),)
+# The dependency on config-host.mak ensures that meson has run
+Makefile.mtest: build.ninja scripts/mtest2make.py config-host.mak
+	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
+-include Makefile.mtest
+endif
+
+# 3. Rules to bridge to other makefiles
+
+ifneq ($(NINJA),)
+NINJAFLAGS = $(if $V,-v,) \
+        $(filter-out -j, $(lastword -j1 $(filter -l% -j%, $(MAKEFLAGS)))) \
+        $(subst -k, -k0, $(filter -n -k,$(MAKEFLAGS)))
+
+ninja-cmd-goals = $(or $(MAKECMDGOALS), all)
+ninja-cmd-goals += $(foreach t, $(.tests), $(.test.deps.$t))
+
+makefile-targets := build.ninja ctags TAGS cscope dist clean uninstall
+ninja-targets := $(filter-out $(makefile-targets), $(ninja-targets))
+.PHONY: $(ninja-targets) run-ninja
+$(ninja-targets): run-ninja
+
+# Use "| cat" to give Ninja a more "make-y" output.  Use "+" to bypass the
+# --output-sync line.
+run-ninja: config-host.mak
+ifneq ($(filter $(ninja-targets), $(ninja-cmd-goals)),)
+	+@$(NINJA) $(NINJAFLAGS) $(sort $(filter $(ninja-targets), $(ninja-cmd-goals))) | cat
+endif
+endif
 
 # Force configure to re-run if the API symbols are updated
 ifeq ($(CONFIG_PLUGIN),y)
@@ -144,13 +166,6 @@ ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fa
 endif
 endif # config-host.mak does not exist
 
-# Only needed in case Makefile.ninja does not exist.
-.PHONY: ninja-clean ninja-distclean clean-ctlist
-clean-ctlist:
-ninja-clean::
-ninja-distclean::
-build.ninja: config-host.mak
-
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 
 include $(SRC_PATH)/tests/Makefile.include
@@ -170,8 +185,9 @@ recurse-clean: $(addsuffix /clean, $(ROM_DIRS))
 
 ######################################################################
 
-clean: recurse-clean ninja-clean clean-ctlist
-	if test -f ninjatool; then ./ninjatool $(if $(V),-v,) -t clean; fi
+clean: recurse-clean
+	-@test -f build.ninja && $(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean || :
+	-@test -f build.ninja && $(NINJA) $(NINJAFLAGS) clean-ctlist || :
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	find . \( -name '*.so' -o -name '*.dll' -o -name '*.[oda]' \) -type f \
@@ -188,8 +204,8 @@ dist: qemu-$(VERSION).tar.bz2
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
-distclean: clean ninja-distclean
-	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean -g
+distclean: clean
+	-@test -f build.ninja && $(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean -g || :
 	rm -f config-host.mak config-host.h*
 	rm -f tests/tcg/config-*.mak
 	rm -f config-all-disas.mak config.status
@@ -198,7 +214,7 @@ distclean: clean ninja-distclean
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -f *-config-target.h *-config-devices.mak *-config-devices.h
 	rm -rf meson-private meson-logs meson-info compile_commands.json
-	rm -f Makefile.ninja ninjatool ninjatool.stamp Makefile.mtest
+	rm -f Makefile.ninja Makefile.mtest
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -Rf .sdk
