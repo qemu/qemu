@@ -110,7 +110,7 @@ void sdbus_write_data(SDBus *sdbus, uint8_t value)
     if (card) {
         SDCardClass *sc = SD_CARD_GET_CLASS(card);
 
-        sc->write_data(card, value);
+        sc->write_byte(card, value);
     }
 }
 
@@ -122,7 +122,7 @@ uint8_t sdbus_read_data(SDBus *sdbus)
     if (card) {
         SDCardClass *sc = SD_CARD_GET_CLASS(card);
 
-        value = sc->read_data(card);
+        value = sc->read_byte(card);
     }
     trace_sdbus_read(sdbus_name(sdbus), value);
 

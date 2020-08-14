@@ -104,8 +104,23 @@ typedef struct {
     /*< public >*/
 
     int (*do_command)(SDState *sd, SDRequest *req, uint8_t *response);
-    void (*write_data)(SDState *sd, uint8_t value);
-    uint8_t (*read_data)(SDState *sd);
+    /**
+     * Write a byte to a SD card.
+     * @sd: card
+     * @value: byte to write
+     *
+     * Write a byte on the data lines of a SD card.
+     */
+    void (*write_byte)(SDState *sd, uint8_t value);
+    /**
+     * Read a byte from a SD card.
+     * @sd: card
+     *
+     * Read a byte from the data lines of a SD card.
+     *
+     * Return: byte value read
+     */
+    uint8_t (*read_byte)(SDState *sd);
     bool (*data_ready)(SDState *sd);
     void (*set_voltage)(SDState *sd, uint16_t millivolts);
     uint8_t (*get_dat_lines)(SDState *sd);
