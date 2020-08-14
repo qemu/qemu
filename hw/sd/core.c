@@ -114,7 +114,7 @@ void sdbus_write_byte(SDBus *sdbus, uint8_t value)
     }
 }
 
-uint8_t sdbus_read_data(SDBus *sdbus)
+uint8_t sdbus_read_byte(SDBus *sdbus)
 {
     SDState *card = get_card(sdbus);
     uint8_t value = 0;

@@ -166,7 +166,15 @@ int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
  * Write a byte on the data lines of a SD bus.
  */
 void sdbus_write_byte(SDBus *sd, uint8_t value);
-uint8_t sdbus_read_data(SDBus *sd);
+/**
+ * Read a byte from a SD bus.
+ * @sd: bus
+ *
+ * Read a byte from the data lines of a SD bus.
+ *
+ * Return: byte value read
+ */
+uint8_t sdbus_read_byte(SDBus *sd);
 bool sdbus_data_ready(SDBus *sd);
 bool sdbus_get_inserted(SDBus *sd);
 bool sdbus_get_readonly(SDBus *sd);

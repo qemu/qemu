@@ -409,7 +409,7 @@ static void sdhci_read_block_from_card(SDHCIState *s)
     }
 
     for (index = 0; index < blk_size; index++) {
-        data = sdbus_read_data(&s->sdbus);
+        data = sdbus_read_byte(&s->sdbus);
         if (!FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, EXECUTE_TUNING)) {
             /* Device is not in tuning */
             s->fifo_buffer[index] = data;
@@ -601,7 +601,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
         while (s->blkcnt) {
             if (s->data_count == 0) {
                 for (n = 0; n < block_size; n++) {
-                    s->fifo_buffer[n] = sdbus_read_data(&s->sdbus);
+                    s->fifo_buffer[n] = sdbus_read_byte(&s->sdbus);
                 }
             }
             begin = s->data_count;
@@ -673,7 +673,7 @@ static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 
     if (s->trnmod & SDHC_TRNS_READ) {
         for (n = 0; n < datacnt; n++) {
-            s->fifo_buffer[n] = sdbus_read_data(&s->sdbus);
+            s->fifo_buffer[n] = sdbus_read_byte(&s->sdbus);
         }
         dma_memory_write(s->dma_as, s->sdmasysad, s->fifo_buffer, datacnt);
     } else {
@@ -774,7 +774,7 @@ static void sdhci_do_adma(SDHCIState *s)
                 while (length) {
                     if (s->data_count == 0) {
                         for (n = 0; n < block_size; n++) {
-                            s->fifo_buffer[n] = sdbus_read_data(&s->sdbus);
+                            s->fifo_buffer[n] = sdbus_read_byte(&s->sdbus);
                         }
                     }
                     begin = s->data_count;

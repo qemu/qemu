@@ -152,10 +152,10 @@ static uint64_t memcard_read(void *opaque, hwaddr addr,
             r = 0xffffffff;
         } else {
             r = 0;
-            r |= sdbus_read_data(&s->sdbus) << 24;
-            r |= sdbus_read_data(&s->sdbus) << 16;
-            r |= sdbus_read_data(&s->sdbus) << 8;
-            r |= sdbus_read_data(&s->sdbus);
+            r |= sdbus_read_byte(&s->sdbus) << 24;
+            r |= sdbus_read_byte(&s->sdbus) << 16;
+            r |= sdbus_read_byte(&s->sdbus) << 8;
+            r |= sdbus_read_byte(&s->sdbus);
         }
         break;
     case R_CLK2XDIV:
