@@ -1581,7 +1581,7 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
             TCGv_vec in = tcg_temp_new_vec(TCG_TYPE_V128);
 
             tcg_gen_ld_vec(in, cpu_env, aofs);
-            for (i = 0; i < oprsz; i += 16) {
+            for (i = (aofs == dofs) * 16; i < oprsz; i += 16) {
                 tcg_gen_st_vec(in, cpu_env, dofs + i);
             }
             tcg_temp_free_vec(in);
@@ -1591,7 +1591,7 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
 
             tcg_gen_ld_i64(in0, cpu_env, aofs);
             tcg_gen_ld_i64(in1, cpu_env, aofs + 8);
-            for (i = 0; i < oprsz; i += 16) {
+            for (i = (aofs == dofs) * 16; i < oprsz; i += 16) {
                 tcg_gen_st_i64(in0, cpu_env, dofs + i);
                 tcg_gen_st_i64(in1, cpu_env, dofs + i + 8);
             }
