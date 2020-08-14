@@ -175,6 +175,15 @@ void sdbus_write_byte(SDBus *sd, uint8_t value);
  * Return: byte value read
  */
 uint8_t sdbus_read_byte(SDBus *sd);
+/**
+ * Write data to a SD bus.
+ * @sdbus: bus
+ * @buf: data to write
+ * @length: number of bytes to write
+ *
+ * Write multiple bytes of data on the data lines of a SD bus.
+ */
+void sdbus_write_data(SDBus *sdbus, const void *buf, size_t length);
 bool sdbus_data_ready(SDBus *sd);
 bool sdbus_get_inserted(SDBus *sd);
 bool sdbus_get_readonly(SDBus *sd);

@@ -114,6 +114,21 @@ void sdbus_write_byte(SDBus *sdbus, uint8_t value)
     }
 }
 
+void sdbus_write_data(SDBus *sdbus, const void *buf, size_t length)
+{
+    SDState *card = get_card(sdbus);
+    const uint8_t *data = buf;
+
+    if (card) {
+        SDCardClass *sc = SD_CARD_GET_CLASS(card);
+
+        for (size_t i = 0; i < length; i++) {
+            trace_sdbus_write(sdbus_name(sdbus), data[i]);
+            sc->write_byte(card, data[i]);
+        }
+    }
+}
+
 uint8_t sdbus_read_byte(SDBus *sdbus)
 {
     SDState *card = get_card(sdbus);
