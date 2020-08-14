@@ -209,10 +209,10 @@ static void memcard_write(void *opaque, hwaddr addr, uint64_t value,
         if (!s->enabled) {
             break;
         }
-        sdbus_write_data(&s->sdbus, (value >> 24) & 0xff);
-        sdbus_write_data(&s->sdbus, (value >> 16) & 0xff);
-        sdbus_write_data(&s->sdbus, (value >> 8) & 0xff);
-        sdbus_write_data(&s->sdbus, value & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 24) & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 16) & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 8) & 0xff);
+        sdbus_write_byte(&s->sdbus, value & 0xff);
         break;
     case R_ENABLE:
         s->regs[addr] = value;

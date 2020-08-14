@@ -335,7 +335,7 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
                                       buf, buf_bytes);
 
             for (uint32_t i = 0; i < buf_bytes; i++) {
-                sdbus_write_data(&s->sdbus, buf[i]);
+                sdbus_write_byte(&s->sdbus, buf[i]);
             }
 
         /* Read from SD bus */
@@ -654,10 +654,10 @@ static void allwinner_sdhost_write(void *opaque, hwaddr offset,
         s->startbit_detect = value;
         break;
     case REG_SD_FIFO:      /* Read/Write FIFO */
-        sdbus_write_data(&s->sdbus, value & 0xff);
-        sdbus_write_data(&s->sdbus, (value >> 8) & 0xff);
-        sdbus_write_data(&s->sdbus, (value >> 16) & 0xff);
-        sdbus_write_data(&s->sdbus, (value >> 24) & 0xff);
+        sdbus_write_byte(&s->sdbus, value & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 8) & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 16) & 0xff);
+        sdbus_write_byte(&s->sdbus, (value >> 24) & 0xff);
         allwinner_sdhost_update_transfer_cnt(s, sizeof(uint32_t));
         allwinner_sdhost_auto_stop(s);
         allwinner_sdhost_update_irq(s);

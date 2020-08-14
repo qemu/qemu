@@ -158,7 +158,14 @@ void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts);
 uint8_t sdbus_get_dat_lines(SDBus *sdbus);
 bool sdbus_get_cmd_line(SDBus *sdbus);
 int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
-void sdbus_write_data(SDBus *sd, uint8_t value);
+/**
+ * Write a byte to a SD bus.
+ * @sd: bus
+ * @value: byte to write
+ *
+ * Write a byte on the data lines of a SD bus.
+ */
+void sdbus_write_byte(SDBus *sd, uint8_t value);
 uint8_t sdbus_read_data(SDBus *sd);
 bool sdbus_data_ready(SDBus *sd);
 bool sdbus_get_inserted(SDBus *sd);
