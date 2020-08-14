@@ -181,6 +181,7 @@ static void memcard_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
 {
     MilkymistMemcardState *s = opaque;
+    uint32_t val32;
 
     trace_milkymist_memcard_memory_write(addr, value);
 
@@ -209,10 +210,8 @@ static void memcard_write(void *opaque, hwaddr addr, uint64_t value,
         if (!s->enabled) {
             break;
         }
-        sdbus_write_byte(&s->sdbus, (value >> 24) & 0xff);
-        sdbus_write_byte(&s->sdbus, (value >> 16) & 0xff);
-        sdbus_write_byte(&s->sdbus, (value >> 8) & 0xff);
-        sdbus_write_byte(&s->sdbus, value & 0xff);
+        val32 = cpu_to_be32(value);
+        sdbus_write_data(&s->sdbus, &val32, sizeof(val32));
         break;
     case R_ENABLE:
         s->regs[addr] = value;
