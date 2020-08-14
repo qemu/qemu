@@ -138,7 +138,7 @@ static int32_t bmdma_prepare_buf(const IDEDMA *dma, int32_t limit)
     int l, len;
 
     pci_dma_sglist_init(&s->sg, pci_dev,
-                        s->nsector / (BMDMA_PAGE_SIZE / 512) + 1);
+                        s->nsector / (BMDMA_PAGE_SIZE / BDRV_SECTOR_SIZE) + 1);
     s->io_buffer_size = 0;
     for(;;) {
         if (bm->cur_prd_len == 0) {
