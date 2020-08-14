@@ -1075,14 +1075,16 @@ static void dec_store(DisasContext *dc)
         swx_skip = gen_new_label();
         tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, addr, swx_skip);
 
-        /* Compare the value loaded at lwx with current contents of
-           the reserved location.
-           FIXME: This only works for system emulation where we can expect
-           this compare and the following write to be atomic. For user
-           emulation we need to add atomicity between threads.  */
+        /*
+         * Compare the value loaded at lwx with current contents of
+         * the reserved location.
+         */
         tval = tcg_temp_new_i32();
-        tcg_gen_qemu_ld_i32(tval, addr, cpu_mmu_index(&dc->cpu->env, false),
-                            MO_TEUL);
+
+        tcg_gen_atomic_cmpxchg_i32(tval, addr, env_res_val,
+                                   cpu_R[dc->rd], mem_index,
+                                   mop);
+
         tcg_gen_brcond_i32(TCG_COND_NE, env_res_val, tval, swx_skip);
         write_carryi(dc, 0);
         tcg_temp_free_i32(tval);
@@ -1108,7 +1110,10 @@ static void dec_store(DisasContext *dc)
                 break;
         }
     }
-    tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr, mem_index, mop);
+
+    if (!ex) {
+        tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr, mem_index, mop);
+    }
 
     /* Verify alignment if needed.  */
     if (dc->cpu->cfg.unaligned_exceptions && size > 1) {
