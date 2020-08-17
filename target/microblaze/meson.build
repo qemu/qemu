@@ -1,4 +1,7 @@
+gen = decodetree.process('insns.decode')
+
 microblaze_ss = ss.source_set()
+microblaze_ss.add(gen)
 microblaze_ss.add(files(
   'cpu.c',
   'gdbstub.c',

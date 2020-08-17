@@ -81,6 +81,9 @@ typedef struct DisasContext {
     int abort_at_next_insn;
 } DisasContext;
 
+/* Include the auto-generated decoder.  */
+#include "decode-insns.c.inc"
+
 static inline void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
@@ -1506,7 +1509,7 @@ static struct decoder_info {
     {{0, 0}, dec_null}
 };
 
-static inline void decode(DisasContext *dc, uint32_t ir)
+static void old_decode(DisasContext *dc, uint32_t ir)
 {
     int i;
 
@@ -1584,6 +1587,7 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
     CPUMBState *env = cs->env_ptr;
+    uint32_t ir;
 
     /* TODO: This should raise an exception, not terminate qemu. */
     if (dc->base.pc_next & 3) {
@@ -1592,7 +1596,10 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
     }
 
     dc->clear_imm = 1;
-    decode(dc, cpu_ldl_code(env, dc->base.pc_next));
+    ir = cpu_ldl_code(env, dc->base.pc_next);
+    if (!decode(dc, ir)) {
+        old_decode(dc, ir);
+    }
     if (dc->clear_imm && (dc->tb_flags & IMM_FLAG)) {
         dc->tb_flags &= ~IMM_FLAG;
         tcg_gen_discard_i32(cpu_imm);
