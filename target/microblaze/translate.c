@@ -51,7 +51,6 @@
 /* is_jmp field values */
 #define DISAS_JUMP    DISAS_TARGET_0 /* only pc was modified dynamically */
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
-#define DISAS_TB_JUMP DISAS_TARGET_2 /* only pc was modified statically */
 
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
@@ -111,7 +110,7 @@ static void gen_raise_exception(DisasContext *dc, uint32_t index)
 
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
-    dc->is_jmp = DISAS_UPDATE;
+    dc->is_jmp = DISAS_NORETURN;
 }
 
 static void gen_raise_exception_sync(DisasContext *dc, uint32_t index)
@@ -149,6 +148,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
+    dc->is_jmp = DISAS_NORETURN;
 }
 
 /*
@@ -1675,7 +1675,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                 } else if (dc->jmp == JMP_DIRECT) {
                     t_sync_flags(dc);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
-                    dc->is_jmp = DISAS_TB_JUMP;
                 } else if (dc->jmp == JMP_DIRECT_CC) {
                     TCGLabel *l1 = gen_new_label();
                     t_sync_flags(dc);
@@ -1684,8 +1683,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                     gen_goto_tb(dc, 1, dc->pc);
                     gen_set_label(l1);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
-
-                    dc->is_jmp = DISAS_TB_JUMP;
                 }
                 break;
             }
@@ -1717,7 +1714,9 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     }
     t_sync_flags(dc);
 
-    if (unlikely(cs->singlestep_enabled)) {
+    if (dc->is_jmp == DISAS_NORETURN) {
+        /* nothing more to generate */
+    } else if (unlikely(cs->singlestep_enabled)) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {
@@ -1730,16 +1729,14 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
             case DISAS_NEXT:
                 gen_goto_tb(dc, 1, npc);
                 break;
-            default:
             case DISAS_JUMP:
             case DISAS_UPDATE:
                 /* indicate that the hash table must be used
                    to find the next TB */
                 tcg_gen_exit_tb(NULL, 0);
                 break;
-            case DISAS_TB_JUMP:
-                /* nothing more to generate */
-                break;
+            default:
+                g_assert_not_reached();
         }
     }
     gen_tb_end(tb, num_insns);
