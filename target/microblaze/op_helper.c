@@ -69,17 +69,6 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
-static inline uint32_t compute_carry(uint32_t a, uint32_t b, uint32_t cin)
-{
-    uint32_t cout = 0;
-
-    if ((b == ~0) && cin)
-        cout = 1;
-    else if ((~0 - a) < (b + cin))
-        cout = 1;
-    return cout;
-}
-
 uint32_t helper_cmp(uint32_t a, uint32_t b)
 {
     uint32_t t;
@@ -98,11 +87,6 @@ uint32_t helper_cmpu(uint32_t a, uint32_t b)
     if ((b & 0x80000000) ^ (a & 0x80000000))
         t = (t & 0x7fffffff) | (a & 0x80000000);
     return t;
-}
-
-uint32_t helper_carry(uint32_t a, uint32_t b, uint32_t cf)
-{
-    return compute_carry(a, b, cf);
 }
 
 static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)

@@ -327,6 +327,58 @@ DO_TYPEBV(addic, true, gen_addc)
 DO_TYPEBI(addik, false, tcg_gen_addi_i32)
 DO_TYPEBV(addikc, true, gen_addkc)
 
+DO_TYPEA(cmp, false, gen_helper_cmp)
+DO_TYPEA(cmpu, false, gen_helper_cmpu)
+
+/* No input carry, but output carry. */
+static void gen_rsub(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    tcg_gen_setcond_i32(TCG_COND_GEU, cpu_msr_c, inb, ina);
+    tcg_gen_sub_i32(out, inb, ina);
+}
+
+/* Input and output carry. */
+static void gen_rsubc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_not_i32(tmp, ina);
+    tcg_gen_add2_i32(tmp, cpu_msr_c, tmp, zero, cpu_msr_c, zero);
+    tcg_gen_add2_i32(out, cpu_msr_c, tmp, cpu_msr_c, inb, zero);
+
+    tcg_temp_free_i32(zero);
+    tcg_temp_free_i32(tmp);
+}
+
+/* No input or output carry. */
+static void gen_rsubk(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    tcg_gen_sub_i32(out, inb, ina);
+}
+
+/* Input carry, no output carry. */
+static void gen_rsubkc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 nota = tcg_temp_new_i32();
+
+    tcg_gen_not_i32(nota, ina);
+    tcg_gen_add_i32(out, inb, nota);
+    tcg_gen_add_i32(out, out, cpu_msr_c);
+
+    tcg_temp_free_i32(nota);
+}
+
+DO_TYPEA(rsub, true, gen_rsub)
+DO_TYPEA(rsubc, true, gen_rsubc)
+DO_TYPEA(rsubk, false, gen_rsubk)
+DO_TYPEA(rsubkc, true, gen_rsubkc)
+
+DO_TYPEBV(rsubi, true, gen_rsub)
+DO_TYPEBV(rsubic, true, gen_rsubc)
+DO_TYPEBV(rsubik, false, gen_rsubk)
+DO_TYPEBV(rsubikc, true, gen_rsubkc)
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -339,63 +391,6 @@ static bool trans_zero(DisasContext *dc, arg_zero *arg)
      * Continue to trans_add so that MSR[C] gets cleared.
      */
     return false;
-}
-
-static void dec_sub(DisasContext *dc)
-{
-    unsigned int u, cmp, k, c;
-    TCGv_i32 cf, na;
-
-    u = dc->imm & 2;
-    k = dc->opcode & 4;
-    c = dc->opcode & 2;
-    cmp = (dc->imm & 1) && (!dc->type_b) && k;
-
-    if (cmp) {
-        if (dc->rd) {
-            if (u)
-                gen_helper_cmpu(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
-            else
-                gen_helper_cmp(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
-        }
-        return;
-    }
-
-    /* Take care of the easy cases first.  */
-    if (k) {
-        /* k - keep carry, no need to update MSR.  */
-        /* If rd == r0, it's a nop.  */
-        if (dc->rd) {
-            tcg_gen_sub_i32(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
-
-            if (c) {
-                /* c - Add carry into the result.  */
-                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_msr_c);
-            }
-        }
-        return;
-    }
-
-    /* From now on, we can assume k is zero.  So we need to update MSR.  */
-    /* Extract carry. And complement a into na.  */
-    cf = tcg_temp_new_i32();
-    na = tcg_temp_new_i32();
-    if (c) {
-        tcg_gen_mov_i32(cf, cpu_msr_c);
-    } else {
-        tcg_gen_movi_i32(cf, 1);
-    }
-
-    /* d = b + ~a + c. carry defaults to 1.  */
-    tcg_gen_not_i32(na, cpu_R[dc->ra]);
-
-    gen_helper_carry(cpu_msr_c, na, *(dec_alu_op_b(dc)), cf);
-    if (dc->rd) {
-        tcg_gen_add_i32(cpu_R[dc->rd], na, *(dec_alu_op_b(dc)));
-        tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
-    }
-    tcg_temp_free_i32(cf);
-    tcg_temp_free_i32(na);
 }
 
 static void dec_pattern(DisasContext *dc)
@@ -1597,7 +1592,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_SUB, dec_sub},
     {DEC_AND, dec_and},
     {DEC_XOR, dec_xor},
     {DEC_OR, dec_or},
