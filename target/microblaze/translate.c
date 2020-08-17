@@ -67,8 +67,8 @@ static TCGv_i32 cpu_res_val;
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
+    DisasContextBase base;
     MicroBlazeCPU *cpu;
-    uint32_t pc;
 
     /* Decoder.  */
     int type_b;
@@ -81,7 +81,6 @@ typedef struct DisasContext {
     unsigned int delayed_branch;
     unsigned int tb_flags, synced_flags; /* tb dependent flags.  */
     unsigned int clear_imm;
-    int is_jmp;
 
 #define JMP_NOJMP     0
 #define JMP_DIRECT    1
@@ -91,8 +90,6 @@ typedef struct DisasContext {
     uint32_t jmp_pc;
 
     int abort_at_next_insn;
-    struct TranslationBlock *tb;
-    int singlestep_enabled;
 } DisasContext;
 
 static inline void t_sync_flags(DisasContext *dc)
@@ -110,13 +107,13 @@ static void gen_raise_exception(DisasContext *dc, uint32_t index)
 
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
-    dc->is_jmp = DISAS_NORETURN;
+    dc->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_raise_exception_sync(DisasContext *dc, uint32_t index)
 {
     t_sync_flags(dc);
-    tcg_gen_movi_i32(cpu_pc, dc->pc);
+    tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
     gen_raise_exception(dc, index);
 }
 
@@ -132,7 +129,7 @@ static void gen_raise_hw_excp(DisasContext *dc, uint32_t esr_ec)
 static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
 {
 #ifndef CONFIG_USER_ONLY
-    return (dc->tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
+    return (dc->base.pc_first & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
 #else
     return true;
 #endif
@@ -140,7 +137,7 @@ static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
 
 static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 {
-    if (dc->singlestep_enabled) {
+    if (dc->base.singlestep_enabled) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
         tcg_gen_movi_i32(cpu_pc, dest);
         gen_helper_raise_exception(cpu_env, tmp);
@@ -148,12 +145,12 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     } else if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb(dc->tb, n);
+        tcg_gen_exit_tb(dc->base.tb, n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
-    dc->is_jmp = DISAS_NORETURN;
+    dc->base.is_jmp = DISAS_NORETURN;
 }
 
 /*
@@ -468,8 +465,8 @@ static void dec_msr(DisasContext *dc)
         msr_write(dc, t0);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
-        tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
-        dc->is_jmp = DISAS_UPDATE;
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
+        dc->base.is_jmp = DISAS_UPDATE;
         return;
     }
 
@@ -546,7 +543,7 @@ static void dec_msr(DisasContext *dc)
 
         switch (sr) {
             case SR_PC:
-                tcg_gen_movi_i32(cpu_R[dc->rd], dc->pc);
+                tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
                 break;
             case SR_MSR:
                 msr_read(dc, cpu_R[dc->rd]);
@@ -813,7 +810,7 @@ static void dec_bit(DisasContext *dc)
             break;
         default:
             cpu_abort(cs, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
-                      dc->pc, op, dc->rd, dc->ra, dc->rb);
+                      (uint32_t)dc->base.pc_next, op, dc->rd, dc->ra, dc->rb);
             break;
     }
 }
@@ -994,7 +991,7 @@ static void dec_load(DisasContext *dc)
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
 
-        tcg_gen_movi_i32(cpu_pc, dc->pc);
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
         gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
 
         tcg_temp_free_i32(t0);
@@ -1114,7 +1111,7 @@ static void dec_store(DisasContext *dc)
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
 
-        tcg_gen_movi_i32(cpu_pc, dc->pc);
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
         /* FIXME: if the alignment is wrong, we should restore the value
          *        in memory. One possible way to achieve this is to probe
          *        the MMU prior to the memaccess, thay way we could put
@@ -1201,12 +1198,12 @@ static void dec_bcc(DisasContext *dc)
     if (dec_alu_op_b_is_small_imm(dc)) {
         int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
 
-        tcg_gen_movi_i32(cpu_btarget, dc->pc + offset);
+        tcg_gen_movi_i32(cpu_btarget, dc->base.pc_next + offset);
         dc->jmp = JMP_DIRECT_CC;
-        dc->jmp_pc = dc->pc + offset;
+        dc->jmp_pc = dc->base.pc_next + offset;
     } else {
         dc->jmp = JMP_INDIRECT;
-        tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
+        tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->base.pc_next);
     }
     eval_cc(dc, cc, cpu_btaken, cpu_R[dc->ra]);
 }
@@ -1250,7 +1247,7 @@ static void dec_br(DisasContext *dc)
                            +offsetof(CPUState, halted));
             tcg_temp_free_i32(tmp_1);
 
-            tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
+            tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
 
             gen_raise_exception(dc, EXCP_HLT);
             return;
@@ -1270,7 +1267,7 @@ static void dec_br(DisasContext *dc)
         dec_setup_dslot(dc);
     }
     if (link && dc->rd)
-        tcg_gen_movi_i32(cpu_R[dc->rd], dc->pc);
+        tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
 
     dc->jmp = JMP_INDIRECT;
     if (abs) {
@@ -1291,10 +1288,10 @@ static void dec_br(DisasContext *dc)
     } else {
         if (dec_alu_op_b_is_small_imm(dc)) {
             dc->jmp = JMP_DIRECT;
-            dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
+            dc->jmp_pc = dc->base.pc_next + (int32_t)((int16_t)dc->imm);
         } else {
             tcg_gen_movi_i32(cpu_btaken, 1);
-            tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
+            tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->base.pc_next);
         }
     }
 }
@@ -1459,7 +1456,8 @@ static void dec_fpu(DisasContext *dc)
                     qemu_log_mask(LOG_UNIMP,
                                   "unimplemented fcmp fpu_insn=%x pc=%x"
                                   " opc=%x\n",
-                                  fpu_insn, dc->pc, dc->opcode);
+                                  fpu_insn, (uint32_t)dc->base.pc_next,
+                                  dc->opcode);
                     dc->abort_at_next_insn = 1;
                     break;
             }
@@ -1489,7 +1487,7 @@ static void dec_fpu(DisasContext *dc)
         default:
             qemu_log_mask(LOG_UNIMP, "unimplemented FPU insn fpu_insn=%x pc=%x"
                           " opc=%x\n",
-                          fpu_insn, dc->pc, dc->opcode);
+                          fpu_insn, (uint32_t)dc->base.pc_next, dc->opcode);
             dc->abort_at_next_insn = 1;
             break;
     }
@@ -1500,7 +1498,8 @@ static void dec_null(DisasContext *dc)
     if (trap_illegal(dc, true)) {
         return;
     }
-    qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n", dc->pc, dc->opcode);
+    qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n",
+                  (uint32_t)dc->base.pc_next, dc->opcode);
     dc->abort_at_next_insn = 1;
 }
 
@@ -1610,19 +1609,20 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 
     pc_start = tb->pc;
     dc->cpu = cpu;
-    dc->tb = tb;
     org_flags = dc->synced_flags = dc->tb_flags = tb->flags;
 
-    dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
     if (dc->delayed_branch) {
         dc->jmp = JMP_INDIRECT;
     }
-    dc->pc = pc_start;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->base.pc_first = pc_start;
+    dc->base.pc_next = pc_start;
+    dc->base.singlestep_enabled = cs->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
+    dc->base.is_jmp = DISAS_NEXT;
+    dc->base.tb = tb;
 
     if (pc_start & 3) {
         cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
@@ -1634,31 +1634,31 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     gen_tb_start(tb);
     do
     {
-        tcg_gen_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->base.pc_next);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cs, dc->base.pc_next, BP_ANY))) {
             gen_raise_exception_sync(dc, EXCP_DEBUG);
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
                the logic setting tb->size below does the right thing.  */
-            dc->pc += 4;
+            dc->base.pc_next += 4;
             break;
         }
 
         /* Pretty disas.  */
-        LOG_DIS("%8.8x:\t", dc->pc);
+        LOG_DIS("%8.8x:\t", (uint32_t)dc->base.pc_next);
 
         if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
         dc->clear_imm = 1;
-        decode(dc, cpu_ldl_code(env, dc->pc));
+        decode(dc, cpu_ldl_code(env, dc->base.pc_next));
         if (dc->clear_imm)
             dc->tb_flags &= ~IMM_FLAG;
-        dc->pc += 4;
+        dc->base.pc_next += 4;
 
         if (dc->delayed_branch) {
             dc->delayed_branch--;
@@ -1673,10 +1673,10 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                 dc->tb_flags &= ~D_FLAG;
                 /* If it is a direct jump, try direct chaining.  */
                 if (dc->jmp == JMP_INDIRECT) {
-                    TCGv_i32 tmp_pc = tcg_const_i32(dc->pc);
+                    TCGv_i32 tmp_pc = tcg_const_i32(dc->base.pc_next);
                     eval_cond_jmp(dc, cpu_btarget, tmp_pc);
                     tcg_temp_free_i32(tmp_pc);
-                    dc->is_jmp = DISAS_JUMP;
+                    dc->base.is_jmp = DISAS_JUMP;
                 } else if (dc->jmp == JMP_DIRECT) {
                     t_sync_flags(dc);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
@@ -1685,26 +1685,26 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                     t_sync_flags(dc);
                     /* Conditional jmp.  */
                     tcg_gen_brcondi_i32(TCG_COND_NE, cpu_btaken, 0, l1);
-                    gen_goto_tb(dc, 1, dc->pc);
+                    gen_goto_tb(dc, 1, dc->base.pc_next);
                     gen_set_label(l1);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
                 }
                 break;
             }
         }
-        if (cs->singlestep_enabled) {
+        if (dc->base.singlestep_enabled) {
             break;
         }
-    } while (!dc->is_jmp && !dc->cpustate_changed
+    } while (!dc->base.is_jmp && !dc->cpustate_changed
              && !tcg_op_buf_full()
              && !singlestep
-             && (dc->pc - page_start < TARGET_PAGE_SIZE)
+             && (dc->base.pc_next - page_start < TARGET_PAGE_SIZE)
              && num_insns < max_insns);
 
-    npc = dc->pc;
+    npc = dc->base.pc_next;
     if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
         if (dc->tb_flags & D_FLAG) {
-            dc->is_jmp = DISAS_UPDATE;
+            dc->base.is_jmp = DISAS_UPDATE;
             tcg_gen_movi_i32(cpu_pc, npc);
             sync_jmpstate(dc);
         } else
@@ -1712,25 +1712,25 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     }
 
     /* Force an update if the per-tb cpu state has changed.  */
-    if (dc->is_jmp == DISAS_NEXT
+    if (dc->base.is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || org_flags != dc->tb_flags)) {
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         tcg_gen_movi_i32(cpu_pc, npc);
     }
     t_sync_flags(dc);
 
-    if (dc->is_jmp == DISAS_NORETURN) {
+    if (dc->base.is_jmp == DISAS_NORETURN) {
         /* nothing more to generate */
     } else if (unlikely(cs->singlestep_enabled)) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
-        if (dc->is_jmp != DISAS_JUMP) {
+        if (dc->base.is_jmp != DISAS_JUMP) {
             tcg_gen_movi_i32(cpu_pc, npc);
         }
         gen_helper_raise_exception(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
     } else {
-        switch(dc->is_jmp) {
+        switch (dc->base.is_jmp) {
             case DISAS_NEXT:
                 gen_goto_tb(dc, 1, npc);
                 break;
@@ -1746,7 +1746,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     }
     gen_tb_end(tb, num_insns);
 
-    tb->size = dc->pc - pc_start;
+    tb->size = dc->base.pc_next - pc_start;
     tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
@@ -1755,7 +1755,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         && qemu_log_in_addr_range(pc_start)) {
         FILE *logfile = qemu_log_lock();
         qemu_log("--------------\n");
-        log_target_disas(cs, pc_start, dc->pc - pc_start);
+        log_target_disas(cs, pc_start, dc->base.pc_next - pc_start);
         qemu_log_unlock(logfile);
     }
 #endif
