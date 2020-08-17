@@ -1250,6 +1250,11 @@ static void dec_br(DisasContext *dc)
 
             LOG_DIS("sleep\n");
 
+            if (trap_userspace(dc, true)) {
+                /* Sleep is a privileged instruction.  */
+                return;
+            }
+
             t_sync_flags(dc);
             tcg_gen_st_i32(tmp_1, cpu_env,
                            -offsetof(MicroBlazeCPU, env)
