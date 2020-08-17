@@ -7782,6 +7782,7 @@ case "$target_name" in
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
     TARGET_SYSTBL_ABI=common
+    mttcg="yes"
     bflt="yes"
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
