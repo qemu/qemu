@@ -331,6 +331,16 @@ DO_TYPEBV(addic, true, gen_addc)
 DO_TYPEBI(addik, false, tcg_gen_addi_i32)
 DO_TYPEBV(addikc, true, gen_addkc)
 
+static void gen_andni(TCGv_i32 out, TCGv_i32 ina, int32_t imm)
+{
+    tcg_gen_andi_i32(out, ina, ~imm);
+}
+
+DO_TYPEA(and, false, tcg_gen_and_i32)
+DO_TYPEBI(andi, false, tcg_gen_andi_i32)
+DO_TYPEA(andn, false, tcg_gen_andc_i32)
+DO_TYPEBI(andni, false, gen_andni)
+
 static void gen_cmp(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
     TCGv_i32 lt = tcg_temp_new_i32();
@@ -353,6 +363,9 @@ static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 
 DO_TYPEA(cmp, false, gen_cmp)
 DO_TYPEA(cmpu, false, gen_cmpu)
+
+DO_TYPEA(or, false, tcg_gen_or_i32)
+DO_TYPEBI(ori, false, tcg_gen_ori_i32)
 
 static void gen_pcmpeq(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
@@ -417,6 +430,9 @@ DO_TYPEBV(rsubic, true, gen_rsubc)
 DO_TYPEBV(rsubik, false, gen_rsubk)
 DO_TYPEBV(rsubikc, true, gen_rsubkc)
 
+DO_TYPEA(xor, false, tcg_gen_xor_i32)
+DO_TYPEBI(xori, false, tcg_gen_xori_i32)
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -429,33 +445,6 @@ static bool trans_zero(DisasContext *dc, arg_zero *arg)
      * Continue to trans_add so that MSR[C] gets cleared.
      */
     return false;
-}
-
-static void dec_and(DisasContext *dc)
-{
-    unsigned int not;
-
-    not = dc->opcode & (1 << 1);
-
-    if (!dc->rd)
-        return;
-
-    if (not) {
-        tcg_gen_andc_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-    } else
-        tcg_gen_and_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-}
-
-static void dec_or(DisasContext *dc)
-{
-    if (dc->rd)
-        tcg_gen_or_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-}
-
-static void dec_xor(DisasContext *dc)
-{
-    if (dc->rd)
-        tcg_gen_xor_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
 
 static void msr_read(DisasContext *dc, TCGv_i32 d)
@@ -1581,9 +1570,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_AND, dec_and},
-    {DEC_XOR, dec_xor},
-    {DEC_OR, dec_or},
     {DEC_BIT, dec_bit},
     {DEC_BARREL, dec_barrel},
     {DEC_LD, dec_load},
