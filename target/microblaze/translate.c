@@ -279,6 +279,10 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
     static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
     { return do_typea(dc, a, SE, FN); }
 
+#define DO_TYPEA_CFG(NAME, CFG, SE, FN) \
+    static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
+    { return dc->cpu->cfg.CFG && do_typea(dc, a, SE, FN); }
+
 #define DO_TYPEBI(NAME, SE, FNI) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
     { return do_typeb_imm(dc, a, SE, FNI); }
@@ -350,6 +354,20 @@ static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 DO_TYPEA(cmp, false, gen_cmp)
 DO_TYPEA(cmpu, false, gen_cmpu)
 
+static void gen_pcmpeq(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    tcg_gen_setcond_i32(TCG_COND_EQ, out, ina, inb);
+}
+
+static void gen_pcmpne(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    tcg_gen_setcond_i32(TCG_COND_NE, out, ina, inb);
+}
+
+DO_TYPEA_CFG(pcmpbf, use_pcmp_instr, false, gen_helper_pcmpbf)
+DO_TYPEA_CFG(pcmpeq, use_pcmp_instr, false, gen_pcmpeq)
+DO_TYPEA_CFG(pcmpne, use_pcmp_instr, false, gen_pcmpne)
+
 /* No input carry, but output carry. */
 static void gen_rsub(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
@@ -413,48 +431,9 @@ static bool trans_zero(DisasContext *dc, arg_zero *arg)
     return false;
 }
 
-static void dec_pattern(DisasContext *dc)
-{
-    unsigned int mode;
-
-    if (trap_illegal(dc, !dc->cpu->cfg.use_pcmp_instr)) {
-        return;
-    }
-
-    mode = dc->opcode & 3;
-    switch (mode) {
-        case 0:
-            /* pcmpbf.  */
-            if (dc->rd)
-                gen_helper_pcmpbf(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
-            break;
-        case 2:
-            if (dc->rd) {
-                tcg_gen_setcond_i32(TCG_COND_EQ, cpu_R[dc->rd],
-                                   cpu_R[dc->ra], cpu_R[dc->rb]);
-            }
-            break;
-        case 3:
-            if (dc->rd) {
-                tcg_gen_setcond_i32(TCG_COND_NE, cpu_R[dc->rd],
-                                   cpu_R[dc->ra], cpu_R[dc->rb]);
-            }
-            break;
-        default:
-            cpu_abort(CPU(dc->cpu),
-                      "unsupported pattern insn opcode=%x\n", dc->opcode);
-            break;
-    }
-}
-
 static void dec_and(DisasContext *dc)
 {
     unsigned int not;
-
-    if (!dc->type_b && (dc->imm & (1 << 10))) {
-        dec_pattern(dc);
-        return;
-    }
 
     not = dc->opcode & (1 << 1);
 
@@ -469,22 +448,12 @@ static void dec_and(DisasContext *dc)
 
 static void dec_or(DisasContext *dc)
 {
-    if (!dc->type_b && (dc->imm & (1 << 10))) {
-        dec_pattern(dc);
-        return;
-    }
-
     if (dc->rd)
         tcg_gen_or_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
 
 static void dec_xor(DisasContext *dc)
 {
-    if (!dc->type_b && (dc->imm & (1 << 10))) {
-        dec_pattern(dc);
-        return;
-    }
-
     if (dc->rd)
         tcg_gen_xor_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
