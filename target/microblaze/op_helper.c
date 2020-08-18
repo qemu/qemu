@@ -69,26 +69,27 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
-static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
+static bool check_divz(CPUMBState *env, uint32_t a, uint32_t b, uintptr_t ra)
 {
-    MicroBlazeCPU *cpu = env_archcpu(env);
-
-    if (b == 0) {
+    if (unlikely(b == 0)) {
         env->msr |= MSR_DZ;
 
-        if ((env->msr & MSR_EE) && cpu->cfg.div_zero_exception) {
+        if ((env->msr & MSR_EE) &&
+            env_archcpu(env)->cfg.div_zero_exception) {
+            CPUState *cs = env_cpu(env);
+
             env->esr = ESR_EC_DIVZERO;
-            helper_raise_exception(env, EXCP_HW_EXCP);
+            cs->exception_index = EXCP_HW_EXCP;
+            cpu_loop_exit_restore(cs, ra);
         }
-        return 0;
+        return false;
     }
-    env->msr &= ~MSR_DZ;
-    return 1;
+    return true;
 }
 
 uint32_t helper_divs(CPUMBState *env, uint32_t a, uint32_t b)
 {
-    if (!div_prepare(env, a, b)) {
+    if (!check_divz(env, a, b, GETPC())) {
         return 0;
     }
     return (int32_t)a / (int32_t)b;
@@ -96,7 +97,7 @@ uint32_t helper_divs(CPUMBState *env, uint32_t a, uint32_t b)
 
 uint32_t helper_divu(CPUMBState *env, uint32_t a, uint32_t b)
 {
-    if (!div_prepare(env, a, b)) {
+    if (!check_divz(env, a, b, GETPC())) {
         return 0;
     }
     return a / b;
