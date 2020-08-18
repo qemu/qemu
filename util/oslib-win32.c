@@ -315,7 +315,7 @@ void qemu_set_tty_echo(int fd, bool echo)
     }
 }
 
-static char exec_dir[PATH_MAX];
+static char *exec_dir;
 
 void qemu_init_exec_dir(const char *argv0)
 {
@@ -323,6 +323,10 @@ void qemu_init_exec_dir(const char *argv0)
     char *p;
     char buf[MAX_PATH];
     DWORD len;
+
+    if (exec_dir) {
+        return;
+    }
 
     len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
     if (len == 0) {
@@ -336,13 +340,13 @@ void qemu_init_exec_dir(const char *argv0)
     }
     *p = 0;
     if (access(buf, R_OK) == 0) {
-        pstrcpy(exec_dir, sizeof(exec_dir), buf);
+        exec_dir = g_strdup(buf);
     }
 }
 
-char *qemu_get_exec_dir(void)
+const char *qemu_get_exec_dir(void)
 {
-    return g_strdup(exec_dir);
+    return exec_dir;
 }
 
 #if !GLIB_CHECK_VERSION(2, 50, 0)

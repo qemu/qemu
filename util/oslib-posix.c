@@ -366,7 +366,9 @@ void qemu_init_exec_dir(const char *argv0)
     char *p = NULL;
     char buf[PATH_MAX];
 
-    assert(!exec_dir[0]);
+    if (exec_dir[0]) {
+        return;
+    }
 
 #if defined(__linux__)
     {
@@ -439,9 +441,9 @@ void qemu_init_exec_dir(const char *argv0)
     g_free(dir);
 }
 
-char *qemu_get_exec_dir(void)
+const char *qemu_get_exec_dir(void)
 {
-    return g_strdup(exec_dir);
+    return exec_dir;
 }
 
 static void sigbus_handler(int signal)

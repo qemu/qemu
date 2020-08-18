@@ -143,7 +143,8 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
 {
 
     char *target_name;
-    char *bindir, *datadir;
+    const char *bindir;
+    char *datadir;
     bool serialize = false;
 
     /* Initialize qgraph and modules */
@@ -166,7 +167,6 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
          */
         bindir = g_path_get_dirname(**argv);
         datadir = g_build_filename(bindir, "pc-bios", NULL);
-        g_free(bindir);
         if (g_file_test(datadir, G_FILE_TEST_IS_DIR)) {
             qemu_add_data_dir(datadir);
         }

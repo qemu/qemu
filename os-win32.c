@@ -65,7 +65,7 @@ void os_setup_early_signal_handling(void)
  */
 char *os_find_datadir(void)
 {
-    return qemu_get_exec_dir();
+    return g_strdup(qemu_get_exec_dir());
 }
 
 void os_set_line_buffering(void)
