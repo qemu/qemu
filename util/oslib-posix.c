@@ -358,15 +358,14 @@ void qemu_set_tty_echo(int fd, bool echo)
     tcsetattr(fd, TCSANOW, &tty);
 }
 
-static char exec_dir[PATH_MAX];
+static const char *exec_dir;
 
 void qemu_init_exec_dir(const char *argv0)
 {
-    char *dir;
     char *p = NULL;
     char buf[PATH_MAX];
 
-    if (exec_dir[0]) {
+    if (exec_dir) {
         return;
     }
 
@@ -425,20 +424,14 @@ void qemu_init_exec_dir(const char *argv0)
 #endif
     /* If we don't have any way of figuring out the actual executable
        location then try argv[0].  */
-    if (!p) {
-        if (!argv0) {
-            return;
-        }
+    if (!p && argv0) {
         p = realpath(argv0, buf);
-        if (!p) {
-            return;
-        }
     }
-    dir = g_path_get_dirname(p);
-
-    pstrcpy(exec_dir, sizeof(exec_dir), dir);
-
-    g_free(dir);
+    if (p) {
+        exec_dir = g_path_get_dirname(p);
+    } else {
+        exec_dir = CONFIG_BINDIR;
+    }
 }
 
 const char *qemu_get_exec_dir(void)

@@ -315,7 +315,7 @@ void qemu_set_tty_echo(int fd, bool echo)
     }
 }
 
-static char *exec_dir;
+static const char *exec_dir;
 
 void qemu_init_exec_dir(const char *argv0)
 {
@@ -341,6 +341,8 @@ void qemu_init_exec_dir(const char *argv0)
     *p = 0;
     if (access(buf, R_OK) == 0) {
         exec_dir = g_strdup(buf);
+    } else {
+        exec_dir = CONFIG_BINDIR;
     }
 }
 
