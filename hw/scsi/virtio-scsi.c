@@ -891,6 +891,9 @@ void virtio_scsi_common_realize(DeviceState *dev,
     virtio_init(vdev, "virtio-scsi", VIRTIO_ID_SCSI,
                 sizeof(VirtIOSCSIConfig));
 
+    if (s->conf.num_queues == VIRTIO_SCSI_AUTO_NUM_QUEUES) {
+        s->conf.num_queues = 1;
+    }
     if (s->conf.num_queues == 0 ||
             s->conf.num_queues > VIRTIO_QUEUE_MAX - VIRTIO_SCSI_VQ_NUM_FIXED) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
@@ -964,7 +967,8 @@ static void virtio_scsi_device_unrealize(DeviceState *dev)
 }
 
 static Property virtio_scsi_properties[] = {
-    DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues,
+                       VIRTIO_SCSI_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,
                                          parent_obj.conf.virtqueue_size, 256),
     DEFINE_PROP_BOOL("seg_max_adjust", VirtIOSCSI,

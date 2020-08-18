@@ -39,6 +39,8 @@
 /* Number of virtqueues that are always present */
 #define VIRTIO_SCSI_VQ_NUM_FIXED    2
 
+#define VIRTIO_SCSI_AUTO_NUM_QUEUES UINT32_MAX
+
 typedef struct virtio_scsi_cmd_req VirtIOSCSICmdReq;
 typedef struct virtio_scsi_cmd_resp VirtIOSCSICmdResp;
 typedef struct virtio_scsi_ctrl_tmf_req VirtIOSCSICtrlTMFReq;
