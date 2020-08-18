@@ -368,6 +368,72 @@ DO_TYPEBI(andi, false, tcg_gen_andi_i32)
 DO_TYPEA(andn, false, tcg_gen_andc_i32)
 DO_TYPEBI(andni, false, gen_andni)
 
+static void gen_bsra(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_andi_i32(tmp, inb, 31);
+    tcg_gen_sar_i32(out, ina, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_bsrl(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_andi_i32(tmp, inb, 31);
+    tcg_gen_shr_i32(out, ina, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_bsll(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_andi_i32(tmp, inb, 31);
+    tcg_gen_shl_i32(out, ina, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_bsefi(TCGv_i32 out, TCGv_i32 ina, int32_t imm)
+{
+    /* Note that decodetree has extracted and reassembled imm_w/imm_s. */
+    int imm_w = extract32(imm, 5, 5);
+    int imm_s = extract32(imm, 0, 5);
+
+    if (imm_w + imm_s > 32 || imm_w == 0) {
+        /* These inputs have an undefined behavior.  */
+        qemu_log_mask(LOG_GUEST_ERROR, "bsefi: Bad input w=%d s=%d\n",
+                      imm_w, imm_s);
+    } else {
+        tcg_gen_extract_i32(out, ina, imm_s, imm_w);
+    }
+}
+
+static void gen_bsifi(TCGv_i32 out, TCGv_i32 ina, int32_t imm)
+{
+    /* Note that decodetree has extracted and reassembled imm_w/imm_s. */
+    int imm_w = extract32(imm, 5, 5);
+    int imm_s = extract32(imm, 0, 5);
+    int width = imm_w - imm_s + 1;
+
+    if (imm_w < imm_s) {
+        /* These inputs have an undefined behavior.  */
+        qemu_log_mask(LOG_GUEST_ERROR, "bsifi: Bad input w=%d s=%d\n",
+                      imm_w, imm_s);
+    } else {
+        tcg_gen_deposit_i32(out, out, ina, imm_s, width);
+    }
+}
+
+DO_TYPEA_CFG(bsra, use_barrel, false, gen_bsra)
+DO_TYPEA_CFG(bsrl, use_barrel, false, gen_bsrl)
+DO_TYPEA_CFG(bsll, use_barrel, false, gen_bsll)
+
+DO_TYPEBI_CFG(bsrai, use_barrel, false, tcg_gen_sari_i32)
+DO_TYPEBI_CFG(bsrli, use_barrel, false, tcg_gen_shri_i32)
+DO_TYPEBI_CFG(bslli, use_barrel, false, tcg_gen_shli_i32)
+
+DO_TYPEBI_CFG(bsefi, use_barrel, false, gen_bsefi)
+DO_TYPEBI_CFG(bsifi, use_barrel, false, gen_bsifi)
+
 static void gen_clz(TCGv_i32 out, TCGv_i32 ina)
 {
     tcg_gen_clzi_i32(out, ina, 32);
@@ -768,64 +834,6 @@ static void dec_msr(DisasContext *dc)
 
     if (dc->rd == 0) {
         tcg_gen_movi_i32(cpu_R[0], 0);
-    }
-}
-
-static void dec_barrel(DisasContext *dc)
-{
-    TCGv_i32 t0;
-    unsigned int imm_w, imm_s;
-    bool s, t, e = false, i = false;
-
-    if (trap_illegal(dc, !dc->cpu->cfg.use_barrel)) {
-        return;
-    }
-
-    if (dc->type_b) {
-        /* Insert and extract are only available in immediate mode.  */
-        i = extract32(dc->imm, 15, 1);
-        e = extract32(dc->imm, 14, 1);
-    }
-    s = extract32(dc->imm, 10, 1);
-    t = extract32(dc->imm, 9, 1);
-    imm_w = extract32(dc->imm, 6, 5);
-    imm_s = extract32(dc->imm, 0, 5);
-
-    if (e) {
-        if (imm_w + imm_s > 32 || imm_w == 0) {
-            /* These inputs have an undefined behavior.  */
-            qemu_log_mask(LOG_GUEST_ERROR, "bsefi: Bad input w=%d s=%d\n",
-                          imm_w, imm_s);
-        } else {
-            tcg_gen_extract_i32(cpu_R[dc->rd], cpu_R[dc->ra], imm_s, imm_w);
-        }
-    } else if (i) {
-        int width = imm_w - imm_s + 1;
-
-        if (imm_w < imm_s) {
-            /* These inputs have an undefined behavior.  */
-            qemu_log_mask(LOG_GUEST_ERROR, "bsifi: Bad input w=%d s=%d\n",
-                          imm_w, imm_s);
-        } else {
-            tcg_gen_deposit_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_R[dc->ra],
-                                imm_s, width);
-        }
-    } else {
-        t0 = tcg_temp_new_i32();
-
-        tcg_gen_mov_i32(t0, *(dec_alu_op_b(dc)));
-        tcg_gen_andi_i32(t0, t0, 31);
-
-        if (s) {
-            tcg_gen_shl_i32(cpu_R[dc->rd], cpu_R[dc->ra], t0);
-        } else {
-            if (t) {
-                tcg_gen_sar_i32(cpu_R[dc->rd], cpu_R[dc->ra], t0);
-            } else {
-                tcg_gen_shr_i32(cpu_R[dc->rd], cpu_R[dc->ra], t0);
-            }
-        }
-        tcg_temp_free_i32(t0);
     }
 }
 
@@ -1551,7 +1559,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_BARREL, dec_barrel},
     {DEC_LD, dec_load},
     {DEC_ST, dec_store},
     {DEC_IMM, dec_imm},

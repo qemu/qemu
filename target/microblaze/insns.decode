@@ -30,6 +30,15 @@
 # Officially typea, but with rb==0, which is not used.
 @typea0         ...... rd:5 ra:5 ................       &typea0
 
+# Officially typeb, but any immediate extension is unused.
+@typeb_bs       ...... rd:5 ra:5 ..... ...... imm:5     &typeb
+
+# For convenience, extract the two imm_w/imm_s fields, then pack
+# them back together as "imm".  Doing this makes it easiest to
+# match the required zero at bit 5.
+%ieimm          6:5 0:5
+@typeb_ie       ...... rd:5 ra:5 ..... ..... . .....    &typeb imm=%ieimm
+
 ###
 
 {
@@ -50,6 +59,17 @@ andi            101001 ..... ..... ................     @typeb
 
 andn            100011 ..... ..... ..... 000 0000 0000  @typea
 andni           101011 ..... ..... ................     @typeb
+
+bsrl            010001 ..... ..... ..... 000 0000 0000  @typea
+bsra            010001 ..... ..... ..... 010 0000 0000  @typea
+bsll            010001 ..... ..... ..... 100 0000 0000  @typea
+
+bsrli           011001 ..... ..... 00000 000000 .....   @typeb_bs
+bsrai           011001 ..... ..... 00000 010000 .....   @typeb_bs
+bslli           011001 ..... ..... 00000 100000 .....   @typeb_bs
+
+bsefi           011001 ..... ..... 01000 .....0 .....   @typeb_ie
+bsifi           011001 ..... ..... 10000 .....0 .....   @typeb_ie
 
 clz             100100 ..... ..... 00000 000 1110 0000  @typea0
 
