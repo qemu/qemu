@@ -56,6 +56,7 @@
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
+static TCGv_i32 cpu_msr_c;
 static TCGv_i32 cpu_imm;
 static TCGv_i32 cpu_btaken;
 static TCGv_i32 cpu_btarget;
@@ -150,30 +151,6 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     }
 }
 
-static void read_carry(DisasContext *dc, TCGv_i32 d)
-{
-    tcg_gen_shri_i32(d, cpu_msr, 31);
-}
-
-/*
- * write_carry sets the carry bits in MSR based on bit 0 of v.
- * v[31:1] are ignored.
- */
-static void write_carry(DisasContext *dc, TCGv_i32 v)
-{
-    /* Deposit bit 0 into MSR_C and the alias MSR_CC.  */
-    tcg_gen_deposit_i32(cpu_msr, cpu_msr, v, 2, 1);
-    tcg_gen_deposit_i32(cpu_msr, cpu_msr, v, 31, 1);
-}
-
-static void write_carryi(DisasContext *dc, bool carry)
-{
-    TCGv_i32 t0 = tcg_temp_new_i32();
-    tcg_gen_movi_i32(t0, carry);
-    write_carry(dc, t0);
-    tcg_temp_free_i32(t0);
-}
-
 /*
  * Returns true if the insn an illegal operation.
  * If exceptions are enabled, an exception is raised.
@@ -243,11 +220,7 @@ static void dec_add(DisasContext *dc)
 
             if (c) {
                 /* c - Add carry into the result.  */
-                cf = tcg_temp_new_i32();
-
-                read_carry(dc, cf);
-                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
-                tcg_temp_free_i32(cf);
+                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_msr_c);
             }
         }
         return;
@@ -257,21 +230,15 @@ static void dec_add(DisasContext *dc)
     /* Extract carry.  */
     cf = tcg_temp_new_i32();
     if (c) {
-        read_carry(dc, cf);
+        tcg_gen_mov_i32(cf, cpu_msr_c);
     } else {
         tcg_gen_movi_i32(cf, 0);
     }
 
+    gen_helper_carry(cpu_msr_c, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
     if (dc->rd) {
-        TCGv_i32 ncf = tcg_temp_new_i32();
-        gen_helper_carry(ncf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
         tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
         tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
-        write_carry(dc, ncf);
-        tcg_temp_free_i32(ncf);
-    } else {
-        gen_helper_carry(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
-        write_carry(dc, cf);
     }
     tcg_temp_free_i32(cf);
 }
@@ -309,11 +276,7 @@ static void dec_sub(DisasContext *dc)
 
             if (c) {
                 /* c - Add carry into the result.  */
-                cf = tcg_temp_new_i32();
-
-                read_carry(dc, cf);
-                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
-                tcg_temp_free_i32(cf);
+                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_msr_c);
             }
         }
         return;
@@ -324,7 +287,7 @@ static void dec_sub(DisasContext *dc)
     cf = tcg_temp_new_i32();
     na = tcg_temp_new_i32();
     if (c) {
-        read_carry(dc, cf);
+        tcg_gen_mov_i32(cf, cpu_msr_c);
     } else {
         tcg_gen_movi_i32(cf, 1);
     }
@@ -332,16 +295,10 @@ static void dec_sub(DisasContext *dc)
     /* d = b + ~a + c. carry defaults to 1.  */
     tcg_gen_not_i32(na, cpu_R[dc->ra]);
 
+    gen_helper_carry(cpu_msr_c, na, *(dec_alu_op_b(dc)), cf);
     if (dc->rd) {
-        TCGv_i32 ncf = tcg_temp_new_i32();
-        gen_helper_carry(ncf, na, *(dec_alu_op_b(dc)), cf);
         tcg_gen_add_i32(cpu_R[dc->rd], na, *(dec_alu_op_b(dc)));
         tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
-        write_carry(dc, ncf);
-        tcg_temp_free_i32(ncf);
-    } else {
-        gen_helper_carry(cf, na, *(dec_alu_op_b(dc)), cf);
-        write_carry(dc, cf);
     }
     tcg_temp_free_i32(cf);
     tcg_temp_free_i32(na);
@@ -429,16 +386,26 @@ static void dec_xor(DisasContext *dc)
         tcg_gen_xor_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
 
-static inline void msr_read(DisasContext *dc, TCGv_i32 d)
+static void msr_read(DisasContext *dc, TCGv_i32 d)
 {
-    tcg_gen_mov_i32(d, cpu_msr);
+    TCGv_i32 t;
+
+    /* Replicate the cpu_msr_c boolean into the proper bit and the copy. */
+    t = tcg_temp_new_i32();
+    tcg_gen_muli_i32(t, cpu_msr_c, MSR_C | MSR_CC);
+    tcg_gen_or_i32(d, cpu_msr, t);
+    tcg_temp_free_i32(t);
 }
 
-static inline void msr_write(DisasContext *dc, TCGv_i32 v)
+static void msr_write(DisasContext *dc, TCGv_i32 v)
 {
     dc->cpustate_changed = 1;
-    /* PVR bit is not writable, and is never set. */
-    tcg_gen_andi_i32(cpu_msr, v, ~MSR_PVR);
+
+    /* Install MSR_C.  */
+    tcg_gen_extract_i32(cpu_msr_c, v, 2, 1);
+
+    /* Clear MSR_C and MSR_CC; MSR_PVR is not writable, and is always clear. */
+    tcg_gen_andi_i32(cpu_msr, v, ~(MSR_C | MSR_CC | MSR_PVR));
 }
 
 static void dec_msr(DisasContext *dc)
@@ -778,8 +745,8 @@ static void dec_bit(DisasContext *dc)
             t0 = tcg_temp_new_i32();
 
             LOG_DIS("src r%d r%d\n", dc->rd, dc->ra);
-            tcg_gen_andi_i32(t0, cpu_msr, MSR_CC);
-            write_carry(dc, cpu_R[dc->ra]);
+            tcg_gen_shli_i32(t0, cpu_msr_c, 31);
+            tcg_gen_andi_i32(cpu_msr_c, cpu_R[dc->ra], 1);
             if (dc->rd) {
                 tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
                 tcg_gen_or_i32(cpu_R[dc->rd], cpu_R[dc->rd], t0);
@@ -792,8 +759,7 @@ static void dec_bit(DisasContext *dc)
             /* srl.  */
             LOG_DIS("srl r%d r%d\n", dc->rd, dc->ra);
 
-            /* Update carry. Note that write carry only looks at the LSB.  */
-            write_carry(dc, cpu_R[dc->ra]);
+            tcg_gen_andi_i32(cpu_msr_c, cpu_R[dc->ra], 1);
             if (dc->rd) {
                 if (op == 0x41)
                     tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
@@ -1042,7 +1008,7 @@ static void dec_load(DisasContext *dc)
 
     if (ex) { /* lwx */
         /* no support for AXI exclusive so always clear C */
-        write_carryi(dc, 0);
+        tcg_gen_movi_i32(cpu_msr_c, 0);
     }
 
     tcg_temp_free(addr);
@@ -1093,7 +1059,7 @@ static void dec_store(DisasContext *dc)
         /* swx does not throw unaligned access errors, so force alignment */
         tcg_gen_andi_tl(addr, addr, ~3);
 
-        write_carryi(dc, 1);
+        tcg_gen_movi_i32(cpu_msr_c, 1);
         swx_skip = gen_new_label();
         tcg_gen_brcond_tl(TCG_COND_NE, cpu_res_addr, addr, swx_skip);
 
@@ -1108,7 +1074,7 @@ static void dec_store(DisasContext *dc)
                                    mop);
 
         tcg_gen_brcond_i32(TCG_COND_NE, cpu_res_val, tval, swx_skip);
-        write_carryi(dc, 0);
+        tcg_gen_movi_i32(cpu_msr_c, 0);
         tcg_temp_free_i32(tval);
     }
 
@@ -1851,6 +1817,7 @@ void mb_tcg_init(void)
 
         SP(pc),
         SP(msr),
+        SP(msr_c),
         SP(imm),
         SP(iflags),
         SP(btaken),

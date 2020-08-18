@@ -236,7 +236,8 @@ struct CPUMBState {
     uint32_t imm;
     uint32_t regs[32];
     uint32_t pc;
-    uint32_t msr;
+    uint32_t msr;    /* All bits of MSR except MSR[C] and MSR[CC] */
+    uint32_t msr_c;  /* MSR[C], in low bit; other bits must be 0 */
     uint64_t ear;
     uint32_t esr;
     uint32_t fsr;
@@ -326,6 +327,22 @@ void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
+static inline uint32_t mb_cpu_read_msr(const CPUMBState *env)
+{
+    /* Replicate MSR[C] to MSR[CC]. */
+    return env->msr | (env->msr_c * (MSR_C | MSR_CC));
+}
+
+static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
+{
+    env->msr_c = (val >> 2) & 1;
+    /*
+     * Clear both MSR[C] and MSR[CC] from the saved copy.
+     * MSR_PVR is not writable and is always clear.
+     */
+    env->msr = val & ~(MSR_C | MSR_CC | MSR_PVR);
+}
 
 void mb_tcg_init(void);
 /* you can call this signal handler from your SIGBUS and SIGSEGV

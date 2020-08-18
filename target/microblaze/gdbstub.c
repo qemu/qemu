@@ -62,7 +62,7 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         val = env->pc;
         break;
     case GDB_MSR:
-        val = env->msr;
+        val = mb_cpu_read_msr(env);
         break;
     case GDB_EAR:
         val = env->ear;
@@ -118,7 +118,7 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->pc = tmp;
         break;
     case GDB_MSR:
-        env->msr = tmp;
+        mb_cpu_write_msr(env, tmp);
         break;
     case GDB_EAR:
         env->ear = tmp;

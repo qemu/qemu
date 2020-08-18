@@ -112,12 +112,11 @@ void mb_cpu_do_interrupt(CPUState *cs)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
-    uint32_t t;
+    uint32_t t, msr = mb_cpu_read_msr(env);
 
     /* IMM flag cannot propagate across a branch and into the dslot.  */
     assert(!((env->iflags & D_FLAG) && (env->iflags & IMM_FLAG)));
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
-/*    assert(env->msr & (MSR_EE)); Only for HW exceptions.  */
     env->res_addr = RES_ADDR_NONE;
     switch (cs->exception_index) {
         case EXCP_HW_EXCP:
@@ -136,11 +135,12 @@ void mb_cpu_do_interrupt(CPUState *cs)
             }
 
             /* Disable the MMU.  */
-            t = (env->msr & (MSR_VM | MSR_UM)) << 1;
-            env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
-            env->msr |= t;
+            t = (msr & (MSR_VM | MSR_UM)) << 1;
+            msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
+            msr |= t;
             /* Exception in progress.  */
-            env->msr |= MSR_EIP;
+            msr |= MSR_EIP;
+            mb_cpu_write_msr(env, msr);
 
             qemu_log_mask(CPU_LOG_INT,
                           "hw exception at pc=%x ear=%" PRIx64 " "
@@ -178,11 +178,12 @@ void mb_cpu_do_interrupt(CPUState *cs)
             }
 
             /* Disable the MMU.  */
-            t = (env->msr & (MSR_VM | MSR_UM)) << 1;
-            env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
-            env->msr |= t;
+            t = (msr & (MSR_VM | MSR_UM)) << 1;
+            msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
+            msr |= t;
             /* Exception in progress.  */
-            env->msr |= MSR_EIP;
+            msr |= MSR_EIP;
+            mb_cpu_write_msr(env, msr);
 
             qemu_log_mask(CPU_LOG_INT,
                           "exception at pc=%x ear=%" PRIx64 " iflags=%x\n",
@@ -193,11 +194,11 @@ void mb_cpu_do_interrupt(CPUState *cs)
             break;
 
         case EXCP_IRQ:
-            assert(!(env->msr & (MSR_EIP | MSR_BIP)));
-            assert(env->msr & MSR_IE);
+            assert(!(msr & (MSR_EIP | MSR_BIP)));
+            assert(msr & MSR_IE);
             assert(!(env->iflags & D_FLAG));
 
-            t = (env->msr & (MSR_VM | MSR_UM)) << 1;
+            t = (msr & (MSR_VM | MSR_UM)) << 1;
 
 #if 0
 #include "disas/disas.h"
@@ -212,21 +213,20 @@ void mb_cpu_do_interrupt(CPUState *cs)
                     && (!strcmp("netif_rx", sym)
                         || !strcmp("process_backlog", sym))) {
 
-                    qemu_log(
-                         "interrupt at pc=%x msr=%x %x iflags=%x sym=%s\n",
-                         env->pc, env->msr, t, env->iflags,
-                         sym);
+                    qemu_log("interrupt at pc=%x msr=%x %x iflags=%x sym=%s\n",
+                             env->pc, msr, t, env->iflags, sym);
 
                     log_cpu_state(cs, 0);
                 }
             }
 #endif
             qemu_log_mask(CPU_LOG_INT,
-                         "interrupt at pc=%x msr=%x %x iflags=%x\n",
-                         env->pc, env->msr, t, env->iflags);
+                          "interrupt at pc=%x msr=%x %x iflags=%x\n",
+                          env->pc, msr, t, env->iflags);
 
-            env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM | MSR_IE);
-            env->msr |= t;
+            msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM | MSR_IE);
+            msr |= t;
+            mb_cpu_write_msr(env, msr);
 
             env->regs[14] = env->pc;
             env->pc = cpu->cfg.base_vectors + 0x10;
@@ -237,20 +237,22 @@ void mb_cpu_do_interrupt(CPUState *cs)
         case EXCP_HW_BREAK:
             assert(!(env->iflags & IMM_FLAG));
             assert(!(env->iflags & D_FLAG));
-            t = (env->msr & (MSR_VM | MSR_UM)) << 1;
+            t = (msr & (MSR_VM | MSR_UM)) << 1;
             qemu_log_mask(CPU_LOG_INT,
                           "break at pc=%x msr=%x %x iflags=%x\n",
-                          env->pc, env->msr, t, env->iflags);
+                          env->pc, msr, t, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
-            env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
-            env->msr |= t;
-            env->msr |= MSR_BIP;
+            msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
+            msr |= t;
+            msr |= MSR_BIP;
             if (cs->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->pc;
-                env->msr |= MSR_BIP;
+                msr |= MSR_BIP;
                 env->pc = cpu->cfg.base_vectors + 0x18;
-            } else
+            } else {
                 env->pc = env->btarget;
+            }
+            mb_cpu_write_msr(env, msr);
             break;
         default:
             cpu_abort(cs, "unhandled exception type=%d\n",

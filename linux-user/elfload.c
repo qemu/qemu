@@ -1039,7 +1039,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
     }
 
     (*regs)[pos++] = tswapreg(env->pc);
-    (*regs)[pos++] = tswapreg(env->msr);
+    (*regs)[pos++] = tswapreg(mb_cpu_read_msr(env));
     (*regs)[pos++] = 0;
     (*regs)[pos++] = tswapreg(env->ear);
     (*regs)[pos++] = 0;
