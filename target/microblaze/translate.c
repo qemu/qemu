@@ -140,7 +140,12 @@ static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
 
 static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 {
-    if (use_goto_tb(dc, dest)) {
+    if (dc->singlestep_enabled) {
+        TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
+        tcg_gen_movi_i32(cpu_pc, dest);
+        gen_helper_raise_exception(cpu_env, tmp);
+        tcg_temp_free_i32(tmp);
+    } else if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(dc->tb, n);
