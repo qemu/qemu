@@ -1595,172 +1595,181 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     }
 }
 
-/* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
+static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
-    CPUMBState *env = cs->env_ptr;
-    MicroBlazeCPU *cpu = env_archcpu(env);
-    uint32_t pc_start;
-    struct DisasContext ctx;
-    struct DisasContext *dc = &ctx;
-    uint32_t page_start, org_flags;
-    uint32_t npc;
-    int num_insns;
+    DisasContext *dc = container_of(dcb, DisasContext, base);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    int bound;
 
-    pc_start = tb->pc;
     dc->cpu = cpu;
-    org_flags = dc->synced_flags = dc->tb_flags = tb->flags;
-
-    dc->jmp = 0;
+    dc->synced_flags = dc->tb_flags = dc->base.tb->flags;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
-    if (dc->delayed_branch) {
-        dc->jmp = JMP_INDIRECT;
-    }
-    dc->base.pc_first = pc_start;
-    dc->base.pc_next = pc_start;
-    dc->base.singlestep_enabled = cs->singlestep_enabled;
+    dc->jmp = dc->delayed_branch ? JMP_INDIRECT : JMP_NOJMP;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
-    dc->base.is_jmp = DISAS_NEXT;
-    dc->base.tb = tb;
 
-    if (pc_start & 3) {
-        cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
+    bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
+    dc->base.max_insns = MIN(dc->base.max_insns, bound);
+}
+
+static void mb_tr_tb_start(DisasContextBase *dcb, CPUState *cs)
+{
+}
+
+static void mb_tr_insn_start(DisasContextBase *dcb, CPUState *cs)
+{
+    tcg_gen_insn_start(dcb->pc_next);
+}
+
+static bool mb_tr_breakpoint_check(DisasContextBase *dcb, CPUState *cs,
+                                   const CPUBreakpoint *bp)
+{
+    DisasContext *dc = container_of(dcb, DisasContext, base);
+
+    gen_raise_exception_sync(dc, EXCP_DEBUG);
+
+    /*
+     * The address covered by the breakpoint must be included in
+     * [tb->pc, tb->pc + tb->size) in order to for it to be
+     * properly cleared -- thus we increment the PC here so that
+     * the logic setting tb->size below does the right thing.
+     */
+    dc->base.pc_next += 4;
+    return true;
+}
+
+static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
+{
+    DisasContext *dc = container_of(dcb, DisasContext, base);
+    CPUMBState *env = cs->env_ptr;
+
+    /* TODO: This should raise an exception, not terminate qemu. */
+    if (dc->base.pc_next & 3) {
+        cpu_abort(cs, "Microblaze: unaligned PC=%x\n",
+                  (uint32_t)dc->base.pc_next);
     }
 
-    page_start = pc_start & TARGET_PAGE_MASK;
-    num_insns = 0;
+    dc->clear_imm = 1;
+    decode(dc, cpu_ldl_code(env, dc->base.pc_next));
+    if (dc->clear_imm) {
+        dc->tb_flags &= ~IMM_FLAG;
+    }
+    dc->base.pc_next += 4;
 
-    gen_tb_start(tb);
-    do
-    {
-        tcg_gen_insn_start(dc->base.pc_next);
-        num_insns++;
-
-        if (unlikely(cpu_breakpoint_test(cs, dc->base.pc_next, BP_ANY))) {
-            gen_raise_exception_sync(dc, EXCP_DEBUG);
-            /* The address covered by the breakpoint must be included in
-               [tb->pc, tb->pc + tb->size) in order to for it to be
-               properly cleared -- thus we increment the PC here so that
-               the logic setting tb->size below does the right thing.  */
-            dc->base.pc_next += 4;
-            break;
+    if (dc->delayed_branch && --dc->delayed_branch == 0) {
+        if (dc->tb_flags & DRTI_FLAG) {
+            do_rti(dc);
         }
-
-        /* Pretty disas.  */
-        LOG_DIS("%8.8x:\t", (uint32_t)dc->base.pc_next);
-
-        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
-            gen_io_start();
+        if (dc->tb_flags & DRTB_FLAG) {
+            do_rtb(dc);
         }
-
-        dc->clear_imm = 1;
-        decode(dc, cpu_ldl_code(env, dc->base.pc_next));
-        if (dc->clear_imm)
-            dc->tb_flags &= ~IMM_FLAG;
-        dc->base.pc_next += 4;
-
-        if (dc->delayed_branch) {
-            dc->delayed_branch--;
-            if (!dc->delayed_branch) {
-                if (dc->tb_flags & DRTI_FLAG)
-                    do_rti(dc);
-                 if (dc->tb_flags & DRTB_FLAG)
-                    do_rtb(dc);
-                if (dc->tb_flags & DRTE_FLAG)
-                    do_rte(dc);
-                /* Clear the delay slot flag.  */
-                dc->tb_flags &= ~D_FLAG;
-                /* If it is a direct jump, try direct chaining.  */
-                if (dc->jmp == JMP_INDIRECT) {
-                    TCGv_i32 tmp_pc = tcg_const_i32(dc->base.pc_next);
-                    eval_cond_jmp(dc, cpu_btarget, tmp_pc);
-                    tcg_temp_free_i32(tmp_pc);
-                    dc->base.is_jmp = DISAS_JUMP;
-                } else if (dc->jmp == JMP_DIRECT) {
-                    t_sync_flags(dc);
-                    gen_goto_tb(dc, 0, dc->jmp_pc);
-                } else if (dc->jmp == JMP_DIRECT_CC) {
-                    TCGLabel *l1 = gen_new_label();
-                    t_sync_flags(dc);
-                    /* Conditional jmp.  */
-                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_btaken, 0, l1);
-                    gen_goto_tb(dc, 1, dc->base.pc_next);
-                    gen_set_label(l1);
-                    gen_goto_tb(dc, 0, dc->jmp_pc);
-                }
-                break;
-            }
+        if (dc->tb_flags & DRTE_FLAG) {
+            do_rte(dc);
         }
-        if (dc->base.singlestep_enabled) {
-            break;
-        }
-    } while (!dc->base.is_jmp && !dc->cpustate_changed
-             && !tcg_op_buf_full()
-             && !singlestep
-             && (dc->base.pc_next - page_start < TARGET_PAGE_SIZE)
-             && num_insns < max_insns);
-
-    npc = dc->base.pc_next;
-    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
-        if (dc->tb_flags & D_FLAG) {
-            dc->base.is_jmp = DISAS_UPDATE;
-            tcg_gen_movi_i32(cpu_pc, npc);
-            sync_jmpstate(dc);
-        } else
-            npc = dc->jmp_pc;
+        /* Clear the delay slot flag.  */
+        dc->tb_flags &= ~D_FLAG;
+        dc->base.is_jmp = DISAS_JUMP;
     }
 
-    /* Force an update if the per-tb cpu state has changed.  */
-    if (dc->base.is_jmp == DISAS_NEXT
-        && (dc->cpustate_changed || org_flags != dc->tb_flags)) {
+    /* Force an exit if the per-tb cpu state has changed.  */
+    if (dc->base.is_jmp == DISAS_NEXT && dc->cpustate_changed) {
         dc->base.is_jmp = DISAS_UPDATE;
-        tcg_gen_movi_i32(cpu_pc, npc);
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
     }
-    t_sync_flags(dc);
+}
+
+static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
+{
+    DisasContext *dc = container_of(dcb, DisasContext, base);
+
+    assert(!dc->abort_at_next_insn);
 
     if (dc->base.is_jmp == DISAS_NORETURN) {
-        /* nothing more to generate */
-    } else if (unlikely(cs->singlestep_enabled)) {
-        TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
-
-        if (dc->base.is_jmp != DISAS_JUMP) {
-            tcg_gen_movi_i32(cpu_pc, npc);
-        }
-        gen_helper_raise_exception(cpu_env, tmp);
-        tcg_temp_free_i32(tmp);
-    } else {
-        switch (dc->base.is_jmp) {
-            case DISAS_NEXT:
-                gen_goto_tb(dc, 1, npc);
-                break;
-            case DISAS_JUMP:
-            case DISAS_UPDATE:
-                /* indicate that the hash table must be used
-                   to find the next TB */
-                tcg_gen_exit_tb(NULL, 0);
-                break;
-            default:
-                g_assert_not_reached();
-        }
+        /* We have already exited the TB. */
+        return;
     }
-    gen_tb_end(tb, num_insns);
 
-    tb->size = dc->base.pc_next - pc_start;
-    tb->icount = num_insns;
+    t_sync_flags(dc);
+    if (dc->tb_flags & D_FLAG) {
+        sync_jmpstate(dc);
+        dc->jmp = JMP_NOJMP;
+    }
 
+    switch (dc->base.is_jmp) {
+    case DISAS_TOO_MANY:
+        assert(dc->jmp == JMP_NOJMP);
+        gen_goto_tb(dc, 0, dc->base.pc_next);
+        return;
+
+    case DISAS_UPDATE:
+        assert(dc->jmp == JMP_NOJMP);
+        if (unlikely(cs->singlestep_enabled)) {
+            gen_raise_exception(dc, EXCP_DEBUG);
+        } else {
+            tcg_gen_exit_tb(NULL, 0);
+        }
+        return;
+
+    case DISAS_JUMP:
+        switch (dc->jmp) {
+        case JMP_INDIRECT:
+            {
+                TCGv_i32 tmp_pc = tcg_const_i32(dc->base.pc_next);
+                eval_cond_jmp(dc, cpu_btarget, tmp_pc);
+                tcg_temp_free_i32(tmp_pc);
+
+                if (unlikely(cs->singlestep_enabled)) {
+                    gen_raise_exception(dc, EXCP_DEBUG);
+                } else {
+                    tcg_gen_exit_tb(NULL, 0);
+                }
+            }
+            return;
+
+        case JMP_DIRECT_CC:
+            {
+                TCGLabel *l1 = gen_new_label();
+                tcg_gen_brcondi_i32(TCG_COND_NE, cpu_btaken, 0, l1);
+                gen_goto_tb(dc, 1, dc->base.pc_next);
+                gen_set_label(l1);
+            }
+            /* fall through */
+
+        case JMP_DIRECT:
+            gen_goto_tb(dc, 0, dc->jmp_pc);
+            return;
+        }
+        /* fall through */
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void mb_tr_disas_log(const DisasContextBase *dcb, CPUState *cs)
+{
 #ifdef DEBUG_DISAS
 #if !SIM_COMPAT
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
-        && qemu_log_in_addr_range(pc_start)) {
-        FILE *logfile = qemu_log_lock();
-        qemu_log("--------------\n");
-        log_target_disas(cs, pc_start, dc->base.pc_next - pc_start);
-        qemu_log_unlock(logfile);
-    }
+    qemu_log("IN: %s\n", lookup_symbol(dcb->pc_first));
+    log_target_disas(cs, dcb->pc_first, dcb->tb->size);
 #endif
 #endif
-    assert(!dc->abort_at_next_insn);
+}
+
+static const TranslatorOps mb_tr_ops = {
+    .init_disas_context = mb_tr_init_disas_context,
+    .tb_start           = mb_tr_tb_start,
+    .insn_start         = mb_tr_insn_start,
+    .breakpoint_check   = mb_tr_breakpoint_check,
+    .translate_insn     = mb_tr_translate_insn,
+    .tb_stop            = mb_tr_tb_stop,
+    .disas_log          = mb_tr_disas_log,
+};
+
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
+{
+    DisasContext dc;
+    translator_loop(&mb_tr_ops, &dc.base, cpu, tb, max_insns);
 }
 
 void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
