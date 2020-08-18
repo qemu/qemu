@@ -241,6 +241,21 @@ static bool do_typea(DisasContext *dc, arg_typea *arg, bool side_effects,
     return true;
 }
 
+static bool do_typea0(DisasContext *dc, arg_typea0 *arg, bool side_effects,
+                      void (*fn)(TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 rd, ra;
+
+    if (arg->rd == 0 && !side_effects) {
+        return true;
+    }
+
+    rd = reg_for_write(dc, arg->rd);
+    ra = reg_for_read(dc, arg->ra);
+    fn(rd, ra);
+    return true;
+}
+
 static bool do_typeb_imm(DisasContext *dc, arg_typeb *arg, bool side_effects,
                          void (*fni)(TCGv_i32, TCGv_i32, int32_t))
 {
@@ -282,6 +297,14 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 #define DO_TYPEA_CFG(NAME, CFG, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
     { return dc->cpu->cfg.CFG && do_typea(dc, a, SE, FN); }
+
+#define DO_TYPEA0(NAME, SE, FN) \
+    static bool trans_##NAME(DisasContext *dc, arg_typea0 *a) \
+    { return do_typea0(dc, a, SE, FN); }
+
+#define DO_TYPEA0_CFG(NAME, CFG, SE, FN) \
+    static bool trans_##NAME(DisasContext *dc, arg_typea0 *a) \
+    { return dc->cpu->cfg.CFG && do_typea0(dc, a, SE, FN); }
 
 #define DO_TYPEBI(NAME, SE, FNI) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
@@ -344,6 +367,13 @@ DO_TYPEA(and, false, tcg_gen_and_i32)
 DO_TYPEBI(andi, false, tcg_gen_andi_i32)
 DO_TYPEA(andn, false, tcg_gen_andc_i32)
 DO_TYPEBI(andni, false, gen_andni)
+
+static void gen_clz(TCGv_i32 out, TCGv_i32 ina)
+{
+    tcg_gen_clzi_i32(out, ina, 32);
+}
+
+DO_TYPEA0_CFG(clz, use_pcmp_instr, false, gen_clz)
 
 static void gen_cmp(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
@@ -473,6 +503,51 @@ DO_TYPEBV(rsubi, true, gen_rsub)
 DO_TYPEBV(rsubic, true, gen_rsubc)
 DO_TYPEBV(rsubik, false, gen_rsubk)
 DO_TYPEBV(rsubikc, true, gen_rsubkc)
+
+DO_TYPEA0(sext8, false, tcg_gen_ext8s_i32)
+DO_TYPEA0(sext16, false, tcg_gen_ext16s_i32)
+
+static void gen_sra(TCGv_i32 out, TCGv_i32 ina)
+{
+    tcg_gen_andi_i32(cpu_msr_c, ina, 1);
+    tcg_gen_sari_i32(out, ina, 1);
+}
+
+static void gen_src(TCGv_i32 out, TCGv_i32 ina)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_mov_i32(tmp, cpu_msr_c);
+    tcg_gen_andi_i32(cpu_msr_c, ina, 1);
+    tcg_gen_extract2_i32(out, ina, tmp, 1);
+
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_srl(TCGv_i32 out, TCGv_i32 ina)
+{
+    tcg_gen_andi_i32(cpu_msr_c, ina, 1);
+    tcg_gen_shri_i32(out, ina, 1);
+}
+
+DO_TYPEA0(sra, false, gen_sra)
+DO_TYPEA0(src, false, gen_src)
+DO_TYPEA0(srl, false, gen_srl)
+
+static void gen_swaph(TCGv_i32 out, TCGv_i32 ina)
+{
+    tcg_gen_rotri_i32(out, ina, 16);
+}
+
+DO_TYPEA0(swapb, false, tcg_gen_bswap32_i32)
+DO_TYPEA0(swaph, false, gen_swaph)
+
+static bool trans_wdic(DisasContext *dc, arg_wdic *a)
+{
+    /* Cache operations are nops: only check for supervisor mode.  */
+    trap_userspace(dc, true);
+    return true;
+}
 
 DO_TYPEA(xor, false, tcg_gen_xor_i32)
 DO_TYPEBI(xori, false, tcg_gen_xori_i32)
@@ -751,78 +826,6 @@ static void dec_barrel(DisasContext *dc)
             }
         }
         tcg_temp_free_i32(t0);
-    }
-}
-
-static void dec_bit(DisasContext *dc)
-{
-    CPUState *cs = CPU(dc->cpu);
-    TCGv_i32 t0;
-    unsigned int op;
-
-    op = dc->ir & ((1 << 9) - 1);
-    switch (op) {
-        case 0x21:
-            /* src.  */
-            t0 = tcg_temp_new_i32();
-
-            tcg_gen_shli_i32(t0, cpu_msr_c, 31);
-            tcg_gen_andi_i32(cpu_msr_c, cpu_R[dc->ra], 1);
-            if (dc->rd) {
-                tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
-                tcg_gen_or_i32(cpu_R[dc->rd], cpu_R[dc->rd], t0);
-            }
-            tcg_temp_free_i32(t0);
-            break;
-
-        case 0x1:
-        case 0x41:
-            /* srl.  */
-            tcg_gen_andi_i32(cpu_msr_c, cpu_R[dc->ra], 1);
-            if (dc->rd) {
-                if (op == 0x41)
-                    tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
-                else
-                    tcg_gen_sari_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
-            }
-            break;
-        case 0x60:
-            tcg_gen_ext8s_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
-            break;
-        case 0x61:
-            tcg_gen_ext16s_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
-            break;
-        case 0x64:
-        case 0x66:
-        case 0x74:
-        case 0x76:
-            /* wdc.  */
-            trap_userspace(dc, true);
-            break;
-        case 0x68:
-            /* wic.  */
-            trap_userspace(dc, true);
-            break;
-        case 0xe0:
-            if (trap_illegal(dc, !dc->cpu->cfg.use_pcmp_instr)) {
-                return;
-            }
-            if (dc->cpu->cfg.use_pcmp_instr) {
-                tcg_gen_clzi_i32(cpu_R[dc->rd], cpu_R[dc->ra], 32);
-            }
-            break;
-        case 0x1e0:
-            /* swapb */
-            tcg_gen_bswap32_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
-            break;
-        case 0x1e2:
-            /*swaph */
-            tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
-            break;
-        default:
-            cpu_abort(cs, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
-                      (uint32_t)dc->base.pc_next, op, dc->rd, dc->ra, dc->rb);
-            break;
     }
 }
 
@@ -1548,7 +1551,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_BIT, dec_bit},
     {DEC_BARREL, dec_barrel},
     {DEC_LD, dec_load},
     {DEC_ST, dec_store},

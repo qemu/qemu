@@ -17,6 +17,7 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
 
+&typea0         rd ra
 &typea          rd ra rb
 &typeb          rd ra imm
 
@@ -25,6 +26,9 @@
 
 @typea          ...... rd:5 ra:5 rb:5 ... .... ....     &typea
 @typeb          ...... rd:5 ra:5 ................       &typeb imm=%extimm
+
+# Officially typea, but with rb==0, which is not used.
+@typea0         ...... rd:5 ra:5 ................       &typea0
 
 ###
 
@@ -46,6 +50,8 @@ andi            101001 ..... ..... ................     @typeb
 
 andn            100011 ..... ..... ..... 000 0000 0000  @typea
 andni           101011 ..... ..... ................     @typeb
+
+clz             100100 ..... ..... 00000 000 1110 0000  @typea0
 
 cmp             000101 ..... ..... ..... 000 0000 0001  @typea
 cmpu            000101 ..... ..... ..... 000 0000 0011  @typea
@@ -75,6 +81,20 @@ rsubi           001001 ..... ..... ................     @typeb
 rsubic          001011 ..... ..... ................     @typeb
 rsubik          001101 ..... ..... ................     @typeb
 rsubikc         001111 ..... ..... ................     @typeb
+
+sext8           100100 ..... ..... 00000 000 0110 0000  @typea0
+sext16          100100 ..... ..... 00000 000 0110 0001  @typea0
+
+sra             100100 ..... ..... 00000 000 0000 0001  @typea0
+src             100100 ..... ..... 00000 000 0010 0001  @typea0
+srl             100100 ..... ..... 00000 000 0100 0001  @typea0
+
+swapb           100100 ..... ..... 00000 001 1110 0000  @typea0
+swaph           100100 ..... ..... 00000 001 1110 0010  @typea0
+
+# Cache operations have no effect in qemu: discard the arguments.
+wdic            100100 00000 ----- ----- -00 -11- 01-0  # wdc
+wdic            100100 00000 ----- ----- 000 0110 1000  # wic
 
 xor             100010 ..... ..... ..... 000 0000 0000  @typea
 xori            101010 ..... ..... ................     @typeb
