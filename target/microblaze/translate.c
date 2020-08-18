@@ -61,6 +61,7 @@ typedef struct DisasContext {
     /* Decoder.  */
     int type_b;
     uint32_t ir;
+    uint32_t ext_imm;
     uint8_t opcode;
     uint8_t rd, ra, rb;
     uint16_t imm;
@@ -169,24 +170,23 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     return cond_user;
 }
 
-/* True if ALU operand b is a small immediate that may deserve
-   faster treatment.  */
-static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
+static int32_t dec_alu_typeb_imm(DisasContext *dc)
 {
-    /* Immediate insn without the imm prefix ?  */
-    return dc->type_b && !(dc->tb_flags & IMM_FLAG);
+    tcg_debug_assert(dc->type_b);
+    if (dc->tb_flags & IMM_FLAG) {
+        return dc->ext_imm | dc->imm;
+    } else {
+        return (int16_t)dc->imm;
+    }
 }
 
 static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
 {
     if (dc->type_b) {
-        if (dc->tb_flags & IMM_FLAG)
-            tcg_gen_ori_i32(cpu_imm, cpu_imm, dc->imm);
-        else
-            tcg_gen_movi_i32(cpu_imm, (int32_t)((int16_t)dc->imm));
+        tcg_gen_movi_i32(cpu_imm, dec_alu_typeb_imm(dc));
         return &cpu_imm;
-    } else
-        return &cpu_R[dc->rb];
+    }
+    return &cpu_R[dc->rb];
 }
 
 static void dec_add(DisasContext *dc)
@@ -776,14 +776,14 @@ static inline void sync_jmpstate(DisasContext *dc)
 
 static void dec_imm(DisasContext *dc)
 {
-    tcg_gen_movi_i32(cpu_imm, (dc->imm << 16));
+    dc->ext_imm = dc->imm << 16;
+    tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
     dc->tb_flags |= IMM_FLAG;
     dc->clear_imm = 0;
 }
 
 static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
 {
-    bool extimm = dc->tb_flags & IMM_FLAG;
     /* Should be set to true if r1 is used by loadstores.  */
     bool stackprot = false;
     TCGv_i32 t32;
@@ -836,11 +836,7 @@ static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
     }
     /* Immediate.  */
     t32 = tcg_temp_new_i32();
-    if (!extimm) {
-        tcg_gen_addi_i32(t32, cpu_R[dc->ra], (int16_t)dc->imm);
-    } else {
-        tcg_gen_add_i32(t32, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-    }
+    tcg_gen_addi_i32(t32, cpu_R[dc->ra], dec_alu_typeb_imm(dc));
     tcg_gen_extu_i32_tl(t, t32);
     tcg_temp_free_i32(t32);
 
@@ -1134,15 +1130,13 @@ static void dec_bcc(DisasContext *dc)
         dec_setup_dslot(dc);
     }
 
-    if (dec_alu_op_b_is_small_imm(dc)) {
-        int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
-
-        tcg_gen_movi_i32(cpu_btarget, dc->base.pc_next + offset);
+    if (dc->type_b) {
         dc->jmp = JMP_DIRECT_CC;
-        dc->jmp_pc = dc->base.pc_next + offset;
+        dc->jmp_pc = dc->base.pc_next + dec_alu_typeb_imm(dc);
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     } else {
         dc->jmp = JMP_INDIRECT;
-        tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->base.pc_next);
+        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], dc->base.pc_next);
     }
     eval_cc(dc, cc, cpu_btaken, cpu_R[dc->ra]);
 }
@@ -1192,38 +1186,63 @@ static void dec_br(DisasContext *dc)
         return;
     }
 
+    if (abs && link && !dslot) {
+        if (dc->type_b) {
+            /* BRKI */
+            uint32_t imm = dec_alu_typeb_imm(dc);
+            if (trap_userspace(dc, imm != 8 && imm != 0x18)) {
+                return;
+            }
+        } else {
+            /* BRK */
+            if (trap_userspace(dc, true)) {
+                return;
+            }
+        }
+    }
+
     dc->delayed_branch = 1;
     if (dslot) {
         dec_setup_dslot(dc);
     }
-    if (link && dc->rd)
+    if (link && dc->rd) {
         tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
+    }
 
-    dc->jmp = JMP_INDIRECT;
     if (abs) {
-        tcg_gen_movi_i32(cpu_btaken, 1);
-        tcg_gen_mov_i32(cpu_btarget, *(dec_alu_op_b(dc)));
-        if (link && !dslot) {
-            if (!(dc->tb_flags & IMM_FLAG) &&
-                (dc->imm == 8 || dc->imm == 0x18)) {
+        if (dc->type_b) {
+            uint32_t dest = dec_alu_typeb_imm(dc);
+
+            dc->jmp = JMP_DIRECT;
+            dc->jmp_pc = dest;
+            tcg_gen_movi_i32(cpu_btarget, dest);
+            if (link && !dslot) {
+                switch (dest) {
+                case 8:
+                case 0x18:
+                    gen_raise_exception_sync(dc, EXCP_BREAK);
+                    break;
+                case 0:
+                    gen_raise_exception_sync(dc, EXCP_DEBUG);
+                    break;
+                }
+            }
+        } else {
+            dc->jmp = JMP_INDIRECT;
+            tcg_gen_mov_i32(cpu_btarget, cpu_R[dc->rb]);
+            if (link && !dslot) {
                 gen_raise_exception_sync(dc, EXCP_BREAK);
             }
-            if (dc->imm == 0) {
-                if (trap_userspace(dc, true)) {
-                    return;
-                }
-                gen_raise_exception_sync(dc, EXCP_DEBUG);
-            }
         }
+    } else if (dc->type_b) {
+        dc->jmp = JMP_DIRECT;
+        dc->jmp_pc = dc->base.pc_next + dec_alu_typeb_imm(dc);
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     } else {
-        if (dec_alu_op_b_is_small_imm(dc)) {
-            dc->jmp = JMP_DIRECT;
-            dc->jmp_pc = dc->base.pc_next + (int32_t)((int16_t)dc->imm);
-        } else {
-            tcg_gen_movi_i32(cpu_btaken, 1);
-            tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->base.pc_next);
-        }
+        dc->jmp = JMP_INDIRECT;
+        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], dc->base.pc_next);
     }
+    tcg_gen_movi_i32(cpu_btaken, 1);
 }
 
 static inline void do_rti(DisasContext *dc)
@@ -1529,6 +1548,7 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->jmp = dc->delayed_branch ? JMP_INDIRECT : JMP_NOJMP;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
+    dc->ext_imm = dc->base.tb->cs_base;
 
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
     dc->base.max_insns = MIN(dc->base.max_insns, bound);
@@ -1573,8 +1593,9 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 
     dc->clear_imm = 1;
     decode(dc, cpu_ldl_code(env, dc->base.pc_next));
-    if (dc->clear_imm) {
+    if (dc->clear_imm && (dc->tb_flags & IMM_FLAG)) {
         dc->tb_flags &= ~IMM_FLAG;
+        tcg_gen_discard_i32(cpu_imm);
     }
     dc->base.pc_next += 4;
 

@@ -374,9 +374,9 @@ static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
-    *cs_base = 0;
     *flags = (env->iflags & IFLAGS_TB_MASK) |
              (env->msr & (MSR_UM | MSR_VM | MSR_EE));
+    *cs_base = (*flags & IMM_FLAG ? env->imm : 0);
 }
 
 #if !defined(CONFIG_USER_ONLY)
