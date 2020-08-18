@@ -191,7 +191,7 @@ static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
     VirtIOSCSIReq *req = sreq->hba_private;
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(req->dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
-    uint32_t n = virtio_get_queue_index(req->vq) - 2;
+    uint32_t n = virtio_get_queue_index(req->vq) - VIRTIO_SCSI_VQ_NUM_FIXED;
 
     assert(n < vs->conf.num_queues);
     qemu_put_be32s(f, &n);
@@ -892,10 +892,11 @@ void virtio_scsi_common_realize(DeviceState *dev,
                 sizeof(VirtIOSCSIConfig));
 
     if (s->conf.num_queues == 0 ||
-            s->conf.num_queues > VIRTIO_QUEUE_MAX - 2) {
+            s->conf.num_queues > VIRTIO_QUEUE_MAX - VIRTIO_SCSI_VQ_NUM_FIXED) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
                          "must be a positive integer less than %d.",
-                   s->conf.num_queues, VIRTIO_QUEUE_MAX - 2);
+                   s->conf.num_queues,
+                   VIRTIO_QUEUE_MAX - VIRTIO_SCSI_VQ_NUM_FIXED);
         virtio_cleanup(vdev);
         return;
     }

@@ -56,7 +56,8 @@ static void vhost_user_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = vs->conf.num_queues + 3;
+        vpci_dev->nvectors = vs->conf.num_queues +
+                             VIRTIO_SCSI_VQ_NUM_FIXED + 1;
     }
 
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
