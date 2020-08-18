@@ -26,8 +26,6 @@
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
 
-#define D(x)
-
 void helper_put(uint32_t id, uint32_t ctrl, uint32_t data)
 {
     int test = ctrl & STREAM_TEST;

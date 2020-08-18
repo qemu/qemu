@@ -24,8 +24,6 @@
 #include "qemu/host-utils.h"
 #include "exec/log.h"
 
-#define D(x)
-
 #if defined(CONFIG_USER_ONLY)
 
 void mb_cpu_do_interrupt(CPUState *cs)
@@ -155,10 +153,13 @@ void mb_cpu_do_interrupt(CPUState *cs)
         case EXCP_MMU:
             env->regs[17] = env->pc;
 
+            qemu_log_mask(CPU_LOG_INT,
+                          "MMU exception at pc=%x iflags=%x ear=%" PRIx64 "\n",
+                          env->pc, env->iflags, env->ear);
+
             env->esr &= ~(1 << 12);
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
-                D(qemu_log("D_FLAG set at exception bimm=%d\n", env->bimm));
                 env->esr |= 1 << 12 ;
                 env->btr = env->btarget;
 
@@ -166,14 +167,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 env->regs[17] -= 4;
                 /* was the branch immprefixed?.  */
                 if (env->bimm) {
-                    qemu_log_mask(CPU_LOG_INT,
-                                  "bimm exception at pc=%x iflags=%x\n",
-                                  env->pc, env->iflags);
                     env->regs[17] -= 4;
                     log_cpu_state_mask(CPU_LOG_INT, cs, 0);
                 }
             } else if (env->iflags & IMM_FLAG) {
-                D(qemu_log("IMM_FLAG set at exception\n"));
                 env->regs[17] -= 4;
             }
 

@@ -41,8 +41,6 @@
 #  define LOG_DIS(...) do { } while (0)
 #endif
 
-#define D(x)
-
 #define EXTRACT_FIELD(src, start, end) \
             (((src) >> start) & ((1 << (end - start + 1)) - 1))
 
