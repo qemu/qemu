@@ -368,6 +368,19 @@ static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 DO_TYPEA(cmp, false, gen_cmp)
 DO_TYPEA(cmpu, false, gen_cmpu)
 
+static void gen_idiv(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    gen_helper_divs(out, cpu_env, inb, ina);
+}
+
+static void gen_idivu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    gen_helper_divu(out, cpu_env, inb, ina);
+}
+
+DO_TYPEA_CFG(idiv, use_div, true, gen_idiv)
+DO_TYPEA_CFG(idivu, use_div, true, gen_idivu)
+
 static void gen_mulh(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -681,27 +694,6 @@ static void dec_msr(DisasContext *dc)
     if (dc->rd == 0) {
         tcg_gen_movi_i32(cpu_R[0], 0);
     }
-}
-
-/* Div unit.  */
-static void dec_div(DisasContext *dc)
-{
-    unsigned int u;
-
-    u = dc->imm & 2; 
-
-    if (trap_illegal(dc, !dc->cpu->cfg.use_div)) {
-        return;
-    }
-
-    if (u)
-        gen_helper_divu(cpu_R[dc->rd], cpu_env, *(dec_alu_op_b(dc)),
-                        cpu_R[dc->ra]);
-    else
-        gen_helper_divs(cpu_R[dc->rd], cpu_env, *(dec_alu_op_b(dc)),
-                        cpu_R[dc->ra]);
-    if (!dc->rd)
-        tcg_gen_movi_i32(cpu_R[dc->rd], 0);
 }
 
 static void dec_barrel(DisasContext *dc)
@@ -1565,7 +1557,6 @@ static struct decoder_info {
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
     {DEC_FPU, dec_fpu},
-    {DEC_DIV, dec_div},
     {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}
