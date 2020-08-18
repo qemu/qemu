@@ -16,3 +16,27 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
+
+&typea          rd ra rb
+&typeb          rd ra imm
+
+# Include any IMM prefix in the value reported.
+%extimm         0:s16 !function=typeb_imm
+
+@typea          ...... rd:5 ra:5 rb:5 ... .... ....     &typea
+@typeb          ...... rd:5 ra:5 ................       &typeb imm=%extimm
+
+###
+
+{
+  zero          000000 00000 00000 00000 000 0000 0000
+  add           000000 ..... ..... ..... 000 0000 0000  @typea
+}
+addc            000010 ..... ..... ..... 000 0000 0000  @typea
+addk            000100 ..... ..... ..... 000 0000 0000  @typea
+addkc           000110 ..... ..... ..... 000 0000 0000  @typea
+
+addi            001000 ..... ..... ................     @typeb
+addic           001010 ..... ..... ................     @typeb
+addik           001100 ..... ..... ................     @typeb
+addikc          001110 ..... ..... ................     @typeb

@@ -58,6 +58,9 @@ typedef struct DisasContext {
     DisasContextBase base;
     MicroBlazeCPU *cpu;
 
+    TCGv_i32 r0;
+    bool r0_set;
+
     /* Decoder.  */
     int type_b;
     uint32_t ir;
@@ -80,6 +83,14 @@ typedef struct DisasContext {
 
     int abort_at_next_insn;
 } DisasContext;
+
+static int typeb_imm(DisasContext *dc, int x)
+{
+    if (dc->tb_flags & IMM_FLAG) {
+        return deposit32(dc->ext_imm, 0, 16, x);
+    }
+    return x;
+}
 
 /* Include the auto-generated decoder.  */
 #include "decode-insns.c.inc"
@@ -176,11 +187,7 @@ static bool trap_userspace(DisasContext *dc, bool cond)
 static int32_t dec_alu_typeb_imm(DisasContext *dc)
 {
     tcg_debug_assert(dc->type_b);
-    if (dc->tb_flags & IMM_FLAG) {
-        return dc->ext_imm | dc->imm;
-    } else {
-        return (int16_t)dc->imm;
-    }
+    return typeb_imm(dc, (int16_t)dc->imm);
 }
 
 static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
@@ -192,44 +199,146 @@ static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
     return &cpu_R[dc->rb];
 }
 
-static void dec_add(DisasContext *dc)
+static TCGv_i32 reg_for_read(DisasContext *dc, int reg)
 {
-    unsigned int k, c;
-    TCGv_i32 cf;
-
-    k = dc->opcode & 4;
-    c = dc->opcode & 2;
-
-    /* Take care of the easy cases first.  */
-    if (k) {
-        /* k - keep carry, no need to update MSR.  */
-        /* If rd == r0, it's a nop.  */
-        if (dc->rd) {
-            tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-
-            if (c) {
-                /* c - Add carry into the result.  */
-                tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_msr_c);
-            }
+    if (likely(reg != 0)) {
+        return cpu_R[reg];
+    }
+    if (!dc->r0_set) {
+        if (dc->r0 == NULL) {
+            dc->r0 = tcg_temp_new_i32();
         }
-        return;
+        tcg_gen_movi_i32(dc->r0, 0);
+        dc->r0_set = true;
+    }
+    return dc->r0;
+}
+
+static TCGv_i32 reg_for_write(DisasContext *dc, int reg)
+{
+    if (likely(reg != 0)) {
+        return cpu_R[reg];
+    }
+    if (dc->r0 == NULL) {
+        dc->r0 = tcg_temp_new_i32();
+    }
+    return dc->r0;
+}
+
+static bool do_typea(DisasContext *dc, arg_typea *arg, bool side_effects,
+                     void (*fn)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 rd, ra, rb;
+
+    if (arg->rd == 0 && !side_effects) {
+        return true;
     }
 
-    /* From now on, we can assume k is zero.  So we need to update MSR.  */
-    /* Extract carry.  */
-    cf = tcg_temp_new_i32();
-    if (c) {
-        tcg_gen_mov_i32(cf, cpu_msr_c);
-    } else {
-        tcg_gen_movi_i32(cf, 0);
+    rd = reg_for_write(dc, arg->rd);
+    ra = reg_for_read(dc, arg->ra);
+    rb = reg_for_read(dc, arg->rb);
+    fn(rd, ra, rb);
+    return true;
+}
+
+static bool do_typeb_imm(DisasContext *dc, arg_typeb *arg, bool side_effects,
+                         void (*fni)(TCGv_i32, TCGv_i32, int32_t))
+{
+    TCGv_i32 rd, ra;
+
+    if (arg->rd == 0 && !side_effects) {
+        return true;
     }
 
-    gen_helper_carry(cpu_msr_c, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
-    if (dc->rd) {
-        tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-        tcg_gen_add_i32(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+    rd = reg_for_write(dc, arg->rd);
+    ra = reg_for_read(dc, arg->ra);
+    fni(rd, ra, arg->imm);
+    return true;
+}
+
+static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
+                         void (*fn)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 rd, ra, imm;
+
+    if (arg->rd == 0 && !side_effects) {
+        return true;
     }
-    tcg_temp_free_i32(cf);
+
+    rd = reg_for_write(dc, arg->rd);
+    ra = reg_for_read(dc, arg->ra);
+    imm = tcg_const_i32(arg->imm);
+
+    fn(rd, ra, imm);
+
+    tcg_temp_free_i32(imm);
+    return true;
+}
+
+#define DO_TYPEA(NAME, SE, FN) \
+    static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
+    { return do_typea(dc, a, SE, FN); }
+
+#define DO_TYPEBI(NAME, SE, FNI) \
+    static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
+    { return do_typeb_imm(dc, a, SE, FNI); }
+
+#define DO_TYPEBV(NAME, SE, FN) \
+    static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
+    { return do_typeb_val(dc, a, SE, FN); }
+
+/* No input carry, but output carry. */
+static void gen_add(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 zero = tcg_const_i32(0);
+
+    tcg_gen_add2_i32(out, cpu_msr_c, ina, zero, inb, zero);
+
+    tcg_temp_free_i32(zero);
+}
+
+/* Input and output carry. */
+static void gen_addc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_add2_i32(tmp, cpu_msr_c, ina, zero, cpu_msr_c, zero);
+    tcg_gen_add2_i32(out, cpu_msr_c, tmp, cpu_msr_c, inb, zero);
+
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(zero);
+}
+
+/* Input carry, but no output carry. */
+static void gen_addkc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    tcg_gen_add_i32(out, ina, inb);
+    tcg_gen_add_i32(out, out, cpu_msr_c);
+}
+
+DO_TYPEA(add, true, gen_add)
+DO_TYPEA(addc, true, gen_addc)
+DO_TYPEA(addk, false, tcg_gen_add_i32)
+DO_TYPEA(addkc, true, gen_addkc)
+
+DO_TYPEBV(addi, true, gen_add)
+DO_TYPEBV(addic, true, gen_addc)
+DO_TYPEBI(addik, false, tcg_gen_addi_i32)
+DO_TYPEBV(addikc, true, gen_addkc)
+
+static bool trans_zero(DisasContext *dc, arg_zero *arg)
+{
+    /* If opcode_0_illegal, trap.  */
+    if (dc->cpu->cfg.opcode_0_illegal) {
+        trap_illegal(dc, true);
+        return true;
+    }
+    /*
+     * Otherwise, this is "add r0, r0, r0".
+     * Continue to trans_add so that MSR[C] gets cleared.
+     */
+    return false;
 }
 
 static void dec_sub(DisasContext *dc)
@@ -1488,7 +1597,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_ADD, dec_add},
     {DEC_SUB, dec_sub},
     {DEC_AND, dec_and},
     {DEC_XOR, dec_xor},
@@ -1514,12 +1622,6 @@ static void old_decode(DisasContext *dc, uint32_t ir)
     int i;
 
     dc->ir = ir;
-
-    if (ir == 0) {
-        trap_illegal(dc, dc->cpu->cfg.opcode_0_illegal);
-        /* Don't decode nop/zero instructions any further.  */
-        return;
-    }
 
     /* bit 2 seems to indicate insn type.  */
     dc->type_b = ir & (1 << 29);
@@ -1552,6 +1654,8 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->ext_imm = dc->base.tb->cs_base;
+    dc->r0 = NULL;
+    dc->r0_set = false;
 
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
     dc->base.max_insns = MIN(dc->base.max_insns, bound);
@@ -1600,6 +1704,13 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
     if (!decode(dc, ir)) {
         old_decode(dc, ir);
     }
+
+    if (dc->r0) {
+        tcg_temp_free_i32(dc->r0);
+        dc->r0 = NULL;
+        dc->r0_set = false;
+    }
+
     if (dc->clear_imm && (dc->tb_flags & IMM_FLAG)) {
         dc->tb_flags &= ~IMM_FLAG;
         tcg_gen_discard_i32(cpu_imm);
