@@ -131,7 +131,6 @@ char *qemu_find_file(int type, const char *name);
 
 /* OS specific functions */
 void os_setup_early_signal_handling(void);
-char *os_find_datadir(void);
 int os_parse_cmd_args(int index, const char *optarg);
 
 /*
