@@ -477,6 +477,15 @@ static void gen_idivu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 DO_TYPEA_CFG(idiv, use_div, true, gen_idiv)
 DO_TYPEA_CFG(idivu, use_div, true, gen_idivu)
 
+static bool trans_imm(DisasContext *dc, arg_imm *arg)
+{
+    dc->ext_imm = arg->imm << 16;
+    tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
+    dc->tb_flags |= IMM_FLAG;
+    dc->clear_imm = 0;
+    return true;
+}
+
 static void gen_mulh(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -846,14 +855,6 @@ static inline void sync_jmpstate(DisasContext *dc)
         dc->jmp = JMP_INDIRECT;
         tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     }
-}
-
-static void dec_imm(DisasContext *dc)
-{
-    dc->ext_imm = dc->imm << 16;
-    tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
-    dc->tb_flags |= IMM_FLAG;
-    dc->clear_imm = 0;
 }
 
 static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
@@ -1561,7 +1562,6 @@ static struct decoder_info {
 } decinfo[] = {
     {DEC_LD, dec_load},
     {DEC_ST, dec_store},
-    {DEC_IMM, dec_imm},
     {DEC_BR, dec_br},
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
