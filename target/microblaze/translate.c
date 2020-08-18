@@ -287,6 +287,10 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
     { return do_typeb_imm(dc, a, SE, FNI); }
 
+#define DO_TYPEBI_CFG(NAME, CFG, SE, FNI) \
+    static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
+    { return dc->cpu->cfg.CFG && do_typeb_imm(dc, a, SE, FNI); }
+
 #define DO_TYPEBV(NAME, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
     { return do_typeb_val(dc, a, SE, FN); }
@@ -363,6 +367,33 @@ static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 
 DO_TYPEA(cmp, false, gen_cmp)
 DO_TYPEA(cmpu, false, gen_cmpu)
+
+static void gen_mulh(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_muls2_i32(tmp, out, ina, inb);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_mulhu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_mulu2_i32(tmp, out, ina, inb);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_mulhsu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_mulsu2_i32(tmp, out, ina, inb);
+    tcg_temp_free_i32(tmp);
+}
+
+DO_TYPEA_CFG(mul, use_hw_mul, false, tcg_gen_mul_i32)
+DO_TYPEA_CFG(mulh, use_hw_mul >= 2, false, gen_mulh)
+DO_TYPEA_CFG(mulhu, use_hw_mul >= 2, false, gen_mulhu)
+DO_TYPEA_CFG(mulhsu, use_hw_mul >= 2, false, gen_mulhsu)
+DO_TYPEBI_CFG(muli, use_hw_mul, false, tcg_gen_muli_i32)
 
 DO_TYPEA(or, false, tcg_gen_or_i32)
 DO_TYPEBI(ori, false, tcg_gen_ori_i32)
@@ -650,51 +681,6 @@ static void dec_msr(DisasContext *dc)
     if (dc->rd == 0) {
         tcg_gen_movi_i32(cpu_R[0], 0);
     }
-}
-
-/* Multiplier unit.  */
-static void dec_mul(DisasContext *dc)
-{
-    TCGv_i32 tmp;
-    unsigned int subcode;
-
-    if (trap_illegal(dc, !dc->cpu->cfg.use_hw_mul)) {
-        return;
-    }
-
-    subcode = dc->imm & 3;
-
-    if (dc->type_b) {
-        tcg_gen_mul_i32(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-        return;
-    }
-
-    /* mulh, mulhsu and mulhu are not available if C_USE_HW_MUL is < 2.  */
-    if (subcode >= 1 && subcode <= 3 && dc->cpu->cfg.use_hw_mul < 2) {
-        /* nop??? */
-    }
-
-    tmp = tcg_temp_new_i32();
-    switch (subcode) {
-        case 0:
-            tcg_gen_mul_i32(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
-            break;
-        case 1:
-            tcg_gen_muls2_i32(tmp, cpu_R[dc->rd],
-                              cpu_R[dc->ra], cpu_R[dc->rb]);
-            break;
-        case 2:
-            tcg_gen_mulsu2_i32(tmp, cpu_R[dc->rd],
-                               cpu_R[dc->ra], cpu_R[dc->rb]);
-            break;
-        case 3:
-            tcg_gen_mulu2_i32(tmp, cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
-            break;
-        default:
-            cpu_abort(CPU(dc->cpu), "unknown MUL insn %x\n", subcode);
-            break;
-    }
-    tcg_temp_free_i32(tmp);
 }
 
 /* Div unit.  */
@@ -1579,7 +1565,6 @@ static struct decoder_info {
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
     {DEC_FPU, dec_fpu},
-    {DEC_MUL, dec_mul},
     {DEC_DIV, dec_div},
     {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},
