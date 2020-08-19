@@ -320,10 +320,8 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
     struct vhost_vdpa_config *config;
     int ret;
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
+
     config = g_malloc(size + config_size);
-    if (config == NULL) {
-        return -1;
-    }
     config->off = offset;
     config->len = size;
     memcpy(config->buf, data, size);
@@ -340,9 +338,6 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
     int ret;
 
     v_config = g_malloc(config_len + config_size);
-    if (v_config == NULL) {
-        return -1;
-    }
     v_config->len = config_len;
     v_config->off = 0;
     ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_CONFIG, v_config);
