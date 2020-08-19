@@ -104,13 +104,16 @@ uint32_t helper_divu(CPUMBState *env, uint32_t a, uint32_t b)
 }
 
 /* raise FPU exception.  */
-static void raise_fpu_exception(CPUMBState *env)
+static void raise_fpu_exception(CPUMBState *env, uintptr_t ra)
 {
+    CPUState *cs = env_cpu(env);
+
     env->esr = ESR_EC_FPU;
-    helper_raise_exception(env, EXCP_HW_EXCP);
+    cs->exception_index = EXCP_HW_EXCP;
+    cpu_loop_exit_restore(cs, ra);
 }
 
-static void update_fpu_flags(CPUMBState *env, int flags)
+static void update_fpu_flags(CPUMBState *env, int flags, uintptr_t ra)
 {
     int raise = 0;
 
@@ -133,7 +136,7 @@ static void update_fpu_flags(CPUMBState *env, int flags)
     if (raise
         && (env->pvr.regs[2] & PVR2_FPU_EXC_MASK)
         && (env->msr & MSR_EE)) {
-        raise_fpu_exception(env);
+        raise_fpu_exception(env, ra);
     }
 }
 
@@ -148,7 +151,7 @@ uint32_t helper_fadd(CPUMBState *env, uint32_t a, uint32_t b)
     fd.f = float32_add(fa.f, fb.f, &env->fp_status);
 
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
     return fd.l;
 }
 
@@ -162,7 +165,7 @@ uint32_t helper_frsub(CPUMBState *env, uint32_t a, uint32_t b)
     fb.l = b;
     fd.f = float32_sub(fb.f, fa.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
     return fd.l;
 }
 
@@ -176,7 +179,7 @@ uint32_t helper_fmul(CPUMBState *env, uint32_t a, uint32_t b)
     fb.l = b;
     fd.f = float32_mul(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
 
     return fd.l;
 }
@@ -191,7 +194,7 @@ uint32_t helper_fdiv(CPUMBState *env, uint32_t a, uint32_t b)
     fb.l = b;
     fd.f = float32_div(fb.f, fa.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
 
     return fd.l;
 }
@@ -206,7 +209,7 @@ uint32_t helper_fcmp_un(CPUMBState *env, uint32_t a, uint32_t b)
 
     if (float32_is_signaling_nan(fa.f, &env->fp_status) ||
         float32_is_signaling_nan(fb.f, &env->fp_status)) {
-        update_fpu_flags(env, float_flag_invalid);
+        update_fpu_flags(env, float_flag_invalid, GETPC());
         r = 1;
     }
 
@@ -229,7 +232,7 @@ uint32_t helper_fcmp_lt(CPUMBState *env, uint32_t a, uint32_t b)
     fb.l = b;
     r = float32_lt(fb.f, fa.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
 
     return r;
 }
@@ -245,7 +248,7 @@ uint32_t helper_fcmp_eq(CPUMBState *env, uint32_t a, uint32_t b)
     fb.l = b;
     r = float32_eq_quiet(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
 
     return r;
 }
@@ -261,7 +264,7 @@ uint32_t helper_fcmp_le(CPUMBState *env, uint32_t a, uint32_t b)
     set_float_exception_flags(0, &env->fp_status);
     r = float32_le(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
 
 
     return r;
@@ -277,7 +280,7 @@ uint32_t helper_fcmp_gt(CPUMBState *env, uint32_t a, uint32_t b)
     set_float_exception_flags(0, &env->fp_status);
     r = float32_lt(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
     return r;
 }
 
@@ -291,7 +294,7 @@ uint32_t helper_fcmp_ne(CPUMBState *env, uint32_t a, uint32_t b)
     set_float_exception_flags(0, &env->fp_status);
     r = !float32_eq_quiet(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
 
     return r;
 }
@@ -306,7 +309,7 @@ uint32_t helper_fcmp_ge(CPUMBState *env, uint32_t a, uint32_t b)
     set_float_exception_flags(0, &env->fp_status);
     r = !float32_lt(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags & float_flag_invalid);
+    update_fpu_flags(env, flags & float_flag_invalid, GETPC());
 
     return r;
 }
@@ -330,7 +333,7 @@ uint32_t helper_fint(CPUMBState *env, uint32_t a)
     fa.l = a;
     r = float32_to_int32(fa.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
 
     return r;
 }
@@ -344,7 +347,7 @@ uint32_t helper_fsqrt(CPUMBState *env, uint32_t a)
     fa.l = a;
     fd.l = float32_sqrt(fa.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
-    update_fpu_flags(env, flags);
+    update_fpu_flags(env, flags, GETPC());
 
     return fd.l;
 }
