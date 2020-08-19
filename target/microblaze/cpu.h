@@ -254,7 +254,9 @@ struct CPUMBState {
 
     /* Internal flags.  */
 #define IMM_FLAG	4
-#define MSR_EE_FLAG     (1 << 8)
+/* MSR_EE               (1 << 8)  */
+/* MSR_UM               (1 << 11) */
+/* MSR_VM               (1 << 13) */
 #define DRTI_FLAG	(1 << 16)
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)

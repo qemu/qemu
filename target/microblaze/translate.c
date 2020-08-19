@@ -162,7 +162,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
  */
 static bool trap_illegal(DisasContext *dc, bool cond)
 {
-    if (cond && (dc->tb_flags & MSR_EE_FLAG)
+    if (cond && (dc->tb_flags & MSR_EE)
         && dc->cpu->cfg.illegal_opcode_exception) {
         gen_raise_hw_excp(dc, ESR_EC_ILLEGAL_OP);
     }
@@ -178,7 +178,7 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     int mem_index = cpu_mmu_index(&dc->cpu->env, false);
     bool cond_user = cond && mem_index == MMU_USER_IDX;
 
-    if (cond_user && (dc->tb_flags & MSR_EE_FLAG)) {
+    if (cond_user && (dc->tb_flags & MSR_EE)) {
         gen_raise_hw_excp(dc, ESR_EC_PRIVINSN);
     }
     return cond_user;
