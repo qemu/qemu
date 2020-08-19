@@ -49,6 +49,8 @@ typedef struct SpaprXive {
     void          *tm_mmap;
     MemoryRegion  tm_mmio_kvm;
     VMChangeStateEntry *change;
+
+    uint8_t       hv_prio;
 } SpaprXive;
 
 typedef struct SpaprXiveClass {
