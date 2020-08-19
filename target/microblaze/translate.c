@@ -73,6 +73,7 @@ typedef struct DisasContext {
     unsigned int delayed_branch;
     unsigned int tb_flags, synced_flags; /* tb dependent flags.  */
     unsigned int clear_imm;
+    int mem_index;
 
 #define JMP_NOJMP     0
 #define JMP_DIRECT    1
@@ -175,8 +176,7 @@ static bool trap_illegal(DisasContext *dc, bool cond)
  */
 static bool trap_userspace(DisasContext *dc, bool cond)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-    bool cond_user = cond && mem_index == MMU_USER_IDX;
+    bool cond_user = cond && dc->mem_index == MMU_USER_IDX;
 
     if (cond_user && (dc->tb_flags & MSR_EE)) {
         gen_raise_hw_excp(dc, ESR_EC_PRIVINSN);
@@ -968,7 +968,7 @@ static void dec_load(DisasContext *dc)
     TCGv addr;
     unsigned int size;
     bool rev = false, ex = false, ea = false;
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
+    int mem_index = dc->mem_index;
     MemOp mop;
 
     mop = dc->opcode & 3;
@@ -1077,7 +1077,7 @@ static void dec_store(DisasContext *dc)
     TCGLabel *swx_skip = NULL;
     unsigned int size;
     bool rev = false, ex = false, ea = false;
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
+    int mem_index = dc->mem_index;
     MemOp mop;
 
     mop = dc->opcode & 3;
@@ -1540,6 +1540,7 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->ext_imm = dc->base.tb->cs_base;
     dc->r0 = NULL;
     dc->r0_set = false;
+    dc->mem_index = cpu_mmu_index(&cpu->env, false);
 
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
     dc->base.max_insns = MIN(dc->base.max_insns, bound);
