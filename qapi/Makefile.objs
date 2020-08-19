@@ -1,25 +1,4 @@
-util-obj-y = qapi-visit-core.o qapi-dealloc-visitor.o qobject-input-visitor.o
-util-obj-y += qobject-output-visitor.o qmp-registry.o qmp-dispatch.o
-util-obj-y += string-input-visitor.o string-output-visitor.o
-util-obj-y += opts-visitor.o qapi-clone-visitor.o
-util-obj-y += qmp-event.o
-util-obj-y += qapi-util.o
-
-QAPI_COMMON_MODULES = audio authz block-core block char common control crypto
-QAPI_COMMON_MODULES += dump error introspect job machine migration misc
-QAPI_COMMON_MODULES += net pragma qdev qom rdma rocker run-state sockets tpm
-QAPI_COMMON_MODULES += trace transaction ui
 QAPI_TARGET_MODULES = machine-target misc-target
-QAPI_MODULES = $(QAPI_COMMON_MODULES) $(QAPI_TARGET_MODULES)
-
-util-obj-y += qapi-builtin-types.o
-util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-types-%.o)
-util-obj-y += qapi-builtin-visit.o
-util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-visit-%.o)
-util-obj-y += qapi-emit-events.o
-util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-events-%.o)
-
-common-obj-y = $(QAPI_COMMON_MODULES:%=qapi-commands-%.o)
 
 obj-y = qapi-introspect.o
 obj-y += $(QAPI_TARGET_MODULES:%=qapi-types-%.o)
@@ -34,5 +13,3 @@ obj-y += qapi-init-commands.o
 
 QAPI_MODULES_STORAGE_DAEMON = block-core char common control crypto
 QAPI_MODULES_STORAGE_DAEMON += introspect job qom sockets pragma transaction
-
-storage-daemon-obj-y += $(QAPI_MODULES_STORAGE_DAEMON:%=qapi-commands-%.o)

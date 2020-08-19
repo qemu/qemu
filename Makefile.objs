@@ -1,7 +1,5 @@
 #######################################################################
 # Common libraries for tools and emulators
-stub-obj-y = stubs/
-util-obj-y = crypto/ util/ qobject/ qapi/
 qom-obj-y = qom/
 
 #######################################################################
@@ -95,10 +93,6 @@ common-obj-y += disas/
 version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
 
 ######################################################################
-# tracing
-util-obj-y +=  trace/
-
-######################################################################
 # guest agent
 
 # FIXME: a few definitions from qapi/qapi-types.o and
@@ -123,92 +117,3 @@ vhost-user-gpu-obj-y = contrib/vhost-user-gpu/
 virtiofsd-obj-y = tools/virtiofsd/
 
 ######################################################################
-trace-events-subdirs =
-trace-events-subdirs += accel/kvm
-trace-events-subdirs += accel/tcg
-trace-events-subdirs += backends
-trace-events-subdirs += backends/tpm
-trace-events-subdirs += crypto
-trace-events-subdirs += monitor
-ifeq ($(CONFIG_USER_ONLY),y)
-trace-events-subdirs += linux-user
-endif
-ifeq ($(CONFIG_BLOCK),y)
-trace-events-subdirs += authz
-trace-events-subdirs += block
-trace-events-subdirs += io
-trace-events-subdirs += nbd
-trace-events-subdirs += scsi
-endif
-ifeq ($(CONFIG_SOFTMMU),y)
-trace-events-subdirs += audio
-trace-events-subdirs += chardev
-trace-events-subdirs += hw/9pfs
-trace-events-subdirs += hw/acpi
-trace-events-subdirs += hw/alpha
-trace-events-subdirs += hw/arm
-trace-events-subdirs += hw/audio
-trace-events-subdirs += hw/block
-trace-events-subdirs += hw/block/dataplane
-trace-events-subdirs += hw/char
-trace-events-subdirs += hw/dma
-trace-events-subdirs += hw/hppa
-trace-events-subdirs += hw/hyperv
-trace-events-subdirs += hw/i2c
-trace-events-subdirs += hw/i386
-trace-events-subdirs += hw/i386/xen
-trace-events-subdirs += hw/ide
-trace-events-subdirs += hw/input
-trace-events-subdirs += hw/intc
-trace-events-subdirs += hw/isa
-trace-events-subdirs += hw/mem
-trace-events-subdirs += hw/mips
-trace-events-subdirs += hw/misc
-trace-events-subdirs += hw/misc/macio
-trace-events-subdirs += hw/net
-trace-events-subdirs += hw/nvram
-trace-events-subdirs += hw/pci
-trace-events-subdirs += hw/pci-host
-trace-events-subdirs += hw/ppc
-trace-events-subdirs += hw/rdma
-trace-events-subdirs += hw/rdma/vmw
-trace-events-subdirs += hw/rtc
-trace-events-subdirs += hw/s390x
-trace-events-subdirs += hw/scsi
-trace-events-subdirs += hw/sd
-trace-events-subdirs += hw/sparc
-trace-events-subdirs += hw/sparc64
-trace-events-subdirs += hw/ssi
-trace-events-subdirs += hw/timer
-trace-events-subdirs += hw/tpm
-trace-events-subdirs += hw/usb
-trace-events-subdirs += hw/vfio
-trace-events-subdirs += hw/virtio
-trace-events-subdirs += hw/watchdog
-trace-events-subdirs += hw/xen
-trace-events-subdirs += hw/gpio
-trace-events-subdirs += hw/riscv
-trace-events-subdirs += migration
-trace-events-subdirs += net
-trace-events-subdirs += ui
-endif
-trace-events-subdirs += hw/core
-trace-events-subdirs += hw/display
-trace-events-subdirs += qapi
-trace-events-subdirs += qom
-trace-events-subdirs += target/arm
-trace-events-subdirs += target/hppa
-trace-events-subdirs += target/i386
-trace-events-subdirs += target/mips
-trace-events-subdirs += target/ppc
-trace-events-subdirs += target/riscv
-trace-events-subdirs += target/s390x
-trace-events-subdirs += target/sparc
-trace-events-subdirs += util
-
-trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
-
-trace-obj-y = trace-root.o
-trace-obj-$(CONFIG_TRACE_UST) += trace-ust-all.o
-trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace-root.o
-trace-obj-$(CONFIG_TRACE_DTRACE) += $(trace-events-subdirs:%=%/trace-dtrace.o)

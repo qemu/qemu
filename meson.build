@@ -4,6 +4,9 @@ project('qemu', ['c'], meson_version: '>=0.55.0',
 
 not_found = dependency('', required: false)
 keyval = import('unstable-keyval')
+ss = import('sourceset')
+
+cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
@@ -42,6 +45,197 @@ supported_cpus = ['ppc', 'ppc64', 's390x', 'sparc64', 'riscv32', 'riscv64', 'x86
 
 cpu = host_machine.cpu_family()
 targetos = host_machine.system()
+
+m = cc.find_library('m', required: false)
+util = cc.find_library('util', required: false)
+socket = []
+if targetos == 'windows'
+  socket = cc.find_library('ws2_32')
+endif
+glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
+                          link_args: config_host['GLIB_LIBS'].split())
+gio = not_found
+if 'CONFIG_GIO' in config_host
+  gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
+                           link_args: config_host['GIO_LIBS'].split())
+endif
+lttng = not_found
+if 'CONFIG_TRACE_UST' in config_host
+  lttng = declare_dependency(link_args: config_host['LTTNG_UST_LIBS'].split())
+endif
+urcubp = not_found
+if 'CONFIG_TRACE_UST' in config_host
+  urcubp = declare_dependency(link_args: config_host['URCU_BP_LIBS'].split())
+endif
+nettle = not_found
+if 'CONFIG_NETTLE' in config_host
+  nettle = declare_dependency(compile_args: config_host['NETTLE_CFLAGS'].split(),
+                              link_args: config_host['NETTLE_LIBS'].split())
+endif
+gnutls = not_found
+if 'CONFIG_GNUTLS' in config_host
+  gnutls = declare_dependency(compile_args: config_host['GNUTLS_CFLAGS'].split(),
+                              link_args: config_host['GNUTLS_LIBS'].split())
+endif
+
+target_dirs = config_host['TARGET_DIRS'].split()
+have_user = false
+have_system = false
+foreach target : target_dirs
+  have_user = have_user or target.endswith('-user')
+  have_system = have_system or target.endswith('-softmmu')
+endforeach
+have_tools = 'CONFIG_TOOLS' in config_host
+have_block = have_system or have_tools
+
+# Generators
+
+qapi_gen = find_program('scripts/qapi-gen.py')
+qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
+                     meson.source_root() / 'scripts/qapi/commands.py',
+                     meson.source_root() / 'scripts/qapi/common.py',
+                     meson.source_root() / 'scripts/qapi/doc.py',
+                     meson.source_root() / 'scripts/qapi/error.py',
+                     meson.source_root() / 'scripts/qapi/events.py',
+                     meson.source_root() / 'scripts/qapi/expr.py',
+                     meson.source_root() / 'scripts/qapi/gen.py',
+                     meson.source_root() / 'scripts/qapi/introspect.py',
+                     meson.source_root() / 'scripts/qapi/parser.py',
+                     meson.source_root() / 'scripts/qapi/schema.py',
+                     meson.source_root() / 'scripts/qapi/source.py',
+                     meson.source_root() / 'scripts/qapi/types.py',
+                     meson.source_root() / 'scripts/qapi/visit.py',
+                     meson.source_root() / 'scripts/qapi/common.py',
+                     meson.source_root() / 'scripts/qapi/doc.py',
+                     meson.source_root() / 'scripts/qapi-gen.py'
+]
+
+tracetool = [
+  python, files('scripts/tracetool.py'),
+   '--backend=' + config_host['TRACE_BACKENDS']
+]
+
+# Collect sourcesets.
+
+util_ss = ss.source_set()
+stub_ss = ss.source_set()
+trace_ss = ss.source_set()
+
+###############
+# Trace files #
+###############
+
+trace_events_subdirs = [
+  'accel/kvm',
+  'accel/tcg',
+  'crypto',
+  'monitor',
+]
+if have_user
+  trace_events_subdirs += [ 'linux-user' ]
+endif
+if have_block
+  trace_events_subdirs += [
+    'authz',
+    'block',
+    'io',
+    'nbd',
+    'scsi',
+  ]
+endif
+if have_system
+  trace_events_subdirs += [
+    'audio',
+    'backends',
+    'backends/tpm',
+    'chardev',
+    'hw/9pfs',
+    'hw/acpi',
+    'hw/alpha',
+    'hw/arm',
+    'hw/audio',
+    'hw/block',
+    'hw/block/dataplane',
+    'hw/char',
+    'hw/display',
+    'hw/dma',
+    'hw/hppa',
+    'hw/hyperv',
+    'hw/i2c',
+    'hw/i386',
+    'hw/i386/xen',
+    'hw/ide',
+    'hw/input',
+    'hw/intc',
+    'hw/isa',
+    'hw/mem',
+    'hw/mips',
+    'hw/misc',
+    'hw/misc/macio',
+    'hw/net',
+    'hw/nvram',
+    'hw/pci',
+    'hw/pci-host',
+    'hw/ppc',
+    'hw/rdma',
+    'hw/rdma/vmw',
+    'hw/rtc',
+    'hw/s390x',
+    'hw/scsi',
+    'hw/sd',
+    'hw/sparc',
+    'hw/sparc64',
+    'hw/ssi',
+    'hw/timer',
+    'hw/tpm',
+    'hw/usb',
+    'hw/vfio',
+    'hw/virtio',
+    'hw/watchdog',
+    'hw/xen',
+    'hw/gpio',
+    'hw/riscv',
+    'migration',
+    'net',
+    'ui',
+  ]
+endif
+trace_events_subdirs += [
+  'hw/core',
+  'qapi',
+  'qom',
+  'target/arm',
+  'target/hppa',
+  'target/i386',
+  'target/mips',
+  'target/ppc',
+  'target/riscv',
+  'target/s390x',
+  'target/sparc',
+  'util',
+]
+
+genh = []
+
+subdir('qapi')
+subdir('qobject')
+subdir('stubs')
+subdir('trace')
+subdir('util')
+subdir('crypto')
+subdir('storage-daemon')
+
+# Build targets from sourcesets
+
+stub_ss = stub_ss.apply(config_host, strict: false)
+
+util_ss.add_all(trace_ss)
+util_ss = util_ss.apply(config_host, strict: false)
+libqemuutil = static_library('qemuutil',
+                             sources: util_ss.sources() + stub_ss.sources() + genh,
+                             dependencies: [util_ss.dependencies(), m, glib, socket])
+qemuutil = declare_dependency(link_with: libqemuutil,
+                              sources: genh)
 
 summary_info = {}
 summary_info += {'Install prefix':    config_host['prefix']}

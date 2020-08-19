@@ -1,0 +1,121 @@
+util_ss.add(files(
+  'opts-visitor.c',
+  'qapi-clone-visitor.c',
+  'qapi-dealloc-visitor.c',
+  'qapi-util.c',
+  'qapi-visit-core.c',
+  'qmp-dispatch.c',
+  'qmp-event.c',
+  'qmp-registry.c',
+  'qobject-input-visitor.c',
+  'qobject-output-visitor.c',
+  'string-input-visitor.c',
+  'string-output-visitor.c',
+))
+
+qapi_all_modules = [
+  'audio',
+  'authz',
+  'block-core',
+  'block',
+  'char',
+  'common',
+  'control',
+  'crypto',
+  'dump',
+  'error',
+  'introspect',
+  'job',
+  'machine',
+  'machine-target',
+  'migration',
+  'misc',
+  'misc-target',
+  'net',
+  'pragma',
+  'qdev',
+  'qom',
+  'rdma',
+  'rocker',
+  'run-state',
+  'sockets',
+  'tpm',
+  'trace',
+  'transaction',
+  'ui',
+]
+
+qapi_storage_daemon_modules = [
+  'block-core',
+  'char',
+  'common',
+  'control',
+  'crypto',
+  'introspect',
+  'job',
+  'qom',
+  'sockets',
+  'pragma',
+  'transaction',
+]
+
+qapi_nonmodule_outputs = [
+  'qapi-introspect.c', 'qapi-introspect.h',
+  'qapi-types.c', 'qapi-types.h',
+  'qapi-visit.h', 'qapi-visit.c',
+  'qapi-commands.h', 'qapi-commands.c',
+  'qapi-init-commands.h', 'qapi-init-commands.c',
+  'qapi-events.h', 'qapi-events.c',
+  'qapi-emit-events.c', 'qapi-emit-events.h',
+]
+
+# First build all sources
+qapi_util_outputs = [
+  'qapi-builtin-types.c', 'qapi-builtin-visit.c',
+  'qapi-builtin-types.h', 'qapi-builtin-visit.h',
+]
+
+qapi_inputs = []
+qapi_specific_outputs = []
+foreach module : qapi_all_modules
+  qapi_inputs += [ files(module + '.json') ]
+  qapi_module_outputs = [
+    'qapi-types-@0@.c'.format(module),
+    'qapi-types-@0@.h'.format(module),
+    'qapi-visit-@0@.c'.format(module),
+    'qapi-visit-@0@.h'.format(module),
+    'qapi-events-@0@.c'.format(module),
+    'qapi-events-@0@.h'.format(module),
+    'qapi-commands-@0@.c'.format(module),
+    'qapi-commands-@0@.h'.format(module),
+  ]
+  if module.endswith('-target')
+    qapi_specific_outputs += qapi_module_outputs
+  else
+    qapi_util_outputs += qapi_module_outputs
+  endif
+endforeach
+
+qapi_files = custom_target('shared QAPI source files',
+  output: qapi_util_outputs + qapi_specific_outputs + qapi_nonmodule_outputs + ['qapi-doc.texi'],
+  input: [ files('qapi-schema.json') ],
+  command: [ qapi_gen, '-o', 'qapi', '-b', '@INPUT0@' ],
+  depend_files: [ qapi_inputs, qapi_gen_depends ])
+
+# Now go through all the outputs and add them to the right sourceset.
+# These loops must be synchronized with the output of the above custom target.
+
+i = 0
+foreach output : qapi_util_outputs
+  if output.endswith('.h')
+    genh += qapi_files[i]
+  endif
+  util_ss.add(qapi_files[i])
+  i = i + 1
+endforeach
+
+# These are still handled by the Makefile
+i += qapi_nonmodule_outputs.length()
+i += qapi_specific_outputs.length()
+
+qapi_doc_texi = qapi_files[i]

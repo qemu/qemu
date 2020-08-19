@@ -60,7 +60,7 @@ general. It is strongly preferred that all events be declared directly in
 the sub-directory that uses them. The only exception is where there are some
 shared trace events defined in the top level directory trace-events file.
 The top level directory generates trace files with a filename prefix of
-"trace-root" instead of just "trace". This is to avoid ambiguity between
+"trace/trace-root" instead of just "trace". This is to avoid ambiguity between
 a trace.h in the current directory, vs the top level directory.
 
 === Using trace events ===
