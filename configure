@@ -8219,6 +8219,9 @@ fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_target_mak
   echo "CONFIG_QEMU_INTERP_PREFIX=\"$interp_prefix1\"" >> $config_target_mak
+  symlink "../qemu-$target_name" "$target_dir/qemu-$target_name"
+else
+  symlink "../qemu-system-$target_name" "$target_dir/qemu-system-$target_name"
 fi
 if test "$target_linux_user" = "yes" ; then
   echo "CONFIG_LINUX_USER=y" >> $config_target_mak
