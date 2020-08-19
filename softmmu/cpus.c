@@ -166,34 +166,46 @@ void cpu_synchronize_all_pre_loadvm(void)
 
 void cpu_synchronize_state(CPUState *cpu)
 {
-    if (cpus_accel && cpus_accel->synchronize_state) {
+    if (cpus_accel->synchronize_state) {
         cpus_accel->synchronize_state(cpu);
     }
 }
 
 void cpu_synchronize_post_reset(CPUState *cpu)
 {
-    if (cpus_accel && cpus_accel->synchronize_post_reset) {
+    if (cpus_accel->synchronize_post_reset) {
         cpus_accel->synchronize_post_reset(cpu);
     }
 }
 
 void cpu_synchronize_post_init(CPUState *cpu)
 {
-    if (cpus_accel && cpus_accel->synchronize_post_init) {
+    if (cpus_accel->synchronize_post_init) {
         cpus_accel->synchronize_post_init(cpu);
     }
 }
 
 void cpu_synchronize_pre_loadvm(CPUState *cpu)
 {
-    if (cpus_accel && cpus_accel->synchronize_pre_loadvm) {
+    if (cpus_accel->synchronize_pre_loadvm) {
         cpus_accel->synchronize_pre_loadvm(cpu);
     }
 }
 
 int64_t cpus_get_virtual_clock(void)
 {
+    /*
+     * XXX
+     *
+     * need to check that cpus_accel is not NULL, because qcow2 calls
+     * qemu_get_clock_ns(CLOCK_VIRTUAL) without any accel initialized and
+     * with ticks disabled in some io-tests:
+     * 030 040 041 060 099 120 127 140 156 161 172 181 191 192 195 203 229 249 256 267
+     *
+     * is this expected?
+     *
+     * XXX
+     */
     if (cpus_accel && cpus_accel->get_virtual_clock) {
         return cpus_accel->get_virtual_clock();
     }
@@ -207,7 +219,7 @@ int64_t cpus_get_virtual_clock(void)
  */
 int64_t cpus_get_elapsed_ticks(void)
 {
-    if (cpus_accel && cpus_accel->get_elapsed_ticks) {
+    if (cpus_accel->get_elapsed_ticks) {
         return cpus_accel->get_elapsed_ticks();
     }
     return cpu_get_ticks();
@@ -399,7 +411,7 @@ void cpus_kick_thread(CPUState *cpu)
 void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
-    if (cpus_accel && cpus_accel->kick_vcpu_thread) {
+    if (cpus_accel->kick_vcpu_thread) {
         cpus_accel->kick_vcpu_thread(cpu);
     } else { /* default */
         cpus_kick_thread(cpu);
@@ -573,12 +585,9 @@ void qemu_init_vcpu(CPUState *cpu)
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
 
-    if (cpus_accel) {
-        /* accelerator already implements the CpusAccel interface */
-        cpus_accel->create_vcpu_thread(cpu);
-    } else {
-        g_assert_not_reached();
-    }
+    /* accelerators all implement the CpusAccel interface */
+    g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
+    cpus_accel->create_vcpu_thread(cpu);
 
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
