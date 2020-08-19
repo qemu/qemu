@@ -318,6 +318,14 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
     { return do_typeb_val(dc, a, SE, FN); }
 
+#define ENV_WRAPPER2(NAME, HELPER) \
+    static void NAME(TCGv_i32 out, TCGv_i32 ina) \
+    { HELPER(out, cpu_env, ina); }
+
+#define ENV_WRAPPER3(NAME, HELPER) \
+    static void NAME(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb) \
+    { HELPER(out, cpu_env, ina, inb); }
+
 /* No input carry, but output carry. */
 static void gen_add(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
@@ -464,6 +472,39 @@ static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 DO_TYPEA(cmp, false, gen_cmp)
 DO_TYPEA(cmpu, false, gen_cmpu)
 
+ENV_WRAPPER3(gen_fadd, gen_helper_fadd)
+ENV_WRAPPER3(gen_frsub, gen_helper_frsub)
+ENV_WRAPPER3(gen_fmul, gen_helper_fmul)
+ENV_WRAPPER3(gen_fdiv, gen_helper_fdiv)
+ENV_WRAPPER3(gen_fcmp_un, gen_helper_fcmp_un)
+ENV_WRAPPER3(gen_fcmp_lt, gen_helper_fcmp_lt)
+ENV_WRAPPER3(gen_fcmp_eq, gen_helper_fcmp_eq)
+ENV_WRAPPER3(gen_fcmp_le, gen_helper_fcmp_le)
+ENV_WRAPPER3(gen_fcmp_gt, gen_helper_fcmp_gt)
+ENV_WRAPPER3(gen_fcmp_ne, gen_helper_fcmp_ne)
+ENV_WRAPPER3(gen_fcmp_ge, gen_helper_fcmp_ge)
+
+DO_TYPEA_CFG(fadd, use_fpu, true, gen_fadd)
+DO_TYPEA_CFG(frsub, use_fpu, true, gen_frsub)
+DO_TYPEA_CFG(fmul, use_fpu, true, gen_fmul)
+DO_TYPEA_CFG(fdiv, use_fpu, true, gen_fdiv)
+DO_TYPEA_CFG(fcmp_un, use_fpu, true, gen_fcmp_un)
+DO_TYPEA_CFG(fcmp_lt, use_fpu, true, gen_fcmp_lt)
+DO_TYPEA_CFG(fcmp_eq, use_fpu, true, gen_fcmp_eq)
+DO_TYPEA_CFG(fcmp_le, use_fpu, true, gen_fcmp_le)
+DO_TYPEA_CFG(fcmp_gt, use_fpu, true, gen_fcmp_gt)
+DO_TYPEA_CFG(fcmp_ne, use_fpu, true, gen_fcmp_ne)
+DO_TYPEA_CFG(fcmp_ge, use_fpu, true, gen_fcmp_ge)
+
+ENV_WRAPPER2(gen_flt, gen_helper_flt)
+ENV_WRAPPER2(gen_fint, gen_helper_fint)
+ENV_WRAPPER2(gen_fsqrt, gen_helper_fsqrt)
+
+DO_TYPEA0_CFG(flt, use_fpu >= 2, true, gen_flt)
+DO_TYPEA0_CFG(fint, use_fpu >= 2, true, gen_fint)
+DO_TYPEA0_CFG(fsqrt, use_fpu >= 2, true, gen_fsqrt)
+
+/* Does not use ENV_WRAPPER3, because arguments are swapped as well. */
 static void gen_idiv(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
     gen_helper_divs(out, cpu_env, inb, ina);
@@ -1403,116 +1444,6 @@ static void dec_rts(DisasContext *dc)
     tcg_gen_add_i32(cpu_btarget, cpu_R[dc->ra], *dec_alu_op_b(dc));
 }
 
-static int dec_check_fpuv2(DisasContext *dc)
-{
-    if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
-        gen_raise_hw_excp(dc, ESR_EC_FPU);
-    }
-    return (dc->cpu->cfg.use_fpu == 2) ? PVR2_USE_FPU2_MASK : 0;
-}
-
-static void dec_fpu(DisasContext *dc)
-{
-    unsigned int fpu_insn;
-
-    if (trap_illegal(dc, !dc->cpu->cfg.use_fpu)) {
-        return;
-    }
-
-    fpu_insn = (dc->ir >> 7) & 7;
-
-    switch (fpu_insn) {
-        case 0:
-            gen_helper_fadd(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
-                            cpu_R[dc->rb]);
-            break;
-
-        case 1:
-            gen_helper_frsub(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
-                             cpu_R[dc->rb]);
-            break;
-
-        case 2:
-            gen_helper_fmul(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
-                            cpu_R[dc->rb]);
-            break;
-
-        case 3:
-            gen_helper_fdiv(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
-                            cpu_R[dc->rb]);
-            break;
-
-        case 4:
-            switch ((dc->ir >> 4) & 7) {
-                case 0:
-                    gen_helper_fcmp_un(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 1:
-                    gen_helper_fcmp_lt(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 2:
-                    gen_helper_fcmp_eq(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 3:
-                    gen_helper_fcmp_le(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 4:
-                    gen_helper_fcmp_gt(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 5:
-                    gen_helper_fcmp_ne(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                case 6:
-                    gen_helper_fcmp_ge(cpu_R[dc->rd], cpu_env,
-                                       cpu_R[dc->ra], cpu_R[dc->rb]);
-                    break;
-                default:
-                    qemu_log_mask(LOG_UNIMP,
-                                  "unimplemented fcmp fpu_insn=%x pc=%x"
-                                  " opc=%x\n",
-                                  fpu_insn, (uint32_t)dc->base.pc_next,
-                                  dc->opcode);
-                    dc->abort_at_next_insn = 1;
-                    break;
-            }
-            break;
-
-        case 5:
-            if (!dec_check_fpuv2(dc)) {
-                return;
-            }
-            gen_helper_flt(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
-            break;
-
-        case 6:
-            if (!dec_check_fpuv2(dc)) {
-                return;
-            }
-            gen_helper_fint(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
-            break;
-
-        case 7:
-            if (!dec_check_fpuv2(dc)) {
-                return;
-            }
-            gen_helper_fsqrt(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
-            break;
-
-        default:
-            qemu_log_mask(LOG_UNIMP, "unimplemented FPU insn fpu_insn=%x pc=%x"
-                          " opc=%x\n",
-                          fpu_insn, (uint32_t)dc->base.pc_next, dc->opcode);
-            dc->abort_at_next_insn = 1;
-            break;
-    }
-}
-
 static void dec_null(DisasContext *dc)
 {
     if (trap_illegal(dc, true)) {
@@ -1565,7 +1496,6 @@ static struct decoder_info {
     {DEC_BR, dec_br},
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
-    {DEC_FPU, dec_fpu},
     {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}

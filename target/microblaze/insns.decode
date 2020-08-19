@@ -76,6 +76,25 @@ clz             100100 ..... ..... 00000 000 1110 0000  @typea0
 cmp             000101 ..... ..... ..... 000 0000 0001  @typea
 cmpu            000101 ..... ..... ..... 000 0000 0011  @typea
 
+fadd            010110 ..... ..... ..... 0000 000 0000  @typea
+frsub           010110 ..... ..... ..... 0001 000 0000  @typea
+fmul            010110 ..... ..... ..... 0010 000 0000  @typea
+fdiv            010110 ..... ..... ..... 0011 000 0000  @typea
+fcmp_un         010110 ..... ..... ..... 0100 000 0000  @typea
+fcmp_lt         010110 ..... ..... ..... 0100 001 0000  @typea
+fcmp_eq         010110 ..... ..... ..... 0100 010 0000  @typea
+fcmp_le         010110 ..... ..... ..... 0100 011 0000  @typea
+fcmp_gt         010110 ..... ..... ..... 0100 100 0000  @typea
+fcmp_ne         010110 ..... ..... ..... 0100 101 0000  @typea
+fcmp_ge         010110 ..... ..... ..... 0100 110 0000  @typea
+
+# Note that flt and fint, unlike fsqrt, are documented as having the RB
+# operand which is unused.  So allow the field to be non-zero but discard
+# the value and treat as 2-operand insns.
+flt             010110 ..... ..... ----- 0101 000 0000  @typea0
+fint            010110 ..... ..... ----- 0110 000 0000  @typea0
+fsqrt           010110 ..... ..... 00000 0111 000 0000  @typea0
+
 idiv            010010 ..... ..... ..... 000 0000 0000  @typea
 idivu           010010 ..... ..... ..... 000 0000 0010  @typea
 
