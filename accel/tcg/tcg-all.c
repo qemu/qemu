@@ -29,6 +29,7 @@
 #include "qom/object.h"
 #include "cpu.h"
 #include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/main-loop.h"
 #include "tcg/tcg.h"
 #include "qapi/error.h"
@@ -66,7 +67,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
         qemu_cpu_kick(cpu);
     } else {
         qatomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
-        if (use_icount &&
+        if (icount_enabled() &&
             !cpu->can_do_io
             && (mask & ~old_mask) != 0) {
             cpu_abort(cpu, "Raised interrupt while not in I/O function");
@@ -105,7 +106,7 @@ static bool check_tcg_memory_orders_compatible(void)
 
 static bool default_mttcg_enabled(void)
 {
-    if (use_icount || TCG_OVERSIZED_GUEST) {
+    if (icount_enabled() || TCG_OVERSIZED_GUEST) {
         return false;
     } else {
 #ifdef TARGET_SUPPORTS_MTTCG
@@ -147,7 +148,7 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
     if (strcmp(value, "multi") == 0) {
         if (TCG_OVERSIZED_GUEST) {
             error_setg(errp, "No MTTCG when guest word size > hosts");
-        } else if (use_icount) {
+        } else if (icount_enabled()) {
             error_setg(errp, "No MTTCG when icount is enabled");
         } else {
 #ifndef TARGET_SUPPORTS_MTTCG

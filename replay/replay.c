@@ -11,10 +11,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"
 #include "replay-internal.h"
-#include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "sysemu/cpus.h"
@@ -345,7 +345,7 @@ void replay_start(void)
         error_reportf_err(replay_blockers->data, "Record/replay: ");
         exit(1);
     }
-    if (!use_icount) {
+    if (!icount_enabled()) {
         error_report("Please enable icount to use record/replay");
         exit(1);
     }
