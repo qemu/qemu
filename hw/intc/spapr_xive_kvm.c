@@ -146,6 +146,15 @@ int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
     return s.ret;
 }
 
+static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, Error **errp)
+{
+    unsigned long ipi = kvm_arch_vcpu_id(cs);
+    uint64_t state = 0;
+
+    return kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE, ipi,
+                              &state, true, errp);
+}
+
 int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
     ERRP_GUARD();
@@ -172,6 +181,12 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
             error_append_hint(errp, "Try -smp maxcpus=N with N < %u\n",
                               MACHINE(qdev_get_machine())->smp.max_cpus);
         }
+        return ret;
+    }
+
+    /* Create/reset the vCPU IPI */
+    ret = kvmppc_xive_reset_ipi(xive, tctx->cs, errp);
+    if (ret < 0) {
         return ret;
     }
 
@@ -234,6 +249,12 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
 
     assert(xive->fd != -1);
 
+    /*
+     * The vCPU IPIs are now allocated in kvmppc_xive_cpu_connect()
+     * and not with all sources in kvmppc_xive_source_reset()
+     */
+    assert(srcno >= SPAPR_XIRQ_BASE);
+
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
         state |= KVM_XIVE_LEVEL_SENSITIVE;
         if (xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
@@ -245,12 +266,28 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
                              true, errp);
 }
 
+/*
+ * To be valid, a source must have been claimed by the machine (valid
+ * entry in the EAS table) and if it is a vCPU IPI, the vCPU should
+ * have been enabled, which means the IPI has been allocated in
+ * kvmppc_xive_cpu_connect().
+ */
+static bool xive_source_is_valid(SpaprXive *xive, int i)
+{
+    return xive_eas_is_valid(&xive->eat[i]) &&
+        (i >= SPAPR_XIRQ_BASE || kvm_cpu_is_enabled(i));
+}
+
 static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
-    for (i = 0; i < xsrc->nr_irqs; i++) {
+    /*
+     * Skip the vCPU IPIs. These are created/reset when the vCPUs are
+     * connected in kvmppc_xive_cpu_connect()
+     */
+    for (i = SPAPR_XIRQ_BASE; i < xsrc->nr_irqs; i++) {
         int ret;
 
         if (!xive_eas_is_valid(&xive->eat[i])) {
@@ -332,7 +369,7 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_valid(xive, i)) {
             continue;
         }
 
@@ -515,7 +552,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
             uint8_t pq;
             uint8_t old_pq;
 
-            if (!xive_eas_is_valid(&xive->eat[i])) {
+            if (!xive_source_is_valid(xive, i)) {
                 continue;
             }
 
@@ -543,7 +580,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_valid(xive, i)) {
             continue;
         }
 
@@ -658,7 +695,7 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
 
     /* Restore the EAT */
     for (i = 0; i < xive->nr_irqs; i++) {
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_valid(xive, i)) {
             continue;
         }
 
