@@ -1,3 +1,9 @@
+====================
+QEMU for AFLplusplus
+====================
+
+This fork of QEMU enable fuzzing userspace ELF binaries under AFL++.
+
 ===========
 QEMU README
 ===========
