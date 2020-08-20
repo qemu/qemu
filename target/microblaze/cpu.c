@@ -121,9 +121,9 @@ static void mb_cpu_reset(DeviceState *dev)
 
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
-    env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
+    env->msr = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
 #else
-    env->sregs[SR_MSR] = 0;
+    env->msr = 0;
     mmu_init(&env->mmu);
     env->mmu.c_mmu = 3;
     env->mmu.c_mmu_tlb_access = 3;

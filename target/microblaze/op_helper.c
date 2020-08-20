@@ -78,14 +78,14 @@ void helper_debug(CPUMBState *env)
     qemu_log("PC=%" PRIx64 "\n", env->pc);
     qemu_log("rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
              "debug[%x] imm=%x iflags=%x\n",
-             env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
+             env->msr, env->sregs[SR_ESR], env->sregs[SR_EAR],
              env->debug, env->imm, env->iflags);
     qemu_log("btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
-             (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
-             (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
-             (bool)(env->sregs[SR_MSR] & MSR_EIP),
-             (bool)(env->sregs[SR_MSR] & MSR_IE));
+             (env->msr & MSR_UM) ? "user" : "kernel",
+             (env->msr & MSR_UMS) ? "user" : "kernel",
+             (bool)(env->msr & MSR_EIP),
+             (bool)(env->msr & MSR_IE));
     for (i = 0; i < 32; i++) {
         qemu_log("r%2.2d=%8.8x ", i, env->regs[i]);
         if ((i + 1) % 4 == 0)
@@ -135,15 +135,15 @@ static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
     MicroBlazeCPU *cpu = env_archcpu(env);
 
     if (b == 0) {
-        env->sregs[SR_MSR] |= MSR_DZ;
+        env->msr |= MSR_DZ;
 
-        if ((env->sregs[SR_MSR] & MSR_EE) && cpu->cfg.div_zero_exception) {
+        if ((env->msr & MSR_EE) && cpu->cfg.div_zero_exception) {
             env->sregs[SR_ESR] = ESR_EC_DIVZERO;
             helper_raise_exception(env, EXCP_HW_EXCP);
         }
         return 0;
     }
-    env->sregs[SR_MSR] &= ~MSR_DZ;
+    env->msr &= ~MSR_DZ;
     return 1;
 }
 
@@ -192,7 +192,7 @@ static void update_fpu_flags(CPUMBState *env, int flags)
     }
     if (raise
         && (env->pvr.regs[2] & PVR2_FPU_EXC_MASK)
-        && (env->sregs[SR_MSR] & MSR_EE)) {
+        && (env->msr & MSR_EE)) {
         raise_fpu_exception(env);
     }
 }
@@ -437,7 +437,7 @@ void helper_memalign(CPUMBState *env, target_ulong addr,
             if (mask == 3) {
                 env->sregs[SR_ESR] |= 1 << 11;
             }
-            if (!(env->sregs[SR_MSR] & MSR_EE)) {
+            if (!(env->msr & MSR_EE)) {
                 return;
             }
             helper_raise_exception(env, EXCP_HW_EXCP);
@@ -484,7 +484,7 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     env = &cpu->env;
 
     cpu_restore_state(cs, retaddr, true);
-    if (!(env->sregs[SR_MSR] & MSR_EE)) {
+    if (!(env->msr & MSR_EE)) {
         return;
     }
 

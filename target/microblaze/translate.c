@@ -1809,16 +1809,16 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
                  "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
                  "rbtr=%" PRIx64 "\n",
-                 env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
+                 env->msr, env->sregs[SR_ESR], env->sregs[SR_EAR],
                  env->debug, env->imm, env->iflags, env->sregs[SR_FSR],
                  env->sregs[SR_BTR]);
     qemu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
                  "eip=%d ie=%d\n",
                  env->btaken, env->btarget,
-                 (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
-                 (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
-                 (bool)(env->sregs[SR_MSR] & MSR_EIP),
-                 (bool)(env->sregs[SR_MSR] & MSR_IE));
+                 (env->msr & MSR_UM) ? "user" : "kernel",
+                 (env->msr & MSR_UMS) ? "user" : "kernel",
+                 (bool)(env->msr & MSR_EIP),
+                 (bool)(env->msr & MSR_IE));
     for (i = 0; i < 12; i++) {
         qemu_fprintf(f, "rpvr%2.2d=%8.8x ", i, env->pvr.regs[i]);
         if ((i + 1) % 4 == 0) {
@@ -1871,8 +1871,10 @@ void mb_tcg_init(void)
 
     cpu_SR[SR_PC] =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, pc), "rpc");
+    cpu_SR[SR_MSR] =
+        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, msr), "rmsr");
 
-    for (i = 1; i < ARRAY_SIZE(cpu_SR); i++) {
+    for (i = SR_MSR + 1; i < ARRAY_SIZE(cpu_SR); i++) {
         cpu_SR[i] = tcg_global_mem_new_i64(cpu_env,
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
