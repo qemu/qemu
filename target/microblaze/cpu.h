@@ -238,6 +238,7 @@ struct CPUMBState {
     uint32_t regs[32];
     uint64_t pc;
     uint64_t msr;
+    uint64_t ear;
     uint64_t sregs[14];
     float_status fp_status;
     /* Stack protectors. Yes, it's a hw feature.  */
