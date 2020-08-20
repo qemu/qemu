@@ -240,7 +240,7 @@ struct CPUMBState {
     uint32_t msr;
     uint64_t ear;
     uint32_t esr;
-    uint64_t fsr;
+    uint32_t fsr;
     uint64_t btr;
     uint64_t edr;
     float_status fp_status;
