@@ -105,6 +105,17 @@ static inline void t_sync_flags(DisasContext *dc)
     }
 }
 
+static inline void sync_jmpstate(DisasContext *dc)
+{
+    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
+        if (dc->jmp == JMP_DIRECT) {
+            tcg_gen_movi_i32(cpu_btaken, 1);
+        }
+        dc->jmp = JMP_INDIRECT;
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
+    }
+}
+
 static void gen_raise_exception(DisasContext *dc, uint32_t index)
 {
     TCGv_i32 tmp = tcg_const_i32(index);
@@ -668,6 +679,419 @@ static bool trans_wdic(DisasContext *dc, arg_wdic *a)
 DO_TYPEA(xor, false, tcg_gen_xor_i32)
 DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
+static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
+{
+    TCGv ret = tcg_temp_new();
+
+    /* If any of the regs is r0, set t to the value of the other reg.  */
+    if (ra && rb) {
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_add_i32(tmp, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_extu_i32_tl(ret, tmp);
+        tcg_temp_free_i32(tmp);
+    } else if (ra) {
+        tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
+    } else if (rb) {
+        tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+    } else {
+        tcg_gen_movi_tl(ret, 0);
+    }
+
+    if ((ra == 1 || rb == 1) && dc->cpu->cfg.stackprot) {
+        gen_helper_stackprot(cpu_env, ret);
+    }
+    return ret;
+}
+
+static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
+{
+    TCGv ret = tcg_temp_new();
+
+    /* If any of the regs is r0, set t to the value of the other reg.  */
+    if (ra) {
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_addi_i32(tmp, cpu_R[ra], imm);
+        tcg_gen_extu_i32_tl(ret, tmp);
+        tcg_temp_free_i32(tmp);
+    } else {
+        tcg_gen_movi_tl(ret, (uint32_t)imm);
+    }
+
+    if (ra == 1 && dc->cpu->cfg.stackprot) {
+        gen_helper_stackprot(cpu_env, ret);
+    }
+    return ret;
+}
+
+static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
+{
+    int addr_size = dc->cpu->cfg.addr_size;
+    TCGv ret = tcg_temp_new();
+
+    if (addr_size == 32 || ra == 0) {
+        if (rb) {
+            tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+        } else {
+            tcg_gen_movi_tl(ret, 0);
+        }
+    } else {
+        if (rb) {
+            tcg_gen_concat_i32_i64(ret, cpu_R[rb], cpu_R[ra]);
+        } else {
+            tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
+            tcg_gen_shli_tl(ret, ret, 32);
+        }
+        if (addr_size < 64) {
+            /* Mask off out of range bits.  */
+            tcg_gen_andi_i64(ret, ret, MAKE_64BIT_MASK(0, addr_size));
+        }
+    }
+    return ret;
+}
+
+static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
+                    int mem_index, bool rev)
+{
+    TCGv_i32 v;
+    MemOp size = mop & MO_SIZE;
+
+    /*
+     * When doing reverse accesses we need to do two things.
+     *
+     * 1. Reverse the address wrt endianness.
+     * 2. Byteswap the data lanes on the way back into the CPU core.
+     */
+    if (rev) {
+        if (size > MO_8) {
+            mop ^= MO_BSWAP;
+        }
+        if (size < MO_32) {
+            tcg_gen_xori_tl(addr, addr, 3 - size);
+        }
+    }
+
+    t_sync_flags(dc);
+    sync_jmpstate(dc);
+
+    /*
+     * Microblaze gives MMU faults priority over faults due to
+     * unaligned addresses. That's why we speculatively do the load
+     * into v. If the load succeeds, we verify alignment of the
+     * address and if that succeeds we write into the destination reg.
+     */
+    v = tcg_temp_new_i32();
+    tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
+
+    /* TODO: Convert to CPUClass::do_unaligned_access.  */
+    if (dc->cpu->cfg.unaligned_exceptions && size > MO_8) {
+        TCGv_i32 t0 = tcg_const_i32(0);
+        TCGv_i32 treg = tcg_const_i32(rd);
+        TCGv_i32 tsize = tcg_const_i32((1 << size) - 1);
+
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
+        gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
+
+        tcg_temp_free_i32(t0);
+        tcg_temp_free_i32(treg);
+        tcg_temp_free_i32(tsize);
+    }
+
+    if (rd) {
+        tcg_gen_mov_i32(cpu_R[rd], v);
+    }
+
+    tcg_temp_free_i32(v);
+    tcg_temp_free(addr);
+    return true;
+}
+
+static bool trans_lbu(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+}
+
+static bool trans_lbur(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
+}
+
+static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_lbui(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+}
+
+static bool trans_lhu(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUW, dc->mem_index, false);
+}
+
+static bool trans_lhur(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUW, dc->mem_index, true);
+}
+
+static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUW, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_lhui(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_load(dc, arg->rd, addr, MO_TEUW, dc->mem_index, false);
+}
+
+static bool trans_lw(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUL, dc->mem_index, false);
+}
+
+static bool trans_lwr(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUL, dc->mem_index, true);
+}
+
+static bool trans_lwea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_load(dc, arg->rd, addr, MO_TEUL, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_lwi(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_load(dc, arg->rd, addr, MO_TEUL, dc->mem_index, false);
+}
+
+static bool trans_lwx(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+
+    /* lwx does not throw unaligned access errors, so force alignment */
+    tcg_gen_andi_tl(addr, addr, ~3);
+
+    t_sync_flags(dc);
+    sync_jmpstate(dc);
+
+    tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index, MO_TEUL);
+    tcg_gen_mov_tl(cpu_res_addr, addr);
+    tcg_temp_free(addr);
+
+    if (arg->rd) {
+        tcg_gen_mov_i32(cpu_R[arg->rd], cpu_res_val);
+    }
+
+    /* No support for AXI exclusive so always clear C */
+    tcg_gen_movi_i32(cpu_msr_c, 0);
+    return true;
+}
+
+static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
+                     int mem_index, bool rev)
+{
+    MemOp size = mop & MO_SIZE;
+
+    /*
+     * When doing reverse accesses we need to do two things.
+     *
+     * 1. Reverse the address wrt endianness.
+     * 2. Byteswap the data lanes on the way back into the CPU core.
+     */
+    if (rev) {
+        if (size > MO_8) {
+            mop ^= MO_BSWAP;
+        }
+        if (size < MO_32) {
+            tcg_gen_xori_tl(addr, addr, 3 - size);
+        }
+    }
+
+    t_sync_flags(dc);
+    sync_jmpstate(dc);
+
+    tcg_gen_qemu_st_i32(reg_for_read(dc, rd), addr, mem_index, mop);
+
+    /* TODO: Convert to CPUClass::do_unaligned_access.  */
+    if (dc->cpu->cfg.unaligned_exceptions && size > MO_8) {
+        TCGv_i32 t1 = tcg_const_i32(1);
+        TCGv_i32 treg = tcg_const_i32(rd);
+        TCGv_i32 tsize = tcg_const_i32((1 << size) - 1);
+
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
+        /* FIXME: if the alignment is wrong, we should restore the value
+         *        in memory. One possible way to achieve this is to probe
+         *        the MMU prior to the memaccess, thay way we could put
+         *        the alignment checks in between the probe and the mem
+         *        access.
+         */
+        gen_helper_memalign(cpu_env, addr, treg, t1, tsize);
+
+        tcg_temp_free_i32(t1);
+        tcg_temp_free_i32(treg);
+        tcg_temp_free_i32(tsize);
+    }
+
+    tcg_temp_free(addr);
+    return true;
+}
+
+static bool trans_sb(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+}
+
+static bool trans_sbr(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
+}
+
+static bool trans_sbea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_sbi(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
+}
+
+static bool trans_sh(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUW, dc->mem_index, false);
+}
+
+static bool trans_shr(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUW, dc->mem_index, true);
+}
+
+static bool trans_shea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUW, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_shi(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_store(dc, arg->rd, addr, MO_TEUW, dc->mem_index, false);
+}
+
+static bool trans_sw(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUL, dc->mem_index, false);
+}
+
+static bool trans_swr(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUL, dc->mem_index, true);
+}
+
+static bool trans_swea(DisasContext *dc, arg_typea *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    return do_store(dc, arg->rd, addr, MO_TEUL, MMU_NOMMU_IDX, false);
+}
+
+static bool trans_swi(DisasContext *dc, arg_typeb *arg)
+{
+    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    return do_store(dc, arg->rd, addr, MO_TEUL, dc->mem_index, false);
+}
+
+static bool trans_swx(DisasContext *dc, arg_typea *arg)
+{
+    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGLabel *swx_done = gen_new_label();
+    TCGLabel *swx_fail = gen_new_label();
+    TCGv_i32 tval;
+
+    t_sync_flags(dc);
+    sync_jmpstate(dc);
+
+    /* swx does not throw unaligned access errors, so force alignment */
+    tcg_gen_andi_tl(addr, addr, ~3);
+
+    /*
+     * Compare the address vs the one we used during lwx.
+     * On mismatch, the operation fails.  On match, addr dies at the
+     * branch, but we know we can use the equal version in the global.
+     * In either case, addr is no longer needed.
+     */
+    tcg_gen_brcond_tl(TCG_COND_NE, cpu_res_addr, addr, swx_fail);
+    tcg_temp_free(addr);
+
+    /*
+     * Compare the value loaded during lwx with current contents of
+     * the reserved location.
+     */
+    tval = tcg_temp_new_i32();
+
+    tcg_gen_atomic_cmpxchg_i32(tval, cpu_res_addr, cpu_res_val,
+                               reg_for_write(dc, arg->rd),
+                               dc->mem_index, MO_TEUL);
+
+    tcg_gen_brcond_i32(TCG_COND_NE, cpu_res_val, tval, swx_fail);
+    tcg_temp_free_i32(tval);
+
+    /* Success */
+    tcg_gen_movi_i32(cpu_msr_c, 0);
+    tcg_gen_br(swx_done);
+
+    /* Failure */
+    gen_set_label(swx_fail);
+    tcg_gen_movi_i32(cpu_msr_c, 1);
+
+    gen_set_label(swx_done);
+
+    /*
+     * Prevent the saved address from working again without another ldx.
+     * Akin to the pseudocode setting reservation = 0.
+     */
+    tcg_gen_movi_tl(cpu_res_addr, -1);
+    return true;
+}
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -885,303 +1309,6 @@ static void dec_msr(DisasContext *dc)
     if (dc->rd == 0) {
         tcg_gen_movi_i32(cpu_R[0], 0);
     }
-}
-
-static inline void sync_jmpstate(DisasContext *dc)
-{
-    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
-        if (dc->jmp == JMP_DIRECT) {
-            tcg_gen_movi_i32(cpu_btaken, 1);
-        }
-        dc->jmp = JMP_INDIRECT;
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
-    }
-}
-
-static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
-{
-    /* Should be set to true if r1 is used by loadstores.  */
-    bool stackprot = false;
-    TCGv_i32 t32;
-
-    /* All load/stores use ra.  */
-    if (dc->ra == 1 && dc->cpu->cfg.stackprot) {
-        stackprot = true;
-    }
-
-    /* Treat the common cases first.  */
-    if (!dc->type_b) {
-        if (ea) {
-            int addr_size = dc->cpu->cfg.addr_size;
-
-            if (addr_size == 32) {
-                tcg_gen_extu_i32_tl(t, cpu_R[dc->rb]);
-                return;
-            }
-
-            tcg_gen_concat_i32_i64(t, cpu_R[dc->rb], cpu_R[dc->ra]);
-            if (addr_size < 64) {
-                /* Mask off out of range bits.  */
-                tcg_gen_andi_i64(t, t, MAKE_64BIT_MASK(0, addr_size));
-            }
-            return;
-        }
-
-        /* If any of the regs is r0, set t to the value of the other reg.  */
-        if (dc->ra == 0) {
-            tcg_gen_extu_i32_tl(t, cpu_R[dc->rb]);
-            return;
-        } else if (dc->rb == 0) {
-            tcg_gen_extu_i32_tl(t, cpu_R[dc->ra]);
-            return;
-        }
-
-        if (dc->rb == 1 && dc->cpu->cfg.stackprot) {
-            stackprot = true;
-        }
-
-        t32 = tcg_temp_new_i32();
-        tcg_gen_add_i32(t32, cpu_R[dc->ra], cpu_R[dc->rb]);
-        tcg_gen_extu_i32_tl(t, t32);
-        tcg_temp_free_i32(t32);
-
-        if (stackprot) {
-            gen_helper_stackprot(cpu_env, t);
-        }
-        return;
-    }
-    /* Immediate.  */
-    t32 = tcg_temp_new_i32();
-    tcg_gen_addi_i32(t32, cpu_R[dc->ra], dec_alu_typeb_imm(dc));
-    tcg_gen_extu_i32_tl(t, t32);
-    tcg_temp_free_i32(t32);
-
-    if (stackprot) {
-        gen_helper_stackprot(cpu_env, t);
-    }
-    return;
-}
-
-static void dec_load(DisasContext *dc)
-{
-    TCGv_i32 v;
-    TCGv addr;
-    unsigned int size;
-    bool rev = false, ex = false, ea = false;
-    int mem_index = dc->mem_index;
-    MemOp mop;
-
-    mop = dc->opcode & 3;
-    size = 1 << mop;
-    if (!dc->type_b) {
-        ea = extract32(dc->ir, 7, 1);
-        rev = extract32(dc->ir, 9, 1);
-        ex = extract32(dc->ir, 10, 1);
-    }
-    mop |= MO_TE;
-    if (rev) {
-        mop ^= MO_BSWAP;
-    }
-
-    if (trap_illegal(dc, size > 4)) {
-        return;
-    }
-
-    if (trap_userspace(dc, ea)) {
-        return;
-    }
-
-    t_sync_flags(dc);
-    addr = tcg_temp_new();
-    compute_ldst_addr(dc, ea, addr);
-    /* Extended addressing bypasses the MMU.  */
-    mem_index = ea ? MMU_NOMMU_IDX : mem_index;
-
-    /*
-     * When doing reverse accesses we need to do two things.
-     *
-     * 1. Reverse the address wrt endianness.
-     * 2. Byteswap the data lanes on the way back into the CPU core.
-     */
-    if (rev && size != 4) {
-        /* Endian reverse the address. t is addr.  */
-        switch (size) {
-            case 1:
-            {
-                tcg_gen_xori_tl(addr, addr, 3);
-                break;
-            }
-
-            case 2:
-                /* 00 -> 10
-                   10 -> 00.  */
-                tcg_gen_xori_tl(addr, addr, 2);
-                break;
-            default:
-                cpu_abort(CPU(dc->cpu), "Invalid reverse size\n");
-                break;
-        }
-    }
-
-    /* lwx does not throw unaligned access errors, so force alignment */
-    if (ex) {
-        tcg_gen_andi_tl(addr, addr, ~3);
-    }
-
-    /* If we get a fault on a dslot, the jmpstate better be in sync.  */
-    sync_jmpstate(dc);
-
-    /* Verify alignment if needed.  */
-    /*
-     * Microblaze gives MMU faults priority over faults due to
-     * unaligned addresses. That's why we speculatively do the load
-     * into v. If the load succeeds, we verify alignment of the
-     * address and if that succeeds we write into the destination reg.
-     */
-    v = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
-
-    if (dc->cpu->cfg.unaligned_exceptions && size > 1) {
-        TCGv_i32 t0 = tcg_const_i32(0);
-        TCGv_i32 treg = tcg_const_i32(dc->rd);
-        TCGv_i32 tsize = tcg_const_i32(size - 1);
-
-        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
-        gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
-
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(treg);
-        tcg_temp_free_i32(tsize);
-    }
-
-    if (ex) {
-        tcg_gen_mov_tl(cpu_res_addr, addr);
-        tcg_gen_mov_i32(cpu_res_val, v);
-    }
-    if (dc->rd) {
-        tcg_gen_mov_i32(cpu_R[dc->rd], v);
-    }
-    tcg_temp_free_i32(v);
-
-    if (ex) { /* lwx */
-        /* no support for AXI exclusive so always clear C */
-        tcg_gen_movi_i32(cpu_msr_c, 0);
-    }
-
-    tcg_temp_free(addr);
-}
-
-static void dec_store(DisasContext *dc)
-{
-    TCGv addr;
-    TCGLabel *swx_skip = NULL;
-    unsigned int size;
-    bool rev = false, ex = false, ea = false;
-    int mem_index = dc->mem_index;
-    MemOp mop;
-
-    mop = dc->opcode & 3;
-    size = 1 << mop;
-    if (!dc->type_b) {
-        ea = extract32(dc->ir, 7, 1);
-        rev = extract32(dc->ir, 9, 1);
-        ex = extract32(dc->ir, 10, 1);
-    }
-    mop |= MO_TE;
-    if (rev) {
-        mop ^= MO_BSWAP;
-    }
-
-    if (trap_illegal(dc, size > 4)) {
-        return;
-    }
-
-    trap_userspace(dc, ea);
-
-    t_sync_flags(dc);
-    /* If we get a fault on a dslot, the jmpstate better be in sync.  */
-    sync_jmpstate(dc);
-    /* SWX needs a temp_local.  */
-    addr = ex ? tcg_temp_local_new() : tcg_temp_new();
-    compute_ldst_addr(dc, ea, addr);
-    /* Extended addressing bypasses the MMU.  */
-    mem_index = ea ? MMU_NOMMU_IDX : mem_index;
-
-    if (ex) { /* swx */
-        TCGv_i32 tval;
-
-        /* swx does not throw unaligned access errors, so force alignment */
-        tcg_gen_andi_tl(addr, addr, ~3);
-
-        tcg_gen_movi_i32(cpu_msr_c, 1);
-        swx_skip = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, cpu_res_addr, addr, swx_skip);
-
-        /*
-         * Compare the value loaded at lwx with current contents of
-         * the reserved location.
-         */
-        tval = tcg_temp_new_i32();
-
-        tcg_gen_atomic_cmpxchg_i32(tval, addr, cpu_res_val,
-                                   cpu_R[dc->rd], mem_index,
-                                   mop);
-
-        tcg_gen_brcond_i32(TCG_COND_NE, cpu_res_val, tval, swx_skip);
-        tcg_gen_movi_i32(cpu_msr_c, 0);
-        tcg_temp_free_i32(tval);
-    }
-
-    if (rev && size != 4) {
-        /* Endian reverse the address. t is addr.  */
-        switch (size) {
-            case 1:
-            {
-                tcg_gen_xori_tl(addr, addr, 3);
-                break;
-            }
-
-            case 2:
-                /* 00 -> 10
-                   10 -> 00.  */
-                /* Force addr into the temp.  */
-                tcg_gen_xori_tl(addr, addr, 2);
-                break;
-            default:
-                cpu_abort(CPU(dc->cpu), "Invalid reverse size\n");
-                break;
-        }
-    }
-
-    if (!ex) {
-        tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr, mem_index, mop);
-    }
-
-    /* Verify alignment if needed.  */
-    if (dc->cpu->cfg.unaligned_exceptions && size > 1) {
-        TCGv_i32 t1 = tcg_const_i32(1);
-        TCGv_i32 treg = tcg_const_i32(dc->rd);
-        TCGv_i32 tsize = tcg_const_i32(size - 1);
-
-        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
-        /* FIXME: if the alignment is wrong, we should restore the value
-         *        in memory. One possible way to achieve this is to probe
-         *        the MMU prior to the memaccess, thay way we could put
-         *        the alignment checks in between the probe and the mem
-         *        access.
-         */
-        gen_helper_memalign(cpu_env, addr, treg, t1, tsize);
-
-        tcg_temp_free_i32(t1);
-        tcg_temp_free_i32(treg);
-        tcg_temp_free_i32(tsize);
-    }
-
-    if (ex) {
-        gen_set_label(swx_skip);
-    }
-
-    tcg_temp_free(addr);
 }
 
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
@@ -1491,8 +1618,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_LD, dec_load},
-    {DEC_ST, dec_store},
     {DEC_BR, dec_br},
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
