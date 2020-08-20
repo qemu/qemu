@@ -139,7 +139,11 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
 
     tx(s, tpm_pcrread, sizeof(tpm_pcrread), buffer, sizeof(buffer));
 
-    g_assert_cmpmem(buffer, exp_resp_size, exp_resp, exp_resp_size);
+    /* skip pcrUpdateCounter (14th byte) in comparison */
+    g_assert(exp_resp_size >= 15);
+    g_assert_cmpmem(buffer, 13, exp_resp, 13);
+    g_assert_cmpmem(&buffer[14], exp_resp_size - 14,
+                    &exp_resp[14], exp_resp_size - 14);
 }
 
 bool tpm_util_swtpm_has_tpm2(void)

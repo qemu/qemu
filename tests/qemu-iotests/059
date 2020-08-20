@@ -82,7 +82,7 @@ _cleanup_test_img
 echo
 echo "=== Testing big twoGbMaxExtentFlat ==="
 _make_test_img -o "subformat=twoGbMaxExtentFlat" 1000G
-$QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
+_img_info --format-specific | _filter_img_info --format-specific
 _cleanup_test_img
 
 echo

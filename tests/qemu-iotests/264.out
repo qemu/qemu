@@ -1,3 +1,4 @@
+Start NBD server
 {"execute": "blockdev-add", "arguments": {"driver": "raw", "file": {"driver": "nbd", "reconnect-delay": 10, "server": {"path": "TEST_DIR/PID-nbd-sock", "type": "unix"}}, "node-name": "backup0"}}
 {"return": {}}
 {"execute": "blockdev-backup", "arguments": {"device": "drive0", "speed": 1048576, "sync": "full", "target": "backup0"}}
@@ -11,3 +12,4 @@ Start NBD server
 Backup completed: 5242880
 {"execute": "blockdev-del", "arguments": {"node-name": "backup0"}}
 {"return": {}}
+Kill NBD server

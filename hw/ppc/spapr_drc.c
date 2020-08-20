@@ -513,7 +513,7 @@ static void realize(DeviceState *d, Error **errp)
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
     gchar *link_name;
-    char *child_name;
+    const char *child_name;
 
     trace_spapr_drc_realize(spapr_drc_index(drc));
     /* NOTE: we do this as part of realize/unrealize due to the fact
@@ -529,7 +529,6 @@ static void realize(DeviceState *d, Error **errp)
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
-    g_free(child_name);
     g_free(link_name);
     vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);

@@ -60,9 +60,12 @@ class BaseClass(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, back0_img, '1440K')
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img, back1_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img, back2_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back2_img, source_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img,
+                 '-F', iotests.imgfmt, back1_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img,
+                 '-F', iotests.imgfmt, back2_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', back2_img,
+                 '-F', iotests.imgfmt, source_img)
 
         self.vm = iotests.VM()
         # Add the BDS via blockdev-add so it stays around after the mirror block
@@ -89,7 +92,8 @@ class BaseClass(iotests.QMPTestCase):
         if self.existing:
             if self.target_backing:
                 qemu_img('create', '-f', iotests.imgfmt,
-                         '-b', self.target_backing, target_img, '1440K')
+                         '-b', self.target_backing, '-F', 'raw',
+                         target_img, '1440K')
             else:
                 qemu_img('create', '-f', iotests.imgfmt, target_img, '1440K')
 

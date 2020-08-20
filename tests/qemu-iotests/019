@@ -74,7 +74,7 @@ echo "Creating test image with backing file"
 echo
 
 TEST_IMG="$TEST_IMG_SAVE.orig"
-_make_test_img -b "$TEST_IMG_SAVE.base" 6G
+_make_test_img -b "$TEST_IMG_SAVE.base" -F $IMGFMT 6G
 
 echo "Filling test image"
 echo
@@ -98,7 +98,8 @@ for backing_option in "-B " "-o backing_file="; do
     echo
     echo Testing conversion with $backing_option"$TEST_IMG.base" | _filter_testdir | _filter_imgfmt
     echo
-    $QEMU_IMG convert -f $IMGFMT -O $IMGFMT $backing_option"$TEST_IMG.base" "$TEST_IMG.orig" "$TEST_IMG"
+    $QEMU_IMG convert -f $IMGFMT -O $IMGFMT $backing_option"$TEST_IMG.base" \
+        -o backing_fmt=$IMGFMT "$TEST_IMG.orig" "$TEST_IMG"
 
     echo "Checking if backing clusters are allocated when they shouldn't"
     echo

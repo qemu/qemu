@@ -22,8 +22,10 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
+#include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "hw/pci/pci_bus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 /* debug PCI */
@@ -200,12 +202,43 @@ const MemoryRegionOps pci_host_data_be_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static bool pci_host_needed(void *opaque)
+{
+    PCIHostState *s = opaque;
+    return s->mig_enabled;
+}
+
+const VMStateDescription vmstate_pcihost = {
+    .name = "PCIHost",
+    .needed = pci_host_needed,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(config_reg, PCIHostState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static Property pci_host_properties_common[] = {
+    DEFINE_PROP_BOOL("x-config-reg-migration-enabled", PCIHostState,
+                     mig_enabled, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pci_host_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    device_class_set_props(dc, pci_host_properties_common);
+    dc->vmsd = &vmstate_pcihost;
+}
+
 static const TypeInfo pci_host_type_info = {
     .name = TYPE_PCI_HOST_BRIDGE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .abstract = true,
     .class_size = sizeof(PCIHostBridgeClass),
     .instance_size = sizeof(PCIHostState),
+    .class_init = pci_host_class_init,
 };
 
 static void pci_host_register_types(void)

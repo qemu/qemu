@@ -300,7 +300,7 @@ int qdev_device_help(QemuOpts *opts)
     }
     g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
     for (i = 0; i < array->len; i++) {
-        printf("%s\n", (char *)array->pdata[i]);
+        qemu_printf("%s\n", (char *)array->pdata[i]);
     }
     g_ptr_array_set_free_func(array, g_free);
     g_ptr_array_free(array, true);

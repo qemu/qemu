@@ -133,7 +133,8 @@ echo "== Committing to a backing file with lazy_refcounts=on =="
 
 TEST_IMG="$TEST_IMG".base _make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
-_make_test_img -o "compat=1.1,lazy_refcounts=on,backing_file=$TEST_IMG.base" $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on,backing_file=$TEST_IMG.base" \
+    -F $IMGFMT $size
 
 $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG commit "$TEST_IMG"

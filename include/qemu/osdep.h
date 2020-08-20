@@ -104,7 +104,7 @@ extern int daemon(int, int);
 #include <setjmp.h>
 #include <signal.h>
 
-#ifdef __OpenBSD__
+#ifdef HAVE_SYS_SIGNAL_H
 #include <sys/signal.h>
 #endif
 
@@ -172,6 +172,9 @@ extern int daemon(int, int);
 #endif
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
+#endif
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0
 #endif
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
@@ -432,6 +435,10 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define HAVE_CHARDEV_PARPORT 1
 #endif
 
+#if defined(__HAIKU__)
+#define SIGIO SIGPOLL
+#endif
+
 #if defined(CONFIG_LINUX)
 #ifndef BUS_MCEERR_AR
 #define BUS_MCEERR_AR 4
@@ -584,7 +591,10 @@ char *qemu_get_local_state_pathname(const char *relative_pathname);
 void qemu_init_exec_dir(const char *argv0);
 
 /* Get the saved exec dir.
- * Caller needs to release the returned string by g_free() */
+ *
+ * The caller is responsible for releasing the value returned with g_free()
+ * after use.
+ */
 char *qemu_get_exec_dir(void);
 
 /**
@@ -650,5 +660,27 @@ static inline void qemu_reset_optind(void)
     optind = 0;
 #endif
 }
+
+/**
+ * qemu_get_host_name:
+ * @errp: Error object
+ *
+ * Operating system agnostic way of querying host name.
+ *
+ * Returns allocated hostname (caller should free), NULL on failure.
+ */
+char *qemu_get_host_name(Error **errp);
+
+/**
+ * qemu_get_host_physmem:
+ *
+ * Operating system agnostic way of querying host memory.
+ *
+ * Returns amount of physical memory on the system. This is purely
+ * advisery and may return 0 if we can't work it out. At the other
+ * end we saturate to SIZE_MAX if you are lucky enough to have that
+ * much memory.
+ */
+size_t qemu_get_host_physmem(void);
 
 #endif

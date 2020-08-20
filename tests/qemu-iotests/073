@@ -38,7 +38,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto generic
-_unsupported_proto vxhs
 # External data files do not support compressed clusters
 # (TODO: Consider writing a version for external data files that does
 #        not test compressed clusters)
@@ -52,7 +51,7 @@ echo "== creating backing file =="
 
 TEST_IMG="$TEST_IMG.base" _make_test_img $size
 
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 $QEMU_IO -c "write -P 0xa5 0 $size" "$TEST_IMG.base" | _filter_qemu_io
 
 echo

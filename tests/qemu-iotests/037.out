@@ -514,7 +514,7 @@ wrote 512/512 bytes at offset 130048
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 130560
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 
 == COW in a single cluster ==
 wrote 2048/2048 bytes at offset 0

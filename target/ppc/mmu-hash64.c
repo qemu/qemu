@@ -859,7 +859,7 @@ static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
     }
 
     error_report("Bad page size encoding in LPCR[VRMASD]; LPCR=0x"
-                 TARGET_FMT_lx"\n", lpcr);
+                 TARGET_FMT_lx, lpcr);
 
     return -1;
 }

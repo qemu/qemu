@@ -549,26 +549,29 @@ err_exit:
 static int tpm_emulator_handle_device_opts(TPMEmulator *tpm_emu, QemuOpts *opts)
 {
     const char *value;
+    Error *err = NULL;
+    Chardev *dev;
 
     value = qemu_opt_get(opts, "chardev");
-    if (value) {
-        Error *err = NULL;
-        Chardev *dev = qemu_chr_find(value);
-
-        if (!dev) {
-            error_report("tpm-emulator: tpm chardev '%s' not found.", value);
-            goto err;
-        }
-
-        if (!qemu_chr_fe_init(&tpm_emu->ctrl_chr, dev, &err)) {
-            error_prepend(&err, "tpm-emulator: No valid chardev found at '%s':",
-                          value);
-            error_report_err(err);
-            goto err;
-        }
-
-        tpm_emu->options->chardev = g_strdup(value);
+    if (!value) {
+        error_report("tpm-emulator: parameter 'chardev' is missing");
+        goto err;
     }
+
+    dev = qemu_chr_find(value);
+    if (!dev) {
+        error_report("tpm-emulator: tpm chardev '%s' not found", value);
+        goto err;
+    }
+
+    if (!qemu_chr_fe_init(&tpm_emu->ctrl_chr, dev, &err)) {
+        error_prepend(&err, "tpm-emulator: No valid chardev found at '%s':",
+                      value);
+        error_report_err(err);
+        goto err;
+    }
+
+    tpm_emu->options->chardev = g_strdup(value);
 
     if (tpm_emulator_prepare_data_fd(tpm_emu) < 0) {
         goto err;
@@ -924,6 +927,11 @@ static void tpm_emulator_inst_init(Object *obj)
 static void tpm_emulator_shutdown(TPMEmulator *tpm_emu)
 {
     ptm_res res;
+
+    if (!tpm_emu->options->chardev) {
+        /* was never properly initialized */
+        return;
+    }
 
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SHUTDOWN, &res, 0, sizeof(res)) < 0) {
         error_report("tpm-emulator: Could not cleanly shutdown the TPM: %s",

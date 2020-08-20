@@ -69,7 +69,7 @@ backing_io 0 32 write | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 mv "$TEST_IMG" "$TEST_IMG.base"
 
-_make_test_img -b "$TEST_IMG.base" 6G
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT 6G
 
 echo
 echo "== Some concurrent requests touching the same cluster =="

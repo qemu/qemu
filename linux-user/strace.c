@@ -724,19 +724,20 @@ print_ipc(const struct syscallname *name,
  * Variants for the return value output function
  */
 
-static void
+static bool
 print_syscall_err(abi_long ret)
 {
-    const char *errstr = NULL;
+    const char *errstr;
 
     qemu_log(" = ");
     if (ret < 0) {
-        qemu_log("-1 errno=%d", errno);
         errstr = target_strerror(-ret);
         if (errstr) {
-            qemu_log(" (%s)", errstr);
+            qemu_log("-1 errno=%d (%s)", (int)-ret, errstr);
+            return true;
         }
     }
+    return false;
 }
 
 static void
@@ -744,11 +745,10 @@ print_syscall_ret_addr(const struct syscallname *name, abi_long ret,
                        abi_long arg0, abi_long arg1, abi_long arg2,
                        abi_long arg3, abi_long arg4, abi_long arg5)
 {
-    print_syscall_err(ret);
-
-    if (ret >= 0) {
-        qemu_log("0x" TARGET_ABI_FMT_lx "\n", ret);
+    if (!print_syscall_err(ret)) {
+        qemu_log("0x" TARGET_ABI_FMT_lx, ret);
     }
+    qemu_log("\n");
 }
 
 #if 0 /* currently unused */
@@ -765,9 +765,7 @@ print_syscall_ret_newselect(const struct syscallname *name, abi_long ret,
                             abi_long arg0, abi_long arg1, abi_long arg2,
                             abi_long arg3, abi_long arg4, abi_long arg5)
 {
-    print_syscall_err(ret);
-
-    if (ret >= 0) {
+    if (!print_syscall_err(ret)) {
         qemu_log(" = 0x" TARGET_ABI_FMT_lx " (", ret);
         print_fdset(arg0, arg1);
         qemu_log(",");
@@ -796,9 +794,7 @@ print_syscall_ret_adjtimex(const struct syscallname *name, abi_long ret,
                            abi_long arg0, abi_long arg1, abi_long arg2,
                            abi_long arg3, abi_long arg4, abi_long arg5)
 {
-    print_syscall_err(ret);
-
-    if (ret >= 0) {
+    if (!print_syscall_err(ret)) {
         qemu_log(TARGET_ABI_FMT_ld, ret);
         switch (ret) {
         case TARGET_TIME_OK:
@@ -833,9 +829,7 @@ print_syscall_ret_listxattr(const struct syscallname *name, abi_long ret,
                             abi_long arg0, abi_long arg1, abi_long arg2,
                             abi_long arg3, abi_long arg4, abi_long arg5)
 {
-    print_syscall_err(ret);
-
-    if (ret >= 0) {
+    if (!print_syscall_err(ret)) {
         qemu_log(TARGET_ABI_FMT_ld, ret);
         qemu_log(" (list = ");
         if (arg1 != 0) {
@@ -866,9 +860,7 @@ print_syscall_ret_ioctl(const struct syscallname *name, abi_long ret,
                         abi_long arg0, abi_long arg1, abi_long arg2,
                         abi_long arg3, abi_long arg4, abi_long arg5)
 {
-    print_syscall_err(ret);
-
-    if (ret >= 0) {
+    if (!print_syscall_err(ret)) {
         qemu_log(TARGET_ABI_FMT_ld, ret);
 
         const IOCTLEntry *ie;
@@ -889,8 +881,12 @@ print_syscall_ret_ioctl(const struct syscallname *name, abi_long ret,
             arg_type++;
             target_size = thunk_type_size(arg_type, 0);
             argptr = lock_user(VERIFY_READ, arg2, target_size, 1);
-            thunk_print(argptr, arg_type);
-            unlock_user(argptr, arg2, target_size);
+            if (argptr) {
+                thunk_print(argptr, arg_type);
+                unlock_user(argptr, arg2, target_size);
+            } else {
+                print_pointer(arg2, 1);
+            }
             qemu_log(")");
         }
     }
@@ -3119,8 +3115,12 @@ print_ioctl(const struct syscallname *name,
                     arg_type++;
                     target_size = thunk_type_size(arg_type, 0);
                     argptr = lock_user(VERIFY_READ, arg2, target_size, 1);
-                    thunk_print(argptr, arg_type);
-                    unlock_user(argptr, arg2, target_size);
+                    if (argptr) {
+                        thunk_print(argptr, arg_type);
+                        unlock_user(argptr, arg2, target_size);
+                    } else {
+                        print_pointer(arg2, 1);
+                    }
                     break;
                 }
                 break;
@@ -3189,9 +3189,7 @@ print_syscall_ret(int num, abi_long ret,
                                   arg1, arg2, arg3,
                                   arg4, arg5, arg6);
             } else {
-                print_syscall_err(ret);
-
-                if (ret >= 0) {
+                if (!print_syscall_err(ret)) {
                     qemu_log(TARGET_ABI_FMT_ld, ret);
                 }
                 qemu_log("\n");

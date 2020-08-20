@@ -300,7 +300,11 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
      */
     test = sextract64(ptr, bot_bit, top_bit - bot_bit);
     if (test != 0 && test != -1) {
-        pac ^= MAKE_64BIT_MASK(top_bit - 1, 1);
+        /*
+         * Note that our top_bit is one greater than the pseudocode's
+         * version, hence "- 2" here.
+         */
+        pac ^= MAKE_64BIT_MASK(top_bit - 2, 1);
     }
 
     /*

@@ -24,11 +24,12 @@ import time
 import itertools
 import operator
 import re
-from iotests import qemu_img
+from iotests import qemu_img, qemu_img_create, Timeout
 
 
 disk_a = os.path.join(iotests.test_dir, 'disk_a')
 disk_b = os.path.join(iotests.test_dir, 'disk_b')
+base_a = os.path.join(iotests.test_dir, 'base_a')
 size = '1M'
 mig_file = os.path.join(iotests.test_dir, 'mig_file')
 mig_cmd = 'exec: cat > ' + mig_file
@@ -233,6 +234,67 @@ for cmb in list(itertools.product((True, False), repeat=2)):
 
     inject_test_case(TestDirtyBitmapMigration, name,
                      'do_test_migration_resume_source', *list(cmb))
+
+
+class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, base_a, size)
+        qemu_img_create('-f', iotests.imgfmt, '-F', iotests.imgfmt,
+                        '-b', base_a, disk_a, size)
+
+        for f in (disk_a, base_a):
+            qemu_img('bitmap', '--add', f, 'bmap0')
+
+        blockdev = {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': disk_a
+            },
+            'backing': {
+                'node-name': 'node0-base',
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': base_a
+                }
+            }
+        }
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        result = self.vm.qmp('blockdev-add', **blockdev)
+        self.assert_qmp(result, 'return', {})
+
+        # Check that the bitmaps are there
+        for node in self.vm.qmp('query-named-block-nodes', flat=True)['return']:
+            if 'node0' in node['node-name']:
+                self.assert_qmp(node, 'dirty-bitmaps[0]/name', 'bmap0')
+
+        caps = [{'capability': 'events', 'state': True}]
+        result = self.vm.qmp('migrate-set-capabilities', capabilities=caps)
+        self.assert_qmp(result, 'return', {})
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for f in (disk_a, base_a):
+            os.remove(f)
+
+    def test_cont_on_source(self):
+        """
+        Continue the source after migration.
+        """
+        result = self.vm.qmp('migrate', uri=f'exec: cat > /dev/null')
+        self.assert_qmp(result, 'return', {})
+
+        with Timeout(10, 'Migration timeout'):
+            self.vm.wait_migration('postmigrate')
+
+        result = self.vm.qmp('cont')
+        self.assert_qmp(result, 'return', {})
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],

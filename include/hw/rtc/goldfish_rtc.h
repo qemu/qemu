@@ -41,6 +41,7 @@ typedef struct GoldfishRTCState {
     uint32_t alarm_running;
     uint32_t irq_pending;
     uint32_t irq_enabled;
+    uint32_t time_high;
 } GoldfishRTCState;
 
 #endif

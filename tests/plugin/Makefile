@@ -1,9 +1,16 @@
+# -*- Mode: makefile -*-
+#
+# This Makefile example is fairly independent from the main makefile
+# so users can take and adapt it for their build. We only really
+# include config-host.mak so we don't have to repeat probing for
+# cflags that the main configure has already done for us.
+#
+
 BUILD_DIR := $(CURDIR)/../..
 
 include $(BUILD_DIR)/config-host.mak
-include $(SRC_PATH)/rules.mak
 
-$(call set-vpath, $(SRC_PATH)/tests/plugin)
+VPATH += $(SRC_PATH)/tests/plugin
 
 NAMES :=
 NAMES += bb
@@ -17,10 +24,17 @@ NAMES += lockstep
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
-QEMU_CFLAGS += -fPIC -Wpsabi
-QEMU_CFLAGS += -I$(SRC_PATH)/include/qemu
+# The main QEMU uses Glib extensively so it's perfectly fine to use it
+# in plugins (which many example do).
+CFLAGS = $(GLIB_CFLAGS)
+CFLAGS += -fPIC
+CFLAGS += $(if $(findstring no-psabi,$(QEMU_CFLAGS)),-Wpsabi)
+CFLAGS += -I$(SRC_PATH)/include/qemu
 
 all: $(SONAMES)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 lib%.so: %.o
 	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)

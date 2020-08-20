@@ -38,7 +38,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow qcow2
 _supported_proto generic
-_unsupported_proto vxhs
 
 
 size=128M
@@ -64,7 +63,7 @@ echo "== verify pattern =="
 $QEMU_IO --object $SECRET -c "read -P 0xa 0 $size" --image-opts $IMGSPECBASE | _filter_qemu_io | _filter_testdir
 
 echo "== create overlay =="
-_make_test_img -u --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" -b "$TEST_IMG_BASE" $size
+_make_test_img -u --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" -b "$TEST_IMG_BASE" -F $IMGFMT $size
 
 echo
 echo "== writing part of a cluster =="

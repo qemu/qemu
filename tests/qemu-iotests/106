@@ -51,7 +51,10 @@ for create_mode in off falloc full; do
         echo
         echo "--- create_mode=$create_mode growth_mode=$growth_mode ---"
 
-        _make_test_img -o "preallocation=$create_mode" ${CREATION_SIZE}K
+        # Our calculation below assumes kilobytes as unit for the actual size.
+        # Disable the extent size hint because it would give us a result in
+        # megabytes.
+        _make_test_img -o "preallocation=$create_mode,extent_size_hint=0" ${CREATION_SIZE}K
         $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
 
         expected_size=0
@@ -98,7 +101,7 @@ for growth_mode in falloc full; do
     # plain int.  We should use the correct type for the result, and
     # this tests we do.
 
-    _make_test_img 2G
+    _make_test_img -o "extent_size_hint=0" 2G
     $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
 
     actual_size=$($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep 'disk size')

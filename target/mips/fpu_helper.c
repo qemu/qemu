@@ -1221,7 +1221,7 @@ uint32_t helper_float_add_s(CPUMIPSState *env,
 {
     uint32_t wt2;
 
-    wt2 = float32_sub(fst0, fst1, &env->active_fpu.fp_status);
+    wt2 = float32_add(fst0, fst1, &env->active_fpu.fp_status);
     update_fcr31(env, GETPC());
     return wt2;
 }

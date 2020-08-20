@@ -38,13 +38,21 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto generic
-_unsupported_proto vxhs
+# At least OpenBSD doesn't seem to have truncate
+_supported_os Linux
 # qcow2.py does not work too well with external data files
 _unsupported_imgopts data_file
 
+# Intentionally specify backing file without backing format; demonstrate
+# the difference in warning messages when backing file could be probed.
+# Note that only a non-raw probe result will affect the resulting image.
+truncate -s $((64 * 1024 * 1024)) "$TEST_IMG.orig"
+_make_test_img -b "$TEST_IMG.orig" 64M
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IMG convert -O qcow2 -B "$TEST_IMG.orig" "$TEST_IMG.orig" "$TEST_IMG"
 _make_test_img -b "$TEST_IMG.base" 64M
+_make_test_img -u -b "$TEST_IMG.base" 64M
 
 # Set an invalid backing file format
 $PYTHON qcow2.py "$TEST_IMG" add-header-ext 0xE2792ACA "foo"
@@ -54,6 +62,11 @@ _img_info
 # overriding the backing file format should be possible.
 $QEMU_IO -c "open $TEST_IMG" -c "read 0 4k" 2>&1 | _filter_qemu_io | _filter_testdir
 $QEMU_IO -c "open -o backing.driver=$IMGFMT $TEST_IMG" -c "read 0 4k" | _filter_qemu_io
+
+# Rebase the image, to show that omitting backing format triggers a warning,
+# but probing now lets us use the backing file.
+$QEMU_IMG rebase -u -b "$TEST_IMG.base" "$TEST_IMG"
+$QEMU_IO -c "open $TEST_IMG" -c "read 0 4k" 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo '*** done'

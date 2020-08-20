@@ -143,7 +143,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
 {
 
     char *target_name;
-    char *dir;
+    char *bindir, *datadir;
     bool serialize = false;
 
     /* Initialize qgraph and modules */
@@ -164,11 +164,13 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
          * location of the executable. Using this we add exec_dir/pc-bios to
          * the datadirs.
          */
-        dir = g_build_filename(g_path_get_dirname(**argv), "pc-bios", NULL);
-        if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
-            qemu_add_data_dir(dir);
+        bindir = g_path_get_dirname(**argv);
+        datadir = g_build_filename(bindir, "pc-bios", NULL);
+        g_free(bindir);
+        if (g_file_test(datadir, G_FILE_TEST_IS_DIR)) {
+            qemu_add_data_dir(datadir);
         }
-        g_free(dir);
+        g_free(datadir);
     } else if (*argc > 1) {  /* The target is specified as an argument */
         target_name = (*argv)[1];
         if (!strstr(target_name, "--fuzz-target=")) {
@@ -199,16 +201,15 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     }
 
     /* Run QEMU's softmmu main with the fuzz-target dependent arguments */
-    const char *init_cmdline = fuzz_target->get_init_cmdline(fuzz_target);
-    init_cmdline = g_strdup_printf("%s -qtest /dev/null -qtest-log %s",
-                                   init_cmdline,
-                                   getenv("QTEST_LOG") ? "/dev/fd/2"
-                                                       : "/dev/null");
-
+    GString *cmd_line = fuzz_target->get_init_cmdline(fuzz_target);
+    g_string_append_printf(cmd_line,
+                           " -qtest /dev/null -qtest-log %s",
+                           getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null");
 
     /* Split the runcmd into an argv and argc */
     wordexp_t result;
-    wordexp(init_cmdline, &result, 0);
+    wordexp(cmd_line->str, &result, 0);
+    g_string_free(cmd_line, true);
 
     qemu_init(result.we_wordc, result.we_wordv, NULL);
 

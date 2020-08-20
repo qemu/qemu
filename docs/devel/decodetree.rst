@@ -173,18 +173,25 @@ Pattern Groups
 
 Syntax::
 
-  group    := '{' ( pat_def | group )+ '}'
+  group            := overlap_group | no_overlap_group
+  overlap_group    := '{' ( pat_def | group )+ '}'
+  no_overlap_group := '[' ( pat_def | group )+ ']'
 
-A *group* begins with a lone open-brace, with all subsequent lines
-indented two spaces, and ending with a lone close-brace.  Groups
-may be nested, increasing the required indentation of the lines
-within the nested group to two spaces per nesting level.
+A *group* begins with a lone open-brace or open-bracket, with all
+subsequent lines indented two spaces, and ending with a lone
+close-brace or close-bracket.  Groups may be nested, increasing the
+required indentation of the lines within the nested group to two
+spaces per nesting level.
 
-Unlike ungrouped patterns, grouped patterns are allowed to overlap.
-Conflicts are resolved by selecting the patterns in order.  If all
-of the fixedbits for a pattern match, its translate function will
-be called.  If the translate function returns false, then subsequent
-patterns within the group will be matched.
+Patterns within overlap groups are allowed to overlap.  Conflicts are
+resolved by selecting the patterns in order.  If all of the fixedbits
+for a pattern match, its translate function will be called.  If the
+translate function returns false, then subsequent patterns within the
+group will be matched.
+
+Patterns within no-overlap groups are not allowed to overlap, just
+the same as ungrouped patterns.  Thus no-overlap groups are intended
+to be nested inside overlap groups.
 
 The following example from PA-RISC shows specialization of the *or*
 instruction::
@@ -200,7 +207,7 @@ instruction::
 When the *cf* field is zero, the instruction has no side effects,
 and may be specialized.  When the *rt* field is zero, the output
 is discarded and so the instruction has no effect.  When the *rt2*
-field is zero, the operation is ``reg[rt] | 0`` and so encodes
+field is zero, the operation is ``reg[r1] | 0`` and so encodes
 the canonical register copy operation.
 
 The output from the generator might look like::

@@ -1,4 +1,5 @@
 # -*- Mode: Python -*-
+# vim: filetype=python
 
 ##
 # == Block core (VM unrelated)
@@ -1847,9 +1848,9 @@
 #
 # Since: 4.0
 ##
-  { 'enum': 'BlockPermission',
-    'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
-              'graph-mod' ] }
+{ 'enum': 'BlockPermission',
+  'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
+            'graph-mod' ] }
 ##
 # @XDbgBlockGraphEdge:
 #
@@ -2155,8 +2156,8 @@
 # <- { "return": {} }
 #
 ##
-  { 'command': 'block-dirty-bitmap-enable',
-    'data': 'BlockDirtyBitmap' }
+{ 'command': 'block-dirty-bitmap-enable',
+  'data': 'BlockDirtyBitmap' }
 
 ##
 # @block-dirty-bitmap-disable:
@@ -2176,8 +2177,8 @@
 # <- { "return": {} }
 #
 ##
-    { 'command': 'block-dirty-bitmap-disable',
-      'data': 'BlockDirtyBitmap' }
+{ 'command': 'block-dirty-bitmap-disable',
+  'data': 'BlockDirtyBitmap' }
 
 ##
 # @block-dirty-bitmap-merge:
@@ -2208,8 +2209,8 @@
 # <- { "return": {} }
 #
 ##
-      { 'command': 'block-dirty-bitmap-merge',
-        'data': 'BlockDirtyBitmapMerge' }
+{ 'command': 'block-dirty-bitmap-merge',
+  'data': 'BlockDirtyBitmapMerge' }
 
 ##
 # @BlockDirtyBitmapSha256:
@@ -2220,8 +2221,8 @@
 #
 # Since: 2.10
 ##
-  { 'struct': 'BlockDirtyBitmapSha256',
-    'data': {'sha256': 'str'} }
+{ 'struct': 'BlockDirtyBitmapSha256',
+  'data': {'sha256': 'str'} }
 
 ##
 # @x-debug-block-dirty-bitmap-sha256:
@@ -2235,8 +2236,8 @@
 #
 # Since: 2.10
 ##
-  { 'command': 'x-debug-block-dirty-bitmap-sha256',
-    'data': 'BlockDirtyBitmap', 'returns': 'BlockDirtyBitmapSha256' }
+{ 'command': 'x-debug-block-dirty-bitmap-sha256',
+  'data': 'BlockDirtyBitmap', 'returns': 'BlockDirtyBitmapSha256' }
 
 ##
 # @blockdev-mirror:
@@ -2790,7 +2791,6 @@
 #
 # Drivers that are supported in block device operations.
 #
-# @vxhs: Since 2.10
 # @throttle: Since 2.11
 # @nvme: Since 2.12
 # @copy-on-read: Since 3.0
@@ -2808,7 +2808,7 @@
             'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
             { 'name': 'replication', 'if': 'defined(CONFIG_REPLICATION)' },
             'sheepdog',
-            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
+            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -3896,22 +3896,6 @@
   'data': { '*offset': 'int', '*size': 'int' } }
 
 ##
-# @BlockdevOptionsVxHS:
-#
-# Driver specific block device options for VxHS
-#
-# @vdisk-id: UUID of VxHS volume
-# @server: vxhs server IP, port
-# @tls-creds: TLS credentials ID
-#
-# Since: 2.10
-##
-{ 'struct': 'BlockdevOptionsVxHS',
-  'data': { 'vdisk-id': 'str',
-            'server': 'InetSocketAddressBase',
-            '*tls-creds': 'str' } }
-
-##
 # @BlockdevOptionsThrottle:
 #
 # Driver specific block device options for the throttle driver
@@ -4010,8 +3994,7 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT',
-      'vxhs':       'BlockdevOptionsVxHS'
+      'vvfat':      'BlockdevOptionsVVFAT'
   } }
 
 ##
@@ -4185,14 +4168,17 @@
 #                 falloc (if defined CONFIG_POSIX_FALLOCATE),
 #                 full (if defined CONFIG_POSIX))
 # @nocow: Turn off copy-on-write (valid only on btrfs; default: off)
+# @extent-size-hint: Extent size hint to add to the image file; 0 for not
+#                    adding an extent size hint (default: 1 MB, since 5.1)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsFile',
-  'data': { 'filename':         'str',
-            'size':             'size',
-            '*preallocation':   'PreallocMode',
-            '*nocow':           'bool' } }
+  'data': { 'filename':             'str',
+            'size':                 'size',
+            '*preallocation':       'PreallocMode',
+            '*nocow':               'bool',
+            '*extent-size-hint':    'size'} }
 
 ##
 # @BlockdevCreateOptionsGluster:

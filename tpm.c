@@ -47,18 +47,23 @@ tpm_be_find_by_type(enum TpmType type)
  */
 static void tpm_display_backend_drivers(void)
 {
+    bool got_one = false;
     int i;
-
-    fprintf(stderr, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
         const TPMBackendClass *bc = tpm_be_find_by_type(i);
         if (!bc) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n", TpmType_str(i), bc->desc);
+        if (!got_one) {
+            error_printf("Supported TPM types (choose only one):\n");
+            got_one = true;
+        }
+        error_printf("%12s   %s\n", TpmType_str(i), bc->desc);
     }
-    fprintf(stderr, "\n");
+    if (!got_one) {
+        error_printf("No TPM backend types are available\n");
+    }
 }
 
 /*
@@ -81,26 +86,33 @@ TPMBackend *qemu_find_tpm_be(const char *id)
 
 static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
+    /*
+     * Use of error_report() in a function with an Error ** parameter
+     * is suspicious.  It is okay here.  The parameter only exists to
+     * make the function usable with qemu_opts_foreach().  It is not
+     * actually used.
+     */
     const char *value;
     const char *id;
     const TPMBackendClass *be;
     TPMBackend *drv;
+    Error *local_err = NULL;
     int i;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
-        error_setg(errp, "Only one TPM is allowed.");
+        error_report("Only one TPM is allowed.");
         return 1;
     }
 
     id = qemu_opts_id(opts);
     if (id == NULL) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "id");
+        error_report(QERR_MISSING_PARAMETER, "id");
         return 1;
     }
 
     value = qemu_opt_get(opts, "type");
     if (!value) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "type");
+        error_report(QERR_MISSING_PARAMETER, "type");
         tpm_display_backend_drivers();
         return 1;
     }
@@ -108,14 +120,15 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
     be = i >= 0 ? tpm_be_find_by_type(i) : NULL;
     if (be == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-                   "a TPM backend type");
+        error_report(QERR_INVALID_PARAMETER_VALUE,
+                     "type", "a TPM backend type");
         tpm_display_backend_drivers();
         return 1;
     }
 
     /* validate backend specific opts */
-    if (!qemu_opts_validate(opts, be->opts, errp)) {
+    if (!qemu_opts_validate(opts, be->opts, &local_err)) {
+        error_report_err(local_err);
         return 1;
     }
 
@@ -148,10 +161,14 @@ void tpm_cleanup(void)
  * Initialize the TPM. Process the tpmdev command line options describing the
  * TPM backend.
  */
-void tpm_init(void)
+int tpm_init(void)
 {
-    qemu_opts_foreach(qemu_find_opts("tpmdev"),
-                      tpm_init_tpmdev, NULL, &error_fatal);
+    if (qemu_opts_foreach(qemu_find_opts("tpmdev"),
+                          tpm_init_tpmdev, NULL, NULL)) {
+        return -1;
+    }
+
+    return 0;
 }
 
 /*

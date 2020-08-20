@@ -24,7 +24,8 @@ int qemu_drm_rendernode_open(const char *rendernode)
 {
     DIR *dir;
     struct dirent *e;
-    int r, fd;
+    struct stat st;
+    int r, fd, ret;
     char *p;
 
     if (rendernode) {
@@ -38,10 +39,6 @@ int qemu_drm_rendernode_open(const char *rendernode)
 
     fd = -1;
     while ((e = readdir(dir))) {
-        if (e->d_type != DT_CHR) {
-            continue;
-        }
-
         if (strncmp(e->d_name, "renderD", 7)) {
             continue;
         }
@@ -53,6 +50,18 @@ int qemu_drm_rendernode_open(const char *rendernode)
             g_free(p);
             continue;
         }
+
+        /*
+         * prefer fstat() over checking e->d_type == DT_CHR for
+         * portability reasons
+         */
+        ret = fstat(r, &st);
+        if (ret < 0 || (st.st_mode & S_IFMT) != S_IFCHR) {
+            close(r);
+            g_free(p);
+            continue;
+        }
+
         fd = r;
         g_free(p);
         break;

@@ -702,7 +702,8 @@ static char *machine_get_loadparm(Object *obj, Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
 
-    return g_memdup(ms->loadparm, sizeof(ms->loadparm));
+    /* make a NUL-terminated string */
+    return g_strndup((char *) ms->loadparm, sizeof(ms->loadparm));
 }
 
 static void machine_set_loadparm(Object *obj, const char *val, Error **errp)

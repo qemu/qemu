@@ -44,7 +44,8 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', test_img)
         self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=base")
         if iotests.qemu_default_machine == 'pc':
             self.vm.add_drive(None, 'media=cdrom', 'ide')
@@ -157,7 +158,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
-                        % (self.image_len, backing_img), target_img)
+                        % (self.image_len, backing_img),
+                 '-F', 'raw', target_img)
         result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
                              mode='existing', target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
@@ -227,7 +229,8 @@ class TestSingleBlockdev(TestSingleDrive):
 
     def setUp(self):
         TestSingleDrive.setUp(self)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', target_img)
         args = {'driver': iotests.imgfmt,
                 'node-name': self.qmp_target,
                 'file': { 'filename': target_img, 'driver': 'file' } }
@@ -312,7 +315,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, TestMirrorNoBacking.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -329,7 +333,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
     def test_complete(self):
         self.assert_no_active_block_jobs()
 
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -344,7 +349,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
     def test_cancel(self):
         self.assert_no_active_block_jobs()
 
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
@@ -363,7 +369,8 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'size=%d'
                         %(TestMirrorNoBacking.image_len), target_backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
-                        % (TestMirrorNoBacking.image_len, target_backing_img), target_img)
+                        % (TestMirrorNoBacking.image_len, target_backing_img),
+                 '-F', iotests.imgfmt, target_img)
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=target_img)
@@ -382,7 +389,8 @@ class TestMirrorResized(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.create_image(backing_img, TestMirrorResized.backing_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', test_img)
         qemu_img('resize', test_img, '2M')
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -528,7 +536,9 @@ new_state = "1"
         # Test COW into the target image.  The first half of the
         # cluster at MIRROR_GRANULARITY has to be copied from
         # backing_img, even though sync='top'.
-        qemu_img('create', '-f', iotests.imgfmt, '-ocluster_size=131072,backing_file=%s' %(backing_img), target_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-ocluster_size=131072,backing_file=%s' %(backing_img),
+                 '-F', 'raw', target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='top',
                              on_source_error='ignore',
                              mode='existing', target=target_img)
@@ -548,7 +558,8 @@ new_state = "1"
         self.vm.shutdown()
 
         # Detach blkdebug to compare images successfully
-        qemu_img('rebase', '-f', iotests.imgfmt, '-u', '-b', backing_img, test_img)
+        qemu_img('rebase', '-f', iotests.imgfmt, '-u', '-b', backing_img,
+                 '-F', 'raw', test_img)
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
@@ -620,7 +631,8 @@ new_state = "1"
         self.blkdebug_file = target_img + ".blkdebug"
         iotests.create_image(backing_img, TestWriteErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "write_aio", 5)
-        qemu_img('create', '-f', iotests.imgfmt, '-obacking_file=%s' %(backing_img), test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-obacking_file=%s' %(backing_img), '-F', 'raw', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.target_img = 'blkdebug:%s:%s' % (self.blkdebug_file, target_img)
         qemu_img('create', '-f', iotests.imgfmt, '-osize=%d' %(TestWriteErrors.image_len), target_img)
@@ -715,7 +727,8 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=%s' % backing_img, '-F', 'raw', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 

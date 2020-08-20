@@ -136,23 +136,6 @@ qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t o
 qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
 
-# vxhs.c
-vxhs_iio_callback(int error) "ctx is NULL: error %d"
-vxhs_iio_callback_chnfail(int err, int error) "QNIO channel failed, no i/o %d, %d"
-vxhs_iio_callback_unknwn(int opcode, int err) "unexpected opcode %d, errno %d"
-vxhs_aio_rw_invalid(int req) "Invalid I/O request iodir %d"
-vxhs_aio_rw_ioerr(char *guid, int iodir, uint64_t size, uint64_t off, void *acb, int ret, int err) "IO ERROR (vDisk %s) FOR : Read/Write = %d size = %"PRIu64" offset = %"PRIu64" ACB = %p. Error = %d, errno = %d"
-vxhs_get_vdisk_stat_err(char *guid, int ret, int err) "vDisk (%s) stat ioctl failed, ret = %d, errno = %d"
-vxhs_get_vdisk_stat(char *vdisk_guid, uint64_t vdisk_size) "vDisk %s stat ioctl returned size %"PRIu64
-vxhs_complete_aio(void *acb, uint64_t ret) "aio failed acb %p ret %"PRIu64
-vxhs_parse_uri_filename(const char *filename) "URI passed via bdrv_parse_filename %s"
-vxhs_open_vdiskid(const char *vdisk_id) "Opening vdisk-id %s"
-vxhs_open_hostinfo(char *of_vsa_addr, int port) "Adding host %s:%d to BDRVVXHSState"
-vxhs_open_iio_open(const char *host) "Failed to connect to storage agent on host %s"
-vxhs_parse_uri_hostinfo(char *host, int port) "Host: IP %s, Port %d"
-vxhs_close(char *vdisk_guid) "Closing vdisk %s"
-vxhs_get_creds(const char *cacert, const char *client_key, const char *client_cert) "cacert %s, client_key %s, client_cert %s"
-
 # nvme.c
 nvme_kick(void *s, int queue) "s %p queue %d"
 nvme_dma_flush_queue_wait(void *s) "s %p"
@@ -185,8 +168,8 @@ nbd_parse_blockstatus_compliance(const char *err) "ignoring extra data from non-
 nbd_structured_read_compliance(const char *type) "server sent non-compliant unaligned read %s chunk"
 nbd_read_reply_entry_fail(int ret, const char *err) "ret = %d, err: %s"
 nbd_co_request_fail(uint64_t from, uint32_t len, uint64_t handle, uint16_t flags, uint16_t type, const char *name, int ret, const char *err) "Request failed { .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64 ", .flags = 0x%" PRIx16 ", .type = %" PRIu16 " (%s) } ret = %d, err: %s"
-nbd_client_connect(const char *export_name) "export '%s'"
-nbd_client_connect_success(const char *export_name) "export '%s'"
+nbd_client_handshake(const char *export_name) "export '%s'"
+nbd_client_handshake_success(const char *export_name) "export '%s'"
 
 # ssh.c
 ssh_restart_coroutine(void *co) "co=%p"

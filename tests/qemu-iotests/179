@@ -49,7 +49,7 @@ echo '=== Testing write zeroes with unmap ==='
 echo
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
-_make_test_img -b "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT
 
 # Offsets chosen at or near 2M boundaries so test works at all cluster sizes
 # 8k and larger (smaller clusters fail due to non-contiguous allocations)

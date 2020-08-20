@@ -80,6 +80,8 @@ class BaseVM(object):
     arch = "#arch"
     # command to halt the guest, can be overridden by subclasses
     poweroff = "poweroff"
+    # Time to wait for shutdown to finish.
+    shutdown_timeout_default = 30
     # enable IPv6 networking
     ipv6 = True
     # This is the timeout on the wait for console bytes.
@@ -87,7 +89,7 @@ class BaseVM(object):
     # Scale up some timeouts under TCG.
     # 4 is arbitrary, but greater than 2,
     # since we found we need to wait more than twice as long.
-    tcg_ssh_timeout_multiplier = 4
+    tcg_timeout_multiplier = 4
     def __init__(self, args, config=None):
         self._guest = None
         self._genisoimage = args.genisoimage
@@ -141,9 +143,12 @@ class BaseVM(object):
         if args.jobs and args.jobs > 1:
             self._args += ["-smp", "%d" % args.jobs]
         if kvm_available(self.arch):
+            self._shutdown_timeout = self.shutdown_timeout_default
             self._args += ["-enable-kvm"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
+            self._shutdown_timeout = \
+                self.shutdown_timeout_default * self.tcg_timeout_multiplier
         self._data_args = []
 
         if self._config['qemu_args'] != None:
@@ -423,7 +428,7 @@ class BaseVM(object):
     def wait_ssh(self, wait_root=False, seconds=300, cmd="exit 0"):
         # Allow more time for VM to boot under TCG.
         if not kvm_available(self.arch):
-            seconds *= self.tcg_ssh_timeout_multiplier
+            seconds *= self.tcg_timeout_multiplier
         starttime = datetime.datetime.now()
         endtime = starttime + datetime.timedelta(seconds=seconds)
         cmd_success = False
@@ -441,14 +446,14 @@ class BaseVM(object):
             raise Exception("Timeout while waiting for guest ssh")
 
     def shutdown(self):
-        self._guest.shutdown()
+        self._guest.shutdown(timeout=self._shutdown_timeout)
 
     def wait(self):
-        self._guest.wait()
+        self._guest.wait(timeout=self._shutdown_timeout)
 
     def graceful_shutdown(self):
         self.ssh_root(self.poweroff)
-        self._guest.wait()
+        self._guest.wait(timeout=self._shutdown_timeout)
 
     def qmp(self, *args, **kwargs):
         return self._guest.qmp(*args, **kwargs)

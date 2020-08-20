@@ -48,7 +48,6 @@ config USB_MUSB
 
 config USB_DWC2
     bool
-    default y
     select USB
 
 config TUSB6010

@@ -32,12 +32,7 @@
     do { } while (0)
 #endif
 
-static bool xen_allowed;
-
-bool xen_enabled(void)
-{
-    return xen_allowed;
-}
+bool xen_allowed;
 
 xc_interface *xen_xc;
 xenforeignmemory_handle *xen_fmem;

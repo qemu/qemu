@@ -212,6 +212,8 @@ class LinuxSSH(Test):
 
         self.run_common_commands(wordsize)
         self.shutdown_via_ssh()
+        # Wait for VM to shut down gracefully
+        self.vm.wait()
 
     def test_mips_malta32eb_kernel3_2_0(self):
         """

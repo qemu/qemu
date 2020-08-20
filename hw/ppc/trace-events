@@ -57,7 +57,7 @@ spapr_drc_detach(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_awaiting_quiesce(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_reset(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_realize(uint32_t index) "drc: 0x%"PRIx32
-spapr_drc_realize_child(uint32_t index, char *childname) "drc: 0x%"PRIx32", child name: %s"
+spapr_drc_realize_child(uint32_t index, const char *childname) "drc: 0x%"PRIx32", child name: %s"
 spapr_drc_realize_complete(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_unrealize(uint32_t index) "drc: 0x%"PRIx32
 

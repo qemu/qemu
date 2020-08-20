@@ -84,6 +84,9 @@ void os_setup_signal_handling(void)
  * Find a likely location for support files using the location of the binary.
  * When running from the build tree this will be "$bindir/../pc-bios".
  * Otherwise, this is CONFIG_QEMU_DATADIR.
+ *
+ * The caller must use g_free() to free the returned data when it is
+ * no longer required.
  */
 char *os_find_datadir(void)
 {
@@ -337,6 +340,7 @@ bool is_daemonized(void)
 
 int os_mlock(void)
 {
+#ifdef HAVE_MLOCKALL
     int ret = 0;
 
     ret = mlockall(MCL_CURRENT | MCL_FUTURE);
@@ -345,4 +349,7 @@ int os_mlock(void)
     }
 
     return ret;
+#else
+    return -ENOSYS;
+#endif
 }

@@ -19,6 +19,7 @@
 #include <comdef.h>
 #include <comutil.h>
 #include <sddl.h>
+#include <winsvc.h>
 
 #define BUFFER_SIZE 1024
 
@@ -509,26 +510,32 @@ namespace _com_util
     }
 }
 
-/* Stop QGA VSS provider service from COM+ Application Admin Catalog */
-
+/* Stop QGA VSS provider service using Winsvc API  */
 STDAPI StopService(void)
 {
     HRESULT hr;
-    COMInitializer initializer;
-    COMPointer<IUnknown> pUnknown;
-    COMPointer<ICOMAdminCatalog2> pCatalog;
+    SC_HANDLE manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE service = NULL;
 
-    int count = 0;
+    if (!manager) {
+        errmsg(E_FAIL, "Failed to open service manager");
+        hr = E_FAIL;
+        goto out;
+    }
+    service = OpenService(manager, QGA_PROVIDER_NAME, SC_MANAGER_ALL_ACCESS);
 
-    chk(QGAProviderFind(QGAProviderCount, (void *)&count));
-    if (count) {
-        chk(CoCreateInstance(CLSID_COMAdminCatalog, NULL, CLSCTX_INPROC_SERVER,
-            IID_IUnknown, (void **)pUnknown.replace()));
-        chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog2,
-            (void **)pCatalog.replace()));
-        chk(pCatalog->ShutdownApplication(_bstr_t(QGA_PROVIDER_LNAME)));
+    if (!service) {
+        errmsg(E_FAIL, "Failed to open service");
+        hr =  E_FAIL;
+        goto out;
+    }
+    if (!(ControlService(service, SERVICE_CONTROL_STOP, NULL))) {
+        errmsg(E_FAIL, "Failed to stop service");
+        hr = E_FAIL;
     }
 
 out:
+    CloseServiceHandle(service);
+    CloseServiceHandle(manager);
     return hr;
 }

@@ -52,9 +52,10 @@ echo
 echo "=== Check allocation status regression with -B ==="
 echo
 
-_make_test_img -b "$TEST_IMG".base
+_make_test_img -b "$TEST_IMG".base -F $IMGFMT
 $QEMU_IO -c "write -P 0x22 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base \
+    -o backing_fmt=$IMGFMT "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
 
 
@@ -62,18 +63,22 @@ echo
 echo "=== Check that zero clusters are kept in overlay ==="
 echo
 
-_make_test_img -b "$TEST_IMG".base
+_make_test_img -b "$TEST_IMG".base -F $IMGFMT
 
 $QEMU_IO -c "write -P 0 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o backing_fmt=$IMGFMT \
+    "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base -o backing_fmt=$IMGFMT \
+    "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
 
 $QEMU_IO -c "write -z 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o backing_fmt=$IMGFMT \
+    "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base -o backing_fmt=$IMGFMT \
+    "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
 
 
@@ -94,11 +99,11 @@ TEST_IMG="$TEST_IMG".base _make_test_img 256M
 # We do not want such a zero write, however, because we are past the
 # end of the backing file on the target as well, so we do not need to
 # write anything there.
-_make_test_img -b "$TEST_IMG".base 768M
+_make_test_img -b "$TEST_IMG".base 768M -F $IMGFMT
 
 # Use compat=0.10 as the output so there is no zero cluster support
 $QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o compat=0.10 \
-    "$TEST_IMG" "$TEST_IMG".orig
+    -o backing_fmt=$IMGFMT "$TEST_IMG" "$TEST_IMG".orig
 # See that nothing has been allocated past 64M
 $QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
 
@@ -110,7 +115,7 @@ $QEMU_IO -c 'write -P 0x11 255M 1M' "$TEST_IMG".base 2>&1 | _filter_qemu_io
 $QEMU_IO -c 'write -P 0x22 600M 1M' "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 $QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o compat=0.10 \
-    "$TEST_IMG" "$TEST_IMG".orig
+    -o backing_fmt=$IMGFMT "$TEST_IMG" "$TEST_IMG".orig
 
 $QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
 $QEMU_IO -c 'read -P 0x11 255M 1M' \
@@ -199,7 +204,7 @@ $QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
 TEST_IMG="$TEST_IMG".base _make_test_img 64M
 $QEMU_IO -c "write -P 0x11 0 32M" "$TEST_IMG".base 2>&1 | _filter_qemu_io | _filter_testdir
 
-_make_test_img -b "$TEST_IMG".base 64M
+_make_test_img -b "$TEST_IMG".base 64M -F $IMGFMT
 $QEMU_IO -c "write -P 0x22 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
@@ -277,6 +282,36 @@ $QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IMG compare "$TEST_IMG" "$TEST_IMG".orig
 
 echo
+echo '=== -n to an empty image ==='
+echo
+
+TEST_IMG="$TEST_IMG".orig _make_test_img 64M
+
+# Convert with -n, which should not result in a fully allocated image, not even
+# with compat=0.10 (because the target doesn't have a backing file)
+for compat in "1.1" "0.10"; do
+    IMGOPTS="compat=$compat" _make_test_img 64M
+    $QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG".orig "$TEST_IMG"
+    $QEMU_IMG map --output=json "$TEST_IMG"
+done
+
+echo
+echo '=== -n to an empty image with a backing file ==='
+echo
+
+TEST_IMG="$TEST_IMG".orig _make_test_img 64M
+TEST_IMG="$TEST_IMG".base _make_test_img 64M
+
+# Convert with -n, which should still not result in a fully allocated image for
+# compat=1.1 (because it can use zero clusters), but it should be fully
+# allocated with compat=0.10
+for compat in "1.1" "0.10"; do
+    IMGOPTS="compat=$compat" _make_test_img -b "$TEST_IMG".base -F $IMGFMT 64M
+    $QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG".orig "$TEST_IMG"
+    $QEMU_IMG map --output=json "$TEST_IMG"
+done
+
+echo
 echo '=== -n -B to an image without a backing file ==='
 echo
 
@@ -289,6 +324,13 @@ TEST_IMG="$TEST_IMG".orig _make_test_img 64M
 # Convert with -n, which should not confuse -B with "target BDS has a
 # backing file"
 $QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -n "$TEST_IMG" "$TEST_IMG".orig
+
+echo
+echo '=== -n incompatible with -o ==='
+echo
+
+$QEMU_IMG convert -O $IMGFMT -o preallocation=metadata -n \
+	  "$TEST_IMG" "$TEST_IMG".orig && echo "unexpected success"
 
 # success, all done
 echo '*** done'

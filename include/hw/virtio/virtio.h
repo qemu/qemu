@@ -295,6 +295,7 @@ typedef struct VirtIORNGConf VirtIORNGConf;
                       VIRTIO_F_RING_PACKED, false)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
+bool virtio_queue_enabled_legacy(VirtIODevice *vdev, int n);
 bool virtio_queue_enabled(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n);
@@ -395,5 +396,7 @@ static inline bool virtio_device_disabled(VirtIODevice *vdev)
 {
     return unlikely(vdev->disabled || vdev->broken);
 }
+
+bool virtio_legacy_allowed(VirtIODevice *vdev);
 
 #endif

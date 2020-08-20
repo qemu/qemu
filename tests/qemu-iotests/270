@@ -53,7 +53,7 @@ $QEMU_IO -c 'write 0 512' "$TEST_IMG.base" | _filter_qemu_io
 # We need a large cluster size, see below for why (above the $QEMU_IO
 # invocation)
 _make_test_img -o cluster_size=2M,data_file="$TEST_IMG.orig" \
-    -b "$TEST_IMG.base" 4G
+    -b "$TEST_IMG.base" -F $IMGFMT 4G
 
 # We want a null-co as the data file, because it allows us to quickly
 # "write" 2G of data without using any space.

@@ -126,6 +126,7 @@ class ReplayKernel(LinuxKernelTest):
 
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1)
 
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_arm_cubieboard_initrd(self):
         """
         :avocado: tags=arch:arm

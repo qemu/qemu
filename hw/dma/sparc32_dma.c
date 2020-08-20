@@ -341,6 +341,7 @@ static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
     DeviceState *d;
     NICInfo *nd = &nd_table[0];
 
+    /* FIXME use qdev NIC properties instead of nd_table[] */
     qemu_check_nic_model(nd, TYPE_LANCE);
 
     d = qdev_new(TYPE_LANCE);

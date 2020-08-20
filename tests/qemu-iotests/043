@@ -46,7 +46,7 @@ _supported_proto file
 
 size=128M
 _make_test_img $size
-$QEMU_IMG rebase -u -b "$TEST_IMG" "$TEST_IMG"
+$QEMU_IMG rebase -u -b "$TEST_IMG" -F $IMGFMT "$TEST_IMG"
 
 echo
 echo "== backing file references self =="
@@ -54,8 +54,8 @@ _img_info --backing-chain
 
 _make_test_img $size
 mv "$TEST_IMG" "$TEST_IMG.base"
-_make_test_img -b "$TEST_IMG.base" $size
-$QEMU_IMG rebase -u -b "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" -F $IMGFMT $size
+$QEMU_IMG rebase -u -b "$TEST_IMG" -F $IMGFMT "$TEST_IMG.base"
 
 echo
 echo "== parent references self =="
@@ -63,12 +63,12 @@ _img_info --backing-chain
 
 _make_test_img $size
 mv "$TEST_IMG" "$TEST_IMG.1.base"
-_make_test_img -b "$TEST_IMG.1.base" $size
+_make_test_img -b "$TEST_IMG.1.base" -F $IMGFMT $size
 mv "$TEST_IMG" "$TEST_IMG.2.base"
-_make_test_img -b "$TEST_IMG.2.base" $size
+_make_test_img -b "$TEST_IMG.2.base" -F $IMGFMT $size
 mv "$TEST_IMG" "$TEST_IMG.3.base"
-_make_test_img -b "$TEST_IMG.3.base" $size
-$QEMU_IMG rebase -u -b "$TEST_IMG.2.base" "$TEST_IMG.1.base"
+_make_test_img -b "$TEST_IMG.3.base" -F $IMGFMT $size
+$QEMU_IMG rebase -u -b "$TEST_IMG.2.base" -F $IMGFMT "$TEST_IMG.1.base"
 
 echo
 echo "== ancestor references another ancestor =="
@@ -76,17 +76,18 @@ _img_info --backing-chain
 
 _make_test_img $size
 mv "$TEST_IMG" "$TEST_IMG.1.base"
-_make_test_img -b "$TEST_IMG.1.base" $size
+_make_test_img -b "$TEST_IMG.1.base" -F $IMGFMT $size
 mv "$TEST_IMG" "$TEST_IMG.2.base"
-_make_test_img -b "$TEST_IMG.2.base" $size
+_make_test_img -b "$TEST_IMG.2.base" -F $IMGFMT $size
 
 echo
 echo "== finite chain of length 3 (human) =="
-_img_info --backing-chain
+# Exclude backing format, since qed differs from qcow2 on what gets stored
+_img_info --backing-chain | grep -v '^backing file format:'
 
 echo
 echo "== finite chain of length 3 (json) =="
-_img_info --backing-chain --output=json
+_img_info --backing-chain --output=json | grep -v 'backing-filename-format'
 
 # success, all done
 echo "*** done"

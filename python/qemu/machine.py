@@ -22,11 +22,11 @@ import logging
 import os
 import subprocess
 import shutil
-import socket
+import signal
 import tempfile
 from typing import Optional, Type
 from types import TracebackType
-from qemu.console_socket import ConsoleSocket
+from . import console_socket
 
 from . import qmp
 
@@ -49,17 +49,10 @@ class QEMUMachineAddDeviceError(QEMUMachineError):
     """
 
 
-class MonitorResponseError(qmp.QMPError):
+class AbnormalShutdown(QEMUMachineError):
     """
-    Represents erroneous QMP monitor reply
+    Exception raised when a graceful shutdown was requested, but not performed.
     """
-    def __init__(self, reply):
-        try:
-            desc = reply["error"]["desc"]
-        except KeyError:
-            desc = reply
-        super().__init__(desc)
-        self.reply = reply
 
 
 class QEMUMachine:
@@ -127,6 +120,7 @@ class QEMUMachine:
         self._console_address = None
         self._console_socket = None
         self._remove_files = []
+        self._user_killed = False
         self._console_log_path = console_log
         if self._console_log_path:
             # In order to log the console, buffering needs to be enabled.
@@ -294,6 +288,19 @@ class QEMUMachine:
             self._qmp.accept()
 
     def _post_shutdown(self):
+        """
+        Called to cleanup the VM instance after the process has exited.
+        May also be called after a failed launch.
+        """
+        # Comprehensive reset for the failed launch case:
+        self._early_cleanup()
+
+        if self._qmp:
+            self._qmp.close()
+            self._qmp = None
+
+        self._load_io_log()
+
         if self._qemu_log_file is not None:
             self._qemu_log_file.close()
             self._qemu_log_file = None
@@ -306,6 +313,19 @@ class QEMUMachine:
 
         while len(self._remove_files) > 0:
             self._remove_if_exists(self._remove_files.pop())
+
+        exitcode = self.exitcode()
+        if (exitcode is not None and exitcode < 0
+                and not (self._user_killed and exitcode == -signal.SIGKILL)):
+            msg = 'qemu received signal %i; command: "%s"'
+            if self._qemu_full_args:
+                command = ' '.join(self._qemu_full_args)
+            else:
+                command = ''
+            LOG.warning(msg, -int(exitcode), command)
+
+        self._user_killed = False
+        self._launched = False
 
     def launch(self):
         """
@@ -322,7 +342,7 @@ class QEMUMachine:
             self._launch()
             self._launched = True
         except:
-            self.shutdown()
+            self._post_shutdown()
 
             LOG.debug('Error launching VM')
             if self._qemu_full_args:
@@ -348,19 +368,12 @@ class QEMUMachine:
                                        close_fds=False)
         self._post_launch()
 
-    def wait(self):
+    def _early_cleanup(self) -> None:
         """
-        Wait for the VM to power off
-        """
-        self._popen.wait()
-        if self._qmp:
-            self._qmp.close()
-        self._load_io_log()
-        self._post_shutdown()
+        Perform any cleanup that needs to happen before the VM exits.
 
-    def shutdown(self, has_quit=False, hard=False):
-        """
-        Terminate the VM and clean up
+        May be invoked by both soft and hard shutdown in failover scenarios.
+        Called additionally by _post_shutdown for comprehensive cleanup.
         """
         # If we keep the console socket open, we may deadlock waiting
         # for QEMU to exit, while QEMU is waiting for the socket to
@@ -369,36 +382,104 @@ class QEMUMachine:
             self._console_socket.close()
             self._console_socket = None
 
-        if self.is_running():
+    def _hard_shutdown(self) -> None:
+        """
+        Perform early cleanup, kill the VM, and wait for it to terminate.
+
+        :raise subprocess.Timeout: When timeout is exceeds 60 seconds
+            waiting for the QEMU process to terminate.
+        """
+        self._early_cleanup()
+        self._popen.kill()
+        self._popen.wait(timeout=60)
+
+    def _soft_shutdown(self, timeout: Optional[int],
+                       has_quit: bool = False) -> None:
+        """
+        Perform early cleanup, attempt to gracefully shut down the VM, and wait
+        for it to terminate.
+
+        :param timeout: Timeout in seconds for graceful shutdown.
+                        A value of None is an infinite wait.
+        :param has_quit: When True, don't attempt to issue 'quit' QMP command
+
+        :raise ConnectionReset: On QMP communication errors
+        :raise subprocess.TimeoutExpired: When timeout is exceeded waiting for
+            the QEMU process to terminate.
+        """
+        self._early_cleanup()
+
+        if self._qmp is not None:
+            if not has_quit:
+                # Might raise ConnectionReset
+                self._qmp.cmd('quit')
+
+        # May raise subprocess.TimeoutExpired
+        self._popen.wait(timeout=timeout)
+
+    def _do_shutdown(self, timeout: Optional[int],
+                     has_quit: bool = False) -> None:
+        """
+        Attempt to shutdown the VM gracefully; fallback to a hard shutdown.
+
+        :param timeout: Timeout in seconds for graceful shutdown.
+                        A value of None is an infinite wait.
+        :param has_quit: When True, don't attempt to issue 'quit' QMP command
+
+        :raise AbnormalShutdown: When the VM could not be shut down gracefully.
+            The inner exception will likely be ConnectionReset or
+            subprocess.TimeoutExpired. In rare cases, non-graceful termination
+            may result in its own exceptions, likely subprocess.TimeoutExpired.
+        """
+        try:
+            self._soft_shutdown(timeout, has_quit)
+        except Exception as exc:
+            self._hard_shutdown()
+            raise AbnormalShutdown("Could not perform graceful shutdown") \
+                from exc
+
+    def shutdown(self, has_quit: bool = False,
+                 hard: bool = False,
+                 timeout: Optional[int] = 30) -> None:
+        """
+        Terminate the VM (gracefully if possible) and perform cleanup.
+        Cleanup will always be performed.
+
+        If the VM has not yet been launched, or shutdown(), wait(), or kill()
+        have already been called, this method does nothing.
+
+        :param has_quit: When true, do not attempt to issue 'quit' QMP command.
+        :param hard: When true, do not attempt graceful shutdown, and
+                     suppress the SIGKILL warning log message.
+        :param timeout: Optional timeout in seconds for graceful shutdown.
+                        Default 30 seconds, A `None` value is an infinite wait.
+        """
+        if not self._launched:
+            return
+
+        try:
             if hard:
-                self._popen.kill()
-            elif self._qmp:
-                try:
-                    if not has_quit:
-                        self._qmp.cmd('quit')
-                    self._qmp.close()
-                    self._popen.wait(timeout=3)
-                except:
-                    self._popen.kill()
-            self._popen.wait()
-
-        self._load_io_log()
-        self._post_shutdown()
-
-        exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0 and \
-                not (exitcode == -9 and hard):
-            msg = 'qemu received signal %i: %s'
-            if self._qemu_full_args:
-                command = ' '.join(self._qemu_full_args)
+                self._user_killed = True
+                self._hard_shutdown()
             else:
-                command = ''
-            LOG.warning(msg, -int(exitcode), command)
-
-        self._launched = False
+                self._do_shutdown(timeout, has_quit)
+        finally:
+            self._post_shutdown()
 
     def kill(self):
+        """
+        Terminate the VM forcefully, wait for it to exit, and perform cleanup.
+        """
         self.shutdown(hard=True)
+
+    def wait(self, timeout: Optional[int] = 30) -> None:
+        """
+        Wait for the VM to power off and perform post-shutdown cleanup.
+
+        :param timeout: Optional timeout in seconds. Default 30 seconds.
+                        A value of `None` is an infinite wait.
+        """
+        self.shutdown(has_quit=True, timeout=timeout)
 
     def set_qmp_monitor(self, enabled=True):
         """
@@ -438,7 +519,7 @@ class QEMUMachine:
         if reply is None:
             raise qmp.QMPError("Monitor is closed")
         if "error" in reply:
-            raise MonitorResponseError(reply)
+            raise qmp.QMPResponseError(reply)
         return reply["return"]
 
     def get_qmp_event(self, wait=False):
@@ -591,11 +672,8 @@ class QEMUMachine:
         Returns a socket connected to the console
         """
         if self._console_socket is None:
-            if self._drain_console:
-                self._console_socket = ConsoleSocket(self._console_address,
-                                                    file=self._console_log_path)
-            else:
-                self._console_socket = socket.socket(socket.AF_UNIX,
-                                                     socket.SOCK_STREAM)
-                self._console_socket.connect(self._console_address)
+            self._console_socket = console_socket.ConsoleSocket(
+                self._console_address,
+                file=self._console_log_path,
+                drain=self._drain_console)
         return self._console_socket

@@ -79,9 +79,57 @@ int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send);
 int i2c_send(I2CBus *bus, uint8_t data);
 uint8_t i2c_recv(I2CBus *bus);
 
-DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr);
-DeviceState *i2c_try_create_slave(const char *name, uint8_t addr);
-bool i2c_realize_and_unref(DeviceState *dev, I2CBus *bus, Error **errp);
+/**
+ * Create an I2C slave device on the heap.
+ * @name: a device type name
+ * @addr: I2C address of the slave when put on a bus
+ *
+ * This only initializes the device state structure and allows
+ * properties to be set. Type @name must exist. The device still
+ * needs to be realized. See qdev-core.h.
+ */
+I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
+
+/**
+ * Create and realize an I2C slave device on the heap.
+ * @bus: I2C bus to put it on
+ * @name: I2C slave device type name
+ * @addr: I2C address of the slave when put on a bus
+ *
+ * Create the device state structure, initialize it, put it on the
+ * specified @bus, and drop the reference to it (the device is realized).
+ */
+I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
+
+/**
+ * Realize and and drop a reference an I2C slave device
+ * @dev: I2C slave device to realize
+ * @bus: I2C bus to put it on
+ * @addr: I2C address of the slave on the bus
+ * @errp: pointer to NULL initialized error object
+ *
+ * Returns: %true on success, %false on failure.
+ *
+ * Call 'realize' on @dev, put it on the specified @bus, and drop the
+ * reference to it.
+ *
+ * This function is useful if you have created @dev via qdev_new(),
+ * i2c_slave_new() or i2c_slave_try_new() (which take a reference to
+ * the device it returns to you), so that you can set properties on it
+ * before realizing it. If you don't need to set properties then
+ * i2c_slave_create_simple() is probably better (as it does the create,
+ * init and realize in one step).
+ *
+ * If you are embedding the I2C slave into another QOM device and
+ * initialized it via some variant on object_initialize_child() then
+ * do not use this function, because that family of functions arrange
+ * for the only reference to the child device to be held by the parent
+ * via the child<> property, and so the reference-count-drop done here
+ * would be incorrect.  (Instead you would want i2c_slave_realize(),
+ * which doesn't currently exist but would be trivial to create if we
+ * had any code that wanted it.)
+ */
+bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp);
 
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);

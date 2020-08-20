@@ -267,26 +267,25 @@ const VMStateDescription vmstate_i2c_slave = {
     }
 };
 
-DeviceState *i2c_try_create_slave(const char *name, uint8_t addr)
+I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
 {
     DeviceState *dev;
 
     dev = qdev_new(name);
     qdev_prop_set_uint8(dev, "address", addr);
-    return dev;
+    return I2C_SLAVE(dev);
 }
 
-bool i2c_realize_and_unref(DeviceState *dev, I2CBus *bus, Error **errp)
+bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp)
 {
-    return qdev_realize_and_unref(dev, &bus->qbus, errp);
+    return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
+I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
 {
-    DeviceState *dev;
+    I2CSlave *dev = i2c_slave_new(name, addr);
 
-    dev = i2c_try_create_slave(name, addr);
-    i2c_realize_and_unref(dev, bus, &error_fatal);
+    i2c_slave_realize_and_unref(dev, bus, &error_abort);
 
     return dev;
 }

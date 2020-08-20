@@ -32,7 +32,9 @@ typedef struct FWCfgDataGeneratorClass {
      * @obj: the object implementing this interface
      * @errp: pointer to a NULL-initialized error object
      *
-     * Returns: reference to a byte array containing the data.
+     * Returns: reference to a byte array containing the data on success,
+     *          or NULL on error.
+     *
      * The caller should release the reference when no longer
      * required.
      */
@@ -302,8 +304,10 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename, void *data,
  * will be used; also, a new entry will be added to the file directory
  * structure residing at key value FW_CFG_FILE_DIR, containing the item name,
  * data size, and assigned selector key value.
+ *
+ * Returns: %true on success, %false on error.
  */
-void fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
+bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
                                const char *gen_id, Error **errp);
 
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,

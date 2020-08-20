@@ -36,7 +36,7 @@
  * Use QEMU_VMALLOC_ALIGN, so no THP will have to be split when unplugging
  * memory (e.g., 2MB on x86_64).
  */
-#define VIRTIO_MEM_MIN_BLOCK_SIZE QEMU_VMALLOC_ALIGN
+#define VIRTIO_MEM_MIN_BLOCK_SIZE ((uint32_t)QEMU_VMALLOC_ALIGN)
 /*
  * Size the usable region bigger than the requested size if possible. Esp.
  * Linux guests will only add (aligned) memory blocks in case they fully
@@ -409,11 +409,9 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'%s' property is not set", VIRTIO_MEM_MEMDEV_PROP);
         return;
     } else if (host_memory_backend_is_mapped(vmem->memdev)) {
-        char *path = object_get_canonical_path_component(OBJECT(vmem->memdev));
-
         error_setg(errp, "'%s' property specifies a busy memdev: %s",
-                   VIRTIO_MEM_MEMDEV_PROP, path);
-        g_free(path);
+                   VIRTIO_MEM_MEMDEV_PROP,
+                   object_get_canonical_path_component(OBJECT(vmem->memdev)));
         return;
     } else if (!memory_region_is_ram(&vmem->memdev->mr) ||
         memory_region_is_rom(&vmem->memdev->mr) ||

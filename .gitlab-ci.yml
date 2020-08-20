@@ -47,73 +47,144 @@ include:
     - find . -type f -exec touch {} +
     - make $MAKE_CHECK_ARGS
 
-.post_acceptance_template: &post_acceptance
+.acceptance_template: &acceptance_definition
+  cache:
+    key: "${CI_JOB_NAME}-cache"
+    paths:
+      - ${CI_PROJECT_DIR}/avocado-cache
+    policy: pull-push
+  before_script:
+    - mkdir -p ~/.config/avocado
+    - echo "[datadir.paths]" > ~/.config/avocado/avocado.conf
+    - echo "cache_dirs = ['${CI_PROJECT_DIR}/avocado-cache']"
+           >> ~/.config/avocado/avocado.conf
+    - if [ -d ${CI_PROJECT_DIR}/avocado-cache ]; then
+        du -chs ${CI_PROJECT_DIR}/avocado-cache ;
+      fi
   after_script:
     - cd build
     - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
-    - du -chs $HOME/avocado/data/cache
+    - du -chs ${CI_PROJECT_DIR}/avocado-cache
 
-build-system-ubuntu-main:
+build-system-ubuntu:
   <<: *native_build_job_definition
   variables:
     IMAGE: ubuntu2004
-    TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu lm32-softmmu
-      moxie-softmmu microblazeel-softmmu mips64el-softmmu m68k-softmmu ppc-softmmu
-      riscv64-softmmu sparc-softmmu
+    TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
+      moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
       - build
 
-check-system-ubuntu-main:
+check-system-ubuntu:
   <<: *native_test_job_definition
   needs:
-    - job: build-system-ubuntu-main
+    - job: build-system-ubuntu
       artifacts: true
   variables:
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
 
-acceptance-system-ubuntu-main:
+acceptance-system-ubuntu:
   <<: *native_test_job_definition
   needs:
-    - job: build-system-ubuntu-main
+    - job: build-system-ubuntu
       artifacts: true
   variables:
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check-acceptance
-  <<: *post_acceptance
+  <<: *acceptance_definition
 
-build-system-fedora-alt:
+build-system-debian:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: debian-amd64
+    TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
+      riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-system-debian:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-debian
+      artifacts: true
+  variables:
+    IMAGE: debian-amd64
+    MAKE_CHECK_ARGS: check
+
+acceptance-system-debian:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-debian
+      artifacts: true
+  variables:
+    IMAGE: debian-amd64
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
+build-system-fedora:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
     TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
-      riscv32-softmmu s390x-softmmu sh4-softmmu sparc64-softmmu x86_64-softmmu
-      xtensa-softmmu nios2-softmmu or1k-softmmu
+      xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
       - build
 
-check-system-fedora-alt:
+check-system-fedora:
   <<: *native_test_job_definition
   needs:
-    - job: build-system-fedora-alt
+    - job: build-system-fedora
       artifacts: true
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
-acceptance-system-fedora-alt:
+acceptance-system-fedora:
   <<: *native_test_job_definition
   needs:
-    - job: build-system-fedora-alt
+    - job: build-system-fedora
       artifacts: true
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  <<: *post_acceptance
+  <<: *acceptance_definition
+
+build-system-centos:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos8
+    TARGETS: ppc64-softmmu lm32-softmmu or1k-softmmu s390x-softmmu
+      x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-system-centos:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-centos
+      artifacts: true
+  variables:
+    IMAGE: centos8
+    MAKE_CHECK_ARGS: check
+
+acceptance-system-centos:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-centos
+      artifacts: true
+  variables:
+    IMAGE: centos8
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
 
 build-disabled:
   <<: *native_build_job_definition
@@ -161,8 +232,24 @@ build-clang:
     IMAGE: fedora
     CONFIGURE_ARGS: --cc=clang --cxx=clang++
     TARGETS: alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
-      ppc-softmmu s390x-softmmu x86_64-softmmu arm-linux-user
+      ppc-softmmu s390x-softmmu arm-linux-user
     MAKE_CHECK_ARGS: check
+
+build-oss-fuzz:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: fedora
+  script:
+    - mkdir build-oss-fuzz
+    - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
+      ./scripts/oss-fuzz/build.sh
+    - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
+                      | grep -v slirp); do
+        grep "LLVMFuzzerTestOneInput" ${fuzzer} > /dev/null 2>&1 || continue ;
+        echo Testing ${fuzzer} ... ;
+        ASAN_OPTIONS="fast_unwind_on_malloc=0"
+         "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
+      done
 
 build-tci:
   <<: *native_build_job_definition

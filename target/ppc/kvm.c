@@ -2071,9 +2071,8 @@ bool kvmppc_get_fwnmi(void)
     return cap_fwnmi;
 }
 
-int kvmppc_set_fwnmi(void)
+int kvmppc_set_fwnmi(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
     CPUState *cs = CPU(cpu);
 
     return kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_FWNMI, 0);

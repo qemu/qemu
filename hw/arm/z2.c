@@ -330,8 +330,8 @@ static void z2_init(MachineState *machine)
     type_register_static(&aer915_info);
     z2_lcd = ssi_create_slave(mpu->ssp[1], TYPE_ZIPIT_LCD);
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
-    i2c_create_slave(bus, TYPE_AER915, 0x55);
-    wm = i2c_create_slave(bus, TYPE_WM8750, 0x1b);
+    i2c_slave_create_simple(bus, TYPE_AER915, 0x55);
+    wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0x1b));
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;
     mpu->i2s->codec_in = wm8750_adc_dat;

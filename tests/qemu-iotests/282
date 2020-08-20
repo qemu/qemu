@@ -38,7 +38,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt luks
 _supported_proto generic
-_unsupported_proto vxhs
 
 echo "== Create non-UTF8 secret =="
 echo -n -e '\x3a\x3c\x3b\xff' > non_utf8_secret

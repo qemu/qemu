@@ -28,19 +28,19 @@ import signal
 import struct
 import subprocess
 import sys
+import time
 from typing import (Any, Callable, Dict, Iterable,
                     List, Optional, Sequence, Tuple, TypeVar)
 import unittest
 
+from contextlib import contextmanager
+
 # pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qtest
+from qemu.qmp import QMPMessage
 
 assert sys.version_info >= (3, 6)
-
-# Type Aliases
-QMPResponse = Dict[str, Any]
-
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
@@ -141,6 +141,12 @@ def qemu_img_create(*args):
 
     return qemu_img(*args)
 
+def qemu_img_measure(*args):
+    return json.loads(qemu_img_pipe("measure", "--output", "json", *args))
+
+def qemu_img_check(*args):
+    return json.loads(qemu_img_pipe("check", "--output", "json", *args))
+
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
     exitcode = subprocess.call(qemu_img_args + list(args))
@@ -212,12 +218,18 @@ def get_virtio_scsi_device():
 
 class QemuIoInteractive:
     def __init__(self, *args):
-        self.args = qemu_io_args + list(args)
+        self.args = qemu_io_args_no_fmt + list(args)
         self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
                                    universal_newlines=True)
-        assert self._p.stdout.read(9) == 'qemu-io> '
+        out = self._p.stdout.read(9)
+        if out != 'qemu-io> ':
+            # Most probably qemu-io just failed to start.
+            # Let's collect the whole output and exit.
+            out += self._p.stdout.read()
+            self._p.wait(timeout=1)
+            raise ValueError(out)
 
     def close(self):
         self._p.communicate('q\n')
@@ -267,9 +279,30 @@ def qemu_nbd_early_pipe(*args):
 
     return subp.returncode, output if subp.returncode else ''
 
+@contextmanager
 def qemu_nbd_popen(*args):
-    '''Run qemu-nbd in daemon mode and return the parent's exit code'''
-    return subprocess.Popen(qemu_nbd_args + ['--persistent'] + list(args))
+    '''Context manager running qemu-nbd within the context'''
+    pid_file = file_path("pid")
+
+    cmd = list(qemu_nbd_args)
+    cmd.extend(('--persistent', '--pid-file', pid_file))
+    cmd.extend(args)
+
+    log('Start NBD server')
+    p = subprocess.Popen(cmd)
+    try:
+        while not os.path.exists(pid_file):
+            if p.poll() is not None:
+                raise RuntimeError(
+                    "qemu-nbd terminated with exit code {}: {}"
+                    .format(p.returncode, ' '.join(cmd)))
+
+            time.sleep(0.01)
+        yield
+    finally:
+        log('Kill NBD server')
+        p.kill()
+        p.wait()
 
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
@@ -339,8 +372,9 @@ def filter_qmp(qmsg, filter_fn):
     return qmsg
 
 def filter_testfiles(msg):
-    prefix = os.path.join(test_dir, "%s-" % (os.getpid()))
-    return msg.replace(prefix, 'TEST_DIR/PID-')
+    pref1 = os.path.join(test_dir, "%s-" % (os.getpid()))
+    pref2 = os.path.join(sock_dir, "%s-" % (os.getpid()))
+    return msg.replace(pref1, 'TEST_DIR/PID-').replace(pref2, 'SOCK_DIR/PID-')
 
 def filter_qmp_testfiles(qmsg):
     def _filter(_key, value):
@@ -554,7 +588,7 @@ class VM(qtest.QEMUQtestMachine):
         self._args.append(addr)
         return self
 
-    def hmp(self, command_line: str, use_log: bool = False) -> QMPResponse:
+    def hmp(self, command_line: str, use_log: bool = False) -> QMPMessage:
         cmd = 'human-monitor-command'
         kwargs = {'command-line': command_line}
         if use_log:
@@ -575,7 +609,7 @@ class VM(qtest.QEMUQtestMachine):
         self.hmp(f'qemu-io {drive} "remove_break bp_{drive}"')
 
     def hmp_qemu_io(self, drive: str, cmd: str,
-                    use_log: bool = False) -> QMPResponse:
+                    use_log: bool = False) -> QMPMessage:
         """Write to a given drive using an HMP command"""
         return self.hmp(f'qemu-io {drive} "{cmd}"', use_log=use_log)
 

@@ -672,7 +672,7 @@ static int send_remove_regions(struct vhost_dev *dev,
         memmove(&u->shadow_regions[shadow_reg_idx],
                 &u->shadow_regions[shadow_reg_idx + 1],
                 sizeof(struct vhost_memory_region) *
-                (u->num_shadow_regions - shadow_reg_idx));
+                (u->num_shadow_regions - shadow_reg_idx - 1));
         u->num_shadow_regions--;
     }
 

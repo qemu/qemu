@@ -97,26 +97,28 @@
 
 #define DIRTY_BITMAP_MIG_START_FLAG_ENABLED          0x01
 #define DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT       0x02
-/* 0x04 was "AUTOLOAD" flags on elder versions, no it is ignored */
+/* 0x04 was "AUTOLOAD" flags on older versions, now it is ignored */
 #define DIRTY_BITMAP_MIG_START_FLAG_RESERVED_MASK    0xf8
 
-typedef struct DirtyBitmapMigBitmapState {
+/* State of one bitmap during save process */
+typedef struct SaveBitmapState {
     /* Written during setup phase. */
     BlockDriverState *bs;
     const char *node_name;
     BdrvDirtyBitmap *bitmap;
     uint64_t total_sectors;
     uint64_t sectors_per_chunk;
-    QSIMPLEQ_ENTRY(DirtyBitmapMigBitmapState) entry;
+    QSIMPLEQ_ENTRY(SaveBitmapState) entry;
     uint8_t flags;
 
     /* For bulk phase. */
     bool bulk_completed;
     uint64_t cur_sector;
-} DirtyBitmapMigBitmapState;
+} SaveBitmapState;
 
-typedef struct DirtyBitmapMigState {
-    QSIMPLEQ_HEAD(, DirtyBitmapMigBitmapState) dbms_list;
+/* State of the dirty bitmap migration (DBM) during save process */
+typedef struct DBMSaveState {
+    QSIMPLEQ_HEAD(, SaveBitmapState) dbms_list;
 
     bool bulk_completed;
     bool no_bitmaps;
@@ -124,30 +126,44 @@ typedef struct DirtyBitmapMigState {
     /* for send_bitmap_bits() */
     BlockDriverState *prev_bs;
     BdrvDirtyBitmap *prev_bitmap;
-} DirtyBitmapMigState;
+} DBMSaveState;
 
-typedef struct DirtyBitmapLoadState {
+typedef struct LoadBitmapState {
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+    bool migrated;
+    bool enabled;
+} LoadBitmapState;
+
+/* State of the dirty bitmap migration (DBM) during load process */
+typedef struct DBMLoadState {
     uint32_t flags;
     char node_name[256];
     char bitmap_name[256];
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
-} DirtyBitmapLoadState;
 
-static DirtyBitmapMigState dirty_bitmap_mig_state;
+    bool before_vm_start_handled; /* set in dirty_bitmap_mig_before_vm_start */
 
-typedef struct DirtyBitmapLoadBitmapState {
-    BlockDriverState *bs;
-    BdrvDirtyBitmap *bitmap;
-    bool migrated;
-} DirtyBitmapLoadBitmapState;
-static GSList *enabled_bitmaps;
-QemuMutex finish_lock;
+    /*
+     * cancelled
+     * Incoming migration is cancelled for some reason. That means that we
+     * still should read our chunks from migration stream, to not affect other
+     * migration objects (like RAM), but just ignore them and do not touch any
+     * bitmaps or nodes.
+     */
+    bool cancelled;
 
-void init_dirty_bitmap_incoming_migration(void)
-{
-    qemu_mutex_init(&finish_lock);
-}
+    GSList *bitmaps;
+    QemuMutex lock; /* protect bitmaps */
+} DBMLoadState;
+
+typedef struct DBMState {
+    DBMSaveState save;
+    DBMLoadState load;
+} DBMState;
+
+static DBMState dbm_state;
 
 static uint32_t qemu_get_bitmap_flags(QEMUFile *f)
 {
@@ -164,27 +180,27 @@ static uint32_t qemu_get_bitmap_flags(QEMUFile *f)
 
 static void qemu_put_bitmap_flags(QEMUFile *f, uint32_t flags)
 {
-    /* The code currently do not send flags more than one byte */
+    /* The code currently does not send flags as more than one byte */
     assert(!(flags & (0xffffff00 | DIRTY_BITMAP_MIG_EXTRA_FLAGS)));
 
     qemu_put_byte(f, flags);
 }
 
-static void send_bitmap_header(QEMUFile *f, DirtyBitmapMigBitmapState *dbms,
-                               uint32_t additional_flags)
+static void send_bitmap_header(QEMUFile *f, DBMSaveState *s,
+                               SaveBitmapState *dbms, uint32_t additional_flags)
 {
     BlockDriverState *bs = dbms->bs;
     BdrvDirtyBitmap *bitmap = dbms->bitmap;
     uint32_t flags = additional_flags;
     trace_send_bitmap_header_enter();
 
-    if (bs != dirty_bitmap_mig_state.prev_bs) {
-        dirty_bitmap_mig_state.prev_bs = bs;
+    if (bs != s->prev_bs) {
+        s->prev_bs = bs;
         flags |= DIRTY_BITMAP_MIG_FLAG_DEVICE_NAME;
     }
 
-    if (bitmap != dirty_bitmap_mig_state.prev_bitmap) {
-        dirty_bitmap_mig_state.prev_bitmap = bitmap;
+    if (bitmap != s->prev_bitmap) {
+        s->prev_bitmap = bitmap;
         flags |= DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME;
     }
 
@@ -199,19 +215,22 @@ static void send_bitmap_header(QEMUFile *f, DirtyBitmapMigBitmapState *dbms,
     }
 }
 
-static void send_bitmap_start(QEMUFile *f, DirtyBitmapMigBitmapState *dbms)
+static void send_bitmap_start(QEMUFile *f, DBMSaveState *s,
+                              SaveBitmapState *dbms)
 {
-    send_bitmap_header(f, dbms, DIRTY_BITMAP_MIG_FLAG_START);
+    send_bitmap_header(f, s, dbms, DIRTY_BITMAP_MIG_FLAG_START);
     qemu_put_be32(f, bdrv_dirty_bitmap_granularity(dbms->bitmap));
     qemu_put_byte(f, dbms->flags);
 }
 
-static void send_bitmap_complete(QEMUFile *f, DirtyBitmapMigBitmapState *dbms)
+static void send_bitmap_complete(QEMUFile *f, DBMSaveState *s,
+                                 SaveBitmapState *dbms)
 {
-    send_bitmap_header(f, dbms, DIRTY_BITMAP_MIG_FLAG_COMPLETE);
+    send_bitmap_header(f, s, dbms, DIRTY_BITMAP_MIG_FLAG_COMPLETE);
 }
 
-static void send_bitmap_bits(QEMUFile *f, DirtyBitmapMigBitmapState *dbms,
+static void send_bitmap_bits(QEMUFile *f, DBMSaveState *s,
+                             SaveBitmapState *dbms,
                              uint64_t start_sector, uint32_t nr_sectors)
 {
     /* align for buffer_is_zero() */
@@ -236,7 +255,7 @@ static void send_bitmap_bits(QEMUFile *f, DirtyBitmapMigBitmapState *dbms,
 
     trace_send_bitmap_bits(flags, start_sector, nr_sectors, buf_size);
 
-    send_bitmap_header(f, dbms, flags);
+    send_bitmap_header(f, s, dbms, flags);
 
     qemu_put_be64(f, start_sector);
     qemu_put_be32(f, nr_sectors);
@@ -255,12 +274,12 @@ static void send_bitmap_bits(QEMUFile *f, DirtyBitmapMigBitmapState *dbms,
 }
 
 /* Called with iothread lock taken.  */
-static void dirty_bitmap_mig_cleanup(void)
+static void dirty_bitmap_do_save_cleanup(DBMSaveState *s)
 {
-    DirtyBitmapMigBitmapState *dbms;
+    SaveBitmapState *dbms;
 
-    while ((dbms = QSIMPLEQ_FIRST(&dirty_bitmap_mig_state.dbms_list)) != NULL) {
-        QSIMPLEQ_REMOVE_HEAD(&dirty_bitmap_mig_state.dbms_list, entry);
+    while ((dbms = QSIMPLEQ_FIRST(&s->dbms_list)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&s->dbms_list, entry);
         bdrv_dirty_bitmap_set_busy(dbms->bitmap, false);
         bdrv_unref(dbms->bs);
         g_free(dbms);
@@ -268,13 +287,18 @@ static void dirty_bitmap_mig_cleanup(void)
 }
 
 /* Called with iothread lock taken. */
-static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
+static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
+                               const char *bs_name)
 {
     BdrvDirtyBitmap *bitmap;
-    DirtyBitmapMigBitmapState *dbms;
+    SaveBitmapState *dbms;
     Error *local_err = NULL;
 
-    bitmap = bdrv_dirty_bitmap_first(bs);
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        if (bdrv_dirty_bitmap_name(bitmap)) {
+            break;
+        }
+    }
     if (!bitmap) {
         return 0;
     }
@@ -305,7 +329,7 @@ static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
         bdrv_ref(bs);
         bdrv_dirty_bitmap_set_busy(bitmap, true);
 
-        dbms = g_new0(DirtyBitmapMigBitmapState, 1);
+        dbms = g_new0(SaveBitmapState, 1);
         dbms->bs = bs;
         dbms->node_name = bs_name;
         dbms->bitmap = bitmap;
@@ -319,25 +343,24 @@ static int add_bitmaps_to_list(BlockDriverState *bs, const char *bs_name)
             dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
         }
 
-        QSIMPLEQ_INSERT_TAIL(&dirty_bitmap_mig_state.dbms_list,
-                             dbms, entry);
+        QSIMPLEQ_INSERT_TAIL(&s->dbms_list, dbms, entry);
     }
 
     return 0;
 }
 
 /* Called with iothread lock taken. */
-static int init_dirty_bitmap_migration(void)
+static int init_dirty_bitmap_migration(DBMSaveState *s)
 {
     BlockDriverState *bs;
-    DirtyBitmapMigBitmapState *dbms;
+    SaveBitmapState *dbms;
     GHashTable *handled_by_blk = g_hash_table_new(NULL, NULL);
     BlockBackend *blk;
 
-    dirty_bitmap_mig_state.bulk_completed = false;
-    dirty_bitmap_mig_state.prev_bs = NULL;
-    dirty_bitmap_mig_state.prev_bitmap = NULL;
-    dirty_bitmap_mig_state.no_bitmaps = false;
+    s->bulk_completed = false;
+    s->prev_bs = NULL;
+    s->prev_bitmap = NULL;
+    s->no_bitmaps = false;
 
     /*
      * Use blockdevice name for direct (or filtered) children of named block
@@ -366,7 +389,7 @@ static int init_dirty_bitmap_migration(void)
         }
 
         if (bs && bs->drv && !bs->drv->is_filter) {
-            if (add_bitmaps_to_list(bs, name)) {
+            if (add_bitmaps_to_list(s, bs, name)) {
                 goto fail;
             }
             g_hash_table_add(handled_by_blk, bs);
@@ -378,18 +401,18 @@ static int init_dirty_bitmap_migration(void)
             continue;
         }
 
-        if (add_bitmaps_to_list(bs, bdrv_get_node_name(bs))) {
+        if (add_bitmaps_to_list(s, bs, bdrv_get_node_name(bs))) {
             goto fail;
         }
     }
 
     /* unset migration flags here, to not roll back it */
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
+    QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         bdrv_dirty_bitmap_skip_store(dbms->bitmap, true);
     }
 
-    if (QSIMPLEQ_EMPTY(&dirty_bitmap_mig_state.dbms_list)) {
-        dirty_bitmap_mig_state.no_bitmaps = true;
+    if (QSIMPLEQ_EMPTY(&s->dbms_list)) {
+        s->no_bitmaps = true;
     }
 
     g_hash_table_destroy(handled_by_blk);
@@ -398,18 +421,19 @@ static int init_dirty_bitmap_migration(void)
 
 fail:
     g_hash_table_destroy(handled_by_blk);
-    dirty_bitmap_mig_cleanup();
+    dirty_bitmap_do_save_cleanup(s);
 
     return -1;
 }
 
 /* Called with no lock taken.  */
-static void bulk_phase_send_chunk(QEMUFile *f, DirtyBitmapMigBitmapState *dbms)
+static void bulk_phase_send_chunk(QEMUFile *f, DBMSaveState *s,
+                                  SaveBitmapState *dbms)
 {
     uint32_t nr_sectors = MIN(dbms->total_sectors - dbms->cur_sector,
                              dbms->sectors_per_chunk);
 
-    send_bitmap_bits(f, dbms, dbms->cur_sector, nr_sectors);
+    send_bitmap_bits(f, s, dbms, dbms->cur_sector, nr_sectors);
 
     dbms->cur_sector += nr_sectors;
     if (dbms->cur_sector >= dbms->total_sectors) {
@@ -418,61 +442,66 @@ static void bulk_phase_send_chunk(QEMUFile *f, DirtyBitmapMigBitmapState *dbms)
 }
 
 /* Called with no lock taken.  */
-static void bulk_phase(QEMUFile *f, bool limit)
+static void bulk_phase(QEMUFile *f, DBMSaveState *s, bool limit)
 {
-    DirtyBitmapMigBitmapState *dbms;
+    SaveBitmapState *dbms;
 
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
+    QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         while (!dbms->bulk_completed) {
-            bulk_phase_send_chunk(f, dbms);
+            bulk_phase_send_chunk(f, s, dbms);
             if (limit && qemu_file_rate_limit(f)) {
                 return;
             }
         }
     }
 
-    dirty_bitmap_mig_state.bulk_completed = true;
+    s->bulk_completed = true;
 }
 
 /* for SaveVMHandlers */
 static void dirty_bitmap_save_cleanup(void *opaque)
 {
-    dirty_bitmap_mig_cleanup();
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+
+    dirty_bitmap_do_save_cleanup(s);
 }
 
 static int dirty_bitmap_save_iterate(QEMUFile *f, void *opaque)
 {
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+
     trace_dirty_bitmap_save_iterate(migration_in_postcopy());
 
-    if (migration_in_postcopy() && !dirty_bitmap_mig_state.bulk_completed) {
-        bulk_phase(f, true);
+    if (migration_in_postcopy() && !s->bulk_completed) {
+        bulk_phase(f, s, true);
     }
 
     qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
 
-    return dirty_bitmap_mig_state.bulk_completed;
+    return s->bulk_completed;
 }
 
 /* Called with iothread lock taken.  */
 
 static int dirty_bitmap_save_complete(QEMUFile *f, void *opaque)
 {
-    DirtyBitmapMigBitmapState *dbms;
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+    SaveBitmapState *dbms;
     trace_dirty_bitmap_save_complete_enter();
 
-    if (!dirty_bitmap_mig_state.bulk_completed) {
-        bulk_phase(f, false);
+    if (!s->bulk_completed) {
+        bulk_phase(f, s, false);
     }
 
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
-        send_bitmap_complete(f, dbms);
+    QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
+        send_bitmap_complete(f, s, dbms);
     }
 
     qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
 
     trace_dirty_bitmap_save_complete_finish();
 
-    dirty_bitmap_mig_cleanup();
+    dirty_bitmap_save_cleanup(opaque);
     return 0;
 }
 
@@ -482,12 +511,13 @@ static void dirty_bitmap_save_pending(QEMUFile *f, void *opaque,
                                       uint64_t *res_compatible,
                                       uint64_t *res_postcopy_only)
 {
-    DirtyBitmapMigBitmapState *dbms;
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+    SaveBitmapState *dbms;
     uint64_t pending = 0;
 
     qemu_mutex_lock_iothread();
 
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
+    QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         uint64_t gran = bdrv_dirty_bitmap_granularity(dbms->bitmap);
         uint64_t sectors = dbms->bulk_completed ? 0 :
                            dbms->total_sectors - dbms->cur_sector;
@@ -503,11 +533,16 @@ static void dirty_bitmap_save_pending(QEMUFile *f, void *opaque,
 }
 
 /* First occurrence of this bitmap. It should be created if doesn't exist */
-static int dirty_bitmap_load_start(QEMUFile *f, DirtyBitmapLoadState *s)
+static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
 {
     Error *local_err = NULL;
     uint32_t granularity = qemu_get_be32(f);
     uint8_t flags = qemu_get_byte(f);
+    LoadBitmapState *b;
+
+    if (s->cancelled) {
+        return 0;
+    }
 
     if (s->bitmap) {
         error_report("Bitmap with the same name ('%s') already exists on "
@@ -534,90 +569,140 @@ static int dirty_bitmap_load_start(QEMUFile *f, DirtyBitmapLoadState *s)
 
     bdrv_disable_dirty_bitmap(s->bitmap);
     if (flags & DIRTY_BITMAP_MIG_START_FLAG_ENABLED) {
-        DirtyBitmapLoadBitmapState *b;
-
         bdrv_dirty_bitmap_create_successor(s->bitmap, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return -EINVAL;
         }
-
-        b = g_new(DirtyBitmapLoadBitmapState, 1);
-        b->bs = s->bs;
-        b->bitmap = s->bitmap;
-        b->migrated = false;
-        enabled_bitmaps = g_slist_prepend(enabled_bitmaps, b);
     }
+
+    b = g_new(LoadBitmapState, 1);
+    b->bs = s->bs;
+    b->bitmap = s->bitmap;
+    b->migrated = false;
+    b->enabled = flags & DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
+
+    s->bitmaps = g_slist_prepend(s->bitmaps, b);
 
     return 0;
 }
 
-void dirty_bitmap_mig_before_vm_start(void)
+/*
+ * before_vm_start_handle_item
+ *
+ * g_slist_foreach helper
+ *
+ * item is LoadBitmapState*
+ * opaque is DBMLoadState*
+ */
+static void before_vm_start_handle_item(void *item, void *opaque)
 {
-    GSList *item;
+    DBMLoadState *s = opaque;
+    LoadBitmapState *b = item;
 
-    qemu_mutex_lock(&finish_lock);
-
-    for (item = enabled_bitmaps; item; item = g_slist_next(item)) {
-        DirtyBitmapLoadBitmapState *b = item->data;
-
+    if (b->enabled) {
         if (b->migrated) {
-            bdrv_enable_dirty_bitmap_locked(b->bitmap);
+            bdrv_enable_dirty_bitmap(b->bitmap);
         } else {
             bdrv_dirty_bitmap_enable_successor(b->bitmap);
         }
-
-        g_free(b);
     }
 
-    g_slist_free(enabled_bitmaps);
-    enabled_bitmaps = NULL;
-
-    qemu_mutex_unlock(&finish_lock);
+    if (b->migrated) {
+        s->bitmaps = g_slist_remove(s->bitmaps, b);
+        g_free(b);
+    }
 }
 
-static void dirty_bitmap_load_complete(QEMUFile *f, DirtyBitmapLoadState *s)
+void dirty_bitmap_mig_before_vm_start(void)
+{
+    DBMLoadState *s = &dbm_state.load;
+    qemu_mutex_lock(&s->lock);
+
+    assert(!s->before_vm_start_handled);
+    g_slist_foreach(s->bitmaps, before_vm_start_handle_item, s);
+    s->before_vm_start_handled = true;
+
+    qemu_mutex_unlock(&s->lock);
+}
+
+static void cancel_incoming_locked(DBMLoadState *s)
+{
+    GSList *item;
+
+    if (s->cancelled) {
+        return;
+    }
+
+    s->cancelled = true;
+    s->bs = NULL;
+    s->bitmap = NULL;
+
+    /* Drop all unfinished bitmaps */
+    for (item = s->bitmaps; item; item = g_slist_next(item)) {
+        LoadBitmapState *b = item->data;
+
+        /*
+         * Bitmap must be unfinished, as finished bitmaps should already be
+         * removed from the list.
+         */
+        assert(!s->before_vm_start_handled || !b->migrated);
+        if (bdrv_dirty_bitmap_has_successor(b->bitmap)) {
+            bdrv_reclaim_dirty_bitmap(b->bitmap, &error_abort);
+        }
+        bdrv_release_dirty_bitmap(b->bitmap);
+    }
+
+    g_slist_free_full(s->bitmaps, g_free);
+    s->bitmaps = NULL;
+}
+
+void dirty_bitmap_mig_cancel_outgoing(void)
+{
+    dirty_bitmap_do_save_cleanup(&dbm_state.save);
+}
+
+void dirty_bitmap_mig_cancel_incoming(void)
+{
+    DBMLoadState *s = &dbm_state.load;
+
+    qemu_mutex_lock(&s->lock);
+
+    cancel_incoming_locked(s);
+
+    qemu_mutex_unlock(&s->lock);
+}
+
+static void dirty_bitmap_load_complete(QEMUFile *f, DBMLoadState *s)
 {
     GSList *item;
     trace_dirty_bitmap_load_complete();
+
+    if (s->cancelled) {
+        return;
+    }
+
     bdrv_dirty_bitmap_deserialize_finish(s->bitmap);
 
-    qemu_mutex_lock(&finish_lock);
+    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
+        bdrv_reclaim_dirty_bitmap(s->bitmap, &error_abort);
+    }
 
-    for (item = enabled_bitmaps; item; item = g_slist_next(item)) {
-        DirtyBitmapLoadBitmapState *b = item->data;
+    for (item = s->bitmaps; item; item = g_slist_next(item)) {
+        LoadBitmapState *b = item->data;
 
         if (b->bitmap == s->bitmap) {
             b->migrated = true;
+            if (s->before_vm_start_handled) {
+                s->bitmaps = g_slist_remove(s->bitmaps, b);
+                g_free(b);
+            }
             break;
         }
     }
-
-    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
-        bdrv_dirty_bitmap_lock(s->bitmap);
-        if (enabled_bitmaps == NULL) {
-            /* in postcopy */
-            bdrv_reclaim_dirty_bitmap_locked(s->bitmap, &error_abort);
-            bdrv_enable_dirty_bitmap_locked(s->bitmap);
-        } else {
-            /* target not started, successor must be empty */
-            int64_t count = bdrv_get_dirty_count(s->bitmap);
-            BdrvDirtyBitmap *ret = bdrv_reclaim_dirty_bitmap_locked(s->bitmap,
-                                                                    NULL);
-            /* bdrv_reclaim_dirty_bitmap can fail only on no successor (it
-             * must be) or on merge fail, but merge can't fail when second
-             * bitmap is empty
-             */
-            assert(ret == s->bitmap &&
-                   count == bdrv_get_dirty_count(s->bitmap));
-        }
-        bdrv_dirty_bitmap_unlock(s->bitmap);
-    }
-
-    qemu_mutex_unlock(&finish_lock);
 }
 
-static int dirty_bitmap_load_bits(QEMUFile *f, DirtyBitmapLoadState *s)
+static int dirty_bitmap_load_bits(QEMUFile *f, DBMLoadState *s)
 {
     uint64_t first_byte = qemu_get_be64(f) << BDRV_SECTOR_BITS;
     uint64_t nr_bytes = (uint64_t)qemu_get_be32(f) << BDRV_SECTOR_BITS;
@@ -626,15 +711,46 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DirtyBitmapLoadState *s)
 
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_ZEROES) {
         trace_dirty_bitmap_load_bits_zeroes();
-        bdrv_dirty_bitmap_deserialize_zeroes(s->bitmap, first_byte, nr_bytes,
-                                             false);
+        if (!s->cancelled) {
+            bdrv_dirty_bitmap_deserialize_zeroes(s->bitmap, first_byte,
+                                                 nr_bytes, false);
+        }
     } else {
         size_t ret;
-        uint8_t *buf;
+        g_autofree uint8_t *buf = NULL;
         uint64_t buf_size = qemu_get_be64(f);
-        uint64_t needed_size =
-            bdrv_dirty_bitmap_serialization_size(s->bitmap,
-                                                 first_byte, nr_bytes);
+        uint64_t needed_size;
+
+        /*
+         * The actual check for buf_size is done a bit later. We can't do it in
+         * cancelled mode as we don't have the bitmap to check the constraints
+         * (so, we allocate a buffer and read prior to the check). On the other
+         * hand, we shouldn't blindly g_malloc the number from the stream.
+         * Actually one chunk should not be larger than CHUNK_SIZE. Let's allow
+         * a bit larger (which means that bitmap migration will fail anyway and
+         * the whole migration will most probably fail soon due to broken
+         * stream).
+         */
+        if (buf_size > 10 * CHUNK_SIZE) {
+            error_report("Bitmap migration stream buffer allocation request "
+                         "is too large");
+            return -EIO;
+        }
+
+        buf = g_malloc(buf_size);
+        ret = qemu_get_buffer(f, buf, buf_size);
+        if (ret != buf_size) {
+            error_report("Failed to read bitmap bits");
+            return -EIO;
+        }
+
+        if (s->cancelled) {
+            return 0;
+        }
+
+        needed_size = bdrv_dirty_bitmap_serialization_size(s->bitmap,
+                                                           first_byte,
+                                                           nr_bytes);
 
         if (needed_size > buf_size ||
             buf_size > QEMU_ALIGN_UP(needed_size, 4 * sizeof(long))
@@ -643,26 +759,18 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DirtyBitmapLoadState *s)
             error_report("Migrated bitmap granularity doesn't "
                          "match the destination bitmap '%s' granularity",
                          bdrv_dirty_bitmap_name(s->bitmap));
-            return -EINVAL;
-        }
-
-        buf = g_malloc(buf_size);
-        ret = qemu_get_buffer(f, buf, buf_size);
-        if (ret != buf_size) {
-            error_report("Failed to read bitmap bits");
-            g_free(buf);
-            return -EIO;
+            cancel_incoming_locked(s);
+            return 0;
         }
 
         bdrv_dirty_bitmap_deserialize_part(s->bitmap, buf, first_byte, nr_bytes,
                                            false);
-        g_free(buf);
     }
 
     return 0;
 }
 
-static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
+static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s)
 {
     Error *local_err = NULL;
     bool nothing;
@@ -676,14 +784,16 @@ static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
             error_report("Unable to read node name string");
             return -EINVAL;
         }
-        s->bs = bdrv_lookup_bs(s->node_name, s->node_name, &local_err);
-        if (!s->bs) {
-            error_report_err(local_err);
-            return -EINVAL;
+        if (!s->cancelled) {
+            s->bs = bdrv_lookup_bs(s->node_name, s->node_name, &local_err);
+            if (!s->bs) {
+                error_report_err(local_err);
+                cancel_incoming_locked(s);
+            }
         }
-    } else if (!s->bs && !nothing) {
+    } else if (!s->bs && !nothing && !s->cancelled) {
         error_report("Error: block device name is not set");
-        return -EINVAL;
+        cancel_incoming_locked(s);
     }
 
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
@@ -691,47 +801,66 @@ static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
             error_report("Unable to read bitmap name string");
             return -EINVAL;
         }
-        s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
+        if (!s->cancelled) {
+            s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
 
-        /* bitmap may be NULL here, it wouldn't be an error if it is the
-         * first occurrence of the bitmap */
-        if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
-            error_report("Error: unknown dirty bitmap "
-                         "'%s' for block device '%s'",
-                         s->bitmap_name, s->node_name);
-            return -EINVAL;
+            /*
+             * bitmap may be NULL here, it wouldn't be an error if it is the
+             * first occurrence of the bitmap
+             */
+            if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
+                error_report("Error: unknown dirty bitmap "
+                             "'%s' for block device '%s'",
+                             s->bitmap_name, s->node_name);
+                cancel_incoming_locked(s);
+            }
         }
-    } else if (!s->bitmap && !nothing) {
+    } else if (!s->bitmap && !nothing && !s->cancelled) {
         error_report("Error: block device name is not set");
-        return -EINVAL;
+        cancel_incoming_locked(s);
     }
 
     return 0;
 }
 
+/*
+ * dirty_bitmap_load
+ *
+ * Load sequence of dirty bitmap chunks. Return error only on fatal io stream
+ * violations. On other errors just cancel bitmaps incoming migration and return
+ * 0.
+ *
+ * Note, than when incoming bitmap migration is canceled, we still must read all
+ * our chunks (and just ignore them), to not affect other migration objects.
+ */
 static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
 {
-    static DirtyBitmapLoadState s;
+    DBMLoadState *s = &((DBMState *)opaque)->load;
     int ret = 0;
 
     trace_dirty_bitmap_load_enter();
 
     if (version_id != 1) {
+        QEMU_LOCK_GUARD(&s->lock);
+        cancel_incoming_locked(s);
         return -EINVAL;
     }
 
     do {
-        ret = dirty_bitmap_load_header(f, &s);
+        QEMU_LOCK_GUARD(&s->lock);
+
+        ret = dirty_bitmap_load_header(f, s);
         if (ret < 0) {
+            cancel_incoming_locked(s);
             return ret;
         }
 
-        if (s.flags & DIRTY_BITMAP_MIG_FLAG_START) {
-            ret = dirty_bitmap_load_start(f, &s);
-        } else if (s.flags & DIRTY_BITMAP_MIG_FLAG_COMPLETE) {
-            dirty_bitmap_load_complete(f, &s);
-        } else if (s.flags & DIRTY_BITMAP_MIG_FLAG_BITS) {
-            ret = dirty_bitmap_load_bits(f, &s);
+        if (s->flags & DIRTY_BITMAP_MIG_FLAG_START) {
+            ret = dirty_bitmap_load_start(f, s);
+        } else if (s->flags & DIRTY_BITMAP_MIG_FLAG_COMPLETE) {
+            dirty_bitmap_load_complete(f, s);
+        } else if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITS) {
+            ret = dirty_bitmap_load_bits(f, s);
         }
 
         if (!ret) {
@@ -739,9 +868,10 @@ static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         if (ret) {
+            cancel_incoming_locked(s);
             return ret;
         }
-    } while (!(s.flags & DIRTY_BITMAP_MIG_FLAG_EOS));
+    } while (!(s->flags & DIRTY_BITMAP_MIG_FLAG_EOS));
 
     trace_dirty_bitmap_load_success();
     return 0;
@@ -749,13 +879,14 @@ static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
 
 static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
 {
-    DirtyBitmapMigBitmapState *dbms = NULL;
-    if (init_dirty_bitmap_migration() < 0) {
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+    SaveBitmapState *dbms = NULL;
+    if (init_dirty_bitmap_migration(s) < 0) {
         return -1;
     }
 
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
-        send_bitmap_start(f, dbms);
+    QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
+        send_bitmap_start(f, s, dbms);
     }
     qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
 
@@ -764,7 +895,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
 
 static bool dirty_bitmap_is_active(void *opaque)
 {
-    return migrate_dirty_bitmaps() && !dirty_bitmap_mig_state.no_bitmaps;
+    DBMSaveState *s = &((DBMState *)opaque)->save;
+
+    return migrate_dirty_bitmaps() && !s->no_bitmaps;
 }
 
 static bool dirty_bitmap_is_active_iterate(void *opaque)
@@ -792,9 +925,10 @@ static SaveVMHandlers savevm_dirty_bitmap_handlers = {
 
 void dirty_bitmap_mig_init(void)
 {
-    QSIMPLEQ_INIT(&dirty_bitmap_mig_state.dbms_list);
+    QSIMPLEQ_INIT(&dbm_state.save.dbms_list);
+    qemu_mutex_init(&dbm_state.load.lock);
 
     register_savevm_live("dirty-bitmap", 0, 1,
                          &savevm_dirty_bitmap_handlers,
-                         &dirty_bitmap_mig_state);
+                         &dbm_state);
 }

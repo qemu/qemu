@@ -980,7 +980,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 
     assert(l2_index + m->nb_clusters <= s->l2_slice_size);
     for (i = 0; i < m->nb_clusters; i++) {
-        uint64_t offset = cluster_offset + (i << s->cluster_bits);
+        uint64_t offset = cluster_offset + ((uint64_t)i << s->cluster_bits);
         /* if two concurrent writes happen to the same unallocated cluster
          * each write allocates separate cluster and writes data concurrently.
          * The first one to complete updates l2 table with pointer to its
@@ -1797,8 +1797,15 @@ int qcow2_cluster_zeroize(BlockDriverState *bs, uint64_t offset,
     assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
            end_offset >= bs->total_sectors << BDRV_SECTOR_BITS);
 
-    /* The zero flag is only supported by version 3 and newer */
+    /*
+     * The zero flag is only supported by version 3 and newer. However, if we
+     * have no backing file, we can resort to discard in version 2.
+     */
     if (s->qcow_version < 3) {
+        if (!bs->backing) {
+            return qcow2_cluster_discard(bs, offset, bytes,
+                                         QCOW2_DISCARD_REQUEST, false);
+        }
         return -ENOTSUP;
     }
 

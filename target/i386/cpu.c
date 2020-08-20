@@ -984,7 +984,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             NULL, NULL, "avx512-4vnniw", "avx512-4fmaps",
-            NULL, NULL, NULL, NULL,
+            "fsrm", NULL, NULL, NULL,
             "avx512-vp2intersect", NULL, "md-clear", NULL,
             NULL, NULL, "serialize", NULL,
             "tsx-ldtrk", NULL, NULL /* pconfig */, NULL,
@@ -3034,6 +3034,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ }
                 }
             },
+            {
+                .version = 4,
+                .props = (PropValue[]) {
+                    { "vmx-eptp-switching", "on" },
+                    { /* end of list */ }
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -3155,6 +3162,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
               .props = (PropValue[]) {
                   { "hle", "off" },
                   { "rtm", "off" },
+                  { /* end of list */ }
+              },
+            },
+            { .version = 4,
+              .note = "ARCH_CAPABILITIES, no TSX",
+              .props = (PropValue[]) {
+                  { "vmx-eptp-switching", "on" },
                   { /* end of list */ }
               },
             },
@@ -3509,6 +3523,20 @@ static X86CPUDefinition builtin_x86_defs[] = {
                     { "mds-no", "on" },
                     { "pschange-mc-no", "on" },
                     { "taa-no", "on" },
+                    { /* end of list */ }
+                },
+            },
+            {
+                .version = 4,
+                .props = (PropValue[]) {
+                    { "sha-ni", "on" },
+                    { "avx512ifma", "on" },
+                    { "rdpid", "on" },
+                    { "fsrm", "on" },
+                    { "vmx-rdseed-exit", "on" },
+                    { "vmx-pml", "on" },
+                    { "vmx-eptp-switching", "on" },
+                    { "model", "106" },
                     { /* end of list */ }
                 },
             },
@@ -5159,6 +5187,13 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
     object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
 
     x86_cpu_apply_version_props(cpu, model);
+
+    /*
+     * Properties in versioned CPU model are not user specified features.
+     * We can simply clear env->user_features here since it will be filled later
+     * in x86_cpu_expand_features() based on plus_features and minus_features.
+     */
+    memset(&env->user_features, 0, sizeof(env->user_features));
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -6364,7 +6399,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
                                       unavailable_features & env->user_features[d->to.index],
                                       "This feature depends on other features that were not requested");
 
-            env->user_features[d->to.index] |= unavailable_features;
             env->features[d->to.index] &= ~unavailable_features;
         }
     }

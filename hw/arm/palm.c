@@ -61,21 +61,21 @@ static const MemoryRegionOps static_ops = {
 /* Palm Tunsgten|E support */
 
 /* Shared GPIOs */
-#define PALMTE_USBDETECT_GPIO	0
-#define PALMTE_USB_OR_DC_GPIO	1
-#define PALMTE_TSC_GPIO		4
-#define PALMTE_PINTDAV_GPIO	6
-#define PALMTE_MMC_WP_GPIO	8
-#define PALMTE_MMC_POWER_GPIO	9
-#define PALMTE_HDQ_GPIO		11
-#define PALMTE_HEADPHONES_GPIO	14
-#define PALMTE_SPEAKER_GPIO	15
+#define PALMTE_USBDETECT_GPIO   0
+#define PALMTE_USB_OR_DC_GPIO   1
+#define PALMTE_TSC_GPIO                 4
+#define PALMTE_PINTDAV_GPIO     6
+#define PALMTE_MMC_WP_GPIO      8
+#define PALMTE_MMC_POWER_GPIO   9
+#define PALMTE_HDQ_GPIO                 11
+#define PALMTE_HEADPHONES_GPIO  14
+#define PALMTE_SPEAKER_GPIO     15
 /* MPU private GPIOs */
-#define PALMTE_DC_GPIO		2
-#define PALMTE_MMC_SWITCH_GPIO	4
-#define PALMTE_MMC1_GPIO	6
-#define PALMTE_MMC2_GPIO	7
-#define PALMTE_MMC3_GPIO	11
+#define PALMTE_DC_GPIO          2
+#define PALMTE_MMC_SWITCH_GPIO  4
+#define PALMTE_MMC1_GPIO        6
+#define PALMTE_MMC2_GPIO        7
+#define PALMTE_MMC3_GPIO        11
 
 static MouseTransformInfo palmte_pointercal = {
     .x = 320,
@@ -100,17 +100,17 @@ static struct {
     int column;
 } palmte_keymap[0x80] = {
     [0 ... 0x7f] = { -1, -1 },
-    [0x3b] = { 0, 0 },	/* F1	-> Calendar */
-    [0x3c] = { 1, 0 },	/* F2	-> Contacts */
-    [0x3d] = { 2, 0 },	/* F3	-> Tasks List */
-    [0x3e] = { 3, 0 },	/* F4	-> Note Pad */
-    [0x01] = { 4, 0 },	/* Esc	-> Power */
-    [0x4b] = { 0, 1 },	/* 	   Left */
-    [0x50] = { 1, 1 },	/* 	   Down */
-    [0x48] = { 2, 1 },	/*	   Up */
-    [0x4d] = { 3, 1 },	/*	   Right */
-    [0x4c] = { 4, 1 },	/* 	   Centre */
-    [0x39] = { 4, 1 },	/* Spc	-> Centre */
+    [0x3b] = { 0, 0 },  /* F1   -> Calendar */
+    [0x3c] = { 1, 0 },  /* F2   -> Contacts */
+    [0x3d] = { 2, 0 },  /* F3   -> Tasks List */
+    [0x3e] = { 3, 0 },  /* F4   -> Note Pad */
+    [0x01] = { 4, 0 },  /* Esc  -> Power */
+    [0x4b] = { 0, 1 },  /*         Left */
+    [0x50] = { 1, 1 },  /*         Down */
+    [0x48] = { 2, 1 },  /*         Up */
+    [0x4d] = { 3, 1 },  /*         Right */
+    [0x4c] = { 4, 1 },  /*         Centre */
+    [0x39] = { 4, 1 },  /* Spc  -> Centre */
 };
 
 static void palmte_button_event(void *opaque, int keycode)
@@ -123,6 +123,21 @@ static void palmte_button_event(void *opaque, int keycode)
                         palmte_keymap[keycode & 0x7f].column,
                         !(keycode & 0x80));
 }
+
+/*
+ * Encapsulation of some GPIO line behaviour for the Palm board
+ *
+ * QEMU interface:
+ *  + unnamed GPIO inputs 0..6: for the various miscellaneous input lines
+ */
+
+#define TYPE_PALM_MISC_GPIO "palm-misc-gpio"
+#define PALM_MISC_GPIO(obj) \
+    OBJECT_CHECK(PalmMiscGPIOState, (obj), TYPE_PALM_MISC_GPIO)
+
+typedef struct PalmMiscGPIOState {
+    SysBusDevice parent_obj;
+} PalmMiscGPIOState;
 
 static void palmte_onoff_gpios(void *opaque, int line, int level)
 {
@@ -151,23 +166,44 @@ static void palmte_onoff_gpios(void *opaque, int line, int level)
     }
 }
 
+static void palm_misc_gpio_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in(dev, palmte_onoff_gpios, 7);
+}
+
+static const TypeInfo palm_misc_gpio_info = {
+    .name = TYPE_PALM_MISC_GPIO,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PalmMiscGPIOState),
+    .instance_init = palm_misc_gpio_init,
+    /*
+     * No class init required: device has no internal state so does not
+     * need to set up reset or vmstate, and has no realize method.
+     */
+};
+
 static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
 {
-    qemu_irq *misc_gpio;
+    DeviceState *misc_gpio;
+
+    misc_gpio = sysbus_create_simple(TYPE_PALM_MISC_GPIO, -1, NULL);
 
     omap_mmc_handlers(cpu->mmc,
                     qdev_get_gpio_in(cpu->gpio, PALMTE_MMC_WP_GPIO),
                     qemu_irq_invert(omap_mpuio_in_get(cpu->mpuio)
                             [PALMTE_MMC_SWITCH_GPIO]));
 
-    misc_gpio = qemu_allocate_irqs(palmte_onoff_gpios, cpu, 7);
-    qdev_connect_gpio_out(cpu->gpio, PALMTE_MMC_POWER_GPIO,	misc_gpio[0]);
-    qdev_connect_gpio_out(cpu->gpio, PALMTE_SPEAKER_GPIO,	misc_gpio[1]);
-    qdev_connect_gpio_out(cpu->gpio, 11,			misc_gpio[2]);
-    qdev_connect_gpio_out(cpu->gpio, 12,			misc_gpio[3]);
-    qdev_connect_gpio_out(cpu->gpio, 13,			misc_gpio[4]);
-    omap_mpuio_out_set(cpu->mpuio, 1,				misc_gpio[5]);
-    omap_mpuio_out_set(cpu->mpuio, 3,				misc_gpio[6]);
+    qdev_connect_gpio_out(cpu->gpio, PALMTE_MMC_POWER_GPIO,
+                          qdev_get_gpio_in(misc_gpio, 0));
+    qdev_connect_gpio_out(cpu->gpio, PALMTE_SPEAKER_GPIO,
+                          qdev_get_gpio_in(misc_gpio, 1));
+    qdev_connect_gpio_out(cpu->gpio, 11, qdev_get_gpio_in(misc_gpio, 2));
+    qdev_connect_gpio_out(cpu->gpio, 12, qdev_get_gpio_in(misc_gpio, 3));
+    qdev_connect_gpio_out(cpu->gpio, 13, qdev_get_gpio_in(misc_gpio, 4));
+    omap_mpuio_out_set(cpu->mpuio, 1, qdev_get_gpio_in(misc_gpio, 5));
+    omap_mpuio_out_set(cpu->mpuio, 3, qdev_get_gpio_in(misc_gpio, 6));
 
     /* Reset some inputs to initial state.  */
     qemu_irq_lower(qdev_get_gpio_in(cpu->gpio, PALMTE_USBDETECT_GPIO));
@@ -276,3 +312,10 @@ static void palmte_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)
+
+static void palm_register_types(void)
+{
+    type_register_static(&palm_misc_gpio_info);
+}
+
+type_init(palm_register_types)

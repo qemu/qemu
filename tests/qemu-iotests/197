@@ -112,9 +112,13 @@ echo
 echo '=== Partial final cluster ==='
 echo
 
-_make_test_img 1024
-$QEMU_IO -f $IMGFMT -C -c 'read 0 1024' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -f $IMGFMT -c map "$TEST_IMG"
+# Force compat=1.1, because writing zeroes on a v2 image without a
+# backing file would just result in an unallocated cluster
+# (Also, note that this is really a pure qcow2 test.)
+IMGPROTO=file IMGFMT=qcow2 TEST_IMG_FILE="$TEST_WRAP" \
+    _make_test_img --no-opts -o compat=1.1 1024
+$QEMU_IO -f qcow2 -C -c 'read 0 1024' "$TEST_WRAP" | _filter_qemu_io
+$QEMU_IO -f qcow2 -c map "$TEST_WRAP"
 _check_test_img
 
 # success, all done

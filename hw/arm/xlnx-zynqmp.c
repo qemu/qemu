@@ -190,7 +190,7 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
     qdev_prop_set_uint32(DEVICE(&s->rpu_cluster), "cluster-id", 1);
 
     for (i = 0; i < num_rpus; i++) {
-        char *name;
+        const char *name;
 
         object_initialize_child(OBJECT(&s->rpu_cluster), "rpu-cpu[*]",
                                 &s->rpu_cpu[i],
@@ -204,7 +204,6 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
         } else {
             s->boot_cpu_ptr = &s->rpu_cpu[i];
         }
-        g_free(name);
 
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), "reset-hivecs", true,
                                  &error_abort);
@@ -341,7 +340,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     /* Realize APUs before realizing the GIC. KVM requires this.  */
     for (i = 0; i < num_apus; i++) {
-        char *name;
+        const char *name;
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), "psci-conduit",
                                 QEMU_PSCI_CONDUIT_SMC, &error_abort);
@@ -354,7 +353,6 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         } else {
             s->boot_cpu_ptr = &s->apu_cpu[i];
         }
-        g_free(name);
 
         object_property_set_bool(OBJECT(&s->apu_cpu[i]), "has_el3", s->secure,
                                  NULL);
@@ -455,6 +453,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
         NICInfo *nd = &nd_table[i];
 
+        /* FIXME use qdev NIC properties instead of nd_table[] */
         if (nd->used) {
             qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
             qdev_set_nic_properties(DEVICE(&s->gem[i]), nd);

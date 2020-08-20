@@ -438,7 +438,7 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
     }
 
     if (kvm_enabled()) {
-        if (kvmppc_set_fwnmi() < 0) {
+        if (kvmppc_set_fwnmi(cpu) < 0) {
             rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
             return;
         }

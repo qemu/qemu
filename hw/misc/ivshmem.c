@@ -1037,9 +1037,8 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
         error_setg(errp, "You must specify a 'memdev'");
         return;
     } else if (host_memory_backend_is_mapped(s->hostmem)) {
-        char *path = object_get_canonical_path_component(OBJECT(s->hostmem));
-        error_setg(errp, "can't use already busy memdev: %s", path);
-        g_free(path);
+        error_setg(errp, "can't use already busy memdev: %s",
+                   object_get_canonical_path_component(OBJECT(s->hostmem)));
         return;
     }
 

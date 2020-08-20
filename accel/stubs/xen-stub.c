@@ -9,6 +9,8 @@
 #include "hw/xen/xen.h"
 #include "qapi/qapi-commands-misc.h"
 
+bool xen_allowed;
+
 void xenstore_store_pv_console_info(int i, Chardev *chr)
 {
 }

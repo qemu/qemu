@@ -119,8 +119,21 @@ _filter_actual_image_size()
     $SED -s 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g'
 }
 
+# Filename filters for qemu-img create
+_filter_img_create_filenames()
+{
+    $SED \
+        -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
+        -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+        -e "s#$TEST_DIR#TEST_DIR#g" \
+        -e "s#$SOCK_DIR#SOCK_DIR#g" \
+        -e "s#$IMGFMT#IMGFMT#g" \
+        -e 's#nbd:127.0.0.1:[0-9]\\+#TEST_DIR/t.IMGFMT#g' \
+        -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g'
+}
+
 # replace driver-specific options in the "Formatting..." line
-_filter_img_create()
+_do_filter_img_create()
 {
     # Split the line into the pre-options part ($filename_part, which
     # precedes ", fmt=") and the options part ($options, which starts
@@ -128,23 +141,10 @@ _filter_img_create()
     # (And just echo everything before the first "^Formatting")
     readarray formatting_line < <($SED -e 's/, fmt=/\n/')
 
-    filename_part=''
-    options=''
-    lines=${#formatting_line[@]}
-    for ((i = 0; i < $lines; i++)); do
-        line=${formatting_line[i]}
-        unset formatting_line[i]
+    filename_part=${formatting_line[0]}
+    unset formatting_line[0]
 
-        filename_part="$filename_part$line"
-
-        if echo "$line" | grep -q '^Formatting'; then
-            next_i=$((i + 1))
-            if [ -n "${formatting_line[next_i]}" ]; then
-                options="fmt=${formatting_line[@]}"
-            fi
-            break
-        fi
-    done
+    options="fmt=${formatting_line[@]}"
 
     # Set grep_data_file to '\|data_file' to keep it; make it empty
     # to drop it.
@@ -156,17 +156,7 @@ _filter_img_create()
         grep_data_file=()
     fi
 
-    filename_filters=(
-        -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
-        -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
-        -e "s#$TEST_DIR#TEST_DIR#g" \
-        -e "s#$SOCK_DIR#SOCK_DIR#g" \
-        -e "s#$IMGFMT#IMGFMT#g" \
-        -e 's#nbd:127.0.0.1:[0-9]\\+#TEST_DIR/t.IMGFMT#g' \
-        -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g'
-    )
-
-    filename_part=$(echo "$filename_part" | $SED "${filename_filters[@]}")
+    filename_part=$(echo "$filename_part" | _filter_img_create_filenames)
 
     # Break the option line before each option (preserving pre-existing
     # line breaks by replacing them by \0 and restoring them at the end),
@@ -179,7 +169,8 @@ _filter_img_create()
         | $SED -e 's/ \([a-z0-9_.-]*\)=/\n\1=/g' \
         | grep -a -e '^fmt' -e '^size' -e '^backing' -e '^preallocation' \
                   -e '^encryption' "${grep_data_file[@]}" \
-        | $SED "${filename_filters[@]}" \
+        | _filter_img_create_filenames \
+        | $SED \
             -e 's/^\(fmt\)/0-\1/' \
             -e 's/^\(size\)/1-\1/' \
             -e 's/^\(backing\)/2-\1/' \
@@ -199,17 +190,16 @@ _filter_img_create()
     fi
 }
 
-# Filter the "Formatting..." line in QMP output (leaving the QMP output
-# untouched)
-# (In contrast to _filter_img_create(), this function does not support
-# multi-line Formatting output)
-_filter_img_create_in_qmp()
+# Filter qemu-img create output:
+# Pipe all ^Formatting lines through _do_filter_img_create, and all
+# other lines through _filter_img_create_filenames
+_filter_img_create()
 {
     while read -r line; do
         if echo "$line" | grep -q '^Formatting'; then
-            echo "$line" | _filter_img_create
+            echo "$line" | _do_filter_img_create
         else
-            echo "$line"
+            echo "$line" | _filter_img_create_filenames
         fi
     done
 }
@@ -237,7 +227,6 @@ _filter_img_info()
         -e "s#$IMGFMT#IMGFMT#g" \
         -e 's#nbd://127.0.0.1:[0-9]\\+$#TEST_DIR/t.IMGFMT#g' \
         -e 's#nbd+unix:///\??socket=SOCK_DIR/nbd#TEST_DIR/t.IMGFMT#g' \
-        -e 's#json.*vdisk-id.*vxhs"}}#TEST_DIR/t.IMGFMT#' \
         -e "/encrypted: yes/d" \
         -e "/cluster_size: [0-9]\\+/d" \
         -e "/table_size: [0-9]\\+/d" \

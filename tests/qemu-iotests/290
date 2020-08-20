@@ -71,7 +71,7 @@ $QEMU_IO -c 'write -P 0xff 0 128k' "$BACKING_IMG" | _filter_qemu_io
 
 for qcow2_compat in 0.10 1.1; do
     echo "# Create an image with compat=$qcow2_compat and a backing file"
-    _make_test_img -o "compat=$qcow2_compat" -b "$BACKING_IMG"
+    _make_test_img -o "compat=$qcow2_compat" -b "$BACKING_IMG" -F $IMGFMT
 
     echo "# Fill all clusters with data and then discard them"
     $QEMU_IO -c 'write -P 0x01 0 128k' "$TEST_IMG" | _filter_qemu_io

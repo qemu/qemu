@@ -54,8 +54,8 @@ echo
 
 TEST_IMG="${TEST_IMG}.base" _make_test_img $size
 TEST_IMG="${TEST_IMG}.mid" _make_test_img -o "backing_fmt=$IMGFMT" -b "${TEST_IMG}.base"
-_make_test_img -b "${TEST_IMG}.mid"
-TEST_IMG="${TEST_IMG}.ovl2" _make_test_img -b "${TEST_IMG}.mid"
+_make_test_img -b "${TEST_IMG}.mid" -F $IMGFMT
+TEST_IMG="${TEST_IMG}.ovl2" _make_test_img -b "${TEST_IMG}.mid" -F $IMGFMT
 
 $QEMU_IO -c 'write -P 0x55 1M 64k' "${TEST_IMG}.mid" | _filter_qemu_io
 
@@ -102,10 +102,10 @@ echo === Preparing and starting VM with -drive ===
 echo
 
 TEST_IMG="${TEST_IMG}.base" _make_test_img $size
-TEST_IMG="${TEST_IMG}.mid" _make_test_img -b "${TEST_IMG}.base"
-_make_test_img -b "${TEST_IMG}.mid"
-TEST_IMG="${TEST_IMG}.ovl2" _make_test_img -b "${TEST_IMG}.mid"
-TEST_IMG="${TEST_IMG}.ovl3" _make_test_img -b "${TEST_IMG}.ovl2"
+TEST_IMG="${TEST_IMG}.mid" _make_test_img -b "${TEST_IMG}.base" -F $IMGFMT
+_make_test_img -b "${TEST_IMG}.mid" -F $IMGFMT
+TEST_IMG="${TEST_IMG}.ovl2" _make_test_img -b "${TEST_IMG}.mid" -F $IMGFMT
+TEST_IMG="${TEST_IMG}.ovl3" _make_test_img -b "${TEST_IMG}.ovl2" -F $IMGFMT
 
 $QEMU_IO -c 'write -P 0x55 1M 64k' "${TEST_IMG}.mid" | _filter_qemu_io
 

@@ -1,4 +1,5 @@
 # *-*- Mode: Python -*-*
+# vim: filetype=python
 
 ##
 #
@@ -846,7 +847,7 @@
 ##
 # @GuestDiskAddress:
 #
-# @pci-controller: controller's PCI address
+# @pci-controller: controller's PCI address (fields are set to -1 if invalid)
 # @bus-type: bus type
 # @bus: bus id
 # @target: target id

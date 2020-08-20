@@ -133,6 +133,9 @@ enum {
     QEMU_IFLA_NEW_IFINDEX,
     QEMU_IFLA_MIN_MTU,
     QEMU_IFLA_MAX_MTU,
+    QEMU_IFLA_PROP_LIST,
+    QEMU_IFLA_ALT_IFNAME,
+    QEMU_IFLA_PERM_ADDRESS,
     QEMU___IFLA_MAX
 };
 
@@ -807,6 +810,7 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
     /* binary stream */
     case QEMU_IFLA_ADDRESS:
     case QEMU_IFLA_BROADCAST:
+    case QEMU_IFLA_PERM_ADDRESS:
     /* string */
     case QEMU_IFLA_IFNAME:
     case QEMU_IFLA_QDISC:
@@ -1200,6 +1204,7 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
         break;
     case RTM_NEWLINK:
     case RTM_DELLINK:
+    case RTM_SETLINK:
         if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifi))) {
             ifi = NLMSG_DATA(nlh);
             ifi->ifi_type = tswap16(ifi->ifi_type);

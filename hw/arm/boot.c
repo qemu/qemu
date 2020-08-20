@@ -736,6 +736,12 @@ static void do_cpu_reset(void *opaque)
                     } else {
                         env->pstate = PSTATE_MODE_EL1h;
                     }
+                    if (cpu_isar_feature(aa64_pauth, cpu)) {
+                        env->cp15.scr_el3 |= SCR_API | SCR_APK;
+                    }
+                    if (cpu_isar_feature(aa64_mte, cpu)) {
+                        env->cp15.scr_el3 |= SCR_ATA;
+                    }
                     /* AArch64 kernels never boot in secure mode */
                     assert(!info->secure_boot);
                     /* This hook is only supported for AArch32 currently:

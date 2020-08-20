@@ -810,16 +810,18 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
         s->phydata = value & 0xffff;
         break;
     case FTGMAC100_DBLAC: /* DMA Burst Length and Arbitration Control */
-        if (FTGMAC100_DBLAC_TXDES_SIZE(s->dblac) < sizeof(FTGMAC100Desc)) {
+        if (FTGMAC100_DBLAC_TXDES_SIZE(value) < sizeof(FTGMAC100Desc)) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: transmit descriptor too small : %d bytes\n",
-                          __func__, FTGMAC100_DBLAC_TXDES_SIZE(s->dblac));
+                          "%s: transmit descriptor too small: %" PRIx64
+                          " bytes\n", __func__,
+                          FTGMAC100_DBLAC_TXDES_SIZE(value));
             break;
         }
-        if (FTGMAC100_DBLAC_RXDES_SIZE(s->dblac) < sizeof(FTGMAC100Desc)) {
+        if (FTGMAC100_DBLAC_RXDES_SIZE(value) < sizeof(FTGMAC100Desc)) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: receive descriptor too small : %d bytes\n",
-                          __func__, FTGMAC100_DBLAC_RXDES_SIZE(s->dblac));
+                          "%s: receive descriptor too small : %" PRIx64
+                          " bytes\n", __func__,
+                          FTGMAC100_DBLAC_RXDES_SIZE(value));
             break;
         }
         s->dblac = value;

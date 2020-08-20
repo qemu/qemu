@@ -1931,7 +1931,7 @@ object_property_add_const_link(Object *obj, const char *name,
                                 NULL, OBJ_PROP_LINK_DIRECT);
 }
 
-char *object_get_canonical_path_component(const Object *obj)
+const char *object_get_canonical_path_component(const Object *obj)
 {
     ObjectProperty *prop = NULL;
     GHashTableIter iter;
@@ -1947,7 +1947,7 @@ char *object_get_canonical_path_component(const Object *obj)
         }
 
         if (prop->opaque == obj) {
-            return g_strdup(prop->name);
+            return prop->name;
         }
     }
 
@@ -1966,7 +1966,7 @@ char *object_get_canonical_path(const Object *obj)
     }
 
     do {
-        char *component = object_get_canonical_path_component(obj);
+        const char *component = object_get_canonical_path_component(obj);
 
         if (!component) {
             /* A canonical path must be complete, so discard what was
@@ -1978,7 +1978,6 @@ char *object_get_canonical_path(const Object *obj)
 
         newpath = g_strdup_printf("/%s%s", component, path ? path : "");
         g_free(path);
-        g_free(component);
         path = newpath;
         obj = obj->parent;
     } while (obj != root);

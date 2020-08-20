@@ -94,40 +94,40 @@ typedef struct QOMCompositionState {
 
 static void print_qom_composition(Monitor *mon, Object *obj, int indent);
 
-static int qom_composition_compare(const void *a, const void *b, void *ignore)
+static int qom_composition_compare(const void *a, const void *b)
 {
-    return g_strcmp0(a ? object_get_canonical_path_component(a) : NULL,
-                     b ? object_get_canonical_path_component(b) : NULL);
+    return g_strcmp0(object_get_canonical_path_component(*(Object **)a),
+                     object_get_canonical_path_component(*(Object **)b));
 }
 
 static int insert_qom_composition_child(Object *obj, void *opaque)
 {
-    GQueue *children = opaque;
-
-    g_queue_insert_sorted(children, obj, qom_composition_compare, NULL);
+    g_array_append_val(opaque, obj);
     return 0;
 }
 
 static void print_qom_composition(Monitor *mon, Object *obj, int indent)
 {
-    char *name;
-    GQueue children;
-    Object *child;
+    GArray *children = g_array_new(false, false, sizeof(Object *));
+    const char *name;
+    int i;
 
     if (obj == object_get_root()) {
-        name = g_strdup("");
+        name = "";
     } else {
         name = object_get_canonical_path_component(obj);
     }
     monitor_printf(mon, "%*s/%s (%s)\n", indent, "", name,
                    object_get_typename(obj));
-    g_free(name);
 
-    g_queue_init(&children);
-    object_child_foreach(obj, insert_qom_composition_child, &children);
-    while ((child = g_queue_pop_head(&children))) {
-        print_qom_composition(mon, child, indent + 2);
+    object_child_foreach(obj, insert_qom_composition_child, children);
+    g_array_sort(children, qom_composition_compare);
+
+    for (i = 0; i < children->len; i++) {
+        print_qom_composition(mon, g_array_index(children, Object *, i),
+                              indent + 2);
     }
+    g_array_free(children, TRUE);
 }
 
 void hmp_info_qom_tree(Monitor *mon, const QDict *dict)

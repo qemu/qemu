@@ -68,7 +68,7 @@ mkdir -p "$DEST_DIR/lib/"  # Copy the shared libraries here
 
 # Build once to get the list of dynamic lib paths, and copy them over
 ../configure --disable-werror --cc="$CC" --cxx="$CXX" \
-    --extra-cflags="$EXTRA_CFLAGS"
+    --extra-cflags="$EXTRA_CFLAGS" --target-list="i386-softmmu"
 
 if ! make CONFIG_FUZZ=y CFLAGS="$LIB_FUZZING_ENGINE" "-j$(nproc)" \
     i386-softmmu/fuzz; then

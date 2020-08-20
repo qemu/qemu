@@ -59,6 +59,7 @@ static bool colo_compare_active;
 static QemuMutex event_mtx;
 static QemuCond event_complete_cond;
 static int event_unhandled_count;
+static uint32_t max_queue_size;
 
 /*
  *  + CompareState ++
@@ -222,7 +223,7 @@ static void fill_pkt_tcp_info(void *data, uint32_t *max_ack)
  */
 static int colo_insert_packet(GQueue *queue, Packet *pkt, uint32_t *max_ack)
 {
-    if (g_queue_get_length(queue) <= MAX_QUEUE_SIZE) {
+    if (g_queue_get_length(queue) <= max_queue_size) {
         if (pkt->ip->ip_p == IPPROTO_TCP) {
             fill_pkt_tcp_info(pkt, max_ack);
             g_queue_insert_sorted(queue,
@@ -1134,6 +1135,37 @@ static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,
     s->expired_scan_cycle = value;
 }
 
+static void get_max_queue_size(Object *obj, Visitor *v,
+                               const char *name, void *opaque,
+                               Error **errp)
+{
+    uint32_t value = max_queue_size;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void set_max_queue_size(Object *obj, Visitor *v,
+                               const char *name, void *opaque,
+                               Error **errp)
+{
+    Error *local_err = NULL;
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    if (!value) {
+        error_setg(&local_err, "Property '%s.%s' requires a positive value",
+                   object_get_typename(obj), name);
+        goto out;
+    }
+    max_queue_size = value;
+
+out:
+    error_propagate(errp, local_err);
+}
+
 static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 {
     CompareState *s = container_of(pri_rs, CompareState, pri_rs);
@@ -1249,6 +1281,11 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     if (!s->expired_scan_cycle) {
         /* Set default value to 3000 MS */
         s->expired_scan_cycle = REGULAR_PACKET_CHECK_MS;
+    }
+
+    if (!max_queue_size) {
+        /* Set default queue size to 1024 */
+        max_queue_size = MAX_QUEUE_SIZE;
     }
 
     if (find_and_check_chardev(&chr, s->pri_indev, errp) ||
@@ -1370,6 +1407,10 @@ static void colo_compare_init(Object *obj)
                         compare_get_expired_scan_cycle,
                         compare_set_expired_scan_cycle, NULL, NULL);
 
+    object_property_add(obj, "max_queue_size", "uint32",
+                        get_max_queue_size,
+                        set_max_queue_size, NULL, NULL);
+
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
                              compare_set_vnet_hdr);
@@ -1401,9 +1442,7 @@ static void colo_compare_finalize(Object *obj)
         qemu_chr_fe_deinit(&s->chr_notify_dev, false);
     }
 
-    if (s->iothread) {
-        colo_compare_timer_del(s);
-    }
+    colo_compare_timer_del(s);
 
     qemu_bh_delete(s->event_bh);
 
@@ -1429,9 +1468,7 @@ static void colo_compare_finalize(Object *obj)
         g_hash_table_destroy(s->connection_track_table);
     }
 
-    if (s->iothread) {
-        object_unref(OBJECT(s->iothread));
-    }
+    object_unref(OBJECT(s->iothread));
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);

@@ -26,7 +26,7 @@ Images are identical.
 
 === Partial final cluster ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1024
+Formatting 'TEST_DIR/t.wrap.IMGFMT', fmt=IMGFMT size=1024
 read 1024/1024 bytes at offset 0
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
