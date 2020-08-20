@@ -58,7 +58,7 @@ static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
 static TCGv_i64 cpu_ear;
-static TCGv_i64 cpu_esr;
+static TCGv_i32 cpu_esr;
 static TCGv_i64 cpu_fsr;
 static TCGv_i64 cpu_btr;
 static TCGv_i64 cpu_edr;
@@ -182,7 +182,7 @@ static bool trap_illegal(DisasContext *dc, bool cond)
 {
     if (cond && (dc->tb_flags & MSR_EE_FLAG)
         && dc->cpu->cfg.illegal_opcode_exception) {
-        tcg_gen_movi_i64(cpu_esr, ESR_EC_ILLEGAL_OP);
+        tcg_gen_movi_i32(cpu_esr, ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return cond;
@@ -198,7 +198,7 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     bool cond_user = cond && mem_index == MMU_USER_IDX;
 
     if (cond_user && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i64(cpu_esr, ESR_EC_PRIVINSN);
+        tcg_gen_movi_i32(cpu_esr, ESR_EC_PRIVINSN);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return cond_user;
@@ -539,7 +539,7 @@ static void dec_msr(DisasContext *dc)
                 tcg_gen_extu_i32_i64(cpu_ear, cpu_R[dc->ra]);
                 break;
             case SR_ESR:
-                tcg_gen_extu_i32_i64(cpu_esr, cpu_R[dc->ra]);
+                tcg_gen_mov_i32(cpu_esr, cpu_R[dc->ra]);
                 break;
             case SR_FSR:
                 tcg_gen_extu_i32_i64(cpu_fsr, cpu_R[dc->ra]);
@@ -580,7 +580,7 @@ static void dec_msr(DisasContext *dc)
                 }
                 break;
             case SR_ESR:
-                tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_esr);
+                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_esr);
                 break;
             case SR_FSR:
                 tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_fsr);
@@ -1399,7 +1399,7 @@ static void dec_rts(DisasContext *dc)
 static int dec_check_fpuv2(DisasContext *dc)
 {
     if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i64(cpu_esr, ESR_EC_FPU);
+        tcg_gen_movi_i32(cpu_esr, ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return (dc->cpu->cfg.use_fpu == 2) ? PVR2_USE_FPU2_MASK : 0;
@@ -1797,7 +1797,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
     qemu_fprintf(f, "IN: PC=%x %s\n",
                  env->pc, lookup_symbol(env->pc));
-    qemu_fprintf(f, "rmsr=%x resr=%" PRIx64 " rear=%" PRIx64 " "
+    qemu_fprintf(f, "rmsr=%x resr=%x rear=%" PRIx64 " "
                  "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
                  "rbtr=%" PRIx64 "\n",
                  env->msr, env->esr, env->ear,
@@ -1866,7 +1866,7 @@ void mb_tcg_init(void)
     cpu_ear =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, ear), "rear");
     cpu_esr =
-        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, esr), "resr");
+        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, esr), "resr");
     cpu_fsr =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, fsr), "rfsr");
     cpu_btr =

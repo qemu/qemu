@@ -144,7 +144,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
 
             qemu_log_mask(CPU_LOG_INT,
                           "hw exception at pc=%x ear=%" PRIx64 " "
-                          "esr=%" PRIx64 " iflags=%x\n",
+                          "esr=%x iflags=%x\n",
                           env->pc, env->ear,
                           env->esr, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);

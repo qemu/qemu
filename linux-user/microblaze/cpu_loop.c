@@ -106,7 +106,7 @@ void cpu_loop(CPUMBState *env)
                     queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
                     break;
                 default:
-                    fprintf(stderr, "Unhandled hw-exception: 0x%" PRIx64 "\n",
+                    fprintf(stderr, "Unhandled hw-exception: 0x%x\n",
                             env->esr & ESR_EC_MASK);
                     cpu_dump_state(cs, stderr, 0);
                     exit(EXIT_FAILURE);
