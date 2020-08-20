@@ -96,10 +96,10 @@ void cpu_loop(CPUMBState *env)
                 case ESR_EC_FPU:
                     info.si_signo = TARGET_SIGFPE;
                     info.si_errno = 0;
-                    if (env->sregs[SR_FSR] & FSR_IO) {
+                    if (env->fsr & FSR_IO) {
                         info.si_code = TARGET_FPE_FLTINV;
                     }
-                    if (env->sregs[SR_FSR] & FSR_DZ) {
+                    if (env->fsr & FSR_DZ) {
                         info.si_code = TARGET_FPE_FLTDIV;
                     }
                     info._sifields._sigfault._addr = 0;

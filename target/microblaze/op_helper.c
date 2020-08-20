@@ -175,19 +175,19 @@ static void update_fpu_flags(CPUMBState *env, int flags)
     int raise = 0;
 
     if (flags & float_flag_invalid) {
-        env->sregs[SR_FSR] |= FSR_IO;
+        env->fsr |= FSR_IO;
         raise = 1;
     }
     if (flags & float_flag_divbyzero) {
-        env->sregs[SR_FSR] |= FSR_DZ;
+        env->fsr |= FSR_DZ;
         raise = 1;
     }
     if (flags & float_flag_overflow) {
-        env->sregs[SR_FSR] |= FSR_OF;
+        env->fsr |= FSR_OF;
         raise = 1;
     }
     if (flags & float_flag_underflow) {
-        env->sregs[SR_FSR] |= FSR_UF;
+        env->fsr |= FSR_UF;
         raise = 1;
     }
     if (raise
