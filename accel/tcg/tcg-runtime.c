@@ -32,11 +32,11 @@
 #include "exec/log.h"
 #include "tcg/tcg.h"
 
-#include "afl-qemu-common.h"
+#include "qemuafl/common.h"
 
 void HELPER(afl_entry_routine)(CPUArchState *env) {
 
-  afl_forkserver(ENV_GET_CPU(env));
+  afl_forkserver(env_cpu(env));
 
 }
 

@@ -18,6 +18,8 @@
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 
+#include "qemuafl/common.h"
+
 /* Pairs with tcg_clear_temp_count.
    To be called by #TranslatorOps.{translate_insn,tb_stop} if
    (1) the target is sufficiently clean to support reporting,

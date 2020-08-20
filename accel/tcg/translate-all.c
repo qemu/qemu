@@ -59,8 +59,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
 
-#include "afl-qemu-common.h"
-#include "tcg-op.h"
+#include "qemuafl/common.h"
+#include "tcg/tcg-op.h"
 
 void HELPER(afl_maybe_log)(target_ulong cur_loc) {
 

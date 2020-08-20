@@ -13,6 +13,8 @@
 #include "qemu/units.h"
 #include "qemu/selfmap.h"
 
+#include "qemuafl/common.h"
+
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
 #undef ELF_PLATFORM
@@ -2510,6 +2512,21 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->brk = 0;
     info->elf_flags = ehdr->e_flags;
 
+    if (!afl_entry_point) {
+      char *ptr;
+      if ((ptr = getenv("AFL_ENTRYPOINT")) != NULL) {
+        afl_entry_point = strtoul(ptr, NULL, 16);
+      } else {
+        afl_entry_point = info->entry;
+      }
+#ifdef TARGET_ARM
+      /* The least significant bit indicates Thumb mode. */
+      afl_entry_point = afl_entry_point & ~(target_ulong)1;
+#endif
+    }
+    if (getenv("AFL_DEBUG") != NULL)
+      fprintf(stderr, "AFL forkserver entrypoint: %p\n", (void*)afl_entry_point);
+
     for (i = 0; i < ehdr->e_phnum; i++) {
         struct elf_phdr *eppnt = phdr + i;
         if (eppnt->p_type == PT_LOAD) {
@@ -2552,9 +2569,11 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (elf_prot & PROT_EXEC) {
                 if (vaddr < info->start_code) {
                     info->start_code = vaddr;
+                    if (!afl_start_code) afl_start_code = vaddr;
                 }
                 if (vaddr_ef > info->end_code) {
                     info->end_code = vaddr_ef;
+                    if (!afl_end_code) afl_end_code = vaddr_ef;
                 }
             }
             if (elf_prot & PROT_WRITE) {
@@ -2883,6 +2902,22 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */
     bprm->p = setup_arg_pages(bprm, info);
+
+    // On PowerPC64 the entry point is the _function descriptor_
+    // of the entry function. For AFL to properly initialize,
+    // afl_entry_point needs to be set to the actual first instruction
+    // as opposed executed by the target program. This as opposed to 
+    // where the function's descriptor sits in memory.
+    // copied from PPC init_thread
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+    if (get_ppc64_abi(infop) < 2) {
+        uint64_t val;
+        get_user_u64(val, infop->entry + 8);
+        _regs->gpr[2] = val + infop->load_bias;
+        get_user_u64(val, infop->entry);
+        infop->entry = val + infop->load_bias;
+    }
+#endif
 
     scratch = g_new0(char, TARGET_PAGE_SIZE);
     if (STACK_GROWS_DOWN) {

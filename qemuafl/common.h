@@ -34,10 +34,10 @@
 #ifndef __AFL_QEMU_COMMON
 #define __AFL_QEMU_COMMON
 
-#include "config.h"
-#include "cmplog.h"
+#include "imported/config.h"
+#include "imported/cmplog.h"
 
-#define PERSISTENT_DEFAULT_MAX_CNT 10000
+#define PERSISTENT_DEFAULT_MAX_CNT 100000
 
 #ifdef CPU_NB_REGS
   #define AFL_REGS_NUM CPU_NB_REGS
@@ -109,6 +109,11 @@ void afl_float_compcov_log_64(target_ulong cur_loc, float64 arg1, float64 arg2,
                               void *status);
 void afl_float_compcov_log_80(target_ulong cur_loc, floatx80 arg1,
                               floatx80 arg2);
+
+abi_ulong afl_get_brk(void);
+abi_ulong afl_set_brk(abi_ulong new_brk);
+
+int open_self_maps(void *cpu_env, int fd);
 
 /* Check if an address is valid in the current mapping */
 

@@ -126,6 +126,8 @@
 #include "fd-trans.h"
 #include "tcg/tcg.h"
 
+#include "qemuafl/common.h"
+
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
 #endif
@@ -895,6 +897,15 @@ void target_set_brk(abi_ulong new_brk)
 {
     target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
     brk_page = HOST_PAGE_ALIGN(target_brk);
+}
+
+abi_ulong afl_get_brk(void) {
+  return target_brk;
+}
+abi_ulong afl_set_brk(abi_ulong new_brk) {
+  abi_ulong old_brk = target_brk;
+  target_brk = new_brk;
+  return old_brk;
 }
 
 //#define DEBUGF_BRK(message, args...) do { fprintf(stderr, (message), ## args); } while (0)
@@ -7299,7 +7310,7 @@ static int open_self_cmdline(void *cpu_env, int fd)
     return 0;
 }
 
-static int open_self_maps(void *cpu_env, int fd)
+int open_self_maps(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
     TaskState *ts = cpu->opaque;
