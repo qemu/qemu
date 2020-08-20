@@ -261,8 +261,11 @@ struct CPUMBState {
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
 #define D_FLAG		(1 << 19)  /* Bit in ESR.  */
+
 /* TB dependent CPUMBState.  */
 #define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
+#define MSR_TB_MASK     (MSR_UM | MSR_VM | MSR_EE)
+
     uint32_t iflags;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -372,12 +375,14 @@ typedef MicroBlazeCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
+/* Ensure there is no overlap between the two masks. */
+QEMU_BUILD_BUG_ON(MSR_TB_MASK & IFLAGS_TB_MASK);
+
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
-    *flags = (env->iflags & IFLAGS_TB_MASK) |
-             (env->msr & (MSR_UM | MSR_VM | MSR_EE));
+    *flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK);
     *cs_base = (*flags & IMM_FLAG ? env->imm : 0);
 }
 
