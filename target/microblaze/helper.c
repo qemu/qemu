@@ -143,7 +143,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->msr |= MSR_EIP;
 
             qemu_log_mask(CPU_LOG_INT,
-                          "hw exception at pc=%" PRIx64 " ear=%" PRIx64 " "
+                          "hw exception at pc=%x ear=%" PRIx64 " "
                           "esr=%" PRIx64 " iflags=%x\n",
                           env->pc, env->ear,
                           env->esr, env->iflags);
@@ -167,8 +167,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 /* was the branch immprefixed?.  */
                 if (env->bimm) {
                     qemu_log_mask(CPU_LOG_INT,
-                                  "bimm exception at pc=%" PRIx64 " "
-                                  "iflags=%x\n",
+                                  "bimm exception at pc=%x iflags=%x\n",
                                   env->pc, env->iflags);
                     env->regs[17] -= 4;
                     log_cpu_state_mask(CPU_LOG_INT, cs, 0);
@@ -186,8 +185,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->msr |= MSR_EIP;
 
             qemu_log_mask(CPU_LOG_INT,
-                          "exception at pc=%" PRIx64 " ear=%" PRIx64 " "
-                          "iflags=%x\n",
+                          "exception at pc=%x ear=%" PRIx64 " iflags=%x\n",
                           env->pc, env->ear, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
@@ -224,8 +222,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             }
 #endif
             qemu_log_mask(CPU_LOG_INT,
-                         "interrupt at pc=%" PRIx64 " msr=%" PRIx64 " %x "
-                         "iflags=%x\n",
+                         "interrupt at pc=%x msr=%" PRIx64 " %x iflags=%x\n",
                          env->pc, env->msr, t, env->iflags);
 
             env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM | MSR_IE);
@@ -242,9 +239,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             assert(!(env->iflags & D_FLAG));
             t = (env->msr & (MSR_VM | MSR_UM)) << 1;
             qemu_log_mask(CPU_LOG_INT,
-                        "break at pc=%" PRIx64 " msr=%" PRIx64 " %x "
-                        "iflags=%x\n",
-                        env->pc, env->msr, t, env->iflags);
+                          "break at pc=%x msr=%" PRIx64 " %x iflags=%x\n",
+                          env->pc, env->msr, t, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             env->msr |= t;

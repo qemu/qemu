@@ -55,7 +55,7 @@
 
 static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
-static TCGv_i64 cpu_pc;
+static TCGv_i32 cpu_pc;
 static TCGv_i64 cpu_msr;
 static TCGv_i64 cpu_ear;
 static TCGv_i64 cpu_esr;
@@ -64,7 +64,7 @@ static TCGv_i64 cpu_btr;
 static TCGv_i64 cpu_edr;
 static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
-static TCGv_i64 env_btarget;
+static TCGv_i32 cpu_btarget;
 static TCGv_i32 env_iflags;
 static TCGv env_res_addr;
 static TCGv_i32 env_res_val;
@@ -123,7 +123,7 @@ static inline void t_gen_raise_exception(DisasContext *dc, uint32_t index)
     TCGv_i32 tmp = tcg_const_i32(index);
 
     t_sync_flags(dc);
-    tcg_gen_movi_i64(cpu_pc, dc->pc);
+    tcg_gen_movi_i32(cpu_pc, dc->pc);
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->is_jmp = DISAS_UPDATE;
@@ -142,10 +142,10 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 {
     if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
-        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(dc->tb, n);
     } else {
-        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
 }
@@ -509,7 +509,7 @@ static void dec_msr(DisasContext *dc)
         msr_write(dc, t0);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
-        tcg_gen_movi_i64(cpu_pc, dc->pc + 4);
+        tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
         dc->is_jmp = DISAS_UPDATE;
         return;
     }
@@ -850,7 +850,7 @@ static inline void sync_jmpstate(DisasContext *dc)
             tcg_gen_movi_i32(env_btaken, 1);
         }
         dc->jmp = JMP_INDIRECT;
-        tcg_gen_movi_i64(env_btarget, dc->jmp_pc);
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     }
 }
 
@@ -1019,7 +1019,7 @@ static void dec_load(DisasContext *dc)
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
 
-        tcg_gen_movi_i64(cpu_pc, dc->pc);
+        tcg_gen_movi_i32(cpu_pc, dc->pc);
         gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
 
         tcg_temp_free_i32(t0);
@@ -1139,7 +1139,7 @@ static void dec_store(DisasContext *dc)
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
 
-        tcg_gen_movi_i64(cpu_pc, dc->pc);
+        tcg_gen_movi_i32(cpu_pc, dc->pc);
         /* FIXME: if the alignment is wrong, we should restore the value
          *        in memory. One possible way to achieve this is to probe
          *        the MMU prior to the memaccess, thay way we could put
@@ -1187,18 +1187,15 @@ static inline void eval_cc(DisasContext *dc, unsigned int cc,
     }
 }
 
-static void eval_cond_jmp(DisasContext *dc, TCGv_i64 pc_true, TCGv_i64 pc_false)
+static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
 {
-    TCGv_i64 tmp_btaken = tcg_temp_new_i64();
-    TCGv_i64 tmp_zero = tcg_const_i64(0);
+    TCGv_i32 zero = tcg_const_i32(0);
 
-    tcg_gen_extu_i32_i64(tmp_btaken, env_btaken);
-    tcg_gen_movcond_i64(TCG_COND_NE, cpu_pc,
-                        tmp_btaken, tmp_zero,
+    tcg_gen_movcond_i32(TCG_COND_NE, cpu_pc,
+                        env_btaken, zero,
                         pc_true, pc_false);
 
-    tcg_temp_free_i64(tmp_btaken);
-    tcg_temp_free_i64(tmp_zero);
+    tcg_temp_free_i32(zero);
 }
 
 static void dec_setup_dslot(DisasContext *dc)
@@ -1229,14 +1226,12 @@ static void dec_bcc(DisasContext *dc)
     if (dec_alu_op_b_is_small_imm(dc)) {
         int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
 
-        tcg_gen_movi_i64(env_btarget, dc->pc + offset);
+        tcg_gen_movi_i32(cpu_btarget, dc->pc + offset);
         dc->jmp = JMP_DIRECT_CC;
         dc->jmp_pc = dc->pc + offset;
     } else {
         dc->jmp = JMP_INDIRECT;
-        tcg_gen_extu_i32_i64(env_btarget, *(dec_alu_op_b(dc)));
-        tcg_gen_addi_i64(env_btarget, env_btarget, dc->pc);
-        tcg_gen_andi_i64(env_btarget, env_btarget, UINT32_MAX);
+        tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
     }
     eval_cc(dc, cc, env_btaken, cpu_R[dc->ra]);
 }
@@ -1277,7 +1272,7 @@ static void dec_br(DisasContext *dc)
             tcg_gen_st_i32(tmp_1, cpu_env,
                            -offsetof(MicroBlazeCPU, env)
                            +offsetof(CPUState, halted));
-            tcg_gen_movi_i64(cpu_pc, dc->pc + 4);
+            tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
             gen_helper_raise_exception(cpu_env, tmp_hlt);
             tcg_temp_free_i32(tmp_hlt);
             tcg_temp_free_i32(tmp_1);
@@ -1303,7 +1298,7 @@ static void dec_br(DisasContext *dc)
     dc->jmp = JMP_INDIRECT;
     if (abs) {
         tcg_gen_movi_i32(env_btaken, 1);
-        tcg_gen_extu_i32_i64(env_btarget, *(dec_alu_op_b(dc)));
+        tcg_gen_mov_i32(cpu_btarget, *(dec_alu_op_b(dc)));
         if (link && !dslot) {
             if (!(dc->tb_flags & IMM_FLAG) && (dc->imm == 8 || dc->imm == 0x18))
                 t_gen_raise_exception(dc, EXCP_BREAK);
@@ -1321,9 +1316,7 @@ static void dec_br(DisasContext *dc)
             dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
         } else {
             tcg_gen_movi_i32(env_btaken, 1);
-            tcg_gen_extu_i32_i64(env_btarget, *(dec_alu_op_b(dc)));
-            tcg_gen_addi_i64(env_btarget, env_btarget, dc->pc);
-            tcg_gen_andi_i64(env_btarget, env_btarget, UINT32_MAX);
+            tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
         }
     }
 }
@@ -1387,7 +1380,6 @@ static inline void do_rte(DisasContext *dc)
 static void dec_rts(DisasContext *dc)
 {
     unsigned int b_bit, i_bit, e_bit;
-    TCGv_i64 tmp64;
 
     i_bit = dc->ir & (1 << 21);
     b_bit = dc->ir & (1 << 22);
@@ -1413,13 +1405,7 @@ static void dec_rts(DisasContext *dc)
 
     dc->jmp = JMP_INDIRECT;
     tcg_gen_movi_i32(env_btaken, 1);
-
-    tmp64 = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(env_btarget, *(dec_alu_op_b(dc)));
-    tcg_gen_extu_i32_i64(tmp64, cpu_R[dc->ra]);
-    tcg_gen_add_i64(env_btarget, env_btarget, tmp64);
-    tcg_gen_andi_i64(env_btarget, env_btarget, UINT32_MAX);
-    tcg_temp_free_i64(tmp64);
+    tcg_gen_add_i32(cpu_btarget, cpu_R[dc->ra], *dec_alu_op_b(dc));
 }
 
 static int dec_check_fpuv2(DisasContext *dc)
@@ -1676,7 +1662,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 
 #if SIM_COMPAT
         if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-            tcg_gen_movi_i64(cpu_pc, dc->pc);
+            tcg_gen_movi_i32(cpu_pc, dc->pc);
             gen_helper_debug();
         }
 #endif
@@ -1718,10 +1704,9 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                 dc->tb_flags &= ~D_FLAG;
                 /* If it is a direct jump, try direct chaining.  */
                 if (dc->jmp == JMP_INDIRECT) {
-                    TCGv_i64 tmp_pc = tcg_const_i64(dc->pc);
-                    eval_cond_jmp(dc, env_btarget, tmp_pc);
-                    tcg_temp_free_i64(tmp_pc);
-
+                    TCGv_i32 tmp_pc = tcg_const_i32(dc->pc);
+                    eval_cond_jmp(dc, cpu_btarget, tmp_pc);
+                    tcg_temp_free_i32(tmp_pc);
                     dc->is_jmp = DISAS_JUMP;
                 } else if (dc->jmp == JMP_DIRECT) {
                     t_sync_flags(dc);
@@ -1754,7 +1739,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
         if (dc->tb_flags & D_FLAG) {
             dc->is_jmp = DISAS_UPDATE;
-            tcg_gen_movi_i64(cpu_pc, npc);
+            tcg_gen_movi_i32(cpu_pc, npc);
             sync_jmpstate(dc);
         } else
             npc = dc->jmp_pc;
@@ -1764,7 +1749,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     if (dc->is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || org_flags != dc->tb_flags)) {
         dc->is_jmp = DISAS_UPDATE;
-        tcg_gen_movi_i64(cpu_pc, npc);
+        tcg_gen_movi_i32(cpu_pc, npc);
     }
     t_sync_flags(dc);
 
@@ -1772,7 +1757,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {
-            tcg_gen_movi_i64(cpu_pc, npc);
+            tcg_gen_movi_i32(cpu_pc, npc);
         }
         gen_helper_raise_exception(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
@@ -1822,7 +1807,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         return;
     }
 
-    qemu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
+    qemu_fprintf(f, "IN: PC=%x %s\n",
                  env->pc, lookup_symbol(env->pc));
     qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
                  "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
@@ -1830,8 +1815,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->msr, env->esr, env->ear,
                  env->debug, env->imm, env->iflags, env->fsr,
                  env->btr);
-    qemu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
-                 "eip=%d ie=%d\n",
+    qemu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
                  env->btaken, env->btarget,
                  (env->msr & MSR_UM) ? "user" : "kernel",
                  (env->msr & MSR_UMS) ? "user" : "kernel",
@@ -1869,7 +1853,7 @@ void mb_tcg_init(void)
     env_imm = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUMBState, imm),
                     "imm");
-    env_btarget = tcg_global_mem_new_i64(cpu_env,
+    cpu_btarget = tcg_global_mem_new_i32(cpu_env,
                      offsetof(CPUMBState, btarget),
                      "btarget");
     env_btaken = tcg_global_mem_new_i32(cpu_env,
@@ -1888,7 +1872,7 @@ void mb_tcg_init(void)
     }
 
     cpu_pc =
-        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, pc), "rpc");
+        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, pc), "rpc");
     cpu_msr =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, msr), "rmsr");
     cpu_ear =
