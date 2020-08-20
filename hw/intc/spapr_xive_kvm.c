@@ -646,20 +646,20 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
         }
     }
 
+    /*
+     * We can only restore the source config if the source has been
+     * previously set in KVM. Since we don't do that at reset time
+     * when restoring a VM, let's do it now.
+     */
+    ret = kvmppc_xive_source_reset(&xive->source, &local_err);
+    if (ret < 0) {
+        goto fail;
+    }
+
     /* Restore the EAT */
     for (i = 0; i < xive->nr_irqs; i++) {
         if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
-        }
-
-        /*
-         * We can only restore the source config if the source has been
-         * previously set in KVM. Since we don't do that for all interrupts
-         * at reset time anymore, let's do it now.
-         */
-        ret = kvmppc_xive_source_reset_one(&xive->source, i, &local_err);
-        if (ret < 0) {
-            goto fail;
         }
 
         ret = kvmppc_xive_set_source_config(xive, i, &xive->eat[i], &local_err);
