@@ -509,6 +509,44 @@
             { 'name': 'zstd', 'if': 'defined(CONFIG_ZSTD)' } ] }
 
 ##
+# @BitmapMigrationBitmapAlias:
+#
+# @name: The name of the bitmap.
+#
+# @alias: An alias name for migration (for example the bitmap name on
+#         the opposite site).
+#
+# Since: 5.2
+##
+{ 'struct': 'BitmapMigrationBitmapAlias',
+  'data': {
+      'name': 'str',
+      'alias': 'str'
+  } }
+
+##
+# @BitmapMigrationNodeAlias:
+#
+# Maps a block node name and the bitmaps it has to aliases for dirty
+# bitmap migration.
+#
+# @node-name: A block node name.
+#
+# @alias: An alias block node name for migration (for example the
+#         node name on the opposite site).
+#
+# @bitmaps: Mappings for the bitmaps on this node.
+#
+# Since: 5.2
+##
+{ 'struct': 'BitmapMigrationNodeAlias',
+  'data': {
+      'node-name': 'str',
+      'alias': 'str',
+      'bitmaps': [ 'BitmapMigrationBitmapAlias' ]
+  } }
+
+##
 # @MigrationParameter:
 #
 # Migration parameters enumeration
@@ -642,6 +680,25 @@
 #          will consume more CPU.
 #          Defaults to 1. (Since 5.0)
 #
+# @block-bitmap-mapping: Maps block nodes and bitmaps on them to
+#          aliases for the purpose of dirty bitmap migration.  Such
+#          aliases may for example be the corresponding names on the
+#          opposite site.
+#          The mapping must be one-to-one, but not necessarily
+#          complete: On the source, unmapped bitmaps and all bitmaps
+#          on unmapped nodes will be ignored.  On the destination,
+#          encountering an unmapped alias in the incoming migration
+#          stream will result in a report, and all further bitmap
+#          migration data will then be discarded.
+#          Note that the destination does not know about bitmaps it
+#          does not receive, so there is no limitation or requirement
+#          regarding the number of bitmaps received, or how they are
+#          named, or on which nodes they are placed.
+#          By default (when this parameter has never been set), bitmap
+#          names are mapped to themselves.  Nodes are mapped to their
+#          block device name if there is one, and to their node name
+#          otherwise. (Since 5.2)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -656,7 +713,8 @@
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
-           'multifd-zlib-level' ,'multifd-zstd-level' ] }
+           'multifd-zlib-level' ,'multifd-zstd-level',
+           'block-bitmap-mapping' ] }
 
 ##
 # @MigrateSetParameters:
@@ -782,6 +840,25 @@
 #          will consume more CPU.
 #          Defaults to 1. (Since 5.0)
 #
+# @block-bitmap-mapping: Maps block nodes and bitmaps on them to
+#          aliases for the purpose of dirty bitmap migration.  Such
+#          aliases may for example be the corresponding names on the
+#          opposite site.
+#          The mapping must be one-to-one, but not necessarily
+#          complete: On the source, unmapped bitmaps and all bitmaps
+#          on unmapped nodes will be ignored.  On the destination,
+#          encountering an unmapped alias in the incoming migration
+#          stream will result in a report, and all further bitmap
+#          migration data will then be discarded.
+#          Note that the destination does not know about bitmaps it
+#          does not receive, so there is no limitation or requirement
+#          regarding the number of bitmaps received, or how they are
+#          named, or on which nodes they are placed.
+#          By default (when this parameter has never been set), bitmap
+#          names are mapped to themselves.  Nodes are mapped to their
+#          block device name if there is one, and to their node name
+#          otherwise. (Since 5.2)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -812,7 +889,8 @@
             '*max-cpu-throttle': 'int',
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'int',
-            '*multifd-zstd-level': 'int' } }
+            '*multifd-zstd-level': 'int',
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
 
 ##
 # @migrate-set-parameters:
@@ -958,6 +1036,25 @@
 #          will consume more CPU.
 #          Defaults to 1. (Since 5.0)
 #
+# @block-bitmap-mapping: Maps block nodes and bitmaps on them to
+#          aliases for the purpose of dirty bitmap migration.  Such
+#          aliases may for example be the corresponding names on the
+#          opposite site.
+#          The mapping must be one-to-one, but not necessarily
+#          complete: On the source, unmapped bitmaps and all bitmaps
+#          on unmapped nodes will be ignored.  On the destination,
+#          encountering an unmapped alias in the incoming migration
+#          stream will result in a report, and all further bitmap
+#          migration data will then be discarded.
+#          Note that the destination does not know about bitmaps it
+#          does not receive, so there is no limitation or requirement
+#          regarding the number of bitmaps received, or how they are
+#          named, or on which nodes they are placed.
+#          By default (when this parameter has never been set), bitmap
+#          names are mapped to themselves.  Nodes are mapped to their
+#          block device name if there is one, and to their node name
+#          otherwise. (Since 5.2)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -986,7 +1083,8 @@
             '*max-cpu-throttle': 'uint8',
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'uint8',
-            '*multifd-zstd-level': 'uint8' } }
+            '*multifd-zstd-level': 'uint8',
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
 
 ##
 # @query-migrate-parameters:

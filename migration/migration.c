@@ -36,6 +36,7 @@
 #include "block/block.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-migration.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-migration.h"
@@ -843,6 +844,13 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->has_announce_step = true;
     params->announce_step = s->parameters.announce_step;
 
+    if (s->parameters.has_block_bitmap_mapping) {
+        params->has_block_bitmap_mapping = true;
+        params->block_bitmap_mapping =
+            QAPI_CLONE(BitmapMigrationNodeAliasList,
+                       s->parameters.block_bitmap_mapping);
+    }
+
     return params;
 }
 
@@ -1308,6 +1316,13 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
                    "is invalid, it must be in the range of 1 to 10000 ms");
        return false;
     }
+
+    if (params->has_block_bitmap_mapping &&
+        !check_dirty_bitmap_mig_alias_map(params->block_bitmap_mapping, errp)) {
+        error_prepend(errp, "Invalid mapping given for block-bitmap-mapping: ");
+        return false;
+    }
+
     return true;
 }
 
@@ -1401,6 +1416,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
     if (params->has_announce_step) {
         dest->announce_step = params->announce_step;
+    }
+
+    if (params->has_block_bitmap_mapping) {
+        dest->has_block_bitmap_mapping = true;
+        dest->block_bitmap_mapping = params->block_bitmap_mapping;
     }
 }
 
@@ -1513,6 +1533,16 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_announce_step) {
         s->parameters.announce_step = params->announce_step;
+    }
+
+    if (params->has_block_bitmap_mapping) {
+        qapi_free_BitmapMigrationNodeAliasList(
+            s->parameters.block_bitmap_mapping);
+
+        s->parameters.has_block_bitmap_mapping = true;
+        s->parameters.block_bitmap_mapping =
+            QAPI_CLONE(BitmapMigrationNodeAliasList,
+                       params->block_bitmap_mapping);
     }
 }
 
