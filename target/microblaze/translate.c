@@ -58,6 +58,9 @@ typedef struct DisasContext {
     DisasContextBase base;
     MicroBlazeCPU *cpu;
 
+    /* TCG op of the current insn_start.  */
+    TCGOp *insn_start;
+
     TCGv_i32 r0;
     bool r0_set;
 
@@ -71,7 +74,7 @@ typedef struct DisasContext {
 
     unsigned int cpustate_changed;
     unsigned int delayed_branch;
-    unsigned int tb_flags, synced_flags; /* tb dependent flags.  */
+    unsigned int tb_flags;
     unsigned int clear_imm;
     int mem_index;
 
@@ -96,12 +99,11 @@ static int typeb_imm(DisasContext *dc, int x)
 /* Include the auto-generated decoder.  */
 #include "decode-insns.c.inc"
 
-static inline void t_sync_flags(DisasContext *dc)
+static void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
-    if (dc->tb_flags != dc->synced_flags) {
-        tcg_gen_movi_i32(cpu_iflags, dc->tb_flags);
-        dc->synced_flags = dc->tb_flags;
+    if ((dc->tb_flags ^ dc->base.tb->flags) & ~MSR_TB_MASK) {
+        tcg_gen_movi_i32(cpu_iflags, dc->tb_flags & ~MSR_TB_MASK);
     }
 }
 
@@ -770,7 +772,6 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
         }
     }
 
-    t_sync_flags(dc);
     sync_jmpstate(dc);
 
     /*
@@ -893,7 +894,6 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
     /* lwx does not throw unaligned access errors, so force alignment */
     tcg_gen_andi_tl(addr, addr, ~3);
 
-    t_sync_flags(dc);
     sync_jmpstate(dc);
 
     tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index, MO_TEUL);
@@ -929,7 +929,6 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
         }
     }
 
-    t_sync_flags(dc);
     sync_jmpstate(dc);
 
     tcg_gen_qemu_st_i32(reg_for_read(dc, rd), addr, mem_index, mop);
@@ -1046,7 +1045,6 @@ static bool trans_swx(DisasContext *dc, arg_typea *arg)
     TCGLabel *swx_fail = gen_new_label();
     TCGv_i32 tval;
 
-    t_sync_flags(dc);
     sync_jmpstate(dc);
 
     /* swx does not throw unaligned access errors, so force alignment */
@@ -1655,7 +1653,7 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     int bound;
 
     dc->cpu = cpu;
-    dc->synced_flags = dc->tb_flags = dc->base.tb->flags;
+    dc->tb_flags = dc->base.tb->flags;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
     dc->jmp = dc->delayed_branch ? JMP_INDIRECT : JMP_NOJMP;
     dc->cpustate_changed = 0;
@@ -1675,7 +1673,10 @@ static void mb_tr_tb_start(DisasContextBase *dcb, CPUState *cs)
 
 static void mb_tr_insn_start(DisasContextBase *dcb, CPUState *cs)
 {
-    tcg_gen_insn_start(dcb->pc_next);
+    DisasContext *dc = container_of(dcb, DisasContext, base);
+
+    tcg_gen_insn_start(dc->base.pc_next, dc->tb_flags & ~MSR_TB_MASK);
+    dc->insn_start = tcg_last_op();
 }
 
 static bool mb_tr_breakpoint_check(DisasContextBase *dcb, CPUState *cs,
@@ -1917,4 +1918,5 @@ void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
     env->pc = data[0];
+    env->iflags = data[1];
 }

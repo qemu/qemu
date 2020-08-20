@@ -228,6 +228,8 @@ typedef struct CPUMBState CPUMBState;
 #define STREAM_CONTROL   (1 << 3)
 #define STREAM_NONBLOCK  (1 << 4)
 
+#define TARGET_INSN_START_EXTRA_WORDS 1
+
 struct CPUMBState {
     uint32_t btaken;
     uint32_t btarget;
