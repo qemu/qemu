@@ -1,0 +1,282 @@
+/*
+ * Copyright (c) 2020 Xilinx Inc.
+ * Written by Edgar E. Iglesias <edgar.iglesias@xilinx.com>.
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <0x01>;
+	#size-cells = <0x01>;
+	compatible = "xlnx,microblaze";
+	model = "testing";
+
+	memory@90000000 {
+		device_type = "memory";
+		reg = <0x90000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyUL0,115200";
+		stdout-path = "/plb/serial@84000000";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		#cpus = <0x01>;
+
+		cpu@0 {
+			clock-frequency = <0x3b9aca0>;
+			compatible = "xlnx,microblaze-7.10.d";
+			d-cache-baseaddr = <0x90000000>;
+			d-cache-highaddr = <0x97ffffff>;
+			d-cache-line-size = <0x10>;
+			d-cache-size = <0x800>;
+			device_type = "cpu";
+			i-cache-baseaddr = <0x90000000>;
+			i-cache-highaddr = <0x97ffffff>;
+			i-cache-line-size = <0x10>;
+			i-cache-size = <0x800>;
+			model = "microblaze,7.10.d";
+			reg = <0x00>;
+			timebase-frequency = <0x3b9aca0>;
+			xlnx,addr-tag-bits = <0x10>;
+			xlnx,allow-dcache-wr = <0x01>;
+			xlnx,allow-icache-wr = <0x01>;
+			xlnx,area-optimized = <0x00>;
+			xlnx,cache-byte-size = <0x800>;
+			xlnx,d-lmb = <0x01>;
+			xlnx,d-opb = <0x00>;
+			xlnx,d-plb = <0x01>;
+			xlnx,data-size = <0x20>;
+			xlnx,dcache-addr-tag = <0x10>;
+			xlnx,dcache-always-used = <0x00>;
+			xlnx,dcache-byte-size = <0x800>;
+			xlnx,dcache-line-len = <0x04>;
+			xlnx,dcache-use-fsl = <0x01>;
+			xlnx,debug-enabled = <0x01>;
+			xlnx,div-zero-exception = <0x00>;
+			xlnx,dopb-bus-exception = <0x00>;
+			xlnx,dynamic-bus-sizing = <0x01>;
+			xlnx,edge-is-positive = <0x01>;
+			xlnx,family = "spartan3adsp";
+			xlnx,fpu-exception = <0x00>;
+			xlnx,fsl-data-size = <0x20>;
+			xlnx,fsl-exception = <0x00>;
+			xlnx,fsl-links = <0x00>;
+			xlnx,i-lmb = <0x01>;
+			xlnx,i-opb = <0x00>;
+			xlnx,i-plb = <0x01>;
+			xlnx,icache-always-used = <0x00>;
+			xlnx,icache-line-len = <0x04>;
+			xlnx,icache-use-fsl = <0x01>;
+			xlnx,ill-opcode-exception = <0x00>;
+			xlnx,instance = "microblaze_0";
+			xlnx,interconnect = <0x01>;
+			xlnx,interrupt-is-edge = <0x00>;
+			xlnx,iopb-bus-exception = <0x00>;
+			xlnx,mmu-dtlb-size = <0x04>;
+			xlnx,mmu-itlb-size = <0x02>;
+			xlnx,mmu-tlb-access = <0x03>;
+			xlnx,mmu-zones = <0x10>;
+			xlnx,number-of-pc-brk = <0x03>;
+			xlnx,number-of-rd-addr-brk = <0x02>;
+			xlnx,number-of-wr-addr-brk = <0x02>;
+			xlnx,opcode-0x0-illegal = <0x00>;
+			xlnx,pvr = <0x01>;
+			xlnx,pvr-user1 = <0x00>;
+			xlnx,pvr-user2 = <0x00>;
+			xlnx,reset-msr = <0x00>;
+			xlnx,sco = <0x00>;
+			xlnx,unaligned-exceptions = <0x01>;
+			xlnx,use-barrel = <0x01>;
+			xlnx,use-dcache = <0x01>;
+			xlnx,use-div = <0x00>;
+			xlnx,use-ext-brk = <0x01>;
+			xlnx,use-ext-nm-brk = <0x01>;
+			xlnx,use-extended-fsl-instr = <0x00>;
+			xlnx,use-fpu = <0x00>;
+			xlnx,use-hw-mul = <0x01>;
+			xlnx,use-icache = <0x01>;
+			xlnx,use-interrupt = <0x01>;
+			xlnx,use-mmu = <0x03>;
+			xlnx,use-msr-instr = <0x01>;
+			xlnx,use-pcmp-instr = <0x01>;
+		};
+	};
+
+	plb {
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		compatible = "xlnx,plb-v46-1.03.a\0simple-bus";
+		ranges;
+
+		ethernet@81000000 {
+			compatible = "xlnx,xps-ethernetlite-2.00.a";
+			device_type = "network";
+			interrupt-parent = <0x01>;
+			interrupts = <0x01 0x00>;
+			local-mac-address = [02 00 00 00 00 00];
+			reg = <0x81000000 0x10000>;
+			xlnx,duplex = <0x01>;
+			xlnx,family = "spartan3adsp";
+			xlnx,rx-ping-pong = <0x00>;
+			xlnx,tx-ping-pong = <0x00>;
+		};
+
+		flash@a0000000 {
+			bank-width = <0x01>;
+			compatible = "xlnx,xps-mch-emc-2.00.a\0cfi-flash";
+			reg = <0xa0000000 0x1000000>;
+			xlnx,family = "spartan3adsp";
+			xlnx,include-datawidth-matching-0 = <0x01>;
+			xlnx,include-datawidth-matching-1 = <0x00>;
+			xlnx,include-datawidth-matching-2 = <0x00>;
+			xlnx,include-datawidth-matching-3 = <0x00>;
+			xlnx,include-negedge-ioregs = <0x00>;
+			xlnx,include-plb-ipif = <0x01>;
+			xlnx,include-wrbuf = <0x01>;
+			xlnx,max-mem-width = <0x08>;
+			xlnx,mch-native-dwidth = <0x20>;
+			xlnx,mch-plb-clk-period-ps = <0x3e80>;
+			xlnx,mch-splb-awidth = <0x20>;
+			xlnx,mch0-accessbuf-depth = <0x10>;
+			xlnx,mch0-protocol = <0x00>;
+			xlnx,mch0-rddatabuf-depth = <0x10>;
+			xlnx,mch1-accessbuf-depth = <0x10>;
+			xlnx,mch1-protocol = <0x00>;
+			xlnx,mch1-rddatabuf-depth = <0x10>;
+			xlnx,mch2-accessbuf-depth = <0x10>;
+			xlnx,mch2-protocol = <0x00>;
+			xlnx,mch2-rddatabuf-depth = <0x10>;
+			xlnx,mch3-accessbuf-depth = <0x10>;
+			xlnx,mch3-protocol = <0x00>;
+			xlnx,mch3-rddatabuf-depth = <0x10>;
+			xlnx,mem0-width = <0x08>;
+			xlnx,mem1-width = <0x20>;
+			xlnx,mem2-width = <0x20>;
+			xlnx,mem3-width = <0x20>;
+			xlnx,num-banks-mem = <0x01>;
+			xlnx,num-channels = <0x00>;
+			xlnx,priority-mode = <0x00>;
+			xlnx,synch-mem-0 = <0x00>;
+			xlnx,synch-mem-1 = <0x00>;
+			xlnx,synch-mem-2 = <0x00>;
+			xlnx,synch-mem-3 = <0x00>;
+			xlnx,synch-pipedelay-0 = <0x02>;
+			xlnx,synch-pipedelay-1 = <0x02>;
+			xlnx,synch-pipedelay-2 = <0x02>;
+			xlnx,synch-pipedelay-3 = <0x02>;
+			xlnx,tavdv-ps-mem-0 = <0x11170>;
+			xlnx,tavdv-ps-mem-1 = <0x3a98>;
+			xlnx,tavdv-ps-mem-2 = <0x3a98>;
+			xlnx,tavdv-ps-mem-3 = <0x3a98>;
+			xlnx,tcedv-ps-mem-0 = <0x11170>;
+			xlnx,tcedv-ps-mem-1 = <0x3a98>;
+			xlnx,tcedv-ps-mem-2 = <0x3a98>;
+			xlnx,tcedv-ps-mem-3 = <0x3a98>;
+			xlnx,thzce-ps-mem-0 = <0x61a8>;
+			xlnx,thzce-ps-mem-1 = <0x1b58>;
+			xlnx,thzce-ps-mem-2 = <0x1b58>;
+			xlnx,thzce-ps-mem-3 = <0x1b58>;
+			xlnx,thzoe-ps-mem-0 = <0x61a8>;
+			xlnx,thzoe-ps-mem-1 = <0x1b58>;
+			xlnx,thzoe-ps-mem-2 = <0x1b58>;
+			xlnx,thzoe-ps-mem-3 = <0x1b58>;
+			xlnx,tlzwe-ps-mem-0 = <0x1388>;
+			xlnx,tlzwe-ps-mem-1 = <0x00>;
+			xlnx,tlzwe-ps-mem-2 = <0x00>;
+			xlnx,tlzwe-ps-mem-3 = <0x00>;
+			xlnx,twc-ps-mem-0 = <0x11170>;
+			xlnx,twc-ps-mem-1 = <0x3a98>;
+			xlnx,twc-ps-mem-2 = <0x3a98>;
+			xlnx,twc-ps-mem-3 = <0x3a98>;
+			xlnx,twp-ps-mem-0 = <0xafc8>;
+			xlnx,twp-ps-mem-1 = <0x2ee0>;
+			xlnx,twp-ps-mem-2 = <0x2ee0>;
+			xlnx,twp-ps-mem-3 = <0x2ee0>;
+			xlnx,xcl0-linesize = <0x04>;
+			xlnx,xcl0-writexfer = <0x01>;
+			xlnx,xcl1-linesize = <0x04>;
+			xlnx,xcl1-writexfer = <0x01>;
+			xlnx,xcl2-linesize = <0x04>;
+			xlnx,xcl2-writexfer = <0x01>;
+			xlnx,xcl3-linesize = <0x04>;
+			xlnx,xcl3-writexfer = <0x01>;
+		};
+
+		gpio@81400000 {
+			compatible = "xlnx,xps-gpio-1.00.a";
+			interrupt-parent = <0x01>;
+			interrupts = <0x02 0x02>;
+			reg = <0x81400000 0x10000>;
+			xlnx,all-inputs = <0x00>;
+			xlnx,all-inputs-2 = <0x00>;
+			xlnx,dout-default = <0x00>;
+			xlnx,dout-default-2 = <0x00>;
+			xlnx,family = "spartan3adsp";
+			xlnx,gpio-width = <0x08>;
+			xlnx,interrupt-present = <0x01>;
+			xlnx,is-bidir = <0x00>;
+			xlnx,is-bidir-2 = <0x01>;
+			xlnx,is-dual = <0x00>;
+			xlnx,tri-default = <0xffffffff>;
+			xlnx,tri-default-2 = <0xffffffff>;
+		};
+
+		serial@84000000 {
+			clock-frequency = <0x3b9aca0>;
+			compatible = "xlnx,xps-uartlite-1.00.a";
+			current-speed = <0x1c200>;
+			device_type = "serial";
+			interrupt-parent = <0x01>;
+			interrupts = <0x03 0x00>;
+			port-number = <0x00>;
+			reg = <0x84000000 0x10000>;
+			xlnx,baudrate = <0x1c200>;
+			xlnx,data-bits = <0x08>;
+			xlnx,family = "spartan3adsp";
+			xlnx,odd-parity = <0x00>;
+			xlnx,use-parity = <0x00>;
+		};
+
+		debug@84400000 {
+			compatible = "xlnx,mdm-1.00.d";
+			reg = <0x84400000 0x10000>;
+			xlnx,family = "spartan3adsp";
+			xlnx,interconnect = <0x01>;
+			xlnx,jtag-chain = <0x02>;
+			xlnx,mb-dbg-ports = <0x01>;
+			xlnx,uart-width = <0x08>;
+			xlnx,use-uart = <0x01>;
+			xlnx,write-fsl-ports = <0x00>;
+		};
+
+		interrupt-controller@81800000 {
+			#interrupt-cells = <0x02>;
+			compatible = "xlnx,xps-intc-1.00.a";
+			interrupt-controller;
+			reg = <0x81800000 0x10000>;
+			xlnx,kind-of-intr = <0x0a>;
+			xlnx,num-intr-inputs = <0x04>;
+			linux,phandle = <0x01>;
+		};
+
+		timer@83c00000 {
+			compatible = "xlnx,xps-timer-1.00.a";
+			interrupt-parent = <0x01>;
+			interrupts = <0x00 0x02>;
+			reg = <0x83c00000 0x10000>;
+			xlnx,count-width = <0x20>;
+			xlnx,family = "spartan3adsp";
+			xlnx,gen0-assert = <0x01>;
+			xlnx,gen1-assert = <0x01>;
+			xlnx,one-timer-only = <0x00>;
+			xlnx,trig0-assert = <0x01>;
+			xlnx,trig1-assert = <0x01>;
+		};
+	};
+};
