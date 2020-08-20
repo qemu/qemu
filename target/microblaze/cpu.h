@@ -231,7 +231,6 @@ typedef struct CPUMBState CPUMBState;
 struct CPUMBState {
     uint32_t btaken;
     uint32_t btarget;
-    uint32_t bimm;
 
     uint32_t imm;
     uint32_t regs[32];
@@ -253,7 +252,8 @@ struct CPUMBState {
     uint32_t res_val;
 
     /* Internal flags.  */
-#define IMM_FLAG	4
+#define IMM_FLAG        (1 << 0)
+#define BIMM_FLAG       (1 << 1)
 /* MSR_EE               (1 << 8)  */
 /* MSR_UM               (1 << 11) */
 /* MSR_VM               (1 << 13) */

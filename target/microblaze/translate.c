@@ -1351,13 +1351,11 @@ static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
 
 static void dec_setup_dslot(DisasContext *dc)
 {
-        TCGv_i32 tmp = tcg_const_i32(dc->type_b && (dc->tb_flags & IMM_FLAG));
-
-        dc->delayed_branch = 2;
-        dc->tb_flags |= D_FLAG;
-
-        tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUMBState, bimm));
-        tcg_temp_free_i32(tmp);
+    dc->delayed_branch = 2;
+    dc->tb_flags |= D_FLAG;
+    if (dc->type_b && (dc->tb_flags & IMM_FLAG)) {
+        dc->tb_flags |= BIMM_FLAG;
+    }
 }
 
 static void dec_bcc(DisasContext *dc)

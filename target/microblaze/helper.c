@@ -166,7 +166,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 /* Reexecute the branch.  */
                 env->regs[17] -= 4;
                 /* was the branch immprefixed?.  */
-                if (env->bimm) {
+                if (env->iflags & BIMM_FLAG) {
                     env->regs[17] -= 4;
                     log_cpu_state_mask(CPU_LOG_INT, cs, 0);
                 }
