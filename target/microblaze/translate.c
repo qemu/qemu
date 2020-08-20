@@ -59,7 +59,6 @@ static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
 static TCGv_i64 cpu_ear;
 static TCGv_i32 cpu_esr;
-static TCGv_i64 cpu_btr;
 static TCGv_i64 cpu_edr;
 static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
@@ -545,7 +544,8 @@ static void dec_msr(DisasContext *dc)
                                cpu_env, offsetof(CPUMBState, fsr));
                 break;
             case SR_BTR:
-                tcg_gen_extu_i32_i64(cpu_btr, cpu_R[dc->ra]);
+                tcg_gen_st_i32(cpu_R[dc->ra],
+                               cpu_env, offsetof(CPUMBState, btr));
                 break;
             case SR_EDR:
                 tcg_gen_extu_i32_i64(cpu_edr, cpu_R[dc->ra]);
@@ -587,7 +587,8 @@ static void dec_msr(DisasContext *dc)
                                cpu_env, offsetof(CPUMBState, fsr));
                 break;
             case SR_BTR:
-                tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_btr);
+                tcg_gen_ld_i32(cpu_R[dc->rd],
+                               cpu_env, offsetof(CPUMBState, btr));
                 break;
             case SR_EDR:
                 tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_edr);
@@ -1799,8 +1800,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "IN: PC=%x %s\n",
                  env->pc, lookup_symbol(env->pc));
     qemu_fprintf(f, "rmsr=%x resr=%x rear=%" PRIx64 " "
-                 "debug=%x imm=%x iflags=%x fsr=%x "
-                 "rbtr=%" PRIx64 "\n",
+                 "debug=%x imm=%x iflags=%x fsr=%x rbtr=%x\n",
                  env->msr, env->esr, env->ear,
                  env->debug, env->imm, env->iflags, env->fsr,
                  env->btr);
@@ -1868,8 +1868,6 @@ void mb_tcg_init(void)
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, ear), "rear");
     cpu_esr =
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, esr), "resr");
-    cpu_btr =
-        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, btr), "rbtr");
     cpu_edr =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, edr), "redr");
 }
