@@ -32,6 +32,38 @@
 #include "trace-tcg.h"
 #include "exec/log.h"
 
+#include "qemuafl/cpu-translate.h"
+
+#define AFL_QEMU_TARGET_I386_SNIPPET                                          \
+  if (is_persistent) {                                                        \
+                                                                              \
+    if (s->pc == afl_persistent_addr) {                                       \
+                                                                              \
+      restore_state_for_persistent(cpu_regs, AFL_REGS_NUM, R_ESP);            \
+      /*afl_gen_tcg_plain_call(log_x86_saved_gpr);                            \
+      afl_gen_tcg_plain_call(log_x86_sp_content);*/                           \
+                                                                              \
+      if (afl_persistent_ret_addr == 0) {                                     \
+                                                                              \
+        TCGv paddr = tcg_const_tl(afl_persistent_addr);                       \
+        tcg_gen_qemu_st_tl(paddr, cpu_regs[R_ESP], persisent_retaddr_offset,  \
+                           _DEFAULT_MO);                                      \
+        tcg_temp_free(paddr);                                                 \
+                                                                              \
+      }                                                                       \
+                                                                              \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop); \
+      /*afl_gen_tcg_plain_call(log_x86_sp_content);*/                         \
+                                                                              \
+    } else if (afl_persistent_ret_addr && s->pc == afl_persistent_ret_addr) { \
+                                                                              \
+      gen_jmp_im(s, afl_persistent_addr);                                     \
+      gen_eob(s);                                                             \
+                                                                              \
+    }                                                                         \
+                                                                              \
+  }
+
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
 #define PREFIX_LOCK   0x04
@@ -1331,9 +1363,11 @@ static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
             tcg_gen_atomic_fetch_add_tl(s1->cc_srcT, s1->A0, s1->T0,
                                         s1->mem_index, ot | MO_LE);
             tcg_gen_sub_tl(s1->T0, s1->cc_srcT, s1->T1);
+            afl_gen_compcov(s1->pc, s1->cc_srcT, s1->T1, ot, d == OR_EAX);
         } else {
             tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
             tcg_gen_sub_tl(s1->T0, s1->T0, s1->T1);
+            afl_gen_compcov(s1->pc, s1->T0, s1->T1, ot, d == OR_EAX);
             gen_op_st_rm_T0_A0(s1, ot, d);
         }
         gen_op_update2_cc(s1);
@@ -1377,6 +1411,7 @@ static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
         tcg_gen_mov_tl(cpu_cc_src, s1->T1);
         tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
         tcg_gen_sub_tl(cpu_cc_dst, s1->T0, s1->T1);
+        afl_gen_compcov(s1->pc, s1->T0, s1->T1, ot, d == OR_EAX);
         set_cc_op(s1, CC_OP_SUBB + ot);
         break;
     }
@@ -4502,6 +4537,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     rex_w = -1;
     rex_r = 0;
 
+    AFL_QEMU_TARGET_I386_SNIPPET
+
  next_byte:
     b = x86_ldub_code(env, s);
     /* Collect prefixes.  */
@@ -5050,6 +5087,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 tcg_gen_ext16u_tl(s->T0, s->T0);
             }
             next_eip = s->pc - s->cs_base;
+            if (__afl_cmp_map && next_eip >= afl_start_code &&
+                next_eip < afl_end_code)
+              gen_helper_afl_cmplog_rtn(cpu_env);
             tcg_gen_movi_tl(s->T1, next_eip);
             gen_push_v(s, s->T1);
             gen_op_jmp_v(s->T0);
@@ -6573,6 +6613,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 tval = (int16_t)insn_get(env, s, MO_16);
             }
             next_eip = s->pc - s->cs_base;
+            if (__afl_cmp_map && next_eip >= afl_start_code &&
+                next_eip < afl_end_code)
+              gen_helper_afl_cmplog_rtn(cpu_env);
             tval += next_eip;
             if (dflag == MO_16) {
                 tval &= 0xffff;
