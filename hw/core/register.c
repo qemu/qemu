@@ -176,17 +176,6 @@ void register_reset(RegisterInfo *reg)
     }
 }
 
-void register_init(RegisterInfo *reg)
-{
-    assert(reg);
-
-    if (!reg->data || !reg->access) {
-        return;
-    }
-
-    object_initialize((void *)reg, sizeof(*reg), TYPE_REGISTER);
-}
-
 void register_write_memory(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
@@ -269,13 +258,18 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
         int index = rae[i].addr / data_size;
         RegisterInfo *r = &ri[index];
 
-        *r = (RegisterInfo) {
-            .data = data + data_size * index,
-            .data_size = data_size,
-            .access = &rae[i],
-            .opaque = owner,
-        };
-        register_init(r);
+        if (data + data_size * index == 0 || !&rae[i]) {
+            continue;
+        }
+
+        /* Init the register, this will zero it. */
+        object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
+
+        /* Set the properties of the register */
+        r->data = data + data_size * index;
+        r->data_size = data_size;
+        r->access = &rae[i];
+        r->opaque = owner;
 
         r_array->r[i] = r;
     }
@@ -329,6 +323,7 @@ static const TypeInfo register_info = {
     .name  = TYPE_REGISTER,
     .parent = TYPE_DEVICE,
     .class_init = register_class_init,
+    .instance_size = sizeof(RegisterInfo),
 };
 
 static void register_register_types(void)
