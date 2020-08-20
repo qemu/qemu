@@ -78,14 +78,14 @@ void cpu_loop(CPUMBState *env)
         case EXCP_HW_EXCP:
             env->regs[17] = env->pc + 4;
             if (env->iflags & D_FLAG) {
-                env->sregs[SR_ESR] |= 1 << 12;
+                env->esr |= 1 << 12;
                 env->pc -= 4;
                 /* FIXME: if branch was immed, replay the imm as well.  */
             }
 
             env->iflags &= ~(IMM_FLAG | D_FLAG);
 
-            switch (env->sregs[SR_ESR] & 31) {
+            switch (env->esr & 31) {
                 case ESR_EC_DIVZERO:
                     info.si_signo = TARGET_SIGFPE;
                     info.si_errno = 0;
@@ -107,7 +107,7 @@ void cpu_loop(CPUMBState *env)
                     break;
                 default:
                     fprintf(stderr, "Unhandled hw-exception: 0x%" PRIx64 "\n",
-                            env->sregs[SR_ESR] & ESR_EC_MASK);
+                            env->esr & ESR_EC_MASK);
                     cpu_dump_state(cs, stderr, 0);
                     exit(EXIT_FAILURE);
                     break;

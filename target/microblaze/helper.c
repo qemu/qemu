@@ -88,12 +88,12 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     env->ear = address;
     switch (lu.err) {
     case ERR_PROT:
-        env->sregs[SR_ESR] = access_type == MMU_INST_FETCH ? 17 : 16;
-        env->sregs[SR_ESR] |= (access_type == MMU_DATA_STORE) << 10;
+        env->esr = access_type == MMU_INST_FETCH ? 17 : 16;
+        env->esr |= (access_type == MMU_DATA_STORE) << 10;
         break;
     case ERR_MISS:
-        env->sregs[SR_ESR] = access_type == MMU_INST_FETCH ? 19 : 18;
-        env->sregs[SR_ESR] |= (access_type == MMU_DATA_STORE) << 10;
+        env->esr = access_type == MMU_INST_FETCH ? 19 : 18;
+        env->esr |= (access_type == MMU_DATA_STORE) << 10;
         break;
     default:
         abort();
@@ -127,11 +127,11 @@ void mb_cpu_do_interrupt(CPUState *cs)
             }
 
             env->regs[17] = env->pc + 4;
-            env->sregs[SR_ESR] &= ~(1 << 12);
+            env->esr &= ~(1 << 12);
 
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
-                env->sregs[SR_ESR] |= 1 << 12 ;
+                env->esr |= 1 << 12 ;
                 env->sregs[SR_BTR] = env->btarget;
             }
 
@@ -146,7 +146,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           "hw exception at pc=%" PRIx64 " ear=%" PRIx64 " "
                           "esr=%" PRIx64 " iflags=%x\n",
                           env->pc, env->ear,
-                          env->sregs[SR_ESR], env->iflags);
+                          env->esr, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
             env->pc = cpu->cfg.base_vectors + 0x20;
@@ -155,11 +155,11 @@ void mb_cpu_do_interrupt(CPUState *cs)
         case EXCP_MMU:
             env->regs[17] = env->pc;
 
-            env->sregs[SR_ESR] &= ~(1 << 12);
+            env->esr &= ~(1 << 12);
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
                 D(qemu_log("D_FLAG set at exception bimm=%d\n", env->bimm));
-                env->sregs[SR_ESR] |= 1 << 12 ;
+                env->esr |= 1 << 12 ;
                 env->sregs[SR_BTR] = env->btarget;
 
                 /* Reexecute the branch.  */

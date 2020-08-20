@@ -78,7 +78,7 @@ void helper_debug(CPUMBState *env)
     qemu_log("PC=%" PRIx64 "\n", env->pc);
     qemu_log("rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
              "debug[%x] imm=%x iflags=%x\n",
-             env->msr, env->sregs[SR_ESR], env->ear,
+             env->msr, env->esr, env->ear,
              env->debug, env->imm, env->iflags);
     qemu_log("btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
@@ -138,7 +138,7 @@ static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
         env->msr |= MSR_DZ;
 
         if ((env->msr & MSR_EE) && cpu->cfg.div_zero_exception) {
-            env->sregs[SR_ESR] = ESR_EC_DIVZERO;
+            env->esr = ESR_EC_DIVZERO;
             helper_raise_exception(env, EXCP_HW_EXCP);
         }
         return 0;
@@ -166,7 +166,7 @@ uint32_t helper_divu(CPUMBState *env, uint32_t a, uint32_t b)
 /* raise FPU exception.  */
 static void raise_fpu_exception(CPUMBState *env)
 {
-    env->sregs[SR_ESR] = ESR_EC_FPU;
+    env->esr = ESR_EC_FPU;
     helper_raise_exception(env, EXCP_HW_EXCP);
 }
 
@@ -432,10 +432,9 @@ void helper_memalign(CPUMBState *env, target_ulong addr,
                           " mask=%x, wr=%d dr=r%d\n",
                           addr, mask, wr, dr);
             env->ear = addr;
-            env->sregs[SR_ESR] = ESR_EC_UNALIGNED_DATA | (wr << 10) \
-                                 | (dr & 31) << 5;
+            env->esr = ESR_EC_UNALIGNED_DATA | (wr << 10) | (dr & 31) << 5;
             if (mask == 3) {
-                env->sregs[SR_ESR] |= 1 << 11;
+                env->esr |= 1 << 11;
             }
             if (!(env->msr & MSR_EE)) {
                 return;
@@ -451,7 +450,7 @@ void helper_stackprot(CPUMBState *env, target_ulong addr)
                       TARGET_FMT_lx " %x %x\n",
                       addr, env->slr, env->shr);
         env->ear = addr;
-        env->sregs[SR_ESR] = ESR_EC_STACKPROT;
+        env->esr = ESR_EC_STACKPROT;
         helper_raise_exception(env, EXCP_HW_EXCP);
     }
 }
@@ -491,12 +490,12 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     env->ear = addr;
     if (access_type == MMU_INST_FETCH) {
         if ((env->pvr.regs[2] & PVR2_IOPB_BUS_EXC_MASK)) {
-            env->sregs[SR_ESR] = ESR_EC_INSN_BUS;
+            env->esr = ESR_EC_INSN_BUS;
             helper_raise_exception(env, EXCP_HW_EXCP);
         }
     } else {
         if ((env->pvr.regs[2] & PVR2_DOPB_BUS_EXC_MASK)) {
-            env->sregs[SR_ESR] = ESR_EC_DATA_BUS;
+            env->esr = ESR_EC_DATA_BUS;
             helper_raise_exception(env, EXCP_HW_EXCP);
         }
     }
