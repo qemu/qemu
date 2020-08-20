@@ -74,7 +74,7 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         val = env->fsr;
         break;
     case GDB_BTR:
-        val = env->sregs[SR_BTR];
+        val = env->btr;
         break;
     case GDB_PVR0 ... GDB_PVR11:
         /* PVR12 is intentionally skipped */
@@ -130,7 +130,7 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->fsr = tmp;
         break;
     case GDB_BTR:
-        env->sregs[SR_BTR] = tmp;
+        env->btr = tmp;
         break;
     case GDB_PVR0 ... GDB_PVR11:
         /* PVR12 is intentionally skipped */

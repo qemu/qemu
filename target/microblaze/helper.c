@@ -132,7 +132,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             /* Exception breaks branch + dslot sequence?  */
             if (env->iflags & D_FLAG) {
                 env->esr |= 1 << 12 ;
-                env->sregs[SR_BTR] = env->btarget;
+                env->btr = env->btarget;
             }
 
             /* Disable the MMU.  */
@@ -160,7 +160,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             if (env->iflags & D_FLAG) {
                 D(qemu_log("D_FLAG set at exception bimm=%d\n", env->bimm));
                 env->esr |= 1 << 12 ;
-                env->sregs[SR_BTR] = env->btarget;
+                env->btr = env->btarget;
 
                 /* Reexecute the branch.  */
                 env->regs[17] -= 4;

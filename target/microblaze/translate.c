@@ -1811,7 +1811,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  "rbtr=%" PRIx64 "\n",
                  env->msr, env->esr, env->ear,
                  env->debug, env->imm, env->iflags, env->fsr,
-                 env->sregs[SR_BTR]);
+                 env->btr);
     qemu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
                  "eip=%d ie=%d\n",
                  env->btaken, env->btarget,
@@ -1879,8 +1879,10 @@ void mb_tcg_init(void)
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, esr), "resr");
     cpu_SR[SR_FSR] =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, fsr), "rfsr");
+    cpu_SR[SR_BTR] =
+        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, btr), "rbtr");
 
-    for (i = SR_FSR + 1; i < ARRAY_SIZE(cpu_SR); i++) {
+    for (i = SR_BTR + 1; i < ARRAY_SIZE(cpu_SR); i++) {
         cpu_SR[i] = tcg_global_mem_new_i64(cpu_env,
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
