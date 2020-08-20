@@ -35,7 +35,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
 
     cs->exception_index = -1;
     env->res_addr = RES_ADDR_NONE;
-    env->regs[14] = env->sregs[SR_PC];
+    env->regs[14] = env->pc;
 }
 
 bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -126,7 +126,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 return;
             }
 
-            env->regs[17] = env->sregs[SR_PC] + 4;
+            env->regs[17] = env->pc + 4;
             env->sregs[SR_ESR] &= ~(1 << 12);
 
             /* Exception breaks branch + dslot sequence?  */
@@ -145,15 +145,15 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                           "hw exception at pc=%" PRIx64 " ear=%" PRIx64 " "
                           "esr=%" PRIx64 " iflags=%x\n",
-                          env->sregs[SR_PC], env->sregs[SR_EAR],
+                          env->pc, env->sregs[SR_EAR],
                           env->sregs[SR_ESR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = cpu->cfg.base_vectors + 0x20;
+            env->pc = cpu->cfg.base_vectors + 0x20;
             break;
 
         case EXCP_MMU:
-            env->regs[17] = env->sregs[SR_PC];
+            env->regs[17] = env->pc;
 
             env->sregs[SR_ESR] &= ~(1 << 12);
             /* Exception breaks branch + dslot sequence?  */
@@ -169,7 +169,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                     qemu_log_mask(CPU_LOG_INT,
                                   "bimm exception at pc=%" PRIx64 " "
                                   "iflags=%x\n",
-                                  env->sregs[SR_PC], env->iflags);
+                                  env->pc, env->iflags);
                     env->regs[17] -= 4;
                     log_cpu_state_mask(CPU_LOG_INT, cs, 0);
                 }
@@ -188,10 +188,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                           "exception at pc=%" PRIx64 " ear=%" PRIx64 " "
                           "iflags=%x\n",
-                          env->sregs[SR_PC], env->sregs[SR_EAR], env->iflags);
+                          env->pc, env->sregs[SR_EAR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = cpu->cfg.base_vectors + 0x20;
+            env->pc = cpu->cfg.base_vectors + 0x20;
             break;
 
         case EXCP_IRQ:
@@ -209,14 +209,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
             {
                 const char *sym;
 
-                sym = lookup_symbol(env->sregs[SR_PC]);
+                sym = lookup_symbol(env->pc);
                 if (sym
                     && (!strcmp("netif_rx", sym)
                         || !strcmp("process_backlog", sym))) {
 
                     qemu_log(
                          "interrupt at pc=%x msr=%x %x iflags=%x sym=%s\n",
-                         env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags,
+                         env->pc, env->sregs[SR_MSR], t, env->iflags,
                          sym);
 
                     log_cpu_state(cs, 0);
@@ -226,14 +226,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                          "interrupt at pc=%" PRIx64 " msr=%" PRIx64 " %x "
                          "iflags=%x\n",
-                         env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags);
+                         env->pc, env->sregs[SR_MSR], t, env->iflags);
 
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM \
                                     | MSR_UM | MSR_IE);
             env->sregs[SR_MSR] |= t;
 
-            env->regs[14] = env->sregs[SR_PC];
-            env->sregs[SR_PC] = cpu->cfg.base_vectors + 0x10;
+            env->regs[14] = env->pc;
+            env->pc = cpu->cfg.base_vectors + 0x10;
             //log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             break;
 
@@ -245,17 +245,17 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                         "break at pc=%" PRIx64 " msr=%" PRIx64 " %x "
                         "iflags=%x\n",
-                        env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags);
+                        env->pc, env->sregs[SR_MSR], t, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             env->sregs[SR_MSR] |= t;
             env->sregs[SR_MSR] |= MSR_BIP;
             if (cs->exception_index == EXCP_HW_BREAK) {
-                env->regs[16] = env->sregs[SR_PC];
+                env->regs[16] = env->pc;
                 env->sregs[SR_MSR] |= MSR_BIP;
-                env->sregs[SR_PC] = cpu->cfg.base_vectors + 0x18;
+                env->pc = cpu->cfg.base_vectors + 0x18;
             } else
-                env->sregs[SR_PC] = env->btarget;
+                env->pc = env->btarget;
             break;
         default:
             cpu_abort(cs, "unhandled exception type=%d\n",

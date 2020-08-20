@@ -236,6 +236,7 @@ struct CPUMBState {
 
     uint32_t imm;
     uint32_t regs[32];
+    uint64_t pc;
     uint64_t sregs[14];
     float_status fp_status;
     /* Stack protectors. Yes, it's a hw feature.  */
@@ -351,7 +352,7 @@ typedef MicroBlazeCPU ArchCPU;
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
-    *pc = env->sregs[SR_PC];
+    *pc = env->pc;
     *cs_base = 0;
     *flags = (env->iflags & IFLAGS_TB_MASK) |
                  (env->sregs[SR_MSR] & (MSR_UM | MSR_VM | MSR_EE));

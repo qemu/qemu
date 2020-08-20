@@ -1805,7 +1805,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 
     qemu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
-                 env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
+                 env->pc, lookup_symbol(env->pc));
     qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
                  "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
                  "rbtr=%" PRIx64 "\n",
@@ -1868,7 +1868,11 @@ void mb_tcg_init(void)
                           offsetof(CPUMBState, regs[i]),
                           regnames[i]);
     }
-    for (i = 0; i < ARRAY_SIZE(cpu_SR); i++) {
+
+    cpu_SR[SR_PC] =
+        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, pc), "rpc");
+
+    for (i = 1; i < ARRAY_SIZE(cpu_SR); i++) {
         cpu_SR[i] = tcg_global_mem_new_i64(cpu_env,
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
@@ -1878,5 +1882,5 @@ void mb_tcg_init(void)
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
-    env->sregs[SR_PC] = data[0];
+    env->pc = data[0];
 }

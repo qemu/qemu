@@ -51,7 +51,7 @@ void cpu_loop(CPUMBState *env)
         case EXCP_BREAK:
             /* Return address is 4 bytes after the call.  */
             env->regs[14] += 4;
-            env->sregs[SR_PC] = env->regs[14];
+            env->pc = env->regs[14];
             ret = do_syscall(env, 
                              env->regs[12], 
                              env->regs[5], 
@@ -63,7 +63,7 @@ void cpu_loop(CPUMBState *env)
                              0, 0);
             if (ret == -TARGET_ERESTARTSYS) {
                 /* Wind back to before the syscall. */
-                env->sregs[SR_PC] -= 4;
+                env->pc -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
                 env->regs[3] = ret;
             }
@@ -73,13 +73,13 @@ void cpu_loop(CPUMBState *env)
              * not a userspace-usable register, as the kernel may clobber it
              * at any point.)
              */
-            env->regs[14] = env->sregs[SR_PC];
+            env->regs[14] = env->pc;
             break;
         case EXCP_HW_EXCP:
-            env->regs[17] = env->sregs[SR_PC] + 4;
+            env->regs[17] = env->pc + 4;
             if (env->iflags & D_FLAG) {
                 env->sregs[SR_ESR] |= 1 << 12;
-                env->sregs[SR_PC] -= 4;
+                env->pc -= 4;
                 /* FIXME: if branch was immed, replay the imm as well.  */
             }
 
@@ -165,5 +165,5 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     env->regs[29] = regs->r29;
     env->regs[30] = regs->r30;
     env->regs[31] = regs->r31;
-    env->sregs[SR_PC] = regs->pc;
+    env->pc = regs->pc;
 }
