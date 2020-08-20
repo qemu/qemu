@@ -81,7 +81,7 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         val = env->pvr.regs[n - GDB_PVR0];
         break;
     case GDB_EDR:
-        val = env->sregs[SR_EDR];
+        val = env->edr;
         break;
     case GDB_SLR:
         val = env->slr;
@@ -137,7 +137,7 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->pvr.regs[n - GDB_PVR0] = tmp;
         break;
     case GDB_EDR:
-        env->sregs[SR_EDR] = tmp;
+        env->edr = tmp;
         break;
     case GDB_SLR:
         env->slr = tmp;

@@ -103,12 +103,6 @@ static const char *regnames[] =
     "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
 };
 
-static const char *special_regnames[] =
-{
-    "rpc", "rmsr", "sr2", "rear", "sr4", "resr", "sr6", "rfsr",
-    "sr8", "sr9", "sr10", "rbtr", "sr12", "redr"
-};
-
 static inline void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
@@ -1828,7 +1822,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
     /* Registers that aren't modeled are reported as 0 */
     qemu_fprintf(f, "redr=%" PRIx64 " rpid=0 rzpr=0 rtlbx=0 rtlbsx=0 "
-                    "rtlblo=0 rtlbhi=0\n", env->sregs[SR_EDR]);
+                    "rtlblo=0 rtlbhi=0\n", env->edr);
     qemu_fprintf(f, "slr=%x shr=%x\n", env->slr, env->shr);
     for (i = 0; i < 32; i++) {
         qemu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
@@ -1881,12 +1875,8 @@ void mb_tcg_init(void)
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, fsr), "rfsr");
     cpu_SR[SR_BTR] =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, btr), "rbtr");
-
-    for (i = SR_BTR + 1; i < ARRAY_SIZE(cpu_SR); i++) {
-        cpu_SR[i] = tcg_global_mem_new_i64(cpu_env,
-                          offsetof(CPUMBState, sregs[i]),
-                          special_regnames[i]);
-    }
+    cpu_SR[SR_EDR] =
+        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, edr), "redr");
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
