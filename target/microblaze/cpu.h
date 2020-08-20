@@ -237,7 +237,7 @@ struct CPUMBState {
     uint32_t imm;
     uint32_t regs[32];
     uint32_t pc;
-    uint64_t msr;
+    uint32_t msr;
     uint64_t ear;
     uint64_t esr;
     uint64_t fsr;

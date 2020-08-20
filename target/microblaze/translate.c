@@ -56,7 +56,7 @@
 static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
-static TCGv_i64 cpu_msr;
+static TCGv_i32 cpu_msr;
 static TCGv_i64 cpu_ear;
 static TCGv_i64 cpu_esr;
 static TCGv_i64 cpu_fsr;
@@ -152,8 +152,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 
 static void read_carry(DisasContext *dc, TCGv_i32 d)
 {
-    tcg_gen_extrl_i64_i32(d, cpu_msr);
-    tcg_gen_shri_i32(d, d, 31);
+    tcg_gen_shri_i32(d, cpu_msr, 31);
 }
 
 /*
@@ -162,12 +161,9 @@ static void read_carry(DisasContext *dc, TCGv_i32 d)
  */
 static void write_carry(DisasContext *dc, TCGv_i32 v)
 {
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(t0, v);
     /* Deposit bit 0 into MSR_C and the alias MSR_CC.  */
-    tcg_gen_deposit_i64(cpu_msr, cpu_msr, t0, 2, 1);
-    tcg_gen_deposit_i64(cpu_msr, cpu_msr, t0, 31, 1);
-    tcg_temp_free_i64(t0);
+    tcg_gen_deposit_i32(cpu_msr, cpu_msr, v, 2, 1);
+    tcg_gen_deposit_i32(cpu_msr, cpu_msr, v, 31, 1);
 }
 
 static void write_carryi(DisasContext *dc, bool carry)
@@ -437,21 +433,14 @@ static void dec_xor(DisasContext *dc)
 
 static inline void msr_read(DisasContext *dc, TCGv_i32 d)
 {
-    tcg_gen_extrl_i64_i32(d, cpu_msr);
+    tcg_gen_mov_i32(d, cpu_msr);
 }
 
 static inline void msr_write(DisasContext *dc, TCGv_i32 v)
 {
-    TCGv_i64 t;
-
-    t = tcg_temp_new_i64();
     dc->cpustate_changed = 1;
-    /* PVR bit is not writable.  */
-    tcg_gen_extu_i32_i64(t, v);
-    tcg_gen_andi_i64(t, t, ~MSR_PVR);
-    tcg_gen_andi_i64(cpu_msr, cpu_msr, MSR_PVR);
-    tcg_gen_or_i64(cpu_msr, cpu_msr, t);
-    tcg_temp_free_i64(t);
+    /* PVR bit is not writable, and is never set. */
+    tcg_gen_andi_i32(cpu_msr, v, ~MSR_PVR);
 }
 
 static void dec_msr(DisasContext *dc)
@@ -773,8 +762,7 @@ static void dec_bit(DisasContext *dc)
             t0 = tcg_temp_new_i32();
 
             LOG_DIS("src r%d r%d\n", dc->rd, dc->ra);
-            tcg_gen_extrl_i64_i32(t0, cpu_msr);
-            tcg_gen_andi_i32(t0, t0, MSR_CC);
+            tcg_gen_andi_i32(t0, cpu_msr, MSR_CC);
             write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
                 tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
@@ -1326,7 +1314,7 @@ static inline void do_rti(DisasContext *dc)
     TCGv_i32 t0, t1;
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
-    tcg_gen_extrl_i64_i32(t1, cpu_msr);
+    tcg_gen_mov_i32(t1, cpu_msr);
     tcg_gen_shri_i32(t0, t1, 1);
     tcg_gen_ori_i32(t1, t1, MSR_IE);
     tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
@@ -1344,7 +1332,7 @@ static inline void do_rtb(DisasContext *dc)
     TCGv_i32 t0, t1;
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
-    tcg_gen_extrl_i64_i32(t1, cpu_msr);
+    tcg_gen_mov_i32(t1, cpu_msr);
     tcg_gen_andi_i32(t1, t1, ~MSR_BIP);
     tcg_gen_shri_i32(t0, t1, 1);
     tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
@@ -1363,7 +1351,7 @@ static inline void do_rte(DisasContext *dc)
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
 
-    tcg_gen_extrl_i64_i32(t1, cpu_msr);
+    tcg_gen_mov_i32(t1, cpu_msr);
     tcg_gen_ori_i32(t1, t1, MSR_EE);
     tcg_gen_andi_i32(t1, t1, ~MSR_EIP);
     tcg_gen_shri_i32(t0, t1, 1);
@@ -1809,7 +1797,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
     qemu_fprintf(f, "IN: PC=%x %s\n",
                  env->pc, lookup_symbol(env->pc));
-    qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
+    qemu_fprintf(f, "rmsr=%x resr=%" PRIx64 " rear=%" PRIx64 " "
                  "debug=%x imm=%x iflags=%x fsr=%" PRIx64 " "
                  "rbtr=%" PRIx64 "\n",
                  env->msr, env->esr, env->ear,
@@ -1874,7 +1862,7 @@ void mb_tcg_init(void)
     cpu_pc =
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, pc), "rpc");
     cpu_msr =
-        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, msr), "rmsr");
+        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, msr), "rmsr");
     cpu_ear =
         tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, ear), "rear");
     cpu_esr =
