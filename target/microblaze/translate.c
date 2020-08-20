@@ -57,7 +57,6 @@ static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
-static TCGv_i64 cpu_ear;
 static TCGv_i32 cpu_esr;
 static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
@@ -533,7 +532,12 @@ static void dec_msr(DisasContext *dc)
                 msr_write(dc, cpu_R[dc->ra]);
                 break;
             case SR_EAR:
-                tcg_gen_extu_i32_i64(cpu_ear, cpu_R[dc->ra]);
+                {
+                    TCGv_i64 t64 = tcg_temp_new_i64();
+                    tcg_gen_extu_i32_i64(t64, cpu_R[dc->ra]);
+                    tcg_gen_st_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+                    tcg_temp_free_i64(t64);
+                }
                 break;
             case SR_ESR:
                 tcg_gen_mov_i32(cpu_esr, cpu_R[dc->ra]);
@@ -573,10 +577,15 @@ static void dec_msr(DisasContext *dc)
                 msr_read(dc, cpu_R[dc->rd]);
                 break;
             case SR_EAR:
-                if (extended) {
-                    tcg_gen_extrh_i64_i32(cpu_R[dc->rd], cpu_ear);
-                } else {
-                    tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_ear);
+                {
+                    TCGv_i64 t64 = tcg_temp_new_i64();
+                    tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+                    if (extended) {
+                        tcg_gen_extrh_i64_i32(cpu_R[dc->rd], t64);
+                    } else {
+                        tcg_gen_extrl_i64_i32(cpu_R[dc->rd], t64);
+                    }
+                    tcg_temp_free_i64(t64);
                 }
                 break;
             case SR_ESR:
@@ -1865,8 +1874,6 @@ void mb_tcg_init(void)
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, pc), "rpc");
     cpu_msr =
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, msr), "rmsr");
-    cpu_ear =
-        tcg_global_mem_new_i64(cpu_env, offsetof(CPUMBState, ear), "rear");
     cpu_esr =
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, esr), "resr");
 }
