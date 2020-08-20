@@ -146,13 +146,43 @@ int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
     return s.ret;
 }
 
-static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, Error **errp)
+/*
+ * Allocate the vCPU IPIs from the vCPU context. This will allocate
+ * the XIVE IPI interrupt on the chip on which the vCPU is running.
+ * This gives a better distribution of IPIs when the guest has a lot
+ * of vCPUs. When the vCPUs are pinned, this will make the IPI local
+ * to the chip of the vCPU. It will reduce rerouting between interrupt
+ * controllers and gives better performance.
+ */
+typedef struct {
+    SpaprXive *xive;
+    Error *err;
+    int rc;
+} XiveInitIPI;
+
+static void kvmppc_xive_reset_ipi_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
     unsigned long ipi = kvm_arch_vcpu_id(cs);
+    XiveInitIPI *s = arg.host_ptr;
     uint64_t state = 0;
 
-    return kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE, ipi,
-                              &state, true, errp);
+    s->rc = kvm_device_access(s->xive->fd, KVM_DEV_XIVE_GRP_SOURCE, ipi,
+                              &state, true, &s->err);
+}
+
+static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, Error **errp)
+{
+    XiveInitIPI s = {
+        .xive = xive,
+        .err  = NULL,
+        .rc   = 0,
+    };
+
+    run_on_cpu(cs, kvmppc_xive_reset_ipi_on_cpu, RUN_ON_CPU_HOST_PTR(&s));
+    if (s.err) {
+        error_propagate(errp, s.err);
+    }
+    return s.rc;
 }
 
 int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
