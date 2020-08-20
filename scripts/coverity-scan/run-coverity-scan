@@ -380,15 +380,17 @@ export PATH="$TOOLBIN:$PATH"
 
 cd "$SRCDIR"
 
-echo "Doing make distclean..."
-make distclean
+echo "Nuking build directory..."
+rm -rf +build
+mkdir +build
+cd +build
 
 echo "Configuring..."
 # We configure with a fixed set of enables here to ensure that we don't
 # accidentally reduce the scope of the analysis by doing the build on
 # the system that's missing a dependency that we need to build part of
 # the codebase.
-./configure --disable-modules --enable-sdl --enable-gtk \
+../configure --disable-modules --enable-sdl --enable-gtk \
     --enable-opengl --enable-vte --enable-gnutls \
     --enable-nettle --enable-curses --enable-curl \
     --audio-drv-list=oss,alsa,sdl,pa --enable-virtfs \
