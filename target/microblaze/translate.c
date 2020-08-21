@@ -57,7 +57,6 @@ static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
-static TCGv_i32 cpu_esr;
 static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
 static TCGv_i32 cpu_btarget;
@@ -114,15 +113,29 @@ static inline void t_sync_flags(DisasContext *dc)
     }
 }
 
-static inline void t_gen_raise_exception(DisasContext *dc, uint32_t index)
+static void gen_raise_exception(DisasContext *dc, uint32_t index)
 {
     TCGv_i32 tmp = tcg_const_i32(index);
 
-    t_sync_flags(dc);
-    tcg_gen_movi_i32(cpu_pc, dc->pc);
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->is_jmp = DISAS_UPDATE;
+}
+
+static void gen_raise_exception_sync(DisasContext *dc, uint32_t index)
+{
+    t_sync_flags(dc);
+    tcg_gen_movi_i32(cpu_pc, dc->pc);
+    gen_raise_exception(dc, index);
+}
+
+static void gen_raise_hw_excp(DisasContext *dc, uint32_t esr_ec)
+{
+    TCGv_i32 tmp = tcg_const_i32(esr_ec);
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUMBState, esr));
+    tcg_temp_free_i32(tmp);
+
+    gen_raise_exception_sync(dc, EXCP_HW_EXCP);
 }
 
 static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
@@ -178,8 +191,7 @@ static bool trap_illegal(DisasContext *dc, bool cond)
 {
     if (cond && (dc->tb_flags & MSR_EE_FLAG)
         && dc->cpu->cfg.illegal_opcode_exception) {
-        tcg_gen_movi_i32(cpu_esr, ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        gen_raise_hw_excp(dc, ESR_EC_ILLEGAL_OP);
     }
     return cond;
 }
@@ -194,8 +206,7 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     bool cond_user = cond && mem_index == MMU_USER_IDX;
 
     if (cond_user && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i32(cpu_esr, ESR_EC_PRIVINSN);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        gen_raise_hw_excp(dc, ESR_EC_PRIVINSN);
     }
     return cond_user;
 }
@@ -540,7 +551,8 @@ static void dec_msr(DisasContext *dc)
                 }
                 break;
             case SR_ESR:
-                tcg_gen_mov_i32(cpu_esr, cpu_R[dc->ra]);
+                tcg_gen_st_i32(cpu_R[dc->ra],
+                               cpu_env, offsetof(CPUMBState, esr));
                 break;
             case SR_FSR:
                 tcg_gen_st_i32(cpu_R[dc->ra],
@@ -589,7 +601,8 @@ static void dec_msr(DisasContext *dc)
                 }
                 break;
             case SR_ESR:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_esr);
+                tcg_gen_ld_i32(cpu_R[dc->rd],
+                               cpu_env, offsetof(CPUMBState, esr));
                 break;
             case SR_FSR:
                 tcg_gen_ld_i32(cpu_R[dc->rd],
@@ -1258,8 +1271,7 @@ static void dec_br(DisasContext *dc)
 
         /* mbar IMM & 16 decodes to sleep.  */
         if (mbar_imm & 16) {
-            TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
-            TCGv_i32 tmp_1 = tcg_const_i32(1);
+            TCGv_i32 tmp_1;
 
             LOG_DIS("sleep\n");
 
@@ -1269,13 +1281,16 @@ static void dec_br(DisasContext *dc)
             }
 
             t_sync_flags(dc);
+
+            tmp_1 = tcg_const_i32(1);
             tcg_gen_st_i32(tmp_1, cpu_env,
                            -offsetof(MicroBlazeCPU, env)
                            +offsetof(CPUState, halted));
-            tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
-            gen_helper_raise_exception(cpu_env, tmp_hlt);
-            tcg_temp_free_i32(tmp_hlt);
             tcg_temp_free_i32(tmp_1);
+
+            tcg_gen_movi_i32(cpu_pc, dc->pc + 4);
+
+            gen_raise_exception(dc, EXCP_HLT);
             return;
         }
         /* Break the TB.  */
@@ -1300,14 +1315,15 @@ static void dec_br(DisasContext *dc)
         tcg_gen_movi_i32(env_btaken, 1);
         tcg_gen_mov_i32(cpu_btarget, *(dec_alu_op_b(dc)));
         if (link && !dslot) {
-            if (!(dc->tb_flags & IMM_FLAG) && (dc->imm == 8 || dc->imm == 0x18))
-                t_gen_raise_exception(dc, EXCP_BREAK);
+            if (!(dc->tb_flags & IMM_FLAG) &&
+                (dc->imm == 8 || dc->imm == 0x18)) {
+                gen_raise_exception_sync(dc, EXCP_BREAK);
+            }
             if (dc->imm == 0) {
                 if (trap_userspace(dc, true)) {
                     return;
                 }
-
-                t_gen_raise_exception(dc, EXCP_DEBUG);
+                gen_raise_exception_sync(dc, EXCP_DEBUG);
             }
         }
     } else {
@@ -1411,8 +1427,7 @@ static void dec_rts(DisasContext *dc)
 static int dec_check_fpuv2(DisasContext *dc)
 {
     if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i32(cpu_esr, ESR_EC_FPU);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        gen_raise_hw_excp(dc, ESR_EC_FPU);
     }
     return (dc->cpu->cfg.use_fpu == 2) ? PVR2_USE_FPU2_MASK : 0;
 }
@@ -1668,8 +1683,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 #endif
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
-            t_gen_raise_exception(dc, EXCP_DEBUG);
-            dc->is_jmp = DISAS_UPDATE;
+            gen_raise_exception_sync(dc, EXCP_DEBUG);
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
@@ -1874,8 +1888,6 @@ void mb_tcg_init(void)
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, pc), "rpc");
     cpu_msr =
         tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, msr), "rmsr");
-    cpu_esr =
-        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, esr), "resr");
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
