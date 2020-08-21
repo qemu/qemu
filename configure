@@ -228,15 +228,15 @@ version_ge () {
     while true; do
         set x $local_ver1
         local_first=${2-0}
-        # shift 2 does nothing if there are less than 2 arguments
-        shift; shift
+        # 'shift 2' if $2 is set, or 'shift' if $2 is not set
+        shift ${2:+2}
         local_ver1=$*
         set x $local_ver2
         # the second argument finished, the first must be greater or equal
         test $# = 1 && return 0
         test $local_first -lt $2 && return 1
         test $local_first -gt $2 && return 0
-        shift; shift
+        shift ${2:+2}
         local_ver2=$*
     done
 }
