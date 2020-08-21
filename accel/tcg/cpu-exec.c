@@ -87,6 +87,7 @@ unsigned int  afl_forksrv_pid;
 unsigned char is_persistent;
 target_long   persistent_stack_offset;
 unsigned char persistent_first_pass = 1;
+unsigned char persistent_exits;
 unsigned char persistent_save_gpr;
 int           persisent_retaddr_offset;
 int           persistent_memory;
@@ -386,14 +387,8 @@ void afl_setup(void) {
   }
 
   if (getenv("AFL_QEMU_PERSISTENT_GPR")) persistent_save_gpr = 1;
-  if (getenv("AFL_QEMU_PERSISTENT_MEM")) {
-  
+  if (getenv("AFL_QEMU_PERSISTENT_MEM"))
     persistent_memory = 1;
-    
-    if (afl_snapshot_init() >= 0)
-      lkm_snapshot = 1;
- 
-  }
 
   if (getenv("AFL_QEMU_PERSISTENT_HOOK")) {
 
@@ -444,7 +439,36 @@ void afl_setup(void) {
   if (getenv("AFL_QEMU_PERSISTENT_CNT"))
     afl_persistent_cnt = strtoll(getenv("AFL_QEMU_PERSISTENT_CNT"), NULL, 0);
   else
-    afl_persistent_cnt = PERSISTENT_DEFAULT_MAX_CNT;
+    afl_persistent_cnt = 0;
+    
+  if (getenv("AFL_QEMU_PERSISTENT_EXITS")) persistent_exits = 1;
+
+  // TODO persistent exits for other archs not x86
+  // TODO persistent mode for other archs not x86
+  // TODO cmplog rtn for arm
+  
+  if (getenv("AFL_QEMU_SNAPSHOT")) {
+  
+    is_persistent = 1;
+    persistent_save_gpr = 1;
+    persistent_memory = 1;
+    persistent_exits = 1;
+    
+    if (afl_persistent_addr == 0)
+      afl_persistent_addr = strtoll(getenv("AFL_QEMU_SNAPSHOT"), NULL, 0);
+  
+  }
+  
+  if (persistent_memory && afl_snapshot_init() >= 0)
+    lkm_snapshot = 1;
+  
+  if (getenv("AFL_DEBUG")) {
+    if (is_persistent)
+      fprintf(stderr, "Persistent: %p %s%s%s\n", (void*)afl_persistent_addr,
+              (persistent_save_gpr ? "gpr ": ""),
+              (persistent_memory ? "mem ": ""),
+              (persistent_exits ? "exits ": ""));
+  }
 
 }
 
@@ -595,10 +619,62 @@ void afl_forkserver(CPUState *cpu) {
 /* A simplified persistent mode handler, used as explained in
  * llvm_mode/README.md. */
 
-void afl_persistent_loop(CPUArchState *env) {
+static u32 cycle_cnt;
 
-  static u32            cycle_cnt;
+void afl_persistent_iter(CPUArchState *env) {
+
   static struct afl_tsl exit_cmd_tsl;
+
+  if (!afl_persistent_cnt || --cycle_cnt) {
+  
+    if (persistent_memory) restore_memory_snapshot();
+  
+    if (persistent_save_gpr) {
+    
+      if (afl_persistent_hook_ptr) {
+      
+        struct api_regs hook_regs = saved_regs;
+        afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
+                                *shared_buf_len);
+        afl_restore_regs(&hook_regs, env);
+
+      } else
+        afl_restore_regs(&saved_regs, env);
+    
+    }
+
+    if (!disable_caching) {
+  
+      memset(&exit_cmd_tsl, 0, sizeof(struct afl_tsl));
+      exit_cmd_tsl.tb.pc = (target_ulong)(-1);
+
+      if (write(TSL_FD, &exit_cmd_tsl, sizeof(struct afl_tsl)) !=
+          sizeof(struct afl_tsl)) {
+
+        /* Exit the persistent loop on pipe error */
+        afl_area_ptr = dummy;
+        exit(0);
+
+      }
+    
+    }
+
+    // TODO use only pipe
+    raise(SIGSTOP);
+
+    afl_area_ptr[0] = 1;
+    afl_prev_loc = 0;
+
+  } else {
+
+    afl_area_ptr = dummy;
+    exit(0);
+
+  }
+
+}
+
+void afl_persistent_loop(CPUArchState *env) {
 
   if (!afl_fork_child) return;
 
@@ -644,48 +720,7 @@ void afl_persistent_loop(CPUArchState *env) {
 
   if (is_persistent) {
 
-    if (--cycle_cnt) {
-    
-      if (persistent_memory) restore_memory_snapshot();
-    
-      if (persistent_save_gpr) {
-      
-        if (afl_persistent_hook_ptr) {
-        
-          struct api_regs hook_regs = saved_regs;
-          afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
-                                  *shared_buf_len);
-          afl_restore_regs(&hook_regs, env);
-
-        } else
-          afl_restore_regs(&saved_regs, env);
-      
-      }
-    
-      memset(&exit_cmd_tsl, 0, sizeof(struct afl_tsl));
-      exit_cmd_tsl.tb.pc = (target_ulong)(-1);
-
-      if (write(TSL_FD, &exit_cmd_tsl, sizeof(struct afl_tsl)) !=
-          sizeof(struct afl_tsl)) {
-
-        /* Exit the persistent loop on pipe error */
-        afl_area_ptr = dummy;
-        exit(0);
-
-      }
-
-      // TODO use only pipe
-      raise(SIGSTOP);
-
-      afl_area_ptr[0] = 1;
-      afl_prev_loc = 0;
-
-    } else {
-
-      afl_area_ptr = dummy;
-      exit(0);
-
-    }
+    afl_persistent_iter(env);
 
   }
 
@@ -763,6 +798,8 @@ static void afl_wait_tsl(CPUState *cpu, int fd) {
 
   struct afl_tsl t;
   TranslationBlock *tb, *last_tb;
+
+  if (disable_caching) return;
 
   while (1) {
 

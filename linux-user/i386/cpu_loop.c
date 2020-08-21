@@ -22,6 +22,8 @@
 #include "qemu.h"
 #include "cpu_loop-common.h"
 
+#include "qemuafl/common.h"
+
 /***********************************************************/
 /* CPUX86 core interface */
 
@@ -211,6 +213,10 @@ void cpu_loop(CPUX86State *env)
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
+            if (persistent_exits && env->regs[R_EAX] == TARGET_NR_exit_group) {
+              afl_persistent_iter(env);
+              break;
+            }
             ret = do_syscall(env,
                              env->regs[R_EAX],
                              env->regs[R_EBX],
@@ -229,6 +235,11 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
             /* linux syscall from syscall instruction */
+            if (afl_fork_child && persistent_exits &&
+                env->regs[R_EAX] == TARGET_NR_exit_group) {
+              afl_persistent_iter(env);
+              break;
+            }
             ret = do_syscall(env,
                              env->regs[R_EAX],
                              env->regs[R_EDI],

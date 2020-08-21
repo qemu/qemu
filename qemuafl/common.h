@@ -39,8 +39,6 @@
 
 #include "api.h"
 
-#define PERSISTENT_DEFAULT_MAX_CNT 100000
-
 #if defined(TARGET_X86_64)
 #define api_regs x86_64_regs
 #elif defined(TARGET_I386)
@@ -84,6 +82,7 @@ extern unsigned char   afl_fork_child;
 extern unsigned char   is_persistent;
 extern target_long     persistent_stack_offset;
 extern unsigned char   persistent_first_pass;
+extern unsigned char   persistent_exits;
 extern unsigned char   persistent_save_gpr;
 extern int             persisent_retaddr_offset;
 extern struct api_regs saved_regs;
@@ -101,6 +100,7 @@ extern __thread u32    __afl_cmp_counter;
 
 void afl_setup(void);
 void afl_forkserver(CPUState *cpu);
+void afl_persistent_iter(CPUArchState *env);
 void afl_persistent_loop(CPUArchState *env);
 
 // void afl_debug_dump_saved_regs(void);
