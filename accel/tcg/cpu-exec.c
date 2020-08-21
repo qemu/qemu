@@ -39,6 +39,7 @@
 #include "sysemu/replay.h"
 
 #include "qemuafl/common.h"
+#include "qemuafl/imported/snapshot-inl.h"
 
 #include <sys/shm.h>
 #ifndef AFL_QEMU_STATIC_BUILD
@@ -158,10 +159,13 @@ struct saved_region {
 };
 
 abi_ulong saved_brk;
+int lkm_snapshot;
 struct saved_region* memory_snapshot;
 size_t memory_snapshot_len;
 
 static void collect_memory_snapshot(void) {
+
+  saved_brk = afl_get_brk();
 
   FILE *fp;
   char *line = NULL;
@@ -174,14 +178,10 @@ static void collect_memory_snapshot(void) {
     exit(1);
   }
   
-  saved_brk = afl_get_brk();
-  
-  // uint64_t img_min = 0, img_max = 0;
-  // char img_path[512] = {0};
-
   size_t memory_snapshot_allocd = 32;
-  memory_snapshot = malloc(memory_snapshot_allocd *
-                           sizeof(struct saved_region));
+  if (!lkm_snapshot)
+    memory_snapshot = malloc(memory_snapshot_allocd *
+                             sizeof(struct saved_region));
 
   while ((read = getline(&line, &len, fp)) != -1) {
   
@@ -198,41 +198,61 @@ static void collect_memory_snapshot(void) {
         continue;
     
     int flags = page_get_flags(h2g(min));
-    if (!(flags & PROT_WRITE)) continue;
-
+    
     max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
     if (page_check_range(h2g(min), max - min, flags) == -1)
         continue;
 
-    if (memory_snapshot_allocd == memory_snapshot_len) {
-      memory_snapshot_allocd *= 2;
-      memory_snapshot = realloc(memory_snapshot, memory_snapshot_allocd *
-                                sizeof(struct saved_region));
+    if (lkm_snapshot) {
+    
+      afl_snapshot_include_vmrange((void*)min, (void*)max);
+    
+    } else {
+
+      if (!(flags & PROT_WRITE)) continue;
+
+      if (memory_snapshot_allocd == memory_snapshot_len) {
+        memory_snapshot_allocd *= 2;
+        memory_snapshot = realloc(memory_snapshot, memory_snapshot_allocd *
+                                  sizeof(struct saved_region));
+      }
+      
+      void* saved = malloc(max - min);
+      memcpy(saved, (void*)min, max - min);
+      
+      size_t i = memory_snapshot_len++;
+      memory_snapshot[i].addr = (void*)min;
+      memory_snapshot[i].size = max - min;
+      memory_snapshot[i].saved = saved;
+    
     }
     
-    void* saved = malloc(max - min);
-    memcpy(saved, (void*)min, max - min);
-    
-    size_t i = memory_snapshot_len++;
-    memory_snapshot[i].addr = (void*)min;
-    memory_snapshot[i].size = max - min;
-    memory_snapshot[i].saved = saved;
-    
   }
+  
+  if (lkm_snapshot)
+    afl_snapshot_take(AFL_SNAPSHOT_BLOCK | AFL_SNAPSHOT_FDS);
 
 }
 
 static void restore_memory_snapshot(void) {
 
-  afl_set_brk(saved_brk);
+  //afl_set_brk(saved_brk);
   
-  size_t i;
-  for (i = 0; i < memory_snapshot_len; ++i) {
+  if (lkm_snapshot) {
   
-    // TODO avoid munmap of snapshot pages
+    afl_snapshot_restore();
+  
+  } else {
+  
+    size_t i;
+    for (i = 0; i < memory_snapshot_len; ++i) {
     
-    memcpy(memory_snapshot[i].addr, memory_snapshot[i].saved,
-           memory_snapshot[i].size);
+      // TODO avoid munmap of snapshot pages
+      
+      memcpy(memory_snapshot[i].addr, memory_snapshot[i].saved,
+             memory_snapshot[i].size);
+    
+    }
   
   }
 
@@ -366,7 +386,14 @@ void afl_setup(void) {
   }
 
   if (getenv("AFL_QEMU_PERSISTENT_GPR")) persistent_save_gpr = 1;
-  if (getenv("AFL_QEMU_PERSISTENT_MEM")) persistent_memory = 1;
+  if (getenv("AFL_QEMU_PERSISTENT_MEM")) {
+  
+    persistent_memory = 1;
+    
+    if (afl_snapshot_init() >= 0)
+      lkm_snapshot = 1;
+ 
+  }
 
   if (getenv("AFL_QEMU_PERSISTENT_HOOK")) {
 
@@ -442,6 +469,7 @@ void afl_forkserver(CPUState *cpu) {
   // with the max ID value
   if (MAP_SIZE <= FS_OPT_MAX_MAPSIZE)
     status |= (FS_OPT_SET_MAPSIZE(MAP_SIZE) | FS_OPT_MAPSIZE);
+  if (lkm_snapshot) status |= FS_OPT_SNAPSHOT;
   if (sharedmem_fuzzing != 0) status |= FS_OPT_SHDMEM_FUZZ;
   if (status) status |= (FS_OPT_ENABLED);
   if (getenv("AFL_DEBUG"))

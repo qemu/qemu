@@ -2130,6 +2130,10 @@ EOF
   fi
 fi
 
+if cc_has_warning_flag "-Wno-unused-function"; then
+    QEMU_CFLAGS="$QEMU_CFLAGS -Wno-unused-function"
+fi
+
 # Disable -Wmissing-braces on older compilers that warn even for
 # the "universal" C zero initializer {0}.
 cat > $TMPC << EOF
