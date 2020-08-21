@@ -87,9 +87,10 @@ unsigned char is_persistent;
 target_long   persistent_stack_offset;
 unsigned char persistent_first_pass = 1;
 unsigned char persistent_save_gpr;
-uint64_t      persistent_saved_gpr[AFL_REGS_NUM];
 int           persisent_retaddr_offset;
 int           persistent_memory;
+
+struct api_regs saved_regs;
 
 u8 * shared_buf;
 u32 *shared_buf_len;
@@ -566,7 +567,7 @@ void afl_forkserver(CPUState *cpu) {
 /* A simplified persistent mode handler, used as explained in
  * llvm_mode/README.md. */
 
-void afl_persistent_loop(void) {
+void afl_persistent_loop(CPUArchState *env) {
 
   static u32            cycle_cnt;
   static struct afl_tsl exit_cmd_tsl;
@@ -589,7 +590,22 @@ void afl_persistent_loop(void) {
     }
     
     if (persistent_memory) collect_memory_snapshot();
+    
+    if (persistent_save_gpr) {
+      
+      afl_save_regs(&saved_regs, env);
+      
+      if (afl_persistent_hook_ptr) {
+      
+        struct api_regs hook_regs = saved_regs;
+        afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
+                                *shared_buf_len);
+        afl_restore_regs(&hook_regs, env);
 
+      }
+
+    }
+    
     cycle_cnt = afl_persistent_cnt;
     persistent_first_pass = 0;
     persistent_stack_offset = TARGET_LONG_BITS / 8;
@@ -603,7 +619,21 @@ void afl_persistent_loop(void) {
     if (--cycle_cnt) {
     
       if (persistent_memory) restore_memory_snapshot();
+    
+      if (persistent_save_gpr) {
+      
+        if (afl_persistent_hook_ptr) {
+        
+          struct api_regs hook_regs = saved_regs;
+          afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
+                                  *shared_buf_len);
+          afl_restore_regs(&hook_regs, env);
 
+        } else
+          afl_restore_regs(&saved_regs, env);
+      
+      }
+    
       memset(&exit_cmd_tsl, 0, sizeof(struct afl_tsl));
       exit_cmd_tsl.tb.pc = (target_ulong)(-1);
 

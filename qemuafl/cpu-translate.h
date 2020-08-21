@@ -159,69 +159,14 @@ static void log_x86_sp_content(void) {
 
 }*/
 
-static void callback_to_persistent_hook(void) {
+static void restore_sp_for_persistent(TCGv sp) {
 
-  afl_persistent_hook_ptr(persistent_saved_gpr, guest_base, shared_buf,
-                          *shared_buf_len);
-
-}
-
-static void gpr_saving(TCGv *cpu_regs, int regs_num) {
-
-  int      i;
-  TCGv_ptr gpr_sv;
-
-  TCGv_ptr first_pass_ptr = tcg_const_ptr(&persistent_first_pass);
-  TCGv     first_pass = tcg_temp_local_new();
-  TCGv     one = tcg_const_tl(1);
-  tcg_gen_ld8u_tl(first_pass, first_pass_ptr, 0);
-
-  TCGLabel *lbl_restore_gpr = gen_new_label();
-  tcg_gen_brcond_tl(TCG_COND_NE, first_pass, one, lbl_restore_gpr);
-
-  // save GPR registers
-  for (i = 0; i < regs_num; ++i) {
-
-    gpr_sv = tcg_const_ptr(&persistent_saved_gpr[i]);
-    tcg_gen_st_tl(cpu_regs[i], gpr_sv, 0);
-    tcg_temp_free_ptr(gpr_sv);
-
-  }
-
-  gen_set_label(lbl_restore_gpr);
-
-  afl_gen_tcg_plain_call(&afl_persistent_loop);
-
-  if (afl_persistent_hook_ptr)
-    afl_gen_tcg_plain_call(callback_to_persistent_hook);
-
-  // restore GPR registers
-  for (i = 0; i < regs_num; ++i) {
-
-    gpr_sv = tcg_const_ptr(&persistent_saved_gpr[i]);
-    tcg_gen_ld_tl(cpu_regs[i], gpr_sv, 0);
-    tcg_temp_free_ptr(gpr_sv);
-
-  }
-
-  tcg_temp_free_ptr(first_pass_ptr);
-  tcg_temp_free(first_pass);
-  tcg_temp_free(one);
-
-}
-
-static void restore_state_for_persistent(TCGv *cpu_regs, int regs_num, int sp) {
-
-  if (persistent_save_gpr) {
-
-    gpr_saving(cpu_regs, regs_num);
-
-  } else if (afl_persistent_ret_addr == 0) {
+  if (!persistent_save_gpr && afl_persistent_ret_addr == 0) {
 
     TCGv_ptr stack_off_ptr = tcg_const_ptr(&persistent_stack_offset);
     TCGv     stack_off = tcg_temp_new();
     tcg_gen_ld_tl(stack_off, stack_off_ptr, 0);
-    tcg_gen_sub_tl(cpu_regs[sp], cpu_regs[sp], stack_off);
+    tcg_gen_sub_tl(sp, sp, stack_off);
     tcg_temp_free(stack_off);
 
   }

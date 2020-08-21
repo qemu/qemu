@@ -37,16 +37,20 @@
 #include "imported/config.h"
 #include "imported/cmplog.h"
 
+#include "api.h"
+
 #define PERSISTENT_DEFAULT_MAX_CNT 100000
 
-#ifdef CPU_NB_REGS
-  #define AFL_REGS_NUM CPU_NB_REGS
-#elif TARGET_ARM
-  #define AFL_REGS_NUM 16
-#elif TARGET_AARCH64
-  #define AFL_REGS_NUM 32
+#if defined(TARGET_X86_64)
+#define api_regs x86_64_regs
+#elif defined(TARGET_I386)
+#define api_regs x86_regs
+#elif defined(TARGET_AARCH64)
+#define api_regs arm64_regs
+#elif defined(TARGET_ARM)
+#define api_regs arm_regs
 #else
-  #define AFL_REGS_NUM 100
+#define api_regs int
 #endif
 
 /* NeverZero */
@@ -63,25 +67,26 @@
   #define INC_AFL_AREA(loc) afl_area_ptr[loc]++
 #endif
 
-typedef void (*afl_persistent_hook_fn)(uint64_t *regs, uint64_t guest_base,
+typedef void (*afl_persistent_hook_fn)(struct api_regs *regs,
+                                       uint64_t guest_base,
                                        uint8_t *input_buf,
                                        uint32_t input_buf_len);
 
 /* Declared in afl-qemu-cpu-inl.h */
 
-extern unsigned char *afl_area_ptr;
-extern unsigned int   afl_inst_rms;
-extern abi_ulong      afl_entry_point, afl_start_code, afl_end_code;
-extern abi_ulong      afl_persistent_addr;
-extern abi_ulong      afl_persistent_ret_addr;
-extern u8             afl_compcov_level;
-extern unsigned char  afl_fork_child;
-extern unsigned char  is_persistent;
-extern target_long    persistent_stack_offset;
-extern unsigned char  persistent_first_pass;
-extern unsigned char  persistent_save_gpr;
-extern uint64_t       persistent_saved_gpr[AFL_REGS_NUM];
-extern int            persisent_retaddr_offset;
+extern unsigned char  *afl_area_ptr;
+extern unsigned int    afl_inst_rms;
+extern abi_ulong       afl_entry_point, afl_start_code, afl_end_code;
+extern abi_ulong       afl_persistent_addr;
+extern abi_ulong       afl_persistent_ret_addr;
+extern u8              afl_compcov_level;
+extern unsigned char   afl_fork_child;
+extern unsigned char   is_persistent;
+extern target_long     persistent_stack_offset;
+extern unsigned char   persistent_first_pass;
+extern unsigned char   persistent_save_gpr;
+extern int             persisent_retaddr_offset;
+extern struct api_regs saved_regs;
 
 extern u8 * shared_buf;
 extern u32 *shared_buf_len;
@@ -96,10 +101,9 @@ extern __thread u32    __afl_cmp_counter;
 
 void afl_setup(void);
 void afl_forkserver(CPUState *cpu);
+void afl_persistent_loop(CPUArchState *env);
 
 // void afl_debug_dump_saved_regs(void);
-
-void afl_persistent_loop(void);
 
 void afl_gen_tcg_plain_call(void *func);
 
@@ -112,6 +116,9 @@ void afl_float_compcov_log_80(target_ulong cur_loc, floatx80 arg1,
 
 abi_ulong afl_get_brk(void);
 abi_ulong afl_set_brk(abi_ulong new_brk);
+
+void afl_save_regs(struct api_regs* regs, CPUArchState* env);
+void afl_restore_regs(struct api_regs* regs, CPUArchState* env);
 
 int open_self_maps(void *cpu_env, int fd);
 

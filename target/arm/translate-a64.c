@@ -39,6 +39,33 @@
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
+#include "qemuafl/cpu-translate.h"
+
+// SP = 31, LINK = 30
+
+#define AFL_QEMU_TARGET_ARM64_SNIPPET                                         \
+  if (is_persistent) {                                                        \
+                                                                              \
+    if (s->pc == afl_persistent_addr) {                                       \
+                                                                              \
+      if (persistent_save_gpr) gpr_saving(cpu_X, AFL_REGS_NUM);               \
+                                                                              \
+      if (afl_persistent_ret_addr == 0) {                                     \
+                                                                              \
+        tcg_gen_movi_tl(cpu_X[30], afl_persistent_addr);                      \
+                                                                              \
+      }                                                                       \
+                                                                              \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop); \
+                                                                              \
+    } else if (afl_persistent_ret_addr && s->pc == afl_persistent_ret_addr) { \
+                                                                              \
+      gen_goto_tb(s, 0, afl_persistent_addr);                                 \
+                                                                              \
+    }                                                                         \
+                                                                              \
+  }
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 
@@ -4173,6 +4200,12 @@ static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
     if (shift) {
         imm <<= 12;
     }
+    
+    if (rd == 31 && sub_op) { // cmp xX, imm
+      TCGv_i64 tcg_imm = tcg_const_i64(imm);
+      afl_gen_compcov(s->pc, tcg_rn, tcg_imm, is_64bit ? MO_64 : MO_32, 1);
+      tcg_temp_free_i64(tcg_imm);
+    }
 
     tcg_result = tcg_temp_new_i64();
     if (!setflags) {
@@ -4835,6 +4868,9 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
 
     tcg_rm = read_cpu_reg(s, rm, sf);
     ext_and_shift_reg(tcg_rm, tcg_rm, option, imm3);
+    
+    if (rd == 31 && sub_op) // cmp xX, xY
+      afl_gen_compcov(s->pc, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
 
     tcg_result = tcg_temp_new_i64();
 
@@ -4899,6 +4935,9 @@ static void disas_add_sub_reg(DisasContext *s, uint32_t insn)
     tcg_rm = read_cpu_reg(s, rm, sf);
 
     shift_reg_imm(tcg_rm, tcg_rm, sf, shift_type, imm6);
+    
+    if (rd == 31 && sub_op) // cmp xX, xY
+      afl_gen_compcov(s->pc, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
 
     tcg_result = tcg_temp_new_i64();
 
@@ -5181,6 +5220,8 @@ static void disas_cc(DisasContext *s, uint32_t insn)
         tcg_y = cpu_reg(s, y);
     }
     tcg_rn = cpu_reg(s, rn);
+
+    afl_gen_compcov(s->pc, tcg_rn, tcg_y, sf ? MO_64 : MO_32, is_imm);
 
     /* Set the flags for the new comparison.  */
     tcg_tmp = tcg_temp_new_i64();
@@ -14541,6 +14582,8 @@ static bool btype_destination_ok(uint32_t insn, bool bt, int btype)
 static void disas_a64_insn(CPUARMState *env, DisasContext *s)
 {
     uint32_t insn;
+    
+    AFL_QEMU_TARGET_ARM64_SNIPPET
 
     s->pc_curr = s->base.pc_next;
     insn = arm_ldl_code(env, s->base.pc_next, s->sctlr_b);

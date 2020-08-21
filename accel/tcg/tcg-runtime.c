@@ -40,6 +40,12 @@ void HELPER(afl_entry_routine)(CPUArchState *env) {
 
 }
 
+void HELPER(afl_persistent_routine)(CPUArchState *env) {
+
+  afl_persistent_loop(env);
+
+}
+
 void HELPER(afl_compcov_16)(target_ulong cur_loc, target_ulong arg1,
                             target_ulong arg2) {
 

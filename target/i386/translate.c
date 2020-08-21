@@ -33,15 +33,16 @@
 #include "exec/log.h"
 
 #include "qemuafl/cpu-translate.h"
+#include "qemuafl/api.h"
 
 #define AFL_QEMU_TARGET_I386_SNIPPET                                          \
   if (is_persistent) {                                                        \
                                                                               \
     if (s->pc == afl_persistent_addr) {                                       \
                                                                               \
-      restore_state_for_persistent(cpu_regs, AFL_REGS_NUM, R_ESP);            \
-      /*afl_gen_tcg_plain_call(log_x86_saved_gpr);                            \
-      afl_gen_tcg_plain_call(log_x86_sp_content);*/                           \
+      restore_sp_for_persistent(cpu_regs[R_ESP]);                             \
+                                                                              \
+      gen_helper_afl_persistent_routine(cpu_env);                             \
                                                                               \
       if (afl_persistent_ret_addr == 0) {                                     \
                                                                               \
@@ -52,9 +53,6 @@
                                                                               \
       }                                                                       \
                                                                               \
-      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop); \
-      /*afl_gen_tcg_plain_call(log_x86_sp_content);*/                         \
-                                                                              \
     } else if (afl_persistent_ret_addr && s->pc == afl_persistent_ret_addr) { \
                                                                               \
       gen_jmp_im(s, afl_persistent_addr);                                     \
@@ -63,6 +61,90 @@
     }                                                                         \
                                                                               \
   }
+
+void afl_save_regs(struct api_regs* r, CPUArchState* env) {
+
+#ifdef TARGET_X86_64
+  r->rip = env->eip;
+  r->rax = env->regs[R_EAX];
+  r->rbx = env->regs[R_EBX];
+  r->rcx = env->regs[R_ECX];
+  r->rdx = env->regs[R_EDX];
+  r->rdi = env->regs[R_EDI];
+  r->rsi = env->regs[R_ESI];
+  r->rbp = env->regs[R_EBP];
+  r->rsp = env->regs[R_ESP];
+  r->r8 = env->regs[8];
+  r->r9 = env->regs[9];
+  r->r10 = env->regs[10];
+  r->r11 = env->regs[11];
+  r->r12 = env->regs[12];
+  r->r13 = env->regs[13];
+  r->r14 = env->regs[14];
+  r->r15 = env->regs[15];
+  r->rflags = env->eflags;
+  int i;
+  for (i = 0; i < CPU_NB_REGS; ++i)
+    memcpy(r->zmm_regs[i], &env->xmm_regs[i], sizeof(r->zmm_regs[i]));
+#elif
+  r->eip = env->eip;
+  r->eax = env->regs[R_EAX];
+  r->ebx = env->regs[R_EBX];
+  r->ecx = env->regs[R_ECX];
+  r->edx = env->regs[R_EDX];
+  r->edi = env->regs[R_EDI];
+  r->esi = env->regs[R_ESI];
+  r->ebp = env->regs[R_EBP];
+  r->esp = env->regs[R_ESP];
+  r->eflags = env->eflags;
+  int i;
+  for (i = 0; i < CPU_NB_REGS; ++i)
+    memcpy(r->xmm_regs[i], &env->xmm_regs[i], sizeof(r->xmm_regs[i]));
+#endif
+
+}
+
+void afl_restore_regs(struct api_regs* r, CPUArchState* env) {
+
+#ifdef TARGET_X86_64
+  env->eip = r->rip;
+  env->regs[R_EAX] = r->rax;
+  env->regs[R_EBX] = r->rbx;
+  env->regs[R_ECX] = r->rcx;
+  env->regs[R_EDX] = r->rdx;
+  env->regs[R_EDI] = r->rdi;
+  env->regs[R_ESI] = r->rsi;
+  env->regs[R_EBP] = r->rbp;
+  env->regs[R_ESP] = r->rsp;
+  env->regs[8] = r->r8;
+  env->regs[9] = r->r9;
+  env->regs[10] = r->r10;
+  env->regs[11] = r->r11;
+  env->regs[12] = r->r12;
+  env->regs[13] = r->r13;
+  env->regs[14] = r->r14;
+  env->regs[15] = r->r15;
+  env->eflags = r->rflags;
+  int i;
+  for (i = 0; i < CPU_NB_REGS; ++i)
+    memcpy(&env->xmm_regs[i], r->zmm_regs[i], sizeof(r->zmm_regs[i]));
+#elif
+  nv->eip = r->eip;
+  env->regs[R_EAX] = r->eax;
+  env->regs[R_EBX] = r->ebx;
+  env->regs[R_ECX] = r->ecx;
+  env->regs[R_EDX] = r->edx;
+  env->regs[R_EDI] = r->edi;
+  env->regs[R_ESI] = r->esi;
+  env->regs[R_EBP] = r->ebp;
+  env->regs[R_ESP] = r->esp;
+  env->eflags = r->eflags;
+  int i;
+  for (i = 0; i < CPU_NB_REGS; ++i)
+    memcpy(&env->xmm_regs[i], r->xmm_regs[i], sizeof(r->xmm_regs[i]));
+#endif
+
+}
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02

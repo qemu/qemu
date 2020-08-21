@@ -37,6 +37,32 @@
 #include "trace-tcg.h"
 #include "exec/log.h"
 
+#include "qemuafl/cpu-translate.h"
+
+// SP = 13, LINK = 14
+
+#define AFL_QEMU_TARGET_ARM_SNIPPET                                            \
+  if (is_persistent) {                                                         \
+                                                                               \
+    if (dc->pc == afl_persistent_addr) {                                       \
+                                                                               \
+      if (persistent_save_gpr) gpr_saving(cpu_R, AFL_REGS_NUM);                \
+                                                                               \
+      if (afl_persistent_ret_addr == 0) {                                      \
+                                                                               \
+        tcg_gen_movi_tl(cpu_R[14], afl_persistent_addr);                       \
+                                                                               \
+      }                                                                        \
+                                                                               \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop);  \
+                                                                               \
+    } else if (afl_persistent_ret_addr && dc->pc == afl_persistent_ret_addr) { \
+                                                                               \
+      gen_bx_im(dc, afl_persistent_addr);                                      \
+                                                                               \
+    }                                                                          \
+                                                                               \
+  }
 
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
