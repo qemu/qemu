@@ -79,9 +79,12 @@ typedef struct CPUMBState CPUMBState;
 
 /* Exception State Register (ESR) Fields */
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
+#define          ESR_W         (1<<11) /* Unaligned word access */
 #define          ESR_S         (1<<10) /* Store instruction */
 
 #define          ESR_ESS_FSL_OFFSET     5
+
+#define          ESR_ESS_MASK  (0x7f << 5)
 
 #define          ESR_EC_FSL             0
 #define          ESR_EC_UNALIGNED_DATA  1
@@ -256,9 +259,11 @@ struct CPUMBState {
     /* Internal flags.  */
 #define IMM_FLAG        (1 << 0)
 #define BIMM_FLAG       (1 << 1)
-/* MSR_EE               (1 << 8)  */
+#define ESR_ESS_FLAG    (1 << 2)  /* indicates ESR_ESS_MASK is present */
+/* MSR_EE               (1 << 8)  -- these 3 are not in iflags but tb_flags */
 /* MSR_UM               (1 << 11) */
 /* MSR_VM               (1 << 13) */
+/* ESR_ESS_MASK         [11:5]    -- unwind into iflags for unaligned excp */
 #define DRTI_FLAG	(1 << 16)
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
@@ -330,6 +335,9 @@ struct MicroBlazeCPU {
 
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
+void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                MMUAccessType access_type,
+                                int mmu_idx, uintptr_t retaddr);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);

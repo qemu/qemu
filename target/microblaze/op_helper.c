@@ -365,27 +365,6 @@ uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
     return 0;
 }
 
-void helper_memalign(CPUMBState *env, target_ulong addr,
-                     uint32_t dr, uint32_t wr,
-                     uint32_t mask)
-{
-    if (addr & mask) {
-            qemu_log_mask(CPU_LOG_INT,
-                          "unaligned access addr=" TARGET_FMT_lx
-                          " mask=%x, wr=%d dr=r%d\n",
-                          addr, mask, wr, dr);
-            env->ear = addr;
-            env->esr = ESR_EC_UNALIGNED_DATA | (wr << 10) | (dr & 31) << 5;
-            if (mask == 3) {
-                env->esr |= 1 << 11;
-            }
-            if (!(env->msr & MSR_EE)) {
-                return;
-            }
-            helper_raise_exception(env, EXCP_HW_EXCP);
-    }
-}
-
 void helper_stackprot(CPUMBState *env, target_ulong addr)
 {
     if (addr < env->slr || addr > env->shr) {

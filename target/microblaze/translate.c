@@ -751,10 +751,22 @@ static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
     return ret;
 }
 
+static void record_unaligned_ess(DisasContext *dc, int rd,
+                                 MemOp size, bool store)
+{
+    uint32_t iflags = tcg_get_insn_start_param(dc->insn_start, 1);
+
+    iflags |= ESR_ESS_FLAG;
+    iflags |= rd << 5;
+    iflags |= store * ESR_S;
+    iflags |= (size == MO_32) * ESR_W;
+
+    tcg_set_insn_start_param(dc->insn_start, 1, iflags);
+}
+
 static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
                     int mem_index, bool rev)
 {
-    TCGv_i32 v;
     MemOp size = mop & MO_SIZE;
 
     /*
@@ -774,34 +786,15 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
     sync_jmpstate(dc);
 
-    /*
-     * Microblaze gives MMU faults priority over faults due to
-     * unaligned addresses. That's why we speculatively do the load
-     * into v. If the load succeeds, we verify alignment of the
-     * address and if that succeeds we write into the destination reg.
-     */
-    v = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
-
-    /* TODO: Convert to CPUClass::do_unaligned_access.  */
-    if (dc->cpu->cfg.unaligned_exceptions && size > MO_8) {
-        TCGv_i32 t0 = tcg_const_i32(0);
-        TCGv_i32 treg = tcg_const_i32(rd);
-        TCGv_i32 tsize = tcg_const_i32((1 << size) - 1);
-
-        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
-        gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
-
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(treg);
-        tcg_temp_free_i32(tsize);
+    if (size > MO_8 &&
+        (dc->tb_flags & MSR_EE) &&
+        dc->cpu->cfg.unaligned_exceptions) {
+        record_unaligned_ess(dc, rd, size, false);
+        mop |= MO_ALIGN;
     }
 
-    if (rd) {
-        tcg_gen_mov_i32(cpu_R[rd], v);
-    }
+    tcg_gen_qemu_ld_i32(reg_for_write(dc, rd), addr, mem_index, mop);
 
-    tcg_temp_free_i32(v);
     tcg_temp_free(addr);
     return true;
 }
@@ -931,27 +924,14 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
     sync_jmpstate(dc);
 
-    tcg_gen_qemu_st_i32(reg_for_read(dc, rd), addr, mem_index, mop);
-
-    /* TODO: Convert to CPUClass::do_unaligned_access.  */
-    if (dc->cpu->cfg.unaligned_exceptions && size > MO_8) {
-        TCGv_i32 t1 = tcg_const_i32(1);
-        TCGv_i32 treg = tcg_const_i32(rd);
-        TCGv_i32 tsize = tcg_const_i32((1 << size) - 1);
-
-        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
-        /* FIXME: if the alignment is wrong, we should restore the value
-         *        in memory. One possible way to achieve this is to probe
-         *        the MMU prior to the memaccess, thay way we could put
-         *        the alignment checks in between the probe and the mem
-         *        access.
-         */
-        gen_helper_memalign(cpu_env, addr, treg, t1, tsize);
-
-        tcg_temp_free_i32(t1);
-        tcg_temp_free_i32(treg);
-        tcg_temp_free_i32(tsize);
+    if (size > MO_8 &&
+        (dc->tb_flags & MSR_EE) &&
+        dc->cpu->cfg.unaligned_exceptions) {
+        record_unaligned_ess(dc, rd, size, true);
+        mop |= MO_ALIGN;
     }
+
+    tcg_gen_qemu_st_i32(reg_for_read(dc, rd), addr, mem_index, mop);
 
     tcg_temp_free(addr);
     return true;
