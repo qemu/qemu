@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qemu/bswap.h"
 
 typedef struct TestCase TestCase;

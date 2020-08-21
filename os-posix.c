@@ -82,7 +82,7 @@ void os_setup_signal_handling(void)
 
 /*
  * Find a likely location for support files using the location of the binary.
- * When running from the build tree this will be "$bindir/../pc-bios".
+ * When running from the build tree this will be "$bindir/pc-bios".
  * Otherwise, this is CONFIG_QEMU_DATADIR.
  *
  * The caller must use g_free() to free the returned data when it is
@@ -96,7 +96,7 @@ char *os_find_datadir(void)
     exec_dir = qemu_get_exec_dir();
     g_return_val_if_fail(exec_dir != NULL, NULL);
 
-    dir = g_build_filename(exec_dir, "..", "pc-bios", NULL);
+    dir = g_build_filename(exec_dir, "pc-bios", NULL);
     if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
         return g_steal_pointer(&dir);
     }

@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/module.h"
@@ -25,7 +25,7 @@
 #include "qapi/qobject-output-visitor.h"
 
 #include "migration-helpers.h"
-#include "migration/migration-test.h"
+#include "tests/migration/migration-test.h"
 
 /* TODO actually test the results and get rid of this */
 #define qtest_qmp_discard_response(...) qobject_unref(qtest_qmp(__VA_ARGS__))

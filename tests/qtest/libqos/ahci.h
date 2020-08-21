@@ -25,9 +25,9 @@
  * THE SOFTWARE.
  */
 
-#include "libqos/libqos.h"
-#include "libqos/pci.h"
-#include "libqos/malloc-pc.h"
+#include "libqos.h"
+#include "pci.h"
+#include "malloc-pc.h"
 
 /*** Supplementary PCI Config Space IDs & Masks ***/
 #define PCI_DEVICE_ID_INTEL_Q35_AHCI   (0x2922)

@@ -1,8 +1,0 @@
-obj-y += addr.o mips_int.o
-obj-$(CONFIG_R4K) += r4k.o
-obj-$(CONFIG_MALTA) += gt64xxx_pci.o malta.o
-obj-$(CONFIG_MIPSSIM) += mipssim.o
-obj-$(CONFIG_JAZZ) += jazz.o
-obj-$(CONFIG_FULOONG) += fuloong2e.o
-obj-$(CONFIG_MIPS_CPS) += cps.o
-obj-$(CONFIG_MIPS_BOSTON) += boston.o

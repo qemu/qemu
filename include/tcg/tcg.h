@@ -636,7 +636,7 @@ struct TCGContext {
     /* Track which vCPU triggers events */
     CPUState *cpu;                      /* *_trans */
 
-    /* These structures are private to tcg-target.inc.c.  */
+    /* These structures are private to tcg-target.c.inc.  */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     QSIMPLEQ_HEAD(, TCGLabelQemuLdst) ldst_labels;
 #endif

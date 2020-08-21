@@ -92,10 +92,10 @@
 #include "hw/mem/memory-device.h"
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
-#include "config-devices.h"
 #include "e820_memory_layout.h"
 #include "fw_cfg.h"
 #include "trace.h"
+#include CONFIG_DEVICES
 
 GlobalProperty pc_compat_5_0[] = {
 };

@@ -20,8 +20,8 @@
 #include "libqtest.h"
 #include "qemu/module.h"
 #include "standard-headers/linux/virtio_ids.h"
-#include "libqos/virtio-9p.h"
-#include "libqos/qgraph.h"
+#include "virtio-9p.h"
+#include "qgraph.h"
 
 static QGuestAllocator *alloc;
 

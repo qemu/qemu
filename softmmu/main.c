@@ -29,6 +29,7 @@
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
+static int qemu_main(int argc, char **argv, char **envp);
 int main(int argc, char **argv)
 {
     return qemu_main(argc, argv, NULL);

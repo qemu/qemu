@@ -29,7 +29,7 @@
 #include "qemu/id.h"
 #include "qemu/main-loop.h"
 #include "block/aio-wait.h"
-#include "trace-root.h"
+#include "trace/trace-root.h"
 #include "qapi/qapi-events-job.h"
 
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);

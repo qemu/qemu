@@ -27,7 +27,7 @@
 #include "qemu/job.h"
 #include "qapi/qapi-commands-job.h"
 #include "qapi/error.h"
-#include "trace-root.h"
+#include "trace/trace-root.h"
 
 /* Get a job using its ID and acquire its AioContext */
 static Job *find_job(const char *id, AioContext **aio_context, Error **errp)

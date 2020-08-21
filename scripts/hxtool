@@ -19,6 +19,6 @@ hxtoh()
 case "$1" in
 "-h") hxtoh ;;
 *) exit 1 ;;
-esac
+esac < "$2"
 
 exit 0

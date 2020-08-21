@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_BALLOON_H
 #define TESTS_LIBQOS_VIRTIO_BALLOON_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtioBalloon QVirtioBalloon;
 typedef struct QVirtioBalloonPCI QVirtioBalloonPCI;

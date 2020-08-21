@@ -10,9 +10,9 @@
 #ifndef LIBQOS_VIRTIO_PCI_H
 #define LIBQOS_VIRTIO_PCI_H
 
-#include "libqos/virtio.h"
-#include "libqos/pci.h"
-#include "libqos/qgraph.h"
+#include "virtio.h"
+#include "pci.h"
+#include "qgraph.h"
 
 typedef struct QVirtioPCIMSIXOps QVirtioPCIMSIXOps;
 

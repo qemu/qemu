@@ -31322,7 +31322,7 @@ void mips_tcg_init(void)
 #endif
 }
 
-#include "translate_init.inc.c"
+#include "translate_init.c.inc"
 
 void cpu_mips_realize_env(CPUMIPSState *env)
 {

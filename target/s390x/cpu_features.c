@@ -23,7 +23,7 @@
         .desc = _DESC,                             \
     },
 static const S390FeatDef s390_features[S390_FEAT_MAX] = {
-    #include "cpu_features_def.inc.h"
+    #include "cpu_features_def.h.inc"
 };
 #undef DEF_FEAT
 

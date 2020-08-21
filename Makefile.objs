@@ -1,215 +1,34 @@
 #######################################################################
 # Common libraries for tools and emulators
-stub-obj-y = stubs/
-util-obj-y = crypto/ util/ qobject/ qapi/
-qom-obj-y = qom/
+qom-obj-y = qom/libqom.fa
 
 #######################################################################
 # code used by both qemu system emulation and qemu-img
 
 ifeq ($(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS)),y)
 
-chardev-obj-y = chardev/
+authz-obj-y = authz/libauthz.fa
+authz/libauthz.fa-libs = $(if $(CONFIG_AUTH_PAM),-lpam)
 
-authz-obj-y = authz/
+block-obj-y += libblock.fa
 
-block-obj-y = block/ nbd/ scsi/
-block-obj-y += block.o blockjob.o job.o
-block-obj-y += qemu-io-cmds.o
-block-obj-$(CONFIG_REPLICATION) += replication.o
+libblock.fa-libs = $(ZSTD_LIBS)
+libblock.fa-libs += $(LIBNFS_LIBS)
+libblock.fa-libs += $(LIBISCSI_LIBS)
+libblock.fa-libs += $(CURL_LIBS)
+libblock.fa-libs += $(RBD_LIBS)
+libblock.fa-libs += $(GLUSTERFS_LIBS)
+libblock.fa-libs += $(VXHS_LIBS)
+libblock.fa-libs += $(LIBSSH_LIBS)
+libblock.fa-libs += $(BZIP2_LIBS)
+libblock.fa-libs += $(LZFSE_LIBS)
+libblock.fa-libs += $(if $(CONFIG_LINUX_AIO),-laio)
+libblock.fa-libs += $(LIBXML2_LIBS)
 
-block-obj-m = block/
+chardev-obj-y = chardev/libchardev.fa
 
-crypto-obj-y = crypto/
+crypto-obj-y = crypto/libcrypto.fa
 
-io-obj-y = io/
+io-obj-y = io/libio.fa
 
 endif # CONFIG_SOFTMMU or CONFIG_TOOLS
-
-#######################################################################
-# storage-daemon-obj-y is code used by qemu-storage-daemon (these objects are
-# used for system emulation, too, but specified separately there)
-
-storage-daemon-obj-y = block/ monitor/ qapi/ qom/ storage-daemon/
-storage-daemon-obj-y += blockdev.o blockdev-nbd.o iothread.o job-qmp.o
-storage-daemon-obj-$(CONFIG_WIN32) += os-win32.o
-storage-daemon-obj-$(CONFIG_POSIX) += os-posix.o
-
-######################################################################
-# Target independent part of system emulation. The long term path is to
-# suppress *all* target specific code in case of system emulation, i.e. a
-# single QEMU executable should support all CPUs and machines.
-
-ifeq ($(CONFIG_SOFTMMU),y)
-common-obj-y = blockdev.o blockdev-nbd.o block/
-common-obj-y += bootdevice.o iothread.o
-common-obj-y += dump/
-common-obj-y += job-qmp.o
-common-obj-y += monitor/
-common-obj-y += net/
-common-obj-y += qdev-monitor.o
-common-obj-$(CONFIG_WIN32) += os-win32.o
-common-obj-$(CONFIG_POSIX) += os-posix.o
-
-common-obj-$(CONFIG_LINUX) += fsdev/
-
-common-obj-y += accel/
-common-obj-y += migration/
-
-common-obj-y += audio/
-common-obj-m += audio/
-common-obj-y += hw/
-common-obj-m += hw/
-
-common-obj-y += replay/
-
-common-obj-y += ui/
-common-obj-m += ui/
-
-common-obj-y += dma-helpers.o
-common-obj-$(CONFIG_TPM) += tpm.o
-
-common-obj-y += backends/
-common-obj-y += chardev/
-common-obj-m += chardev/
-
-common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
-qemu-seccomp.o-cflags := $(SECCOMP_CFLAGS)
-qemu-seccomp.o-libs := $(SECCOMP_LIBS)
-
-common-obj-$(CONFIG_FDT) += device_tree.o
-
-common-obj-y += qapi/
-
-endif # CONFIG_SOFTMMU
-
-#######################################################################
-# Target-independent parts used in system and user emulation
-common-obj-y += cpus-common.o
-common-obj-y += hw/
-common-obj-y += qom/
-common-obj-y += disas/
-
-######################################################################
-# Resource file for Windows executables
-version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
-
-######################################################################
-# tracing
-util-obj-y +=  trace/
-
-######################################################################
-# guest agent
-
-# FIXME: a few definitions from qapi/qapi-types.o and
-# qapi/qapi-visit.o are needed by libqemuutil.a.  These should be
-# extracted into a QAPI schema module, or perhaps a separate schema.
-qga-obj-y = qga/
-qga-vss-dll-obj-y = qga/
-
-######################################################################
-# contrib
-elf2dmp-obj-y = contrib/elf2dmp/
-ivshmem-client-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-client/
-ivshmem-server-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-server/
-libvhost-user-obj-y = contrib/libvhost-user/
-vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
-vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
-vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
-vhost-user-blk-obj-y = contrib/vhost-user-blk/
-rdmacm-mux-obj-y = contrib/rdmacm-mux/
-vhost-user-input-obj-y = contrib/vhost-user-input/
-vhost-user-gpu-obj-y = contrib/vhost-user-gpu/
-virtiofsd-obj-y = tools/virtiofsd/
-
-######################################################################
-trace-events-subdirs =
-trace-events-subdirs += accel/kvm
-trace-events-subdirs += accel/tcg
-trace-events-subdirs += backends
-trace-events-subdirs += backends/tpm
-trace-events-subdirs += crypto
-trace-events-subdirs += monitor
-ifeq ($(CONFIG_USER_ONLY),y)
-trace-events-subdirs += linux-user
-endif
-ifeq ($(CONFIG_BLOCK),y)
-trace-events-subdirs += authz
-trace-events-subdirs += block
-trace-events-subdirs += io
-trace-events-subdirs += nbd
-trace-events-subdirs += scsi
-endif
-ifeq ($(CONFIG_SOFTMMU),y)
-trace-events-subdirs += audio
-trace-events-subdirs += chardev
-trace-events-subdirs += hw/9pfs
-trace-events-subdirs += hw/acpi
-trace-events-subdirs += hw/alpha
-trace-events-subdirs += hw/arm
-trace-events-subdirs += hw/audio
-trace-events-subdirs += hw/block
-trace-events-subdirs += hw/block/dataplane
-trace-events-subdirs += hw/char
-trace-events-subdirs += hw/dma
-trace-events-subdirs += hw/hppa
-trace-events-subdirs += hw/hyperv
-trace-events-subdirs += hw/i2c
-trace-events-subdirs += hw/i386
-trace-events-subdirs += hw/i386/xen
-trace-events-subdirs += hw/ide
-trace-events-subdirs += hw/input
-trace-events-subdirs += hw/intc
-trace-events-subdirs += hw/isa
-trace-events-subdirs += hw/mem
-trace-events-subdirs += hw/mips
-trace-events-subdirs += hw/misc
-trace-events-subdirs += hw/misc/macio
-trace-events-subdirs += hw/net
-trace-events-subdirs += hw/nvram
-trace-events-subdirs += hw/pci
-trace-events-subdirs += hw/pci-host
-trace-events-subdirs += hw/ppc
-trace-events-subdirs += hw/rdma
-trace-events-subdirs += hw/rdma/vmw
-trace-events-subdirs += hw/rtc
-trace-events-subdirs += hw/s390x
-trace-events-subdirs += hw/scsi
-trace-events-subdirs += hw/sd
-trace-events-subdirs += hw/sparc
-trace-events-subdirs += hw/sparc64
-trace-events-subdirs += hw/ssi
-trace-events-subdirs += hw/timer
-trace-events-subdirs += hw/tpm
-trace-events-subdirs += hw/usb
-trace-events-subdirs += hw/vfio
-trace-events-subdirs += hw/virtio
-trace-events-subdirs += hw/watchdog
-trace-events-subdirs += hw/xen
-trace-events-subdirs += hw/gpio
-trace-events-subdirs += hw/riscv
-trace-events-subdirs += migration
-trace-events-subdirs += net
-trace-events-subdirs += ui
-endif
-trace-events-subdirs += hw/core
-trace-events-subdirs += hw/display
-trace-events-subdirs += qapi
-trace-events-subdirs += qom
-trace-events-subdirs += target/arm
-trace-events-subdirs += target/hppa
-trace-events-subdirs += target/i386
-trace-events-subdirs += target/mips
-trace-events-subdirs += target/ppc
-trace-events-subdirs += target/riscv
-trace-events-subdirs += target/s390x
-trace-events-subdirs += target/sparc
-trace-events-subdirs += util
-
-trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
-
-trace-obj-y = trace-root.o
-trace-obj-y += $(trace-events-subdirs:%=%/trace.o)
-trace-obj-$(CONFIG_TRACE_UST) += trace-ust-all.o
-trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace-root.o
-trace-obj-$(CONFIG_TRACE_DTRACE) += $(trace-events-subdirs:%=%/trace-dtrace.o)

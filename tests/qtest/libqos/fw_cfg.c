@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/fw_cfg.h"
+#include "fw_cfg.h"
 #include "libqtest.h"
 #include "qemu/bswap.h"
 #include "hw/nvram/fw_cfg.h"

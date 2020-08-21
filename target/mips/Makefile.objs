@@ -1,6 +1,0 @@
-obj-y += translate.o cpu.o gdbstub.o helper.o
-obj-y += op_helper.o cp0_helper.o fpu_helper.o
-obj-y += dsp_helper.o lmmi_helper.o msa_helper.o
-obj-$(CONFIG_SOFTMMU) += mips-semi.o
-obj-$(CONFIG_SOFTMMU) += machine.o cp0_timer.o
-obj-$(CONFIG_KVM) += kvm.o

@@ -1,1 +1,0 @@
-ivshmem-server-obj-y = ivshmem-server.o main.o

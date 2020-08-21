@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/i2c.h"
+#include "i2c.h"
 
 
 #include "libqtest.h"

@@ -34,7 +34,7 @@
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
 #include "translate-all.h"
-#include "trace-root.h"
+#include "trace/trace-root.h"
 #include "trace/mem.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
@@ -2354,7 +2354,7 @@ void cpu_stq_le_data(CPUArchState *env, target_ulong ptr, uint64_t val)
 #define ATOMIC_MMU_CLEANUP
 #define ATOMIC_MMU_IDX   get_mmuidx(oi)
 
-#include "atomic_common.inc.c"
+#include "atomic_common.c.inc"
 
 #define DATA_SIZE 1
 #include "atomic_template.h"

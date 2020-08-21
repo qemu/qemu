@@ -7,9 +7,9 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "libqos/pci-spapr.h"
-#include "libqos/rtas.h"
-#include "libqos/qgraph.h"
+#include "pci-spapr.h"
+#include "rtas.h"
+#include "qgraph.h"
 
 #include "hw/pci/pci_regs.h"
 

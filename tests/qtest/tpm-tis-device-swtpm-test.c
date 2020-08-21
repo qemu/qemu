@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qemu/module.h"
 #include "tpm-tests.h"
 #include "hw/acpi/tpm.h"

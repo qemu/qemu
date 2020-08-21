@@ -13,7 +13,7 @@
 #include "contrib/ivshmem-server/ivshmem-server.h"
 #include "libqos/libqos-pc.h"
 #include "libqos/libqos-spapr.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qemu-common.h"
 
 #define TMPSHMSIZE (1 << 20)

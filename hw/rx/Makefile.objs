@@ -1,2 +1,0 @@
-obj-$(CONFIG_RX62N_MCU) += rx62n.o
-obj-$(CONFIG_RX_GDBSIM) += rx-gdbsim.o

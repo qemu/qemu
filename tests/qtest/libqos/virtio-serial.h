@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_SERIAL_H
 #define TESTS_LIBQOS_VIRTIO_SERIAL_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtioSerial QVirtioSerial;
 typedef struct QVirtioSerialPCI QVirtioSerialPCI;

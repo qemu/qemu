@@ -398,7 +398,7 @@ target_ulong helper_divso(CPUPPCState *env, target_ulong arg1,
 target_ulong helper_602_mfrom(target_ulong arg)
 {
     if (likely(arg < 602)) {
-#include "mfrom_table.inc.c"
+#include "mfrom_table.c.inc"
         return mfrom_ROM_table[arg];
     } else {
         return 0;

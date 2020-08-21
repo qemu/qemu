@@ -13,7 +13,7 @@
 #ifndef TEST_ACPI_UTILS_H
 #define TEST_ACPI_UTILS_H
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 /* DSDT and SSDTs format */
 typedef struct {

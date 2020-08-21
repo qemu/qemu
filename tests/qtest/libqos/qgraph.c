@@ -19,8 +19,8 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/queue.h"
-#include "libqos/qgraph_internal.h"
-#include "libqos/qgraph.h"
+#include "qgraph_internal.h"
+#include "qgraph.h"
 
 #define QGRAPH_PRINT_DEBUG 0
 #define QOS_ROOT ""

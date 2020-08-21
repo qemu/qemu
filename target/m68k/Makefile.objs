@@ -1,5 +1,0 @@
-obj-y += m68k-semi.o
-obj-y += translate.o op_helper.o helper.o cpu.o
-obj-y += fpu_helper.o softfloat.o
-obj-y += gdbstub.o
-obj-$(CONFIG_SOFTMMU) += monitor.o

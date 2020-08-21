@@ -19,8 +19,8 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/module.h"
-#include "libqos/qgraph.h"
-#include "libqos/virtio-net.h"
+#include "qgraph.h"
+#include "virtio-net.h"
 #include "hw/virtio/virtio-net.h"
 
 

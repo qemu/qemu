@@ -109,6 +109,7 @@ check-unit-y += tests/test-qht$(EXESUF)
 check-unit-y += tests/test-qht-par$(EXESUF)
 check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-y += tests/test-bitcnt$(EXESUF)
+check-unit-y += tests/test-qgraph$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 check-unit-y += tests/check-qom-proplist$(EXESUF)
 check-unit-y += tests/test-qemu-opts$(EXESUF)
@@ -129,7 +130,7 @@ ifndef CONFIG_TSAN
 # https://github.com/google/sanitizers/issues/1116
 check-unit-$(CONFIG_SOFTMMU) += tests/test-char$(EXESUF)
 check-unit-$(CONFIG_SOFTMMU) += tests/test-qdev-global-props$(EXESUF)
-ifneq (,$(findstring qemu-ga,$(TOOLS)))
+ifeq ($(CONFIG_GUEST_AGENT),y)
 check-unit-$(call land,$(CONFIG_LINUX),$(CONFIG_VIRTIO_SERIAL)) += tests/test-qga$(EXESUF)
 endif
 endif
@@ -158,203 +159,6 @@ check-unit-$(CONFIG_SOFTMMU) += tests/test-bufferiszero$(EXESUF)
 check-unit-y += tests/test-uuid$(EXESUF)
 check-unit-y += tests/ptimer-test$(EXESUF)
 check-unit-y += tests/test-qapi-util$(EXESUF)
-
-check-block-$(call land,$(CONFIG_POSIX),$(CONFIG_SOFTMMU)) += tests/check-block.sh
-
-qapi-schema += alternate-any.json
-qapi-schema += alternate-array.json
-qapi-schema += alternate-base.json
-qapi-schema += alternate-branch-if-invalid.json
-qapi-schema += alternate-clash.json
-qapi-schema += alternate-conflict-dict.json
-qapi-schema += alternate-conflict-enum-bool.json
-qapi-schema += alternate-conflict-enum-int.json
-qapi-schema += alternate-conflict-string.json
-qapi-schema += alternate-conflict-bool-string.json
-qapi-schema += alternate-conflict-num-string.json
-qapi-schema += alternate-empty.json
-qapi-schema += alternate-invalid-dict.json
-qapi-schema += alternate-nested.json
-qapi-schema += alternate-unknown.json
-qapi-schema += args-alternate.json
-qapi-schema += args-any.json
-qapi-schema += args-array-empty.json
-qapi-schema += args-array-unknown.json
-qapi-schema += args-bad-boxed.json
-qapi-schema += args-boxed-anon.json
-qapi-schema += args-boxed-string.json
-qapi-schema += args-int.json
-qapi-schema += args-invalid.json
-qapi-schema += args-member-array-bad.json
-qapi-schema += args-member-case.json
-qapi-schema += args-member-unknown.json
-qapi-schema += args-name-clash.json
-qapi-schema += args-union.json
-qapi-schema += args-unknown.json
-qapi-schema += bad-base.json
-qapi-schema += bad-data.json
-qapi-schema += bad-ident.json
-qapi-schema += bad-if.json
-qapi-schema += bad-if-empty.json
-qapi-schema += bad-if-empty-list.json
-qapi-schema += bad-if-list.json
-qapi-schema += bad-type-bool.json
-qapi-schema += bad-type-dict.json
-qapi-schema += bad-type-int.json
-qapi-schema += base-cycle-direct.json
-qapi-schema += base-cycle-indirect.json
-qapi-schema += command-int.json
-qapi-schema += comments.json
-qapi-schema += doc-bad-alternate-member.json
-qapi-schema += doc-bad-boxed-command-arg.json
-qapi-schema += doc-bad-command-arg.json
-qapi-schema += doc-bad-enum-member.json
-qapi-schema += doc-bad-event-arg.json
-qapi-schema += doc-bad-feature.json
-qapi-schema += doc-bad-section.json
-qapi-schema += doc-bad-symbol.json
-qapi-schema += doc-bad-union-member.json
-qapi-schema += doc-before-include.json
-qapi-schema += doc-before-pragma.json
-qapi-schema += doc-duplicated-arg.json
-qapi-schema += doc-duplicated-return.json
-qapi-schema += doc-duplicated-since.json
-qapi-schema += doc-empty-arg.json
-qapi-schema += doc-empty-section.json
-qapi-schema += doc-empty-symbol.json
-qapi-schema += doc-good.json
-qapi-schema += doc-interleaved-section.json
-qapi-schema += doc-invalid-end.json
-qapi-schema += doc-invalid-end2.json
-qapi-schema += doc-invalid-return.json
-qapi-schema += doc-invalid-section.json
-qapi-schema += doc-invalid-start.json
-qapi-schema += doc-missing-colon.json
-qapi-schema += doc-missing-expr.json
-qapi-schema += doc-missing-space.json
-qapi-schema += doc-missing.json
-qapi-schema += doc-no-symbol.json
-qapi-schema += doc-undoc-feature.json
-qapi-schema += double-type.json
-qapi-schema += duplicate-key.json
-qapi-schema += empty.json
-qapi-schema += enum-bad-member.json
-qapi-schema += enum-bad-name.json
-qapi-schema += enum-bad-prefix.json
-qapi-schema += enum-clash-member.json
-qapi-schema += enum-dict-member-unknown.json
-qapi-schema += enum-if-invalid.json
-qapi-schema += enum-int-member.json
-qapi-schema += enum-member-case.json
-qapi-schema += enum-missing-data.json
-qapi-schema += enum-wrong-data.json
-qapi-schema += event-boxed-empty.json
-qapi-schema += event-case.json
-qapi-schema += event-member-invalid-dict.json
-qapi-schema += event-nest-struct.json
-qapi-schema += features-bad-type.json
-qapi-schema += features-deprecated-type.json
-qapi-schema += features-duplicate-name.json
-qapi-schema += features-if-invalid.json
-qapi-schema += features-missing-name.json
-qapi-schema += features-name-bad-type.json
-qapi-schema += features-no-list.json
-qapi-schema += features-unknown-key.json
-qapi-schema += flat-union-array-branch.json
-qapi-schema += flat-union-bad-base.json
-qapi-schema += flat-union-bad-discriminator.json
-qapi-schema += flat-union-base-any.json
-qapi-schema += flat-union-base-union.json
-qapi-schema += flat-union-clash-member.json
-qapi-schema += flat-union-discriminator-bad-name.json
-qapi-schema += flat-union-empty.json
-qapi-schema += flat-union-inline.json
-qapi-schema += flat-union-inline-invalid-dict.json
-qapi-schema += flat-union-int-branch.json
-qapi-schema += flat-union-invalid-branch-key.json
-qapi-schema += flat-union-invalid-discriminator.json
-qapi-schema += flat-union-invalid-if-discriminator.json
-qapi-schema += flat-union-no-base.json
-qapi-schema += flat-union-optional-discriminator.json
-qapi-schema += flat-union-string-discriminator.json
-qapi-schema += funny-char.json
-qapi-schema += funny-word.json
-qapi-schema += ident-with-escape.json
-qapi-schema += include-before-err.json
-qapi-schema += include-cycle.json
-qapi-schema += include-extra-junk.json
-qapi-schema += include-nested-err.json
-qapi-schema += include-no-file.json
-qapi-schema += include-non-file.json
-qapi-schema += include-repetition.json
-qapi-schema += include-self-cycle.json
-qapi-schema += include-simple.json
-qapi-schema += indented-expr.json
-qapi-schema += leading-comma-list.json
-qapi-schema += leading-comma-object.json
-qapi-schema += missing-colon.json
-qapi-schema += missing-comma-list.json
-qapi-schema += missing-comma-object.json
-qapi-schema += missing-type.json
-qapi-schema += nested-struct-data.json
-qapi-schema += nested-struct-data-invalid-dict.json
-qapi-schema += non-objects.json
-qapi-schema += oob-test.json
-qapi-schema += allow-preconfig-test.json
-qapi-schema += pragma-doc-required-crap.json
-qapi-schema += pragma-extra-junk.json
-qapi-schema += pragma-name-case-whitelist-crap.json
-qapi-schema += pragma-non-dict.json
-qapi-schema += pragma-unknown.json
-qapi-schema += pragma-returns-whitelist-crap.json
-qapi-schema += qapi-schema-test.json
-qapi-schema += quoted-structural-chars.json
-qapi-schema += redefined-builtin.json
-qapi-schema += redefined-command.json
-qapi-schema += redefined-event.json
-qapi-schema += redefined-type.json
-qapi-schema += reserved-command-q.json
-qapi-schema += reserved-enum-q.json
-qapi-schema += reserved-member-has.json
-qapi-schema += reserved-member-q.json
-qapi-schema += reserved-member-u.json
-qapi-schema += reserved-member-underscore.json
-qapi-schema += reserved-type-kind.json
-qapi-schema += reserved-type-list.json
-qapi-schema += returns-alternate.json
-qapi-schema += returns-array-bad.json
-qapi-schema += returns-dict.json
-qapi-schema += returns-unknown.json
-qapi-schema += returns-whitelist.json
-qapi-schema += string-code-point-31.json
-qapi-schema += string-code-point-127.json
-qapi-schema += struct-base-clash-deep.json
-qapi-schema += struct-base-clash.json
-qapi-schema += struct-data-invalid.json
-qapi-schema += struct-member-if-invalid.json
-qapi-schema += struct-member-invalid-dict.json
-qapi-schema += struct-member-invalid.json
-qapi-schema += trailing-comma-list.json
-qapi-schema += trailing-comma-object.json
-qapi-schema += type-bypass-bad-gen.json
-qapi-schema += unclosed-list.json
-qapi-schema += unclosed-object.json
-qapi-schema += unclosed-string.json
-qapi-schema += union-base-empty.json
-qapi-schema += union-base-no-discriminator.json
-qapi-schema += union-branch-case.json
-qapi-schema += union-branch-if-invalid.json
-qapi-schema += union-branch-invalid-dict.json
-qapi-schema += union-clash-branches.json
-qapi-schema += union-empty.json
-qapi-schema += union-invalid-base.json
-qapi-schema += union-optional-branch.json
-qapi-schema += union-unknown.json
-qapi-schema += unknown-escape.json
-qapi-schema += unknown-expr-key.json
-
-
-check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
 generated-files-y += tests/test-qapi-types.h
 generated-files-y += tests/include/test-qapi-types-sub-module.h
@@ -421,7 +225,8 @@ tests/test-iov$(EXESUF): tests/test-iov.o $(test-util-obj-y)
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o $(test-util-obj-y) $(test-crypto-obj-y)
 tests/test-bitmap$(EXESUF): tests/test-bitmap.o $(test-util-obj-y)
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
-tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o migration/page_cache.o $(test-util-obj-y)
+tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/libmigration.fa $(test-util-obj-y) \
+	$(test-io-obj-y)
 tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o $(test-util-obj-y)
 tests/test-int128$(EXESUF): tests/test-int128.o
 tests/rcutorture$(EXESUF): tests/rcutorture.o $(test-util-obj-y)
@@ -437,22 +242,9 @@ tests/test-bufferiszero$(EXESUF): tests/test-bufferiszero.o $(test-util-obj-y)
 tests/atomic_add-bench$(EXESUF): tests/atomic_add-bench.o $(test-util-obj-y)
 tests/atomic64-bench$(EXESUF): tests/atomic64-bench.o $(test-util-obj-y)
 
-tests/fp/%:
-	$(MAKE) -C $(dir $@) $(notdir $@)
-
-tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
-	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
-	hw/core/bus.o \
-	hw/core/resettable.o \
-	hw/core/irq.o \
-	hw/core/fw-path-provider.o \
-	hw/core/reset.o \
-	hw/core/vmstate-if.o \
-	hw/core/clock.o hw/core/qdev-clock.o \
+tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o hw/core/libhwcore.fa \
 	$(test-qapi-obj-y)
-tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
-	migration/vmstate.o migration/vmstate-types.o migration/qemu-file.o \
-        migration/qemu-file-channel.o migration/qjson.o \
+tests/test-vmstate$(EXESUF): tests/test-vmstate.o migration/libmigration.fa \
 	$(test-io-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o $(test-util-obj-y)
 tests/test-base64$(EXESUF): tests/test-base64.o $(test-util-obj-y)
@@ -504,26 +296,6 @@ tests/test-qapi-gen-timestamp: \
 	@rm -f tests/test-qapi-doc.texi
 	@>$@
 
-tests/qapi-schema/doc-good.test.texi: $(SRC_PATH)/tests/qapi-schema/doc-good.json $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
-		-o tests/qapi-schema -p "doc-good-" $<, \
-		"GEN","$@")
-	@mv tests/qapi-schema/doc-good-qapi-doc.texi $@
-	@rm -f tests/qapi-schema/doc-good-qapi-*.[ch] tests/qapi-schema/doc-good-qmp-*.[ch]
-
-tests/qtest/dbus-vmstate1.h tests/qtest/dbus-vmstate1.c: tests/qtest/dbus-vmstate1-gen-timestamp ;
-tests/qtest/dbus-vmstate1-gen-timestamp: $(SRC_PATH)/tests/qtest/dbus-vmstate1.xml
-	$(call quiet-command,$(GDBUS_CODEGEN) $< \
-		--interface-prefix org.qemu --generate-c-code tests/qtest/dbus-vmstate1, \
-		"GEN","$(@:%-timestamp=%)")
-	@>$@
-
-tests/qtest/dbus-vmstate-test.o-cflags := -DSRCDIR="$(SRC_PATH)"
-tests/qtest/dbus-vmstate1.o-cflags := $(GIO_CFLAGS)
-tests/qtest/dbus-vmstate1.o-libs := $(GIO_LIBS)
-
-tests/qtest/dbus-vmstate-test.o: tests/qtest/dbus-vmstate1.h
-
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
 tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) tests/test-qapi-emit-events.o tests/test-qapi-events.o
@@ -538,6 +310,7 @@ tests/test-shift128$(EXESUF): tests/test-shift128.o $(test-util-obj-y)
 tests/test-mul64$(EXESUF): tests/test-mul64.o $(test-util-obj-y)
 tests/test-bitops$(EXESUF): tests/test-bitops.o $(test-util-obj-y)
 tests/test-bitcnt$(EXESUF): tests/test-bitcnt.o $(test-util-obj-y)
+tests/test-qgraph$(EXESUF): tests/test-qgraph.o tests/qtest/libqos/qgraph.o $(test-util-obj-y)
 tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-crypto-obj-y)
 tests/benchmark-crypto-hash$(EXESUF): tests/benchmark-crypto-hash.o $(test-crypto-obj-y)
 tests/test-crypto-hmac$(EXESUF): tests/test-crypto-hmac.o $(test-crypto-obj-y)
@@ -601,10 +374,8 @@ tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
 	rm $(INITRD_WORK_DIR)/init
 	rmdir $(INITRD_WORK_DIR)
 
-include $(SRC_PATH)/tests/qtest/Makefile.include
-
-tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
-tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
+tests/test-qga$(EXESUF): qga/qemu-ga$(EXESUF)
+tests/test-qga$(EXESUF): tests/test-qga.o tests/qtest/libqtest.o $(test-util-obj-y)
 tests/vhost-user-bridge$(EXESUF): tests/vhost-user-bridge.o $(test-util-obj-y) libvhost-user.a
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 
@@ -645,14 +416,6 @@ define do_test_tap
 	  "TAP","$@")
 endef
 
-.PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
-$(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: %-softmmu/all $(check-qtest-y)
-	$(call do_test_human,$(check-qtest-$*-y:%=tests/qtest/%$(EXESUF)) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)), \
-	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
-	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
-
-build-qtest: $(patsubst %, %-softmmu/all, $(QTEST_TARGETS)) $(check-qtest-y)
-
 build-unit: $(check-unit-y)
 
 check-unit: $(check-unit-y)
@@ -663,178 +426,8 @@ check-speed: $(check-speed-y)
 
 # gtester tests with TAP output
 
-$(patsubst %, check-report-qtest-%.tap, $(QTEST_TARGETS)): check-report-qtest-%.tap: %-softmmu/all $(check-qtest-y)
-	$(call do_test_tap, $(check-qtest-$*-y:%=tests/qtest/%$(EXESUF)) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)), \
-	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
-	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
-
 check-report-unit.tap: $(check-unit-y)
 	$(call do_test_tap,$^)
-
-# Reports and overall runs
-
-check-report.tap: $(patsubst %,check-report-qtest-%.tap, $(QTEST_TARGETS)) check-report-unit.tap
-	$(call quiet-command, cat $^ | scripts/tap-merge.pl >$@,"GEN","$@")
-
-# FPU Emulation tests (aka softfloat)
-#
-# As we still have some places that need fixing the rules are a little
-# more complex than they need to be and have to override some of the
-# generic Makefile expansions. Once we are cleanly passing all
-# the tests we can simplify the make syntax.
-
-FP_TEST_BIN=$(BUILD_DIR)/tests/fp/fp-test
-
-# the build dir is created by configure
-$(FP_TEST_BIN): config-host.h $(test-util-obj-y)
-	$(call quiet-command, \
-	 	$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" $(notdir $@), \
-	         "BUILD", "$(notdir $@)")
-
-# The full test suite can take a bit of time, default to a quick run
-# "-l 2 -r all" can take more than a day for some operations and is best
-# run manually
-FP_TL=-l 1 -r all
-
-# $1 = tests, $2 = description, $3 = test flags
-test-softfloat = $(call quiet-command, \
-			cd $(BUILD_DIR)/tests/fp && \
-			./fp-test -s $(if $3,$3,$(FP_TL)) $1 > $2.out 2>&1 || \
-			(cat $2.out && exit 1;), \
-			"FLOAT TEST", $2)
-
-# Conversion Routines: Float to Float
-# FIXME: f32_to_f128 (broken), f64_to_f128 (broken)
-# FIXME: f128_to_f32(broken), f128_to_f64 (broken)
-# FIXME: f128_to_extF80 (broken)
-check-softfloat-conv-f2f: $(FP_TEST_BIN)
-	$(call test-softfloat, \
-		f16_to_f32 f16_to_f64 \
-		f16_to_extF80 f16_to_f128 \
-		f32_to_f16 f32_to_f64 \
-		f32_to_extF80 \
-		f64_to_f16 f64_to_f32 \
-		extF80_to_f16 extF80_to_f32 \
-		extF80_to_f64 extF80_to_f128 \
-		f128_to_f16, \
-		float-to-float)
-
-# Conversion Routines: Int and Uint to Float
-# FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
-#        ui32_to_f128 (not implemented)
-check-softfloat-conv-to-float: $(FP_TEST_BIN)
-	$(call test-softfloat, \
-		i32_to_f16 i64_to_f16 \
-		i32_to_f32 i64_to_f32 \
-		i32_to_f64 i64_to_f64 \
-		i32_to_f128 i64_to_f128, int-to-float)
-	$(call test-softfloat, \
-		ui32_to_f16 ui64_to_f16 \
-		ui32_to_f32 ui64_to_f32 \
-		ui32_to_f64 ui64_to_f64 \
-		ui32_to_extF80 ui64_to_extF80 \
-		ui64_to_f128, uint-to-float)
-
-# Conversion Routines: Float to integers
-# FIXME: extF80_roundToInt (broken)
-check-softfloat-conv-to-int: $(FP_TEST_BIN)
-	$(call test-softfloat, \
-		f16_to_i32 f16_to_i32_r_minMag \
-		f32_to_i32 f32_to_i32_r_minMag \
-		f64_to_i32 f64_to_i32_r_minMag \
-		extF80_to_i32 extF80_to_i32_r_minMag \
-		f128_to_i32 f128_to_i32_r_minMag \
-		f16_to_i64 f16_to_i64_r_minMag \
-		f32_to_i64 f32_to_i64_r_minMag \
-		f64_to_i64 f64_to_i64_r_minMag \
-		extF80_to_i64 extF80_to_i64_r_minMag \
-		f128_to_i64 f128_to_i64_r_minMag, \
-		float-to-int)
-	$(call test-softfloat, \
-		f16_to_ui32 f16_to_ui32_r_minMag \
-		f32_to_ui32 f32_to_ui32_r_minMag \
-		f64_to_ui32 f64_to_ui32_r_minMag \
-		extF80_to_ui32 extF80_to_ui32_r_minMag \
-		f128_to_ui32 f128_to_ui32_r_minMag \
-		f16_to_ui64 f16_to_ui64_r_minMag \
-		f32_to_ui64 f32_to_ui64_r_minMag \
-		f64_to_ui64 f64_to_ui64_r_minMag \
-		extF80_to_ui64 extF80_to_ui64_r_minMag \
-		f128_to_ui64 f128_to_ui64_r_minMag, \
-		float-to-uint)
-	$(call test-softfloat, \
-		f16_roundToInt f32_roundToInt \
-		f64_roundToInt f128_roundToInt, \
-		round-to-integer)
-
-.PHONY: check-softfloat-conv
-check-softfloat-conv: check-softfloat-conv-f2f
-check-softfloat-conv: check-softfloat-conv-to-float
-check-softfloat-conv: check-softfloat-conv-to-int
-
-# Generic rule for all float operations
-#
-# Some patterns are overridden due to broken or missing tests.
-# Hopefully these can be removed over time.
-
-check-softfloat-%: $(FP_TEST_BIN)
-	$(call test-softfloat, f16_$* f32_$* f64_$* extF80_$* f128_$*, $*)
-
-# Float Compare routines
-SF_COMPARE_OPS=eq eq_signaling le le_quiet lt_quiet
-SF_COMPARE_RULES=$(patsubst %,check-softfloat-%, $(SF_COMPARE_OPS))
-
-# FIXME: extF80_lt_quiet (broken)
-check-softfloat-lt_quiet: $(FP_TEST_BIN)
-	$(call test-softfloat, 				\
-		f16_lt_quiet f32_lt_quiet f64_lt_quiet  \
-		f128_lt_quiet, 				\
-		lt_quiet)
-
-.PHONY: check-softfloat-compare
-check-softfloat-compare: $(SF_COMPARE_RULES)
-
-# Math Operations
-
-# FIXME: extF80_mulAdd (missing)
-check-softfloat-mulAdd: $(FP_TEST_BIN)
-	$(call test-softfloat, \
-		f16_mulAdd f32_mulAdd f64_mulAdd f128_mulAdd, \
-		mulAdd,-l 1)
-
-# FIXME: extF80_rem (broken)
-check-softfloat-rem: $(FP_TEST_BIN)
-	$(call test-softfloat, \
-		f16_rem f32_rem f64_rem f128_rem, \
-		rem)
-
-SF_MATH_OPS=add sub mul mulAdd div rem sqrt
-SF_MATH_RULES=$(patsubst %,check-softfloat-%, $(SF_MATH_OPS))
-
-.PHONY: check-softfloat-ops
-check-softfloat-ops: $(SF_MATH_RULES)
-
-# Finally a generic rule to test all of softfoat. If TCG isnt't
-# enabled we define a null operation which skips the tests.
-
-.PHONY: check-softfloat
-ifeq ($(CONFIG_TCG),y)
-build-softfloat: $(FP_TEST_BIN)
-check-softfloat: build-softfloat check-softfloat-conv check-softfloat-compare check-softfloat-ops
-else
-build-softfloat check-softfloat:
-	$(call quiet-command, /bin/true, "FLOAT TEST", \
-		"SKIPPED for non-TCG builds")
-endif
-
-# Plugins
-ifeq ($(CONFIG_PLUGIN),y)
-.PHONY: plugins
-plugins:
-	$(call quiet-command,\
-		$(MAKE) $(SUBDIR_MAKEFLAGS) -C tests/plugin V="$(V)", \
-		"BUILD", "plugins")
-endif
 
 # Per guest TCG tests
 
@@ -853,7 +446,7 @@ build-tcg-tests-%: $(if $(CONFIG_PLUGIN),plugins)
 	       	V="$(V)" TARGET="$*" guest-tests, \
 		"BUILD", "TCG tests for $*")
 
-run-tcg-tests-%: build-tcg-tests-% %/all
+run-tcg-tests-%: build-tcg-tests-% all
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) \
 		-f $(SRC_PATH)/tests/tcg/Makefile.qemu \
 		SRC_PATH=$(SRC_PATH) SPEED="$(SPEED)" \
@@ -875,32 +468,6 @@ check-tcg: $(RUN_TCG_TARGET_RULES)
 .PHONY: clean-tcg
 clean-tcg: $(CLEAN_TCG_TARGET_RULES)
 
-# Other tests
-
-QEMU_IOTESTS_HELPERS-$(call land,$(CONFIG_SOFTMMU),$(CONFIG_LINUX)) = tests/qemu-iotests/socket_scm_helper$(EXESUF)
-
-.PHONY: check-tests/check-block.sh
-check-tests/check-block.sh: tests/check-block.sh qemu-img$(EXESUF) \
-		qemu-io$(EXESUF) qemu-nbd$(EXESUF) $(QEMU_IOTESTS_HELPERS-y) \
-		$(patsubst %,%/all,$(filter %-softmmu,$(TARGET_DIRS)))
-	@$<
-
-.PHONY: check-tests/qapi-schema/frontend
-check-tests/qapi-schema/frontend: $(addprefix $(SRC_PATH)/, $(check-qapi-schema-y))
-	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts \
-	  PYTHONIOENCODING=utf-8 $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py $^, \
-	  TEST, check-qapi-schema)
-
-.PHONY: check-tests/qapi-schema/doc-good.texi
-check-tests/qapi-schema/doc-good.texi: tests/qapi-schema/doc-good.test.texi
-	@diff -u $(SRC_PATH)/tests/qapi-schema/doc-good.texi $<
-
-.PHONY: check-decodetree
-check-decodetree:
-	$(call quiet-command, \
-	  cd $(SRC_PATH)/tests/decode && \
-          ./check.sh "$(PYTHON)" "$(SRC_PATH)/scripts/decodetree.py", \
-          TEST, decodetree.py)
 
 # Python venv for running tests
 
@@ -955,31 +522,21 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
 
 # Consolidated targets
 
-.PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean get-vm-images
-check-qapi-schema: check-tests/qapi-schema/frontend check-tests/qapi-schema/doc-good.texi
-check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
-ifeq ($(CONFIG_TOOLS),y)
-check-block: $(patsubst %,check-%, $(check-block-y))
-endif
-check-build: build-unit build-softfloat build-qtest
+.PHONY: check-block check-unit check check-clean get-vm-images
+check-block:
+check-build: build-unit
 
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o tests/*/*.o $(QEMU_IOTESTS_HELPERS-y)
-	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y:%=tests/qtest/%$(EXESUF))) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)))
 	rm -f tests/test-qapi-gen-timestamp
-	rm -f tests/qtest/dbus-vmstate1-gen-timestamp
 	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)
 
-check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
+check: check-unit
 
 clean: check-clean
 
 # Build the help program automatically
 
-all: $(QEMU_IOTESTS_HELPERS-y)
-
 -include $(wildcard tests/*.d)
--include $(wildcard tests/qtest/*.d)
--include $(wildcard tests/qtest/libqos/*.d)
 
 endif

@@ -1,2 +1,0 @@
-obj-y += boot.o
-obj-$(CONFIG_AXIS) += axis_dev88.o

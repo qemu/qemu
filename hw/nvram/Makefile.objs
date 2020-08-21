@@ -1,8 +1,0 @@
-common-obj-$(CONFIG_DS1225Y) += ds1225y.o
-common-obj-$(CONFIG_NMC93XX_EEPROM) += eeprom93xx.o
-common-obj-$(CONFIG_AT24C) += eeprom_at24c.o
-common-obj-y += fw_cfg.o
-common-obj-$(CONFIG_CHRP_NVRAM) += chrp_nvram.o
-common-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
-common-obj-$(CONFIG_NRF51_SOC) += nrf51_nvm.o
-obj-$(CONFIG_PSERIES) += spapr_nvram.o

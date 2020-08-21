@@ -113,7 +113,7 @@ static int module_load_file(const char *fname)
 {
     GModule *g_module;
     void (*sym)(void);
-    const char *dsosuf = HOST_DSOSUF;
+    const char *dsosuf = CONFIG_HOST_DSOSUF;
     int len = strlen(fname);
     int suf_len = strlen(dsosuf);
     ModuleEntry *e, *next;
@@ -205,7 +205,6 @@ bool module_load_one(const char *prefix, const char *lib_name)
         dirs[n_dirs++] = g_strdup_printf("%s", search_dir);
     }
     dirs[n_dirs++] = g_strdup_printf("%s", CONFIG_QEMU_MODDIR);
-    dirs[n_dirs++] = g_strdup_printf("%s/..", exec_dir ? : "");
     dirs[n_dirs++] = g_strdup_printf("%s", exec_dir ? : "");
 
 #ifdef CONFIG_MODULE_UPGRADES
@@ -222,7 +221,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
 
     for (i = 0; i < n_dirs; i++) {
         fname = g_strdup_printf("%s/%s%s",
-                dirs[i], module_name, HOST_DSOSUF);
+                dirs[i], module_name, CONFIG_HOST_DSOSUF);
         ret = module_load_file(fname);
         g_free(fname);
         fname = NULL;

@@ -22,7 +22,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 const char common_args[] = "-nodefaults -machine none";
 

@@ -1,4 +1,0 @@
-obj-y += sparc64.o
-obj-$(CONFIG_SUN4U) += sun4u_iommu.o
-obj-$(CONFIG_SUN4U) += sun4u.o
-obj-$(CONFIG_NIAGARA) += niagara.o

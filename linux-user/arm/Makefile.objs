@@ -1,8 +1,0 @@
-obj-$(TARGET_ARM) += nwfpe/
-obj-$(TARGET_ARM) += semihost.o
-
-generated-files-y += linux-user/arm/syscall_nr.h
-
-syshdr := $(SRC_PATH)/linux-user/arm/syscallhdr.sh
-%/syscall_nr.h: $(SRC_PATH)/linux-user/arm/syscall.tbl $(syshdr)
-	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI),"GEN","$@")

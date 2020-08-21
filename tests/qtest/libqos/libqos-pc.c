@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
-#include "libqos/libqos-pc.h"
-#include "libqos/malloc-pc.h"
-#include "libqos/pci-pc.h"
+#include "libqos-pc.h"
+#include "malloc-pc.h"
+#include "pci-pc.h"
 
 static QOSOps qos_ops = {
     .alloc_init = pc_alloc_init,

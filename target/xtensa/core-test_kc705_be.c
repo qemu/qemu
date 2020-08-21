@@ -34,13 +34,13 @@
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_test_kc705_be
-#include "core-test_kc705_be/xtensa-modules.inc.c"
+#include "core-test_kc705_be/xtensa-modules.c.inc"
 
 static XtensaConfig test_kc705_be __attribute__((unused)) = {
     .name = "test_kc705_be",
     .gdb_regmap = {
         .reg = {
-#include "core-test_kc705_be/gdb-config.inc.c"
+#include "core-test_kc705_be/gdb-config.c.inc"
         }
     },
     .isa_internal = &xtensa_modules,

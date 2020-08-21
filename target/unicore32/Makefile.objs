@@ -1,8 +1,0 @@
-obj-y += translate.o op_helper.o helper.o cpu.o
-obj-y += ucf64_helper.o
-
-obj-$(CONFIG_SOFTMMU) += softmmu.o
-
-# Huh? Uses curses directly instead of using ui/console.h interfaces ...
-helper.o-cflags := $(CURSES_CFLAGS)
-helper.o-libs := $(CURSES_LIBS)

@@ -116,7 +116,7 @@ static void usage_complete(int argc, char *argv[])
 }
 
 /* keep wrappers separate but do not bother defining headers for all of them */
-#include "wrap.inc.c"
+#include "wrap.c.inc"
 
 static void not_implemented(void)
 {

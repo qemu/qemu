@@ -15,7 +15,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 static int verbose;
 

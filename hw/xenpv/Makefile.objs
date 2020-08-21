@@ -1,2 +1,0 @@
-# Xen PV machine support
-obj-$(CONFIG_XEN) += xen_machine_pv.o
