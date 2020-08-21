@@ -1,3 +1,5 @@
+/GNUmakefile
+/build/
 /.doctrees
 /config-devices.*
 /config-all-devices.*
