@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 
 /* Needed early for CONFIG_BSD etc. */
 
@@ -297,7 +298,7 @@ static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
  * Opens a file with FD_CLOEXEC set
  */
 static int
-qemu_open_internal(const char *name, int flags, mode_t mode)
+qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 {
     int ret;
 
@@ -311,12 +312,15 @@ qemu_open_internal(const char *name, int flags, mode_t mode)
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
+            error_setg(errp, "Could not parse fdset %s", name);
             errno = EINVAL;
             return -1;
         }
 
         dupfd = monitor_fdset_dup_fd_add(fdset_id, flags);
         if (dupfd == -1) {
+            error_setg_errno(errp, errno, "Could not dup FD for %s flags %x",
+                             name, flags);
             return -1;
         }
 
@@ -325,6 +329,13 @@ qemu_open_internal(const char *name, int flags, mode_t mode)
 #endif
 
     ret = qemu_open_cloexec(name, flags, mode);
+
+    if (ret == -1) {
+        const char *action = flags & O_CREAT ? "create" : "open";
+        error_setg_errno(errp, errno, "Could not %s '%s'",
+                         action, name);
+    }
+
 
     return ret;
 }
@@ -342,7 +353,7 @@ int qemu_open_old(const char *name, int flags, ...)
     }
     va_end(ap);
 
-    ret = qemu_open_internal(name, flags, mode);
+    ret = qemu_open_internal(name, flags, mode, NULL);
 
 #ifdef O_DIRECT
     if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
