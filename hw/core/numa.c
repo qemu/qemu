@@ -425,10 +425,10 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
 
     if ((node->level > 1) &&
         ms->numa_state->hmat_cache[node->node_id][node->level - 1] &&
-        (node->size >=
+        (node->size <=
             ms->numa_state->hmat_cache[node->node_id][node->level - 1]->size)) {
         error_setg(errp, "Invalid size=%" PRIu64 ", the size of level=%" PRIu8
-                   " should be less than the size(%" PRIu64 ") of "
+                   " should be larger than the size(%" PRIu64 ") of "
                    "level=%u", node->size, node->level,
                    ms->numa_state->hmat_cache[node->node_id]
                                              [node->level - 1]->size,
@@ -438,10 +438,10 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
 
     if ((node->level < HMAT_LB_LEVELS - 1) &&
         ms->numa_state->hmat_cache[node->node_id][node->level + 1] &&
-        (node->size <=
+        (node->size >=
             ms->numa_state->hmat_cache[node->node_id][node->level + 1]->size)) {
         error_setg(errp, "Invalid size=%" PRIu64 ", the size of level=%" PRIu8
-                   " should be larger than the size(%" PRIu64 ") of "
+                   " should be less than the size(%" PRIu64 ") of "
                    "level=%u", node->size, node->level,
                    ms->numa_state->hmat_cache[node->node_id]
                                              [node->level + 1]->size,
