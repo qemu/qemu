@@ -469,6 +469,32 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
             params->tls_authz);
+
+        if (params->has_block_bitmap_mapping) {
+            const BitmapMigrationNodeAliasList *bmnal;
+
+            monitor_printf(mon, "%s:\n",
+                           MigrationParameter_str(
+                               MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
+
+            for (bmnal = params->block_bitmap_mapping;
+                 bmnal;
+                 bmnal = bmnal->next)
+            {
+                const BitmapMigrationNodeAlias *bmna = bmnal->value;
+                const BitmapMigrationBitmapAliasList *bmbal;
+
+                monitor_printf(mon, "  '%s' -> '%s'\n",
+                               bmna->node_name, bmna->alias);
+
+                for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
+                    const BitmapMigrationBitmapAlias *bmba = bmbal->value;
+
+                    monitor_printf(mon, "    '%s' -> '%s'\n",
+                                   bmba->name, bmba->alias);
+                }
+            }
+        }
     }
 
     qapi_free_MigrationParameters(params);
@@ -1383,6 +1409,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_ANNOUNCE_STEP:
         p->has_announce_step = true;
         visit_type_size(v, param, &p->announce_step, &err);
+        break;
+    case MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING:
+        error_setg(&err, "The block-bitmap-mapping parameter can only be set "
+                   "through QMP");
         break;
     default:
         assert(0);

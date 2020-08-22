@@ -29,10 +29,10 @@
  *
  * # Header (shared for different chunk types)
  * 1, 2 or 4 bytes: flags (see qemu_{put,put}_flags)
- * [ 1 byte: node name size ] \  flags & DEVICE_NAME
- * [ n bytes: node name     ] /
- * [ 1 byte: bitmap name size ] \  flags & BITMAP_NAME
- * [ n bytes: bitmap name     ] /
+ * [ 1 byte: node alias size ] \  flags & DEVICE_NAME
+ * [ n bytes: node alias     ] /
+ * [ 1 byte: bitmap alias size ] \  flags & BITMAP_NAME
+ * [ n bytes: bitmap alias     ] /
  *
  * # Start of bitmap migration (flags & START)
  * header
@@ -72,7 +72,9 @@
 #include "migration/register.h"
 #include "qemu/hbitmap.h"
 #include "qemu/cutils.h"
+#include "qemu/id.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-migration.h"
 #include "trace.h"
 
 #define CHUNK_SIZE     (1 << 10)
@@ -104,7 +106,8 @@
 typedef struct SaveBitmapState {
     /* Written during setup phase. */
     BlockDriverState *bs;
-    const char *node_name;
+    char *node_alias;
+    char *bitmap_alias;
     BdrvDirtyBitmap *bitmap;
     uint64_t total_sectors;
     uint64_t sectors_per_chunk;
@@ -138,8 +141,9 @@ typedef struct LoadBitmapState {
 /* State of the dirty bitmap migration (DBM) during load process */
 typedef struct DBMLoadState {
     uint32_t flags;
-    char node_name[256];
-    char bitmap_name[256];
+    char node_alias[256];
+    char bitmap_alias[256];
+    char bitmap_name[BDRV_BITMAP_MAX_NAME_SIZE + 1];
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
 
@@ -164,6 +168,188 @@ typedef struct DBMState {
 } DBMState;
 
 static DBMState dbm_state;
+
+/* For hash tables that map node/bitmap names to aliases */
+typedef struct AliasMapInnerNode {
+    char *string;
+    GHashTable *subtree;
+} AliasMapInnerNode;
+
+static void free_alias_map_inner_node(void *amin_ptr)
+{
+    AliasMapInnerNode *amin = amin_ptr;
+
+    g_free(amin->string);
+    g_hash_table_unref(amin->subtree);
+    g_free(amin);
+}
+
+/**
+ * Construct an alias map based on the given QMP structure.
+ *
+ * (Note that we cannot store such maps in the MigrationParameters
+ * object, because that struct is defined by the QAPI schema, which
+ * makes it basically impossible to have dicts with arbitrary keys.
+ * Therefore, we instead have to construct these maps when migration
+ * starts.)
+ *
+ * @bbm is the block_bitmap_mapping from the migration parameters.
+ *
+ * If @name_to_alias is true, the returned hash table will map node
+ * and bitmap names to their respective aliases (for outgoing
+ * migration).
+ *
+ * If @name_to_alias is false, the returned hash table will map node
+ * and bitmap aliases to their respective names (for incoming
+ * migration).
+ *
+ * The hash table maps node names/aliases to AliasMapInnerNode
+ * objects, whose .string is the respective node alias/name, and whose
+ * .subtree table maps bitmap names/aliases to the respective bitmap
+ * alias/name.
+ */
+static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
+                                       bool name_to_alias,
+                                       Error **errp)
+{
+    GHashTable *alias_map;
+    size_t max_node_name_len = sizeof_field(BlockDriverState, node_name) - 1;
+
+    alias_map = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                      g_free, free_alias_map_inner_node);
+
+    for (; bbm; bbm = bbm->next) {
+        const BitmapMigrationNodeAlias *bmna = bbm->value;
+        const BitmapMigrationBitmapAliasList *bmbal;
+        AliasMapInnerNode *amin;
+        GHashTable *bitmaps_map;
+        const char *node_map_from, *node_map_to;
+
+        if (!id_wellformed(bmna->alias)) {
+            error_setg(errp, "The node alias '%s' is not well-formed",
+                       bmna->alias);
+            goto fail;
+        }
+
+        if (strlen(bmna->alias) > UINT8_MAX) {
+            error_setg(errp, "The node alias '%s' is longer than %u bytes",
+                       bmna->alias, UINT8_MAX);
+            goto fail;
+        }
+
+        if (strlen(bmna->node_name) > max_node_name_len) {
+            error_setg(errp, "The node name '%s' is longer than %zu bytes",
+                       bmna->node_name, max_node_name_len);
+            goto fail;
+        }
+
+        if (name_to_alias) {
+            if (g_hash_table_contains(alias_map, bmna->node_name)) {
+                error_setg(errp, "The node name '%s' is mapped twice",
+                           bmna->node_name);
+                goto fail;
+            }
+
+            node_map_from = bmna->node_name;
+            node_map_to = bmna->alias;
+        } else {
+            if (g_hash_table_contains(alias_map, bmna->alias)) {
+                error_setg(errp, "The node alias '%s' is used twice",
+                           bmna->alias);
+                goto fail;
+            }
+
+            node_map_from = bmna->alias;
+            node_map_to = bmna->node_name;
+        }
+
+        bitmaps_map = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                            g_free, g_free);
+
+        amin = g_new(AliasMapInnerNode, 1);
+        *amin = (AliasMapInnerNode){
+            .string = g_strdup(node_map_to),
+            .subtree = bitmaps_map,
+        };
+
+        g_hash_table_insert(alias_map, g_strdup(node_map_from), amin);
+
+        for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
+            const BitmapMigrationBitmapAlias *bmba = bmbal->value;
+            const char *bmap_map_from, *bmap_map_to;
+
+            if (strlen(bmba->alias) > UINT8_MAX) {
+                error_setg(errp,
+                           "The bitmap alias '%s' is longer than %u bytes",
+                           bmba->alias, UINT8_MAX);
+                goto fail;
+            }
+
+            if (strlen(bmba->name) > BDRV_BITMAP_MAX_NAME_SIZE) {
+                error_setg(errp, "The bitmap name '%s' is longer than %d bytes",
+                           bmba->name, BDRV_BITMAP_MAX_NAME_SIZE);
+                goto fail;
+            }
+
+            if (name_to_alias) {
+                bmap_map_from = bmba->name;
+                bmap_map_to = bmba->alias;
+
+                if (g_hash_table_contains(bitmaps_map, bmba->name)) {
+                    error_setg(errp, "The bitmap '%s'/'%s' is mapped twice",
+                               bmna->node_name, bmba->name);
+                    goto fail;
+                }
+            } else {
+                bmap_map_from = bmba->alias;
+                bmap_map_to = bmba->name;
+
+                if (g_hash_table_contains(bitmaps_map, bmba->alias)) {
+                    error_setg(errp, "The bitmap alias '%s'/'%s' is used twice",
+                               bmna->alias, bmba->alias);
+                    goto fail;
+                }
+            }
+
+            g_hash_table_insert(bitmaps_map,
+                                g_strdup(bmap_map_from), g_strdup(bmap_map_to));
+        }
+    }
+
+    return alias_map;
+
+fail:
+    g_hash_table_destroy(alias_map);
+    return NULL;
+}
+
+/**
+ * Run construct_alias_map() in both directions to check whether @bbm
+ * is valid.
+ * (This function is to be used by migration/migration.c to validate
+ * the user-specified block-bitmap-mapping migration parameter.)
+ *
+ * Returns true if and only if the mapping is valid.
+ */
+bool check_dirty_bitmap_mig_alias_map(const BitmapMigrationNodeAliasList *bbm,
+                                      Error **errp)
+{
+    GHashTable *alias_map;
+
+    alias_map = construct_alias_map(bbm, true, errp);
+    if (!alias_map) {
+        return false;
+    }
+    g_hash_table_destroy(alias_map);
+
+    alias_map = construct_alias_map(bbm, false, errp);
+    if (!alias_map) {
+        return false;
+    }
+    g_hash_table_destroy(alias_map);
+
+    return true;
+}
 
 static uint32_t qemu_get_bitmap_flags(QEMUFile *f)
 {
@@ -207,11 +393,11 @@ static void send_bitmap_header(QEMUFile *f, DBMSaveState *s,
     qemu_put_bitmap_flags(f, flags);
 
     if (flags & DIRTY_BITMAP_MIG_FLAG_DEVICE_NAME) {
-        qemu_put_counted_string(f, dbms->node_name);
+        qemu_put_counted_string(f, dbms->node_alias);
     }
 
     if (flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
-        qemu_put_counted_string(f, bdrv_dirty_bitmap_name(bitmap));
+        qemu_put_counted_string(f, dbms->bitmap_alias);
     }
 }
 
@@ -282,17 +468,24 @@ static void dirty_bitmap_do_save_cleanup(DBMSaveState *s)
         QSIMPLEQ_REMOVE_HEAD(&s->dbms_list, entry);
         bdrv_dirty_bitmap_set_busy(dbms->bitmap, false);
         bdrv_unref(dbms->bs);
+        g_free(dbms->node_alias);
+        g_free(dbms->bitmap_alias);
         g_free(dbms);
     }
 }
 
 /* Called with iothread lock taken. */
 static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
-                               const char *bs_name)
+                               const char *bs_name, GHashTable *alias_map)
 {
     BdrvDirtyBitmap *bitmap;
     SaveBitmapState *dbms;
+    GHashTable *bitmap_aliases;
+    const char *node_alias, *bitmap_name, *bitmap_alias;
     Error *local_err = NULL;
+
+    /* When an alias map is given, @bs_name must be @bs's node name */
+    assert(!alias_map || !strcmp(bs_name, bdrv_get_node_name(bs)));
 
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         if (bdrv_dirty_bitmap_name(bitmap)) {
@@ -303,21 +496,39 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         return 0;
     }
 
+    bitmap_name = bdrv_dirty_bitmap_name(bitmap);
+
     if (!bs_name || strcmp(bs_name, "") == 0) {
         error_report("Bitmap '%s' in unnamed node can't be migrated",
-                     bdrv_dirty_bitmap_name(bitmap));
+                     bitmap_name);
         return -1;
     }
 
-    if (bs_name[0] == '#') {
+    if (alias_map) {
+        const AliasMapInnerNode *amin = g_hash_table_lookup(alias_map, bs_name);
+
+        if (!amin) {
+            /* Skip bitmaps on nodes with no alias */
+            return 0;
+        }
+
+        node_alias = amin->string;
+        bitmap_aliases = amin->subtree;
+    } else {
+        node_alias = bs_name;
+        bitmap_aliases = NULL;
+    }
+
+    if (node_alias[0] == '#') {
         error_report("Bitmap '%s' in a node with auto-generated "
                      "name '%s' can't be migrated",
-                     bdrv_dirty_bitmap_name(bitmap), bs_name);
+                     bitmap_name, node_alias);
         return -1;
     }
 
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
-        if (!bdrv_dirty_bitmap_name(bitmap)) {
+        bitmap_name = bdrv_dirty_bitmap_name(bitmap);
+        if (!bitmap_name) {
             continue;
         }
 
@@ -326,12 +537,29 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
             return -1;
         }
 
+        if (bitmap_aliases) {
+            bitmap_alias = g_hash_table_lookup(bitmap_aliases, bitmap_name);
+            if (!bitmap_alias) {
+                /* Skip bitmaps with no alias */
+                continue;
+            }
+        } else {
+            if (strlen(bitmap_name) > UINT8_MAX) {
+                error_report("Cannot migrate bitmap '%s' on node '%s': "
+                             "Name is longer than %u bytes",
+                             bitmap_name, bs_name, UINT8_MAX);
+                return -1;
+            }
+            bitmap_alias = bitmap_name;
+        }
+
         bdrv_ref(bs);
         bdrv_dirty_bitmap_set_busy(bitmap, true);
 
         dbms = g_new0(SaveBitmapState, 1);
         dbms->bs = bs;
-        dbms->node_name = bs_name;
+        dbms->node_alias = g_strdup(node_alias);
+        dbms->bitmap_alias = g_strdup(bitmap_alias);
         dbms->bitmap = bitmap;
         dbms->total_sectors = bdrv_nb_sectors(bs);
         dbms->sectors_per_chunk = CHUNK_SIZE * 8 *
@@ -356,43 +584,52 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
     SaveBitmapState *dbms;
     GHashTable *handled_by_blk = g_hash_table_new(NULL, NULL);
     BlockBackend *blk;
+    const MigrationParameters *mig_params = &migrate_get_current()->parameters;
+    GHashTable *alias_map = NULL;
+
+    if (mig_params->has_block_bitmap_mapping) {
+        alias_map = construct_alias_map(mig_params->block_bitmap_mapping, true,
+                                        &error_abort);
+    }
 
     s->bulk_completed = false;
     s->prev_bs = NULL;
     s->prev_bitmap = NULL;
     s->no_bitmaps = false;
 
-    /*
-     * Use blockdevice name for direct (or filtered) children of named block
-     * backends.
-     */
-    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
-        const char *name = blk_name(blk);
+    if (!alias_map) {
+        /*
+         * Use blockdevice name for direct (or filtered) children of named block
+         * backends.
+         */
+        for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+            const char *name = blk_name(blk);
 
-        if (!name || strcmp(name, "") == 0) {
-            continue;
-        }
-
-        bs = blk_bs(blk);
-
-        /* Skip filters without bitmaps */
-        while (bs && bs->drv && bs->drv->is_filter &&
-               !bdrv_has_named_bitmaps(bs))
-        {
-            if (bs->backing) {
-                bs = bs->backing->bs;
-            } else if (bs->file) {
-                bs = bs->file->bs;
-            } else {
-                bs = NULL;
+            if (!name || strcmp(name, "") == 0) {
+                continue;
             }
-        }
 
-        if (bs && bs->drv && !bs->drv->is_filter) {
-            if (add_bitmaps_to_list(s, bs, name)) {
-                goto fail;
+            bs = blk_bs(blk);
+
+            /* Skip filters without bitmaps */
+            while (bs && bs->drv && bs->drv->is_filter &&
+                   !bdrv_has_named_bitmaps(bs))
+            {
+                if (bs->backing) {
+                    bs = bs->backing->bs;
+                } else if (bs->file) {
+                    bs = bs->file->bs;
+                } else {
+                    bs = NULL;
+                }
             }
-            g_hash_table_add(handled_by_blk, bs);
+
+            if (bs && bs->drv && !bs->drv->is_filter) {
+                if (add_bitmaps_to_list(s, bs, name, NULL)) {
+                    goto fail;
+                }
+                g_hash_table_add(handled_by_blk, bs);
+            }
         }
     }
 
@@ -401,7 +638,7 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
             continue;
         }
 
-        if (add_bitmaps_to_list(s, bs, bdrv_get_node_name(bs))) {
+        if (add_bitmaps_to_list(s, bs, bdrv_get_node_name(bs), alias_map)) {
             goto fail;
         }
     }
@@ -416,11 +653,17 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
     }
 
     g_hash_table_destroy(handled_by_blk);
+    if (alias_map) {
+        g_hash_table_destroy(alias_map);
+    }
 
     return 0;
 
 fail:
     g_hash_table_destroy(handled_by_blk);
+    if (alias_map) {
+        g_hash_table_destroy(alias_map);
+    }
     dirty_bitmap_do_save_cleanup(s);
 
     return -1;
@@ -770,8 +1013,10 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DBMLoadState *s)
     return 0;
 }
 
-static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s)
+static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
+                                    GHashTable *alias_map)
 {
+    GHashTable *bitmap_alias_map = NULL;
     Error *local_err = NULL;
     bool nothing;
     s->flags = qemu_get_bitmap_flags(f);
@@ -780,28 +1025,75 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s)
     nothing = s->flags == (s->flags & DIRTY_BITMAP_MIG_FLAG_EOS);
 
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_DEVICE_NAME) {
-        if (!qemu_get_counted_string(f, s->node_name)) {
-            error_report("Unable to read node name string");
+        if (!qemu_get_counted_string(f, s->node_alias)) {
+            error_report("Unable to read node alias string");
             return -EINVAL;
         }
+
         if (!s->cancelled) {
-            s->bs = bdrv_lookup_bs(s->node_name, s->node_name, &local_err);
+            if (alias_map) {
+                const AliasMapInnerNode *amin;
+
+                amin = g_hash_table_lookup(alias_map, s->node_alias);
+                if (!amin) {
+                    error_setg(&local_err, "Error: Unknown node alias '%s'",
+                               s->node_alias);
+                    s->bs = NULL;
+                } else {
+                    bitmap_alias_map = amin->subtree;
+                    s->bs = bdrv_lookup_bs(NULL, amin->string, &local_err);
+                }
+            } else {
+                s->bs = bdrv_lookup_bs(s->node_alias, s->node_alias,
+                                       &local_err);
+            }
             if (!s->bs) {
                 error_report_err(local_err);
                 cancel_incoming_locked(s);
             }
         }
-    } else if (!s->bs && !nothing && !s->cancelled) {
+    } else if (s->bs) {
+        if (alias_map) {
+            const AliasMapInnerNode *amin;
+
+            /* Must be present in the map, or s->bs would not be set */
+            amin = g_hash_table_lookup(alias_map, s->node_alias);
+            assert(amin != NULL);
+
+            bitmap_alias_map = amin->subtree;
+        }
+    } else if (!nothing && !s->cancelled) {
         error_report("Error: block device name is not set");
         cancel_incoming_locked(s);
     }
 
+    assert(nothing || s->cancelled || !!alias_map == !!bitmap_alias_map);
+
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
-        if (!qemu_get_counted_string(f, s->bitmap_name)) {
-            error_report("Unable to read bitmap name string");
+        const char *bitmap_name;
+
+        if (!qemu_get_counted_string(f, s->bitmap_alias)) {
+            error_report("Unable to read bitmap alias string");
             return -EINVAL;
         }
+
         if (!s->cancelled) {
+            if (bitmap_alias_map) {
+                bitmap_name = g_hash_table_lookup(bitmap_alias_map,
+                                                  s->bitmap_alias);
+                if (!bitmap_name) {
+                    error_report("Error: Unknown bitmap alias '%s' on node "
+                                 "'%s' (alias '%s')", s->bitmap_alias,
+                                 s->bs->node_name, s->node_alias);
+                    cancel_incoming_locked(s);
+                }
+            } else {
+                bitmap_name = s->bitmap_alias;
+            }
+        }
+
+        if (!s->cancelled) {
+            g_strlcpy(s->bitmap_name, bitmap_name, sizeof(s->bitmap_name));
             s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
 
             /*
@@ -811,7 +1103,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s)
             if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
                 error_report("Error: unknown dirty bitmap "
                              "'%s' for block device '%s'",
-                             s->bitmap_name, s->node_name);
+                             s->bitmap_name, s->bs->node_name);
                 cancel_incoming_locked(s);
             }
         }
@@ -835,6 +1127,8 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s)
  */
 static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
 {
+    GHashTable *alias_map = NULL;
+    const MigrationParameters *mig_params = &migrate_get_current()->parameters;
     DBMLoadState *s = &((DBMState *)opaque)->load;
     int ret = 0;
 
@@ -846,13 +1140,18 @@ static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
+    if (mig_params->has_block_bitmap_mapping) {
+        alias_map = construct_alias_map(mig_params->block_bitmap_mapping,
+                                        false, &error_abort);
+    }
+
     do {
         QEMU_LOCK_GUARD(&s->lock);
 
-        ret = dirty_bitmap_load_header(f, s);
+        ret = dirty_bitmap_load_header(f, s, alias_map);
         if (ret < 0) {
             cancel_incoming_locked(s);
-            return ret;
+            goto fail;
         }
 
         if (s->flags & DIRTY_BITMAP_MIG_FLAG_START) {
@@ -869,12 +1168,17 @@ static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
 
         if (ret) {
             cancel_incoming_locked(s);
-            return ret;
+            goto fail;
         }
     } while (!(s->flags & DIRTY_BITMAP_MIG_FLAG_EOS));
 
     trace_dirty_bitmap_load_success();
-    return 0;
+    ret = 0;
+fail:
+    if (alias_map) {
+        g_hash_table_destroy(alias_map);
+    }
+    return ret;
 }
 
 static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
