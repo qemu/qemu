@@ -73,7 +73,6 @@ typedef struct DisasContext {
     uint16_t imm;
 
     unsigned int cpustate_changed;
-    unsigned int delayed_branch;
     unsigned int tb_flags;
     unsigned int tb_flags_to_set;
     int mem_index;
@@ -1328,10 +1327,9 @@ static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
 
 static void dec_setup_dslot(DisasContext *dc)
 {
-    dc->delayed_branch = 2;
-    dc->tb_flags |= D_FLAG;
+    dc->tb_flags_to_set |= D_FLAG;
     if (dc->type_b && (dc->tb_flags & IMM_FLAG)) {
-        dc->tb_flags |= BIMM_FLAG;
+        dc->tb_flags_to_set |= BIMM_FLAG;
     }
 }
 
@@ -1343,7 +1341,6 @@ static void dec_bcc(DisasContext *dc)
     cc = EXTRACT_FIELD(dc->ir, 21, 23);
     dslot = dc->ir & (1 << 25);
 
-    dc->delayed_branch = 1;
     if (dslot) {
         dec_setup_dslot(dc);
     }
@@ -1419,7 +1416,6 @@ static void dec_br(DisasContext *dc)
         }
     }
 
-    dc->delayed_branch = 1;
     if (dslot) {
         dec_setup_dslot(dc);
     }
@@ -1633,8 +1629,7 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 
     dc->cpu = cpu;
     dc->tb_flags = dc->base.tb->flags;
-    dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
-    dc->jmp = dc->delayed_branch ? JMP_INDIRECT : JMP_NOJMP;
+    dc->jmp = dc->tb_flags & D_FLAG ? JMP_INDIRECT : JMP_NOJMP;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->ext_imm = dc->base.tb->cs_base;
@@ -1705,11 +1700,11 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
         tcg_gen_discard_i32(cpu_imm);
     }
 
-    dc->tb_flags &= ~IMM_FLAG;
+    dc->tb_flags &= ~(IMM_FLAG | BIMM_FLAG | D_FLAG);
     dc->tb_flags |= dc->tb_flags_to_set;
     dc->base.pc_next += 4;
 
-    if (dc->delayed_branch && --dc->delayed_branch == 0) {
+    if (dc->jmp != JMP_NOJMP && !(dc->tb_flags & D_FLAG)) {
         if (dc->tb_flags & DRTI_FLAG) {
             do_rti(dc);
         }
@@ -1719,8 +1714,6 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
         if (dc->tb_flags & DRTE_FLAG) {
             do_rte(dc);
         }
-        /* Clear the delay slot flag.  */
-        dc->tb_flags &= ~D_FLAG;
         dc->base.is_jmp = DISAS_JUMP;
     }
 
