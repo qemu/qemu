@@ -104,8 +104,23 @@ typedef struct {
     /*< public >*/
 
     int (*do_command)(SDState *sd, SDRequest *req, uint8_t *response);
-    void (*write_data)(SDState *sd, uint8_t value);
-    uint8_t (*read_data)(SDState *sd);
+    /**
+     * Write a byte to a SD card.
+     * @sd: card
+     * @value: byte to write
+     *
+     * Write a byte on the data lines of a SD card.
+     */
+    void (*write_byte)(SDState *sd, uint8_t value);
+    /**
+     * Read a byte from a SD card.
+     * @sd: card
+     *
+     * Read a byte from the data lines of a SD card.
+     *
+     * Return: byte value read
+     */
+    uint8_t (*read_byte)(SDState *sd);
     bool (*data_ready)(SDState *sd);
     void (*set_voltage)(SDState *sd, uint16_t millivolts);
     uint8_t (*get_dat_lines)(SDState *sd);
@@ -136,23 +151,6 @@ typedef struct {
     void (*set_readonly)(DeviceState *dev, bool readonly);
 } SDBusClass;
 
-/* Legacy functions to be used only by non-qdevified callers */
-SDState *sd_init(BlockBackend *bs, bool is_spi);
-int sd_do_command(SDState *sd, SDRequest *req,
-                  uint8_t *response);
-void sd_write_data(SDState *sd, uint8_t value);
-uint8_t sd_read_data(SDState *sd);
-void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
-bool sd_data_ready(SDState *sd);
-/* sd_enable should not be used -- it is only used on the nseries boards,
- * where it is part of a broken implementation of the MMC card slot switch
- * (there should be two card slots which are multiplexed to a single MMC
- * controller, but instead we model it with one card and controller and
- * disable the card when the second slot is selected, so it looks like the
- * second slot is always empty).
- */
-void sd_enable(SDState *sd, bool enable);
-
 /* Functions to be used by qdevified callers (working via
  * an SDBus rather than directly with SDState)
  */
@@ -160,8 +158,41 @@ void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts);
 uint8_t sdbus_get_dat_lines(SDBus *sdbus);
 bool sdbus_get_cmd_line(SDBus *sdbus);
 int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
-void sdbus_write_data(SDBus *sd, uint8_t value);
-uint8_t sdbus_read_data(SDBus *sd);
+/**
+ * Write a byte to a SD bus.
+ * @sd: bus
+ * @value: byte to write
+ *
+ * Write a byte on the data lines of a SD bus.
+ */
+void sdbus_write_byte(SDBus *sd, uint8_t value);
+/**
+ * Read a byte from a SD bus.
+ * @sd: bus
+ *
+ * Read a byte from the data lines of a SD bus.
+ *
+ * Return: byte value read
+ */
+uint8_t sdbus_read_byte(SDBus *sd);
+/**
+ * Write data to a SD bus.
+ * @sdbus: bus
+ * @buf: data to write
+ * @length: number of bytes to write
+ *
+ * Write multiple bytes of data on the data lines of a SD bus.
+ */
+void sdbus_write_data(SDBus *sdbus, const void *buf, size_t length);
+/**
+ * Read data from a SD bus.
+ * @sdbus: bus
+ * @buf: buffer to read data into
+ * @length: number of bytes to read
+ *
+ * Read multiple bytes of data on the data lines of a SD bus.
+ */
+void sdbus_read_data(SDBus *sdbus, void *buf, size_t length);
 bool sdbus_data_ready(SDBus *sd);
 bool sdbus_get_inserted(SDBus *sd);
 bool sdbus_get_readonly(SDBus *sd);
