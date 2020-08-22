@@ -494,9 +494,9 @@ sec:
         g_queue_push_head(&conn->secondary_list, spkt);
 
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr,
+            qemu_hexdump(ppkt->data, stderr,
                         "colo-compare ppkt", ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr,
+            qemu_hexdump(spkt->data, stderr,
                         "colo-compare spkt", spkt->size);
         }
 
@@ -535,9 +535,9 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
         trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
+            qemu_hexdump(ppkt->data, stderr, "colo-compare pri pkt",
                          ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
+            qemu_hexdump(spkt->data, stderr, "colo-compare sec pkt",
                          spkt->size);
         }
         return -1;
@@ -578,9 +578,9 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
                                            spkt->size);
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
+            qemu_hexdump(ppkt->data, stderr, "colo-compare pri pkt",
                          ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
+            qemu_hexdump(spkt->data, stderr, "colo-compare sec pkt",
                          spkt->size);
         }
         return -1;

@@ -138,7 +138,8 @@ int os_parse_cmd_args(int index, const char *optarg);
  * Hexdump a buffer to a file. An optional string prefix is added to every line
  */
 
-void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
+void qemu_hexdump(const void *bufptr, FILE *fp,
+                  const char *prefix, size_t size);
 
 /*
  * helper to parse debug environment variables
