@@ -75,7 +75,7 @@ typedef struct DisasContext {
     unsigned int cpustate_changed;
     unsigned int delayed_branch;
     unsigned int tb_flags;
-    unsigned int clear_imm;
+    unsigned int tb_flags_to_set;
     int mem_index;
 
 #define JMP_NOJMP     0
@@ -535,8 +535,7 @@ static bool trans_imm(DisasContext *dc, arg_imm *arg)
 {
     dc->ext_imm = arg->imm << 16;
     tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
-    dc->tb_flags |= IMM_FLAG;
-    dc->clear_imm = 0;
+    dc->tb_flags_to_set = IMM_FLAG;
     return true;
 }
 
@@ -1688,7 +1687,8 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
                   (uint32_t)dc->base.pc_next);
     }
 
-    dc->clear_imm = 1;
+    dc->tb_flags_to_set = 0;
+
     ir = cpu_ldl_code(env, dc->base.pc_next);
     if (!decode(dc, ir)) {
         old_decode(dc, ir);
@@ -1700,10 +1700,13 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
         dc->r0_set = false;
     }
 
-    if (dc->clear_imm && (dc->tb_flags & IMM_FLAG)) {
-        dc->tb_flags &= ~IMM_FLAG;
+    /* Discard the imm global when its contents cannot be used. */
+    if ((dc->tb_flags & ~dc->tb_flags_to_set) & IMM_FLAG) {
         tcg_gen_discard_i32(cpu_imm);
     }
+
+    dc->tb_flags &= ~IMM_FLAG;
+    dc->tb_flags |= dc->tb_flags_to_set;
     dc->base.pc_next += 4;
 
     if (dc->delayed_branch && --dc->delayed_branch == 0) {
