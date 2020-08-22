@@ -494,10 +494,10 @@ sec:
         g_queue_push_head(&conn->secondary_list, spkt);
 
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump(ppkt->data, stderr,
-                        "colo-compare ppkt", ppkt->size);
-            qemu_hexdump(spkt->data, stderr,
-                        "colo-compare spkt", spkt->size);
+            qemu_hexdump(stderr, "colo-compare ppkt",
+                         ppkt->data, ppkt->size);
+            qemu_hexdump(stderr, "colo-compare spkt",
+                         spkt->data, spkt->size);
         }
 
         colo_compare_inconsistency_notify(s);
@@ -535,10 +535,10 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
         trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump(ppkt->data, stderr, "colo-compare pri pkt",
-                         ppkt->size);
-            qemu_hexdump(spkt->data, stderr, "colo-compare sec pkt",
-                         spkt->size);
+            qemu_hexdump(stderr, "colo-compare pri pkt",
+                         ppkt->data, ppkt->size);
+            qemu_hexdump(stderr, "colo-compare sec pkt",
+                         spkt->data, spkt->size);
         }
         return -1;
     } else {
@@ -578,10 +578,10 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
                                            spkt->size);
         if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump(ppkt->data, stderr, "colo-compare pri pkt",
-                         ppkt->size);
-            qemu_hexdump(spkt->data, stderr, "colo-compare sec pkt",
-                         spkt->size);
+            qemu_hexdump(stderr, "colo-compare pri pkt",
+                         ppkt->data, ppkt->size);
+            qemu_hexdump(stderr, "colo-compare sec pkt",
+                         spkt->data, spkt->size);
         }
         return -1;
     } else {

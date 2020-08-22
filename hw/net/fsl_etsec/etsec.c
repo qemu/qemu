@@ -357,7 +357,7 @@ static ssize_t etsec_receive(NetClientState *nc,
 
 #if defined(HEX_DUMP)
     fprintf(stderr, "%s receive size:%zd\n", nc->name, size);
-    qemu_hexdump(buf, stderr, "", size);
+    qemu_hexdump(stderr, "", buf, size);
 #endif
     /* Flush is unnecessary as are already in receiving path */
     etsec->need_flush = false;

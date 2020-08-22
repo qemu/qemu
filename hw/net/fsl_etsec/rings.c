@@ -269,7 +269,7 @@ static void process_tx_bd(eTSEC         *etsec,
 
 #if defined(HEX_DUMP)
             qemu_log("eTSEC Send packet size:%d\n", etsec->tx_buffer_len);
-            qemu_hexdump(etsec->tx_buffer, stderr, "", etsec->tx_buffer_len);
+            qemu_hexdump(stderr, "", etsec->tx_buffer, etsec->tx_buffer_len);
 #endif  /* ETSEC_RING_DEBUG */
 
             if (etsec->first_bd.flags & BD_TX_TOEUN) {
