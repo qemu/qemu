@@ -8172,6 +8172,9 @@ if test -n "$cross_prefix"; then
             ?:*) pre_prefix=/ ;;
         esac
     fi
+    if test "$linux" = "yes" ; then
+        echo "system = 'linux'" >> $cross
+    fi
     case "$ARCH" in
         i386|x86_64)
             echo "cpu_family = 'x86'" >> $cross
