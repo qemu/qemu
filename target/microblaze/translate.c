@@ -1818,41 +1818,56 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
+    uint32_t iflags;
     int i;
 
-    if (!env) {
-        return;
-    }
-
-    qemu_fprintf(f, "IN: PC=%x %s\n",
-                 env->pc, lookup_symbol(env->pc));
-    qemu_fprintf(f, "rmsr=%x resr=%x rear=%" PRIx64 " "
-                 "imm=%x iflags=%x fsr=%x rbtr=%x\n",
-                 env->msr, env->esr, env->ear,
-                 env->imm, env->iflags, env->fsr, env->btr);
-    qemu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
-                 env->btaken, env->btarget,
+    qemu_fprintf(f, "pc=0x%08x msr=0x%05x mode=%s(saved=%s) eip=%d ie=%d\n",
+                 env->pc, env->msr,
                  (env->msr & MSR_UM) ? "user" : "kernel",
                  (env->msr & MSR_UMS) ? "user" : "kernel",
                  (bool)(env->msr & MSR_EIP),
                  (bool)(env->msr & MSR_IE));
-    for (i = 0; i < 12; i++) {
-        qemu_fprintf(f, "rpvr%2.2d=%8.8x ", i, env->pvr.regs[i]);
-        if ((i + 1) % 4 == 0) {
-            qemu_fprintf(f, "\n");
-        }
+
+    iflags = env->iflags;
+    qemu_fprintf(f, "iflags: 0x%08x", iflags);
+    if (iflags & IMM_FLAG) {
+        qemu_fprintf(f, " IMM(0x%08x)", env->imm);
+    }
+    if (iflags & BIMM_FLAG) {
+        qemu_fprintf(f, " BIMM");
+    }
+    if (iflags & D_FLAG) {
+        qemu_fprintf(f, " D(btaken=%d btarget=0x%08x)",
+                     env->btaken, env->btarget);
+    }
+    if (iflags & DRTI_FLAG) {
+        qemu_fprintf(f, " DRTI");
+    }
+    if (iflags & DRTE_FLAG) {
+        qemu_fprintf(f, " DRTE");
+    }
+    if (iflags & DRTB_FLAG) {
+        qemu_fprintf(f, " DRTB");
+    }
+    if (iflags & ESR_ESS_FLAG) {
+        qemu_fprintf(f, " ESR_ESS(0x%04x)", iflags & ESR_ESS_MASK);
     }
 
-    /* Registers that aren't modeled are reported as 0 */
-    qemu_fprintf(f, "redr=%x rpid=0 rzpr=0 rtlbx=0 rtlbsx=0 "
-                    "rtlblo=0 rtlbhi=0\n", env->edr);
-    qemu_fprintf(f, "slr=%x shr=%x\n", env->slr, env->shr);
+    qemu_fprintf(f, "\nesr=0x%04x fsr=0x%02x btr=0x%08x edr=0x%x\n"
+                 "ear=0x%016" PRIx64 " slr=0x%x shr=0x%x\n",
+                 env->esr, env->fsr, env->btr, env->edr,
+                 env->ear, env->slr, env->shr);
+
+    for (i = 0; i < 12; i++) {
+        qemu_fprintf(f, "rpvr%-2d=%08x%c",
+                     i, env->pvr.regs[i], i % 4 == 3 ? '\n' : ' ');
+    }
+
     for (i = 0; i < 32; i++) {
-        qemu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
-        if ((i + 1) % 4 == 0)
-            qemu_fprintf(f, "\n");
-        }
-    qemu_fprintf(f, "\n\n");
+        qemu_fprintf(f, "r%2.2d=%08x%c",
+                     i, env->regs[i], i % 4 == 3 ? '\n' : ' ');
+    }
+    qemu_fprintf(f, "\n");
 }
 
 void mb_tcg_init(void)
