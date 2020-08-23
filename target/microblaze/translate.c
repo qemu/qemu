@@ -1127,6 +1127,52 @@ static bool trans_brki(DisasContext *dc, arg_typeb_br *arg)
     return true;
 }
 
+static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
+{
+    int mbar_imm = arg->imm;
+
+    /* Data access memory barrier.  */
+    if ((mbar_imm & 2) == 0) {
+        tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
+    }
+
+    /* Sleep. */
+    if (mbar_imm & 16) {
+        TCGv_i32 tmp_1;
+
+        if (trap_userspace(dc, true)) {
+            /* Sleep is a privileged instruction.  */
+            return true;
+        }
+
+        t_sync_flags(dc);
+
+        tmp_1 = tcg_const_i32(1);
+        tcg_gen_st_i32(tmp_1, cpu_env,
+                       -offsetof(MicroBlazeCPU, env)
+                       +offsetof(CPUState, halted));
+        tcg_temp_free_i32(tmp_1);
+
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
+
+        gen_raise_exception(dc, EXCP_HLT);
+    }
+
+    /*
+     * If !(mbar_imm & 1), this is an instruction access memory barrier
+     * and we need to end the TB so that we recognize self-modified
+     * code immediately.
+     *
+     * However, there are some data mbars that need the TB break
+     * (and return to main loop) to recognize interrupts right away.
+     * E.g. recognizing a change to an interrupt controller register.
+     *
+     * Therefore, choose to end the TB always.
+     */
+    dc->cpustate_changed = 1;
+    return true;
+}
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -1417,49 +1463,12 @@ static void dec_bcc(DisasContext *dc)
 
 static void dec_br(DisasContext *dc)
 {
-    unsigned int dslot, link, abs, mbar;
+    unsigned int dslot, link, abs;
     uint32_t add_pc;
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
     link = dc->ir & (1 << 18);
-
-    /* Memory barrier.  */
-    mbar = (dc->ir >> 16) & 31;
-    if (mbar == 2 && dc->imm == 4) {
-        uint16_t mbar_imm = dc->rd;
-
-        /* Data access memory barrier.  */
-        if ((mbar_imm & 2) == 0) {
-            tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
-        }
-
-        /* mbar IMM & 16 decodes to sleep.  */
-        if (mbar_imm & 16) {
-            TCGv_i32 tmp_1;
-
-            if (trap_userspace(dc, true)) {
-                /* Sleep is a privileged instruction.  */
-                return;
-            }
-
-            t_sync_flags(dc);
-
-            tmp_1 = tcg_const_i32(1);
-            tcg_gen_st_i32(tmp_1, cpu_env,
-                           -offsetof(MicroBlazeCPU, env)
-                           +offsetof(CPUState, halted));
-            tcg_temp_free_i32(tmp_1);
-
-            tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
-
-            gen_raise_exception(dc, EXCP_HLT);
-            return;
-        }
-        /* Break the TB.  */
-        dc->cpustate_changed = 1;
-        return;
-    }
 
     if (dslot) {
         dec_setup_dslot(dc);
