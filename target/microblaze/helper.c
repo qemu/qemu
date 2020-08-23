@@ -230,7 +230,6 @@ void mb_cpu_do_interrupt(CPUState *cs)
             //log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             break;
 
-        case EXCP_BREAK:
         case EXCP_HW_BREAK:
             assert(!(env->iflags & IMM_FLAG));
             assert(!(env->iflags & D_FLAG));
@@ -242,13 +241,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             msr &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             msr |= t;
             msr |= MSR_BIP;
-            if (cs->exception_index == EXCP_HW_BREAK) {
-                env->regs[16] = env->pc;
-                msr |= MSR_BIP;
-                env->pc = cpu->cfg.base_vectors + 0x18;
-            } else {
-                env->pc = env->btarget;
-            }
+            env->regs[16] = env->pc;
+            env->pc = cpu->cfg.base_vectors + 0x18;
             mb_cpu_write_msr(env, msr);
             break;
         default:

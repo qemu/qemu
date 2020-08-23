@@ -31,7 +31,7 @@ typedef struct CPUMBState CPUMBState;
 
 #define EXCP_MMU        1
 #define EXCP_IRQ        2
-#define EXCP_BREAK      3
+#define EXCP_SYSCALL    3  /* user-only */
 #define EXCP_HW_BREAK   4
 #define EXCP_HW_EXCP    5
 

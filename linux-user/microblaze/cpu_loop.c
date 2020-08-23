@@ -48,7 +48,7 @@ void cpu_loop(CPUMBState *env)
         case EXCP_INTERRUPT:
           /* just indicate that signals should be handled asap */
           break;
-        case EXCP_BREAK:
+        case EXCP_SYSCALL:
             /* Return address is 4 bytes after the call.  */
             env->regs[14] += 4;
             env->pc = env->regs[14];

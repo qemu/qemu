@@ -1068,6 +1068,65 @@ static bool trans_swx(DisasContext *dc, arg_typea *arg)
     return true;
 }
 
+static bool trans_brk(DisasContext *dc, arg_typea_br *arg)
+{
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+    tcg_gen_mov_i32(cpu_pc, reg_for_read(dc, arg->rb));
+    if (arg->rd) {
+        tcg_gen_movi_i32(cpu_R[arg->rd], dc->base.pc_next);
+    }
+    tcg_gen_ori_i32(cpu_msr, cpu_msr, MSR_BIP);
+    tcg_gen_movi_tl(cpu_res_addr, -1);
+
+    dc->base.is_jmp = DISAS_UPDATE;
+    return true;
+}
+
+static bool trans_brki(DisasContext *dc, arg_typeb_br *arg)
+{
+    uint32_t imm = arg->imm;
+
+    if (trap_userspace(dc, imm != 0x8 && imm != 0x18)) {
+        return true;
+    }
+    tcg_gen_movi_i32(cpu_pc, imm);
+    if (arg->rd) {
+        tcg_gen_movi_i32(cpu_R[arg->rd], dc->base.pc_next);
+    }
+    tcg_gen_movi_tl(cpu_res_addr, -1);
+
+#ifdef CONFIG_USER_ONLY
+    switch (imm) {
+    case 0x8:  /* syscall trap */
+        gen_raise_exception_sync(dc, EXCP_SYSCALL);
+        break;
+    case 0x18: /* debug trap */
+        gen_raise_exception_sync(dc, EXCP_DEBUG);
+        break;
+    default:   /* eliminated with trap_userspace check */
+        g_assert_not_reached();
+    }
+#else
+    uint32_t msr_to_set = 0;
+
+    if (imm != 0x18) {
+        msr_to_set |= MSR_BIP;
+    }
+    if (imm == 0x8 || imm == 0x18) {
+        /* MSR_UM and MSR_VM are in tb_flags, so we know their value. */
+        msr_to_set |= (dc->tb_flags & (MSR_UM | MSR_VM)) << 1;
+        tcg_gen_andi_i32(cpu_msr, cpu_msr,
+                         ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM));
+    }
+    tcg_gen_ori_i32(cpu_msr, cpu_msr, msr_to_set);
+    dc->base.is_jmp = DISAS_UPDATE;
+#endif
+
+    return true;
+}
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -1359,6 +1418,7 @@ static void dec_bcc(DisasContext *dc)
 static void dec_br(DisasContext *dc)
 {
     unsigned int dslot, link, abs, mbar;
+    uint32_t add_pc;
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
@@ -1401,21 +1461,6 @@ static void dec_br(DisasContext *dc)
         return;
     }
 
-    if (abs && link && !dslot) {
-        if (dc->type_b) {
-            /* BRKI */
-            uint32_t imm = dec_alu_typeb_imm(dc);
-            if (trap_userspace(dc, imm != 8 && imm != 0x18)) {
-                return;
-            }
-        } else {
-            /* BRK */
-            if (trap_userspace(dc, true)) {
-                return;
-            }
-        }
-    }
-
     if (dslot) {
         dec_setup_dslot(dc);
     }
@@ -1423,38 +1468,14 @@ static void dec_br(DisasContext *dc)
         tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
     }
 
-    if (abs) {
-        if (dc->type_b) {
-            uint32_t dest = dec_alu_typeb_imm(dc);
-
-            dc->jmp = JMP_DIRECT;
-            dc->jmp_pc = dest;
-            tcg_gen_movi_i32(cpu_btarget, dest);
-            if (link && !dslot) {
-                switch (dest) {
-                case 8:
-                case 0x18:
-                    gen_raise_exception_sync(dc, EXCP_BREAK);
-                    break;
-                case 0:
-                    gen_raise_exception_sync(dc, EXCP_DEBUG);
-                    break;
-                }
-            }
-        } else {
-            dc->jmp = JMP_INDIRECT;
-            tcg_gen_mov_i32(cpu_btarget, cpu_R[dc->rb]);
-            if (link && !dslot) {
-                gen_raise_exception_sync(dc, EXCP_BREAK);
-            }
-        }
-    } else if (dc->type_b) {
+    add_pc = abs ? 0 : dc->base.pc_next;
+    if (dc->type_b) {
         dc->jmp = JMP_DIRECT;
-        dc->jmp_pc = dc->base.pc_next + dec_alu_typeb_imm(dc);
+        dc->jmp_pc = add_pc + dec_alu_typeb_imm(dc);
         tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     } else {
         dc->jmp = JMP_INDIRECT;
-        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], dc->base.pc_next);
+        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], add_pc);
     }
     tcg_gen_movi_i32(cpu_btaken, 1);
 }

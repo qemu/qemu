@@ -19,7 +19,9 @@
 
 &typea0         rd ra
 &typea          rd ra rb
+&typea_br       rd rb
 &typeb          rd ra imm
+&typeb_br       rd imm
 
 # Include any IMM prefix in the value reported.
 %extimm         0:s16 !function=typeb_imm
@@ -30,8 +32,14 @@
 # Officially typea, but with rb==0, which is not used.
 @typea0         ...... rd:5 ra:5 ................       &typea0
 
+# Officially typea, but with ra as opcode.
+@typea_br       ...... rd:5 ..... rb:5 ...........      &typea_br
+
 # Officially typeb, but any immediate extension is unused.
 @typeb_bs       ...... rd:5 ra:5 ..... ...... imm:5     &typeb
+
+# Officially typeb, but with ra as opcode.
+@typeb_br       ...... rd:5 ..... ................      &typeb_br imm=%extimm
 
 # For convenience, extract the two imm_w/imm_s fields, then pack
 # them back together as "imm".  Doing this makes it easiest to
@@ -59,6 +67,9 @@ andi            101001 ..... ..... ................     @typeb
 
 andn            100011 ..... ..... ..... 000 0000 0000  @typea
 andni           101011 ..... ..... ................     @typeb
+
+brk             100110 ..... 01100 ..... 000 0000 0000  @typea_br
+brki            101110 ..... 01100 ................     @typeb_br
 
 bsrl            010001 ..... ..... ..... 000 0000 0000  @typea
 bsra            010001 ..... ..... ..... 010 0000 0000  @typea
