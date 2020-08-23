@@ -259,6 +259,11 @@ struct target_itimerspec {
     struct target_timespec it_value;
 };
 
+struct target__kernel_itimerspec {
+    struct target__kernel_timespec it_interval;
+    struct target__kernel_timespec it_value;
+};
+
 struct target_timex {
     abi_uint modes;              /* Mode selector */
     abi_long offset;             /* Time offset */
