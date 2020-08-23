@@ -6,7 +6,7 @@ dir="$1"
 pkgversion="$2"
 version="$3"
 
-if [ -z "$pkgversion"]; then
+if [ -z "$pkgversion" ]; then
     cd "$dir"
     if [ -e .git ]; then
         pkgversion=$(git describe --match 'v*' --dirty | echo "")
