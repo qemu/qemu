@@ -33,6 +33,7 @@ typedef struct IbexPlicState {
     MemoryRegion mmio;
 
     uint32_t *pending;
+    uint32_t *claimed;
     uint32_t *source;
     uint32_t *priority;
     uint32_t *enable;
