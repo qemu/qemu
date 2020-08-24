@@ -380,6 +380,10 @@ if 'CONFIG_LIBPMEM' in config_host
   libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
                                link_args: config_host['LIBPMEM_LIBS'].split())
 endif
+libdaxctl = not_found
+if 'CONFIG_LIBDAXCTL' in config_host
+  libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
+endif
 
 # Create config-host.h
 
@@ -787,7 +791,7 @@ common_ss.add(files('cpus-common.c'))
 
 subdir('softmmu')
 
-specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem)
+specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem, libdaxctl)
 specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu/softfloat.c',

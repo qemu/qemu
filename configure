@@ -7467,6 +7467,7 @@ fi
 
 if test "$libdaxctl" = "yes" ; then
   echo "CONFIG_LIBDAXCTL=y" >> $config_host_mak
+  echo "LIBDAXCTL_LIBS=$libdaxctl_libs" >> $config_host_mak
 fi
 
 if test "$bochs" = "yes" ; then
