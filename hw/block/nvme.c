@@ -614,30 +614,110 @@ static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
-    NvmeSQueue *sq = req->sq;
-    NvmeCtrl *n = sq->ctrl;
-    NvmeCQueue *cq = n->cq[sq->cqid];
+    NvmeCtrl *n = nvme_ctrl(req);
 
-    trace_pci_nvme_rw_cb(nvme_cid(req));
+    BlockBackend *blk = n->conf.blk;
+    BlockAcctCookie *acct = &req->acct;
+    BlockAcctStats *stats = blk_get_stats(blk);
+
+    Error *local_err = NULL;
+
+    trace_pci_nvme_rw_cb(nvme_cid(req), blk_name(blk));
 
     if (!ret) {
-        block_acct_done(blk_get_stats(n->conf.blk), &req->acct);
+        block_acct_done(stats, acct);
         req->status = NVME_SUCCESS;
     } else {
-        block_acct_failed(blk_get_stats(n->conf.blk), &req->acct);
-        req->status = NVME_INTERNAL_DEV_ERROR;
+        uint16_t status;
+
+        block_acct_failed(stats, acct);
+
+        switch (req->cmd.opcode) {
+        case NVME_CMD_READ:
+            status = NVME_UNRECOVERED_READ;
+            break;
+        case NVME_CMD_FLUSH:
+        case NVME_CMD_WRITE:
+        case NVME_CMD_WRITE_ZEROES:
+            status = NVME_WRITE_FAULT;
+            break;
+        default:
+            status = NVME_INTERNAL_DEV_ERROR;
+            break;
+        }
+
+        trace_pci_nvme_err_aio(nvme_cid(req), strerror(ret), status);
+
+        error_setg_errno(&local_err, -ret, "aio failed");
+        error_report_err(local_err);
+
+        req->status = status;
     }
 
-    nvme_enqueue_req_completion(cq, req);
+    nvme_enqueue_req_completion(nvme_cq(req), req);
+}
+
+static uint16_t nvme_do_aio(BlockBackend *blk, int64_t offset, size_t len,
+                            NvmeRequest *req)
+{
+    BlockAcctCookie *acct = &req->acct;
+    BlockAcctStats *stats = blk_get_stats(blk);
+
+    bool is_write = false;
+
+    trace_pci_nvme_do_aio(nvme_cid(req), req->cmd.opcode,
+                          nvme_io_opc_str(req->cmd.opcode), blk_name(blk),
+                          offset, len);
+
+    switch (req->cmd.opcode) {
+    case NVME_CMD_FLUSH:
+        block_acct_start(stats, acct, 0, BLOCK_ACCT_FLUSH);
+        req->aiocb = blk_aio_flush(blk, nvme_rw_cb, req);
+        break;
+
+    case NVME_CMD_WRITE_ZEROES:
+        block_acct_start(stats, acct, len, BLOCK_ACCT_WRITE);
+        req->aiocb = blk_aio_pwrite_zeroes(blk, offset, len,
+                                           BDRV_REQ_MAY_UNMAP, nvme_rw_cb,
+                                           req);
+        break;
+
+    case NVME_CMD_WRITE:
+        is_write = true;
+
+        /* fallthrough */
+
+    case NVME_CMD_READ:
+        block_acct_start(stats, acct, len,
+                         is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
+
+        if (req->qsg.sg) {
+            if (is_write) {
+                req->aiocb = dma_blk_write(blk, &req->qsg, offset,
+                                           BDRV_SECTOR_SIZE, nvme_rw_cb, req);
+            } else {
+                req->aiocb = dma_blk_read(blk, &req->qsg, offset,
+                                          BDRV_SECTOR_SIZE, nvme_rw_cb, req);
+            }
+        } else {
+            if (is_write) {
+                req->aiocb = blk_aio_pwritev(blk, offset, &req->iov, 0,
+                                             nvme_rw_cb, req);
+            } else {
+                req->aiocb = blk_aio_preadv(blk, offset, &req->iov, 0,
+                                            nvme_rw_cb, req);
+            }
+        }
+
+        break;
+    }
+
+    return NVME_NO_COMPLETE;
 }
 
 static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
 {
-    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
-                     BLOCK_ACCT_FLUSH);
-    req->aiocb = blk_aio_flush(n->conf.blk, nvme_rw_cb, req);
-
-    return NVME_NO_COMPLETE;
+    return nvme_do_aio(n->conf.blk, 0, 0, req);
 }
 
 static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
@@ -658,11 +738,7 @@ static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
         return status;
     }
 
-    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
-                     BLOCK_ACCT_WRITE);
-    req->aiocb = blk_aio_pwrite_zeroes(n->conf.blk, offset, count,
-                                       BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
-    return NVME_NO_COMPLETE;
+    return nvme_do_aio(n->conf.blk, offset, count, req);
 }
 
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
@@ -674,8 +750,8 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
 
     uint64_t data_size = nvme_l2b(ns, nlb);
     uint64_t data_offset = nvme_l2b(ns, slba);
-    int is_write = rw->opcode == NVME_CMD_WRITE ? 1 : 0;
-    enum BlockAcctType acct = is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
+    enum BlockAcctType acct = req->cmd.opcode == NVME_CMD_WRITE ?
+        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
     uint16_t status;
 
     trace_pci_nvme_rw(nvme_cid(req), nvme_io_opc_str(rw->opcode), nlb,
@@ -698,25 +774,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
-    if (req->qsg.nsg > 0) {
-        block_acct_start(blk_get_stats(n->conf.blk), &req->acct, req->qsg.size,
-                         acct);
-        req->aiocb = is_write ?
-            dma_blk_write(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
-                          nvme_rw_cb, req) :
-            dma_blk_read(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
-                         nvme_rw_cb, req);
-    } else {
-        block_acct_start(blk_get_stats(n->conf.blk), &req->acct, req->iov.size,
-                         acct);
-        req->aiocb = is_write ?
-            blk_aio_pwritev(n->conf.blk, data_offset, &req->iov, 0, nvme_rw_cb,
-                            req) :
-            blk_aio_preadv(n->conf.blk, data_offset, &req->iov, 0, nvme_rw_cb,
-                           req);
-    }
-
-    return NVME_NO_COMPLETE;
+    return nvme_do_aio(n->conf.blk, data_offset, data_size, req);
 
 invalid:
     block_acct_invalid(blk_get_stats(n->conf.blk), acct);
