@@ -136,7 +136,7 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
     memset(image, '\0', sizeof(image));
 
     /* OpenBIOS nvram variables partition */
-    sysp_end = chrp_nvram_create_system_partition(image, 0);
+    sysp_end = chrp_nvram_create_system_partition(image, 0, 0x1fd0);
 
     /* Free space partition */
     chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);

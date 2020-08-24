@@ -143,7 +143,7 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
     memset(image, '\0', sizeof(image));
 
     /* OpenBIOS nvram variables partition */
-    sysp_end = chrp_nvram_create_system_partition(image, 0);
+    sysp_end = chrp_nvram_create_system_partition(image, 0, 0x1fd0);
 
     /* Free space partition */
     chrp_nvram_create_free_partition(&image[sysp_end], 0x1fd0 - sysp_end);

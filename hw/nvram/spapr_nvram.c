@@ -188,7 +188,8 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
         }
     } else if (nb_prom_envs > 0) {
         /* Create a system partition to pass the -prom-env variables */
-        chrp_nvram_create_system_partition(nvram->buf, MIN_NVRAM_SIZE / 4);
+        chrp_nvram_create_system_partition(nvram->buf, MIN_NVRAM_SIZE / 4,
+                                           nvram->size);
         chrp_nvram_create_free_partition(&nvram->buf[MIN_NVRAM_SIZE / 4],
                                          nvram->size - MIN_NVRAM_SIZE / 4);
     }
