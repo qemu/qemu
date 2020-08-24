@@ -1063,6 +1063,11 @@ if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
 endif
 
+# Don't build qemu-keymap if xkbcommon is not explicitly enabled
+# when we don't build tools or system
+if get_option('xkbcommon').auto() and not have_system and not have_tools
+  xkbcommon = not_found
+endif
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
   qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
