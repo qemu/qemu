@@ -39,6 +39,26 @@
 #define XCHAL_HAVE_DEPBITS 0
 #endif
 
+#ifndef XCHAL_HAVE_DFP
+#define XCHAL_HAVE_DFP 0
+#endif
+
+#ifndef XCHAL_HAVE_DFPU_SINGLE_ONLY
+#define XCHAL_HAVE_DFPU_SINGLE_ONLY 0
+#endif
+
+#ifndef XCHAL_HAVE_DFPU_SINGLE_DOUBLE
+#define XCHAL_HAVE_DFPU_SINGLE_DOUBLE XCHAL_HAVE_DFP
+#endif
+
+/*
+ * We need to know the type of FP unit, not only its precision.
+ * Unfortunately XCHAL macros don't tell this explicitly.
+ */
+#define XCHAL_HAVE_DFPU (XCHAL_HAVE_DFP || \
+                         XCHAL_HAVE_DFPU_SINGLE_ONLY || \
+                         XCHAL_HAVE_DFPU_SINGLE_DOUBLE)
+
 #ifndef XCHAL_HAVE_DIV32
 #define XCHAL_HAVE_DIV32 0
 #endif
@@ -99,6 +119,9 @@
     XCHAL_OPTION(XCHAL_HAVE_CP, XTENSA_OPTION_COPROCESSOR) | \
     XCHAL_OPTION(XCHAL_HAVE_BOOLEANS, XTENSA_OPTION_BOOLEAN) | \
     XCHAL_OPTION(XCHAL_HAVE_FP, XTENSA_OPTION_FP_COPROCESSOR) | \
+    XCHAL_OPTION(XCHAL_HAVE_DFPU, XTENSA_OPTION_DFP_COPROCESSOR) | \
+    XCHAL_OPTION(XCHAL_HAVE_DFPU_SINGLE_ONLY, \
+                 XTENSA_OPTION_DFPU_SINGLE_ONLY) | \
     XCHAL_OPTION(XCHAL_HAVE_RELEASE_SYNC, XTENSA_OPTION_MP_SYNCHRO) | \
     XCHAL_OPTION(XCHAL_HAVE_S32C1I, XTENSA_OPTION_CONDITIONAL_STORE) | \
     XCHAL_OPTION(((XCHAL_HAVE_S32C1I && XCHAL_HW_VERSION >= 230000) || \
@@ -216,6 +239,9 @@
 #define XTHAL_INTTYPE_IDMA_ERR INTTYPE_IDMA_ERR
 #define XTHAL_INTTYPE_GS_ERR INTTYPE_GS_ERR
 
+#ifndef XCHAL_NMILEVEL
+#define XCHAL_NMILEVEL (XCHAL_NUM_INTLEVELS + 1)
+#endif
 
 #define INTERRUPT(i) { \
         .level = XCHAL_INT ## i ## _LEVEL, \
@@ -305,7 +331,8 @@
 
 #define INTERRUPTS_SECTION \
     .ninterrupt = XCHAL_NUM_INTERRUPTS, \
-    .nlevel = XCHAL_NUM_INTLEVELS, \
+    .nlevel = XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI, \
+    .nmi_level = XCHAL_NMILEVEL, \
     .interrupt_vector = INTERRUPT_VECTORS, \
     .level_mask = LEVEL_MASKS, \
     .inttype_mask = INTTYPE_MASKS, \
@@ -511,6 +538,7 @@
     .ndepc = (XCHAL_XEA_VERSION >= 2), \
     .inst_fetch_width = XCHAL_INST_FETCH_WIDTH, \
     .max_insn_size = XCHAL_MAX_INSTRUCTION_SIZE, \
+    .use_first_nan = !XCHAL_HAVE_DFPU, \
     EXCEPTIONS_SECTION, \
     INTERRUPTS_SECTION, \
     TLB_SECTION, \

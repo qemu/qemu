@@ -881,7 +881,7 @@ static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
     } else {
         if (pickNaN(a.cls, b.cls,
                     a.frac > b.frac ||
-                    (a.frac == b.frac && a.sign < b.sign))) {
+                    (a.frac == b.frac && a.sign < b.sign), s)) {
             a = b;
         }
         if (is_snan(a.cls)) {

@@ -132,11 +132,15 @@ void HELPER(intset)(CPUXtensaState *env, uint32_t v)
               v & env->config->inttype_mask[INTTYPE_SOFTWARE]);
 }
 
+static void intclear(CPUXtensaState *env, uint32_t v)
+{
+    atomic_and(&env->sregs[INTSET], ~v);
+}
+
 void HELPER(intclear)(CPUXtensaState *env, uint32_t v)
 {
-    atomic_and(&env->sregs[INTSET],
-               ~(v & (env->config->inttype_mask[INTTYPE_SOFTWARE] |
-                      env->config->inttype_mask[INTTYPE_EDGE])));
+    intclear(env, v & (env->config->inttype_mask[INTTYPE_SOFTWARE] |
+                       env->config->inttype_mask[INTTYPE_EDGE]));
 }
 
 static uint32_t relocated_vector(CPUXtensaState *env, uint32_t vector)
@@ -159,11 +163,11 @@ static void handle_interrupt(CPUXtensaState *env)
 {
     int level = env->pending_irq_level;
 
-    if (level > xtensa_get_cintlevel(env) &&
-        level <= env->config->nlevel &&
-        (env->config->level_mask[level] &
-         env->sregs[INTSET] &
-         env->sregs[INTENABLE])) {
+    if ((level > xtensa_get_cintlevel(env) &&
+         level <= env->config->nlevel &&
+         (env->config->level_mask[level] &
+          env->sregs[INTSET] & env->sregs[INTENABLE])) ||
+        level == env->config->nmi_level) {
         CPUState *cs = env_cpu(env);
 
         if (level > 1) {
@@ -173,6 +177,9 @@ static void handle_interrupt(CPUXtensaState *env)
                 (env->sregs[PS] & ~PS_INTLEVEL) | level | PS_EXCM;
             env->pc = relocated_vector(env,
                                        env->config->interrupt_vector[level]);
+            if (level == env->config->nmi_level) {
+                intclear(env, env->config->inttype_mask[INTTYPE_NMI]);
+            }
         } else {
             env->sregs[EXCCAUSE] = LEVEL1_INTERRUPT_CAUSE;
 

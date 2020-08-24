@@ -35,9 +35,13 @@ void check_interrupts(CPUXtensaState *env)
 {
     CPUState *cs = env_cpu(env);
     int minlevel = xtensa_get_cintlevel(env);
-    uint32_t int_set_enabled = env->sregs[INTSET] & env->sregs[INTENABLE];
+    uint32_t int_set_enabled = env->sregs[INTSET] &
+        (env->sregs[INTENABLE] | env->config->inttype_mask[INTTYPE_NMI]);
     int level;
 
+    if (minlevel >= env->config->nmi_level) {
+        minlevel = env->config->nmi_level - 1;
+    }
     for (level = env->config->nlevel; level > minlevel; --level) {
         if (env->config->level_mask[level] & int_set_enabled) {
             env->pending_irq_level = level;
