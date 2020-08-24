@@ -1,0 +1,350 @@
+/*
+ * Copyright (c) 2020 Xilinx Inc.
+ * Written by Edgar E. Iglesias <edgar.iglesias@xilinx.com>.
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = < 0x01 >;
+	#size-cells = < 0x01 >;
+	compatible = "xlnx,microblaze";
+	model = "edk131";
+
+	memory@50000000 {
+		device_type = "memory";
+		reg = < 0x50000000 0x10000000 >;
+	};
+
+	aliases {
+		ethernet0 = "/axi/axi-ethernet@82780000";
+		serial0 = "/axi/serial@83e00000";
+	};
+
+	chosen {
+		bootargs = " console=ttyS0,115200 ";
+		stdout-path = "/axi/serial@83e00000";
+	};
+
+	cpus {
+		#address-cells = < 0x01 >;
+		#cpus = < 0x01 >;
+		#size-cells = < 0x00 >;
+
+		cpu@0 {
+			clock-frequency = < 0xbebc200 >;
+			compatible = "xlnx,microblaze-8.10.a";
+			d-cache-baseaddr = < 0x50000000 >;
+			d-cache-highaddr = < 0x5fffffff >;
+			d-cache-line-size = < 0x20 >;
+			d-cache-size = < 0x800 >;
+			device_type = "cpu";
+			i-cache-baseaddr = < 0x50000000 >;
+			i-cache-highaddr = < 0x5fffffff >;
+			i-cache-line-size = < 0x20 >;
+			i-cache-size = < 0x800 >;
+			model = "microblaze,8.10.a";
+			reg = < 0x00 >;
+			timebase-frequency = < 0xbebc200 >;
+			xlnx,addr-tag-bits = < 0x11 >;
+			xlnx,allow-dcache-wr = < 0x01 >;
+			xlnx,allow-icache-wr = < 0x01 >;
+			xlnx,area-optimized = < 0x00 >;
+			xlnx,branch-target-cache-size = < 0x00 >;
+			xlnx,cache-byte-size = < 0x800 >;
+			xlnx,d-axi = < 0x01 >;
+			xlnx,d-lmb = < 0x01 >;
+			xlnx,d-plb = < 0x00 >;
+			xlnx,data-size = < 0x20 >;
+			xlnx,dcache-addr-tag = < 0x11 >;
+			xlnx,dcache-always-used = < 0x01 >;
+			xlnx,dcache-byte-size = < 0x800 >;
+			xlnx,dcache-data-width = < 0x00 >;
+			xlnx,dcache-force-tag-lutram = < 0x00 >;
+			xlnx,dcache-interface = < 0x01 >;
+			xlnx,dcache-line-len = < 0x08 >;
+			xlnx,dcache-use-fsl = < 0x00 >;
+			xlnx,dcache-use-writeback = < 0x01 >;
+			xlnx,dcache-victims = < 0x00 >;
+			xlnx,debug-enabled = < 0x01 >;
+			xlnx,div-zero-exception = < 0x01 >;
+			xlnx,dynamic-bus-sizing = < 0x01 >;
+			xlnx,ecc-use-ce-exception = < 0x00 >;
+			xlnx,edge-is-positive = < 0x01 >;
+			xlnx,endianness = < 0x01 >;
+			xlnx,family = "virtex6";
+			xlnx,fault-tolerant = < 0x00 >;
+			xlnx,fpu-exception = < 0x01 >;
+			xlnx,freq = < 0xbebc200 >;
+			xlnx,fsl-data-size = < 0x20 >;
+			xlnx,fsl-exception = < 0x00 >;
+			xlnx,fsl-links = < 0x00 >;
+			xlnx,i-axi = < 0x01 >;
+			xlnx,i-lmb = < 0x01 >;
+			xlnx,i-plb = < 0x00 >;
+			xlnx,icache-always-used = < 0x01 >;
+			xlnx,icache-data-width = < 0x00 >;
+			xlnx,icache-force-tag-lutram = < 0x00 >;
+			xlnx,icache-interface = < 0x00 >;
+			xlnx,icache-line-len = < 0x08 >;
+			xlnx,icache-streams = < 0x00 >;
+			xlnx,icache-use-fsl = < 0x00 >;
+			xlnx,icache-victims = < 0x00 >;
+			xlnx,ill-opcode-exception = < 0x01 >;
+			xlnx,instance = "microblaze_0";
+			xlnx,interconnect = < 0x02 >;
+			xlnx,interrupt-is-edge = < 0x00 >;
+			xlnx,mmu-dtlb-size = < 0x04 >;
+			xlnx,mmu-itlb-size = < 0x02 >;
+			xlnx,mmu-privileged-instr = < 0x00 >;
+			xlnx,mmu-tlb-access = < 0x03 >;
+			xlnx,mmu-zones = < 0x02 >;
+			xlnx,number-of-pc-brk = < 0x01 >;
+			xlnx,number-of-rd-addr-brk = < 0x00 >;
+			xlnx,number-of-wr-addr-brk = < 0x00 >;
+			xlnx,opcode-0x0-illegal = < 0x01 >;
+			xlnx,optimization = < 0x00 >;
+			xlnx,pvr = < 0x02 >;
+			xlnx,pvr-user1 = < 0x00 >;
+			xlnx,pvr-user2 = < 0x00 >;
+			xlnx,reset-msr = < 0x00 >;
+			xlnx,sco = < 0x00 >;
+			xlnx,stream-interconnect = < 0x00 >;
+			xlnx,unaligned-exceptions = < 0x01 >;
+			xlnx,use-barrel = < 0x01 >;
+			xlnx,use-branch-target-cache = < 0x00 >;
+			xlnx,use-dcache = < 0x01 >;
+			xlnx,use-div = < 0x01 >;
+			xlnx,use-ext-brk = < 0x01 >;
+			xlnx,use-ext-nm-brk = < 0x01 >;
+			xlnx,use-extended-fsl-instr = < 0x00 >;
+			xlnx,use-fpu = < 0x01 >;
+			xlnx,use-hw-mul = < 0x02 >;
+			xlnx,use-icache = < 0x01 >;
+			xlnx,use-interrupt = < 0x01 >;
+			xlnx,use-mmu = < 0x03 >;
+			xlnx,use-msr-instr = < 0x01 >;
+			xlnx,use-pcmp-instr = < 0x01 >;
+			xlnx,use-stack-protection = < 0x00 >;
+		};
+	};
+
+	axi {
+		#address-cells = < 0x01 >;
+		#size-cells = < 0x01 >;
+		compatible = "xlnx,axi-interconnect-1.02.a\0simple-bus";
+		ranges;
+
+		axi-ethernet@82780000 {
+			axistream-connected = < &axi_dma >;
+			compatible = "xlnx,axi-ethernet-2.01.a\0xlnx,axi-ethernet-1.00.a";
+			device_type = "network";
+			interrupt-parent = < &intc >;
+			interrupts = < 0x03 0x02 >;
+			local-mac-address = [ 00 0a 35 00 22 01 ];
+			phy-handle = < &phy7 >;
+			reg = < 0x82780000 0x40000 >;
+			xlnx,avb = < 0x00 >;
+			xlnx,halfdup = < 0x00 >;
+			xlnx,include-io = < 0x01 >;
+			xlnx,mcast-extend = < 0x00 >;
+			xlnx,phy-type = < 0x01 >;
+			xlnx,phyaddr = "0B00001";
+			xlnx,rxcsum = < 0x00 >;
+			xlnx,rxmem = < 0x1000 >;
+			xlnx,rxvlan-strp = < 0x00 >;
+			xlnx,rxvlan-tag = < 0x00 >;
+			xlnx,rxvlan-tran = < 0x00 >;
+			xlnx,stats = < 0x00 >;
+			xlnx,txcsum = < 0x00 >;
+			xlnx,txmem = < 0x1000 >;
+			xlnx,txvlan-strp = < 0x00 >;
+			xlnx,txvlan-tag = < 0x00 >;
+			xlnx,txvlan-tran = < 0x00 >;
+			xlnx,type = < 0x02 >;
+
+			mdio {
+				#address-cells = < 0x01 >;
+				#size-cells = < 0x00 >;
+
+				phy7: phy@7 {
+					compatible = "marvell,88e1111";
+					device_type = "ethernet-phy";
+					reg = < 0x07 >;
+				};
+			};
+		};
+
+		axi_dma: axi-dma@84600000 {
+			compatible = "xlnx,axi-dma-3.00.a";
+			interrupt-parent = < &intc >;
+			interrupts = < 0x01 0x02 0x00 0x02 >;
+			reg = < 0x84600000 0x10000 >;
+			xlnx,dlytmr-resolution = < 0x4e2 >;
+			xlnx,family = "virtex6";
+			xlnx,include-mm2s = < 0x01 >;
+			xlnx,include-mm2s-dre = < 0x01 >;
+			xlnx,include-s2mm = < 0x01 >;
+			xlnx,include-s2mm-dre = < 0x01 >;
+			xlnx,mm2s-burst-size = < 0x10 >;
+			xlnx,prmry-is-aclk-async = < 0x00 >;
+			xlnx,s2mm-burst-size = < 0x10 >;
+			xlnx,sg-include-desc-queue = < 0x01 >;
+			xlnx,sg-include-stscntrl-strm = < 0x01 >;
+			xlnx,sg-length-width = < 0x10 >;
+			xlnx,sg-use-stsapp-length = < 0x01 >;
+		};
+
+		serial@83e00000 {
+			clock-frequency = < 0x5f5e100 >;
+			compatible = "xlnx,axi-uart16550-1.01.a\0xlnx,xps-uart16550-2.00.a\0ns16550a";
+			current-speed = < 0x2580 >;
+			device_type = "serial";
+			interrupt-parent = < &intc >;
+			interrupts = < 0x05 0x02 >;
+			reg = < 0x83e00000 0x10000 >;
+			reg-offset = < 0x1000 >;
+			reg-shift = < 0x02 >;
+			xlnx,external-xin-clk-hz = < 0x17d7840 >;
+			xlnx,family = "virtex6";
+			xlnx,has-external-rclk = < 0x00 >;
+			xlnx,has-external-xin = < 0x00 >;
+			xlnx,is-a-16550 = < 0x01 >;
+			xlnx,use-modem-ports = < 0x00 >;
+			xlnx,use-user-ports = < 0x00 >;
+		};
+
+		system-timer@83c00000 {
+			clock-frequency = < 0x5f5e100 >;
+			compatible = "xlnx,axi-timer-1.01.a\0xlnx,xps-timer-1.00.a";
+			interrupt-parent = < &intc >;
+			interrupts = < 0x02 0x00 >;
+			reg = < 0x83c00000 0x10000 >;
+			xlnx,count-width = < 0x20 >;
+			xlnx,family = "virtex6";
+			xlnx,gen0-assert = < 0x01 >;
+			xlnx,gen1-assert = < 0x01 >;
+			xlnx,one-timer-only = < 0x00 >;
+			xlnx,trig0-assert = < 0x01 >;
+			xlnx,trig1-assert = < 0x01 >;
+		};
+
+		intc: interrupt-controller@81800000 {
+			#interrupt-cells = < 0x02 >;
+			compatible = "xlnx,axi-intc-1.01.a\0xlnx,xps-intc-1.00.a";
+			interrupt-controller;
+			reg = < 0x81800000 0x10000 >;
+			xlnx,kind-of-intr = < 0x04 >;
+			xlnx,num-intr-inputs = < 0x06 >;
+		};
+
+		flash@86000000 {
+			#address-cells = < 0x01 >;
+			#size-cells = < 0x01 >;
+			bank-width = < 0x02 >;
+			compatible = "xlnx,axi-emc-1.01.a\0cfi-flash";
+			reg = < 0x86000000 0x2000000 >;
+			xlnx,axi-clk-period-ps = < 0x2710 >;
+			xlnx,family = "virtex6";
+			xlnx,include-datawidth-matching-0 = < 0x01 >;
+			xlnx,include-datawidth-matching-1 = < 0x00 >;
+			xlnx,include-datawidth-matching-2 = < 0x00 >;
+			xlnx,include-datawidth-matching-3 = < 0x00 >;
+			xlnx,include-negedge-ioregs = < 0x00 >;
+			xlnx,max-mem-width = < 0x10 >;
+			xlnx,mem0-type = < 0x02 >;
+			xlnx,mem0-width = < 0x10 >;
+			xlnx,mem1-type = < 0x00 >;
+			xlnx,mem1-width = < 0x20 >;
+			xlnx,mem2-type = < 0x00 >;
+			xlnx,mem2-width = < 0x20 >;
+			xlnx,mem3-type = < 0x00 >;
+			xlnx,mem3-width = < 0x20 >;
+			xlnx,num-banks-mem = < 0x01 >;
+			xlnx,parity-type-mem-0 = < 0x00 >;
+			xlnx,parity-type-mem-1 = < 0x00 >;
+			xlnx,parity-type-mem-2 = < 0x00 >;
+			xlnx,parity-type-mem-3 = < 0x00 >;
+			xlnx,s-axi-en-reg = < 0x00 >;
+			xlnx,s-axi-mem-addr-width = < 0x20 >;
+			xlnx,s-axi-mem-data-width = < 0x20 >;
+			xlnx,s-axi-mem-id-width = < 0x01 >;
+			xlnx,s-axi-mem-protocol = "AXI4LITE";
+			xlnx,s-axi-reg-addr-width = < 0x20 >;
+			xlnx,s-axi-reg-data-width = < 0x20 >;
+			xlnx,s-axi-reg-protocol = "axi4";
+			xlnx,synch-pipedelay-0 = < 0x02 >;
+			xlnx,synch-pipedelay-1 = < 0x02 >;
+			xlnx,synch-pipedelay-2 = < 0x02 >;
+			xlnx,synch-pipedelay-3 = < 0x02 >;
+			xlnx,tavdv-ps-mem-0 = < 0x1fbd0 >;
+			xlnx,tavdv-ps-mem-1 = < 0x3a98 >;
+			xlnx,tavdv-ps-mem-2 = < 0x3a98 >;
+			xlnx,tavdv-ps-mem-3 = < 0x3a98 >;
+			xlnx,tcedv-ps-mem-0 = < 0x1fbd0 >;
+			xlnx,tcedv-ps-mem-1 = < 0x3a98 >;
+			xlnx,tcedv-ps-mem-2 = < 0x3a98 >;
+			xlnx,tcedv-ps-mem-3 = < 0x3a98 >;
+			xlnx,thzce-ps-mem-0 = < 0x88b8 >;
+			xlnx,thzce-ps-mem-1 = < 0x1b58 >;
+			xlnx,thzce-ps-mem-2 = < 0x1b58 >;
+			xlnx,thzce-ps-mem-3 = < 0x1b58 >;
+			xlnx,thzoe-ps-mem-0 = < 0x1b58 >;
+			xlnx,thzoe-ps-mem-1 = < 0x1b58 >;
+			xlnx,thzoe-ps-mem-2 = < 0x1b58 >;
+			xlnx,thzoe-ps-mem-3 = < 0x1b58 >;
+			xlnx,tlzwe-ps-mem-0 = < 0x88b8 >;
+			xlnx,tlzwe-ps-mem-1 = < 0x00 >;
+			xlnx,tlzwe-ps-mem-2 = < 0x00 >;
+			xlnx,tlzwe-ps-mem-3 = < 0x00 >;
+			xlnx,tpacc-ps-flash-0 = < 0x61a8 >;
+			xlnx,tpacc-ps-flash-1 = < 0x61a8 >;
+			xlnx,tpacc-ps-flash-2 = < 0x61a8 >;
+			xlnx,tpacc-ps-flash-3 = < 0x61a8 >;
+			xlnx,twc-ps-mem-0 = < 0x32c8 >;
+			xlnx,twc-ps-mem-1 = < 0x3a98 >;
+			xlnx,twc-ps-mem-2 = < 0x3a98 >;
+			xlnx,twc-ps-mem-3 = < 0x3a98 >;
+			xlnx,twp-ps-mem-0 = < 0x11170 >;
+			xlnx,twp-ps-mem-1 = < 0x2ee0 >;
+			xlnx,twp-ps-mem-2 = < 0x2ee0 >;
+			xlnx,twp-ps-mem-3 = < 0x2ee0 >;
+			xlnx,twph-ps-mem-0 = < 0x2ee0 >;
+			xlnx,twph-ps-mem-1 = < 0x2ee0 >;
+			xlnx,twph-ps-mem-2 = < 0x2ee0 >;
+			xlnx,twph-ps-mem-3 = < 0x2ee0 >;
+
+			partition@0 {
+				label = "fpga";
+				reg = < 0x00 0x100000 >;
+			};
+
+			partition@100000 {
+				label = "boot";
+				reg = < 0x100000 0x40000 >;
+			};
+
+			partition@140000 {
+				label = "bootenv";
+				reg = < 0x140000 0x20000 >;
+			};
+
+			partition@160000 {
+				label = "config";
+				reg = < 0x160000 0x20000 >;
+			};
+
+			partition@180000 {
+				label = "image";
+				reg = < 0x180000 0xa00000 >;
+			};
+
+			partition@b80000 {
+				label = "spare";
+				reg = < 0xb80000 0x00 >;
+			};
+		};
+	};
+};
