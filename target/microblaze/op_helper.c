@@ -71,29 +71,6 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
-void helper_debug(CPUMBState *env)
-{
-    int i;
-
-    qemu_log("PC=%08x\n", env->pc);
-    qemu_log("rmsr=%x resr=%x rear=%" PRIx64 " "
-             "debug[%x] imm=%x iflags=%x\n",
-             env->msr, env->esr, env->ear,
-             env->debug, env->imm, env->iflags);
-    qemu_log("btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
-             env->btaken, env->btarget,
-             (env->msr & MSR_UM) ? "user" : "kernel",
-             (env->msr & MSR_UMS) ? "user" : "kernel",
-             (bool)(env->msr & MSR_EIP),
-             (bool)(env->msr & MSR_IE));
-    for (i = 0; i < 32; i++) {
-        qemu_log("r%2.2d=%8.8x ", i, env->regs[i]);
-        if ((i + 1) % 4 == 0)
-            qemu_log("\n");
-    }
-    qemu_log("\n\n");
-}
-
 static inline uint32_t compute_carry(uint32_t a, uint32_t b, uint32_t cin)
 {
     uint32_t cout = 0;

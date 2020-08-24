@@ -53,7 +53,6 @@
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP DISAS_TARGET_2 /* only pc was modified statically */
 
-static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
@@ -1675,13 +1674,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
-#if SIM_COMPAT
-        if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-            tcg_gen_movi_i32(cpu_pc, dc->pc);
-            gen_helper_debug();
-        }
-#endif
-
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
             gen_raise_exception_sync(dc, EXCP_DEBUG);
             /* The address covered by the breakpoint must be included in
@@ -1824,10 +1816,9 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "IN: PC=%x %s\n",
                  env->pc, lookup_symbol(env->pc));
     qemu_fprintf(f, "rmsr=%x resr=%x rear=%" PRIx64 " "
-                 "debug=%x imm=%x iflags=%x fsr=%x rbtr=%x\n",
+                 "imm=%x iflags=%x fsr=%x rbtr=%x\n",
                  env->msr, env->esr, env->ear,
-                 env->debug, env->imm, env->iflags, env->fsr,
-                 env->btr);
+                 env->imm, env->iflags, env->fsr, env->btr);
     qemu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
                  env->btaken, env->btarget,
                  (env->msr & MSR_UM) ? "user" : "kernel",
@@ -1857,9 +1848,6 @@ void mb_tcg_init(void)
 {
     int i;
 
-    env_debug = tcg_global_mem_new_i32(cpu_env,
-                    offsetof(CPUMBState, debug),
-                    "debug0");
     env_iflags = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUMBState, iflags),
                     "iflags");

@@ -229,7 +229,6 @@ typedef struct CPUMBState CPUMBState;
 #define STREAM_NONBLOCK  (1 << 4)
 
 struct CPUMBState {
-    uint32_t debug;
     uint32_t btaken;
     uint32_t btarget;
     uint32_t bimm;
