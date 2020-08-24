@@ -2133,6 +2133,7 @@ static const TypeInfo virtio_pci_bus_info = {
     .name          = TYPE_VIRTIO_PCI_BUS,
     .parent        = TYPE_VIRTIO_BUS,
     .instance_size = sizeof(VirtioPCIBusState),
+    .class_size    = sizeof(VirtioPCIBusClass),
     .class_init    = virtio_pci_bus_class_init,
 };
 

@@ -1237,6 +1237,7 @@ static const TypeInfo virtio_ccw_bus_info = {
     .name = TYPE_VIRTIO_CCW_BUS,
     .parent = TYPE_VIRTIO_BUS,
     .instance_size = sizeof(VirtioCcwBusState),
+    .class_size = sizeof(VirtioCcwBusClass),
     .class_init = virtio_ccw_bus_class_init,
 };
 
