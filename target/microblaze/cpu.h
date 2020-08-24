@@ -234,8 +234,8 @@ typedef struct CPUMBState CPUMBState;
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 struct CPUMBState {
-    uint32_t btaken;
-    uint32_t btarget;
+    uint32_t bvalue;   /* TCG temporary, only valid during a TB */
+    uint32_t btarget;  /* Full resolved branch destination */
 
     uint32_t imm;
     uint32_t regs[32];

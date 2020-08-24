@@ -45,7 +45,7 @@ static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
 static TCGv_i32 cpu_msr_c;
 static TCGv_i32 cpu_imm;
-static TCGv_i32 cpu_btaken;
+static TCGv_i32 cpu_bvalue;
 static TCGv_i32 cpu_btarget;
 static TCGv_i32 cpu_iflags;
 static TCGv cpu_res_addr;
@@ -77,12 +77,11 @@ typedef struct DisasContext {
     unsigned int tb_flags_to_set;
     int mem_index;
 
-#define JMP_NOJMP     0
-#define JMP_DIRECT    1
-#define JMP_DIRECT_CC 2
-#define JMP_INDIRECT  3
-    unsigned int jmp;
-    uint32_t jmp_pc;
+    /* Condition under which to jump, including NEVER and ALWAYS. */
+    TCGCond jmp_cond;
+
+    /* Immediate branch-taken destination, or -1 for indirect. */
+    uint32_t jmp_dest;
 
     int abort_at_next_insn;
 } DisasContext;
@@ -103,17 +102,6 @@ static void t_sync_flags(DisasContext *dc)
     /* Synch the tb dependent flags between translator and runtime.  */
     if ((dc->tb_flags ^ dc->base.tb->flags) & ~MSR_TB_MASK) {
         tcg_gen_movi_i32(cpu_iflags, dc->tb_flags & ~MSR_TB_MASK);
-    }
-}
-
-static inline void sync_jmpstate(DisasContext *dc)
-{
-    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
-        if (dc->jmp == JMP_DIRECT) {
-            tcg_gen_movi_i32(cpu_btaken, 1);
-        }
-        dc->jmp = JMP_INDIRECT;
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
     }
 }
 
@@ -782,8 +770,6 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
         }
     }
 
-    sync_jmpstate(dc);
-
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
         dc->cpu->cfg.unaligned_exceptions) {
@@ -885,8 +871,6 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
     /* lwx does not throw unaligned access errors, so force alignment */
     tcg_gen_andi_tl(addr, addr, ~3);
 
-    sync_jmpstate(dc);
-
     tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index, MO_TEUL);
     tcg_gen_mov_tl(cpu_res_addr, addr);
     tcg_temp_free(addr);
@@ -919,8 +903,6 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
             tcg_gen_xori_tl(addr, addr, 3 - size);
         }
     }
-
-    sync_jmpstate(dc);
 
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
@@ -1022,8 +1004,6 @@ static bool trans_swx(DisasContext *dc, arg_typea *arg)
     TCGLabel *swx_done = gen_new_label();
     TCGLabel *swx_fail = gen_new_label();
     TCGv_i32 tval;
-
-    sync_jmpstate(dc);
 
     /* swx does not throw unaligned access errors, so force alignment */
     tcg_gen_andi_tl(addr, addr, ~3);
@@ -1392,44 +1372,6 @@ static void dec_msr(DisasContext *dc)
     }
 }
 
-static inline void eval_cc(DisasContext *dc, unsigned int cc,
-                           TCGv_i32 d, TCGv_i32 a)
-{
-    static const int mb_to_tcg_cc[] = {
-        [CC_EQ] = TCG_COND_EQ,
-        [CC_NE] = TCG_COND_NE,
-        [CC_LT] = TCG_COND_LT,
-        [CC_LE] = TCG_COND_LE,
-        [CC_GE] = TCG_COND_GE,
-        [CC_GT] = TCG_COND_GT,
-    };
-
-    switch (cc) {
-    case CC_EQ:
-    case CC_NE:
-    case CC_LT:
-    case CC_LE:
-    case CC_GE:
-    case CC_GT:
-        tcg_gen_setcondi_i32(mb_to_tcg_cc[cc], d, a, 0);
-        break;
-    default:
-        cpu_abort(CPU(dc->cpu), "Unknown condition code %x.\n", cc);
-        break;
-    }
-}
-
-static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
-{
-    TCGv_i32 zero = tcg_const_i32(0);
-
-    tcg_gen_movcond_i32(TCG_COND_NE, cpu_pc,
-                        cpu_btaken, zero,
-                        pc_true, pc_false);
-
-    tcg_temp_free_i32(zero);
-}
-
 static void dec_setup_dslot(DisasContext *dc)
 {
     dc->tb_flags_to_set |= D_FLAG;
@@ -1440,8 +1382,17 @@ static void dec_setup_dslot(DisasContext *dc)
 
 static void dec_bcc(DisasContext *dc)
 {
+    static const TCGCond mb_to_tcg_cc[] = {
+        [CC_EQ] = TCG_COND_EQ,
+        [CC_NE] = TCG_COND_NE,
+        [CC_LT] = TCG_COND_LT,
+        [CC_LE] = TCG_COND_LE,
+        [CC_GE] = TCG_COND_GE,
+        [CC_GT] = TCG_COND_GT,
+    };
     unsigned int cc;
     unsigned int dslot;
+    TCGv_i32 zero, next;
 
     cc = EXTRACT_FIELD(dc->ir, 21, 23);
     dslot = dc->ir & (1 << 25);
@@ -1450,15 +1401,29 @@ static void dec_bcc(DisasContext *dc)
         dec_setup_dslot(dc);
     }
 
+    dc->jmp_cond = mb_to_tcg_cc[cc];
+
+    /* Cache the condition register in cpu_bvalue across any delay slot.  */
+    tcg_gen_mov_i32(cpu_bvalue, cpu_R[dc->ra]);
+
+    /* Store the branch taken destination into btarget.  */
     if (dc->type_b) {
-        dc->jmp = JMP_DIRECT_CC;
-        dc->jmp_pc = dc->base.pc_next + dec_alu_typeb_imm(dc);
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
+        dc->jmp_dest = dc->base.pc_next + dec_alu_typeb_imm(dc);
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
     } else {
-        dc->jmp = JMP_INDIRECT;
-        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], dc->base.pc_next);
+        dc->jmp_dest = -1;
+        tcg_gen_addi_i32(cpu_btarget, reg_for_read(dc, dc->rb),
+                         dc->base.pc_next);
     }
-    eval_cc(dc, cc, cpu_btaken, cpu_R[dc->ra]);
+
+    /* Compute the final destination into btarget.  */
+    zero = tcg_const_i32(0);
+    next = tcg_const_i32(dc->base.pc_next + (dslot + 1) * 4);
+    tcg_gen_movcond_i32(dc->jmp_cond, cpu_btarget,
+                        reg_for_read(dc, dc->ra), zero,
+                        cpu_btarget, next);
+    tcg_temp_free_i32(zero);
+    tcg_temp_free_i32(next);
 }
 
 static void dec_br(DisasContext *dc)
@@ -1479,14 +1444,13 @@ static void dec_br(DisasContext *dc)
 
     add_pc = abs ? 0 : dc->base.pc_next;
     if (dc->type_b) {
-        dc->jmp = JMP_DIRECT;
-        dc->jmp_pc = add_pc + dec_alu_typeb_imm(dc);
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
+        dc->jmp_dest = add_pc + dec_alu_typeb_imm(dc);
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
     } else {
-        dc->jmp = JMP_INDIRECT;
+        dc->jmp_dest = -1;
         tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], add_pc);
     }
-    tcg_gen_movi_i32(cpu_btaken, 1);
+    dc->jmp_cond = TCG_COND_ALWAYS;
 }
 
 static inline void do_rti(DisasContext *dc)
@@ -1567,8 +1531,8 @@ static void dec_rts(DisasContext *dc)
         dc->tb_flags |= DRTE_FLAG;
     }
 
-    dc->jmp = JMP_INDIRECT;
-    tcg_gen_movi_i32(cpu_btaken, 1);
+    dc->jmp_cond = TCG_COND_ALWAYS;
+    dc->jmp_dest = -1;
     tcg_gen_add_i32(cpu_btarget, cpu_R[dc->ra], *dec_alu_op_b(dc));
 }
 
@@ -1659,13 +1623,14 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 
     dc->cpu = cpu;
     dc->tb_flags = dc->base.tb->flags;
-    dc->jmp = dc->tb_flags & D_FLAG ? JMP_INDIRECT : JMP_NOJMP;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->ext_imm = dc->base.tb->cs_base;
     dc->r0 = NULL;
     dc->r0_set = false;
     dc->mem_index = cpu_mmu_index(&cpu->env, false);
+    dc->jmp_cond = dc->tb_flags & D_FLAG ? TCG_COND_ALWAYS : TCG_COND_NEVER;
+    dc->jmp_dest = -1;
 
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
     dc->base.max_insns = MIN(dc->base.max_insns, bound);
@@ -1734,14 +1699,12 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
     dc->tb_flags |= dc->tb_flags_to_set;
     dc->base.pc_next += 4;
 
-    if (dc->jmp != JMP_NOJMP && !(dc->tb_flags & D_FLAG)) {
+    if (dc->jmp_cond != TCG_COND_NEVER && !(dc->tb_flags & D_FLAG)) {
         if (dc->tb_flags & DRTI_FLAG) {
             do_rti(dc);
-        }
-        if (dc->tb_flags & DRTB_FLAG) {
+        } else if (dc->tb_flags & DRTB_FLAG) {
             do_rtb(dc);
-        }
-        if (dc->tb_flags & DRTE_FLAG) {
+        } else if (dc->tb_flags & DRTE_FLAG) {
             do_rte(dc);
         }
         dc->base.is_jmp = DISAS_JUMP;
@@ -1766,19 +1729,13 @@ static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
     }
 
     t_sync_flags(dc);
-    if (dc->tb_flags & D_FLAG) {
-        sync_jmpstate(dc);
-        dc->jmp = JMP_NOJMP;
-    }
 
     switch (dc->base.is_jmp) {
     case DISAS_TOO_MANY:
-        assert(dc->jmp == JMP_NOJMP);
         gen_goto_tb(dc, 0, dc->base.pc_next);
         return;
 
     case DISAS_UPDATE:
-        assert(dc->jmp == JMP_NOJMP);
         if (unlikely(cs->singlestep_enabled)) {
             gen_raise_exception(dc, EXCP_DEBUG);
         } else {
@@ -1787,35 +1744,41 @@ static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
         return;
 
     case DISAS_JUMP:
-        switch (dc->jmp) {
-        case JMP_INDIRECT:
-            {
-                TCGv_i32 tmp_pc = tcg_const_i32(dc->base.pc_next);
-                eval_cond_jmp(dc, cpu_btarget, tmp_pc);
-                tcg_temp_free_i32(tmp_pc);
+        if (dc->jmp_dest != -1 && !cs->singlestep_enabled) {
+            /* Direct jump. */
+            tcg_gen_discard_i32(cpu_btarget);
 
-                if (unlikely(cs->singlestep_enabled)) {
-                    gen_raise_exception(dc, EXCP_DEBUG);
-                } else {
-                    tcg_gen_exit_tb(NULL, 0);
-                }
-            }
-            return;
+            if (dc->jmp_cond != TCG_COND_ALWAYS) {
+                /* Conditional direct jump. */
+                TCGLabel *taken = gen_new_label();
+                TCGv_i32 tmp = tcg_temp_new_i32();
 
-        case JMP_DIRECT_CC:
-            {
-                TCGLabel *l1 = gen_new_label();
-                tcg_gen_brcondi_i32(TCG_COND_NE, cpu_btaken, 0, l1);
+                /*
+                 * Copy bvalue to a temp now, so we can discard bvalue.
+                 * This can avoid writing bvalue to memory when the
+                 * delay slot cannot raise an exception.
+                 */
+                tcg_gen_mov_i32(tmp, cpu_bvalue);
+                tcg_gen_discard_i32(cpu_bvalue);
+
+                tcg_gen_brcondi_i32(dc->jmp_cond, tmp, 0, taken);
                 gen_goto_tb(dc, 1, dc->base.pc_next);
-                gen_set_label(l1);
+                gen_set_label(taken);
             }
-            /* fall through */
-
-        case JMP_DIRECT:
-            gen_goto_tb(dc, 0, dc->jmp_pc);
+            gen_goto_tb(dc, 0, dc->jmp_dest);
             return;
         }
-        /* fall through */
+
+        /* Indirect jump (or direct jump w/ singlestep) */
+        tcg_gen_mov_i32(cpu_pc, cpu_btarget);
+        tcg_gen_discard_i32(cpu_btarget);
+
+        if (unlikely(cs->singlestep_enabled)) {
+            gen_raise_exception(dc, EXCP_DEBUG);
+        } else {
+            tcg_gen_exit_tb(NULL, 0);
+        }
+        return;
 
     default:
         g_assert_not_reached();
@@ -1867,8 +1830,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         qemu_fprintf(f, " BIMM");
     }
     if (iflags & D_FLAG) {
-        qemu_fprintf(f, " D(btaken=%d btarget=0x%08x)",
-                     env->btaken, env->btarget);
+        qemu_fprintf(f, " D(btarget=0x%08x)", env->btarget);
     }
     if (iflags & DRTI_FLAG) {
         qemu_fprintf(f, " DRTI");
@@ -1918,7 +1880,7 @@ void mb_tcg_init(void)
         SP(msr_c),
         SP(imm),
         SP(iflags),
-        SP(btaken),
+        SP(bvalue),
         SP(btarget),
         SP(res_val),
     };
