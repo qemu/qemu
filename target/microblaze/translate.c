@@ -56,12 +56,12 @@
 static TCGv_i32 cpu_R[32];
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_msr;
-static TCGv_i32 env_imm;
-static TCGv_i32 env_btaken;
+static TCGv_i32 cpu_imm;
+static TCGv_i32 cpu_btaken;
 static TCGv_i32 cpu_btarget;
-static TCGv_i32 env_iflags;
-static TCGv env_res_addr;
-static TCGv_i32 env_res_val;
+static TCGv_i32 cpu_iflags;
+static TCGv cpu_res_addr;
+static TCGv_i32 cpu_res_val;
 
 #include "exec/gen-icount.h"
 
@@ -107,7 +107,7 @@ static inline void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
     if (dc->tb_flags != dc->synced_flags) {
-        tcg_gen_movi_i32(env_iflags, dc->tb_flags);
+        tcg_gen_movi_i32(cpu_iflags, dc->tb_flags);
         dc->synced_flags = dc->tb_flags;
     }
 }
@@ -222,10 +222,10 @@ static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
 {
     if (dc->type_b) {
         if (dc->tb_flags & IMM_FLAG)
-            tcg_gen_ori_i32(env_imm, env_imm, dc->imm);
+            tcg_gen_ori_i32(cpu_imm, cpu_imm, dc->imm);
         else
-            tcg_gen_movi_i32(env_imm, (int32_t)((int16_t)dc->imm));
-        return &env_imm;
+            tcg_gen_movi_i32(cpu_imm, (int32_t)((int16_t)dc->imm));
+        return &cpu_imm;
     } else
         return &cpu_R[dc->rb];
 }
@@ -859,7 +859,7 @@ static inline void sync_jmpstate(DisasContext *dc)
 {
     if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
         if (dc->jmp == JMP_DIRECT) {
-            tcg_gen_movi_i32(env_btaken, 1);
+            tcg_gen_movi_i32(cpu_btaken, 1);
         }
         dc->jmp = JMP_INDIRECT;
         tcg_gen_movi_i32(cpu_btarget, dc->jmp_pc);
@@ -869,7 +869,7 @@ static inline void sync_jmpstate(DisasContext *dc)
 static void dec_imm(DisasContext *dc)
 {
     LOG_DIS("imm %x\n", dc->imm << 16);
-    tcg_gen_movi_i32(env_imm, (dc->imm << 16));
+    tcg_gen_movi_i32(cpu_imm, (dc->imm << 16));
     dc->tb_flags |= IMM_FLAG;
     dc->clear_imm = 0;
 }
@@ -1040,8 +1040,8 @@ static void dec_load(DisasContext *dc)
     }
 
     if (ex) {
-        tcg_gen_mov_tl(env_res_addr, addr);
-        tcg_gen_mov_i32(env_res_val, v);
+        tcg_gen_mov_tl(cpu_res_addr, addr);
+        tcg_gen_mov_i32(cpu_res_val, v);
     }
     if (dc->rd) {
         tcg_gen_mov_i32(cpu_R[dc->rd], v);
@@ -1103,7 +1103,7 @@ static void dec_store(DisasContext *dc)
 
         write_carryi(dc, 1);
         swx_skip = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, addr, swx_skip);
+        tcg_gen_brcond_tl(TCG_COND_NE, cpu_res_addr, addr, swx_skip);
 
         /*
          * Compare the value loaded at lwx with current contents of
@@ -1111,11 +1111,11 @@ static void dec_store(DisasContext *dc)
          */
         tval = tcg_temp_new_i32();
 
-        tcg_gen_atomic_cmpxchg_i32(tval, addr, env_res_val,
+        tcg_gen_atomic_cmpxchg_i32(tval, addr, cpu_res_val,
                                    cpu_R[dc->rd], mem_index,
                                    mop);
 
-        tcg_gen_brcond_i32(TCG_COND_NE, env_res_val, tval, swx_skip);
+        tcg_gen_brcond_i32(TCG_COND_NE, cpu_res_val, tval, swx_skip);
         write_carryi(dc, 0);
         tcg_temp_free_i32(tval);
     }
@@ -1204,7 +1204,7 @@ static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
     TCGv_i32 zero = tcg_const_i32(0);
 
     tcg_gen_movcond_i32(TCG_COND_NE, cpu_pc,
-                        env_btaken, zero,
+                        cpu_btaken, zero,
                         pc_true, pc_false);
 
     tcg_temp_free_i32(zero);
@@ -1245,7 +1245,7 @@ static void dec_bcc(DisasContext *dc)
         dc->jmp = JMP_INDIRECT;
         tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
     }
-    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra]);
+    eval_cc(dc, cc, cpu_btaken, cpu_R[dc->ra]);
 }
 
 static void dec_br(DisasContext *dc)
@@ -1311,7 +1311,7 @@ static void dec_br(DisasContext *dc)
 
     dc->jmp = JMP_INDIRECT;
     if (abs) {
-        tcg_gen_movi_i32(env_btaken, 1);
+        tcg_gen_movi_i32(cpu_btaken, 1);
         tcg_gen_mov_i32(cpu_btarget, *(dec_alu_op_b(dc)));
         if (link && !dslot) {
             if (!(dc->tb_flags & IMM_FLAG) &&
@@ -1330,7 +1330,7 @@ static void dec_br(DisasContext *dc)
             dc->jmp = JMP_DIRECT;
             dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
         } else {
-            tcg_gen_movi_i32(env_btaken, 1);
+            tcg_gen_movi_i32(cpu_btaken, 1);
             tcg_gen_addi_i32(cpu_btarget, *dec_alu_op_b(dc), dc->pc);
         }
     }
@@ -1419,7 +1419,7 @@ static void dec_rts(DisasContext *dc)
         LOG_DIS("rts ir=%x\n", dc->ir);
 
     dc->jmp = JMP_INDIRECT;
-    tcg_gen_movi_i32(env_btaken, 1);
+    tcg_gen_movi_i32(cpu_btaken, 1);
     tcg_gen_add_i32(cpu_btarget, cpu_R[dc->ra], *dec_alu_op_b(dc));
 }
 
@@ -1722,7 +1722,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                     TCGLabel *l1 = gen_new_label();
                     t_sync_flags(dc);
                     /* Conditional jmp.  */
-                    tcg_gen_brcondi_i32(TCG_COND_NE, env_btaken, 0, l1);
+                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_btaken, 0, l1);
                     gen_goto_tb(dc, 1, dc->pc);
                     gen_set_label(l1);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
@@ -1848,22 +1848,22 @@ void mb_tcg_init(void)
 {
     int i;
 
-    env_iflags = tcg_global_mem_new_i32(cpu_env,
+    cpu_iflags = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUMBState, iflags),
                     "iflags");
-    env_imm = tcg_global_mem_new_i32(cpu_env,
+    cpu_imm = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUMBState, imm),
                     "imm");
     cpu_btarget = tcg_global_mem_new_i32(cpu_env,
                      offsetof(CPUMBState, btarget),
                      "btarget");
-    env_btaken = tcg_global_mem_new_i32(cpu_env,
+    cpu_btaken = tcg_global_mem_new_i32(cpu_env,
                      offsetof(CPUMBState, btaken),
                      "btaken");
-    env_res_addr = tcg_global_mem_new(cpu_env,
+    cpu_res_addr = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, res_addr),
                      "res_addr");
-    env_res_val = tcg_global_mem_new_i32(cpu_env,
+    cpu_res_val = tcg_global_mem_new_i32(cpu_env,
                      offsetof(CPUMBState, res_val),
                      "res_val");
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
