@@ -152,10 +152,10 @@ libcap_ng = not_found
 if 'CONFIG_LIBCAP_NG' in config_host
   libcap_ng = declare_dependency(link_args: config_host['LIBCAP_NG_LIBS'].split())
 endif
-xkbcommon = not_found
-if 'CONFIG_XKBCOMMON' in config_host
-  xkbcommon = declare_dependency(compile_args: config_host['XKBCOMMON_CFLAGS'].split(),
-                                 link_args: config_host['XKBCOMMON_LIBS'].split())
+xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'), static: enable_static,
+                       include_type: 'system')
+if xkbcommon.found()
+  xkbcommon = declare_dependency(dependencies: xkbcommon)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -389,6 +389,7 @@ config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_PNG', png.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
+config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -1062,7 +1063,7 @@ if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
 endif
 
-if 'CONFIG_XKBCOMMON' in config_host
+if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
   qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
                            dependencies: [qemuutil, xkbcommon], install: have_tools)

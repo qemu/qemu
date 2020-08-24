@@ -432,7 +432,7 @@ vde=""
 vnc_sasl="auto"
 vnc_jpeg="auto"
 vnc_png="auto"
-xkbcommon=""
+xkbcommon="auto"
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -1631,9 +1631,9 @@ for opt do
   ;;
   --disable-libpmem) libpmem=no
   ;;
-  --enable-xkbcommon) xkbcommon=yes
+  --enable-xkbcommon) xkbcommon="enabled"
   ;;
-  --disable-xkbcommon) xkbcommon=no
+  --disable-xkbcommon) xkbcommon="disabled"
   ;;
   --enable-plugins) plugins="yes"
   ;;
@@ -3445,22 +3445,6 @@ EOF
         QEMU_CFLAGS="$QEMU_CFLAGS -DLEGACY_RDMA_REG_MR"
     fi
 fi
-
-##########################################
-# xkbcommon probe
-if test "$xkbcommon" != "no" ; then
-  if $pkg_config xkbcommon --exists; then
-    xkbcommon_cflags=$($pkg_config xkbcommon --cflags)
-    xkbcommon_libs=$($pkg_config xkbcommon --libs)
-    xkbcommon=yes
-  else
-    if test "$xkbcommon" = "yes" ; then
-      feature_not_found "xkbcommon" "Install libxkbcommon-devel"
-    fi
-    xkbcommon=no
-  fi
-fi
-
 
 ##########################################
 # xfsctl() probe, used for file-posix.c
@@ -6827,11 +6811,6 @@ if test "$audio_win_int" = "yes" ; then
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
-if test "$xkbcommon" = "yes" ; then
-  echo "CONFIG_XKBCOMMON=y" >> $config_host_mak
-  echo "XKBCOMMON_CFLAGS=$xkbcommon_cflags" >> $config_host_mak
-  echo "XKBCOMMON_LIBS=$xkbcommon_libs" >> $config_host_mak
-fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
 fi
@@ -8251,7 +8230,7 @@ NINJA=$PWD/ninjatool $meson setup \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
 	-Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
-	-Dgettext=$gettext \
+	-Dgettext=$gettext -Dxkbcommon=$xkbcommon \
         $cross_arg \
         "$PWD" "$source_path"
 
