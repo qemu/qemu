@@ -1,0 +1,42 @@
+# M-profile UserFault.NOCP exception handling
+#
+#  Copyright (c) 2020 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+# For M-profile, the architecture specifies that NOCP UsageFaults
+# should take precedence over UNDEF faults over the whole wide
+# range of coprocessor-space encodings, with the exception of
+# VLLDM and VLSTM. (Compare v8.1M IsCPInstruction() pseudocode and
+# v8M Arm ARM rule R_QLGM.) This isn't mandatory for v8.0M but we choose
+# to behave the same as v8.1M.
+# This decode is handled before any others (and in particular before
+# decoding FP instructions which are in the coprocessor space).
+# If the coprocessor is not present or disabled then we will generate
+# the NOCP exception; otherwise we let the insn through to the main decode.
+
+{
+  # Special cases which do not take an early NOCP: VLLDM and VLSTM
+  VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 0000 0000
+  # TODO: VSCCLRM (new in v8.1M) is similar:
+  #VSCCLRM      1110 1100 1-01 1111 ---- 1011 ---- ---0
+
+  NOCP         111- 1110 ---- ---- ---- cp:4 ---- ----
+  NOCP         111- 110- ---- ---- ---- cp:4 ---- ----
+  # TODO: From v8.1M onwards we will also want this range to NOCP
+  #NOCP_8_1     111- 1111 ---- ---- ---- ---- ---- ---- cp=10
+}

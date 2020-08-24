@@ -45,6 +45,8 @@
 &sat             !extern rd rn satimm imm sh
 &pkh             !extern rd rn rm imm tb
 &cps             !extern mode imod M A I F
+&mcr             !extern cp opc1 crn crm opc2 rt
+&mcrr            !extern cp opc1 crm rt rt2
 
 # Data-processing (register)
 
@@ -620,6 +622,23 @@ RFE              1110 1001 10.1 .... 1100000000000000         @rfe pu=1
 
 SRS              1110 1000 00.0 1101 1100 0000 000. ....      @srs pu=2
 SRS              1110 1001 10.0 1101 1100 0000 000. ....      @srs pu=1
+
+# Coprocessor instructions
+
+# We decode MCR, MCR, MRRC and MCRR only, because for QEMU the
+# other coprocessor instructions always UNDEF.
+# The trans_ functions for these will ignore cp values 8..13 for v7 or
+# earlier, and 0..13 for v8 and later, because those areas of the
+# encoding space may be used for other things, such as VFP or Neon.
+
+@mcr             .... .... opc1:3 . crn:4 rt:4 cp:4 opc2:3 . crm:4
+@mcrr            .... .... .... rt2:4 rt:4 cp:4 opc1:4 crm:4
+
+MCRR             1110 1100 0100 .... .... .... .... .... @mcrr
+MRRC             1110 1100 0101 .... .... .... .... .... @mcrr
+
+MCR              1110 1110 ... 0 .... .... .... ... 1 .... @mcr
+MRC              1110 1110 ... 1 .... .... .... ... 1 .... @mcr
 
 # Branches
 
