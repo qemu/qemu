@@ -41,7 +41,7 @@ static void vhost_user_vga_inst_initfn(Object *obj)
 static const VirtioPCIDeviceTypeInfo vhost_user_vga_info = {
     .generic_name  = TYPE_VHOST_USER_VGA,
     .parent        = TYPE_VIRTIO_VGA_BASE,
-    .instance_size = sizeof(struct VhostUserVGA),
+    .instance_size = sizeof(VhostUserVGA),
     .instance_init = vhost_user_vga_inst_initfn,
 };
 
