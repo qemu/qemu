@@ -25,11 +25,11 @@
 
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
-#define RXCPU_CLASS(klass) \
+#define RX_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(RXCPUClass, (klass), TYPE_RX_CPU)
-#define RXCPU(obj) \
+#define RX_CPU(obj) \
     OBJECT_CHECK(RXCPU, (obj), TYPE_RX_CPU)
-#define RXCPU_GET_CLASS(obj) \
+#define RX_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(RXCPUClass, (obj), TYPE_RX_CPU)
 
 /*
