@@ -11,8 +11,12 @@
 
 #define MPTSAS_MAXIMUM_CHAIN_DEPTH 0x22
 
-typedef struct MPTSASState MPTSASState;
 typedef struct MPTSASRequest MPTSASRequest;
+
+#define TYPE_MPTSAS1068 "mptsas1068"
+typedef struct MPTSASState MPTSASState;
+#define MPT_SAS(obj) \
+    OBJECT_CHECK(MPTSASState, (obj), TYPE_MPTSAS1068)
 
 enum {
     DOORBELL_NONE,
