@@ -63,7 +63,7 @@ static void timer_cb(ThrottleGroupMember *tgm, bool is_write);
  * access some other ThrottleGroupMember's timers only after verifying that
  * that ThrottleGroupMember has throttled requests in the queue.
  */
-typedef struct ThrottleGroup {
+struct ThrottleGroup {
     Object parent_obj;
 
     /* refuse individual property change if initialization is complete */
@@ -79,7 +79,7 @@ typedef struct ThrottleGroup {
 
     /* This field is protected by the global QEMU mutex */
     QTAILQ_ENTRY(ThrottleGroup) list;
-} ThrottleGroup;
+};
 
 /* This is protected by the global QEMU mutex */
 static QTAILQ_HEAD(, ThrottleGroup) throttle_groups =
