@@ -1311,16 +1311,61 @@ static void msr_write(DisasContext *dc, TCGv_i32 v)
     tcg_gen_andi_i32(cpu_msr, v, ~(MSR_C | MSR_CC | MSR_PVR));
 }
 
+static bool do_msrclrset(DisasContext *dc, arg_type_msr *arg, bool set)
+{
+    uint32_t imm = arg->imm;
+
+    if (trap_userspace(dc, imm != MSR_C)) {
+        return true;
+    }
+
+    if (arg->rd) {
+        msr_read(dc, cpu_R[arg->rd]);
+    }
+
+    /*
+     * Handle the carry bit separately.
+     * This is the only bit that userspace can modify.
+     */
+    if (imm & MSR_C) {
+        tcg_gen_movi_i32(cpu_msr_c, set);
+    }
+
+    /*
+     * MSR_C and MSR_CC set above.
+     * MSR_PVR is not writable, and is always clear.
+     */
+    imm &= ~(MSR_C | MSR_CC | MSR_PVR);
+
+    if (imm != 0) {
+        if (set) {
+            tcg_gen_ori_i32(cpu_msr, cpu_msr, imm);
+        } else {
+            tcg_gen_andi_i32(cpu_msr, cpu_msr, ~imm);
+        }
+        dc->cpustate_changed = 1;
+    }
+    return true;
+}
+
+static bool trans_msrclr(DisasContext *dc, arg_type_msr *arg)
+{
+    return do_msrclrset(dc, arg, false);
+}
+
+static bool trans_msrset(DisasContext *dc, arg_type_msr *arg)
+{
+    return do_msrclrset(dc, arg, true);
+}
+
 static void dec_msr(DisasContext *dc)
 {
     CPUState *cs = CPU(dc->cpu);
-    TCGv_i32 t0, t1;
     unsigned int sr, rn;
-    bool to, clrset, extended = false;
+    bool to, extended = false;
 
     sr = extract32(dc->imm, 0, 14);
     to = extract32(dc->imm, 14, 1);
-    clrset = extract32(dc->imm, 15, 1) == 0;
     dc->type_b = 1;
     if (to) {
         dc->cpustate_changed = 1;
@@ -1332,40 +1377,6 @@ static void dec_msr(DisasContext *dc)
         static const unsigned int e_bit[] = { 19, 24 };
 
         extended = extract32(dc->imm, e_bit[to], 1);
-    }
-
-    /* msrclr and msrset.  */
-    if (clrset) {
-        bool clr = extract32(dc->ir, 16, 1);
-
-        if (!dc->cpu->cfg.use_msr_instr) {
-            /* nop??? */
-            return;
-        }
-
-        if (trap_userspace(dc, dc->imm != 4 && dc->imm != 0)) {
-            return;
-        }
-
-        if (dc->rd)
-            msr_read(dc, cpu_R[dc->rd]);
-
-        t0 = tcg_temp_new_i32();
-        t1 = tcg_temp_new_i32();
-        msr_read(dc, t0);
-        tcg_gen_mov_i32(t1, *(dec_alu_op_b(dc)));
-
-        if (clr) {
-            tcg_gen_not_i32(t1, t1);
-            tcg_gen_and_i32(t0, t0, t1);
-        } else
-            tcg_gen_or_i32(t0, t0, t1);
-        msr_write(dc, t0);
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(t1);
-        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
-        dc->base.is_jmp = DISAS_UPDATE;
-        return;
     }
 
     if (trap_userspace(dc, to)) {

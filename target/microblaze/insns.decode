@@ -24,6 +24,7 @@
 &typeb          rd ra imm
 &typeb_br       rd imm
 &typeb_bc       ra imm
+&type_msr       rd imm
 
 # Include any IMM prefix in the value reported.
 %extimm         0:s16 !function=typeb_imm
@@ -54,6 +55,8 @@
 # match the required zero at bit 5.
 %ieimm          6:5 0:5
 @typeb_ie       ...... rd:5 ra:5 ..... ..... . .....    &typeb imm=%ieimm
+
+@type_msr       ...... rd:5 ...... imm:15               &type_msr
 
 ###
 
@@ -178,6 +181,9 @@ lwx             110010 ..... ..... ..... 1000 000 0000  @typea
 lwi             111010 ..... ..... ................     @typeb
 
 mbar            101110 imm:5 00010 0000 0000 0000 0100
+
+msrclr          100101 ..... 100010 ...............     @type_msr
+msrset          100101 ..... 100000 ...............     @type_msr
 
 mul             010000 ..... ..... ..... 000 0000 0000  @typea
 mulh            010000 ..... ..... ..... 000 0000 0001  @typea
