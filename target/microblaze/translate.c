@@ -1842,7 +1842,13 @@ void mb_tcg_init(void)
     static const struct {
         TCGv_i32 *var; int ofs; char name[8];
     } i32s[] = {
-        R(0),  R(1),  R(2),  R(3),  R(4),  R(5),  R(6),  R(7),
+        /*
+         * Note that r0 is handled specially in reg_for_read
+         * and reg_for_write.  Nothing should touch cpu_R[0].
+         * Leave that element NULL, which will assert quickly
+         * inside the tcg generator functions.
+         */
+               R(1),  R(2),  R(3),  R(4),  R(5),  R(6),  R(7),
         R(8),  R(9),  R(10), R(11), R(12), R(13), R(14), R(15),
         R(16), R(17), R(18), R(19), R(20), R(21), R(22), R(23),
         R(24), R(25), R(26), R(27), R(28), R(29), R(30), R(31),
