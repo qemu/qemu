@@ -155,12 +155,13 @@ QEMU_COPYRIGHT "\n"
     , name);
 }
 
+#if HAVE_NBD_DEVICE
 static void termsig_handler(int signum)
 {
     atomic_cmpxchg(&state, RUNNING, TERMINATE);
     qemu_notify_event();
 }
-
+#endif /* HAVE_NBD_DEVICE */
 
 static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
                                 const char *hostname)
@@ -587,6 +588,7 @@ int main(int argc, char **argv)
     unsigned socket_activation;
     const char *pid_file_name = NULL;
 
+#if HAVE_NBD_DEVICE
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
      */
@@ -594,6 +596,7 @@ int main(int argc, char **argv)
     memset(&sa_sigterm, 0, sizeof(sa_sigterm));
     sa_sigterm.sa_handler = termsig_handler;
     sigaction(SIGTERM, &sa_sigterm, NULL);
+#endif /* HAVE_NBD_DEVICE */
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
