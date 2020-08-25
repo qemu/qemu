@@ -327,8 +327,28 @@ DO_TYPEBV(addic, true, gen_addc)
 DO_TYPEBI(addik, false, tcg_gen_addi_i32)
 DO_TYPEBV(addikc, true, gen_addkc)
 
-DO_TYPEA(cmp, false, gen_helper_cmp)
-DO_TYPEA(cmpu, false, gen_helper_cmpu)
+static void gen_cmp(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 lt = tcg_temp_new_i32();
+
+    tcg_gen_setcond_i32(TCG_COND_LT, lt, inb, ina);
+    tcg_gen_sub_i32(out, inb, ina);
+    tcg_gen_deposit_i32(out, out, lt, 31, 1);
+    tcg_temp_free_i32(lt);
+}
+
+static void gen_cmpu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
+{
+    TCGv_i32 lt = tcg_temp_new_i32();
+
+    tcg_gen_setcond_i32(TCG_COND_LTU, lt, inb, ina);
+    tcg_gen_sub_i32(out, inb, ina);
+    tcg_gen_deposit_i32(out, out, lt, 31, 1);
+    tcg_temp_free_i32(lt);
+}
+
+DO_TYPEA(cmp, false, gen_cmp)
+DO_TYPEA(cmpu, false, gen_cmpu)
 
 /* No input carry, but output carry. */
 static void gen_rsub(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)

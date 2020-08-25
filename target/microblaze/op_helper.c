@@ -69,26 +69,6 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
-uint32_t helper_cmp(uint32_t a, uint32_t b)
-{
-    uint32_t t;
-
-    t = b + ~a + 1;
-    if ((b & 0x80000000) ^ (a & 0x80000000))
-        t = (t & 0x7fffffff) | (b & 0x80000000);
-    return t;
-}
-
-uint32_t helper_cmpu(uint32_t a, uint32_t b)
-{
-    uint32_t t;
-
-    t = b + ~a + 1;
-    if ((b & 0x80000000) ^ (a & 0x80000000))
-        t = (t & 0x7fffffff) | (a & 0x80000000);
-    return t;
-}
-
 static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
 {
     MicroBlazeCPU *cpu = env_archcpu(env);
