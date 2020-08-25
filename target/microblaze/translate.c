@@ -24,7 +24,6 @@
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
 #include "exec/helper-proto.h"
-#include "microblaze-decode.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
@@ -65,13 +64,7 @@ typedef struct DisasContext {
     bool r0_set;
 
     /* Decoder.  */
-    int type_b;
-    uint32_t ir;
     uint32_t ext_imm;
-    uint8_t opcode;
-    uint8_t rd, ra, rb;
-    uint16_t imm;
-
     unsigned int cpustate_changed;
     unsigned int tb_flags;
     unsigned int tb_flags_to_set;
@@ -82,8 +75,6 @@ typedef struct DisasContext {
 
     /* Immediate branch-taken destination, or -1 for indirect. */
     uint32_t jmp_dest;
-
-    int abort_at_next_insn;
 } DisasContext;
 
 static int typeb_imm(DisasContext *dc, int x)
@@ -182,21 +173,6 @@ static bool trap_userspace(DisasContext *dc, bool cond)
         gen_raise_hw_excp(dc, ESR_EC_PRIVINSN);
     }
     return cond_user;
-}
-
-static int32_t dec_alu_typeb_imm(DisasContext *dc)
-{
-    tcg_debug_assert(dc->type_b);
-    return typeb_imm(dc, (int16_t)dc->imm);
-}
-
-static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
-{
-    if (dc->type_b) {
-        tcg_gen_movi_i32(cpu_imm, dec_alu_typeb_imm(dc));
-        return &cpu_imm;
-    }
-    return &cpu_R[dc->rb];
 }
 
 static TCGv_i32 reg_for_read(DisasContext *dc, int reg)
@@ -1549,16 +1525,6 @@ static void do_rte(DisasContext *dc)
     dc->tb_flags &= ~DRTE_FLAG;
 }
 
-static void dec_null(DisasContext *dc)
-{
-    if (trap_illegal(dc, true)) {
-        return;
-    }
-    qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n",
-                  (uint32_t)dc->base.pc_next, dc->opcode);
-    dc->abort_at_next_insn = 1;
-}
-
 /* Insns connected to FSL or AXI stream attached devices.  */
 static bool do_get(DisasContext *dc, int rd, int rb, int imm, int ctrl)
 {
@@ -1624,40 +1590,6 @@ static bool trans_putd(DisasContext *dc, arg_putd *arg)
     return do_put(dc, arg->ra, arg->rb, 0, arg->ctrl);
 }
 
-static struct decoder_info {
-    struct {
-        uint32_t bits;
-        uint32_t mask;
-    };
-    void (*dec)(DisasContext *dc);
-} decinfo[] = {
-    {{0, 0}, dec_null}
-};
-
-static void old_decode(DisasContext *dc, uint32_t ir)
-{
-    int i;
-
-    dc->ir = ir;
-
-    /* bit 2 seems to indicate insn type.  */
-    dc->type_b = ir & (1 << 29);
-
-    dc->opcode = EXTRACT_FIELD(ir, 26, 31);
-    dc->rd = EXTRACT_FIELD(ir, 21, 25);
-    dc->ra = EXTRACT_FIELD(ir, 16, 20);
-    dc->rb = EXTRACT_FIELD(ir, 11, 15);
-    dc->imm = EXTRACT_FIELD(ir, 0, 15);
-
-    /* Large switch for all insns.  */
-    for (i = 0; i < ARRAY_SIZE(decinfo); i++) {
-        if ((dc->opcode & decinfo[i].mask) == decinfo[i].bits) {
-            decinfo[i].dec(dc);
-            break;
-        }
-    }
-}
-
 static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
@@ -1667,7 +1599,6 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->cpu = cpu;
     dc->tb_flags = dc->base.tb->flags;
     dc->cpustate_changed = 0;
-    dc->abort_at_next_insn = 0;
     dc->ext_imm = dc->base.tb->cs_base;
     dc->r0 = NULL;
     dc->r0_set = false;
@@ -1724,7 +1655,7 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 
     ir = cpu_ldl_code(env, dc->base.pc_next);
     if (!decode(dc, ir)) {
-        old_decode(dc, ir);
+        trap_illegal(dc, true);
     }
 
     if (dc->r0) {
@@ -1763,8 +1694,6 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
-
-    assert(!dc->abort_at_next_insn);
 
     if (dc->base.is_jmp == DISAS_NORETURN) {
         /* We have already exited the TB. */
