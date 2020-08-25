@@ -389,12 +389,16 @@ void helper_memalign(CPUMBState *env, target_ulong addr,
 void helper_stackprot(CPUMBState *env, target_ulong addr)
 {
     if (addr < env->slr || addr > env->shr) {
+        CPUState *cs = env_cpu(env);
+
         qemu_log_mask(CPU_LOG_INT, "Stack protector violation at "
                       TARGET_FMT_lx " %x %x\n",
                       addr, env->slr, env->shr);
+
         env->ear = addr;
         env->esr = ESR_EC_STACKPROT;
-        helper_raise_exception(env, EXCP_HW_EXCP);
+        cs->exception_index = EXCP_HW_EXCP;
+        cpu_loop_exit_restore(cs, GETPC());
     }
 }
 
