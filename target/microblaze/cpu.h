@@ -242,7 +242,7 @@ struct CPUMBState {
     uint32_t pc;
     uint32_t msr;    /* All bits of MSR except MSR[C] and MSR[CC] */
     uint32_t msr_c;  /* MSR[C], in low bit; other bits must be 0 */
-    uint64_t ear;
+    target_ulong ear;
     uint32_t esr;
     uint32_t fsr;
     uint32_t btr;

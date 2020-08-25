@@ -303,8 +303,8 @@ void mb_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     iflags = cpu->env.iflags;
 
     qemu_log_mask(CPU_LOG_INT,
-                  "Unaligned access addr=" TARGET_FMT_lx
-                  " pc=%x iflags=%x\n", addr, cpu->env.pc, iflags);
+                  "Unaligned access addr=" TARGET_FMT_lx " pc=%x iflags=%x\n",
+                  (target_ulong)addr, cpu->env.pc, iflags);
 
     esr = ESR_EC_UNALIGNED_DATA;
     if (likely(iflags & ESR_ESS_FLAG)) {
