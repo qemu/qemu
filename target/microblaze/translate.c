@@ -1252,6 +1252,29 @@ static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
     return true;
 }
 
+static bool do_rts(DisasContext *dc, arg_typeb_bc *arg, int to_set)
+{
+    if (trap_userspace(dc, to_set)) {
+        return true;
+    }
+    dc->tb_flags_to_set |= to_set;
+    setup_dslot(dc, true);
+
+    dc->jmp_cond = TCG_COND_ALWAYS;
+    dc->jmp_dest = -1;
+    tcg_gen_addi_i32(cpu_btarget, reg_for_read(dc, arg->ra), arg->imm);
+    return true;
+}
+
+#define DO_RTS(NAME, IFLAG) \
+    static bool trans_##NAME(DisasContext *dc, arg_typeb_bc *arg) \
+    { return do_rts(dc, arg, IFLAG); }
+
+DO_RTS(rtbd, DRTB_FLAG)
+DO_RTS(rtid, DRTI_FLAG)
+DO_RTS(rted, DRTE_FLAG)
+DO_RTS(rtsd, 0)
+
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
@@ -1527,33 +1550,6 @@ static inline void do_rte(DisasContext *dc)
     dc->tb_flags &= ~DRTE_FLAG;
 }
 
-static void dec_rts(DisasContext *dc)
-{
-    unsigned int b_bit, i_bit, e_bit;
-
-    i_bit = dc->ir & (1 << 21);
-    b_bit = dc->ir & (1 << 22);
-    e_bit = dc->ir & (1 << 23);
-
-    if (trap_userspace(dc, i_bit || b_bit || e_bit)) {
-        return;
-    }
-
-    setup_dslot(dc, true);
-
-    if (i_bit) {
-        dc->tb_flags |= DRTI_FLAG;
-    } else if (b_bit) {
-        dc->tb_flags |= DRTB_FLAG;
-    } else if (e_bit) {
-        dc->tb_flags |= DRTE_FLAG;
-    }
-
-    dc->jmp_cond = TCG_COND_ALWAYS;
-    dc->jmp_dest = -1;
-    tcg_gen_add_i32(cpu_btarget, cpu_R[dc->ra], *dec_alu_op_b(dc));
-}
-
 static void dec_null(DisasContext *dc)
 {
     if (trap_illegal(dc, true)) {
@@ -1601,7 +1597,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_RTS, dec_rts},
     {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}
