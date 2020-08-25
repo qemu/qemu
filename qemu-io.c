@@ -25,6 +25,7 @@
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
 #include "qemu/log.h"
+#include "qemu/sockets.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
 #include "qom/object_interfaces.h"
@@ -542,6 +543,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    socket_init();
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_exec_dir(argv[0]);

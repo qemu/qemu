@@ -599,6 +599,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    socket_init();
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qcrypto_init(&error_fatal);

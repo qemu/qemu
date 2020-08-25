@@ -41,6 +41,7 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qemu/sockets.h"
 #include "qemu/units.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/block-backend.h"
@@ -5410,6 +5411,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    socket_init();
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_exec_dir(argv[0]);
