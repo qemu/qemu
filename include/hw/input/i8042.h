@@ -11,6 +11,7 @@
 #include "hw/isa/isa.h"
 
 #define TYPE_I8042 "i8042"
+#define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
 
 #define I8042_A20_LINE "a20"
 
