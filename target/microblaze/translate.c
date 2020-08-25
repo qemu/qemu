@@ -95,14 +95,6 @@ typedef struct DisasContext {
     int singlestep_enabled;
 } DisasContext;
 
-static const char *regnames[] =
-{
-    "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
-    "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
-    "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
-    "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
-};
-
 static inline void t_sync_flags(DisasContext *dc)
 {
     /* Synch the tb dependent flags between translator and runtime.  */
@@ -1846,36 +1838,36 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 void mb_tcg_init(void)
 {
-    int i;
+#define R(X)  { &cpu_R[X], offsetof(CPUMBState, regs[X]), "r" #X }
+#define SP(X) { &cpu_##X, offsetof(CPUMBState, X), #X }
 
-    cpu_iflags = tcg_global_mem_new_i32(cpu_env,
-                    offsetof(CPUMBState, iflags),
-                    "iflags");
-    cpu_imm = tcg_global_mem_new_i32(cpu_env,
-                    offsetof(CPUMBState, imm),
-                    "imm");
-    cpu_btarget = tcg_global_mem_new_i32(cpu_env,
-                     offsetof(CPUMBState, btarget),
-                     "btarget");
-    cpu_btaken = tcg_global_mem_new_i32(cpu_env,
-                     offsetof(CPUMBState, btaken),
-                     "btaken");
-    cpu_res_addr = tcg_global_mem_new(cpu_env,
-                     offsetof(CPUMBState, res_addr),
-                     "res_addr");
-    cpu_res_val = tcg_global_mem_new_i32(cpu_env,
-                     offsetof(CPUMBState, res_val),
-                     "res_val");
-    for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
-        cpu_R[i] = tcg_global_mem_new_i32(cpu_env,
-                          offsetof(CPUMBState, regs[i]),
-                          regnames[i]);
+    static const struct {
+        TCGv_i32 *var; int ofs; char name[8];
+    } i32s[] = {
+        R(0),  R(1),  R(2),  R(3),  R(4),  R(5),  R(6),  R(7),
+        R(8),  R(9),  R(10), R(11), R(12), R(13), R(14), R(15),
+        R(16), R(17), R(18), R(19), R(20), R(21), R(22), R(23),
+        R(24), R(25), R(26), R(27), R(28), R(29), R(30), R(31),
+
+        SP(pc),
+        SP(msr),
+        SP(imm),
+        SP(iflags),
+        SP(btaken),
+        SP(btarget),
+        SP(res_val),
+    };
+
+#undef R
+#undef SP
+
+    for (int i = 0; i < ARRAY_SIZE(i32s); ++i) {
+        *i32s[i].var =
+          tcg_global_mem_new_i32(cpu_env, i32s[i].ofs, i32s[i].name);
     }
 
-    cpu_pc =
-        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, pc), "rpc");
-    cpu_msr =
-        tcg_global_mem_new_i32(cpu_env, offsetof(CPUMBState, msr), "rmsr");
+    cpu_res_addr =
+        tcg_global_mem_new(cpu_env, offsetof(CPUMBState, res_addr), "res_addr");
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
