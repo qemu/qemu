@@ -1095,6 +1095,58 @@ DO_BR(brad, braid, true, true, false)
 DO_BR(brld, brlid, true, false, true)
 DO_BR(brald, bralid, true, true, true)
 
+static bool do_bcc(DisasContext *dc, int dest_rb, int dest_imm,
+                   TCGCond cond, int ra, bool delay)
+{
+    TCGv_i32 zero, next;
+
+    if (delay) {
+        setup_dslot(dc, dest_rb < 0);
+    }
+
+    dc->jmp_cond = cond;
+
+    /* Cache the condition register in cpu_bvalue across any delay slot.  */
+    tcg_gen_mov_i32(cpu_bvalue, reg_for_read(dc, ra));
+
+    /* Store the branch taken destination into btarget.  */
+    if (dest_rb > 0) {
+        dc->jmp_dest = -1;
+        tcg_gen_addi_i32(cpu_btarget, cpu_R[dest_rb], dc->base.pc_next);
+    } else {
+        dc->jmp_dest = dc->base.pc_next + dest_imm;
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
+    }
+
+    /* Compute the final destination into btarget.  */
+    zero = tcg_const_i32(0);
+    next = tcg_const_i32(dc->base.pc_next + (delay + 1) * 4);
+    tcg_gen_movcond_i32(dc->jmp_cond, cpu_btarget,
+                        reg_for_read(dc, ra), zero,
+                        cpu_btarget, next);
+    tcg_temp_free_i32(zero);
+    tcg_temp_free_i32(next);
+
+    return true;
+}
+
+#define DO_BCC(NAME, COND)                                              \
+    static bool trans_##NAME(DisasContext *dc, arg_typea_bc *arg)       \
+    { return do_bcc(dc, arg->rb, 0, COND, arg->ra, false); }            \
+    static bool trans_##NAME##d(DisasContext *dc, arg_typea_bc *arg)    \
+    { return do_bcc(dc, arg->rb, 0, COND, arg->ra, true); }             \
+    static bool trans_##NAME##i(DisasContext *dc, arg_typeb_bc *arg)    \
+    { return do_bcc(dc, -1, arg->imm, COND, arg->ra, false); }          \
+    static bool trans_##NAME##id(DisasContext *dc, arg_typeb_bc *arg)   \
+    { return do_bcc(dc, -1, arg->imm, COND, arg->ra, true); }
+
+DO_BCC(beq, TCG_COND_EQ)
+DO_BCC(bge, TCG_COND_GE)
+DO_BCC(bgt, TCG_COND_GT)
+DO_BCC(ble, TCG_COND_LE)
+DO_BCC(blt, TCG_COND_LT)
+DO_BCC(bne, TCG_COND_NE)
+
 static bool trans_brk(DisasContext *dc, arg_typea_br *arg)
 {
     if (trap_userspace(dc, true)) {
@@ -1419,52 +1471,6 @@ static void dec_msr(DisasContext *dc)
     }
 }
 
-static void dec_bcc(DisasContext *dc)
-{
-    static const TCGCond mb_to_tcg_cc[] = {
-        [CC_EQ] = TCG_COND_EQ,
-        [CC_NE] = TCG_COND_NE,
-        [CC_LT] = TCG_COND_LT,
-        [CC_LE] = TCG_COND_LE,
-        [CC_GE] = TCG_COND_GE,
-        [CC_GT] = TCG_COND_GT,
-    };
-    unsigned int cc;
-    unsigned int dslot;
-    TCGv_i32 zero, next;
-
-    cc = EXTRACT_FIELD(dc->ir, 21, 23);
-    dslot = dc->ir & (1 << 25);
-
-    if (dslot) {
-        setup_dslot(dc, dc->type_b);
-    }
-
-    dc->jmp_cond = mb_to_tcg_cc[cc];
-
-    /* Cache the condition register in cpu_bvalue across any delay slot.  */
-    tcg_gen_mov_i32(cpu_bvalue, cpu_R[dc->ra]);
-
-    /* Store the branch taken destination into btarget.  */
-    if (dc->type_b) {
-        dc->jmp_dest = dc->base.pc_next + dec_alu_typeb_imm(dc);
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
-    } else {
-        dc->jmp_dest = -1;
-        tcg_gen_addi_i32(cpu_btarget, reg_for_read(dc, dc->rb),
-                         dc->base.pc_next);
-    }
-
-    /* Compute the final destination into btarget.  */
-    zero = tcg_const_i32(0);
-    next = tcg_const_i32(dc->base.pc_next + (dslot + 1) * 4);
-    tcg_gen_movcond_i32(dc->jmp_cond, cpu_btarget,
-                        reg_for_read(dc, dc->ra), zero,
-                        cpu_btarget, next);
-    tcg_temp_free_i32(zero);
-    tcg_temp_free_i32(next);
-}
-
 static inline void do_rti(DisasContext *dc)
 {
     TCGv_i32 t0, t1;
@@ -1595,7 +1601,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
     {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},

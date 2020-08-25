@@ -20,8 +20,10 @@
 &typea0         rd ra
 &typea          rd ra rb
 &typea_br       rd rb
+&typea_bc       ra rb
 &typeb          rd ra imm
 &typeb_br       rd imm
+&typeb_bc       ra imm
 
 # Include any IMM prefix in the value reported.
 %extimm         0:s16 !function=typeb_imm
@@ -35,11 +37,17 @@
 # Officially typea, but with ra as opcode.
 @typea_br       ...... rd:5 ..... rb:5 ...........      &typea_br
 
+# Officially typea, but with rd as opcode.
+@typea_bc       ...... ..... ra:5 rb:5 ...........      &typea_bc
+
 # Officially typeb, but any immediate extension is unused.
 @typeb_bs       ...... rd:5 ra:5 ..... ...... imm:5     &typeb
 
 # Officially typeb, but with ra as opcode.
 @typeb_br       ...... rd:5 ..... ................      &typeb_br imm=%extimm
+
+# Officially typeb, but with rd as opcode.
+@typeb_bc       ...... ..... ra:5 ................      &typeb_bc imm=%extimm
 
 # For convenience, extract the two imm_w/imm_s fields, then pack
 # them back together as "imm".  Doing this makes it easiest to
@@ -67,6 +75,34 @@ andi            101001 ..... ..... ................     @typeb
 
 andn            100011 ..... ..... ..... 000 0000 0000  @typea
 andni           101011 ..... ..... ................     @typeb
+
+beq             100111 00000 ..... ..... 000 0000 0000  @typea_bc
+bge             100111 00101 ..... ..... 000 0000 0000  @typea_bc
+bgt             100111 00100 ..... ..... 000 0000 0000  @typea_bc
+ble             100111 00011 ..... ..... 000 0000 0000  @typea_bc
+blt             100111 00010 ..... ..... 000 0000 0000  @typea_bc
+bne             100111 00001 ..... ..... 000 0000 0000  @typea_bc
+
+beqd            100111 10000 ..... ..... 000 0000 0000  @typea_bc
+bged            100111 10101 ..... ..... 000 0000 0000  @typea_bc
+bgtd            100111 10100 ..... ..... 000 0000 0000  @typea_bc
+bled            100111 10011 ..... ..... 000 0000 0000  @typea_bc
+bltd            100111 10010 ..... ..... 000 0000 0000  @typea_bc
+bned            100111 10001 ..... ..... 000 0000 0000  @typea_bc
+
+beqi            101111 00000 ..... ................     @typeb_bc
+bgei            101111 00101 ..... ................     @typeb_bc
+bgti            101111 00100 ..... ................     @typeb_bc
+blei            101111 00011 ..... ................     @typeb_bc
+blti            101111 00010 ..... ................     @typeb_bc
+bnei            101111 00001 ..... ................     @typeb_bc
+
+beqid           101111 10000 ..... ................     @typeb_bc
+bgeid           101111 10101 ..... ................     @typeb_bc
+bgtid           101111 10100 ..... ................     @typeb_bc
+bleid           101111 10011 ..... ................     @typeb_bc
+bltid           101111 10010 ..... ................     @typeb_bc
+bneid           101111 10001 ..... ................     @typeb_bc
 
 br              100110 ..... 00000 ..... 000 0000 0000  @typea_br
 bra             100110 ..... 01000 ..... 000 0000 0000  @typea_br
