@@ -391,7 +391,7 @@ static void macfb_nubus_realize(DeviceState *dev, Error **errp)
 {
     NubusDevice *nd = NUBUS_DEVICE(dev);
     MacfbNubusState *s = NUBUS_MACFB(dev);
-    MacfbNubusDeviceClass *ndc = MACFB_NUBUS_GET_CLASS(dev);
+    MacfbNubusDeviceClass *ndc = NUBUS_MACFB_GET_CLASS(dev);
     MacfbState *ms = &s->macfb;
 
     ndc->parent_realize(dev, errp);
@@ -443,7 +443,7 @@ static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
 static void macfb_nubus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    MacfbNubusDeviceClass *ndc = MACFB_NUBUS_DEVICE_CLASS(klass);
+    MacfbNubusDeviceClass *ndc = NUBUS_MACFB_CLASS(klass);
 
     device_class_set_parent_realize(dc, macfb_nubus_realize,
                                     &ndc->parent_realize);
