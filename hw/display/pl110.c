@@ -42,9 +42,9 @@ enum pl110_bppmode
 /* The Versatile/PB uses a slightly modified PL110 controller.  */
 enum pl110_version
 {
-    PL110,
-    PL110_VERSATILE,
-    PL111
+    VERSION_PL110,
+    VERSION_PL110_VERSATILE,
+    VERSION_PL111
 };
 
 #define TYPE_PL110 "pl110"
@@ -189,7 +189,7 @@ static void pl110_update_display(void *opaque)
     else
         bpp_offset = 24;
 
-    if ((s->version != PL111) && (s->bpp == BPP_16)) {
+    if ((s->version != VERSION_PL111) && (s->bpp == BPP_16)) {
         /* The PL110's native 16 bit mode is 5551; however
          * most boards with a PL110 implement an external
          * mux which allows bits to be reshuffled to give
@@ -372,12 +372,12 @@ static uint64_t pl110_read(void *opaque, hwaddr offset,
     case 5: /* LCDLPBASE */
         return s->lpbase;
     case 6: /* LCDIMSC */
-        if (s->version != PL110) {
+        if (s->version != VERSION_PL110) {
             return s->cr;
         }
         return s->int_mask;
     case 7: /* LCDControl */
-        if (s->version != PL110) {
+        if (s->version != VERSION_PL110) {
             return s->int_mask;
         }
         return s->cr;
@@ -437,7 +437,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         s->lpbase = val;
         break;
     case 6: /* LCDIMSC */
-        if (s->version != PL110) {
+        if (s->version != VERSION_PL110) {
             goto control;
         }
     imsc:
@@ -445,7 +445,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         pl110_update(s);
         break;
     case 7: /* LCDControl */
-        if (s->version != PL110) {
+        if (s->version != VERSION_PL110) {
             goto imsc;
         }
     control:
@@ -513,21 +513,21 @@ static void pl110_init(Object *obj)
 {
     PL110State *s = PL110(obj);
 
-    s->version = PL110;
+    s->version = VERSION_PL110;
 }
 
 static void pl110_versatile_init(Object *obj)
 {
     PL110State *s = PL110(obj);
 
-    s->version = PL110_VERSATILE;
+    s->version = VERSION_PL110_VERSATILE;
 }
 
 static void pl111_init(Object *obj)
 {
     PL110State *s = PL110(obj);
 
-    s->version = PL111;
+    s->version = VERSION_PL111;
 }
 
 static void pl110_class_init(ObjectClass *klass, void *data)
