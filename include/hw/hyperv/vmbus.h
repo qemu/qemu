@@ -26,6 +26,10 @@
 #define VMBUS_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(VMBusDeviceClass, (obj), TYPE_VMBUS_DEVICE)
 
+#define TYPE_VMBUS "vmbus"
+typedef struct VMBus VMBus;
+#define VMBUS(obj) OBJECT_CHECK(VMBus, (obj), TYPE_VMBUS)
+
 /*
  * Object wrapping a GPADL -- GPA Descriptor List -- an array of guest physical
  * pages, to be used for various buffers shared between the host and the guest.
