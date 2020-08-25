@@ -899,6 +899,7 @@ int main(int argc, char **argv)
 #endif
 
     if ((device && !verbose) || fork_process) {
+#ifndef WIN32
         int stderr_fd[2];
         pid_t pid;
         int ret;
@@ -962,6 +963,10 @@ int main(int argc, char **argv)
              */
             exit(errors);
         }
+#else /* WIN32 */
+        error_report("Unable to fork into background on Windows hosts");
+        exit(EXIT_FAILURE);
+#endif /* WIN32 */
     }
 
     if (device != NULL && sockpath == NULL) {
