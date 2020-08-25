@@ -1048,6 +1048,53 @@ static bool trans_swx(DisasContext *dc, arg_typea *arg)
     return true;
 }
 
+static void setup_dslot(DisasContext *dc, bool type_b)
+{
+    dc->tb_flags_to_set |= D_FLAG;
+    if (type_b && (dc->tb_flags & IMM_FLAG)) {
+        dc->tb_flags_to_set |= BIMM_FLAG;
+    }
+}
+
+static bool do_branch(DisasContext *dc, int dest_rb, int dest_imm,
+                      bool delay, bool abs, int link)
+{
+    uint32_t add_pc;
+
+    if (delay) {
+        setup_dslot(dc, dest_rb < 0);
+    }
+
+    if (link) {
+        tcg_gen_movi_i32(cpu_R[link], dc->base.pc_next);
+    }
+
+    /* Store the branch taken destination into btarget.  */
+    add_pc = abs ? 0 : dc->base.pc_next;
+    if (dest_rb > 0) {
+        dc->jmp_dest = -1;
+        tcg_gen_addi_i32(cpu_btarget, cpu_R[dest_rb], add_pc);
+    } else {
+        dc->jmp_dest = add_pc + dest_imm;
+        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
+    }
+    dc->jmp_cond = TCG_COND_ALWAYS;
+    return true;
+}
+
+#define DO_BR(NAME, NAMEI, DELAY, ABS, LINK)                               \
+    static bool trans_##NAME(DisasContext *dc, arg_typea_br *arg)          \
+    { return do_branch(dc, arg->rb, 0, DELAY, ABS, LINK ? arg->rd : 0); }  \
+    static bool trans_##NAMEI(DisasContext *dc, arg_typeb_br *arg)         \
+    { return do_branch(dc, -1, arg->imm, DELAY, ABS, LINK ? arg->rd : 0); }
+
+DO_BR(br, bri, false, false, false)
+DO_BR(bra, brai, false, true, false)
+DO_BR(brd, brid, true, false, false)
+DO_BR(brad, braid, true, true, false)
+DO_BR(brld, brlid, true, false, true)
+DO_BR(brald, bralid, true, true, true)
+
 static bool trans_brk(DisasContext *dc, arg_typea_br *arg)
 {
     if (trap_userspace(dc, true)) {
@@ -1372,14 +1419,6 @@ static void dec_msr(DisasContext *dc)
     }
 }
 
-static void dec_setup_dslot(DisasContext *dc)
-{
-    dc->tb_flags_to_set |= D_FLAG;
-    if (dc->type_b && (dc->tb_flags & IMM_FLAG)) {
-        dc->tb_flags_to_set |= BIMM_FLAG;
-    }
-}
-
 static void dec_bcc(DisasContext *dc)
 {
     static const TCGCond mb_to_tcg_cc[] = {
@@ -1398,7 +1437,7 @@ static void dec_bcc(DisasContext *dc)
     dslot = dc->ir & (1 << 25);
 
     if (dslot) {
-        dec_setup_dslot(dc);
+        setup_dslot(dc, dc->type_b);
     }
 
     dc->jmp_cond = mb_to_tcg_cc[cc];
@@ -1424,33 +1463,6 @@ static void dec_bcc(DisasContext *dc)
                         cpu_btarget, next);
     tcg_temp_free_i32(zero);
     tcg_temp_free_i32(next);
-}
-
-static void dec_br(DisasContext *dc)
-{
-    unsigned int dslot, link, abs;
-    uint32_t add_pc;
-
-    dslot = dc->ir & (1 << 20);
-    abs = dc->ir & (1 << 19);
-    link = dc->ir & (1 << 18);
-
-    if (dslot) {
-        dec_setup_dslot(dc);
-    }
-    if (link && dc->rd) {
-        tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
-    }
-
-    add_pc = abs ? 0 : dc->base.pc_next;
-    if (dc->type_b) {
-        dc->jmp_dest = add_pc + dec_alu_typeb_imm(dc);
-        tcg_gen_movi_i32(cpu_btarget, dc->jmp_dest);
-    } else {
-        dc->jmp_dest = -1;
-        tcg_gen_addi_i32(cpu_btarget, cpu_R[dc->rb], add_pc);
-    }
-    dc->jmp_cond = TCG_COND_ALWAYS;
 }
 
 static inline void do_rti(DisasContext *dc)
@@ -1521,7 +1533,7 @@ static void dec_rts(DisasContext *dc)
         return;
     }
 
-    dec_setup_dslot(dc);
+    setup_dslot(dc, true);
 
     if (i_bit) {
         dc->tb_flags |= DRTI_FLAG;
@@ -1583,7 +1595,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_BR, dec_br},
     {DEC_BCC, dec_bcc},
     {DEC_RTS, dec_rts},
     {DEC_MSR, dec_msr},
