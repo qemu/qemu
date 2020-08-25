@@ -1300,6 +1300,7 @@ static void msr_read(DisasContext *dc, TCGv_i32 d)
     tcg_temp_free_i32(t);
 }
 
+#ifndef CONFIG_USER_ONLY
 static void msr_write(DisasContext *dc, TCGv_i32 v)
 {
     dc->cpustate_changed = 1;
@@ -1310,6 +1311,7 @@ static void msr_write(DisasContext *dc, TCGv_i32 v)
     /* Clear MSR_C and MSR_CC; MSR_PVR is not writable, and is always clear. */
     tcg_gen_andi_i32(cpu_msr, v, ~(MSR_C | MSR_CC | MSR_PVR));
 }
+#endif
 
 static bool do_msrclrset(DisasContext *dc, arg_type_msr *arg, bool set)
 {
@@ -1358,151 +1360,152 @@ static bool trans_msrset(DisasContext *dc, arg_type_msr *arg)
     return do_msrclrset(dc, arg, true);
 }
 
-static void dec_msr(DisasContext *dc)
+static bool trans_mts(DisasContext *dc, arg_mts *arg)
 {
-    CPUState *cs = CPU(dc->cpu);
-    unsigned int sr, rn;
-    bool to, extended = false;
-
-    sr = extract32(dc->imm, 0, 14);
-    to = extract32(dc->imm, 14, 1);
-    dc->type_b = 1;
-    if (to) {
-        dc->cpustate_changed = 1;
+    if (trap_userspace(dc, true)) {
+        return true;
     }
 
-    /* Extended MSRs are only available if addr_size > 32.  */
-    if (dc->cpu->cfg.addr_size > 32) {
-        /* The E-bit is encoded differently for To/From MSR.  */
-        static const unsigned int e_bit[] = { 19, 24 };
-
-        extended = extract32(dc->imm, e_bit[to], 1);
+#ifdef CONFIG_USER_ONLY
+    g_assert_not_reached();
+#else
+    if (arg->e && arg->rs != 0x1003) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Invalid extended mts reg 0x%x\n", arg->rs);
+        return true;
     }
 
-    if (trap_userspace(dc, to)) {
-        return;
-    }
+    TCGv_i32 src = reg_for_read(dc, arg->ra);
+    switch (arg->rs) {
+    case SR_MSR:
+        msr_write(dc, src);
+        break;
+    case SR_FSR:
+        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, fsr));
+        break;
+    case 0x800:
+        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, slr));
+        break;
+    case 0x802:
+        tcg_gen_st_i32(src, cpu_env, offsetof(CPUMBState, shr));
+        break;
 
-#if !defined(CONFIG_USER_ONLY)
-    /* Catch read/writes to the mmu block.  */
-    if ((sr & ~0xff) == 0x1000) {
-        TCGv_i32 tmp_ext = tcg_const_i32(extended);
-        TCGv_i32 tmp_sr;
+    case 0x1000: /* PID */
+    case 0x1001: /* ZPR */
+    case 0x1002: /* TLBX */
+    case 0x1003: /* TLBLO */
+    case 0x1004: /* TLBHI */
+    case 0x1005: /* TLBSX */
+        {
+            TCGv_i32 tmp_ext = tcg_const_i32(arg->e);
+            TCGv_i32 tmp_reg = tcg_const_i32(arg->rs & 7);
 
-        sr &= 7;
-        tmp_sr = tcg_const_i32(sr);
-        if (to) {
-            gen_helper_mmu_write(cpu_env, tmp_ext, tmp_sr, cpu_R[dc->ra]);
-        } else {
-            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tmp_ext, tmp_sr);
+            gen_helper_mmu_write(cpu_env, tmp_ext, tmp_reg, src);
+            tcg_temp_free_i32(tmp_reg);
+            tcg_temp_free_i32(tmp_ext);
         }
-        tcg_temp_free_i32(tmp_sr);
-        tcg_temp_free_i32(tmp_ext);
-        return;
+        break;
+
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid mts reg 0x%x\n", arg->rs);
+        return true;
     }
+    dc->cpustate_changed = 1;
+    return true;
+#endif
+}
+
+static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
+{
+    TCGv_i32 dest = reg_for_write(dc, arg->rd);
+
+    if (arg->e) {
+        switch (arg->rs) {
+        case SR_EAR:
+            {
+                TCGv_i64 t64 = tcg_temp_new_i64();
+                tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+                tcg_gen_extrh_i64_i32(dest, t64);
+                tcg_temp_free_i64(t64);
+            }
+            return true;
+#ifndef CONFIG_USER_ONLY
+        case 0x1003: /* TLBLO */
+            /* Handled below. */
+            break;
+#endif
+        case 0x2006 ... 0x2009:
+            /* High bits of PVR6-9 not implemented. */
+            tcg_gen_movi_i32(dest, 0);
+            return true;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Invalid extended mfs reg 0x%x\n", arg->rs);
+            return true;
+        }
+    }
+
+    switch (arg->rs) {
+    case SR_PC:
+        tcg_gen_movi_i32(dest, dc->base.pc_next);
+        break;
+    case SR_MSR:
+        msr_read(dc, dest);
+        break;
+    case SR_EAR:
+        {
+            TCGv_i64 t64 = tcg_temp_new_i64();
+            tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
+            tcg_gen_extrl_i64_i32(dest, t64);
+            tcg_temp_free_i64(t64);
+        }
+        break;
+    case SR_ESR:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, esr));
+        break;
+    case SR_FSR:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, fsr));
+        break;
+    case SR_BTR:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, btr));
+        break;
+    case SR_EDR:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, edr));
+        break;
+    case 0x800:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, slr));
+        break;
+    case 0x802:
+        tcg_gen_ld_i32(dest, cpu_env, offsetof(CPUMBState, shr));
+        break;
+
+#ifndef CONFIG_USER_ONLY
+    case 0x1000: /* PID */
+    case 0x1001: /* ZPR */
+    case 0x1002: /* TLBX */
+    case 0x1003: /* TLBLO */
+    case 0x1004: /* TLBHI */
+    case 0x1005: /* TLBSX */
+        {
+            TCGv_i32 tmp_ext = tcg_const_i32(arg->e);
+            TCGv_i32 tmp_reg = tcg_const_i32(arg->rs & 7);
+
+            gen_helper_mmu_read(dest, cpu_env, tmp_ext, tmp_reg);
+            tcg_temp_free_i32(tmp_reg);
+            tcg_temp_free_i32(tmp_ext);
+        }
+        break;
 #endif
 
-    if (to) {
-        switch (sr) {
-            case SR_PC:
-                break;
-            case SR_MSR:
-                msr_write(dc, cpu_R[dc->ra]);
-                break;
-            case SR_EAR:
-                {
-                    TCGv_i64 t64 = tcg_temp_new_i64();
-                    tcg_gen_extu_i32_i64(t64, cpu_R[dc->ra]);
-                    tcg_gen_st_i64(t64, cpu_env, offsetof(CPUMBState, ear));
-                    tcg_temp_free_i64(t64);
-                }
-                break;
-            case SR_ESR:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, esr));
-                break;
-            case SR_FSR:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, fsr));
-                break;
-            case SR_BTR:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, btr));
-                break;
-            case SR_EDR:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, edr));
-                break;
-            case 0x800:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, slr));
-                break;
-            case 0x802:
-                tcg_gen_st_i32(cpu_R[dc->ra],
-                               cpu_env, offsetof(CPUMBState, shr));
-                break;
-            default:
-                cpu_abort(CPU(dc->cpu), "unknown mts reg %x\n", sr);
-                break;
-        }
-    } else {
-        switch (sr) {
-            case SR_PC:
-                tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
-                break;
-            case SR_MSR:
-                msr_read(dc, cpu_R[dc->rd]);
-                break;
-            case SR_EAR:
-                {
-                    TCGv_i64 t64 = tcg_temp_new_i64();
-                    tcg_gen_ld_i64(t64, cpu_env, offsetof(CPUMBState, ear));
-                    if (extended) {
-                        tcg_gen_extrh_i64_i32(cpu_R[dc->rd], t64);
-                    } else {
-                        tcg_gen_extrl_i64_i32(cpu_R[dc->rd], t64);
-                    }
-                    tcg_temp_free_i64(t64);
-                }
-                break;
-            case SR_ESR:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, esr));
-                break;
-            case SR_FSR:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, fsr));
-                break;
-            case SR_BTR:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, btr));
-                break;
-            case SR_EDR:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, edr));
-                break;
-            case 0x800:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, slr));
-                break;
-            case 0x802:
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                               cpu_env, offsetof(CPUMBState, shr));
-                break;
-            case 0x2000 ... 0x200c:
-                rn = sr & 0xf;
-                tcg_gen_ld_i32(cpu_R[dc->rd],
-                              cpu_env, offsetof(CPUMBState, pvr.regs[rn]));
-                break;
-            default:
-                cpu_abort(cs, "unknown mfs reg %x\n", sr);
-                break;
-        }
+    case 0x2000 ... 0x200c:
+        tcg_gen_ld_i32(dest, cpu_env,
+                       offsetof(CPUMBState, pvr.regs[arg->rs - 0x2000]));
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid mfs reg 0x%x\n", arg->rs);
+        break;
     }
-
-    if (dc->rd == 0) {
-        tcg_gen_movi_i32(cpu_R[0], 0);
-    }
+    return true;
 }
 
 static void do_rti(DisasContext *dc)
@@ -1593,7 +1596,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_MSR, dec_msr},
     {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}
 };
