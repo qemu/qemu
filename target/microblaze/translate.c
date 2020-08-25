@@ -1560,33 +1560,68 @@ static void dec_null(DisasContext *dc)
 }
 
 /* Insns connected to FSL or AXI stream attached devices.  */
-static void dec_stream(DisasContext *dc)
+static bool do_get(DisasContext *dc, int rd, int rb, int imm, int ctrl)
 {
     TCGv_i32 t_id, t_ctrl;
-    int ctrl;
 
     if (trap_userspace(dc, true)) {
-        return;
+        return true;
     }
 
     t_id = tcg_temp_new_i32();
-    if (dc->type_b) {
-        tcg_gen_movi_i32(t_id, dc->imm & 0xf);
-        ctrl = dc->imm >> 10;
+    if (rb) {
+        tcg_gen_andi_i32(t_id, cpu_R[rb], 0xf);
     } else {
-        tcg_gen_andi_i32(t_id, cpu_R[dc->rb], 0xf);
-        ctrl = dc->imm >> 5;
+        tcg_gen_movi_i32(t_id, imm);
     }
 
     t_ctrl = tcg_const_i32(ctrl);
-
-    if (dc->rd == 0) {
-        gen_helper_put(t_id, t_ctrl, cpu_R[dc->ra]);
-    } else {
-        gen_helper_get(cpu_R[dc->rd], t_id, t_ctrl);
-    }
+    gen_helper_get(reg_for_write(dc, rd), t_id, t_ctrl);
     tcg_temp_free_i32(t_id);
     tcg_temp_free_i32(t_ctrl);
+    return true;
+}
+
+static bool trans_get(DisasContext *dc, arg_get *arg)
+{
+    return do_get(dc, arg->rd, 0, arg->imm, arg->ctrl);
+}
+
+static bool trans_getd(DisasContext *dc, arg_getd *arg)
+{
+    return do_get(dc, arg->rd, arg->rb, 0, arg->ctrl);
+}
+
+static bool do_put(DisasContext *dc, int ra, int rb, int imm, int ctrl)
+{
+    TCGv_i32 t_id, t_ctrl;
+
+    if (trap_userspace(dc, true)) {
+        return true;
+    }
+
+    t_id = tcg_temp_new_i32();
+    if (rb) {
+        tcg_gen_andi_i32(t_id, cpu_R[rb], 0xf);
+    } else {
+        tcg_gen_movi_i32(t_id, imm);
+    }
+
+    t_ctrl = tcg_const_i32(ctrl);
+    gen_helper_put(t_id, t_ctrl, reg_for_read(dc, ra));
+    tcg_temp_free_i32(t_id);
+    tcg_temp_free_i32(t_ctrl);
+    return true;
+}
+
+static bool trans_put(DisasContext *dc, arg_put *arg)
+{
+    return do_put(dc, arg->ra, 0, arg->imm, arg->ctrl);
+}
+
+static bool trans_putd(DisasContext *dc, arg_putd *arg)
+{
+    return do_put(dc, arg->ra, arg->rb, 0, arg->ctrl);
 }
 
 static struct decoder_info {
@@ -1596,7 +1631,6 @@ static struct decoder_info {
     };
     void (*dec)(DisasContext *dc);
 } decinfo[] = {
-    {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}
 };
 
