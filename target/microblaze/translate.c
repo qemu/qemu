@@ -1494,59 +1494,44 @@ static void dec_msr(DisasContext *dc)
     }
 }
 
-static inline void do_rti(DisasContext *dc)
+static void do_rti(DisasContext *dc)
 {
-    TCGv_i32 t0, t1;
-    t0 = tcg_temp_new_i32();
-    t1 = tcg_temp_new_i32();
-    tcg_gen_mov_i32(t1, cpu_msr);
-    tcg_gen_shri_i32(t0, t1, 1);
-    tcg_gen_ori_i32(t1, t1, MSR_IE);
-    tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_andi_i32(t1, t1, ~(MSR_VM | MSR_UM));
-    tcg_gen_or_i32(t1, t1, t0);
-    msr_write(dc, t1);
-    tcg_temp_free_i32(t1);
-    tcg_temp_free_i32(t0);
+    tcg_gen_shri_i32(tmp, cpu_msr, 1);
+    tcg_gen_ori_i32(cpu_msr, cpu_msr, MSR_IE);
+    tcg_gen_andi_i32(tmp, tmp, MSR_VM | MSR_UM);
+    tcg_gen_andi_i32(cpu_msr, cpu_msr, ~(MSR_VM | MSR_UM));
+    tcg_gen_or_i32(cpu_msr, cpu_msr, tmp);
+
+    tcg_temp_free_i32(tmp);
     dc->tb_flags &= ~DRTI_FLAG;
 }
 
-static inline void do_rtb(DisasContext *dc)
+static void do_rtb(DisasContext *dc)
 {
-    TCGv_i32 t0, t1;
-    t0 = tcg_temp_new_i32();
-    t1 = tcg_temp_new_i32();
-    tcg_gen_mov_i32(t1, cpu_msr);
-    tcg_gen_andi_i32(t1, t1, ~MSR_BIP);
-    tcg_gen_shri_i32(t0, t1, 1);
-    tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_andi_i32(t1, t1, ~(MSR_VM | MSR_UM));
-    tcg_gen_or_i32(t1, t1, t0);
-    msr_write(dc, t1);
-    tcg_temp_free_i32(t1);
-    tcg_temp_free_i32(t0);
+    tcg_gen_shri_i32(tmp, cpu_msr, 1);
+    tcg_gen_andi_i32(cpu_msr, cpu_msr, ~(MSR_VM | MSR_UM | MSR_BIP));
+    tcg_gen_andi_i32(tmp, tmp, (MSR_VM | MSR_UM));
+    tcg_gen_or_i32(cpu_msr, cpu_msr, tmp);
+
+    tcg_temp_free_i32(tmp);
     dc->tb_flags &= ~DRTB_FLAG;
 }
 
-static inline void do_rte(DisasContext *dc)
+static void do_rte(DisasContext *dc)
 {
-    TCGv_i32 t0, t1;
-    t0 = tcg_temp_new_i32();
-    t1 = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_mov_i32(t1, cpu_msr);
-    tcg_gen_ori_i32(t1, t1, MSR_EE);
-    tcg_gen_andi_i32(t1, t1, ~MSR_EIP);
-    tcg_gen_shri_i32(t0, t1, 1);
-    tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
+    tcg_gen_shri_i32(tmp, cpu_msr, 1);
+    tcg_gen_ori_i32(cpu_msr, cpu_msr, MSR_EE);
+    tcg_gen_andi_i32(tmp, tmp, (MSR_VM | MSR_UM));
+    tcg_gen_andi_i32(cpu_msr, cpu_msr, ~(MSR_VM | MSR_UM | MSR_EIP));
+    tcg_gen_or_i32(cpu_msr, cpu_msr, tmp);
 
-    tcg_gen_andi_i32(t1, t1, ~(MSR_VM | MSR_UM));
-    tcg_gen_or_i32(t1, t1, t0);
-    msr_write(dc, t1);
-    tcg_temp_free_i32(t1);
-    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(tmp);
     dc->tb_flags &= ~DRTE_FLAG;
 }
 
