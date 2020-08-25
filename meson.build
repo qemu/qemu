@@ -1,5 +1,6 @@
 project('qemu', ['c'], meson_version: '>=0.55.0',
-        default_options: ['warning_level=1', 'c_std=gnu99', 'cpp_std=gnu++11', 'b_lundef=false'],
+        default_options: ['warning_level=1', 'c_std=gnu99', 'cpp_std=gnu++11',
+                          'b_lundef=false','b_colorout=auto'],
         version: run_command('head', meson.source_root() / 'VERSION').stdout().strip())
 
 not_found = dependency('', required: false)
