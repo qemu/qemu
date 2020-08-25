@@ -17,9 +17,6 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 
-#define VHOST_USER_GPU(obj)                                    \
-    OBJECT_CHECK(VhostUserGPU, (obj), TYPE_VHOST_USER_GPU)
-
 typedef enum VhostUserGpuRequest {
     VHOST_USER_GPU_NONE = 0,
     VHOST_USER_GPU_GET_PROTOCOL_FEATURES,
