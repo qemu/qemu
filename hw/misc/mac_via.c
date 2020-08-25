@@ -328,7 +328,7 @@ static void via1_VBL(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     s->ifr |= VIA1_IRQ_VBLANK;
     mdc->update_irq(s);
@@ -340,7 +340,7 @@ static void via1_one_second(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     s->ifr |= VIA1_IRQ_ONE_SECOND;
     mdc->update_irq(s);
@@ -352,7 +352,7 @@ static void via1_irq_request(void *opaque, int irq, int level)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     if (level) {
         s->ifr |= 1 << irq;
@@ -367,7 +367,7 @@ static void via2_irq_request(void *opaque, int irq, int level)
 {
     MOS6522Q800VIA2State *v2s = opaque;
     MOS6522State *s = MOS6522(v2s);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     if (level) {
         s->ifr |= 1 << irq;
@@ -1183,7 +1183,7 @@ static TypeInfo mac_via_info = {
 static void mos6522_q800_via1_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
     mdc->parent_reset(dev);
 
@@ -1226,7 +1226,7 @@ static void mos6522_q800_via2_portB_write(MOS6522State *s)
 static void mos6522_q800_via2_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
     mdc->parent_reset(dev);
 
@@ -1246,7 +1246,7 @@ static void mos6522_q800_via2_init(Object *obj)
 static void mos6522_q800_via2_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->reset = mos6522_q800_via2_reset;
     mdc->portB_write = mos6522_q800_via2_portB_write;

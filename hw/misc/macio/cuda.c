@@ -96,7 +96,7 @@ static void cuda_set_sr_int(void *opaque)
     CUDAState *s = opaque;
     MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
     mdc->set_sr_int(ms);
 }
@@ -592,7 +592,7 @@ static void mos6522_cuda_portB_write(MOS6522State *s)
 static void mos6522_cuda_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
     mdc->parent_reset(dev);
 
@@ -603,7 +603,7 @@ static void mos6522_cuda_reset(DeviceState *dev)
 static void mos6522_cuda_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->reset = mos6522_cuda_reset;
     mdc->portB_write = mos6522_cuda_portB_write;
