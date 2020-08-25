@@ -681,7 +681,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    RdmaProviderClass *ir = INTERFACE_RDMA_PROVIDER_CLASS(klass);
+    RdmaProviderClass *ir = RDMA_PROVIDER_CLASS(klass);
 
     k->realize = pvrdma_realize;
     k->vendor_id = PCI_VENDOR_ID_VMWARE;
