@@ -167,7 +167,7 @@ static void irq_status_forwarder(void *opaque, int n, int level)
 
 static void nsccfg_handler(void *opaque, int n, int level)
 {
-    ARMSSE *s = ARMSSE(opaque);
+    ARMSSE *s = ARM_SSE(opaque);
 
     s->nsccfg = level;
 }
@@ -233,8 +233,8 @@ static void armsse_forward_sec_resp_cfg(ARMSSE *s)
 
 static void armsse_init(Object *obj)
 {
-    ARMSSE *s = ARMSSE(obj);
-    ARMSSEClass *asc = ARMSSE_GET_CLASS(obj);
+    ARMSSE *s = ARM_SSE(obj);
+    ARMSSEClass *asc = ARM_SSE_GET_CLASS(obj);
     const ARMSSEInfo *info = asc->info;
     int i;
 
@@ -391,7 +391,7 @@ static void armsse_exp_irq(void *opaque, int n, int level)
 
 static void armsse_mpcexp_status(void *opaque, int n, int level)
 {
-    ARMSSE *s = ARMSSE(opaque);
+    ARMSSE *s = ARM_SSE(opaque);
     qemu_set_irq(s->mpcexp_status_in[n], level);
 }
 
@@ -401,7 +401,7 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
      * Return a qemu_irq which can be used to signal IRQ n to
      * all CPUs in the SSE.
      */
-    ARMSSEClass *asc = ARMSSE_GET_CLASS(s);
+    ARMSSEClass *asc = ARM_SSE_GET_CLASS(s);
     const ARMSSEInfo *info = asc->info;
 
     assert(irq_is_common[irqno]);
@@ -428,8 +428,8 @@ static void map_ppu(ARMSSE *s, int ppuidx, const char *name, hwaddr addr)
 
 static void armsse_realize(DeviceState *dev, Error **errp)
 {
-    ARMSSE *s = ARMSSE(dev);
-    ARMSSEClass *asc = ARMSSE_GET_CLASS(dev);
+    ARMSSE *s = ARM_SSE(dev);
+    ARMSSEClass *asc = ARM_SSE_GET_CLASS(dev);
     const ARMSSEInfo *info = asc->info;
     int i;
     MemoryRegion *mr;
@@ -1114,7 +1114,7 @@ static void armsse_idau_check(IDAUInterface *ii, uint32_t address,
      * of the address bits. The NSC attribute is guest-adjustable via the
      * NSCCFG register in the security controller.
      */
-    ARMSSE *s = ARMSSE(ii);
+    ARMSSE *s = ARM_SSE(ii);
     int region = extract32(address, 28, 4);
 
     *ns = !(region & 1);
@@ -1136,7 +1136,7 @@ static const VMStateDescription armsse_vmstate = {
 
 static void armsse_reset(DeviceState *dev)
 {
-    ARMSSE *s = ARMSSE(dev);
+    ARMSSE *s = ARM_SSE(dev);
 
     s->nsccfg = 0;
 }
@@ -1145,7 +1145,7 @@ static void armsse_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(klass);
-    ARMSSEClass *asc = ARMSSE_CLASS(klass);
+    ARMSSEClass *asc = ARM_SSE_CLASS(klass);
     const ARMSSEInfo *info = data;
 
     dc->realize = armsse_realize;
@@ -1157,7 +1157,7 @@ static void armsse_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo armsse_info = {
-    .name = TYPE_ARMSSE,
+    .name = TYPE_ARM_SSE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMSSE),
     .instance_init = armsse_init,
@@ -1177,7 +1177,7 @@ static void armsse_register_types(void)
     for (i = 0; i < ARRAY_SIZE(armsse_variants); i++) {
         TypeInfo ti = {
             .name = armsse_variants[i].name,
-            .parent = TYPE_ARMSSE,
+            .parent = TYPE_ARM_SSE,
             .class_init = armsse_class_init,
             .class_data = (void *)&armsse_variants[i],
         };
