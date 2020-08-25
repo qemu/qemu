@@ -18,7 +18,7 @@
 #define S390_CCW_MACHINE(obj) \
     OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
 
-#define S390_MACHINE_CLASS(klass) \
+#define S390_CCW_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(S390CcwMachineClass, (klass), TYPE_S390_CCW_MACHINE)
 
 typedef struct S390CcwMachineState {
