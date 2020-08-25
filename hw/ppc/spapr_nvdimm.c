@@ -30,12 +30,18 @@
 #include "hw/ppc/fdt.h"
 #include "qemu/range.h"
 
-void spapr_nvdimm_validate_opts(NVDIMMDevice *nvdimm, uint64_t size,
-                                Error **errp)
+void spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
+                           uint64_t size, Error **errp)
 {
+    const MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     g_autofree char *uuidstr = NULL;
     QemuUUID uuid;
     int ret;
+
+    if (!mc->nvdimm_supported) {
+        error_setg(errp, "NVDIMM hotplug not supported for this machine");
+        return;
+    }
 
     if (object_property_get_int(OBJECT(nvdimm), NVDIMM_LABEL_SIZE_PROP,
                                 &error_abort) == 0) {
