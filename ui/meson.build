@@ -44,7 +44,7 @@ if config_host.has_key('CONFIG_CURSES')
   ui_modules += {'curses' : curses_ss}
 endif
 
-if config_host.has_key('CONFIG_GTK') and config_host.has_key('CONFIG_VTE')
+if config_host.has_key('CONFIG_GTK')
   softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 
   gtk_ss = ss.source_set()
