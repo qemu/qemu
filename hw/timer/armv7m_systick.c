@@ -202,6 +202,14 @@ static void systick_reset(DeviceState *dev)
 {
     SysTickState *s = SYSTICK(dev);
 
+    /*
+     * Forgetting to set system_clock_scale is always a board code
+     * bug. We can't check this earlier because for some boards
+     * (like stellaris) it is not yet configured at the point where
+     * the systick device is realized.
+     */
+    assert(system_clock_scale != 0);
+
     s->control = 0;
     s->reload = 0;
     s->tick = 0;
