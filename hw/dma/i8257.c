@@ -33,8 +33,6 @@
 #include "qemu/log.h"
 #include "trace.h"
 
-#define I8257(obj) \
-    OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
 
 /* #define DEBUG_DMA */
 
