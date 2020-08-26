@@ -1,3 +1,6 @@
+softmmu_ss.add(pixman)
+specific_ss.add(pixman)   # for the include path
+
 softmmu_ss.add(files(
   'console.c',
   'cursor.c',
@@ -9,7 +12,6 @@ softmmu_ss.add(files(
   'keymaps.c',
   'qemu-pixman.c',
 ))
-softmmu_ss.add(pixman)
 
 softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files('input-linux.c'))
 softmmu_ss.add(when: 'CONFIG_SPICE', if_true: files('spice-core.c', 'spice-input.c', 'spice-display.c'))

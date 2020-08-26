@@ -3924,20 +3924,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# pixman support probe
-
-if test "$softmmu" = "no"; then
-  pixman_cflags=
-  pixman_libs=
-elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
-  pixman_cflags=$($pkg_config --cflags pixman-1)
-  pixman_libs=$($pkg_config --libs pixman-1)
-else
-  error_exit "pixman >= 0.21.8 not present." \
-      "Please install the pixman devel package."
-fi
-
-##########################################
 # libmpathpersist probe
 
 if test "$mpath" != "no" ; then
@@ -6649,8 +6635,8 @@ echo_version() {
     fi
 }
 
-# prepend pixman and ftd flags after all config tests are done
-QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
+# prepend ftd flags after all config tests are done
+QEMU_CFLAGS="$fdt_cflags $QEMU_CFLAGS"
 QEMU_LDFLAGS="$fdt_ldflags $QEMU_LDFLAGS"
 
 config_host_mak="config-host.mak"
@@ -8055,9 +8041,6 @@ if test "$tcg_interpreter" = "yes" ; then
 fi
 
 done # for target in $targets
-
-echo "PIXMAN_CFLAGS=$pixman_cflags" >> $config_host_mak
-echo "PIXMAN_LIBS=$pixman_libs" >> $config_host_mak
 
 if [ "$fdt" = "git" ]; then
   subdirs="$subdirs dtc"
