@@ -232,17 +232,9 @@ distclean: clean ninja-distclean
 install-datadir:
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 
-install-localstatedir:
-ifdef CONFIG_POSIX
-ifeq ($(CONFIG_GUEST_AGENT),y)
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_localstatedir)"/run
-endif
-endif
-
-
 # Needed by "meson install"
 export DESTDIR
-install: all install-datadir install-localstatedir
+install: all install-datadir
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/keymaps"
 
 ifdef CONFIG_WIN32

@@ -82,6 +82,8 @@ if targetos == 'windows'
     all_qga += [qga_msi]
     alias_target('msi', qga_msi)
   endif
+else
+  install_subdir('run', install_dir: get_option('localstatedir'))
 endif
 
 alias_target('qemu-ga', all_qga)
