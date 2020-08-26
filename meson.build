@@ -165,10 +165,11 @@ libcap_ng = not_found
 if 'CONFIG_LIBCAP_NG' in config_host
   libcap_ng = declare_dependency(link_args: config_host['LIBCAP_NG_LIBS'].split())
 endif
-xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'), static: enable_static,
-                       include_type: 'system')
-if xkbcommon.found()
-  xkbcommon = declare_dependency(dependencies: xkbcommon)
+if get_option('xkbcommon').auto() and not have_system and not have_tools
+  xkbcommon = not_found
+else
+  xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
+                         static: enable_static)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -1078,9 +1079,6 @@ endif
 
 # Don't build qemu-keymap if xkbcommon is not explicitly enabled
 # when we don't build tools or system
-if get_option('xkbcommon').auto() and not have_system and not have_tools
-  xkbcommon = not_found
-endif
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
   qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
