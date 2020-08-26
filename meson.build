@@ -19,6 +19,7 @@ enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
 qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
+qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
 config_host_data = configuration_data()
 genh = []
 
@@ -1182,7 +1183,7 @@ if build_docs
                       input: input,
                       output: output,
                       install: true,
-                      install_dir: config_host['qemu_docdir'] / 'interop',
+                      install_dir: qemu_docdir / 'interop',
                       command: cmd + args)
       endforeach
       alias_target(ext, t)
@@ -1245,6 +1246,7 @@ if targetos != 'windows'
 else
   summary_info += {'local state directory': 'queried at runtime'}
 endif
+summary_info += {'Doc directory':     get_option('docdir')}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
 summary_info += {'GIT binary':        config_host['GIT']}

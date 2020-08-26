@@ -10,7 +10,7 @@ if build_docs
   configure_file(output: 'index.html',
                  input: files('index.html.in'),
                  configuration: {'VERSION': meson.project_version()},
-                 install_dir: config_host['qemu_docdir'])
+                 install_dir: qemu_docdir)
   manuals = [ 'devel', 'interop', 'tools', 'specs', 'system', 'user' ]
   man_pages = {
     'interop' : {
@@ -48,7 +48,7 @@ if build_docs
                           input_dir, output_dir])
     sphinxdocs += this_manual
     if build_docs and manual != 'devel'
-      install_subdir(output_dir, install_dir: config_host['qemu_docdir'])
+      install_subdir(output_dir, install_dir: qemu_docdir)
     endif
 
     these_man_pages = []
