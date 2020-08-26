@@ -20,6 +20,16 @@ build_docs = 'BUILD_DOCS' in config_host
 config_host_data = configuration_data()
 genh = []
 
+target_dirs = config_host['TARGET_DIRS'].split()
+have_user = false
+have_system = false
+foreach target : target_dirs
+  have_user = have_user or target.endswith('-user')
+  have_system = have_system or target.endswith('-softmmu')
+endforeach
+have_tools = 'CONFIG_TOOLS' in config_host
+have_block = have_system or have_tools
+
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
 add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
@@ -227,9 +237,12 @@ if 'CONFIG_BRLAPI' in config_host
   brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
 endif
 
-sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static,
-                 include_type: 'system')
-sdl_image = not_found
+sdl = not_found
+if have_system
+  sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static,
+                   include_type: 'system')
+  sdl_image = not_found
+endif
 if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
@@ -426,9 +439,6 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
-target_dirs = config_host['TARGET_DIRS'].split()
-have_user = false
-have_system = false
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
@@ -449,7 +459,6 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 foreach target : target_dirs
-  have_user = have_user or target.endswith('-user')
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
 
   config_target_data = configuration_data()
@@ -472,8 +481,6 @@ foreach target : target_dirs
                                                configuration: config_target_data)}
 
   if target.endswith('-softmmu')
-    have_system = true
-
     base_kconfig = []
     foreach sym : kconfig_external_symbols
       if sym in config_target or sym in config_host
@@ -503,8 +510,6 @@ foreach target : target_dirs
   endif
   config_target_mak += {target: config_target}
 endforeach
-have_tools = 'CONFIG_TOOLS' in config_host
-have_block = have_system or have_tools
 
 grepy = find_program('scripts/grepy.sh')
 # This configuration is used to build files that are shared by
