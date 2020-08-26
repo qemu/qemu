@@ -24,5 +24,68 @@ if 'DECOMPRESS_EDK2_BLOBS' in config_host
   endforeach
 endif
 
+blobs = files(
+  'bios.bin',
+  'bios-256k.bin',
+  'bios-microvm.bin',
+  'sgabios.bin',
+  'vgabios.bin',
+  'vgabios-cirrus.bin',
+  'vgabios-stdvga.bin',
+  'vgabios-vmware.bin',
+  'vgabios-qxl.bin',
+  'vgabios-virtio.bin',
+  'vgabios-ramfb.bin',
+  'vgabios-bochs-display.bin',
+  'vgabios-ati.bin',
+  'openbios-sparc32',
+  'openbios-sparc64',
+  'openbios-ppc',
+  'QEMU,tcx.bin',
+  'QEMU,cgthree.bin',
+  'pxe-e1000.rom',
+  'pxe-eepro100.rom',
+  'pxe-ne2k_pci.rom',
+  'pxe-pcnet.rom',
+  'pxe-rtl8139.rom',
+  'pxe-virtio.rom',
+  'efi-e1000.rom',
+  'efi-eepro100.rom',
+  'efi-ne2k_pci.rom',
+  'efi-pcnet.rom',
+  'efi-rtl8139.rom',
+  'efi-virtio.rom',
+  'efi-e1000e.rom',
+  'efi-vmxnet3.rom',
+  'qemu-nsis.bmp',
+  'bamboo.dtb',
+  'canyonlands.dtb',
+  'petalogix-s3adsp1800.dtb',
+  'petalogix-ml605.dtb',
+  'multiboot.bin',
+  'linuxboot.bin',
+  'linuxboot_dma.bin',
+  'kvmvapic.bin',
+  'pvh.bin',
+  's390-ccw.img',
+  's390-netboot.img',
+  'slof.bin',
+  'skiboot.lid',
+  'palcode-clipper',
+  'u-boot.e500',
+  'u-boot-sam460-20100605.bin',
+  'qemu_vga.ndrv',
+  'edk2-licenses.txt',
+  'hppa-firmware.img',
+  'opensbi-riscv32-generic-fw_dynamic.bin',
+  'opensbi-riscv64-generic-fw_dynamic.bin',
+  'opensbi-riscv32-generic-fw_dynamic.elf',
+  'opensbi-riscv64-generic-fw_dynamic.elf',
+)
+
+if install_blobs
+  install_data(blobs, install_dir: config_host['qemu_datadir'])
+endif
+
 subdir('descriptors')
 subdir('keymaps')
