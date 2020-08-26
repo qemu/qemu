@@ -229,13 +229,8 @@ distclean: clean ninja-distclean
 	rm -f linux-headers/asm
 	rm -Rf .sdk
 
-install-datadir:
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
-
 # Needed by "meson install"
 export DESTDIR
-install: all install-datadir
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/keymaps"
 
 ifdef CONFIG_WIN32
 
