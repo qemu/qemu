@@ -834,7 +834,8 @@ class Ninja2Make(NinjaParserEventsWithVars):
         self.print()
         for targets in self.build_vars:
             for name, value in self.build_vars[targets].items():
-                self.print('%s: private .var.%s := %s' % (targets, name, value))
+                self.print('%s: private .var.%s := %s' %
+                           (targets, name, value.replace('$', '$$')))
             self.print()
         if not self.seen_default:
             default_targets = sorted(self.all_outs - self.all_ins, key=natural_sort_key)
