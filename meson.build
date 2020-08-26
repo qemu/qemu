@@ -1223,7 +1223,7 @@ if build_docs
                           output: man,
                           capture: true,
                           install: true,
-                          install_dir: config_host['mandir'] / 'man7',
+                          install_dir: get_option('mandir') / 'man7',
                           command: [pod2man, '--utf8', '--section=7', '--center=" "',
                                     '--release=" "', '@INPUT@'])
     endforeach
@@ -1242,7 +1242,7 @@ summary_info += {'include directory': config_host['includedir']}
 summary_info += {'config directory':  config_host['sysconfdir']}
 if targetos != 'windows'
   summary_info += {'local state directory': config_host['qemu_localstatedir']}
-  summary_info += {'Manual directory':      config_host['mandir']}
+  summary_info += {'Manual directory':      get_option('mandir')}
 else
   summary_info += {'local state directory': 'queried at runtime'}
 endif
