@@ -240,8 +240,7 @@ endif
 
 sdl = not_found
 if have_system
-  sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static,
-                   include_type: 'system')
+  sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static)
   sdl_image = not_found
 endif
 if sdl.found()
