@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
@@ -26,6 +27,30 @@
 #define MAX_IDE_BUS 2
 
 #define MIN_SEABIOS_HPPA_VERSION 1 /* require at least this fw version */
+
+#define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
+
+static void hppa_powerdown_req(Notifier *n, void *opaque)
+{
+    hwaddr soft_power_reg = HPA_POWER_BUTTON;
+    uint32_t val;
+
+    val = ldl_be_phys(&address_space_memory, soft_power_reg);
+    if ((val >> 8) == 0) {
+        /* immediately shut down when under hardware control */
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        return;
+    }
+
+    /* clear bit 31 to indicate that the power switch was pressed. */
+    val &= ~1;
+    stl_be_phys(&address_space_memory, soft_power_reg, val);
+}
+
+static Notifier hppa_system_powerdown_notifier = {
+    .notify = hppa_powerdown_req
+};
+
 
 static ISABus *hppa_isa_bus(void)
 {
@@ -84,6 +109,10 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
 
     val = cpu_to_le64(HPPA_BTLB_ENTRIES);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/btlb_entries",
+                    g_memdup(&val, sizeof(val)), sizeof(val));
+
+    val = cpu_to_le64(HPA_POWER_BUTTON);
+    fw_cfg_add_file(fw_cfg, "/etc/power-button-addr",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_order[0]);
@@ -176,6 +205,9 @@ static void machine_hppa_init(MachineState *machine)
             pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
         }
     }
+
+    /* register power switch emulation */
+    qemu_register_powerdown_notifier(&hppa_system_powerdown_notifier);
 
     /* Load firmware.  Given that this is not "real" firmware,
        but one explicitly written for the emulation, we might as
