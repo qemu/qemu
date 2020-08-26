@@ -316,7 +316,7 @@ static const TypeInfo tosa_ssp_info = {
 };
 
 static const TypeInfo tosa_misc_gpio_info = {
-    .name          = "tosa-misc-gpio",
+    .name          = TYPE_TOSA_MISC_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TosaMiscGPIOState),
     .instance_init = tosa_misc_gpio_init,
