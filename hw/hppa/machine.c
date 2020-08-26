@@ -25,6 +25,8 @@
 
 #define MAX_IDE_BUS 2
 
+#define MIN_SEABIOS_HPPA_VERSION 1 /* require at least this fw version */
+
 static ISABus *hppa_isa_bus(void)
 {
     ISABus *isa_bus;
@@ -55,6 +57,23 @@ static uint64_t cpu_hppa_to_phys(void *opaque, uint64_t addr)
 
 static HPPACPU *cpu[HPPA_MAX_CPUS];
 static uint64_t firmware_entry;
+
+static FWCfgState *create_fw_cfg(MachineState *ms)
+{
+    FWCfgState *fw_cfg;
+    uint64_t val;
+
+    fw_cfg = fw_cfg_init_mem(QEMU_FW_CFG_IO_BASE, QEMU_FW_CFG_IO_BASE + 4);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, ms->smp.cpus);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, HPPA_MAX_CPUS);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, ram_size);
+
+    val = cpu_to_le64(MIN_SEABIOS_HPPA_VERSION);
+    fw_cfg_add_file(fw_cfg, "/etc/firmware-min-version",
+                    g_memdup(&val, sizeof(val)), sizeof(val));
+
+    return fw_cfg;
+}
 
 static void machine_hppa_init(MachineState *machine)
 {
@@ -117,6 +136,9 @@ static void machine_hppa_init(MachineState *machine)
         serial_mm_init(addr_space, addr, 0, serial_irq,
                        115200, serial_hd(0), DEVICE_BIG_ENDIAN);
     }
+
+    /* fw_cfg configuration interface */
+    create_fw_cfg(machine);
 
     /* SCSI disk setup. */
     dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
