@@ -243,9 +243,6 @@ endif
 # Needed by "meson install"
 export DESTDIR
 install: all install-datadir install-localstatedir
-	mkdir -p "$(DESTDIR)$(qemu_desktopdir)"
-	$(INSTALL_DATA) $(SRC_PATH)/ui/qemu.desktop \
-		"$(DESTDIR)$(qemu_desktopdir)/qemu.desktop"
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/keymaps"
 
 ifdef CONFIG_WIN32
