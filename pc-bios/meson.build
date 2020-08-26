@@ -19,7 +19,7 @@ if 'DECOMPRESS_EDK2_BLOBS' in config_host
                   input: '@0@.bz2'.format(f),
                   capture: true,
                   install: install_blobs,
-                  install_dir: config_host['qemu_datadir'],
+                  install_dir: qemu_datadir,
                   command: [ bzip2, '-dc', '@INPUT0@' ])
   endforeach
 endif

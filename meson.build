@@ -18,6 +18,7 @@ config_all_disas = keyval.load(meson.current_build_dir() / 'config-all-disas.mak
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
+qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
 config_host_data = configuration_data()
 genh = []
 
@@ -1055,7 +1056,7 @@ foreach target : target_dirs
                       output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
-                      install_dir: config_host['qemu_datadir'] / '../systemtap/tapset',
+                      install_dir: qemu_datadir / '../systemtap/tapset',
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
