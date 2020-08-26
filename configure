@@ -1684,14 +1684,14 @@ includedir="${includedir:-$prefix/include}"
 if test "$mingw32" = "yes" ; then
     mandir="$prefix"
     datadir="$prefix"
-    qemu_docdir="$prefix"
+    docdir="$prefix"
     bindir="$prefix"
     sysconfdir="$prefix"
     local_statedir=
 else
     mandir="${mandir:-$prefix/share/man}"
     datadir="${datadir:-$prefix/share}"
-    qemu_docdir="${qemu_docdir:-$prefix/share/doc/qemu}"
+    docdir="${docdir:-$prefix/share/doc}"
     bindir="${bindir:-$prefix/bin}"
     sysconfdir="${sysconfdir:-$prefix/etc}"
     local_statedir="${local_statedir:-$prefix/var}"
@@ -1841,7 +1841,7 @@ Advanced options (experts only):
   --localstatedir=PATH     install local state in PATH (set at runtime on win32)
   --firmwarepath=PATH      search PATH for firmware files
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
-  --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir [$qemu_suffix]
+  --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
   --with-pkgversion=VERS   use specified string as sub-version of the package
   --enable-debug           enable common debug build options
   --enable-sanitizers      enable default sanitizers
@@ -6452,6 +6452,7 @@ fi
 qemu_confdir="$sysconfdir/$qemu_suffix"
 qemu_moddir="$libdir/$qemu_suffix"
 qemu_datadir="$datadir/$qemu_suffix"
+qemu_docdir="$docdir/$qemu_suffix"
 qemu_localedir="$datadir/locale"
 qemu_icondir="$datadir/icons"
 qemu_desktopdir="$datadir/applications"
