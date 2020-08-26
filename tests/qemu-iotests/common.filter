@@ -239,6 +239,7 @@ _filter_img_info()
         -e "/adapter_type: '[^']*'/d" \
         -e "/hwversion: '[^']*'/d" \
         -e "/lazy_refcounts: \\(on\\|off\\)/d" \
+        -e "/extended_l2=\\(on\\|off\\)/d" \
         -e "/block_size: [0-9]\\+/d" \
         -e "/block_state_zero: \\(on\\|off\\)/d" \
         -e "/log_size: [0-9]\\+/d" \

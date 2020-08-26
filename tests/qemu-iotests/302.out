@@ -17,6 +17,7 @@ Format specific information:
     lazy refcounts: false
     refcount bits: 16
     corrupt: false
+    extended l2: false
 
 === Converted image check ===
 No errors were found on the image.

@@ -1,0 +1,901 @@
+#!/usr/bin/env bash
+#
+# Test qcow2 images with extended L2 entries
+#
+# Copyright (C) 2019-2020 Igalia, S.L.
+# Author: Alberto Garcia <berto@igalia.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berto@igalia.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1	# failure is the default!
+
+_cleanup()
+{
+        _cleanup_test_img
+        rm -f "$TEST_IMG.raw"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file nfs
+_supported_os Linux
+_unsupported_imgopts extended_l2 compat=0.10 cluster_size data_file refcount_bits=1[^0-9]
+
+l2_offset=$((0x40000))
+
+_verify_img()
+{
+    $QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.raw" | grep -v 'Images are identical'
+    $QEMU_IMG check "$TEST_IMG" | _filter_qemu_img_check | \
+        grep -v 'No errors were found on the image'
+}
+
+# Compare the bitmap of an extended L2 entry against an expected value
+_verify_l2_bitmap()
+{
+    entry_no="$1"            # L2 entry number, starting from 0
+    expected_alloc="$alloc"  # Space-separated list of allocated subcluster indexes
+    expected_zero="$zero"    # Space-separated list of zero subcluster indexes
+
+    offset=$(($l2_offset + $entry_no * 16))
+    entry=$(peek_file_be "$TEST_IMG" $offset 8)
+    offset=$(($offset + 8))
+    bitmap=$(peek_file_be "$TEST_IMG" $offset 8)
+
+    expected_bitmap=0
+    for bit in $expected_alloc; do
+        expected_bitmap=$(($expected_bitmap | (1 << $bit)))
+    done
+    for bit in $expected_zero; do
+        expected_bitmap=$(($expected_bitmap | (1 << (32 + $bit))))
+    done
+    printf -v expected_bitmap "%u" $expected_bitmap # Convert to unsigned
+
+    printf "L2 entry #%d: 0x%016x %016x\n" "$entry_no" "$entry" "$bitmap"
+    if [ "$bitmap" != "$expected_bitmap" ]; then
+        printf "ERROR: expecting bitmap       0x%016x\n" "$expected_bitmap"
+    fi
+}
+
+# This should be called as _run_test c=XXX sc=XXX off=XXX len=XXX cmd=XXX
+# c:   cluster number (0 if unset)
+# sc:  subcluster number inside cluster @c (0 if unset)
+# off: offset inside subcluster @sc, in kilobytes (0 if unset)
+# len: request length, passed directly to qemu-io (e.g: 256, 4k, 1M, ...)
+# cmd: the command to pass to qemu-io, must be one of
+#      write    -> write
+#      zero     -> write -z
+#      unmap    -> write -z -u
+#      compress -> write -c
+#      discard  -> discard
+_run_test()
+{
+    unset c sc off len cmd
+    for var in "$@"; do eval "$var"; done
+    case "${cmd:-write}" in
+        zero)
+            cmd="write -q -z";;
+        unmap)
+            cmd="write -q -z -u";;
+        compress)
+            pat=$((${pat:-0} + 1))
+            cmd="write -q -c -P ${pat}";;
+        write)
+            pat=$((${pat:-0} + 1))
+            cmd="write -q -P ${pat}";;
+        discard)
+            cmd="discard -q";;
+        *)
+            echo "Unknown option $cmd"
+            exit 1;;
+    esac
+    c="${c:-0}"
+    sc="${sc:-0}"
+    off="${off:-0}"
+    offset="$(($c * 64 + $sc * 2 + $off))"
+    [ "$offset" != 0 ] && offset="${offset}k"
+    cmd="$cmd ${offset} ${len}"
+    raw_cmd=$(echo $cmd | sed s/-c//) # Raw images don't support -c
+    echo $cmd | sed 's/-P [0-9][0-9]\?/-P PATTERN/'
+    $QEMU_IO -c "$cmd" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IO -c "$raw_cmd" -f raw "$TEST_IMG.raw" | _filter_qemu_io
+    _verify_img
+    _verify_l2_bitmap "$c"
+}
+
+_reset_img()
+{
+    size="$1"
+    $QEMU_IMG create -f raw "$TEST_IMG.raw" "$size" | _filter_img_create
+    if [ "$use_backing_file" = "yes" ]; then
+        $QEMU_IMG create -f raw "$TEST_IMG.base" "$size" | _filter_img_create
+        $QEMU_IO -c "write -q -P 0xFF 0 $size" -f raw "$TEST_IMG.base" | _filter_qemu_io
+        $QEMU_IO -c "write -q -P 0xFF 0 $size" -f raw "$TEST_IMG.raw" | _filter_qemu_io
+        _make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" "$size"
+    else
+        _make_test_img -o extended_l2=on "$size"
+    fi
+}
+
+############################################################
+############################################################
+############################################################
+
+# Test that writing to an image with subclusters produces the expected
+# results, in images with and without backing files
+for use_backing_file in yes no; do
+    echo
+    echo "### Standard write tests (backing file: $use_backing_file) ###"
+    echo
+    _reset_img 1M
+    ### Write subcluster #0 (beginning of subcluster) ###
+    alloc="0"; zero=""
+    _run_test sc=0 len=1k
+
+    ### Write subcluster #1 (middle of subcluster) ###
+    alloc="0 1"; zero=""
+    _run_test sc=1 off=1 len=512
+
+    ### Write subcluster #2 (end of subcluster) ###
+    alloc="0 1 2"; zero=""
+    _run_test sc=2 off=1 len=1k
+
+    ### Write subcluster #3 (full subcluster) ###
+    alloc="0 1 2 3"; zero=""
+    _run_test sc=3 len=2k
+
+    ### Write subclusters #4-6 (full subclusters) ###
+    alloc="$(seq 0 6)"; zero=""
+    _run_test sc=4 len=6k
+
+    ### Write subclusters #7-9 (partial subclusters) ###
+    alloc="$(seq 0 9)"; zero=""
+    _run_test sc=7 off=1 len=4k
+
+    ### Write subcluster #16 (partial subcluster) ###
+    alloc="$(seq 0 9) 16"; zero=""
+    _run_test sc=16 len=1k
+
+    ### Write subcluster #31-#33 (cluster overlap) ###
+    alloc="$(seq 0 9) 16 31"; zero=""
+    _run_test sc=31 off=1 len=4k
+    alloc="0 1" ; zero=""
+    _verify_l2_bitmap 1
+
+    ### Zero subcluster #1
+    alloc="0 $(seq 2 9) 16 31"; zero="1"
+    _run_test sc=1 len=2k cmd=zero
+
+    ### Zero cluster #0
+    alloc=""; zero="$(seq 0 31)"
+    _run_test sc=0 len=64k cmd=zero
+
+    ### Fill cluster #0 with data
+    alloc="$(seq 0 31)"; zero=""
+    _run_test sc=0 len=64k
+
+    ### Zero and unmap half of cluster #0 (this won't unmap it)
+    alloc="$(seq 16 31)"; zero="$(seq 0 15)"
+    _run_test sc=0 len=32k cmd=unmap
+
+    ### Zero and unmap cluster #0
+    alloc=""; zero="$(seq 0 31)"
+    _run_test sc=0 len=64k cmd=unmap
+
+    ### Write subcluster #1 (middle of subcluster)
+    alloc="1"; zero="0 $(seq 2 31)"
+    _run_test sc=1 off=1 len=512
+
+    ### Fill cluster #0 with data
+    alloc="$(seq 0 31)"; zero=""
+    _run_test sc=0 len=64k
+
+    ### Discard cluster #0
+    alloc=""; zero="$(seq 0 31)"
+    _run_test sc=0 len=64k cmd=discard
+
+    ### Write compressed data to cluster #0
+    alloc=""; zero=""
+    _run_test sc=0 len=64k cmd=compress
+
+    ### Write subcluster #1 (middle of subcluster)
+    alloc="$(seq 0 31)"; zero=""
+    _run_test sc=1 off=1 len=512
+done
+
+############################################################
+############################################################
+############################################################
+
+# calculate_l2_meta() checks if none of the clusters affected by a
+# write operation need COW or changes to their L2 metadata and simply
+# returns when they don't. This is a test for that optimization.
+# Here clusters #0-#3 are overwritten but only #1 and #2 need changes.
+echo
+echo '### Overwriting several clusters without COW ###'
+echo
+use_backing_file="no" _reset_img 1M
+# Write cluster #0, subclusters #12-#31
+alloc="$(seq 12 31)"; zero=""
+_run_test sc=12 len=40k
+
+# Write cluster #1, subcluster #13
+alloc="13"; zero=""
+_run_test c=1 sc=13 len=2k
+
+# Zeroize cluster #2, subcluster #14
+alloc="14"; zero=""
+_run_test c=2 sc=14 len=2k
+alloc=""; zero="14"
+_run_test c=2 sc=14 len=2k cmd=zero
+
+# Write cluster #3, subclusters #0-#16
+alloc="$(seq 0 16)"; zero=""
+_run_test c=3 sc=0 len=34k
+
+# Write from cluster #0, subcluster #12 to cluster #3, subcluster #11
+alloc="$(seq 12 31)"; zero=""
+_run_test sc=12 len=192k
+alloc="$(seq 0 31)"; zero=""
+_verify_l2_bitmap 1
+_verify_l2_bitmap 2
+
+alloc="$(seq 0 16)"; zero=""
+_verify_l2_bitmap 3
+
+############################################################
+############################################################
+############################################################
+
+# Test different patterns of writing zeroes
+for use_backing_file in yes no; do
+    echo
+    echo "### Writing zeroes 1: unallocated clusters (backing file: $use_backing_file) ###"
+    echo
+    # Note that the image size is not a multiple of the cluster size
+    _reset_img 2083k
+
+    # Cluster-aligned request from clusters #0 to #2
+    alloc=""; zero="$(seq 0 31)"
+    _run_test c=0 sc=0 len=192k cmd=zero
+    _verify_l2_bitmap 1
+    _verify_l2_bitmap 2
+
+    # Subcluster-aligned request from clusters #3 to #5
+    alloc=""; zero="$(seq 16 31)"
+    _run_test c=3 sc=16 len=128k cmd=zero
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 4
+    alloc=""; zero="$(seq 0 15)"
+    _verify_l2_bitmap 5
+
+    # Unaligned request from clusters #6 to #8
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc="15"; zero="$(seq 16 31)" # copy-on-write happening here
+    else
+        alloc=""; zero="$(seq 15 31)"
+    fi
+    _run_test c=6 sc=15 off=1 len=128k cmd=zero
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 7
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc="15"; zero="$(seq 0 14)" # copy-on-write happening here
+    else
+        alloc=""; zero="$(seq 0 15)"
+    fi
+    _verify_l2_bitmap 8
+
+    echo
+    echo "### Writing zeroes 2: allocated clusters (backing file: $use_backing_file) ###"
+    echo
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=9 sc=0 len=576k
+    _verify_l2_bitmap 10
+    _verify_l2_bitmap 11
+    _verify_l2_bitmap 12
+    _verify_l2_bitmap 13
+    _verify_l2_bitmap 14
+    _verify_l2_bitmap 15
+    _verify_l2_bitmap 16
+    _verify_l2_bitmap 17
+
+    # Cluster-aligned request from clusters #9 to #11
+    alloc=""; zero="$(seq 0 31)"
+    _run_test c=9 sc=0 len=192k cmd=zero
+    _verify_l2_bitmap 10
+    _verify_l2_bitmap 11
+
+    # Subcluster-aligned request from clusters #12 to #14
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=12 sc=16 len=128k cmd=zero
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 13
+    alloc="$(seq 16 31)"; zero="$(seq 0 15)"
+    _verify_l2_bitmap 14
+
+    # Unaligned request from clusters #15 to #17
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=15 sc=15 off=1 len=128k cmd=zero
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 16
+    alloc="$(seq 15 31)"; zero="$(seq 0 14)"
+    _verify_l2_bitmap 17
+
+    echo
+    echo "### Writing zeroes 3: compressed clusters (backing file: $use_backing_file) ###"
+    echo
+    alloc=""; zero=""
+    for c in $(seq 18 28); do
+        _run_test c=$c sc=0 len=64k cmd=compress
+    done
+
+    # Cluster-aligned request from clusters #18 to #20
+    alloc=""; zero="$(seq 0 31)"
+    _run_test c=18 sc=0 len=192k cmd=zero
+    _verify_l2_bitmap 19
+    _verify_l2_bitmap 20
+
+    # Subcluster-aligned request from clusters #21 to #23.
+    # We cannot partially zero a compressed cluster so the code
+    # returns -ENOTSUP, which means copy-on-write of the compressed
+    # data and fill the rest with actual zeroes on disk.
+    # TODO: cluster #22 should use the 'all zeroes' bits.
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=21 sc=16 len=128k cmd=zero
+    _verify_l2_bitmap 22
+    _verify_l2_bitmap 23
+
+    # Unaligned request from clusters #24 to #26
+    # In this case QEMU internally sends a 1k request followed by a
+    # subcluster-aligned 128k request. The first request decompresses
+    # cluster #24, but that's not enough to perform the second request
+    # efficiently because it partially writes to cluster #26 (which is
+    # compressed) so we hit the same problem as before.
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=24 sc=15 off=1 len=129k cmd=zero
+    _verify_l2_bitmap 25
+    _verify_l2_bitmap 26
+
+    # Unaligned request from clusters #27 to #29
+    # Similar to the previous case, but this time the tail of the
+    # request does not correspond to a compressed cluster, so it can
+    # be zeroed efficiently.
+    # Note that the very last subcluster is partially written, so if
+    # there's a backing file we need to perform cow.
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=27 sc=15 off=1 len=128k cmd=zero
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 28
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc="15"; zero="$(seq 0 14)" # copy-on-write happening here
+    else
+        alloc=""; zero="$(seq 0 15)"
+    fi
+    _verify_l2_bitmap 29
+
+    echo
+    echo "### Writing zeroes 4: other tests (backing file: $use_backing_file) ###"
+    echo
+    # Unaligned request in the middle of cluster #30.
+    # If there's a backing file we need to allocate and do
+    # copy-on-write on the partially zeroed subclusters.
+    # If not we can set the 'all zeroes' bit on them.
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc="15 19"; zero="$(seq 16 18)" # copy-on-write happening here
+    else
+        alloc=""; zero="$(seq 15 19)"
+    fi
+    _run_test c=30 sc=15 off=1 len=8k cmd=zero
+
+    # Fill the last cluster with zeroes, up to the end of the image
+    # (the image size is not a multiple of the cluster or subcluster size).
+    alloc=""; zero="$(seq 0 17)"
+    _run_test c=32 sc=0 len=35k cmd=zero
+done
+
+############################################################
+############################################################
+############################################################
+
+# Zero + unmap
+for use_backing_file in yes no; do
+    echo
+    echo "### Zero + unmap 1: allocated clusters (backing file: $use_backing_file) ###"
+    echo
+    # Note that the image size is not a multiple of the cluster size
+    _reset_img 2083k
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=9 sc=0 len=576k
+    _verify_l2_bitmap 10
+    _verify_l2_bitmap 11
+    _verify_l2_bitmap 12
+    _verify_l2_bitmap 13
+    _verify_l2_bitmap 14
+    _verify_l2_bitmap 15
+    _verify_l2_bitmap 16
+    _verify_l2_bitmap 17
+
+    # Cluster-aligned request from clusters #9 to #11
+    alloc=""; zero="$(seq 0 31)"
+    _run_test c=9 sc=0 len=192k cmd=unmap
+    _verify_l2_bitmap 10
+    _verify_l2_bitmap 11
+
+    # Subcluster-aligned request from clusters #12 to #14
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=12 sc=16 len=128k cmd=unmap
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 13
+    alloc="$(seq 16 31)"; zero="$(seq 0 15)"
+    _verify_l2_bitmap 14
+
+    # Unaligned request from clusters #15 to #17
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=15 sc=15 off=1 len=128k cmd=unmap
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 16
+    alloc="$(seq 15 31)"; zero="$(seq 0 14)"
+    _verify_l2_bitmap 17
+
+    echo
+    echo "### Zero + unmap 2: compressed clusters (backing file: $use_backing_file) ###"
+    echo
+    alloc=""; zero=""
+    for c in $(seq 18 28); do
+        _run_test c=$c sc=0 len=64k cmd=compress
+    done
+
+    # Cluster-aligned request from clusters #18 to #20
+    alloc=""; zero="$(seq 0 31)"
+    _run_test c=18 sc=0 len=192k cmd=unmap
+    _verify_l2_bitmap 19
+    _verify_l2_bitmap 20
+
+    # Subcluster-aligned request from clusters #21 to #23.
+    # We cannot partially zero a compressed cluster so the code
+    # returns -ENOTSUP, which means copy-on-write of the compressed
+    # data and fill the rest with actual zeroes on disk.
+    # TODO: cluster #22 should use the 'all zeroes' bits.
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=21 sc=16 len=128k cmd=unmap
+    _verify_l2_bitmap 22
+    _verify_l2_bitmap 23
+
+    # Unaligned request from clusters #24 to #26
+    # In this case QEMU internally sends a 1k request followed by a
+    # subcluster-aligned 128k request. The first request decompresses
+    # cluster #24, but that's not enough to perform the second request
+    # efficiently because it partially writes to cluster #26 (which is
+    # compressed) so we hit the same problem as before.
+    alloc="$(seq 0 31)"; zero=""
+    _run_test c=24 sc=15 off=1 len=129k cmd=unmap
+    _verify_l2_bitmap 25
+    _verify_l2_bitmap 26
+
+    # Unaligned request from clusters #27 to #29
+    # Similar to the previous case, but this time the tail of the
+    # request does not correspond to a compressed cluster, so it can
+    # be zeroed efficiently.
+    # Note that the very last subcluster is partially written, so if
+    # there's a backing file we need to perform cow.
+    alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    _run_test c=27 sc=15 off=1 len=128k cmd=unmap
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 28
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc="15"; zero="$(seq 0 14)" # copy-on-write happening here
+    else
+        alloc=""; zero="$(seq 0 15)"
+    fi
+    _verify_l2_bitmap 29
+done
+
+############################################################
+############################################################
+############################################################
+
+# Test qcow2_cluster_discard() with full and normal discards
+for use_backing_file in yes no; do
+    echo
+    echo "### Discarding clusters with non-zero bitmaps (backing file: $use_backing_file) ###"
+    echo
+    if [ "$use_backing_file" = "yes" ]; then
+        _make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" 1M
+    else
+        _make_test_img -o extended_l2=on 1M
+    fi
+    # Write clusters #0-#2 and then discard them
+    $QEMU_IO -c 'write -q 0 128k' "$TEST_IMG"
+    $QEMU_IO -c 'discard -q 0 128k' "$TEST_IMG"
+    # 'qemu-io discard' doesn't do a full discard, it zeroizes the
+    # cluster, so both clusters have all zero bits set now
+    alloc=""; zero="$(seq 0 31)"
+    _verify_l2_bitmap 0
+    _verify_l2_bitmap 1
+    # Now mark the 2nd half of the subclusters from cluster #0 as unallocated
+    poke_file "$TEST_IMG" $(($l2_offset+8)) "\x00\x00"
+    # Discard cluster #0 again to see how the zero bits have changed
+    $QEMU_IO -c 'discard -q 0 64k' "$TEST_IMG"
+    # And do a full discard of cluster #1 by shrinking and growing the image
+    $QEMU_IMG resize --shrink "$TEST_IMG" 64k
+    $QEMU_IMG resize "$TEST_IMG" 1M
+    # A normal discard sets all 'zero' bits only if the image has a
+    # backing file, otherwise it won't touch them.
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc=""; zero="$(seq 0 31)"
+    else
+        alloc=""; zero="$(seq 0 15)"
+    fi
+    _verify_l2_bitmap 0
+    # A full discard should clear the L2 entry completely. However
+    # when growing an image with a backing file the new clusters are
+    # zeroized to hide the stale data from the backing file
+    if [ "$use_backing_file" = "yes" ]; then
+        alloc=""; zero="$(seq 0 31)"
+    else
+        alloc=""; zero=""
+    fi
+    _verify_l2_bitmap 1
+done
+
+############################################################
+############################################################
+############################################################
+
+# Test that corrupted L2 entries are detected in both read and write
+# operations
+for corruption_test_cmd in read write; do
+    echo
+    echo "### Corrupted L2 entries - $corruption_test_cmd test (allocated) ###"
+    echo
+    echo "# 'cluster is zero' bit set on the standard cluster descriptor"
+    echo
+    # We actually don't consider this a corrupted image.
+    # The 'cluster is zero' bit is unused in extended L2 entries so
+    # QEMU ignores it.
+    # TODO: maybe treat the image as corrupted and make qemu-img check fix it?
+    _make_test_img -o extended_l2=on 1M
+    $QEMU_IO -c 'write -q -P 0x11 0 2k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+7)) "\x01"
+    alloc="0"; zero=""
+    _verify_l2_bitmap 0
+    $QEMU_IO -c "$corruption_test_cmd -q -P 0x11 0 1k" "$TEST_IMG"
+    if [ "$corruption_test_cmd" = "write" ]; then
+        alloc="0"; zero=""
+    fi
+    _verify_l2_bitmap 0
+
+    echo
+    echo "# Both 'subcluster is zero' and 'subcluster is allocated' bits set"
+    echo
+    _make_test_img -o extended_l2=on 1M
+    # Write from the middle of cluster #0 to the middle of cluster #2
+    $QEMU_IO -c 'write -q 32k 128k' "$TEST_IMG"
+    # Corrupt the L2 entry from cluster #1
+    poke_file_be "$TEST_IMG" $(($l2_offset+24)) 4 1
+    alloc="$(seq 0 31)"; zero="0"
+    _verify_l2_bitmap 1
+    $QEMU_IO -c "$corruption_test_cmd 0 192k" "$TEST_IMG"
+
+    echo
+    echo "### Corrupted L2 entries - $corruption_test_cmd test (unallocated) ###"
+    echo
+    echo "# 'cluster is zero' bit set on the standard cluster descriptor"
+    echo
+    # We actually don't consider this a corrupted image.
+    # The 'cluster is zero' bit is unused in extended L2 entries so
+    # QEMU ignores it.
+    # TODO: maybe treat the image as corrupted and make qemu-img check fix it?
+    _make_test_img -o extended_l2=on 1M
+    # We want to modify the (empty) L2 entry from cluster #0,
+    # but we write to #4 in order to initialize the L2 table first
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+7)) "\x01"
+    alloc=""; zero=""
+    _verify_l2_bitmap 0
+    $QEMU_IO -c "$corruption_test_cmd -q 0 1k" "$TEST_IMG"
+    if [ "$corruption_test_cmd" = "write" ]; then
+        alloc="0"; zero=""
+    fi
+    _verify_l2_bitmap 0
+
+    echo
+    echo "# 'subcluster is allocated' bit set"
+    echo
+    _make_test_img -o extended_l2=on 1M
+    # We want to corrupt the (empty) L2 entry from cluster #0,
+    # but we write to #4 in order to initialize the L2 table first
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+15)) "\x01"
+    alloc="0"; zero=""
+    _verify_l2_bitmap 0
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "# Both 'subcluster is zero' and 'subcluster is allocated' bits set"
+    echo
+    _make_test_img -o extended_l2=on 1M
+    # We want to corrupt the (empty) L2 entry from cluster #1,
+    # but we write to #4 in order to initialize the L2 table first
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    # Corrupt the L2 entry from cluster #1
+    poke_file_be "$TEST_IMG" $(($l2_offset+24)) 8 $(((1 << 32) | 1))
+    alloc="0"; zero="0"
+    _verify_l2_bitmap 1
+    $QEMU_IO -c "$corruption_test_cmd 0 192k" "$TEST_IMG"
+
+    echo
+    echo "### Compressed cluster with subcluster bitmap != 0 - $corruption_test_cmd test ###"
+    echo
+    # We actually don't consider this a corrupted image.
+    # The bitmap in compressed clusters is unused so QEMU should just ignore it.
+    _make_test_img -o extended_l2=on 1M
+    $QEMU_IO -c 'write -q -P 11 -c 0 64k' "$TEST_IMG"
+    # Change the L2 bitmap to allocate subcluster #31 and zeroize subcluster #0
+    poke_file "$TEST_IMG" $(($l2_offset+11)) "\x01\x80"
+    alloc="31"; zero="0"
+    _verify_l2_bitmap 0
+    $QEMU_IO -c "$corruption_test_cmd -P 11 0 64k" "$TEST_IMG" | _filter_qemu_io
+    # Writing allocates a new uncompressed cluster so we get a new bitmap
+    if [ "$corruption_test_cmd" = "write" ]; then
+        alloc="$(seq 0 31)"; zero=""
+    fi
+    _verify_l2_bitmap 0
+done
+
+############################################################
+############################################################
+############################################################
+
+echo
+echo "### Detect and repair unaligned clusters ###"
+echo
+# Create a backing file and fill it with data
+$QEMU_IMG create -f raw "$TEST_IMG.base" 128k | _filter_img_create
+$QEMU_IO -c "write -q -P 0xff 0 128k" -f raw "$TEST_IMG.base" | _filter_qemu_io
+
+echo "# Corrupted L2 entry, allocated subcluster #"
+# Create a new image, allocate a cluster and write some data to it
+_make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base"
+$QEMU_IO -c 'write -q -P 1 4k 2k' "$TEST_IMG"
+# Corrupt the L2 entry by making the offset unaligned
+poke_file "$TEST_IMG" "$(($l2_offset+6))" "\x02"
+# This cannot be repaired, qemu-img check will fail to fix it
+_check_test_img -r all
+# Attempting to read the image will still show that it's corrupted
+$QEMU_IO -c 'read -q 0 2k' "$TEST_IMG"
+
+echo "# Corrupted L2 entry, no allocated subclusters #"
+# Create a new image, allocate a cluster and zeroize subcluster #2
+_make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base"
+$QEMU_IO -c 'write -q -P 1 4k 2k' "$TEST_IMG"
+$QEMU_IO -c 'write -q -z   4k 2k' "$TEST_IMG"
+# Corrupt the L2 entry by making the offset unaligned
+poke_file "$TEST_IMG" "$(($l2_offset+6))" "\x02"
+# This time none of the subclusters are allocated so we can repair the image
+_check_test_img -r all
+# And the data can be read normally
+$QEMU_IO -c 'read -q -P 0xff  0   4k' "$TEST_IMG"
+$QEMU_IO -c 'read -q -P 0x00 4k   2k' "$TEST_IMG"
+$QEMU_IO -c 'read -q -P 0xff 6k 122k' "$TEST_IMG"
+
+############################################################
+############################################################
+############################################################
+
+echo
+echo "### Image creation options ###"
+echo
+echo "# cluster_size < 16k"
+_make_test_img -o extended_l2=on,cluster_size=8k 1M
+
+echo "# backing file and preallocation=metadata"
+# For preallocation with backing files, create a backing file first
+$QEMU_IMG create -f raw "$TEST_IMG.base" 1M | _filter_img_create
+$QEMU_IO -c "write -q -P 0xff 0 1M" -f raw "$TEST_IMG.base" | _filter_qemu_io
+
+_make_test_img -o extended_l2=on,preallocation=metadata -F raw -b "$TEST_IMG.base" 512k
+$QEMU_IMG resize "$TEST_IMG" 1M
+$QEMU_IO -c 'read -P 0xff    0 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 512k 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map "$TEST_IMG" | _filter_testdir
+
+echo "# backing file and preallocation=falloc"
+_make_test_img -o extended_l2=on,preallocation=falloc -F raw -b "$TEST_IMG.base" 512k
+$QEMU_IMG resize "$TEST_IMG" 1M
+$QEMU_IO -c 'read -P 0xff    0 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 512k 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map "$TEST_IMG" | _filter_testdir
+
+echo "# backing file and preallocation=full"
+_make_test_img -o extended_l2=on,preallocation=full -F raw -b "$TEST_IMG.base" 512k
+$QEMU_IMG resize "$TEST_IMG" 1M
+$QEMU_IO -c 'read -P 0xff    0 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 512k 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map "$TEST_IMG" | _filter_testdir
+
+echo
+echo "### Image resizing with preallocation and backing files ###"
+echo
+# In this case the new subclusters must have the 'all zeroes' bit set
+echo "# resize --preallocation=metadata"
+_make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" 503k
+$QEMU_IMG resize --preallocation=metadata "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+# In this case and the next one the new subclusters must be allocated
+echo "# resize --preallocation=falloc"
+_make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" 503k
+$QEMU_IMG resize --preallocation=falloc "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+echo "# resize --preallocation=full"
+_make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" 503k
+$QEMU_IMG resize --preallocation=full "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "### Image resizing with preallocation without backing files ###"
+echo
+# In this case the new subclusters must have the 'all zeroes' bit set
+echo "# resize --preallocation=metadata"
+_make_test_img -o extended_l2=on 503k
+$QEMU_IO -c 'write -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG resize --preallocation=metadata "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+# In this case and the next one the new subclusters must be allocated
+echo "# resize --preallocation=falloc"
+_make_test_img -o extended_l2=on 503k
+$QEMU_IO -c 'write -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG resize --preallocation=falloc "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+echo "# resize --preallocation=full"
+_make_test_img -o extended_l2=on 503k
+$QEMU_IO -c 'write -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG resize --preallocation=full "$TEST_IMG" 1013k
+$QEMU_IO -c 'read -P 0xff    0 503k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x00 503k 510k' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "### qemu-img measure ###"
+echo
+echo "# 512MB, extended_l2=off" # This needs one L2 table
+$QEMU_IMG measure --size 512M -O qcow2 -o extended_l2=off
+echo "# 512MB, extended_l2=on"  # This needs two L2 tables
+$QEMU_IMG measure --size 512M -O qcow2 -o extended_l2=on
+
+echo "# 16K clusters, 64GB, extended_l2=off" # This needs one full L1 table cluster
+$QEMU_IMG measure --size 64G -O qcow2 -o cluster_size=16k,extended_l2=off
+echo "# 16K clusters, 64GB, extended_l2=on"  # This needs two full L2 table clusters
+$QEMU_IMG measure --size 64G -O qcow2 -o cluster_size=16k,extended_l2=on
+
+echo "# 8k clusters" # This should fail
+$QEMU_IMG measure --size 1M -O qcow2 -o cluster_size=8k,extended_l2=on
+
+echo "# 1024 TB" # Maximum allowed size with extended_l2=on and 64K clusters
+$QEMU_IMG measure --size 1024T -O qcow2 -o extended_l2=on
+echo "# 1025 TB" # This should fail
+$QEMU_IMG measure --size 1025T -O qcow2 -o extended_l2=on
+
+echo
+echo "### qemu-img amend ###"
+echo
+_make_test_img -o extended_l2=on 1M
+$QEMU_IMG amend -o extended_l2=off "$TEST_IMG" && echo "Unexpected pass"
+
+_make_test_img -o extended_l2=off 1M
+$QEMU_IMG amend -o extended_l2=on "$TEST_IMG" && echo "Unexpected pass"
+
+echo
+echo "### Test copy-on-write on an image with snapshots ###"
+echo
+_make_test_img -o extended_l2=on 1M
+
+# For each cluster from #0 to #9 this loop zeroes subcluster #7
+# and allocates subclusters #13 and #18.
+alloc="13 18"; zero="7"
+for c in $(seq 0 9); do
+    $QEMU_IO -c "write -q -z $((64*$c+14))k 2k" \
+             -c "write -q -P $((0xd0+$c)) $((64*$c+26))k 2k" \
+             -c "write -q -P $((0xe0+$c)) $((64*$c+36))k 2k" "$TEST_IMG"
+    _verify_l2_bitmap "$c"
+done
+
+# Create a snapshot and set l2_offset to the new L2 table
+$QEMU_IMG snapshot -c snap1 "$TEST_IMG"
+l2_offset=$((0x110000))
+
+# Write different patterns to each one of the clusters
+# in order to see how copy-on-write behaves in each case.
+$QEMU_IO -c "write -q -P 0xf0 $((64*0+30))k 1k" \
+         -c "write -q -P 0xf1 $((64*1+20))k 1k" \
+         -c "write -q -P 0xf2 $((64*2+40))k 1k" \
+         -c "write -q -P 0xf3 $((64*3+26))k 1k" \
+         -c "write -q -P 0xf4 $((64*4+14))k 1k" \
+         -c "write -q -P 0xf5 $((64*5+1))k  1k" \
+         -c "write -q -z      $((64*6+30))k 3k" \
+         -c "write -q -z      $((64*7+26))k 2k" \
+         -c "write -q -z      $((64*8+26))k 1k" \
+         -c "write -q -z      $((64*9+12))k 1k" \
+         "$TEST_IMG"
+alloc="$(seq 13 18)"; zero="7" _verify_l2_bitmap 0
+alloc="$(seq 10 18)"; zero="7" _verify_l2_bitmap 1
+alloc="$(seq 13 20)"; zero="7" _verify_l2_bitmap 2
+alloc="$(seq 13 18)"; zero="7" _verify_l2_bitmap 3
+alloc="$(seq 7 18)";  zero=""  _verify_l2_bitmap 4
+alloc="$(seq 0 18)";  zero=""  _verify_l2_bitmap 5
+alloc="13 18";  zero="7 15 16" _verify_l2_bitmap 6
+alloc="18";        zero="7 13" _verify_l2_bitmap 7
+alloc="$(seq 13 18)"; zero="7" _verify_l2_bitmap 8
+alloc="13 18";      zero="6 7" _verify_l2_bitmap 9
+
+echo
+echo "### Test concurrent requests ###"
+echo
+
+_concurrent_io()
+{
+# Allocate three subclusters in the same cluster.
+# This works because handle_dependencies() checks whether the requests
+# allocate the same cluster, even if the COW regions don't overlap (in
+# this case they don't).
+cat <<EOF
+open -o driver=$IMGFMT blkdebug::$TEST_IMG
+break write_aio A
+aio_write -P 10 30k 2k
+wait_break A
+aio_write -P 11 20k 2k
+aio_write -P 12 40k 2k
+resume A
+aio_flush
+EOF
+}
+
+_concurrent_verify()
+{
+cat <<EOF
+open -o driver=$IMGFMT $TEST_IMG
+read -q -P 10 30k 2k
+read -q -P 11 20k 2k
+read -q -P 12 40k 2k
+EOF
+}
+
+_make_test_img -o extended_l2=on 1M
+_concurrent_io     | $QEMU_IO | _filter_qemu_io
+_concurrent_verify | $QEMU_IO | _filter_qemu_io
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -304,6 +304,12 @@ _img_info --format-specific
 _check_test_img
 
 echo
+echo "=== Testing version downgrade with extended L2 entries ==="
+echo
+_make_test_img -o "compat=1.1,extended_l2=on" 64M
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+
+echo
 echo "=== Try changing the external data file ==="
 echo
 _make_test_img -o "compat=1.1" 64M
