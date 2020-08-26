@@ -474,7 +474,7 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 firmwarepath="\${prefix}/share/qemu-firmware"
-qemu_suffix="/qemu"
+qemu_suffix="qemu"
 slirp=""
 oss_lib=""
 bsd="no"
@@ -1832,12 +1832,12 @@ Advanced options (experts only):
   --with-git=GIT           use specified git [$git]
   --static                 enable static build [$static]
   --mandir=PATH            install man pages in PATH
-  --datadir=PATH           install firmware in PATH$qemu_suffix
-  --docdir=PATH            install documentation in PATH$qemu_suffix
+  --datadir=PATH           install firmware in PATH/$qemu_suffix
+  --docdir=PATH            install documentation in PATH/$qemu_suffix
   --bindir=PATH            install binaries in PATH
   --libdir=PATH            install libraries in PATH
   --libexecdir=PATH        install helper binaries in PATH
-  --sysconfdir=PATH        install config in PATH$qemu_suffix
+  --sysconfdir=PATH        install config in PATH/$qemu_suffix
   --localstatedir=PATH     install local state in PATH (set at runtime on win32)
   --firmwarepath=PATH      search PATH for firmware files
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
@@ -6449,9 +6449,9 @@ EOF
     fi
 fi
 
-qemu_confdir=$sysconfdir$qemu_suffix
-qemu_moddir=$libdir$qemu_suffix
-qemu_datadir=$datadir$qemu_suffix
+qemu_confdir="$sysconfdir/$qemu_suffix"
+qemu_moddir="$libdir/$qemu_suffix"
+qemu_datadir="$datadir/$qemu_suffix"
 qemu_localedir="$datadir/locale"
 qemu_icondir="$datadir/icons"
 qemu_desktopdir="$datadir/applications"
