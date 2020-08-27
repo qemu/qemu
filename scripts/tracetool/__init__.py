@@ -31,6 +31,7 @@ def error(*lines):
     sys.exit(1)
 
 
+out_lineno = 1
 out_filename = '<none>'
 out_fobj = sys.stdout
 
@@ -45,12 +46,19 @@ def out(*lines, **kwargs):
     You can use kwargs as a shorthand for mapping variables when formatting all
     the strings in lines.
 
-    The 'out_filename' kwarg is automatically added with the output filename.
+    The 'out_lineno' kwarg is automatically added to reflect the current output
+    file line number. The 'out_next_lineno' kwarg is also automatically added
+    with the next output line number. The 'out_filename' kwarg is automatically
+    added with the output filename.
     """
+    global out_lineno
     output = []
     for l in lines:
+        kwargs['out_lineno'] = out_lineno
+        kwargs['out_next_lineno'] = out_lineno + 1
         kwargs['out_filename'] = out_filename
         output.append(l % kwargs)
+        out_lineno += 1
 
     out_fobj.writelines("\n".join(output) + "\n")
 
