@@ -8631,8 +8631,8 @@ static void handle_scalar_simd_shli(DisasContext *s, bool insert,
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = immhb - (8 << size);
-    TCGv_i64 tcg_rn = new_tmp_a64(s);
-    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    TCGv_i64 tcg_rn;
+    TCGv_i64 tcg_rd;
 
     if (!extract32(immh, 3, 1)) {
         unallocated_encoding(s);
