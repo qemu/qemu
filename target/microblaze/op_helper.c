@@ -419,32 +419,33 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                int mmu_idx, MemTxAttrs attrs,
                                MemTxResult response, uintptr_t retaddr)
 {
-    MicroBlazeCPU *cpu;
-    CPUMBState *env;
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
+
     qemu_log_mask(CPU_LOG_INT, "Transaction failed: vaddr 0x%" VADDR_PRIx
                   " physaddr 0x" TARGET_FMT_plx " size %d access type %s\n",
                   addr, physaddr, size,
                   access_type == MMU_INST_FETCH ? "INST_FETCH" :
                   (access_type == MMU_DATA_LOAD ? "DATA_LOAD" : "DATA_STORE"));
-    cpu = MICROBLAZE_CPU(cs);
-    env = &cpu->env;
 
-    cpu_restore_state(cs, retaddr, true);
     if (!(env->msr & MSR_EE)) {
         return;
     }
 
-    env->ear = addr;
     if (access_type == MMU_INST_FETCH) {
-        if ((env->pvr.regs[2] & PVR2_IOPB_BUS_EXC_MASK)) {
-            env->esr = ESR_EC_INSN_BUS;
-            helper_raise_exception(env, EXCP_HW_EXCP);
+        if (!cpu->cfg.iopb_bus_exception) {
+            return;
         }
+        env->esr = ESR_EC_INSN_BUS;
     } else {
-        if ((env->pvr.regs[2] & PVR2_DOPB_BUS_EXC_MASK)) {
-            env->esr = ESR_EC_DATA_BUS;
-            helper_raise_exception(env, EXCP_HW_EXCP);
+        if (!cpu->cfg.dopb_bus_exception) {
+            return;
         }
+        env->esr = ESR_EC_DATA_BUS;
     }
+
+    env->ear = addr;
+    cs->exception_index = EXCP_HW_EXCP;
+    cpu_loop_exit_restore(cs, retaddr);
 }
 #endif
