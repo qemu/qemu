@@ -620,7 +620,7 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     struct lo_inode *inode;
     int ifd;
     int res;
-    int fd;
+    int fd = -1;
 
     inode = lo_inode(req, ino);
     if (!inode) {
