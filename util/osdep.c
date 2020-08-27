@@ -122,7 +122,7 @@ static int fcntl_op_getlk = -1;
 /*
  * Dups an fd and sets the flags
  */
-static int qemu_dup_flags(int fd, int flags)
+int qemu_dup_flags(int fd, int flags)
 {
     int ret;
     int serrno;
@@ -293,7 +293,7 @@ int qemu_open(const char *name, int flags, ...)
     /* Attempt dup of fd from fd set */
     if (strstart(name, "/dev/fdset/", &fdset_id_str)) {
         int64_t fdset_id;
-        int fd, dupfd;
+        int dupfd;
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
@@ -301,21 +301,8 @@ int qemu_open(const char *name, int flags, ...)
             return -1;
         }
 
-        fd = monitor_fdset_get_fd(fdset_id, flags);
-        if (fd < 0) {
-            errno = -fd;
-            return -1;
-        }
-
-        dupfd = qemu_dup_flags(fd, flags);
+        dupfd = monitor_fdset_dup_fd_add(fdset_id, flags);
         if (dupfd == -1) {
-            return -1;
-        }
-
-        ret = monitor_fdset_dup_fd_add(fdset_id, dupfd);
-        if (ret == -1) {
-            close(dupfd);
-            errno = EINVAL;
             return -1;
         }
 
