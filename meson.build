@@ -1,5 +1,6 @@
 project('qemu', ['c'], meson_version: '>=0.55.0',
-        default_options: ['warning_level=1', 'c_std=gnu99', 'cpp_std=gnu++11', 'b_lundef=false'],
+        default_options: ['warning_level=1', 'c_std=gnu99', 'cpp_std=gnu++11',
+                          'b_lundef=false','b_colorout=auto'],
         version: run_command('head', meson.source_root() / 'VERSION').stdout().strip())
 
 not_found = dependency('', required: false)
@@ -19,6 +20,16 @@ enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
 config_host_data = configuration_data()
 genh = []
+
+target_dirs = config_host['TARGET_DIRS'].split()
+have_user = false
+have_system = false
+foreach target : target_dirs
+  have_user = have_user or target.endswith('-user')
+  have_system = have_system or target.endswith('-softmmu')
+endforeach
+have_tools = 'CONFIG_TOOLS' in config_host
+have_block = have_system or have_tools
 
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
@@ -113,8 +124,11 @@ if 'CONFIG_GNUTLS' in config_host
   gnutls = declare_dependency(compile_args: config_host['GNUTLS_CFLAGS'].split(),
                               link_args: config_host['GNUTLS_LIBS'].split())
 endif
-pixman = declare_dependency(compile_args: config_host['PIXMAN_CFLAGS'].split(),
-                            link_args: config_host['PIXMAN_LIBS'].split())
+pixman = not_found
+if have_system or have_tools
+  pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
+                      static: enable_static)
+endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
@@ -152,10 +166,11 @@ libcap_ng = not_found
 if 'CONFIG_LIBCAP_NG' in config_host
   libcap_ng = declare_dependency(link_args: config_host['LIBCAP_NG_LIBS'].split())
 endif
-xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'), static: enable_static,
-                       include_type: 'system')
-if xkbcommon.found()
-  xkbcommon = declare_dependency(dependencies: xkbcommon)
+if get_option('xkbcommon').auto() and not have_system and not have_tools
+  xkbcommon = not_found
+else
+  xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
+                         static: enable_static)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -224,9 +239,11 @@ if 'CONFIG_BRLAPI' in config_host
   brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
 endif
 
-sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static,
-                 include_type: 'system')
-sdl_image = not_found
+sdl = not_found
+if have_system
+  sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static)
+  sdl_image = not_found
+endif
 if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
@@ -380,6 +397,10 @@ if 'CONFIG_LIBPMEM' in config_host
   libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
                                link_args: config_host['LIBPMEM_LIBS'].split())
 endif
+libdaxctl = not_found
+if 'CONFIG_LIBDAXCTL' in config_host
+  libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
+endif
 
 # Create config-host.h
 
@@ -419,9 +440,6 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
-target_dirs = config_host['TARGET_DIRS'].split()
-have_user = false
-have_system = false
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
@@ -442,7 +460,6 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 foreach target : target_dirs
-  have_user = have_user or target.endswith('-user')
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
 
   config_target_data = configuration_data()
@@ -465,8 +482,6 @@ foreach target : target_dirs
                                                configuration: config_target_data)}
 
   if target.endswith('-softmmu')
-    have_system = true
-
     base_kconfig = []
     foreach sym : kconfig_external_symbols
       if sym in config_target or sym in config_host
@@ -496,8 +511,6 @@ foreach target : target_dirs
   endif
   config_target_mak += {target: config_target}
 endforeach
-have_tools = 'CONFIG_TOOLS' in config_host
-have_block = have_system or have_tools
 
 grepy = find_program('scripts/grepy.sh')
 # This configuration is used to build files that are shared by
@@ -787,7 +800,7 @@ common_ss.add(files('cpus-common.c'))
 
 subdir('softmmu')
 
-specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem)
+specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem, libdaxctl)
 specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu/softfloat.c',
@@ -977,6 +990,7 @@ foreach target : target_dirs
 
   lib = static_library('qemu-' + target,
                  sources: arch_srcs + genh,
+                 dependencies: arch_deps,
                  objects: objects,
                  include_directories: target_inc,
                  c_args: c_args,
@@ -1029,14 +1043,14 @@ foreach target : target_dirs
 
     if 'CONFIG_TRACE_SYSTEMTAP' in config_host
       foreach stp: [
-        {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / exe_name, 'install': false},
-        {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / exe_name, 'install': true},
+        {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / exe['name'], 'install': false},
+        {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / exe['name'], 'install': true},
         {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
         {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
       ]
-        custom_target(exe_name + stp['ext'],
+        custom_target(exe['name'] + stp['ext'],
                       input: trace_events_all,
-                      output: exe_name + stp['ext'],
+                      output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
                       install_dir: config_host['qemu_datadir'] / '../systemtap/tapset',
@@ -1065,9 +1079,6 @@ endif
 
 # Don't build qemu-keymap if xkbcommon is not explicitly enabled
 # when we don't build tools or system
-if get_option('xkbcommon').auto() and not have_system and not have_tools
-  xkbcommon = not_found
-endif
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
   qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
@@ -1081,7 +1092,7 @@ if have_tools
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
   qemu_block_tools += [qemu_img, qemu_io]
-  if targetos == 'linux' or targetos == 'sunos' or targetos.endswith('bsd')
+  if targetos != 'windows'
     qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [block, qemuutil], install: true)
     qemu_block_tools += [qemu_nbd]
@@ -1098,9 +1109,7 @@ if have_tools
   if 'CONFIG_VHOST_USER' in config_host
     subdir('contrib/libvhost-user')
     subdir('contrib/vhost-user-blk')
-    if 'CONFIG_LINUX' in config_host
-      subdir('contrib/vhost-user-gpu')
-    endif
+    subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')
     subdir('contrib/vhost-user-scsi')
   endif
@@ -1281,6 +1290,7 @@ summary_info += {'SDL image support': sdl_image.found()}
 # TODO: add back version
 summary_info += {'GTK support':       config_host.has_key('CONFIG_GTK')}
 summary_info += {'GTK GL support':    config_host.has_key('CONFIG_GTK_GL')}
+summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
 summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}

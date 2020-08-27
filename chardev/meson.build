@@ -39,7 +39,7 @@ chardev_modules = {}
 if config_host.has_key('CONFIG_BRLAPI') and sdl.found()
   module_ss = ss.source_set()
   module_ss.add(when: [sdl, brlapi], if_true: files('baum.c'))
-  chardev_modules += { 'brlapi': module_ss }
+  chardev_modules += { 'baum': module_ss }
 endif
 
 modules += { 'chardev': chardev_modules }
