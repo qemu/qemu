@@ -31,14 +31,28 @@ def error(*lines):
     sys.exit(1)
 
 
+out_filename = '<none>'
+out_fobj = sys.stdout
+
+def out_open(filename):
+    global out_filename, out_fobj
+    out_filename = filename
+    out_fobj = open(filename, 'wt')
+
 def out(*lines, **kwargs):
     """Write a set of output lines.
 
     You can use kwargs as a shorthand for mapping variables when formatting all
     the strings in lines.
+
+    The 'out_filename' kwarg is automatically added with the output filename.
     """
-    lines = [ l % kwargs for l in lines ]
-    sys.stdout.writelines("\n".join(lines) + "\n")
+    output = []
+    for l in lines:
+        kwargs['out_filename'] = out_filename
+        output.append(l % kwargs)
+
+    out_fobj.writelines("\n".join(output) + "\n")
 
 # We only want to allow standard C types or fixed sized
 # integer types. We don't want QEMU specific types

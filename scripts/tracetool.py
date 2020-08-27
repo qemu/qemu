@@ -16,7 +16,7 @@ __email__      = "stefanha@redhat.com"
 import sys
 import getopt
 
-from tracetool import error_write, out
+from tracetool import error_write, out, out_open
 import tracetool.backend
 import tracetool.format
 
@@ -32,7 +32,7 @@ def error_opt(msg = None):
     format_descr = "\n".join([ "    %-15s %s" % (n, d)
                                for n,d in tracetool.format.get_list() ])
     error_write("""\
-Usage: %(script)s --format=<format> --backends=<backends> [<options>]
+Usage: %(script)s --format=<format> --backends=<backends> [<options>] <trace-events> ... <output>
 
 Backends:
 %(backends)s
@@ -135,12 +135,14 @@ def main(args):
         if probe_prefix is None:
             probe_prefix = ".".join(["qemu", target_type, target_name])
 
-    if len(args) < 1:
-        error_opt("missing trace-events filepath")
+    if len(args) < 2:
+        error_opt("missing trace-events and output filepaths")
     events = []
-    for arg in args:
+    for arg in args[:-1]:
         with open(arg, "r") as fh:
             events.extend(tracetool.read_events(fh, arg))
+
+    out_open(args[-1])
 
     try:
         tracetool.generate(events, arg_group, arg_format, arg_backends,
