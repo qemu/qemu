@@ -1,5 +1,5 @@
 /*
- * virtio ccw scsi implementation
+ * virtio ccw input implementation
  *
  * Copyright 2012, 2015 IBM Corp.
  *
