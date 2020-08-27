@@ -30,6 +30,8 @@ struct virtio_blk_inhdr
     unsigned char status;
 };
 
+#define VIRTIO_BLK_AUTO_NUM_QUEUES UINT16_MAX
+
 struct VirtIOBlkConf
 {
     BlockConf conf;

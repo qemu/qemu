@@ -80,6 +80,8 @@ typedef struct {
     GArray *tables;
     uint32_t smbios_ep_addr;
     struct smbios_21_entry_point smbios_ep_table;
+    uint16_t smbios_cpu_max_speed;
+    uint16_t smbios_cpu_curr_speed;
     uint8_t *required_struct_types;
     int required_struct_types_len;
     QTestState *qts;
@@ -563,6 +565,31 @@ static inline bool smbios_single_instance(uint8_t type)
     }
 }
 
+static bool smbios_cpu_test(test_data *data, uint32_t addr)
+{
+    uint16_t expect_speed[2];
+    uint16_t real;
+    int offset[2];
+    int i;
+
+    /* Check CPU speed for backward compatibility */
+    offset[0] = offsetof(struct smbios_type_4, max_speed);
+    offset[1] = offsetof(struct smbios_type_4, current_speed);
+    expect_speed[0] = data->smbios_cpu_max_speed ? : 2000;
+    expect_speed[1] = data->smbios_cpu_curr_speed ? : 2000;
+
+    for (i = 0; i < 2; i++) {
+        real = qtest_readw(data->qts, addr + offset[i]);
+        if (real != expect_speed[i]) {
+            fprintf(stderr, "Unexpected SMBIOS CPU speed: real %u expect %u\n",
+                    real, expect_speed[i]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void test_smbios_structs(test_data *data)
 {
     DECLARE_BITMAP(struct_bitmap, SMBIOS_MAX_TYPE+1) = { 0 };
@@ -584,6 +611,10 @@ static void test_smbios_structs(test_data *data)
             g_assert(!test_bit(type, struct_bitmap));
         }
         set_bit(type, struct_bitmap);
+
+        if (type == 4) {
+            g_assert(smbios_cpu_test(data, addr));
+        }
 
         /* seek to end of unformatted string area of this struct ("\0\0") */
         prv = crt = 1;
@@ -718,6 +749,11 @@ static void test_acpi_q35_tcg(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one(NULL, &data);
+    free_test_data(&data);
+
+    data.smbios_cpu_max_speed = 3000;
+    data.smbios_cpu_curr_speed = 2600;
+    test_acpi_one("-smbios type=4,max-speed=3000,current-speed=2600", &data);
     free_test_data(&data);
 }
 
@@ -1083,6 +1119,12 @@ static void test_acpi_virt_tcg(void)
     };
 
     test_acpi_one("-cpu cortex-a57", &data);
+    free_test_data(&data);
+
+    data.smbios_cpu_max_speed = 2900;
+    data.smbios_cpu_curr_speed = 2700;
+    test_acpi_one("-cpu cortex-a57 "
+                  "-smbios type=4,max-speed=2900,current-speed=2700", &data);
     free_test_data(&data);
 }
 

@@ -243,4 +243,13 @@ typedef struct VirtioPCIDeviceTypeInfo {
 /* Register virtio-pci type(s).  @t must be static. */
 void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t);
 
+/**
+ * virtio_pci_optimal_num_queues:
+ * @fixed_queues: number of queues that are always present
+ *
+ * Returns: The optimal number of queues for a multi-queue device, excluding
+ * @fixed_queues.
+ */
+unsigned virtio_pci_optimal_num_queues(unsigned fixed_queues);
+
 #endif

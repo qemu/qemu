@@ -25,6 +25,8 @@
 #define VHOST_USER_BLK(obj) \
         OBJECT_CHECK(VHostUserBlk, (obj), TYPE_VHOST_USER_BLK)
 
+#define VHOST_USER_BLK_AUTO_NUM_QUEUES UINT16_MAX
+
 typedef struct VHostUserBlk {
     VirtIODevice parent_obj;
     CharBackend chardev;
