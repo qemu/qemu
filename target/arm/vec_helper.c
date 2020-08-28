@@ -750,6 +750,9 @@ DO_2OP(gvec_frsqrte_h, helper_rsqrte_f16, float16)
 DO_2OP(gvec_frsqrte_s, helper_rsqrte_f32, float32)
 DO_2OP(gvec_frsqrte_d, helper_rsqrte_f64, float64)
 
+DO_2OP(gvec_vrintx_h, float16_round_to_int, float16)
+DO_2OP(gvec_vrintx_s, float32_round_to_int, float32)
+
 DO_2OP(gvec_sitos, helper_vfp_sitos, int32_t)
 DO_2OP(gvec_uitos, helper_vfp_uitos, uint32_t)
 DO_2OP(gvec_tosizs, helper_vfp_tosizs, float32)
