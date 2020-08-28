@@ -127,17 +127,19 @@ void clock_set_source(Clock *clk, Clock *src);
  * @value: the clock's value, 0 means unclocked
  *
  * Set the local cached period value of @clk to @value.
+ *
+ * @return: true if the clock is changed.
  */
-void clock_set(Clock *clk, uint64_t value);
+bool clock_set(Clock *clk, uint64_t value);
 
-static inline void clock_set_hz(Clock *clk, unsigned hz)
+static inline bool clock_set_hz(Clock *clk, unsigned hz)
 {
-    clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz));
+    return clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz));
 }
 
-static inline void clock_set_ns(Clock *clk, unsigned ns)
+static inline bool clock_set_ns(Clock *clk, unsigned ns)
 {
-    clock_set(clk, CLOCK_PERIOD_FROM_NS(ns));
+    return clock_set(clk, CLOCK_PERIOD_FROM_NS(ns));
 }
 
 /**
