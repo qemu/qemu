@@ -823,6 +823,12 @@ DO_3OP(gvec_fmax_s, float32_max, float32)
 DO_3OP(gvec_fmin_h, float16_min, float16)
 DO_3OP(gvec_fmin_s, float32_min, float32)
 
+DO_3OP(gvec_fmaxnum_h, float16_maxnum, float16)
+DO_3OP(gvec_fmaxnum_s, float32_maxnum, float32)
+
+DO_3OP(gvec_fminnum_h, float16_minnum, float16)
+DO_3OP(gvec_fminnum_s, float32_minnum, float32)
+
 #ifdef TARGET_AARCH64
 
 DO_3OP(gvec_recps_h, helper_recpsf_f16, float16)
