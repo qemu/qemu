@@ -165,8 +165,9 @@ void clock_propagate(Clock *clk);
  */
 static inline void clock_update(Clock *clk, uint64_t value)
 {
-    clock_set(clk, value);
-    clock_propagate(clk);
+    if (clock_set(clk, value)) {
+        clock_propagate(clk);
+    }
 }
 
 static inline void clock_update_hz(Clock *clk, unsigned hz)
