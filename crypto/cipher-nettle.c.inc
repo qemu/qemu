@@ -34,6 +34,8 @@
 #include <nettle/xts.h>
 #endif
 
+static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver;
+
 typedef void (*QCryptoCipherNettleFuncWrapper)(const void *ctx,
                                                size_t length,
                                                uint8_t *dst,
@@ -587,6 +589,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
     ctx->iv = g_new0(uint8_t, ctx->blocksize);
 
+    ctx->base.driver = &qcrypto_cipher_lib_driver;
     return &ctx->base;
 
  error:

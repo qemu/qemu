@@ -164,13 +164,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   Error **errp)
 {
     QCryptoCipher *cipher = NULL;
-    const QCryptoCipherDriver *drv = NULL;
 
 #ifdef CONFIG_AF_ALG
     cipher = qcrypto_afalg_cipher_ctx_new(alg, mode, key, nkey, NULL);
-    if (cipher) {
-        drv = &qcrypto_cipher_afalg_driver;
-    }
 #endif
 
     if (!cipher) {
@@ -178,13 +174,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         if (!cipher) {
             return NULL;
         }
-
-        drv = &qcrypto_cipher_lib_driver;
     }
 
     cipher->alg = alg;
     cipher->mode = mode;
-    cipher->driver = drv;
 
     return cipher;
 }

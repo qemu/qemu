@@ -22,6 +22,8 @@
 #include "crypto/desrfb.h"
 #include "crypto/xts.h"
 
+static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver;
+
 typedef struct QCryptoCipherBuiltinAESContext QCryptoCipherBuiltinAESContext;
 struct QCryptoCipherBuiltinAESContext {
     AES_KEY enc;
@@ -292,6 +294,7 @@ qcrypto_cipher_init_aes(QCryptoCipherMode mode,
     ctxt->encrypt = qcrypto_cipher_encrypt_aes;
     ctxt->decrypt = qcrypto_cipher_decrypt_aes;
 
+    ctxt->base.driver = &qcrypto_cipher_lib_driver;
     return &ctxt->base;
 
  error:
@@ -396,6 +399,7 @@ qcrypto_cipher_init_des_rfb(QCryptoCipherMode mode,
     ctxt->encrypt = qcrypto_cipher_encrypt_des_rfb;
     ctxt->decrypt = qcrypto_cipher_decrypt_des_rfb;
 
+    ctxt->base.driver = &qcrypto_cipher_lib_driver;
     return &ctxt->base;
 }
 

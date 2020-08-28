@@ -24,6 +24,7 @@
 
 #include <gcrypt.h>
 
+static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver;
 
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
@@ -258,6 +259,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 #endif
 
+    ctx->base.driver = &qcrypto_cipher_lib_driver;
     return &ctx->base;
 
  error:
