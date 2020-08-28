@@ -3714,17 +3714,6 @@ static bool do_2misc_fp(DisasContext *s, arg_2misc *a,
     return true;
 }
 
-#define DO_2MISC_FP(INSN, FUNC)                                 \
-    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
-    {                                                           \
-        return do_2misc_fp(s, a, FUNC);                         \
-    }
-
-DO_2MISC_FP(VCVT_FS, gen_helper_vfp_sitos)
-DO_2MISC_FP(VCVT_FU, gen_helper_vfp_uitos)
-DO_2MISC_FP(VCVT_SF, gen_helper_vfp_tosizs)
-DO_2MISC_FP(VCVT_UF, gen_helper_vfp_touizs)
-
 #define DO_2MISC_FP_VEC(INSN, HFUNC, SFUNC)                             \
     static void gen_##INSN(unsigned vece, uint32_t rd_ofs,              \
                            uint32_t rm_ofs,                             \
@@ -3758,6 +3747,10 @@ DO_2MISC_FP_VEC(VCGE0_F, gen_helper_gvec_fcge0_h, gen_helper_gvec_fcge0_s)
 DO_2MISC_FP_VEC(VCEQ0_F, gen_helper_gvec_fceq0_h, gen_helper_gvec_fceq0_s)
 DO_2MISC_FP_VEC(VCLT0_F, gen_helper_gvec_fclt0_h, gen_helper_gvec_fclt0_s)
 DO_2MISC_FP_VEC(VCLE0_F, gen_helper_gvec_fcle0_h, gen_helper_gvec_fcle0_s)
+DO_2MISC_FP_VEC(VCVT_FS, gen_helper_gvec_sstoh, gen_helper_gvec_sitos)
+DO_2MISC_FP_VEC(VCVT_FU, gen_helper_gvec_ustoh, gen_helper_gvec_uitos)
+DO_2MISC_FP_VEC(VCVT_SF, gen_helper_gvec_tosszh, gen_helper_gvec_tosizs)
+DO_2MISC_FP_VEC(VCVT_UF, gen_helper_gvec_touszh, gen_helper_gvec_touizs)
 
 static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
 {

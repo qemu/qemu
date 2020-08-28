@@ -711,6 +711,26 @@ static uint32_t float32_acgt(float32 op1, float32 op2, float_status *stat)
     return -float32_lt(float32_abs(op2), float32_abs(op1), stat);
 }
 
+static int16_t vfp_tosszh(float16 x, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    if (float16_is_any_nan(x)) {
+        float_raise(float_flag_invalid, fpst);
+        return 0;
+    }
+    return float16_to_int16_round_to_zero(x, fpst);
+}
+
+static uint16_t vfp_touszh(float16 x, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    if (float16_is_any_nan(x)) {
+        float_raise(float_flag_invalid, fpst);
+        return 0;
+    }
+    return float16_to_uint16_round_to_zero(x, fpst);
+}
+
 #define DO_2OP(NAME, FUNC, TYPE) \
 void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)  \
 {                                                                 \
@@ -729,6 +749,15 @@ DO_2OP(gvec_frecpe_d, helper_recpe_f64, float64)
 DO_2OP(gvec_frsqrte_h, helper_rsqrte_f16, float16)
 DO_2OP(gvec_frsqrte_s, helper_rsqrte_f32, float32)
 DO_2OP(gvec_frsqrte_d, helper_rsqrte_f64, float64)
+
+DO_2OP(gvec_sitos, helper_vfp_sitos, int32_t)
+DO_2OP(gvec_uitos, helper_vfp_uitos, uint32_t)
+DO_2OP(gvec_tosizs, helper_vfp_tosizs, float32)
+DO_2OP(gvec_touizs, helper_vfp_touizs, float32)
+DO_2OP(gvec_sstoh, int16_to_float16, int16_t)
+DO_2OP(gvec_ustoh, uint16_to_float16, uint16_t)
+DO_2OP(gvec_tosszh, vfp_tosszh, float16)
+DO_2OP(gvec_touszh, vfp_touszh, float16)
 
 #define WRAP_CMP0_FWD(FN, CMPOP, TYPE)                          \
     static TYPE TYPE##_##FN##0(TYPE op, float_status *stat)     \
