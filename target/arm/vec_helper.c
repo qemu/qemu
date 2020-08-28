@@ -707,6 +707,11 @@ static float64 float64_ftsmul(float64 op1, uint64_t op2, float_status *stat)
     return result;
 }
 
+static float16 float16_abd(float16 op1, float16 op2, float_status *stat)
+{
+    return float16_abs(float16_sub(op1, op2, stat));
+}
+
 static float32 float32_abd(float32 op1, float32 op2, float_status *stat)
 {
     return float32_abs(float32_sub(op1, op2, stat));
@@ -739,6 +744,7 @@ DO_3OP(gvec_ftsmul_h, float16_ftsmul, float16)
 DO_3OP(gvec_ftsmul_s, float32_ftsmul, float32)
 DO_3OP(gvec_ftsmul_d, float64_ftsmul, float64)
 
+DO_3OP(gvec_fabd_h, float16_abd, float16)
 DO_3OP(gvec_fabd_s, float32_abd, float32)
 
 #ifdef TARGET_AARCH64

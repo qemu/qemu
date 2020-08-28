@@ -1082,34 +1082,36 @@ static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn,
     return true;
 }
 
-/*
- * For all the functions using this macro, size == 1 means fp16,
- * which is an architecture extension we don't implement yet.
- */
-#define DO_3S_FP_GVEC(INSN,FUNC)                                        \
-    static void gen_##INSN##_3s(unsigned vece, uint32_t rd_ofs,         \
-                                uint32_t rn_ofs, uint32_t rm_ofs,       \
-                                uint32_t oprsz, uint32_t maxsz)         \
+#define WRAP_FP_GVEC(WRAPNAME, FPST, FUNC)                              \
+    static void WRAPNAME(unsigned vece, uint32_t rd_ofs,                \
+                         uint32_t rn_ofs, uint32_t rm_ofs,              \
+                         uint32_t oprsz, uint32_t maxsz)                \
     {                                                                   \
-        TCGv_ptr fpst = fpstatus_ptr(FPST_STD);                         \
+        TCGv_ptr fpst = fpstatus_ptr(FPST);                             \
         tcg_gen_gvec_3_ptr(rd_ofs, rn_ofs, rm_ofs, fpst,                \
                            oprsz, maxsz, 0, FUNC);                      \
         tcg_temp_free_ptr(fpst);                                        \
-    }                                                                   \
+    }
+
+#define DO_3S_FP_GVEC(INSN,SFUNC,HFUNC)                                 \
+    WRAP_FP_GVEC(gen_##INSN##_fp32_3s, FPST_STD, SFUNC)                 \
+    WRAP_FP_GVEC(gen_##INSN##_fp16_3s, FPST_STD_F16, HFUNC)             \
     static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a)     \
     {                                                                   \
         if (a->size != 0) {                                             \
-            /* TODO fp16 support */                                     \
-            return false;                                               \
+            if (!dc_isar_feature(aa32_fp16_arith, s)) {                 \
+                return false;                                           \
+            }                                                           \
+            return do_3same(s, a, gen_##INSN##_fp16_3s);                \
         }                                                               \
-        return do_3same(s, a, gen_##INSN##_3s);                         \
+        return do_3same(s, a, gen_##INSN##_fp32_3s);                    \
     }
 
 
-DO_3S_FP_GVEC(VADD, gen_helper_gvec_fadd_s)
-DO_3S_FP_GVEC(VSUB, gen_helper_gvec_fsub_s)
-DO_3S_FP_GVEC(VABD, gen_helper_gvec_fabd_s)
-DO_3S_FP_GVEC(VMUL, gen_helper_gvec_fmul_s)
+DO_3S_FP_GVEC(VADD, gen_helper_gvec_fadd_s, gen_helper_gvec_fadd_h)
+DO_3S_FP_GVEC(VSUB, gen_helper_gvec_fsub_s, gen_helper_gvec_fsub_h)
+DO_3S_FP_GVEC(VABD, gen_helper_gvec_fabd_s, gen_helper_gvec_fabd_h)
+DO_3S_FP_GVEC(VMUL, gen_helper_gvec_fmul_s, gen_helper_gvec_fmul_h)
 
 /*
  * For all the functions using this macro, size == 1 means fp16,
