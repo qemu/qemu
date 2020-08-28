@@ -1657,6 +1657,11 @@ DO_FP_2SH(VCVT_UF, gen_helper_gvec_vcvt_uf)
 DO_FP_2SH(VCVT_FS, gen_helper_gvec_vcvt_fs)
 DO_FP_2SH(VCVT_FU, gen_helper_gvec_vcvt_fu)
 
+DO_FP_2SH(VCVT_SH, gen_helper_gvec_vcvt_sh)
+DO_FP_2SH(VCVT_UH, gen_helper_gvec_vcvt_uh)
+DO_FP_2SH(VCVT_HS, gen_helper_gvec_vcvt_hs)
+DO_FP_2SH(VCVT_HU, gen_helper_gvec_vcvt_hu)
+
 static uint64_t asimd_imm_const(uint32_t imm, int cmode, int op)
 {
     /*
