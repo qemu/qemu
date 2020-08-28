@@ -18,11 +18,9 @@
  *
  */
 
-#include "qemu/osdep.h"
 #ifdef CONFIG_QEMU_PRIVATE_XTS
 #include "crypto/xts.h"
 #endif
-#include "cipherpriv.h"
 
 #include <nettle/nettle-types.h>
 #include <nettle/aes.h>

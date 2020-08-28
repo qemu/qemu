@@ -18,11 +18,9 @@
  *
  */
 
-#include "qemu/osdep.h"
 #ifdef CONFIG_QEMU_PRIVATE_XTS
 #include "crypto/xts.h"
 #endif
-#include "cipherpriv.h"
 
 #include <gcrypt.h>
 
