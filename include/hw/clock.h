@@ -209,17 +209,4 @@ static inline bool clock_is_enabled(const Clock *clk)
     return clock_get(clk) != 0;
 }
 
-static inline void clock_init(Clock *clk, uint64_t value)
-{
-    clock_set(clk, value);
-}
-static inline void clock_init_hz(Clock *clk, uint64_t value)
-{
-    clock_set_hz(clk, value);
-}
-static inline void clock_init_ns(Clock *clk, uint64_t value)
-{
-    clock_set_ns(clk, value);
-}
-
 #endif /* QEMU_HW_CLOCK_H */
