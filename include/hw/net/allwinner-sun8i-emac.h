@@ -49,6 +49,12 @@ typedef struct AwSun8iEmacState {
     /** Interrupt output signal to notify CPU */
     qemu_irq     irq;
 
+    /** Memory region where DMA transfers are done */
+    MemoryRegion *dma_mr;
+
+    /** Address space used internally for DMA transfers */
+    AddressSpace dma_as;
+
     /** Generic Network Interface Controller (NIC) for networking API */
     NICState     *nic;
 

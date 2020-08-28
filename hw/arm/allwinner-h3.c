@@ -365,6 +365,8 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
         qemu_check_nic_model(&nd_table[0], TYPE_AW_SUN8I_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
     }
+    object_property_set_link(OBJECT(&s->emac), "dma-memory",
+                             OBJECT(get_system_memory()), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->emac), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_H3_EMAC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
