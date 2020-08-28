@@ -2161,6 +2161,28 @@ MAKE_VFM_TRANS_FNS(hp)
 MAKE_VFM_TRANS_FNS(sp)
 MAKE_VFM_TRANS_FNS(dp)
 
+static bool trans_VMOV_imm_hp(DisasContext *s, arg_VMOV_imm_sp *a)
+{
+    TCGv_i32 fd;
+
+    if (!dc_isar_feature(aa32_fp16_arith, s)) {
+        return false;
+    }
+
+    if (s->vec_len != 0 || s->vec_stride != 0) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fd = tcg_const_i32(vfp_expand_imm(MO_16, a->imm));
+    neon_store_reg32(fd, a->vd);
+    tcg_temp_free_i32(fd);
+    return true;
+}
+
 static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
 {
     uint32_t delta_d = 0;
