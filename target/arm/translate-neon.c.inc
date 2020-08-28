@@ -3827,75 +3827,46 @@ DO_VRINT(VRINTZ, FPROUNDING_ZERO)
 DO_VRINT(VRINTM, FPROUNDING_NEGINF)
 DO_VRINT(VRINTP, FPROUNDING_POSINF)
 
-static bool do_vcvt(DisasContext *s, arg_2misc *a, int rmode, bool is_signed)
-{
-    /*
-     * Handle a VCVT* operation by iterating 32 bits at a time,
-     * with a specified rounding mode in operation.
-     */
-    int pass;
-    TCGv_ptr fpst;
-    TCGv_i32 tcg_rmode, tcg_shift;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !arm_dc_feature(s, ARM_FEATURE_V8)) {
-        return false;
+#define DO_VEC_RMODE(INSN, RMODE, OP)                                   \
+    static void gen_##INSN(unsigned vece, uint32_t rd_ofs,              \
+                           uint32_t rm_ofs,                             \
+                           uint32_t oprsz, uint32_t maxsz)              \
+    {                                                                   \
+        static gen_helper_gvec_2_ptr * const fns[4] = {                 \
+            NULL,                                                       \
+            gen_helper_gvec_##OP##h,                                    \
+            gen_helper_gvec_##OP##s,                                    \
+            NULL,                                                       \
+        };                                                              \
+        TCGv_ptr fpst;                                                  \
+        fpst = fpstatus_ptr(vece == 1 ? FPST_STD_F16 : FPST_STD);       \
+        tcg_gen_gvec_2_ptr(rd_ofs, rm_ofs, fpst, oprsz, maxsz,          \
+                           arm_rmode_to_sf(RMODE), fns[vece]);          \
+        tcg_temp_free_ptr(fpst);                                        \
+    }                                                                   \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)             \
+    {                                                                   \
+        if (!arm_dc_feature(s, ARM_FEATURE_V8)) {                       \
+            return false;                                               \
+        }                                                               \
+        if (a->size == MO_16) {                                         \
+            if (!dc_isar_feature(aa32_fp16_arith, s)) {                 \
+                return false;                                           \
+            }                                                           \
+        } else if (a->size != MO_32) {                                  \
+            return false;                                               \
+        }                                                               \
+        return do_2misc_vec(s, a, gen_##INSN);                          \
     }
 
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if (a->size != 2) {
-        /* TODO: FP16 will be the size == 1 case */
-        return false;
-    }
-
-    if ((a->vd | a->vm) & a->q) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    fpst = fpstatus_ptr(FPST_STD);
-    tcg_shift = tcg_const_i32(0);
-    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
-    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
-        if (is_signed) {
-            gen_helper_vfp_tosls(tmp, tmp, tcg_shift, fpst);
-        } else {
-            gen_helper_vfp_touls(tmp, tmp, tcg_shift, fpst);
-        }
-        neon_store_reg(a->vd, pass, tmp);
-    }
-    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
-    tcg_temp_free_i32(tcg_rmode);
-    tcg_temp_free_i32(tcg_shift);
-    tcg_temp_free_ptr(fpst);
-
-    return true;
-}
-
-#define DO_VCVT(INSN, RMODE, SIGNED)                            \
-    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
-    {                                                           \
-        return do_vcvt(s, a, RMODE, SIGNED);                    \
-    }
-
-DO_VCVT(VCVTAU, FPROUNDING_TIEAWAY, false)
-DO_VCVT(VCVTAS, FPROUNDING_TIEAWAY, true)
-DO_VCVT(VCVTNU, FPROUNDING_TIEEVEN, false)
-DO_VCVT(VCVTNS, FPROUNDING_TIEEVEN, true)
-DO_VCVT(VCVTPU, FPROUNDING_POSINF, false)
-DO_VCVT(VCVTPS, FPROUNDING_POSINF, true)
-DO_VCVT(VCVTMU, FPROUNDING_NEGINF, false)
-DO_VCVT(VCVTMS, FPROUNDING_NEGINF, true)
+DO_VEC_RMODE(VCVTAU, FPROUNDING_TIEAWAY, vcvt_rm_u)
+DO_VEC_RMODE(VCVTAS, FPROUNDING_TIEAWAY, vcvt_rm_s)
+DO_VEC_RMODE(VCVTNU, FPROUNDING_TIEEVEN, vcvt_rm_u)
+DO_VEC_RMODE(VCVTNS, FPROUNDING_TIEEVEN, vcvt_rm_s)
+DO_VEC_RMODE(VCVTPU, FPROUNDING_POSINF, vcvt_rm_u)
+DO_VEC_RMODE(VCVTPS, FPROUNDING_POSINF, vcvt_rm_s)
+DO_VEC_RMODE(VCVTMU, FPROUNDING_NEGINF, vcvt_rm_u)
+DO_VEC_RMODE(VCVTMS, FPROUNDING_NEGINF, vcvt_rm_s)
 
 static bool trans_VSWP(DisasContext *s, arg_2misc *a)
 {
