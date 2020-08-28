@@ -3454,3 +3454,31 @@ static bool trans_NOCP(DisasContext *s, arg_NOCP *a)
 
     return false;
 }
+
+static bool trans_VINS(DisasContext *s, arg_VINS *a)
+{
+    TCGv_i32 rd, rm;
+
+    if (!dc_isar_feature(aa32_fp16_arith, s)) {
+        return false;
+    }
+
+    if (s->vec_len != 0 || s->vec_stride != 0) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /* Insert low half of Vm into high half of Vd */
+    rm = tcg_temp_new_i32();
+    rd = tcg_temp_new_i32();
+    neon_load_reg32(rm, a->vm);
+    neon_load_reg32(rd, a->vd);
+    tcg_gen_deposit_i32(rd, rd, rm, 16, 16);
+    neon_store_reg32(rd, a->vd);
+    tcg_temp_free_i32(rm);
+    tcg_temp_free_i32(rd);
+    return true;
+}
