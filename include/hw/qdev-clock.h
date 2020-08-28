@@ -71,11 +71,7 @@ Clock *qdev_get_clock_out(DeviceState *dev, const char *name);
  * Set the source clock of input clock @name of device @dev to @source.
  * @source period update will be propagated to @name clock.
  */
-static inline void qdev_connect_clock_in(DeviceState *dev, const char *name,
-                                         Clock *source)
-{
-    clock_set_source(qdev_get_clock_in(dev, name), source);
-}
+void qdev_connect_clock_in(DeviceState *dev, const char *name, Clock *source);
 
 /**
  * qdev_alias_clock:
