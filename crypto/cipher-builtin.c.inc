@@ -522,7 +522,7 @@ qcrypto_builtin_cipher_setiv(QCryptoCipher *cipher,
 }
 
 
-static struct QCryptoCipherDriver qcrypto_cipher_lib_driver = {
+static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver = {
     .cipher_encrypt = qcrypto_builtin_cipher_encrypt,
     .cipher_decrypt = qcrypto_builtin_cipher_decrypt,
     .cipher_setiv = qcrypto_builtin_cipher_setiv,

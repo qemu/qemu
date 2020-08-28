@@ -47,7 +47,7 @@ qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                              const uint8_t *key,
                              size_t nkey, Error **errp);
 
-extern struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
+extern const struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
 
 #endif
 

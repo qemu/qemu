@@ -165,7 +165,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 {
     QCryptoCipher *cipher;
     void *ctx = NULL;
-    QCryptoCipherDriver *drv = NULL;
+    const QCryptoCipherDriver *drv = NULL;
 
 #ifdef CONFIG_AF_ALG
     ctx = qcrypto_afalg_cipher_ctx_new(alg, mode, key, nkey, NULL);
@@ -187,7 +187,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     cipher->alg = alg;
     cipher->mode = mode;
     cipher->opaque = ctx;
-    cipher->driver = (void *)drv;
+    cipher->driver = drv;
 
     return cipher;
 }
@@ -199,7 +199,7 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
                            size_t len,
                            Error **errp)
 {
-    QCryptoCipherDriver *drv = cipher->driver;
+    const QCryptoCipherDriver *drv = cipher->driver;
     return drv->cipher_encrypt(cipher, in, out, len, errp);
 }
 
@@ -210,7 +210,7 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
                            size_t len,
                            Error **errp)
 {
-    QCryptoCipherDriver *drv = cipher->driver;
+    const QCryptoCipherDriver *drv = cipher->driver;
     return drv->cipher_decrypt(cipher, in, out, len, errp);
 }
 
@@ -219,14 +219,14 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
                          const uint8_t *iv, size_t niv,
                          Error **errp)
 {
-    QCryptoCipherDriver *drv = cipher->driver;
+    const QCryptoCipherDriver *drv = cipher->driver;
     return drv->cipher_setiv(cipher, iv, niv, errp);
 }
 
 
 void qcrypto_cipher_free(QCryptoCipher *cipher)
 {
-    QCryptoCipherDriver *drv;
+    const QCryptoCipherDriver *drv;
     if (cipher) {
         drv = cipher->driver;
         drv->cipher_free(cipher);
