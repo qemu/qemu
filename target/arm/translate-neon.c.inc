@@ -3766,67 +3766,6 @@ static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
     return do_2misc_fp(s, a, gen_helper_rints_exact);
 }
 
-static bool do_vrint(DisasContext *s, arg_2misc *a, int rmode)
-{
-    /*
-     * Handle a VRINT* operation by iterating 32 bits at a time,
-     * with a specified rounding mode in operation.
-     */
-    int pass;
-    TCGv_ptr fpst;
-    TCGv_i32 tcg_rmode;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
-        !arm_dc_feature(s, ARM_FEATURE_V8)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if (a->size != 2) {
-        /* TODO: FP16 will be the size == 1 case */
-        return false;
-    }
-
-    if ((a->vd | a->vm) & a->q) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    fpst = fpstatus_ptr(FPST_STD);
-    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
-    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
-        gen_helper_rints(tmp, tmp, fpst);
-        neon_store_reg(a->vd, pass, tmp);
-    }
-    gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode, cpu_env);
-    tcg_temp_free_i32(tcg_rmode);
-    tcg_temp_free_ptr(fpst);
-
-    return true;
-}
-
-#define DO_VRINT(INSN, RMODE)                                   \
-    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
-    {                                                           \
-        return do_vrint(s, a, RMODE);                           \
-    }
-
-DO_VRINT(VRINTN, FPROUNDING_TIEEVEN)
-DO_VRINT(VRINTA, FPROUNDING_TIEAWAY)
-DO_VRINT(VRINTZ, FPROUNDING_ZERO)
-DO_VRINT(VRINTM, FPROUNDING_NEGINF)
-DO_VRINT(VRINTP, FPROUNDING_POSINF)
-
 #define DO_VEC_RMODE(INSN, RMODE, OP)                                   \
     static void gen_##INSN(unsigned vece, uint32_t rd_ofs,              \
                            uint32_t rm_ofs,                             \
@@ -3867,6 +3806,12 @@ DO_VEC_RMODE(VCVTPU, FPROUNDING_POSINF, vcvt_rm_u)
 DO_VEC_RMODE(VCVTPS, FPROUNDING_POSINF, vcvt_rm_s)
 DO_VEC_RMODE(VCVTMU, FPROUNDING_NEGINF, vcvt_rm_u)
 DO_VEC_RMODE(VCVTMS, FPROUNDING_NEGINF, vcvt_rm_s)
+
+DO_VEC_RMODE(VRINTN, FPROUNDING_TIEEVEN, vrint_rm_)
+DO_VEC_RMODE(VRINTA, FPROUNDING_TIEAWAY, vrint_rm_)
+DO_VEC_RMODE(VRINTZ, FPROUNDING_ZERO, vrint_rm_)
+DO_VEC_RMODE(VRINTM, FPROUNDING_NEGINF, vrint_rm_)
+DO_VEC_RMODE(VRINTP, FPROUNDING_POSINF, vrint_rm_)
 
 static bool trans_VSWP(DisasContext *s, arg_2misc *a)
 {
