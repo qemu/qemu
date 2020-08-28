@@ -581,6 +581,9 @@
 #ifdef HAVE_DRM_H
   IOCTL_SPECIAL(DRM_IOCTL_VERSION, IOC_RW, do_ioctl_drm,
                 MK_PTR(MK_STRUCT(STRUCT_drm_version)))
+
+  IOCTL_SPECIAL(DRM_IOCTL_I915_GETPARAM, IOC_RW, do_ioctl_drm_i915,
+                MK_PTR(MK_STRUCT(STRUCT_drm_i915_getparam)))
 #endif
 
 #ifdef TARGET_TIOCSTART
