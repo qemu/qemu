@@ -22,54 +22,43 @@
 #include "crypto/desrfb.h"
 #include "crypto/xts.h"
 
-static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver;
-
 typedef struct QCryptoCipherBuiltinAESContext QCryptoCipherBuiltinAESContext;
 struct QCryptoCipherBuiltinAESContext {
     AES_KEY enc;
     AES_KEY dec;
 };
+
 typedef struct QCryptoCipherBuiltinAES QCryptoCipherBuiltinAES;
 struct QCryptoCipherBuiltinAES {
+    QCryptoCipher base;
     QCryptoCipherBuiltinAESContext key;
     QCryptoCipherBuiltinAESContext key_tweak;
     uint8_t iv[AES_BLOCK_SIZE];
 };
-typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
-struct QCryptoCipherBuiltinDESRFB {
-    uint8_t *key;
-    size_t nkey;
-};
-
-typedef struct QCryptoCipherBuiltin QCryptoCipherBuiltin;
-struct QCryptoCipherBuiltin {
-    QCryptoCipher base;
-
-    union {
-        QCryptoCipherBuiltinAES aes;
-        QCryptoCipherBuiltinDESRFB desrfb;
-    } state;
-    size_t blocksize;
-    void (*free)(QCryptoCipher *cipher);
-    int (*setiv)(QCryptoCipher *cipher,
-                 const uint8_t *iv, size_t niv,
-                 Error **errp);
-    int (*encrypt)(QCryptoCipher *cipher,
-                   const void *in,
-                   void *out,
-                   size_t len,
-                   Error **errp);
-    int (*decrypt)(QCryptoCipher *cipher,
-                   const void *in,
-                   void *out,
-                   size_t len,
-                   Error **errp);
-};
 
 
-static void qcrypto_cipher_free_aes(QCryptoCipher *cipher)
+static inline bool qcrypto_length_check(size_t len, size_t blocksize,
+                                        Error **errp)
+{
+    if (unlikely(len & (blocksize - 1))) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, blocksize);
+        return false;
+    }
+    return true;
+}
+
+static void qcrypto_cipher_ctx_free(QCryptoCipher *cipher)
 {
     g_free(cipher);
+}
+
+static int qcrypto_cipher_no_setiv(QCryptoCipher *cipher,
+                                   const uint8_t *iv, size_t niv,
+                                   Error **errp)
+{
+    error_setg(errp, "Setting IV is not supported");
+    return -1;
 }
 
 static void do_aes_encrypt_ecb(const void *vctx,
@@ -149,77 +138,100 @@ static void do_aes_decrypt_cbc(const AES_KEY *key,
     }
 }
 
-static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
-                                      const void *in,
-                                      void *out,
-                                      size_t len,
-                                      Error **errp)
+static int qcrypto_cipher_aes_encrypt_ecb(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
 
-    switch (cipher->mode) {
-    case QCRYPTO_CIPHER_MODE_ECB:
-        do_aes_encrypt_ecb(&ctxt->state.aes.key, len, out, in);
-        break;
-    case QCRYPTO_CIPHER_MODE_CBC:
-        do_aes_encrypt_cbc(&ctxt->state.aes.key.enc, len, out, in,
-                           ctxt->state.aes.iv);
-        break;
-    case QCRYPTO_CIPHER_MODE_XTS:
-        xts_encrypt(&ctxt->state.aes.key,
-                    &ctxt->state.aes.key_tweak,
-                    do_aes_encrypt_ecb,
-                    do_aes_decrypt_ecb,
-                    ctxt->state.aes.iv,
-                    len, out, in);
-        break;
-    default:
-        g_assert_not_reached();
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
     }
+    do_aes_encrypt_ecb(&ctx->key, len, out, in);
+    return 0;
+}
 
+static int qcrypto_cipher_aes_decrypt_ecb(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
+
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
+    }
+    do_aes_decrypt_ecb(&ctx->key, len, out, in);
+    return 0;
+}
+
+static int qcrypto_cipher_aes_encrypt_cbc(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
+
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
+    }
+    do_aes_encrypt_cbc(&ctx->key.enc, len, out, in, ctx->iv);
+    return 0;
+}
+
+static int qcrypto_cipher_aes_decrypt_cbc(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
+
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
+    }
+    do_aes_decrypt_cbc(&ctx->key.dec, len, out, in, ctx->iv);
+    return 0;
+}
+
+static int qcrypto_cipher_aes_encrypt_xts(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
+
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
+    }
+    xts_encrypt(&ctx->key, &ctx->key_tweak,
+                do_aes_encrypt_ecb, do_aes_decrypt_ecb,
+                ctx->iv, len, out, in);
+    return 0;
+}
+
+static int qcrypto_cipher_aes_decrypt_xts(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
+
+    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
+        return -1;
+    }
+    xts_decrypt(&ctx->key, &ctx->key_tweak,
+                do_aes_encrypt_ecb, do_aes_decrypt_ecb,
+                ctx->iv, len, out, in);
     return 0;
 }
 
 
-static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
-                                      const void *in,
-                                      void *out,
-                                      size_t len,
-                                      Error **errp)
+static int qcrypto_cipher_aes_setiv(QCryptoCipher *cipher, const uint8_t *iv,
+                             size_t niv, Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    switch (cipher->mode) {
-    case QCRYPTO_CIPHER_MODE_ECB:
-        do_aes_decrypt_ecb(&ctxt->state.aes.key, len, out, in);
-        break;
-    case QCRYPTO_CIPHER_MODE_CBC:
-        do_aes_decrypt_cbc(&ctxt->state.aes.key.dec, len, out, in,
-                           ctxt->state.aes.iv);
-        break;
-    case QCRYPTO_CIPHER_MODE_XTS:
-        xts_decrypt(&ctxt->state.aes.key,
-                    &ctxt->state.aes.key_tweak,
-                    do_aes_encrypt_ecb,
-                    do_aes_decrypt_ecb,
-                    ctxt->state.aes.iv,
-                    len, out, in);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    return 0;
-}
-
-static int qcrypto_cipher_setiv_aes(QCryptoCipher *cipher,
-                                     const uint8_t *iv, size_t niv,
-                                     Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
+    QCryptoCipherBuiltinAES *ctx
+        = container_of(cipher, QCryptoCipherBuiltinAES, base);
 
     if (niv != AES_BLOCK_SIZE) {
         error_setg(errp, "IV must be %d bytes not %zu",
@@ -227,107 +239,53 @@ static int qcrypto_cipher_setiv_aes(QCryptoCipher *cipher,
         return -1;
     }
 
-    memcpy(ctxt->state.aes.iv, iv, AES_BLOCK_SIZE);
-
+    memcpy(ctx->iv, iv, AES_BLOCK_SIZE);
     return 0;
 }
 
+static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_ecb = {
+    .cipher_encrypt = qcrypto_cipher_aes_encrypt_ecb,
+    .cipher_decrypt = qcrypto_cipher_aes_decrypt_ecb,
+    .cipher_setiv = qcrypto_cipher_no_setiv,
+    .cipher_free = qcrypto_cipher_ctx_free,
+};
+
+static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_cbc = {
+    .cipher_encrypt = qcrypto_cipher_aes_encrypt_cbc,
+    .cipher_decrypt = qcrypto_cipher_aes_decrypt_cbc,
+    .cipher_setiv = qcrypto_cipher_aes_setiv,
+    .cipher_free = qcrypto_cipher_ctx_free,
+};
+
+static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_xts = {
+    .cipher_encrypt = qcrypto_cipher_aes_encrypt_xts,
+    .cipher_decrypt = qcrypto_cipher_aes_decrypt_xts,
+    .cipher_setiv = qcrypto_cipher_aes_setiv,
+    .cipher_free = qcrypto_cipher_ctx_free,
+};
 
 
+typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
+struct QCryptoCipherBuiltinDESRFB {
+    QCryptoCipher base;
 
-static QCryptoCipher *
-qcrypto_cipher_init_aes(QCryptoCipherMode mode,
-                        const uint8_t *key, size_t nkey,
-                        Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt;
-
-    if (mode != QCRYPTO_CIPHER_MODE_CBC &&
-        mode != QCRYPTO_CIPHER_MODE_ECB &&
-        mode != QCRYPTO_CIPHER_MODE_XTS) {
-        error_setg(errp, "Unsupported cipher mode %s",
-                   QCryptoCipherMode_str(mode));
-        return NULL;
-    }
-
-    ctxt = g_new0(QCryptoCipherBuiltin, 1);
-
-    if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-        if (AES_set_encrypt_key(key, nkey * 4, &ctxt->state.aes.key.enc) != 0) {
-            error_setg(errp, "Failed to set encryption key");
-            goto error;
-        }
-
-        if (AES_set_decrypt_key(key, nkey * 4, &ctxt->state.aes.key.dec) != 0) {
-            error_setg(errp, "Failed to set decryption key");
-            goto error;
-        }
-
-        if (AES_set_encrypt_key(key + (nkey / 2), nkey * 4,
-                                &ctxt->state.aes.key_tweak.enc) != 0) {
-            error_setg(errp, "Failed to set encryption key");
-            goto error;
-        }
-
-        if (AES_set_decrypt_key(key + (nkey / 2), nkey * 4,
-                                &ctxt->state.aes.key_tweak.dec) != 0) {
-            error_setg(errp, "Failed to set decryption key");
-            goto error;
-        }
-    } else {
-        if (AES_set_encrypt_key(key, nkey * 8, &ctxt->state.aes.key.enc) != 0) {
-            error_setg(errp, "Failed to set encryption key");
-            goto error;
-        }
-
-        if (AES_set_decrypt_key(key, nkey * 8, &ctxt->state.aes.key.dec) != 0) {
-            error_setg(errp, "Failed to set decryption key");
-            goto error;
-        }
-    }
-
-    ctxt->blocksize = AES_BLOCK_SIZE;
-    ctxt->free = qcrypto_cipher_free_aes;
-    ctxt->setiv = qcrypto_cipher_setiv_aes;
-    ctxt->encrypt = qcrypto_cipher_encrypt_aes;
-    ctxt->decrypt = qcrypto_cipher_decrypt_aes;
-
-    ctxt->base.driver = &qcrypto_cipher_lib_driver;
-    return &ctxt->base;
-
- error:
-    g_free(ctxt);
-    return NULL;
-}
-
-
-static void qcrypto_cipher_free_des_rfb(QCryptoCipher *cipher)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    g_free(ctxt->state.desrfb.key);
-    g_free(ctxt);
-}
-
+    /* C.f. alg_key_len[QCRYPTO_CIPHER_ALG_DES_RFB] */
+    uint8_t key[8];
+};
 
 static int qcrypto_cipher_encrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in,
-                                          void *out,
-                                          size_t len,
-                                          Error **errp)
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
+    QCryptoCipherBuiltinDESRFB *ctx
+        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
     size_t i;
 
-    if (len % 8) {
-        error_setg(errp, "Buffer size must be multiple of 8 not %zu",
-                   len);
+    if (!qcrypto_length_check(len, 8, errp)) {
         return -1;
     }
 
-    deskey(ctxt->state.desrfb.key, EN0);
+    deskey(ctx->key, EN0);
 
     for (i = 0; i < len; i += 8) {
         des((void *)in + i, out + i);
@@ -335,25 +293,20 @@ static int qcrypto_cipher_encrypt_des_rfb(QCryptoCipher *cipher,
 
     return 0;
 }
-
 
 static int qcrypto_cipher_decrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in,
-                                          void *out,
-                                          size_t len,
-                                          Error **errp)
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
+    QCryptoCipherBuiltinDESRFB *ctx
+        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
     size_t i;
 
-    if (len % 8) {
-        error_setg(errp, "Buffer size must be multiple of 8 not %zu",
-                   len);
+    if (!qcrypto_length_check(len, 8, errp)) {
         return -1;
     }
 
-    deskey(ctxt->state.desrfb.key, DE1);
+    deskey(ctx->key, DE1);
 
     for (i = 0; i < len; i += 8) {
         des((void *)in + i, out + i);
@@ -362,71 +315,35 @@ static int qcrypto_cipher_decrypt_des_rfb(QCryptoCipher *cipher,
     return 0;
 }
 
-
-static int qcrypto_cipher_setiv_des_rfb(QCryptoCipher *cipher,
-                                        const uint8_t *iv, size_t niv,
-                                        Error **errp)
-{
-    error_setg(errp, "Setting IV is not supported");
-    return -1;
-}
-
-
-static QCryptoCipher *
-qcrypto_cipher_init_des_rfb(QCryptoCipherMode mode,
-                            const uint8_t *key, size_t nkey,
-                            Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt;
-
-    if (mode != QCRYPTO_CIPHER_MODE_ECB) {
-        error_setg(errp, "Unsupported cipher mode %s",
-                   QCryptoCipherMode_str(mode));
-        return NULL;
-    }
-
-    ctxt = g_new0(QCryptoCipherBuiltin, 1);
-
-    ctxt->state.desrfb.key = g_new0(uint8_t, nkey);
-    memcpy(ctxt->state.desrfb.key, key, nkey);
-    ctxt->state.desrfb.nkey = nkey;
-
-    ctxt->blocksize = 8;
-    ctxt->free = qcrypto_cipher_free_des_rfb;
-    ctxt->setiv = qcrypto_cipher_setiv_des_rfb;
-    ctxt->encrypt = qcrypto_cipher_encrypt_des_rfb;
-    ctxt->decrypt = qcrypto_cipher_decrypt_des_rfb;
-
-    ctxt->base.driver = &qcrypto_cipher_lib_driver;
-    return &ctxt->base;
-}
-
+static const struct QCryptoCipherDriver qcrypto_cipher_des_rfb_driver = {
+    .cipher_encrypt = qcrypto_cipher_encrypt_des_rfb,
+    .cipher_decrypt = qcrypto_cipher_decrypt_des_rfb,
+    .cipher_setiv = qcrypto_cipher_no_setiv,
+    .cipher_free = qcrypto_cipher_ctx_free,
+};
 
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
+        return mode == QCRYPTO_CIPHER_MODE_ECB;
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
+        switch (mode) {
+        case QCRYPTO_CIPHER_MODE_ECB:
+        case QCRYPTO_CIPHER_MODE_CBC:
+        case QCRYPTO_CIPHER_MODE_XTS:
+            return true;
+        default:
+            return false;
+        }
         break;
     default:
         return false;
     }
-
-    switch (mode) {
-    case QCRYPTO_CIPHER_MODE_ECB:
-    case QCRYPTO_CIPHER_MODE_CBC:
-    case QCRYPTO_CIPHER_MODE_XTS:
-        return true;
-    case QCRYPTO_CIPHER_MODE_CTR:
-        return false;
-    default:
-        return false;
-    }
 }
-
 
 static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                                              QCryptoCipherMode mode,
@@ -434,101 +351,85 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                                              size_t nkey,
                                              Error **errp)
 {
-    switch (mode) {
-    case QCRYPTO_CIPHER_MODE_ECB:
-    case QCRYPTO_CIPHER_MODE_CBC:
-    case QCRYPTO_CIPHER_MODE_XTS:
-        break;
-    default:
-        error_setg(errp, "Unsupported cipher mode %s",
-                   QCryptoCipherMode_str(mode));
-        return NULL;
-    }
-
     if (!qcrypto_cipher_validate_key_length(alg, mode, nkey, errp)) {
         return NULL;
     }
 
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
-        return qcrypto_cipher_init_des_rfb(mode, key, nkey, errp);
+        if (mode == QCRYPTO_CIPHER_MODE_ECB) {
+            QCryptoCipherBuiltinDESRFB *ctx;
+
+            ctx = g_new0(QCryptoCipherBuiltinDESRFB, 1);
+            ctx->base.driver = &qcrypto_cipher_des_rfb_driver;
+            memcpy(ctx->key, key, sizeof(ctx->key));
+
+            return &ctx->base;
+        }
+        goto bad_mode;
+
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
-        return qcrypto_cipher_init_aes(mode, key, nkey, errp);
+        {
+            QCryptoCipherBuiltinAES *ctx;
+            const QCryptoCipherDriver *drv;
+
+            switch (mode) {
+            case QCRYPTO_CIPHER_MODE_ECB:
+                drv = &qcrypto_cipher_aes_driver_ecb;
+                break;
+            case QCRYPTO_CIPHER_MODE_CBC:
+                drv = &qcrypto_cipher_aes_driver_cbc;
+                break;
+            case QCRYPTO_CIPHER_MODE_XTS:
+                drv = &qcrypto_cipher_aes_driver_xts;
+                break;
+            default:
+                goto bad_mode;
+            }
+
+            ctx = g_new0(QCryptoCipherBuiltinAES, 1);
+            ctx->base.driver = drv;
+
+            if (mode == QCRYPTO_CIPHER_MODE_XTS) {
+                nkey /= 2;
+                if (AES_set_encrypt_key(key + nkey, nkey * 8,
+                                        &ctx->key_tweak.enc)) {
+                    error_setg(errp, "Failed to set encryption key");
+                    goto error;
+                }
+                if (AES_set_decrypt_key(key + nkey, nkey * 8,
+                                        &ctx->key_tweak.dec)) {
+                    error_setg(errp, "Failed to set decryption key");
+                    goto error;
+                }
+            }
+            if (AES_set_encrypt_key(key, nkey * 8, &ctx->key.enc)) {
+                error_setg(errp, "Failed to set encryption key");
+                goto error;
+            }
+            if (AES_set_decrypt_key(key, nkey * 8, &ctx->key.dec)) {
+                error_setg(errp, "Failed to set decryption key");
+                goto error;
+            }
+
+            return &ctx->base;
+
+        error:
+            g_free(ctx);
+            return NULL;
+        }
+
     default:
         error_setg(errp,
                    "Unsupported cipher algorithm %s",
                    QCryptoCipherAlgorithm_str(alg));
         return NULL;
     }
+
+ bad_mode:
+    error_setg(errp, "Unsupported cipher mode %s",
+               QCryptoCipherMode_str(mode));
+    return NULL;
 }
-
-static void
-qcrypto_builtin_cipher_ctx_free(QCryptoCipher *cipher)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    ctxt->free(cipher);
-}
-
-
-static int
-qcrypto_builtin_cipher_encrypt(QCryptoCipher *cipher,
-                               const void *in,
-                               void *out,
-                               size_t len,
-                               Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    if (len & (ctxt->blocksize - 1)) {
-        error_setg(errp, "Length %zu must be a multiple of block size %zu",
-                   len, ctxt->blocksize);
-        return -1;
-    }
-
-    return ctxt->encrypt(cipher, in, out, len, errp);
-}
-
-
-static int
-qcrypto_builtin_cipher_decrypt(QCryptoCipher *cipher,
-                               const void *in,
-                               void *out,
-                               size_t len,
-                               Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    if (len & (ctxt->blocksize - 1)) {
-        error_setg(errp, "Length %zu must be a multiple of block size %zu",
-                   len, ctxt->blocksize);
-        return -1;
-    }
-
-    return ctxt->decrypt(cipher, in, out, len, errp);
-}
-
-
-static int
-qcrypto_builtin_cipher_setiv(QCryptoCipher *cipher,
-                             const uint8_t *iv, size_t niv,
-                             Error **errp)
-{
-    QCryptoCipherBuiltin *ctxt
-        = container_of(cipher, QCryptoCipherBuiltin, base);
-
-    return ctxt->setiv(cipher, iv, niv, errp);
-}
-
-
-static const struct QCryptoCipherDriver qcrypto_cipher_lib_driver = {
-    .cipher_encrypt = qcrypto_builtin_cipher_encrypt,
-    .cipher_decrypt = qcrypto_builtin_cipher_decrypt,
-    .cipher_setiv = qcrypto_builtin_cipher_setiv,
-    .cipher_free = qcrypto_builtin_cipher_ctx_free,
-};
