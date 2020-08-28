@@ -2596,7 +2596,6 @@ static void setup_capabilities(char *modcaps_in)
     if (capng_updatev(CAPNG_ADD, CAPNG_PERMITTED | CAPNG_EFFECTIVE,
             CAP_CHOWN,
             CAP_DAC_OVERRIDE,
-            CAP_DAC_READ_SEARCH,
             CAP_FOWNER,
             CAP_FSETID,
             CAP_SETGID,
@@ -2823,7 +2822,7 @@ int main(int argc, char *argv[])
     struct lo_data lo = {
         .debug = 0,
         .writeback = 0,
-        .posix_lock = 1,
+        .posix_lock = 0,
         .proc_self_fd = -1,
     };
     struct lo_map_elem *root_elem;

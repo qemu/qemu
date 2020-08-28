@@ -63,11 +63,8 @@ Options
     Print only log messages matching LEVEL or more severe.  LEVEL is one of
     ``err``, ``warn``, ``info``, or ``debug``.  The default is ``info``.
 
-  * norace -
-    Disable racy fallback.  The default is false.
-
   * posix_lock|no_posix_lock -
-    Enable/disable remote POSIX locks.  The default is ``posix_lock``.
+    Enable/disable remote POSIX locks.  The default is ``no_posix_lock``.
 
   * readdirplus|no_readdirplus -
     Enable/disable readdirplus.  The default is ``readdirplus``.
