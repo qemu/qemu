@@ -41,7 +41,7 @@ struct QCryptoCipherDriver {
 
 #include "afalgpriv.h"
 
-extern QCryptoAFAlg *
+extern QCryptoCipher *
 qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode,
                              const uint8_t *key,

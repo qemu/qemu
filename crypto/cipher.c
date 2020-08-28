@@ -163,30 +163,27 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   const uint8_t *key, size_t nkey,
                                   Error **errp)
 {
-    QCryptoCipher *cipher;
-    void *ctx = NULL;
+    QCryptoCipher *cipher = NULL;
     const QCryptoCipherDriver *drv = NULL;
 
 #ifdef CONFIG_AF_ALG
-    ctx = qcrypto_afalg_cipher_ctx_new(alg, mode, key, nkey, NULL);
-    if (ctx) {
+    cipher = qcrypto_afalg_cipher_ctx_new(alg, mode, key, nkey, NULL);
+    if (cipher) {
         drv = &qcrypto_cipher_afalg_driver;
     }
 #endif
 
-    if (!ctx) {
-        ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
-        if (!ctx) {
+    if (!cipher) {
+        cipher = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
+        if (!cipher) {
             return NULL;
         }
 
         drv = &qcrypto_cipher_lib_driver;
     }
 
-    cipher = g_new0(QCryptoCipher, 1);
     cipher->alg = alg;
     cipher->mode = mode;
-    cipher->opaque = ctx;
     cipher->driver = drv;
 
     return cipher;
@@ -226,10 +223,7 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
 
 void qcrypto_cipher_free(QCryptoCipher *cipher)
 {
-    const QCryptoCipherDriver *drv;
     if (cipher) {
-        drv = cipher->driver;
-        drv->cipher_free(cipher);
-        g_free(cipher);
+        cipher->driver->cipher_free(cipher);
     }
 }

@@ -41,6 +41,8 @@ struct QCryptoCipherBuiltinDESRFB {
 
 typedef struct QCryptoCipherBuiltin QCryptoCipherBuiltin;
 struct QCryptoCipherBuiltin {
+    QCryptoCipher base;
+
     union {
         QCryptoCipherBuiltinAES aes;
         QCryptoCipherBuiltinDESRFB desrfb;
@@ -65,10 +67,7 @@ struct QCryptoCipherBuiltin {
 
 static void qcrypto_cipher_free_aes(QCryptoCipher *cipher)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
-
-    g_free(ctxt);
-    cipher->opaque = NULL;
+    g_free(cipher);
 }
 
 
@@ -152,7 +151,8 @@ static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
                                       size_t len,
                                       Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
@@ -186,7 +186,8 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
                                       size_t len,
                                       Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
@@ -217,7 +218,9 @@ static int qcrypto_cipher_setiv_aes(QCryptoCipher *cipher,
                                      const uint8_t *iv, size_t niv,
                                      Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
+
     if (niv != AES_BLOCK_SIZE) {
         error_setg(errp, "IV must be %d bytes not %zu",
                    AES_BLOCK_SIZE, niv);
@@ -232,7 +235,7 @@ static int qcrypto_cipher_setiv_aes(QCryptoCipher *cipher,
 
 
 
-static QCryptoCipherBuiltin *
+static QCryptoCipher *
 qcrypto_cipher_init_aes(QCryptoCipherMode mode,
                         const uint8_t *key, size_t nkey,
                         Error **errp)
@@ -289,7 +292,7 @@ qcrypto_cipher_init_aes(QCryptoCipherMode mode,
     ctxt->encrypt = qcrypto_cipher_encrypt_aes;
     ctxt->decrypt = qcrypto_cipher_decrypt_aes;
 
-    return ctxt;
+    return &ctxt->base;
 
  error:
     g_free(ctxt);
@@ -299,11 +302,11 @@ qcrypto_cipher_init_aes(QCryptoCipherMode mode,
 
 static void qcrypto_cipher_free_des_rfb(QCryptoCipher *cipher)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     g_free(ctxt->state.desrfb.key);
     g_free(ctxt);
-    cipher->opaque = NULL;
 }
 
 
@@ -313,7 +316,8 @@ static int qcrypto_cipher_encrypt_des_rfb(QCryptoCipher *cipher,
                                           size_t len,
                                           Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
     size_t i;
 
     if (len % 8) {
@@ -338,7 +342,8 @@ static int qcrypto_cipher_decrypt_des_rfb(QCryptoCipher *cipher,
                                           size_t len,
                                           Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
     size_t i;
 
     if (len % 8) {
@@ -366,7 +371,7 @@ static int qcrypto_cipher_setiv_des_rfb(QCryptoCipher *cipher,
 }
 
 
-static QCryptoCipherBuiltin *
+static QCryptoCipher *
 qcrypto_cipher_init_des_rfb(QCryptoCipherMode mode,
                             const uint8_t *key, size_t nkey,
                             Error **errp)
@@ -391,7 +396,7 @@ qcrypto_cipher_init_des_rfb(QCryptoCipherMode mode,
     ctxt->encrypt = qcrypto_cipher_encrypt_des_rfb;
     ctxt->decrypt = qcrypto_cipher_decrypt_des_rfb;
 
-    return ctxt;
+    return &ctxt->base;
 }
 
 
@@ -421,14 +426,12 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
 }
 
 
-static QCryptoCipherBuiltin *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
-                                                    QCryptoCipherMode mode,
-                                                    const uint8_t *key,
-                                                    size_t nkey,
-                                                    Error **errp)
+static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+                                             QCryptoCipherMode mode,
+                                             const uint8_t *key,
+                                             size_t nkey,
+                                             Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt;
-
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
@@ -446,29 +449,25 @@ static QCryptoCipherBuiltin *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
     switch (alg) {
     case QCRYPTO_CIPHER_ALG_DES_RFB:
-        ctxt = qcrypto_cipher_init_des_rfb(mode, key, nkey, errp);
-        break;
+        return qcrypto_cipher_init_des_rfb(mode, key, nkey, errp);
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
-        ctxt = qcrypto_cipher_init_aes(mode, key, nkey, errp);
-        break;
+        return qcrypto_cipher_init_aes(mode, key, nkey, errp);
     default:
         error_setg(errp,
                    "Unsupported cipher algorithm %s",
                    QCryptoCipherAlgorithm_str(alg));
         return NULL;
     }
-
-    return ctxt;
 }
 
 static void
 qcrypto_builtin_cipher_ctx_free(QCryptoCipher *cipher)
 {
-    QCryptoCipherBuiltin *ctxt;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
-    ctxt = cipher->opaque;
     ctxt->free(cipher);
 }
 
@@ -480,7 +479,8 @@ qcrypto_builtin_cipher_encrypt(QCryptoCipher *cipher,
                                size_t len,
                                Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     if (len & (ctxt->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
@@ -499,7 +499,8 @@ qcrypto_builtin_cipher_decrypt(QCryptoCipher *cipher,
                                size_t len,
                                Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     if (len & (ctxt->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
@@ -516,7 +517,8 @@ qcrypto_builtin_cipher_setiv(QCryptoCipher *cipher,
                              const uint8_t *iv, size_t niv,
                              Error **errp)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt
+        = container_of(cipher, QCryptoCipherBuiltin, base);
 
     return ctxt->setiv(cipher, iv, niv, errp);
 }

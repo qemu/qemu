@@ -58,6 +58,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
 
 typedef struct QCryptoCipherGcrypt QCryptoCipherGcrypt;
 struct QCryptoCipherGcrypt {
+    QCryptoCipher base;
     gcry_cipher_hd_t handle;
     size_t blocksize;
 #ifdef CONFIG_QEMU_PRIVATE_XTS
@@ -86,11 +87,11 @@ qcrypto_gcrypt_cipher_free_ctx(QCryptoCipherGcrypt *ctx,
 }
 
 
-static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
-                                                   QCryptoCipherMode mode,
-                                                   const uint8_t *key,
-                                                   size_t nkey,
-                                                   Error **errp)
+static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+                                             QCryptoCipherMode mode,
+                                             const uint8_t *key,
+                                             size_t nkey,
+                                             Error **errp)
 {
     QCryptoCipherGcrypt *ctx;
     gcry_error_t err;
@@ -257,7 +258,7 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 #endif
 
-    return ctx;
+    return &ctx->base;
 
  error:
     qcrypto_gcrypt_cipher_free_ctx(ctx, mode);
@@ -268,7 +269,9 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 static void
 qcrypto_gcrypt_cipher_ctx_free(QCryptoCipher *cipher)
 {
-    qcrypto_gcrypt_cipher_free_ctx(cipher->opaque, cipher->mode);
+    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
+
+    qcrypto_gcrypt_cipher_free_ctx(ctx, cipher->mode);
 }
 
 
@@ -301,7 +304,7 @@ qcrypto_gcrypt_cipher_encrypt(QCryptoCipher *cipher,
                               size_t len,
                               Error **errp)
 {
-    QCryptoCipherGcrypt *ctx = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
     gcry_error_t err;
 
     if (len & (ctx->blocksize - 1)) {
@@ -340,7 +343,7 @@ qcrypto_gcrypt_cipher_decrypt(QCryptoCipher *cipher,
                               size_t len,
                               Error **errp)
 {
-    QCryptoCipherGcrypt *ctx = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
     gcry_error_t err;
 
     if (len & (ctx->blocksize - 1)) {
@@ -376,7 +379,7 @@ qcrypto_gcrypt_cipher_setiv(QCryptoCipher *cipher,
                             const uint8_t *iv, size_t niv,
                             Error **errp)
 {
-    QCryptoCipherGcrypt *ctx = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
     gcry_error_t err;
 
     if (niv != ctx->blocksize) {

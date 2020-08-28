@@ -294,6 +294,8 @@ static void twofish_decrypt_wrapper(const void *ctx, size_t length,
 
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
+    QCryptoCipher base;
+
     /* Primary cipher context for all modes */
     void *ctx;
     /* Second cipher context for XTS mode only */
@@ -355,11 +357,11 @@ qcrypto_nettle_cipher_free_ctx(QCryptoCipherNettle *ctx)
 }
 
 
-static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
-                                                   QCryptoCipherMode mode,
-                                                   const uint8_t *key,
-                                                   size_t nkey,
-                                                   Error **errp)
+static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+                                             QCryptoCipherMode mode,
+                                             const uint8_t *key,
+                                             size_t nkey,
+                                             Error **errp)
 {
     QCryptoCipherNettle *ctx;
     uint8_t *rfbkey;
@@ -585,7 +587,7 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
     ctx->iv = g_new0(uint8_t, ctx->blocksize);
 
-    return ctx;
+    return &ctx->base;
 
  error:
     qcrypto_nettle_cipher_free_ctx(ctx);
@@ -596,9 +598,8 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 static void
 qcrypto_nettle_cipher_ctx_free(QCryptoCipher *cipher)
 {
-    QCryptoCipherNettle *ctx;
+    QCryptoCipherNettle *ctx = container_of(cipher, QCryptoCipherNettle, base);
 
-    ctx = cipher->opaque;
     qcrypto_nettle_cipher_free_ctx(ctx);
 }
 
@@ -610,7 +611,7 @@ qcrypto_nettle_cipher_encrypt(QCryptoCipher *cipher,
                               size_t len,
                               Error **errp)
 {
-    QCryptoCipherNettle *ctx = cipher->opaque;
+    QCryptoCipherNettle *ctx = container_of(cipher, QCryptoCipherNettle, base);
 
     if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
@@ -663,7 +664,7 @@ qcrypto_nettle_cipher_decrypt(QCryptoCipher *cipher,
                               size_t len,
                               Error **errp)
 {
-    QCryptoCipherNettle *ctx = cipher->opaque;
+    QCryptoCipherNettle *ctx = container_of(cipher, QCryptoCipherNettle, base);
 
     if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
@@ -713,7 +714,8 @@ qcrypto_nettle_cipher_setiv(QCryptoCipher *cipher,
                             const uint8_t *iv, size_t niv,
                             Error **errp)
 {
-    QCryptoCipherNettle *ctx = cipher->opaque;
+    QCryptoCipherNettle *ctx = container_of(cipher, QCryptoCipherNettle, base);
+
     if (niv != ctx->blocksize) {
         error_setg(errp, "Expected IV size %zu not %zu",
                    ctx->blocksize, niv);
