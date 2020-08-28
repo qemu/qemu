@@ -1085,7 +1085,7 @@ DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -,   )
 
 #undef DO_MLA_IDX
 
-#define DO_FMUL_IDX(NAME, TYPE, H) \
+#define DO_FMUL_IDX(NAME, ADD, TYPE, H)                                    \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
 {                                                                          \
     intptr_t i, j, oprsz = simd_oprsz(desc);                               \
@@ -1095,16 +1095,33 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
     for (i = 0; i < oprsz / sizeof(TYPE); i += segment) {                  \
         TYPE mm = m[H(i + idx)];                                           \
         for (j = 0; j < segment; j++) {                                    \
-            d[i + j] = TYPE##_mul(n[i + j], mm, stat);                     \
+            d[i + j] = TYPE##_##ADD(d[i + j],                              \
+                                    TYPE##_mul(n[i + j], mm, stat), stat); \
         }                                                                  \
     }                                                                      \
     clear_tail(d, oprsz, simd_maxsz(desc));                                \
 }
 
-DO_FMUL_IDX(gvec_fmul_idx_h, float16, H2)
-DO_FMUL_IDX(gvec_fmul_idx_s, float32, H4)
-DO_FMUL_IDX(gvec_fmul_idx_d, float64, )
+#define float16_nop(N, M, S) (M)
+#define float32_nop(N, M, S) (M)
+#define float64_nop(N, M, S) (M)
 
+DO_FMUL_IDX(gvec_fmul_idx_h, nop, float16, H2)
+DO_FMUL_IDX(gvec_fmul_idx_s, nop, float32, H4)
+DO_FMUL_IDX(gvec_fmul_idx_d, nop, float64, )
+
+/*
+ * Non-fused multiply-accumulate operations, for Neon. NB that unlike
+ * the fused ops below they assume accumulate both from and into Vd.
+ */
+DO_FMUL_IDX(gvec_fmla_nf_idx_h, add, float16, H2)
+DO_FMUL_IDX(gvec_fmla_nf_idx_s, add, float32, H4)
+DO_FMUL_IDX(gvec_fmls_nf_idx_h, sub, float16, H2)
+DO_FMUL_IDX(gvec_fmls_nf_idx_s, sub, float32, H4)
+
+#undef float16_nop
+#undef float32_nop
+#undef float64_nop
 #undef DO_FMUL_IDX
 
 #define DO_FMLA_IDX(NAME, TYPE, H)                                         \
