@@ -35,8 +35,8 @@ static void unimp_write(void *opaque, hwaddr offset,
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(size %d, offset 0x%" HWADDR_PRIx
-                  ", value 0x%" PRIx64 ")\n",
-                  s->name, size, offset, value);
+                  ", value 0x%0*" PRIx64 ")\n",
+                  s->name, size, offset, size << 1, value);
 }
 
 static const MemoryRegionOps unimp_ops = {
