@@ -956,85 +956,43 @@ uint32_t HELPER(sve_pnext)(void *vd, void *vg, uint32_t pred_desc)
     return flags;
 }
 
-/* Store zero into every active element of Zd.  We will use this for two
- * and three-operand predicated instructions for which logic dictates a
- * zero result.  In particular, logical shift by element size, which is
- * otherwise undefined on the host.
- *
- * For element sizes smaller than uint64_t, we use tables to expand
- * the N bits of the controlling predicate to a byte mask, and clear
- * those bytes.
+/*
+ * Copy Zn into Zd, and store zero into inactive elements.
+ * If inv, store zeros into the active elements.
  */
-void HELPER(sve_clr_b)(void *vd, void *vg, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
-    uint64_t *d = vd;
-    uint8_t *pg = vg;
-    for (i = 0; i < opr_sz; i += 1) {
-        d[i] &= ~expand_pred_b(pg[H1(i)]);
-    }
-}
-
-void HELPER(sve_clr_h)(void *vd, void *vg, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
-    uint64_t *d = vd;
-    uint8_t *pg = vg;
-    for (i = 0; i < opr_sz; i += 1) {
-        d[i] &= ~expand_pred_h(pg[H1(i)]);
-    }
-}
-
-void HELPER(sve_clr_s)(void *vd, void *vg, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
-    uint64_t *d = vd;
-    uint8_t *pg = vg;
-    for (i = 0; i < opr_sz; i += 1) {
-        d[i] &= ~expand_pred_s(pg[H1(i)]);
-    }
-}
-
-void HELPER(sve_clr_d)(void *vd, void *vg, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
-    uint64_t *d = vd;
-    uint8_t *pg = vg;
-    for (i = 0; i < opr_sz; i += 1) {
-        if (pg[H1(i)] & 1) {
-            d[i] = 0;
-        }
-    }
-}
-
-/* Copy Zn into Zd, and store zero into inactive elements.  */
 void HELPER(sve_movz_b)(void *vd, void *vn, void *vg, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t inv = -(uint64_t)(simd_data(desc) & 1);
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
+
     for (i = 0; i < opr_sz; i += 1) {
-        d[i] = n[i] & expand_pred_b(pg[H1(i)]);
+        d[i] = n[i] & (expand_pred_b(pg[H1(i)]) ^ inv);
     }
 }
 
 void HELPER(sve_movz_h)(void *vd, void *vn, void *vg, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t inv = -(uint64_t)(simd_data(desc) & 1);
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
+
     for (i = 0; i < opr_sz; i += 1) {
-        d[i] = n[i] & expand_pred_h(pg[H1(i)]);
+        d[i] = n[i] & (expand_pred_h(pg[H1(i)]) ^ inv);
     }
 }
 
 void HELPER(sve_movz_s)(void *vd, void *vn, void *vg, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t inv = -(uint64_t)(simd_data(desc) & 1);
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
+
     for (i = 0; i < opr_sz; i += 1) {
-        d[i] = n[i] & expand_pred_s(pg[H1(i)]);
+        d[i] = n[i] & (expand_pred_s(pg[H1(i)]) ^ inv);
     }
 }
 
@@ -1043,8 +1001,10 @@ void HELPER(sve_movz_d)(void *vd, void *vn, void *vg, uint32_t desc)
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
+    uint8_t inv = simd_data(desc);
+
     for (i = 0; i < opr_sz; i += 1) {
-        d[i] = n[i] & -(uint64_t)(pg[H1(i)] & 1);
+        d[i] = n[i] & -(uint64_t)((pg[H1(i)] ^ inv) & 1);
     }
 }
 
