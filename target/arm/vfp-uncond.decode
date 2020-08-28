@@ -64,7 +64,9 @@ VRINT       1111 1110 1.11 10 rm:2 .... 1011 01.0 .... \
             vm=%vm_dp vd=%vd_dp dp=1
 
 # VCVT float to int with specified rounding mode; Vd is always single-precision
+VCVT        1111 1110 1.11 11 rm:2 .... 1001 op:1 1.0 .... \
+            vm=%vm_sp vd=%vd_sp sz=1
 VCVT        1111 1110 1.11 11 rm:2 .... 1010 op:1 1.0 .... \
-            vm=%vm_sp vd=%vd_sp dp=0
+            vm=%vm_sp vd=%vd_sp sz=2
 VCVT        1111 1110 1.11 11 rm:2 .... 1011 op:1 1.0 .... \
-            vm=%vm_dp vd=%vd_sp dp=1
+            vm=%vm_dp vd=%vd_sp sz=3

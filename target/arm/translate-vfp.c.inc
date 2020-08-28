@@ -396,7 +396,7 @@ static bool trans_VRINT(DisasContext *s, arg_VRINT *a)
 static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
 {
     uint32_t rd, rm;
-    bool dp = a->dp;
+    int sz = a->sz;
     TCGv_ptr fpst;
     TCGv_i32 tcg_rmode, tcg_shift;
     int rounding = fp_decode_rm[a->rm];
@@ -406,12 +406,16 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
         return false;
     }
 
-    if (dp && !dc_isar_feature(aa32_fpdp_v2, s)) {
+    if (sz == 3 && !dc_isar_feature(aa32_fpdp_v2, s)) {
+        return false;
+    }
+
+    if (sz == 1 && !dc_isar_feature(aa32_fp16_arith, s)) {
         return false;
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
-    if (dp && !dc_isar_feature(aa32_simd_r32, s) && (a->vm & 0x10)) {
+    if (sz == 3 && !dc_isar_feature(aa32_simd_r32, s) && (a->vm & 0x10)) {
         return false;
     }
 
@@ -422,14 +426,18 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
         return true;
     }
 
-    fpst = fpstatus_ptr(FPST_FPCR);
+    if (sz == 1) {
+        fpst = fpstatus_ptr(FPST_FPCR_F16);
+    } else {
+        fpst = fpstatus_ptr(FPST_FPCR);
+    }
 
     tcg_shift = tcg_const_i32(0);
 
     tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
     gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
 
-    if (dp) {
+    if (sz == 3) {
         TCGv_i64 tcg_double, tcg_res;
         TCGv_i32 tcg_tmp;
         tcg_double = tcg_temp_new_i64();
@@ -451,10 +459,18 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
         tcg_single = tcg_temp_new_i32();
         tcg_res = tcg_temp_new_i32();
         neon_load_reg32(tcg_single, rm);
-        if (is_signed) {
-            gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+        if (sz == 1) {
+            if (is_signed) {
+                gen_helper_vfp_toslh(tcg_res, tcg_single, tcg_shift, fpst);
+            } else {
+                gen_helper_vfp_toulh(tcg_res, tcg_single, tcg_shift, fpst);
+            }
         } else {
-            gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+            if (is_signed) {
+                gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+            } else {
+                gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+            }
         }
         neon_store_reg32(tcg_res, rd);
         tcg_temp_free_i32(tcg_res);
