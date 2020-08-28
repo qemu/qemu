@@ -16,7 +16,6 @@ typedef struct aes_key_st AES_KEY;
 #define AES_set_decrypt_key QEMU_AES_set_decrypt_key
 #define AES_encrypt QEMU_AES_encrypt
 #define AES_decrypt QEMU_AES_decrypt
-#define AES_cbc_encrypt QEMU_AES_cbc_encrypt
 
 int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 	AES_KEY *key);
@@ -27,9 +26,6 @@ void AES_encrypt(const unsigned char *in, unsigned char *out,
 	const AES_KEY *key);
 void AES_decrypt(const unsigned char *in, unsigned char *out,
 	const AES_KEY *key);
-void AES_cbc_encrypt(const unsigned char *in, unsigned char *out,
-		     const unsigned long length, const AES_KEY *key,
-		     unsigned char *ivec, const int enc);
 
 extern const uint8_t AES_sbox[256];
 extern const uint8_t AES_isbox[256];
