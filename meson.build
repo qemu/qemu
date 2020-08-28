@@ -415,6 +415,10 @@ if 'CONFIG_TASN1' in config_host
   tasn1 = declare_dependency(compile_args: config_host['TASN1_CFLAGS'].split(),
                              link_args: config_host['TASN1_LIBS'].split())
 endif
+keyutils = not_found
+if 'CONFIG_KEYUTILS' in config_host
+  keyutils = declare_dependency(link_args: '-lkeyutils')
+endif
 
 # Create config-host.h
 

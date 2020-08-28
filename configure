@@ -7523,7 +7523,7 @@ fi
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
   if test "$have_keyutils" = "yes" ; then
-    echo "CONFIG_TEST_SECRET_KEYRING=y" >> $config_host_mak
+    echo "CONFIG_KEYUTILS=y" >> $config_host_mak
   fi
 fi
 
