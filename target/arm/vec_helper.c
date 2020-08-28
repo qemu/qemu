@@ -1845,3 +1845,23 @@ DO_NEON_PAIRWISE(neon_pmax, max)
 DO_NEON_PAIRWISE(neon_pmin, min)
 
 #undef DO_NEON_PAIRWISE
+
+#define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
+    void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
+    {                                                                   \
+        intptr_t i, oprsz = simd_oprsz(desc);                           \
+        int shift = simd_data(desc);                                    \
+        TYPE *d = vd, *n = vn;                                          \
+        float_status *fpst = stat;                                      \
+        for (i = 0; i < oprsz / sizeof(TYPE); i++) {                    \
+            d[i] = FUNC(n[i], shift, fpst);                             \
+        }                                                               \
+        clear_tail(d, oprsz, simd_maxsz(desc));                         \
+    }
+
+DO_VCVT_FIXED(gvec_vcvt_sf, helper_vfp_sltos, uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_uf, helper_vfp_ultos, uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_fs, helper_vfp_tosls_round_to_zero, uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_fu, helper_vfp_touls_round_to_zero, uint32_t)
+
+#undef DO_VCVT_FIXED
