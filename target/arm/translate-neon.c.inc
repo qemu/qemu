@@ -1074,6 +1074,7 @@ DO_3S_FP_GVEC(VMLA, gen_helper_gvec_fmla_s, gen_helper_gvec_fmla_h)
 DO_3S_FP_GVEC(VMLS, gen_helper_gvec_fmls_s, gen_helper_gvec_fmls_h)
 DO_3S_FP_GVEC(VFMA, gen_helper_gvec_vfma_s, gen_helper_gvec_vfma_h)
 DO_3S_FP_GVEC(VFMS, gen_helper_gvec_vfms_s, gen_helper_gvec_vfms_h)
+DO_3S_FP_GVEC(VRECPS, gen_helper_gvec_recps_nf_s, gen_helper_gvec_recps_nf_h)
 
 WRAP_FP_GVEC(gen_VMAXNM_fp32_3s, FPST_STD, gen_helper_gvec_fmaxnum_s)
 WRAP_FP_GVEC(gen_VMAXNM_fp16_3s, FPST_STD_F16, gen_helper_gvec_fmaxnum_h)
@@ -1108,26 +1109,6 @@ static bool trans_VMINNM_fp_3s(DisasContext *s, arg_3same *a)
         return do_3same(s, a, gen_VMINNM_fp16_3s);
     }
     return do_3same(s, a, gen_VMINNM_fp32_3s);
-}
-
-WRAP_ENV_FN(gen_VRECPS_tramp, gen_helper_recps_f32)
-
-static void gen_VRECPS_fp_3s(unsigned vece, uint32_t rd_ofs,
-                             uint32_t rn_ofs, uint32_t rm_ofs,
-                             uint32_t oprsz, uint32_t maxsz)
-{
-    static const GVecGen3 ops = { .fni4 = gen_VRECPS_tramp };
-    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, oprsz, maxsz, &ops);
-}
-
-static bool trans_VRECPS_fp_3s(DisasContext *s, arg_3same *a)
-{
-    if (a->size != 0) {
-        /* TODO fp16 support */
-        return false;
-    }
-
-    return do_3same(s, a, gen_VRECPS_fp_3s);
 }
 
 WRAP_ENV_FN(gen_VRSQRTS_tramp, gen_helper_rsqrts_f32)

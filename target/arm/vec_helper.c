@@ -797,6 +797,34 @@ static float32 float32_abd(float32 op1, float32 op2, float_status *stat)
     return float32_abs(float32_sub(op1, op2, stat));
 }
 
+/*
+ * Reciprocal step. These are the AArch32 version which uses a
+ * non-fused multiply-and-subtract.
+ */
+static float16 float16_recps_nf(float16 op1, float16 op2, float_status *stat)
+{
+    op1 = float16_squash_input_denormal(op1, stat);
+    op2 = float16_squash_input_denormal(op2, stat);
+
+    if ((float16_is_infinity(op1) && float16_is_zero(op2)) ||
+        (float16_is_infinity(op2) && float16_is_zero(op1))) {
+        return float16_two;
+    }
+    return float16_sub(float16_two, float16_mul(op1, op2, stat), stat);
+}
+
+static float32 float32_recps_nf(float32 op1, float32 op2, float_status *stat)
+{
+    op1 = float32_squash_input_denormal(op1, stat);
+    op2 = float32_squash_input_denormal(op2, stat);
+
+    if ((float32_is_infinity(op1) && float32_is_zero(op2)) ||
+        (float32_is_infinity(op2) && float32_is_zero(op1))) {
+        return float32_two;
+    }
+    return float32_sub(float32_two, float32_mul(op1, op2, stat), stat);
+}
+
 #define DO_3OP(NAME, FUNC, TYPE) \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
 {                                                                          \
@@ -853,6 +881,9 @@ DO_3OP(gvec_fmaxnum_s, float32_maxnum, float32)
 
 DO_3OP(gvec_fminnum_h, float16_minnum, float16)
 DO_3OP(gvec_fminnum_s, float32_minnum, float32)
+
+DO_3OP(gvec_recps_nf_h, float16_recps_nf, float16)
+DO_3OP(gvec_recps_nf_s, float32_recps_nf, float32)
 
 #ifdef TARGET_AARCH64
 
