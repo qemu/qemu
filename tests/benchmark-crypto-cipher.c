@@ -70,8 +70,8 @@ static void test_cipher_speed(size_t chunk_size,
     }
     g_test_timer_elapsed();
 
-    g_print("Enc chunk %zu bytes ", chunk_size);
-    g_print("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
+    g_test_message("Enc chunk %zu bytes ", chunk_size);
+    g_test_message("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
 
     g_test_timer_start();
     remain = total;
@@ -85,8 +85,8 @@ static void test_cipher_speed(size_t chunk_size,
     }
     g_test_timer_elapsed();
 
-    g_print("Dec chunk %zu bytes ", chunk_size);
-    g_print("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
+    g_test_message("Dec chunk %zu bytes ", chunk_size);
+    g_test_message("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
 
     qcrypto_cipher_free(cipher);
     g_free(plaintext);
