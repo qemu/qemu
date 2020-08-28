@@ -415,10 +415,8 @@ if 'CONFIG_TASN1' in config_host
   tasn1 = declare_dependency(compile_args: config_host['TASN1_CFLAGS'].split(),
                              link_args: config_host['TASN1_LIBS'].split())
 endif
-keyutils = not_found
-if 'CONFIG_KEYUTILS' in config_host
-  keyutils = declare_dependency(link_args: '-lkeyutils')
-endif
+keyutils = dependency('libkeyutils', required: false,
+                      method: 'pkg-config', static: enable_static)
 
 # Create config-host.h
 
@@ -429,6 +427,7 @@ config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_PNG', png.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
+config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
