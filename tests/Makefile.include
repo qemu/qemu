@@ -38,20 +38,6 @@ export SRC_PATH
 SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
    $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
 
-QEMU_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
-
-tests/migration/stress$(EXESUF): tests/migration/stress.o
-	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")
-
-INITRD_WORK_DIR=tests/migration/initrd
-
-tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
-	mkdir -p $(INITRD_WORK_DIR)
-	cp $< $(INITRD_WORK_DIR)/init
-	(cd $(INITRD_WORK_DIR) && (find | cpio --quiet -o -H newc | gzip -9)) > $@
-	rm $(INITRD_WORK_DIR)/init
-	rmdir $(INITRD_WORK_DIR)
-
 SPEED = quick
 
 # gtester tests, possibly with verbose output
