@@ -1160,6 +1160,7 @@ static const TypeInfo armsse_info = {
     .name = TYPE_ARM_SSE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMSSE),
+    .class_size = sizeof(ARMSSEClass),
     .instance_init = armsse_init,
     .abstract = true,
     .interfaces = (InterfaceInfo[]) {

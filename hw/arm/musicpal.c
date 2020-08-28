@@ -30,6 +30,7 @@
 #include "hw/audio/wm8750.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/runstate.h"
+#include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
 #include "qemu/cutils.h"
@@ -163,6 +164,8 @@ typedef struct mv88w8618_eth_state {
 
     MemoryRegion iomem;
     qemu_irq irq;
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
     uint32_t smir;
     uint32_t icr;
     uint32_t imr;
@@ -176,19 +179,21 @@ typedef struct mv88w8618_eth_state {
     NICConf conf;
 } mv88w8618_eth_state;
 
-static void eth_rx_desc_put(uint32_t addr, mv88w8618_rx_desc *desc)
+static void eth_rx_desc_put(AddressSpace *dma_as, uint32_t addr,
+                            mv88w8618_rx_desc *desc)
 {
     cpu_to_le32s(&desc->cmdstat);
     cpu_to_le16s(&desc->bytes);
     cpu_to_le16s(&desc->buffer_size);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, desc, sizeof(*desc));
+    dma_memory_write(dma_as, addr, desc, sizeof(*desc));
 }
 
-static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
+static void eth_rx_desc_get(AddressSpace *dma_as, uint32_t addr,
+                            mv88w8618_rx_desc *desc)
 {
-    cpu_physical_memory_read(addr, desc, sizeof(*desc));
+    dma_memory_read(dma_as, addr, desc, sizeof(*desc));
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->bytes);
     le16_to_cpus(&desc->buffer_size);
@@ -209,9 +214,9 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
             continue;
         }
         do {
-            eth_rx_desc_get(desc_addr, &desc);
+            eth_rx_desc_get(&s->dma_as, desc_addr, &desc);
             if ((desc.cmdstat & MP_ETH_RX_OWN) && desc.buffer_size >= size) {
-                cpu_physical_memory_write(desc.buffer + s->vlan_header,
+                dma_memory_write(&s->dma_as, desc.buffer + s->vlan_header,
                                           buf, size);
                 desc.bytes = size + s->vlan_header;
                 desc.cmdstat &= ~MP_ETH_RX_OWN;
@@ -221,7 +226,7 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
                 if (s->icr & s->imr) {
                     qemu_irq_raise(s->irq);
                 }
-                eth_rx_desc_put(desc_addr, &desc);
+                eth_rx_desc_put(&s->dma_as, desc_addr, &desc);
                 return size;
             }
             desc_addr = desc.next;
@@ -230,19 +235,21 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static void eth_tx_desc_put(uint32_t addr, mv88w8618_tx_desc *desc)
+static void eth_tx_desc_put(AddressSpace *dma_as, uint32_t addr,
+                            mv88w8618_tx_desc *desc)
 {
     cpu_to_le32s(&desc->cmdstat);
     cpu_to_le16s(&desc->res);
     cpu_to_le16s(&desc->bytes);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, desc, sizeof(*desc));
+    dma_memory_write(dma_as, addr, desc, sizeof(*desc));
 }
 
-static void eth_tx_desc_get(uint32_t addr, mv88w8618_tx_desc *desc)
+static void eth_tx_desc_get(AddressSpace *dma_as, uint32_t addr,
+                            mv88w8618_tx_desc *desc)
 {
-    cpu_physical_memory_read(addr, desc, sizeof(*desc));
+    dma_memory_read(dma_as, addr, desc, sizeof(*desc));
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->res);
     le16_to_cpus(&desc->bytes);
@@ -259,17 +266,17 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
     int len;
 
     do {
-        eth_tx_desc_get(desc_addr, &desc);
+        eth_tx_desc_get(&s->dma_as, desc_addr, &desc);
         next_desc = desc.next;
         if (desc.cmdstat & MP_ETH_TX_OWN) {
             len = desc.bytes;
             if (len < 2048) {
-                cpu_physical_memory_read(desc.buffer, buf, len);
+                dma_memory_read(&s->dma_as, desc.buffer, buf, len);
                 qemu_send_packet(qemu_get_queue(s->nic), buf, len);
             }
             desc.cmdstat &= ~MP_ETH_TX_OWN;
             s->icr |= 1 << (MP_ETH_IRQ_TXLO_BIT - queue_index);
-            eth_tx_desc_put(desc_addr, &desc);
+            eth_tx_desc_put(&s->dma_as, desc_addr, &desc);
         }
         desc_addr = next_desc;
     } while (desc_addr != s->tx_queue[queue_index]);
@@ -405,6 +412,12 @@ static void mv88w8618_eth_realize(DeviceState *dev, Error **errp)
 {
     mv88w8618_eth_state *s = MV88W8618_ETH(dev);
 
+    if (!s->dma_mr) {
+        error_setg(errp, TYPE_MV88W8618_ETH " 'dma-memory' link not set");
+        return;
+    }
+
+    address_space_init(&s->dma_as, s->dma_mr, "emac-dma");
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
 }
@@ -428,6 +441,8 @@ static const VMStateDescription mv88w8618_eth_vmsd = {
 
 static Property mv88w8618_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(mv88w8618_eth_state, conf),
+    DEFINE_PROP_LINK("dma-memory", mv88w8618_eth_state, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1653,6 +1668,8 @@ static void musicpal_init(MachineState *machine)
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
     dev = qdev_new(TYPE_MV88W8618_ETH);
     qdev_set_nic_properties(dev, &nd_table[0]);
+    object_property_set_link(OBJECT(dev), "dma-memory",
+                             OBJECT(get_system_memory()), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[MP_ETH_IRQ]);

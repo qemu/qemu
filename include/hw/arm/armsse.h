@@ -220,7 +220,7 @@ typedef struct ARMSSE {
 typedef struct ARMSSEInfo ARMSSEInfo;
 
 typedef struct ARMSSEClass {
-    DeviceClass parent_class;
+    SysBusDeviceClass parent_class;
     const ARMSSEInfo *info;
 } ARMSSEClass;
 

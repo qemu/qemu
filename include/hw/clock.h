@@ -127,17 +127,19 @@ void clock_set_source(Clock *clk, Clock *src);
  * @value: the clock's value, 0 means unclocked
  *
  * Set the local cached period value of @clk to @value.
+ *
+ * @return: true if the clock is changed.
  */
-void clock_set(Clock *clk, uint64_t value);
+bool clock_set(Clock *clk, uint64_t value);
 
-static inline void clock_set_hz(Clock *clk, unsigned hz)
+static inline bool clock_set_hz(Clock *clk, unsigned hz)
 {
-    clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz));
+    return clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz));
 }
 
-static inline void clock_set_ns(Clock *clk, unsigned ns)
+static inline bool clock_set_ns(Clock *clk, unsigned ns)
 {
-    clock_set(clk, CLOCK_PERIOD_FROM_NS(ns));
+    return clock_set(clk, CLOCK_PERIOD_FROM_NS(ns));
 }
 
 /**
@@ -163,8 +165,9 @@ void clock_propagate(Clock *clk);
  */
 static inline void clock_update(Clock *clk, uint64_t value)
 {
-    clock_set(clk, value);
-    clock_propagate(clk);
+    if (clock_set(clk, value)) {
+        clock_propagate(clk);
+    }
 }
 
 static inline void clock_update_hz(Clock *clk, unsigned hz)
@@ -207,19 +210,6 @@ static inline unsigned clock_get_ns(Clock *clk)
 static inline bool clock_is_enabled(const Clock *clk)
 {
     return clock_get(clk) != 0;
-}
-
-static inline void clock_init(Clock *clk, uint64_t value)
-{
-    clock_set(clk, value);
-}
-static inline void clock_init_hz(Clock *clk, uint64_t value)
-{
-    clock_set_hz(clk, value);
-}
-static inline void clock_init_ns(Clock *clk, uint64_t value)
-{
-    clock_set_ns(clk, value);
 }
 
 #endif /* QEMU_HW_CLOCK_H */
