@@ -72,64 +72,37 @@ static void qcrypto_cipher_free_aes(QCryptoCipher *cipher)
     g_free(cipher);
 }
 
-
-static void qcrypto_cipher_aes_ecb_encrypt(const AES_KEY *key,
-                                           const void *in,
-                                           void *out,
-                                           size_t len)
+static void do_aes_encrypt_ecb(const void *vctx,
+                               size_t len,
+                               uint8_t *out,
+                               const uint8_t *in)
 {
-    const uint8_t *inptr = in;
-    uint8_t *outptr = out;
+    const QCryptoCipherBuiltinAESContext *ctx = vctx;
 
     /* We have already verified that len % AES_BLOCK_SIZE == 0. */
     while (len) {
-        AES_encrypt(inptr, outptr, key);
-        inptr += AES_BLOCK_SIZE;
-        outptr += AES_BLOCK_SIZE;
+        AES_encrypt(in, out, &ctx->enc);
+        in += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
     }
 }
 
-
-static void qcrypto_cipher_aes_ecb_decrypt(const AES_KEY *key,
-                                           const void *in,
-                                           void *out,
-                                           size_t len)
+static void do_aes_decrypt_ecb(const void *vctx,
+                               size_t len,
+                               uint8_t *out,
+                               const uint8_t *in)
 {
-    const uint8_t *inptr = in;
-    uint8_t *outptr = out;
+    const QCryptoCipherBuiltinAESContext *ctx = vctx;
 
     /* We have already verified that len % AES_BLOCK_SIZE == 0. */
     while (len) {
-        AES_decrypt(inptr, outptr, key);
-        inptr += AES_BLOCK_SIZE;
-        outptr += AES_BLOCK_SIZE;
+        AES_decrypt(in, out, &ctx->dec);
+        in += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
         len -= AES_BLOCK_SIZE;
     }
 }
-
-
-static void qcrypto_cipher_aes_xts_encrypt(const void *ctx,
-                                           size_t length,
-                                           uint8_t *dst,
-                                           const uint8_t *src)
-{
-    const QCryptoCipherBuiltinAESContext *aesctx = ctx;
-
-    qcrypto_cipher_aes_ecb_encrypt(&aesctx->enc, src, dst, length);
-}
-
-
-static void qcrypto_cipher_aes_xts_decrypt(const void *ctx,
-                                           size_t length,
-                                           uint8_t *dst,
-                                           const uint8_t *src)
-{
-    const QCryptoCipherBuiltinAESContext *aesctx = ctx;
-
-    qcrypto_cipher_aes_ecb_decrypt(&aesctx->dec, src, dst, length);
-}
-
 
 static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
                                       const void *in,
@@ -142,8 +115,7 @@ static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        qcrypto_cipher_aes_ecb_encrypt(&ctxt->state.aes.key.enc,
-                                       in, out, len);
+        do_aes_encrypt_ecb(&ctxt->state.aes.key, len, out, in);
         break;
     case QCRYPTO_CIPHER_MODE_CBC:
         AES_cbc_encrypt(in, out, len,
@@ -153,8 +125,8 @@ static int qcrypto_cipher_encrypt_aes(QCryptoCipher *cipher,
     case QCRYPTO_CIPHER_MODE_XTS:
         xts_encrypt(&ctxt->state.aes.key,
                     &ctxt->state.aes.key_tweak,
-                    qcrypto_cipher_aes_xts_encrypt,
-                    qcrypto_cipher_aes_xts_decrypt,
+                    do_aes_encrypt_ecb,
+                    do_aes_decrypt_ecb,
                     ctxt->state.aes.iv,
                     len, out, in);
         break;
@@ -177,8 +149,7 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
 
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
-        qcrypto_cipher_aes_ecb_decrypt(&ctxt->state.aes.key.dec,
-                                       in, out, len);
+        do_aes_decrypt_ecb(&ctxt->state.aes.key, len, out, in);
         break;
     case QCRYPTO_CIPHER_MODE_CBC:
         AES_cbc_encrypt(in, out, len,
@@ -188,8 +159,8 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
     case QCRYPTO_CIPHER_MODE_XTS:
         xts_decrypt(&ctxt->state.aes.key,
                     &ctxt->state.aes.key_tweak,
-                    qcrypto_cipher_aes_xts_encrypt,
-                    qcrypto_cipher_aes_xts_decrypt,
+                    do_aes_encrypt_ecb,
+                    do_aes_decrypt_ecb,
                     ctxt->state.aes.iv,
                     len, out, in);
         break;
