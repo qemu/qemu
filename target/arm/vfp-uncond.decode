@@ -44,10 +44,12 @@
 @vfp_dnm_s   ................................ vm=%vm_sp vn=%vn_sp vd=%vd_sp
 @vfp_dnm_d   ................................ vm=%vm_dp vn=%vn_dp vd=%vd_dp
 
+VSEL        1111 1110 0. cc:2 .... .... 1001 .0.0 .... \
+            vm=%vm_sp vn=%vn_sp vd=%vd_sp sz=1
 VSEL        1111 1110 0. cc:2 .... .... 1010 .0.0 .... \
-            vm=%vm_sp vn=%vn_sp vd=%vd_sp dp=0
+            vm=%vm_sp vn=%vn_sp vd=%vd_sp sz=2
 VSEL        1111 1110 0. cc:2 .... .... 1011 .0.0 .... \
-            vm=%vm_dp vn=%vn_dp vd=%vd_dp dp=1
+            vm=%vm_dp vn=%vn_dp vd=%vd_dp sz=3
 
 VMAXNM_hp   1111 1110 1.00 .... .... 1001 .0.0 ....         @vfp_dnm_s
 VMINNM_hp   1111 1110 1.00 .... .... 1001 .1.0 ....         @vfp_dnm_s
