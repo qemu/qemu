@@ -842,6 +842,48 @@ DO_3OP(gvec_rsqrts_d, helper_rsqrtsf_f64, float64)
 #endif
 #undef DO_3OP
 
+/* Non-fused multiply-add (unlike float16_muladd etc, which are fused) */
+static float16 float16_muladd_nf(float16 dest, float16 op1, float16 op2,
+                                 float_status *stat)
+{
+    return float16_add(dest, float16_mul(op1, op2, stat), stat);
+}
+
+static float32 float32_muladd_nf(float32 dest, float32 op1, float32 op2,
+                                 float_status *stat)
+{
+    return float32_add(dest, float32_mul(op1, op2, stat), stat);
+}
+
+static float16 float16_mulsub_nf(float16 dest, float16 op1, float16 op2,
+                                 float_status *stat)
+{
+    return float16_sub(dest, float16_mul(op1, op2, stat), stat);
+}
+
+static float32 float32_mulsub_nf(float32 dest, float32 op1, float32 op2,
+                                 float_status *stat)
+{
+    return float32_sub(dest, float32_mul(op1, op2, stat), stat);
+}
+
+#define DO_MULADD(NAME, FUNC, TYPE) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+{                                                                          \
+    intptr_t i, oprsz = simd_oprsz(desc);                                  \
+    TYPE *d = vd, *n = vn, *m = vm;                                        \
+    for (i = 0; i < oprsz / sizeof(TYPE); i++) {                           \
+        d[i] = FUNC(d[i], n[i], m[i], stat);                               \
+    }                                                                      \
+    clear_tail(d, oprsz, simd_maxsz(desc));                                \
+}
+
+DO_MULADD(gvec_fmla_h, float16_muladd_nf, float16)
+DO_MULADD(gvec_fmla_s, float32_muladd_nf, float32)
+
+DO_MULADD(gvec_fmls_h, float16_mulsub_nf, float16)
+DO_MULADD(gvec_fmls_s, float32_mulsub_nf, float32)
+
 /* For the indexed ops, SVE applies the index per 128-bit vector segment.
  * For AdvSIMD, there is of course only one such vector segment.
  */
