@@ -731,6 +731,31 @@ DO_MUL_IDX(gvec_mul_idx_d, uint64_t, )
 
 #undef DO_MUL_IDX
 
+#define DO_MLA_IDX(NAME, TYPE, OP, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)   \
+{                                                                          \
+    intptr_t i, j, oprsz = simd_oprsz(desc), segment = 16 / sizeof(TYPE);  \
+    intptr_t idx = simd_data(desc);                                        \
+    TYPE *d = vd, *n = vn, *m = vm, *a = va;                               \
+    for (i = 0; i < oprsz / sizeof(TYPE); i += segment) {                  \
+        TYPE mm = m[H(i + idx)];                                           \
+        for (j = 0; j < segment; j++) {                                    \
+            d[i + j] = a[i + j] OP n[i + j] * mm;                          \
+        }                                                                  \
+    }                                                                      \
+    clear_tail(d, oprsz, simd_maxsz(desc));                                \
+}
+
+DO_MLA_IDX(gvec_mla_idx_h, uint16_t, +, H2)
+DO_MLA_IDX(gvec_mla_idx_s, uint32_t, +, H4)
+DO_MLA_IDX(gvec_mla_idx_d, uint64_t, +,   )
+
+DO_MLA_IDX(gvec_mls_idx_h, uint16_t, -, H2)
+DO_MLA_IDX(gvec_mls_idx_s, uint32_t, -, H4)
+DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -,   )
+
+#undef DO_MLA_IDX
+
 #define DO_FMUL_IDX(NAME, TYPE, H) \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
 {                                                                          \
