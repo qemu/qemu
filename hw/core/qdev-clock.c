@@ -186,5 +186,6 @@ Clock *qdev_alias_clock(DeviceState *dev, const char *name,
 
 void qdev_connect_clock_in(DeviceState *dev, const char *name, Clock *source)
 {
+    assert(!dev->realized);
     clock_set_source(qdev_get_clock_in(dev, name), source);
 }
