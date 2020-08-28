@@ -656,6 +656,41 @@ void HELPER(gvec_fcmlad)(void *vd, void *vn, void *vm,
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
+/*
+ * Floating point comparisons producing an integer result (all 1s or all 0s).
+ * Note that EQ doesn't signal InvalidOp for QNaNs but GE and GT do.
+ * Softfloat routines return 0/1, which we convert to the 0/-1 Neon requires.
+ */
+static uint16_t float16_ceq(float16 op1, float16 op2, float_status *stat)
+{
+    return -float16_eq_quiet(op1, op2, stat);
+}
+
+static uint32_t float32_ceq(float32 op1, float32 op2, float_status *stat)
+{
+    return -float32_eq_quiet(op1, op2, stat);
+}
+
+static uint16_t float16_cge(float16 op1, float16 op2, float_status *stat)
+{
+    return -float16_le(op2, op1, stat);
+}
+
+static uint32_t float32_cge(float32 op1, float32 op2, float_status *stat)
+{
+    return -float32_le(op2, op1, stat);
+}
+
+static uint16_t float16_cgt(float16 op1, float16 op2, float_status *stat)
+{
+    return -float16_lt(op2, op1, stat);
+}
+
+static uint32_t float32_cgt(float32 op1, float32 op2, float_status *stat)
+{
+    return -float32_lt(op2, op1, stat);
+}
+
 #define DO_2OP(NAME, FUNC, TYPE) \
 void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)  \
 {                                                                 \
@@ -746,6 +781,15 @@ DO_3OP(gvec_ftsmul_d, float64_ftsmul, float64)
 
 DO_3OP(gvec_fabd_h, float16_abd, float16)
 DO_3OP(gvec_fabd_s, float32_abd, float32)
+
+DO_3OP(gvec_fceq_h, float16_ceq, float16)
+DO_3OP(gvec_fceq_s, float32_ceq, float32)
+
+DO_3OP(gvec_fcge_h, float16_cge, float16)
+DO_3OP(gvec_fcge_s, float32_cge, float32)
+
+DO_3OP(gvec_fcgt_h, float16_cgt, float16)
+DO_3OP(gvec_fcgt_s, float32_cgt, float32)
 
 #ifdef TARGET_AARCH64
 
