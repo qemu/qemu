@@ -245,6 +245,7 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             g_assert_not_reached();
         }
     }
+    g_assert(is_power_of_2(ctx->blocksize));
 
 #ifdef CONFIG_QEMU_PRIVATE_XTS
     if (mode == QCRYPTO_CIPHER_MODE_XTS) {
@@ -305,7 +306,7 @@ qcrypto_gcrypt_cipher_encrypt(QCryptoCipher *cipher,
     QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
 
-    if (len % ctx->blocksize) {
+    if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctx->blocksize);
         return -1;
@@ -344,7 +345,7 @@ qcrypto_gcrypt_cipher_decrypt(QCryptoCipher *cipher,
     QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
 
-    if (len % ctx->blocksize) {
+    if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctx->blocksize);
         return -1;

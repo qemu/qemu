@@ -484,7 +484,7 @@ qcrypto_builtin_cipher_encrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
-    if (len % ctxt->blocksize) {
+    if (len & (ctxt->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctxt->blocksize);
         return -1;
@@ -503,7 +503,7 @@ qcrypto_builtin_cipher_decrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
-    if (len % ctxt->blocksize) {
+    if (len & (ctxt->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctxt->blocksize);
         return -1;

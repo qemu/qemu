@@ -576,6 +576,7 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                    QCryptoCipherAlgorithm_str(alg));
         goto error;
     }
+    g_assert(is_power_of_2(ctx->blocksize));
 
     if (mode == QCRYPTO_CIPHER_MODE_XTS &&
         ctx->blocksize != XTS_BLOCK_SIZE) {
@@ -613,7 +614,7 @@ qcrypto_nettle_cipher_encrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherNettle *ctx = cipher->opaque;
 
-    if (len % ctx->blocksize) {
+    if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctx->blocksize);
         return -1;
@@ -666,7 +667,7 @@ qcrypto_nettle_cipher_decrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherNettle *ctx = cipher->opaque;
 
-    if (len % ctx->blocksize) {
+    if (len & (ctx->blocksize - 1)) {
         error_setg(errp, "Length %zu must be a multiple of block size %zu",
                    len, ctx->blocksize);
         return -1;
