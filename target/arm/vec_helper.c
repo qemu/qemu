@@ -691,6 +691,26 @@ static uint32_t float32_cgt(float32 op1, float32 op2, float_status *stat)
     return -float32_lt(op2, op1, stat);
 }
 
+static uint16_t float16_acge(float16 op1, float16 op2, float_status *stat)
+{
+    return -float16_le(float16_abs(op2), float16_abs(op1), stat);
+}
+
+static uint32_t float32_acge(float32 op1, float32 op2, float_status *stat)
+{
+    return -float32_le(float32_abs(op2), float32_abs(op1), stat);
+}
+
+static uint16_t float16_acgt(float16 op1, float16 op2, float_status *stat)
+{
+    return -float16_lt(float16_abs(op2), float16_abs(op1), stat);
+}
+
+static uint32_t float32_acgt(float32 op1, float32 op2, float_status *stat)
+{
+    return -float32_lt(float32_abs(op2), float32_abs(op1), stat);
+}
+
 #define DO_2OP(NAME, FUNC, TYPE) \
 void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)  \
 {                                                                 \
@@ -790,6 +810,12 @@ DO_3OP(gvec_fcge_s, float32_cge, float32)
 
 DO_3OP(gvec_fcgt_h, float16_cgt, float16)
 DO_3OP(gvec_fcgt_s, float32_cgt, float32)
+
+DO_3OP(gvec_facge_h, float16_acge, float16)
+DO_3OP(gvec_facge_s, float32_acge, float32)
+
+DO_3OP(gvec_facgt_h, float16_acgt, float16)
+DO_3OP(gvec_facgt_s, float32_acgt, float32)
 
 #ifdef TARGET_AARCH64
 
