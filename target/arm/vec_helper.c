@@ -730,7 +730,32 @@ DO_2OP(gvec_frsqrte_h, helper_rsqrte_f16, float16)
 DO_2OP(gvec_frsqrte_s, helper_rsqrte_f32, float32)
 DO_2OP(gvec_frsqrte_d, helper_rsqrte_f64, float64)
 
+#define WRAP_CMP0_FWD(FN, CMPOP, TYPE)                          \
+    static TYPE TYPE##_##FN##0(TYPE op, float_status *stat)     \
+    {                                                           \
+        return TYPE##_##CMPOP(op, TYPE##_zero, stat);           \
+    }
+
+#define WRAP_CMP0_REV(FN, CMPOP, TYPE)                          \
+    static TYPE TYPE##_##FN##0(TYPE op, float_status *stat)    \
+    {                                                           \
+        return TYPE##_##CMPOP(TYPE##_zero, op, stat);           \
+    }
+
+#define DO_2OP_CMP0(FN, CMPOP, DIRN)                    \
+    WRAP_CMP0_##DIRN(FN, CMPOP, float16)                \
+    WRAP_CMP0_##DIRN(FN, CMPOP, float32)                \
+    DO_2OP(gvec_f##FN##0_h, float16_##FN##0, float16)   \
+    DO_2OP(gvec_f##FN##0_s, float32_##FN##0, float32)
+
+DO_2OP_CMP0(cgt, cgt, FWD)
+DO_2OP_CMP0(cge, cge, FWD)
+DO_2OP_CMP0(ceq, ceq, FWD)
+DO_2OP_CMP0(clt, cgt, REV)
+DO_2OP_CMP0(cle, cge, REV)
+
 #undef DO_2OP
+#undef DO_2OP_CMP0
 
 /* Floating-point trigonometric starting value.
  * See the ARM ARM pseudocode function FPTrigSMul.

@@ -3801,6 +3801,11 @@ DO_2MISC_FP(VCVT_UF, gen_helper_vfp_touizs)
 
 DO_2MISC_FP_VEC(VRECPE_F, gen_helper_gvec_frecpe_h, gen_helper_gvec_frecpe_s)
 DO_2MISC_FP_VEC(VRSQRTE_F, gen_helper_gvec_frsqrte_h, gen_helper_gvec_frsqrte_s)
+DO_2MISC_FP_VEC(VCGT0_F, gen_helper_gvec_fcgt0_h, gen_helper_gvec_fcgt0_s)
+DO_2MISC_FP_VEC(VCGE0_F, gen_helper_gvec_fcge0_h, gen_helper_gvec_fcge0_s)
+DO_2MISC_FP_VEC(VCEQ0_F, gen_helper_gvec_fceq0_h, gen_helper_gvec_fceq0_s)
+DO_2MISC_FP_VEC(VCLT0_F, gen_helper_gvec_fclt0_h, gen_helper_gvec_fclt0_s)
+DO_2MISC_FP_VEC(VCLE0_F, gen_helper_gvec_fcle0_h, gen_helper_gvec_fcle0_s)
 
 static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
 {
@@ -3809,34 +3814,6 @@ static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
     }
     return do_2misc_fp(s, a, gen_helper_rints_exact);
 }
-
-#define WRAP_FP_CMP0_FWD(WRAPNAME, FUNC)                        \
-    static void WRAPNAME(TCGv_i32 d, TCGv_i32 m, TCGv_ptr fpst) \
-    {                                                           \
-        TCGv_i32 zero = tcg_const_i32(0);                       \
-        FUNC(d, m, zero, fpst);                                 \
-        tcg_temp_free_i32(zero);                                \
-    }
-#define WRAP_FP_CMP0_REV(WRAPNAME, FUNC)                        \
-    static void WRAPNAME(TCGv_i32 d, TCGv_i32 m, TCGv_ptr fpst) \
-    {                                                           \
-        TCGv_i32 zero = tcg_const_i32(0);                       \
-        FUNC(d, zero, m, fpst);                                 \
-        tcg_temp_free_i32(zero);                                \
-    }
-
-#define DO_FP_CMP0(INSN, FUNC, REV)                             \
-    WRAP_FP_CMP0_##REV(gen_##INSN, FUNC)                        \
-    static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
-    {                                                           \
-        return do_2misc_fp(s, a, gen_##INSN);                   \
-    }
-
-DO_FP_CMP0(VCGT0_F, gen_helper_neon_cgt_f32, FWD)
-DO_FP_CMP0(VCGE0_F, gen_helper_neon_cge_f32, FWD)
-DO_FP_CMP0(VCEQ0_F, gen_helper_neon_ceq_f32, FWD)
-DO_FP_CMP0(VCLE0_F, gen_helper_neon_cge_f32, REV)
-DO_FP_CMP0(VCLT0_F, gen_helper_neon_cgt_f32, REV)
 
 static bool do_vrint(DisasContext *s, arg_2misc *a, int rmode)
 {
