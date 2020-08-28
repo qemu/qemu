@@ -134,11 +134,7 @@ if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
 endif
 libaio = cc.find_library('aio', required: false)
-zlib = not_found
-if 'CONFIG_ZLIB' in config_host
-  zlib = declare_dependency(compile_args: config_host['ZLIB_CFLAGS'].split(),
-                            link_args: config_host['ZLIB_LIBS'].split())
-endif
+zlib = dependency('zlib', required: true, static: enable_static)
 linux_io_uring = not_found
 if 'CONFIG_LINUX_IO_URING' in config_host
   linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),

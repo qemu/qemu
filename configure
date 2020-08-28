@@ -502,7 +502,6 @@ opengl=""
 opengl_dmabuf="no"
 cpuid_h="no"
 avx2_opt=""
-zlib="yes"
 capstone=""
 lzo=""
 snappy=""
@@ -1428,7 +1427,7 @@ for opt do
   ;;
   --enable-usb-redir) usb_redir="yes"
   ;;
-  --disable-zlib-test) zlib="no"
+  --disable-zlib-test)
   ;;
   --disable-lzo) lzo="no"
   ;;
@@ -3901,30 +3900,6 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unused-function"; then
         glib_cflags="$glib_cflags -Wno-unused-function"
         CFLAGS="$CFLAGS -Wno-unused-function"
-    fi
-fi
-
-#########################################
-# zlib check
-
-if test "$zlib" != "no" ; then
-    if $pkg_config --exists zlib; then
-        zlib_cflags=$($pkg_config --cflags zlib)
-        zlib_libs=$($pkg_config --libs zlib)
-        QEMU_CFLAGS="$zlib_cflags $QEMU_CFLAGS"
-        LIBS="$zlib_libs $LIBS"
-    else
-        cat > $TMPC << EOF
-#include <zlib.h>
-int main(void) { zlibVersion(); return 0; }
-EOF
-        if compile_prog "" "-lz" ; then
-            zlib_libs=-lz
-            LIBS="$LIBS $zlib_libs"
-        else
-            error_exit "zlib check failed" \
-                "Make sure to have the zlib libs and headers installed."
-        fi
     fi
 fi
 
@@ -7134,11 +7109,6 @@ if test "$posix_madvise" = "yes" ; then
 fi
 if test "$posix_memalign" = "yes" ; then
   echo "CONFIG_POSIX_MEMALIGN=y" >> $config_host_mak
-fi
-if test "$zlib" != "no" ; then
-    echo "CONFIG_ZLIB=y" >> $config_host_mak
-    echo "ZLIB_CFLAGS=$zlib_cflags" >> $config_host_mak
-    echo "ZLIB_LIBS=$zlib_libs" >> $config_host_mak
 fi
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
