@@ -1112,10 +1112,10 @@ static bool trans_VMINNM_fp_3s(DisasContext *s, arg_3same *a)
     return do_3same(s, a, gen_VMINNM_fp32_3s);
 }
 
-static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
+static bool do_3same_fp_pair(DisasContext *s, arg_3same *a,
+                             gen_helper_gvec_3_ptr *fn)
 {
-    /* FP operations handled pairwise 32 bits at a time */
-    TCGv_i32 tmp, tmp2, tmp3;
+    /* FP pairwise operations */
     TCGv_ptr fpstatus;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -1134,26 +1134,14 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
 
     assert(a->q == 0); /* enforced by decode patterns */
 
-    /*
-     * Note that we have to be careful not to clobber the source operands
-     * in the "vm == vd" case by storing the result of the first pass too
-     * early. Since Q is 0 there are always just two passes, so instead
-     * of a complicated loop over each pass we just unroll.
-     */
-    fpstatus = fpstatus_ptr(FPST_STD);
-    tmp = neon_load_reg(a->vn, 0);
-    tmp2 = neon_load_reg(a->vn, 1);
-    fn(tmp, tmp, tmp2, fpstatus);
-    tcg_temp_free_i32(tmp2);
 
-    tmp3 = neon_load_reg(a->vm, 0);
-    tmp2 = neon_load_reg(a->vm, 1);
-    fn(tmp3, tmp3, tmp2, fpstatus);
-    tcg_temp_free_i32(tmp2);
+    fpstatus = fpstatus_ptr(a->size != 0 ? FPST_STD_F16 : FPST_STD);
+    tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
+                       vfp_reg_offset(1, a->vn),
+                       vfp_reg_offset(1, a->vm),
+                       fpstatus, 8, 8, 0, fn);
     tcg_temp_free_ptr(fpstatus);
 
-    neon_store_reg(a->vd, 0, tmp);
-    neon_store_reg(a->vd, 1, tmp3);
     return true;
 }
 
@@ -1165,15 +1153,17 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
     static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
     {                                                               \
         if (a->size != 0) {                                         \
-            /* TODO fp16 support */                                 \
-            return false;                                           \
+            if (!dc_isar_feature(aa32_fp16_arith, s)) {             \
+                return false;                                       \
+            }                                                       \
+            return do_3same_fp_pair(s, a, FUNC##h);                 \
         }                                                           \
-        return do_3same_fp_pair(s, a, FUNC);                        \
+        return do_3same_fp_pair(s, a, FUNC##s);                     \
     }
 
-DO_3S_FP_PAIR(VPADD, gen_helper_vfp_adds)
-DO_3S_FP_PAIR(VPMAX, gen_helper_vfp_maxs)
-DO_3S_FP_PAIR(VPMIN, gen_helper_vfp_mins)
+DO_3S_FP_PAIR(VPADD, gen_helper_neon_padd)
+DO_3S_FP_PAIR(VPMAX, gen_helper_neon_pmax)
+DO_3S_FP_PAIR(VPMIN, gen_helper_neon_pmin)
 
 static bool do_vector_2sh(DisasContext *s, arg_2reg_shift *a, GVecGen2iFn *fn)
 {

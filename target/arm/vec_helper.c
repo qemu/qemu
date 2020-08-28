@@ -1771,3 +1771,48 @@ DO_ABA(gvec_uaba_s, uint32_t)
 DO_ABA(gvec_uaba_d, uint64_t)
 
 #undef DO_ABA
+
+#define DO_NEON_PAIRWISE(NAME, OP)                                      \
+    void HELPER(NAME##s)(void *vd, void *vn, void *vm,                  \
+                         void *stat, uint32_t oprsz)                    \
+    {                                                                   \
+        float_status *fpst = stat;                                      \
+        float32 *d = vd;                                                \
+        float32 *n = vn;                                                \
+        float32 *m = vm;                                                \
+        float32 r0, r1;                                                 \
+                                                                        \
+        /* Read all inputs before writing outputs in case vm == vd */   \
+        r0 = float32_##OP(n[H4(0)], n[H4(1)], fpst);                    \
+        r1 = float32_##OP(m[H4(0)], m[H4(1)], fpst);                    \
+                                                                        \
+        d[H4(0)] = r0;                                                  \
+        d[H4(1)] = r1;                                                  \
+    }                                                                   \
+                                                                        \
+    void HELPER(NAME##h)(void *vd, void *vn, void *vm,                  \
+                         void *stat, uint32_t oprsz)                    \
+    {                                                                   \
+        float_status *fpst = stat;                                      \
+        float16 *d = vd;                                                \
+        float16 *n = vn;                                                \
+        float16 *m = vm;                                                \
+        float16 r0, r1, r2, r3;                                         \
+                                                                        \
+        /* Read all inputs before writing outputs in case vm == vd */   \
+        r0 = float16_##OP(n[H2(0)], n[H2(1)], fpst);                    \
+        r1 = float16_##OP(n[H2(2)], n[H2(3)], fpst);                    \
+        r2 = float16_##OP(m[H2(0)], m[H2(1)], fpst);                    \
+        r3 = float16_##OP(m[H2(2)], m[H2(3)], fpst);                    \
+                                                                        \
+        d[H4(0)] = r0;                                                  \
+        d[H4(1)] = r1;                                                  \
+        d[H4(2)] = r2;                                                  \
+        d[H4(3)] = r3;                                                  \
+    }
+
+DO_NEON_PAIRWISE(neon_padd, add)
+DO_NEON_PAIRWISE(neon_pmax, max)
+DO_NEON_PAIRWISE(neon_pmin, min)
+
+#undef DO_NEON_PAIRWISE
