@@ -410,6 +410,11 @@ libdaxctl = not_found
 if 'CONFIG_LIBDAXCTL' in config_host
   libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
 endif
+tasn1 = not_found
+if 'CONFIG_TASN1' in config_host
+  tasn1 = declare_dependency(compile_args: config_host['TASN1_CFLAGS'].split(),
+                             link_args: config_host['TASN1_LIBS'].split())
+endif
 
 # Create config-host.h
 
