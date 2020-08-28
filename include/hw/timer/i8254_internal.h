@@ -50,14 +50,14 @@ typedef struct PITChannelState {
     uint32_t irq_disabled;
 } PITChannelState;
 
-typedef struct PITCommonState {
+struct PITCommonState {
     ISADevice dev;
     MemoryRegion ioports;
     uint32_t iobase;
     PITChannelState channels[3];
-} PITCommonState;
+};
 
-typedef struct PITCommonClass {
+struct PITCommonClass {
     ISADeviceClass parent_class;
 
     void (*set_channel_gate)(PITCommonState *s, PITChannelState *sc, int val);
@@ -65,7 +65,7 @@ typedef struct PITCommonClass {
                              PITChannelInfo *info);
     void (*pre_save)(PITCommonState *s);
     void (*post_load)(PITCommonState *s);
-} PITCommonClass;
+};
 
 int pit_get_out(PITChannelState *s, int64_t current_time);
 int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time);

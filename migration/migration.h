@@ -114,11 +114,11 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info);
 
 #define TYPE_MIGRATION "migration"
 
-#define MIGRATION_CLASS(klass) \
+#define MIGRATION_OBJ_CLASS(klass) \
     OBJECT_CLASS_CHECK(MigrationClass, (klass), TYPE_MIGRATION)
 #define MIGRATION_OBJ(obj) \
     OBJECT_CHECK(MigrationState, (obj), TYPE_MIGRATION)
-#define MIGRATION_GET_CLASS(obj) \
+#define MIGRATION_OBJ_GET_CLASS(obj) \
     OBJECT_GET_CLASS(MigrationClass, (obj), TYPE_MIGRATION)
 
 typedef struct MigrationClass {

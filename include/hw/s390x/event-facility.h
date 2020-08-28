@@ -195,6 +195,7 @@ typedef struct SCLPEventClass {
 } SCLPEventClass;
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
+typedef struct SCLPEventFacility SCLPEventFacility;
 #define EVENT_FACILITY(obj) \
      OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
 #define EVENT_FACILITY_CLASS(klass) \

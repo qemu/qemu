@@ -40,9 +40,9 @@ typedef struct {
     MacfbState macfb;
 } MacfbSysBusState;
 
-#define MACFB_NUBUS_DEVICE_CLASS(class) \
+#define NUBUS_MACFB_CLASS(class) \
     OBJECT_CLASS_CHECK(MacfbNubusDeviceClass, (class), TYPE_NUBUS_MACFB)
-#define MACFB_NUBUS_GET_CLASS(obj) \
+#define NUBUS_MACFB_GET_CLASS(obj) \
     OBJECT_GET_CLASS(MacfbNubusDeviceClass, (obj), TYPE_NUBUS_MACFB)
 
 typedef struct MacfbNubusDeviceClass {

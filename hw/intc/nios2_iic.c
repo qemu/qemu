@@ -80,7 +80,7 @@ static void altera_iic_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo altera_iic_info = {
-    .name          = "altera,iic",
+    .name          = TYPE_ALTERA_IIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AlteraIIC),
     .instance_init = altera_iic_init,

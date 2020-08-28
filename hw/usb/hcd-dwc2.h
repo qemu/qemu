@@ -182,9 +182,9 @@ struct DWC2Class {
 #define TYPE_DWC2_USB   "dwc2-usb"
 #define DWC2_USB(obj) \
     OBJECT_CHECK(DWC2State, (obj), TYPE_DWC2_USB)
-#define DWC2_CLASS(klass) \
+#define DWC2_USB_CLASS(klass) \
     OBJECT_CLASS_CHECK(DWC2Class, (klass), TYPE_DWC2_USB)
-#define DWC2_GET_CLASS(obj) \
+#define DWC2_USB_GET_CLASS(obj) \
     OBJECT_GET_CLASS(DWC2Class, (obj), TYPE_DWC2_USB)
 
 #endif

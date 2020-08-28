@@ -27,97 +27,97 @@
 #define ASPEED_SOC_IOMEM_SIZE       0x00200000
 
 static const hwaddr aspeed_soc_ast2400_memmap[] = {
-    [ASPEED_IOMEM]  = 0x1E600000,
-    [ASPEED_FMC]    = 0x1E620000,
-    [ASPEED_SPI1]   = 0x1E630000,
-    [ASPEED_EHCI1]  = 0x1E6A1000,
-    [ASPEED_VIC]    = 0x1E6C0000,
-    [ASPEED_SDMC]   = 0x1E6E0000,
-    [ASPEED_SCU]    = 0x1E6E2000,
-    [ASPEED_XDMA]   = 0x1E6E7000,
-    [ASPEED_VIDEO]  = 0x1E700000,
-    [ASPEED_ADC]    = 0x1E6E9000,
-    [ASPEED_SRAM]   = 0x1E720000,
-    [ASPEED_SDHCI]  = 0x1E740000,
-    [ASPEED_GPIO]   = 0x1E780000,
-    [ASPEED_RTC]    = 0x1E781000,
-    [ASPEED_TIMER1] = 0x1E782000,
-    [ASPEED_WDT]    = 0x1E785000,
-    [ASPEED_PWM]    = 0x1E786000,
-    [ASPEED_LPC]    = 0x1E789000,
-    [ASPEED_IBT]    = 0x1E789140,
-    [ASPEED_I2C]    = 0x1E78A000,
-    [ASPEED_ETH1]   = 0x1E660000,
-    [ASPEED_ETH2]   = 0x1E680000,
-    [ASPEED_UART1]  = 0x1E783000,
-    [ASPEED_UART5]  = 0x1E784000,
-    [ASPEED_VUART]  = 0x1E787000,
-    [ASPEED_SDRAM]  = 0x40000000,
+    [ASPEED_DEV_IOMEM]  = 0x1E600000,
+    [ASPEED_DEV_FMC]    = 0x1E620000,
+    [ASPEED_DEV_SPI1]   = 0x1E630000,
+    [ASPEED_DEV_EHCI1]  = 0x1E6A1000,
+    [ASPEED_DEV_VIC]    = 0x1E6C0000,
+    [ASPEED_DEV_SDMC]   = 0x1E6E0000,
+    [ASPEED_DEV_SCU]    = 0x1E6E2000,
+    [ASPEED_DEV_XDMA]   = 0x1E6E7000,
+    [ASPEED_DEV_VIDEO]  = 0x1E700000,
+    [ASPEED_DEV_ADC]    = 0x1E6E9000,
+    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SDHCI]  = 0x1E740000,
+    [ASPEED_DEV_GPIO]   = 0x1E780000,
+    [ASPEED_DEV_RTC]    = 0x1E781000,
+    [ASPEED_DEV_TIMER1] = 0x1E782000,
+    [ASPEED_DEV_WDT]    = 0x1E785000,
+    [ASPEED_DEV_PWM]    = 0x1E786000,
+    [ASPEED_DEV_LPC]    = 0x1E789000,
+    [ASPEED_DEV_IBT]    = 0x1E789140,
+    [ASPEED_DEV_I2C]    = 0x1E78A000,
+    [ASPEED_DEV_ETH1]   = 0x1E660000,
+    [ASPEED_DEV_ETH2]   = 0x1E680000,
+    [ASPEED_DEV_UART1]  = 0x1E783000,
+    [ASPEED_DEV_UART5]  = 0x1E784000,
+    [ASPEED_DEV_VUART]  = 0x1E787000,
+    [ASPEED_DEV_SDRAM]  = 0x40000000,
 };
 
 static const hwaddr aspeed_soc_ast2500_memmap[] = {
-    [ASPEED_IOMEM]  = 0x1E600000,
-    [ASPEED_FMC]    = 0x1E620000,
-    [ASPEED_SPI1]   = 0x1E630000,
-    [ASPEED_SPI2]   = 0x1E631000,
-    [ASPEED_EHCI1]  = 0x1E6A1000,
-    [ASPEED_EHCI2]  = 0x1E6A3000,
-    [ASPEED_VIC]    = 0x1E6C0000,
-    [ASPEED_SDMC]   = 0x1E6E0000,
-    [ASPEED_SCU]    = 0x1E6E2000,
-    [ASPEED_XDMA]   = 0x1E6E7000,
-    [ASPEED_ADC]    = 0x1E6E9000,
-    [ASPEED_VIDEO]  = 0x1E700000,
-    [ASPEED_SRAM]   = 0x1E720000,
-    [ASPEED_SDHCI]  = 0x1E740000,
-    [ASPEED_GPIO]   = 0x1E780000,
-    [ASPEED_RTC]    = 0x1E781000,
-    [ASPEED_TIMER1] = 0x1E782000,
-    [ASPEED_WDT]    = 0x1E785000,
-    [ASPEED_PWM]    = 0x1E786000,
-    [ASPEED_LPC]    = 0x1E789000,
-    [ASPEED_IBT]    = 0x1E789140,
-    [ASPEED_I2C]    = 0x1E78A000,
-    [ASPEED_ETH1]   = 0x1E660000,
-    [ASPEED_ETH2]   = 0x1E680000,
-    [ASPEED_UART1]  = 0x1E783000,
-    [ASPEED_UART5]  = 0x1E784000,
-    [ASPEED_VUART]  = 0x1E787000,
-    [ASPEED_SDRAM]  = 0x80000000,
+    [ASPEED_DEV_IOMEM]  = 0x1E600000,
+    [ASPEED_DEV_FMC]    = 0x1E620000,
+    [ASPEED_DEV_SPI1]   = 0x1E630000,
+    [ASPEED_DEV_SPI2]   = 0x1E631000,
+    [ASPEED_DEV_EHCI1]  = 0x1E6A1000,
+    [ASPEED_DEV_EHCI2]  = 0x1E6A3000,
+    [ASPEED_DEV_VIC]    = 0x1E6C0000,
+    [ASPEED_DEV_SDMC]   = 0x1E6E0000,
+    [ASPEED_DEV_SCU]    = 0x1E6E2000,
+    [ASPEED_DEV_XDMA]   = 0x1E6E7000,
+    [ASPEED_DEV_ADC]    = 0x1E6E9000,
+    [ASPEED_DEV_VIDEO]  = 0x1E700000,
+    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SDHCI]  = 0x1E740000,
+    [ASPEED_DEV_GPIO]   = 0x1E780000,
+    [ASPEED_DEV_RTC]    = 0x1E781000,
+    [ASPEED_DEV_TIMER1] = 0x1E782000,
+    [ASPEED_DEV_WDT]    = 0x1E785000,
+    [ASPEED_DEV_PWM]    = 0x1E786000,
+    [ASPEED_DEV_LPC]    = 0x1E789000,
+    [ASPEED_DEV_IBT]    = 0x1E789140,
+    [ASPEED_DEV_I2C]    = 0x1E78A000,
+    [ASPEED_DEV_ETH1]   = 0x1E660000,
+    [ASPEED_DEV_ETH2]   = 0x1E680000,
+    [ASPEED_DEV_UART1]  = 0x1E783000,
+    [ASPEED_DEV_UART5]  = 0x1E784000,
+    [ASPEED_DEV_VUART]  = 0x1E787000,
+    [ASPEED_DEV_SDRAM]  = 0x80000000,
 };
 
 static const int aspeed_soc_ast2400_irqmap[] = {
-    [ASPEED_UART1]  = 9,
-    [ASPEED_UART2]  = 32,
-    [ASPEED_UART3]  = 33,
-    [ASPEED_UART4]  = 34,
-    [ASPEED_UART5]  = 10,
-    [ASPEED_VUART]  = 8,
-    [ASPEED_FMC]    = 19,
-    [ASPEED_EHCI1]  = 5,
-    [ASPEED_EHCI2]  = 13,
-    [ASPEED_SDMC]   = 0,
-    [ASPEED_SCU]    = 21,
-    [ASPEED_ADC]    = 31,
-    [ASPEED_GPIO]   = 20,
-    [ASPEED_RTC]    = 22,
-    [ASPEED_TIMER1] = 16,
-    [ASPEED_TIMER2] = 17,
-    [ASPEED_TIMER3] = 18,
-    [ASPEED_TIMER4] = 35,
-    [ASPEED_TIMER5] = 36,
-    [ASPEED_TIMER6] = 37,
-    [ASPEED_TIMER7] = 38,
-    [ASPEED_TIMER8] = 39,
-    [ASPEED_WDT]    = 27,
-    [ASPEED_PWM]    = 28,
-    [ASPEED_LPC]    = 8,
-    [ASPEED_IBT]    = 8, /* LPC */
-    [ASPEED_I2C]    = 12,
-    [ASPEED_ETH1]   = 2,
-    [ASPEED_ETH2]   = 3,
-    [ASPEED_XDMA]   = 6,
-    [ASPEED_SDHCI]  = 26,
+    [ASPEED_DEV_UART1]  = 9,
+    [ASPEED_DEV_UART2]  = 32,
+    [ASPEED_DEV_UART3]  = 33,
+    [ASPEED_DEV_UART4]  = 34,
+    [ASPEED_DEV_UART5]  = 10,
+    [ASPEED_DEV_VUART]  = 8,
+    [ASPEED_DEV_FMC]    = 19,
+    [ASPEED_DEV_EHCI1]  = 5,
+    [ASPEED_DEV_EHCI2]  = 13,
+    [ASPEED_DEV_SDMC]   = 0,
+    [ASPEED_DEV_SCU]    = 21,
+    [ASPEED_DEV_ADC]    = 31,
+    [ASPEED_DEV_GPIO]   = 20,
+    [ASPEED_DEV_RTC]    = 22,
+    [ASPEED_DEV_TIMER1] = 16,
+    [ASPEED_DEV_TIMER2] = 17,
+    [ASPEED_DEV_TIMER3] = 18,
+    [ASPEED_DEV_TIMER4] = 35,
+    [ASPEED_DEV_TIMER5] = 36,
+    [ASPEED_DEV_TIMER6] = 37,
+    [ASPEED_DEV_TIMER7] = 38,
+    [ASPEED_DEV_TIMER8] = 39,
+    [ASPEED_DEV_WDT]    = 27,
+    [ASPEED_DEV_PWM]    = 28,
+    [ASPEED_DEV_LPC]    = 8,
+    [ASPEED_DEV_IBT]    = 8, /* LPC */
+    [ASPEED_DEV_I2C]    = 12,
+    [ASPEED_DEV_ETH1]   = 2,
+    [ASPEED_DEV_ETH2]   = 3,
+    [ASPEED_DEV_XDMA]   = 6,
+    [ASPEED_DEV_SDHCI]  = 26,
 };
 
 #define aspeed_soc_ast2500_irqmap aspeed_soc_ast2400_irqmap
@@ -221,11 +221,11 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
 
     /* IO space */
-    create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_IOMEM],
+    create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_DEV_IOMEM],
                                 ASPEED_SOC_IOMEM_SIZE);
 
     /* Video engine stub */
-    create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_VIDEO],
+    create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_DEV_VIDEO],
                                 0x1000);
 
     /* CPU */
@@ -243,19 +243,19 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(get_system_memory(),
-                                sc->memmap[ASPEED_SRAM], &s->sram);
+                                sc->memmap[ASPEED_DEV_SRAM], &s->sram);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, sc->memmap[ASPEED_SCU]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, sc->memmap[ASPEED_DEV_SCU]);
 
     /* VIC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->vic), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->vic), 0, sc->memmap[ASPEED_VIC]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->vic), 0, sc->memmap[ASPEED_DEV_VIC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 0,
                        qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->vic), 1,
@@ -265,9 +265,9 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rtc), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, sc->memmap[ASPEED_RTC]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, sc->memmap[ASPEED_DEV_RTC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0,
-                       aspeed_soc_get_irq(s, ASPEED_RTC));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_RTC));
 
     /* Timer */
     object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),
@@ -276,16 +276,16 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->timerctrl), 0,
-                    sc->memmap[ASPEED_TIMER1]);
+                    sc->memmap[ASPEED_DEV_TIMER1]);
     for (i = 0; i < ASPEED_TIMER_NR_TIMERS; i++) {
-        qemu_irq irq = aspeed_soc_get_irq(s, ASPEED_TIMER1 + i);
+        qemu_irq irq = aspeed_soc_get_irq(s, ASPEED_DEV_TIMER1 + i);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->timerctrl), i, irq);
     }
 
     /* UART - attach an 8250 to the IO space as our UART5 */
     if (serial_hd(0)) {
-        qemu_irq uart5 = aspeed_soc_get_irq(s, ASPEED_UART5);
-        serial_mm_init(get_system_memory(), sc->memmap[ASPEED_UART5], 2,
+        qemu_irq uart5 = aspeed_soc_get_irq(s, ASPEED_DEV_UART5);
+        serial_mm_init(get_system_memory(), sc->memmap[ASPEED_DEV_UART5], 2,
                        uart5, 38400, serial_hd(0), DEVICE_LITTLE_ENDIAN);
     }
 
@@ -295,25 +295,25 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c), 0, sc->memmap[ASPEED_I2C]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c), 0, sc->memmap[ASPEED_DEV_I2C]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), 0,
-                       aspeed_soc_get_irq(s, ASPEED_I2C));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_I2C));
 
     /* FMC, The number of CS is set at the board level */
     object_property_set_link(OBJECT(&s->fmc), "dram", OBJECT(s->dram_mr),
                              &error_abort);
     if (!object_property_set_int(OBJECT(&s->fmc), "sdram-base",
-                                 sc->memmap[ASPEED_SDRAM], errp)) {
+                                 sc->memmap[ASPEED_DEV_SDRAM], errp)) {
         return;
     }
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->fmc), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->fmc), 0, sc->memmap[ASPEED_FMC]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->fmc), 0, sc->memmap[ASPEED_DEV_FMC]);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->fmc), 1,
                     s->fmc.ctrl->flash_window_base);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->fmc), 0,
-                       aspeed_soc_get_irq(s, ASPEED_FMC));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_FMC));
 
     /* SPI */
     for (i = 0; i < sc->spis_num; i++) {
@@ -322,7 +322,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 0,
-                        sc->memmap[ASPEED_SPI1 + i]);
+                        sc->memmap[ASPEED_DEV_SPI1 + i]);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 1,
                         s->spi[i].ctrl->flash_window_base);
     }
@@ -333,16 +333,16 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
-                        sc->memmap[ASPEED_EHCI1 + i]);
+                        sc->memmap[ASPEED_DEV_EHCI1 + i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
-                           aspeed_soc_get_irq(s, ASPEED_EHCI1 + i));
+                           aspeed_soc_get_irq(s, ASPEED_DEV_EHCI1 + i));
     }
 
     /* SDMC - SDRAM Memory Controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdmc), 0, sc->memmap[ASPEED_SDMC]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdmc), 0, sc->memmap[ASPEED_DEV_SDMC]);
 
     /* Watch dog */
     for (i = 0; i < sc->wdts_num; i++) {
@@ -354,7 +354,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0,
-                        sc->memmap[ASPEED_WDT] + i * awc->offset);
+                        sc->memmap[ASPEED_DEV_WDT] + i * awc->offset);
     }
 
     /* Net */
@@ -365,9 +365,9 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->ftgmac100[i]), 0,
-                        sc->memmap[ASPEED_ETH1 + i]);
+                        sc->memmap[ASPEED_DEV_ETH1 + i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ftgmac100[i]), 0,
-                           aspeed_soc_get_irq(s, ASPEED_ETH1 + i));
+                           aspeed_soc_get_irq(s, ASPEED_DEV_ETH1 + i));
     }
 
     /* XDMA */
@@ -375,26 +375,26 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->xdma), 0,
-                    sc->memmap[ASPEED_XDMA]);
+                    sc->memmap[ASPEED_DEV_XDMA]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->xdma), 0,
-                       aspeed_soc_get_irq(s, ASPEED_XDMA));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_XDMA));
 
     /* GPIO */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, sc->memmap[ASPEED_GPIO]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, sc->memmap[ASPEED_DEV_GPIO]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio), 0,
-                       aspeed_soc_get_irq(s, ASPEED_GPIO));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_GPIO));
 
     /* SDHCI */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdhci), 0,
-                    sc->memmap[ASPEED_SDHCI]);
+                    sc->memmap[ASPEED_DEV_SDHCI]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->sdhci), 0,
-                       aspeed_soc_get_irq(s, ASPEED_SDHCI));
+                       aspeed_soc_get_irq(s, ASPEED_DEV_SDHCI));
 }
 static Property aspeed_soc_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,

@@ -67,10 +67,10 @@ struct SWIMCtrl {
 };
 
 #define TYPE_SWIM "swim"
-#define SWIM(obj) OBJECT_CHECK(SWIM, (obj), TYPE_SWIM)
+#define SWIM(obj) OBJECT_CHECK(Swim, (obj), TYPE_SWIM)
 
-typedef struct SWIM {
+typedef struct Swim {
     SysBusDevice parent_obj;
     SWIMCtrl     ctrl;
-} SWIM;
+} Swim;
 #endif

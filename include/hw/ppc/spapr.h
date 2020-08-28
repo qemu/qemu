@@ -41,6 +41,7 @@ typedef struct SpaprDimmState SpaprDimmState;
 typedef struct SpaprMachineClass SpaprMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
+typedef struct SpaprMachineState SpaprMachineState;
 #define SPAPR_MACHINE(obj) \
     OBJECT_CHECK(SpaprMachineState, (obj), TYPE_SPAPR_MACHINE)
 #define SPAPR_MACHINE_GET_CLASS(obj) \
