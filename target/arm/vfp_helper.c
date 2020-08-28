@@ -261,6 +261,11 @@ VFP_BINOP(minnum)
 VFP_BINOP(maxnum)
 #undef VFP_BINOP
 
+dh_ctype_f16 VFP_HELPER(neg, h)(dh_ctype_f16 a)
+{
+    return float16_chs(a);
+}
+
 float32 VFP_HELPER(neg, s)(float32 a)
 {
     return float32_chs(a);
