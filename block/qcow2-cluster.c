@@ -47,8 +47,8 @@ int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t exact_size)
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_WRITE_TABLE);
     ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset +
-                                       new_l1_size * sizeof(uint64_t),
-                             (s->l1_size - new_l1_size) * sizeof(uint64_t), 0);
+                                       new_l1_size * L1E_SIZE,
+                             (s->l1_size - new_l1_size) * L1E_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -76,7 +76,7 @@ fail:
      * l1_table in memory to avoid possible image corruption.
      */
     memset(s->l1_table + new_l1_size, 0,
-           (s->l1_size - new_l1_size) * sizeof(uint64_t));
+           (s->l1_size - new_l1_size) * L1E_SIZE);
     return ret;
 }
 
@@ -96,7 +96,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     /* Do a sanity check on min_size before trying to calculate new_l1_size
      * (this prevents overflows during the while loop for the calculation of
      * new_l1_size) */
-    if (min_size > INT_MAX / sizeof(uint64_t)) {
+    if (min_size > INT_MAX / L1E_SIZE) {
         return -EFBIG;
     }
 
@@ -114,7 +114,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     }
 
     QEMU_BUILD_BUG_ON(QCOW_MAX_L1_SIZE > INT_MAX);
-    if (new_l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
+    if (new_l1_size > QCOW_MAX_L1_SIZE / L1E_SIZE) {
         return -EFBIG;
     }
 
@@ -123,7 +123,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
             s->l1_size, new_l1_size);
 #endif
 
-    new_l1_size2 = sizeof(uint64_t) * new_l1_size;
+    new_l1_size2 = L1E_SIZE * new_l1_size;
     new_l1_table = qemu_try_blockalign(bs->file->bs, new_l1_size2);
     if (new_l1_table == NULL) {
         return -ENOMEM;
@@ -131,7 +131,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     memset(new_l1_table, 0, new_l1_size2);
 
     if (s->l1_size) {
-        memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
+        memcpy(new_l1_table, s->l1_table, s->l1_size * L1E_SIZE);
     }
 
     /* write new table (align to cluster) */
@@ -180,7 +180,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     s->l1_table = new_l1_table;
     old_l1_size = s->l1_size;
     s->l1_size = new_l1_size;
-    qcow2_free_clusters(bs, old_l1_table_offset, old_l1_size * sizeof(uint64_t),
+    qcow2_free_clusters(bs, old_l1_table_offset, old_l1_size * L1E_SIZE,
                         QCOW2_DISCARD_OTHER);
     return 0;
  fail:
@@ -225,9 +225,9 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     BDRVQcow2State *s = bs->opaque;
     int l1_start_index;
     int i, ret;
-    int bufsize = MAX(sizeof(uint64_t),
+    int bufsize = MAX(L1E_SIZE,
                       MIN(bs->file->bs->bl.request_alignment, s->cluster_size));
-    int nentries = bufsize / sizeof(uint64_t);
+    int nentries = bufsize / L1E_SIZE;
     g_autofree uint64_t *buf = g_try_new0(uint64_t, nentries);
 
     if (buf == NULL) {
@@ -2410,7 +2410,7 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
         Error *local_err = NULL;
 
         ret = qcow2_validate_table(bs, s->snapshots[i].l1_table_offset,
-                                   s->snapshots[i].l1_size, sizeof(uint64_t),
+                                   s->snapshots[i].l1_size, L1E_SIZE,
                                    QCOW_MAX_L1_SIZE, "Snapshot L1 table",
                                    &local_err);
         if (ret < 0) {
@@ -2418,7 +2418,7 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
             goto fail;
         }
 
-        l1_size2 = s->snapshots[i].l1_size * sizeof(uint64_t);
+        l1_size2 = s->snapshots[i].l1_size * L1E_SIZE;
         new_l1_table = g_try_realloc(l1_table, l1_size2);
 
         if (!new_l1_table) {

@@ -99,6 +99,12 @@
 #define L2E_SIZE_NORMAL   (sizeof(uint64_t))
 #define L2E_SIZE_EXTENDED (sizeof(uint64_t) * 2)
 
+/* Size of L1 table entries */
+#define L1E_SIZE (sizeof(uint64_t))
+
+/* Size of reftable entries */
+#define REFTABLE_ENTRY_SIZE (sizeof(uint64_t))
+
 #define MIN_CLUSTER_BITS 9
 #define MAX_CLUSTER_BITS 21
 

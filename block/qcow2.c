@@ -1543,7 +1543,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     /* read the level 1 table */
     ret = qcow2_validate_table(bs, header.l1_table_offset,
-                               header.l1_size, sizeof(uint64_t),
+                               header.l1_size, L1E_SIZE,
                                QCOW_MAX_L1_SIZE, "Active L1 table", errp);
     if (ret < 0) {
         goto fail;
@@ -1568,15 +1568,14 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     }
 
     if (s->l1_size > 0) {
-        s->l1_table = qemu_try_blockalign(bs->file->bs,
-                                          s->l1_size * sizeof(uint64_t));
+        s->l1_table = qemu_try_blockalign(bs->file->bs, s->l1_size * L1E_SIZE);
         if (s->l1_table == NULL) {
             error_setg(errp, "Could not allocate L1 table");
             ret = -ENOMEM;
             goto fail;
         }
         ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
-                         s->l1_size * sizeof(uint64_t));
+                         s->l1_size * L1E_SIZE);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read L1 table");
             goto fail;
@@ -3213,7 +3212,7 @@ int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
      * where no further refcount blocks or table clusters are required to
      * reference count every cluster.
      */
-    int64_t blocks_per_table_cluster = cluster_size / sizeof(uint64_t);
+    int64_t blocks_per_table_cluster = cluster_size / REFTABLE_ENTRY_SIZE;
     int64_t refcounts_per_block = cluster_size * 8 / (1 << refcount_order);
     int64_t table = 0;  /* number of refcount table clusters */
     int64_t blocks = 0; /* number of refcount block clusters */
@@ -3270,8 +3269,8 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
 
     /* total size of L1 tables */
     nl1e = nl2e * l2e_size / cluster_size;
-    nl1e = ROUND_UP(nl1e, cluster_size / sizeof(uint64_t));
-    meta_size += nl1e * sizeof(uint64_t);
+    nl1e = ROUND_UP(nl1e, cluster_size / L1E_SIZE);
+    meta_size += nl1e * L1E_SIZE;
 
     /* total size of refcount table and blocks */
     meta_size += qcow2_refcount_metadata_size(
@@ -4460,7 +4459,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     /* write updated header.size */
     offset = cpu_to_be64(offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
-                           &offset, sizeof(uint64_t));
+                           &offset, sizeof(offset));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to update the image size");
         goto fail;
@@ -4700,8 +4699,8 @@ static int make_completely_empty(BlockDriverState *bs)
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
 
-    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
-    l1_size2 = (uint64_t)s->l1_size * sizeof(uint64_t);
+    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / L1E_SIZE);
+    l1_size2 = (uint64_t)s->l1_size * L1E_SIZE;
 
     /* After this call, neither the in-memory nor the on-disk refcount
      * information accurately describe the actual references */
@@ -4747,14 +4746,14 @@ static int make_completely_empty(BlockDriverState *bs)
 
     s->l1_table_offset = 3 * s->cluster_size;
 
-    new_reftable = g_try_new0(uint64_t, s->cluster_size / sizeof(uint64_t));
+    new_reftable = g_try_new0(uint64_t, s->cluster_size / REFTABLE_ENTRY_SIZE);
     if (!new_reftable) {
         ret = -ENOMEM;
         goto fail_broken_refcounts;
     }
 
     s->refcount_table_offset = s->cluster_size;
-    s->refcount_table_size   = s->cluster_size / sizeof(uint64_t);
+    s->refcount_table_size   = s->cluster_size / REFTABLE_ENTRY_SIZE;
     s->max_refcount_table_index = 0;
 
     g_free(s->refcount_table);
@@ -4826,7 +4825,7 @@ static int qcow2_make_empty(BlockDriverState *bs)
     int step = QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size);
     int l1_clusters, ret = 0;
 
-    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
+    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / L1E_SIZE);
 
     if (s->qcow_version >= 3 && !s->snapshots && !s->nb_bitmaps &&
         3 + l1_clusters <= s->refcount_block_size &&
@@ -4957,7 +4956,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     l2e_size = extended_l2 ? L2E_SIZE_EXTENDED : L2E_SIZE_NORMAL;
     l2_tables = DIV_ROUND_UP(virtual_size / cluster_size,
                              cluster_size / l2e_size);
-    if (l2_tables * sizeof(uint64_t) > QCOW_MAX_L1_SIZE) {
+    if (l2_tables * L1E_SIZE > QCOW_MAX_L1_SIZE) {
         error_setg(&local_err, "The image size is too large "
                                "(try using a larger cluster size)");
         goto err;
