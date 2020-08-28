@@ -3857,12 +3857,39 @@ static bool do_2misc_fp(DisasContext *s, arg_2misc *a,
         return do_2misc_fp(s, a, FUNC);                         \
     }
 
-DO_2MISC_FP(VRECPE_F, gen_helper_recpe_f32)
-DO_2MISC_FP(VRSQRTE_F, gen_helper_rsqrte_f32)
 DO_2MISC_FP(VCVT_FS, gen_helper_vfp_sitos)
 DO_2MISC_FP(VCVT_FU, gen_helper_vfp_uitos)
 DO_2MISC_FP(VCVT_SF, gen_helper_vfp_tosizs)
 DO_2MISC_FP(VCVT_UF, gen_helper_vfp_touizs)
+
+#define DO_2MISC_FP_VEC(INSN, HFUNC, SFUNC)                             \
+    static void gen_##INSN(unsigned vece, uint32_t rd_ofs,              \
+                           uint32_t rm_ofs,                             \
+                           uint32_t oprsz, uint32_t maxsz)              \
+    {                                                                   \
+        static gen_helper_gvec_2_ptr * const fns[4] = {                 \
+            NULL, HFUNC, SFUNC, NULL,                                   \
+        };                                                              \
+        TCGv_ptr fpst;                                                  \
+        fpst = fpstatus_ptr(vece == MO_16 ? FPST_STD_F16 : FPST_STD);   \
+        tcg_gen_gvec_2_ptr(rd_ofs, rm_ofs, fpst, oprsz, maxsz, 0,       \
+                           fns[vece]);                                  \
+        tcg_temp_free_ptr(fpst);                                        \
+    }                                                                   \
+    static bool trans_##INSN(DisasContext *s, arg_2misc *a)             \
+    {                                                                   \
+        if (a->size == MO_16) {                                         \
+            if (!dc_isar_feature(aa32_fp16_arith, s)) {                 \
+                return false;                                           \
+            }                                                           \
+        } else if (a->size != MO_32) {                                  \
+            return false;                                               \
+        }                                                               \
+        return do_2misc_vec(s, a, gen_##INSN);                          \
+    }
+
+DO_2MISC_FP_VEC(VRECPE_F, gen_helper_gvec_frecpe_h, gen_helper_gvec_frecpe_s)
+DO_2MISC_FP_VEC(VRSQRTE_F, gen_helper_gvec_frsqrte_h, gen_helper_gvec_frsqrte_s)
 
 static bool trans_VRINTX(DisasContext *s, arg_2misc *a)
 {
