@@ -455,7 +455,7 @@ class FilePaths:
 
     Example usage:
 
-        with FilePaths(['a.img', 'b.img']) as (img_a, img_b):
+        with FilePaths('a.img', 'b.img') as (img_a, img_b):
             # Use img_a and img_b here...
 
         # a.img and b.img are automatically removed here.
@@ -463,10 +463,10 @@ class FilePaths:
     By default images are created in iotests.test_dir. To create sockets use
     iotests.sock_dir:
 
-       with FilePaths(['a.sock'], base_dir=iotests.sock_dir) as (sock,):
+       with FilePaths('a.sock', base_dir=iotests.sock_dir) as (sock,):
 
     """
-    def __init__(self, names, base_dir=test_dir):
+    def __init__(self, *names, base_dir=test_dir):
         self.paths = []
         for name in names:
             self.paths.append(os.path.join(base_dir, file_pattern(name)))
@@ -487,7 +487,7 @@ class FilePath(FilePaths):
     FilePath is a specialization of FilePaths that takes a single filename.
     """
     def __init__(self, name, base_dir=test_dir):
-        super(FilePath, self).__init__([name], base_dir)
+        super(FilePath, self).__init__(name, base_dir=base_dir)
 
     def __enter__(self):
         return self.paths[0]
