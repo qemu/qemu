@@ -275,7 +275,7 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
                         an incomplete backup. Testing limitations prevent
                         testing competing writes.
     """
-    with iotests.FilePaths(
+    with iotests.FilePath(
             'img', 'bsync1', 'bsync2', 'fbackup0', 'fbackup1', 'fbackup2') as \
             (img_path, bsync1, bsync2, fbackup0, fbackup1, fbackup2), \
          iotests.VM() as vm:
@@ -440,7 +440,7 @@ def test_backup_api():
     """
     Test malformed and prohibited invocations of the backup API.
     """
-    with iotests.FilePaths('img', 'bsync1') as (img_path, backup_path), \
+    with iotests.FilePath('img', 'bsync1') as (img_path, backup_path), \
          iotests.VM() as vm:
 
         log("\n=== API failure tests ===\n")

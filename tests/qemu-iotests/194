@@ -26,7 +26,7 @@ iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
 
 with iotests.FilePath('source.img') as source_img_path, \
      iotests.FilePath('dest.img') as dest_img_path, \
-     iotests.FilePaths('migration.sock', 'nbd.sock', base_dir=iotests.sock_dir) \
+     iotests.FilePath('migration.sock', 'nbd.sock', base_dir=iotests.sock_dir) \
         as (migration_sock_path, nbd_sock_path), \
      iotests.VM('source') as source_vm, \
      iotests.VM('dest') as dest_vm:
