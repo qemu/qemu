@@ -2432,70 +2432,70 @@ static bool trans_VMLS_2sc(DisasContext *s, arg_2scalar *a)
     return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
 }
 
-/*
- * Rather than have a float-specific version of do_2scalar just for
- * three insns, we wrap a NeonGenTwoSingleOpFn to turn it into
- * a NeonGenTwoOpFn.
- */
-#define WRAP_FP_FN(WRAPNAME, FUNC)                              \
-    static void WRAPNAME(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm) \
-    {                                                           \
-        TCGv_ptr fpstatus = fpstatus_ptr(FPST_STD);             \
-        FUNC(rd, rn, rm, fpstatus);                             \
-        tcg_temp_free_ptr(fpstatus);                            \
+static bool do_2scalar_fp_vec(DisasContext *s, arg_2scalar *a,
+                              gen_helper_gvec_3_ptr *fn)
+{
+    /* Two registers and a scalar, using gvec */
+    int vec_size = a->q ? 16 : 8;
+    int rd_ofs = neon_reg_offset(a->vd, 0);
+    int rn_ofs = neon_reg_offset(a->vn, 0);
+    int rm_ofs;
+    int idx;
+    TCGv_ptr fpstatus;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
     }
 
-WRAP_FP_FN(gen_VMUL_F_mul, gen_helper_vfp_muls)
-WRAP_FP_FN(gen_VMUL_F_add, gen_helper_vfp_adds)
-WRAP_FP_FN(gen_VMUL_F_sub, gen_helper_vfp_subs)
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
 
-static bool trans_VMUL_F_2sc(DisasContext *s, arg_2scalar *a)
-{
-    static NeonGenTwoOpFn * const opfn[] = {
-        NULL,
-        NULL, /* TODO: fp16 support */
-        gen_VMUL_F_mul,
-        NULL,
-    };
+    if (!fn) {
+        /* Bad size (including size == 3, which is a different insn group) */
+        return false;
+    }
 
-    return do_2scalar(s, a, opfn[a->size], NULL);
+    if (a->q && ((a->vd | a->vn) & 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /* a->vm is M:Vm, which encodes both register and index */
+    idx = extract32(a->vm, a->size + 2, 2);
+    a->vm = extract32(a->vm, 0, a->size + 2);
+    rm_ofs = neon_reg_offset(a->vm, 0);
+
+    fpstatus = fpstatus_ptr(a->size == 1 ? FPST_STD_F16 : FPST_STD);
+    tcg_gen_gvec_3_ptr(rd_ofs, rn_ofs, rm_ofs, fpstatus,
+                       vec_size, vec_size, idx, fn);
+    tcg_temp_free_ptr(fpstatus);
+    return true;
 }
 
-static bool trans_VMLA_F_2sc(DisasContext *s, arg_2scalar *a)
-{
-    static NeonGenTwoOpFn * const opfn[] = {
-        NULL,
-        NULL, /* TODO: fp16 support */
-        gen_VMUL_F_mul,
-        NULL,
-    };
-    static NeonGenTwoOpFn * const accfn[] = {
-        NULL,
-        NULL, /* TODO: fp16 support */
-        gen_VMUL_F_add,
-        NULL,
-    };
+#define DO_VMUL_F_2sc(NAME, FUNC)                                       \
+    static bool trans_##NAME##_F_2sc(DisasContext *s, arg_2scalar *a)   \
+    {                                                                   \
+        static gen_helper_gvec_3_ptr * const opfn[] = {                 \
+            NULL,                                                       \
+            gen_helper_##FUNC##_h,                                      \
+            gen_helper_##FUNC##_s,                                      \
+            NULL,                                                       \
+        };                                                              \
+        if (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s)) { \
+            return false;                                               \
+        }                                                               \
+        return do_2scalar_fp_vec(s, a, opfn[a->size]);                  \
+    }
 
-    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
-}
-
-static bool trans_VMLS_F_2sc(DisasContext *s, arg_2scalar *a)
-{
-    static NeonGenTwoOpFn * const opfn[] = {
-        NULL,
-        NULL, /* TODO: fp16 support */
-        gen_VMUL_F_mul,
-        NULL,
-    };
-    static NeonGenTwoOpFn * const accfn[] = {
-        NULL,
-        NULL, /* TODO: fp16 support */
-        gen_VMUL_F_sub,
-        NULL,
-    };
-
-    return do_2scalar(s, a, opfn[a->size], accfn[a->size]);
-}
+DO_VMUL_F_2sc(VMUL, gvec_fmul_idx)
+DO_VMUL_F_2sc(VMLA, gvec_fmla_nf_idx)
+DO_VMUL_F_2sc(VMLS, gvec_fmls_nf_idx)
 
 WRAP_ENV_FN(gen_VQDMULH_16, gen_helper_neon_qdmulh_s16)
 WRAP_ENV_FN(gen_VQDMULH_32, gen_helper_neon_qdmulh_s32)
