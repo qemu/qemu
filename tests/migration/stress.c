@@ -47,19 +47,6 @@ static __attribute__((noreturn)) void exit_failure(void)
     }
 }
 
-static __attribute__((noreturn)) void exit_success(void)
-{
-    if (getpid() == 1) {
-        sync();
-        reboot(RB_POWER_OFF);
-        fprintf(stderr, "%s (%05d): ERROR: cannot reboot: %s\n",
-                argv0, gettid(), strerror(errno));
-        abort();
-    } else {
-        exit(0);
-    }
-}
-
 static int get_command_arg_str(const char *name,
                                char **val)
 {
