@@ -17,8 +17,6 @@
 
 #include "qapi/qapi-types-crypto.h"
 
-typedef struct QCryptoCipherDriver QCryptoCipherDriver;
-
 struct QCryptoCipherDriver {
     int (*cipher_encrypt)(QCryptoCipher *cipher,
                           const void *in,
