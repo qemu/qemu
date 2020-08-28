@@ -1266,6 +1266,54 @@ static bool do_vfp_3op_sp(DisasContext *s, VFPGen3OpSPFn *fn,
     return true;
 }
 
+static bool do_vfp_3op_hp(DisasContext *s, VFPGen3OpSPFn *fn,
+                          int vd, int vn, int vm, bool reads_vd)
+{
+    /*
+     * Do a half-precision operation. Functionally this is
+     * the same as do_vfp_3op_sp(), except:
+     *  - it uses the FPST_FPCR_F16
+     *  - it doesn't need the VFP vector handling (fp16 is a
+     *    v8 feature, and in v8 VFP vectors don't exist)
+     *  - it does the aa32_fp16_arith feature test
+     */
+    TCGv_i32 f0, f1, fd;
+    TCGv_ptr fpst;
+
+    if (!dc_isar_feature(aa32_fp16_arith, s)) {
+        return false;
+    }
+
+    if (s->vec_len != 0 || s->vec_stride != 0) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    f0 = tcg_temp_new_i32();
+    f1 = tcg_temp_new_i32();
+    fd = tcg_temp_new_i32();
+    fpst = fpstatus_ptr(FPST_FPCR_F16);
+
+    neon_load_reg32(f0, vn);
+    neon_load_reg32(f1, vm);
+
+    if (reads_vd) {
+        neon_load_reg32(fd, vd);
+    }
+    fn(fd, f0, f1, fpst);
+    neon_store_reg32(fd, vd);
+
+    tcg_temp_free_i32(f0);
+    tcg_temp_free_i32(f1);
+    tcg_temp_free_i32(fd);
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}
+
 static bool do_vfp_3op_dp(DisasContext *s, VFPGen3OpDPFn *fn,
                           int vd, int vn, int vm, bool reads_vd)
 {
@@ -1643,6 +1691,11 @@ static bool trans_VNMLA_dp(DisasContext *s, arg_VNMLA_dp *a)
     return do_vfp_3op_dp(s, gen_VNMLA_dp, a->vd, a->vn, a->vm, true);
 }
 
+static bool trans_VMUL_hp(DisasContext *s, arg_VMUL_sp *a)
+{
+    return do_vfp_3op_hp(s, gen_helper_vfp_mulh, a->vd, a->vn, a->vm, false);
+}
+
 static bool trans_VMUL_sp(DisasContext *s, arg_VMUL_sp *a)
 {
     return do_vfp_3op_sp(s, gen_helper_vfp_muls, a->vd, a->vn, a->vm, false);
@@ -1677,6 +1730,11 @@ static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_dp *a)
     return do_vfp_3op_dp(s, gen_VNMUL_dp, a->vd, a->vn, a->vm, false);
 }
 
+static bool trans_VADD_hp(DisasContext *s, arg_VADD_sp *a)
+{
+    return do_vfp_3op_hp(s, gen_helper_vfp_addh, a->vd, a->vn, a->vm, false);
+}
+
 static bool trans_VADD_sp(DisasContext *s, arg_VADD_sp *a)
 {
     return do_vfp_3op_sp(s, gen_helper_vfp_adds, a->vd, a->vn, a->vm, false);
@@ -1685,6 +1743,11 @@ static bool trans_VADD_sp(DisasContext *s, arg_VADD_sp *a)
 static bool trans_VADD_dp(DisasContext *s, arg_VADD_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_addd, a->vd, a->vn, a->vm, false);
+}
+
+static bool trans_VSUB_hp(DisasContext *s, arg_VSUB_sp *a)
+{
+    return do_vfp_3op_hp(s, gen_helper_vfp_subh, a->vd, a->vn, a->vm, false);
 }
 
 static bool trans_VSUB_sp(DisasContext *s, arg_VSUB_sp *a)
@@ -1697,6 +1760,11 @@ static bool trans_VSUB_dp(DisasContext *s, arg_VSUB_dp *a)
     return do_vfp_3op_dp(s, gen_helper_vfp_subd, a->vd, a->vn, a->vm, false);
 }
 
+static bool trans_VDIV_hp(DisasContext *s, arg_VDIV_sp *a)
+{
+    return do_vfp_3op_hp(s, gen_helper_vfp_divh, a->vd, a->vn, a->vm, false);
+}
+
 static bool trans_VDIV_sp(DisasContext *s, arg_VDIV_sp *a)
 {
     return do_vfp_3op_sp(s, gen_helper_vfp_divs, a->vd, a->vn, a->vm, false);
@@ -1705,6 +1773,24 @@ static bool trans_VDIV_sp(DisasContext *s, arg_VDIV_sp *a)
 static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_divd, a->vd, a->vn, a->vm, false);
+}
+
+static bool trans_VMINNM_hp(DisasContext *s, arg_VMINNM_sp *a)
+{
+    if (!dc_isar_feature(aa32_vminmaxnm, s)) {
+        return false;
+    }
+    return do_vfp_3op_hp(s, gen_helper_vfp_minnumh,
+                         a->vd, a->vn, a->vm, false);
+}
+
+static bool trans_VMAXNM_hp(DisasContext *s, arg_VMAXNM_sp *a)
+{
+    if (!dc_isar_feature(aa32_vminmaxnm, s)) {
+        return false;
+    }
+    return do_vfp_3op_hp(s, gen_helper_vfp_maxnumh,
+                         a->vd, a->vn, a->vm, false);
 }
 
 static bool trans_VMINNM_sp(DisasContext *s, arg_VMINNM_sp *a)
