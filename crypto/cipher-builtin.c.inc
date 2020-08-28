@@ -80,21 +80,13 @@ static void qcrypto_cipher_aes_ecb_encrypt(const AES_KEY *key,
 {
     const uint8_t *inptr = in;
     uint8_t *outptr = out;
+
+    /* We have already verified that len % AES_BLOCK_SIZE == 0. */
     while (len) {
-        if (len > AES_BLOCK_SIZE) {
-            AES_encrypt(inptr, outptr, key);
-            inptr += AES_BLOCK_SIZE;
-            outptr += AES_BLOCK_SIZE;
-            len -= AES_BLOCK_SIZE;
-        } else {
-            uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
-            memcpy(tmp1, inptr, len);
-            /* Fill with 0 to avoid valgrind uninitialized reads */
-            memset(tmp1 + len, 0, sizeof(tmp1) - len);
-            AES_encrypt(tmp1, tmp2, key);
-            memcpy(outptr, tmp2, len);
-            len = 0;
-        }
+        AES_encrypt(inptr, outptr, key);
+        inptr += AES_BLOCK_SIZE;
+        outptr += AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
     }
 }
 
@@ -106,21 +98,13 @@ static void qcrypto_cipher_aes_ecb_decrypt(const AES_KEY *key,
 {
     const uint8_t *inptr = in;
     uint8_t *outptr = out;
+
+    /* We have already verified that len % AES_BLOCK_SIZE == 0. */
     while (len) {
-        if (len > AES_BLOCK_SIZE) {
-            AES_decrypt(inptr, outptr, key);
-            inptr += AES_BLOCK_SIZE;
-            outptr += AES_BLOCK_SIZE;
-            len -= AES_BLOCK_SIZE;
-        } else {
-            uint8_t tmp1[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
-            memcpy(tmp1, inptr, len);
-            /* Fill with 0 to avoid valgrind uninitialized reads */
-            memset(tmp1 + len, 0, sizeof(tmp1) - len);
-            AES_decrypt(tmp1, tmp2, key);
-            memcpy(outptr, tmp2, len);
-            len = 0;
-        }
+        AES_decrypt(inptr, outptr, key);
+        inptr += AES_BLOCK_SIZE;
+        outptr += AES_BLOCK_SIZE;
+        len -= AES_BLOCK_SIZE;
     }
 }
 
