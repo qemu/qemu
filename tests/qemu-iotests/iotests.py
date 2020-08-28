@@ -470,9 +470,8 @@ class FilePath:
 
     """
     def __init__(self, *names, base_dir=test_dir):
-        self.paths = []
-        for name in names:
-            self.paths.append(os.path.join(base_dir, file_pattern(name)))
+        self.paths = [os.path.join(base_dir, file_pattern(name))
+                      for name in names]
 
     def __enter__(self):
         if len(self.paths) == 1:
