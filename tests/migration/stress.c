@@ -29,10 +29,12 @@ const char *argv0;
 
 #define PAGE_SIZE 4096
 
+#ifndef CONFIG_GETTID
 static int gettid(void)
 {
     return syscall(SYS_gettid);
 }
+#endif
 
 static __attribute__((noreturn)) void exit_failure(void)
 {
