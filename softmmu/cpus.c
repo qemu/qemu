@@ -560,7 +560,7 @@ static int64_t tcg_get_icount_limit(void)
             deadline = INT32_MAX;
         }
 
-        return qemu_icount_round(deadline);
+        return icount_round(deadline);
     } else {
         return replay_get_instructions();
     }
@@ -615,7 +615,7 @@ static void process_icount_data(CPUState *cpu)
 {
     if (icount_enabled()) {
         /* Account for executed instructions */
-        cpu_update_icount(cpu);
+        icount_update(cpu);
 
         /* Reset the counters */
         cpu_neg(cpu)->icount_decr.u16.low = 0;
@@ -716,7 +716,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
         replay_mutex_lock();
         qemu_mutex_lock_iothread();
         /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
-        qemu_account_warp_timer();
+        icount_account_warp_timer();
 
         /* Run the timers here.  This is much more efficient than
          * waking up the I/O thread and waiting for completion.

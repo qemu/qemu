@@ -64,7 +64,7 @@ bool replay_next_event_is(int event)
 
 uint64_t replay_get_current_icount(void)
 {
-    return cpu_get_icount_raw();
+    return icount_get_raw();
 }
 
 int replay_get_instructions(void)

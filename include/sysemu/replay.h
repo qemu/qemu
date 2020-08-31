@@ -109,12 +109,12 @@ int64_t replay_read_clock(ReplayClockKind kind);
 #define REPLAY_CLOCK(clock, value)                                      \
     (replay_mode == REPLAY_MODE_PLAY ? replay_read_clock((clock))       \
         : replay_mode == REPLAY_MODE_RECORD                             \
-            ? replay_save_clock((clock), (value), cpu_get_icount_raw()) \
+            ? replay_save_clock((clock), (value), icount_get_raw()) \
         : (value))
 #define REPLAY_CLOCK_LOCKED(clock, value)                               \
     (replay_mode == REPLAY_MODE_PLAY ? replay_read_clock((clock))       \
         : replay_mode == REPLAY_MODE_RECORD                             \
-            ? replay_save_clock((clock), (value), cpu_get_icount_raw_locked()) \
+            ? replay_save_clock((clock), (value), icount_get_raw_locked()) \
         : (value))
 
 /* Processing data from random generators */

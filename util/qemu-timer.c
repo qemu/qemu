@@ -419,7 +419,7 @@ static void timerlist_rearm(QEMUTimerList *timer_list)
 {
     /* Interrupt execution to force deadline recalculation.  */
     if (icount_enabled() && timer_list->clock->type == QEMU_CLOCK_VIRTUAL) {
-        qemu_start_warp_timer();
+        icount_start_warp_timer();
     }
     timerlist_notify(timer_list);
 }
@@ -636,7 +636,7 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
     default:
     case QEMU_CLOCK_VIRTUAL:
         if (icount_enabled()) {
-            return cpu_get_icount();
+            return icount_get();
         } else if (qtest_enabled()) { /* for qtest_clock_warp */
             return qtest_get_virtual_clock();
         } else {

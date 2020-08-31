@@ -184,11 +184,11 @@ is then incremented (which is called "warping" the virtual clock) as
 soon as the timer fires or the CPUs need to go out of the idle state.
 Two functions are used for this purpose; because these actions change
 virtual machine state and must be deterministic, each of them creates a
-checkpoint.  qemu_start_warp_timer checks if the CPUs are idle and if so
-starts accounting real time to virtual clock.  qemu_account_warp_timer
+checkpoint.  icount_start_warp_timer checks if the CPUs are idle and if so
+starts accounting real time to virtual clock.  icount_account_warp_timer
 is called when the CPUs get an interrupt or when the warp timer fires,
 and it warps the virtual clock by the amount of real time that has passed
-since qemu_start_warp_timer.
+since icount_start_warp_timer.
 
 Bottom halves
 -------------

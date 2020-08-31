@@ -71,7 +71,7 @@ static void align_clocks(SyncClocks *sc, CPUState *cpu)
     }
 
     cpu_icount = cpu->icount_extra + cpu_neg(cpu)->icount_decr.u16.low;
-    sc->diff_clk += cpu_icount_to_ns(sc->last_cpu_icount - cpu_icount);
+    sc->diff_clk += icount_to_ns(sc->last_cpu_icount - cpu_icount);
     sc->last_cpu_icount = cpu_icount;
 
     if (sc->diff_clk > VM_CLOCK_ADVANCE) {
@@ -665,7 +665,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     assert(icount_enabled());
 #ifndef CONFIG_USER_ONLY
     /* Ensure global icount has gone forward */
-    cpu_update_icount(cpu);
+    icount_update(cpu);
     /* Refill decrementer and continue execution.  */
     insns_left = MIN(0xffff, cpu->icount_budget);
     cpu_neg(cpu)->icount_decr.u16.low = insns_left;
@@ -775,7 +775,7 @@ void dump_drift_info(void)
     }
 
     qemu_printf("Host - Guest clock  %"PRIi64" ms\n",
-                (cpu_get_clock() - cpu_get_icount()) / SCALE_MS);
+                (cpu_get_clock() - icount_get()) / SCALE_MS);
     if (icount_align_option) {
         qemu_printf("Max guest delay     %"PRIi64" ms\n",
                     -max_delay / SCALE_MS);

@@ -73,7 +73,7 @@ static void icount_enable_adaptive(void)
  * originally budgeted minus the current state of the decrementing
  * icount counters in extra/u16.low.
  */
-static int64_t cpu_get_icount_executed(CPUState *cpu)
+static int64_t icount_get_executed(CPUState *cpu)
 {
     return (cpu->icount_budget -
             (cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra));
@@ -84,9 +84,9 @@ static int64_t cpu_get_icount_executed(CPUState *cpu)
  * account executed instructions. This is done by the TCG vCPU
  * thread so the main-loop can see time has moved forward.
  */
-static void cpu_update_icount_locked(CPUState *cpu)
+static void icount_update_locked(CPUState *cpu)
 {
-    int64_t executed = cpu_get_icount_executed(cpu);
+    int64_t executed = icount_get_executed(cpu);
     cpu->icount_budget -= executed;
 
     qatomic_set_i64(&timers_state.qemu_icount,
@@ -98,16 +98,16 @@ static void cpu_update_icount_locked(CPUState *cpu)
  * account executed instructions. This is done by the TCG vCPU
  * thread so the main-loop can see time has moved forward.
  */
-void cpu_update_icount(CPUState *cpu)
+void icount_update(CPUState *cpu)
 {
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
-    cpu_update_icount_locked(cpu);
+    icount_update_locked(cpu);
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
 
-static int64_t cpu_get_icount_raw_locked(void)
+static int64_t icount_get_raw_locked(void)
 {
     CPUState *cpu = current_cpu;
 
@@ -117,47 +117,47 @@ static int64_t cpu_get_icount_raw_locked(void)
             exit(1);
         }
         /* Take into account what has run */
-        cpu_update_icount_locked(cpu);
+        icount_update_locked(cpu);
     }
     /* The read is protected by the seqlock, but needs atomic64 to avoid UB */
     return qatomic_read_i64(&timers_state.qemu_icount);
 }
 
-static int64_t cpu_get_icount_locked(void)
+static int64_t icount_get_locked(void)
 {
-    int64_t icount = cpu_get_icount_raw_locked();
+    int64_t icount = icount_get_raw_locked();
     return qatomic_read_i64(&timers_state.qemu_icount_bias) +
-        cpu_icount_to_ns(icount);
+        icount_to_ns(icount);
 }
 
-int64_t cpu_get_icount_raw(void)
+int64_t icount_get_raw(void)
 {
     int64_t icount;
     unsigned start;
 
     do {
         start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
-        icount = cpu_get_icount_raw_locked();
+        icount = icount_get_raw_locked();
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return icount;
 }
 
 /* Return the virtual CPU time, based on the instruction counter.  */
-int64_t cpu_get_icount(void)
+int64_t icount_get(void)
 {
     int64_t icount;
     unsigned start;
 
     do {
         start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
-        icount = cpu_get_icount_locked();
+        icount = icount_get_locked();
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return icount;
 }
 
-int64_t cpu_icount_to_ns(int64_t icount)
+int64_t icount_to_ns(int64_t icount)
 {
     return icount << qatomic_read(&timers_state.icount_time_shift);
 }
@@ -188,7 +188,7 @@ static void icount_adjust(void)
                        &timers_state.vm_clock_lock);
     cur_time = REPLAY_CLOCK_LOCKED(REPLAY_CLOCK_VIRTUAL_RT,
                                    cpu_get_clock_locked());
-    cur_icount = cpu_get_icount_locked();
+    cur_icount = icount_get_locked();
 
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
@@ -229,7 +229,7 @@ static void icount_adjust_vm(void *opaque)
     icount_adjust();
 }
 
-int64_t qemu_icount_round(int64_t count)
+int64_t icount_round(int64_t count)
 {
     int shift = qatomic_read(&timers_state.icount_time_shift);
     return (count + (1 << shift) - 1) >> shift;
@@ -266,7 +266,7 @@ static void icount_warp_rt(void)
              * In adaptive mode, do not let QEMU_CLOCK_VIRTUAL run too
              * far ahead of real time.
              */
-            int64_t cur_icount = cpu_get_icount_locked();
+            int64_t cur_icount = icount_get_locked();
             int64_t delta = clock - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
@@ -291,7 +291,7 @@ static void icount_timer_cb(void *opaque)
     icount_warp_rt();
 }
 
-void qemu_start_warp_timer(void)
+void icount_start_warp_timer(void)
 {
     int64_t clock;
     int64_t deadline;
@@ -394,7 +394,7 @@ void qemu_start_warp_timer(void)
     }
 }
 
-void qemu_account_warp_timer(void)
+void icount_account_warp_timer(void)
 {
     if (!icount_enabled() || !icount_sleep) {
         return;
@@ -417,7 +417,7 @@ void qemu_account_warp_timer(void)
     icount_warp_rt();
 }
 
-void configure_icount(QemuOpts *opts, Error **errp)
+void icount_configure(QemuOpts *opts, Error **errp)
 {
     const char *option = qemu_opt_get(opts, "shift");
     bool sleep = qemu_opt_get_bool(opts, "sleep", true);

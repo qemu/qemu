@@ -300,7 +300,7 @@ static int read_instret(CPURISCVState *env, int csrno, target_ulong *val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (icount_enabled()) {
-        *val = cpu_get_icount();
+        *val = icount_get();
     } else {
         *val = cpu_get_host_ticks();
     }
@@ -315,7 +315,7 @@ static int read_instreth(CPURISCVState *env, int csrno, target_ulong *val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (icount_enabled()) {
-        *val = cpu_get_icount() >> 32;
+        *val = icount_get() >> 32;
     } else {
         *val = cpu_get_host_ticks() >> 32;
     }

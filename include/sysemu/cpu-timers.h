@@ -35,30 +35,30 @@ extern int use_icount;
  * Update the icount with the executed instructions. Called by
  * cpus-tcg vCPU thread so the main-loop can see time has moved forward.
  */
-void cpu_update_icount(CPUState *cpu);
+void icount_update(CPUState *cpu);
 
 /* get raw icount value */
-int64_t cpu_get_icount_raw(void);
+int64_t icount_get_raw(void);
 
 /* return the virtual CPU time in ns, based on the instruction counter. */
-int64_t cpu_get_icount(void);
+int64_t icount_get(void);
 /*
  * convert an instruction counter value to ns, based on the icount shift.
  * This shift is set as a fixed value with the icount "shift" option
  * (precise mode), or it is constantly approximated and corrected at
  * runtime in adaptive mode.
  */
-int64_t cpu_icount_to_ns(int64_t icount);
+int64_t icount_to_ns(int64_t icount);
 
 /* configure the icount options, including "shift" */
-void configure_icount(QemuOpts *opts, Error **errp);
+void icount_configure(QemuOpts *opts, Error **errp);
 
 /* used by tcg vcpu thread to calc icount budget */
-int64_t qemu_icount_round(int64_t count);
+int64_t icount_round(int64_t count);
 
 /* if the CPUs are idle, start accounting real time to virtual clock. */
-void qemu_start_warp_timer(void);
-void qemu_account_warp_timer(void);
+void icount_start_warp_timer(void);
+void icount_account_warp_timer(void);
 
 /*
  * CPU Ticks and Clock
