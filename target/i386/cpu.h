@@ -1630,7 +1630,6 @@ typedef struct CPUX86State {
 
     unsigned nr_dies;
     unsigned nr_nodes;
-    unsigned pkg_offset;
 } CPUX86State;
 
 struct kvm_msrs;
