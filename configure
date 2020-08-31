@@ -473,7 +473,6 @@ LDFLAGS_SHARED="-shared"
 modules="no"
 module_upgrades="no"
 prefix="/usr/local"
-firmwarepath="\${prefix}/share/qemu-firmware"
 qemu_suffix="qemu"
 slirp=""
 oss_lib=""
@@ -1677,6 +1676,7 @@ for opt do
   esac
 done
 
+firmwarepath="${firmwarepath:-$prefix/share/qemu-firmware}"
 libdir="${libdir:-$prefix/lib}"
 libexecdir="${libexecdir:-$prefix/libexec}"
 includedir="${includedir:-$prefix/include}"
