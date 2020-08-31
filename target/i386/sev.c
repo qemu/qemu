@@ -500,6 +500,7 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 
     if (!g_file_get_contents(filename, &base64, &sz, &error)) {
         error_report("failed to read '%s' (%s)", filename, error->message);
+        g_error_free(error);
         return -1;
     }
 
