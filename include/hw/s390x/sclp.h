@@ -182,10 +182,8 @@ typedef struct SCCB {
  } QEMU_PACKED SCCB;
 
 #define TYPE_SCLP "sclp"
-typedef struct SCLPDevice SCLPDevice;
-typedef struct SCLPDeviceClass SCLPDeviceClass;
-DECLARE_OBJ_CHECKERS(SCLPDevice, SCLPDeviceClass,
-                     SCLP, TYPE_SCLP)
+OBJECT_DECLARE_TYPE(SCLPDevice, SCLPDeviceClass,
+                    sclp, SCLP)
 
 struct SCLPEventFacility;
 

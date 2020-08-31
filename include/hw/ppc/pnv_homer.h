@@ -24,10 +24,8 @@
 #include "qom/object.h"
 
 #define TYPE_PNV_HOMER "pnv-homer"
-typedef struct PnvHomer PnvHomer;
-typedef struct PnvHomerClass PnvHomerClass;
-DECLARE_OBJ_CHECKERS(PnvHomer, PnvHomerClass,
-                     PNV_HOMER, TYPE_PNV_HOMER)
+OBJECT_DECLARE_TYPE(PnvHomer, PnvHomerClass,
+                    pnv_homer, PNV_HOMER)
 #define TYPE_PNV8_HOMER TYPE_PNV_HOMER "-POWER8"
 DECLARE_INSTANCE_CHECKER(PnvHomer, PNV8_HOMER,
                          TYPE_PNV8_HOMER)

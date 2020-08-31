@@ -29,10 +29,8 @@
 #define TYPE_SH7751R_CPU SUPERH_CPU_TYPE_NAME("sh7751r")
 #define TYPE_SH7785_CPU  SUPERH_CPU_TYPE_NAME("sh7785")
 
-typedef struct SuperHCPU SuperHCPU;
-typedef struct SuperHCPUClass SuperHCPUClass;
-DECLARE_OBJ_CHECKERS(SuperHCPU, SuperHCPUClass,
-                     SUPERH_CPU, TYPE_SUPERH_CPU)
+OBJECT_DECLARE_TYPE(SuperHCPU, SuperHCPUClass,
+                    superh_cpu, SUPERH_CPU)
 
 /**
  * SuperHCPUClass:

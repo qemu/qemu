@@ -30,12 +30,10 @@ struct IPackBus {
     qemu_irq_handler set_irq;
 };
 
-typedef struct IPackDevice IPackDevice;
-typedef struct IPackDeviceClass IPackDeviceClass;
 
 #define TYPE_IPACK_DEVICE "ipack-device"
-DECLARE_OBJ_CHECKERS(IPackDevice, IPackDeviceClass,
-                     IPACK_DEVICE, TYPE_IPACK_DEVICE)
+OBJECT_DECLARE_TYPE(IPackDevice, IPackDeviceClass,
+                    ipack_device, IPACK_DEVICE)
 
 struct IPackDeviceClass {
     /*< private >*/

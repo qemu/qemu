@@ -345,12 +345,10 @@ struct XiveRouter {
 
     XiveFabric *xfb;
 };
-typedef struct XiveRouter XiveRouter;
 
 #define TYPE_XIVE_ROUTER "xive-router"
-typedef struct XiveRouterClass XiveRouterClass;
-DECLARE_OBJ_CHECKERS(XiveRouter, XiveRouterClass,
-                     XIVE_ROUTER, TYPE_XIVE_ROUTER)
+OBJECT_DECLARE_TYPE(XiveRouter, XiveRouterClass,
+                    xive_router, XIVE_ROUTER)
 
 struct XiveRouterClass {
     SysBusDeviceClass parent;

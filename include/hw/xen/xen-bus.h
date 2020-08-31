@@ -71,17 +71,15 @@ struct XenBus {
     XenWatch *backend_watch;
     QLIST_HEAD(, XenDevice) inactive_devices;
 };
-typedef struct XenBus XenBus;
 
 struct XenBusClass {
     /*< private >*/
     BusClass parent_class;
 };
-typedef struct XenBusClass XenBusClass;
 
 #define TYPE_XEN_BUS "xen-bus"
-DECLARE_OBJ_CHECKERS(XenBus, XenBusClass,
-                     XEN_BUS, TYPE_XEN_BUS)
+OBJECT_DECLARE_TYPE(XenBus, XenBusClass,
+                    xen_bus, XEN_BUS)
 
 void xen_bus_init(void);
 

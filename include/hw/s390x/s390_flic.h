@@ -39,10 +39,8 @@ extern const VMStateDescription vmstate_adapter_routes;
     VMSTATE_STRUCT(_f, _s, 1, vmstate_adapter_routes, AdapterRoutes)
 
 #define TYPE_S390_FLIC_COMMON "s390-flic"
-typedef struct S390FLICState S390FLICState;
-typedef struct S390FLICStateClass S390FLICStateClass;
-DECLARE_OBJ_CHECKERS(S390FLICState, S390FLICStateClass,
-                     S390_FLIC_COMMON, TYPE_S390_FLIC_COMMON)
+OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
+                    s390_flic_common, S390_FLIC_COMMON)
 
 struct S390FLICState {
     SysBusDevice parent_obj;

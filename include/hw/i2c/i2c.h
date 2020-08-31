@@ -16,12 +16,10 @@ enum i2c_event {
     I2C_NACK /* Masker NACKed a receive byte.  */
 };
 
-typedef struct I2CSlave I2CSlave;
 
 #define TYPE_I2C_SLAVE "i2c-slave"
-typedef struct I2CSlaveClass I2CSlaveClass;
-DECLARE_OBJ_CHECKERS(I2CSlave, I2CSlaveClass,
-                     I2C_SLAVE, TYPE_I2C_SLAVE)
+OBJECT_DECLARE_TYPE(I2CSlave, I2CSlaveClass,
+                    i2c_slave, I2C_SLAVE)
 
 struct I2CSlaveClass {
     DeviceClass parent_class;

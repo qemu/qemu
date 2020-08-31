@@ -28,10 +28,8 @@
 #include "qom/object.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
-typedef struct SpaprVioDevice SpaprVioDevice;
-typedef struct SpaprVioDeviceClass SpaprVioDeviceClass;
-DECLARE_OBJ_CHECKERS(SpaprVioDevice, SpaprVioDeviceClass,
-                     VIO_SPAPR_DEVICE, TYPE_VIO_SPAPR_DEVICE)
+OBJECT_DECLARE_TYPE(SpaprVioDevice, SpaprVioDeviceClass,
+                    vio_spapr_device, VIO_SPAPR_DEVICE)
 
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
 typedef struct SpaprVioBus SpaprVioBus;

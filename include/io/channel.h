@@ -26,10 +26,8 @@
 #include "block/aio.h"
 
 #define TYPE_QIO_CHANNEL "qio-channel"
-typedef struct QIOChannel QIOChannel;
-typedef struct QIOChannelClass QIOChannelClass;
-DECLARE_OBJ_CHECKERS(QIOChannel, QIOChannelClass,
-                     QIO_CHANNEL, TYPE_QIO_CHANNEL)
+OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
+                    qio_channel, QIO_CHANNEL)
 
 
 #define QIO_CHANNEL_ERR_BLOCK -2

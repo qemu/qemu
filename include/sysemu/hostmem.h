@@ -20,10 +20,8 @@
 #include "qemu/bitmap.h"
 
 #define TYPE_MEMORY_BACKEND "memory-backend"
-typedef struct HostMemoryBackend HostMemoryBackend;
-typedef struct HostMemoryBackendClass HostMemoryBackendClass;
-DECLARE_OBJ_CHECKERS(HostMemoryBackend, HostMemoryBackendClass,
-                     MEMORY_BACKEND, TYPE_MEMORY_BACKEND)
+OBJECT_DECLARE_TYPE(HostMemoryBackend, HostMemoryBackendClass,
+                    memory_backend, MEMORY_BACKEND)
 
 /* hostmem-ram.c */
 /**

@@ -21,10 +21,8 @@
 
 #define TYPE_VIRTIO_MEM "virtio-mem"
 
-typedef struct VirtIOMEM VirtIOMEM;
-typedef struct VirtIOMEMClass VirtIOMEMClass;
-DECLARE_OBJ_CHECKERS(VirtIOMEM, VirtIOMEMClass,
-                     VIRTIO_MEM, TYPE_VIRTIO_MEM)
+OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
+                    virtio_mem, VIRTIO_MEM)
 
 #define VIRTIO_MEM_MEMDEV_PROP "memdev"
 #define VIRTIO_MEM_NODE_PROP "node"

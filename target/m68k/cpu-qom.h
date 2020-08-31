@@ -25,10 +25,8 @@
 
 #define TYPE_M68K_CPU "m68k-cpu"
 
-typedef struct M68kCPU M68kCPU;
-typedef struct M68kCPUClass M68kCPUClass;
-DECLARE_OBJ_CHECKERS(M68kCPU, M68kCPUClass,
-                     M68K_CPU, TYPE_M68K_CPU)
+OBJECT_DECLARE_TYPE(M68kCPU, M68kCPUClass,
+                    m68k_cpu, M68K_CPU)
 
 /*
  * M68kCPUClass:

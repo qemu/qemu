@@ -25,10 +25,8 @@
 
 #define TYPE_CRIS_CPU "cris-cpu"
 
-typedef struct CRISCPU CRISCPU;
-typedef struct CRISCPUClass CRISCPUClass;
-DECLARE_OBJ_CHECKERS(CRISCPU, CRISCPUClass,
-                     CRIS_CPU, TYPE_CRIS_CPU)
+OBJECT_DECLARE_TYPE(CRISCPU, CRISCPUClass,
+                    cris_cpu, CRIS_CPU)
 
 /**
  * CRISCPUClass:

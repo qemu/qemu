@@ -27,10 +27,8 @@
 
 #define TYPE_QAUTHZ_LIST_FILE "authz-list-file"
 
-typedef struct QAuthZListFile QAuthZListFile;
-typedef struct QAuthZListFileClass QAuthZListFileClass;
-DECLARE_OBJ_CHECKERS(QAuthZListFile, QAuthZListFileClass,
-                     QAUTHZ_LIST_FILE, TYPE_QAUTHZ_LIST_FILE)
+OBJECT_DECLARE_TYPE(QAuthZListFile, QAuthZListFileClass,
+                    qauthz_list_file, QAUTHZ_LIST_FILE)
 
 
 

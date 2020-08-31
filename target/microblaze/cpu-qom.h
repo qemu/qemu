@@ -25,10 +25,8 @@
 
 #define TYPE_MICROBLAZE_CPU "microblaze-cpu"
 
-typedef struct MicroBlazeCPU MicroBlazeCPU;
-typedef struct MicroBlazeCPUClass MicroBlazeCPUClass;
-DECLARE_OBJ_CHECKERS(MicroBlazeCPU, MicroBlazeCPUClass,
-                     MICROBLAZE_CPU, TYPE_MICROBLAZE_CPU)
+OBJECT_DECLARE_TYPE(MicroBlazeCPU, MicroBlazeCPUClass,
+                    microblaze_cpu, MICROBLAZE_CPU)
 
 /**
  * MicroBlazeCPUClass:

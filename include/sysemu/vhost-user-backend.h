@@ -22,10 +22,8 @@
 #include "io/channel.h"
 
 #define TYPE_VHOST_USER_BACKEND "vhost-user-backend"
-typedef struct VhostUserBackend VhostUserBackend;
-typedef struct VhostUserBackendClass VhostUserBackendClass;
-DECLARE_OBJ_CHECKERS(VhostUserBackend, VhostUserBackendClass,
-                     VHOST_USER_BACKEND, TYPE_VHOST_USER_BACKEND)
+OBJECT_DECLARE_TYPE(VhostUserBackend, VhostUserBackendClass,
+                    vhost_user_backend, VHOST_USER_BACKEND)
 
 
 struct VhostUserBackendClass {

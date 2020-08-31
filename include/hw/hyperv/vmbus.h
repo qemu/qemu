@@ -20,10 +20,8 @@
 
 #define TYPE_VMBUS_DEVICE "vmbus-dev"
 
-typedef struct VMBusDevice VMBusDevice;
-typedef struct VMBusDeviceClass VMBusDeviceClass;
-DECLARE_OBJ_CHECKERS(VMBusDevice, VMBusDeviceClass,
-                     VMBUS_DEVICE, TYPE_VMBUS_DEVICE)
+OBJECT_DECLARE_TYPE(VMBusDevice, VMBusDeviceClass,
+                    vmbus_device, VMBUS_DEVICE)
 
 #define TYPE_VMBUS "vmbus"
 typedef struct VMBus VMBus;

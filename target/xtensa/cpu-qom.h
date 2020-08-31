@@ -34,10 +34,8 @@
 
 #define TYPE_XTENSA_CPU "xtensa-cpu"
 
-typedef struct XtensaCPU XtensaCPU;
-typedef struct XtensaCPUClass XtensaCPUClass;
-DECLARE_OBJ_CHECKERS(XtensaCPU, XtensaCPUClass,
-                     XTENSA_CPU, TYPE_XTENSA_CPU)
+OBJECT_DECLARE_TYPE(XtensaCPU, XtensaCPUClass,
+                    xtensa_cpu, XTENSA_CPU)
 
 typedef struct XtensaConfig XtensaConfig;
 

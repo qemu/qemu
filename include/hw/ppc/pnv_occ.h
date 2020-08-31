@@ -24,10 +24,8 @@
 #include "qom/object.h"
 
 #define TYPE_PNV_OCC "pnv-occ"
-typedef struct PnvOCC PnvOCC;
-typedef struct PnvOCCClass PnvOCCClass;
-DECLARE_OBJ_CHECKERS(PnvOCC, PnvOCCClass,
-                     PNV_OCC, TYPE_PNV_OCC)
+OBJECT_DECLARE_TYPE(PnvOCC, PnvOCCClass,
+                    pnv_occ, PNV_OCC)
 #define TYPE_PNV8_OCC TYPE_PNV_OCC "-POWER8"
 DECLARE_INSTANCE_CHECKER(PnvOCC, PNV8_OCC,
                          TYPE_PNV8_OCC)

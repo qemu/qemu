@@ -16,10 +16,8 @@
 #include "qom/object.h"
 
 #define TYPE_SPAPR_CPU_CORE "spapr-cpu-core"
-typedef struct SpaprCpuCore SpaprCpuCore;
-typedef struct SpaprCpuCoreClass SpaprCpuCoreClass;
-DECLARE_OBJ_CHECKERS(SpaprCpuCore, SpaprCpuCoreClass,
-                     SPAPR_CPU_CORE, TYPE_SPAPR_CPU_CORE)
+OBJECT_DECLARE_TYPE(SpaprCpuCore, SpaprCpuCoreClass,
+                    spapr_cpu_core, SPAPR_CPU_CORE)
 
 #define SPAPR_CPU_CORE_TYPE_NAME(model) model "-" TYPE_SPAPR_CPU_CORE
 

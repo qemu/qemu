@@ -17,10 +17,8 @@
 #include "qom/object.h"
 
 #define TYPE_RNG_BACKEND "rng-backend"
-typedef struct RngBackend RngBackend;
-typedef struct RngBackendClass RngBackendClass;
-DECLARE_OBJ_CHECKERS(RngBackend, RngBackendClass,
-                     RNG_BACKEND, TYPE_RNG_BACKEND)
+OBJECT_DECLARE_TYPE(RngBackend, RngBackendClass,
+                    rng_backend, RNG_BACKEND)
 
 #define TYPE_RNG_BUILTIN "rng-builtin"
 

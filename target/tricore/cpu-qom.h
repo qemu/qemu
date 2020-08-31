@@ -24,10 +24,8 @@
 
 #define TYPE_TRICORE_CPU "tricore-cpu"
 
-typedef struct TriCoreCPU TriCoreCPU;
-typedef struct TriCoreCPUClass TriCoreCPUClass;
-DECLARE_OBJ_CHECKERS(TriCoreCPU, TriCoreCPUClass,
-                     TRICORE_CPU, TYPE_TRICORE_CPU)
+OBJECT_DECLARE_TYPE(TriCoreCPU, TriCoreCPUClass,
+                    tricore_cpu, TRICORE_CPU)
 
 struct TriCoreCPUClass {
     /*< private >*/

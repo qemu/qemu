@@ -108,10 +108,8 @@
 #include "qom/object.h"
 
 #define TYPE_ARM_SSE "arm-sse"
-typedef struct ARMSSE ARMSSE;
-typedef struct ARMSSEClass ARMSSEClass;
-DECLARE_OBJ_CHECKERS(ARMSSE, ARMSSEClass,
-                     ARM_SSE, TYPE_ARM_SSE)
+OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
+                    arm_sse, ARM_SSE)
 
 /*
  * These type names are for specific IoTKit subsystems; other than

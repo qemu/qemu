@@ -25,10 +25,8 @@
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_SECRET_COMMON "secret_common"
-typedef struct QCryptoSecretCommon QCryptoSecretCommon;
-typedef struct QCryptoSecretCommonClass QCryptoSecretCommonClass;
-DECLARE_OBJ_CHECKERS(QCryptoSecretCommon, QCryptoSecretCommonClass,
-                     QCRYPTO_SECRET_COMMON, TYPE_QCRYPTO_SECRET_COMMON)
+OBJECT_DECLARE_TYPE(QCryptoSecretCommon, QCryptoSecretCommonClass,
+                    qcrypto_secret_common, QCRYPTO_SECRET_COMMON)
 
 
 struct QCryptoSecretCommon {

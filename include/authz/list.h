@@ -27,10 +27,8 @@
 
 #define TYPE_QAUTHZ_LIST "authz-list"
 
-typedef struct QAuthZList QAuthZList;
-typedef struct QAuthZListClass QAuthZListClass;
-DECLARE_OBJ_CHECKERS(QAuthZList, QAuthZListClass,
-                     QAUTHZ_LIST, TYPE_QAUTHZ_LIST)
+OBJECT_DECLARE_TYPE(QAuthZList, QAuthZListClass,
+                    qauthz_list, QAUTHZ_LIST)
 
 
 

@@ -21,12 +21,10 @@
 #include "trace.h"
 #include "qom/object.h"
 
-typedef struct DBusVMState DBusVMState;
-typedef struct DBusVMStateClass DBusVMStateClass;
 
 #define TYPE_DBUS_VMSTATE "dbus-vmstate"
-DECLARE_OBJ_CHECKERS(DBusVMState, DBusVMStateClass,
-                     DBUS_VMSTATE, TYPE_DBUS_VMSTATE)
+OBJECT_DECLARE_TYPE(DBusVMState, DBusVMStateClass,
+                    dbus_vmstate, DBUS_VMSTATE)
 
 struct DBusVMStateClass {
     ObjectClass parent_class;

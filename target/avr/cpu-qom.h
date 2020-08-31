@@ -26,10 +26,8 @@
 
 #define TYPE_AVR_CPU "avr-cpu"
 
-typedef struct AVRCPU AVRCPU;
-typedef struct AVRCPUClass AVRCPUClass;
-DECLARE_OBJ_CHECKERS(AVRCPU, AVRCPUClass,
-                     AVR_CPU, TYPE_AVR_CPU)
+OBJECT_DECLARE_TYPE(AVRCPU, AVRCPUClass,
+                    avr_cpu, AVR_CPU)
 
 /**
  *  AVRCPUClass:

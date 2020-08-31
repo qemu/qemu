@@ -25,10 +25,8 @@
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
 
-typedef struct AlphaCPU AlphaCPU;
-typedef struct AlphaCPUClass AlphaCPUClass;
-DECLARE_OBJ_CHECKERS(AlphaCPU, AlphaCPUClass,
-                     ALPHA_CPU, TYPE_ALPHA_CPU)
+OBJECT_DECLARE_TYPE(AlphaCPU, AlphaCPUClass,
+                    alpha_cpu, ALPHA_CPU)
 
 /**
  * AlphaCPUClass:

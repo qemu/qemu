@@ -29,10 +29,8 @@
 #define TYPE_POWERPC_CPU "powerpc-cpu"
 #endif
 
-typedef struct PowerPCCPU PowerPCCPU;
-typedef struct PowerPCCPUClass PowerPCCPUClass;
-DECLARE_OBJ_CHECKERS(PowerPCCPU, PowerPCCPUClass,
-                     POWERPC_CPU, TYPE_POWERPC_CPU)
+OBJECT_DECLARE_TYPE(PowerPCCPU, PowerPCCPUClass,
+                    powerpc_cpu, POWERPC_CPU)
 
 typedef struct CPUPPCState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;

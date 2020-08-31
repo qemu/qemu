@@ -25,10 +25,8 @@
 #include "qom/object.h"
 
 #define TYPE_QIO_NET_LISTENER "qio-net-listener"
-typedef struct QIONetListener QIONetListener;
-typedef struct QIONetListenerClass QIONetListenerClass;
-DECLARE_OBJ_CHECKERS(QIONetListener, QIONetListenerClass,
-                     QIO_NET_LISTENER, TYPE_QIO_NET_LISTENER)
+OBJECT_DECLARE_TYPE(QIONetListener, QIONetListenerClass,
+                    qio_net_listener, QIO_NET_LISTENER)
 
 
 typedef void (*QIONetListenerClientFunc)(QIONetListener *listener,

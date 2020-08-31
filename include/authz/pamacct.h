@@ -27,10 +27,8 @@
 
 #define TYPE_QAUTHZ_PAM "authz-pam"
 
-typedef struct QAuthZPAM QAuthZPAM;
-typedef struct QAuthZPAMClass QAuthZPAMClass;
-DECLARE_OBJ_CHECKERS(QAuthZPAM, QAuthZPAMClass,
-                     QAUTHZ_PAM, TYPE_QAUTHZ_PAM)
+OBJECT_DECLARE_TYPE(QAuthZPAM, QAuthZPAMClass,
+                    qauthz_pam, QAUTHZ_PAM)
 
 
 

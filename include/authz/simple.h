@@ -26,10 +26,8 @@
 
 #define TYPE_QAUTHZ_SIMPLE "authz-simple"
 
-typedef struct QAuthZSimple QAuthZSimple;
-typedef struct QAuthZSimpleClass QAuthZSimpleClass;
-DECLARE_OBJ_CHECKERS(QAuthZSimple, QAuthZSimpleClass,
-                     QAUTHZ_SIMPLE, TYPE_QAUTHZ_SIMPLE)
+OBJECT_DECLARE_TYPE(QAuthZSimple, QAuthZSimpleClass,
+                    qauthz_simple, QAUTHZ_SIMPLE)
 
 
 

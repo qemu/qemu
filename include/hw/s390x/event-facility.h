@@ -42,10 +42,8 @@
 #define SCLP_SELECTIVE_READ                     0x01
 
 #define TYPE_SCLP_EVENT "s390-sclp-event-type"
-typedef struct SCLPEvent SCLPEvent;
-typedef struct SCLPEventClass SCLPEventClass;
-DECLARE_OBJ_CHECKERS(SCLPEvent, SCLPEventClass,
-                     SCLP_EVENT, TYPE_SCLP_EVENT)
+OBJECT_DECLARE_TYPE(SCLPEvent, SCLPEventClass,
+                    sclp_event, SCLP_EVENT)
 
 #define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
 #define TYPE_SCLP_QUIESCE "sclpquiesce"

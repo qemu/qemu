@@ -26,10 +26,8 @@
 #include "qom/object.h"
 
 #define TYPE_PNV_PSI "pnv-psi"
-typedef struct PnvPsi PnvPsi;
-typedef struct PnvPsiClass PnvPsiClass;
-DECLARE_OBJ_CHECKERS(PnvPsi, PnvPsiClass,
-                     PNV_PSI, TYPE_PNV_PSI)
+OBJECT_DECLARE_TYPE(PnvPsi, PnvPsiClass,
+                    pnv_psi, PNV_PSI)
 
 #define PSIHB_XSCOM_MAX         0x20
 

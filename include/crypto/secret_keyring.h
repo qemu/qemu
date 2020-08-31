@@ -26,10 +26,8 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
-typedef struct QCryptoSecretKeyring QCryptoSecretKeyring;
-typedef struct QCryptoSecretKeyringClass QCryptoSecretKeyringClass;
-DECLARE_OBJ_CHECKERS(QCryptoSecretKeyring, QCryptoSecretKeyringClass,
-                     QCRYPTO_SECRET_KEYRING, TYPE_QCRYPTO_SECRET_KEYRING)
+OBJECT_DECLARE_TYPE(QCryptoSecretKeyring, QCryptoSecretKeyringClass,
+                    qcrypto_secret_keyring, QCRYPTO_SECRET_KEYRING)
 
 
 struct QCryptoSecretKeyring {

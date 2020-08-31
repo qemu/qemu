@@ -19,10 +19,8 @@
 #include "qapi/error.h"
 
 #define TYPE_TPM_BACKEND "tpm-backend"
-typedef struct TPMBackend TPMBackend;
-typedef struct TPMBackendClass TPMBackendClass;
-DECLARE_OBJ_CHECKERS(TPMBackend, TPMBackendClass,
-                     TPM_BACKEND, TYPE_TPM_BACKEND)
+OBJECT_DECLARE_TYPE(TPMBackend, TPMBackendClass,
+                    tpm_backend, TPM_BACKEND)
 
 
 typedef struct TPMBackendCmd {

@@ -32,10 +32,8 @@ typedef struct CPUNios2State CPUNios2State;
 
 #define TYPE_NIOS2_CPU "nios2-cpu"
 
-typedef struct Nios2CPU Nios2CPU;
-typedef struct Nios2CPUClass Nios2CPUClass;
-DECLARE_OBJ_CHECKERS(Nios2CPU, Nios2CPUClass,
-                     NIOS2_CPU, TYPE_NIOS2_CPU)
+OBJECT_DECLARE_TYPE(Nios2CPU, Nios2CPUClass,
+                    nios2_cpu, NIOS2_CPU)
 
 /**
  * Nios2CPUClass:

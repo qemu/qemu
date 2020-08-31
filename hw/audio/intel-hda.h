@@ -8,10 +8,8 @@
 /* hda bus                                                               */
 
 #define TYPE_HDA_CODEC_DEVICE "hda-codec"
-typedef struct HDACodecDevice HDACodecDevice;
-typedef struct HDACodecDeviceClass HDACodecDeviceClass;
-DECLARE_OBJ_CHECKERS(HDACodecDevice, HDACodecDeviceClass,
-                     HDA_CODEC_DEVICE, TYPE_HDA_CODEC_DEVICE)
+OBJECT_DECLARE_TYPE(HDACodecDevice, HDACodecDeviceClass,
+                    hda_codec_device, HDA_CODEC_DEVICE)
 
 #define TYPE_HDA_BUS "HDA"
 typedef struct HDACodecBus HDACodecBus;

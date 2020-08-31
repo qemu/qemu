@@ -9,10 +9,8 @@
 
 #define TYPE_PR_MANAGER "pr-manager"
 
-typedef struct PRManager PRManager;
-typedef struct PRManagerClass PRManagerClass;
-DECLARE_OBJ_CHECKERS(PRManager, PRManagerClass,
-                     PR_MANAGER, TYPE_PR_MANAGER)
+OBJECT_DECLARE_TYPE(PRManager, PRManagerClass,
+                    pr_manager, PR_MANAGER)
 
 struct sg_io_hdr;
 

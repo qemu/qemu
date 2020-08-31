@@ -41,8 +41,6 @@
  * (the kernel implementation supports more but we don't exploit
  *  that yet)
  */
-typedef struct ICPStateClass ICPStateClass;
-typedef struct ICPState ICPState;
 typedef struct PnvICPState PnvICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
@@ -50,8 +48,8 @@ typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
 
 #define TYPE_ICP "icp"
-DECLARE_OBJ_CHECKERS(ICPState, ICPStateClass,
-                     ICP, TYPE_ICP)
+OBJECT_DECLARE_TYPE(ICPState, ICPStateClass,
+                    icp, ICP)
 
 #define TYPE_PNV_ICP "pnv-icp"
 DECLARE_INSTANCE_CHECKER(PnvICPState, PNV_ICP,

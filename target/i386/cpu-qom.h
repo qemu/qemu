@@ -30,10 +30,8 @@
 #define TYPE_X86_CPU "i386-cpu"
 #endif
 
-typedef struct X86CPU X86CPU;
-typedef struct X86CPUClass X86CPUClass;
-DECLARE_OBJ_CHECKERS(X86CPU, X86CPUClass,
-                     X86_CPU, TYPE_X86_CPU)
+OBJECT_DECLARE_TYPE(X86CPU, X86CPUClass,
+                    x86_cpu, X86_CPU)
 
 typedef struct X86CPUModel X86CPUModel;
 

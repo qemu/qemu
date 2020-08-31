@@ -20,10 +20,8 @@
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
-typedef struct InputBarrier InputBarrier;
-typedef struct InputBarrierClass InputBarrierClass;
-DECLARE_OBJ_CHECKERS(InputBarrier, InputBarrierClass,
-                     INPUT_BARRIER, TYPE_INPUT_BARRIER)
+OBJECT_DECLARE_TYPE(InputBarrier, InputBarrierClass,
+                    input_barrier, INPUT_BARRIER)
 
 
 #define MAX_HELLO_LENGTH 1024

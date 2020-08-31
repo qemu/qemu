@@ -99,10 +99,8 @@ typedef struct CPUTLGState {
 
 #define TYPE_TILEGX_CPU "tilegx-cpu"
 
-typedef struct TileGXCPU TileGXCPU;
-typedef struct TileGXCPUClass TileGXCPUClass;
-DECLARE_OBJ_CHECKERS(TileGXCPU, TileGXCPUClass,
-                     TILEGX_CPU, TYPE_TILEGX_CPU)
+OBJECT_DECLARE_TYPE(TileGXCPU, TileGXCPUClass,
+                    tilegx_cpu, TILEGX_CPU)
 
 /**
  * TileGXCPUClass:

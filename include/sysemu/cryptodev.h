@@ -37,10 +37,8 @@
 
 #define TYPE_CRYPTODEV_BACKEND "cryptodev-backend"
 
-typedef struct CryptoDevBackend CryptoDevBackend;
-typedef struct CryptoDevBackendClass CryptoDevBackendClass;
-DECLARE_OBJ_CHECKERS(CryptoDevBackend, CryptoDevBackendClass,
-                     CRYPTODEV_BACKEND, TYPE_CRYPTODEV_BACKEND)
+OBJECT_DECLARE_TYPE(CryptoDevBackend, CryptoDevBackendClass,
+                    cryptodev_backend, CRYPTODEV_BACKEND)
 
 
 #define MAX_CRYPTO_QUEUE_NUM  64

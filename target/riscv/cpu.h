@@ -232,10 +232,8 @@ struct CPURISCVState {
     QEMUTimer *timer; /* Internal timer */
 };
 
-typedef struct RISCVCPU RISCVCPU;
-typedef struct RISCVCPUClass RISCVCPUClass;
-DECLARE_OBJ_CHECKERS(RISCVCPU, RISCVCPUClass,
-                     RISCV_CPU, TYPE_RISCV_CPU)
+OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,
+                    riscv_cpu, RISCV_CPU)
 
 /**
  * RISCVCPUClass:

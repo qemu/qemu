@@ -25,10 +25,8 @@
 
 #define TYPE_HPPA_CPU "hppa-cpu"
 
-typedef struct HPPACPU HPPACPU;
-typedef struct HPPACPUClass HPPACPUClass;
-DECLARE_OBJ_CHECKERS(HPPACPU, HPPACPUClass,
-                     HPPA_CPU, TYPE_HPPA_CPU)
+OBJECT_DECLARE_TYPE(HPPACPU, HPPACPUClass,
+                    hppa_cpu, HPPA_CPU)
 
 /**
  * HPPACPUClass:

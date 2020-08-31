@@ -25,10 +25,8 @@
 #include "qom/object.h"
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
-typedef struct PnvCore PnvCore;
-typedef struct PnvCoreClass PnvCoreClass;
-DECLARE_OBJ_CHECKERS(PnvCore, PnvCoreClass,
-                     PNV_CORE, TYPE_PNV_CORE)
+OBJECT_DECLARE_TYPE(PnvCore, PnvCoreClass,
+                    pnv_core, PNV_CORE)
 
 typedef struct PnvChip PnvChip;
 

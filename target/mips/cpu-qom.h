@@ -29,10 +29,8 @@
 #define TYPE_MIPS_CPU "mips-cpu"
 #endif
 
-typedef struct MIPSCPU MIPSCPU;
-typedef struct MIPSCPUClass MIPSCPUClass;
-DECLARE_OBJ_CHECKERS(MIPSCPU, MIPSCPUClass,
-                     MIPS_CPU, TYPE_MIPS_CPU)
+OBJECT_DECLARE_TYPE(MIPSCPU, MIPSCPUClass,
+                    mips_cpu, MIPS_CPU)
 
 /**
  * MIPSCPUClass:

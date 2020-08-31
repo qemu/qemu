@@ -26,10 +26,8 @@ struct virtio_serial_conf {
 };
 
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
-typedef struct VirtIOSerialPort VirtIOSerialPort;
-typedef struct VirtIOSerialPortClass VirtIOSerialPortClass;
-DECLARE_OBJ_CHECKERS(VirtIOSerialPort, VirtIOSerialPortClass,
-                     VIRTIO_SERIAL_PORT, TYPE_VIRTIO_SERIAL_PORT)
+OBJECT_DECLARE_TYPE(VirtIOSerialPort, VirtIOSerialPortClass,
+                    virtio_serial_port, VIRTIO_SERIAL_PORT)
 
 typedef struct VirtIOSerial VirtIOSerial;
 

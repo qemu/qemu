@@ -14,13 +14,11 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-typedef struct SSISlave SSISlave;
-typedef struct SSISlaveClass SSISlaveClass;
 typedef enum SSICSMode SSICSMode;
 
 #define TYPE_SSI_SLAVE "ssi-slave"
-DECLARE_OBJ_CHECKERS(SSISlave, SSISlaveClass,
-                     SSI_SLAVE, TYPE_SSI_SLAVE)
+OBJECT_DECLARE_TYPE(SSISlave, SSISlaveClass,
+                    ssi_slave, SSI_SLAVE)
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 

@@ -20,10 +20,8 @@
 
 #define TYPE_VIRTIO_PMEM "virtio-pmem"
 
-typedef struct VirtIOPMEM VirtIOPMEM;
-typedef struct VirtIOPMEMClass VirtIOPMEMClass;
-DECLARE_OBJ_CHECKERS(VirtIOPMEM, VirtIOPMEMClass,
-                     VIRTIO_PMEM, TYPE_VIRTIO_PMEM)
+OBJECT_DECLARE_TYPE(VirtIOPMEM, VirtIOPMEMClass,
+                    virtio_pmem, VIRTIO_PMEM)
 
 #define VIRTIO_PMEM_ADDR_PROP "memaddr"
 #define VIRTIO_PMEM_MEMDEV_PROP "memdev"

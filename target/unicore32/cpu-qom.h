@@ -16,10 +16,8 @@
 
 #define TYPE_UNICORE32_CPU "unicore32-cpu"
 
-typedef struct UniCore32CPU UniCore32CPU;
-typedef struct UniCore32CPUClass UniCore32CPUClass;
-DECLARE_OBJ_CHECKERS(UniCore32CPU, UniCore32CPUClass,
-                     UNICORE32_CPU, TYPE_UNICORE32_CPU)
+OBJECT_DECLARE_TYPE(UniCore32CPU, UniCore32CPUClass,
+                    unicore32_cpu, UNICORE32_CPU)
 
 /**
  * UniCore32CPUClass:

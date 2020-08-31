@@ -29,10 +29,8 @@ struct OpenRISCCPU;
 
 #define TYPE_OPENRISC_CPU "or1k-cpu"
 
-typedef struct OpenRISCCPU OpenRISCCPU;
-typedef struct OpenRISCCPUClass OpenRISCCPUClass;
-DECLARE_OBJ_CHECKERS(OpenRISCCPU, OpenRISCCPUClass,
-                     OPENRISC_CPU, TYPE_OPENRISC_CPU)
+OBJECT_DECLARE_TYPE(OpenRISCCPU, OpenRISCCPUClass,
+                    openrisc_cpu, OPENRISC_CPU)
 
 /**
  * OpenRISCCPUClass:

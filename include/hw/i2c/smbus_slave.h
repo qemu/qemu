@@ -29,10 +29,8 @@
 #include "qom/object.h"
 
 #define TYPE_SMBUS_DEVICE "smbus-device"
-typedef struct SMBusDevice SMBusDevice;
-typedef struct SMBusDeviceClass SMBusDeviceClass;
-DECLARE_OBJ_CHECKERS(SMBusDevice, SMBusDeviceClass,
-                     SMBUS_DEVICE, TYPE_SMBUS_DEVICE)
+OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
+                    smbus_device, SMBUS_DEVICE)
 
 
 struct SMBusDeviceClass {

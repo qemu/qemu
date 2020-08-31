@@ -90,7 +90,6 @@ typedef struct {
 } SDRequest;
 
 typedef struct SDState SDState;
-typedef struct SDBus SDBus;
 
 #define TYPE_SD_CARD "sd-card"
 typedef struct SDCardClass SDCardClass;
@@ -130,9 +129,8 @@ struct SDCardClass {
 };
 
 #define TYPE_SD_BUS "sd-bus"
-typedef struct SDBusClass SDBusClass;
-DECLARE_OBJ_CHECKERS(SDBus, SDBusClass,
-                     SD_BUS, TYPE_SD_BUS)
+OBJECT_DECLARE_TYPE(SDBus, SDBusClass,
+                    sd_bus, SD_BUS)
 
 struct SDBus {
     BusState qbus;

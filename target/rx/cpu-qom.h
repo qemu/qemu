@@ -26,10 +26,8 @@
 
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
-typedef struct RXCPU RXCPU;
-typedef struct RXCPUClass RXCPUClass;
-DECLARE_OBJ_CHECKERS(RXCPU, RXCPUClass,
-                     RX_CPU, TYPE_RX_CPU)
+OBJECT_DECLARE_TYPE(RXCPU, RXCPUClass,
+                    rx_cpu, RX_CPU)
 
 /*
  * RXCPUClass:

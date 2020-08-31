@@ -35,10 +35,8 @@
 #include "qom/object.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
-typedef struct PnvChip PnvChip;
-typedef struct PnvChipClass PnvChipClass;
-DECLARE_OBJ_CHECKERS(PnvChip, PnvChipClass,
-                     PNV_CHIP, TYPE_PNV_CHIP)
+OBJECT_DECLARE_TYPE(PnvChip, PnvChipClass,
+                    pnv_chip, PNV_CHIP)
 
 struct PnvChip {
     /*< private >*/
