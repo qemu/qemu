@@ -60,8 +60,8 @@
 #define TYPE_SIFIVE_U_PRCI      "riscv.sifive.u.prci"
 
 typedef struct SiFiveUPRCIState SiFiveUPRCIState;
-#define SIFIVE_U_PRCI(obj) \
-    OBJECT_CHECK(SiFiveUPRCIState, (obj), TYPE_SIFIVE_U_PRCI)
+DECLARE_INSTANCE_CHECKER(SiFiveUPRCIState, SIFIVE_U_PRCI,
+                         TYPE_SIFIVE_U_PRCI)
 
 struct SiFiveUPRCIState {
     /*< private >*/

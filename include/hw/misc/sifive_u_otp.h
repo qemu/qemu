@@ -51,8 +51,8 @@
 #define TYPE_SIFIVE_U_OTP           "riscv.sifive.u.otp"
 
 typedef struct SiFiveUOTPState SiFiveUOTPState;
-#define SIFIVE_U_OTP(obj) \
-    OBJECT_CHECK(SiFiveUOTPState, (obj), TYPE_SIFIVE_U_OTP)
+DECLARE_INSTANCE_CHECKER(SiFiveUOTPState, SIFIVE_U_OTP,
+                         TYPE_SIFIVE_U_OTP)
 
 struct SiFiveUOTPState {
     /*< private >*/

@@ -27,8 +27,8 @@
 #define TYPE_SIFIVE_PLIC "riscv.sifive.plic"
 
 typedef struct SiFivePLICState SiFivePLICState;
-#define SIFIVE_PLIC(obj) \
-    OBJECT_CHECK(SiFivePLICState, (obj), TYPE_SIFIVE_PLIC)
+DECLARE_INSTANCE_CHECKER(SiFivePLICState, SIFIVE_PLIC,
+                         TYPE_SIFIVE_PLIC)
 
 typedef enum PLICMode {
     PLICMode_U,

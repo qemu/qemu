@@ -53,8 +53,8 @@ enum {
 #define TYPE_SIFIVE_UART "riscv.sifive.uart"
 
 typedef struct SiFiveUARTState SiFiveUARTState;
-#define SIFIVE_UART(obj) \
-    OBJECT_CHECK(SiFiveUARTState, (obj), TYPE_SIFIVE_UART)
+DECLARE_INSTANCE_CHECKER(SiFiveUARTState, SIFIVE_UART,
+                         TYPE_SIFIVE_UART)
 
 struct SiFiveUARTState {
     /*< private >*/

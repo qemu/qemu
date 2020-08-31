@@ -19,7 +19,8 @@
 
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"
 typedef struct SIFIVEGPIOState SIFIVEGPIOState;
-#define SIFIVE_GPIO(obj) OBJECT_CHECK(SIFIVEGPIOState, (obj), TYPE_SIFIVE_GPIO)
+DECLARE_INSTANCE_CHECKER(SIFIVEGPIOState, SIFIVE_GPIO,
+                         TYPE_SIFIVE_GPIO)
 
 #define SIFIVE_GPIO_PINS 32
 

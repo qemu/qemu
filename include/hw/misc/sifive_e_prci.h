@@ -53,8 +53,8 @@ enum {
 #define TYPE_SIFIVE_E_PRCI      "riscv.sifive.e.prci"
 
 typedef struct SiFiveEPRCIState SiFiveEPRCIState;
-#define SIFIVE_E_PRCI(obj) \
-    OBJECT_CHECK(SiFiveEPRCIState, (obj), TYPE_SIFIVE_E_PRCI)
+DECLARE_INSTANCE_CHECKER(SiFiveEPRCIState, SIFIVE_E_PRCI,
+                         TYPE_SIFIVE_E_PRCI)
 
 struct SiFiveEPRCIState {
     /*< private >*/

@@ -25,8 +25,8 @@
 #define TYPE_SIFIVE_TEST "riscv.sifive.test"
 
 typedef struct SiFiveTestState SiFiveTestState;
-#define SIFIVE_TEST(obj) \
-    OBJECT_CHECK(SiFiveTestState, (obj), TYPE_SIFIVE_TEST)
+DECLARE_INSTANCE_CHECKER(SiFiveTestState, SIFIVE_TEST,
+                         TYPE_SIFIVE_TEST)
 
 struct SiFiveTestState {
     /*< private >*/
