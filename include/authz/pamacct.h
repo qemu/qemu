@@ -27,8 +27,8 @@
 
 #define TYPE_QAUTHZ_PAM "authz-pam"
 
-OBJECT_DECLARE_TYPE(QAuthZPAM, QAuthZPAMClass,
-                    qauthz_pam, QAUTHZ_PAM)
+OBJECT_DECLARE_SIMPLE_TYPE(QAuthZPAM, qauthz_pam,
+                           QAUTHZ_PAM, QAuthZClass)
 
 
 
@@ -79,9 +79,6 @@ struct QAuthZPAM {
 };
 
 
-struct QAuthZPAMClass {
-    QAuthZClass parent_class;
-};
 
 
 QAuthZPAM *qauthz_pam_new(const char *id,

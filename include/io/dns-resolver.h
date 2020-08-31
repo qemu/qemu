@@ -26,8 +26,8 @@
 #include "io/task.h"
 
 #define TYPE_QIO_DNS_RESOLVER "qio-dns-resolver"
-OBJECT_DECLARE_TYPE(QIODNSResolver, QIODNSResolverClass,
-                    qio_dns_resolver, QIO_DNS_RESOLVER)
+OBJECT_DECLARE_SIMPLE_TYPE(QIODNSResolver, qio_dns_resolver,
+                           QIO_DNS_RESOLVER, ObjectClass)
 
 
 /**
@@ -133,9 +133,6 @@ struct QIODNSResolver {
     Object parent;
 };
 
-struct QIODNSResolverClass {
-    ObjectClass parent;
-};
 
 
 /**

@@ -22,13 +22,10 @@
 #include "io/channel.h"
 
 #define TYPE_VHOST_USER_BACKEND "vhost-user-backend"
-OBJECT_DECLARE_TYPE(VhostUserBackend, VhostUserBackendClass,
-                    vhost_user_backend, VHOST_USER_BACKEND)
+OBJECT_DECLARE_SIMPLE_TYPE(VhostUserBackend, vhost_user_backend,
+                           VHOST_USER_BACKEND, ObjectClass)
 
 
-struct VhostUserBackendClass {
-    ObjectClass parent_class;
-};
 
 struct VhostUserBackend {
     /* private */

@@ -27,8 +27,8 @@
 
 #define TYPE_QAUTHZ_LIST "authz-list"
 
-OBJECT_DECLARE_TYPE(QAuthZList, QAuthZListClass,
-                    qauthz_list, QAUTHZ_LIST)
+OBJECT_DECLARE_SIMPLE_TYPE(QAuthZList, qauthz_list,
+                           QAUTHZ_LIST, QAuthZClass)
 
 
 
@@ -68,9 +68,6 @@ struct QAuthZList {
 };
 
 
-struct QAuthZListClass {
-    QAuthZClass parent_class;
-};
 
 
 QAuthZList *qauthz_list_new(const char *id,

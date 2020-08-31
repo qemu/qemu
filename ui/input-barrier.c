@@ -20,8 +20,8 @@
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
-OBJECT_DECLARE_TYPE(InputBarrier, InputBarrierClass,
-                    input_barrier, INPUT_BARRIER)
+OBJECT_DECLARE_SIMPLE_TYPE(InputBarrier, input_barrier,
+                           INPUT_BARRIER, ObjectClass)
 
 
 #define MAX_HELLO_LENGTH 1024
@@ -44,9 +44,6 @@ struct InputBarrier {
     char buffer[MAX_HELLO_LENGTH];
 };
 
-struct InputBarrierClass {
-    ObjectClass parent_class;
-};
 
 static const char *cmd_names[] = {
     [barrierCmdCNoop]          = "CNOP",

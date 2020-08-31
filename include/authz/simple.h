@@ -26,8 +26,8 @@
 
 #define TYPE_QAUTHZ_SIMPLE "authz-simple"
 
-OBJECT_DECLARE_TYPE(QAuthZSimple, QAuthZSimpleClass,
-                    qauthz_simple, QAUTHZ_SIMPLE)
+OBJECT_DECLARE_SIMPLE_TYPE(QAuthZSimple, qauthz_simple,
+                           QAUTHZ_SIMPLE, QAuthZClass)
 
 
 
@@ -62,9 +62,6 @@ struct QAuthZSimple {
 };
 
 
-struct QAuthZSimpleClass {
-    QAuthZClass parent_class;
-};
 
 
 QAuthZSimple *qauthz_simple_new(const char *id,

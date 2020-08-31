@@ -31,8 +31,8 @@ static bool linux_is_button(unsigned int lnx)
 }
 
 #define TYPE_INPUT_LINUX "input-linux"
-OBJECT_DECLARE_TYPE(InputLinux, InputLinuxClass,
-                    input_linux, INPUT_LINUX)
+OBJECT_DECLARE_SIMPLE_TYPE(InputLinux, input_linux,
+                           INPUT_LINUX, ObjectClass)
 
 
 struct InputLinux {
@@ -65,9 +65,6 @@ struct InputLinux {
     QTAILQ_ENTRY(InputLinux) next;
 };
 
-struct InputLinuxClass {
-    ObjectClass parent_class;
-};
 
 static QTAILQ_HEAD(, InputLinux) inputs = QTAILQ_HEAD_INITIALIZER(inputs);
 
