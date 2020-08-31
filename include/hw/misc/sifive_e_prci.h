@@ -18,6 +18,7 @@
 
 #ifndef HW_SIFIVE_E_PRCI_H
 #define HW_SIFIVE_E_PRCI_H
+#include "qom/object.h"
 
 enum {
     SIFIVE_E_PRCI_HFROSCCFG = 0x0,
@@ -51,10 +52,11 @@ enum {
 
 #define TYPE_SIFIVE_E_PRCI      "riscv.sifive.e.prci"
 
+typedef struct SiFiveEPRCIState SiFiveEPRCIState;
 #define SIFIVE_E_PRCI(obj) \
     OBJECT_CHECK(SiFiveEPRCIState, (obj), TYPE_SIFIVE_E_PRCI)
 
-typedef struct SiFiveEPRCIState {
+struct SiFiveEPRCIState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -64,7 +66,7 @@ typedef struct SiFiveEPRCIState {
     uint32_t hfxosccfg;
     uint32_t pllcfg;
     uint32_t plloutdiv;
-} SiFiveEPRCIState;
+};
 
 DeviceState *sifive_e_prci_create(hwaddr addr);
 

@@ -20,19 +20,21 @@
 #define HW_SIFIVE_TEST_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_SIFIVE_TEST "riscv.sifive.test"
 
+typedef struct SiFiveTestState SiFiveTestState;
 #define SIFIVE_TEST(obj) \
     OBJECT_CHECK(SiFiveTestState, (obj), TYPE_SIFIVE_TEST)
 
-typedef struct SiFiveTestState {
+struct SiFiveTestState {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
     MemoryRegion mmio;
-} SiFiveTestState;
+};
 
 enum {
     FINISHER_FAIL = 0x3333,

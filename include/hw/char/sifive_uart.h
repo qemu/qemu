@@ -22,6 +22,7 @@
 
 #include "chardev/char-fe.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 enum {
     SIFIVE_UART_TXFIFO        = 0,
@@ -51,10 +52,11 @@ enum {
 
 #define TYPE_SIFIVE_UART "riscv.sifive.uart"
 
+typedef struct SiFiveUARTState SiFiveUARTState;
 #define SIFIVE_UART(obj) \
     OBJECT_CHECK(SiFiveUARTState, (obj), TYPE_SIFIVE_UART)
 
-typedef struct SiFiveUARTState {
+struct SiFiveUARTState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -69,7 +71,7 @@ typedef struct SiFiveUARTState {
     uint32_t txctrl;
     uint32_t rxctrl;
     uint32_t div;
-} SiFiveUARTState;
+};
 
 SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
     Chardev *chr, qemu_irq irq);

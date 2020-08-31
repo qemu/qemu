@@ -18,6 +18,7 @@
 
 #ifndef HW_SIFIVE_U_OTP_H
 #define HW_SIFIVE_U_OTP_H
+#include "qom/object.h"
 
 #define SIFIVE_U_OTP_PA         0x00
 #define SIFIVE_U_OTP_PAIO       0x04
@@ -49,10 +50,11 @@
 
 #define TYPE_SIFIVE_U_OTP           "riscv.sifive.u.otp"
 
+typedef struct SiFiveUOTPState SiFiveUOTPState;
 #define SIFIVE_U_OTP(obj) \
     OBJECT_CHECK(SiFiveUOTPState, (obj), TYPE_SIFIVE_U_OTP)
 
-typedef struct SiFiveUOTPState {
+struct SiFiveUOTPState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -75,6 +77,6 @@ typedef struct SiFiveUOTPState {
     uint32_t fuse[SIFIVE_U_OTP_NUM_FUSES];
     /* config */
     uint32_t serial;
-} SiFiveUOTPState;
+};
 
 #endif /* HW_SIFIVE_U_OTP_H */

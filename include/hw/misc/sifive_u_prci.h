@@ -18,6 +18,7 @@
 
 #ifndef HW_SIFIVE_U_PRCI_H
 #define HW_SIFIVE_U_PRCI_H
+#include "qom/object.h"
 
 #define SIFIVE_U_PRCI_HFXOSCCFG     0x00
 #define SIFIVE_U_PRCI_COREPLLCFG0   0x04
@@ -58,10 +59,11 @@
 
 #define TYPE_SIFIVE_U_PRCI      "riscv.sifive.u.prci"
 
+typedef struct SiFiveUPRCIState SiFiveUPRCIState;
 #define SIFIVE_U_PRCI(obj) \
     OBJECT_CHECK(SiFiveUPRCIState, (obj), TYPE_SIFIVE_U_PRCI)
 
-typedef struct SiFiveUPRCIState {
+struct SiFiveUPRCIState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -76,7 +78,7 @@ typedef struct SiFiveUPRCIState {
     uint32_t coreclksel;
     uint32_t devicesreset;
     uint32_t clkmuxstatus;
-} SiFiveUPRCIState;
+};
 
 /*
  * Clock indexes for use by Device Tree data and the PRCI driver.

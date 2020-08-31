@@ -22,9 +22,11 @@
 #define HW_SIFIVE_PLIC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_SIFIVE_PLIC "riscv.sifive.plic"
 
+typedef struct SiFivePLICState SiFivePLICState;
 #define SIFIVE_PLIC(obj) \
     OBJECT_CHECK(SiFivePLICState, (obj), TYPE_SIFIVE_PLIC)
 
@@ -41,7 +43,7 @@ typedef struct PLICAddr {
     PLICMode mode;
 } PLICAddr;
 
-typedef struct SiFivePLICState {
+struct SiFivePLICState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -69,7 +71,7 @@ typedef struct SiFivePLICState {
     uint32_t context_base;
     uint32_t context_stride;
     uint32_t aperture_size;
-} SiFivePLICState;
+};
 
 DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t hartid_base, uint32_t num_sources,
