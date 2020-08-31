@@ -129,7 +129,7 @@ endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
-                      static: enable_static)
+                      method: 'pkg-config', static: enable_static)
 endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
@@ -168,7 +168,7 @@ if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
-                         static: enable_static)
+                         method: 'pkg-config', static: enable_static)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -247,7 +247,7 @@ if sdl.found()
   sdl = declare_dependency(compile_args: '-Wno-undef',
                            dependencies: sdl)
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
-                         static: enable_static)
+                         method: 'pkg-config', static: enable_static)
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@',
@@ -332,7 +332,7 @@ sasl = not_found
 if get_option('vnc').enabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
-                   static: enable_static)
+                   method: 'pkg-config', static: enable_static)
   jpeg = cc.find_library('jpeg', has_headers: ['jpeglib.h'],
                          required: get_option('vnc_jpeg'),
                          static: enable_static)
