@@ -896,11 +896,6 @@ static void x86_machine_initfn(Object *obj)
     x86ms->smm = ON_OFF_AUTO_AUTO;
     x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->smp_dies = 1;
-
-    x86ms->apicid_from_cpu_idx = x86_apicid_from_cpu_idx;
-    x86ms->topo_ids_from_apicid = x86_topo_ids_from_apicid;
-    x86ms->apicid_from_topo_ids = x86_apicid_from_topo_ids;
-    x86ms->apicid_pkg_offset = apicid_pkg_offset;
 }
 
 static void x86_machine_class_init(ObjectClass *oc, void *data)
