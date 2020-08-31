@@ -4947,6 +4947,7 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
         new->value = g_strdup("type");
         *next = new;
         next = &new->next;
+        error_free(err);
     }
 
     x86_cpu_filter_features(xc, false);
