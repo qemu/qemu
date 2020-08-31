@@ -147,10 +147,21 @@ QEMUGLContext gd_gl_area_create_context(DisplayChangeListener *dcl,
     gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
     window = gtk_widget_get_window(vc->gfx.drawing_area);
     ctx = gdk_window_create_gl_context(window, &err);
+    if (err) {
+        g_printerr("Create gdk gl context failed: %s\n", err->message);
+        g_error_free(err);
+        return NULL;
+    }
     gdk_gl_context_set_required_version(ctx,
                                         params->major_ver,
                                         params->minor_ver);
     gdk_gl_context_realize(ctx, &err);
+    if (err) {
+        g_printerr("Realize gdk gl context failed: %s\n", err->message);
+        g_error_free(err);
+        g_clear_object(&ctx);
+        return NULL;
+    }
     return ctx;
 }
 
