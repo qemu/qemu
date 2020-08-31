@@ -2423,6 +2423,11 @@ F: tests/check-qom-interface.c
 F: tests/check-qom-proplist.c
 F: tests/test-qdev-global-props.c
 
+QOM boilerplate conversion script
+M: Eduardo Habkost <ehabkost@redhat.com>
+S: Maintained
+F: scripts/codeconverter/
+
 QMP
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
