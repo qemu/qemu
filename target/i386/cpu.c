@@ -3995,7 +3995,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .xlevel = 0x8000001E,
         .model_id = "AMD EPYC Processor",
         .cache_info = &epyc_cache_info,
-        .use_epyc_apic_id_encoding = 1,
         .versions = (X86CPUVersionDefinition[]) {
             { .version = 1 },
             {
@@ -4123,7 +4122,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .xlevel = 0x8000001E,
         .model_id = "AMD EPYC-Rome Processor",
         .cache_info = &epyc_rome_cache_info,
-        .use_epyc_apic_id_encoding = 1,
     },
 };
 
