@@ -69,22 +69,6 @@ inline void init_topo_info(X86CPUTopoInfo *topo_info,
 }
 
 /*
- * Set up with the new EPYC topology handlers
- *
- * AMD uses different apic id encoding for EPYC based cpus. Override
- * the default topo handlers with EPYC encoding handlers.
- */
-static void x86_set_epyc_topo_handlers(MachineState *machine)
-{
-    X86MachineState *x86ms = X86_MACHINE(machine);
-
-    x86ms->apicid_from_cpu_idx = x86_apicid_from_cpu_idx_epyc;
-    x86ms->topo_ids_from_apicid = x86_topo_ids_from_apicid_epyc;
-    x86ms->apicid_from_topo_ids = x86_apicid_from_topo_ids_epyc;
-    x86ms->apicid_pkg_offset = apicid_pkg_offset_epyc;
-}
-
-/*
  * Calculates initial APIC ID for a specific CPU index
  *
  * Currently we need to be able to calculate the APIC ID from the CPU index
@@ -102,7 +86,7 @@ uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
 
     init_topo_info(&topo_info, x86ms);
 
-    correct_id = x86ms->apicid_from_cpu_idx(&topo_info, cpu_index);
+    correct_id = x86_apicid_from_cpu_idx(&topo_info, cpu_index);
     if (x86mc->compat_apic_id_mode) {
         if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
@@ -136,11 +120,6 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     MachineState *ms = MACHINE(x86ms);
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
 
-    /* Check for apicid encoding */
-    if (cpu_x86_use_epyc_apic_id_encoding(ms->cpu_type)) {
-        x86_set_epyc_topo_handlers(ms);
-    }
-
     x86_cpu_set_default_version(default_cpu_version);
 
     /*
@@ -154,12 +133,6 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     x86ms->apic_id_limit = x86_cpu_apic_id_from_index(x86ms,
                                                       ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
-
-    for (i = 0; i < ms->possible_cpus->len; i++) {
-        ms->possible_cpus->cpus[i].arch_id =
-            x86_cpu_apic_id_from_index(x86ms, i);
-    }
-
     for (i = 0; i < ms->smp.cpus; i++) {
         x86_cpu_new(x86ms, possible_cpus->cpus[i].arch_id, &error_fatal);
     }
@@ -184,7 +157,8 @@ int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
    init_topo_info(&topo_info, x86ms);
 
    assert(idx < ms->possible_cpus->len);
-   x86_topo_ids_from_idx(&topo_info, idx, &topo_ids);
+   x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
+                            &topo_info, &topo_ids);
    return topo_ids.pkg_id % ms->numa_state->num_nodes;
 }
 
@@ -215,7 +189,10 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 
         ms->possible_cpus->cpus[i].type = ms->cpu_type;
         ms->possible_cpus->cpus[i].vcpus_count = 1;
-        x86_topo_ids_from_idx(&topo_info, i, &topo_ids);
+        ms->possible_cpus->cpus[i].arch_id =
+            x86_cpu_apic_id_from_index(x86ms, i);
+        x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
+                                 &topo_info, &topo_ids);
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
         ms->possible_cpus->cpus[i].props.socket_id = topo_ids.pkg_id;
         if (x86ms->smp_dies > 1) {
