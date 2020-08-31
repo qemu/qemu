@@ -31,7 +31,8 @@
 
 #define TYPE_ARM_L2X0 "l2x0"
 typedef struct L2x0State L2x0State;
-#define ARM_L2X0(obj) OBJECT_CHECK(L2x0State, (obj), TYPE_ARM_L2X0)
+DECLARE_INSTANCE_CHECKER(L2x0State, ARM_L2X0,
+                         TYPE_ARM_L2X0)
 
 struct L2x0State {
     SysBusDevice parent_obj;

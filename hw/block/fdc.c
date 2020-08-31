@@ -66,7 +66,8 @@
 
 #define TYPE_FLOPPY_BUS "floppy-bus"
 typedef struct FloppyBus FloppyBus;
-#define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
+DECLARE_INSTANCE_CHECKER(FloppyBus, FLOPPY_BUS,
+                         TYPE_FLOPPY_BUS)
 
 typedef struct FDCtrl FDCtrl;
 typedef struct FDrive FDrive;
@@ -497,8 +498,8 @@ static const BlockDevOps fd_block_ops = {
 
 #define TYPE_FLOPPY_DRIVE "floppy"
 typedef struct FloppyDrive FloppyDrive;
-#define FLOPPY_DRIVE(obj) \
-     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
+DECLARE_INSTANCE_CHECKER(FloppyDrive, FLOPPY_DRIVE,
+                         TYPE_FLOPPY_DRIVE)
 
 struct FloppyDrive {
     DeviceState     qdev;
@@ -890,7 +891,8 @@ static FloppyDriveType get_fallback_drive_type(FDrive *drv)
 
 #define TYPE_SYSBUS_FDC "base-sysbus-fdc"
 typedef struct FDCtrlSysBus FDCtrlSysBus;
-#define SYSBUS_FDC(obj) OBJECT_CHECK(FDCtrlSysBus, (obj), TYPE_SYSBUS_FDC)
+DECLARE_INSTANCE_CHECKER(FDCtrlSysBus, SYSBUS_FDC,
+                         TYPE_SYSBUS_FDC)
 
 struct FDCtrlSysBus {
     /*< private >*/
@@ -901,7 +903,8 @@ struct FDCtrlSysBus {
 };
 
 typedef struct FDCtrlISABus FDCtrlISABus;
-#define ISA_FDC(obj) OBJECT_CHECK(FDCtrlISABus, (obj), TYPE_ISA_FDC)
+DECLARE_INSTANCE_CHECKER(FDCtrlISABus, ISA_FDC,
+                         TYPE_ISA_FDC)
 
 struct FDCtrlISABus {
     ISADevice parent_obj;

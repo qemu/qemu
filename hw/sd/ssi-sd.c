@@ -55,7 +55,8 @@ struct ssi_sd_state {
 typedef struct ssi_sd_state ssi_sd_state;
 
 #define TYPE_SSI_SD "ssi-sd"
-#define SSI_SD(obj) OBJECT_CHECK(ssi_sd_state, (obj), TYPE_SSI_SD)
+DECLARE_INSTANCE_CHECKER(ssi_sd_state, SSI_SD,
+                         TYPE_SSI_SD)
 
 /* State word bits.  */
 #define SSI_SDR_LOCKED          0x0001

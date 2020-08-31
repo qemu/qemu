@@ -43,8 +43,8 @@
  */
 
 typedef struct I440FXState I440FXState;
-#define I440FX_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(I440FXState, (obj), TYPE_I440FX_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(I440FXState, I440FX_PCI_HOST_BRIDGE,
+                         TYPE_I440FX_PCI_HOST_BRIDGE)
 
 struct I440FXState {
     PCIHostState parent_obj;

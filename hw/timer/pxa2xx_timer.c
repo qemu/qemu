@@ -68,8 +68,8 @@ static int pxa2xx_timer4_freq[8] = {
 
 #define TYPE_PXA2XX_TIMER "pxa2xx-timer"
 typedef struct PXA2xxTimerInfo PXA2xxTimerInfo;
-#define PXA2XX_TIMER(obj) \
-    OBJECT_CHECK(PXA2xxTimerInfo, (obj), TYPE_PXA2XX_TIMER)
+DECLARE_INSTANCE_CHECKER(PXA2xxTimerInfo, PXA2XX_TIMER,
+                         TYPE_PXA2XX_TIMER)
 
 
 typedef struct {

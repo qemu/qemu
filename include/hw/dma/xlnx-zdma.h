@@ -80,7 +80,7 @@ typedef struct XlnxZDMA XlnxZDMA;
 
 #define TYPE_XLNX_ZDMA "xlnx.zdma"
 
-#define XLNX_ZDMA(obj) \
-     OBJECT_CHECK(XlnxZDMA, (obj), TYPE_XLNX_ZDMA)
+DECLARE_INSTANCE_CHECKER(XlnxZDMA, XLNX_ZDMA,
+                         TYPE_XLNX_ZDMA)
 
 #endif /* XLNX_ZDMA_H */

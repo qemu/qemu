@@ -192,7 +192,8 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 
 #define TYPE_SP804 "sp804"
 typedef struct SP804State SP804State;
-#define SP804(obj) OBJECT_CHECK(SP804State, (obj), TYPE_SP804)
+DECLARE_INSTANCE_CHECKER(SP804State, SP804,
+                         TYPE_SP804)
 
 struct SP804State {
     SysBusDevice parent_obj;
@@ -313,8 +314,8 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 
 #define TYPE_INTEGRATOR_PIT "integrator_pit"
 typedef struct icp_pit_state icp_pit_state;
-#define INTEGRATOR_PIT(obj) \
-    OBJECT_CHECK(icp_pit_state, (obj), TYPE_INTEGRATOR_PIT)
+DECLARE_INSTANCE_CHECKER(icp_pit_state, INTEGRATOR_PIT,
+                         TYPE_INTEGRATOR_PIT)
 
 struct icp_pit_state {
     SysBusDevice parent_obj;

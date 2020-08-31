@@ -31,8 +31,8 @@
 
 #define TYPE_MSS_TIMER     "mss-timer"
 typedef struct MSSTimerState MSSTimerState;
-#define MSS_TIMER(obj)     OBJECT_CHECK(MSSTimerState, \
-                              (obj), TYPE_MSS_TIMER)
+DECLARE_INSTANCE_CHECKER(MSSTimerState, MSS_TIMER,
+                         TYPE_MSS_TIMER)
 
 /*
  * There are two 32-bit down counting timers.

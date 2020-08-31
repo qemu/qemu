@@ -36,8 +36,8 @@
 
 #define TYPE_VERSATILE_PB_SIC "versatilepb_sic"
 typedef struct vpb_sic_state vpb_sic_state;
-#define VERSATILE_PB_SIC(obj) \
-    OBJECT_CHECK(vpb_sic_state, (obj), TYPE_VERSATILE_PB_SIC)
+DECLARE_INSTANCE_CHECKER(vpb_sic_state, VERSATILE_PB_SIC,
+                         TYPE_VERSATILE_PB_SIC)
 
 struct vpb_sic_state {
     SysBusDevice parent_obj;

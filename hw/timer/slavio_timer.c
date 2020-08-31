@@ -61,8 +61,8 @@ typedef struct CPUTimerState {
 
 #define TYPE_SLAVIO_TIMER "slavio_timer"
 typedef struct SLAVIO_TIMERState SLAVIO_TIMERState;
-#define SLAVIO_TIMER(obj) \
-    OBJECT_CHECK(SLAVIO_TIMERState, (obj), TYPE_SLAVIO_TIMER)
+DECLARE_INSTANCE_CHECKER(SLAVIO_TIMERState, SLAVIO_TIMER,
+                         TYPE_SLAVIO_TIMER)
 
 struct SLAVIO_TIMERState {
     SysBusDevice parent_obj;

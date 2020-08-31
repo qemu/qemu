@@ -22,8 +22,8 @@
 
 typedef struct S390StAttribClass S390StAttribClass;
 typedef struct S390StAttribState S390StAttribState;
-#define S390_STATTRIB(obj) \
-    OBJECT_CHECK(S390StAttribState, (obj), TYPE_S390_STATTRIB)
+DECLARE_OBJ_CHECKERS(S390StAttribState, S390StAttribClass,
+                     S390_STATTRIB, TYPE_S390_STATTRIB)
 
 struct S390StAttribState {
     DeviceState parent_obj;
@@ -31,10 +31,6 @@ struct S390StAttribState {
     bool migration_enabled;
 };
 
-#define S390_STATTRIB_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390StAttribClass, (klass), TYPE_S390_STATTRIB)
-#define S390_STATTRIB_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390StAttribClass, (obj), TYPE_S390_STATTRIB)
 
 struct S390StAttribClass {
     DeviceClass parent_class;
@@ -52,16 +48,16 @@ struct S390StAttribClass {
 };
 
 typedef struct QEMUS390StAttribState QEMUS390StAttribState;
-#define QEMU_S390_STATTRIB(obj) \
-    OBJECT_CHECK(QEMUS390StAttribState, (obj), TYPE_QEMU_S390_STATTRIB)
+DECLARE_INSTANCE_CHECKER(QEMUS390StAttribState, QEMU_S390_STATTRIB,
+                         TYPE_QEMU_S390_STATTRIB)
 
 struct QEMUS390StAttribState {
     S390StAttribState parent_obj;
 };
 
 typedef struct KVMS390StAttribState KVMS390StAttribState;
-#define KVM_S390_STATTRIB(obj) \
-    OBJECT_CHECK(KVMS390StAttribState, (obj), TYPE_KVM_S390_STATTRIB)
+DECLARE_INSTANCE_CHECKER(KVMS390StAttribState, KVM_S390_STATTRIB,
+                         TYPE_KVM_S390_STATTRIB)
 
 struct KVMS390StAttribState {
     S390StAttribState parent_obj;

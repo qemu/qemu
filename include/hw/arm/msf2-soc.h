@@ -34,7 +34,8 @@
 
 #define TYPE_MSF2_SOC     "msf2-soc"
 typedef struct MSF2State MSF2State;
-#define MSF2_SOC(obj)     OBJECT_CHECK(MSF2State, (obj), TYPE_MSF2_SOC)
+DECLARE_INSTANCE_CHECKER(MSF2State, MSF2_SOC,
+                         TYPE_MSF2_SOC)
 
 #define MSF2_NUM_SPIS         2
 #define MSF2_NUM_UARTS        2

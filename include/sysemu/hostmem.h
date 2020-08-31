@@ -22,12 +22,8 @@
 #define TYPE_MEMORY_BACKEND "memory-backend"
 typedef struct HostMemoryBackend HostMemoryBackend;
 typedef struct HostMemoryBackendClass HostMemoryBackendClass;
-#define MEMORY_BACKEND(obj) \
-    OBJECT_CHECK(HostMemoryBackend, (obj), TYPE_MEMORY_BACKEND)
-#define MEMORY_BACKEND_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(HostMemoryBackendClass, (obj), TYPE_MEMORY_BACKEND)
-#define MEMORY_BACKEND_CLASS(klass) \
-    OBJECT_CLASS_CHECK(HostMemoryBackendClass, (klass), TYPE_MEMORY_BACKEND)
+DECLARE_OBJ_CHECKERS(HostMemoryBackend, HostMemoryBackendClass,
+                     MEMORY_BACKEND, TYPE_MEMORY_BACKEND)
 
 /* hostmem-ram.c */
 /**

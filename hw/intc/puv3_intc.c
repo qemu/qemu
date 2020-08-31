@@ -21,7 +21,8 @@
 
 #define TYPE_PUV3_INTC "puv3_intc"
 typedef struct PUV3INTCState PUV3INTCState;
-#define PUV3_INTC(obj) OBJECT_CHECK(PUV3INTCState, (obj), TYPE_PUV3_INTC)
+DECLARE_INSTANCE_CHECKER(PUV3INTCState, PUV3_INTC,
+                         TYPE_PUV3_INTC)
 
 struct PUV3INTCState {
     SysBusDevice parent_obj;

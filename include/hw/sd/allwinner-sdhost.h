@@ -47,12 +47,8 @@
 
 typedef struct AwSdHostClass AwSdHostClass;
 typedef struct AwSdHostState AwSdHostState;
-#define AW_SDHOST(obj) \
-    OBJECT_CHECK(AwSdHostState, (obj), TYPE_AW_SDHOST)
-#define AW_SDHOST_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AwSdHostClass, (klass), TYPE_AW_SDHOST)
-#define AW_SDHOST_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AwSdHostClass, (obj), TYPE_AW_SDHOST)
+DECLARE_OBJ_CHECKERS(AwSdHostState, AwSdHostClass,
+                     AW_SDHOST, TYPE_AW_SDHOST)
 
 /** @} */
 

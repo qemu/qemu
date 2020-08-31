@@ -27,12 +27,8 @@
 
 typedef struct LM32CPU LM32CPU;
 typedef struct LM32CPUClass LM32CPUClass;
-#define LM32_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(LM32CPUClass, (klass), TYPE_LM32_CPU)
-#define LM32_CPU(obj) \
-    OBJECT_CHECK(LM32CPU, (obj), TYPE_LM32_CPU)
-#define LM32_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(LM32CPUClass, (obj), TYPE_LM32_CPU)
+DECLARE_OBJ_CHECKERS(LM32CPU, LM32CPUClass,
+                     LM32_CPU, TYPE_LM32_CPU)
 
 /**
  * LM32CPUClass:

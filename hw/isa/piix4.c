@@ -54,8 +54,8 @@ struct PIIX4State {
 };
 typedef struct PIIX4State PIIX4State;
 
-#define PIIX4_PCI_DEVICE(obj) \
-    OBJECT_CHECK(PIIX4State, (obj), TYPE_PIIX4_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(PIIX4State, PIIX4_PCI_DEVICE,
+                         TYPE_PIIX4_PCI_DEVICE)
 
 static void piix4_isa_reset(DeviceState *dev)
 {

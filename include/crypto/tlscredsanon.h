@@ -26,8 +26,8 @@
 
 #define TYPE_QCRYPTO_TLS_CREDS_ANON "tls-creds-anon"
 typedef struct QCryptoTLSCredsAnon QCryptoTLSCredsAnon;
-#define QCRYPTO_TLS_CREDS_ANON(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCredsAnon, (obj), TYPE_QCRYPTO_TLS_CREDS_ANON)
+DECLARE_INSTANCE_CHECKER(QCryptoTLSCredsAnon, QCRYPTO_TLS_CREDS_ANON,
+                         TYPE_QCRYPTO_TLS_CREDS_ANON)
 
 
 typedef struct QCryptoTLSCredsAnonClass QCryptoTLSCredsAnonClass;

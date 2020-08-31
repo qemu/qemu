@@ -40,9 +40,8 @@
 #define TYPE_CRYPTODEV_BACKEND_VHOST_USER "cryptodev-vhost-user"
 
 typedef struct CryptoDevBackendVhostUser CryptoDevBackendVhostUser;
-#define CRYPTODEV_BACKEND_VHOST_USER(obj) \
-    OBJECT_CHECK(CryptoDevBackendVhostUser, \
-                 (obj), TYPE_CRYPTODEV_BACKEND_VHOST_USER)
+DECLARE_INSTANCE_CHECKER(CryptoDevBackendVhostUser, CRYPTODEV_BACKEND_VHOST_USER,
+                         TYPE_CRYPTODEV_BACKEND_VHOST_USER)
 
 
 struct CryptoDevBackendVhostUser {

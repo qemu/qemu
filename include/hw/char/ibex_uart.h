@@ -71,8 +71,8 @@ REG32(TIMEOUT_CTRL, 0x2c)
 
 #define TYPE_IBEX_UART "ibex-uart"
 typedef struct IbexUartState IbexUartState;
-#define IBEX_UART(obj) \
-    OBJECT_CHECK(IbexUartState, (obj), TYPE_IBEX_UART)
+DECLARE_INSTANCE_CHECKER(IbexUartState, IBEX_UART,
+                         TYPE_IBEX_UART)
 
 struct IbexUartState {
     /* <private> */

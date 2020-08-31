@@ -18,7 +18,8 @@
 #include "qom/object.h"
 #define TYPE_NRF51_TIMER "nrf51_soc.timer"
 typedef struct NRF51TimerState NRF51TimerState;
-#define NRF51_TIMER(obj) OBJECT_CHECK(NRF51TimerState, (obj), TYPE_NRF51_TIMER)
+DECLARE_INSTANCE_CHECKER(NRF51TimerState, NRF51_TIMER,
+                         TYPE_NRF51_TIMER)
 
 #define NRF51_TIMER_REG_COUNT 4
 

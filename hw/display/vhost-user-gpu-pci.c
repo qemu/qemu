@@ -15,8 +15,8 @@
 
 #define TYPE_VHOST_USER_GPU_PCI "vhost-user-gpu-pci"
 typedef struct VhostUserGPUPCI VhostUserGPUPCI;
-#define VHOST_USER_GPU_PCI(obj)                                     \
-    OBJECT_CHECK(VhostUserGPUPCI, (obj), TYPE_VHOST_USER_GPU_PCI)
+DECLARE_INSTANCE_CHECKER(VhostUserGPUPCI, VHOST_USER_GPU_PCI,
+                         TYPE_VHOST_USER_GPU_PCI)
 
 struct VhostUserGPUPCI {
     VirtIOGPUPCIBase parent_obj;

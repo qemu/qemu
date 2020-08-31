@@ -33,7 +33,8 @@
 
 typedef struct ADBMouseClass ADBMouseClass;
 typedef struct MouseState MouseState;
-#define ADB_MOUSE(obj) OBJECT_CHECK(MouseState, (obj), TYPE_ADB_MOUSE)
+DECLARE_OBJ_CHECKERS(MouseState, ADBMouseClass,
+                     ADB_MOUSE, TYPE_ADB_MOUSE)
 
 struct MouseState {
     /*< public >*/
@@ -44,10 +45,6 @@ struct MouseState {
     int dx, dy, dz;
 };
 
-#define ADB_MOUSE_CLASS(class) \
-    OBJECT_CLASS_CHECK(ADBMouseClass, (class), TYPE_ADB_MOUSE)
-#define ADB_MOUSE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ADBMouseClass, (obj), TYPE_ADB_MOUSE)
 
 struct ADBMouseClass {
     /*< public >*/

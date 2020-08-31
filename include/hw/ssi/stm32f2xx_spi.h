@@ -46,8 +46,8 @@
 
 #define TYPE_STM32F2XX_SPI "stm32f2xx-spi"
 typedef struct STM32F2XXSPIState STM32F2XXSPIState;
-#define STM32F2XX_SPI(obj) \
-    OBJECT_CHECK(STM32F2XXSPIState, (obj), TYPE_STM32F2XX_SPI)
+DECLARE_INSTANCE_CHECKER(STM32F2XXSPIState, STM32F2XX_SPI,
+                         TYPE_STM32F2XX_SPI)
 
 struct STM32F2XXSPIState {
     /* <private> */

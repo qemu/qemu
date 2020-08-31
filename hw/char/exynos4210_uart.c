@@ -140,8 +140,8 @@ typedef struct {
 
 #define TYPE_EXYNOS4210_UART "exynos4210.uart"
 typedef struct Exynos4210UartState Exynos4210UartState;
-#define EXYNOS4210_UART(obj) \
-    OBJECT_CHECK(Exynos4210UartState, (obj), TYPE_EXYNOS4210_UART)
+DECLARE_INSTANCE_CHECKER(Exynos4210UartState, EXYNOS4210_UART,
+                         TYPE_EXYNOS4210_UART)
 
 struct Exynos4210UartState {
     SysBusDevice parent_obj;

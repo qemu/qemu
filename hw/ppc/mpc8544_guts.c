@@ -56,7 +56,8 @@
 
 #define TYPE_MPC8544_GUTS "mpc8544-guts"
 typedef struct GutsState GutsState;
-#define MPC8544_GUTS(obj) OBJECT_CHECK(GutsState, (obj), TYPE_MPC8544_GUTS)
+DECLARE_INSTANCE_CHECKER(GutsState, MPC8544_GUTS,
+                         TYPE_MPC8544_GUTS)
 
 struct GutsState {
     /*< private >*/

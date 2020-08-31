@@ -30,8 +30,8 @@ struct PCIEPCIBridge {
 typedef struct PCIEPCIBridge PCIEPCIBridge;
 
 #define TYPE_PCIE_PCI_BRIDGE_DEV "pcie-pci-bridge"
-#define PCIE_PCI_BRIDGE_DEV(obj) \
-        OBJECT_CHECK(PCIEPCIBridge, (obj), TYPE_PCIE_PCI_BRIDGE_DEV)
+DECLARE_INSTANCE_CHECKER(PCIEPCIBridge, PCIE_PCI_BRIDGE_DEV,
+                         TYPE_PCIE_PCI_BRIDGE_DEV)
 
 static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
 {

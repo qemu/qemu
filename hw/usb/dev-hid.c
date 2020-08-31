@@ -47,7 +47,8 @@ struct USBHIDState {
 typedef struct USBHIDState USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
-#define USB_HID(obj) OBJECT_CHECK(USBHIDState, (obj), TYPE_USB_HID)
+DECLARE_INSTANCE_CHECKER(USBHIDState, USB_HID,
+                         TYPE_USB_HID)
 
 enum {
     STR_MANUFACTURER = 1,

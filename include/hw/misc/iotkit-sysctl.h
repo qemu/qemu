@@ -32,8 +32,8 @@
 
 #define TYPE_IOTKIT_SYSCTL "iotkit-sysctl"
 typedef struct IoTKitSysCtl IoTKitSysCtl;
-#define IOTKIT_SYSCTL(obj) OBJECT_CHECK(IoTKitSysCtl, (obj), \
-                                        TYPE_IOTKIT_SYSCTL)
+DECLARE_INSTANCE_CHECKER(IoTKitSysCtl, IOTKIT_SYSCTL,
+                         TYPE_IOTKIT_SYSCTL)
 
 struct IoTKitSysCtl {
     /*< private >*/

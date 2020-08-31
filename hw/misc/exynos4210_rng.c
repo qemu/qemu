@@ -37,8 +37,8 @@
 
 #define TYPE_EXYNOS4210_RNG             "exynos4210.rng"
 typedef struct Exynos4210RngState Exynos4210RngState;
-#define EXYNOS4210_RNG(obj) \
-    OBJECT_CHECK(Exynos4210RngState, (obj), TYPE_EXYNOS4210_RNG)
+DECLARE_INSTANCE_CHECKER(Exynos4210RngState, EXYNOS4210_RNG,
+                         TYPE_EXYNOS4210_RNG)
 
 /*
  * Exynos4220, PRNG, only polling mode is supported.

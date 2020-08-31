@@ -46,8 +46,8 @@
 
 #define TYPE_TPM_EMULATOR "tpm-emulator"
 typedef struct TPMEmulator TPMEmulator;
-#define TPM_EMULATOR(obj) \
-    OBJECT_CHECK(TPMEmulator, (obj), TYPE_TPM_EMULATOR)
+DECLARE_INSTANCE_CHECKER(TPMEmulator, TPM_EMULATOR,
+                         TYPE_TPM_EMULATOR)
 
 #define TPM_EMULATOR_IMPLEMENTS_ALL_CAPS(S, cap) (((S)->caps & (cap)) == (cap))
 

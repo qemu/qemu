@@ -31,8 +31,8 @@
 
 #define TYPE_AW_SUN8I_EMAC "allwinner-sun8i-emac"
 typedef struct AwSun8iEmacState AwSun8iEmacState;
-#define AW_SUN8I_EMAC(obj) \
-    OBJECT_CHECK(AwSun8iEmacState, (obj), TYPE_AW_SUN8I_EMAC)
+DECLARE_INSTANCE_CHECKER(AwSun8iEmacState, AW_SUN8I_EMAC,
+                         TYPE_AW_SUN8I_EMAC)
 
 /** @} */
 

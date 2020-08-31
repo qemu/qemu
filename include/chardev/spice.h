@@ -21,7 +21,8 @@ typedef struct SpiceChardev SpiceChardev;
 #define TYPE_CHARDEV_SPICEVMC "chardev-spicevmc"
 #define TYPE_CHARDEV_SPICEPORT "chardev-spiceport"
 
-#define SPICE_CHARDEV(obj) OBJECT_CHECK(SpiceChardev, (obj), TYPE_CHARDEV_SPICE)
+DECLARE_INSTANCE_CHECKER(SpiceChardev, SPICE_CHARDEV,
+                         TYPE_CHARDEV_SPICE)
 
 void qemu_chr_open_spice_port(Chardev *chr, ChardevBackend *backend,
                               bool *be_opened, Error **errp);

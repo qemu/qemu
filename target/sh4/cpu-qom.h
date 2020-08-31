@@ -31,12 +31,8 @@
 
 typedef struct SuperHCPU SuperHCPU;
 typedef struct SuperHCPUClass SuperHCPUClass;
-#define SUPERH_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SuperHCPUClass, (klass), TYPE_SUPERH_CPU)
-#define SUPERH_CPU(obj) \
-    OBJECT_CHECK(SuperHCPU, (obj), TYPE_SUPERH_CPU)
-#define SUPERH_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SuperHCPUClass, (obj), TYPE_SUPERH_CPU)
+DECLARE_OBJ_CHECKERS(SuperHCPU, SuperHCPUClass,
+                     SUPERH_CPU, TYPE_SUPERH_CPU)
 
 /**
  * SuperHCPUClass:

@@ -26,16 +26,19 @@
 #define TYPE_PNV_LPC "pnv-lpc"
 typedef struct PnvLpcClass PnvLpcClass;
 typedef struct PnvLpcController PnvLpcController;
-#define PNV_LPC(obj) \
-     OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
+DECLARE_OBJ_CHECKERS(PnvLpcController, PnvLpcClass,
+                     PNV_LPC, TYPE_PNV_LPC)
 #define TYPE_PNV8_LPC TYPE_PNV_LPC "-POWER8"
-#define PNV8_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV8_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV8_LPC,
+                         TYPE_PNV8_LPC)
 
 #define TYPE_PNV9_LPC TYPE_PNV_LPC "-POWER9"
-#define PNV9_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV9_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV9_LPC,
+                         TYPE_PNV9_LPC)
 
 #define TYPE_PNV10_LPC TYPE_PNV_LPC "-POWER10"
-#define PNV10_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV10_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV10_LPC,
+                         TYPE_PNV10_LPC)
 
 struct PnvLpcController {
     DeviceState parent;
@@ -84,10 +87,6 @@ struct PnvLpcController {
     PnvPsi *psi;
 };
 
-#define PNV_LPC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvLpcClass, (klass), TYPE_PNV_LPC)
-#define PNV_LPC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvLpcClass, (obj), TYPE_PNV_LPC)
 
 struct PnvLpcClass {
     DeviceClass parent_class;

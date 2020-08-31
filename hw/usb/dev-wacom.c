@@ -56,7 +56,8 @@ struct USBWacomState {
 typedef struct USBWacomState USBWacomState;
 
 #define TYPE_USB_WACOM "usb-wacom-tablet"
-#define USB_WACOM(obj) OBJECT_CHECK(USBWacomState, (obj), TYPE_USB_WACOM)
+DECLARE_INSTANCE_CHECKER(USBWacomState, USB_WACOM,
+                         TYPE_USB_WACOM)
 
 enum {
     STR_MANUFACTURER = 1,

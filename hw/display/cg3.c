@@ -67,7 +67,8 @@
 
 #define TYPE_CG3 "cgthree"
 typedef struct CG3State CG3State;
-#define CG3(obj) OBJECT_CHECK(CG3State, (obj), TYPE_CG3)
+DECLARE_INSTANCE_CHECKER(CG3State, CG3,
+                         TYPE_CG3)
 
 struct CG3State {
     SysBusDevice parent_obj;

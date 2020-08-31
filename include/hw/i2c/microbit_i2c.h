@@ -28,8 +28,8 @@
 
 #define TYPE_MICROBIT_I2C "microbit.i2c"
 typedef struct MicrobitI2CState MicrobitI2CState;
-#define MICROBIT_I2C(obj) \
-    OBJECT_CHECK(MicrobitI2CState, (obj), TYPE_MICROBIT_I2C)
+DECLARE_INSTANCE_CHECKER(MicrobitI2CState, MICROBIT_I2C,
+                         TYPE_MICROBIT_I2C)
 
 #define MICROBIT_I2C_NREGS (NRF51_PERIPHERAL_SIZE / sizeof(uint32_t))
 

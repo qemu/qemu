@@ -18,8 +18,8 @@
 
 #define TYPE_VHOST_USER_VSOCK "vhost-user-vsock-device"
 typedef struct VHostUserVSock VHostUserVSock;
-#define VHOST_USER_VSOCK(obj) \
-        OBJECT_CHECK(VHostUserVSock, (obj), TYPE_VHOST_USER_VSOCK)
+DECLARE_INSTANCE_CHECKER(VHostUserVSock, VHOST_USER_VSOCK,
+                         TYPE_VHOST_USER_VSOCK)
 
 typedef struct {
     CharBackend chardev;

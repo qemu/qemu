@@ -41,8 +41,8 @@
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
 typedef struct ZynqMachineState ZynqMachineState;
-#define ZYNQ_MACHINE(obj) \
-    OBJECT_CHECK(ZynqMachineState, (obj), TYPE_ZYNQ_MACHINE)
+DECLARE_INSTANCE_CHECKER(ZynqMachineState, ZYNQ_MACHINE,
+                         TYPE_ZYNQ_MACHINE)
 
 /* board base frequency: 33.333333 MHz */
 #define PS_CLK_FREQUENCY (100 * 1000 * 1000 / 3)

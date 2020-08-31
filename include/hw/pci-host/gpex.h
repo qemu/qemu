@@ -27,13 +27,13 @@
 
 #define TYPE_GPEX_HOST "gpex-pcihost"
 typedef struct GPEXHost GPEXHost;
-#define GPEX_HOST(obj) \
-     OBJECT_CHECK(GPEXHost, (obj), TYPE_GPEX_HOST)
+DECLARE_INSTANCE_CHECKER(GPEXHost, GPEX_HOST,
+                         TYPE_GPEX_HOST)
 
 #define TYPE_GPEX_ROOT_DEVICE "gpex-root"
 typedef struct GPEXRootState GPEXRootState;
-#define MCH_PCI_DEVICE(obj) \
-     OBJECT_CHECK(GPEXRootState, (obj), TYPE_GPEX_ROOT_DEVICE)
+DECLARE_INSTANCE_CHECKER(GPEXRootState, MCH_PCI_DEVICE,
+                         TYPE_GPEX_ROOT_DEVICE)
 
 #define GPEX_NUM_IRQS 4
 

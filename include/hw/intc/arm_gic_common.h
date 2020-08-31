@@ -149,12 +149,8 @@ typedef struct GICState GICState;
 
 #define TYPE_ARM_GIC_COMMON "arm_gic_common"
 typedef struct ARMGICCommonClass ARMGICCommonClass;
-#define ARM_GIC_COMMON(obj) \
-     OBJECT_CHECK(GICState, (obj), TYPE_ARM_GIC_COMMON)
-#define ARM_GIC_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ARMGICCommonClass, (klass), TYPE_ARM_GIC_COMMON)
-#define ARM_GIC_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ARMGICCommonClass, (obj), TYPE_ARM_GIC_COMMON)
+DECLARE_OBJ_CHECKERS(GICState, ARMGICCommonClass,
+                     ARM_GIC_COMMON, TYPE_ARM_GIC_COMMON)
 
 struct ARMGICCommonClass {
     /*< private >*/

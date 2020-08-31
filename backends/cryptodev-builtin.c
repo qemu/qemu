@@ -37,9 +37,8 @@
 
 typedef struct CryptoDevBackendBuiltin
                          CryptoDevBackendBuiltin;
-#define CRYPTODEV_BACKEND_BUILTIN(obj) \
-    OBJECT_CHECK(CryptoDevBackendBuiltin, \
-                 (obj), TYPE_CRYPTODEV_BACKEND_BUILTIN)
+DECLARE_INSTANCE_CHECKER(CryptoDevBackendBuiltin, CRYPTODEV_BACKEND_BUILTIN,
+                         TYPE_CRYPTODEV_BACKEND_BUILTIN)
 
 
 typedef struct CryptoDevBackendBuiltinSession {

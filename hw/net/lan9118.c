@@ -182,7 +182,8 @@ static const VMStateDescription vmstate_lan9118_packet = {
 };
 
 typedef struct lan9118_state lan9118_state;
-#define LAN9118(obj) OBJECT_CHECK(lan9118_state, (obj), TYPE_LAN9118)
+DECLARE_INSTANCE_CHECKER(lan9118_state, LAN9118,
+                         TYPE_LAN9118)
 
 struct lan9118_state {
     SysBusDevice parent_obj;

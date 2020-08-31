@@ -141,7 +141,8 @@ typedef struct RxTxStats {
 
 #define TYPE_XGMAC "xgmac"
 typedef struct XgmacState XgmacState;
-#define XGMAC(obj) OBJECT_CHECK(XgmacState, (obj), TYPE_XGMAC)
+DECLARE_INSTANCE_CHECKER(XgmacState, XGMAC,
+                         TYPE_XGMAC)
 
 struct XgmacState {
     SysBusDevice parent_obj;

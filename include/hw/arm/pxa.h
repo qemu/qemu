@@ -89,7 +89,8 @@ void pxa2xx_lcd_vsync_notifier(PXA2xxLCDState *s, qemu_irq handler);
 /* pxa2xx_mmci.c */
 #define TYPE_PXA2XX_MMCI "pxa2xx-mmci"
 typedef struct PXA2xxMMCIState PXA2xxMMCIState;
-#define PXA2XX_MMCI(obj) OBJECT_CHECK(PXA2xxMMCIState, (obj), TYPE_PXA2XX_MMCI)
+DECLARE_INSTANCE_CHECKER(PXA2xxMMCIState, PXA2XX_MMCI,
+                         TYPE_PXA2XX_MMCI)
 
 PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
                 hwaddr base,
@@ -100,8 +101,8 @@ void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
 /* pxa2xx_pcmcia.c */
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 typedef struct PXA2xxPCMCIAState PXA2xxPCMCIAState;
-#define PXA2XX_PCMCIA(obj) \
-    OBJECT_CHECK(PXA2xxPCMCIAState, obj, TYPE_PXA2XX_PCMCIA)
+DECLARE_INSTANCE_CHECKER(PXA2xxPCMCIAState, PXA2XX_PCMCIA,
+                         TYPE_PXA2XX_PCMCIA)
 
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
                                       hwaddr base);
@@ -129,12 +130,13 @@ I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
 #define TYPE_PXA2XX_I2C "pxa2xx_i2c"
 typedef struct PXA2xxI2SState PXA2xxI2SState;
-#define PXA2XX_I2C(obj) \
-    OBJECT_CHECK(PXA2xxI2CState, (obj), TYPE_PXA2XX_I2C)
+DECLARE_INSTANCE_CHECKER(PXA2xxI2CState, PXA2XX_I2C,
+                         TYPE_PXA2XX_I2C)
 
 #define TYPE_PXA2XX_FIR "pxa2xx-fir"
 typedef struct PXA2xxFIrState PXA2xxFIrState;
-#define PXA2XX_FIR(obj) OBJECT_CHECK(PXA2xxFIrState, (obj), TYPE_PXA2XX_FIR)
+DECLARE_INSTANCE_CHECKER(PXA2xxFIrState, PXA2XX_FIR,
+                         TYPE_PXA2XX_FIR)
 
 typedef struct {
     ARMCPU *cpu;

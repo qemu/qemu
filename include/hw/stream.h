@@ -7,10 +7,8 @@
 #define TYPE_STREAM_SLAVE "stream-slave"
 
 typedef struct StreamSlaveClass StreamSlaveClass;
-#define STREAM_SLAVE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(StreamSlaveClass, (klass), TYPE_STREAM_SLAVE)
-#define STREAM_SLAVE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(StreamSlaveClass, (obj), TYPE_STREAM_SLAVE)
+DECLARE_CLASS_CHECKERS(StreamSlaveClass, STREAM_SLAVE,
+                       TYPE_STREAM_SLAVE)
 #define STREAM_SLAVE(obj) \
      INTERFACE_CHECK(StreamSlave, (obj), TYPE_STREAM_SLAVE)
 

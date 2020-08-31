@@ -93,8 +93,8 @@ struct PIIX4PMState {
 };
 typedef struct PIIX4PMState PIIX4PMState;
 
-#define PIIX4_PM(obj) \
-    OBJECT_CHECK(PIIX4PMState, (obj), TYPE_PIIX4_PM)
+DECLARE_INSTANCE_CHECKER(PIIX4PMState, PIIX4_PM,
+                         TYPE_PIIX4_PM)
 
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s);

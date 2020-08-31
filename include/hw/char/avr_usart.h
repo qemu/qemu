@@ -59,8 +59,8 @@
 
 #define TYPE_AVR_USART "avr-usart"
 typedef struct AVRUsartState AVRUsartState;
-#define AVR_USART(obj) \
-    OBJECT_CHECK(AVRUsartState, (obj), TYPE_AVR_USART)
+DECLARE_INSTANCE_CHECKER(AVRUsartState, AVR_USART,
+                         TYPE_AVR_USART)
 
 struct AVRUsartState {
     /* <private> */

@@ -101,12 +101,8 @@ typedef struct CPUTLGState {
 
 typedef struct TileGXCPU TileGXCPU;
 typedef struct TileGXCPUClass TileGXCPUClass;
-#define TILEGX_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(TileGXCPUClass, (klass), TYPE_TILEGX_CPU)
-#define TILEGX_CPU(obj) \
-    OBJECT_CHECK(TileGXCPU, (obj), TYPE_TILEGX_CPU)
-#define TILEGX_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(TileGXCPUClass, (obj), TYPE_TILEGX_CPU)
+DECLARE_OBJ_CHECKERS(TileGXCPU, TileGXCPUClass,
+                     TILEGX_CPU, TYPE_TILEGX_CPU)
 
 /**
  * TileGXCPUClass:

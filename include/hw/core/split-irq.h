@@ -44,7 +44,8 @@
 
 typedef struct SplitIRQ SplitIRQ;
 
-#define SPLIT_IRQ(obj) OBJECT_CHECK(SplitIRQ, (obj), TYPE_SPLIT_IRQ)
+DECLARE_INSTANCE_CHECKER(SplitIRQ, SPLIT_IRQ,
+                         TYPE_SPLIT_IRQ)
 
 struct SplitIRQ {
     DeviceState parent_obj;

@@ -31,12 +31,8 @@
 
 typedef struct SPARCCPU SPARCCPU;
 typedef struct SPARCCPUClass SPARCCPUClass;
-#define SPARC_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SPARCCPUClass, (klass), TYPE_SPARC_CPU)
-#define SPARC_CPU(obj) \
-    OBJECT_CHECK(SPARCCPU, (obj), TYPE_SPARC_CPU)
-#define SPARC_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SPARCCPUClass, (obj), TYPE_SPARC_CPU)
+DECLARE_OBJ_CHECKERS(SPARCCPU, SPARCCPUClass,
+                     SPARC_CPU, TYPE_SPARC_CPU)
 
 typedef struct sparc_def_t sparc_def_t;
 /**

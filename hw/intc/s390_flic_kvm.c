@@ -576,11 +576,9 @@ struct KVMS390FLICStateClass {
 };
 typedef struct KVMS390FLICStateClass KVMS390FLICStateClass;
 
-#define KVM_S390_FLIC_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(KVMS390FLICStateClass, (obj), TYPE_KVM_S390_FLIC)
+DECLARE_CLASS_CHECKERS(KVMS390FLICStateClass, KVM_S390_FLIC,
+                       TYPE_KVM_S390_FLIC)
 
-#define KVM_S390_FLIC_CLASS(klass) \
-    OBJECT_CLASS_CHECK(KVMS390FLICStateClass, (klass), TYPE_KVM_S390_FLIC)
 
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {

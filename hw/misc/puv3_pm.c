@@ -20,7 +20,8 @@
 
 #define TYPE_PUV3_PM "puv3_pm"
 typedef struct PUV3PMState PUV3PMState;
-#define PUV3_PM(obj) OBJECT_CHECK(PUV3PMState, (obj), TYPE_PUV3_PM)
+DECLARE_INSTANCE_CHECKER(PUV3PMState, PUV3_PM,
+                         TYPE_PUV3_PM)
 
 struct PUV3PMState {
     SysBusDevice parent_obj;

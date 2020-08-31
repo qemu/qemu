@@ -26,8 +26,8 @@
 
 #define TYPE_XLNX_VERSAL_VIRT_MACHINE MACHINE_TYPE_NAME("xlnx-versal-virt")
 typedef struct VersalVirt VersalVirt;
-#define XLNX_VERSAL_VIRT_MACHINE(obj) \
-    OBJECT_CHECK(VersalVirt, (obj), TYPE_XLNX_VERSAL_VIRT_MACHINE)
+DECLARE_INSTANCE_CHECKER(VersalVirt, XLNX_VERSAL_VIRT_MACHINE,
+                         TYPE_XLNX_VERSAL_VIRT_MACHINE)
 
 struct VersalVirt {
     MachineState parent_obj;

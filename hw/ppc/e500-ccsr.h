@@ -14,6 +14,7 @@ struct PPCE500CCSRState {
 typedef struct PPCE500CCSRState PPCE500CCSRState;
 
 #define TYPE_CCSR "e500-ccsr"
-#define CCSR(obj) OBJECT_CHECK(PPCE500CCSRState, (obj), TYPE_CCSR)
+DECLARE_INSTANCE_CHECKER(PPCE500CCSRState, CCSR,
+                         TYPE_CCSR)
 
 #endif /* E500_CCSR_H */

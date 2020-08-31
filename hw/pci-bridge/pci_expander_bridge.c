@@ -26,10 +26,12 @@
 
 #define TYPE_PXB_BUS "pxb-bus"
 typedef struct PXBBus PXBBus;
-#define PXB_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_BUS)
+DECLARE_INSTANCE_CHECKER(PXBBus, PXB_BUS,
+                         TYPE_PXB_BUS)
 
 #define TYPE_PXB_PCIE_BUS "pxb-pcie-bus"
-#define PXB_PCIE_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_PCIE_BUS)
+DECLARE_INSTANCE_CHECKER(PXBBus, PXB_PCIE_BUS,
+                         TYPE_PXB_PCIE_BUS)
 
 struct PXBBus {
     /*< private >*/
@@ -41,10 +43,12 @@ struct PXBBus {
 
 #define TYPE_PXB_DEVICE "pxb"
 typedef struct PXBDev PXBDev;
-#define PXB_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_DEVICE)
+DECLARE_INSTANCE_CHECKER(PXBDev, PXB_DEV,
+                         TYPE_PXB_DEVICE)
 
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
-#define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
+DECLARE_INSTANCE_CHECKER(PXBDev, PXB_PCIE_DEV,
+                         TYPE_PXB_PCIE_DEVICE)
 
 struct PXBDev {
     /*< private >*/

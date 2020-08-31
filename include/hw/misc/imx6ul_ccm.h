@@ -209,7 +209,8 @@
 
 #define TYPE_IMX6UL_CCM "imx6ul.ccm"
 typedef struct IMX6ULCCMState IMX6ULCCMState;
-#define IMX6UL_CCM(obj) OBJECT_CHECK(IMX6ULCCMState, (obj), TYPE_IMX6UL_CCM)
+DECLARE_INSTANCE_CHECKER(IMX6ULCCMState, IMX6UL_CCM,
+                         TYPE_IMX6UL_CCM)
 
 struct IMX6ULCCMState {
     /* <private> */

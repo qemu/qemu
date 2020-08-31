@@ -20,8 +20,8 @@
 #define TYPE_I440FX_PCI_DEVICE "i440FX"
 
 typedef struct PCII440FXState PCII440FXState;
-#define I440FX_PCI_DEVICE(obj) \
-    OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(PCII440FXState, I440FX_PCI_DEVICE,
+                         TYPE_I440FX_PCI_DEVICE)
 
 struct PCII440FXState {
     /*< private >*/

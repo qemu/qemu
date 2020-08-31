@@ -298,8 +298,8 @@ struct irte_ga {
 
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 typedef struct AMDVIState AMDVIState;
-#define AMD_IOMMU_DEVICE(obj)\
-    OBJECT_CHECK(AMDVIState, (obj), TYPE_AMD_IOMMU_DEVICE)
+DECLARE_INSTANCE_CHECKER(AMDVIState, AMD_IOMMU_DEVICE,
+                         TYPE_AMD_IOMMU_DEVICE)
 
 #define TYPE_AMD_IOMMU_PCI "AMDVI-PCI"
 

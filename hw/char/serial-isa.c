@@ -35,7 +35,8 @@
 #include "qom/object.h"
 
 typedef struct ISASerialState ISASerialState;
-#define ISA_SERIAL(obj) OBJECT_CHECK(ISASerialState, (obj), TYPE_ISA_SERIAL)
+DECLARE_INSTANCE_CHECKER(ISASerialState, ISA_SERIAL,
+                         TYPE_ISA_SERIAL)
 
 struct ISASerialState {
     ISADevice parent_obj;

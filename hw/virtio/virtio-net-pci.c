@@ -30,8 +30,8 @@ typedef struct VirtIONetPCI VirtIONetPCI;
  * virtio-net-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_NET_PCI "virtio-net-pci-base"
-#define VIRTIO_NET_PCI(obj) \
-        OBJECT_CHECK(VirtIONetPCI, (obj), TYPE_VIRTIO_NET_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIONetPCI, VIRTIO_NET_PCI,
+                         TYPE_VIRTIO_NET_PCI)
 
 struct VirtIONetPCI {
     VirtIOPCIProxy parent_obj;

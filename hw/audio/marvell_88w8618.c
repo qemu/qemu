@@ -44,8 +44,8 @@
 #define MP_AUDIO_MONO           (1 << 14)
 
 typedef struct mv88w8618_audio_state mv88w8618_audio_state;
-#define MV88W8618_AUDIO(obj) \
-    OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
+DECLARE_INSTANCE_CHECKER(mv88w8618_audio_state, MV88W8618_AUDIO,
+                         TYPE_MV88W8618_AUDIO)
 
 struct mv88w8618_audio_state {
     SysBusDevice parent_obj;

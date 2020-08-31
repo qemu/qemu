@@ -39,7 +39,8 @@
 #include "qom/object.h"
 #define TYPE_NRF51_RNG "nrf51_soc.rng"
 typedef struct NRF51RNGState NRF51RNGState;
-#define NRF51_RNG(obj) OBJECT_CHECK(NRF51RNGState, (obj), TYPE_NRF51_RNG)
+DECLARE_INSTANCE_CHECKER(NRF51RNGState, NRF51_RNG,
+                         TYPE_NRF51_RNG)
 
 #define NRF51_RNG_SIZE         0x1000
 

@@ -6,7 +6,8 @@
 
 #define TYPE_AW_A10_PIC  "allwinner-a10-pic"
 typedef struct AwA10PICState AwA10PICState;
-#define AW_A10_PIC(obj) OBJECT_CHECK(AwA10PICState, (obj), TYPE_AW_A10_PIC)
+DECLARE_INSTANCE_CHECKER(AwA10PICState, AW_A10_PIC,
+                         TYPE_AW_A10_PIC)
 
 #define AW_A10_PIC_VECTOR       0
 #define AW_A10_PIC_BASE_ADDR    4

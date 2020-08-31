@@ -583,8 +583,8 @@ static void idreg_init(hwaddr addr)
 }
 
 typedef struct IDRegState IDRegState;
-#define MACIO_ID_REGISTER(obj) \
-    OBJECT_CHECK(IDRegState, (obj), TYPE_MACIO_ID_REGISTER)
+DECLARE_INSTANCE_CHECKER(IDRegState, MACIO_ID_REGISTER,
+                         TYPE_MACIO_ID_REGISTER)
 
 struct IDRegState {
     SysBusDevice parent_obj;
@@ -626,7 +626,8 @@ static const TypeInfo idreg_info = {
 
 #define TYPE_TCX_AFX "tcx_afx"
 typedef struct AFXState AFXState;
-#define TCX_AFX(obj) OBJECT_CHECK(AFXState, (obj), TYPE_TCX_AFX)
+DECLARE_INSTANCE_CHECKER(AFXState, TCX_AFX,
+                         TYPE_TCX_AFX)
 
 struct AFXState {
     SysBusDevice parent_obj;
@@ -680,7 +681,8 @@ static const TypeInfo afx_info = {
 
 #define TYPE_OPENPROM "openprom"
 typedef struct PROMState PROMState;
-#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+DECLARE_INSTANCE_CHECKER(PROMState, OPENPROM,
+                         TYPE_OPENPROM)
 
 struct PROMState {
     SysBusDevice parent_obj;
@@ -769,7 +771,8 @@ static const TypeInfo prom_info = {
 
 #define TYPE_SUN4M_MEMORY "memory"
 typedef struct RamDevice RamDevice;
-#define SUN4M_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4M_MEMORY)
+DECLARE_INSTANCE_CHECKER(RamDevice, SUN4M_RAM,
+                         TYPE_SUN4M_MEMORY)
 
 struct RamDevice {
     SysBusDevice parent_obj;

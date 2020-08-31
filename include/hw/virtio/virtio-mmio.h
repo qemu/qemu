@@ -38,8 +38,8 @@
 /* virtio-mmio */
 #define TYPE_VIRTIO_MMIO "virtio-mmio"
 typedef struct VirtIOMMIOProxy VirtIOMMIOProxy;
-#define VIRTIO_MMIO(obj) \
-        OBJECT_CHECK(VirtIOMMIOProxy, (obj), TYPE_VIRTIO_MMIO)
+DECLARE_INSTANCE_CHECKER(VirtIOMMIOProxy, VIRTIO_MMIO,
+                         TYPE_VIRTIO_MMIO)
 
 #define VIRT_MAGIC 0x74726976 /* 'virt' */
 #define VIRT_VERSION 2

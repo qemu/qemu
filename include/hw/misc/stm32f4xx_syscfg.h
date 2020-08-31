@@ -39,8 +39,8 @@
 
 #define TYPE_STM32F4XX_SYSCFG "stm32f4xx-syscfg"
 typedef struct STM32F4xxSyscfgState STM32F4xxSyscfgState;
-#define STM32F4XX_SYSCFG(obj) \
-    OBJECT_CHECK(STM32F4xxSyscfgState, (obj), TYPE_STM32F4XX_SYSCFG)
+DECLARE_INSTANCE_CHECKER(STM32F4xxSyscfgState, STM32F4XX_SYSCFG,
+                         TYPE_STM32F4XX_SYSCFG)
 
 #define SYSCFG_NUM_EXTICR 4
 

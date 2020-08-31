@@ -86,8 +86,8 @@ typedef uint64_t vlan_bd_t;
 
 #define TYPE_VIO_SPAPR_VLAN_DEVICE "spapr-vlan"
 typedef struct SpaprVioVlan SpaprVioVlan;
-#define VIO_SPAPR_VLAN_DEVICE(obj) \
-     OBJECT_CHECK(SpaprVioVlan, (obj), TYPE_VIO_SPAPR_VLAN_DEVICE)
+DECLARE_INSTANCE_CHECKER(SpaprVioVlan, VIO_SPAPR_VLAN_DEVICE,
+                         TYPE_VIO_SPAPR_VLAN_DEVICE)
 
 #define RX_POOL_MAX_BDS 4096
 #define RX_MAX_POOLS 5

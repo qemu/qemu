@@ -53,8 +53,8 @@
 #define TYPE_PCI_PCNET "pcnet"
 
 typedef struct PCIPCNetState PCIPCNetState;
-#define PCI_PCNET(obj) \
-     OBJECT_CHECK(PCIPCNetState, (obj), TYPE_PCI_PCNET)
+DECLARE_INSTANCE_CHECKER(PCIPCNetState, PCI_PCNET,
+                         TYPE_PCI_PCNET)
 
 struct PCIPCNetState {
     /*< private >*/

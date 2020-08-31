@@ -23,7 +23,8 @@
 
 #define TYPE_PL011 "pl011"
 typedef struct PL011State PL011State;
-#define PL011(obj) OBJECT_CHECK(PL011State, (obj), TYPE_PL011)
+DECLARE_INSTANCE_CHECKER(PL011State, PL011,
+                         TYPE_PL011)
 
 /* This shares the same struct (and cast macro) as the base pl011 device */
 #define TYPE_PL011_LUMINARY "pl011_luminary"

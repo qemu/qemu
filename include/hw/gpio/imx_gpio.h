@@ -25,7 +25,8 @@
 
 #define TYPE_IMX_GPIO "imx.gpio"
 typedef struct IMXGPIOState IMXGPIOState;
-#define IMX_GPIO(obj) OBJECT_CHECK(IMXGPIOState, (obj), TYPE_IMX_GPIO)
+DECLARE_INSTANCE_CHECKER(IMXGPIOState, IMX_GPIO,
+                         TYPE_IMX_GPIO)
 
 #define IMX_GPIO_MEM_SIZE 0x20
 

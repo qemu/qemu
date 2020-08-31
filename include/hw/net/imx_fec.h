@@ -27,7 +27,8 @@
 
 #define TYPE_IMX_FEC "imx.fec"
 typedef struct IMXFECState IMXFECState;
-#define IMX_FEC(obj) OBJECT_CHECK(IMXFECState, (obj), TYPE_IMX_FEC)
+DECLARE_INSTANCE_CHECKER(IMXFECState, IMX_FEC,
+                         TYPE_IMX_FEC)
 
 #define TYPE_IMX_ENET "imx.enet"
 

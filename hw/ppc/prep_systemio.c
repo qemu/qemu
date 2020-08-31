@@ -37,8 +37,8 @@
 
 #define TYPE_PREP_SYSTEMIO "prep-systemio"
 typedef struct PrepSystemIoState PrepSystemIoState;
-#define PREP_SYSTEMIO(obj) \
-    OBJECT_CHECK(PrepSystemIoState, (obj), TYPE_PREP_SYSTEMIO)
+DECLARE_INSTANCE_CHECKER(PrepSystemIoState, PREP_SYSTEMIO,
+                         TYPE_PREP_SYSTEMIO)
 
 /* Bit as defined in PowerPC Reference Plaform v1.1, sect. 6.1.5, p. 132 */
 #define PREP_BIT(n) (1 << (7 - (n)))

@@ -31,7 +31,8 @@
 
 #define TYPE_PC87312_SUPERIO "pc87312"
 typedef struct PC87312State PC87312State;
-#define PC87312(obj) OBJECT_CHECK(PC87312State, (obj), TYPE_PC87312_SUPERIO)
+DECLARE_INSTANCE_CHECKER(PC87312State, PC87312,
+                         TYPE_PC87312_SUPERIO)
 
 struct PC87312State {
     /*< private >*/

@@ -72,10 +72,8 @@ struct RX62NClass {
 };
 typedef struct RX62NClass RX62NClass;
 
-#define RX62N_MCU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)
-#define RX62N_MCU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RX62NClass, (obj), TYPE_RX62N_MCU)
+DECLARE_CLASS_CHECKERS(RX62NClass, RX62N_MCU,
+                       TYPE_RX62N_MCU)
 
 /*
  * IRQ -> IPR mapping table

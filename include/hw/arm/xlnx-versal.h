@@ -24,7 +24,8 @@
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
 typedef struct Versal Versal;
-#define XLNX_VERSAL(obj) OBJECT_CHECK(Versal, (obj), TYPE_XLNX_VERSAL)
+DECLARE_INSTANCE_CHECKER(Versal, XLNX_VERSAL,
+                         TYPE_XLNX_VERSAL)
 
 #define XLNX_VERSAL_NR_ACPUS   2
 #define XLNX_VERSAL_NR_UARTS   2

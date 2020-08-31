@@ -21,14 +21,10 @@ typedef struct virtio_input_event virtio_input_event;
 #define TYPE_VIRTIO_INPUT "virtio-input-device"
 typedef struct VirtIOInput VirtIOInput;
 typedef struct VirtIOInputClass VirtIOInputClass;
-#define VIRTIO_INPUT(obj) \
-        OBJECT_CHECK(VirtIOInput, (obj), TYPE_VIRTIO_INPUT)
+DECLARE_OBJ_CHECKERS(VirtIOInput, VirtIOInputClass,
+                     VIRTIO_INPUT, TYPE_VIRTIO_INPUT)
 #define VIRTIO_INPUT_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT)
-#define VIRTIO_INPUT_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtIOInputClass, obj, TYPE_VIRTIO_INPUT)
-#define VIRTIO_INPUT_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtIOInputClass, klass, TYPE_VIRTIO_INPUT)
 
 #define TYPE_VIRTIO_INPUT_HID "virtio-input-hid-device"
 #define TYPE_VIRTIO_KEYBOARD  "virtio-keyboard-device"
@@ -36,22 +32,22 @@ typedef struct VirtIOInputClass VirtIOInputClass;
 #define TYPE_VIRTIO_TABLET    "virtio-tablet-device"
 
 typedef struct VirtIOInputHID VirtIOInputHID;
-#define VIRTIO_INPUT_HID(obj) \
-        OBJECT_CHECK(VirtIOInputHID, (obj), TYPE_VIRTIO_INPUT_HID)
+DECLARE_INSTANCE_CHECKER(VirtIOInputHID, VIRTIO_INPUT_HID,
+                         TYPE_VIRTIO_INPUT_HID)
 #define VIRTIO_INPUT_HID_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HID)
 
 #define TYPE_VIRTIO_INPUT_HOST   "virtio-input-host-device"
 typedef struct VirtIOInputHost VirtIOInputHost;
-#define VIRTIO_INPUT_HOST(obj) \
-        OBJECT_CHECK(VirtIOInputHost, (obj), TYPE_VIRTIO_INPUT_HOST)
+DECLARE_INSTANCE_CHECKER(VirtIOInputHost, VIRTIO_INPUT_HOST,
+                         TYPE_VIRTIO_INPUT_HOST)
 #define VIRTIO_INPUT_HOST_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HOST)
 
 #define TYPE_VHOST_USER_INPUT   "vhost-user-input"
 typedef struct VHostUserInput VHostUserInput;
-#define VHOST_USER_INPUT(obj)                              \
-    OBJECT_CHECK(VHostUserInput, (obj), TYPE_VHOST_USER_INPUT)
+DECLARE_INSTANCE_CHECKER(VHostUserInput, VHOST_USER_INPUT,
+                         TYPE_VHOST_USER_INPUT)
 #define VHOST_USER_INPUT_GET_PARENT_CLASS(obj)             \
     OBJECT_GET_PARENT_CLASS(obj, TYPE_VHOST_USER_INPUT)
 

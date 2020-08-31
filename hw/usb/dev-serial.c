@@ -113,7 +113,8 @@ struct USBSerialState {
 typedef struct USBSerialState USBSerialState;
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
-#define USB_SERIAL_DEV(obj) OBJECT_CHECK(USBSerialState, (obj), TYPE_USB_SERIAL)
+DECLARE_INSTANCE_CHECKER(USBSerialState, USB_SERIAL_DEV,
+                         TYPE_USB_SERIAL)
 
 enum {
     STR_MANUFACTURER = 1,

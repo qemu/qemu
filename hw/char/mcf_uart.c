@@ -38,7 +38,8 @@ struct mcf_uart_state {
 typedef struct mcf_uart_state mcf_uart_state;
 
 #define TYPE_MCF_UART "mcf-uart"
-#define MCF_UART(obj) OBJECT_CHECK(mcf_uart_state, (obj), TYPE_MCF_UART)
+DECLARE_INSTANCE_CHECKER(mcf_uart_state, MCF_UART,
+                         TYPE_MCF_UART)
 
 /* UART Status Register bits.  */
 #define MCF_UART_RxRDY  0x01

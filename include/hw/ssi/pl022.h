@@ -26,7 +26,8 @@
 
 #define TYPE_PL022 "pl022"
 typedef struct PL022State PL022State;
-#define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
+DECLARE_INSTANCE_CHECKER(PL022State, PL022,
+                         TYPE_PL022)
 
 struct PL022State {
     SysBusDevice parent_obj;

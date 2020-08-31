@@ -155,10 +155,8 @@ typedef struct XiveNotifier XiveNotifier;
 #define XIVE_NOTIFIER(obj)                                     \
     INTERFACE_CHECK(XiveNotifier, (obj), TYPE_XIVE_NOTIFIER)
 typedef struct XiveNotifierClass XiveNotifierClass;
-#define XIVE_NOTIFIER_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(XiveNotifierClass, (klass), TYPE_XIVE_NOTIFIER)
-#define XIVE_NOTIFIER_GET_CLASS(obj)                                   \
-    OBJECT_GET_CLASS(XiveNotifierClass, (obj), TYPE_XIVE_NOTIFIER)
+DECLARE_CLASS_CHECKERS(XiveNotifierClass, XIVE_NOTIFIER,
+                       TYPE_XIVE_NOTIFIER)
 
 struct XiveNotifierClass {
     InterfaceClass parent;
@@ -171,7 +169,8 @@ struct XiveNotifierClass {
 
 #define TYPE_XIVE_SOURCE "xive-source"
 typedef struct XiveSource XiveSource;
-#define XIVE_SOURCE(obj) OBJECT_CHECK(XiveSource, (obj), TYPE_XIVE_SOURCE)
+DECLARE_INSTANCE_CHECKER(XiveSource, XIVE_SOURCE,
+                         TYPE_XIVE_SOURCE)
 
 /*
  * XIVE Interrupt Source characteristics, which define how the ESB are
@@ -308,7 +307,8 @@ void xive_source_set_irq(void *opaque, int srcno, int val);
 
 #define TYPE_XIVE_TCTX "xive-tctx"
 typedef struct XiveTCTX XiveTCTX;
-#define XIVE_TCTX(obj) OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX)
+DECLARE_INSTANCE_CHECKER(XiveTCTX, XIVE_TCTX,
+                         TYPE_XIVE_TCTX)
 
 /*
  * XIVE Thread interrupt Management register rings :
@@ -349,12 +349,8 @@ typedef struct XiveRouter XiveRouter;
 
 #define TYPE_XIVE_ROUTER "xive-router"
 typedef struct XiveRouterClass XiveRouterClass;
-#define XIVE_ROUTER(obj)                                \
-    OBJECT_CHECK(XiveRouter, (obj), TYPE_XIVE_ROUTER)
-#define XIVE_ROUTER_CLASS(klass)                                        \
-    OBJECT_CLASS_CHECK(XiveRouterClass, (klass), TYPE_XIVE_ROUTER)
-#define XIVE_ROUTER_GET_CLASS(obj)                              \
-    OBJECT_GET_CLASS(XiveRouterClass, (obj), TYPE_XIVE_ROUTER)
+DECLARE_OBJ_CHECKERS(XiveRouter, XiveRouterClass,
+                     XIVE_ROUTER, TYPE_XIVE_ROUTER)
 
 struct XiveRouterClass {
     SysBusDeviceClass parent;
@@ -398,10 +394,8 @@ typedef struct XiveTCTXMatch {
 #define XIVE_PRESENTER(obj)                                     \
     INTERFACE_CHECK(XivePresenter, (obj), TYPE_XIVE_PRESENTER)
 typedef struct XivePresenterClass XivePresenterClass;
-#define XIVE_PRESENTER_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(XivePresenterClass, (klass), TYPE_XIVE_PRESENTER)
-#define XIVE_PRESENTER_GET_CLASS(obj)                                   \
-    OBJECT_GET_CLASS(XivePresenterClass, (obj), TYPE_XIVE_PRESENTER)
+DECLARE_CLASS_CHECKERS(XivePresenterClass, XIVE_PRESENTER,
+                       TYPE_XIVE_PRESENTER)
 
 struct XivePresenterClass {
     InterfaceClass parent;
@@ -425,10 +419,8 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 #define XIVE_FABRIC(obj)                                     \
     INTERFACE_CHECK(XiveFabric, (obj), TYPE_XIVE_FABRIC)
 typedef struct XiveFabricClass XiveFabricClass;
-#define XIVE_FABRIC_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(XiveFabricClass, (klass), TYPE_XIVE_FABRIC)
-#define XIVE_FABRIC_GET_CLASS(obj)                                   \
-    OBJECT_GET_CLASS(XiveFabricClass, (obj), TYPE_XIVE_FABRIC)
+DECLARE_CLASS_CHECKERS(XiveFabricClass, XIVE_FABRIC,
+                       TYPE_XIVE_FABRIC)
 
 struct XiveFabricClass {
     InterfaceClass parent;
@@ -444,8 +436,8 @@ struct XiveFabricClass {
 
 #define TYPE_XIVE_END_SOURCE "xive-end-source"
 typedef struct XiveENDSource XiveENDSource;
-#define XIVE_END_SOURCE(obj) \
-    OBJECT_CHECK(XiveENDSource, (obj), TYPE_XIVE_END_SOURCE)
+DECLARE_INSTANCE_CHECKER(XiveENDSource, XIVE_END_SOURCE,
+                         TYPE_XIVE_END_SOURCE)
 
 struct XiveENDSource {
     DeviceState parent;

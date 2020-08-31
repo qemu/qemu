@@ -24,8 +24,8 @@ typedef struct VirtIOIOMMUPCI VirtIOIOMMUPCI;
  * virtio-iommu-pci: This extends VirtioPCIProxy.
  *
  */
-#define VIRTIO_IOMMU_PCI(obj) \
-        OBJECT_CHECK(VirtIOIOMMUPCI, (obj), TYPE_VIRTIO_IOMMU_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOIOMMUPCI, VIRTIO_IOMMU_PCI,
+                         TYPE_VIRTIO_IOMMU_PCI)
 
 struct VirtIOIOMMUPCI {
     VirtIOPCIProxy parent_obj;

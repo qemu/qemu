@@ -26,11 +26,14 @@
 #define TYPE_PNV_OCC "pnv-occ"
 typedef struct PnvOCC PnvOCC;
 typedef struct PnvOCCClass PnvOCCClass;
-#define PNV_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV_OCC)
+DECLARE_OBJ_CHECKERS(PnvOCC, PnvOCCClass,
+                     PNV_OCC, TYPE_PNV_OCC)
 #define TYPE_PNV8_OCC TYPE_PNV_OCC "-POWER8"
-#define PNV8_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV8_OCC)
+DECLARE_INSTANCE_CHECKER(PnvOCC, PNV8_OCC,
+                         TYPE_PNV8_OCC)
 #define TYPE_PNV9_OCC TYPE_PNV_OCC "-POWER9"
-#define PNV9_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV9_OCC)
+DECLARE_INSTANCE_CHECKER(PnvOCC, PNV9_OCC,
+                         TYPE_PNV9_OCC)
 
 #define PNV_OCC_SENSOR_DATA_BLOCK_OFFSET 0x00580000
 #define PNV_OCC_SENSOR_DATA_BLOCK_SIZE   0x00025800
@@ -47,10 +50,6 @@ struct PnvOCC {
     MemoryRegion sram_regs;
 };
 
-#define PNV_OCC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvOCCClass, (klass), TYPE_PNV_OCC)
-#define PNV_OCC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvOCCClass, (obj), TYPE_PNV_OCC)
 
 struct PnvOCCClass {
     DeviceClass parent_class;

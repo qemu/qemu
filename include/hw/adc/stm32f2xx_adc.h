@@ -60,8 +60,8 @@
 
 #define TYPE_STM32F2XX_ADC "stm32f2xx-adc"
 typedef struct STM32F2XXADCState STM32F2XXADCState;
-#define STM32F2XX_ADC(obj) \
-    OBJECT_CHECK(STM32F2XXADCState, (obj), TYPE_STM32F2XX_ADC)
+DECLARE_INSTANCE_CHECKER(STM32F2XXADCState, STM32F2XX_ADC,
+                         TYPE_STM32F2XX_ADC)
 
 struct STM32F2XXADCState {
     /* <private> */

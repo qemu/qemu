@@ -39,8 +39,8 @@ struct Terminal3270 {
 typedef struct Terminal3270 Terminal3270;
 
 #define TYPE_TERMINAL_3270 "x-terminal3270"
-#define TERMINAL_3270(obj) \
-        OBJECT_CHECK(Terminal3270, (obj), TYPE_TERMINAL_3270)
+DECLARE_INSTANCE_CHECKER(Terminal3270, TERMINAL_3270,
+                         TYPE_TERMINAL_3270)
 
 static int terminal_can_read(void *opaque)
 {

@@ -31,12 +31,8 @@ struct OpenRISCCPU;
 
 typedef struct OpenRISCCPU OpenRISCCPU;
 typedef struct OpenRISCCPUClass OpenRISCCPUClass;
-#define OPENRISC_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(OpenRISCCPUClass, (klass), TYPE_OPENRISC_CPU)
-#define OPENRISC_CPU(obj) \
-    OBJECT_CHECK(OpenRISCCPU, (obj), TYPE_OPENRISC_CPU)
-#define OPENRISC_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(OpenRISCCPUClass, (obj), TYPE_OPENRISC_CPU)
+DECLARE_OBJ_CHECKERS(OpenRISCCPU, OpenRISCCPUClass,
+                     OPENRISC_CPU, TYPE_OPENRISC_CPU)
 
 /**
  * OpenRISCCPUClass:

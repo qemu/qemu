@@ -15,8 +15,8 @@
 
 #define TYPE_BCM2835_RNG "bcm2835-rng"
 typedef struct BCM2835RngState BCM2835RngState;
-#define BCM2835_RNG(obj) \
-        OBJECT_CHECK(BCM2835RngState, (obj), TYPE_BCM2835_RNG)
+DECLARE_INSTANCE_CHECKER(BCM2835RngState, BCM2835_RNG,
+                         TYPE_BCM2835_RNG)
 
 struct BCM2835RngState {
     SysBusDevice busdev;

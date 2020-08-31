@@ -53,13 +53,9 @@ struct RaspiMachineClass {
 typedef struct RaspiMachineClass RaspiMachineClass;
 
 #define TYPE_RASPI_MACHINE       MACHINE_TYPE_NAME("raspi-common")
-#define RASPI_MACHINE(obj) \
-    OBJECT_CHECK(RaspiMachineState, (obj), TYPE_RASPI_MACHINE)
+DECLARE_OBJ_CHECKERS(RaspiMachineState, RaspiMachineClass,
+                     RASPI_MACHINE, TYPE_RASPI_MACHINE)
 
-#define RASPI_MACHINE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(RaspiMachineClass, (klass), TYPE_RASPI_MACHINE)
-#define RASPI_MACHINE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(RaspiMachineClass, (obj), TYPE_RASPI_MACHINE)
 
 /*
  * Board revision codes:

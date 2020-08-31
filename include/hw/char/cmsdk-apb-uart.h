@@ -19,8 +19,8 @@
 
 #define TYPE_CMSDK_APB_UART "cmsdk-apb-uart"
 typedef struct CMSDKAPBUART CMSDKAPBUART;
-#define CMSDK_APB_UART(obj) OBJECT_CHECK(CMSDKAPBUART, (obj), \
-                                         TYPE_CMSDK_APB_UART)
+DECLARE_INSTANCE_CHECKER(CMSDKAPBUART, CMSDK_APB_UART,
+                         TYPE_CMSDK_APB_UART)
 
 struct CMSDKAPBUART {
     /*< private >*/

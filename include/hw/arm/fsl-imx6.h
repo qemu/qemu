@@ -38,7 +38,8 @@
 
 #define TYPE_FSL_IMX6 "fsl,imx6"
 typedef struct FslIMX6State FslIMX6State;
-#define FSL_IMX6(obj) OBJECT_CHECK(FslIMX6State, (obj), TYPE_FSL_IMX6)
+DECLARE_INSTANCE_CHECKER(FslIMX6State, FSL_IMX6,
+                         TYPE_FSL_IMX6)
 
 #define FSL_IMX6_NUM_CPUS 4
 #define FSL_IMX6_NUM_UARTS 5

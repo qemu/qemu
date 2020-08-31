@@ -32,8 +32,8 @@
 
 #define TYPE_SEV_GUEST "sev-guest"
 typedef struct SevGuestState SevGuestState;
-#define SEV_GUEST(obj)                                          \
-    OBJECT_CHECK(SevGuestState, (obj), TYPE_SEV_GUEST)
+DECLARE_INSTANCE_CHECKER(SevGuestState, SEV_GUEST,
+                         TYPE_SEV_GUEST)
 
 
 /**

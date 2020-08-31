@@ -227,11 +227,8 @@ int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
 #define TYPE_CHARDEV "chardev"
 typedef struct ChardevClass ChardevClass;
-#define CHARDEV(obj) OBJECT_CHECK(Chardev, (obj), TYPE_CHARDEV)
-#define CHARDEV_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ChardevClass, (klass), TYPE_CHARDEV)
-#define CHARDEV_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ChardevClass, (obj), TYPE_CHARDEV)
+DECLARE_OBJ_CHECKERS(Chardev, ChardevClass,
+                     CHARDEV, TYPE_CHARDEV)
 
 #define TYPE_CHARDEV_NULL "chardev-null"
 #define TYPE_CHARDEV_MUX "chardev-mux"

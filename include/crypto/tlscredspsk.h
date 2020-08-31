@@ -26,8 +26,8 @@
 
 #define TYPE_QCRYPTO_TLS_CREDS_PSK "tls-creds-psk"
 typedef struct QCryptoTLSCredsPSK QCryptoTLSCredsPSK;
-#define QCRYPTO_TLS_CREDS_PSK(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCredsPSK, (obj), TYPE_QCRYPTO_TLS_CREDS_PSK)
+DECLARE_INSTANCE_CHECKER(QCryptoTLSCredsPSK, QCRYPTO_TLS_CREDS_PSK,
+                         TYPE_QCRYPTO_TLS_CREDS_PSK)
 
 typedef struct QCryptoTLSCredsPSKClass QCryptoTLSCredsPSKClass;
 

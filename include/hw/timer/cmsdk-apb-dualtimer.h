@@ -32,8 +32,8 @@
 
 #define TYPE_CMSDK_APB_DUALTIMER "cmsdk-apb-dualtimer"
 typedef struct CMSDKAPBDualTimer CMSDKAPBDualTimer;
-#define CMSDK_APB_DUALTIMER(obj) OBJECT_CHECK(CMSDKAPBDualTimer, (obj), \
-                                              TYPE_CMSDK_APB_DUALTIMER)
+DECLARE_INSTANCE_CHECKER(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER,
+                         TYPE_CMSDK_APB_DUALTIMER)
 
 
 /* One of the two identical timer modules in the dual-timer module */

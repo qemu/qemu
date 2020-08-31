@@ -18,11 +18,9 @@
 
 typedef struct S390CcwMachineClass S390CcwMachineClass;
 typedef struct S390CcwMachineState S390CcwMachineState;
-#define S390_CCW_MACHINE(obj) \
-    OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
+DECLARE_OBJ_CHECKERS(S390CcwMachineState, S390CcwMachineClass,
+                     S390_CCW_MACHINE, TYPE_S390_CCW_MACHINE)
 
-#define S390_CCW_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390CcwMachineClass, (klass), TYPE_S390_CCW_MACHINE)
 
 struct S390CcwMachineState {
     /*< private >*/

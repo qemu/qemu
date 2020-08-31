@@ -39,15 +39,8 @@
 
 typedef struct CryptoDevBackend CryptoDevBackend;
 typedef struct CryptoDevBackendClass CryptoDevBackendClass;
-#define CRYPTODEV_BACKEND(obj) \
-    OBJECT_CHECK(CryptoDevBackend, \
-                 (obj), TYPE_CRYPTODEV_BACKEND)
-#define CRYPTODEV_BACKEND_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(CryptoDevBackendClass, \
-                 (obj), TYPE_CRYPTODEV_BACKEND)
-#define CRYPTODEV_BACKEND_CLASS(klass) \
-    OBJECT_CLASS_CHECK(CryptoDevBackendClass, \
-                (klass), TYPE_CRYPTODEV_BACKEND)
+DECLARE_OBJ_CHECKERS(CryptoDevBackend, CryptoDevBackendClass,
+                     CRYPTODEV_BACKEND, TYPE_CRYPTODEV_BACKEND)
 
 
 #define MAX_CRYPTO_QUEUE_NUM  64

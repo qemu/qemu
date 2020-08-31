@@ -38,8 +38,8 @@ struct VFIOAPDevice {
 };
 typedef struct VFIOAPDevice VFIOAPDevice;
 
-#define VFIO_AP_DEVICE(obj) \
-        OBJECT_CHECK(VFIOAPDevice, (obj), VFIO_AP_DEVICE_TYPE)
+DECLARE_INSTANCE_CHECKER(VFIOAPDevice, VFIO_AP_DEVICE,
+                         VFIO_AP_DEVICE_TYPE)
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {

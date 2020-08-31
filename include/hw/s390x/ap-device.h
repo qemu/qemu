@@ -21,7 +21,7 @@ struct APDevice {
 };
 typedef struct APDevice APDevice;
 
-#define AP_DEVICE(obj) \
-    OBJECT_CHECK(APDevice, (obj), AP_DEVICE_TYPE)
+DECLARE_INSTANCE_CHECKER(APDevice, AP_DEVICE,
+                         AP_DEVICE_TYPE)
 
 #endif /* HW_S390X_AP_DEVICE_H */

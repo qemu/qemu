@@ -31,7 +31,8 @@
 
 #define TYPE_HEATHROW "heathrow"
 typedef struct HeathrowState HeathrowState;
-#define HEATHROW(obj) OBJECT_CHECK(HeathrowState, (obj), TYPE_HEATHROW)
+DECLARE_INSTANCE_CHECKER(HeathrowState, HEATHROW,
+                         TYPE_HEATHROW)
 
 typedef struct HeathrowPICState {
     uint32_t events;

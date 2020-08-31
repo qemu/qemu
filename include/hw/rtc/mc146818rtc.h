@@ -17,7 +17,8 @@
 
 #define TYPE_MC146818_RTC "mc146818rtc"
 typedef struct RTCState RTCState;
-#define MC146818_RTC(obj) OBJECT_CHECK(RTCState, (obj), TYPE_MC146818_RTC)
+DECLARE_INSTANCE_CHECKER(RTCState, MC146818_RTC,
+                         TYPE_MC146818_RTC)
 
 struct RTCState {
     ISADevice parent_obj;

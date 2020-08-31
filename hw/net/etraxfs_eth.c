@@ -325,8 +325,8 @@ static void mdio_cycle(struct qemu_mdio *bus)
 
 #define TYPE_ETRAX_FS_ETH "etraxfs-eth"
 typedef struct ETRAXFSEthState ETRAXFSEthState;
-#define ETRAX_FS_ETH(obj) \
-    OBJECT_CHECK(ETRAXFSEthState, (obj), TYPE_ETRAX_FS_ETH)
+DECLARE_INSTANCE_CHECKER(ETRAXFSEthState, ETRAX_FS_ETH,
+                         TYPE_ETRAX_FS_ETH)
 
 struct ETRAXFSEthState {
     SysBusDevice parent_obj;

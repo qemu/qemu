@@ -57,7 +57,8 @@
 
 #define TYPE_IMX_EPIT "imx.epit"
 typedef struct IMXEPITState IMXEPITState;
-#define IMX_EPIT(obj) OBJECT_CHECK(IMXEPITState, (obj), TYPE_IMX_EPIT)
+DECLARE_INSTANCE_CHECKER(IMXEPITState, IMX_EPIT,
+                         TYPE_IMX_EPIT)
 
 struct IMXEPITState {
     /*< private >*/

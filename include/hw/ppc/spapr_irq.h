@@ -37,10 +37,8 @@ typedef struct SpaprInterruptController SpaprInterruptController;
 #define SPAPR_INTC(obj)                                     \
     INTERFACE_CHECK(SpaprInterruptController, (obj), TYPE_SPAPR_INTC)
 typedef struct SpaprInterruptControllerClass SpaprInterruptControllerClass;
-#define SPAPR_INTC_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(SpaprInterruptControllerClass, (klass), TYPE_SPAPR_INTC)
-#define SPAPR_INTC_GET_CLASS(obj)                                   \
-    OBJECT_GET_CLASS(SpaprInterruptControllerClass, (obj), TYPE_SPAPR_INTC)
+DECLARE_CLASS_CHECKERS(SpaprInterruptControllerClass, SPAPR_INTC,
+                       TYPE_SPAPR_INTC)
 
 struct SpaprInterruptControllerClass {
     InterfaceClass parent;

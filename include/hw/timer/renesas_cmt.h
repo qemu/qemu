@@ -15,7 +15,8 @@
 
 #define TYPE_RENESAS_CMT "renesas-cmt"
 typedef struct RCMTState RCMTState;
-#define RCMT(obj) OBJECT_CHECK(RCMTState, (obj), TYPE_RENESAS_CMT)
+DECLARE_INSTANCE_CHECKER(RCMTState, RCMT,
+                         TYPE_RENESAS_CMT)
 
 enum {
     CMT_CH = 2,

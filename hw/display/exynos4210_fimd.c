@@ -295,8 +295,8 @@ struct Exynos4210fimdWindow {
 
 #define TYPE_EXYNOS4210_FIMD "exynos4210.fimd"
 typedef struct Exynos4210fimdState Exynos4210fimdState;
-#define EXYNOS4210_FIMD(obj) \
-    OBJECT_CHECK(Exynos4210fimdState, (obj), TYPE_EXYNOS4210_FIMD)
+DECLARE_INSTANCE_CHECKER(Exynos4210fimdState, EXYNOS4210_FIMD,
+                         TYPE_EXYNOS4210_FIMD)
 
 struct Exynos4210fimdState {
     SysBusDevice parent_obj;

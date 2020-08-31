@@ -281,12 +281,8 @@ GICV3_BITMAP_ACCESSORS(edge_trigger)
 
 #define TYPE_ARM_GICV3_COMMON "arm-gicv3-common"
 typedef struct ARMGICv3CommonClass ARMGICv3CommonClass;
-#define ARM_GICV3_COMMON(obj) \
-     OBJECT_CHECK(GICv3State, (obj), TYPE_ARM_GICV3_COMMON)
-#define ARM_GICV3_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ARMGICv3CommonClass, (klass), TYPE_ARM_GICV3_COMMON)
-#define ARM_GICV3_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ARMGICv3CommonClass, (obj), TYPE_ARM_GICV3_COMMON)
+DECLARE_OBJ_CHECKERS(GICv3State, ARMGICv3CommonClass,
+                     ARM_GICV3_COMMON, TYPE_ARM_GICV3_COMMON)
 
 struct ARMGICv3CommonClass {
     /*< private >*/

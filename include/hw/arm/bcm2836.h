@@ -20,7 +20,8 @@
 #define TYPE_BCM283X "bcm283x"
 typedef struct BCM283XClass BCM283XClass;
 typedef struct BCM283XState BCM283XState;
-#define BCM283X(obj) OBJECT_CHECK(BCM283XState, (obj), TYPE_BCM283X)
+DECLARE_OBJ_CHECKERS(BCM283XState, BCM283XClass,
+                     BCM283X, TYPE_BCM283X)
 
 #define BCM283X_NCPUS 4
 
@@ -52,9 +53,5 @@ struct BCM283XClass {
     const BCM283XInfo *info;
 };
 
-#define BCM283X_CLASS(klass) \
-    OBJECT_CLASS_CHECK(BCM283XClass, (klass), TYPE_BCM283X)
-#define BCM283X_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(BCM283XClass, (obj), TYPE_BCM283X)
 
 #endif /* BCM2836_H */

@@ -30,8 +30,8 @@ typedef struct VHostSCSIPCI VHostSCSIPCI;
  * vhost-scsi-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VHOST_SCSI_PCI "vhost-scsi-pci-base"
-#define VHOST_SCSI_PCI(obj) \
-        OBJECT_CHECK(VHostSCSIPCI, (obj), TYPE_VHOST_SCSI_PCI)
+DECLARE_INSTANCE_CHECKER(VHostSCSIPCI, VHOST_SCSI_PCI,
+                         TYPE_VHOST_SCSI_PCI)
 
 struct VHostSCSIPCI {
     VirtIOPCIProxy parent_obj;

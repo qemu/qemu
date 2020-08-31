@@ -488,7 +488,8 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 
 #define TYPE_G364 "sysbus-g364"
 typedef struct G364SysBusState G364SysBusState;
-#define G364(obj) OBJECT_CHECK(G364SysBusState, (obj), TYPE_G364)
+DECLARE_INSTANCE_CHECKER(G364SysBusState, G364,
+                         TYPE_G364)
 
 struct G364SysBusState {
     SysBusDevice parent_obj;

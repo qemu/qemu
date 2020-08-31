@@ -41,7 +41,8 @@ typedef struct BMDMAState {
 
 #define TYPE_PCI_IDE "pci-ide"
 typedef struct PCIIDEState PCIIDEState;
-#define PCI_IDE(obj) OBJECT_CHECK(PCIIDEState, (obj), TYPE_PCI_IDE)
+DECLARE_INSTANCE_CHECKER(PCIIDEState, PCI_IDE,
+                         TYPE_PCI_IDE)
 
 struct PCIIDEState {
     /*< private >*/

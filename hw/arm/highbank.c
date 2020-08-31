@@ -157,8 +157,8 @@ static const MemoryRegionOps hb_mem_ops = {
 
 #define TYPE_HIGHBANK_REGISTERS "highbank-regs"
 typedef struct HighbankRegsState HighbankRegsState;
-#define HIGHBANK_REGISTERS(obj) \
-    OBJECT_CHECK(HighbankRegsState, (obj), TYPE_HIGHBANK_REGISTERS)
+DECLARE_INSTANCE_CHECKER(HighbankRegsState, HIGHBANK_REGISTERS,
+                         TYPE_HIGHBANK_REGISTERS)
 
 struct HighbankRegsState {
     /*< private >*/

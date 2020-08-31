@@ -31,8 +31,8 @@
 #include "qom/object.h"
 
 typedef struct ICH9SMBState ICH9SMBState;
-#define ICH9_SMB_DEVICE(obj) \
-     OBJECT_CHECK(ICH9SMBState, (obj), TYPE_ICH9_SMB_DEVICE)
+DECLARE_INSTANCE_CHECKER(ICH9SMBState, ICH9_SMB_DEVICE,
+                         TYPE_ICH9_SMB_DEVICE)
 
 struct ICH9SMBState {
     PCIDevice dev;

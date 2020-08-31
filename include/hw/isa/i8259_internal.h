@@ -34,12 +34,8 @@ typedef struct PICCommonState PICCommonState;
 
 #define TYPE_PIC_COMMON "pic-common"
 typedef struct PICCommonClass PICCommonClass;
-#define PIC_COMMON(obj) \
-     OBJECT_CHECK(PICCommonState, (obj), TYPE_PIC_COMMON)
-#define PIC_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PICCommonClass, (klass), TYPE_PIC_COMMON)
-#define PIC_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PICCommonClass, (obj), TYPE_PIC_COMMON)
+DECLARE_OBJ_CHECKERS(PICCommonState, PICCommonClass,
+                     PIC_COMMON, TYPE_PIC_COMMON)
 
 struct PICCommonClass {
     ISADeviceClass parent_class;

@@ -18,7 +18,8 @@
 
 #define TYPE_PL050 "pl050"
 typedef struct PL050State PL050State;
-#define PL050(obj) OBJECT_CHECK(PL050State, (obj), TYPE_PL050)
+DECLARE_INSTANCE_CHECKER(PL050State, PL050,
+                         TYPE_PL050)
 
 struct PL050State {
     SysBusDevice parent_obj;

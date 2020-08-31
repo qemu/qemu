@@ -72,6 +72,7 @@ struct RXICUState {
 typedef struct RXICUState RXICUState;
 
 #define TYPE_RX_ICU "rx-icu"
-#define RX_ICU(obj) OBJECT_CHECK(RXICUState, (obj), TYPE_RX_ICU)
+DECLARE_INSTANCE_CHECKER(RXICUState, RX_ICU,
+                         TYPE_RX_ICU)
 
 #endif /* RX_ICU_H */

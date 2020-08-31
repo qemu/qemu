@@ -98,8 +98,8 @@ struct SBSAMachineState {
 typedef struct SBSAMachineState SBSAMachineState;
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
-#define SBSA_MACHINE(obj) \
-    OBJECT_CHECK(SBSAMachineState, (obj), TYPE_SBSA_MACHINE)
+DECLARE_INSTANCE_CHECKER(SBSAMachineState, SBSA_MACHINE,
+                         TYPE_SBSA_MACHINE)
 
 static const MemMapEntry sbsa_ref_memmap[] = {
     /* 512M boot ROM */

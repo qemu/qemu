@@ -74,7 +74,8 @@
 
 #define TYPE_IMX31_CCM "imx31.ccm"
 typedef struct IMX31CCMState IMX31CCMState;
-#define IMX31_CCM(obj) OBJECT_CHECK(IMX31CCMState, (obj), TYPE_IMX31_CCM)
+DECLARE_INSTANCE_CHECKER(IMX31CCMState, IMX31_CCM,
+                         TYPE_IMX31_CCM)
 
 struct IMX31CCMState {
     /* <private> */

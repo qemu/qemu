@@ -101,7 +101,8 @@ struct PVRDMADev {
     PVRDMADevStats stats;
 };
 typedef struct PVRDMADev PVRDMADev;
-#define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
+DECLARE_INSTANCE_CHECKER(PVRDMADev, PVRDMA_DEV,
+                         PVRDMA_HW_NAME)
 
 static inline int get_reg_val(PVRDMADev *dev, hwaddr addr, uint32_t *val)
 {

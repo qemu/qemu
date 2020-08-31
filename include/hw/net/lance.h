@@ -36,8 +36,8 @@
 
 #define TYPE_LANCE "lance"
 typedef struct SysBusPCNetState SysBusPCNetState;
-#define SYSBUS_PCNET(obj) \
-    OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
+DECLARE_INSTANCE_CHECKER(SysBusPCNetState, SYSBUS_PCNET,
+                         TYPE_LANCE)
 
 struct SysBusPCNetState {
     SysBusDevice parent_obj;

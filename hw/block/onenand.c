@@ -41,7 +41,8 @@
 
 #define TYPE_ONE_NAND "onenand"
 typedef struct OneNANDState OneNANDState;
-#define ONE_NAND(obj) OBJECT_CHECK(OneNANDState, (obj), TYPE_ONE_NAND)
+DECLARE_INSTANCE_CHECKER(OneNANDState, ONE_NAND,
+                         TYPE_ONE_NAND)
 
 struct OneNANDState {
     SysBusDevice parent_obj;

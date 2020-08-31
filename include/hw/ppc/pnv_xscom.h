@@ -28,11 +28,8 @@ typedef struct PnvXScomInterface PnvXScomInterface;
 #define PNV_XSCOM_INTERFACE(obj) \
     INTERFACE_CHECK(PnvXScomInterface, (obj), TYPE_PNV_XSCOM_INTERFACE)
 typedef struct PnvXScomInterfaceClass PnvXScomInterfaceClass;
-#define PNV_XSCOM_INTERFACE_CLASS(klass)                \
-    OBJECT_CLASS_CHECK(PnvXScomInterfaceClass, (klass), \
+DECLARE_CLASS_CHECKERS(PnvXScomInterfaceClass, PNV_XSCOM_INTERFACE,
                        TYPE_PNV_XSCOM_INTERFACE)
-#define PNV_XSCOM_INTERFACE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvXScomInterfaceClass, (obj), TYPE_PNV_XSCOM_INTERFACE)
 
 struct PnvXScomInterfaceClass {
     InterfaceClass parent;

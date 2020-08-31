@@ -50,8 +50,8 @@
 
 #define TYPE_ETRAX_FS_TIMER "etraxfs,timer"
 typedef struct ETRAXTimerState ETRAXTimerState;
-#define ETRAX_TIMER(obj) \
-    OBJECT_CHECK(ETRAXTimerState, (obj), TYPE_ETRAX_FS_TIMER)
+DECLARE_INSTANCE_CHECKER(ETRAXTimerState, ETRAX_TIMER,
+                         TYPE_ETRAX_FS_TIMER)
 
 struct ETRAXTimerState {
     SysBusDevice parent_obj;

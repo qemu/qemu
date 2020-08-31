@@ -30,13 +30,13 @@
 
 #define TYPE_DESIGNWARE_PCIE_HOST "designware-pcie-host"
 typedef struct DesignwarePCIEHost DesignwarePCIEHost;
-#define DESIGNWARE_PCIE_HOST(obj) \
-     OBJECT_CHECK(DesignwarePCIEHost, (obj), TYPE_DESIGNWARE_PCIE_HOST)
+DECLARE_INSTANCE_CHECKER(DesignwarePCIEHost, DESIGNWARE_PCIE_HOST,
+                         TYPE_DESIGNWARE_PCIE_HOST)
 
 #define TYPE_DESIGNWARE_PCIE_ROOT "designware-pcie-root"
 typedef struct DesignwarePCIERoot DesignwarePCIERoot;
-#define DESIGNWARE_PCIE_ROOT(obj) \
-     OBJECT_CHECK(DesignwarePCIERoot, (obj), TYPE_DESIGNWARE_PCIE_ROOT)
+DECLARE_INSTANCE_CHECKER(DesignwarePCIERoot, DESIGNWARE_PCIE_ROOT,
+                         TYPE_DESIGNWARE_PCIE_ROOT)
 
 struct DesignwarePCIERoot;
 

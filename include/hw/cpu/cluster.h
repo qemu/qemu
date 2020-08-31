@@ -56,8 +56,8 @@
 
 #define TYPE_CPU_CLUSTER "cpu-cluster"
 typedef struct CPUClusterState CPUClusterState;
-#define CPU_CLUSTER(obj) \
-    OBJECT_CHECK(CPUClusterState, (obj), TYPE_CPU_CLUSTER)
+DECLARE_INSTANCE_CHECKER(CPUClusterState, CPU_CLUSTER,
+                         TYPE_CPU_CLUSTER)
 
 /*
  * This limit is imposed by TCG, which puts the cluster ID into an

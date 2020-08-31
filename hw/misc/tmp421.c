@@ -74,12 +74,9 @@ struct TMP421Class {
 typedef struct TMP421Class TMP421Class;
 
 #define TYPE_TMP421 "tmp421-generic"
-#define TMP421(obj) OBJECT_CHECK(TMP421State, (obj), TYPE_TMP421)
+DECLARE_OBJ_CHECKERS(TMP421State, TMP421Class,
+                     TMP421, TYPE_TMP421)
 
-#define TMP421_CLASS(klass) \
-     OBJECT_CLASS_CHECK(TMP421Class, (klass), TYPE_TMP421)
-#define TMP421_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(TMP421Class, (obj), TYPE_TMP421)
 
 /* the TMP421 registers */
 #define TMP421_STATUS_REG               0x08

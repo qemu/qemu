@@ -30,8 +30,8 @@
 
 #define TYPE_QCRYPTO_TLS_CREDS "tls-creds"
 typedef struct QCryptoTLSCreds QCryptoTLSCreds;
-#define QCRYPTO_TLS_CREDS(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCreds, (obj), TYPE_QCRYPTO_TLS_CREDS)
+DECLARE_INSTANCE_CHECKER(QCryptoTLSCreds, QCRYPTO_TLS_CREDS,
+                         TYPE_QCRYPTO_TLS_CREDS)
 
 typedef struct QCryptoTLSCredsClass QCryptoTLSCredsClass;
 

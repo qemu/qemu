@@ -36,7 +36,8 @@
 
 #define TYPE_ISA_VGA "isa-vga"
 typedef struct ISAVGAState ISAVGAState;
-#define ISA_VGA(obj) OBJECT_CHECK(ISAVGAState, (obj), TYPE_ISA_VGA)
+DECLARE_INSTANCE_CHECKER(ISAVGAState, ISA_VGA,
+                         TYPE_ISA_VGA)
 
 struct ISAVGAState {
     ISADevice parent_obj;

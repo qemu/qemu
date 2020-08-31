@@ -16,7 +16,7 @@ struct V9fsVirtioState {
 typedef struct V9fsVirtioState V9fsVirtioState;
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
-#define VIRTIO_9P(obj) \
-        OBJECT_CHECK(V9fsVirtioState, (obj), TYPE_VIRTIO_9P)
+DECLARE_INSTANCE_CHECKER(V9fsVirtioState, VIRTIO_9P,
+                         TYPE_VIRTIO_9P)
 
 #endif

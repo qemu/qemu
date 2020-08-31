@@ -70,11 +70,8 @@ typedef struct AspeedSMCFlash {
 #define TYPE_ASPEED_SMC "aspeed.smc"
 typedef struct AspeedSMCClass AspeedSMCClass;
 typedef struct AspeedSMCState AspeedSMCState;
-#define ASPEED_SMC(obj) OBJECT_CHECK(AspeedSMCState, (obj), TYPE_ASPEED_SMC)
-#define ASPEED_SMC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedSMCClass, (klass), TYPE_ASPEED_SMC)
-#define ASPEED_SMC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedSMCClass, (obj), TYPE_ASPEED_SMC)
+DECLARE_OBJ_CHECKERS(AspeedSMCState, AspeedSMCClass,
+                     ASPEED_SMC, TYPE_ASPEED_SMC)
 
 struct AspeedSMCClass {
     SysBusDevice parent_obj;

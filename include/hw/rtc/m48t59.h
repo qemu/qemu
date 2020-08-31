@@ -32,10 +32,8 @@
 #define TYPE_NVRAM "nvram"
 
 typedef struct NvramClass NvramClass;
-#define NVRAM_CLASS(klass) \
-    OBJECT_CLASS_CHECK(NvramClass, (klass), TYPE_NVRAM)
-#define NVRAM_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(NvramClass, (obj), TYPE_NVRAM)
+DECLARE_CLASS_CHECKERS(NvramClass, NVRAM,
+                       TYPE_NVRAM)
 #define NVRAM(obj) \
     INTERFACE_CHECK(Nvram, (obj), TYPE_NVRAM)
 

@@ -62,7 +62,8 @@ do { \
 
 #define CCID_DEV_NAME "usb-ccid"
 typedef struct USBCCIDState USBCCIDState;
-#define USB_CCID_DEV(obj) OBJECT_CHECK(USBCCIDState, (obj), CCID_DEV_NAME)
+DECLARE_INSTANCE_CHECKER(USBCCIDState, USB_CCID_DEV,
+                         CCID_DEV_NAME)
 /*
  * The two options for variable sized buffers:
  * make them constant size, for large enough constant,
@@ -1176,7 +1177,8 @@ static Property ccid_props[] = {
 };
 
 #define TYPE_CCID_BUS "ccid-bus"
-#define CCID_BUS(obj) OBJECT_CHECK(CCIDBus, (obj), TYPE_CCID_BUS)
+DECLARE_INSTANCE_CHECKER(CCIDBus, CCID_BUS,
+                         TYPE_CCID_BUS)
 
 static const TypeInfo ccid_bus_info = {
     .name = TYPE_CCID_BUS,

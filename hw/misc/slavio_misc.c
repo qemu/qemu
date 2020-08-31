@@ -41,7 +41,8 @@
 
 #define TYPE_SLAVIO_MISC "slavio_misc"
 typedef struct MiscState MiscState;
-#define SLAVIO_MISC(obj) OBJECT_CHECK(MiscState, (obj), TYPE_SLAVIO_MISC)
+DECLARE_INSTANCE_CHECKER(MiscState, SLAVIO_MISC,
+                         TYPE_SLAVIO_MISC)
 
 struct MiscState {
     SysBusDevice parent_obj;
@@ -65,7 +66,8 @@ struct MiscState {
 
 #define TYPE_APC "apc"
 typedef struct APCState APCState;
-#define APC(obj) OBJECT_CHECK(APCState, (obj), TYPE_APC)
+DECLARE_INSTANCE_CHECKER(APCState, APC,
+                         TYPE_APC)
 
 struct APCState {
     SysBusDevice parent_obj;

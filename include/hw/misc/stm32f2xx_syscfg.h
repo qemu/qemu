@@ -38,8 +38,8 @@
 
 #define TYPE_STM32F2XX_SYSCFG "stm32f2xx-syscfg"
 typedef struct STM32F2XXSyscfgState STM32F2XXSyscfgState;
-#define STM32F2XX_SYSCFG(obj) \
-    OBJECT_CHECK(STM32F2XXSyscfgState, (obj), TYPE_STM32F2XX_SYSCFG)
+DECLARE_INSTANCE_CHECKER(STM32F2XXSyscfgState, STM32F2XX_SYSCFG,
+                         TYPE_STM32F2XX_SYSCFG)
 
 struct STM32F2XXSyscfgState {
     /* <private> */

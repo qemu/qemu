@@ -30,8 +30,8 @@ typedef struct VirtIOBlkPCI VirtIOBlkPCI;
  * virtio-blk-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_BLK_PCI "virtio-blk-pci-base"
-#define VIRTIO_BLK_PCI(obj) \
-        OBJECT_CHECK(VirtIOBlkPCI, (obj), TYPE_VIRTIO_BLK_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOBlkPCI, VIRTIO_BLK_PCI,
+                         TYPE_VIRTIO_BLK_PCI)
 
 struct VirtIOBlkPCI {
     VirtIOPCIProxy parent_obj;

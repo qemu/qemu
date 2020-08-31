@@ -48,8 +48,8 @@
 
 #define TYPE_CAN_HOST_SOCKETCAN "can-host-socketcan"
 typedef struct CanHostSocketCAN CanHostSocketCAN;
-#define CAN_HOST_SOCKETCAN(obj) \
-     OBJECT_CHECK(CanHostSocketCAN, (obj), TYPE_CAN_HOST_SOCKETCAN)
+DECLARE_INSTANCE_CHECKER(CanHostSocketCAN, CAN_HOST_SOCKETCAN,
+                         TYPE_CAN_HOST_SOCKETCAN)
 
 #define CAN_READ_BUF_LEN  5
 struct CanHostSocketCAN {

@@ -15,7 +15,8 @@
 #include "qom/object.h"
 
 typedef struct Port92State Port92State;
-#define PORT92(obj) OBJECT_CHECK(Port92State, (obj), TYPE_PORT92)
+DECLARE_INSTANCE_CHECKER(Port92State, PORT92,
+                         TYPE_PORT92)
 
 struct Port92State {
     ISADevice parent_obj;

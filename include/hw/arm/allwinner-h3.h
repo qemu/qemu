@@ -107,7 +107,8 @@ enum {
 
 /** Convert input object to Allwinner H3 state object */
 typedef struct AwH3State AwH3State;
-#define AW_H3(obj) OBJECT_CHECK(AwH3State, (obj), TYPE_AW_H3)
+DECLARE_INSTANCE_CHECKER(AwH3State, AW_H3,
+                         TYPE_AW_H3)
 
 /** @} */
 

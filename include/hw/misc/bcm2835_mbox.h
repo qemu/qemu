@@ -14,8 +14,8 @@
 
 #define TYPE_BCM2835_MBOX "bcm2835-mbox"
 typedef struct BCM2835MboxState BCM2835MboxState;
-#define BCM2835_MBOX(obj) \
-        OBJECT_CHECK(BCM2835MboxState, (obj), TYPE_BCM2835_MBOX)
+DECLARE_INSTANCE_CHECKER(BCM2835MboxState, BCM2835_MBOX,
+                         TYPE_BCM2835_MBOX)
 
 typedef struct {
     uint32_t reg[MBOX_SIZE];

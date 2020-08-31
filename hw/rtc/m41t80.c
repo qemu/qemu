@@ -18,7 +18,8 @@
 
 #define TYPE_M41T80 "m41t80"
 typedef struct M41t80State M41t80State;
-#define M41T80(obj) OBJECT_CHECK(M41t80State, (obj), TYPE_M41T80)
+DECLARE_INSTANCE_CHECKER(M41t80State, M41T80,
+                         TYPE_M41T80)
 
 struct M41t80State {
     I2CSlave parent_obj;

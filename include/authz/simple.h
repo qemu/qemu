@@ -28,15 +28,8 @@
 
 typedef struct QAuthZSimple QAuthZSimple;
 typedef struct QAuthZSimpleClass QAuthZSimpleClass;
-#define QAUTHZ_SIMPLE_CLASS(klass)                        \
-    OBJECT_CLASS_CHECK(QAuthZSimpleClass, (klass),        \
-                       TYPE_QAUTHZ_SIMPLE)
-#define QAUTHZ_SIMPLE_GET_CLASS(obj)              \
-    OBJECT_GET_CLASS(QAuthZSimpleClass, (obj),    \
-                      TYPE_QAUTHZ_SIMPLE)
-#define QAUTHZ_SIMPLE(obj) \
-    OBJECT_CHECK(QAuthZSimple, (obj), \
-                 TYPE_QAUTHZ_SIMPLE)
+DECLARE_OBJ_CHECKERS(QAuthZSimple, QAuthZSimpleClass,
+                     QAUTHZ_SIMPLE, TYPE_QAUTHZ_SIMPLE)
 
 
 

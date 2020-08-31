@@ -18,8 +18,8 @@
 #define TYPE_NVIC "armv7m_nvic"
 
 typedef struct NVICState NVICState;
-#define NVIC(obj) \
-    OBJECT_CHECK(NVICState, (obj), TYPE_NVIC)
+DECLARE_INSTANCE_CHECKER(NVICState, NVIC,
+                         TYPE_NVIC)
 
 /* Highest permitted number of exceptions (architectural limit) */
 #define NVIC_MAX_VECTORS 512

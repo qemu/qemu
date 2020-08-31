@@ -34,8 +34,8 @@
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
 typedef struct ISADebugconState ISADebugconState;
-#define ISA_DEBUGCON_DEVICE(obj) \
-     OBJECT_CHECK(ISADebugconState, (obj), TYPE_ISA_DEBUGCON_DEVICE)
+DECLARE_INSTANCE_CHECKER(ISADebugconState, ISA_DEBUGCON_DEVICE,
+                         TYPE_ISA_DEBUGCON_DEVICE)
 
 //#define DEBUG_DEBUGCON
 

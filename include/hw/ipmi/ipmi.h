@@ -112,10 +112,8 @@ uint32_t ipmi_next_uuid(void);
 #define IPMI_INTERFACE(obj) \
      INTERFACE_CHECK(IPMIInterface, (obj), TYPE_IPMI_INTERFACE)
 typedef struct IPMIInterfaceClass IPMIInterfaceClass;
-#define IPMI_INTERFACE_CLASS(class) \
-     OBJECT_CLASS_CHECK(IPMIInterfaceClass, (class), TYPE_IPMI_INTERFACE)
-#define IPMI_INTERFACE_GET_CLASS(class) \
-     OBJECT_GET_CLASS(IPMIInterfaceClass, (class), TYPE_IPMI_INTERFACE)
+DECLARE_CLASS_CHECKERS(IPMIInterfaceClass, IPMI_INTERFACE,
+                       TYPE_IPMI_INTERFACE)
 
 typedef struct IPMIInterface IPMIInterface;
 
@@ -180,12 +178,8 @@ struct IPMIInterfaceClass {
 #define TYPE_IPMI_BMC "ipmi-bmc"
 typedef struct IPMIBmc IPMIBmc;
 typedef struct IPMIBmcClass IPMIBmcClass;
-#define IPMI_BMC(obj) \
-     OBJECT_CHECK(IPMIBmc, (obj), TYPE_IPMI_BMC)
-#define IPMI_BMC_CLASS(obj_class) \
-     OBJECT_CLASS_CHECK(IPMIBmcClass, (obj_class), TYPE_IPMI_BMC)
-#define IPMI_BMC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(IPMIBmcClass, (obj), TYPE_IPMI_BMC)
+DECLARE_OBJ_CHECKERS(IPMIBmc, IPMIBmcClass,
+                     IPMI_BMC, TYPE_IPMI_BMC)
 
 struct IPMIBmc {
     DeviceState parent;
@@ -273,8 +267,8 @@ void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log);
 
 #define TYPE_IPMI_BMC_SIMULATOR "ipmi-bmc-sim"
 typedef struct IPMIBmcSim IPMIBmcSim;
-#define IPMI_BMC_SIMULATOR(obj) OBJECT_CHECK(IPMIBmcSim, (obj), \
-                                        TYPE_IPMI_BMC_SIMULATOR)
+DECLARE_INSTANCE_CHECKER(IPMIBmcSim, IPMI_BMC_SIMULATOR,
+                         TYPE_IPMI_BMC_SIMULATOR)
 
 
 typedef struct RspBuffer {

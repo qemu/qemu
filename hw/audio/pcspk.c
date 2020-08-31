@@ -41,7 +41,8 @@
 #define PCSPK_MIN_COUNT DIV_ROUND_UP(PIT_FREQ, PCSPK_MAX_FREQ)
 
 typedef struct PCSpkState PCSpkState;
-#define PC_SPEAKER(obj) OBJECT_CHECK(PCSpkState, (obj), TYPE_PC_SPEAKER)
+DECLARE_INSTANCE_CHECKER(PCSpkState, PC_SPEAKER,
+                         TYPE_PC_SPEAKER)
 
 struct PCSpkState {
     ISADevice parent_obj;

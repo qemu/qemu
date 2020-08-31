@@ -30,8 +30,8 @@
 
 #define TYPE_PCI_IPMI_BT "pci-ipmi-bt"
 typedef struct PCIIPMIBTDevice PCIIPMIBTDevice;
-#define PCI_IPMI_BT(obj) OBJECT_CHECK(PCIIPMIBTDevice, (obj), \
-                                       TYPE_PCI_IPMI_BT)
+DECLARE_INSTANCE_CHECKER(PCIIPMIBTDevice, PCI_IPMI_BT,
+                         TYPE_PCI_IPMI_BT)
 
 struct PCIIPMIBTDevice {
     PCIDevice dev;

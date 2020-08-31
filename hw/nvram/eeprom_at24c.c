@@ -29,7 +29,8 @@
 
 #define TYPE_AT24C_EE "at24c-eeprom"
 typedef struct EEPROMState EEPROMState;
-#define AT24C_EE(obj) OBJECT_CHECK(EEPROMState, (obj), TYPE_AT24C_EE)
+DECLARE_INSTANCE_CHECKER(EEPROMState, AT24C_EE,
+                         TYPE_AT24C_EE)
 
 struct EEPROMState {
     I2CSlave parent_obj;

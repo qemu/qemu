@@ -37,8 +37,8 @@
 
 #define TYPE_COLO_COMPARE "colo-compare"
 typedef struct CompareState CompareState;
-#define COLO_COMPARE(obj) \
-    OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
+DECLARE_INSTANCE_CHECKER(CompareState, COLO_COMPARE,
+                         TYPE_COLO_COMPARE)
 
 static QTAILQ_HEAD(, CompareState) net_compares =
        QTAILQ_HEAD_INITIALIZER(net_compares);

@@ -42,8 +42,8 @@ struct RingBufChardev {
 };
 typedef struct RingBufChardev RingBufChardev;
 
-#define RINGBUF_CHARDEV(obj)                                    \
-    OBJECT_CHECK(RingBufChardev, (obj), TYPE_CHARDEV_RINGBUF)
+DECLARE_INSTANCE_CHECKER(RingBufChardev, RINGBUF_CHARDEV,
+                         TYPE_CHARDEV_RINGBUF)
 
 static size_t ringbuf_count(const Chardev *chr)
 {

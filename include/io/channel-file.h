@@ -26,8 +26,8 @@
 
 #define TYPE_QIO_CHANNEL_FILE "qio-channel-file"
 typedef struct QIOChannelFile QIOChannelFile;
-#define QIO_CHANNEL_FILE(obj)                                     \
-    OBJECT_CHECK(QIOChannelFile, (obj), TYPE_QIO_CHANNEL_FILE)
+DECLARE_INSTANCE_CHECKER(QIOChannelFile, QIO_CHANNEL_FILE,
+                         TYPE_QIO_CHANNEL_FILE)
 
 
 /**

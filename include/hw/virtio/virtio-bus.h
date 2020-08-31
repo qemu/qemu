@@ -32,11 +32,8 @@
 #define TYPE_VIRTIO_BUS "virtio-bus"
 typedef struct VirtioBusClass VirtioBusClass;
 typedef struct VirtioBusState VirtioBusState;
-#define VIRTIO_BUS_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtioBusClass, obj, TYPE_VIRTIO_BUS)
-#define VIRTIO_BUS_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtioBusClass, klass, TYPE_VIRTIO_BUS)
-#define VIRTIO_BUS(obj) OBJECT_CHECK(VirtioBusState, (obj), TYPE_VIRTIO_BUS)
+DECLARE_OBJ_CHECKERS(VirtioBusState, VirtioBusClass,
+                     VIRTIO_BUS, TYPE_VIRTIO_BUS)
 
 
 struct VirtioBusClass {

@@ -204,8 +204,8 @@ struct KVMState;
 
 #define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
 typedef struct KVMState KVMState;
-#define KVM_STATE(obj) \
-    OBJECT_CHECK(KVMState, (obj), TYPE_KVM_ACCEL)
+DECLARE_INSTANCE_CHECKER(KVMState, KVM_STATE,
+                         TYPE_KVM_ACCEL)
 
 extern KVMState *kvm_state;
 typedef struct Notifier Notifier;

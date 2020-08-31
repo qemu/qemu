@@ -11,12 +11,8 @@
 #define TYPE_VIRTIO_VGA_BASE "virtio-vga-base"
 typedef struct VirtIOVGABase VirtIOVGABase;
 typedef struct VirtIOVGABaseClass VirtIOVGABaseClass;
-#define VIRTIO_VGA_BASE(obj)                                \
-    OBJECT_CHECK(VirtIOVGABase, (obj), TYPE_VIRTIO_VGA_BASE)
-#define VIRTIO_VGA_BASE_GET_CLASS(obj)                      \
-    OBJECT_GET_CLASS(VirtIOVGABaseClass, obj, TYPE_VIRTIO_VGA_BASE)
-#define VIRTIO_VGA_BASE_CLASS(klass)                        \
-    OBJECT_CLASS_CHECK(VirtIOVGABaseClass, klass, TYPE_VIRTIO_VGA_BASE)
+DECLARE_OBJ_CHECKERS(VirtIOVGABase, VirtIOVGABaseClass,
+                     VIRTIO_VGA_BASE, TYPE_VIRTIO_VGA_BASE)
 
 struct VirtIOVGABase {
     VirtIOPCIProxy parent_obj;

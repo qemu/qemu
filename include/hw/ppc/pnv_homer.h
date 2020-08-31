@@ -26,11 +26,14 @@
 #define TYPE_PNV_HOMER "pnv-homer"
 typedef struct PnvHomer PnvHomer;
 typedef struct PnvHomerClass PnvHomerClass;
-#define PNV_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV_HOMER)
+DECLARE_OBJ_CHECKERS(PnvHomer, PnvHomerClass,
+                     PNV_HOMER, TYPE_PNV_HOMER)
 #define TYPE_PNV8_HOMER TYPE_PNV_HOMER "-POWER8"
-#define PNV8_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV8_HOMER)
+DECLARE_INSTANCE_CHECKER(PnvHomer, PNV8_HOMER,
+                         TYPE_PNV8_HOMER)
 #define TYPE_PNV9_HOMER TYPE_PNV_HOMER "-POWER9"
-#define PNV9_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV9_HOMER)
+DECLARE_INSTANCE_CHECKER(PnvHomer, PNV9_HOMER,
+                         TYPE_PNV9_HOMER)
 
 struct PnvHomer {
     DeviceState parent;
@@ -40,10 +43,6 @@ struct PnvHomer {
     MemoryRegion regs;
 };
 
-#define PNV_HOMER_CLASS(klass)   \
-     OBJECT_CLASS_CHECK(PnvHomerClass, (klass), TYPE_PNV_HOMER)
-#define PNV_HOMER_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvHomerClass, (obj), TYPE_PNV_HOMER)
 
 struct PnvHomerClass {
     DeviceClass parent_class;

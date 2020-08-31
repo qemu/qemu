@@ -31,13 +31,13 @@
 
 #define TYPE_Q35_HOST_DEVICE "q35-pcihost"
 typedef struct Q35PCIHost Q35PCIHost;
-#define Q35_HOST_DEVICE(obj) \
-     OBJECT_CHECK(Q35PCIHost, (obj), TYPE_Q35_HOST_DEVICE)
+DECLARE_INSTANCE_CHECKER(Q35PCIHost, Q35_HOST_DEVICE,
+                         TYPE_Q35_HOST_DEVICE)
 
 #define TYPE_MCH_PCI_DEVICE "mch"
 typedef struct MCHPCIState MCHPCIState;
-#define MCH_PCI_DEVICE(obj) \
-     OBJECT_CHECK(MCHPCIState, (obj), TYPE_MCH_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(MCHPCIState, MCH_PCI_DEVICE,
+                         TYPE_MCH_PCI_DEVICE)
 
 struct MCHPCIState {
     /*< private >*/

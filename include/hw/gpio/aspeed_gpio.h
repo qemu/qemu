@@ -16,11 +16,8 @@
 #define TYPE_ASPEED_GPIO "aspeed.gpio"
 typedef struct AspeedGPIOClass AspeedGPIOClass;
 typedef struct AspeedGPIOState AspeedGPIOState;
-#define ASPEED_GPIO(obj) OBJECT_CHECK(AspeedGPIOState, (obj), TYPE_ASPEED_GPIO)
-#define ASPEED_GPIO_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedGPIOClass, (klass), TYPE_ASPEED_GPIO)
-#define ASPEED_GPIO_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedGPIOClass, (obj), TYPE_ASPEED_GPIO)
+DECLARE_OBJ_CHECKERS(AspeedGPIOState, AspeedGPIOClass,
+                     ASPEED_GPIO, TYPE_ASPEED_GPIO)
 
 #define ASPEED_GPIO_MAX_NR_SETS 8
 #define ASPEED_REGS_PER_BANK 14

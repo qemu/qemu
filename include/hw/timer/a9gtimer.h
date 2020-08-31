@@ -30,7 +30,8 @@
 
 #define TYPE_A9_GTIMER "arm.cortex-a9-global-timer"
 typedef struct A9GTimerState A9GTimerState;
-#define A9_GTIMER(obj) OBJECT_CHECK(A9GTimerState, (obj), TYPE_A9_GTIMER)
+DECLARE_INSTANCE_CHECKER(A9GTimerState, A9_GTIMER,
+                         TYPE_A9_GTIMER)
 
 #define R_COUNTER_LO                0x00
 #define R_COUNTER_HI                0x04

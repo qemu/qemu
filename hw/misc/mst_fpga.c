@@ -42,8 +42,8 @@
 
 #define TYPE_MAINSTONE_FPGA "mainstone-fpga"
 typedef struct mst_irq_state mst_irq_state;
-#define MAINSTONE_FPGA(obj) \
-    OBJECT_CHECK(mst_irq_state, (obj), TYPE_MAINSTONE_FPGA)
+DECLARE_INSTANCE_CHECKER(mst_irq_state, MAINSTONE_FPGA,
+                         TYPE_MAINSTONE_FPGA)
 
 struct mst_irq_state {
     SysBusDevice parent_obj;

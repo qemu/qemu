@@ -65,8 +65,8 @@ struct PassthruState {
 };
 
 #define TYPE_CCID_PASSTHRU "ccid-card-passthru"
-#define PASSTHRU_CCID_CARD(obj) \
-    OBJECT_CHECK(PassthruState, (obj), TYPE_CCID_PASSTHRU)
+DECLARE_INSTANCE_CHECKER(PassthruState, PASSTHRU_CCID_CARD,
+                         TYPE_CCID_PASSTHRU)
 
 /*
  * VSCard protocol over chardev

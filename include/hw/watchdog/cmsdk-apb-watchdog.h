@@ -37,8 +37,8 @@
 
 #define TYPE_CMSDK_APB_WATCHDOG "cmsdk-apb-watchdog"
 typedef struct CMSDKAPBWatchdog CMSDKAPBWatchdog;
-#define CMSDK_APB_WATCHDOG(obj) OBJECT_CHECK(CMSDKAPBWatchdog, (obj), \
-                                              TYPE_CMSDK_APB_WATCHDOG)
+DECLARE_INSTANCE_CHECKER(CMSDKAPBWatchdog, CMSDK_APB_WATCHDOG,
+                         TYPE_CMSDK_APB_WATCHDOG)
 
 /*
  * This shares the same struct (and cast macro) as the base

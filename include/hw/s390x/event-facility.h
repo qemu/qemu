@@ -44,12 +44,8 @@
 #define TYPE_SCLP_EVENT "s390-sclp-event-type"
 typedef struct SCLPEvent SCLPEvent;
 typedef struct SCLPEventClass SCLPEventClass;
-#define SCLP_EVENT(obj) \
-     OBJECT_CHECK(SCLPEvent, (obj), TYPE_SCLP_EVENT)
-#define SCLP_EVENT_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCLPEventClass, (klass), TYPE_SCLP_EVENT)
-#define SCLP_EVENT_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCLPEventClass, (obj), TYPE_SCLP_EVENT)
+DECLARE_OBJ_CHECKERS(SCLPEvent, SCLPEventClass,
+                     SCLP_EVENT, TYPE_SCLP_EVENT)
 
 #define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
 #define TYPE_SCLP_QUIESCE "sclpquiesce"
@@ -200,14 +196,8 @@ struct SCLPEventClass {
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
 typedef struct SCLPEventFacility SCLPEventFacility;
 typedef struct SCLPEventFacilityClass SCLPEventFacilityClass;
-#define EVENT_FACILITY(obj) \
-     OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCLPEventFacilityClass, (klass), \
-                        TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
-                      TYPE_SCLP_EVENT_FACILITY)
+DECLARE_OBJ_CHECKERS(SCLPEventFacility, SCLPEventFacilityClass,
+                     EVENT_FACILITY, TYPE_SCLP_EVENT_FACILITY)
 
 struct SCLPEventFacilityClass {
     SysBusDeviceClass parent_class;

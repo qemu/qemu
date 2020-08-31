@@ -53,8 +53,8 @@
 #define CTRL_S     0x1
 
 #define TYPE_XILINX_ETHLITE "xlnx.xps-ethernetlite"
-#define XILINX_ETHLITE(obj) \
-    OBJECT_CHECK(struct xlx_ethlite, (obj), TYPE_XILINX_ETHLITE)
+DECLARE_INSTANCE_CHECKER(struct xlx_ethlite, XILINX_ETHLITE,
+                         TYPE_XILINX_ETHLITE)
 
 struct xlx_ethlite
 {

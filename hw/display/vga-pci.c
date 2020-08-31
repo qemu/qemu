@@ -54,7 +54,8 @@ struct PCIVGAState {
 typedef struct PCIVGAState PCIVGAState;
 
 #define TYPE_PCI_VGA "pci-vga"
-#define PCI_VGA(obj) OBJECT_CHECK(PCIVGAState, (obj), TYPE_PCI_VGA)
+DECLARE_INSTANCE_CHECKER(PCIVGAState, PCI_VGA,
+                         TYPE_PCI_VGA)
 
 static const VMStateDescription vmstate_vga_pci = {
     .name = "vga",

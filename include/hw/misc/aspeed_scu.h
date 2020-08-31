@@ -17,7 +17,8 @@
 #define TYPE_ASPEED_SCU "aspeed.scu"
 typedef struct AspeedSCUClass AspeedSCUClass;
 typedef struct AspeedSCUState AspeedSCUState;
-#define ASPEED_SCU(obj) OBJECT_CHECK(AspeedSCUState, (obj), TYPE_ASPEED_SCU)
+DECLARE_OBJ_CHECKERS(AspeedSCUState, AspeedSCUClass,
+                     ASPEED_SCU, TYPE_ASPEED_SCU)
 #define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
 #define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
 #define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"
@@ -50,10 +51,6 @@ struct AspeedSCUState {
 
 extern bool is_supported_silicon_rev(uint32_t silicon_rev);
 
-#define ASPEED_SCU_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedSCUClass, (klass), TYPE_ASPEED_SCU)
-#define ASPEED_SCU_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedSCUClass, (obj), TYPE_ASPEED_SCU)
 
 struct AspeedSCUClass {
     SysBusDeviceClass parent_class;

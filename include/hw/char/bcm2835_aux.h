@@ -15,7 +15,8 @@
 
 #define TYPE_BCM2835_AUX "bcm2835-aux"
 typedef struct BCM2835AuxState BCM2835AuxState;
-#define BCM2835_AUX(obj) OBJECT_CHECK(BCM2835AuxState, (obj), TYPE_BCM2835_AUX)
+DECLARE_INSTANCE_CHECKER(BCM2835AuxState, BCM2835_AUX,
+                         TYPE_BCM2835_AUX)
 
 #define BCM2835_AUX_RX_FIFO_LEN 8
 

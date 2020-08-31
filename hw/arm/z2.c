@@ -114,7 +114,8 @@ struct ZipitLCD {
 typedef struct ZipitLCD ZipitLCD;
 
 #define TYPE_ZIPIT_LCD "zipit-lcd"
-#define ZIPIT_LCD(obj) OBJECT_CHECK(ZipitLCD, (obj), TYPE_ZIPIT_LCD)
+DECLARE_INSTANCE_CHECKER(ZipitLCD, ZIPIT_LCD,
+                         TYPE_ZIPIT_LCD)
 
 static uint32_t zipit_lcd_transfer(SSISlave *dev, uint32_t value)
 {
@@ -198,7 +199,8 @@ static const TypeInfo zipit_lcd_info = {
 
 #define TYPE_AER915 "aer915"
 typedef struct AER915State AER915State;
-#define AER915(obj) OBJECT_CHECK(AER915State, (obj), TYPE_AER915)
+DECLARE_INSTANCE_CHECKER(AER915State, AER915,
+                         TYPE_AER915)
 
 struct AER915State {
     I2CSlave parent_obj;

@@ -39,7 +39,8 @@
 #include "qom/object.h"
 
 typedef struct NextKBDState NextKBDState;
-#define NEXTKBD(obj) OBJECT_CHECK(NextKBDState, (obj), TYPE_NEXTKBD)
+DECLARE_INSTANCE_CHECKER(NextKBDState, NEXTKBD,
+                         TYPE_NEXTKBD)
 
 /* following defintions from next68k netbsd */
 #define CSR_INT 0x00800000

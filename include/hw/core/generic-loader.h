@@ -43,7 +43,7 @@ struct GenericLoaderState {
 typedef struct GenericLoaderState GenericLoaderState;
 
 #define TYPE_GENERIC_LOADER "loader"
-#define GENERIC_LOADER(obj) OBJECT_CHECK(GenericLoaderState, (obj), \
-                                         TYPE_GENERIC_LOADER)
+DECLARE_INSTANCE_CHECKER(GenericLoaderState, GENERIC_LOADER,
+                         TYPE_GENERIC_LOADER)
 
 #endif

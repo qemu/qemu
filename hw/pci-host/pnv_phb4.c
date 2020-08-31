@@ -1043,8 +1043,8 @@ static IOMMUTLBEntry pnv_phb4_translate_iommu(IOMMUMemoryRegion *iommu,
 }
 
 #define TYPE_PNV_PHB4_IOMMU_MEMORY_REGION "pnv-phb4-iommu-memory-region"
-#define PNV_PHB4_IOMMU_MEMORY_REGION(obj) \
-    OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_PNV_PHB4_IOMMU_MEMORY_REGION)
+DECLARE_INSTANCE_CHECKER(IOMMUMemoryRegion, PNV_PHB4_IOMMU_MEMORY_REGION,
+                         TYPE_PNV_PHB4_IOMMU_MEMORY_REGION)
 
 static void pnv_phb4_iommu_memory_region_class_init(ObjectClass *klass,
                                                     void *data)

@@ -26,8 +26,8 @@ typedef struct VHostUserFSPCI VHostUserFSPCI;
 
 #define TYPE_VHOST_USER_FS_PCI "vhost-user-fs-pci-base"
 
-#define VHOST_USER_FS_PCI(obj) \
-        OBJECT_CHECK(VHostUserFSPCI, (obj), TYPE_VHOST_USER_FS_PCI)
+DECLARE_INSTANCE_CHECKER(VHostUserFSPCI, VHOST_USER_FS_PCI,
+                         TYPE_VHOST_USER_FS_PCI)
 
 static Property vhost_user_fs_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,

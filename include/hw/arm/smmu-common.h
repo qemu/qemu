@@ -132,11 +132,8 @@ struct SMMUBaseClass {
 typedef struct SMMUBaseClass SMMUBaseClass;
 
 #define TYPE_ARM_SMMU "arm-smmu"
-#define ARM_SMMU(obj) OBJECT_CHECK(SMMUState, (obj), TYPE_ARM_SMMU)
-#define ARM_SMMU_CLASS(klass)                                    \
-    OBJECT_CLASS_CHECK(SMMUBaseClass, (klass), TYPE_ARM_SMMU)
-#define ARM_SMMU_GET_CLASS(obj)                              \
-    OBJECT_GET_CLASS(SMMUBaseClass, (obj), TYPE_ARM_SMMU)
+DECLARE_OBJ_CHECKERS(SMMUState, SMMUBaseClass,
+                     ARM_SMMU, TYPE_ARM_SMMU)
 
 /* Return the SMMUPciBus handle associated to a PCI bus number */
 SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num);

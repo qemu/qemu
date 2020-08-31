@@ -13,7 +13,8 @@
 
 #define TYPE_FTGMAC100 "ftgmac100"
 typedef struct FTGMAC100State FTGMAC100State;
-#define FTGMAC100(obj) OBJECT_CHECK(FTGMAC100State, (obj), TYPE_FTGMAC100)
+DECLARE_INSTANCE_CHECKER(FTGMAC100State, FTGMAC100,
+                         TYPE_FTGMAC100)
 
 #include "hw/sysbus.h"
 #include "net/net.h"
@@ -70,7 +71,8 @@ struct FTGMAC100State {
 
 #define TYPE_ASPEED_MII "aspeed-mmi"
 typedef struct AspeedMiiState AspeedMiiState;
-#define ASPEED_MII(obj) OBJECT_CHECK(AspeedMiiState, (obj), TYPE_ASPEED_MII)
+DECLARE_INSTANCE_CHECKER(AspeedMiiState, ASPEED_MII,
+                         TYPE_ASPEED_MII)
 
 /*
  * AST2600 MII controller

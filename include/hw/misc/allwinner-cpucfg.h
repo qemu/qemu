@@ -30,8 +30,8 @@
 
 #define TYPE_AW_CPUCFG   "allwinner-cpucfg"
 typedef struct AwCpuCfgState AwCpuCfgState;
-#define AW_CPUCFG(obj) \
-    OBJECT_CHECK(AwCpuCfgState, (obj), TYPE_AW_CPUCFG)
+DECLARE_INSTANCE_CHECKER(AwCpuCfgState, AW_CPUCFG,
+                         TYPE_AW_CPUCFG)
 
 /** @} */
 

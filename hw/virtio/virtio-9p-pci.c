@@ -27,8 +27,8 @@
 
 #define TYPE_VIRTIO_9P_PCI "virtio-9p-pci-base"
 typedef struct V9fsPCIState V9fsPCIState;
-#define VIRTIO_9P_PCI(obj) \
-        OBJECT_CHECK(V9fsPCIState, (obj), TYPE_VIRTIO_9P_PCI)
+DECLARE_INSTANCE_CHECKER(V9fsPCIState, VIRTIO_9P_PCI,
+                         TYPE_VIRTIO_9P_PCI)
 
 struct V9fsPCIState {
     VirtIOPCIProxy parent_obj;

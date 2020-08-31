@@ -106,6 +106,7 @@ struct XlnxDPState {
 typedef struct XlnxDPState XlnxDPState;
 
 #define TYPE_XLNX_DP "xlnx.v-dp"
-#define XLNX_DP(obj) OBJECT_CHECK(XlnxDPState, (obj), TYPE_XLNX_DP)
+DECLARE_INSTANCE_CHECKER(XlnxDPState, XLNX_DP,
+                         TYPE_XLNX_DP)
 
 #endif

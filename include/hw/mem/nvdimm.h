@@ -48,10 +48,8 @@
 #define TYPE_NVDIMM      "nvdimm"
 typedef struct NVDIMMClass NVDIMMClass;
 typedef struct NVDIMMDevice NVDIMMDevice;
-#define NVDIMM(obj)      OBJECT_CHECK(NVDIMMDevice, (obj), TYPE_NVDIMM)
-#define NVDIMM_CLASS(oc) OBJECT_CLASS_CHECK(NVDIMMClass, (oc), TYPE_NVDIMM)
-#define NVDIMM_GET_CLASS(obj) OBJECT_GET_CLASS(NVDIMMClass, (obj), \
-                                               TYPE_NVDIMM)
+DECLARE_OBJ_CHECKERS(NVDIMMDevice, NVDIMMClass,
+                     NVDIMM, TYPE_NVDIMM)
 
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
 #define NVDIMM_UUID_PROP       "uuid"

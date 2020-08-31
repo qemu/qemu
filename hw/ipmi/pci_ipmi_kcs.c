@@ -30,8 +30,8 @@
 
 #define TYPE_PCI_IPMI_KCS "pci-ipmi-kcs"
 typedef struct PCIIPMIKCSDevice PCIIPMIKCSDevice;
-#define PCI_IPMI_KCS(obj) OBJECT_CHECK(PCIIPMIKCSDevice, (obj), \
-                                       TYPE_PCI_IPMI_KCS)
+DECLARE_INSTANCE_CHECKER(PCIIPMIKCSDevice, PCI_IPMI_KCS,
+                         TYPE_PCI_IPMI_KCS)
 
 struct PCIIPMIKCSDevice {
     PCIDevice dev;

@@ -86,8 +86,8 @@ struct vmsvga_state_s {
 
 #define TYPE_VMWARE_SVGA "vmware-svga"
 
-#define VMWARE_SVGA(obj) \
-    OBJECT_CHECK(struct pci_vmsvga_state_s, (obj), TYPE_VMWARE_SVGA)
+DECLARE_INSTANCE_CHECKER(struct pci_vmsvga_state_s, VMWARE_SVGA,
+                         TYPE_VMWARE_SVGA)
 
 struct pci_vmsvga_state_s {
     /*< private >*/

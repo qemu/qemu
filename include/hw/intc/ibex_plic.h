@@ -24,8 +24,8 @@
 
 #define TYPE_IBEX_PLIC "ibex-plic"
 typedef struct IbexPlicState IbexPlicState;
-#define IBEX_PLIC(obj) \
-    OBJECT_CHECK(IbexPlicState, (obj), TYPE_IBEX_PLIC)
+DECLARE_INSTANCE_CHECKER(IbexPlicState, IBEX_PLIC,
+                         TYPE_IBEX_PLIC)
 
 struct IbexPlicState {
     /*< private >*/

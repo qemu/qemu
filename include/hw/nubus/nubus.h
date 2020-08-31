@@ -24,12 +24,13 @@
 
 #define TYPE_NUBUS_DEVICE "nubus-device"
 typedef struct NubusDevice NubusDevice;
-#define NUBUS_DEVICE(obj) \
-     OBJECT_CHECK(NubusDevice, (obj), TYPE_NUBUS_DEVICE)
+DECLARE_INSTANCE_CHECKER(NubusDevice, NUBUS_DEVICE,
+                         TYPE_NUBUS_DEVICE)
 
 #define TYPE_NUBUS_BUS "nubus-bus"
 typedef struct NubusBus NubusBus;
-#define NUBUS_BUS(obj) OBJECT_CHECK(NubusBus, (obj), TYPE_NUBUS_BUS)
+DECLARE_INSTANCE_CHECKER(NubusBus, NUBUS_BUS,
+                         TYPE_NUBUS_BUS)
 
 #define TYPE_NUBUS_BRIDGE "nubus-bridge"
 

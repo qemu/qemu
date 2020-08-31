@@ -15,7 +15,8 @@
 
 #define TYPE_MIPS_GCR "mips-gcr"
 typedef struct MIPSGCRState MIPSGCRState;
-#define MIPS_GCR(obj) OBJECT_CHECK(MIPSGCRState, (obj), TYPE_MIPS_GCR)
+DECLARE_INSTANCE_CHECKER(MIPSGCRState, MIPS_GCR,
+                         TYPE_MIPS_GCR)
 
 #define GCR_BASE_ADDR           0x1fbf8000ULL
 #define GCR_ADDRSPACE_SZ        0x8000

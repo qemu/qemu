@@ -28,15 +28,8 @@
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
 typedef struct QCryptoSecretKeyring QCryptoSecretKeyring;
 typedef struct QCryptoSecretKeyringClass QCryptoSecretKeyringClass;
-#define QCRYPTO_SECRET_KEYRING(obj) \
-    OBJECT_CHECK(QCryptoSecretKeyring, (obj), \
-                 TYPE_QCRYPTO_SECRET_KEYRING)
-#define QCRYPTO_SECRET_KEYRING_CLASS(class) \
-    OBJECT_CLASS_CHECK(QCryptoSecretKeyringClass, \
-                       (class), TYPE_QCRYPTO_SECRET_KEYRING)
-#define QCRYPTO_SECRET_KEYRING_GET_CLASS(class) \
-    OBJECT_GET_CLASS(QCryptoSecretKeyringClass, \
-                     (class), TYPE_QCRYPTO_SECRET_KEYRING)
+DECLARE_OBJ_CHECKERS(QCryptoSecretKeyring, QCryptoSecretKeyringClass,
+                     QCRYPTO_SECRET_KEYRING, TYPE_QCRYPTO_SECRET_KEYRING)
 
 
 struct QCryptoSecretKeyring {

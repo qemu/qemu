@@ -66,7 +66,8 @@ typedef struct AspeedSoCState AspeedSoCState;
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
 typedef struct AspeedSoCClass AspeedSoCClass;
-#define ASPEED_SOC(obj) OBJECT_CHECK(AspeedSoCState, (obj), TYPE_ASPEED_SOC)
+DECLARE_OBJ_CHECKERS(AspeedSoCState, AspeedSoCClass,
+                     ASPEED_SOC, TYPE_ASPEED_SOC)
 
 struct AspeedSoCClass {
     DeviceClass parent_class;
@@ -84,10 +85,6 @@ struct AspeedSoCClass {
     uint32_t num_cpus;
 };
 
-#define ASPEED_SOC_CLASS(klass)                                         \
-    OBJECT_CLASS_CHECK(AspeedSoCClass, (klass), TYPE_ASPEED_SOC)
-#define ASPEED_SOC_GET_CLASS(obj)                               \
-    OBJECT_GET_CLASS(AspeedSoCClass, (obj), TYPE_ASPEED_SOC)
 
 enum {
     ASPEED_DEV_IOMEM,

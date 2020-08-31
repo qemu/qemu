@@ -30,8 +30,8 @@
 
 #define TYPE_RS6000MC "rs6000-mc"
 typedef struct RS6000MCState RS6000MCState;
-#define RS6000MC_DEVICE(obj) \
-    OBJECT_CHECK(RS6000MCState, (obj), TYPE_RS6000MC)
+DECLARE_INSTANCE_CHECKER(RS6000MCState, RS6000MC_DEVICE,
+                         TYPE_RS6000MC)
 
 struct RS6000MCState {
     ISADevice parent_obj;

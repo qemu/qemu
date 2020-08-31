@@ -64,11 +64,7 @@ struct MicrovmMachineState {
 typedef struct MicrovmMachineState MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
-#define MICROVM_MACHINE(obj) \
-    OBJECT_CHECK(MicrovmMachineState, (obj), TYPE_MICROVM_MACHINE)
-#define MICROVM_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MicrovmMachineClass, obj, TYPE_MICROVM_MACHINE)
-#define MICROVM_MACHINE_CLASS(class) \
-    OBJECT_CLASS_CHECK(MicrovmMachineClass, class, TYPE_MICROVM_MACHINE)
+DECLARE_OBJ_CHECKERS(MicrovmMachineState, MicrovmMachineClass,
+                     MICROVM_MACHINE, TYPE_MICROVM_MACHINE)
 
 #endif

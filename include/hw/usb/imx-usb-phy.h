@@ -40,7 +40,8 @@ enum IMXUsbPhyRegisters {
 
 #define TYPE_IMX_USBPHY "imx.usbphy"
 typedef struct IMXUSBPHYState IMXUSBPHYState;
-#define IMX_USBPHY(obj) OBJECT_CHECK(IMXUSBPHYState, (obj), TYPE_IMX_USBPHY)
+DECLARE_INSTANCE_CHECKER(IMXUSBPHYState, IMX_USBPHY,
+                         TYPE_IMX_USBPHY)
 
 struct IMXUSBPHYState {
     /* <private> */

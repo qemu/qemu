@@ -86,12 +86,8 @@ typedef struct IOAPICCommonState IOAPICCommonState;
 
 #define TYPE_IOAPIC_COMMON "ioapic-common"
 typedef struct IOAPICCommonClass IOAPICCommonClass;
-#define IOAPIC_COMMON(obj) \
-     OBJECT_CHECK(IOAPICCommonState, (obj), TYPE_IOAPIC_COMMON)
-#define IOAPIC_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(IOAPICCommonClass, (klass), TYPE_IOAPIC_COMMON)
-#define IOAPIC_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(IOAPICCommonClass, (obj), TYPE_IOAPIC_COMMON)
+DECLARE_OBJ_CHECKERS(IOAPICCommonState, IOAPICCommonClass,
+                     IOAPIC_COMMON, TYPE_IOAPIC_COMMON)
 
 struct IOAPICCommonClass {
     SysBusDeviceClass parent_class;

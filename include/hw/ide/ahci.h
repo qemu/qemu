@@ -54,15 +54,16 @@ typedef struct AHCIState {
 typedef struct AHCIPCIState AHCIPCIState;
 
 #define TYPE_ICH9_AHCI "ich9-ahci"
-#define ICH_AHCI(obj) \
-    OBJECT_CHECK(AHCIPCIState, (obj), TYPE_ICH9_AHCI)
+DECLARE_INSTANCE_CHECKER(AHCIPCIState, ICH_AHCI,
+                         TYPE_ICH9_AHCI)
 
 int32_t ahci_get_num_ports(PCIDevice *dev);
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
 
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"
 typedef struct SysbusAHCIState SysbusAHCIState;
-#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
+DECLARE_INSTANCE_CHECKER(SysbusAHCIState, SYSBUS_AHCI,
+                         TYPE_SYSBUS_AHCI)
 
 struct SysbusAHCIState {
     /*< private >*/
@@ -75,8 +76,8 @@ struct SysbusAHCIState {
 
 #define TYPE_ALLWINNER_AHCI "allwinner-ahci"
 typedef struct AllwinnerAHCIState AllwinnerAHCIState;
-#define ALLWINNER_AHCI(obj) \
-        OBJECT_CHECK(AllwinnerAHCIState, (obj), TYPE_ALLWINNER_AHCI)
+DECLARE_INSTANCE_CHECKER(AllwinnerAHCIState, ALLWINNER_AHCI,
+                         TYPE_ALLWINNER_AHCI)
 
 #define ALLWINNER_AHCI_MMIO_OFF  0x80
 #define ALLWINNER_AHCI_MMIO_SIZE 0x80

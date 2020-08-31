@@ -24,7 +24,8 @@
 
 #define TYPE_PUV3_DMA "puv3_dma"
 typedef struct PUV3DMAState PUV3DMAState;
-#define PUV3_DMA(obj) OBJECT_CHECK(PUV3DMAState, (obj), TYPE_PUV3_DMA)
+DECLARE_INSTANCE_CHECKER(PUV3DMAState, PUV3_DMA,
+                         TYPE_PUV3_DMA)
 
 struct PUV3DMAState {
     SysBusDevice parent_obj;

@@ -16,8 +16,8 @@
 
 #define TYPE_QCRYPTO_TLS_CIPHER_SUITES "tls-cipher-suites"
 typedef struct QCryptoTLSCipherSuites QCryptoTLSCipherSuites;
-#define QCRYPTO_TLS_CIPHER_SUITES(obj) \
-    OBJECT_CHECK(QCryptoTLSCipherSuites, (obj), TYPE_QCRYPTO_TLS_CIPHER_SUITES)
+DECLARE_INSTANCE_CHECKER(QCryptoTLSCipherSuites, QCRYPTO_TLS_CIPHER_SUITES,
+                         TYPE_QCRYPTO_TLS_CIPHER_SUITES)
 
 struct QCryptoTLSCipherSuites {
     /* <private> */

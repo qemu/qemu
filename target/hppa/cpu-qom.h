@@ -27,12 +27,8 @@
 
 typedef struct HPPACPU HPPACPU;
 typedef struct HPPACPUClass HPPACPUClass;
-#define HPPA_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(HPPACPUClass, (klass), TYPE_HPPA_CPU)
-#define HPPA_CPU(obj) \
-    OBJECT_CHECK(HPPACPU, (obj), TYPE_HPPA_CPU)
-#define HPPA_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(HPPACPUClass, (obj), TYPE_HPPA_CPU)
+DECLARE_OBJ_CHECKERS(HPPACPU, HPPACPUClass,
+                     HPPA_CPU, TYPE_HPPA_CPU)
 
 /**
  * HPPACPUClass:

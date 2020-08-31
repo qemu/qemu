@@ -45,8 +45,8 @@ struct MouseChardev {
 typedef struct MouseChardev MouseChardev;
 
 #define TYPE_CHARDEV_MSMOUSE "chardev-msmouse"
-#define MOUSE_CHARDEV(obj)                                      \
-    OBJECT_CHECK(MouseChardev, (obj), TYPE_CHARDEV_MSMOUSE)
+DECLARE_INSTANCE_CHECKER(MouseChardev, MOUSE_CHARDEV,
+                         TYPE_CHARDEV_MSMOUSE)
 
 static void msmouse_chr_accept_input(Chardev *chr)
 {

@@ -41,8 +41,8 @@ extern const VMStateDescription vmstate_adapter_routes;
 #define TYPE_S390_FLIC_COMMON "s390-flic"
 typedef struct S390FLICState S390FLICState;
 typedef struct S390FLICStateClass S390FLICStateClass;
-#define S390_FLIC_COMMON(obj) \
-    OBJECT_CHECK(S390FLICState, (obj), TYPE_S390_FLIC_COMMON)
+DECLARE_OBJ_CHECKERS(S390FLICState, S390FLICStateClass,
+                     S390_FLIC_COMMON, TYPE_S390_FLIC_COMMON)
 
 struct S390FLICState {
     SysBusDevice parent_obj;
@@ -51,10 +51,6 @@ struct S390FLICState {
     bool ais_supported;
 };
 
-#define S390_FLIC_COMMON_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390FLICStateClass, (klass), TYPE_S390_FLIC_COMMON)
-#define S390_FLIC_COMMON_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390FLICStateClass, (obj), TYPE_S390_FLIC_COMMON)
 
 struct S390FLICStateClass {
     DeviceClass parent_class;
@@ -79,13 +75,13 @@ struct S390FLICStateClass {
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"
 typedef struct KVMS390FLICState KVMS390FLICState;
-#define KVM_S390_FLIC(obj) \
-    OBJECT_CHECK(KVMS390FLICState, (obj), TYPE_KVM_S390_FLIC)
+DECLARE_INSTANCE_CHECKER(KVMS390FLICState, KVM_S390_FLIC,
+                         TYPE_KVM_S390_FLIC)
 
 #define TYPE_QEMU_S390_FLIC "s390-flic-qemu"
 typedef struct QEMUS390FLICState QEMUS390FLICState;
-#define QEMU_S390_FLIC(obj) \
-    OBJECT_CHECK(QEMUS390FLICState, (obj), TYPE_QEMU_S390_FLIC)
+DECLARE_INSTANCE_CHECKER(QEMUS390FLICState, QEMU_S390_FLIC,
+                         TYPE_QEMU_S390_FLIC)
 
 #define SIC_IRQ_MODE_ALL 0
 #define SIC_IRQ_MODE_SINGLE 1

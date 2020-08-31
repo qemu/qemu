@@ -18,12 +18,8 @@
 
 typedef struct UniCore32CPU UniCore32CPU;
 typedef struct UniCore32CPUClass UniCore32CPUClass;
-#define UNICORE32_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(UniCore32CPUClass, (klass), TYPE_UNICORE32_CPU)
-#define UNICORE32_CPU(obj) \
-    OBJECT_CHECK(UniCore32CPU, (obj), TYPE_UNICORE32_CPU)
-#define UNICORE32_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(UniCore32CPUClass, (obj), TYPE_UNICORE32_CPU)
+DECLARE_OBJ_CHECKERS(UniCore32CPU, UniCore32CPUClass,
+                     UNICORE32_CPU, TYPE_UNICORE32_CPU)
 
 /**
  * UniCore32CPUClass:

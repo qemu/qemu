@@ -15,7 +15,8 @@
 #define TYPE_PCA9552 "pca9552"
 #define TYPE_PCA955X "pca955x"
 typedef struct PCA955xState PCA955xState;
-#define PCA955X(obj) OBJECT_CHECK(PCA955xState, (obj), TYPE_PCA955X)
+DECLARE_INSTANCE_CHECKER(PCA955xState, PCA955X,
+                         TYPE_PCA955X)
 
 #define PCA955X_NR_REGS 10
 #define PCA955X_PIN_COUNT_MAX 16

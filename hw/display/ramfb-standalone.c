@@ -8,7 +8,8 @@
 #include "qom/object.h"
 
 typedef struct RAMFBStandaloneState RAMFBStandaloneState;
-#define RAMFB(obj) OBJECT_CHECK(RAMFBStandaloneState, (obj), TYPE_RAMFB_DEVICE)
+DECLARE_INSTANCE_CHECKER(RAMFBStandaloneState, RAMFB,
+                         TYPE_RAMFB_DEVICE)
 
 struct RAMFBStandaloneState {
     SysBusDevice parent_obj;

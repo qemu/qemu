@@ -29,8 +29,8 @@ typedef struct VirtIOSerialPCI VirtIOSerialPCI;
  * virtio-serial-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_SERIAL_PCI "virtio-serial-pci-base"
-#define VIRTIO_SERIAL_PCI(obj) \
-        OBJECT_CHECK(VirtIOSerialPCI, (obj), TYPE_VIRTIO_SERIAL_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOSerialPCI, VIRTIO_SERIAL_PCI,
+                         TYPE_VIRTIO_SERIAL_PCI)
 
 struct VirtIOSerialPCI {
     VirtIOPCIProxy parent_obj;

@@ -39,7 +39,8 @@
 
 #define TYPE_ISA_IDE "isa-ide"
 typedef struct ISAIDEState ISAIDEState;
-#define ISA_IDE(obj) OBJECT_CHECK(ISAIDEState, (obj), TYPE_ISA_IDE)
+DECLARE_INSTANCE_CHECKER(ISAIDEState, ISA_IDE,
+                         TYPE_ISA_IDE)
 
 struct ISAIDEState {
     ISADevice parent_obj;

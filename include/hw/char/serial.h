@@ -104,13 +104,16 @@ extern const MemoryRegionOps serial_io_ops;
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 #define TYPE_SERIAL "serial"
-#define SERIAL(s) OBJECT_CHECK(SerialState, (s), TYPE_SERIAL)
+DECLARE_INSTANCE_CHECKER(SerialState, SERIAL,
+                         TYPE_SERIAL)
 
 #define TYPE_SERIAL_MM "serial-mm"
-#define SERIAL_MM(s) OBJECT_CHECK(SerialMM, (s), TYPE_SERIAL_MM)
+DECLARE_INSTANCE_CHECKER(SerialMM, SERIAL_MM,
+                         TYPE_SERIAL_MM)
 
 #define TYPE_SERIAL_IO "serial-io"
-#define SERIAL_IO(s) OBJECT_CHECK(SerialIO, (s), TYPE_SERIAL_IO)
+DECLARE_INSTANCE_CHECKER(SerialIO, SERIAL_IO,
+                         TYPE_SERIAL_IO)
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,

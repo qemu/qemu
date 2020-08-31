@@ -27,13 +27,13 @@
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
 typedef struct VirtIOSCSICommon VirtIOSCSICommon;
-#define VIRTIO_SCSI_COMMON(obj) \
-        OBJECT_CHECK(VirtIOSCSICommon, (obj), TYPE_VIRTIO_SCSI_COMMON)
+DECLARE_INSTANCE_CHECKER(VirtIOSCSICommon, VIRTIO_SCSI_COMMON,
+                         TYPE_VIRTIO_SCSI_COMMON)
 
 #define TYPE_VIRTIO_SCSI "virtio-scsi-device"
 typedef struct VirtIOSCSI VirtIOSCSI;
-#define VIRTIO_SCSI(obj) \
-        OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
+DECLARE_INSTANCE_CHECKER(VirtIOSCSI, VIRTIO_SCSI,
+                         TYPE_VIRTIO_SCSI)
 
 #define VIRTIO_SCSI_MAX_CHANNEL 0
 #define VIRTIO_SCSI_MAX_TARGET  255

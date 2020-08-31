@@ -47,10 +47,7 @@ static inline CcwDevice *to_ccw_dev_fast(DeviceState *d)
 
 #define TYPE_CCW_DEVICE "ccw-device"
 
-#define CCW_DEVICE(obj) OBJECT_CHECK(CcwDevice, (obj), TYPE_CCW_DEVICE)
-#define CCW_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(CCWDeviceClass, (obj), TYPE_CCW_DEVICE)
-#define CCW_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(CCWDeviceClass, (klass), TYPE_CCW_DEVICE)
+DECLARE_OBJ_CHECKERS(CcwDevice, CCWDeviceClass,
+                     CCW_DEVICE, TYPE_CCW_DEVICE)
 
 #endif

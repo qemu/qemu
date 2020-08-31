@@ -19,7 +19,8 @@
 
 #define TYPE_EMPTY_SLOT "empty_slot"
 typedef struct EmptySlot EmptySlot;
-#define EMPTY_SLOT(obj) OBJECT_CHECK(EmptySlot, (obj), TYPE_EMPTY_SLOT)
+DECLARE_INSTANCE_CHECKER(EmptySlot, EMPTY_SLOT,
+                         TYPE_EMPTY_SLOT)
 
 struct EmptySlot {
     SysBusDevice parent_obj;

@@ -30,12 +30,8 @@
 #define TYPE_IMX_CCM "imx.ccm"
 typedef struct IMXCCMClass IMXCCMClass;
 typedef struct IMXCCMState IMXCCMState;
-#define IMX_CCM(obj) \
-     OBJECT_CHECK(IMXCCMState, (obj), TYPE_IMX_CCM)
-#define IMX_CCM_CLASS(klass) \
-     OBJECT_CLASS_CHECK(IMXCCMClass, (klass), TYPE_IMX_CCM)
-#define IMX_CCM_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(IMXCCMClass, (obj), TYPE_IMX_CCM)
+DECLARE_OBJ_CHECKERS(IMXCCMState, IMXCCMClass,
+                     IMX_CCM, TYPE_IMX_CCM)
 
 struct IMXCCMState {
     /* <private> */

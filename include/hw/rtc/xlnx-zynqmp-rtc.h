@@ -34,8 +34,8 @@
 #define TYPE_XLNX_ZYNQMP_RTC "xlnx-zynmp.rtc"
 
 typedef struct XlnxZynqMPRTC XlnxZynqMPRTC;
-#define XLNX_ZYNQMP_RTC(obj) \
-     OBJECT_CHECK(XlnxZynqMPRTC, (obj), TYPE_XLNX_ZYNQMP_RTC)
+DECLARE_INSTANCE_CHECKER(XlnxZynqMPRTC, XLNX_ZYNQMP_RTC,
+                         TYPE_XLNX_ZYNQMP_RTC)
 
 REG32(SET_TIME_WRITE, 0x0)
 REG32(SET_TIME_READ, 0x4)

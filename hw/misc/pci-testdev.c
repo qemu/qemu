@@ -96,8 +96,8 @@ typedef struct PCITestDevState PCITestDevState;
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
 
-#define PCI_TEST_DEV(obj) \
-    OBJECT_CHECK(PCITestDevState, (obj), TYPE_PCI_TEST_DEV)
+DECLARE_INSTANCE_CHECKER(PCITestDevState, PCI_TEST_DEV,
+                         TYPE_PCI_TEST_DEV)
 
 #define IOTEST_IS_MEM(i) (strcmp(IOTEST_TYPE(i), "portio"))
 #define IOTEST_REGION(d, i) (IOTEST_IS_MEM(i) ?  &(d)->mmio : &(d)->portio)

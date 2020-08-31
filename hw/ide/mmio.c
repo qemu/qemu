@@ -41,7 +41,8 @@
 
 #define TYPE_MMIO_IDE "mmio-ide"
 typedef struct MMIOIDEState MMIOState;
-#define MMIO_IDE(obj) OBJECT_CHECK(MMIOState, (obj), TYPE_MMIO_IDE)
+DECLARE_INSTANCE_CHECKER(MMIOState, MMIO_IDE,
+                         TYPE_MMIO_IDE)
 
 struct MMIOIDEState {
     /*< private >*/

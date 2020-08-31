@@ -26,7 +26,8 @@
 
 #define TYPE_MIPS_NET "mipsnet"
 typedef struct MIPSnetState MIPSnetState;
-#define MIPS_NET(obj) OBJECT_CHECK(MIPSnetState, (obj), TYPE_MIPS_NET)
+DECLARE_INSTANCE_CHECKER(MIPSnetState, MIPS_NET,
+                         TYPE_MIPS_NET)
 
 struct MIPSnetState {
     SysBusDevice parent_obj;

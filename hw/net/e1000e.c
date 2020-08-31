@@ -57,7 +57,8 @@
 
 #define TYPE_E1000E "e1000e"
 typedef struct E1000EState E1000EState;
-#define E1000E(obj) OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E)
+DECLARE_INSTANCE_CHECKER(E1000EState, E1000E,
+                         TYPE_E1000E)
 
 struct E1000EState {
     PCIDevice parent_obj;

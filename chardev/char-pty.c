@@ -45,7 +45,8 @@ struct PtyChardev {
 };
 typedef struct PtyChardev PtyChardev;
 
-#define PTY_CHARDEV(obj) OBJECT_CHECK(PtyChardev, (obj), TYPE_CHARDEV_PTY)
+DECLARE_INSTANCE_CHECKER(PtyChardev, PTY_CHARDEV,
+                         TYPE_CHARDEV_PTY)
 
 static void pty_chr_state(Chardev *chr, int connected);
 

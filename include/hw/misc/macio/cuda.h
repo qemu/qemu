@@ -66,13 +66,14 @@ struct MOS6522CUDAState {
 typedef struct MOS6522CUDAState MOS6522CUDAState;
 
 #define TYPE_MOS6522_CUDA "mos6522-cuda"
-#define MOS6522_CUDA(obj) OBJECT_CHECK(MOS6522CUDAState, (obj), \
-                                       TYPE_MOS6522_CUDA)
+DECLARE_INSTANCE_CHECKER(MOS6522CUDAState, MOS6522_CUDA,
+                         TYPE_MOS6522_CUDA)
 
 /* Cuda */
 #define TYPE_CUDA "cuda"
 typedef struct CUDAState CUDAState;
-#define CUDA(obj) OBJECT_CHECK(CUDAState, (obj), TYPE_CUDA)
+DECLARE_INSTANCE_CHECKER(CUDAState, CUDA,
+                         TYPE_CUDA)
 
 struct CUDAState {
     /*< private >*/

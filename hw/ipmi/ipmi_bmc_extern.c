@@ -63,8 +63,8 @@
 
 #define TYPE_IPMI_BMC_EXTERN "ipmi-bmc-extern"
 typedef struct IPMIBmcExtern IPMIBmcExtern;
-#define IPMI_BMC_EXTERN(obj) OBJECT_CHECK(IPMIBmcExtern, (obj), \
-                                        TYPE_IPMI_BMC_EXTERN)
+DECLARE_INSTANCE_CHECKER(IPMIBmcExtern, IPMI_BMC_EXTERN,
+                         TYPE_IPMI_BMC_EXTERN)
 struct IPMIBmcExtern {
     IPMIBmc parent;
 

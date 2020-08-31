@@ -18,7 +18,8 @@
 
 #define TYPE_MAX7310 "max7310"
 typedef struct MAX7310State MAX7310State;
-#define MAX7310(obj) OBJECT_CHECK(MAX7310State, (obj), TYPE_MAX7310)
+DECLARE_INSTANCE_CHECKER(MAX7310State, MAX7310,
+                         TYPE_MAX7310)
 
 struct MAX7310State {
     I2CSlave parent_obj;

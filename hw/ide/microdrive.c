@@ -35,7 +35,8 @@
 
 #define TYPE_MICRODRIVE "microdrive"
 typedef struct MicroDriveState MicroDriveState;
-#define MICRODRIVE(obj) OBJECT_CHECK(MicroDriveState, (obj), TYPE_MICRODRIVE)
+DECLARE_INSTANCE_CHECKER(MicroDriveState, MICRODRIVE,
+                         TYPE_MICRODRIVE)
 
 /***********************************************************/
 /* CF-ATA Microdrive */

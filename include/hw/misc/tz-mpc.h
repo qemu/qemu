@@ -36,7 +36,8 @@
 
 #define TYPE_TZ_MPC "tz-mpc"
 typedef struct TZMPC TZMPC;
-#define TZ_MPC(obj) OBJECT_CHECK(TZMPC, (obj), TYPE_TZ_MPC)
+DECLARE_INSTANCE_CHECKER(TZMPC, TZ_MPC,
+                         TYPE_TZ_MPC)
 
 #define TZ_NUM_PORTS 16
 

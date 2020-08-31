@@ -22,7 +22,8 @@ typedef struct PnvPHB3 PnvPHB3;
  */
 #define TYPE_PHB3_MSI "phb3-msi"
 typedef struct Phb3MsiState Phb3MsiState;
-#define PHB3_MSI(obj) OBJECT_CHECK(Phb3MsiState, (obj), TYPE_PHB3_MSI)
+DECLARE_INSTANCE_CHECKER(Phb3MsiState, PHB3_MSI,
+                         TYPE_PHB3_MSI)
 
 #define PHB3_MAX_MSI     2048
 
@@ -72,7 +73,8 @@ typedef struct PnvPhb3DMASpace {
  */
 #define TYPE_PNV_PBCQ "pnv-pbcq"
 typedef struct PnvPBCQState PnvPBCQState;
-#define PNV_PBCQ(obj) OBJECT_CHECK(PnvPBCQState, (obj), TYPE_PNV_PBCQ)
+DECLARE_INSTANCE_CHECKER(PnvPBCQState, PNV_PBCQ,
+                         TYPE_PNV_PBCQ)
 
 struct PnvPBCQState {
     DeviceState parent;
@@ -116,7 +118,8 @@ typedef struct PnvPHB3RootPort {
  * PHB3 PCIe Host Bridge for PowerNV machines (POWER8)
  */
 #define TYPE_PNV_PHB3 "pnv-phb3"
-#define PNV_PHB3(obj) OBJECT_CHECK(PnvPHB3, (obj), TYPE_PNV_PHB3)
+DECLARE_INSTANCE_CHECKER(PnvPHB3, PNV_PHB3,
+                         TYPE_PNV_PHB3)
 
 #define PNV_PHB3_NUM_M64      16
 #define PNV_PHB3_NUM_REGS     (0x1000 >> 3)

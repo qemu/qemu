@@ -22,7 +22,8 @@
 
 #define TYPE_IMX_AVIC "imx.avic"
 typedef struct IMXAVICState IMXAVICState;
-#define IMX_AVIC(obj) OBJECT_CHECK(IMXAVICState, (obj), TYPE_IMX_AVIC)
+DECLARE_INSTANCE_CHECKER(IMXAVICState, IMX_AVIC,
+                         TYPE_IMX_AVIC)
 
 #define IMX_AVIC_NUM_IRQS 64
 

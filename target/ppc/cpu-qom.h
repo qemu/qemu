@@ -31,12 +31,8 @@
 
 typedef struct PowerPCCPU PowerPCCPU;
 typedef struct PowerPCCPUClass PowerPCCPUClass;
-#define POWERPC_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PowerPCCPUClass, (klass), TYPE_POWERPC_CPU)
-#define POWERPC_CPU(obj) \
-    OBJECT_CHECK(PowerPCCPU, (obj), TYPE_POWERPC_CPU)
-#define POWERPC_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PowerPCCPUClass, (obj), TYPE_POWERPC_CPU)
+DECLARE_OBJ_CHECKERS(PowerPCCPU, PowerPCCPUClass,
+                     POWERPC_CPU, TYPE_POWERPC_CPU)
 
 typedef struct CPUPPCState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;

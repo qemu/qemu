@@ -28,8 +28,8 @@
 
 #define TYPE_INTEL_IOMMU_DEVICE "intel-iommu"
 typedef struct IntelIOMMUState IntelIOMMUState;
-#define INTEL_IOMMU_DEVICE(obj) \
-     OBJECT_CHECK(IntelIOMMUState, (obj), TYPE_INTEL_IOMMU_DEVICE)
+DECLARE_INSTANCE_CHECKER(IntelIOMMUState, INTEL_IOMMU_DEVICE,
+                         TYPE_INTEL_IOMMU_DEVICE)
 
 #define TYPE_INTEL_IOMMU_MEMORY_REGION "intel-iommu-iommu-memory-region"
 

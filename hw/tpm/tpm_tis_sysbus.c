@@ -40,7 +40,8 @@ struct TPMStateSysBus {
 };
 typedef struct TPMStateSysBus TPMStateSysBus;
 
-#define TPM_TIS_SYSBUS(obj) OBJECT_CHECK(TPMStateSysBus, (obj), TYPE_TPM_TIS_SYSBUS)
+DECLARE_INSTANCE_CHECKER(TPMStateSysBus, TPM_TIS_SYSBUS,
+                         TYPE_TPM_TIS_SYSBUS)
 
 static int tpm_tis_pre_save_sysbus(void *opaque)
 {

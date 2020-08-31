@@ -49,8 +49,8 @@ struct SCLPConsoleLM {
 typedef struct SCLPConsoleLM SCLPConsoleLM;
 
 #define TYPE_SCLPLM_CONSOLE "sclplmconsole"
-#define SCLPLM_CONSOLE(obj) \
-    OBJECT_CHECK(SCLPConsoleLM, (obj), TYPE_SCLPLM_CONSOLE)
+DECLARE_INSTANCE_CHECKER(SCLPConsoleLM, SCLPLM_CONSOLE,
+                         TYPE_SCLPLM_CONSOLE)
 
 /*
 *  Character layer call-back functions

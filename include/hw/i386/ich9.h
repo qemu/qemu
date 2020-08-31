@@ -25,8 +25,8 @@ void ich9_generate_smi(void);
 
 #define TYPE_ICH9_LPC_DEVICE "ICH9-LPC"
 typedef struct ICH9LPCState ICH9LPCState;
-#define ICH9_LPC_DEVICE(obj) \
-     OBJECT_CHECK(ICH9LPCState, (obj), TYPE_ICH9_LPC_DEVICE)
+DECLARE_INSTANCE_CHECKER(ICH9LPCState, ICH9_LPC_DEVICE,
+                         TYPE_ICH9_LPC_DEVICE)
 
 struct ICH9LPCState {
     /* ICH9 LPC PCI to ISA bridge */

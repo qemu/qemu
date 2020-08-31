@@ -28,7 +28,8 @@ typedef struct {
 } WMRate;
 
 typedef struct WM8750State WM8750State;
-#define WM8750(obj) OBJECT_CHECK(WM8750State, (obj), TYPE_WM8750)
+DECLARE_INSTANCE_CHECKER(WM8750State, WM8750,
+                         TYPE_WM8750)
 
 struct WM8750State {
     I2CSlave parent_obj;

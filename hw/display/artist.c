@@ -26,7 +26,8 @@
 
 #define TYPE_ARTIST "artist"
 typedef struct ARTISTState ARTISTState;
-#define ARTIST(obj) OBJECT_CHECK(ARTISTState, (obj), TYPE_ARTIST)
+DECLARE_INSTANCE_CHECKER(ARTISTState, ARTIST,
+                         TYPE_ARTIST)
 
 #ifdef HOST_WORDS_BIGENDIAN
 #define ROP8OFF(_i) (3 - (_i))

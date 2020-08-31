@@ -37,7 +37,8 @@
 
 #define TYPE_SII9022 "sii9022"
 typedef struct sii9022_state sii9022_state;
-#define SII9022(obj) OBJECT_CHECK(sii9022_state, (obj), TYPE_SII9022)
+DECLARE_INSTANCE_CHECKER(sii9022_state, SII9022,
+                         TYPE_SII9022)
 
 struct sii9022_state {
     I2CSlave parent_obj;

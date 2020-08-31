@@ -20,7 +20,8 @@
 
 #define TYPE_TMP105 "tmp105"
 typedef struct TMP105State TMP105State;
-#define TMP105(obj) OBJECT_CHECK(TMP105State, (obj), TYPE_TMP105)
+DECLARE_INSTANCE_CHECKER(TMP105State, TMP105,
+                         TYPE_TMP105)
 
 /**
  * TMP105State:

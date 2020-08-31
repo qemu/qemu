@@ -27,10 +27,8 @@ typedef enum TPMVersion {
 
 #define TYPE_TPM_IF "tpm-if"
 typedef struct TPMIfClass TPMIfClass;
-#define TPM_IF_CLASS(klass)                                 \
-    OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
-#define TPM_IF_GET_CLASS(obj)                           \
-    OBJECT_GET_CLASS(TPMIfClass, (obj), TYPE_TPM_IF)
+DECLARE_CLASS_CHECKERS(TPMIfClass, TPM_IF,
+                       TYPE_TPM_IF)
 #define TPM_IF(obj)                             \
     INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
 

@@ -95,8 +95,8 @@ static inline GCC_FMT_ATTR(1, 2) int DPRINTF(const char *fmt, ...)
 #define TYPE_RTL8139 "rtl8139"
 
 typedef struct RTL8139State RTL8139State;
-#define RTL8139(obj) \
-     OBJECT_CHECK(RTL8139State, (obj), TYPE_RTL8139)
+DECLARE_INSTANCE_CHECKER(RTL8139State, RTL8139,
+                         TYPE_RTL8139)
 
 /* Symbolic offsets to registers. */
 enum RTL8139_registers {

@@ -39,8 +39,8 @@
 
 #define TYPE_CS4231 "SUNW,CS4231"
 typedef struct CSState CSState;
-#define CS4231(obj) \
-    OBJECT_CHECK(CSState, (obj), TYPE_CS4231)
+DECLARE_INSTANCE_CHECKER(CSState, CS4231,
+                         TYPE_CS4231)
 
 struct CSState {
     SysBusDevice parent_obj;

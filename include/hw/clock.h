@@ -19,7 +19,8 @@
 
 #define TYPE_CLOCK "clock"
 typedef struct Clock Clock;
-#define CLOCK(obj) OBJECT_CHECK(Clock, (obj), TYPE_CLOCK)
+DECLARE_INSTANCE_CHECKER(Clock, CLOCK,
+                         TYPE_CLOCK)
 
 typedef void ClockCallback(void *opaque);
 

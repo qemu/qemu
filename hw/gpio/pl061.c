@@ -36,7 +36,8 @@ static const uint8_t pl061_id_luminary[12] =
 
 #define TYPE_PL061 "pl061"
 typedef struct PL061State PL061State;
-#define PL061(obj) OBJECT_CHECK(PL061State, (obj), TYPE_PL061)
+DECLARE_INSTANCE_CHECKER(PL061State, PL061,
+                         TYPE_PL061)
 
 #define N_GPIOS 8
 

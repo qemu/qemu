@@ -13,6 +13,7 @@ struct ChipideaState {
 typedef struct ChipideaState ChipideaState;
 
 #define TYPE_CHIPIDEA "usb-chipidea"
-#define CHIPIDEA(obj) OBJECT_CHECK(ChipideaState, (obj), TYPE_CHIPIDEA)
+DECLARE_INSTANCE_CHECKER(ChipideaState, CHIPIDEA,
+                         TYPE_CHIPIDEA)
 
 #endif /* CHIPIDEA_H */

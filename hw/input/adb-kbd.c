@@ -34,7 +34,8 @@
 
 typedef struct ADBKeyboardClass ADBKeyboardClass;
 typedef struct KBDState KBDState;
-#define ADB_KEYBOARD(obj) OBJECT_CHECK(KBDState, (obj), TYPE_ADB_KEYBOARD)
+DECLARE_OBJ_CHECKERS(KBDState, ADBKeyboardClass,
+                     ADB_KEYBOARD, TYPE_ADB_KEYBOARD)
 
 struct KBDState {
     /*< private >*/
@@ -45,10 +46,6 @@ struct KBDState {
     int rptr, wptr, count;
 };
 
-#define ADB_KEYBOARD_CLASS(class) \
-    OBJECT_CLASS_CHECK(ADBKeyboardClass, (class), TYPE_ADB_KEYBOARD)
-#define ADB_KEYBOARD_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ADBKeyboardClass, (obj), TYPE_ADB_KEYBOARD)
 
 struct ADBKeyboardClass {
     /*< private >*/

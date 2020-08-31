@@ -90,12 +90,8 @@ typedef struct MuscaMachineState MuscaMachineState;
 #define TYPE_MUSCA_A_MACHINE MACHINE_TYPE_NAME("musca-a")
 #define TYPE_MUSCA_B1_MACHINE MACHINE_TYPE_NAME("musca-b1")
 
-#define MUSCA_MACHINE(obj) \
-    OBJECT_CHECK(MuscaMachineState, obj, TYPE_MUSCA_MACHINE)
-#define MUSCA_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MuscaMachineClass, obj, TYPE_MUSCA_MACHINE)
-#define MUSCA_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MuscaMachineClass, klass, TYPE_MUSCA_MACHINE)
+DECLARE_OBJ_CHECKERS(MuscaMachineState, MuscaMachineClass,
+                     MUSCA_MACHINE, TYPE_MUSCA_MACHINE)
 
 /*
  * Main SYSCLK frequency in Hz

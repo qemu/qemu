@@ -73,8 +73,8 @@ typedef struct TPCI200State TPCI200State;
 
 #define TYPE_TPCI200 "tpci200"
 
-#define TPCI200(obj) \
-    OBJECT_CHECK(TPCI200State, (obj), TYPE_TPCI200)
+DECLARE_INSTANCE_CHECKER(TPCI200State, TPCI200,
+                         TYPE_TPCI200)
 
 static const uint8_t local_config_regs[] = {
     0x00, 0xFF, 0xFF, 0x0F, 0x00, 0xFC, 0xFF, 0x0F, 0x00, 0x00, 0x00,

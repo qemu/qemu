@@ -41,7 +41,8 @@
 /* MacIO virtual bus */
 #define TYPE_MACIO_BUS "macio-bus"
 typedef struct MacIOBusState MacIOBusState;
-#define MACIO_BUS(obj) OBJECT_CHECK(MacIOBusState, (obj), TYPE_MACIO_BUS)
+DECLARE_INSTANCE_CHECKER(MacIOBusState, MACIO_BUS,
+                         TYPE_MACIO_BUS)
 
 struct MacIOBusState {
     /*< private >*/
@@ -51,7 +52,8 @@ struct MacIOBusState {
 /* MacIO IDE */
 #define TYPE_MACIO_IDE "macio-ide"
 typedef struct MACIOIDEState MACIOIDEState;
-#define MACIO_IDE(obj) OBJECT_CHECK(MACIOIDEState, (obj), TYPE_MACIO_IDE)
+DECLARE_INSTANCE_CHECKER(MACIOIDEState, MACIO_IDE,
+                         TYPE_MACIO_IDE)
 
 struct MACIOIDEState {
     /*< private >*/
@@ -78,7 +80,8 @@ void macio_ide_register_dma(MACIOIDEState *ide);
 
 #define TYPE_MACIO "macio"
 typedef struct MacIOState MacIOState;
-#define MACIO(obj) OBJECT_CHECK(MacIOState, (obj), TYPE_MACIO)
+DECLARE_INSTANCE_CHECKER(MacIOState, MACIO,
+                         TYPE_MACIO)
 
 struct MacIOState {
     /*< private >*/
@@ -96,8 +99,8 @@ struct MacIOState {
 
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"
 typedef struct OldWorldMacIOState OldWorldMacIOState;
-#define OLDWORLD_MACIO(obj) \
-    OBJECT_CHECK(OldWorldMacIOState, (obj), TYPE_OLDWORLD_MACIO)
+DECLARE_INSTANCE_CHECKER(OldWorldMacIOState, OLDWORLD_MACIO,
+                         TYPE_OLDWORLD_MACIO)
 
 struct OldWorldMacIOState {
     /*< private >*/
@@ -112,8 +115,8 @@ struct OldWorldMacIOState {
 
 #define TYPE_NEWWORLD_MACIO "macio-newworld"
 typedef struct NewWorldMacIOState NewWorldMacIOState;
-#define NEWWORLD_MACIO(obj) \
-    OBJECT_CHECK(NewWorldMacIOState, (obj), TYPE_NEWWORLD_MACIO)
+DECLARE_INSTANCE_CHECKER(NewWorldMacIOState, NEWWORLD_MACIO,
+                         TYPE_NEWWORLD_MACIO)
 
 struct NewWorldMacIOState {
     /*< private >*/

@@ -79,7 +79,8 @@
 
 #define TYPE_IMX_SPI "imx.spi"
 typedef struct IMXSPIState IMXSPIState;
-#define IMX_SPI(obj) OBJECT_CHECK(IMXSPIState, (obj), TYPE_IMX_SPI)
+DECLARE_INSTANCE_CHECKER(IMXSPIState, IMX_SPI,
+                         TYPE_IMX_SPI)
 
 struct IMXSPIState {
     /* <private> */

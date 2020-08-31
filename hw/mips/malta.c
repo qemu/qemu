@@ -90,7 +90,8 @@ typedef struct {
 
 #define TYPE_MIPS_MALTA "mips-malta"
 typedef struct MaltaState MaltaState;
-#define MIPS_MALTA(obj) OBJECT_CHECK(MaltaState, (obj), TYPE_MIPS_MALTA)
+DECLARE_INSTANCE_CHECKER(MaltaState, MIPS_MALTA,
+                         TYPE_MIPS_MALTA)
 
 struct MaltaState {
     SysBusDevice parent_obj;

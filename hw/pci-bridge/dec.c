@@ -35,7 +35,8 @@
 #include "qom/object.h"
 
 typedef struct DECState DECState;
-#define DEC_21154(obj) OBJECT_CHECK(DECState, (obj), TYPE_DEC_21154)
+DECLARE_INSTANCE_CHECKER(DECState, DEC_21154,
+                         TYPE_DEC_21154)
 
 struct DECState {
     PCIHostState parent_obj;

@@ -128,8 +128,8 @@ enum {
 
 #define TYPE_AC97 "AC97"
 typedef struct AC97LinkState AC97LinkState;
-#define AC97(obj) \
-    OBJECT_CHECK(AC97LinkState, (obj), TYPE_AC97)
+DECLARE_INSTANCE_CHECKER(AC97LinkState, AC97,
+                         TYPE_AC97)
 
 #define REC_MASK 7
 enum {

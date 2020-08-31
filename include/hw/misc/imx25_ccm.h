@@ -65,7 +65,8 @@
 
 #define TYPE_IMX25_CCM "imx25.ccm"
 typedef struct IMX25CCMState IMX25CCMState;
-#define IMX25_CCM(obj) OBJECT_CHECK(IMX25CCMState, (obj), TYPE_IMX25_CCM)
+DECLARE_INSTANCE_CHECKER(IMX25CCMState, IMX25_CCM,
+                         TYPE_IMX25_CCM)
 
 struct IMX25CCMState {
     /* <private> */

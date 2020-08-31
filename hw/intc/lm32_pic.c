@@ -31,7 +31,8 @@
 
 #define TYPE_LM32_PIC "lm32-pic"
 typedef struct LM32PicState LM32PicState;
-#define LM32_PIC(obj) OBJECT_CHECK(LM32PicState, (obj), TYPE_LM32_PIC)
+DECLARE_INSTANCE_CHECKER(LM32PicState, LM32_PIC,
+                         TYPE_LM32_PIC)
 
 struct LM32PicState {
     SysBusDevice parent_obj;

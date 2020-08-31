@@ -172,7 +172,8 @@
 
 #define TYPE_MIPS_GIC "mips-gic"
 typedef struct MIPSGICState MIPSGICState;
-#define MIPS_GIC(obj) OBJECT_CHECK(MIPSGICState, (obj), TYPE_MIPS_GIC)
+DECLARE_INSTANCE_CHECKER(MIPSGICState, MIPS_GIC,
+                         TYPE_MIPS_GIC)
 
 /* Support up to 32 VPs and 256 IRQs */
 #define GIC_MAX_VPS             32

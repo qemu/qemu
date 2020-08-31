@@ -12,7 +12,8 @@
 #include "qom/object.h"
 
 typedef struct RngBuiltin RngBuiltin;
-#define RNG_BUILTIN(obj) OBJECT_CHECK(RngBuiltin, (obj), TYPE_RNG_BUILTIN)
+DECLARE_INSTANCE_CHECKER(RngBuiltin, RNG_BUILTIN,
+                         TYPE_RNG_BUILTIN)
 
 struct RngBuiltin {
     RngBackend parent;

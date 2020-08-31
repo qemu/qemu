@@ -35,7 +35,8 @@
 
 #define TYPE_TWL92230 "twl92230"
 typedef struct MenelausState MenelausState;
-#define TWL92230(obj) OBJECT_CHECK(MenelausState, (obj), TYPE_TWL92230)
+DECLARE_INSTANCE_CHECKER(MenelausState, TWL92230,
+                         TYPE_TWL92230)
 
 struct MenelausState {
     I2CSlave parent_obj;

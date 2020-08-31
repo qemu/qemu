@@ -37,8 +37,8 @@ typedef struct {
 
 #define TYPE_ARM_MPTIMER "arm_mptimer"
 typedef struct ARMMPTimerState ARMMPTimerState;
-#define ARM_MPTIMER(obj) \
-    OBJECT_CHECK(ARMMPTimerState, (obj), TYPE_ARM_MPTIMER)
+DECLARE_INSTANCE_CHECKER(ARMMPTimerState, ARM_MPTIMER,
+                         TYPE_ARM_MPTIMER)
 
 struct ARMMPTimerState {
     /*< private >*/

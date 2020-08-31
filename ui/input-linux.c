@@ -33,12 +33,8 @@ static bool linux_is_button(unsigned int lnx)
 #define TYPE_INPUT_LINUX "input-linux"
 typedef struct InputLinux InputLinux;
 typedef struct InputLinuxClass InputLinuxClass;
-#define INPUT_LINUX(obj) \
-    OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
-#define INPUT_LINUX_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(InputLinuxClass, (obj), TYPE_INPUT_LINUX)
-#define INPUT_LINUX_CLASS(klass) \
-    OBJECT_CLASS_CHECK(InputLinuxClass, (klass), TYPE_INPUT_LINUX)
+DECLARE_OBJ_CHECKERS(InputLinux, InputLinuxClass,
+                     INPUT_LINUX, TYPE_INPUT_LINUX)
 
 
 struct InputLinux {

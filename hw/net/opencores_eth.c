@@ -273,7 +273,8 @@ typedef struct desc {
 
 #define TYPE_OPEN_ETH "open_eth"
 typedef struct OpenEthState OpenEthState;
-#define OPEN_ETH(obj) OBJECT_CHECK(OpenEthState, (obj), TYPE_OPEN_ETH)
+DECLARE_INSTANCE_CHECKER(OpenEthState, OPEN_ETH,
+                         TYPE_OPEN_ETH)
 
 struct OpenEthState {
     SysBusDevice parent_obj;

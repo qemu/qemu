@@ -123,12 +123,8 @@ struct PCMachineClass {
 typedef struct PCMachineClass PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
-#define PC_MACHINE(obj) \
-    OBJECT_CHECK(PCMachineState, (obj), TYPE_PC_MACHINE)
-#define PC_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PCMachineClass, (obj), TYPE_PC_MACHINE)
-#define PC_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
+DECLARE_OBJ_CHECKERS(PCMachineState, PCMachineClass,
+                     PC_MACHINE, TYPE_PC_MACHINE)
 
 /* ioapic.c */
 

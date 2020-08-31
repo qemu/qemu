@@ -28,8 +28,8 @@
 typedef struct PlatformBusDevice PlatformBusDevice;
 
 #define TYPE_PLATFORM_BUS_DEVICE "platform-bus-device"
-#define PLATFORM_BUS_DEVICE(obj) \
-     OBJECT_CHECK(PlatformBusDevice, (obj), TYPE_PLATFORM_BUS_DEVICE)
+DECLARE_INSTANCE_CHECKER(PlatformBusDevice, PLATFORM_BUS_DEVICE,
+                         TYPE_PLATFORM_BUS_DEVICE)
 
 struct PlatformBusDevice {
     /*< private >*/

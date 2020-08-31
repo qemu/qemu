@@ -52,8 +52,8 @@ enum {
 
 #define TYPE_MILKYMIST_SOFTUSB "milkymist-softusb"
 typedef struct MilkymistSoftUsbState MilkymistSoftUsbState;
-#define MILKYMIST_SOFTUSB(obj) \
-    OBJECT_CHECK(MilkymistSoftUsbState, (obj), TYPE_MILKYMIST_SOFTUSB)
+DECLARE_INSTANCE_CHECKER(MilkymistSoftUsbState, MILKYMIST_SOFTUSB,
+                         TYPE_MILKYMIST_SOFTUSB)
 
 struct MilkymistSoftUsbState {
     SysBusDevice parent_obj;

@@ -41,11 +41,8 @@
 
 typedef struct KVMPITClass KVMPITClass;
 typedef struct KVMPITState KVMPITState;
-#define KVM_PIT(obj) OBJECT_CHECK(KVMPITState, (obj), TYPE_KVM_I8254)
-#define KVM_PIT_CLASS(class) \
-    OBJECT_CLASS_CHECK(KVMPITClass, (class), TYPE_KVM_I8254)
-#define KVM_PIT_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(KVMPITClass, (obj), TYPE_KVM_I8254)
+DECLARE_OBJ_CHECKERS(KVMPITState, KVMPITClass,
+                     KVM_PIT, TYPE_KVM_I8254)
 
 struct KVMPITState {
     PITCommonState parent_obj;

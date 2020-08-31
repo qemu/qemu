@@ -23,8 +23,8 @@
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 typedef struct VirtIOBlock VirtIOBlock;
-#define VIRTIO_BLK(obj) \
-        OBJECT_CHECK(VirtIOBlock, (obj), TYPE_VIRTIO_BLK)
+DECLARE_INSTANCE_CHECKER(VirtIOBlock, VIRTIO_BLK,
+                         TYPE_VIRTIO_BLK)
 
 /* This is the last element of the write scatter-gather list */
 struct virtio_blk_inhdr

@@ -131,7 +131,8 @@
 
 #define TYPE_SUNHME "sunhme"
 typedef struct SunHMEState SunHMEState;
-#define SUNHME(obj) OBJECT_CHECK(SunHMEState, (obj), TYPE_SUNHME)
+DECLARE_INSTANCE_CHECKER(SunHMEState, SUNHME,
+                         TYPE_SUNHME)
 
 /* Maximum size of buffer */
 #define HME_FIFO_SIZE          0x800

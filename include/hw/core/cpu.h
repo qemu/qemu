@@ -63,8 +63,8 @@ typedef uint64_t vaddr;
 #define CPU(obj) ((CPUState *)(obj))
 
 typedef struct CPUClass CPUClass;
-#define CPU_CLASS(class) OBJECT_CLASS_CHECK(CPUClass, (class), TYPE_CPU)
-#define CPU_GET_CLASS(obj) OBJECT_GET_CLASS(CPUClass, (obj), TYPE_CPU)
+DECLARE_CLASS_CHECKERS(CPUClass, CPU,
+                       TYPE_CPU)
 
 typedef enum MMUAccessType {
     MMU_DATA_LOAD  = 0,

@@ -44,17 +44,15 @@
 #define TYPE_XILINX_AXI_DMA_CONTROL_STREAM "xilinx-axi-dma-control-stream"
 
 typedef struct XilinxAXIDMA XilinxAXIDMA;
-#define XILINX_AXI_DMA(obj) \
-     OBJECT_CHECK(XilinxAXIDMA, (obj), TYPE_XILINX_AXI_DMA)
+DECLARE_INSTANCE_CHECKER(XilinxAXIDMA, XILINX_AXI_DMA,
+                         TYPE_XILINX_AXI_DMA)
 
 typedef struct XilinxAXIDMAStreamSlave XilinxAXIDMAStreamSlave;
-#define XILINX_AXI_DMA_DATA_STREAM(obj) \
-     OBJECT_CHECK(XilinxAXIDMAStreamSlave, (obj),\
-     TYPE_XILINX_AXI_DMA_DATA_STREAM)
+DECLARE_INSTANCE_CHECKER(XilinxAXIDMAStreamSlave, XILINX_AXI_DMA_DATA_STREAM,
+                         TYPE_XILINX_AXI_DMA_DATA_STREAM)
 
-#define XILINX_AXI_DMA_CONTROL_STREAM(obj) \
-     OBJECT_CHECK(XilinxAXIDMAStreamSlave, (obj),\
-     TYPE_XILINX_AXI_DMA_CONTROL_STREAM)
+DECLARE_INSTANCE_CHECKER(XilinxAXIDMAStreamSlave, XILINX_AXI_DMA_CONTROL_STREAM,
+                         TYPE_XILINX_AXI_DMA_CONTROL_STREAM)
 
 #define R_DMACR             (0x00 / 4)
 #define R_DMASR             (0x04 / 4)

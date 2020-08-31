@@ -18,8 +18,8 @@
 
 #define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
 typedef struct ARM11MPCorePriveState ARM11MPCorePriveState;
-#define ARM11MPCORE_PRIV(obj) \
-    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
+DECLARE_INSTANCE_CHECKER(ARM11MPCorePriveState, ARM11MPCORE_PRIV,
+                         TYPE_ARM11MPCORE_PRIV)
 
 struct ARM11MPCorePriveState {
     SysBusDevice parent_obj;

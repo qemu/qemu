@@ -55,8 +55,8 @@
 
 #define TYPE_STM32F2XX_USART "stm32f2xx-usart"
 typedef struct STM32F2XXUsartState STM32F2XXUsartState;
-#define STM32F2XX_USART(obj) \
-    OBJECT_CHECK(STM32F2XXUsartState, (obj), TYPE_STM32F2XX_USART)
+DECLARE_INSTANCE_CHECKER(STM32F2XXUsartState, STM32F2XX_USART,
+                         TYPE_STM32F2XX_USART)
 
 struct STM32F2XXUsartState {
     /* <private> */

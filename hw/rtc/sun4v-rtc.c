@@ -21,7 +21,8 @@
 
 #define TYPE_SUN4V_RTC "sun4v_rtc"
 typedef struct Sun4vRtc Sun4vRtc;
-#define SUN4V_RTC(obj) OBJECT_CHECK(Sun4vRtc, (obj), TYPE_SUN4V_RTC)
+DECLARE_INSTANCE_CHECKER(Sun4vRtc, SUN4V_RTC,
+                         TYPE_SUN4V_RTC)
 
 struct Sun4vRtc {
     SysBusDevice parent_obj;

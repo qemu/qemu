@@ -22,7 +22,8 @@
 
 #define TYPE_PUV3_OST "puv3_ost"
 typedef struct PUV3OSTState PUV3OSTState;
-#define PUV3_OST(obj) OBJECT_CHECK(PUV3OSTState, (obj), TYPE_PUV3_OST)
+DECLARE_INSTANCE_CHECKER(PUV3OSTState, PUV3_OST,
+                         TYPE_PUV3_OST)
 
 /* puv3 ostimer implementation. */
 struct PUV3OSTState {

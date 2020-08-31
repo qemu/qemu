@@ -94,7 +94,8 @@ typedef struct OHCIState {
 
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
 typedef struct OHCISysBusState OHCISysBusState;
-#define SYSBUS_OHCI(obj) OBJECT_CHECK(OHCISysBusState, (obj), TYPE_SYSBUS_OHCI)
+DECLARE_INSTANCE_CHECKER(OHCISysBusState, SYSBUS_OHCI,
+                         TYPE_SYSBUS_OHCI)
 
 struct OHCISysBusState {
     /*< private >*/

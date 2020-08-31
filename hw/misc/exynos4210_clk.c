@@ -26,8 +26,8 @@
 
 #define TYPE_EXYNOS4210_CLK             "exynos4210.clk"
 typedef struct Exynos4210ClkState Exynos4210ClkState;
-#define EXYNOS4210_CLK(obj) \
-    OBJECT_CHECK(Exynos4210ClkState, (obj), TYPE_EXYNOS4210_CLK)
+DECLARE_INSTANCE_CHECKER(Exynos4210ClkState, EXYNOS4210_CLK,
+                         TYPE_EXYNOS4210_CLK)
 
 #define CLK_PLL_LOCKED                  BIT(29)
 

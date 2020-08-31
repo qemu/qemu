@@ -46,11 +46,7 @@ void ppce500_init(MachineState *machine);
 hwaddr booke206_page_size_to_tlb(uint64_t size);
 
 #define TYPE_PPCE500_MACHINE      "ppce500-base-machine"
-#define PPCE500_MACHINE(obj) \
-    OBJECT_CHECK(PPCE500MachineState, (obj), TYPE_PPCE500_MACHINE)
-#define PPCE500_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PPCE500MachineClass, obj, TYPE_PPCE500_MACHINE)
-#define PPCE500_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PPCE500MachineClass, klass, TYPE_PPCE500_MACHINE)
+DECLARE_OBJ_CHECKERS(PPCE500MachineState, PPCE500MachineClass,
+                     PPCE500_MACHINE, TYPE_PPCE500_MACHINE)
 
 #endif

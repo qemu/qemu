@@ -657,7 +657,8 @@ struct USBAudioState {
 typedef struct USBAudioState USBAudioState;
 
 #define TYPE_USB_AUDIO "usb-audio"
-#define USB_AUDIO(obj) OBJECT_CHECK(USBAudioState, (obj), TYPE_USB_AUDIO)
+DECLARE_INSTANCE_CHECKER(USBAudioState, USB_AUDIO,
+                         TYPE_USB_AUDIO)
 
 static void output_callback(void *opaque, int avail)
 {

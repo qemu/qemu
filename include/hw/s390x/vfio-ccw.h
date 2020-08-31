@@ -21,8 +21,8 @@
 
 #define TYPE_VFIO_CCW "vfio-ccw"
 typedef struct VFIOCCWDevice VFIOCCWDevice;
-#define VFIO_CCW(obj) \
-        OBJECT_CHECK(VFIOCCWDevice, (obj), TYPE_VFIO_CCW)
+DECLARE_INSTANCE_CHECKER(VFIOCCWDevice, VFIO_CCW,
+                         TYPE_VFIO_CCW)
 
 #define TYPE_VFIO_CCW "vfio-ccw"
 

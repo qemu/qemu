@@ -20,7 +20,8 @@
 
 #define TYPE_RNG_EGD "rng-egd"
 typedef struct RngEgd RngEgd;
-#define RNG_EGD(obj) OBJECT_CHECK(RngEgd, (obj), TYPE_RNG_EGD)
+DECLARE_INSTANCE_CHECKER(RngEgd, RNG_EGD,
+                         TYPE_RNG_EGD)
 
 struct RngEgd {
     RngBackend parent;

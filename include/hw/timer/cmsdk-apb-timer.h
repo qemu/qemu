@@ -19,8 +19,8 @@
 
 #define TYPE_CMSDK_APB_TIMER "cmsdk-apb-timer"
 typedef struct CMSDKAPBTIMER CMSDKAPBTIMER;
-#define CMSDK_APB_TIMER(obj) OBJECT_CHECK(CMSDKAPBTIMER, (obj), \
-                                         TYPE_CMSDK_APB_TIMER)
+DECLARE_INSTANCE_CHECKER(CMSDKAPBTIMER, CMSDK_APB_TIMER,
+                         TYPE_CMSDK_APB_TIMER)
 
 struct CMSDKAPBTIMER {
     /*< private >*/

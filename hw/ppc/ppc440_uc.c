@@ -1034,8 +1034,8 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
 
 #define TYPE_PPC460EX_PCIE_HOST "ppc460ex-pcie-host"
 typedef struct PPC460EXPCIEState PPC460EXPCIEState;
-#define PPC460EX_PCIE_HOST(obj) \
-    OBJECT_CHECK(PPC460EXPCIEState, (obj), TYPE_PPC460EX_PCIE_HOST)
+DECLARE_INSTANCE_CHECKER(PPC460EXPCIEState, PPC460EX_PCIE_HOST,
+                         TYPE_PPC460EX_PCIE_HOST)
 
 struct PPC460EXPCIEState {
     PCIExpressHost host;

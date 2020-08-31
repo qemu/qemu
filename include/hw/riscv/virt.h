@@ -29,8 +29,8 @@
 
 #define TYPE_RISCV_VIRT_MACHINE MACHINE_TYPE_NAME("virt")
 typedef struct RISCVVirtState RISCVVirtState;
-#define RISCV_VIRT_MACHINE(obj) \
-    OBJECT_CHECK(RISCVVirtState, (obj), TYPE_RISCV_VIRT_MACHINE)
+DECLARE_INSTANCE_CHECKER(RISCVVirtState, RISCV_VIRT_MACHINE,
+                         TYPE_RISCV_VIRT_MACHINE)
 
 struct RISCVVirtState {
     /*< private >*/

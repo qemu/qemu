@@ -33,8 +33,8 @@
 typedef struct DummyObject DummyObject;
 typedef struct DummyObjectClass DummyObjectClass;
 
-#define DUMMY_OBJECT(obj)                               \
-    OBJECT_CHECK(DummyObject, (obj), TYPE_DUMMY)
+DECLARE_INSTANCE_CHECKER(DummyObject, DUMMY_OBJECT,
+                         TYPE_DUMMY)
 
 typedef enum DummyAnimal DummyAnimal;
 
@@ -196,12 +196,12 @@ typedef struct DummyBackendClass DummyBackendClass;
 #define TYPE_DUMMY_BUS "qemu-dummy-bus"
 #define TYPE_DUMMY_BACKEND "qemu-dummy-backend"
 
-#define DUMMY_DEV(obj)                               \
-    OBJECT_CHECK(DummyDev, (obj), TYPE_DUMMY_DEV)
-#define DUMMY_BUS(obj)                               \
-    OBJECT_CHECK(DummyBus, (obj), TYPE_DUMMY_BUS)
-#define DUMMY_BACKEND(obj)                               \
-    OBJECT_CHECK(DummyBackend, (obj), TYPE_DUMMY_BACKEND)
+DECLARE_INSTANCE_CHECKER(DummyDev, DUMMY_DEV,
+                         TYPE_DUMMY_DEV)
+DECLARE_INSTANCE_CHECKER(DummyBus, DUMMY_BUS,
+                         TYPE_DUMMY_BUS)
+DECLARE_INSTANCE_CHECKER(DummyBackend, DUMMY_BACKEND,
+                         TYPE_DUMMY_BACKEND)
 
 struct DummyDev {
     Object parent_obj;

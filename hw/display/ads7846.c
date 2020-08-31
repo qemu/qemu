@@ -32,7 +32,8 @@ struct ADS7846State {
 typedef struct ADS7846State ADS7846State;
 
 #define TYPE_ADS7846 "ads7846"
-#define ADS7846(obj) OBJECT_CHECK(ADS7846State, (obj), TYPE_ADS7846)
+DECLARE_INSTANCE_CHECKER(ADS7846State, ADS7846,
+                         TYPE_ADS7846)
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)

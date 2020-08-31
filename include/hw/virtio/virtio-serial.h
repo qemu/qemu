@@ -28,19 +28,15 @@ struct virtio_serial_conf {
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
 typedef struct VirtIOSerialPort VirtIOSerialPort;
 typedef struct VirtIOSerialPortClass VirtIOSerialPortClass;
-#define VIRTIO_SERIAL_PORT(obj) \
-     OBJECT_CHECK(VirtIOSerialPort, (obj), TYPE_VIRTIO_SERIAL_PORT)
-#define VIRTIO_SERIAL_PORT_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VirtIOSerialPortClass, (klass), TYPE_VIRTIO_SERIAL_PORT)
-#define VIRTIO_SERIAL_PORT_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(VirtIOSerialPortClass, (obj), TYPE_VIRTIO_SERIAL_PORT)
+DECLARE_OBJ_CHECKERS(VirtIOSerialPort, VirtIOSerialPortClass,
+                     VIRTIO_SERIAL_PORT, TYPE_VIRTIO_SERIAL_PORT)
 
 typedef struct VirtIOSerial VirtIOSerial;
 
 #define TYPE_VIRTIO_SERIAL_BUS "virtio-serial-bus"
 typedef struct VirtIOSerialBus VirtIOSerialBus;
-#define VIRTIO_SERIAL_BUS(obj) \
-      OBJECT_CHECK(VirtIOSerialBus, (obj), TYPE_VIRTIO_SERIAL_BUS)
+DECLARE_INSTANCE_CHECKER(VirtIOSerialBus, VIRTIO_SERIAL_BUS,
+                         TYPE_VIRTIO_SERIAL_BUS)
 
 
 struct VirtIOSerialPortClass {
@@ -230,7 +226,7 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port);
 void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle);
 
 #define TYPE_VIRTIO_SERIAL "virtio-serial-device"
-#define VIRTIO_SERIAL(obj) \
-        OBJECT_CHECK(VirtIOSerial, (obj), TYPE_VIRTIO_SERIAL)
+DECLARE_INSTANCE_CHECKER(VirtIOSerial, VIRTIO_SERIAL,
+                         TYPE_VIRTIO_SERIAL)
 
 #endif

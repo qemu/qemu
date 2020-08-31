@@ -234,12 +234,8 @@ struct CPURISCVState {
 
 typedef struct RISCVCPU RISCVCPU;
 typedef struct RISCVCPUClass RISCVCPUClass;
-#define RISCV_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RISCVCPUClass, (klass), TYPE_RISCV_CPU)
-#define RISCV_CPU(obj) \
-    OBJECT_CHECK(RISCVCPU, (obj), TYPE_RISCV_CPU)
-#define RISCV_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RISCVCPUClass, (obj), TYPE_RISCV_CPU)
+DECLARE_OBJ_CHECKERS(RISCVCPU, RISCVCPUClass,
+                     RISCV_CPU, TYPE_RISCV_CPU)
 
 /**
  * RISCVCPUClass:

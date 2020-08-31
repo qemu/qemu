@@ -32,7 +32,8 @@
 
 #define TYPE_GPIOKEY "gpio-key"
 typedef struct GPIOKEYState GPIOKEYState;
-#define GPIOKEY(obj) OBJECT_CHECK(GPIOKEYState, (obj), TYPE_GPIOKEY)
+DECLARE_INSTANCE_CHECKER(GPIOKEYState, GPIOKEY,
+                         TYPE_GPIOKEY)
 #define GPIO_KEY_LATENCY 100 /* 100ms */
 
 struct GPIOKEYState {

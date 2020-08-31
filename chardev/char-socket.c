@@ -88,8 +88,8 @@ struct SocketChardev {
 };
 typedef struct SocketChardev SocketChardev;
 
-#define SOCKET_CHARDEV(obj)                                     \
-    OBJECT_CHECK(SocketChardev, (obj), TYPE_CHARDEV_SOCKET)
+DECLARE_INSTANCE_CHECKER(SocketChardev, SOCKET_CHARDEV,
+                         TYPE_CHARDEV_SOCKET)
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);

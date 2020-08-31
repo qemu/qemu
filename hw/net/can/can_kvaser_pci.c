@@ -48,8 +48,8 @@
 #define TYPE_CAN_PCI_DEV "kvaser_pci"
 
 typedef struct KvaserPCIState KvaserPCIState;
-#define KVASER_PCI_DEV(obj) \
-    OBJECT_CHECK(KvaserPCIState, (obj), TYPE_CAN_PCI_DEV)
+DECLARE_INSTANCE_CHECKER(KvaserPCIState, KVASER_PCI_DEV,
+                         TYPE_CAN_PCI_DEV)
 
 #ifndef KVASER_PCI_VENDOR_ID1
 #define KVASER_PCI_VENDOR_ID1     0x10e8    /* the PCI device and vendor IDs */

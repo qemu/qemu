@@ -31,8 +31,8 @@
 #define DEBUG_SPAPR 0
 
 typedef struct SpaprTpmState SpaprTpmState;
-#define VIO_SPAPR_VTPM(obj) \
-     OBJECT_CHECK(SpaprTpmState, (obj), TYPE_TPM_SPAPR)
+DECLARE_INSTANCE_CHECKER(SpaprTpmState, VIO_SPAPR_VTPM,
+                         TYPE_TPM_SPAPR)
 
 typedef struct TpmCrq {
     uint8_t valid;  /* 0x80: cmd; 0xc0: init crq */

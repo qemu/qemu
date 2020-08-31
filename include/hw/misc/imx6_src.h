@@ -59,7 +59,8 @@
 
 #define TYPE_IMX6_SRC "imx6.src"
 typedef struct IMX6SRCState IMX6SRCState;
-#define IMX6_SRC(obj) OBJECT_CHECK(IMX6SRCState, (obj), TYPE_IMX6_SRC)
+DECLARE_INSTANCE_CHECKER(IMX6SRCState, IMX6_SRC,
+                         TYPE_IMX6_SRC)
 
 struct IMX6SRCState {
     /* <private> */

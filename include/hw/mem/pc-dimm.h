@@ -23,12 +23,8 @@
 #define TYPE_PC_DIMM "pc-dimm"
 typedef struct PCDIMMDevice PCDIMMDevice;
 typedef struct PCDIMMDeviceClass PCDIMMDeviceClass;
-#define PC_DIMM(obj) \
-    OBJECT_CHECK(PCDIMMDevice, (obj), TYPE_PC_DIMM)
-#define PC_DIMM_CLASS(oc) \
-    OBJECT_CLASS_CHECK(PCDIMMDeviceClass, (oc), TYPE_PC_DIMM)
-#define PC_DIMM_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PCDIMMDeviceClass, (obj), TYPE_PC_DIMM)
+DECLARE_OBJ_CHECKERS(PCDIMMDevice, PCDIMMDeviceClass,
+                     PC_DIMM, TYPE_PC_DIMM)
 
 #define PC_DIMM_ADDR_PROP "addr"
 #define PC_DIMM_SLOT_PROP "slot"

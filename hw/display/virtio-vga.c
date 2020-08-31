@@ -204,8 +204,8 @@ static TypeInfo virtio_vga_base_info = {
 #define TYPE_VIRTIO_VGA "virtio-vga"
 
 typedef struct VirtIOVGA VirtIOVGA;
-#define VIRTIO_VGA(obj)                             \
-    OBJECT_CHECK(VirtIOVGA, (obj), TYPE_VIRTIO_VGA)
+DECLARE_INSTANCE_CHECKER(VirtIOVGA, VIRTIO_VGA,
+                         TYPE_VIRTIO_VGA)
 
 struct VirtIOVGA {
     VirtIOVGABase parent_obj;

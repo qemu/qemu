@@ -53,7 +53,8 @@ struct USBHubState {
 typedef struct USBHubState USBHubState;
 
 #define TYPE_USB_HUB "usb-hub"
-#define USB_HUB(obj) OBJECT_CHECK(USBHubState, (obj), TYPE_USB_HUB)
+DECLARE_INSTANCE_CHECKER(USBHubState, USB_HUB,
+                         TYPE_USB_HUB)
 
 #define ClearHubFeature		(0x2000 | USB_REQ_CLEAR_FEATURE)
 #define ClearPortFeature	(0x2300 | USB_REQ_CLEAR_FEATURE)

@@ -13,9 +13,8 @@ enum {
 
 #define TYPE_DEVICE "device"
 typedef struct DeviceClass DeviceClass;
-#define DEVICE(obj) OBJECT_CHECK(DeviceState, (obj), TYPE_DEVICE)
-#define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
-#define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
+DECLARE_OBJ_CHECKERS(DeviceState, DeviceClass,
+                     DEVICE, TYPE_DEVICE)
 
 typedef enum DeviceCategory {
     DEVICE_CATEGORY_BRIDGE,
@@ -204,9 +203,8 @@ struct DeviceListener {
 };
 
 #define TYPE_BUS "bus"
-#define BUS(obj) OBJECT_CHECK(BusState, (obj), TYPE_BUS)
-#define BUS_CLASS(klass) OBJECT_CLASS_CHECK(BusClass, (klass), TYPE_BUS)
-#define BUS_GET_CLASS(obj) OBJECT_GET_CLASS(BusClass, (obj), TYPE_BUS)
+DECLARE_OBJ_CHECKERS(BusState, BusClass,
+                     BUS, TYPE_BUS)
 
 struct BusClass {
     ObjectClass parent_class;

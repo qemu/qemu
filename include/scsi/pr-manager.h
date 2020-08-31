@@ -11,12 +11,8 @@
 
 typedef struct PRManager PRManager;
 typedef struct PRManagerClass PRManagerClass;
-#define PR_MANAGER_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PRManagerClass, (klass), TYPE_PR_MANAGER)
-#define PR_MANAGER_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PRManagerClass, (obj), TYPE_PR_MANAGER)
-#define PR_MANAGER(obj) \
-     OBJECT_CHECK(PRManager, (obj), TYPE_PR_MANAGER)
+DECLARE_OBJ_CHECKERS(PRManager, PRManagerClass,
+                     PR_MANAGER, TYPE_PR_MANAGER)
 
 struct sg_io_hdr;
 

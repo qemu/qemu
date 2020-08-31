@@ -15,8 +15,8 @@
 #define TYPE_CPU_CORE "cpu-core"
 
 typedef struct CPUCore CPUCore;
-#define CPU_CORE(obj) \
-    OBJECT_CHECK(CPUCore, (obj), TYPE_CPU_CORE)
+DECLARE_INSTANCE_CHECKER(CPUCore, CPU_CORE,
+                         TYPE_CPU_CORE)
 
 struct CPUCore {
     /*< private >*/

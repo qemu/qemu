@@ -23,7 +23,8 @@
 
 #define TYPE_AW_A10 "allwinner-a10"
 typedef struct AwA10State AwA10State;
-#define AW_A10(obj) OBJECT_CHECK(AwA10State, (obj), TYPE_AW_A10)
+DECLARE_INSTANCE_CHECKER(AwA10State, AW_A10,
+                         TYPE_AW_A10)
 
 struct AwA10State {
     /*< private >*/

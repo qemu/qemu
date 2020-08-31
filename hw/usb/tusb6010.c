@@ -32,7 +32,8 @@
 
 #define TYPE_TUSB6010 "tusb6010"
 typedef struct TUSBState TUSBState;
-#define TUSB(obj) OBJECT_CHECK(TUSBState, (obj), TYPE_TUSB6010)
+DECLARE_INSTANCE_CHECKER(TUSBState, TUSB,
+                         TYPE_TUSB6010)
 
 struct TUSBState {
     SysBusDevice parent_obj;

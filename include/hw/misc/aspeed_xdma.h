@@ -14,7 +14,8 @@
 
 #define TYPE_ASPEED_XDMA "aspeed.xdma"
 typedef struct AspeedXDMAState AspeedXDMAState;
-#define ASPEED_XDMA(obj) OBJECT_CHECK(AspeedXDMAState, (obj), TYPE_ASPEED_XDMA)
+DECLARE_INSTANCE_CHECKER(AspeedXDMAState, ASPEED_XDMA,
+                         TYPE_ASPEED_XDMA)
 
 #define ASPEED_XDMA_NUM_REGS (ASPEED_XDMA_REG_SIZE / sizeof(uint32_t))
 #define ASPEED_XDMA_REG_SIZE 0x7C

@@ -49,8 +49,8 @@ typedef struct MAX111xState MAX111xState;
 
 #define TYPE_MAX_111X "max111x"
 
-#define MAX_111X(obj) \
-    OBJECT_CHECK(MAX111xState, (obj), TYPE_MAX_111X)
+DECLARE_INSTANCE_CHECKER(MAX111xState, MAX_111X,
+                         TYPE_MAX_111X)
 
 #define TYPE_MAX_1110 "max1110"
 #define TYPE_MAX_1111 "max1111"

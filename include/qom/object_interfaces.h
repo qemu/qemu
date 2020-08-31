@@ -7,12 +7,8 @@
 #define TYPE_USER_CREATABLE "user-creatable"
 
 typedef struct UserCreatableClass UserCreatableClass;
-#define USER_CREATABLE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(UserCreatableClass, (klass), \
-                        TYPE_USER_CREATABLE)
-#define USER_CREATABLE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(UserCreatableClass, (obj), \
-                      TYPE_USER_CREATABLE)
+DECLARE_CLASS_CHECKERS(UserCreatableClass, USER_CREATABLE,
+                       TYPE_USER_CREATABLE)
 #define USER_CREATABLE(obj) \
      INTERFACE_CHECK(UserCreatable, (obj), \
                      TYPE_USER_CREATABLE)

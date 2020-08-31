@@ -15,7 +15,8 @@
 #define TYPE_ASPEED_SDMC "aspeed.sdmc"
 typedef struct AspeedSDMCClass AspeedSDMCClass;
 typedef struct AspeedSDMCState AspeedSDMCState;
-#define ASPEED_SDMC(obj) OBJECT_CHECK(AspeedSDMCState, (obj), TYPE_ASPEED_SDMC)
+DECLARE_OBJ_CHECKERS(AspeedSDMCState, AspeedSDMCClass,
+                     ASPEED_SDMC, TYPE_ASPEED_SDMC)
 #define TYPE_ASPEED_2400_SDMC TYPE_ASPEED_SDMC "-ast2400"
 #define TYPE_ASPEED_2500_SDMC TYPE_ASPEED_SDMC "-ast2500"
 #define TYPE_ASPEED_2600_SDMC TYPE_ASPEED_SDMC "-ast2600"
@@ -45,10 +46,6 @@ struct AspeedSDMCState {
     uint64_t max_ram_size;
 };
 
-#define ASPEED_SDMC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedSDMCClass, (klass), TYPE_ASPEED_SDMC)
-#define ASPEED_SDMC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedSDMCClass, (obj), TYPE_ASPEED_SDMC)
 
 struct AspeedSDMCClass {
     SysBusDeviceClass parent_class;

@@ -67,8 +67,8 @@ struct PIIXState {
 typedef struct PIIXState PIIX3State;
 
 #define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
-#define PIIX3_PCI_DEVICE(obj) \
-    OBJECT_CHECK(PIIX3State, (obj), TYPE_PIIX3_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(PIIX3State, PIIX3_PCI_DEVICE,
+                         TYPE_PIIX3_PCI_DEVICE)
 
 extern PCIDevice *piix4_dev;
 

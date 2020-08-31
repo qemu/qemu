@@ -23,8 +23,8 @@
 
 #define TYPE_VIRTIO_NET "virtio-net-device"
 typedef struct VirtIONet VirtIONet;
-#define VIRTIO_NET(obj) \
-        OBJECT_CHECK(VirtIONet, (obj), TYPE_VIRTIO_NET)
+DECLARE_INSTANCE_CHECKER(VirtIONet, VIRTIO_NET,
+                         TYPE_VIRTIO_NET)
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 

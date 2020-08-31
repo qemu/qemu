@@ -20,7 +20,8 @@
 
 #define TYPE_IMX2_WDT "imx2.wdt"
 typedef struct IMX2WdtState IMX2WdtState;
-#define IMX2_WDT(obj) OBJECT_CHECK(IMX2WdtState, (obj), TYPE_IMX2_WDT)
+DECLARE_INSTANCE_CHECKER(IMX2WdtState, IMX2_WDT,
+                         TYPE_IMX2_WDT)
 
 enum IMX2WdtRegisters {
     IMX2_WDT_WCR  = 0x0000, /* Control Register */

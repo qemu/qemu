@@ -29,15 +29,8 @@
 
 typedef struct QAuthZPAM QAuthZPAM;
 typedef struct QAuthZPAMClass QAuthZPAMClass;
-#define QAUTHZ_PAM_CLASS(klass) \
-     OBJECT_CLASS_CHECK(QAuthZPAMClass, (klass), \
-                        TYPE_QAUTHZ_PAM)
-#define QAUTHZ_PAM_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(QAuthZPAMClass, (obj), \
-                      TYPE_QAUTHZ_PAM)
-#define QAUTHZ_PAM(obj) \
-     OBJECT_CHECK(QAuthZPAM, (obj), \
-                  TYPE_QAUTHZ_PAM)
+DECLARE_OBJ_CHECKERS(QAuthZPAM, QAuthZPAMClass,
+                     QAUTHZ_PAM, TYPE_QAUTHZ_PAM)
 
 
 

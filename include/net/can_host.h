@@ -34,12 +34,8 @@
 #define TYPE_CAN_HOST "can-host"
 typedef struct CanHostClass CanHostClass;
 typedef struct CanHostState CanHostState;
-#define CAN_HOST_CLASS(klass) \
-     OBJECT_CLASS_CHECK(CanHostClass, (klass), TYPE_CAN_HOST)
-#define CAN_HOST_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(CanHostClass, (obj), TYPE_CAN_HOST)
-#define CAN_HOST(obj) \
-     OBJECT_CHECK(CanHostState, (obj), TYPE_CAN_HOST)
+DECLARE_OBJ_CHECKERS(CanHostState, CanHostClass,
+                     CAN_HOST, TYPE_CAN_HOST)
 
 struct CanHostState {
     ObjectClass oc;

@@ -30,7 +30,8 @@
 #include "qom/object.h"
 #define TYPE_NRF51_GPIO "nrf51_soc.gpio"
 typedef struct NRF51GPIOState NRF51GPIOState;
-#define NRF51_GPIO(obj) OBJECT_CHECK(NRF51GPIOState, (obj), TYPE_NRF51_GPIO)
+DECLARE_INSTANCE_CHECKER(NRF51GPIOState, NRF51_GPIO,
+                         TYPE_NRF51_GPIO)
 
 #define NRF51_GPIO_PINS 32
 

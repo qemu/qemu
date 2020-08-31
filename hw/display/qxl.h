@@ -131,7 +131,8 @@ struct PCIQXLDevice {
 typedef struct PCIQXLDevice PCIQXLDevice;
 
 #define TYPE_PCI_QXL "pci-qxl"
-#define PCI_QXL(obj) OBJECT_CHECK(PCIQXLDevice, (obj), TYPE_PCI_QXL)
+DECLARE_INSTANCE_CHECKER(PCIQXLDevice, PCI_QXL,
+                         TYPE_PCI_QXL)
 
 #define PANIC_ON(x) if ((x)) {                         \
     printf("%s: PANIC %s failed\n", __func__, #x); \

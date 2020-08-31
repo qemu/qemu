@@ -23,8 +23,8 @@ struct SabrePCIState {
 typedef struct SabrePCIState SabrePCIState;
 
 #define TYPE_SABRE_PCI_DEVICE "sabre-pci"
-#define SABRE_PCI_DEVICE(obj) \
-    OBJECT_CHECK(SabrePCIState, (obj), TYPE_SABRE_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(SabrePCIState, SABRE_PCI_DEVICE,
+                         TYPE_SABRE_PCI_DEVICE)
 
 struct SabreState {
     PCIHostState parent_obj;
@@ -51,7 +51,7 @@ struct SabreState {
 typedef struct SabreState SabreState;
 
 #define TYPE_SABRE "sabre"
-#define SABRE_DEVICE(obj) \
-    OBJECT_CHECK(SabreState, (obj), TYPE_SABRE)
+DECLARE_INSTANCE_CHECKER(SabreState, SABRE_DEVICE,
+                         TYPE_SABRE)
 
 #endif

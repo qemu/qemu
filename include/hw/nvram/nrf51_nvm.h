@@ -26,7 +26,8 @@
 #include "qom/object.h"
 #define TYPE_NRF51_NVM "nrf51_soc.nvm"
 typedef struct NRF51NVMState NRF51NVMState;
-#define NRF51_NVM(obj) OBJECT_CHECK(NRF51NVMState, (obj), TYPE_NRF51_NVM)
+DECLARE_INSTANCE_CHECKER(NRF51NVMState, NRF51_NVM,
+                         TYPE_NRF51_NVM)
 
 #define NRF51_UICR_FIXTURE_SIZE 64
 

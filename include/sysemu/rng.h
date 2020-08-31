@@ -19,12 +19,8 @@
 #define TYPE_RNG_BACKEND "rng-backend"
 typedef struct RngBackend RngBackend;
 typedef struct RngBackendClass RngBackendClass;
-#define RNG_BACKEND(obj) \
-    OBJECT_CHECK(RngBackend, (obj), TYPE_RNG_BACKEND)
-#define RNG_BACKEND_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RngBackendClass, (obj), TYPE_RNG_BACKEND)
-#define RNG_BACKEND_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RngBackendClass, (klass), TYPE_RNG_BACKEND)
+DECLARE_OBJ_CHECKERS(RngBackend, RngBackendClass,
+                     RNG_BACKEND, TYPE_RNG_BACKEND)
 
 #define TYPE_RNG_BUILTIN "rng-builtin"
 

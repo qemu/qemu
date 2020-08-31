@@ -24,8 +24,8 @@
 
 #define TYPE_VHOST_USER_BLK "vhost-user-blk"
 typedef struct VHostUserBlk VHostUserBlk;
-#define VHOST_USER_BLK(obj) \
-        OBJECT_CHECK(VHostUserBlk, (obj), TYPE_VHOST_USER_BLK)
+DECLARE_INSTANCE_CHECKER(VHostUserBlk, VHOST_USER_BLK,
+                         TYPE_VHOST_USER_BLK)
 
 #define VHOST_USER_BLK_AUTO_NUM_QUEUES UINT16_MAX
 

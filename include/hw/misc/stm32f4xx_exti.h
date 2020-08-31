@@ -38,8 +38,8 @@
 
 #define TYPE_STM32F4XX_EXTI "stm32f4xx-exti"
 typedef struct STM32F4xxExtiState STM32F4xxExtiState;
-#define STM32F4XX_EXTI(obj) \
-    OBJECT_CHECK(STM32F4xxExtiState, (obj), TYPE_STM32F4XX_EXTI)
+DECLARE_INSTANCE_CHECKER(STM32F4xxExtiState, STM32F4XX_EXTI,
+                         TYPE_STM32F4XX_EXTI)
 
 #define NUM_GPIO_EVENT_IN_LINES 16
 #define NUM_INTERRUPT_OUT_LINES 16

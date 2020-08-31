@@ -51,8 +51,8 @@
 
 #define TYPE_ETRAX_FS_SERIAL "etraxfs,serial"
 typedef struct ETRAXSerial ETRAXSerial;
-#define ETRAX_SERIAL(obj) \
-    OBJECT_CHECK(ETRAXSerial, (obj), TYPE_ETRAX_FS_SERIAL)
+DECLARE_INSTANCE_CHECKER(ETRAXSerial, ETRAX_SERIAL,
+                         TYPE_ETRAX_FS_SERIAL)
 
 struct ETRAXSerial {
     SysBusDevice parent_obj;

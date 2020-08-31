@@ -128,7 +128,8 @@
 
 #define TYPE_ECC_MEMCTL "eccmemctl"
 typedef struct ECCState ECCState;
-#define ECC_MEMCTL(obj) OBJECT_CHECK(ECCState, (obj), TYPE_ECC_MEMCTL)
+DECLARE_INSTANCE_CHECKER(ECCState, ECC_MEMCTL,
+                         TYPE_ECC_MEMCTL)
 
 struct ECCState {
     SysBusDevice parent_obj;

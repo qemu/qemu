@@ -18,7 +18,8 @@
 
 #define TYPE_IMX7_GPR "imx7.gpr"
 typedef struct IMX7GPRState IMX7GPRState;
-#define IMX7_GPR(obj) OBJECT_CHECK(IMX7GPRState, (obj), TYPE_IMX7_GPR)
+DECLARE_INSTANCE_CHECKER(IMX7GPRState, IMX7_GPR,
+                         TYPE_IMX7_GPR)
 
 struct IMX7GPRState {
     /* <private> */

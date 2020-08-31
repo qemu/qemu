@@ -27,12 +27,8 @@
 #define TYPE_PNV_CORE "powernv-cpu-core"
 typedef struct PnvCore PnvCore;
 typedef struct PnvCoreClass PnvCoreClass;
-#define PNV_CORE(obj) \
-    OBJECT_CHECK(PnvCore, (obj), TYPE_PNV_CORE)
-#define PNV_CORE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvCoreClass, (klass), TYPE_PNV_CORE)
-#define PNV_CORE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvCoreClass, (obj), TYPE_PNV_CORE)
+DECLARE_OBJ_CHECKERS(PnvCore, PnvCoreClass,
+                     PNV_CORE, TYPE_PNV_CORE)
 
 typedef struct PnvChip PnvChip;
 
@@ -69,8 +65,8 @@ static inline PnvCPUState *pnv_cpu_state(PowerPCCPU *cpu)
 
 #define TYPE_PNV_QUAD "powernv-cpu-quad"
 typedef struct PnvQuad PnvQuad;
-#define PNV_QUAD(obj) \
-    OBJECT_CHECK(PnvQuad, (obj), TYPE_PNV_QUAD)
+DECLARE_INSTANCE_CHECKER(PnvQuad, PNV_QUAD,
+                         TYPE_PNV_QUAD)
 
 struct PnvQuad {
     DeviceState parent_obj;

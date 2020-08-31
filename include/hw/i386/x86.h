@@ -77,12 +77,8 @@ typedef struct X86MachineState X86MachineState;
 #define X86_MACHINE_ACPI             "acpi"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
-#define X86_MACHINE(obj) \
-    OBJECT_CHECK(X86MachineState, (obj), TYPE_X86_MACHINE)
-#define X86_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(X86MachineClass, obj, TYPE_X86_MACHINE)
-#define X86_MACHINE_CLASS(class) \
-    OBJECT_CLASS_CHECK(X86MachineClass, class, TYPE_X86_MACHINE)
+DECLARE_OBJ_CHECKERS(X86MachineState, X86MachineClass,
+                     X86_MACHINE, TYPE_X86_MACHINE)
 
 void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 

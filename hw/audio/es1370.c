@@ -293,8 +293,8 @@ struct chan_bits {
 };
 
 #define TYPE_ES1370 "ES1370"
-#define ES1370(obj) \
-    OBJECT_CHECK(ES1370State, (obj), TYPE_ES1370)
+DECLARE_INSTANCE_CHECKER(ES1370State, ES1370,
+                         TYPE_ES1370)
 
 static void es1370_dac1_calc_freq (ES1370State *s, uint32_t ctl,
                                    uint32_t *old_freq, uint32_t *new_freq);

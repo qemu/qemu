@@ -32,8 +32,8 @@
 #define TYPE_XLNX_PMU_IO_INTC "xlnx.pmu_io_intc"
 
 typedef struct XlnxPMUIOIntc XlnxPMUIOIntc;
-#define XLNX_PMU_IO_INTC(obj) \
-     OBJECT_CHECK(XlnxPMUIOIntc, (obj), TYPE_XLNX_PMU_IO_INTC)
+DECLARE_INSTANCE_CHECKER(XlnxPMUIOIntc, XLNX_PMU_IO_INTC,
+                         TYPE_XLNX_PMU_IO_INTC)
 
 /* This is R_PIT3_CONTROL + 1 */
 #define XLNXPMUIOINTC_R_MAX (0x78 + 1)

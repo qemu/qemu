@@ -50,8 +50,8 @@ struct HypervTestDev {
 typedef struct HypervTestDev HypervTestDev;
 
 #define TYPE_HYPERV_TEST_DEV "hyperv-testdev"
-#define HYPERV_TEST_DEV(obj) \
-        OBJECT_CHECK(HypervTestDev, (obj), TYPE_HYPERV_TEST_DEV)
+DECLARE_INSTANCE_CHECKER(HypervTestDev, HYPERV_TEST_DEV,
+                         TYPE_HYPERV_TEST_DEV)
 
 enum {
     HV_TEST_DEV_SINT_ROUTE_CREATE = 1,

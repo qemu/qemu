@@ -38,8 +38,8 @@
 #define TYPE_SMBUS_EEPROM "smbus-eeprom"
 
 typedef struct SMBusEEPROMDevice SMBusEEPROMDevice;
-#define SMBUS_EEPROM(obj) \
-    OBJECT_CHECK(SMBusEEPROMDevice, (obj), TYPE_SMBUS_EEPROM)
+DECLARE_INSTANCE_CHECKER(SMBusEEPROMDevice, SMBUS_EEPROM,
+                         TYPE_SMBUS_EEPROM)
 
 #define SMBUS_EEPROM_SIZE 256
 

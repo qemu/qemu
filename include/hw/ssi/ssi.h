@@ -19,12 +19,8 @@ typedef struct SSISlaveClass SSISlaveClass;
 typedef enum SSICSMode SSICSMode;
 
 #define TYPE_SSI_SLAVE "ssi-slave"
-#define SSI_SLAVE(obj) \
-     OBJECT_CHECK(SSISlave, (obj), TYPE_SSI_SLAVE)
-#define SSI_SLAVE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SSISlaveClass, (klass), TYPE_SSI_SLAVE)
-#define SSI_SLAVE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SSISlaveClass, (obj), TYPE_SSI_SLAVE)
+DECLARE_OBJ_CHECKERS(SSISlave, SSISlaveClass,
+                     SSI_SLAVE, TYPE_SSI_SLAVE)
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 

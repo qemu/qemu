@@ -36,8 +36,8 @@
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
 typedef struct XlnxZynqMPState XlnxZynqMPState;
-#define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
-                                       TYPE_XLNX_ZYNQMP)
+DECLARE_INSTANCE_CHECKER(XlnxZynqMPState, XLNX_ZYNQMP,
+                         TYPE_XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_NUM_APU_CPUS 4
 #define XLNX_ZYNQMP_NUM_RPU_CPUS 2

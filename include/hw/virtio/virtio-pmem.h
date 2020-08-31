@@ -22,12 +22,8 @@
 
 typedef struct VirtIOPMEM VirtIOPMEM;
 typedef struct VirtIOPMEMClass VirtIOPMEMClass;
-#define VIRTIO_PMEM(obj) \
-        OBJECT_CHECK(VirtIOPMEM, (obj), TYPE_VIRTIO_PMEM)
-#define VIRTIO_PMEM_CLASS(oc) \
-        OBJECT_CLASS_CHECK(VirtIOPMEMClass, (oc), TYPE_VIRTIO_PMEM)
-#define VIRTIO_PMEM_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtIOPMEMClass, (obj), TYPE_VIRTIO_PMEM)
+DECLARE_OBJ_CHECKERS(VirtIOPMEM, VirtIOPMEMClass,
+                     VIRTIO_PMEM, TYPE_VIRTIO_PMEM)
 
 #define VIRTIO_PMEM_ADDR_PROP "memaddr"
 #define VIRTIO_PMEM_MEMDEV_PROP "memdev"

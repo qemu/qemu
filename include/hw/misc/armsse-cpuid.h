@@ -27,7 +27,8 @@
 
 #define TYPE_ARMSSE_CPUID "armsse-cpuid"
 typedef struct ARMSSECPUID ARMSSECPUID;
-#define ARMSSE_CPUID(obj) OBJECT_CHECK(ARMSSECPUID, (obj), TYPE_ARMSSE_CPUID)
+DECLARE_INSTANCE_CHECKER(ARMSSECPUID, ARMSSE_CPUID,
+                         TYPE_ARMSSE_CPUID)
 
 struct ARMSSECPUID {
     /*< private >*/

@@ -84,12 +84,8 @@ typedef struct MPS2MachineState MPS2MachineState;
 #define TYPE_MPS2_AN385_MACHINE MACHINE_TYPE_NAME("mps2-an385")
 #define TYPE_MPS2_AN511_MACHINE MACHINE_TYPE_NAME("mps2-an511")
 
-#define MPS2_MACHINE(obj)                                       \
-    OBJECT_CHECK(MPS2MachineState, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MPS2MachineClass, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MPS2MachineClass, klass, TYPE_MPS2_MACHINE)
+DECLARE_OBJ_CHECKERS(MPS2MachineState, MPS2MachineClass,
+                     MPS2_MACHINE, TYPE_MPS2_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 25000000

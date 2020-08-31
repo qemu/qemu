@@ -48,7 +48,8 @@ typedef struct spin_info {
 
 #define TYPE_E500_SPIN "e500-spin"
 typedef struct SpinState SpinState;
-#define E500_SPIN(obj) OBJECT_CHECK(SpinState, (obj), TYPE_E500_SPIN)
+DECLARE_INSTANCE_CHECKER(SpinState, E500_SPIN,
+                         TYPE_E500_SPIN)
 
 struct SpinState {
     SysBusDevice parent_obj;

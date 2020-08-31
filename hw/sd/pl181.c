@@ -24,7 +24,8 @@
 
 #define TYPE_PL181 "pl181"
 typedef struct PL181State PL181State;
-#define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
+DECLARE_INSTANCE_CHECKER(PL181State, PL181,
+                         TYPE_PL181)
 
 #define TYPE_PL181_BUS "pl181-bus"
 

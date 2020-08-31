@@ -11,8 +11,8 @@
 #define TYPE_XENBACKEND "xen-backend"
 
 typedef struct XenLegacyDevice XenLegacyDevice;
-#define XENBACKEND_DEVICE(obj) \
-    OBJECT_CHECK(XenLegacyDevice, (obj), TYPE_XENBACKEND)
+DECLARE_INSTANCE_CHECKER(XenLegacyDevice, XENBACKEND_DEVICE,
+                         TYPE_XENBACKEND)
 
 /* variables */
 extern struct xs_handle *xenstore;

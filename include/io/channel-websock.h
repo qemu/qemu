@@ -28,8 +28,8 @@
 
 #define TYPE_QIO_CHANNEL_WEBSOCK "qio-channel-websock"
 typedef struct QIOChannelWebsock QIOChannelWebsock;
-#define QIO_CHANNEL_WEBSOCK(obj)                                     \
-    OBJECT_CHECK(QIOChannelWebsock, (obj), TYPE_QIO_CHANNEL_WEBSOCK)
+DECLARE_INSTANCE_CHECKER(QIOChannelWebsock, QIO_CHANNEL_WEBSOCK,
+                         TYPE_QIO_CHANNEL_WEBSOCK)
 
 typedef union QIOChannelWebsockMask QIOChannelWebsockMask;
 

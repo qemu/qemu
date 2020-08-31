@@ -40,8 +40,8 @@ struct IOThread {
 };
 typedef struct IOThread IOThread;
 
-#define IOTHREAD(obj) \
-   OBJECT_CHECK(IOThread, obj, TYPE_IOTHREAD)
+DECLARE_INSTANCE_CHECKER(IOThread, IOTHREAD,
+                         TYPE_IOTHREAD)
 
 char *iothread_get_id(IOThread *iothread);
 IOThread *iothread_by_id(const char *id);

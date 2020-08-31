@@ -53,12 +53,8 @@ typedef struct CPUMoxieState {
 
 typedef struct MoxieCPU MoxieCPU;
 typedef struct MoxieCPUClass MoxieCPUClass;
-#define MOXIE_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MoxieCPUClass, (klass), TYPE_MOXIE_CPU)
-#define MOXIE_CPU(obj) \
-    OBJECT_CHECK(MoxieCPU, (obj), TYPE_MOXIE_CPU)
-#define MOXIE_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MoxieCPUClass, (obj), TYPE_MOXIE_CPU)
+DECLARE_OBJ_CHECKERS(MoxieCPU, MoxieCPUClass,
+                     MOXIE_CPU, TYPE_MOXIE_CPU)
 
 /**
  * MoxieCPUClass:

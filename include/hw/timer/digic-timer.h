@@ -24,7 +24,8 @@
 
 #define TYPE_DIGIC_TIMER "digic-timer"
 typedef struct DigicTimerState DigicTimerState;
-#define DIGIC_TIMER(obj) OBJECT_CHECK(DigicTimerState, (obj), TYPE_DIGIC_TIMER)
+DECLARE_INSTANCE_CHECKER(DigicTimerState, DIGIC_TIMER,
+                         TYPE_DIGIC_TIMER)
 
 #define DIGIC_TIMER_CONTROL 0x00
 #define DIGIC_TIMER_CONTROL_RST 0x80000000

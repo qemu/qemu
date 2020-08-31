@@ -35,12 +35,8 @@
 #define TYPE_M48TXX_ISA "isa-m48txx"
 typedef struct M48txxISADeviceClass M48txxISADeviceClass;
 typedef struct M48txxISAState M48txxISAState;
-#define M48TXX_ISA_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(M48txxISADeviceClass, (obj), TYPE_M48TXX_ISA)
-#define M48TXX_ISA_CLASS(klass) \
-    OBJECT_CLASS_CHECK(M48txxISADeviceClass, (klass), TYPE_M48TXX_ISA)
-#define M48TXX_ISA(obj) \
-    OBJECT_CHECK(M48txxISAState, (obj), TYPE_M48TXX_ISA)
+DECLARE_OBJ_CHECKERS(M48txxISAState, M48txxISADeviceClass,
+                     M48TXX_ISA, TYPE_M48TXX_ISA)
 
 struct M48txxISAState {
     ISADevice parent_obj;

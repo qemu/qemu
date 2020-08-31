@@ -19,8 +19,8 @@
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 typedef struct A9MPPrivState A9MPPrivState;
-#define A9MPCORE_PRIV(obj) \
-    OBJECT_CHECK(A9MPPrivState, (obj), TYPE_A9MPCORE_PRIV)
+DECLARE_INSTANCE_CHECKER(A9MPPrivState, A9MPCORE_PRIV,
+                         TYPE_A9MPCORE_PRIV)
 
 struct A9MPPrivState {
     /*< private >*/

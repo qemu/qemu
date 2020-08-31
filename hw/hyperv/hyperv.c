@@ -38,7 +38,8 @@ struct SynICState {
 typedef struct SynICState SynICState;
 
 #define TYPE_SYNIC "hyperv-synic"
-#define SYNIC(obj) OBJECT_CHECK(SynICState, (obj), TYPE_SYNIC)
+DECLARE_INSTANCE_CHECKER(SynICState, SYNIC,
+                         TYPE_SYNIC)
 
 static bool synic_enabled;
 

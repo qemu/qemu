@@ -32,8 +32,8 @@
 
 #define TYPE_STATIC_PROPS "static_prop_type"
 typedef struct MyType MyType;
-#define STATIC_TYPE(obj) \
-    OBJECT_CHECK(MyType, (obj), TYPE_STATIC_PROPS)
+DECLARE_INSTANCE_CHECKER(MyType, STATIC_TYPE,
+                         TYPE_STATIC_PROPS)
 
 #define TYPE_SUBCLASS "static_prop_subtype"
 
@@ -128,8 +128,8 @@ static void test_static_globalprop(void)
 }
 
 #define TYPE_DYNAMIC_PROPS "dynamic-prop-type"
-#define DYNAMIC_TYPE(obj) \
-    OBJECT_CHECK(MyType, (obj), TYPE_DYNAMIC_PROPS)
+DECLARE_INSTANCE_CHECKER(MyType, DYNAMIC_TYPE,
+                         TYPE_DYNAMIC_PROPS)
 
 #define TYPE_UNUSED_HOTPLUG   "hotplug-type"
 #define TYPE_UNUSED_NOHOTPLUG "nohotplug-type"

@@ -44,8 +44,8 @@
 
 #define TYPE_AW_H3_SYSCTRL    "allwinner-h3-sysctrl"
 typedef struct AwH3SysCtrlState AwH3SysCtrlState;
-#define AW_H3_SYSCTRL(obj) \
-    OBJECT_CHECK(AwH3SysCtrlState, (obj), TYPE_AW_H3_SYSCTRL)
+DECLARE_INSTANCE_CHECKER(AwH3SysCtrlState, AW_H3_SYSCTRL,
+                         TYPE_AW_H3_SYSCTRL)
 
 /** @} */
 

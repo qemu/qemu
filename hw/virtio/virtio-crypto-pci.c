@@ -29,8 +29,8 @@ typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
  * virtio-crypto-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_CRYPTO_PCI "virtio-crypto-pci"
-#define VIRTIO_CRYPTO_PCI(obj) \
-        OBJECT_CHECK(VirtIOCryptoPCI, (obj), TYPE_VIRTIO_CRYPTO_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOCryptoPCI, VIRTIO_CRYPTO_PCI,
+                         TYPE_VIRTIO_CRYPTO_PCI)
 
 struct VirtIOCryptoPCI {
     VirtIOPCIProxy parent_obj;

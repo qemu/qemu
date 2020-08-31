@@ -18,8 +18,8 @@
 
 #define TYPE_SPAPR_TPM_PROXY "spapr-tpm-proxy"
 typedef struct SpaprTpmProxy SpaprTpmProxy;
-#define SPAPR_TPM_PROXY(obj) OBJECT_CHECK(SpaprTpmProxy, (obj), \
-                                          TYPE_SPAPR_TPM_PROXY)
+DECLARE_INSTANCE_CHECKER(SpaprTpmProxy, SPAPR_TPM_PROXY,
+                         TYPE_SPAPR_TPM_PROXY)
 
 struct SpaprTpmProxy {
     /*< private >*/

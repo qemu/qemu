@@ -32,7 +32,8 @@
 
 #define TYPE_FSL_IMX31 "fsl,imx31"
 typedef struct FslIMX31State FslIMX31State;
-#define FSL_IMX31(obj) OBJECT_CHECK(FslIMX31State, (obj), TYPE_FSL_IMX31)
+DECLARE_INSTANCE_CHECKER(FslIMX31State, FSL_IMX31,
+                         TYPE_FSL_IMX31)
 
 #define FSL_IMX31_NUM_UARTS 2
 #define FSL_IMX31_NUM_EPITS 2

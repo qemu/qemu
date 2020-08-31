@@ -51,7 +51,8 @@ struct PCIBridgeWindows {
 };
 
 #define TYPE_PCI_BRIDGE "base-pci-bridge"
-#define PCI_BRIDGE(obj) OBJECT_CHECK(PCIBridge, (obj), TYPE_PCI_BRIDGE)
+DECLARE_INSTANCE_CHECKER(PCIBridge, PCI_BRIDGE,
+                         TYPE_PCI_BRIDGE)
 
 struct PCIBridge {
     /*< private >*/

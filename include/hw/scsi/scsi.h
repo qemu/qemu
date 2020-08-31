@@ -51,12 +51,8 @@ struct SCSIRequest {
 
 #define TYPE_SCSI_DEVICE "scsi-device"
 typedef struct SCSIDeviceClass SCSIDeviceClass;
-#define SCSI_DEVICE(obj) \
-     OBJECT_CHECK(SCSIDevice, (obj), TYPE_SCSI_DEVICE)
-#define SCSI_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCSIDeviceClass, (klass), TYPE_SCSI_DEVICE)
-#define SCSI_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCSIDeviceClass, (obj), TYPE_SCSI_DEVICE)
+DECLARE_OBJ_CHECKERS(SCSIDevice, SCSIDeviceClass,
+                     SCSI_DEVICE, TYPE_SCSI_DEVICE)
 
 struct SCSIDeviceClass {
     DeviceClass parent_class;
@@ -138,7 +134,8 @@ struct SCSIBusInfo {
 };
 
 #define TYPE_SCSI_BUS "SCSI"
-#define SCSI_BUS(obj) OBJECT_CHECK(SCSIBus, (obj), TYPE_SCSI_BUS)
+DECLARE_INSTANCE_CHECKER(SCSIBus, SCSI_BUS,
+                         TYPE_SCSI_BUS)
 
 struct SCSIBus {
     BusState qbus;

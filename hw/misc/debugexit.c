@@ -15,8 +15,8 @@
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
 typedef struct ISADebugExitState ISADebugExitState;
-#define ISA_DEBUG_EXIT_DEVICE(obj) \
-     OBJECT_CHECK(ISADebugExitState, (obj), TYPE_ISA_DEBUG_EXIT_DEVICE)
+DECLARE_INSTANCE_CHECKER(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE,
+                         TYPE_ISA_DEBUG_EXIT_DEVICE)
 
 struct ISADebugExitState {
     ISADevice parent_obj;

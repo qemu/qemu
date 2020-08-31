@@ -22,8 +22,8 @@
 
 #define TYPE_VHOST_USER_FS "vhost-user-fs-device"
 typedef struct VHostUserFS VHostUserFS;
-#define VHOST_USER_FS(obj) \
-        OBJECT_CHECK(VHostUserFS, (obj), TYPE_VHOST_USER_FS)
+DECLARE_INSTANCE_CHECKER(VHostUserFS, VHOST_USER_FS,
+                         TYPE_VHOST_USER_FS)
 
 typedef struct {
     CharBackend chardev;

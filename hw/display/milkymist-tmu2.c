@@ -84,8 +84,8 @@ struct vertex {
 
 #define TYPE_MILKYMIST_TMU2 "milkymist-tmu2"
 typedef struct MilkymistTMU2State MilkymistTMU2State;
-#define MILKYMIST_TMU2(obj) \
-    OBJECT_CHECK(MilkymistTMU2State, (obj), TYPE_MILKYMIST_TMU2)
+DECLARE_INSTANCE_CHECKER(MilkymistTMU2State, MILKYMIST_TMU2,
+                         TYPE_MILKYMIST_TMU2)
 
 struct MilkymistTMU2State {
     SysBusDevice parent_obj;

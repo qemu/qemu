@@ -14,12 +14,8 @@ typedef struct PCMCIASocket {
 #define TYPE_PCMCIA_CARD "pcmcia-card"
 typedef struct PCMCIACardClass PCMCIACardClass;
 typedef struct PCMCIACardState PCMCIACardState;
-#define PCMCIA_CARD(obj) \
-    OBJECT_CHECK(PCMCIACardState, (obj), TYPE_PCMCIA_CARD)
-#define PCMCIA_CARD_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PCMCIACardClass, obj, TYPE_PCMCIA_CARD)
-#define PCMCIA_CARD_CLASS(cls) \
-    OBJECT_CLASS_CHECK(PCMCIACardClass, cls, TYPE_PCMCIA_CARD)
+DECLARE_OBJ_CHECKERS(PCMCIACardState, PCMCIACardClass,
+                     PCMCIA_CARD, TYPE_PCMCIA_CARD)
 
 struct PCMCIACardState {
     /*< private >*/

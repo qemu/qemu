@@ -19,8 +19,8 @@
 #define TYPE_S390_SKEYS "s390-skeys"
 typedef struct S390SKeysClass S390SKeysClass;
 typedef struct S390SKeysState S390SKeysState;
-#define S390_SKEYS(obj) \
-    OBJECT_CHECK(S390SKeysState, (obj), TYPE_S390_SKEYS)
+DECLARE_OBJ_CHECKERS(S390SKeysState, S390SKeysClass,
+                     S390_SKEYS, TYPE_S390_SKEYS)
 
 struct S390SKeysState {
     DeviceState parent_obj;
@@ -28,10 +28,6 @@ struct S390SKeysState {
 
 };
 
-#define S390_SKEYS_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390SKeysClass, (klass), TYPE_S390_SKEYS)
-#define S390_SKEYS_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390SKeysClass, (obj), TYPE_S390_SKEYS)
 
 struct S390SKeysClass {
     DeviceClass parent_class;
@@ -45,8 +41,8 @@ struct S390SKeysClass {
 #define TYPE_KVM_S390_SKEYS "s390-skeys-kvm"
 #define TYPE_QEMU_S390_SKEYS "s390-skeys-qemu"
 typedef struct QEMUS390SKeysState QEMUS390SKeysState;
-#define QEMU_S390_SKEYS(obj) \
-    OBJECT_CHECK(QEMUS390SKeysState, (obj), TYPE_QEMU_S390_SKEYS)
+DECLARE_INSTANCE_CHECKER(QEMUS390SKeysState, QEMU_S390_SKEYS,
+                         TYPE_QEMU_S390_SKEYS)
 
 struct QEMUS390SKeysState {
     S390SKeysState parent_obj;

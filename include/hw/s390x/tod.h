@@ -23,11 +23,8 @@ typedef struct S390TOD {
 #define TYPE_S390_TOD "s390-tod"
 typedef struct S390TODClass S390TODClass;
 typedef struct S390TODState S390TODState;
-#define S390_TOD(obj) OBJECT_CHECK(S390TODState, (obj), TYPE_S390_TOD)
-#define S390_TOD_CLASS(oc) OBJECT_CLASS_CHECK(S390TODClass, (oc), \
-                                              TYPE_S390_TOD)
-#define S390_TOD_GET_CLASS(obj) OBJECT_GET_CLASS(S390TODClass, (obj), \
-                                                 TYPE_S390_TOD)
+DECLARE_OBJ_CHECKERS(S390TODState, S390TODClass,
+                     S390_TOD, TYPE_S390_TOD)
 #define TYPE_KVM_S390_TOD TYPE_S390_TOD "-kvm"
 #define TYPE_QEMU_S390_TOD TYPE_S390_TOD "-qemu"
 

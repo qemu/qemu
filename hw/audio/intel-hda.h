@@ -10,16 +10,13 @@
 #define TYPE_HDA_CODEC_DEVICE "hda-codec"
 typedef struct HDACodecDevice HDACodecDevice;
 typedef struct HDACodecDeviceClass HDACodecDeviceClass;
-#define HDA_CODEC_DEVICE(obj) \
-     OBJECT_CHECK(HDACodecDevice, (obj), TYPE_HDA_CODEC_DEVICE)
-#define HDA_CODEC_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(HDACodecDeviceClass, (klass), TYPE_HDA_CODEC_DEVICE)
-#define HDA_CODEC_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(HDACodecDeviceClass, (obj), TYPE_HDA_CODEC_DEVICE)
+DECLARE_OBJ_CHECKERS(HDACodecDevice, HDACodecDeviceClass,
+                     HDA_CODEC_DEVICE, TYPE_HDA_CODEC_DEVICE)
 
 #define TYPE_HDA_BUS "HDA"
 typedef struct HDACodecBus HDACodecBus;
-#define HDA_BUS(obj) OBJECT_CHECK(HDACodecBus, (obj), TYPE_HDA_BUS)
+DECLARE_INSTANCE_CHECKER(HDACodecBus, HDA_BUS,
+                         TYPE_HDA_BUS)
 
 
 typedef void (*hda_codec_response_func)(HDACodecDevice *dev,

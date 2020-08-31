@@ -20,7 +20,7 @@
 
 #define TYPE_SII3112_PCI "sii3112"
 typedef struct SiI3112PCIState SiI3112PCIState;
-#define SII3112_PCI(obj) OBJECT_CHECK(SiI3112PCIState, (obj), \
+DECLARE_INSTANCE_CHECKER(SiI3112PCIState, SII3112_PCI,
                          TYPE_SII3112_PCI)
 
 typedef struct SiI3112Regs {

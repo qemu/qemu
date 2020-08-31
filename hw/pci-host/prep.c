@@ -44,8 +44,8 @@
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
 
 typedef struct RavenPCIState RavenPCIState;
-#define RAVEN_PCI_DEVICE(obj) \
-    OBJECT_CHECK(RavenPCIState, (obj), TYPE_RAVEN_PCI_DEVICE)
+DECLARE_INSTANCE_CHECKER(RavenPCIState, RAVEN_PCI_DEVICE,
+                         TYPE_RAVEN_PCI_DEVICE)
 
 struct RavenPCIState {
     PCIDevice dev;
@@ -56,8 +56,8 @@ struct RavenPCIState {
 };
 
 typedef struct PRePPCIState PREPPCIState;
-#define RAVEN_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(PREPPCIState, (obj), TYPE_RAVEN_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(PREPPCIState, RAVEN_PCI_HOST_BRIDGE,
+                         TYPE_RAVEN_PCI_HOST_BRIDGE)
 
 struct PRePPCIState {
     PCIHostState parent_obj;

@@ -25,8 +25,8 @@
 
 #define TYPE_FILTER_REWRITER "filter-rewriter"
 typedef struct RewriterState RewriterState;
-#define FILTER_COLO_REWRITER(obj) \
-    OBJECT_CHECK(RewriterState, (obj), TYPE_FILTER_REWRITER)
+DECLARE_INSTANCE_CHECKER(RewriterState, FILTER_COLO_REWRITER,
+                         TYPE_FILTER_REWRITER)
 
 #define FAILOVER_MODE_ON  true
 #define FAILOVER_MODE_OFF false

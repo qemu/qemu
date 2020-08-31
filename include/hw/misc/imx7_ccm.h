@@ -106,7 +106,8 @@ enum IMX7PMURegisters {
 
 #define TYPE_IMX7_CCM "imx7.ccm"
 typedef struct IMX7CCMState IMX7CCMState;
-#define IMX7_CCM(obj) OBJECT_CHECK(IMX7CCMState, (obj), TYPE_IMX7_CCM)
+DECLARE_INSTANCE_CHECKER(IMX7CCMState, IMX7_CCM,
+                         TYPE_IMX7_CCM)
 
 struct IMX7CCMState {
     /* <private> */
@@ -121,7 +122,8 @@ struct IMX7CCMState {
 
 #define TYPE_IMX7_ANALOG "imx7.analog"
 typedef struct IMX7AnalogState IMX7AnalogState;
-#define IMX7_ANALOG(obj) OBJECT_CHECK(IMX7AnalogState, (obj), TYPE_IMX7_ANALOG)
+DECLARE_INSTANCE_CHECKER(IMX7AnalogState, IMX7_ANALOG,
+                         TYPE_IMX7_ANALOG)
 
 struct IMX7AnalogState {
     /* <private> */

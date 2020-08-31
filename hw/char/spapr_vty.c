@@ -21,8 +21,8 @@ struct SpaprVioVty {
 typedef struct SpaprVioVty SpaprVioVty;
 
 #define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
-#define VIO_SPAPR_VTY_DEVICE(obj) \
-     OBJECT_CHECK(SpaprVioVty, (obj), TYPE_VIO_SPAPR_VTY_DEVICE)
+DECLARE_INSTANCE_CHECKER(SpaprVioVty, VIO_SPAPR_VTY_DEVICE,
+                         TYPE_VIO_SPAPR_VTY_DEVICE)
 
 static int vty_can_receive(void *opaque)
 {

@@ -70,7 +70,8 @@
 
 #define TYPE_TZ_PPC "tz-ppc"
 typedef struct TZPPC TZPPC;
-#define TZ_PPC(obj) OBJECT_CHECK(TZPPC, (obj), TYPE_TZ_PPC)
+DECLARE_INSTANCE_CHECKER(TZPPC, TZ_PPC,
+                         TYPE_TZ_PPC)
 
 #define TZ_NUM_PORTS 16
 

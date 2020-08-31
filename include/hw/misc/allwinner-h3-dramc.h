@@ -59,8 +59,8 @@
 
 #define TYPE_AW_H3_DRAMC "allwinner-h3-dramc"
 typedef struct AwH3DramCtlState AwH3DramCtlState;
-#define AW_H3_DRAMC(obj) \
-    OBJECT_CHECK(AwH3DramCtlState, (obj), TYPE_AW_H3_DRAMC)
+DECLARE_INSTANCE_CHECKER(AwH3DramCtlState, AW_H3_DRAMC,
+                         TYPE_AW_H3_DRAMC)
 
 /** @} */
 

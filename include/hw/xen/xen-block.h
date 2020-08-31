@@ -71,12 +71,8 @@ struct XenBlockDeviceClass {
 typedef struct XenBlockDeviceClass XenBlockDeviceClass;
 
 #define TYPE_XEN_BLOCK_DEVICE  "xen-block"
-#define XEN_BLOCK_DEVICE(obj) \
-     OBJECT_CHECK(XenBlockDevice, (obj), TYPE_XEN_BLOCK_DEVICE)
-#define XEN_BLOCK_DEVICE_CLASS(class) \
-     OBJECT_CLASS_CHECK(XenBlockDeviceClass, (class), TYPE_XEN_BLOCK_DEVICE)
-#define XEN_BLOCK_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XenBlockDeviceClass, (obj), TYPE_XEN_BLOCK_DEVICE)
+DECLARE_OBJ_CHECKERS(XenBlockDevice, XenBlockDeviceClass,
+                     XEN_BLOCK_DEVICE, TYPE_XEN_BLOCK_DEVICE)
 
 struct XenDiskDevice {
     XenBlockDevice blockdev;
@@ -84,8 +80,8 @@ struct XenDiskDevice {
 typedef struct XenDiskDevice XenDiskDevice;
 
 #define TYPE_XEN_DISK_DEVICE  "xen-disk"
-#define XEN_DISK_DEVICE(obj) \
-     OBJECT_CHECK(XenDiskDevice, (obj), TYPE_XEN_DISK_DEVICE)
+DECLARE_INSTANCE_CHECKER(XenDiskDevice, XEN_DISK_DEVICE,
+                         TYPE_XEN_DISK_DEVICE)
 
 struct XenCDRomDevice {
     XenBlockDevice blockdev;
@@ -93,7 +89,7 @@ struct XenCDRomDevice {
 typedef struct XenCDRomDevice XenCDRomDevice;
 
 #define TYPE_XEN_CDROM_DEVICE  "xen-cdrom"
-#define XEN_CDROM_DEVICE(obj) \
-     OBJECT_CHECK(XenCDRomDevice, (obj), TYPE_XEN_CDROM_DEVICE)
+DECLARE_INSTANCE_CHECKER(XenCDRomDevice, XEN_CDROM_DEVICE,
+                         TYPE_XEN_CDROM_DEVICE)
 
 #endif /* HW_XEN_BLOCK_H */

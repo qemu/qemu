@@ -24,6 +24,7 @@ struct AspeedRtcState {
 typedef struct AspeedRtcState AspeedRtcState;
 
 #define TYPE_ASPEED_RTC "aspeed.rtc"
-#define ASPEED_RTC(obj) OBJECT_CHECK(AspeedRtcState, (obj), TYPE_ASPEED_RTC)
+DECLARE_INSTANCE_CHECKER(AspeedRtcState, ASPEED_RTC,
+                         TYPE_ASPEED_RTC)
 
 #endif /* HW_RTC_ASPEED_RTC_H */

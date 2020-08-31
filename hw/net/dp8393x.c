@@ -152,7 +152,8 @@ do { printf("sonic ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 #define TYPE_DP8393X "dp8393x"
 typedef struct dp8393xState dp8393xState;
-#define DP8393X(obj) OBJECT_CHECK(dp8393xState, (obj), TYPE_DP8393X)
+DECLARE_INSTANCE_CHECKER(dp8393xState, DP8393X,
+                         TYPE_DP8393X)
 
 struct dp8393xState {
     SysBusDevice parent_obj;

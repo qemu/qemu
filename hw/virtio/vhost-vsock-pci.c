@@ -25,8 +25,8 @@ typedef struct VHostVSockPCI VHostVSockPCI;
  * vhost-vsock-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VHOST_VSOCK_PCI "vhost-vsock-pci-base"
-#define VHOST_VSOCK_PCI(obj) \
-        OBJECT_CHECK(VHostVSockPCI, (obj), TYPE_VHOST_VSOCK_PCI)
+DECLARE_INSTANCE_CHECKER(VHostVSockPCI, VHOST_VSOCK_PCI,
+                         TYPE_VHOST_VSOCK_PCI)
 
 struct VHostVSockPCI {
     VirtIOPCIProxy parent_obj;

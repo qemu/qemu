@@ -16,8 +16,8 @@
 
 #define TYPE_REALVIEW_GIC "realview_gic"
 typedef struct RealViewGICState RealViewGICState;
-#define REALVIEW_GIC(obj) \
-    OBJECT_CHECK(RealViewGICState, (obj), TYPE_REALVIEW_GIC)
+DECLARE_INSTANCE_CHECKER(RealViewGICState, REALVIEW_GIC,
+                         TYPE_REALVIEW_GIC)
 
 struct RealViewGICState {
     SysBusDevice parent_obj;

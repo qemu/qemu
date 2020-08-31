@@ -29,8 +29,8 @@
 
 #define TYPE_ALTERA_IIC "altera,iic"
 typedef struct AlteraIIC AlteraIIC;
-#define ALTERA_IIC(obj) \
-    OBJECT_CHECK(AlteraIIC, (obj), TYPE_ALTERA_IIC)
+DECLARE_INSTANCE_CHECKER(AlteraIIC, ALTERA_IIC,
+                         TYPE_ALTERA_IIC)
 
 struct AlteraIIC {
     SysBusDevice  parent_obj;

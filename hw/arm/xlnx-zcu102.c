@@ -39,8 +39,8 @@ struct XlnxZCU102 {
 typedef struct XlnxZCU102 XlnxZCU102;
 
 #define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
-#define ZCU102_MACHINE(obj) \
-    OBJECT_CHECK(XlnxZCU102, (obj), TYPE_ZCU102_MACHINE)
+DECLARE_INSTANCE_CHECKER(XlnxZCU102, ZCU102_MACHINE,
+                         TYPE_ZCU102_MACHINE)
 
 
 static bool zcu102_get_secure(Object *obj, Error **errp)

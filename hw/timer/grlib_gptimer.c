@@ -57,8 +57,8 @@
 #define TIMER_BASE            0x10
 
 typedef struct GPTimerUnit GPTimerUnit;
-#define GRLIB_GPTIMER(obj) \
-    OBJECT_CHECK(GPTimerUnit, (obj), TYPE_GRLIB_GPTIMER)
+DECLARE_INSTANCE_CHECKER(GPTimerUnit, GRLIB_GPTIMER,
+                         TYPE_GRLIB_GPTIMER)
 
 typedef struct GPTimer     GPTimer;
 

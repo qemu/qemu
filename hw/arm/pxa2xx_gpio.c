@@ -23,8 +23,8 @@
 
 #define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
 typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
-#define PXA2XX_GPIO(obj) \
-    OBJECT_CHECK(PXA2xxGPIOInfo, (obj), TYPE_PXA2XX_GPIO)
+DECLARE_INSTANCE_CHECKER(PXA2xxGPIOInfo, PXA2XX_GPIO,
+                         TYPE_PXA2XX_GPIO)
 
 struct PXA2xxGPIOInfo {
     /*< private >*/

@@ -36,8 +36,8 @@
 #define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"
 
 typedef struct SHPCIState SHPCIState;
-#define SH_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(SHPCIState, (obj), TYPE_SH_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(SHPCIState, SH_PCI_HOST_BRIDGE,
+                         TYPE_SH_PCI_HOST_BRIDGE)
 
 struct SHPCIState {
     PCIHostState parent_obj;

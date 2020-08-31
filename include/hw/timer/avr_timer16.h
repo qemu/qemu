@@ -43,8 +43,8 @@ enum NextInterrupt {
 
 #define TYPE_AVR_TIMER16 "avr-timer16"
 typedef struct AVRTimer16State AVRTimer16State;
-#define AVR_TIMER16(obj) \
-    OBJECT_CHECK(AVRTimer16State, (obj), TYPE_AVR_TIMER16)
+DECLARE_INSTANCE_CHECKER(AVRTimer16State, AVR_TIMER16,
+                         TYPE_AVR_TIMER16)
 
 struct AVRTimer16State {
     /* <private> */

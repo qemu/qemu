@@ -36,12 +36,8 @@
 
 typedef struct XtensaCPU XtensaCPU;
 typedef struct XtensaCPUClass XtensaCPUClass;
-#define XTENSA_CPU_CLASS(class) \
-    OBJECT_CLASS_CHECK(XtensaCPUClass, (class), TYPE_XTENSA_CPU)
-#define XTENSA_CPU(obj) \
-    OBJECT_CHECK(XtensaCPU, (obj), TYPE_XTENSA_CPU)
-#define XTENSA_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(XtensaCPUClass, (obj), TYPE_XTENSA_CPU)
+DECLARE_OBJ_CHECKERS(XtensaCPU, XtensaCPUClass,
+                     XTENSA_CPU, TYPE_XTENSA_CPU)
 
 typedef struct XtensaConfig XtensaConfig;
 

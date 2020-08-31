@@ -7,8 +7,8 @@
 
 #define TYPE_I8257 "i8257"
 typedef struct I8257State I8257State;
-#define I8257(obj) \
-    OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
+DECLARE_INSTANCE_CHECKER(I8257State, I8257,
+                         TYPE_I8257)
 
 typedef struct I8257Regs {
     int now[2];

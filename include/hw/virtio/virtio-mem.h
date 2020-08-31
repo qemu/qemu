@@ -23,12 +23,8 @@
 
 typedef struct VirtIOMEM VirtIOMEM;
 typedef struct VirtIOMEMClass VirtIOMEMClass;
-#define VIRTIO_MEM(obj) \
-        OBJECT_CHECK(VirtIOMEM, (obj), TYPE_VIRTIO_MEM)
-#define VIRTIO_MEM_CLASS(oc) \
-        OBJECT_CLASS_CHECK(VirtIOMEMClass, (oc), TYPE_VIRTIO_MEM)
-#define VIRTIO_MEM_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtIOMEMClass, (obj), TYPE_VIRTIO_MEM)
+DECLARE_OBJ_CHECKERS(VirtIOMEM, VirtIOMEMClass,
+                     VIRTIO_MEM, TYPE_VIRTIO_MEM)
 
 #define VIRTIO_MEM_MEMDEV_PROP "memdev"
 #define VIRTIO_MEM_NODE_PROP "node"

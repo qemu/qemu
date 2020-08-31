@@ -27,10 +27,8 @@
 #define TYPE_NMI "nmi"
 
 typedef struct NMIClass NMIClass;
-#define NMI_CLASS(klass) \
-     OBJECT_CLASS_CHECK(NMIClass, (klass), TYPE_NMI)
-#define NMI_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(NMIClass, (obj), TYPE_NMI)
+DECLARE_CLASS_CHECKERS(NMIClass, NMI,
+                       TYPE_NMI)
 #define NMI(obj) \
      INTERFACE_CHECK(NMIState, (obj), TYPE_NMI)
 

@@ -27,8 +27,8 @@ typedef struct {
 
 #define TYPE_BCM2835_DMA "bcm2835-dma"
 typedef struct BCM2835DMAState BCM2835DMAState;
-#define BCM2835_DMA(obj) \
-        OBJECT_CHECK(BCM2835DMAState, (obj), TYPE_BCM2835_DMA)
+DECLARE_INSTANCE_CHECKER(BCM2835DMAState, BCM2835_DMA,
+                         TYPE_BCM2835_DMA)
 
 #define BCM2835_DMA_NCHANS 16
 

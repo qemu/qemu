@@ -31,12 +31,8 @@
 
 typedef struct MIPSCPU MIPSCPU;
 typedef struct MIPSCPUClass MIPSCPUClass;
-#define MIPS_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MIPSCPUClass, (klass), TYPE_MIPS_CPU)
-#define MIPS_CPU(obj) \
-    OBJECT_CHECK(MIPSCPU, (obj), TYPE_MIPS_CPU)
-#define MIPS_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MIPSCPUClass, (obj), TYPE_MIPS_CPU)
+DECLARE_OBJ_CHECKERS(MIPSCPU, MIPSCPUClass,
+                     MIPS_CPU, TYPE_MIPS_CPU)
 
 /**
  * MIPSCPUClass:

@@ -57,7 +57,8 @@
 
 #define TYPE_TCX "SUNW,tcx"
 typedef struct TCXState TCXState;
-#define TCX(obj) OBJECT_CHECK(TCXState, (obj), TYPE_TCX)
+DECLARE_INSTANCE_CHECKER(TCXState, TCX,
+                         TYPE_TCX)
 
 struct TCXState {
     SysBusDevice parent_obj;

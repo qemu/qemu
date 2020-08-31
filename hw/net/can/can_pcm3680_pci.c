@@ -44,8 +44,8 @@
 #define TYPE_CAN_PCI_DEV "pcm3680_pci"
 
 typedef struct Pcm3680iPCIState Pcm3680iPCIState;
-#define PCM3680i_PCI_DEV(obj) \
-    OBJECT_CHECK(Pcm3680iPCIState, (obj), TYPE_CAN_PCI_DEV)
+DECLARE_INSTANCE_CHECKER(Pcm3680iPCIState, PCM3680i_PCI_DEV,
+                         TYPE_CAN_PCI_DEV)
 
 /* the PCI device and vendor IDs */
 #ifndef PCM3680i_PCI_VENDOR_ID1

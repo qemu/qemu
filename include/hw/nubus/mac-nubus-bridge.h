@@ -14,8 +14,8 @@
 
 #define TYPE_MAC_NUBUS_BRIDGE "mac-nubus-bridge"
 typedef struct MacNubusState MacNubusState;
-#define MAC_NUBUS_BRIDGE(obj) OBJECT_CHECK(MacNubusState, (obj), \
-                                           TYPE_MAC_NUBUS_BRIDGE)
+DECLARE_INSTANCE_CHECKER(MacNubusState, MAC_NUBUS_BRIDGE,
+                         TYPE_MAC_NUBUS_BRIDGE)
 
 struct MacNubusState {
     SysBusDevice sysbus_dev;

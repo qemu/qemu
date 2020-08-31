@@ -35,8 +35,8 @@
 
 #define TYPE_EXYNOS4_I2C                  "exynos4210.i2c"
 typedef struct Exynos4210I2CState Exynos4210I2CState;
-#define EXYNOS4_I2C(obj)                  \
-    OBJECT_CHECK(Exynos4210I2CState, (obj), TYPE_EXYNOS4_I2C)
+DECLARE_INSTANCE_CHECKER(Exynos4210I2CState, EXYNOS4_I2C,
+                         TYPE_EXYNOS4_I2C)
 
 /* Exynos4210 I2C memory map */
 #define EXYNOS4_I2C_MEM_SIZE              0x14

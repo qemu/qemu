@@ -34,10 +34,8 @@
 #define IDAU_INTERFACE(obj) \
     INTERFACE_CHECK(IDAUInterface, (obj), TYPE_IDAU_INTERFACE)
 typedef struct IDAUInterfaceClass IDAUInterfaceClass;
-#define IDAU_INTERFACE_CLASS(class) \
-    OBJECT_CLASS_CHECK(IDAUInterfaceClass, (class), TYPE_IDAU_INTERFACE)
-#define IDAU_INTERFACE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(IDAUInterfaceClass, (obj), TYPE_IDAU_INTERFACE)
+DECLARE_CLASS_CHECKERS(IDAUInterfaceClass, IDAU_INTERFACE,
+                       TYPE_IDAU_INTERFACE)
 
 typedef struct IDAUInterface IDAUInterface;
 

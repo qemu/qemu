@@ -25,7 +25,8 @@
 
 #define TYPE_MIPS_ITU "mips-itu"
 typedef struct MIPSITUState MIPSITUState;
-#define MIPS_ITU(obj) OBJECT_CHECK(MIPSITUState, (obj), TYPE_MIPS_ITU)
+DECLARE_INSTANCE_CHECKER(MIPSITUState, MIPS_ITU,
+                         TYPE_MIPS_ITU)
 
 #define ITC_CELL_DEPTH_SHIFT 2
 #define ITC_CELL_DEPTH (1u << ITC_CELL_DEPTH_SHIFT)

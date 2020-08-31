@@ -28,13 +28,13 @@
 
 #define TYPE_XILINX_PCIE_HOST "xilinx-pcie-host"
 typedef struct XilinxPCIEHost XilinxPCIEHost;
-#define XILINX_PCIE_HOST(obj) \
-     OBJECT_CHECK(XilinxPCIEHost, (obj), TYPE_XILINX_PCIE_HOST)
+DECLARE_INSTANCE_CHECKER(XilinxPCIEHost, XILINX_PCIE_HOST,
+                         TYPE_XILINX_PCIE_HOST)
 
 #define TYPE_XILINX_PCIE_ROOT "xilinx-pcie-root"
 typedef struct XilinxPCIERoot XilinxPCIERoot;
-#define XILINX_PCIE_ROOT(obj) \
-     OBJECT_CHECK(XilinxPCIERoot, (obj), TYPE_XILINX_PCIE_ROOT)
+DECLARE_INSTANCE_CHECKER(XilinxPCIERoot, XILINX_PCIE_ROOT,
+                         TYPE_XILINX_PCIE_ROOT)
 
 struct XilinxPCIERoot {
     PCIBridge parent_obj;

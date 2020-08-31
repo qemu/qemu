@@ -69,7 +69,8 @@ struct ssd0323_state {
 typedef struct ssd0323_state ssd0323_state;
 
 #define TYPE_SSD0323 "ssd0323"
-#define SSD0323(obj) OBJECT_CHECK(ssd0323_state, (obj), TYPE_SSD0323)
+DECLARE_INSTANCE_CHECKER(ssd0323_state, SSD0323,
+                         TYPE_SSD0323)
 
 
 static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)

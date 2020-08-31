@@ -40,8 +40,8 @@ struct TestdevChardev {
 typedef struct TestdevChardev TestdevChardev;
 
 #define TYPE_CHARDEV_TESTDEV "chardev-testdev"
-#define TESTDEV_CHARDEV(obj)                                    \
-    OBJECT_CHECK(TestdevChardev, (obj), TYPE_CHARDEV_TESTDEV)
+DECLARE_INSTANCE_CHECKER(TestdevChardev, TESTDEV_CHARDEV,
+                         TYPE_CHARDEV_TESTDEV)
 
 /* Try to interpret a whole incoming packet */
 static int testdev_eat_packet(TestdevChardev *testdev)

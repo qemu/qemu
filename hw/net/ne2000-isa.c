@@ -34,7 +34,8 @@
 #include "qom/object.h"
 
 typedef struct ISANE2000State ISANE2000State;
-#define ISA_NE2000(obj) OBJECT_CHECK(ISANE2000State, (obj), TYPE_ISA_NE2000)
+DECLARE_INSTANCE_CHECKER(ISANE2000State, ISA_NE2000,
+                         TYPE_ISA_NE2000)
 
 struct ISANE2000State {
     ISADevice parent_obj;

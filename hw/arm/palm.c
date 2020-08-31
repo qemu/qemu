@@ -134,8 +134,8 @@ static void palmte_button_event(void *opaque, int keycode)
 
 #define TYPE_PALM_MISC_GPIO "palm-misc-gpio"
 typedef struct PalmMiscGPIOState PalmMiscGPIOState;
-#define PALM_MISC_GPIO(obj) \
-    OBJECT_CHECK(PalmMiscGPIOState, (obj), TYPE_PALM_MISC_GPIO)
+DECLARE_INSTANCE_CHECKER(PalmMiscGPIOState, PALM_MISC_GPIO,
+                         TYPE_PALM_MISC_GPIO)
 
 struct PalmMiscGPIOState {
     SysBusDevice parent_obj;

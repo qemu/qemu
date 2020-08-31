@@ -36,7 +36,7 @@ struct BCM2835GpioState {
 typedef struct BCM2835GpioState BCM2835GpioState;
 
 #define TYPE_BCM2835_GPIO "bcm2835_gpio"
-#define BCM2835_GPIO(obj) \
-    OBJECT_CHECK(BCM2835GpioState, (obj), TYPE_BCM2835_GPIO)
+DECLARE_INSTANCE_CHECKER(BCM2835GpioState, BCM2835_GPIO,
+                         TYPE_BCM2835_GPIO)
 
 #endif

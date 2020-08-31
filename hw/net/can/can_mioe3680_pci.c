@@ -44,8 +44,8 @@
 #define TYPE_CAN_PCI_DEV "mioe3680_pci"
 
 typedef struct Mioe3680PCIState Mioe3680PCIState;
-#define MIOe3680_PCI_DEV(obj) \
-    OBJECT_CHECK(Mioe3680PCIState, (obj), TYPE_CAN_PCI_DEV)
+DECLARE_INSTANCE_CHECKER(Mioe3680PCIState, MIOe3680_PCI_DEV,
+                         TYPE_CAN_PCI_DEV)
 
 /* the PCI device and vendor IDs */
 #ifndef MIOe3680_PCI_VENDOR_ID1

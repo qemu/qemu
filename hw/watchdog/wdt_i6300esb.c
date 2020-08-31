@@ -105,8 +105,8 @@ struct I6300State {
 typedef struct I6300State I6300State;
 
 #define TYPE_WATCHDOG_I6300ESB_DEVICE "i6300esb"
-#define WATCHDOG_I6300ESB_DEVICE(obj) \
-    OBJECT_CHECK(I6300State, (obj), TYPE_WATCHDOG_I6300ESB_DEVICE)
+DECLARE_INSTANCE_CHECKER(I6300State, WATCHDOG_I6300ESB_DEVICE,
+                         TYPE_WATCHDOG_I6300ESB_DEVICE)
 
 /* This function is called when the watchdog has either been enabled
  * (hence it starts counting down) or has been keep-alived.

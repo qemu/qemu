@@ -28,12 +28,8 @@
 
 typedef struct RXCPU RXCPU;
 typedef struct RXCPUClass RXCPUClass;
-#define RX_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RXCPUClass, (klass), TYPE_RX_CPU)
-#define RX_CPU(obj) \
-    OBJECT_CHECK(RXCPU, (obj), TYPE_RX_CPU)
-#define RX_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RXCPUClass, (obj), TYPE_RX_CPU)
+DECLARE_OBJ_CHECKERS(RXCPU, RXCPUClass,
+                     RX_CPU, TYPE_RX_CPU)
 
 /*
  * RXCPUClass:

@@ -31,8 +31,8 @@
 #define PVPANIC_CRASHLOADED     (1 << PVPANIC_F_CRASHLOADED)
 
 typedef struct PVPanicState PVPanicState;
-#define ISA_PVPANIC_DEVICE(obj)    \
-    OBJECT_CHECK(PVPanicState, (obj), TYPE_PVPANIC)
+DECLARE_INSTANCE_CHECKER(PVPanicState, ISA_PVPANIC_DEVICE,
+                         TYPE_PVPANIC)
 
 static void handle_event(int event)
 {

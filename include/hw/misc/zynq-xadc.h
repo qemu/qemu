@@ -25,8 +25,8 @@
 
 #define TYPE_ZYNQ_XADC          "xlnx,zynq-xadc"
 typedef struct ZynqXADCState ZynqXADCState;
-#define ZYNQ_XADC(obj) \
-    OBJECT_CHECK(ZynqXADCState, (obj), TYPE_ZYNQ_XADC)
+DECLARE_INSTANCE_CHECKER(ZynqXADCState, ZYNQ_XADC,
+                         TYPE_ZYNQ_XADC)
 
 struct ZynqXADCState {
     /*< private >*/

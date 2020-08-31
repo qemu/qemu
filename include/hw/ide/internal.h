@@ -26,7 +26,8 @@ typedef struct IDEDMA IDEDMA;
 typedef struct IDEDMAOps IDEDMAOps;
 
 #define TYPE_IDE_BUS "IDE"
-#define IDE_BUS(obj) OBJECT_CHECK(IDEBus, (obj), TYPE_IDE_BUS)
+DECLARE_INSTANCE_CHECKER(IDEBus, IDE_BUS,
+                         TYPE_IDE_BUS)
 
 #define MAX_IDE_DEVS 2
 
@@ -488,12 +489,8 @@ struct IDEBus {
 
 #define TYPE_IDE_DEVICE "ide-device"
 typedef struct IDEDeviceClass IDEDeviceClass;
-#define IDE_DEVICE(obj) \
-     OBJECT_CHECK(IDEDevice, (obj), TYPE_IDE_DEVICE)
-#define IDE_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(IDEDeviceClass, (klass), TYPE_IDE_DEVICE)
-#define IDE_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(IDEDeviceClass, (obj), TYPE_IDE_DEVICE)
+DECLARE_OBJ_CHECKERS(IDEDevice, IDEDeviceClass,
+                     IDE_DEVICE, TYPE_IDE_DEVICE)
 
 struct IDEDeviceClass {
     DeviceClass parent_class;

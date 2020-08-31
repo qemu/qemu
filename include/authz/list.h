@@ -29,15 +29,8 @@
 
 typedef struct QAuthZList QAuthZList;
 typedef struct QAuthZListClass QAuthZListClass;
-#define QAUTHZ_LIST_CLASS(klass)                        \
-    OBJECT_CLASS_CHECK(QAuthZListClass, (klass),        \
-                       TYPE_QAUTHZ_LIST)
-#define QAUTHZ_LIST_GET_CLASS(obj)              \
-    OBJECT_GET_CLASS(QAuthZListClass, (obj),    \
-                      TYPE_QAUTHZ_LIST)
-#define QAUTHZ_LIST(obj) \
-    OBJECT_CHECK(QAuthZList, (obj), \
-                 TYPE_QAUTHZ_LIST)
+DECLARE_OBJ_CHECKERS(QAuthZList, QAuthZListClass,
+                     QAUTHZ_LIST, TYPE_QAUTHZ_LIST)
 
 
 

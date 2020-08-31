@@ -54,8 +54,8 @@
 #define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
 
 typedef struct LasiState LasiState;
-#define LASI_CHIP(obj) \
-    OBJECT_CHECK(LasiState, (obj), TYPE_LASI_CHIP)
+DECLARE_INSTANCE_CHECKER(LasiState, LASI_CHIP,
+                         TYPE_LASI_CHIP)
 
 struct LasiState {
     PCIHostState parent_obj;

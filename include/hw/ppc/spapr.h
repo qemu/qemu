@@ -29,8 +29,8 @@ typedef struct SpaprPendingHpt SpaprPendingHpt;
 #define TYPE_SPAPR_RTC "spapr-rtc"
 
 typedef struct SpaprRtcState SpaprRtcState;
-#define SPAPR_RTC(obj)                                  \
-    OBJECT_CHECK(SpaprRtcState, (obj), TYPE_SPAPR_RTC)
+DECLARE_INSTANCE_CHECKER(SpaprRtcState, SPAPR_RTC,
+                         TYPE_SPAPR_RTC)
 
 struct SpaprRtcState {
     /*< private >*/
@@ -43,12 +43,8 @@ typedef struct SpaprMachineClass SpaprMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
 typedef struct SpaprMachineState SpaprMachineState;
-#define SPAPR_MACHINE(obj) \
-    OBJECT_CHECK(SpaprMachineState, (obj), TYPE_SPAPR_MACHINE)
-#define SPAPR_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SpaprMachineClass, obj, TYPE_SPAPR_MACHINE)
-#define SPAPR_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SpaprMachineClass, klass, TYPE_SPAPR_MACHINE)
+DECLARE_OBJ_CHECKERS(SpaprMachineState, SpaprMachineClass,
+                     SPAPR_MACHINE, TYPE_SPAPR_MACHINE)
 
 typedef enum {
     SPAPR_RESIZE_HPT_DEFAULT = 0,
@@ -791,12 +787,12 @@ static inline void spapr_dt_irq(uint32_t *intspec, int irq, bool is_lsi)
 typedef struct SpaprTceTable SpaprTceTable;
 
 #define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"
-#define SPAPR_TCE_TABLE(obj) \
-    OBJECT_CHECK(SpaprTceTable, (obj), TYPE_SPAPR_TCE_TABLE)
+DECLARE_INSTANCE_CHECKER(SpaprTceTable, SPAPR_TCE_TABLE,
+                         TYPE_SPAPR_TCE_TABLE)
 
 #define TYPE_SPAPR_IOMMU_MEMORY_REGION "spapr-iommu-memory-region"
-#define SPAPR_IOMMU_MEMORY_REGION(obj) \
-        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_SPAPR_IOMMU_MEMORY_REGION)
+DECLARE_INSTANCE_CHECKER(IOMMUMemoryRegion, SPAPR_IOMMU_MEMORY_REGION,
+                         TYPE_SPAPR_IOMMU_MEMORY_REGION)
 
 struct SpaprTceTable {
     DeviceState parent;

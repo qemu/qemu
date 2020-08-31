@@ -17,7 +17,8 @@
                                        */
 
 typedef struct VmGenIdState VmGenIdState;
-#define VMGENID(obj) OBJECT_CHECK(VmGenIdState, (obj), VMGENID_DEVICE)
+DECLARE_INSTANCE_CHECKER(VmGenIdState, VMGENID,
+                         VMGENID_DEVICE)
 
 struct VmGenIdState {
     DeviceClass parent_obj;

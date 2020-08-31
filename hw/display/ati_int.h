@@ -31,7 +31,8 @@
 
 #define TYPE_ATI_VGA "ati-vga"
 typedef struct ATIVGAState ATIVGAState;
-#define ATI_VGA(obj) OBJECT_CHECK(ATIVGAState, (obj), TYPE_ATI_VGA)
+DECLARE_INSTANCE_CHECKER(ATIVGAState, ATI_VGA,
+                         TYPE_ATI_VGA)
 
 typedef struct ATIVGARegs {
     uint32_t mm_index;

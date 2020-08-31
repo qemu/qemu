@@ -45,7 +45,8 @@
 
 #define TYPE_MIPS_BOSTON "mips-boston"
 typedef struct BostonState BostonState;
-#define BOSTON(obj) OBJECT_CHECK(BostonState, (obj), TYPE_MIPS_BOSTON)
+DECLARE_INSTANCE_CHECKER(BostonState, BOSTON,
+                         TYPE_MIPS_BOSTON)
 
 struct BostonState {
     SysBusDevice parent_obj;

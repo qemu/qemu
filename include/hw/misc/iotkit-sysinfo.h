@@ -27,8 +27,8 @@
 
 #define TYPE_IOTKIT_SYSINFO "iotkit-sysinfo"
 typedef struct IoTKitSysInfo IoTKitSysInfo;
-#define IOTKIT_SYSINFO(obj) OBJECT_CHECK(IoTKitSysInfo, (obj), \
-                                        TYPE_IOTKIT_SYSINFO)
+DECLARE_INSTANCE_CHECKER(IoTKitSysInfo, IOTKIT_SYSINFO,
+                         TYPE_IOTKIT_SYSINFO)
 
 struct IoTKitSysInfo {
     /*< private >*/

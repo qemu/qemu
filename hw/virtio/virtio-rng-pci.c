@@ -23,8 +23,8 @@ typedef struct VirtIORngPCI VirtIORngPCI;
  * virtio-rng-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_RNG_PCI "virtio-rng-pci-base"
-#define VIRTIO_RNG_PCI(obj) \
-        OBJECT_CHECK(VirtIORngPCI, (obj), TYPE_VIRTIO_RNG_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIORngPCI, VIRTIO_RNG_PCI,
+                         TYPE_VIRTIO_RNG_PCI)
 
 struct VirtIORngPCI {
     VirtIOPCIProxy parent_obj;

@@ -35,7 +35,8 @@
 
 #define TYPE_SGA "sga"
 typedef struct ISASGAState ISASGAState;
-#define SGA(obj) OBJECT_CHECK(ISASGAState, (obj), TYPE_SGA)
+DECLARE_INSTANCE_CHECKER(ISASGAState, SGA,
+                         TYPE_SGA)
 
 struct ISASGAState {
     ISADevice parent_obj;

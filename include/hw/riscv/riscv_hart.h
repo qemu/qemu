@@ -28,8 +28,8 @@
 #define TYPE_RISCV_HART_ARRAY "riscv.hart_array"
 
 typedef struct RISCVHartArrayState RISCVHartArrayState;
-#define RISCV_HART_ARRAY(obj) \
-    OBJECT_CHECK(RISCVHartArrayState, (obj), TYPE_RISCV_HART_ARRAY)
+DECLARE_INSTANCE_CHECKER(RISCVHartArrayState, RISCV_HART_ARRAY,
+                         TYPE_RISCV_HART_ARRAY)
 
 struct RISCVHartArrayState {
     /*< private >*/

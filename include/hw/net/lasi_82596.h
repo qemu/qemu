@@ -14,8 +14,8 @@
 
 #define TYPE_LASI_82596 "lasi_82596"
 typedef struct SysBusI82596State SysBusI82596State;
-#define SYSBUS_I82596(obj) \
-    OBJECT_CHECK(SysBusI82596State, (obj), TYPE_LASI_82596)
+DECLARE_INSTANCE_CHECKER(SysBusI82596State, SYSBUS_I82596,
+                         TYPE_LASI_82596)
 
 struct SysBusI82596State {
     SysBusDevice parent_obj;

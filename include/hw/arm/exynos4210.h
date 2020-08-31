@@ -106,8 +106,8 @@ struct Exynos4210State {
 typedef struct Exynos4210State Exynos4210State;
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"
-#define EXYNOS4210_SOC(obj) \
-    OBJECT_CHECK(Exynos4210State, obj, TYPE_EXYNOS4210_SOC)
+DECLARE_INSTANCE_CHECKER(Exynos4210State, EXYNOS4210_SOC,
+                         TYPE_EXYNOS4210_SOC)
 
 void exynos4210_write_secondary(ARMCPU *cpu,
         const struct arm_boot_info *info);

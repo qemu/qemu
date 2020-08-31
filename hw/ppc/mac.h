@@ -73,8 +73,8 @@
 /* Core99 machine */
 #define TYPE_CORE99_MACHINE MACHINE_TYPE_NAME("mac99")
 typedef struct Core99MachineState Core99MachineState;
-#define CORE99_MACHINE(obj) OBJECT_CHECK(Core99MachineState, (obj), \
-                                         TYPE_CORE99_MACHINE)
+DECLARE_INSTANCE_CHECKER(Core99MachineState, CORE99_MACHINE,
+                         TYPE_CORE99_MACHINE)
 
 #define CORE99_VIA_CONFIG_CUDA     0x0
 #define CORE99_VIA_CONFIG_PMU      0x1
@@ -93,8 +93,8 @@ struct Core99MachineState {
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"
 typedef struct MacIONVRAMState MacIONVRAMState;
-#define MACIO_NVRAM(obj) \
-    OBJECT_CHECK(MacIONVRAMState, (obj), TYPE_MACIO_NVRAM)
+DECLARE_INSTANCE_CHECKER(MacIONVRAMState, MACIO_NVRAM,
+                         TYPE_MACIO_NVRAM)
 
 struct MacIONVRAMState {
     /*< private >*/

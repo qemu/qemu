@@ -17,7 +17,8 @@
 
 #define TYPE_PNV_PNOR  "pnv-pnor"
 typedef struct PnvPnor PnvPnor;
-#define PNV_PNOR(obj)  OBJECT_CHECK(PnvPnor, (obj), TYPE_PNV_PNOR)
+DECLARE_INSTANCE_CHECKER(PnvPnor, PNV_PNOR,
+                         TYPE_PNV_PNOR)
 
 struct PnvPnor {
     SysBusDevice   parent_obj;

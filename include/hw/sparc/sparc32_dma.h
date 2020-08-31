@@ -10,8 +10,8 @@
 
 #define TYPE_SPARC32_DMA_DEVICE "sparc32-dma-device"
 typedef struct DMADeviceState DMADeviceState;
-#define SPARC32_DMA_DEVICE(obj) OBJECT_CHECK(DMADeviceState, (obj), \
-                                             TYPE_SPARC32_DMA_DEVICE)
+DECLARE_INSTANCE_CHECKER(DMADeviceState, SPARC32_DMA_DEVICE,
+                         TYPE_SPARC32_DMA_DEVICE)
 
 
 struct DMADeviceState {
@@ -26,8 +26,8 @@ struct DMADeviceState {
 
 #define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
 typedef struct ESPDMADeviceState ESPDMADeviceState;
-#define SPARC32_ESPDMA_DEVICE(obj) OBJECT_CHECK(ESPDMADeviceState, (obj), \
-                                                TYPE_SPARC32_ESPDMA_DEVICE)
+DECLARE_INSTANCE_CHECKER(ESPDMADeviceState, SPARC32_ESPDMA_DEVICE,
+                         TYPE_SPARC32_ESPDMA_DEVICE)
 
 struct ESPDMADeviceState {
     DMADeviceState parent_obj;
@@ -37,8 +37,8 @@ struct ESPDMADeviceState {
 
 #define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
 typedef struct LEDMADeviceState LEDMADeviceState;
-#define SPARC32_LEDMA_DEVICE(obj) OBJECT_CHECK(LEDMADeviceState, (obj), \
-                                               TYPE_SPARC32_LEDMA_DEVICE)
+DECLARE_INSTANCE_CHECKER(LEDMADeviceState, SPARC32_LEDMA_DEVICE,
+                         TYPE_SPARC32_LEDMA_DEVICE)
 
 struct LEDMADeviceState {
     DMADeviceState parent_obj;
@@ -48,8 +48,8 @@ struct LEDMADeviceState {
 
 #define TYPE_SPARC32_DMA "sparc32-dma"
 typedef struct SPARC32DMAState SPARC32DMAState;
-#define SPARC32_DMA(obj) OBJECT_CHECK(SPARC32DMAState, (obj), \
-                                      TYPE_SPARC32_DMA)
+DECLARE_INSTANCE_CHECKER(SPARC32DMAState, SPARC32_DMA,
+                         TYPE_SPARC32_DMA)
 
 struct SPARC32DMAState {
     SysBusDevice parent_obj;

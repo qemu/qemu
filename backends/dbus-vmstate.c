@@ -25,12 +25,8 @@ typedef struct DBusVMState DBusVMState;
 typedef struct DBusVMStateClass DBusVMStateClass;
 
 #define TYPE_DBUS_VMSTATE "dbus-vmstate"
-#define DBUS_VMSTATE(obj)                                \
-    OBJECT_CHECK(DBusVMState, (obj), TYPE_DBUS_VMSTATE)
-#define DBUS_VMSTATE_GET_CLASS(obj)                              \
-    OBJECT_GET_CLASS(DBusVMStateClass, (obj), TYPE_DBUS_VMSTATE)
-#define DBUS_VMSTATE_CLASS(klass)                                    \
-    OBJECT_CLASS_CHECK(DBusVMStateClass, (klass), TYPE_DBUS_VMSTATE)
+DECLARE_OBJ_CHECKERS(DBusVMState, DBusVMStateClass,
+                     DBUS_VMSTATE, TYPE_DBUS_VMSTATE)
 
 struct DBusVMStateClass {
     ObjectClass parent_class;

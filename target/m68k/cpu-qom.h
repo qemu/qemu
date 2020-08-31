@@ -27,12 +27,8 @@
 
 typedef struct M68kCPU M68kCPU;
 typedef struct M68kCPUClass M68kCPUClass;
-#define M68K_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(M68kCPUClass, (klass), TYPE_M68K_CPU)
-#define M68K_CPU(obj) \
-    OBJECT_CHECK(M68kCPU, (obj), TYPE_M68K_CPU)
-#define M68K_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(M68kCPUClass, (obj), TYPE_M68K_CPU)
+DECLARE_OBJ_CHECKERS(M68kCPU, M68kCPUClass,
+                     M68K_CPU, TYPE_M68K_CPU)
 
 /*
  * M68kCPUClass:

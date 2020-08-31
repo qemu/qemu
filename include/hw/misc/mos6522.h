@@ -126,7 +126,8 @@ typedef struct MOS6522State MOS6522State;
 
 #define TYPE_MOS6522 "mos6522"
 typedef struct MOS6522DeviceClass MOS6522DeviceClass;
-#define MOS6522(obj) OBJECT_CHECK(MOS6522State, (obj), TYPE_MOS6522)
+DECLARE_OBJ_CHECKERS(MOS6522State, MOS6522DeviceClass,
+                     MOS6522, TYPE_MOS6522)
 
 struct MOS6522DeviceClass {
     DeviceClass parent_class;
@@ -143,10 +144,6 @@ struct MOS6522DeviceClass {
     uint64_t (*get_timer2_load_time)(MOS6522State *dev, MOS6522Timer *ti);
 };
 
-#define MOS6522_CLASS(cls) \
-    OBJECT_CLASS_CHECK(MOS6522DeviceClass, (cls), TYPE_MOS6522)
-#define MOS6522_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MOS6522DeviceClass, (obj), TYPE_MOS6522)
 
 extern const VMStateDescription vmstate_mos6522;
 

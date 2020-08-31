@@ -29,15 +29,8 @@
 
 typedef struct QAuthZListFile QAuthZListFile;
 typedef struct QAuthZListFileClass QAuthZListFileClass;
-#define QAUTHZ_LIST_FILE_CLASS(klass)                        \
-    OBJECT_CLASS_CHECK(QAuthZListFileClass, (klass),        \
-                       TYPE_QAUTHZ_LIST_FILE)
-#define QAUTHZ_LIST_FILE_GET_CLASS(obj)              \
-    OBJECT_GET_CLASS(QAuthZListFileClass, (obj),    \
-                      TYPE_QAUTHZ_LIST_FILE)
-#define QAUTHZ_LIST_FILE(obj) \
-    OBJECT_CHECK(QAuthZListFile, (obj), \
-                 TYPE_QAUTHZ_LIST_FILE)
+DECLARE_OBJ_CHECKERS(QAuthZListFile, QAuthZListFileClass,
+                     QAUTHZ_LIST_FILE, TYPE_QAUTHZ_LIST_FILE)
 
 
 

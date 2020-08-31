@@ -17,8 +17,8 @@
 #define TYPE_ASPEED_WDT "aspeed.wdt"
 typedef struct AspeedWDTClass AspeedWDTClass;
 typedef struct AspeedWDTState AspeedWDTState;
-#define ASPEED_WDT(obj) \
-    OBJECT_CHECK(AspeedWDTState, (obj), TYPE_ASPEED_WDT)
+DECLARE_OBJ_CHECKERS(AspeedWDTState, AspeedWDTClass,
+                     ASPEED_WDT, TYPE_ASPEED_WDT)
 #define TYPE_ASPEED_2400_WDT TYPE_ASPEED_WDT "-ast2400"
 #define TYPE_ASPEED_2500_WDT TYPE_ASPEED_WDT "-ast2500"
 #define TYPE_ASPEED_2600_WDT TYPE_ASPEED_WDT "-ast2600"
@@ -38,10 +38,6 @@ struct AspeedWDTState {
     uint32_t pclk_freq;
 };
 
-#define ASPEED_WDT_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedWDTClass, (klass), TYPE_ASPEED_WDT)
-#define ASPEED_WDT_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedWDTClass, (obj), TYPE_ASPEED_WDT)
 
 struct AspeedWDTClass {
     SysBusDeviceClass parent_class;

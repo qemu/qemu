@@ -94,11 +94,8 @@ typedef struct SDBus SDBus;
 
 #define TYPE_SD_CARD "sd-card"
 typedef struct SDCardClass SDCardClass;
-#define SD_CARD(obj) OBJECT_CHECK(SDState, (obj), TYPE_SD_CARD)
-#define SD_CARD_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SDCardClass, (klass), TYPE_SD_CARD)
-#define SD_CARD_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SDCardClass, (obj), TYPE_SD_CARD)
+DECLARE_OBJ_CHECKERS(SDState, SDCardClass,
+                     SD_CARD, TYPE_SD_CARD)
 
 struct SDCardClass {
     /*< private >*/
@@ -134,9 +131,8 @@ struct SDCardClass {
 
 #define TYPE_SD_BUS "sd-bus"
 typedef struct SDBusClass SDBusClass;
-#define SD_BUS(obj) OBJECT_CHECK(SDBus, (obj), TYPE_SD_BUS)
-#define SD_BUS_CLASS(klass) OBJECT_CLASS_CHECK(SDBusClass, (klass), TYPE_SD_BUS)
-#define SD_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(SDBusClass, (obj), TYPE_SD_BUS)
+DECLARE_OBJ_CHECKERS(SDBus, SDBusClass,
+                     SD_BUS, TYPE_SD_BUS)
 
 struct SDBus {
     BusState qbus;

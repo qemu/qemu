@@ -30,16 +30,13 @@
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 typedef struct SpaprVioDevice SpaprVioDevice;
 typedef struct SpaprVioDeviceClass SpaprVioDeviceClass;
-#define VIO_SPAPR_DEVICE(obj) \
-     OBJECT_CHECK(SpaprVioDevice, (obj), TYPE_VIO_SPAPR_DEVICE)
-#define VIO_SPAPR_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SpaprVioDeviceClass, (klass), TYPE_VIO_SPAPR_DEVICE)
-#define VIO_SPAPR_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SpaprVioDeviceClass, (obj), TYPE_VIO_SPAPR_DEVICE)
+DECLARE_OBJ_CHECKERS(SpaprVioDevice, SpaprVioDeviceClass,
+                     VIO_SPAPR_DEVICE, TYPE_VIO_SPAPR_DEVICE)
 
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
 typedef struct SpaprVioBus SpaprVioBus;
-#define SPAPR_VIO_BUS(obj) OBJECT_CHECK(SpaprVioBus, (obj), TYPE_SPAPR_VIO_BUS)
+DECLARE_INSTANCE_CHECKER(SpaprVioBus, SPAPR_VIO_BUS,
+                         TYPE_SPAPR_VIO_BUS)
 
 #define TYPE_SPAPR_VIO_BRIDGE "spapr-vio-bridge"
 

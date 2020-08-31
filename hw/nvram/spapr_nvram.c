@@ -51,8 +51,8 @@ struct SpaprNvram {
 typedef struct SpaprNvram SpaprNvram;
 
 #define TYPE_VIO_SPAPR_NVRAM "spapr-nvram"
-#define VIO_SPAPR_NVRAM(obj) \
-     OBJECT_CHECK(SpaprNvram, (obj), TYPE_VIO_SPAPR_NVRAM)
+DECLARE_INSTANCE_CHECKER(SpaprNvram, VIO_SPAPR_NVRAM,
+                         TYPE_VIO_SPAPR_NVRAM)
 
 #define MIN_NVRAM_SIZE      (8 * KiB)
 #define DEFAULT_NVRAM_SIZE  (64 * KiB)

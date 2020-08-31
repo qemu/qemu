@@ -28,6 +28,7 @@ struct A9SCUState {
 typedef struct A9SCUState A9SCUState;
 
 #define TYPE_A9_SCU "a9-scu"
-#define A9_SCU(obj) OBJECT_CHECK(A9SCUState, (obj), TYPE_A9_SCU)
+DECLARE_INSTANCE_CHECKER(A9SCUState, A9_SCU,
+                         TYPE_A9_SCU)
 
 #endif

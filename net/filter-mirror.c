@@ -23,12 +23,12 @@
 
 #define TYPE_FILTER_MIRROR "filter-mirror"
 typedef struct MirrorState MirrorState;
-#define FILTER_MIRROR(obj) \
-    OBJECT_CHECK(MirrorState, (obj), TYPE_FILTER_MIRROR)
+DECLARE_INSTANCE_CHECKER(MirrorState, FILTER_MIRROR,
+                         TYPE_FILTER_MIRROR)
 
 #define TYPE_FILTER_REDIRECTOR "filter-redirector"
-#define FILTER_REDIRECTOR(obj) \
-    OBJECT_CHECK(MirrorState, (obj), TYPE_FILTER_REDIRECTOR)
+DECLARE_INSTANCE_CHECKER(MirrorState, FILTER_REDIRECTOR,
+                         TYPE_FILTER_REDIRECTOR)
 
 #define REDIRECTOR_MAX_LEN NET_BUFSIZE
 

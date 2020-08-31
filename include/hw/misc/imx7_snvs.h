@@ -25,7 +25,8 @@ enum IMX7SNVSRegisters {
 
 #define TYPE_IMX7_SNVS "imx7.snvs"
 typedef struct IMX7SNVSState IMX7SNVSState;
-#define IMX7_SNVS(obj) OBJECT_CHECK(IMX7SNVSState, (obj), TYPE_IMX7_SNVS)
+DECLARE_INSTANCE_CHECKER(IMX7SNVSState, IMX7_SNVS,
+                         TYPE_IMX7_SNVS)
 
 struct IMX7SNVSState {
     /* <private> */

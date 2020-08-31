@@ -34,10 +34,8 @@ struct PCA955xClass {
 };
 typedef struct PCA955xClass PCA955xClass;
 
-#define PCA955X_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PCA955xClass, (klass), TYPE_PCA955X)
-#define PCA955X_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PCA955xClass, (obj), TYPE_PCA955X)
+DECLARE_CLASS_CHECKERS(PCA955xClass, PCA955X,
+                       TYPE_PCA955X)
 
 #define PCA9552_LED_ON   0x0
 #define PCA9552_LED_OFF  0x1

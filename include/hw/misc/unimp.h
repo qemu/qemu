@@ -16,8 +16,8 @@
 #define TYPE_UNIMPLEMENTED_DEVICE "unimplemented-device"
 
 typedef struct UnimplementedDeviceState UnimplementedDeviceState;
-#define UNIMPLEMENTED_DEVICE(obj) \
-    OBJECT_CHECK(UnimplementedDeviceState, (obj), TYPE_UNIMPLEMENTED_DEVICE)
+DECLARE_INSTANCE_CHECKER(UnimplementedDeviceState, UNIMPLEMENTED_DEVICE,
+                         TYPE_UNIMPLEMENTED_DEVICE)
 
 struct UnimplementedDeviceState {
     SysBusDevice parent_obj;

@@ -54,13 +54,9 @@ typedef struct RxGdbSimMachineState RxGdbSimMachineState;
 
 #define TYPE_RX_GDBSIM_MACHINE MACHINE_TYPE_NAME("rx62n-common")
 
-#define RX_GDBSIM_MACHINE(obj) \
-    OBJECT_CHECK(RxGdbSimMachineState, (obj), TYPE_RX_GDBSIM_MACHINE)
+DECLARE_OBJ_CHECKERS(RxGdbSimMachineState, RxGdbSimMachineClass,
+                     RX_GDBSIM_MACHINE, TYPE_RX_GDBSIM_MACHINE)
 
-#define RX_GDBSIM_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RxGdbSimMachineClass, (klass), TYPE_RX_GDBSIM_MACHINE)
-#define RX_GDBSIM_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RxGdbSimMachineClass, (obj), TYPE_RX_GDBSIM_MACHINE)
 
 static void rx_load_image(RXCPU *cpu, const char *filename,
                           uint32_t start, uint32_t size)

@@ -396,8 +396,8 @@ static const Exynos4210PmuReg exynos4210_pmu_regs[] = {
 
 #define TYPE_EXYNOS4210_PMU "exynos4210.pmu"
 typedef struct Exynos4210PmuState Exynos4210PmuState;
-#define EXYNOS4210_PMU(obj) \
-    OBJECT_CHECK(Exynos4210PmuState, (obj), TYPE_EXYNOS4210_PMU)
+DECLARE_INSTANCE_CHECKER(Exynos4210PmuState, EXYNOS4210_PMU,
+                         TYPE_EXYNOS4210_PMU)
 
 struct Exynos4210PmuState {
     SysBusDevice parent_obj;

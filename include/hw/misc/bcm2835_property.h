@@ -15,8 +15,8 @@
 
 #define TYPE_BCM2835_PROPERTY "bcm2835-property"
 typedef struct BCM2835PropertyState BCM2835PropertyState;
-#define BCM2835_PROPERTY(obj) \
-        OBJECT_CHECK(BCM2835PropertyState, (obj), TYPE_BCM2835_PROPERTY)
+DECLARE_INSTANCE_CHECKER(BCM2835PropertyState, BCM2835_PROPERTY,
+                         TYPE_BCM2835_PROPERTY)
 
 struct BCM2835PropertyState {
     /*< private >*/

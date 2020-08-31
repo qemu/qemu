@@ -46,7 +46,8 @@ struct XlnxDPDMAState {
 typedef struct XlnxDPDMAState XlnxDPDMAState;
 
 #define TYPE_XLNX_DPDMA "xlnx.dpdma"
-#define XLNX_DPDMA(obj) OBJECT_CHECK(XlnxDPDMAState, (obj), TYPE_XLNX_DPDMA)
+DECLARE_INSTANCE_CHECKER(XlnxDPDMAState, XLNX_DPDMA,
+                         TYPE_XLNX_DPDMA)
 
 /*
  * xlnx_dpdma_start_operation: Start the operation on the specified channel. The

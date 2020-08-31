@@ -17,7 +17,8 @@
 
 #define TYPE_BITBAND "ARM,bitband-memory"
 typedef struct BitBandState BitBandState;
-#define BITBAND(obj) OBJECT_CHECK(BitBandState, (obj), TYPE_BITBAND)
+DECLARE_INSTANCE_CHECKER(BitBandState, BITBAND,
+                         TYPE_BITBAND)
 
 struct BitBandState {
     /*< private >*/
@@ -32,7 +33,8 @@ struct BitBandState {
 
 #define TYPE_ARMV7M "armv7m"
 typedef struct ARMv7MState ARMv7MState;
-#define ARMV7M(obj) OBJECT_CHECK(ARMv7MState, (obj), TYPE_ARMV7M)
+DECLARE_INSTANCE_CHECKER(ARMv7MState, ARMV7M,
+                         TYPE_ARMV7M)
 
 #define ARMV7M_NUM_BITBANDS 2
 

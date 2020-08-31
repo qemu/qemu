@@ -83,10 +83,7 @@ struct SMMUv3Class {
 typedef struct SMMUv3Class SMMUv3Class;
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
-#define ARM_SMMUV3(obj) OBJECT_CHECK(SMMUv3State, (obj), TYPE_ARM_SMMUV3)
-#define ARM_SMMUV3_CLASS(klass)                              \
-    OBJECT_CLASS_CHECK(SMMUv3Class, (klass), TYPE_ARM_SMMUV3)
-#define ARM_SMMUV3_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SMMUv3Class, (obj), TYPE_ARM_SMMUV3)
+DECLARE_OBJ_CHECKERS(SMMUv3State, SMMUv3Class,
+                     ARM_SMMUV3, TYPE_ARM_SMMUV3)
 
 #endif

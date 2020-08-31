@@ -40,7 +40,8 @@ struct TPMStateISA {
 };
 typedef struct TPMStateISA TPMStateISA;
 
-#define TPM_TIS_ISA(obj) OBJECT_CHECK(TPMStateISA, (obj), TYPE_TPM_TIS_ISA)
+DECLARE_INSTANCE_CHECKER(TPMStateISA, TPM_TIS_ISA,
+                         TYPE_TPM_TIS_ISA)
 
 static int tpm_tis_pre_save_isa(void *opaque)
 {

@@ -57,12 +57,8 @@
 
 typedef struct SCSIDiskClass SCSIDiskClass;
 typedef struct SCSIDiskState SCSIDiskState;
-#define SCSI_DISK_BASE(obj) \
-     OBJECT_CHECK(SCSIDiskState, (obj), TYPE_SCSI_DISK_BASE)
-#define SCSI_DISK_BASE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCSIDiskClass, (klass), TYPE_SCSI_DISK_BASE)
-#define SCSI_DISK_BASE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCSIDiskClass, (obj), TYPE_SCSI_DISK_BASE)
+DECLARE_OBJ_CHECKERS(SCSIDiskState, SCSIDiskClass,
+                     SCSI_DISK_BASE, TYPE_SCSI_DISK_BASE)
 
 struct SCSIDiskClass {
     SCSIDeviceClass parent_class;

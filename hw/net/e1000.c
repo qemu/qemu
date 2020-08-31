@@ -151,13 +151,9 @@ typedef struct E1000BaseClass E1000BaseClass;
 
 #define TYPE_E1000_BASE "e1000-base"
 
-#define E1000(obj) \
-    OBJECT_CHECK(E1000State, (obj), TYPE_E1000_BASE)
+DECLARE_OBJ_CHECKERS(E1000State, E1000BaseClass,
+                     E1000, TYPE_E1000_BASE)
 
-#define E1000_CLASS(klass) \
-     OBJECT_CLASS_CHECK(E1000BaseClass, (klass), TYPE_E1000_BASE)
-#define E1000_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(E1000BaseClass, (obj), TYPE_E1000_BASE)
 
 static void
 e1000_link_up(E1000State *s)

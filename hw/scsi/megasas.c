@@ -134,13 +134,9 @@ typedef struct MegasasBaseClass MegasasBaseClass;
 #define TYPE_MEGASAS_GEN1 "megasas"
 #define TYPE_MEGASAS_GEN2 "megasas-gen2"
 
-#define MEGASAS(obj) \
-    OBJECT_CHECK(MegasasState, (obj), TYPE_MEGASAS_BASE)
+DECLARE_OBJ_CHECKERS(MegasasState, MegasasBaseClass,
+                     MEGASAS, TYPE_MEGASAS_BASE)
 
-#define MEGASAS_CLASS(oc) \
-    OBJECT_CLASS_CHECK(MegasasBaseClass, (oc), TYPE_MEGASAS_BASE)
-#define MEGASAS_GET_CLASS(oc) \
-    OBJECT_GET_CLASS(MegasasBaseClass, (oc), TYPE_MEGASAS_BASE)
 
 #define MEGASAS_INTR_DISABLED_MASK 0xFFFFFFFF
 

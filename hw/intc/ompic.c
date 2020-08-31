@@ -19,7 +19,8 @@
 
 #define TYPE_OR1K_OMPIC "or1k-ompic"
 typedef struct OR1KOMPICState OR1KOMPICState;
-#define OR1K_OMPIC(obj) OBJECT_CHECK(OR1KOMPICState, (obj), TYPE_OR1K_OMPIC)
+DECLARE_INSTANCE_CHECKER(OR1KOMPICState, OR1K_OMPIC,
+                         TYPE_OR1K_OMPIC)
 
 #define OMPIC_CTRL_IRQ_ACK  (1 << 31)
 #define OMPIC_CTRL_IRQ_GEN  (1 << 30)

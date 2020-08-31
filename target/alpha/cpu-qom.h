@@ -27,12 +27,8 @@
 
 typedef struct AlphaCPU AlphaCPU;
 typedef struct AlphaCPUClass AlphaCPUClass;
-#define ALPHA_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(AlphaCPUClass, (klass), TYPE_ALPHA_CPU)
-#define ALPHA_CPU(obj) \
-    OBJECT_CHECK(AlphaCPU, (obj), TYPE_ALPHA_CPU)
-#define ALPHA_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(AlphaCPUClass, (obj), TYPE_ALPHA_CPU)
+DECLARE_OBJ_CHECKERS(AlphaCPU, AlphaCPUClass,
+                     ALPHA_CPU, TYPE_ALPHA_CPU)
 
 /**
  * AlphaCPUClass:

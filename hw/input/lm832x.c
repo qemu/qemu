@@ -29,7 +29,8 @@
 
 #define TYPE_LM8323 "lm8323"
 typedef struct LM823KbdState LM823KbdState;
-#define LM8323(obj) OBJECT_CHECK(LM823KbdState, (obj), TYPE_LM8323)
+DECLARE_INSTANCE_CHECKER(LM823KbdState, LM8323,
+                         TYPE_LM8323)
 
 struct LM823KbdState {
     I2CSlave parent_obj;

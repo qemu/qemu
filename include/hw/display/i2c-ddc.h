@@ -37,6 +37,7 @@ struct I2CDDCState {
 typedef struct I2CDDCState I2CDDCState;
 
 #define TYPE_I2CDDC "i2c-ddc"
-#define I2CDDC(obj) OBJECT_CHECK(I2CDDCState, (obj), TYPE_I2CDDC)
+DECLARE_INSTANCE_CHECKER(I2CDDCState, I2CDDC,
+                         TYPE_I2CDDC)
 
 #endif /* I2C_DDC_H */

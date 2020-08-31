@@ -35,7 +35,8 @@
 
 #define TYPE_PCI_EDU_DEVICE "edu"
 typedef struct EduState EduState;
-#define EDU(obj)        OBJECT_CHECK(EduState, obj, TYPE_PCI_EDU_DEVICE)
+DECLARE_INSTANCE_CHECKER(EduState, EDU,
+                         TYPE_PCI_EDU_DEVICE)
 
 #define FACT_IRQ        0x00000001
 #define DMA_IRQ         0x00000100

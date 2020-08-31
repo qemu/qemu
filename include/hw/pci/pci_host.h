@@ -33,12 +33,8 @@
 
 #define TYPE_PCI_HOST_BRIDGE "pci-host-bridge"
 typedef struct PCIHostBridgeClass PCIHostBridgeClass;
-#define PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(PCIHostState, (obj), TYPE_PCI_HOST_BRIDGE)
-#define PCI_HOST_BRIDGE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PCIHostBridgeClass, (klass), TYPE_PCI_HOST_BRIDGE)
-#define PCI_HOST_BRIDGE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PCIHostBridgeClass, (obj), TYPE_PCI_HOST_BRIDGE)
+DECLARE_OBJ_CHECKERS(PCIHostState, PCIHostBridgeClass,
+                     PCI_HOST_BRIDGE, TYPE_PCI_HOST_BRIDGE)
 
 struct PCIHostState {
     SysBusDevice busdev;

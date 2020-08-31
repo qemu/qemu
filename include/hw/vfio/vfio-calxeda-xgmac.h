@@ -37,13 +37,7 @@ struct VFIOCalxedaXgmacDeviceClass {
 };
 typedef struct VFIOCalxedaXgmacDeviceClass VFIOCalxedaXgmacDeviceClass;
 
-#define VFIO_CALXEDA_XGMAC_DEVICE(obj) \
-     OBJECT_CHECK(VFIOCalxedaXgmacDevice, (obj), TYPE_VFIO_CALXEDA_XGMAC)
-#define VFIO_CALXEDA_XGMAC_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VFIOCalxedaXgmacDeviceClass, (klass), \
-                        TYPE_VFIO_CALXEDA_XGMAC)
-#define VFIO_CALXEDA_XGMAC_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(VFIOCalxedaXgmacDeviceClass, (obj), \
-                      TYPE_VFIO_CALXEDA_XGMAC)
+DECLARE_OBJ_CHECKERS(VFIOCalxedaXgmacDevice, VFIOCalxedaXgmacDeviceClass,
+                     VFIO_CALXEDA_XGMAC_DEVICE, TYPE_VFIO_CALXEDA_XGMAC)
 
 #endif

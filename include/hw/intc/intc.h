@@ -6,12 +6,8 @@
 #define TYPE_INTERRUPT_STATS_PROVIDER "intctrl"
 
 typedef struct InterruptStatsProviderClass InterruptStatsProviderClass;
-#define INTERRUPT_STATS_PROVIDER_CLASS(klass) \
-    OBJECT_CLASS_CHECK(InterruptStatsProviderClass, (klass), \
+DECLARE_CLASS_CHECKERS(InterruptStatsProviderClass, INTERRUPT_STATS_PROVIDER,
                        TYPE_INTERRUPT_STATS_PROVIDER)
-#define INTERRUPT_STATS_PROVIDER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(InterruptStatsProviderClass, (obj), \
-                     TYPE_INTERRUPT_STATS_PROVIDER)
 #define INTERRUPT_STATS_PROVIDER(obj) \
     INTERFACE_CHECK(InterruptStatsProvider, (obj), \
                     TYPE_INTERRUPT_STATS_PROVIDER)

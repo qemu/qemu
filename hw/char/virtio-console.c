@@ -23,8 +23,8 @@
 
 #define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 typedef struct VirtConsole VirtConsole;
-#define VIRTIO_CONSOLE(obj) \
-    OBJECT_CHECK(VirtConsole, (obj), TYPE_VIRTIO_CONSOLE_SERIAL_PORT)
+DECLARE_INSTANCE_CHECKER(VirtConsole, VIRTIO_CONSOLE,
+                         TYPE_VIRTIO_CONSOLE_SERIAL_PORT)
 
 struct VirtConsole {
     VirtIOSerialPort parent_obj;

@@ -11,18 +11,15 @@
 #define QDEV_MAX_PIO 32
 
 #define TYPE_SYSTEM_BUS "System"
-#define SYSTEM_BUS(obj) OBJECT_CHECK(BusState, (obj), TYPE_SYSTEM_BUS)
+DECLARE_INSTANCE_CHECKER(BusState, SYSTEM_BUS,
+                         TYPE_SYSTEM_BUS)
 
 typedef struct SysBusDevice SysBusDevice;
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"
 typedef struct SysBusDeviceClass SysBusDeviceClass;
-#define SYS_BUS_DEVICE(obj) \
-     OBJECT_CHECK(SysBusDevice, (obj), TYPE_SYS_BUS_DEVICE)
-#define SYS_BUS_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SysBusDeviceClass, (klass), TYPE_SYS_BUS_DEVICE)
-#define SYS_BUS_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SysBusDeviceClass, (obj), TYPE_SYS_BUS_DEVICE)
+DECLARE_OBJ_CHECKERS(SysBusDevice, SysBusDeviceClass,
+                     SYS_BUS_DEVICE, TYPE_SYS_BUS_DEVICE)
 
 /**
  * SysBusDeviceClass:

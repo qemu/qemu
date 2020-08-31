@@ -31,8 +31,8 @@
 #define TYPE_ASPEED_2600_I2C TYPE_ASPEED_I2C "-ast2600"
 typedef struct AspeedI2CClass AspeedI2CClass;
 typedef struct AspeedI2CState AspeedI2CState;
-#define ASPEED_I2C(obj) \
-    OBJECT_CHECK(AspeedI2CState, (obj), TYPE_ASPEED_I2C)
+DECLARE_OBJ_CHECKERS(AspeedI2CState, AspeedI2CClass,
+                     ASPEED_I2C, TYPE_ASPEED_I2C)
 
 #define ASPEED_I2C_NR_BUSSES 16
 #define ASPEED_I2C_MAX_POOL_SIZE 0x800
@@ -75,10 +75,6 @@ struct AspeedI2CState {
     AddressSpace dram_as;
 };
 
-#define ASPEED_I2C_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedI2CClass, (klass), TYPE_ASPEED_I2C)
-#define ASPEED_I2C_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedI2CClass, (obj), TYPE_ASPEED_I2C)
 
 struct AspeedI2CClass {
     SysBusDeviceClass parent_class;

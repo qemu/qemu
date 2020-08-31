@@ -24,8 +24,8 @@
 
 #define TYPE_DIGIC_UART "digic-uart"
 typedef struct DigicUartState DigicUartState;
-#define DIGIC_UART(obj) \
-    OBJECT_CHECK(DigicUartState, (obj), TYPE_DIGIC_UART)
+DECLARE_INSTANCE_CHECKER(DigicUartState, DIGIC_UART,
+                         TYPE_DIGIC_UART)
 
 enum {
     R_TX = 0x00,

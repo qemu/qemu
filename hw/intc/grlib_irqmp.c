@@ -52,7 +52,8 @@
 #define EXTENDED_OFFSET  0xC0
 
 typedef struct IRQMP IRQMP;
-#define GRLIB_IRQMP(obj) OBJECT_CHECK(IRQMP, (obj), TYPE_GRLIB_IRQMP)
+DECLARE_INSTANCE_CHECKER(IRQMP, GRLIB_IRQMP,
+                         TYPE_GRLIB_IRQMP)
 
 typedef struct IRQMPState IRQMPState;
 

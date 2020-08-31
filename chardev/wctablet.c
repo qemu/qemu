@@ -86,8 +86,8 @@ struct TabletChardev {
 typedef struct TabletChardev TabletChardev;
 
 #define TYPE_CHARDEV_WCTABLET "chardev-wctablet"
-#define WCTABLET_CHARDEV(obj)                                      \
-    OBJECT_CHECK(TabletChardev, (obj), TYPE_CHARDEV_WCTABLET)
+DECLARE_INSTANCE_CHECKER(TabletChardev, WCTABLET_CHARDEV,
+                         TYPE_CHARDEV_WCTABLET)
 
 
 static void wctablet_chr_accept_input(Chardev *chr);

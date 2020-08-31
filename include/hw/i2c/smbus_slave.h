@@ -31,12 +31,8 @@
 #define TYPE_SMBUS_DEVICE "smbus-device"
 typedef struct SMBusDevice SMBusDevice;
 typedef struct SMBusDeviceClass SMBusDeviceClass;
-#define SMBUS_DEVICE(obj) \
-     OBJECT_CHECK(SMBusDevice, (obj), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SMBusDeviceClass, (klass), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SMBusDeviceClass, (obj), TYPE_SMBUS_DEVICE)
+DECLARE_OBJ_CHECKERS(SMBusDevice, SMBusDeviceClass,
+                     SMBUS_DEVICE, TYPE_SMBUS_DEVICE)
 
 
 struct SMBusDeviceClass {

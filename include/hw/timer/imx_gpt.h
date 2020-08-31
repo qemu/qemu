@@ -83,7 +83,8 @@
 #define TYPE_IMX_GPT TYPE_IMX25_GPT
 
 typedef struct IMXGPTState IMXGPTState;
-#define IMX_GPT(obj) OBJECT_CHECK(IMXGPTState, (obj), TYPE_IMX_GPT)
+DECLARE_INSTANCE_CHECKER(IMXGPTState, IMX_GPT,
+                         TYPE_IMX_GPT)
 
 struct IMXGPTState {
     /*< private >*/

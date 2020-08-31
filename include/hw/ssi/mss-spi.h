@@ -32,7 +32,8 @@
 
 #define TYPE_MSS_SPI   "mss-spi"
 typedef struct MSSSpiState MSSSpiState;
-#define MSS_SPI(obj)   OBJECT_CHECK(MSSSpiState, (obj), TYPE_MSS_SPI)
+DECLARE_INSTANCE_CHECKER(MSSSpiState, MSS_SPI,
+                         TYPE_MSS_SPI)
 
 #define R_SPI_MAX             16
 

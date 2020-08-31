@@ -18,12 +18,8 @@ typedef struct CCIDCardInfo CCIDCardInfo;
 
 #define TYPE_CCID_CARD "ccid-card"
 typedef struct CCIDCardClass CCIDCardClass;
-#define CCID_CARD(obj) \
-     OBJECT_CHECK(CCIDCardState, (obj), TYPE_CCID_CARD)
-#define CCID_CARD_CLASS(klass) \
-     OBJECT_CLASS_CHECK(CCIDCardClass, (klass), TYPE_CCID_CARD)
-#define CCID_CARD_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(CCIDCardClass, (obj), TYPE_CCID_CARD)
+DECLARE_OBJ_CHECKERS(CCIDCardState, CCIDCardClass,
+                     CCID_CARD, TYPE_CCID_CARD)
 
 /*
  * callbacks to be used by the CCID device (hw/usb-ccid.c) to call

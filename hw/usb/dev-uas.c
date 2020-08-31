@@ -133,7 +133,8 @@ struct UASDevice {
 };
 
 #define TYPE_USB_UAS "usb-uas"
-#define USB_UAS(obj) OBJECT_CHECK(UASDevice, (obj), TYPE_USB_UAS)
+DECLARE_INSTANCE_CHECKER(UASDevice, USB_UAS,
+                         TYPE_USB_UAS)
 
 struct UASRequest {
     uint16_t     tag;

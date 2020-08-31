@@ -33,8 +33,8 @@
 
 #define TYPE_MOS6522_Q800_VIA1 "mos6522-q800-via1"
 typedef struct MOS6522Q800VIA1State MOS6522Q800VIA1State;
-#define MOS6522_Q800_VIA1(obj)  OBJECT_CHECK(MOS6522Q800VIA1State, (obj), \
-                                    TYPE_MOS6522_Q800_VIA1)
+DECLARE_INSTANCE_CHECKER(MOS6522Q800VIA1State, MOS6522_Q800_VIA1,
+                         TYPE_MOS6522_Q800_VIA1)
 
 struct MOS6522Q800VIA1State {
     /*< private >*/
@@ -69,8 +69,8 @@ struct MOS6522Q800VIA1State {
 
 #define TYPE_MOS6522_Q800_VIA2 "mos6522-q800-via2"
 typedef struct MOS6522Q800VIA2State MOS6522Q800VIA2State;
-#define MOS6522_Q800_VIA2(obj)  OBJECT_CHECK(MOS6522Q800VIA2State, (obj), \
-                                    TYPE_MOS6522_Q800_VIA2)
+DECLARE_INSTANCE_CHECKER(MOS6522Q800VIA2State, MOS6522_Q800_VIA2,
+                         TYPE_MOS6522_Q800_VIA2)
 
 struct MOS6522Q800VIA2State {
     /*< private >*/
@@ -80,7 +80,8 @@ struct MOS6522Q800VIA2State {
 
 #define TYPE_MAC_VIA "mac_via"
 typedef struct MacVIAState MacVIAState;
-#define MAC_VIA(obj)   OBJECT_CHECK(MacVIAState, (obj), TYPE_MAC_VIA)
+DECLARE_INSTANCE_CHECKER(MacVIAState, MAC_VIA,
+                         TYPE_MAC_VIA)
 
 struct MacVIAState {
     SysBusDevice busdev;

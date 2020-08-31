@@ -34,12 +34,8 @@ typedef struct CPUNios2State CPUNios2State;
 
 typedef struct Nios2CPU Nios2CPU;
 typedef struct Nios2CPUClass Nios2CPUClass;
-#define NIOS2_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(Nios2CPUClass, (klass), TYPE_NIOS2_CPU)
-#define NIOS2_CPU(obj) \
-    OBJECT_CHECK(Nios2CPU, (obj), TYPE_NIOS2_CPU)
-#define NIOS2_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(Nios2CPUClass, (obj), TYPE_NIOS2_CPU)
+DECLARE_OBJ_CHECKERS(Nios2CPU, Nios2CPUClass,
+                     NIOS2_CPU, TYPE_NIOS2_CPU)
 
 /**
  * Nios2CPUClass:

@@ -28,7 +28,8 @@
 
 #define TYPE_ARMSSE_MHU "armsse-mhu"
 typedef struct ARMSSEMHU ARMSSEMHU;
-#define ARMSSE_MHU(obj) OBJECT_CHECK(ARMSSEMHU, (obj), TYPE_ARMSSE_MHU)
+DECLARE_INSTANCE_CHECKER(ARMSSEMHU, ARMSSE_MHU,
+                         TYPE_ARMSSE_MHU)
 
 struct ARMSSEMHU {
     /*< private >*/

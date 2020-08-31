@@ -183,12 +183,8 @@ typedef struct VexpressMachineState VexpressMachineState;
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
 #define TYPE_VEXPRESS_A9_MACHINE   MACHINE_TYPE_NAME("vexpress-a9")
 #define TYPE_VEXPRESS_A15_MACHINE   MACHINE_TYPE_NAME("vexpress-a15")
-#define VEXPRESS_MACHINE(obj) \
-    OBJECT_CHECK(VexpressMachineState, (obj), TYPE_VEXPRESS_MACHINE)
-#define VEXPRESS_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VexpressMachineClass, obj, TYPE_VEXPRESS_MACHINE)
-#define VEXPRESS_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(VexpressMachineClass, klass, TYPE_VEXPRESS_MACHINE)
+DECLARE_OBJ_CHECKERS(VexpressMachineState, VexpressMachineClass,
+                     VEXPRESS_MACHINE, TYPE_VEXPRESS_MACHINE)
 
 typedef void DBoardInitFn(const VexpressMachineState *machine,
                           ram_addr_t ram_size,

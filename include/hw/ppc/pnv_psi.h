@@ -28,8 +28,8 @@
 #define TYPE_PNV_PSI "pnv-psi"
 typedef struct PnvPsi PnvPsi;
 typedef struct PnvPsiClass PnvPsiClass;
-#define PNV_PSI(obj) \
-     OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI)
+DECLARE_OBJ_CHECKERS(PnvPsi, PnvPsiClass,
+                     PNV_PSI, TYPE_PNV_PSI)
 
 #define PSIHB_XSCOM_MAX         0x20
 
@@ -54,8 +54,8 @@ struct PnvPsi {
 
 #define TYPE_PNV8_PSI TYPE_PNV_PSI "-POWER8"
 typedef struct Pnv8Psi Pnv8Psi;
-#define PNV8_PSI(obj) \
-    OBJECT_CHECK(Pnv8Psi, (obj), TYPE_PNV8_PSI)
+DECLARE_INSTANCE_CHECKER(Pnv8Psi, PNV8_PSI,
+                         TYPE_PNV8_PSI)
 
 struct Pnv8Psi {
     PnvPsi   parent;
@@ -65,8 +65,8 @@ struct Pnv8Psi {
 
 #define TYPE_PNV9_PSI TYPE_PNV_PSI "-POWER9"
 typedef struct Pnv9Psi Pnv9Psi;
-#define PNV9_PSI(obj) \
-    OBJECT_CHECK(Pnv9Psi, (obj), TYPE_PNV9_PSI)
+DECLARE_INSTANCE_CHECKER(Pnv9Psi, PNV9_PSI,
+                         TYPE_PNV9_PSI)
 
 struct Pnv9Psi {
     PnvPsi   parent;
@@ -76,10 +76,6 @@ struct Pnv9Psi {
 
 #define TYPE_PNV10_PSI TYPE_PNV_PSI "-POWER10"
 
-#define PNV_PSI_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
-#define PNV_PSI_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvPsiClass, (obj), TYPE_PNV_PSI)
 
 struct PnvPsiClass {
     SysBusDeviceClass parent_class;

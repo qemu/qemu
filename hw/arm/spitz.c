@@ -59,12 +59,8 @@ struct SpitzMachineState {
 typedef struct SpitzMachineState SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
-#define SPITZ_MACHINE(obj) \
-    OBJECT_CHECK(SpitzMachineState, obj, TYPE_SPITZ_MACHINE)
-#define SPITZ_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SpitzMachineClass, obj, TYPE_SPITZ_MACHINE)
-#define SPITZ_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SpitzMachineClass, klass, TYPE_SPITZ_MACHINE)
+DECLARE_OBJ_CHECKERS(SpitzMachineState, SpitzMachineClass,
+                     SPITZ_MACHINE, TYPE_SPITZ_MACHINE)
 
 #define zaurus_printf(format, ...)                              \
     fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
@@ -89,7 +85,8 @@ typedef struct SpitzMachineState SpitzMachineState;
 
 #define TYPE_SL_NAND "sl-nand"
 typedef struct SLNANDState SLNANDState;
-#define SL_NAND(obj) OBJECT_CHECK(SLNANDState, (obj), TYPE_SL_NAND)
+DECLARE_INSTANCE_CHECKER(SLNANDState, SL_NAND,
+                         TYPE_SL_NAND)
 
 struct SLNANDState {
     SysBusDevice parent_obj;
@@ -266,8 +263,8 @@ static const int spitz_gpiomap[5] = {
 
 #define TYPE_SPITZ_KEYBOARD "spitz-keyboard"
 typedef struct SpitzKeyboardState SpitzKeyboardState;
-#define SPITZ_KEYBOARD(obj) \
-    OBJECT_CHECK(SpitzKeyboardState, (obj), TYPE_SPITZ_KEYBOARD)
+DECLARE_INSTANCE_CHECKER(SpitzKeyboardState, SPITZ_KEYBOARD,
+                         TYPE_SPITZ_KEYBOARD)
 
 struct SpitzKeyboardState {
     SysBusDevice parent_obj;
@@ -586,7 +583,8 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 
 #define TYPE_SPITZ_LCDTG "spitz-lcdtg"
 typedef struct SpitzLCDTG SpitzLCDTG;
-#define SPITZ_LCDTG(obj) OBJECT_CHECK(SpitzLCDTG, (obj), TYPE_SPITZ_LCDTG)
+DECLARE_INSTANCE_CHECKER(SpitzLCDTG, SPITZ_LCDTG,
+                         TYPE_SPITZ_LCDTG)
 
 struct SpitzLCDTG {
     SSISlave ssidev;
@@ -675,7 +673,8 @@ static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 
 #define TYPE_CORGI_SSP "corgi-ssp"
 typedef struct CorgiSSPState CorgiSSPState;
-#define CORGI_SSP(obj) OBJECT_CHECK(CorgiSSPState, (obj), TYPE_CORGI_SSP)
+DECLARE_INSTANCE_CHECKER(CorgiSSPState, CORGI_SSP,
+                         TYPE_CORGI_SSP)
 
 /* "Demux" the signal based on current chipselect */
 struct CorgiSSPState {
@@ -827,8 +826,8 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
  */
 #define TYPE_SPITZ_MISC_GPIO "spitz-misc-gpio"
 typedef struct SpitzMiscGPIOState SpitzMiscGPIOState;
-#define SPITZ_MISC_GPIO(obj) \
-    OBJECT_CHECK(SpitzMiscGPIOState, (obj), TYPE_SPITZ_MISC_GPIO)
+DECLARE_INSTANCE_CHECKER(SpitzMiscGPIOState, SPITZ_MISC_GPIO,
+                         TYPE_SPITZ_MISC_GPIO)
 
 struct SpitzMiscGPIOState {
     SysBusDevice parent_obj;

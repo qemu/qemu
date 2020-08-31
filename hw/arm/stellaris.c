@@ -59,8 +59,8 @@ typedef const struct {
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"
 typedef struct gptm_state gptm_state;
-#define STELLARIS_GPTM(obj) \
-    OBJECT_CHECK(gptm_state, (obj), TYPE_STELLARIS_GPTM)
+DECLARE_INSTANCE_CHECKER(gptm_state, STELLARIS_GPTM,
+                         TYPE_STELLARIS_GPTM)
 
 struct gptm_state {
     SysBusDevice parent_obj;
@@ -722,8 +722,8 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 
 #define TYPE_STELLARIS_I2C "stellaris-i2c"
 typedef struct stellaris_i2c_state stellaris_i2c_state;
-#define STELLARIS_I2C(obj) \
-    OBJECT_CHECK(stellaris_i2c_state, (obj), TYPE_STELLARIS_I2C)
+DECLARE_INSTANCE_CHECKER(stellaris_i2c_state, STELLARIS_I2C,
+                         TYPE_STELLARIS_I2C)
 
 struct stellaris_i2c_state {
     SysBusDevice parent_obj;
@@ -936,8 +936,8 @@ static void stellaris_i2c_init(Object *obj)
 
 #define TYPE_STELLARIS_ADC "stellaris-adc"
 typedef struct StellarisADCState stellaris_adc_state;
-#define STELLARIS_ADC(obj) \
-    OBJECT_CHECK(stellaris_adc_state, (obj), TYPE_STELLARIS_ADC)
+DECLARE_INSTANCE_CHECKER(stellaris_adc_state, STELLARIS_ADC,
+                         TYPE_STELLARIS_ADC)
 
 struct StellarisADCState {
     SysBusDevice parent_obj;

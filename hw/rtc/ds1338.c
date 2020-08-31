@@ -31,7 +31,8 @@
 
 #define TYPE_DS1338 "ds1338"
 typedef struct DS1338State DS1338State;
-#define DS1338(obj) OBJECT_CHECK(DS1338State, (obj), TYPE_DS1338)
+DECLARE_INSTANCE_CHECKER(DS1338State, DS1338,
+                         TYPE_DS1338)
 
 struct DS1338State {
     I2CSlave parent_obj;

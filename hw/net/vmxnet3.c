@@ -135,10 +135,8 @@ struct VMXNET3Class {
 };
 typedef struct VMXNET3Class VMXNET3Class;
 
-#define VMXNET3_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)
-#define VMXNET3_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
+DECLARE_CLASS_CHECKERS(VMXNET3Class, VMXNET3_DEVICE,
+                       TYPE_VMXNET3)
 
 static inline void vmxnet3_ring_init(PCIDevice *d,
                                      Vmxnet3Ring *ring,

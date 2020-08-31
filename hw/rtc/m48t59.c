@@ -45,12 +45,8 @@
 #define TYPE_M48TXX_SYS_BUS "sysbus-m48txx"
 typedef struct M48txxSysBusDeviceClass M48txxSysBusDeviceClass;
 typedef struct M48txxSysBusState M48txxSysBusState;
-#define M48TXX_SYS_BUS_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(M48txxSysBusDeviceClass, (obj), TYPE_M48TXX_SYS_BUS)
-#define M48TXX_SYS_BUS_CLASS(klass) \
-    OBJECT_CLASS_CHECK(M48txxSysBusDeviceClass, (klass), TYPE_M48TXX_SYS_BUS)
-#define M48TXX_SYS_BUS(obj) \
-    OBJECT_CHECK(M48txxSysBusState, (obj), TYPE_M48TXX_SYS_BUS)
+DECLARE_OBJ_CHECKERS(M48txxSysBusState, M48txxSysBusDeviceClass,
+                     M48TXX_SYS_BUS, TYPE_M48TXX_SYS_BUS)
 
 /*
  * Chipset docs:

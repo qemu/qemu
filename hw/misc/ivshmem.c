@@ -59,20 +59,20 @@
 
 #define TYPE_IVSHMEM_COMMON "ivshmem-common"
 typedef struct IVShmemState IVShmemState;
-#define IVSHMEM_COMMON(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_COMMON)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_COMMON,
+                         TYPE_IVSHMEM_COMMON)
 
 #define TYPE_IVSHMEM_PLAIN "ivshmem-plain"
-#define IVSHMEM_PLAIN(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_PLAIN)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_PLAIN,
+                         TYPE_IVSHMEM_PLAIN)
 
 #define TYPE_IVSHMEM_DOORBELL "ivshmem-doorbell"
-#define IVSHMEM_DOORBELL(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_DOORBELL)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_DOORBELL,
+                         TYPE_IVSHMEM_DOORBELL)
 
 #define TYPE_IVSHMEM "ivshmem"
-#define IVSHMEM(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM,
+                         TYPE_IVSHMEM)
 
 typedef struct Peer {
     int nb_eventfds;

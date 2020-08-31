@@ -18,11 +18,8 @@ struct PnvChip;
 #define TYPE_PNV_XIVE "pnv-xive"
 typedef struct PnvXive PnvXive;
 typedef struct PnvXiveClass PnvXiveClass;
-#define PNV_XIVE(obj) OBJECT_CHECK(PnvXive, (obj), TYPE_PNV_XIVE)
-#define PNV_XIVE_CLASS(klass)                                   \
-    OBJECT_CLASS_CHECK(PnvXiveClass, (klass), TYPE_PNV_XIVE)
-#define PNV_XIVE_GET_CLASS(obj)                                 \
-    OBJECT_GET_CLASS(PnvXiveClass, (obj), TYPE_PNV_XIVE)
+DECLARE_OBJ_CHECKERS(PnvXive, PnvXiveClass,
+                     PNV_XIVE, TYPE_PNV_XIVE)
 
 #define XIVE_BLOCK_MAX      16
 

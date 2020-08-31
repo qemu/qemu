@@ -13,7 +13,8 @@
 
 #define TYPE_BCM2835_IC "bcm2835-ic"
 typedef struct BCM2835ICState BCM2835ICState;
-#define BCM2835_IC(obj) OBJECT_CHECK(BCM2835ICState, (obj), TYPE_BCM2835_IC)
+DECLARE_INSTANCE_CHECKER(BCM2835ICState, BCM2835_IC,
+                         TYPE_BCM2835_IC)
 
 #define BCM2835_IC_GPU_IRQ "gpu-irq"
 #define BCM2835_IC_ARM_IRQ "arm-irq"

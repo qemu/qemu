@@ -24,8 +24,8 @@ typedef struct VirtIOPMEMPCI VirtIOPMEMPCI;
  * virtio-pmem-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_PMEM_PCI "virtio-pmem-pci-base"
-#define VIRTIO_PMEM_PCI(obj) \
-        OBJECT_CHECK(VirtIOPMEMPCI, (obj), TYPE_VIRTIO_PMEM_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOPMEMPCI, VIRTIO_PMEM_PCI,
+                         TYPE_VIRTIO_PMEM_PCI)
 
 struct VirtIOPMEMPCI {
     VirtIOPCIProxy parent_obj;

@@ -34,8 +34,8 @@
 
 #define TYPE_ISA_CIRRUS_VGA "isa-cirrus-vga"
 typedef struct ISACirrusVGAState ISACirrusVGAState;
-#define ISA_CIRRUS_VGA(obj) \
-    OBJECT_CHECK(ISACirrusVGAState, (obj), TYPE_ISA_CIRRUS_VGA)
+DECLARE_INSTANCE_CHECKER(ISACirrusVGAState, ISA_CIRRUS_VGA,
+                         TYPE_ISA_CIRRUS_VGA)
 
 struct ISACirrusVGAState {
     ISADevice parent_obj;

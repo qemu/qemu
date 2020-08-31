@@ -26,7 +26,8 @@
 
 #define TYPE_SMC91C111 "smc91c111"
 typedef struct smc91c111_state smc91c111_state;
-#define SMC91C111(obj) OBJECT_CHECK(smc91c111_state, (obj), TYPE_SMC91C111)
+DECLARE_INSTANCE_CHECKER(smc91c111_state, SMC91C111,
+                         TYPE_SMC91C111)
 
 struct smc91c111_state {
     SysBusDevice parent_obj;

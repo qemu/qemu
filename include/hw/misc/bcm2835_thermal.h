@@ -15,8 +15,8 @@
 #define TYPE_BCM2835_THERMAL "bcm2835-thermal"
 
 typedef struct Bcm2835ThermalState Bcm2835ThermalState;
-#define BCM2835_THERMAL(obj) \
-    OBJECT_CHECK(Bcm2835ThermalState, (obj), TYPE_BCM2835_THERMAL)
+DECLARE_INSTANCE_CHECKER(Bcm2835ThermalState, BCM2835_THERMAL,
+                         TYPE_BCM2835_THERMAL)
 
 struct Bcm2835ThermalState {
     /*< private >*/

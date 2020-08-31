@@ -45,7 +45,8 @@ struct IOMMUState {
 typedef struct IOMMUState IOMMUState;
 
 #define TYPE_SUN4M_IOMMU "sun4m-iommu"
-#define SUN4M_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4M_IOMMU)
+DECLARE_INSTANCE_CHECKER(IOMMUState, SUN4M_IOMMU,
+                         TYPE_SUN4M_IOMMU)
 
 #define TYPE_SUN4M_IOMMU_MEMORY_REGION "sun4m-iommu-memory-region"
 

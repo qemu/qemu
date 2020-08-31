@@ -33,12 +33,8 @@
 
 typedef struct EmulatedCcw3270Class EmulatedCcw3270Class;
 typedef struct EmulatedCcw3270Device EmulatedCcw3270Device;
-#define EMULATED_CCW_3270(obj) \
-     OBJECT_CHECK(EmulatedCcw3270Device, (obj), TYPE_EMULATED_CCW_3270)
-#define EMULATED_CCW_3270_CLASS(klass) \
-     OBJECT_CLASS_CHECK(EmulatedCcw3270Class, (klass), TYPE_EMULATED_CCW_3270)
-#define EMULATED_CCW_3270_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(EmulatedCcw3270Class, (obj), TYPE_EMULATED_CCW_3270)
+DECLARE_OBJ_CHECKERS(EmulatedCcw3270Device, EmulatedCcw3270Class,
+                     EMULATED_CCW_3270, TYPE_EMULATED_CCW_3270)
 
 struct EmulatedCcw3270Device {
     CcwDevice parent_obj;

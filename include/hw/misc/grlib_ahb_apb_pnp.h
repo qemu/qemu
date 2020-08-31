@@ -27,13 +27,13 @@
 
 #define TYPE_GRLIB_AHB_PNP "grlib,ahbpnp"
 typedef struct AHBPnp AHBPnp;
-#define GRLIB_AHB_PNP(obj) \
-    OBJECT_CHECK(AHBPnp, (obj), TYPE_GRLIB_AHB_PNP)
+DECLARE_INSTANCE_CHECKER(AHBPnp, GRLIB_AHB_PNP,
+                         TYPE_GRLIB_AHB_PNP)
 
 #define TYPE_GRLIB_APB_PNP "grlib,apbpnp"
 typedef struct APBPnp APBPnp;
-#define GRLIB_APB_PNP(obj) \
-    OBJECT_CHECK(APBPnp, (obj), TYPE_GRLIB_APB_PNP)
+DECLARE_INSTANCE_CHECKER(APBPnp, GRLIB_APB_PNP,
+                         TYPE_GRLIB_APB_PNP)
 
 void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
                              uint8_t vendor, uint16_t device, int slave,

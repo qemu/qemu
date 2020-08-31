@@ -32,7 +32,8 @@
 
 #define TYPE_AW_EMAC "allwinner-emac"
 typedef struct AwEmacState AwEmacState;
-#define AW_EMAC(obj) OBJECT_CHECK(AwEmacState, (obj), TYPE_AW_EMAC)
+DECLARE_INSTANCE_CHECKER(AwEmacState, AW_EMAC,
+                         TYPE_AW_EMAC)
 
 /*
  * Allwinner EMAC register list

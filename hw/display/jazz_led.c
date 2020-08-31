@@ -37,7 +37,8 @@ typedef enum {
 
 #define TYPE_JAZZ_LED "jazz-led"
 typedef struct LedState LedState;
-#define JAZZ_LED(obj) OBJECT_CHECK(LedState, (obj), TYPE_JAZZ_LED)
+DECLARE_INSTANCE_CHECKER(LedState, JAZZ_LED,
+                         TYPE_JAZZ_LED)
 
 struct LedState {
     SysBusDevice parent_obj;

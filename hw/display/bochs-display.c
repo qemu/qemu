@@ -58,8 +58,8 @@ struct BochsDisplayState {
 typedef struct BochsDisplayState BochsDisplayState;
 
 #define TYPE_BOCHS_DISPLAY "bochs-display"
-#define BOCHS_DISPLAY(obj) OBJECT_CHECK(BochsDisplayState, (obj), \
-                                        TYPE_BOCHS_DISPLAY)
+DECLARE_INSTANCE_CHECKER(BochsDisplayState, BOCHS_DISPLAY,
+                         TYPE_BOCHS_DISPLAY)
 
 static const VMStateDescription vmstate_bochs_display = {
     .name = "bochs-display",

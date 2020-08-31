@@ -28,8 +28,8 @@
 
 #define TYPE_I82378 "i82378"
 typedef struct I82378State I82378State;
-#define I82378(obj) \
-    OBJECT_CHECK(I82378State, (obj), TYPE_I82378)
+DECLARE_INSTANCE_CHECKER(I82378State, I82378,
+                         TYPE_I82378)
 
 struct I82378State {
     PCIDevice parent_obj;

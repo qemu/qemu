@@ -54,8 +54,8 @@
 
 #define TYPE_XILINX_UARTLITE "xlnx.xps-uartlite"
 typedef struct XilinxUARTLite XilinxUARTLite;
-#define XILINX_UARTLITE(obj) \
-    OBJECT_CHECK(XilinxUARTLite, (obj), TYPE_XILINX_UARTLITE)
+DECLARE_INSTANCE_CHECKER(XilinxUARTLite, XILINX_UARTLITE,
+                         TYPE_XILINX_UARTLITE)
 
 struct XilinxUARTLite {
     SysBusDevice parent_obj;

@@ -17,12 +17,8 @@
 #define TYPE_ISA_SUPERIO "isa-superio"
 typedef struct ISASuperIOClass ISASuperIOClass;
 typedef struct ISASuperIODevice ISASuperIODevice;
-#define ISA_SUPERIO(obj) \
-    OBJECT_CHECK(ISASuperIODevice, (obj), TYPE_ISA_SUPERIO)
-#define ISA_SUPERIO_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ISASuperIOClass, (obj), TYPE_ISA_SUPERIO)
-#define ISA_SUPERIO_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ISASuperIOClass, (klass), TYPE_ISA_SUPERIO)
+DECLARE_OBJ_CHECKERS(ISASuperIODevice, ISASuperIOClass,
+                     ISA_SUPERIO, TYPE_ISA_SUPERIO)
 
 #define SUPERIO_MAX_SERIAL_PORTS 4
 

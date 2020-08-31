@@ -56,7 +56,8 @@
 
 #define TYPE_TZ_MSC "tz-msc"
 typedef struct TZMSC TZMSC;
-#define TZ_MSC(obj) OBJECT_CHECK(TZMSC, (obj), TYPE_TZ_MSC)
+DECLARE_INSTANCE_CHECKER(TZMSC, TZ_MSC,
+                         TYPE_TZ_MSC)
 
 struct TZMSC {
     /*< private >*/

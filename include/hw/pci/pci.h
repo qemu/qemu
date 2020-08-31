@@ -197,12 +197,8 @@ enum {
 
 #define TYPE_PCI_DEVICE "pci-device"
 typedef struct PCIDeviceClass PCIDeviceClass;
-#define PCI_DEVICE(obj) \
-     OBJECT_CHECK(PCIDevice, (obj), TYPE_PCI_DEVICE)
-#define PCI_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PCIDeviceClass, (klass), TYPE_PCI_DEVICE)
-#define PCI_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PCIDeviceClass, (obj), TYPE_PCI_DEVICE)
+DECLARE_OBJ_CHECKERS(PCIDevice, PCIDeviceClass,
+                     PCI_DEVICE, TYPE_PCI_DEVICE)
 
 /* Implemented by devices that can be plugged on PCI Express buses */
 #define INTERFACE_PCIE_DEVICE "pci-express-device"
@@ -399,9 +395,8 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 #define TYPE_PCI_BUS "PCI"
 typedef struct PCIBusClass PCIBusClass;
-#define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
-#define PCI_BUS_CLASS(klass) OBJECT_CLASS_CHECK(PCIBusClass, (klass), TYPE_PCI_BUS)
-#define PCI_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(PCIBusClass, (obj), TYPE_PCI_BUS)
+DECLARE_OBJ_CHECKERS(PCIBus, PCIBusClass,
+                     PCI_BUS, TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
 bool pci_bus_is_express(PCIBus *bus);

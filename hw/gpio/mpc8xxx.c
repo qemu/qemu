@@ -28,7 +28,8 @@
 
 #define TYPE_MPC8XXX_GPIO "mpc8xxx_gpio"
 typedef struct MPC8XXXGPIOState MPC8XXXGPIOState;
-#define MPC8XXX_GPIO(obj) OBJECT_CHECK(MPC8XXXGPIOState, (obj), TYPE_MPC8XXX_GPIO)
+DECLARE_INSTANCE_CHECKER(MPC8XXXGPIOState, MPC8XXX_GPIO,
+                         TYPE_MPC8XXX_GPIO)
 
 struct MPC8XXXGPIOState {
     SysBusDevice parent_obj;

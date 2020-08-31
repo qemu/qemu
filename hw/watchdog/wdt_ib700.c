@@ -38,7 +38,8 @@
 
 #define TYPE_IB700 "ib700"
 typedef struct IB700state IB700State;
-#define IB700(obj) OBJECT_CHECK(IB700State, (obj), TYPE_IB700)
+DECLARE_INSTANCE_CHECKER(IB700State, IB700,
+                         TYPE_IB700)
 
 struct IB700state {
     ISADevice parent_obj;

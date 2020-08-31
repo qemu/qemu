@@ -63,8 +63,8 @@
 
 #define TYPE_STM32F2XX_TIMER "stm32f2xx-timer"
 typedef struct STM32F2XXTimerState STM32F2XXTimerState;
-#define STM32F2XXTIMER(obj) OBJECT_CHECK(STM32F2XXTimerState, \
-                            (obj), TYPE_STM32F2XX_TIMER)
+DECLARE_INSTANCE_CHECKER(STM32F2XXTimerState, STM32F2XXTIMER,
+                         TYPE_STM32F2XX_TIMER)
 
 struct STM32F2XXTimerState {
     /* <private> */

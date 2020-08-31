@@ -30,8 +30,8 @@
 #include "qom/object.h"
 
 typedef ArmSbconI2CState VersatileI2CState;
-#define VERSATILE_I2C(obj) \
-    OBJECT_CHECK(VersatileI2CState, (obj), TYPE_VERSATILE_I2C)
+DECLARE_INSTANCE_CHECKER(VersatileI2CState, VERSATILE_I2C,
+                         TYPE_VERSATILE_I2C)
 
 
 

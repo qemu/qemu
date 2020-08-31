@@ -17,7 +17,8 @@
 
 #define TYPE_MPS2_SCC "mps2-scc"
 typedef struct MPS2SCC MPS2SCC;
-#define MPS2_SCC(obj) OBJECT_CHECK(MPS2SCC, (obj), TYPE_MPS2_SCC)
+DECLARE_INSTANCE_CHECKER(MPS2SCC, MPS2_SCC,
+                         TYPE_MPS2_SCC)
 
 #define NUM_OSCCLK 3
 

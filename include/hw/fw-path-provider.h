@@ -23,10 +23,8 @@
 #define TYPE_FW_PATH_PROVIDER "fw-path-provider"
 
 typedef struct FWPathProviderClass FWPathProviderClass;
-#define FW_PATH_PROVIDER_CLASS(klass) \
-     OBJECT_CLASS_CHECK(FWPathProviderClass, (klass), TYPE_FW_PATH_PROVIDER)
-#define FW_PATH_PROVIDER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FWPathProviderClass, (obj), TYPE_FW_PATH_PROVIDER)
+DECLARE_CLASS_CHECKERS(FWPathProviderClass, FW_PATH_PROVIDER,
+                       TYPE_FW_PATH_PROVIDER)
 #define FW_PATH_PROVIDER(obj) \
      INTERFACE_CHECK(FWPathProvider, (obj), TYPE_FW_PATH_PROVIDER)
 

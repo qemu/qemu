@@ -181,8 +181,8 @@ struct MOS6522PMUState {
 typedef struct MOS6522PMUState MOS6522PMUState;
 
 #define TYPE_MOS6522_PMU "mos6522-pmu"
-#define MOS6522_PMU(obj) OBJECT_CHECK(MOS6522PMUState, (obj), \
-                                      TYPE_MOS6522_PMU)
+DECLARE_INSTANCE_CHECKER(MOS6522PMUState, MOS6522_PMU,
+                         TYPE_MOS6522_PMU)
 /**
  * PMUState:
  * @last_b: last value of B register
@@ -234,6 +234,7 @@ struct PMUState {
 typedef struct PMUState PMUState;
 
 #define TYPE_VIA_PMU "via-pmu"
-#define VIA_PMU(obj) OBJECT_CHECK(PMUState, (obj), TYPE_VIA_PMU)
+DECLARE_INSTANCE_CHECKER(PMUState, VIA_PMU,
+                         TYPE_VIA_PMU)
 
 #endif /* PMU_H */

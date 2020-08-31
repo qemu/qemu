@@ -136,17 +136,13 @@ typedef struct XilinxSPIPSClass XilinxSPIPSClass;
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
 #define TYPE_XLNX_ZYNQMP_QSPIPS "xlnx.usmp-gqspi"
 
-#define XILINX_SPIPS(obj) \
-     OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XilinxSPIPSClass, (klass), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XilinxSPIPSClass, (obj), TYPE_XILINX_SPIPS)
+DECLARE_OBJ_CHECKERS(XilinxSPIPS, XilinxSPIPSClass,
+                     XILINX_SPIPS, TYPE_XILINX_SPIPS)
 
-#define XILINX_QSPIPS(obj) \
-     OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
+DECLARE_INSTANCE_CHECKER(XilinxQSPIPS, XILINX_QSPIPS,
+                         TYPE_XILINX_QSPIPS)
 
-#define XLNX_ZYNQMP_QSPIPS(obj) \
-     OBJECT_CHECK(XlnxZynqMPQSPIPS, (obj), TYPE_XLNX_ZYNQMP_QSPIPS)
+DECLARE_INSTANCE_CHECKER(XlnxZynqMPQSPIPS, XLNX_ZYNQMP_QSPIPS,
+                         TYPE_XLNX_ZYNQMP_QSPIPS)
 
 #endif /* XILINX_SPIPS_H */

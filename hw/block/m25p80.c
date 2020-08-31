@@ -465,12 +465,8 @@ struct M25P80Class {
 typedef struct M25P80Class M25P80Class;
 
 #define TYPE_M25P80 "m25p80-generic"
-#define M25P80(obj) \
-     OBJECT_CHECK(Flash, (obj), TYPE_M25P80)
-#define M25P80_CLASS(klass) \
-     OBJECT_CLASS_CHECK(M25P80Class, (klass), TYPE_M25P80)
-#define M25P80_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(M25P80Class, (obj), TYPE_M25P80)
+DECLARE_OBJ_CHECKERS(Flash, M25P80Class,
+                     M25P80, TYPE_M25P80)
 
 static inline Manufacturer get_man(Flash *s)
 {

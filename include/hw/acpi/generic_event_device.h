@@ -68,8 +68,8 @@
 
 #define TYPE_ACPI_GED "acpi-ged"
 typedef struct AcpiGedState AcpiGedState;
-#define ACPI_GED(obj) \
-    OBJECT_CHECK(AcpiGedState, (obj), TYPE_ACPI_GED)
+DECLARE_INSTANCE_CHECKER(AcpiGedState, ACPI_GED,
+                         TYPE_ACPI_GED)
 
 #define ACPI_GED_EVT_SEL_OFFSET    0x0
 #define ACPI_GED_EVT_SEL_LEN       0x4

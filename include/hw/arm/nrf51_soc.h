@@ -21,8 +21,8 @@
 
 #define TYPE_NRF51_SOC "nrf51-soc"
 typedef struct NRF51State NRF51State;
-#define NRF51_SOC(obj) \
-    OBJECT_CHECK(NRF51State, (obj), TYPE_NRF51_SOC)
+DECLARE_INSTANCE_CHECKER(NRF51State, NRF51_SOC,
+                         TYPE_NRF51_SOC)
 
 #define NRF51_NUM_TIMERS 3
 

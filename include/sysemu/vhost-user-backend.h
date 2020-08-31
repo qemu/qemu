@@ -24,12 +24,8 @@
 #define TYPE_VHOST_USER_BACKEND "vhost-user-backend"
 typedef struct VhostUserBackend VhostUserBackend;
 typedef struct VhostUserBackendClass VhostUserBackendClass;
-#define VHOST_USER_BACKEND(obj) \
-    OBJECT_CHECK(VhostUserBackend, (obj), TYPE_VHOST_USER_BACKEND)
-#define VHOST_USER_BACKEND_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VhostUserBackendClass, (obj), TYPE_VHOST_USER_BACKEND)
-#define VHOST_USER_BACKEND_CLASS(klass) \
-    OBJECT_CLASS_CHECK(VhostUserBackendClass, (klass), TYPE_VHOST_USER_BACKEND)
+DECLARE_OBJ_CHECKERS(VhostUserBackend, VhostUserBackendClass,
+                     VHOST_USER_BACKEND, TYPE_VHOST_USER_BACKEND)
 
 
 struct VhostUserBackendClass {

@@ -42,7 +42,8 @@
 
 #define TYPE_FSL_IMX6UL "fsl,imx6ul"
 typedef struct FslIMX6ULState FslIMX6ULState;
-#define FSL_IMX6UL(obj) OBJECT_CHECK(FslIMX6ULState, (obj), TYPE_FSL_IMX6UL)
+DECLARE_INSTANCE_CHECKER(FslIMX6ULState, FSL_IMX6UL,
+                         TYPE_FSL_IMX6UL)
 
 enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_CPUS         = 1,

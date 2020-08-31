@@ -30,8 +30,8 @@
 
 #define TYPE_MSS_EMAC "msf2-emac"
 typedef struct MSF2EmacState MSF2EmacState;
-#define MSS_EMAC(obj) \
-    OBJECT_CHECK(MSF2EmacState, (obj), TYPE_MSS_EMAC)
+DECLARE_INSTANCE_CHECKER(MSF2EmacState, MSS_EMAC,
+                         TYPE_MSS_EMAC)
 
 #define R_MAX         (0x1a0 / 4)
 #define PHY_MAX_REGS  32

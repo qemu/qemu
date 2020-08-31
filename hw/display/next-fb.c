@@ -33,7 +33,8 @@
 #include "qom/object.h"
 
 typedef struct NeXTFbState NeXTFbState;
-#define NEXTFB(obj) OBJECT_CHECK(NeXTFbState, (obj), TYPE_NEXTFB)
+DECLARE_INSTANCE_CHECKER(NeXTFbState, NEXTFB,
+                         TYPE_NEXTFB)
 
 struct NeXTFbState {
     SysBusDevice parent_obj;

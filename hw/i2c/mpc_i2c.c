@@ -38,8 +38,8 @@
 
 #define TYPE_MPC_I2C "mpc-i2c"
 typedef struct MPCI2CState MPCI2CState;
-#define MPC_I2C(obj) \
-    OBJECT_CHECK(MPCI2CState, (obj), TYPE_MPC_I2C)
+DECLARE_INSTANCE_CHECKER(MPCI2CState, MPC_I2C,
+                         TYPE_MPC_I2C)
 
 #define MPC_I2C_ADR   0x00
 #define MPC_I2C_FDR   0x04

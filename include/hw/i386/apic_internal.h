@@ -127,12 +127,8 @@ typedef struct APICCommonState APICCommonState;
 
 #define TYPE_APIC_COMMON "apic-common"
 typedef struct APICCommonClass APICCommonClass;
-#define APIC_COMMON(obj) \
-     OBJECT_CHECK(APICCommonState, (obj), TYPE_APIC_COMMON)
-#define APIC_COMMON_CLASS(klass) \
-     OBJECT_CLASS_CHECK(APICCommonClass, (klass), TYPE_APIC_COMMON)
-#define APIC_COMMON_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(APICCommonClass, (obj), TYPE_APIC_COMMON)
+DECLARE_OBJ_CHECKERS(APICCommonState, APICCommonClass,
+                     APIC_COMMON, TYPE_APIC_COMMON)
 
 struct APICCommonClass {
     DeviceClass parent_class;

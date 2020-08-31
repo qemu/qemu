@@ -310,8 +310,8 @@ typedef struct LSIState LSIState;
 #define TYPE_LSI53C810  "lsi53c810"
 #define TYPE_LSI53C895A "lsi53c895a"
 
-#define LSI53C895A(obj) \
-    OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
+DECLARE_INSTANCE_CHECKER(LSIState, LSI53C895A,
+                         TYPE_LSI53C895A)
 
 static const char *scsi_phases[] = {
     "DOUT",

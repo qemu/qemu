@@ -30,8 +30,8 @@
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
 typedef struct IntegratorCMState IntegratorCMState;
-#define INTEGRATOR_CM(obj) \
-    OBJECT_CHECK(IntegratorCMState, (obj), TYPE_INTEGRATOR_CM)
+DECLARE_INSTANCE_CHECKER(IntegratorCMState, INTEGRATOR_CM,
+                         TYPE_INTEGRATOR_CM)
 
 struct IntegratorCMState {
     /*< private >*/
@@ -329,8 +329,8 @@ static void integratorcm_realize(DeviceState *d, Error **errp)
 
 #define TYPE_INTEGRATOR_PIC "integrator_pic"
 typedef struct icp_pic_state icp_pic_state;
-#define INTEGRATOR_PIC(obj) \
-   OBJECT_CHECK(icp_pic_state, (obj), TYPE_INTEGRATOR_PIC)
+DECLARE_INSTANCE_CHECKER(icp_pic_state, INTEGRATOR_PIC,
+                         TYPE_INTEGRATOR_PIC)
 
 struct icp_pic_state {
     /*< private >*/
@@ -469,8 +469,8 @@ static void icp_pic_init(Object *obj)
 
 #define TYPE_ICP_CONTROL_REGS "icp-ctrl-regs"
 typedef struct ICPCtrlRegsState ICPCtrlRegsState;
-#define ICP_CONTROL_REGS(obj) \
-    OBJECT_CHECK(ICPCtrlRegsState, (obj), TYPE_ICP_CONTROL_REGS)
+DECLARE_INSTANCE_CHECKER(ICPCtrlRegsState, ICP_CONTROL_REGS,
+                         TYPE_ICP_CONTROL_REGS)
 
 struct ICPCtrlRegsState {
     /*< private >*/

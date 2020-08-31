@@ -35,8 +35,8 @@
 
 #define TYPE_ISA_IPMI_BT "isa-ipmi-bt"
 typedef struct ISAIPMIBTDevice ISAIPMIBTDevice;
-#define ISA_IPMI_BT(obj) OBJECT_CHECK(ISAIPMIBTDevice, (obj), \
-                                      TYPE_ISA_IPMI_BT)
+DECLARE_INSTANCE_CHECKER(ISAIPMIBTDevice, ISA_IPMI_BT,
+                         TYPE_ISA_IPMI_BT)
 
 struct ISAIPMIBTDevice {
     ISADevice dev;

@@ -70,8 +70,8 @@ enum {
 
 #define TYPE_MILKYMIST_VGAFB "milkymist-vgafb"
 typedef struct MilkymistVgafbState MilkymistVgafbState;
-#define MILKYMIST_VGAFB(obj) \
-    OBJECT_CHECK(MilkymistVgafbState, (obj), TYPE_MILKYMIST_VGAFB)
+DECLARE_INSTANCE_CHECKER(MilkymistVgafbState, MILKYMIST_VGAFB,
+                         TYPE_MILKYMIST_VGAFB)
 
 struct MilkymistVgafbState {
     SysBusDevice parent_obj;

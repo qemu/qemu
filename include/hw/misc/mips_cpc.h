@@ -36,7 +36,8 @@
 
 #define TYPE_MIPS_CPC "mips-cpc"
 typedef struct MIPSCPCState MIPSCPCState;
-#define MIPS_CPC(obj) OBJECT_CHECK(MIPSCPCState, (obj), TYPE_MIPS_CPC)
+DECLARE_INSTANCE_CHECKER(MIPSCPCState, MIPS_CPC,
+                         TYPE_MIPS_CPC)
 
 struct MIPSCPCState {
     SysBusDevice parent_obj;

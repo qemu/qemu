@@ -91,7 +91,8 @@ struct AppleSMCData {
 };
 
 typedef struct AppleSMCState AppleSMCState;
-#define APPLE_SMC(obj) OBJECT_CHECK(AppleSMCState, (obj), TYPE_APPLE_SMC)
+DECLARE_INSTANCE_CHECKER(AppleSMCState, APPLE_SMC,
+                         TYPE_APPLE_SMC)
 
 struct AppleSMCState {
     ISADevice parent_obj;

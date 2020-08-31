@@ -26,12 +26,8 @@
 
 typedef struct TriCoreCPU TriCoreCPU;
 typedef struct TriCoreCPUClass TriCoreCPUClass;
-#define TRICORE_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(TriCoreCPUClass, (klass), TYPE_TRICORE_CPU)
-#define TRICORE_CPU(obj) \
-    OBJECT_CHECK(TriCoreCPU, (obj), TYPE_TRICORE_CPU)
-#define TRICORE_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(TriCoreCPUClass, (obj), TYPE_TRICORE_CPU)
+DECLARE_OBJ_CHECKERS(TriCoreCPU, TriCoreCPUClass,
+                     TRICORE_CPU, TYPE_TRICORE_CPU)
 
 struct TriCoreCPUClass {
     /*< private >*/

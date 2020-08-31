@@ -20,7 +20,8 @@
 
 #define TYPE_PUV3_GPIO "puv3_gpio"
 typedef struct PUV3GPIOState PUV3GPIOState;
-#define PUV3_GPIO(obj) OBJECT_CHECK(PUV3GPIOState, (obj), TYPE_PUV3_GPIO)
+DECLARE_INSTANCE_CHECKER(PUV3GPIOState, PUV3_GPIO,
+                         TYPE_PUV3_GPIO)
 
 struct PUV3GPIOState {
     SysBusDevice parent_obj;

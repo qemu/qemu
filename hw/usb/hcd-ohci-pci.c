@@ -33,7 +33,8 @@
 
 #define TYPE_PCI_OHCI "pci-ohci"
 typedef struct OHCIPCIState OHCIPCIState;
-#define PCI_OHCI(obj) OBJECT_CHECK(OHCIPCIState, (obj), TYPE_PCI_OHCI)
+DECLARE_INSTANCE_CHECKER(OHCIPCIState, PCI_OHCI,
+                         TYPE_PCI_OHCI)
 
 struct OHCIPCIState {
     /*< private >*/

@@ -93,7 +93,8 @@ struct EbusState {
 typedef struct EbusState EbusState;
 
 #define TYPE_EBUS "ebus"
-#define EBUS(obj) OBJECT_CHECK(EbusState, (obj), TYPE_EBUS)
+DECLARE_INSTANCE_CHECKER(EbusState, EBUS,
+                         TYPE_EBUS)
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
@@ -229,7 +230,8 @@ typedef struct ResetData {
 
 #define TYPE_SUN4U_POWER "power"
 typedef struct PowerDevice PowerDevice;
-#define SUN4U_POWER(obj) OBJECT_CHECK(PowerDevice, (obj), TYPE_SUN4U_POWER)
+DECLARE_INSTANCE_CHECKER(PowerDevice, SUN4U_POWER,
+                         TYPE_SUN4U_POWER)
 
 struct PowerDevice {
     SysBusDevice parent_obj;
@@ -403,7 +405,8 @@ static const TypeInfo ebus_info = {
 
 #define TYPE_OPENPROM "openprom"
 typedef struct PROMState PROMState;
-#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+DECLARE_INSTANCE_CHECKER(PROMState, OPENPROM,
+                         TYPE_OPENPROM)
 
 struct PROMState {
     SysBusDevice parent_obj;
@@ -492,7 +495,8 @@ static const TypeInfo prom_info = {
 
 #define TYPE_SUN4U_MEMORY "memory"
 typedef struct RamDevice RamDevice;
-#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
+DECLARE_INSTANCE_CHECKER(RamDevice, SUN4U_RAM,
+                         TYPE_SUN4U_MEMORY)
 
 struct RamDevice {
     SysBusDevice parent_obj;

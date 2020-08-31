@@ -21,10 +21,8 @@
 
 #define TYPE_KVM_I8259 "kvm-i8259"
 typedef struct KVMPICClass KVMPICClass;
-#define KVM_PIC_CLASS(class) \
-    OBJECT_CLASS_CHECK(KVMPICClass, (class), TYPE_KVM_I8259)
-#define KVM_PIC_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(KVMPICClass, (obj), TYPE_KVM_I8259)
+DECLARE_CLASS_CHECKERS(KVMPICClass, KVM_PIC,
+                       TYPE_KVM_I8259)
 
 /**
  * KVMPICClass:

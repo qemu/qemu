@@ -27,8 +27,8 @@
 
 #define TYPE_GOLDFISH_RTC "goldfish_rtc"
 typedef struct GoldfishRTCState GoldfishRTCState;
-#define GOLDFISH_RTC(obj) \
-    OBJECT_CHECK(GoldfishRTCState, (obj), TYPE_GOLDFISH_RTC)
+DECLARE_INSTANCE_CHECKER(GoldfishRTCState, GOLDFISH_RTC,
+                         TYPE_GOLDFISH_RTC)
 
 struct GoldfishRTCState {
     SysBusDevice parent_obj;

@@ -17,10 +17,8 @@
 #define TYPE_HOTPLUG_HANDLER "hotplug-handler"
 
 typedef struct HotplugHandlerClass HotplugHandlerClass;
-#define HOTPLUG_HANDLER_CLASS(klass) \
-     OBJECT_CLASS_CHECK(HotplugHandlerClass, (klass), TYPE_HOTPLUG_HANDLER)
-#define HOTPLUG_HANDLER_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(HotplugHandlerClass, (obj), TYPE_HOTPLUG_HANDLER)
+DECLARE_CLASS_CHECKERS(HotplugHandlerClass, HOTPLUG_HANDLER,
+                       TYPE_HOTPLUG_HANDLER)
 #define HOTPLUG_HANDLER(obj) \
      INTERFACE_CHECK(HotplugHandler, (obj), TYPE_HOTPLUG_HANDLER)
 

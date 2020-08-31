@@ -33,7 +33,8 @@
 
 #define TYPE_KVM_CLOCK "kvmclock"
 typedef struct KVMClockState KVMClockState;
-#define KVM_CLOCK(obj) OBJECT_CHECK(KVMClockState, (obj), TYPE_KVM_CLOCK)
+DECLARE_INSTANCE_CHECKER(KVMClockState, KVM_CLOCK,
+                         TYPE_KVM_CLOCK)
 
 struct KVMClockState {
     /*< private >*/

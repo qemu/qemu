@@ -38,7 +38,8 @@
 
 #define TYPE_ARM_GICV2M "arm-gicv2m"
 typedef struct ARMGICv2mState ARMGICv2mState;
-#define ARM_GICV2M(obj) OBJECT_CHECK(ARMGICv2mState, (obj), TYPE_ARM_GICV2M)
+DECLARE_INSTANCE_CHECKER(ARMGICv2mState, ARM_GICV2M,
+                         TYPE_ARM_GICV2M)
 
 #define GICV2M_NUM_SPI_MAX 128
 

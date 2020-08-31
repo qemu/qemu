@@ -44,17 +44,15 @@
 #define TYPE_XILINX_AXI_ENET_CONTROL_STREAM "xilinx-axienet-control-stream"
 
 typedef struct XilinxAXIEnet XilinxAXIEnet;
-#define XILINX_AXI_ENET(obj) \
-     OBJECT_CHECK(XilinxAXIEnet, (obj), TYPE_XILINX_AXI_ENET)
+DECLARE_INSTANCE_CHECKER(XilinxAXIEnet, XILINX_AXI_ENET,
+                         TYPE_XILINX_AXI_ENET)
 
 typedef struct XilinxAXIEnetStreamSlave XilinxAXIEnetStreamSlave;
-#define XILINX_AXI_ENET_DATA_STREAM(obj) \
-     OBJECT_CHECK(XilinxAXIEnetStreamSlave, (obj),\
-     TYPE_XILINX_AXI_ENET_DATA_STREAM)
+DECLARE_INSTANCE_CHECKER(XilinxAXIEnetStreamSlave, XILINX_AXI_ENET_DATA_STREAM,
+                         TYPE_XILINX_AXI_ENET_DATA_STREAM)
 
-#define XILINX_AXI_ENET_CONTROL_STREAM(obj) \
-     OBJECT_CHECK(XilinxAXIEnetStreamSlave, (obj),\
-     TYPE_XILINX_AXI_ENET_CONTROL_STREAM)
+DECLARE_INSTANCE_CHECKER(XilinxAXIEnetStreamSlave, XILINX_AXI_ENET_CONTROL_STREAM,
+                         TYPE_XILINX_AXI_ENET_CONTROL_STREAM)
 
 /* Advertisement control register. */
 #define ADVERTISE_10FULL        0x0040  /* Try for 10mbps full-duplex  */

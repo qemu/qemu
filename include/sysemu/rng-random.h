@@ -16,7 +16,8 @@
 
 #define TYPE_RNG_RANDOM "rng-random"
 typedef struct RngRandom RngRandom;
-#define RNG_RANDOM(obj) OBJECT_CHECK(RngRandom, (obj), TYPE_RNG_RANDOM)
+DECLARE_INSTANCE_CHECKER(RngRandom, RNG_RANDOM,
+                         TYPE_RNG_RANDOM)
 
 
 #endif

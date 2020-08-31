@@ -27,8 +27,8 @@
 
 #define TYPE_QCRYPTO_SECRET "secret"
 typedef struct QCryptoSecret QCryptoSecret;
-#define QCRYPTO_SECRET(obj)                  \
-    OBJECT_CHECK(QCryptoSecret, (obj), TYPE_QCRYPTO_SECRET)
+DECLARE_INSTANCE_CHECKER(QCryptoSecret, QCRYPTO_SECRET,
+                         TYPE_QCRYPTO_SECRET)
 
 typedef struct QCryptoSecretClass QCryptoSecretClass;
 

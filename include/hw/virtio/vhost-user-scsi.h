@@ -25,8 +25,8 @@
 
 #define TYPE_VHOST_USER_SCSI "vhost-user-scsi"
 typedef struct VHostUserSCSI VHostUserSCSI;
-#define VHOST_USER_SCSI(obj) \
-        OBJECT_CHECK(VHostUserSCSI, (obj), TYPE_VHOST_USER_SCSI)
+DECLARE_INSTANCE_CHECKER(VHostUserSCSI, VHOST_USER_SCSI,
+                         TYPE_VHOST_USER_SCSI)
 
 struct VHostUserSCSI {
     VHostSCSICommon parent_obj;

@@ -62,12 +62,8 @@
 
 typedef struct AwRtcClass AwRtcClass;
 typedef struct AwRtcState AwRtcState;
-#define AW_RTC(obj) \
-    OBJECT_CHECK(AwRtcState, (obj), TYPE_AW_RTC)
-#define AW_RTC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AwRtcClass, (klass), TYPE_AW_RTC)
-#define AW_RTC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AwRtcClass, (obj), TYPE_AW_RTC)
+DECLARE_OBJ_CHECKERS(AwRtcState, AwRtcClass,
+                     AW_RTC, TYPE_AW_RTC)
 
 /** @} */
 

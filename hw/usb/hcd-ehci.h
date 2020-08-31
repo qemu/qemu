@@ -330,7 +330,8 @@ void ehci_reset(void *opaque);
 
 #define TYPE_PCI_EHCI "pci-ehci-usb"
 typedef struct EHCIPCIState EHCIPCIState;
-#define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
+DECLARE_INSTANCE_CHECKER(EHCIPCIState, PCI_EHCI,
+                         TYPE_PCI_EHCI)
 
 struct EHCIPCIState {
     /*< private >*/
@@ -351,12 +352,8 @@ struct EHCIPCIState {
 
 typedef struct EHCISysBusState EHCISysBusState;
 typedef struct SysBusEHCIClass SysBusEHCIClass;
-#define SYS_BUS_EHCI(obj) \
-    OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
-#define SYS_BUS_EHCI_CLASS(class) \
-    OBJECT_CLASS_CHECK(SysBusEHCIClass, (class), TYPE_SYS_BUS_EHCI)
-#define SYS_BUS_EHCI_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SysBusEHCIClass, (obj), TYPE_SYS_BUS_EHCI)
+DECLARE_OBJ_CHECKERS(EHCISysBusState, SysBusEHCIClass,
+                     SYS_BUS_EHCI, TYPE_SYS_BUS_EHCI)
 
 struct EHCISysBusState {
     /*< private >*/
@@ -378,8 +375,8 @@ struct SysBusEHCIClass {
 };
 
 typedef struct FUSBH200EHCIState FUSBH200EHCIState;
-#define FUSBH200_EHCI(obj) \
-    OBJECT_CHECK(FUSBH200EHCIState, (obj), TYPE_FUSBH200_EHCI)
+DECLARE_INSTANCE_CHECKER(FUSBH200EHCIState, FUSBH200_EHCI,
+                         TYPE_FUSBH200_EHCI)
 
 struct FUSBH200EHCIState {
     /*< private >*/

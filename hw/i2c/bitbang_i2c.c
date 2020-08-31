@@ -164,7 +164,8 @@ void bitbang_i2c_init(bitbang_i2c_interface *s, I2CBus *bus)
 
 #define TYPE_GPIO_I2C "gpio_i2c"
 typedef struct GPIOI2CState GPIOI2CState;
-#define GPIO_I2C(obj) OBJECT_CHECK(GPIOI2CState, (obj), TYPE_GPIO_I2C)
+DECLARE_INSTANCE_CHECKER(GPIOI2CState, GPIO_I2C,
+                         TYPE_GPIO_I2C)
 
 struct GPIOI2CState {
     SysBusDevice parent_obj;

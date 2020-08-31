@@ -24,7 +24,8 @@
 #define TYPE_ATMEGA2560_MCU "ATmega2560"
 
 typedef struct AtmegaMcuState AtmegaMcuState;
-#define ATMEGA_MCU(obj) OBJECT_CHECK(AtmegaMcuState, (obj), TYPE_ATMEGA_MCU)
+DECLARE_INSTANCE_CHECKER(AtmegaMcuState, ATMEGA_MCU,
+                         TYPE_ATMEGA_MCU)
 
 #define POWER_MAX 2
 #define USART_MAX 4

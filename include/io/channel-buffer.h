@@ -26,8 +26,8 @@
 
 #define TYPE_QIO_CHANNEL_BUFFER "qio-channel-buffer"
 typedef struct QIOChannelBuffer QIOChannelBuffer;
-#define QIO_CHANNEL_BUFFER(obj)                                     \
-    OBJECT_CHECK(QIOChannelBuffer, (obj), TYPE_QIO_CHANNEL_BUFFER)
+DECLARE_INSTANCE_CHECKER(QIOChannelBuffer, QIO_CHANNEL_BUFFER,
+                         TYPE_QIO_CHANNEL_BUFFER)
 
 
 /**

@@ -76,8 +76,8 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
 
 #define TYPE_TOSA_MISC_GPIO "tosa-misc-gpio"
 typedef struct TosaMiscGPIOState TosaMiscGPIOState;
-#define TOSA_MISC_GPIO(obj) \
-    OBJECT_CHECK(TosaMiscGPIOState, (obj), TYPE_TOSA_MISC_GPIO)
+DECLARE_INSTANCE_CHECKER(TosaMiscGPIOState, TOSA_MISC_GPIO,
+                         TYPE_TOSA_MISC_GPIO)
 
 struct TosaMiscGPIOState {
     SysBusDevice parent_obj;
@@ -173,7 +173,8 @@ static void tosa_ssp_realize(SSISlave *dev, Error **errp)
 
 #define TYPE_TOSA_DAC "tosa_dac"
 typedef struct TosaDACState TosaDACState;
-#define TOSA_DAC(obj) OBJECT_CHECK(TosaDACState, (obj), TYPE_TOSA_DAC)
+DECLARE_INSTANCE_CHECKER(TosaDACState, TOSA_DAC,
+                         TYPE_TOSA_DAC)
 
 struct TosaDACState {
     I2CSlave parent_obj;

@@ -110,7 +110,8 @@
 #define TYPE_ARM_SSE "arm-sse"
 typedef struct ARMSSE ARMSSE;
 typedef struct ARMSSEClass ARMSSEClass;
-#define ARM_SSE(obj) OBJECT_CHECK(ARMSSE, (obj), TYPE_ARM_SSE)
+DECLARE_OBJ_CHECKERS(ARMSSE, ARMSSEClass,
+                     ARM_SSE, TYPE_ARM_SSE)
 
 /*
  * These type names are for specific IoTKit subsystems; other than
@@ -227,9 +228,5 @@ struct ARMSSEClass {
     const ARMSSEInfo *info;
 };
 
-#define ARM_SSE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ARMSSEClass, (klass), TYPE_ARM_SSE)
-#define ARM_SSE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ARMSSEClass, (obj), TYPE_ARM_SSE)
 
 #endif

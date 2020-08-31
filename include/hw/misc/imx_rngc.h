@@ -15,7 +15,8 @@
 
 #define TYPE_IMX_RNGC "imx.rngc"
 typedef struct IMXRNGCState IMXRNGCState;
-#define IMX_RNGC(obj) OBJECT_CHECK(IMXRNGCState, (obj), TYPE_IMX_RNGC)
+DECLARE_INSTANCE_CHECKER(IMXRNGCState, IMX_RNGC,
+                         TYPE_IMX_RNGC)
 
 struct IMXRNGCState {
     /*< private >*/

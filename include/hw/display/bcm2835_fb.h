@@ -18,7 +18,8 @@
 
 #define TYPE_BCM2835_FB "bcm2835-fb"
 typedef struct BCM2835FBState BCM2835FBState;
-#define BCM2835_FB(obj) OBJECT_CHECK(BCM2835FBState, (obj), TYPE_BCM2835_FB)
+DECLARE_INSTANCE_CHECKER(BCM2835FBState, BCM2835_FB,
+                         TYPE_BCM2835_FB)
 
 /*
  * Configuration information about the fb which the guest can program

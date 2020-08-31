@@ -28,7 +28,8 @@
 
 #define TYPE_CADENCE_GEM "cadence_gem"
 typedef struct CadenceGEMState CadenceGEMState;
-#define CADENCE_GEM(obj) OBJECT_CHECK(CadenceGEMState, (obj), TYPE_CADENCE_GEM)
+DECLARE_INSTANCE_CHECKER(CadenceGEMState, CADENCE_GEM,
+                         TYPE_CADENCE_GEM)
 
 #include "net/net.h"
 #include "hw/sysbus.h"

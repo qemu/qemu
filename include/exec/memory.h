@@ -34,19 +34,13 @@
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
 
 #define TYPE_MEMORY_REGION "qemu:memory-region"
-#define MEMORY_REGION(obj) \
-        OBJECT_CHECK(MemoryRegion, (obj), TYPE_MEMORY_REGION)
+DECLARE_INSTANCE_CHECKER(MemoryRegion, MEMORY_REGION,
+                         TYPE_MEMORY_REGION)
 
 #define TYPE_IOMMU_MEMORY_REGION "qemu:iommu-memory-region"
 typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
-#define IOMMU_MEMORY_REGION(obj) \
-        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_IOMMU_MEMORY_REGION)
-#define IOMMU_MEMORY_REGION_CLASS(klass) \
-        OBJECT_CLASS_CHECK(IOMMUMemoryRegionClass, (klass), \
-                         TYPE_IOMMU_MEMORY_REGION)
-#define IOMMU_MEMORY_REGION_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(IOMMUMemoryRegionClass, (obj), \
-                         TYPE_IOMMU_MEMORY_REGION)
+DECLARE_OBJ_CHECKERS(IOMMUMemoryRegion, IOMMUMemoryRegionClass,
+                     IOMMU_MEMORY_REGION, TYPE_IOMMU_MEMORY_REGION)
 
 extern bool global_dirty_log;
 

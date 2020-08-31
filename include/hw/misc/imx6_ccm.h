@@ -180,7 +180,8 @@
 
 #define TYPE_IMX6_CCM "imx6.ccm"
 typedef struct IMX6CCMState IMX6CCMState;
-#define IMX6_CCM(obj) OBJECT_CHECK(IMX6CCMState, (obj), TYPE_IMX6_CCM)
+DECLARE_INSTANCE_CHECKER(IMX6CCMState, IMX6_CCM,
+                         TYPE_IMX6_CCM)
 
 struct IMX6CCMState {
     /* <private> */

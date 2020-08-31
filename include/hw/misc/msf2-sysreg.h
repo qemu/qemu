@@ -63,7 +63,8 @@ enum {
 
 #define TYPE_MSF2_SYSREG          "msf2-sysreg"
 typedef struct MSF2SysregState MSF2SysregState;
-#define MSF2_SYSREG(obj)  OBJECT_CHECK(MSF2SysregState, (obj), TYPE_MSF2_SYSREG)
+DECLARE_INSTANCE_CHECKER(MSF2SysregState, MSF2_SYSREG,
+                         TYPE_MSF2_SYSREG)
 
 struct MSF2SysregState {
     SysBusDevice parent_obj;

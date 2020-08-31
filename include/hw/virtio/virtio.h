@@ -69,12 +69,8 @@ typedef struct VirtQueueElement
 
 #define TYPE_VIRTIO_DEVICE "virtio-device"
 typedef struct VirtioDeviceClass VirtioDeviceClass;
-#define VIRTIO_DEVICE_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtioDeviceClass, obj, TYPE_VIRTIO_DEVICE)
-#define VIRTIO_DEVICE_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtioDeviceClass, klass, TYPE_VIRTIO_DEVICE)
-#define VIRTIO_DEVICE(obj) \
-        OBJECT_CHECK(VirtIODevice, (obj), TYPE_VIRTIO_DEVICE)
+DECLARE_OBJ_CHECKERS(VirtIODevice, VirtioDeviceClass,
+                     VIRTIO_DEVICE, TYPE_VIRTIO_DEVICE)
 
 enum virtio_device_endian {
     VIRTIO_DEVICE_ENDIAN_UNKNOWN,

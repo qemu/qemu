@@ -244,8 +244,8 @@ typedef struct {
 
 #define TYPE_EXYNOS4210_MCT "exynos4210.mct"
 typedef struct Exynos4210MCTState Exynos4210MCTState;
-#define EXYNOS4210_MCT(obj) \
-    OBJECT_CHECK(Exynos4210MCTState, (obj), TYPE_EXYNOS4210_MCT)
+DECLARE_INSTANCE_CHECKER(Exynos4210MCTState, EXYNOS4210_MCT,
+                         TYPE_EXYNOS4210_MCT)
 
 struct Exynos4210MCTState {
     SysBusDevice parent_obj;

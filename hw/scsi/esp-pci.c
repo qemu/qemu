@@ -38,8 +38,8 @@
 #define TYPE_AM53C974_DEVICE "am53c974"
 
 typedef struct PCIESPState PCIESPState;
-#define PCI_ESP(obj) \
-    OBJECT_CHECK(PCIESPState, (obj), TYPE_AM53C974_DEVICE)
+DECLARE_INSTANCE_CHECKER(PCIESPState, PCI_ESP,
+                         TYPE_AM53C974_DEVICE)
 
 #define DMA_CMD   0x0
 #define DMA_STC   0x1
@@ -417,8 +417,8 @@ struct DC390State {
 typedef struct DC390State DC390State;
 
 #define TYPE_DC390_DEVICE "dc390"
-#define DC390(obj) \
-    OBJECT_CHECK(DC390State, obj, TYPE_DC390_DEVICE)
+DECLARE_INSTANCE_CHECKER(DC390State, DC390,
+                         TYPE_DC390_DEVICE)
 
 #define EE_ADAPT_SCSI_ID 64
 #define EE_MODE2         65

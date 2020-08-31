@@ -60,7 +60,8 @@
 
 #define TYPE_IOTKIT_SECCTL "iotkit-secctl"
 typedef struct IoTKitSecCtl IoTKitSecCtl;
-#define IOTKIT_SECCTL(obj) OBJECT_CHECK(IoTKitSecCtl, (obj), TYPE_IOTKIT_SECCTL)
+DECLARE_INSTANCE_CHECKER(IoTKitSecCtl, IOTKIT_SECCTL,
+                         TYPE_IOTKIT_SECCTL)
 
 #define IOTS_APB_PPC0_NUM_PORTS 3
 #define IOTS_APB_PPC1_NUM_PORTS 1

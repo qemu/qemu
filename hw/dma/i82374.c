@@ -33,7 +33,8 @@
 
 #define TYPE_I82374 "i82374"
 typedef struct I82374State I82374State;
-#define I82374(obj) OBJECT_CHECK(I82374State, (obj), TYPE_I82374)
+DECLARE_INSTANCE_CHECKER(I82374State, I82374,
+                         TYPE_I82374)
 
 //#define DEBUG_I82374
 

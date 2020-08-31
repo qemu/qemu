@@ -28,8 +28,8 @@ struct CollieMachineState {
 typedef struct CollieMachineState CollieMachineState;
 
 #define TYPE_COLLIE_MACHINE MACHINE_TYPE_NAME("collie")
-#define COLLIE_MACHINE(obj) \
-    OBJECT_CHECK(CollieMachineState, obj, TYPE_COLLIE_MACHINE)
+DECLARE_INSTANCE_CHECKER(CollieMachineState, COLLIE_MACHINE,
+                         TYPE_COLLIE_MACHINE)
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,

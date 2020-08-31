@@ -27,12 +27,8 @@
 
 typedef struct S390CPU S390CPU;
 typedef struct S390CPUClass S390CPUClass;
-#define S390_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390CPUClass, (klass), TYPE_S390_CPU)
-#define S390_CPU(obj) \
-    OBJECT_CHECK(S390CPU, (obj), TYPE_S390_CPU)
-#define S390_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390CPUClass, (obj), TYPE_S390_CPU)
+DECLARE_OBJ_CHECKERS(S390CPU, S390CPUClass,
+                     S390_CPU, TYPE_S390_CPU)
 
 typedef struct S390CPUModel S390CPUModel;
 typedef struct S390CPUDef S390CPUDef;

@@ -31,8 +31,8 @@
 #include "qom/object.h"
 
 typedef struct SpaprRngState SpaprRngState;
-#define SPAPR_RNG(obj) \
-    OBJECT_CHECK(SpaprRngState, (obj), TYPE_SPAPR_RNG)
+DECLARE_INSTANCE_CHECKER(SpaprRngState, SPAPR_RNG,
+                         TYPE_SPAPR_RNG)
 
 struct SpaprRngState {
     /*< private >*/

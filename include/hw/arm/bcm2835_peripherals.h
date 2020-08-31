@@ -33,8 +33,8 @@
 
 #define TYPE_BCM2835_PERIPHERALS "bcm2835-peripherals"
 typedef struct BCM2835PeripheralState BCM2835PeripheralState;
-#define BCM2835_PERIPHERALS(obj) \
-    OBJECT_CHECK(BCM2835PeripheralState, (obj), TYPE_BCM2835_PERIPHERALS)
+DECLARE_INSTANCE_CHECKER(BCM2835PeripheralState, BCM2835_PERIPHERALS,
+                         TYPE_BCM2835_PERIPHERALS)
 
 struct BCM2835PeripheralState {
     /*< private >*/

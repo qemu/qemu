@@ -46,8 +46,8 @@
 
 #define TYPE_ALTERA_TIMER "ALTR.timer"
 typedef struct AlteraTimer AlteraTimer;
-#define ALTERA_TIMER(obj) \
-    OBJECT_CHECK(AlteraTimer, (obj), TYPE_ALTERA_TIMER)
+DECLARE_INSTANCE_CHECKER(AlteraTimer, ALTERA_TIMER,
+                         TYPE_ALTERA_TIMER)
 
 struct AlteraTimer {
     SysBusDevice  busdev;

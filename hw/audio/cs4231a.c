@@ -64,7 +64,8 @@ static struct {
 
 #define TYPE_CS4231A "cs4231a"
 typedef struct CSState CSState;
-#define CS4231A(obj) OBJECT_CHECK (CSState, (obj), TYPE_CS4231A)
+DECLARE_INSTANCE_CHECKER(CSState, CS4231A,
+                         TYPE_CS4231A)
 
 struct CSState {
     ISADevice dev;

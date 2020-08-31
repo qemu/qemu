@@ -105,7 +105,8 @@ struct BaumChardev {
 typedef struct BaumChardev BaumChardev;
 
 #define TYPE_CHARDEV_BRAILLE "chardev-braille"
-#define BAUM_CHARDEV(obj) OBJECT_CHECK(BaumChardev, (obj), TYPE_CHARDEV_BRAILLE)
+DECLARE_INSTANCE_CHECKER(BaumChardev, BAUM_CHARDEV,
+                         TYPE_CHARDEV_BRAILLE)
 
 /* Let's assume NABCC by default */
 enum way {

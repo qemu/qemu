@@ -20,8 +20,8 @@ typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 /*
  * virtio-input-pci: This extends VirtioPCIProxy.
  */
-#define VIRTIO_INPUT_PCI(obj) \
-        OBJECT_CHECK(VirtIOInputPCI, (obj), TYPE_VIRTIO_INPUT_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOInputPCI, VIRTIO_INPUT_PCI,
+                         TYPE_VIRTIO_INPUT_PCI)
 
 struct VirtIOInputPCI {
     VirtIOPCIProxy parent_obj;
@@ -32,8 +32,8 @@ struct VirtIOInputPCI {
 #define TYPE_VIRTIO_KEYBOARD_PCI  "virtio-keyboard-pci"
 #define TYPE_VIRTIO_MOUSE_PCI     "virtio-mouse-pci"
 #define TYPE_VIRTIO_TABLET_PCI    "virtio-tablet-pci"
-#define VIRTIO_INPUT_HID_PCI(obj) \
-        OBJECT_CHECK(VirtIOInputHIDPCI, (obj), TYPE_VIRTIO_INPUT_HID_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOInputHIDPCI, VIRTIO_INPUT_HID_PCI,
+                         TYPE_VIRTIO_INPUT_HID_PCI)
 
 struct VirtIOInputHIDPCI {
     VirtIOPCIProxy parent_obj;

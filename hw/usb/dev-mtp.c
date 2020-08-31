@@ -238,7 +238,8 @@ typedef struct {
 } QEMU_PACKED ObjectInfo;
 
 #define TYPE_USB_MTP "usb-mtp"
-#define USB_MTP(obj) OBJECT_CHECK(MTPState, (obj), TYPE_USB_MTP)
+DECLARE_INSTANCE_CHECKER(MTPState, USB_MTP,
+                         TYPE_USB_MTP)
 
 #define QEMU_STORAGE_ID 0x00010001
 

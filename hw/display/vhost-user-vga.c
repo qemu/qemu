@@ -16,8 +16,8 @@
 #define TYPE_VHOST_USER_VGA "vhost-user-vga"
 
 typedef struct VhostUserVGA VhostUserVGA;
-#define VHOST_USER_VGA(obj)                                \
-    OBJECT_CHECK(VhostUserVGA, (obj), TYPE_VHOST_USER_VGA)
+DECLARE_INSTANCE_CHECKER(VhostUserVGA, VHOST_USER_VGA,
+                         TYPE_VHOST_USER_VGA)
 
 struct VhostUserVGA {
     VirtIOVGABase parent_obj;

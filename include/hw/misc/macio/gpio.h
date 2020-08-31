@@ -32,7 +32,8 @@
 
 #define TYPE_MACIO_GPIO "macio-gpio"
 typedef struct MacIOGPIOState MacIOGPIOState;
-#define MACIO_GPIO(obj) OBJECT_CHECK(MacIOGPIOState, (obj), TYPE_MACIO_GPIO)
+DECLARE_INSTANCE_CHECKER(MacIOGPIOState, MACIO_GPIO,
+                         TYPE_MACIO_GPIO)
 
 struct MacIOGPIOState {
     /*< private >*/

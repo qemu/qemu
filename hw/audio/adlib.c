@@ -53,7 +53,8 @@
 
 #define TYPE_ADLIB "adlib"
 typedef struct AdlibState AdlibState;
-#define ADLIB(obj) OBJECT_CHECK(AdlibState, (obj), TYPE_ADLIB)
+DECLARE_INSTANCE_CHECKER(AdlibState, ADLIB,
+                         TYPE_ADLIB)
 
 struct AdlibState {
     ISADevice parent_obj;

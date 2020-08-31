@@ -27,14 +27,8 @@
 #define TYPE_QCRYPTO_SECRET_COMMON "secret_common"
 typedef struct QCryptoSecretCommon QCryptoSecretCommon;
 typedef struct QCryptoSecretCommonClass QCryptoSecretCommonClass;
-#define QCRYPTO_SECRET_COMMON(obj) \
-    OBJECT_CHECK(QCryptoSecretCommon, (obj), TYPE_QCRYPTO_SECRET_COMMON)
-#define QCRYPTO_SECRET_COMMON_CLASS(class) \
-    OBJECT_CLASS_CHECK(QCryptoSecretCommonClass, \
-                       (class), TYPE_QCRYPTO_SECRET_COMMON)
-#define QCRYPTO_SECRET_COMMON_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(QCryptoSecretCommonClass, \
-                     (obj), TYPE_QCRYPTO_SECRET_COMMON)
+DECLARE_OBJ_CHECKERS(QCryptoSecretCommon, QCryptoSecretCommonClass,
+                     QCRYPTO_SECRET_COMMON, TYPE_QCRYPTO_SECRET_COMMON)
 
 
 struct QCryptoSecretCommon {

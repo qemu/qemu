@@ -28,8 +28,8 @@
 #define TYPE_QEMU_XHCI "qemu-xhci"
 
 typedef struct XHCIState XHCIState;
-#define XHCI(obj) \
-    OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
+DECLARE_INSTANCE_CHECKER(XHCIState, XHCI,
+                         TYPE_XHCI)
 
 #define MAXPORTS_2 15
 #define MAXPORTS_3 15

@@ -57,8 +57,8 @@ struct PCTestdev {
 typedef struct PCTestdev PCTestdev;
 
 #define TYPE_TESTDEV "pc-testdev"
-#define TESTDEV(obj) \
-     OBJECT_CHECK(PCTestdev, (obj), TYPE_TESTDEV)
+DECLARE_INSTANCE_CHECKER(PCTestdev, TESTDEV,
+                         TYPE_TESTDEV)
 
 static uint64_t test_irq_line_read(void *opaque, hwaddr addr, unsigned size)
 {

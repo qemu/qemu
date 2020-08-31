@@ -18,7 +18,8 @@
 
 #define VMCOREINFO_DEVICE "vmcoreinfo"
 typedef struct VMCoreInfoState VMCoreInfoState;
-#define VMCOREINFO(obj) OBJECT_CHECK(VMCoreInfoState, (obj), VMCOREINFO_DEVICE)
+DECLARE_INSTANCE_CHECKER(VMCoreInfoState, VMCOREINFO,
+                         VMCOREINFO_DEVICE)
 
 typedef struct fw_cfg_vmcoreinfo FWCfgVMCoreInfo;
 

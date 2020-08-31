@@ -471,8 +471,8 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
 
 #define TYPE_PXA2XX_SSP "pxa2xx-ssp"
 typedef struct PXA2xxSSPState PXA2xxSSPState;
-#define PXA2XX_SSP(obj) \
-    OBJECT_CHECK(PXA2xxSSPState, (obj), TYPE_PXA2XX_SSP)
+DECLARE_INSTANCE_CHECKER(PXA2xxSSPState, PXA2XX_SSP,
+                         TYPE_PXA2XX_SSP)
 
 /* Synchronous Serial Ports */
 struct PXA2xxSSPState {
@@ -812,8 +812,8 @@ static void pxa2xx_ssp_init(Object *obj)
 
 #define TYPE_PXA2XX_RTC "pxa2xx_rtc"
 typedef struct PXA2xxRTCState PXA2xxRTCState;
-#define PXA2XX_RTC(obj) \
-    OBJECT_CHECK(PXA2xxRTCState, (obj), TYPE_PXA2XX_RTC)
+DECLARE_INSTANCE_CHECKER(PXA2xxRTCState, PXA2XX_RTC,
+                         TYPE_PXA2XX_RTC)
 
 struct PXA2xxRTCState {
     /*< private >*/
@@ -1246,8 +1246,8 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 
 #define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
 typedef struct PXA2xxI2CSlaveState PXA2xxI2CSlaveState;
-#define PXA2XX_I2C_SLAVE(obj) \
-    OBJECT_CHECK(PXA2xxI2CSlaveState, (obj), TYPE_PXA2XX_I2C_SLAVE)
+DECLARE_INSTANCE_CHECKER(PXA2xxI2CSlaveState, PXA2XX_I2C_SLAVE,
+                         TYPE_PXA2XX_I2C_SLAVE)
 
 struct PXA2xxI2CSlaveState {
     I2CSlave parent_obj;

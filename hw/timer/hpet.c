@@ -49,7 +49,8 @@
 #define HPET_MSI_SUPPORT        0
 
 typedef struct HPETState HPETState;
-#define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
+DECLARE_INSTANCE_CHECKER(HPETState, HPET,
+                         TYPE_HPET)
 
 struct HPETState;
 typedef struct HPETTimer {  /* timers */

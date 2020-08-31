@@ -86,8 +86,8 @@ static struct {
 
 #define TYPE_STRONGARM_PIC "strongarm_pic"
 typedef struct StrongARMPICState StrongARMPICState;
-#define STRONGARM_PIC(obj) \
-    OBJECT_CHECK(StrongARMPICState, (obj), TYPE_STRONGARM_PIC)
+DECLARE_INSTANCE_CHECKER(StrongARMPICState, STRONGARM_PIC,
+                         TYPE_STRONGARM_PIC)
 
 struct StrongARMPICState {
     SysBusDevice parent_obj;
@@ -255,8 +255,8 @@ static const TypeInfo strongarm_pic_info = {
 
 #define TYPE_STRONGARM_RTC "strongarm-rtc"
 typedef struct StrongARMRTCState StrongARMRTCState;
-#define STRONGARM_RTC(obj) \
-    OBJECT_CHECK(StrongARMRTCState, (obj), TYPE_STRONGARM_RTC)
+DECLARE_INSTANCE_CHECKER(StrongARMRTCState, STRONGARM_RTC,
+                         TYPE_STRONGARM_RTC)
 
 struct StrongARMRTCState {
     SysBusDevice parent_obj;
@@ -482,8 +482,8 @@ static const TypeInfo strongarm_rtc_sysbus_info = {
 
 #define TYPE_STRONGARM_GPIO "strongarm-gpio"
 typedef struct StrongARMGPIOInfo StrongARMGPIOInfo;
-#define STRONGARM_GPIO(obj) \
-    OBJECT_CHECK(StrongARMGPIOInfo, (obj), TYPE_STRONGARM_GPIO)
+DECLARE_INSTANCE_CHECKER(StrongARMGPIOInfo, STRONGARM_GPIO,
+                         TYPE_STRONGARM_GPIO)
 
 struct StrongARMGPIOInfo {
     SysBusDevice busdev;
@@ -721,8 +721,8 @@ static const TypeInfo strongarm_gpio_info = {
 
 #define TYPE_STRONGARM_PPC "strongarm-ppc"
 typedef struct StrongARMPPCInfo StrongARMPPCInfo;
-#define STRONGARM_PPC(obj) \
-    OBJECT_CHECK(StrongARMPPCInfo, (obj), TYPE_STRONGARM_PPC)
+DECLARE_INSTANCE_CHECKER(StrongARMPPCInfo, STRONGARM_PPC,
+                         TYPE_STRONGARM_PPC)
 
 struct StrongARMPPCInfo {
     SysBusDevice parent_obj;
@@ -922,8 +922,8 @@ static const TypeInfo strongarm_ppc_info = {
 
 #define TYPE_STRONGARM_UART "strongarm-uart"
 typedef struct StrongARMUARTState StrongARMUARTState;
-#define STRONGARM_UART(obj) \
-    OBJECT_CHECK(StrongARMUARTState, (obj), TYPE_STRONGARM_UART)
+DECLARE_INSTANCE_CHECKER(StrongARMUARTState, STRONGARM_UART,
+                         TYPE_STRONGARM_UART)
 
 struct StrongARMUARTState {
     SysBusDevice parent_obj;
@@ -1354,8 +1354,8 @@ static const TypeInfo strongarm_uart_info = {
 
 #define TYPE_STRONGARM_SSP "strongarm-ssp"
 typedef struct StrongARMSSPState StrongARMSSPState;
-#define STRONGARM_SSP(obj) \
-    OBJECT_CHECK(StrongARMSSPState, (obj), TYPE_STRONGARM_SSP)
+DECLARE_INSTANCE_CHECKER(StrongARMSSPState, STRONGARM_SSP,
+                         TYPE_STRONGARM_SSP)
 
 struct StrongARMSSPState {
     SysBusDevice parent_obj;

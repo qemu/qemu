@@ -74,7 +74,8 @@ struct VAPICROMState {
 typedef struct VAPICROMState VAPICROMState;
 
 #define TYPE_VAPIC "kvmvapic"
-#define VAPIC(obj) OBJECT_CHECK(VAPICROMState, (obj), TYPE_VAPIC)
+DECLARE_INSTANCE_CHECKER(VAPICROMState, VAPIC,
+                         TYPE_VAPIC)
 
 #define TPR_INSTR_ABS_MODRM             0x1
 #define TPR_INSTR_MATCH_MODRM_REG       0x2

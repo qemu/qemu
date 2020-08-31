@@ -20,8 +20,8 @@
 #include "qom/object.h"
 
 typedef struct HostMemoryBackendFile HostMemoryBackendFile;
-#define MEMORY_BACKEND_FILE(obj) \
-    OBJECT_CHECK(HostMemoryBackendFile, (obj), TYPE_MEMORY_BACKEND_FILE)
+DECLARE_INSTANCE_CHECKER(HostMemoryBackendFile, MEMORY_BACKEND_FILE,
+                         TYPE_MEMORY_BACKEND_FILE)
 
 
 struct HostMemoryBackendFile {

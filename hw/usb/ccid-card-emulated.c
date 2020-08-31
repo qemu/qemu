@@ -47,8 +47,8 @@ do {\
 
 #define TYPE_EMULATED_CCID "ccid-card-emulated"
 typedef struct EmulatedState EmulatedState;
-#define EMULATED_CCID_CARD(obj) \
-    OBJECT_CHECK(EmulatedState, (obj), TYPE_EMULATED_CCID)
+DECLARE_INSTANCE_CHECKER(EmulatedState, EMULATED_CCID_CARD,
+                         TYPE_EMULATED_CCID)
 
 #define BACKEND_NSS_EMULATED_NAME "nss-emulated"
 #define BACKEND_CERTIFICATES_NAME "certificates"

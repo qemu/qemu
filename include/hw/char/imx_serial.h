@@ -24,7 +24,8 @@
 
 #define TYPE_IMX_SERIAL "imx.serial"
 typedef struct IMXSerialState IMXSerialState;
-#define IMX_SERIAL(obj) OBJECT_CHECK(IMXSerialState, (obj), TYPE_IMX_SERIAL)
+DECLARE_INSTANCE_CHECKER(IMXSerialState, IMX_SERIAL,
+                         TYPE_IMX_SERIAL)
 
 #define URXD_CHARRDY    (1<<15)   /* character read is valid */
 #define URXD_ERR        (1<<14)   /* Character has error */

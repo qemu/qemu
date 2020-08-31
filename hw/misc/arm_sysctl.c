@@ -24,8 +24,8 @@
 
 #define TYPE_ARM_SYSCTL "realview_sysctl"
 typedef struct arm_sysctl_state arm_sysctl_state;
-#define ARM_SYSCTL(obj) \
-    OBJECT_CHECK(arm_sysctl_state, (obj), TYPE_ARM_SYSCTL)
+DECLARE_INSTANCE_CHECKER(arm_sysctl_state, ARM_SYSCTL,
+                         TYPE_ARM_SYSCTL)
 
 struct arm_sysctl_state {
     SysBusDevice parent_obj;

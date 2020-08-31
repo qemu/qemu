@@ -38,7 +38,7 @@ struct SimbaPCIBridge {
 typedef struct SimbaPCIBridge SimbaPCIBridge;
 
 #define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"
-#define SIMBA_PCI_BRIDGE(obj) \
-    OBJECT_CHECK(SimbaPCIBridge, (obj), TYPE_SIMBA_PCI_BRIDGE)
+DECLARE_INSTANCE_CHECKER(SimbaPCIBridge, SIMBA_PCI_BRIDGE,
+                         TYPE_SIMBA_PCI_BRIDGE)
 
 #endif

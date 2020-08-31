@@ -31,8 +31,8 @@
 
 #define TYPE_AW_SID    "allwinner-sid"
 typedef struct AwSidState AwSidState;
-#define AW_SID(obj) \
-    OBJECT_CHECK(AwSidState, (obj), TYPE_AW_SID)
+DECLARE_INSTANCE_CHECKER(AwSidState, AW_SID,
+                         TYPE_AW_SID)
 
 /** @} */
 

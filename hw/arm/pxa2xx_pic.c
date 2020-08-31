@@ -39,8 +39,8 @@
 
 #define TYPE_PXA2XX_PIC "pxa2xx_pic"
 typedef struct PXA2xxPICState PXA2xxPICState;
-#define PXA2XX_PIC(obj) \
-    OBJECT_CHECK(PXA2xxPICState, (obj), TYPE_PXA2XX_PIC)
+DECLARE_INSTANCE_CHECKER(PXA2xxPICState, PXA2XX_PIC,
+                         TYPE_PXA2XX_PIC)
 
 struct PXA2xxPICState {
     /*< private >*/

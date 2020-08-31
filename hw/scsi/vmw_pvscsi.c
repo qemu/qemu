@@ -65,12 +65,9 @@ typedef struct PVSCSIClass PVSCSIClass;
 
 #define TYPE_PVSCSI "pvscsi"
 typedef struct PVSCSIState PVSCSIState;
-#define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)
+DECLARE_OBJ_CHECKERS(PVSCSIState, PVSCSIClass,
+                     PVSCSI, TYPE_PVSCSI)
 
-#define PVSCSI_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PVSCSIClass, (klass), TYPE_PVSCSI)
-#define PVSCSI_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PVSCSIClass, (obj), TYPE_PVSCSI)
 
 /* Compatibility flags for migration */
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0

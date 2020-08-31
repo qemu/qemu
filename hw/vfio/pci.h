@@ -116,7 +116,8 @@ typedef struct VFIOMSIXInfo {
 
 #define TYPE_VFIO_PCI "vfio-pci"
 typedef struct VFIOPCIDevice VFIOPCIDevice;
-#define PCI_VFIO(obj)    OBJECT_CHECK(VFIOPCIDevice, obj, TYPE_VFIO_PCI)
+DECLARE_INSTANCE_CHECKER(VFIOPCIDevice, PCI_VFIO,
+                         TYPE_VFIO_PCI)
 
 struct VFIOPCIDevice {
     PCIDevice pdev;

@@ -29,8 +29,8 @@
 #define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
 
 typedef struct SpaprPhbState SpaprPhbState;
-#define SPAPR_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(SpaprPhbState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(SpaprPhbState, SPAPR_PCI_HOST_BRIDGE,
+                         TYPE_SPAPR_PCI_HOST_BRIDGE)
 
 #define SPAPR_PCI_DMA_MAX_WINDOWS    2
 

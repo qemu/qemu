@@ -14,8 +14,8 @@
 
 #define TYPE_ASPEED_SDHCI "aspeed.sdhci"
 typedef struct AspeedSDHCIState AspeedSDHCIState;
-#define ASPEED_SDHCI(obj) OBJECT_CHECK(AspeedSDHCIState, (obj), \
-                                       TYPE_ASPEED_SDHCI)
+DECLARE_INSTANCE_CHECKER(AspeedSDHCIState, ASPEED_SDHCI,
+                         TYPE_ASPEED_SDHCI)
 
 #define ASPEED_SDHCI_CAPABILITIES 0x01E80080
 #define ASPEED_SDHCI_NUM_SLOTS    2

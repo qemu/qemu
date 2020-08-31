@@ -18,7 +18,8 @@
 
 #define TYPE_ASPEED_VIC "aspeed.vic"
 typedef struct AspeedVICState AspeedVICState;
-#define ASPEED_VIC(obj) OBJECT_CHECK(AspeedVICState, (obj), TYPE_ASPEED_VIC)
+DECLARE_INSTANCE_CHECKER(AspeedVICState, ASPEED_VIC,
+                         TYPE_ASPEED_VIC)
 
 #define ASPEED_VIC_NR_IRQS 51
 

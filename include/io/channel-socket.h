@@ -28,8 +28,8 @@
 
 #define TYPE_QIO_CHANNEL_SOCKET "qio-channel-socket"
 typedef struct QIOChannelSocket QIOChannelSocket;
-#define QIO_CHANNEL_SOCKET(obj)                                     \
-    OBJECT_CHECK(QIOChannelSocket, (obj), TYPE_QIO_CHANNEL_SOCKET)
+DECLARE_INSTANCE_CHECKER(QIOChannelSocket, QIO_CHANNEL_SOCKET,
+                         TYPE_QIO_CHANNEL_SOCKET)
 
 
 /**

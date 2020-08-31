@@ -92,8 +92,8 @@ typedef struct vscsi_req {
 
 #define TYPE_VIO_SPAPR_VSCSI_DEVICE "spapr-vscsi"
 typedef struct VSCSIState VSCSIState;
-#define VIO_SPAPR_VSCSI_DEVICE(obj) \
-     OBJECT_CHECK(VSCSIState, (obj), TYPE_VIO_SPAPR_VSCSI_DEVICE)
+DECLARE_INSTANCE_CHECKER(VSCSIState, VIO_SPAPR_VSCSI_DEVICE,
+                         TYPE_VIO_SPAPR_VSCSI_DEVICE)
 
 struct VSCSIState {
     SpaprVioDevice vdev;

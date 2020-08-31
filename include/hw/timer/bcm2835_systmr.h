@@ -15,8 +15,8 @@
 
 #define TYPE_BCM2835_SYSTIMER "bcm2835-sys-timer"
 typedef struct BCM2835SystemTimerState BCM2835SystemTimerState;
-#define BCM2835_SYSTIMER(obj) \
-    OBJECT_CHECK(BCM2835SystemTimerState, (obj), TYPE_BCM2835_SYSTIMER)
+DECLARE_INSTANCE_CHECKER(BCM2835SystemTimerState, BCM2835_SYSTIMER,
+                         TYPE_BCM2835_SYSTIMER)
 
 struct BCM2835SystemTimerState {
     /*< private >*/

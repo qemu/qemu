@@ -27,12 +27,8 @@
 
 typedef struct CRISCPU CRISCPU;
 typedef struct CRISCPUClass CRISCPUClass;
-#define CRIS_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(CRISCPUClass, (klass), TYPE_CRIS_CPU)
-#define CRIS_CPU(obj) \
-    OBJECT_CHECK(CRISCPU, (obj), TYPE_CRIS_CPU)
-#define CRIS_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(CRISCPUClass, (obj), TYPE_CRIS_CPU)
+DECLARE_OBJ_CHECKERS(CRISCPU, CRISCPUClass,
+                     CRIS_CPU, TYPE_CRIS_CPU)
 
 /**
  * CRISCPUClass:

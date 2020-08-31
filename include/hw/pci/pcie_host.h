@@ -26,8 +26,8 @@
 #include "qom/object.h"
 
 #define TYPE_PCIE_HOST_BRIDGE "pcie-host-bridge"
-#define PCIE_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(PCIExpressHost, (obj), TYPE_PCIE_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(PCIExpressHost, PCIE_HOST_BRIDGE,
+                         TYPE_PCIE_HOST_BRIDGE)
 
 #define PCIE_HOST_MCFG_BASE "MCFG"
 #define PCIE_HOST_MCFG_SIZE "mcfg_size"

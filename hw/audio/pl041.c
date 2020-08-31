@@ -79,7 +79,8 @@ typedef struct {
 
 #define TYPE_PL041 "pl041"
 typedef struct PL041State PL041State;
-#define PL041(obj) OBJECT_CHECK(PL041State, (obj), TYPE_PL041)
+DECLARE_INSTANCE_CHECKER(PL041State, PL041,
+                         TYPE_PL041)
 
 struct PL041State {
     SysBusDevice parent_obj;

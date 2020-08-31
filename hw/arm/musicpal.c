@@ -156,8 +156,8 @@ typedef struct mv88w8618_rx_desc {
 
 #define TYPE_MV88W8618_ETH "mv88w8618_eth"
 typedef struct mv88w8618_eth_state mv88w8618_eth_state;
-#define MV88W8618_ETH(obj) \
-    OBJECT_CHECK(mv88w8618_eth_state, (obj), TYPE_MV88W8618_ETH)
+DECLARE_INSTANCE_CHECKER(mv88w8618_eth_state, MV88W8618_ETH,
+                         TYPE_MV88W8618_ETH)
 
 struct mv88w8618_eth_state {
     /*< private >*/
@@ -486,8 +486,8 @@ static const TypeInfo mv88w8618_eth_info = {
 
 #define TYPE_MUSICPAL_LCD "musicpal_lcd"
 typedef struct musicpal_lcd_state musicpal_lcd_state;
-#define MUSICPAL_LCD(obj) \
-    OBJECT_CHECK(musicpal_lcd_state, (obj), TYPE_MUSICPAL_LCD)
+DECLARE_INSTANCE_CHECKER(musicpal_lcd_state, MUSICPAL_LCD,
+                         TYPE_MUSICPAL_LCD)
 
 struct musicpal_lcd_state {
     /*< private >*/
@@ -704,8 +704,8 @@ static const TypeInfo musicpal_lcd_info = {
 
 #define TYPE_MV88W8618_PIC "mv88w8618_pic"
 typedef struct mv88w8618_pic_state mv88w8618_pic_state;
-#define MV88W8618_PIC(obj) \
-    OBJECT_CHECK(mv88w8618_pic_state, (obj), TYPE_MV88W8618_PIC)
+DECLARE_INSTANCE_CHECKER(mv88w8618_pic_state, MV88W8618_PIC,
+                         TYPE_MV88W8618_PIC)
 
 struct mv88w8618_pic_state {
     /*< private >*/
@@ -842,8 +842,8 @@ typedef struct mv88w8618_timer_state {
 
 #define TYPE_MV88W8618_PIT "mv88w8618_pit"
 typedef struct mv88w8618_pit_state mv88w8618_pit_state;
-#define MV88W8618_PIT(obj) \
-    OBJECT_CHECK(mv88w8618_pit_state, (obj), TYPE_MV88W8618_PIT)
+DECLARE_INSTANCE_CHECKER(mv88w8618_pit_state, MV88W8618_PIT,
+                         TYPE_MV88W8618_PIT)
 
 struct mv88w8618_pit_state {
     /*< private >*/
@@ -1010,8 +1010,8 @@ static const TypeInfo mv88w8618_pit_info = {
 
 #define TYPE_MV88W8618_FLASHCFG "mv88w8618_flashcfg"
 typedef struct mv88w8618_flashcfg_state mv88w8618_flashcfg_state;
-#define MV88W8618_FLASHCFG(obj) \
-    OBJECT_CHECK(mv88w8618_flashcfg_state, (obj), TYPE_MV88W8618_FLASHCFG)
+DECLARE_INSTANCE_CHECKER(mv88w8618_flashcfg_state, MV88W8618_FLASHCFG,
+                         TYPE_MV88W8618_FLASHCFG)
 
 struct mv88w8618_flashcfg_state {
     /*< private >*/
@@ -1103,8 +1103,8 @@ struct MusicPalMiscState {
 typedef struct MusicPalMiscState MusicPalMiscState;
 
 #define TYPE_MUSICPAL_MISC "musicpal-misc"
-#define MUSICPAL_MISC(obj) \
-     OBJECT_CHECK(MusicPalMiscState, (obj), TYPE_MUSICPAL_MISC)
+DECLARE_INSTANCE_CHECKER(MusicPalMiscState, MUSICPAL_MISC,
+                         TYPE_MUSICPAL_MISC)
 
 static uint64_t musicpal_misc_read(void *opaque, hwaddr offset,
                                    unsigned size)
@@ -1210,8 +1210,8 @@ static void mv88w8618_wlan_realize(DeviceState *dev, Error **errp)
 
 #define TYPE_MUSICPAL_GPIO "musicpal_gpio"
 typedef struct musicpal_gpio_state musicpal_gpio_state;
-#define MUSICPAL_GPIO(obj) \
-    OBJECT_CHECK(musicpal_gpio_state, (obj), TYPE_MUSICPAL_GPIO)
+DECLARE_INSTANCE_CHECKER(musicpal_gpio_state, MUSICPAL_GPIO,
+                         TYPE_MUSICPAL_GPIO)
 
 struct musicpal_gpio_state {
     /*< private >*/
@@ -1461,8 +1461,8 @@ static const TypeInfo musicpal_gpio_info = {
 
 #define TYPE_MUSICPAL_KEY "musicpal_key"
 typedef struct musicpal_key_state musicpal_key_state;
-#define MUSICPAL_KEY(obj) \
-    OBJECT_CHECK(musicpal_key_state, (obj), TYPE_MUSICPAL_KEY)
+DECLARE_INSTANCE_CHECKER(musicpal_key_state, MUSICPAL_KEY,
+                         TYPE_MUSICPAL_KEY)
 
 struct musicpal_key_state {
     /*< private >*/

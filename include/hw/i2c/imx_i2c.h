@@ -26,7 +26,8 @@
 
 #define TYPE_IMX_I2C "imx.i2c"
 typedef struct IMXI2CState IMXI2CState;
-#define IMX_I2C(obj) OBJECT_CHECK(IMXI2CState, (obj), TYPE_IMX_I2C)
+DECLARE_INSTANCE_CHECKER(IMXI2CState, IMX_I2C,
+                         TYPE_IMX_I2C)
 
 #define IMX_I2C_MEM_SIZE           0x14
 

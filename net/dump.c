@@ -141,8 +141,8 @@ static int net_dump_state_init(DumpState *s, const char *filename,
 #define TYPE_FILTER_DUMP "filter-dump"
 
 typedef struct NetFilterDumpState NetFilterDumpState;
-#define FILTER_DUMP(obj) \
-    OBJECT_CHECK(NetFilterDumpState, (obj), TYPE_FILTER_DUMP)
+DECLARE_INSTANCE_CHECKER(NetFilterDumpState, FILTER_DUMP,
+                         TYPE_FILTER_DUMP)
 
 struct NetFilterDumpState {
     NetFilterState nfs;

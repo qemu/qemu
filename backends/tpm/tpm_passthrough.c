@@ -37,8 +37,8 @@
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 typedef struct TPMPassthruState TPMPassthruState;
-#define TPM_PASSTHROUGH(obj) \
-    OBJECT_CHECK(TPMPassthruState, (obj), TYPE_TPM_PASSTHROUGH)
+DECLARE_INSTANCE_CHECKER(TPMPassthruState, TPM_PASSTHROUGH,
+                         TYPE_TPM_PASSTHROUGH)
 
 /* data structures */
 struct TPMPassthruState {

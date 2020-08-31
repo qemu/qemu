@@ -15,7 +15,8 @@
 
 #define TYPE_RENESAS_TMR "renesas-tmr"
 typedef struct RTMRState RTMRState;
-#define RTMR(obj) OBJECT_CHECK(RTMRState, (obj), TYPE_RENESAS_TMR)
+DECLARE_INSTANCE_CHECKER(RTMRState, RTMR,
+                         TYPE_RENESAS_TMR)
 
 enum timer_event {
     cmia = 0,

@@ -19,6 +19,7 @@ struct IMXGPCv2State {
 typedef struct IMXGPCv2State IMXGPCv2State;
 
 #define TYPE_IMX_GPCV2 "imx-gpcv2"
-#define IMX_GPCV2(obj) OBJECT_CHECK(IMXGPCv2State, (obj), TYPE_IMX_GPCV2)
+DECLARE_INSTANCE_CHECKER(IMXGPCv2State, IMX_GPCV2,
+                         TYPE_IMX_GPCV2)
 
 #endif /* IMX_GPCV2_H */

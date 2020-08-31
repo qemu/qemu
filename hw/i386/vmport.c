@@ -64,7 +64,8 @@
 #define VCPU_INFO_RESERVED_BIT          31
 
 typedef struct VMPortState VMPortState;
-#define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
+DECLARE_INSTANCE_CHECKER(VMPortState, VMPORT,
+                         TYPE_VMPORT)
 
 struct VMPortState {
     ISADevice parent_obj;

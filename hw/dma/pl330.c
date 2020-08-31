@@ -272,7 +272,8 @@ struct PL330State {
 };
 
 #define TYPE_PL330 "pl330"
-#define PL330(obj) OBJECT_CHECK(PL330State, (obj), TYPE_PL330)
+DECLARE_INSTANCE_CHECKER(PL330State, PL330,
+                         TYPE_PL330)
 
 static const VMStateDescription vmstate_pl330 = {
     .name = "pl330",

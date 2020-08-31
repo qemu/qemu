@@ -28,8 +28,8 @@
 
 #define TYPE_SPIKE_MACHINE MACHINE_TYPE_NAME("spike")
 typedef struct SpikeState SpikeState;
-#define SPIKE_MACHINE(obj) \
-    OBJECT_CHECK(SpikeState, (obj), TYPE_SPIKE_MACHINE)
+DECLARE_INSTANCE_CHECKER(SpikeState, SPIKE_MACHINE,
+                         TYPE_SPIKE_MACHINE)
 
 struct SpikeState {
     /*< private >*/

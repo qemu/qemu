@@ -43,7 +43,8 @@ enum {
 };
 
 typedef struct LM32JuartState LM32JuartState;
-#define LM32_JUART(obj) OBJECT_CHECK(LM32JuartState, (obj), TYPE_LM32_JUART)
+DECLARE_INSTANCE_CHECKER(LM32JuartState, LM32_JUART,
+                         TYPE_LM32_JUART)
 
 struct LM32JuartState {
     SysBusDevice parent_obj;

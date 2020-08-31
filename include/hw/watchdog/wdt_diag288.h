@@ -7,12 +7,8 @@
 #define TYPE_WDT_DIAG288 "diag288"
 typedef struct DIAG288Class DIAG288Class;
 typedef struct DIAG288State DIAG288State;
-#define DIAG288(obj) \
-    OBJECT_CHECK(DIAG288State, (obj), TYPE_WDT_DIAG288)
-#define DIAG288_CLASS(klass) \
-    OBJECT_CLASS_CHECK(DIAG288Class, (klass), TYPE_WDT_DIAG288)
-#define DIAG288_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(DIAG288Class, (obj), TYPE_WDT_DIAG288)
+DECLARE_OBJ_CHECKERS(DIAG288State, DIAG288Class,
+                     DIAG288, TYPE_WDT_DIAG288)
 
 #define WDT_DIAG288_INIT      0
 #define WDT_DIAG288_CHANGE    1

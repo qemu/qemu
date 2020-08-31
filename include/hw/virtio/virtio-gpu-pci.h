@@ -24,8 +24,8 @@ typedef struct VirtIOGPUPCIBase VirtIOGPUPCIBase;
  * virtio-gpu-pci-base: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_GPU_PCI_BASE "virtio-gpu-pci-base"
-#define VIRTIO_GPU_PCI_BASE(obj)                                    \
-    OBJECT_CHECK(VirtIOGPUPCIBase, (obj), TYPE_VIRTIO_GPU_PCI_BASE)
+DECLARE_INSTANCE_CHECKER(VirtIOGPUPCIBase, VIRTIO_GPU_PCI_BASE,
+                         TYPE_VIRTIO_GPU_PCI_BASE)
 
 struct VirtIOGPUPCIBase {
     VirtIOPCIProxy parent_obj;

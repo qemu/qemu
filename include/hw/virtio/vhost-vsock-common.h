@@ -17,8 +17,8 @@
 
 #define TYPE_VHOST_VSOCK_COMMON "vhost-vsock-common"
 typedef struct VHostVSockCommon VHostVSockCommon;
-#define VHOST_VSOCK_COMMON(obj) \
-        OBJECT_CHECK(VHostVSockCommon, (obj), TYPE_VHOST_VSOCK_COMMON)
+DECLARE_INSTANCE_CHECKER(VHostVSockCommon, VHOST_VSOCK_COMMON,
+                         TYPE_VHOST_VSOCK_COMMON)
 
 enum {
     VHOST_VSOCK_SAVEVM_VERSION = 0,

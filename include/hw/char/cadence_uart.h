@@ -33,8 +33,8 @@
 
 #define TYPE_CADENCE_UART "cadence_uart"
 typedef struct CadenceUARTState CadenceUARTState;
-#define CADENCE_UART(obj) OBJECT_CHECK(CadenceUARTState, (obj), \
-                                       TYPE_CADENCE_UART)
+DECLARE_INSTANCE_CHECKER(CadenceUARTState, CADENCE_UART,
+                         TYPE_CADENCE_UART)
 
 struct CadenceUARTState {
     /*< private >*/

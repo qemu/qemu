@@ -40,8 +40,8 @@ struct WinStdioChardev {
 };
 typedef struct WinStdioChardev WinStdioChardev;
 
-#define WIN_STDIO_CHARDEV(obj)                                          \
-    OBJECT_CHECK(WinStdioChardev, (obj), TYPE_CHARDEV_WIN_STDIO)
+DECLARE_INSTANCE_CHECKER(WinStdioChardev, WIN_STDIO_CHARDEV,
+                         TYPE_CHARDEV_WIN_STDIO)
 
 static void win_stdio_wait_func(void *opaque)
 {

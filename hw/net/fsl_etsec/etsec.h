@@ -150,8 +150,8 @@ struct eTSEC {
 typedef struct eTSEC eTSEC;
 
 #define TYPE_ETSEC_COMMON "eTSEC"
-#define ETSEC_COMMON(obj) \
-     OBJECT_CHECK(eTSEC, (obj), TYPE_ETSEC_COMMON)
+DECLARE_INSTANCE_CHECKER(eTSEC, ETSEC_COMMON,
+                         TYPE_ETSEC_COMMON)
 
 #define eTSEC_TRANSMIT 1
 #define eTSEC_RECEIVE  2

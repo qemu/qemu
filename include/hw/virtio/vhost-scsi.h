@@ -27,8 +27,8 @@ enum vhost_scsi_vq_list {
 
 #define TYPE_VHOST_SCSI "vhost-scsi"
 typedef struct VHostSCSI VHostSCSI;
-#define VHOST_SCSI(obj) \
-        OBJECT_CHECK(VHostSCSI, (obj), TYPE_VHOST_SCSI)
+DECLARE_INSTANCE_CHECKER(VHostSCSI, VHOST_SCSI,
+                         TYPE_VHOST_SCSI)
 
 struct VHostSCSI {
     VHostSCSICommon parent_obj;

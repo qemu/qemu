@@ -27,12 +27,8 @@
 
 typedef struct MicroBlazeCPU MicroBlazeCPU;
 typedef struct MicroBlazeCPUClass MicroBlazeCPUClass;
-#define MICROBLAZE_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MicroBlazeCPUClass, (klass), TYPE_MICROBLAZE_CPU)
-#define MICROBLAZE_CPU(obj) \
-    OBJECT_CHECK(MicroBlazeCPU, (obj), TYPE_MICROBLAZE_CPU)
-#define MICROBLAZE_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MicroBlazeCPUClass, (obj), TYPE_MICROBLAZE_CPU)
+DECLARE_OBJ_CHECKERS(MicroBlazeCPU, MicroBlazeCPUClass,
+                     MICROBLAZE_CPU, TYPE_MICROBLAZE_CPU)
 
 /**
  * MicroBlazeCPUClass:

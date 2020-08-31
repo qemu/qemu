@@ -12,7 +12,8 @@
 #define ESCC_SIZE 4
 
 typedef struct ESCCState ESCCState;
-#define ESCC(obj) OBJECT_CHECK(ESCCState, (obj), TYPE_ESCC)
+DECLARE_INSTANCE_CHECKER(ESCCState, ESCC,
+                         TYPE_ESCC)
 
 typedef enum {
     escc_chn_a, escc_chn_b,

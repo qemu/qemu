@@ -16,7 +16,8 @@
 
 #define TYPE_ARM11_SCU "arm11-scu"
 typedef struct ARM11SCUState ARM11SCUState;
-#define ARM11_SCU(obj) OBJECT_CHECK(ARM11SCUState, (obj), TYPE_ARM11_SCU)
+DECLARE_INSTANCE_CHECKER(ARM11SCUState, ARM11_SCU,
+                         TYPE_ARM11_SCU)
 
 struct ARM11SCUState {
     /*< private >*/

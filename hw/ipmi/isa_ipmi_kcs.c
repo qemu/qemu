@@ -35,8 +35,8 @@
 
 #define TYPE_ISA_IPMI_KCS "isa-ipmi-kcs"
 typedef struct ISAIPMIKCSDevice ISAIPMIKCSDevice;
-#define ISA_IPMI_KCS(obj) OBJECT_CHECK(ISAIPMIKCSDevice, (obj), \
-                                       TYPE_ISA_IPMI_KCS)
+DECLARE_INSTANCE_CHECKER(ISAIPMIKCSDevice, ISA_IPMI_KCS,
+                         TYPE_ISA_IPMI_KCS)
 
 struct ISAIPMIKCSDevice {
     ISADevice dev;

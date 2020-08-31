@@ -70,7 +70,8 @@ struct MSDState {
 typedef struct MSDState MSDState;
 
 #define TYPE_USB_STORAGE "usb-storage-dev"
-#define USB_STORAGE_DEV(obj) OBJECT_CHECK(MSDState, (obj), TYPE_USB_STORAGE)
+DECLARE_INSTANCE_CHECKER(MSDState, USB_STORAGE_DEV,
+                         TYPE_USB_STORAGE)
 
 struct usb_msd_cbw {
     uint32_t sig;

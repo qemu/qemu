@@ -80,7 +80,8 @@
 
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
 typedef struct XilinxSPI XilinxSPI;
-#define XILINX_SPI(obj) OBJECT_CHECK(XilinxSPI, (obj), TYPE_XILINX_SPI)
+DECLARE_INSTANCE_CHECKER(XilinxSPI, XILINX_SPI,
+                         TYPE_XILINX_SPI)
 
 struct XilinxSPI {
     SysBusDevice parent_obj;

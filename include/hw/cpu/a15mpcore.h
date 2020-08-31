@@ -28,8 +28,8 @@
 
 #define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
 typedef struct A15MPPrivState A15MPPrivState;
-#define A15MPCORE_PRIV(obj) \
-    OBJECT_CHECK(A15MPPrivState, (obj), TYPE_A15MPCORE_PRIV)
+DECLARE_INSTANCE_CHECKER(A15MPPrivState, A15MPCORE_PRIV,
+                         TYPE_A15MPCORE_PRIV)
 
 struct A15MPPrivState {
     /*< private >*/

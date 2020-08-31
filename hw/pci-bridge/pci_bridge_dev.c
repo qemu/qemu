@@ -36,8 +36,8 @@
 #define TYPE_PCI_BRIDGE_DEV      "pci-bridge"
 #define TYPE_PCI_BRIDGE_SEAT_DEV "pci-bridge-seat"
 typedef struct PCIBridgeDev PCIBridgeDev;
-#define PCI_BRIDGE_DEV(obj) \
-    OBJECT_CHECK(PCIBridgeDev, (obj), TYPE_PCI_BRIDGE_DEV)
+DECLARE_INSTANCE_CHECKER(PCIBridgeDev, PCI_BRIDGE_DEV,
+                         TYPE_PCI_BRIDGE_DEV)
 
 struct PCIBridgeDev {
     /*< private >*/

@@ -28,8 +28,8 @@
 
 #define TYPE_QIO_CHANNEL_TLS "qio-channel-tls"
 typedef struct QIOChannelTLS QIOChannelTLS;
-#define QIO_CHANNEL_TLS(obj)                                     \
-    OBJECT_CHECK(QIOChannelTLS, (obj), TYPE_QIO_CHANNEL_TLS)
+DECLARE_INSTANCE_CHECKER(QIOChannelTLS, QIO_CHANNEL_TLS,
+                         TYPE_QIO_CHANNEL_TLS)
 
 
 /**

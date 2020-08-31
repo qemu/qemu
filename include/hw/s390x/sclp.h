@@ -184,9 +184,8 @@ typedef struct SCCB {
 #define TYPE_SCLP "sclp"
 typedef struct SCLPDevice SCLPDevice;
 typedef struct SCLPDeviceClass SCLPDeviceClass;
-#define SCLP(obj) OBJECT_CHECK(SCLPDevice, (obj), TYPE_SCLP)
-#define SCLP_CLASS(oc) OBJECT_CLASS_CHECK(SCLPDeviceClass, (oc), TYPE_SCLP)
-#define SCLP_GET_CLASS(obj) OBJECT_GET_CLASS(SCLPDeviceClass, (obj), TYPE_SCLP)
+DECLARE_OBJ_CHECKERS(SCLPDevice, SCLPDeviceClass,
+                     SCLP, TYPE_SCLP)
 
 struct SCLPEventFacility;
 

@@ -20,10 +20,8 @@
 #define TYPE_MEMORY_DEVICE "memory-device"
 
 typedef struct MemoryDeviceClass MemoryDeviceClass;
-#define MEMORY_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(MemoryDeviceClass, (klass), TYPE_MEMORY_DEVICE)
-#define MEMORY_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MemoryDeviceClass, (obj), TYPE_MEMORY_DEVICE)
+DECLARE_CLASS_CHECKERS(MemoryDeviceClass, MEMORY_DEVICE,
+                       TYPE_MEMORY_DEVICE)
 #define MEMORY_DEVICE(obj) \
      INTERFACE_CHECK(MemoryDeviceState, (obj), TYPE_MEMORY_DEVICE)
 

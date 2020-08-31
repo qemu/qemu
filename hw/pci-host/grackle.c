@@ -36,8 +36,8 @@
 #include "qom/object.h"
 
 typedef struct GrackleState GrackleState;
-#define GRACKLE_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(GrackleState, (obj), TYPE_GRACKLE_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(GrackleState, GRACKLE_PCI_HOST_BRIDGE,
+                         TYPE_GRACKLE_PCI_HOST_BRIDGE)
 
 struct GrackleState {
     PCIHostState parent_obj;

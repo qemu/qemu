@@ -19,8 +19,8 @@
 
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
 typedef struct VHostVSock VHostVSock;
-#define VHOST_VSOCK(obj) \
-        OBJECT_CHECK(VHostVSock, (obj), TYPE_VHOST_VSOCK)
+DECLARE_INSTANCE_CHECKER(VHostVSock, VHOST_VSOCK,
+                         TYPE_VHOST_VSOCK)
 
 typedef struct {
     uint64_t guest_cid;
