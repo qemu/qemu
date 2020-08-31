@@ -39,6 +39,11 @@
 #endif
 #include <libusb.h>
 
+#ifdef CONFIG_LINUX
+#include <sys/ioctl.h>
+#include <linux/usbdevice_fs.h>
+#endif
+
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
@@ -885,6 +890,7 @@ static void usb_host_ep_update(USBHostDevice *s)
 static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
 {
     USBDevice *udev = USB_DEVICE(s);
+    int libusb_speed;
     int bus_num = 0;
     int addr = 0;
     int rc;
@@ -935,7 +941,36 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
     usb_ep_init(udev);
     usb_host_ep_update(s);
 
-    udev->speed     = speed_map[libusb_get_device_speed(dev)];
+    libusb_speed = libusb_get_device_speed(dev);
+#ifdef CONFIG_LINUX
+    if (hostfd && libusb_speed == 0) {
+        /*
+         * Workaround libusb bug: libusb_get_device_speed() does not
+         * work for libusb_wrap_sys_device() devices in v1.0.23.
+         *
+         * Speeds are defined in linux/usb/ch9.h, file not included
+         * due to name conflicts.
+         */
+        int rc = ioctl(hostfd, USBDEVFS_GET_SPEED, NULL);
+        switch (rc) {
+        case 1: /* low */
+            libusb_speed = LIBUSB_SPEED_LOW;
+            break;
+        case 2: /* full */
+            libusb_speed = LIBUSB_SPEED_FULL;
+            break;
+        case 3: /* high */
+        case 4: /* wireless */
+            libusb_speed = LIBUSB_SPEED_HIGH;
+            break;
+        case 5: /* super */
+        case 6: /* super plus */
+            libusb_speed = LIBUSB_SPEED_SUPER;
+            break;
+        }
+    }
+#endif
+    udev->speed = speed_map[libusb_speed];
     usb_host_speed_compat(s);
 
     if (s->ddesc.iProduct) {
