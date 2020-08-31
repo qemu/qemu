@@ -338,15 +338,68 @@ static void encode_cache_cpuid80000006(CPUCacheInfo *l2,
     }
 }
 
+/*
+ * Definitions used for building CPUID Leaf 0x8000001D and 0x8000001E
+ * Please refer to the AMD64 Architecture Programmer’s Manual Volume 3.
+ * Define the constants to build the cpu topology. Right now, TOPOEXT
+ * feature is enabled only on EPYC. So, these constants are based on
+ * EPYC supported configurations. We may need to handle the cases if
+ * these values change in future.
+ */
+/* Maximum core complexes in a node */
+#define MAX_CCX 2
+/* Maximum cores in a core complex */
+#define MAX_CORES_IN_CCX 4
+/* Maximum cores in a node */
+#define MAX_CORES_IN_NODE 8
+/* Maximum nodes in a socket */
+#define MAX_NODES_PER_SOCKET 4
+
+/*
+ * Figure out the number of nodes required to build this config.
+ * Max cores in a node is 8
+ */
+static int nodes_in_socket(int nr_cores)
+{
+    int nodes;
+
+    nodes = DIV_ROUND_UP(nr_cores, MAX_CORES_IN_NODE);
+
+   /* Hardware does not support config with 3 nodes, return 4 in that case */
+    return (nodes == 3) ? 4 : nodes;
+}
+
+/*
+ * Decide the number of cores in a core complex with the given nr_cores using
+ * following set constants MAX_CCX, MAX_CORES_IN_CCX, MAX_CORES_IN_NODE and
+ * MAX_NODES_PER_SOCKET. Maintain symmetry as much as possible
+ * L3 cache is shared across all cores in a core complex. So, this will also
+ * tell us how many cores are sharing the L3 cache.
+ */
+static int cores_in_core_complex(int nr_cores)
+{
+    int nodes;
+
+    /* Check if we can fit all the cores in one core complex */
+    if (nr_cores <= MAX_CORES_IN_CCX) {
+        return nr_cores;
+    }
+    /* Get the number of nodes required to build this config */
+    nodes = nodes_in_socket(nr_cores);
+
+    /*
+     * Divide the cores accros all the core complexes
+     * Return rounded up value
+     */
+    return DIV_ROUND_UP(nr_cores, nodes * MAX_CCX);
+}
+
 /* Encode cache info for CPUID[8000001D] */
-static void encode_cache_cpuid8000001d(CPUCacheInfo *cache,
-                                       X86CPUTopoInfo *topo_info,
-                                       uint32_t *eax, uint32_t *ebx,
-                                       uint32_t *ecx, uint32_t *edx)
+static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
+                                uint32_t *eax, uint32_t *ebx,
+                                uint32_t *ecx, uint32_t *edx)
 {
     uint32_t l3_cores;
-    unsigned nodes = MAX(topo_info->nodes_per_pkg, 1);
-
     assert(cache->size == cache->line_size * cache->associativity *
                           cache->partitions * cache->sets);
 
@@ -355,13 +408,10 @@ static void encode_cache_cpuid8000001d(CPUCacheInfo *cache,
 
     /* L3 is shared among multiple cores */
     if (cache->level == 3) {
-        l3_cores = DIV_ROUND_UP((topo_info->dies_per_pkg *
-                                 topo_info->cores_per_die *
-                                 topo_info->threads_per_core),
-                                 nodes);
-        *eax |= (l3_cores - 1) << 14;
+        l3_cores = cores_in_core_complex(cs->nr_cores);
+        *eax |= ((l3_cores * cs->nr_threads) - 1) << 14;
     } else {
-        *eax |= ((topo_info->threads_per_core - 1) << 14);
+        *eax |= ((cs->nr_threads - 1) << 14);
     }
 
     assert(cache->line_size > 0);
@@ -381,17 +431,55 @@ static void encode_cache_cpuid8000001d(CPUCacheInfo *cache,
            (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
 }
 
+/* Data structure to hold the configuration info for a given core index */
+struct core_topology {
+    /* core complex id of the current core index */
+    int ccx_id;
+    /*
+     * Adjusted core index for this core in the topology
+     * This can be 0,1,2,3 with max 4 cores in a core complex
+     */
+    int core_id;
+    /* Node id for this core index */
+    int node_id;
+    /* Number of nodes in this config */
+    int num_nodes;
+};
+
+/*
+ * Build the configuration closely match the EPYC hardware. Using the EPYC
+ * hardware configuration values (MAX_CCX, MAX_CORES_IN_CCX, MAX_CORES_IN_NODE)
+ * right now. This could change in future.
+ * nr_cores : Total number of cores in the config
+ * core_id  : Core index of the current CPU
+ * topo     : Data structure to hold all the config info for this core index
+ */
+static void build_core_topology(int nr_cores, int core_id,
+                                struct core_topology *topo)
+{
+    int nodes, cores_in_ccx;
+
+    /* First get the number of nodes required */
+    nodes = nodes_in_socket(nr_cores);
+
+    cores_in_ccx = cores_in_core_complex(nr_cores);
+
+    topo->node_id = core_id / (cores_in_ccx * MAX_CCX);
+    topo->ccx_id = (core_id % (cores_in_ccx * MAX_CCX)) / cores_in_ccx;
+    topo->core_id = core_id % cores_in_ccx;
+    topo->num_nodes = nodes;
+}
+
 /* Encode cache info for CPUID[8000001E] */
-static void encode_topo_cpuid8000001e(X86CPUTopoInfo *topo_info, X86CPU *cpu,
+static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
                                        uint32_t *eax, uint32_t *ebx,
                                        uint32_t *ecx, uint32_t *edx)
 {
-    X86CPUTopoIDs topo_ids = {0};
-    unsigned long nodes = MAX(topo_info->nodes_per_pkg, 1);
+    struct core_topology topo = {0};
+    unsigned long nodes;
     int shift;
 
-    x86_topo_ids_from_apicid_epyc(cpu->apic_id, topo_info, &topo_ids);
-
+    build_core_topology(cs->nr_cores, cpu->core_id, &topo);
     *eax = cpu->apic_id;
     /*
      * CPUID_Fn8000001E_EBX
@@ -408,8 +496,12 @@ static void encode_topo_cpuid8000001e(X86CPUTopoInfo *topo_info, X86CPU *cpu,
      *             3 Core complex id
      *           1:0 Core id
      */
-    *ebx = ((topo_info->threads_per_core - 1) << 8) | (topo_ids.node_id << 3) |
-            (topo_ids.core_id);
+    if (cs->nr_threads - 1) {
+        *ebx = ((cs->nr_threads - 1) << 8) | (topo.node_id << 3) |
+                (topo.ccx_id << 2) | topo.core_id;
+    } else {
+        *ebx = (topo.node_id << 4) | (topo.ccx_id << 3) | topo.core_id;
+    }
     /*
      * CPUID_Fn8000001E_ECX
      * 31:11 Reserved
@@ -418,8 +510,9 @@ static void encode_topo_cpuid8000001e(X86CPUTopoInfo *topo_info, X86CPU *cpu,
      *         2  Socket id
      *       1:0  Node id
      */
-    if (nodes <= 4) {
-        *ecx = ((nodes - 1) << 8) | (topo_ids.pkg_id << 2) | topo_ids.node_id;
+    if (topo.num_nodes <= 4) {
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << 2) |
+                topo.node_id;
     } else {
         /*
          * Node id fix up. Actual hardware supports up to 4 nodes. But with
@@ -434,10 +527,10 @@ static void encode_topo_cpuid8000001e(X86CPUTopoInfo *topo_info, X86CPU *cpu,
          * number of nodes. find_last_bit returns last set bit(0 based). Left
          * shift(+1) the socket id to represent all the nodes.
          */
-        nodes -= 1;
+        nodes = topo.num_nodes - 1;
         shift = find_last_bit(&nodes, 8);
-        *ecx = (nodes << 8) | (topo_ids.pkg_id << (shift + 1)) |
-               topo_ids.node_id;
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << (shift + 1)) |
+                topo.node_id;
     }
     *edx = 0;
 }
@@ -5471,7 +5564,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t signature[3];
     X86CPUTopoInfo topo_info;
 
-    topo_info.nodes_per_pkg = env->nr_nodes;
     topo_info.dies_per_pkg = env->nr_dies;
     topo_info.cores_per_die = cs->nr_cores;
     topo_info.threads_per_core = cs->nr_threads;
@@ -5902,20 +5994,20 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         switch (count) {
         case 0: /* L1 dcache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache, cs,
+                                       eax, ebx, ecx, edx);
             break;
         case 1: /* L1 icache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache, cs,
+                                       eax, ebx, ecx, edx);
             break;
         case 2: /* L2 cache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+            encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache, cs,
+                                       eax, ebx, ecx, edx);
             break;
         case 3: /* L3 cache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache, cs,
+                                       eax, ebx, ecx, edx);
             break;
         default: /* end of info */
             *eax = *ebx = *ecx = *edx = 0;
@@ -5924,7 +6016,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x8000001E:
         assert(cpu->core_id <= 255);
-        encode_topo_cpuid8000001e(&topo_info, cpu, eax, ebx, ecx, edx);
+        encode_topo_cpuid8000001e(cs, cpu,
+                                  eax, ebx, ecx, edx);
         break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
