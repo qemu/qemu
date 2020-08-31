@@ -1638,10 +1638,6 @@ typedef struct X86CPUDefinition {
     FeatureWordArray features;
     const char *model_id;
     CPUCaches *cache_info;
-
-    /* Use AMD EPYC encoding for apic id */
-    bool use_epyc_apic_id_encoding;
-
     /*
      * Definitions for alternative versions of CPU model.
      * List is terminated by item with version == 0.
@@ -1681,18 +1677,6 @@ static const X86CPUVersionDefinition *x86_cpu_def_get_versions(X86CPUDefinition 
     };
 
     return def->versions ?: default_version_list;
-}
-
-bool cpu_x86_use_epyc_apic_id_encoding(const char *cpu_type)
-{
-    X86CPUClass *xcc = X86_CPU_CLASS(object_class_by_name(cpu_type));
-
-    assert(xcc);
-    if (xcc->model && xcc->model->cpudef) {
-        return xcc->model->cpudef->use_epyc_apic_id_encoding;
-    } else {
-        return false;
-    }
 }
 
 static CPUCaches epyc_cache_info = {
