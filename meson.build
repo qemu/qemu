@@ -104,8 +104,11 @@ elif targetos == 'haiku'
             cc.find_library('network'),
             cc.find_library('bsd')]
 endif
-glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
-                          link_args: config_host['GLIB_LIBS'].split())
+# The path to glib.h is added to all compilation commands.  This was
+# grandfathered in from the QEMU Makefiles.
+add_project_arguments(config_host['GLIB_CFLAGS'].split(),
+                      native: false, language: ['c', 'cpp', 'objc'])
+glib = declare_dependency(link_args: config_host['GLIB_LIBS'].split())
 gio = not_found
 if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),

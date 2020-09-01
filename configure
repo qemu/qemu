@@ -3761,23 +3761,22 @@ if test "$plugins" = yes; then
     glib_modules="$glib_modules gmodule-2.0"
 fi
 
-# This workaround is required due to a bug in pkg-config file for glib as it
-# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
-
-if test "$static" = yes && test "$mingw32" = yes; then
-    QEMU_CFLAGS="-DGLIB_STATIC_COMPILATION $QEMU_CFLAGS"
-fi
-
 for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=$($pkg_config --cflags $i)
         glib_libs=$($pkg_config --libs $i)
-        QEMU_CFLAGS="$glib_cflags $QEMU_CFLAGS"
         LIBS="$glib_libs $LIBS"
     else
         error_exit "glib-$glib_req_ver $i is required to compile QEMU"
     fi
 done
+
+# This workaround is required due to a bug in pkg-config file for glib as it
+# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
+
+if test "$static" = yes && test "$mingw32" = yes; then
+    glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
+fi
 
 if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     gio=yes
@@ -3813,7 +3812,7 @@ int main(void) {
 }
 EOF
 
-if ! compile_prog "$CFLAGS" "$LIBS" ; then
+if ! compile_prog "$glib_cflags" "$glib_libs" ; then
     error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
                "You probably need to set PKG_CONFIG_LIBDIR"\
 	       "to point to the right pkg-config files for your"\
@@ -3828,7 +3827,7 @@ EOF
 if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unknown-attributes"; then
         glib_cflags="-Wno-unknown-attributes $glib_cflags"
-        QEMU_CFLAGS="-Wno-unknown-attributes $CFLAGS"
+        CFLAGS="-Wno-unknown-attributes $CFLAGS"
     fi
 fi
 
