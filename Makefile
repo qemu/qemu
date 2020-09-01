@@ -54,13 +54,6 @@ export NINJA=./ninjatool
 # enough to prime the rest of the build.
 ninjatool: build.ninja
 
-# Only needed in case Makefile.ninja does not exist.
-.PHONY: ninja-clean ninja-distclean clean-ctlist
-clean-ctlist:
-ninja-clean::
-ninja-distclean::
-build.ninja: config-host.mak
-
 Makefile.ninja: build.ninja ninjatool
 	./ninjatool -t ninja2make --omit clean dist uninstall cscope TAGS ctags < $< > $@
 -include Makefile.ninja
@@ -114,6 +107,13 @@ ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fa
 	@exit 1
 endif
 endif
+
+# Only needed in case Makefile.ninja does not exist.
+.PHONY: ninja-clean ninja-distclean clean-ctlist
+clean-ctlist:
+ninja-clean::
+ninja-distclean::
+build.ninja: config-host.mak
 
 include $(SRC_PATH)/rules.mak
 
@@ -195,7 +195,7 @@ recurse-clean: $(addsuffix /clean, $(ROM_DIRS))
 ######################################################################
 
 clean: recurse-clean ninja-clean clean-ctlist
-	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean
+	if test -f ninjatool; then ./ninjatool $(if $(V),-v,) -t clean; fi
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	find . \( -name '*.so' -o -name '*.dll' -o -name '*.[oda]' \) -type f \
