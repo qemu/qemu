@@ -192,36 +192,6 @@ has() {
     type "$1" >/dev/null 2>&1
 }
 
-# search for an executable in PATH
-path_of() {
-    local_command="$1"
-    local_ifs="$IFS"
-    local_dir=""
-
-    # pathname has a dir component?
-    if [ "${local_command#*/}" != "$local_command" ]; then
-        if [ -x "$local_command" ] && [ ! -d "$local_command" ]; then
-            echo "$local_command"
-            return 0
-        fi
-    fi
-    if [ -z "$local_command" ]; then
-        return 1
-    fi
-
-    IFS=:
-    for local_dir in $PATH; do
-        if [ -x "$local_dir/$local_command" ] && [ ! -d "$local_dir/$local_command" ]; then
-            echo "$local_dir/$local_command"
-            IFS="${local_ifs:-$(printf ' \t\n')}"
-            return 0
-        fi
-    done
-    # not found
-    IFS="${local_ifs:-$(printf ' \t\n')}"
-    return 1
-}
-
 version_ge () {
     local_ver1=`echo $1 | tr . ' '`
     local_ver2=`echo $2 | tr . ' '`
@@ -912,7 +882,6 @@ Darwin)
 SunOS)
   solaris="yes"
   make="${MAKE-gmake}"
-  install="${INSTALL-ginstall}"
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   if test -f /usr/include/sys/soundcard.h ; then
     audio_drv_list="oss try-sdl"
@@ -948,7 +917,7 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 : ${make=${MAKE-make}}
-: ${install=${INSTALL-install}}
+
 # We prefer python 3.x. A bare 'python' is traditionally
 # python 2.x, but some distros have it as python 3.x, so
 # we check that too
@@ -1035,7 +1004,7 @@ for opt do
   ;;
   --make=*) make="$optarg"
   ;;
-  --install=*) install="$optarg"
+  --install=*)
   ;;
   --python=*) python="$optarg" ; explicit_python=yes
   ;;
@@ -1816,7 +1785,6 @@ Advanced options (experts only):
   --cross-cc-ARCH=CC       use compiler when building ARCH guest test cases
   --cross-cc-flags-ARCH=   use compiler flags when building ARCH guest tests
   --make=MAKE              use specified make [$make]
-  --install=INSTALL        use specified install [$install]
   --python=PYTHON          use specified python [$python]
   --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
   --meson=MESON            use specified meson [$meson]
@@ -2334,18 +2302,6 @@ fi
 # Solaris specific configure tool chain decisions
 
 if test "$solaris" = "yes" ; then
-  if has $install; then
-    :
-  else
-    error_exit "Solaris install program not found. Use --install=/usr/ucb/install or" \
-        "install fileutils from www.blastwave.org using pkg-get -i fileutils" \
-        "to get ginstall which is used by default (which lives in /opt/csw/bin)"
-  fi
-  if test "$(path_of $install)" = "/usr/sbin/install" ; then
-    error_exit "Solaris /usr/sbin/install is not an appropriate install program." \
-        "try ginstall from the GNU fileutils available from www.blastwave.org" \
-        "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
-  fi
   if has ar; then
     :
   else
@@ -7493,11 +7449,6 @@ fi
 
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
-echo "INSTALL=$install" >> $config_host_mak
-echo "INSTALL_DIR=$install -d -m 0755" >> $config_host_mak
-echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
-echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
-echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "SPHINX_BUILD=$sphinx_build" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak

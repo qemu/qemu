@@ -136,10 +136,6 @@ developers in checking for system features:
    Determine if $COMMAND exists in the current environment, either as a
    shell builtin, or executable binary, returning 0 on success.
 
-`path_of $COMMAND`
-   Return the fully qualified path of $COMMAND, printing it to stdout,
-   and returning 0 on success.
-
 `check_define $NAME`
    Determine if the macro $NAME is defined by the system C compiler
 
