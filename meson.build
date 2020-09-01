@@ -211,6 +211,10 @@ libmpathpersist = not_found
 if config_host.has_key('CONFIG_MPATH')
   libmpathpersist = cc.find_library('mpathpersist')
 endif
+libdl = not_found
+if 'CONFIG_PLUGIN' in config_host
+  libdl = cc.find_library('dl', required: true)
+endif
 libiscsi = not_found
 if 'CONFIG_LIBISCSI' in config_host
   libiscsi = declare_dependency(compile_args: config_host['LIBISCSI_CFLAGS'].split(),

@@ -7463,7 +7463,6 @@ fi
 
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
-    LIBS="-ldl $LIBS"
     # Copy the export object list to the build dir
     if test "$ld_dynamic_list" = "yes" ; then
 	echo "CONFIG_HAS_LD_DYNAMIC_LIST=yes" >> $config_host_mak
