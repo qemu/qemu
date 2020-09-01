@@ -33,14 +33,27 @@
 /* Configuration Register */
 #define R_CONF            (0x04 / 4)
 
+/* Interrupt control/status */
+#define R_ISR             (0x50 / 4)
+
 /* Control/Status Register #1 (ast2500) */
 #define R_STATUS1         (0x60 / 4)
 #define   PHY_BUSY_STATE      BIT(0)
 #define   PHY_PLL_LOCK_STATUS BIT(4)
 
+/* Reserved */
+#define R_MCR6C           (0x6c / 4)
+
 #define R_ECC_TEST_CTRL   (0x70 / 4)
 #define   ECC_TEST_FINISHED   BIT(12)
 #define   ECC_TEST_FAIL       BIT(13)
+
+#define R_TEST_START_LEN  (0x74 / 4)
+#define R_TEST_FAIL_DQ    (0x78 / 4)
+#define R_TEST_INIT_VAL   (0x7c / 4)
+#define R_DRAM_SW         (0x88 / 4)
+#define R_DRAM_TIME       (0x8c / 4)
+#define R_ECC_ERR_INJECT  (0xb4 / 4)
 
 /*
  * Configuration register Ox4 (for Aspeed AST2400 SOC)
@@ -449,6 +462,20 @@ static uint32_t aspeed_2600_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 static void aspeed_2600_sdmc_write(AspeedSDMCState *s, uint32_t reg,
                                    uint32_t data)
 {
+    /* Unprotected registers */
+    switch (reg) {
+    case R_ISR:
+    case R_MCR6C:
+    case R_TEST_START_LEN:
+    case R_TEST_FAIL_DQ:
+    case R_TEST_INIT_VAL:
+    case R_DRAM_SW:
+    case R_DRAM_TIME:
+    case R_ECC_ERR_INJECT:
+        s->regs[reg] = data;
+        return;
+    }
+
     if (s->regs[R_PROT] == PROT_HARDLOCKED) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: SDMC is locked until system reset!\n",
                 __func__);
