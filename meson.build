@@ -1102,7 +1102,6 @@ if have_tools
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [block, qemuutil], install: true)
-  qemu_block_tools += [qemu_img, qemu_io, qemu_nbd]
 
   subdir('storage-daemon')
   subdir('contrib/rdmacm-mux')
