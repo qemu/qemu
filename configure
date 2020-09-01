@@ -303,7 +303,7 @@ sdl_image="auto"
 virtfs=""
 mpath="auto"
 vnc="enabled"
-sparse="no"
+sparse="auto"
 vde=""
 vnc_sasl="auto"
 vnc_jpeg="auto"
@@ -1040,9 +1040,9 @@ for opt do
   ;;
   --disable-tsan) tsan="no"
   ;;
-  --enable-sparse) sparse="yes"
+  --enable-sparse) sparse="enabled"
   ;;
-  --disable-sparse) sparse="no"
+  --disable-sparse) sparse="disabled"
   ;;
   --disable-strip) strip_opt="no"
   ;;
@@ -2872,19 +2872,6 @@ if test "$gettext" != "false" ; then
       feature_not_found "gettext" "Install xgettext binary"
     fi
     gettext=false
-  fi
-fi
-
-##########################################
-# Sparse probe
-if test "$sparse" != "no" ; then
-  if has sparse; then
-    sparse=yes
-  else
-    if test "$sparse" = "yes" ; then
-      feature_not_found "sparse" "Install sparse binary"
-    fi
-    sparse=no
   fi
 fi
 
@@ -7127,9 +7114,6 @@ echo "QEMU_CXXFLAGS=$QEMU_CXXFLAGS" >> $config_host_mak
 echo "QEMU_INCLUDES=$QEMU_INCLUDES" >> $config_host_mak
 echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
-if test "$sparse" = "yes" ; then
-  echo "SPARSE_CFLAGS = -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
-fi
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
@@ -7382,7 +7366,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-	-Dmalloc=$malloc -Dmalloc_trim=$malloc_trim \
+	-Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
 	-Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf \
 	-Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \

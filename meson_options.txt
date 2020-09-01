@@ -5,6 +5,8 @@ option('docdir', type : 'string', value : 'doc',
 
 option('gettext', type : 'boolean', value : true,
        description: 'Localization of the GTK+ user interface')
+option('sparse', type : 'feature', value : 'auto',
+       description: 'sparse checker')
 
 option('malloc_trim', type : 'feature', value : 'auto',
        description: 'enable libc malloc_trim() for memory optimization')

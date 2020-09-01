@@ -102,11 +102,13 @@ if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
 endif
 
-if 'SPARSE_CFLAGS' in config_host
+sparse = find_program('cgcc', required: get_option('sparse'))
+if sparse.found()
   run_target('sparse',
              command: [find_program('scripts/check_sparse.py'),
-                       config_host['SPARSE_CFLAGS'].split(),
-                       'compile_commands.json'])
+                       'compile_commands.json', sparse.full_path(), '-Wbitwise',
+                       '-Wno-transparent-union', '-Wno-old-initializer',
+                       '-Wno-non-pointer-null'])
 endif
 
 ###########################################
@@ -1557,7 +1559,7 @@ summary_info += {'host CPU':          cpu}
 summary_info += {'host endianness':   build_machine.endian()}
 summary_info += {'target list':       ' '.join(target_dirs)}
 summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
-summary_info += {'sparse enabled':    meson.get_compiler('c').cmd_array().contains('cgcc')}
+summary_info += {'sparse enabled':    sparse.found()}
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
