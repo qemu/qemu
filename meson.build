@@ -307,7 +307,8 @@ if 'CONFIG_AUDIO_COREAUDIO' in config_host
 endif
 opengl = not_found
 if 'CONFIG_OPENGL' in config_host
-  opengl = declare_dependency(link_args: config_host['OPENGL_LIBS'].split())
+  opengl = declare_dependency(compile_args: config_host['OPENGL_CFLAGS'].split(),
+                              link_args: config_host['OPENGL_LIBS'].split())
 else
 endif
 gtk = not_found

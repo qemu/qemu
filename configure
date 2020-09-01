@@ -7054,6 +7054,7 @@ fi
 
 if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
+  echo "OPENGL_CFLAGS=$opengl_cflags" >> $config_host_mak
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
   if test "$opengl_dmabuf" = "yes" ; then
     echo "CONFIG_OPENGL_DMABUF=y" >> $config_host_mak
