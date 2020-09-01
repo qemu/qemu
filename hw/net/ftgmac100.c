@@ -547,9 +547,7 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
             qemu_send_packet(qemu_get_queue(s->nic), s->frame, frame_size);
             ptr = s->frame;
             frame_size = 0;
-            if (flags & FTGMAC100_TXDES1_TXIC) {
-                s->isr |= FTGMAC100_INT_XPKT_ETH;
-            }
+            s->isr |= FTGMAC100_INT_XPKT_ETH;
         }
 
         if (flags & FTGMAC100_TXDES1_TX2FIC) {
