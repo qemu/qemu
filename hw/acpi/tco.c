@@ -15,17 +15,6 @@
 #include "hw/acpi/tco.h"
 #include "trace.h"
 
-//#define DEBUG
-
-#ifdef DEBUG
-#define TCO_DEBUG(fmt, ...)                                     \
-    do {                                                        \
-        fprintf(stderr, "%s "fmt, __func__, ## __VA_ARGS__);    \
-    } while (0)
-#else
-#define TCO_DEBUG(fmt, ...) do { } while (0)
-#endif
-
 enum {
     TCO_RLD_DEFAULT         = 0x0000,
     TCO_DAT_IN_DEFAULT      = 0x00,
