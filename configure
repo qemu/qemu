@@ -833,7 +833,6 @@ FreeBSD)
   audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl pa"
   # needed for kinfo_getvmmap(3) in libutil.h
-  LIBS="-lutil $LIBS"
   netmap=""  # enable netmap autodetect
   HOST_VARIANT_DIR="freebsd"
 ;;
@@ -891,13 +890,10 @@ SunOS)
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-  solarisnetlibs="-lsocket -lnsl -lresolv"
-  LIBS="$solarisnetlibs $LIBS"
 ;;
 Haiku)
   haiku="yes"
   QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -DBSD_SOURCE $QEMU_CFLAGS"
-  LIBS="-lposix_error_mapper -lnetwork -lbsd $LIBS"
 ;;
 Linux)
   audio_drv_list="try-pa oss"
@@ -967,11 +963,7 @@ if test "$mingw32" = "yes" ; then
   HOST_DSOSUF=".dll"
   # MinGW needs -mthreads for TLS and macro _MT.
   CFLAGS="-mthreads $CFLAGS"
-  LIBS="-lwinmm -lws2_32 $LIBS"
   write_c_skeleton;
-  if compile_prog "" "-liberty" ; then
-    LIBS="-liberty $LIBS"
-  fi
   prefix="c:/Program Files/QEMU"
   qemu_suffix=""
   libs_qga="-lws2_32 -lwinmm -lpowrprof -lwtsapi32 -lwininet -liphlpapi -lnetapi32 $libs_qga"
@@ -2692,7 +2684,6 @@ if test "$xen" != "no" ; then
     if $pkg_config --exists xentoolcore; then
       xen_pc="$xen_pc xentoolcore"
     fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags $xen_pc)"
     xen_cflags="$($pkg_config --cflags $xen_pc)"
     xen_libs="$($pkg_config --libs $xen_pc)"
   else
@@ -3077,8 +3068,6 @@ if test "$gnutls" != "no"; then
         # At least ubuntu 18.04 ships only shared libraries.
         write_c_skeleton
         if compile_prog "" "$gnutls_libs" ; then
-            LIBS="$gnutls_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
             pass="yes"
         fi
     fi
@@ -3148,8 +3137,6 @@ if test "$nettle" != "no"; then
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$nettle_libs" ; then
-            LIBS="$nettle_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
             if test -z "$gcrypt"; then
                gcrypt="no"
             fi
@@ -3192,8 +3179,6 @@ if test "$gcrypt" != "no"; then
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$gcrypt_libs" ; then
-            LIBS="$gcrypt_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
             pass="yes"
         fi
     fi
@@ -3765,7 +3750,6 @@ for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=$($pkg_config --cflags $i)
         glib_libs=$($pkg_config --libs $i)
-        LIBS="$glib_libs $LIBS"
     else
         error_exit "glib-$glib_req_ver $i is required to compile QEMU"
     fi
@@ -4075,11 +4059,6 @@ if test "$linux_io_uring" != "no" ; then
     linux_io_uring_cflags=$($pkg_config --cflags liburing)
     linux_io_uring_libs=$($pkg_config --libs liburing)
     linux_io_uring=yes
-
-    # io_uring is used in libqemuutil.a where per-file -libs variables are not
-    # seen by programs linking the archive.  It's not ideal, but just add the
-    # library dependency globally.
-    LIBS="$linux_io_uring_libs $LIBS"
   else
     if test "$linux_io_uring" = "yes" ; then
       feature_not_found "linux io_uring" "Install liburing devel"
@@ -4124,7 +4103,6 @@ EOF
   elif compile_prog "-DCONFIG_LIBATTR" "-lattr" ; then
     attr=yes
     libattr_libs="-lattr"
-    LIBS="$libattr_libs $LIBS"
     libattr=yes
   else
     if test "$attr" = "yes" ; then
@@ -4244,7 +4222,6 @@ if test "$opengl" != "no" ; then
     if test "$gtk" = "yes" && $pkg_config --exists "$gtkpackage >= 3.16"; then
         gtk_gl="yes"
     fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $opengl_cflags"
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
@@ -4999,7 +4976,6 @@ EOF
      $pkg_config --atleast-version=0.12.3 spice-protocol && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
-    QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
   else
     if test "$spice" = "yes" ; then
       feature_not_found "spice" \
@@ -5182,7 +5158,6 @@ case "$capstone" in
       git_submodules="${git_submodules} capstone"
     fi
     mkdir -p capstone
-    QEMU_CFLAGS="$QEMU_CFLAGS -I${source_path}/capstone/include"
     if test "$mingw32" = "yes"; then
       LIBCAPSTONE=capstone.lib
     else
@@ -5195,7 +5170,6 @@ case "$capstone" in
   system)
     capstone_libs="$($pkg_config --libs capstone)"
     capstone_cflags="$($pkg_config --cflags capstone)"
-    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
     ;;
 
   no)
@@ -5344,8 +5318,6 @@ EOF
     else
       urcu_bp_libs="-lurcu-bp"
     fi
-
-    LIBS="$lttng_ust_libs $urcu_bp_libs $LIBS"
   else
     error_exit "Trace backend 'ust' missing lttng-ust header files"
   fi
@@ -6126,7 +6098,6 @@ if test "$libpmem" != "no"; then
 		libpmem="yes"
 		libpmem_libs=$($pkg_config --libs libpmem)
 		libpmem_cflags=$($pkg_config --cflags libpmem)
-		QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
 	else
 		if test "$libpmem" = "yes" ; then
 			feature_not_found "libpmem" "Install nvml or pmdk"
@@ -6143,7 +6114,6 @@ if test "$libdaxctl" != "no"; then
 		libdaxctl="yes"
 		libdaxctl_libs=$($pkg_config --libs libdaxctl)
 		libdaxctl_cflags=$($pkg_config --cflags libdaxctl)
-		QEMU_CFLAGS="$QEMU_CFLAGS $libdaxctl_cflags"
 	else
 		if test "$libdaxctl" = "yes" ; then
 			feature_not_found "libdaxctl" "Install libdaxctl"
@@ -6324,11 +6294,6 @@ if test "$libudev" != "no" ; then
   else
     libudev="no"
   fi
-fi
-
-# Now we've finished running tests it's OK to add -Werror to the compiler flags
-if test "$werror" = "yes"; then
-    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 # Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
@@ -6546,10 +6511,6 @@ echo_version() {
         echo "($2)"
     fi
 }
-
-# prepend ftd flags after all config tests are done
-QEMU_CFLAGS="$fdt_cflags $QEMU_CFLAGS"
-QEMU_LDFLAGS="$fdt_ldflags $QEMU_LDFLAGS"
 
 config_host_mak="config-host.mak"
 
@@ -7485,7 +7446,6 @@ echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "LD_REL_FLAGS=$LD_REL_FLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
-echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "PTHREAD_LIB=$PTHREAD_LIB" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
