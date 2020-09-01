@@ -649,10 +649,8 @@ static uint32_t ftgmac100_rxpoll(FTGMAC100State *s)
     return cnt / div[speed];
 }
 
-static void ftgmac100_reset(DeviceState *d)
+static void ftgmac100_do_reset(FTGMAC100State *s, bool sw_reset)
 {
-    FTGMAC100State *s = FTGMAC100(d);
-
     /* Reset the FTGMAC100 */
     s->isr = 0;
     s->ier = 0;
@@ -671,13 +669,23 @@ static void ftgmac100_reset(DeviceState *d)
     s->fear1 = 0;
     s->tpafcr = 0xf1;
 
-    s->maccr = 0;
+    if (sw_reset) {
+        s->maccr &= FTGMAC100_MACCR_GIGA_MODE | FTGMAC100_MACCR_FAST_MODE;
+    } else {
+        s->maccr = 0;
+    }
+
     s->phycr = 0;
     s->phydata = 0;
     s->fcr = 0x400;
 
     /* and the PHY */
     phy_reset(s);
+}
+
+static void ftgmac100_reset(DeviceState *d)
+{
+    ftgmac100_do_reset(FTGMAC100(d), false);
 }
 
 static uint64_t ftgmac100_read(void *opaque, hwaddr addr, unsigned size)
@@ -824,7 +832,7 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
     case FTGMAC100_MACCR: /* MAC Device control */
         s->maccr = value;
         if (value & FTGMAC100_MACCR_SW_RST) {
-            ftgmac100_reset(DEVICE(s));
+            ftgmac100_do_reset(s, true);
         }
 
         if (ftgmac100_can_receive(qemu_get_queue(s->nic))) {
