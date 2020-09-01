@@ -236,6 +236,11 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val)
 #define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
 
 #define VFP_BINOP(name) \
+dh_ctype_f16 VFP_HELPER(name, h)(dh_ctype_f16 a, dh_ctype_f16 b, void *fpstp) \
+{ \
+    float_status *fpst = fpstp; \
+    return float16_ ## name(a, b, fpst); \
+} \
 float32 VFP_HELPER(name, s)(float32 a, float32 b, void *fpstp) \
 { \
     float_status *fpst = fpstp; \
@@ -256,6 +261,11 @@ VFP_BINOP(minnum)
 VFP_BINOP(maxnum)
 #undef VFP_BINOP
 
+dh_ctype_f16 VFP_HELPER(neg, h)(dh_ctype_f16 a)
+{
+    return float16_chs(a);
+}
+
 float32 VFP_HELPER(neg, s)(float32 a)
 {
     return float32_chs(a);
@@ -266,6 +276,11 @@ float64 VFP_HELPER(neg, d)(float64 a)
     return float64_chs(a);
 }
 
+dh_ctype_f16 VFP_HELPER(abs, h)(dh_ctype_f16 a)
+{
+    return float16_abs(a);
+}
+
 float32 VFP_HELPER(abs, s)(float32 a)
 {
     return float32_abs(a);
@@ -274,6 +289,11 @@ float32 VFP_HELPER(abs, s)(float32 a)
 float64 VFP_HELPER(abs, d)(float64 a)
 {
     return float64_abs(a);
+}
+
+dh_ctype_f16 VFP_HELPER(sqrt, h)(dh_ctype_f16 a, CPUARMState *env)
+{
+    return float16_sqrt(a, &env->vfp.fp_status_f16);
 }
 
 float32 VFP_HELPER(sqrt, s)(float32 a, CPUARMState *env)
@@ -310,19 +330,20 @@ static void softfloat_to_vfp_compare(CPUARMState *env, FloatRelation cmp)
 }
 
 /* XXX: check quiet/signaling case */
-#define DO_VFP_cmp(p, type) \
-void VFP_HELPER(cmp, p)(type a, type b, CPUARMState *env)  \
+#define DO_VFP_cmp(P, FLOATTYPE, ARGTYPE, FPST) \
+void VFP_HELPER(cmp, P)(ARGTYPE a, ARGTYPE b, CPUARMState *env)  \
 { \
     softfloat_to_vfp_compare(env, \
-        type ## _compare_quiet(a, b, &env->vfp.fp_status)); \
+        FLOATTYPE ## _compare_quiet(a, b, &env->vfp.FPST)); \
 } \
-void VFP_HELPER(cmpe, p)(type a, type b, CPUARMState *env) \
+void VFP_HELPER(cmpe, P)(ARGTYPE a, ARGTYPE b, CPUARMState *env) \
 { \
     softfloat_to_vfp_compare(env, \
-        type ## _compare(a, b, &env->vfp.fp_status)); \
+        FLOATTYPE ## _compare(a, b, &env->vfp.FPST)); \
 }
-DO_VFP_cmp(s, float32)
-DO_VFP_cmp(d, float64)
+DO_VFP_cmp(h, float16, dh_ctype_f16, fp_status_f16)
+DO_VFP_cmp(s, float32, float32, fp_status)
+DO_VFP_cmp(d, float64, float64, fp_status)
 #undef DO_VFP_cmp
 
 /* Integer to float and float to integer conversions */
@@ -373,13 +394,13 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 }
 
 /* VFP3 fixed point conversion.  */
-#define VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype) \
-float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
+#define VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)            \
+ftype HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift,      \
                                      void *fpstp) \
 { return itype##_to_##float##fsz##_scalbn(x, -shift, fpstp); }
 
-#define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, ROUND, suff)   \
-uint##isz##_t HELPER(vfp_to##name##p##suff)(float##fsz x, uint32_t shift, \
+#define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype, ROUND, suff) \
+uint##isz##_t HELPER(vfp_to##name##p##suff)(ftype x, uint32_t shift,      \
                                             void *fpst)                   \
 {                                                                         \
     if (unlikely(float##fsz##_is_any_nan(x))) {                           \
@@ -389,115 +410,41 @@ uint##isz##_t HELPER(vfp_to##name##p##suff)(float##fsz x, uint32_t shift, \
     return float##fsz##_to_##itype##_scalbn(x, ROUND, shift, fpst);       \
 }
 
-#define VFP_CONV_FIX(name, p, fsz, isz, itype)                   \
-VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
-VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype,               \
+#define VFP_CONV_FIX(name, p, fsz, ftype, isz, itype)            \
+VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)              \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
                          float_round_to_zero, _round_to_zero)    \
-VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype,               \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
                          get_float_rounding_mode(fpst), )
 
-#define VFP_CONV_FIX_A64(name, p, fsz, isz, itype)               \
-VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
-VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype,               \
+#define VFP_CONV_FIX_A64(name, p, fsz, ftype, isz, itype)        \
+VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)              \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
                          get_float_rounding_mode(fpst), )
 
-VFP_CONV_FIX(sh, d, 64, 64, int16)
-VFP_CONV_FIX(sl, d, 64, 64, int32)
-VFP_CONV_FIX_A64(sq, d, 64, 64, int64)
-VFP_CONV_FIX(uh, d, 64, 64, uint16)
-VFP_CONV_FIX(ul, d, 64, 64, uint32)
-VFP_CONV_FIX_A64(uq, d, 64, 64, uint64)
-VFP_CONV_FIX(sh, s, 32, 32, int16)
-VFP_CONV_FIX(sl, s, 32, 32, int32)
-VFP_CONV_FIX_A64(sq, s, 32, 64, int64)
-VFP_CONV_FIX(uh, s, 32, 32, uint16)
-VFP_CONV_FIX(ul, s, 32, 32, uint32)
-VFP_CONV_FIX_A64(uq, s, 32, 64, uint64)
+VFP_CONV_FIX(sh, d, 64, float64, 64, int16)
+VFP_CONV_FIX(sl, d, 64, float64, 64, int32)
+VFP_CONV_FIX_A64(sq, d, 64, float64, 64, int64)
+VFP_CONV_FIX(uh, d, 64, float64, 64, uint16)
+VFP_CONV_FIX(ul, d, 64, float64, 64, uint32)
+VFP_CONV_FIX_A64(uq, d, 64, float64, 64, uint64)
+VFP_CONV_FIX(sh, s, 32, float32, 32, int16)
+VFP_CONV_FIX(sl, s, 32, float32, 32, int32)
+VFP_CONV_FIX_A64(sq, s, 32, float32, 64, int64)
+VFP_CONV_FIX(uh, s, 32, float32, 32, uint16)
+VFP_CONV_FIX(ul, s, 32, float32, 32, uint32)
+VFP_CONV_FIX_A64(uq, s, 32, float32, 64, uint64)
+VFP_CONV_FIX(sh, h, 16, dh_ctype_f16, 32, int16)
+VFP_CONV_FIX(sl, h, 16, dh_ctype_f16, 32, int32)
+VFP_CONV_FIX_A64(sq, h, 16, dh_ctype_f16, 64, int64)
+VFP_CONV_FIX(uh, h, 16, dh_ctype_f16, 32, uint16)
+VFP_CONV_FIX(ul, h, 16, dh_ctype_f16, 32, uint32)
+VFP_CONV_FIX_A64(uq, h, 16, dh_ctype_f16, 64, uint64)
 
 #undef VFP_CONV_FIX
 #undef VFP_CONV_FIX_FLOAT
 #undef VFP_CONV_FLOAT_FIX_ROUND
 #undef VFP_CONV_FIX_A64
-
-uint32_t HELPER(vfp_sltoh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    return int32_to_float16_scalbn(x, -shift, fpst);
-}
-
-uint32_t HELPER(vfp_ultoh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    return uint32_to_float16_scalbn(x, -shift, fpst);
-}
-
-uint32_t HELPER(vfp_sqtoh)(uint64_t x, uint32_t shift, void *fpst)
-{
-    return int64_to_float16_scalbn(x, -shift, fpst);
-}
-
-uint32_t HELPER(vfp_uqtoh)(uint64_t x, uint32_t shift, void *fpst)
-{
-    return uint64_to_float16_scalbn(x, -shift, fpst);
-}
-
-uint32_t HELPER(vfp_toshh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_int16_scalbn(x, get_float_rounding_mode(fpst),
-                                   shift, fpst);
-}
-
-uint32_t HELPER(vfp_touhh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_uint16_scalbn(x, get_float_rounding_mode(fpst),
-                                    shift, fpst);
-}
-
-uint32_t HELPER(vfp_toslh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_int32_scalbn(x, get_float_rounding_mode(fpst),
-                                   shift, fpst);
-}
-
-uint32_t HELPER(vfp_toulh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_uint32_scalbn(x, get_float_rounding_mode(fpst),
-                                    shift, fpst);
-}
-
-uint64_t HELPER(vfp_tosqh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_int64_scalbn(x, get_float_rounding_mode(fpst),
-                                   shift, fpst);
-}
-
-uint64_t HELPER(vfp_touqh)(uint32_t x, uint32_t shift, void *fpst)
-{
-    if (unlikely(float16_is_any_nan(x))) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_uint64_scalbn(x, get_float_rounding_mode(fpst),
-                                    shift, fpst);
-}
 
 /* Set the current fp rounding mode and return the old one.
  * The argument is a softfloat float_round_ value.
@@ -505,23 +452,6 @@ uint64_t HELPER(vfp_touqh)(uint32_t x, uint32_t shift, void *fpst)
 uint32_t HELPER(set_rmode)(uint32_t rmode, void *fpstp)
 {
     float_status *fp_status = fpstp;
-
-    uint32_t prev_rmode = get_float_rounding_mode(fp_status);
-    set_float_rounding_mode(rmode, fp_status);
-
-    return prev_rmode;
-}
-
-/* Set the current fp rounding mode in the standard fp status and return
- * the old one. This is for NEON instructions that need to change the
- * rounding mode but wish to use the standard FPSCR values for everything
- * else. Always set the rounding mode back to the correct value after
- * modifying it.
- * The argument is a softfloat float_round_ value.
- */
-uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
-{
-    float_status *fp_status = &env->vfp.standard_fp_status;
 
     uint32_t prev_rmode = get_float_rounding_mode(fp_status);
     set_float_rounding_mode(rmode, fp_status);
@@ -580,38 +510,6 @@ uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
     float16 r = float64_to_float16(a, !ahp_mode, fpst);
     set_flush_to_zero(save, fpst);
     return r;
-}
-
-#define float32_two make_float32(0x40000000)
-#define float32_three make_float32(0x40400000)
-#define float32_one_point_five make_float32(0x3fc00000)
-
-float32 HELPER(recps_f32)(CPUARMState *env, float32 a, float32 b)
-{
-    float_status *s = &env->vfp.standard_fp_status;
-    if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
-        (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
-        if (!(float32_is_zero(a) || float32_is_zero(b))) {
-            float_raise(float_flag_input_denormal, s);
-        }
-        return float32_two;
-    }
-    return float32_sub(float32_two, float32_mul(a, b, s), s);
-}
-
-float32 HELPER(rsqrts_f32)(CPUARMState *env, float32 a, float32 b)
-{
-    float_status *s = &env->vfp.standard_fp_status;
-    float32 product;
-    if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
-        (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
-        if (!(float32_is_zero(a) || float32_is_zero(b))) {
-            float_raise(float_flag_input_denormal, s);
-        }
-        return float32_one_point_five;
-    }
-    product = float32_mul(a, b, s);
-    return float32_div(float32_sub(float32_three, product, s), float32_two, s);
 }
 
 /* NEON helpers.  */
@@ -1056,6 +954,13 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a)
 }
 
 /* VFPv4 fused multiply-accumulate */
+dh_ctype_f16 VFP_HELPER(muladd, h)(dh_ctype_f16 a, dh_ctype_f16 b,
+                                   dh_ctype_f16 c, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float16_muladd(a, b, c, 0, fpst);
+}
+
 float32 VFP_HELPER(muladd, s)(float32 a, float32 b, float32 c, void *fpstp)
 {
     float_status *fpst = fpstp;
@@ -1069,6 +974,11 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
 }
 
 /* ARMv8 round to integral */
+dh_ctype_f16 HELPER(rinth_exact)(dh_ctype_f16 x, void *fp_status)
+{
+    return float16_round_to_int(x, fp_status);
+}
+
 float32 HELPER(rints_exact)(float32 x, void *fp_status)
 {
     return float32_round_to_int(x, fp_status);
@@ -1077,6 +987,22 @@ float32 HELPER(rints_exact)(float32 x, void *fp_status)
 float64 HELPER(rintd_exact)(float64 x, void *fp_status)
 {
     return float64_round_to_int(x, fp_status);
+}
+
+dh_ctype_f16 HELPER(rinth)(dh_ctype_f16 x, void *fp_status)
+{
+    int old_flags = get_float_exception_flags(fp_status), new_flags;
+    float16 ret;
+
+    ret = float16_round_to_int(x, fp_status);
+
+    /* Suppress any inexact exceptions the conversion produced */
+    if (!(old_flags & float_flag_inexact)) {
+        new_flags = get_float_exception_flags(fp_status);
+        set_float_exception_flags(new_flags & ~float_flag_inexact, fp_status);
+    }
+
+    return ret;
 }
 
 float32 HELPER(rints)(float32 x, void *fp_status)

@@ -254,6 +254,8 @@ VMINNM_fp_3s     1111 001 1 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
 # We use size=0 for fp32 and size=1 for fp16 to match the 3-same encodings.
 @2reg_vcvt       .... ... . . . 1 ..... .... .... . q:1 . . .... \
                  &2reg_shift vm=%vm_dp vd=%vd_dp size=0 shift=%neon_rshift_i5
+@2reg_vcvt_f16   .... ... . . . 11 .... .... .... . q:1 . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp size=1 shift=%neon_rshift_i4
 
 VSHR_S_2sh       1111 001 0 1 . ...... .... 0000 . . . 1 .... @2reg_shr_d
 VSHR_S_2sh       1111 001 0 1 . ...... .... 0000 . . . 1 .... @2reg_shr_s
@@ -370,7 +372,11 @@ VSHLL_U_2sh      1111 001 1 1 . ...... .... 1010 . 0 . 1 .... @2reg_shll_h
 VSHLL_U_2sh      1111 001 1 1 . ...... .... 1010 . 0 . 1 .... @2reg_shll_b
 
 # VCVT fixed<->float conversions
-# TODO: FP16 fixed<->float conversions are opc==0b1100 and 0b1101
+VCVT_SH_2sh      1111 001 0 1 . ...... .... 1100 0 . . 1 .... @2reg_vcvt_f16
+VCVT_UH_2sh      1111 001 1 1 . ...... .... 1100 0 . . 1 .... @2reg_vcvt_f16
+VCVT_HS_2sh      1111 001 0 1 . ...... .... 1101 0 . . 1 .... @2reg_vcvt_f16
+VCVT_HU_2sh      1111 001 1 1 . ...... .... 1101 0 . . 1 .... @2reg_vcvt_f16
+
 VCVT_SF_2sh      1111 001 0 1 . ...... .... 1110 0 . . 1 .... @2reg_vcvt
 VCVT_UF_2sh      1111 001 1 1 . ...... .... 1110 0 . . 1 .... @2reg_vcvt
 VCVT_FS_2sh      1111 001 0 1 . ...... .... 1111 0 . . 1 .... @2reg_vcvt
