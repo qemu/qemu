@@ -1666,6 +1666,7 @@ enum ImgConvertBlockStatus {
 typedef struct ImgConvertState {
     BlockBackend **src;
     int64_t *src_sectors;
+    int *src_alignment;
     int src_num;
     int64_t total_sectors;
     int64_t allocated_sectors;
@@ -1732,6 +1733,7 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
     if (s->sector_next_status <= sector_num) {
         uint64_t offset = (sector_num - src_cur_offset) * BDRV_SECTOR_SIZE;
         int64_t count;
+        int tail;
         BlockDriverState *src_bs = blk_bs(s->src[src_cur]);
         BlockDriverState *base;
 
@@ -1771,6 +1773,16 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         } while (ret < 0);
 
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
+
+        /*
+         * Avoid that s->sector_next_status becomes unaligned to the source
+         * request alignment and/or cluster size to avoid unnecessary read
+         * cycles.
+         */
+        tail = (sector_num - src_cur_offset + n) % s->src_alignment[src_cur];
+        if (n > tail) {
+            n -= tail;
+        }
 
         if (ret & BDRV_BLOCK_ZERO) {
             s->status = post_backing_zero ? BLK_BACKING_FILE : BLK_ZERO;
@@ -2410,8 +2422,10 @@ static int img_convert(int argc, char **argv)
 
     s.src = g_new0(BlockBackend *, s.src_num);
     s.src_sectors = g_new(int64_t, s.src_num);
+    s.src_alignment = g_new(int, s.src_num);
 
     for (bs_i = 0; bs_i < s.src_num; bs_i++) {
+        BlockDriverState *src_bs;
         s.src[bs_i] = img_open(image_opts, argv[optind + bs_i],
                                fmt, src_flags, src_writethrough, s.quiet,
                                force_share);
@@ -2425,6 +2439,13 @@ static int img_convert(int argc, char **argv)
                          argv[optind + bs_i], strerror(-s.src_sectors[bs_i]));
             ret = -1;
             goto out;
+        }
+        src_bs = blk_bs(s.src[bs_i]);
+        s.src_alignment[bs_i] = DIV_ROUND_UP(src_bs->bl.request_alignment,
+                                             BDRV_SECTOR_SIZE);
+        if (!bdrv_get_info(src_bs, &bdi)) {
+            s.src_alignment[bs_i] = MAX(s.src_alignment[bs_i],
+                                        bdi.cluster_size / BDRV_SECTOR_SIZE);
         }
         s.total_sectors += s.src_sectors[bs_i];
     }
@@ -2708,6 +2729,7 @@ out:
         g_free(s.src);
     }
     g_free(s.src_sectors);
+    g_free(s.src_alignment);
 fail_getopt:
     g_free(options);
 
