@@ -8168,6 +8168,9 @@ echo "ar = $(meson_quote $ar)" >> $cross
 echo "nm = $(meson_quote $nm)" >> $cross
 echo "pkgconfig = $(meson_quote $pkg_config_exe)" >> $cross
 echo "ranlib = $(meson_quote $ranlib)" >> $cross
+if has $sdl2_config; then
+  echo "sdl2-config = $(meson_quote $sdl2_config)" >> $cross
+fi
 echo "strip = $(meson_quote $strip)" >> $cross
 echo "windres = $(meson_quote $windres)" >> $cross
 if test -n "$cross_prefix"; then
