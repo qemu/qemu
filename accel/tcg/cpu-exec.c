@@ -334,6 +334,8 @@ void afl_setup(void) {
     if (inst_r) afl_area_ptr[0] = 1;
 
   }
+  
+  disable_caching = getenv("AFL_QEMU_DISABLE_CACHE") != NULL;
 
   if (getenv("___AFL_EINS_ZWEI_POLIZEI___")) {  // CmpLog forkserver
 
@@ -475,8 +477,6 @@ void afl_setup(void) {
      behaviour, and seems to work alright? */
 
   rcu_disable_atfork();
-
-  disable_caching = getenv("AFL_QEMU_DISABLE_CACHE") != NULL;
 
   is_persistent = getenv("AFL_QEMU_PERSISTENT_ADDR") != NULL;
 
