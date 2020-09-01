@@ -44,7 +44,7 @@
                                                                               \
       gen_helper_afl_persistent_routine(cpu_env);                             \
                                                                               \
-      if (afl_persistent_ret_addr == 0) {                                     \
+      if (!afl_persistent_ret_addr && !persistent_exits) {                    \
                                                                               \
         TCGv paddr = tcg_const_tl(afl_persistent_addr);                       \
         tcg_gen_qemu_st_tl(paddr, cpu_regs[R_ESP], persisent_retaddr_offset,  \

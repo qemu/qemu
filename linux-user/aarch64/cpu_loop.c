@@ -23,6 +23,8 @@
 #include "cpu_loop-common.h"
 #include "qemu/guest-random.h"
 
+#include "qemuafl/common.h"
+
 #define get_user_code_u32(x, gaddr, env)                \
     ({ abi_long __r = get_user_u32((x), (gaddr));       \
         if (!__r && bswap_code(arm_sctlr_b(env))) {     \
@@ -87,6 +89,10 @@ void cpu_loop(CPUARMState *env)
 
         switch (trapnr) {
         case EXCP_SWI:
+            if (persistent_exits && env->xregs[8] == TARGET_NR_exit_group) {
+              env->pc = afl_persistent_addr;
+              break;
+            }
             ret = do_syscall(env,
                              env->xregs[8],
                              env->xregs[0],

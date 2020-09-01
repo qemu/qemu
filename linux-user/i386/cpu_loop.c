@@ -214,7 +214,7 @@ void cpu_loop(CPUX86State *env)
         case 0x80:
             /* linux syscall from int $0x80 */
             if (persistent_exits && env->regs[R_EAX] == TARGET_NR_exit_group) {
-              afl_persistent_iter(env);
+              env->eip = afl_persistent_addr;
               continue;
             }
             ret = do_syscall(env,
@@ -237,7 +237,7 @@ void cpu_loop(CPUX86State *env)
             /* linux syscall from syscall instruction */
             if (afl_fork_child && persistent_exits &&
                 env->regs[R_EAX] == TARGET_NR_exit_group) {
-              afl_persistent_iter(env);
+              env->eip = afl_persistent_addr;
               continue;
             }
             ret = do_syscall(env,

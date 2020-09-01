@@ -23,6 +23,8 @@
 #include "elf.h"
 #include "cpu_loop-common.h"
 
+#include "qemuafl/common.h"
+
 #define get_user_code_u32(x, gaddr, env)                \
     ({ abi_long __r = get_user_u32((x), (gaddr));       \
         if (!__r && bswap_code(arm_sctlr_b(env))) {     \
@@ -375,6 +377,10 @@ void cpu_loop(CPUARMState *env)
                         break;
                     }
                 } else {
+                    if (persistent_exits && n == TARGET_NR_exit_group) {
+                      env->regs[15] = afl_persistent_addr;
+                      break;
+                    }
                     ret = do_syscall(env,
                                      n,
                                      env->regs[0],

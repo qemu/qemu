@@ -237,7 +237,7 @@ static void collect_memory_snapshot(void) {
 
 static void restore_memory_snapshot(void) {
 
-  //afl_set_brk(saved_brk);
+  afl_set_brk(saved_brk);
   
   if (lkm_snapshot) {
   
