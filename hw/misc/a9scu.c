@@ -52,23 +52,8 @@ static void a9_scu_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
     A9SCUState *s = (A9SCUState *)opaque;
-    uint32_t mask;
+    uint32_t mask = MAKE_64BIT_MASK(0, size * 8);
     uint32_t shift;
-    switch (size) {
-    case 1:
-        mask = 0xff;
-        break;
-    case 2:
-        mask = 0xffff;
-        break;
-    case 4:
-        mask = 0xffffffff;
-        break;
-    default:
-        fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
-                size, (unsigned)offset);
-        return;
-    }
 
     switch (offset) {
     case 0x00: /* Control */
@@ -99,6 +84,10 @@ static void a9_scu_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps a9_scu_ops = {
     .read = a9_scu_read,
     .write = a9_scu_write,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
