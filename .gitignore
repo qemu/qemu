@@ -2,7 +2,6 @@
 /build/
 /.doctrees
 /config-devices.*
-/config-all-disas.*
 /config-host.*
 /config-target.*
 /config.status

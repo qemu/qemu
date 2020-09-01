@@ -14,7 +14,6 @@ ss = import('sourceset')
 sh = find_program('sh')
 cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-config_all_disas = keyval.load(meson.current_build_dir() / 'config-all-disas.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
@@ -461,10 +460,44 @@ genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
 config_all_devices = {}
+config_all_disas = {}
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
 config_target_mak = {}
+
+disassemblers = {
+  'alpha' : ['CONFIG_ALPHA_DIS'],
+  'arm' : ['CONFIG_ARM_DIS'],
+  'avr' : ['CONFIG_AVR_DIS'],
+  'cris' : ['CONFIG_CRIS_DIS'],
+  'hppa' : ['CONFIG_HPPA_DIS'],
+  'i386' : ['CONFIG_I386_DIS'],
+  'x86_64' : ['CONFIG_I386_DIS'],
+  'x32' : ['CONFIG_I386_DIS'],
+  'lm32' : ['CONFIG_LM32_DIS'],
+  'm68k' : ['CONFIG_M68K_DIS'],
+  'microblaze' : ['CONFIG_MICROBLAZE_DIS'],
+  'mips' : ['CONFIG_MIPS_DIS'],
+  'moxie' : ['CONFIG_MOXIE_DIS'],
+  'nios2' : ['CONFIG_NIOS2_DIS'],
+  'or1k' : ['CONFIG_OPENRISC_DIS'],
+  'ppc' : ['CONFIG_PPC_DIS'],
+  'riscv' : ['CONFIG_RISCV_DIS'],
+  'rx' : ['CONFIG_RX_DIS'],
+  's390' : ['CONFIG_S390_DIS'],
+  'sh4' : ['CONFIG_SH4_DIS'],
+  'sparc' : ['CONFIG_SPARC_DIS'],
+  'xtensa' : ['CONFIG_XTENSA_DIS'],
+}
+if link_language == 'cpp'
+  disassemblers += {
+    'aarch64' : [ 'CONFIG_ARM_A64_DIS'],
+    'arm' : [ 'CONFIG_ARM_DIS', 'CONFIG_ARM_A64_DIS'],
+    'mips' : [ 'CONFIG_MIPS_DIS', 'CONFIG_NANOMIPS_DIS'],
+  }
+endif
+
 kconfig_external_symbols = [
   'CONFIG_KVM',
   'CONFIG_XEN',
@@ -480,8 +513,18 @@ kconfig_external_symbols = [
   'CONFIG_PVRDMA',
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
+
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
+
+  foreach k, v: disassemblers
+    if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
+      foreach sym: v
+        config_target += { sym: 'y' }
+        config_all_disas += { sym: 'y' }
+      endforeach
+    endif
+  endforeach
 
   config_target_data = configuration_data()
   foreach k, v: config_target
