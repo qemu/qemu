@@ -28,12 +28,6 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
         return (((1 << s->num_cpu) - 1) << 4) | (s->num_cpu - 1);
     case 0x08: /* CPU Power Status */
         return s->status;
-    case 0x09: /* CPU status.  */
-        return s->status >> 8;
-    case 0x0a: /* CPU status.  */
-        return s->status >> 16;
-    case 0x0b: /* CPU status.  */
-        return s->status >> 24;
     case 0x0c: /* Invalidate All Registers In Secure State */
         return 0;
     case 0x40: /* Filtering Start Address Register */
@@ -52,8 +46,6 @@ static void a9_scu_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
     A9SCUState *s = (A9SCUState *)opaque;
-    uint32_t mask = MAKE_64BIT_MASK(0, size * 8);
-    uint32_t shift;
 
     switch (offset) {
     case 0x00: /* Control */
@@ -62,9 +54,7 @@ static void a9_scu_write(void *opaque, hwaddr offset,
     case 0x4: /* Configuration: RO */
         break;
     case 0x08: case 0x09: case 0x0A: case 0x0B: /* Power Control */
-        shift = (offset - 0x8) * 8;
-        s->status &= ~(mask << shift);
-        s->status |= ((value & mask) << shift);
+        s->status = value;
         break;
     case 0x0c: /* Invalidate All Registers In Secure State */
         /* no-op as we do not implement caches */
@@ -84,6 +74,10 @@ static void a9_scu_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps a9_scu_ops = {
     .read = a9_scu_read,
     .write = a9_scu_write,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
