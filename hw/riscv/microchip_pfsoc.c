@@ -14,6 +14,7 @@
  * 3) MMUARTs (Multi-Mode UART)
  * 4) Cadence eMMC/SDHC controller and an SD card connected to it
  * 5) SiFive Platform DMA (Direct Memory Access Controller)
+ * 6) GEM (Gigabit Ethernet MAC Controller)
  *
  * This board currently generates devicetree dynamically that indicates at least
  * two harts and up to five harts.
@@ -59,6 +60,9 @@
 #define BIOS_FILENAME   "hss.bin"
 #define RESET_VECTOR    0x20220000
 
+/* GEM version */
+#define GEM_REVISION    0x0107010c
+
 static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
@@ -83,6 +87,8 @@ static const struct MemmapEntry {
     [MICROCHIP_PFSOC_MMUART2] =         { 0x20102000,     0x1000 },
     [MICROCHIP_PFSOC_MMUART3] =         { 0x20104000,     0x1000 },
     [MICROCHIP_PFSOC_MMUART4] =         { 0x20106000,     0x1000 },
+    [MICROCHIP_PFSOC_GEM0] =            { 0x20110000,     0x2000 },
+    [MICROCHIP_PFSOC_GEM1] =            { 0x20112000,     0x2000 },
     [MICROCHIP_PFSOC_ENVM_CFG] =        { 0x20200000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_DATA] =       { 0x20220000,    0x20000 },
     [MICROCHIP_PFSOC_IOSCB_CFG] =       { 0x37080000,     0x1000 },
@@ -119,6 +125,9 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
     object_initialize_child(obj, "dma-controller", &s->dma,
                             TYPE_SIFIVE_PDMA);
 
+    object_initialize_child(obj, "gem0", &s->gem0, TYPE_CADENCE_GEM);
+    object_initialize_child(obj, "gem1", &s->gem1, TYPE_CADENCE_GEM);
+
     object_initialize_child(obj, "sd-controller", &s->sdhci,
                             TYPE_CADENCE_SDHCI);
 }
@@ -134,6 +143,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     MemoryRegion *envm_data = g_new(MemoryRegion, 1);
     char *plic_hart_config;
     size_t plic_hart_config_len;
+    NICInfo *nd;
     int i;
 
     sysbus_realize(SYS_BUS_DEVICE(&s->e_cpus), &error_abort);
@@ -271,6 +281,35 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         memmap[MICROCHIP_PFSOC_MMUART4].base,
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART4_IRQ),
         serial_hd(4));
+
+    /* GEMs */
+
+    nd = &nd_table[0];
+    if (nd->used) {
+        qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
+        qdev_set_nic_properties(DEVICE(&s->gem0), nd);
+    }
+    nd = &nd_table[1];
+    if (nd->used) {
+        qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
+        qdev_set_nic_properties(DEVICE(&s->gem1), nd);
+    }
+
+    object_property_set_int(OBJECT(&s->gem0), "revision", GEM_REVISION, errp);
+    object_property_set_int(OBJECT(&s->gem0), "phy-addr", 8, errp);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gem0), errp);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem0), 0,
+                    memmap[MICROCHIP_PFSOC_GEM0].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem0), 0,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_GEM0_IRQ));
+
+    object_property_set_int(OBJECT(&s->gem1), "revision", GEM_REVISION, errp);
+    object_property_set_int(OBJECT(&s->gem1), "phy-addr", 9, errp);
+    sysbus_realize(SYS_BUS_DEVICE(&s->gem1), errp);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem1), 0,
+                    memmap[MICROCHIP_PFSOC_GEM1].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem1), 0,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_GEM1_IRQ));
 
     /* eNVM */
     memory_region_init_rom(envm_data, OBJECT(dev), "microchip.pfsoc.envm.data",
