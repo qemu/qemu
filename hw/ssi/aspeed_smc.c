@@ -1299,9 +1299,7 @@ static const MemoryRegionOps aspeed_smc_ops = {
     .read = aspeed_smc_read,
     .write = aspeed_smc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.unaligned = true,
 };
-
 
 /*
  * Initialize the custom address spaces for DMAs
