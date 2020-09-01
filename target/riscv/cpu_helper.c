@@ -276,9 +276,11 @@ uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
     return old;
 }
 
-void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void))
+void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(uint32_t),
+                             uint32_t arg)
 {
     env->rdtime_fn = fn;
+    env->rdtime_fn_arg = arg;
 }
 
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)

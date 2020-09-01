@@ -242,7 +242,8 @@ static void spike_board_init(MachineState *machine)
         sifive_clint_create(
             memmap[SPIKE_CLINT].base + i * memmap[SPIKE_CLINT].size,
             memmap[SPIKE_CLINT].size, base_hartid, hart_count,
-            SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE, false);
+            SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
+            SIFIVE_CLINT_TIMEBASE_FREQ, false);
     }
 
     /* register system main memory (actual RAM) */

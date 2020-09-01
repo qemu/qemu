@@ -60,6 +60,9 @@
 #define BIOS_FILENAME   "hss.bin"
 #define RESET_VECTOR    0x20220000
 
+/* CLINT timebase frequency */
+#define CLINT_TIMEBASE_FREQ 1000000
+
 /* GEM version */
 #define GEM_REVISION    0x0107010c
 
@@ -187,7 +190,8 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     /* CLINT */
     sifive_clint_create(memmap[MICROCHIP_PFSOC_CLINT].base,
         memmap[MICROCHIP_PFSOC_CLINT].size, 0, ms->smp.cpus,
-        SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE, false);
+        SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
+        CLINT_TIMEBASE_FREQ, false);
 
     /* L2 cache controller */
     create_unimplemented_device("microchip.pfsoc.l2cc",
