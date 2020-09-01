@@ -23,6 +23,7 @@
 #define HW_MICROCHIP_PFSOC_H
 
 #include "hw/char/mchp_pfsoc_mmuart.h"
+#include "hw/dma/sifive_pdma.h"
 #include "hw/sd/cadence_sdhci.h"
 
 typedef struct MicrochipPFSoCState {
@@ -40,6 +41,7 @@ typedef struct MicrochipPFSoCState {
     MchpPfSoCMMUartState *serial2;
     MchpPfSoCMMUartState *serial3;
     MchpPfSoCMMUartState *serial4;
+    SiFivePDMAState dma;
     CadenceSDHCIState sdhci;
 } MicrochipPFSoCState;
 
@@ -71,6 +73,7 @@ enum {
     MICROCHIP_PFSOC_BUSERR_UNIT4,
     MICROCHIP_PFSOC_CLINT,
     MICROCHIP_PFSOC_L2CC,
+    MICROCHIP_PFSOC_DMA,
     MICROCHIP_PFSOC_L2LIM,
     MICROCHIP_PFSOC_PLIC,
     MICROCHIP_PFSOC_MMUART0,
@@ -88,6 +91,14 @@ enum {
 };
 
 enum {
+    MICROCHIP_PFSOC_DMA_IRQ0 = 5,
+    MICROCHIP_PFSOC_DMA_IRQ1 = 6,
+    MICROCHIP_PFSOC_DMA_IRQ2 = 7,
+    MICROCHIP_PFSOC_DMA_IRQ3 = 8,
+    MICROCHIP_PFSOC_DMA_IRQ4 = 9,
+    MICROCHIP_PFSOC_DMA_IRQ5 = 10,
+    MICROCHIP_PFSOC_DMA_IRQ6 = 11,
+    MICROCHIP_PFSOC_DMA_IRQ7 = 12,
     MICROCHIP_PFSOC_EMMC_SD_IRQ = 88,
     MICROCHIP_PFSOC_MMUART0_IRQ = 90,
     MICROCHIP_PFSOC_MMUART1_IRQ = 91,

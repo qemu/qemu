@@ -55,4 +55,5 @@ config MICROCHIP_PFSOC
     select SIFIVE
     select UNIMP
     select MCHP_PFSOC_MMUART
+    select SIFIVE_PDMA
     select CADENCE_SDHCI
