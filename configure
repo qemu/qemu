@@ -549,7 +549,7 @@ skip_meson=no
 gettext=""
 
 bogus_os="no"
-malloc_trim=""
+malloc_trim="auto"
 
 # parse CC options first
 for opt do
@@ -1228,9 +1228,9 @@ for opt do
   ;;
   --enable-tcg) tcg="yes"
   ;;
-  --disable-malloc-trim) malloc_trim="no"
+  --disable-malloc-trim) malloc_trim="disabled"
   ;;
-  --enable-malloc-trim) malloc_trim="yes"
+  --enable-malloc-trim) malloc_trim="enabled"
   ;;
   --disable-spice) spice="no"
   ;;
@@ -4384,77 +4384,14 @@ EOF
   fi
 fi
 
+malloc=system
 if test "$tcmalloc" = "yes" && test "$jemalloc" = "yes" ; then
     echo "ERROR: tcmalloc && jemalloc can't be used at the same time"
     exit 1
-fi
-
-# Even if malloc_trim() is available, these non-libc memory allocators
-# do not support it.
-if test "$tcmalloc" = "yes" || test "$jemalloc" = "yes" ; then
-    if test "$malloc_trim" = "yes" ; then
-        echo "Disabling malloc_trim with non-libc memory allocator"
-    fi
-    malloc_trim="no"
-fi
-
-#######################################
-# malloc_trim
-
-if test "$malloc_trim" != "no" ; then
-    cat > $TMPC << EOF
-#include <malloc.h>
-int main(void) { malloc_trim(0); return 0; }
-EOF
-    if compile_prog "" "" ; then
-        malloc_trim="yes"
-    else
-        malloc_trim="no"
-    fi
-fi
-
-##########################################
-# tcmalloc probe
-
-if test "$tcmalloc" = "yes" ; then
-  cat > $TMPC << EOF
-#include <stdlib.h>
-int main(void) {
-    void *tmp = malloc(1);
-    if (tmp != NULL) {
-        return 0;
-    }
-    return 1;
-}
-EOF
-
-  if compile_prog "" "-ltcmalloc" ; then
-    LIBS="-ltcmalloc $LIBS"
-  else
-    feature_not_found "tcmalloc" "install gperftools devel"
-  fi
-fi
-
-##########################################
-# jemalloc probe
-
-if test "$jemalloc" = "yes" ; then
-  cat > $TMPC << EOF
-#include <stdlib.h>
-int main(void) {
-    void *tmp = malloc(1);
-    if (tmp != NULL) {
-        return 0;
-    }
-    return 1;
-}
-EOF
-
-  if compile_prog "" "-ljemalloc" ; then
-    LIBS="-ljemalloc $LIBS"
-  else
-    feature_not_found "jemalloc" "install jemalloc devel"
-  fi
+elif test "$tcmalloc" = "yes" ; then
+    malloc=tcmalloc
+elif test "$jemalloc" = "yes" ; then
+    malloc=jemalloc
 fi
 
 ##########################################
@@ -6945,10 +6882,6 @@ if test "$gbm" = "yes" ; then
 fi
 
 
-if test "$malloc_trim" = "yes" ; then
-  echo "CONFIG_MALLOC_TRIM=y" >> $config_host_mak
-fi
-
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
 fi
@@ -7919,6 +7852,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
+	-Dmalloc=$malloc -Dmalloc_trim=$malloc_trim \
 	-Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f\

@@ -514,6 +514,26 @@ keyutils = dependency('libkeyutils', required: false,
 
 has_gettid = cc.has_function('gettid')
 
+# Malloc tests
+
+malloc = []
+if get_option('malloc') == 'system'
+  has_malloc_trim = \
+    not get_option('malloc_trim').disabled() and \
+    cc.links('''#include <malloc.h>
+                int main(void) { malloc_trim(0); return 0; }''')
+else
+  has_malloc_trim = false
+  malloc = cc.find_library(get_option('malloc'), required: true)
+endif
+if not has_malloc_trim and get_option('malloc_trim').enabled()
+  if get_option('malloc') == 'system'
+    error('malloc_trim not available on this platform.')
+  else
+    error('malloc_trim not available with non-libc memory allocator')
+  endif
+endif
+
 # Create config-host.h
 
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
@@ -528,6 +548,7 @@ config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
+config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -911,7 +932,7 @@ util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
                              sources: util_ss.sources() + stub_ss.sources() + genh,
-                             dependencies: [util_ss.dependencies(), m, glib, socket])
+                             dependencies: [util_ss.dependencies(), m, glib, socket, malloc])
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
@@ -1450,7 +1471,7 @@ summary_info += {'Install blobs':     config_host.has_key('INSTALL_BLOBS')}
 #  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
 #  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
 #endif
-summary_info += {'malloc trim support': config_host.has_key('CONFIG_MALLOC_TRIM')}
+summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
 summary_info += {'fdt support':       config_host.has_key('CONFIG_FDT')}
@@ -1512,8 +1533,7 @@ summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}
 summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
-summary_info += {'tcmalloc support':  config_host.has_key('CONFIG_TCMALLOC')}
-summary_info += {'jemalloc support':  config_host.has_key('CONFIG_JEMALLOC')}
+summary_info += {'memory allocator':  get_option('malloc')}
 summary_info += {'avx2 optimization': config_host.has_key('CONFIG_AVX2_OPT')}
 summary_info += {'avx512f optimization': config_host.has_key('CONFIG_AVX512F_OPT')}
 summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
