@@ -13,6 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 
 #define A9_SCU_CPU_MAX  4
@@ -38,6 +39,8 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx"\n",
+                      __func__, offset);
         return 0;
     }
 }
@@ -67,6 +70,9 @@ static void a9_scu_write(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx
+                                 " value 0x%"PRIx64"\n",
+                      __func__, offset, value);
         break;
     }
 }
