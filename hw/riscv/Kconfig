@@ -48,3 +48,9 @@ config RISCV_VIRT
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PFLASH_CFI01
     select SIFIVE
+
+config MICROCHIP_PFSOC
+    bool
+    select HART
+    select SIFIVE
+    select UNIMP

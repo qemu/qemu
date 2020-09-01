@@ -1316,6 +1316,13 @@ F: include/hw/riscv/opentitan.h
 F: include/hw/char/ibex_uart.h
 F: include/hw/intc/ibex_plic.h
 
+Microchip PolarFire SoC Icicle Kit
+M: Bin Meng <bin.meng@windriver.com>
+L: qemu-riscv@nongnu.org
+S: Supported
+F: hw/riscv/microchip_pfsoc.c
+F: include/hw/riscv/microchip_pfsoc.h
+
 RX Machines
 -----------
 rx-gdbsim
