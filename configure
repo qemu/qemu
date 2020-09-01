@@ -457,7 +457,7 @@ bsd="no"
 linux="no"
 solaris="no"
 profiler="no"
-cocoa="no"
+cocoa="auto"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
@@ -875,7 +875,7 @@ Darwin)
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
   fi
-  cocoa="yes"
+  cocoa="enabled"
   audio_drv_list="coreaudio try-sdl"
   audio_possible_drivers="coreaudio sdl"
   QEMU_LDFLAGS="-framework CoreFoundation -framework IOKit $QEMU_LDFLAGS"
@@ -1246,10 +1246,10 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
-  --disable-cocoa) cocoa="no"
+  --disable-cocoa) cocoa="disabled"
   ;;
   --enable-cocoa)
-      cocoa="yes" ;
+      cocoa="enabled" ;
       audio_drv_list="coreaudio $(echo $audio_drv_list | sed s,coreaudio,,g)"
   ;;
   --disable-system) softmmu="no"
@@ -2391,8 +2391,8 @@ fi
 # cocoa implies not SDL or GTK
 # (the cocoa UI code currently assumes it is always the active UI
 # and doesn't interact well with other UI frontend code)
-if test "$cocoa" = "yes"; then
-    if test "$sdl" = "yes"; then
+if test "$cocoa" = "enabled"; then
+    if test "$sdl" = "enabled"; then
         error_exit "Cocoa and SDL UIs cannot both be enabled at once"
     fi
     if test "$gtk" = "yes"; then
@@ -6550,9 +6550,6 @@ if test "$have_x11" = "yes" && test "$need_x11" = "yes"; then
   echo "X11_CFLAGS=$x11_cflags" >> $config_host_mak
   echo "X11_LIBS=$x11_libs" >> $config_host_mak
 fi
-if test "$cocoa" = "yes" ; then
-  echo "CONFIG_COCOA=y" >> $config_host_mak
-fi
 if test "$iconv" = "yes" ; then
   echo "CONFIG_ICONV=y" >> $config_host_mak
   echo "ICONV_CFLAGS=$iconv_cflags" >> $config_host_mak
@@ -7853,7 +7850,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
 	-Dmalloc=$malloc -Dmalloc_trim=$malloc_trim \
-	-Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
+	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f\
         $cross_arg \

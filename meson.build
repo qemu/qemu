@@ -101,7 +101,7 @@ socket = []
 version_res = []
 coref = []
 iokit = []
-cocoa = []
+cocoa = not_found
 hvf = []
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
@@ -114,7 +114,7 @@ if targetos == 'windows'
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit')
-  cocoa = dependency('appleframeworks', modules: 'Cocoa')
+  cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
   hvf = dependency('appleframeworks', modules: 'Hypervisor')
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
@@ -124,6 +124,10 @@ elif targetos == 'haiku'
   socket = [cc.find_library('posix_error_mapper'),
             cc.find_library('network'),
             cc.find_library('bsd')]
+endif
+
+if not cocoa.found() and get_option('cocoa').enabled()
+  error('Cocoa not available on this platform')
 endif
 
 ################
@@ -536,6 +540,7 @@ endif
 
 # Create config-host.h
 
+config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
