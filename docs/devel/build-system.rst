@@ -401,10 +401,6 @@ number of dynamically created files listed later.
   executables.  Build rules for various subdirectories are included in
   other meson.build files spread throughout the QEMU source tree.
 
-`rules.mak`
-  This file provides the generic helper rules for invoking build tools, in
-  particular the compiler and linker.
-
 `tests/Makefile.include`
   Rules for building the unit tests. This file is included directly by the
   top level Makefile, so anything defined in this file will influence the

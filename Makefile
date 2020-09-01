@@ -10,6 +10,20 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
+# Don't use implicit rules or variables
+# we have explicit rules for everything
+MAKEFLAGS += -rR
+
+# Usage: $(call quiet-command,command and args,"NAME","args to print")
+# This will run "command and args", and either:
+#  if V=1 just print the whole command and args
+#  otherwise print the 'quiet' output in the format "  NAME     args to print"
+# NAME should be a short name of the command, 7 letters or fewer.
+# If called with only a single argument, will print nothing in quiet mode.
+quiet-command-run = $(if $(V),,$(if $2,printf "  %-7s %s\n" $2 $3 && ))$1
+quiet-@ = $(if $(V),,@)
+quiet-command = $(quiet-@)$(call quiet-command-run,$1,$2,$3)
+
 UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
     help check-help print-% \
     docker docker-% vm-help vm-test vm-build-%
@@ -68,6 +82,7 @@ Makefile.mtest: build.ninja scripts/mtest2make.py
 -include Makefile.mtest
 endif
 
+Makefile: .git-submodule-status
 .git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
@@ -108,10 +123,6 @@ ninja-clean::
 ninja-distclean::
 build.ninja: config-host.mak
 
-include $(SRC_PATH)/rules.mak
-
-generated-files-y += .git-submodule-status
-
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
 Makefile: ;
@@ -120,9 +131,7 @@ configure: ;
 .PHONY: all clean cscope distclean install \
 	recurse-all dist msi FORCE
 
-$(call set-vpath, $(SRC_PATH))
-
-SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet) BUILD_DIR=$(BUILD_DIR)
+SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 
 include $(SRC_PATH)/tests/Makefile.include
 
@@ -189,7 +198,6 @@ clean: recurse-clean ninja-clean clean-ctlist
 		-exec rm {} +
 	rm -f TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod scsi/*.pod
-	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 
 VERSION = $(shell cat $(SRC_PATH)/VERSION)
 
@@ -232,14 +240,6 @@ cscope:
 # Needed by "meson install"
 export DESTDIR
 
-# Add a dependency on the generated files, so that they are always
-# rebuilt before other object files
-ifneq ($(wildcard config-host.mak),)
-ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
-Makefile: $(generated-files-y)
-endif
-endif
-
 include $(SRC_PATH)/tests/docker/Makefile.include
 include $(SRC_PATH)/tests/vm/Makefile.include
 
@@ -280,3 +280,9 @@ endif
 endif
 	$(call print-help,$(MAKE) [targets],(quiet build, default))
 	$(call print-help,$(MAKE) V=1 [targets],(verbose build))
+
+# will delete the target of a rule if commands exit with a nonzero exit status
+.DELETE_ON_ERROR:
+
+print-%:
+	@echo '$*=$($*)'
