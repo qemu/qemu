@@ -19,6 +19,7 @@
 #ifndef HW_SIFIVE_U_H
 #define HW_SIFIVE_U_H
 
+#include "hw/dma/sifive_pdma.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/sifive_cpu.h"
@@ -43,6 +44,7 @@ typedef struct SiFiveUSoCState {
     SiFiveUPRCIState prci;
     SIFIVEGPIOState gpio;
     SiFiveUOTPState otp;
+    SiFivePDMAState dma;
     CadenceGEMState gem;
 
     uint32_t serial;
@@ -72,6 +74,7 @@ enum {
     SIFIVE_U_MROM,
     SIFIVE_U_CLINT,
     SIFIVE_U_L2CC,
+    SIFIVE_U_PDMA,
     SIFIVE_U_L2LIM,
     SIFIVE_U_PLIC,
     SIFIVE_U_PRCI,
@@ -108,6 +111,14 @@ enum {
     SIFIVE_U_GPIO_IRQ13 = 20,
     SIFIVE_U_GPIO_IRQ14 = 21,
     SIFIVE_U_GPIO_IRQ15 = 22,
+    SIFIVE_U_PDMA_IRQ0 = 23,
+    SIFIVE_U_PDMA_IRQ1 = 24,
+    SIFIVE_U_PDMA_IRQ2 = 25,
+    SIFIVE_U_PDMA_IRQ3 = 26,
+    SIFIVE_U_PDMA_IRQ4 = 27,
+    SIFIVE_U_PDMA_IRQ5 = 28,
+    SIFIVE_U_PDMA_IRQ6 = 29,
+    SIFIVE_U_PDMA_IRQ7 = 30,
     SIFIVE_U_GEM_IRQ = 0x35
 };
 

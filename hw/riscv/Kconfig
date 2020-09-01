@@ -22,6 +22,7 @@ config SIFIVE_U
     select CADENCE
     select HART
     select SIFIVE
+    select SIFIVE_PDMA
     select UNIMP
 
 config SPIKE
