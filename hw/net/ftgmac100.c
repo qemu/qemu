@@ -517,7 +517,7 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         if (dma_memory_read(&address_space_memory, bd.des3, ptr, len)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to read packet @ 0x%x\n",
                           __func__, bd.des3);
-            s->isr |= FTGMAC100_INT_NO_NPTXBUF;
+            s->isr |= FTGMAC100_INT_AHB_ERR;
             break;
         }
 
