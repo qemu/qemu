@@ -62,7 +62,7 @@ ninja-distclean::
 build.ninja: config-host.mak
 
 Makefile.ninja: build.ninja ninjatool
-	./ninjatool -t ninja2make --omit clean dist uninstall < $< > $@
+	./ninjatool -t ninja2make --omit clean dist uninstall cscope TAGS ctags < $< > $@
 -include Makefile.ninja
 
 ${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.command += -MP
@@ -228,6 +228,22 @@ distclean: clean ninja-distclean
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -Rf .sdk
+
+.PHONY: ctags
+ctags:
+	rm -f tags
+	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
+
+.PHONY: TAGS
+TAGS:
+	rm -f TAGS
+	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
+
+.PHONY: cscope
+cscope:
+	rm -f "$(SRC_PATH)"/cscope.*
+	find "$(SRC_PATH)/" -name "*.[chsS]" -print | sed -e 's,^\./,,' > "$(SRC_PATH)/cscope.files"
+	cscope -b -i"$(SRC_PATH)/cscope.files"
 
 # Needed by "meson install"
 export DESTDIR
