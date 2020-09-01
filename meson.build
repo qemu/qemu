@@ -18,6 +18,8 @@ config_all_disas = keyval.load(meson.current_build_dir() / 'config-all-disas.mak
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
+qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
+qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
 config_host_data = configuration_data()
 genh = []
 
@@ -127,18 +129,14 @@ endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
-                      static: enable_static)
+                      method: 'pkg-config', static: enable_static)
 endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
 endif
 libaio = cc.find_library('aio', required: false)
-zlib = not_found
-if 'CONFIG_ZLIB' in config_host
-  zlib = declare_dependency(compile_args: config_host['ZLIB_CFLAGS'].split(),
-                            link_args: config_host['ZLIB_LIBS'].split())
-endif
+zlib = dependency('zlib', required: true, static: enable_static)
 linux_io_uring = not_found
 if 'CONFIG_LINUX_IO_URING' in config_host
   linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
@@ -170,7 +168,7 @@ if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
-                         static: enable_static)
+                         method: 'pkg-config', static: enable_static)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -248,8 +246,8 @@ if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
                            dependencies: sdl)
-  sdl_image = dependency('sdl-image', required: get_option('sdl_image'),
-                         static: enable_static)
+  sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
+                         method: 'pkg-config', static: enable_static)
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@',
@@ -334,7 +332,7 @@ sasl = not_found
 if get_option('vnc').enabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
-                   static: enable_static)
+                   method: 'pkg-config', static: enable_static)
   jpeg = cc.find_library('jpeg', has_headers: ['jpeglib.h'],
                          required: get_option('vnc_jpeg'),
                          static: enable_static)
@@ -1059,7 +1057,7 @@ foreach target : target_dirs
                       output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
-                      install_dir: config_host['qemu_datadir'] / '../systemtap/tapset',
+                      install_dir: qemu_datadir / '../systemtap/tapset',
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
@@ -1138,6 +1136,7 @@ if have_tools
   endif
 endif
 
+subdir('scripts')
 subdir('tools')
 subdir('pc-bios')
 subdir('tests')
@@ -1184,7 +1183,7 @@ if build_docs
                       input: input,
                       output: output,
                       install: true,
-                      install_dir: config_host['qemu_docdir'] / 'interop',
+                      install_dir: qemu_docdir / 'interop',
                       command: cmd + args)
       endforeach
       alias_target(ext, t)
@@ -1224,11 +1223,36 @@ if build_docs
                           output: man,
                           capture: true,
                           install: true,
-                          install_dir: config_host['mandir'] / 'man7',
+                          install_dir: get_option('mandir') / 'man7',
                           command: [pod2man, '--utf8', '--section=7', '--center=" "',
                                     '--release=" "', '@INPUT@'])
     endforeach
   endif
+endif
+
+if host_machine.system() == 'windows'
+  nsis_cmd = [
+    find_program('scripts/nsis.py'),
+    '@OUTPUT@',
+    get_option('prefix'),
+    meson.current_source_dir(),
+    host_machine.cpu_family(),
+    '--',
+    '-DDISPLAYVERSION=' + meson.project_version(),
+  ]
+  if build_docs
+    nsis_cmd += '-DCONFIG_DOCUMENTATION=y'
+  endif
+  if 'CONFIG_GTK' in config_host
+    nsis_cmd += '-DCONFIG_GTK=y'
+  endif
+
+  nsis = custom_target('nsis',
+                       output: 'qemu-setup-' + meson.project_version() + '.exe',
+                       input: files('qemu.nsi'),
+                       build_always_stale: true,
+                       command: nsis_cmd + ['@INPUT@'])
+  alias_target('installer', nsis)
 endif
 
 summary_info = {}
@@ -1243,10 +1267,11 @@ summary_info += {'include directory': config_host['includedir']}
 summary_info += {'config directory':  config_host['sysconfdir']}
 if targetos != 'windows'
   summary_info += {'local state directory': config_host['qemu_localstatedir']}
-  summary_info += {'Manual directory':      config_host['mandir']}
+  summary_info += {'Manual directory':      get_option('mandir')}
 else
   summary_info += {'local state directory': 'queried at runtime'}
 endif
+summary_info += {'Doc directory':     get_option('docdir')}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
 summary_info += {'GIT binary':        config_host['GIT']}

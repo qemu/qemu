@@ -66,46 +66,47 @@ following tasks:
    upon completion.
 
 
-Taking the probe for SDL as an example, we have the following pieces
+Taking the probe for SDL2_Image as an example, we have the following pieces
 in configure::
 
   # Initial variable state
-  sdl=auto
+  sdl_image=auto
 
   ..snip..
 
   # Configure flag processing
-  --disable-gnutls) sdl=disabled
+  --disable-sdl-image) sdl_image=disabled
   ;;
-  --enable-gnutls) sdl=enabled
+  --enable-sdl-image) sdl_image=enabled
   ;;
 
   ..snip..
 
   # Help output feature message
-  sdl             SDL UI
+  sdl-image         SDL Image support for icons
 
   ..snip..
 
   # Meson invocation
-  -Dsdl=$sdl
+  -Dsdl_image=$sdl_image
 
 In meson_options.txt::
 
-  option('sdl', type : 'feature', value : 'auto')
+  option('sdl', type : 'feature', value : 'auto',
+         description: 'SDL Image support for icons')
 
 In meson.build::
 
   # Detect dependency
-  sdl = dependency('sdl2',
-                   required: get_option('sdl'),
-                   static: enable_static)
+  sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
+                         method: 'pkg-config',
+                         static: enable_static)
 
-  # Create config-host.h
-  config_host_data.set('CONFIG_SDL', sdl.found())
+  # Create config-host.h (if applicable)
+  config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 
   # Summary
-  summary_info += {'SDL support':       sdl.found()}
+  summary_info += {'SDL image support': sdl_image.found()}
 
 
 

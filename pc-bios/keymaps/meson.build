@@ -44,13 +44,13 @@ foreach km, args: keymaps
                      build_by_default: true,
                      output: km,
                      command: [native_qemu_keymap, '-f', '@OUTPUT@', args.split()],
-                     install_dir: config_host['qemu_datadir'] / 'keymaps')
+                     install_dir: qemu_datadir / 'keymaps')
 endforeach
 if t.length() > 0
   alias_target('update-keymaps', t)
 else
   # install from the source tree
-  install_data(keymaps.keys(), install_dir: config_host['qemu_datadir'] / 'keymaps')
+  install_data(keymaps.keys(), install_dir: qemu_datadir / 'keymaps')
 endif
 
-install_data(['sl', 'sv'], install_dir: config_host['qemu_datadir'] / 'keymaps')
+install_data(['sl', 'sv'], install_dir: qemu_datadir / 'keymaps')
