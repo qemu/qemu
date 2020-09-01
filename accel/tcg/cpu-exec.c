@@ -349,8 +349,6 @@ void afl_setup(void) {
 
       if (__afl_cmp_map == (void *)-1) exit(1);
 
-      disable_caching = 1;
-
     }
 
   }
@@ -477,23 +475,7 @@ void afl_setup(void) {
      behaviour, and seems to work alright? */
 
   rcu_disable_atfork();
-
-  is_persistent = getenv("AFL_QEMU_PERSISTENT_ADDR") != NULL;
-
-  if (is_persistent) {
-
-    afl_persistent_addr = strtoll(getenv("AFL_QEMU_PERSISTENT_ADDR"), NULL, 0);
-    if (getenv("AFL_QEMU_PERSISTENT_RET"))
-      afl_persistent_ret_addr =
-          strtoll(getenv("AFL_QEMU_PERSISTENT_RET"), NULL, 0);
-    /* If AFL_QEMU_PERSISTENT_RET is not specified patch the return addr */
-
-  }
-
-  if (getenv("AFL_QEMU_PERSISTENT_GPR")) persistent_save_gpr = 1;
-  if (getenv("AFL_QEMU_PERSISTENT_MEM"))
-    persistent_memory = 1;
-
+  
   if (getenv("AFL_QEMU_PERSISTENT_HOOK")) {
 
 #ifdef AFL_QEMU_STATIC_BUILD
@@ -535,6 +517,24 @@ void afl_setup(void) {
 #endif
 
   }
+  
+  if (__afl_cmp_map) return; // no persistent for cmplog
+  
+  is_persistent = getenv("AFL_QEMU_PERSISTENT_ADDR") != NULL;
+
+  if (is_persistent) {
+
+    afl_persistent_addr = strtoll(getenv("AFL_QEMU_PERSISTENT_ADDR"), NULL, 0);
+    if (getenv("AFL_QEMU_PERSISTENT_RET"))
+      afl_persistent_ret_addr =
+          strtoll(getenv("AFL_QEMU_PERSISTENT_RET"), NULL, 0);
+    /* If AFL_QEMU_PERSISTENT_RET is not specified patch the return addr */
+
+  }
+
+  if (getenv("AFL_QEMU_PERSISTENT_GPR")) persistent_save_gpr = 1;
+  if (getenv("AFL_QEMU_PERSISTENT_MEM"))
+    persistent_memory = 1;
 
   if (getenv("AFL_QEMU_PERSISTENT_RETADDR_OFFSET"))
     persisent_retaddr_offset =
