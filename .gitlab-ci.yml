@@ -133,6 +133,7 @@ build-system-fedora:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
     TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -164,6 +165,7 @@ build-system-centos:
   <<: *native_build_job_definition
   variables:
     IMAGE: centos8
+    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
     TARGETS: ppc64-softmmu lm32-softmmu or1k-softmmu s390x-softmmu
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -290,3 +292,69 @@ build-tci:
       done
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
+
+# Most jobs test latest gcrypt or nettle builds
+#
+# These jobs test old gcrypt and nettle from RHEL7
+# which had some API differences.
+build-crypto-old-nettle:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-old-nettle:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-old-nettle
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check
+
+
+build-crypto-old-gcrypt:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-old-gcrypt:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-old-gcrypt
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check
+
+
+build-crypto-only-gnutls:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-only-gnutls:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-only-gnutls
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check
