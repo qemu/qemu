@@ -709,7 +709,7 @@ void ide_cancel_dma_sync(IDEState *s)
     /*
      * We can't cancel Scatter Gather DMA in the middle of the
      * operation or a partial (not full) DMA transfer would reach
-     * the storage so we wait for completion instead (we beahve
+     * the storage so we wait for completion instead (we behave
      * like if the DMA was completed by the time the guest trying
      * to cancel dma with bmdma_cmd_writeb with BM_CMD_START not
      * set).

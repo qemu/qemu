@@ -161,7 +161,6 @@ static int qxl_log_cmd_draw(PCIQXLDevice *qxl, QXLDrawable *draw, int group_id)
     switch (draw->type) {
     case QXL_DRAW_COPY:
         return qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
-        break;
     }
     return 0;
 }
@@ -180,7 +179,6 @@ static int qxl_log_cmd_draw_compat(PCIQXLDevice *qxl, QXLCompatDrawable *draw,
     switch (draw->type) {
     case QXL_DRAW_COPY:
         return qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
-        break;
     }
     return 0;
 }

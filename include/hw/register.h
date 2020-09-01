@@ -181,6 +181,7 @@ uint64_t register_read_memory(void *opaque, hwaddr addr, unsigned size);
  * @data: Array to use for register data, must already be allocated
  * @ops: Memory region ops to access registers.
  * @debug enabled: turn on/off verbose debug information
+ * @memory_size: Size of the memory region
  * returns: A structure containing all of the registers and an initialized
  *          memory region (r_array->mem) the caller should add to a container.
  */

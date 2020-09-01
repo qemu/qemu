@@ -824,9 +824,9 @@ static void cmd_get_configuration(IDEState *s, uint8_t *buf)
      *
      *      Only a problem if the feature/profiles grow.
      */
-    if (max_len > 512) {
+    if (max_len > BDRV_SECTOR_SIZE) {
         /* XXX: assume 1 sector */
-        max_len = 512;
+        max_len = BDRV_SECTOR_SIZE;
     }
 
     memset(buf, 0, max_len);
@@ -1186,8 +1186,8 @@ static void cmd_read_dvd_structure(IDEState *s, uint8_t* buf)
         }
     }
 
-    memset(buf, 0, max_len > IDE_DMA_BUF_SECTORS * 512 + 4 ?
-           IDE_DMA_BUF_SECTORS * 512 + 4 : max_len);
+    memset(buf, 0, max_len > IDE_DMA_BUF_SECTORS * BDRV_SECTOR_SIZE + 4 ?
+           IDE_DMA_BUF_SECTORS * BDRV_SECTOR_SIZE + 4 : max_len);
 
     switch (format) {
         case 0x00 ... 0x7f:

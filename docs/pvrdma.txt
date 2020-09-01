@@ -18,7 +18,7 @@ over-commit and, even if not implemented yet, migration support will be
 possible with some HW assistance.
 
 A project presentation accompany this document:
-- http://events.linuxfoundation.org/sites/events/files/slides/lpc-2017-pvrdma-marcel-apfelbaum-yuval-shaia.pdf
+- https://blog.linuxplumbersconf.org/2017/ocw/system/presentations/4730/original/lpc-2017-pvrdma-marcel-apfelbaum-yuval-shaia.pdf
 
 
 

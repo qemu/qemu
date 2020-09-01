@@ -32,17 +32,13 @@ uint32_t scsi_cdb_xfer(uint8_t *buf)
     switch (buf[0] >> 5) {
     case 0:
         return buf[4];
-        break;
     case 1:
     case 2:
         return lduw_be_p(&buf[7]);
-        break;
     case 4:
         return ldl_be_p(&buf[10]) & 0xffffffffULL;
-        break;
     case 5:
         return ldl_be_p(&buf[6]) & 0xffffffffULL;
-        break;
     default:
         return -1;
     }

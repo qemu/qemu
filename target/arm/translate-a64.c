@@ -8631,8 +8631,8 @@ static void handle_scalar_simd_shli(DisasContext *s, bool insert,
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = immhb - (8 << size);
-    TCGv_i64 tcg_rn = new_tmp_a64(s);
-    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    TCGv_i64 tcg_rn;
+    TCGv_i64 tcg_rd;
 
     if (!extract32(immh, 3, 1)) {
         unallocated_encoding(s);
@@ -13013,9 +13013,6 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     opcode = extract32(insn, 12, 5);
     fpop = deposit32(opcode, 5, 1, a);
     fpop = deposit32(fpop, 6, 1, u);
-
-    rd = extract32(insn, 0, 5);
-    rn = extract32(insn, 5, 5);
 
     switch (fpop) {
     case 0x1d: /* SCVTF */

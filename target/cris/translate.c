@@ -1178,12 +1178,11 @@ static inline void t_gen_zext(TCGv d, TCGv s, int size)
 static char memsize_char(int size)
 {
     switch (size) {
-    case 1: return 'b';  break;
-    case 2: return 'w';  break;
-    case 4: return 'd';  break;
+    case 1: return 'b';
+    case 2: return 'w';
+    case 4: return 'd';
     default:
         return 'x';
-        break;
     }
 }
 #endif
