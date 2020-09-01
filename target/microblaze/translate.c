@@ -179,6 +179,21 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     return cond_user;
 }
 
+/*
+ * Return true, and log an error, if the current insn is
+ * within a delay slot.
+ */
+static bool invalid_delay_slot(DisasContext *dc, const char *insn_type)
+{
+    if (dc->tb_flags & D_FLAG) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Invalid insn in delay slot: %s at %08x\n",
+                      insn_type, (uint32_t)dc->base.pc_next);
+        return true;
+    }
+    return false;
+}
+
 static TCGv_i32 reg_for_read(DisasContext *dc, int reg)
 {
     if (likely(reg != 0)) {
@@ -500,6 +515,9 @@ DO_TYPEA_CFG(idivu, use_div, true, gen_idivu)
 
 static bool trans_imm(DisasContext *dc, arg_imm *arg)
 {
+    if (invalid_delay_slot(dc, "imm")) {
+        return true;
+    }
     dc->ext_imm = arg->imm << 16;
     tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
     dc->tb_flags_to_set = IMM_FLAG;
@@ -1067,6 +1085,9 @@ static bool do_branch(DisasContext *dc, int dest_rb, int dest_imm,
 {
     uint32_t add_pc;
 
+    if (invalid_delay_slot(dc, "branch")) {
+        return true;
+    }
     if (delay) {
         setup_dslot(dc, dest_rb < 0);
     }
@@ -1106,6 +1127,9 @@ static bool do_bcc(DisasContext *dc, int dest_rb, int dest_imm,
 {
     TCGv_i32 zero, next;
 
+    if (invalid_delay_slot(dc, "bcc")) {
+        return true;
+    }
     if (delay) {
         setup_dslot(dc, dest_rb < 0);
     }
@@ -1158,6 +1182,10 @@ static bool trans_brk(DisasContext *dc, arg_typea_br *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+    if (invalid_delay_slot(dc, "brk")) {
+        return true;
+    }
+
     tcg_gen_mov_i32(cpu_pc, reg_for_read(dc, arg->rb));
     if (arg->rd) {
         tcg_gen_movi_i32(cpu_R[arg->rd], dc->base.pc_next);
@@ -1176,6 +1204,10 @@ static bool trans_brki(DisasContext *dc, arg_typeb_br *arg)
     if (trap_userspace(dc, imm != 0x8 && imm != 0x18)) {
         return true;
     }
+    if (invalid_delay_slot(dc, "brki")) {
+        return true;
+    }
+
     tcg_gen_movi_i32(cpu_pc, imm);
     if (arg->rd) {
         tcg_gen_movi_i32(cpu_R[arg->rd], dc->base.pc_next);
@@ -1215,6 +1247,11 @@ static bool trans_brki(DisasContext *dc, arg_typeb_br *arg)
 static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
 {
     int mbar_imm = arg->imm;
+
+    /* Note that mbar is a specialized branch instruction. */
+    if (invalid_delay_slot(dc, "mbar")) {
+        return true;
+    }
 
     /* Data access memory barrier.  */
     if ((mbar_imm & 2) == 0) {
@@ -1263,6 +1300,10 @@ static bool do_rts(DisasContext *dc, arg_typeb_bc *arg, int to_set)
     if (trap_userspace(dc, to_set)) {
         return true;
     }
+    if (invalid_delay_slot(dc, "rts")) {
+        return true;
+    }
+
     dc->tb_flags_to_set |= to_set;
     setup_dslot(dc, true);
 
@@ -1695,7 +1736,6 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
     if (dc->jmp_cond != TCG_COND_NEVER && !(dc->tb_flags & D_FLAG)) {
         /*
          * Finish any return-from branch.
-         * TODO: Diagnose rtXd in delay slot of rtYd earlier.
          */
         uint32_t rt_ibe = dc->tb_flags & (DRTI_FLAG | DRTB_FLAG | DRTE_FLAG);
         if (unlikely(rt_ibe != 0)) {
@@ -1715,12 +1755,6 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
             /*
              * E.g. illegal insn in a delay slot.  We've already exited
              * and will handle D_FLAG in mb_cpu_do_interrupt.
-             */
-            break;
-        case DISAS_EXIT:
-            /*
-             * TODO: diagnose brk/brki in delay slot earlier.
-             * This would then fold into the illegal insn case above.
              */
             break;
         case DISAS_NEXT:
