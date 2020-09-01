@@ -347,6 +347,8 @@ void afl_setup(void) {
 
       if (__afl_cmp_map == (void *)-1) exit(1);
 
+      disable_caching = 1;
+
     }
 
   }
