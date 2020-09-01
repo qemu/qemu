@@ -4994,20 +4994,6 @@ if test "$libiscsi" != "no" ; then
 fi
 
 ##########################################
-# Do we need libm
-cat > $TMPC << EOF
-#include <math.h>
-int main(int argc, char **argv) { return isnan(sin((double)argc)); }
-EOF
-if compile_prog "" "" ; then
-  :
-elif compile_prog "" "-lm" ; then
-  LIBS="-lm $LIBS"
-else
-  error_exit "libm check failed"
-fi
-
-##########################################
 # Do we need librt
 # uClibc provides 2 versions of clock_gettime(), one with realtime
 # support and one without. This means that the clock_gettime() don't
