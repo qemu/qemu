@@ -530,7 +530,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     }
 
     /*
-     * Extract expired timers from active timers list and and process them.
+     * Extract expired timers from active timers list and process them.
      *
      * In rr mode we need "filtered" checkpointing for virtual clock.  The
      * checkpoint must be recorded/replayed before processing any non-EXTERNAL timer,

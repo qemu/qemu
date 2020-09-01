@@ -158,8 +158,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
         if (k->ide.get_irq) {
             qdev_prop_set_uint32(d, "irq", k->ide.get_irq(sio, 0));
         }
-        isa_realize_and_unref(isa, bus, &error_fatal);
         object_property_add_child(OBJECT(sio), "isa-ide", OBJECT(isa));
+        isa_realize_and_unref(isa, bus, &error_fatal);
         sio->ide = isa;
         trace_superio_create_ide(0,
                                  k->ide.get_iobase ?

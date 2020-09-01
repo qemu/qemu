@@ -102,7 +102,7 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
 I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
 
 /**
- * Realize and and drop a reference an I2C slave device
+ * Realize and drop a reference an I2C slave device
  * @dev: I2C slave device to realize
  * @bus: I2C bus to put it on
  * @addr: I2C address of the slave on the bus

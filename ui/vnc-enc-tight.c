@@ -1125,7 +1125,6 @@ static int send_palette_rect(VncState *vs, int x, int y,
     }
     default:
         return -1; /* No palette for 8bits colors */
-        break;
     }
     bytes = w * h;
     vs->tight->tight.offset = bytes;

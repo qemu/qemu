@@ -17,21 +17,32 @@ https://github.com/seharris/qemu-avr-tests/blob/master/free-rtos/Demo/AVR_ATMega
 Following are examples of possible usages, assuming demo.elf is compiled for
 AVR cpu
 
- - Continuous non interrupted execution:
-   ``qemu-system-avr -machine mega2560 -bios demo.elf``
+- Continuous non interrupted execution::
 
- - Continuous non interrupted execution with serial output into telnet window:
-   ``qemu-system-avr -machine mega2560 -bios demo.elf -serial
-   tcp::5678,server,nowait -nographic``
-   and then in another shell
-   ``telnet localhost 5678``
+   qemu-system-avr -machine mega2560 -bios demo.elf
 
- - Debugging wit GDB debugger:
-   ``qemu-system-avr -machine mega2560 -bios demo.elf -s -S``
-   and then in another shell
-   ``avr-gdb demo.elf``
-   and then within GDB shell
-   ``target remote :1234``
+- Continuous non interrupted execution with serial output into telnet window::
 
- - Print out executed instructions:
-   ``qemu-system-avr -machine mega2560 -bios demo.elf -d in_asm``
+   qemu-system-avr -M mega2560 -bios demo.elf -nographic \
+                   -serial tcp::5678,server,nowait
+
+  and then in another shell::
+
+   telnet localhost 5678
+
+- Debugging wit GDB debugger::
+
+   qemu-system-avr -machine mega2560 -bios demo.elf -s -S
+
+  and then in another shell::
+
+   avr-gdb demo.elf
+
+  and then within GDB shell::
+
+   target remote :1234
+
+- Print out executed instructions (that have not been translated by the JIT
+  compiler yet)::
+
+   qemu-system-avr -machine mega2560 -bios demo.elf -d in_asm

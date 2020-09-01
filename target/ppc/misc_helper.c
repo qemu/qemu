@@ -234,25 +234,20 @@ target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
     case 0x0CUL:
         /* Instruction cache line size */
         return env->icache_line_size;
-        break;
     case 0x0DUL:
         /* Data cache line size */
         return env->dcache_line_size;
-        break;
     case 0x0EUL:
         /* Minimum cache line size */
         return (env->icache_line_size < env->dcache_line_size) ?
             env->icache_line_size : env->dcache_line_size;
-        break;
     case 0x0FUL:
         /* Maximum cache line size */
         return (env->icache_line_size > env->dcache_line_size) ?
             env->icache_line_size : env->dcache_line_size;
-        break;
     default:
         /* Undefined */
         return 0;
-        break;
     }
 }
 
