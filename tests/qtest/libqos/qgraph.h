@@ -106,7 +106,7 @@ typedef void *(*QOSBeforeTest) (GString *cmd_line, void *arg);
  * <example>
  *   <title>Creating new driver an its interface</title>
  *   <programlisting>
- #include "libqos/qgraph.h"
+ #include "qgraph.h"
 
  struct My_driver {
      QOSGraphObject obj;
@@ -190,7 +190,7 @@ typedef void *(*QOSBeforeTest) (GString *cmd_line, void *arg);
  * <example>
  *   <title>Creating new test</title>
  *   <programlisting>
- * #include "libqos/qgraph.h"
+ * #include "qgraph.h"
  *
  * static void my_test_function(void *obj, void *data)
  * {
@@ -226,11 +226,11 @@ typedef void *(*QOSBeforeTest) (GString *cmd_line, void *arg);
  *        my_test <--consumed_by-- my_interface <--produces--+
  *
  * Assuming there the binary is
- * QTEST_QEMU_BINARY=x86_64-softmmu/qemu-system-x86_64
+ * QTEST_QEMU_BINARY=./qemu-system-x86_64
  * a valid test path will be:
  * "/x86_64/pc/other_node/my_driver/my_interface/my_test".
  *
- * Additional examples are also in libqos/test-qgraph.c
+ * Additional examples are also in test-qgraph.c
  *
  * Command line:
  * Command line is built by using node names and optional arguments

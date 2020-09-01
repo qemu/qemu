@@ -90,6 +90,35 @@ static inline bool has_ext(DisasContext *ctx, uint32_t ext)
     return ctx->misa & ext;
 }
 
+/*
+ * RISC-V requires NaN-boxing of narrower width floating point values.
+ * This applies when a 32-bit value is assigned to a 64-bit FP register.
+ * For consistency and simplicity, we nanbox results even when the RVD
+ * extension is not present.
+ */
+static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
+{
+    tcg_gen_ori_i64(out, in, MAKE_64BIT_MASK(32, 32));
+}
+
+/*
+ * A narrow n-bit operation, where n < FLEN, checks that input operands
+ * are correctly Nan-boxed, i.e., all upper FLEN - n bits are 1.
+ * If so, the least-significant bits of the input are used, otherwise the
+ * input value is treated as an n-bit canonical NaN (v2.2 section 9.2).
+ *
+ * Here, the result is always nan-boxed, even the canonical nan.
+ */
+static void gen_check_nanbox_s(TCGv_i64 out, TCGv_i64 in)
+{
+    TCGv_i64 t_max = tcg_const_i64(0xffffffff00000000ull);
+    TCGv_i64 t_nan = tcg_const_i64(0xffffffff7fc00000ull);
+
+    tcg_gen_movcond_i64(TCG_COND_GEU, out, in, t_max, in, t_nan);
+    tcg_temp_free_i64(t_max);
+    tcg_temp_free_i64(t_nan);
+}
+
 static void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
@@ -583,7 +612,7 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
 }
 
 /* Include the auto-generated decoder for 32 bit insn */
-#include "decode_insn32.inc.c"
+#include "decode-insn32.c.inc"
 
 static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a,
                              void (*func)(TCGv, TCGv, target_long))
@@ -718,17 +747,17 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 }
 
 /* Include insn module translation function */
-#include "insn_trans/trans_rvi.inc.c"
-#include "insn_trans/trans_rvm.inc.c"
-#include "insn_trans/trans_rva.inc.c"
-#include "insn_trans/trans_rvf.inc.c"
-#include "insn_trans/trans_rvd.inc.c"
-#include "insn_trans/trans_rvh.inc.c"
-#include "insn_trans/trans_rvv.inc.c"
-#include "insn_trans/trans_privileged.inc.c"
+#include "insn_trans/trans_rvi.c.inc"
+#include "insn_trans/trans_rvm.c.inc"
+#include "insn_trans/trans_rva.c.inc"
+#include "insn_trans/trans_rvf.c.inc"
+#include "insn_trans/trans_rvd.c.inc"
+#include "insn_trans/trans_rvh.c.inc"
+#include "insn_trans/trans_rvv.c.inc"
+#include "insn_trans/trans_privileged.c.inc"
 
 /* Include the auto-generated decoder for 16 bit insn */
-#include "decode_insn16.inc.c"
+#include "decode-insn16.c.inc"
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
@@ -768,16 +797,6 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #if !defined(CONFIG_USER_ONLY)
     if (riscv_has_ext(env, RVH)) {
         ctx->virt_enabled = riscv_cpu_virt_enabled(env);
-        if (env->priv_ver == PRV_M &&
-            get_field(env->mstatus, MSTATUS_MPRV) &&
-            MSTATUS_MPV_ISSET(env)) {
-            ctx->virt_enabled = true;
-        } else if (env->priv == PRV_S &&
-                   !riscv_cpu_virt_enabled(env) &&
-                   get_field(env->hstatus, HSTATUS_SPRV) &&
-                   get_field(env->hstatus, HSTATUS_SPV)) {
-            ctx->virt_enabled = true;
-        }
     } else {
         ctx->virt_enabled = false;
     }

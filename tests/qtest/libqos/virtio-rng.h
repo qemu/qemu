@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_RNG_H
 #define TESTS_LIBQOS_VIRTIO_RNG_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtioRng QVirtioRng;
 typedef struct QVirtioRngPCI QVirtioRngPCI;

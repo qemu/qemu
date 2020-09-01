@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_BLK_H
 #define TESTS_LIBQOS_VIRTIO_BLK_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtioBlk QVirtioBlk;
 typedef struct QVirtioBlkPCI QVirtioBlkPCI;

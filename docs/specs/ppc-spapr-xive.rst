@@ -61,6 +61,11 @@ depend on the XIVE KVM capability of the host. On older kernels
 without XIVE KVM support, QEMU will use the emulated XIVE device as a
 fallback and on newer kernels (>=5.2), the KVM XIVE device.
 
+XIVE native exploitation mode is not supported for KVM nested guests,
+VMs running under a L1 hypervisor (KVM on pSeries). In that case, the
+hypervisor will not advertise the KVM capability and QEMU will use the
+emulated XIVE device, same as for older versions of KVM.
+
 As a final refinement, the user can also switch the use of the KVM
 device with the machine option ``kernel_irqchip``.
 
@@ -121,6 +126,9 @@ xics            XICS KVM       XICS emul.     XICS KVM
 
 (1) QEMU warns with ``warning: kernel_irqchip requested but unavailable:
     IRQ_XIVE capability must be present for KVM``
+    In some cases (old host kernels or KVM nested guests), one may hit a
+    QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
+    with ``KVM is incompatible with ic-mode=dual,kernel-irqchip=on``
 (2) QEMU fails with ``kernel_irqchip requested but unavailable:
     IRQ_XIVE capability must be present for KVM``
 
@@ -143,7 +151,7 @@ xics            XICS KVM       XICS emul.     XICS KVM
     mode (XICS), either don't set the ic-mode machine property or try
     ic-mode=xics or ic-mode=dual``
 (4) QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
-    with ``KVM is too old to support ic-mode=dual,kernel-irqchip=on``
+    with ``KVM is incompatible with ic-mode=dual,kernel-irqchip=on``
 
 
 XIVE Device tree properties

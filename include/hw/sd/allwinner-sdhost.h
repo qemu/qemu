@@ -71,6 +71,12 @@ typedef struct AwSdHostState {
     /** Interrupt output signal to notify CPU */
     qemu_irq irq;
 
+    /** Memory region where DMA transfers are done */
+    MemoryRegion *dma_mr;
+
+    /** Address space used internally for DMA transfers */
+    AddressSpace dma_as;
+
     /** Number of bytes left in current DMA transfer */
     uint32_t transfer_cnt;
 

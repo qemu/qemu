@@ -37,6 +37,7 @@
 #include "hw/registerfields.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
+#include "hw/sd/sdcard_legacy.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
@@ -49,6 +50,8 @@
 #include "trace.h"
 
 //#define DEBUG_SD 1
+
+#define SDSC_MAX_CAPACITY   (2 * GiB)
 
 typedef enum {
     sd_r0 = 0,    /* no response */
@@ -313,7 +316,7 @@ static void sd_ocr_powerup(void *opaque)
     /* card power-up OK */
     sd->ocr = FIELD_DP32(sd->ocr, OCR, CARD_POWER_UP, 1);
 
-    if (sd->size > 1 * GiB) {
+    if (sd->size > SDSC_MAX_CAPACITY) {
         sd->ocr = FIELD_DP32(sd->ocr, OCR, CARD_CAPACITY, 1);
     }
 }
@@ -385,7 +388,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
     uint32_t sectsize = (1 << (SECTOR_SHIFT + 1)) - 1;
     uint32_t wpsize = (1 << (WPGROUP_SHIFT + 1)) - 1;
 
-    if (size <= 1 * GiB) { /* Standard Capacity SD */
+    if (size <= SDSC_MAX_CAPACITY) { /* Standard Capacity SD */
         sd->csd[0] = 0x00;	/* CSD structure */
         sd->csd[1] = 0x26;	/* Data read access-time-1 */
         sd->csd[2] = 0x00;	/* Data read access-time-2 */
@@ -806,11 +809,12 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
     sd->data[11] = 0x43;
     sd->data[12] = 0x80;	/* Supported group 1 functions */
     sd->data[13] = 0x03;
+
     for (i = 0; i < 6; i ++) {
         new_func = (arg >> (i * 4)) & 0x0f;
         if (mode && new_func != 0x0f)
             sd->function_group[i] = new_func;
-        sd->data[14 + (i >> 1)] = new_func << ((i * 4) & 4);
+        sd->data[16 - (i >> 1)] |= new_func << ((i % 2) * 4);
     }
     memset(&sd->data[17], 0, 47);
     stw_be_p(sd->data + 64, sd_crc16(sd->data, 64));
@@ -1808,7 +1812,7 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 #define APP_READ_BLOCK(a, len)	memset(sd->data, 0xec, len)
 #define APP_WRITE_BLOCK(a, len)
 
-void sd_write_data(SDState *sd, uint8_t value)
+void sd_write_byte(SDState *sd, uint8_t value)
 {
     int i;
 
@@ -1817,7 +1821,7 @@ void sd_write_data(SDState *sd, uint8_t value)
 
     if (sd->state != sd_receivingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "sd_write_data: not in Receiving-Data state\n");
+                      "%s: not in Receiving-Data state\n", __func__);
         return;
     }
 
@@ -1939,7 +1943,7 @@ void sd_write_data(SDState *sd, uint8_t value)
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "sd_write_data: unknown command\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: unknown command\n", __func__);
         break;
     }
 }
@@ -1958,7 +1962,7 @@ static const uint8_t sd_tuning_block_pattern[SD_TUNING_BLOCK_SIZE] = {
     0xbb, 0xff, 0xf7, 0xff,         0xf7, 0x7f, 0x7b, 0xde,
 };
 
-uint8_t sd_read_data(SDState *sd)
+uint8_t sd_read_byte(SDState *sd)
 {
     /* TODO: Append CRCs */
     uint8_t ret;
@@ -1969,7 +1973,7 @@ uint8_t sd_read_data(SDState *sd)
 
     if (sd->state != sd_sendingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "sd_read_data: not in Sending-Data state\n");
+                      "%s: not in Sending-Data state\n", __func__);
         return 0x00;
     }
 
@@ -2075,14 +2079,14 @@ uint8_t sd_read_data(SDState *sd)
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "sd_read_data: unknown command\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: unknown command\n", __func__);
         return 0x00;
     }
 
     return ret;
 }
 
-bool sd_data_ready(SDState *sd)
+static bool sd_data_ready(SDState *sd)
 {
     return sd->state == sd_sendingdata_state;
 }
@@ -2191,8 +2195,8 @@ static void sd_class_init(ObjectClass *klass, void *data)
     sc->get_dat_lines = sd_get_dat_lines;
     sc->get_cmd_line = sd_get_cmd_line;
     sc->do_command = sd_do_command;
-    sc->write_data = sd_write_data;
-    sc->read_data = sd_read_data;
+    sc->write_byte = sd_write_byte;
+    sc->read_byte = sd_read_byte;
     sc->data_ready = sd_data_ready;
     sc->enable = sd_enable;
     sc->get_inserted = sd_get_inserted;

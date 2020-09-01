@@ -5,6 +5,7 @@
 #include "net/net.h"
 
 #define TYPE_TULIP "tulip"
+typedef struct TULIPState TULIPState;
 #define TULIP(obj) OBJECT_CHECK(TULIPState, (obj), TYPE_TULIP)
 
 #define CSR(_x) ((_x) << 3)

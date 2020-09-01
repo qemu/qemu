@@ -34,11 +34,16 @@ void clock_clear_callback(Clock *clk)
     clock_set_callback(clk, NULL, NULL);
 }
 
-void clock_set(Clock *clk, uint64_t period)
+bool clock_set(Clock *clk, uint64_t period)
 {
+    if (clk->period == period) {
+        return false;
+    }
     trace_clock_set(CLOCK_PATH(clk), CLOCK_PERIOD_TO_NS(clk->period),
                     CLOCK_PERIOD_TO_NS(period));
     clk->period = period;
+
+    return true;
 }
 
 static void clock_propagate_period(Clock *clk, bool call_callbacks)

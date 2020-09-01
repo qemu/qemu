@@ -5120,7 +5120,7 @@ static DisasJumpType op_mpcifc(DisasContext *s, DisasOps *o)
 }
 #endif
 
-#include "translate_vx.inc.c"
+#include "translate_vx.c.inc"
 
 /* ====================================================================== */
 /* The "Cc OUTput" generators.  Given the generated output (and in some cases

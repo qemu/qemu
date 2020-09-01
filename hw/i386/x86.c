@@ -49,7 +49,7 @@
 #include "multiboot.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
-#include "config-devices.h"
+#include CONFIG_DEVICES
 #include "kvm_i386.h"
 
 #define BIOS_FILENAME "bios.bin"

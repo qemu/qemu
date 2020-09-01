@@ -1,2 +1,0 @@
-obj-y = pic_cpu.o cputimer.o
-obj-$(CONFIG_OR1K_SIM) += openrisc_sim.o

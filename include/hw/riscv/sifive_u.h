@@ -71,6 +71,7 @@ enum {
     SIFIVE_U_DEBUG,
     SIFIVE_U_MROM,
     SIFIVE_U_CLINT,
+    SIFIVE_U_L2CC,
     SIFIVE_U_L2LIM,
     SIFIVE_U_PLIC,
     SIFIVE_U_PRCI,
@@ -86,6 +87,9 @@ enum {
 };
 
 enum {
+    SIFIVE_U_L2CC_IRQ0 = 1,
+    SIFIVE_U_L2CC_IRQ1 = 2,
+    SIFIVE_U_L2CC_IRQ2 = 3,
     SIFIVE_U_UART0_IRQ = 4,
     SIFIVE_U_UART1_IRQ = 5,
     SIFIVE_U_GPIO_IRQ0 = 7,

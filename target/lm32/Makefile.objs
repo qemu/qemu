@@ -1,4 +1,0 @@
-obj-y += translate.o op_helper.o helper.o cpu.o
-obj-y += gdbstub.o
-obj-y += lm32-semi.o
-obj-$(CONFIG_SOFTMMU) += machine.o

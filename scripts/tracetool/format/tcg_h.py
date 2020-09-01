@@ -28,7 +28,7 @@ def vcpu_transform_args(args):
 
 def generate(events, backend, group):
     if group == "root":
-        header = "trace-root.h"
+        header = "trace/trace-root.h"
     else:
         header = "trace.h"
 

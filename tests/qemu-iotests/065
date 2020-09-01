@@ -98,20 +98,20 @@ class TestQCow3NotLazy(TestQemuImgInfo):
     img_options = 'compat=1.1,lazy_refcounts=off'
     json_compare = { 'compat': '1.1', 'lazy-refcounts': False,
                      'refcount-bits': 16, 'corrupt': False,
-                     'compression-type': 'zlib' }
+                     'compression-type': 'zlib', 'extended-l2': False }
     human_compare = [ 'compat: 1.1', 'compression type: zlib',
                       'lazy refcounts: false', 'refcount bits: 16',
-                      'corrupt: false' ]
+                      'corrupt: false', 'extended l2: false' ]
 
 class TestQCow3Lazy(TestQemuImgInfo):
     '''Testing a qcow2 version 3 image with lazy refcounts enabled'''
     img_options = 'compat=1.1,lazy_refcounts=on'
     json_compare = { 'compat': '1.1', 'lazy-refcounts': True,
                      'refcount-bits': 16, 'corrupt': False,
-                     'compression-type': 'zlib' }
+                     'compression-type': 'zlib', 'extended-l2': False }
     human_compare = [ 'compat: 1.1', 'compression type: zlib',
                       'lazy refcounts: true', 'refcount bits: 16',
-                      'corrupt: false' ]
+                      'corrupt: false', 'extended l2: false' ]
 
 class TestQCow3NotLazyQMP(TestQMP):
     '''Testing a qcow2 version 3 image with lazy refcounts disabled, opening
@@ -120,7 +120,7 @@ class TestQCow3NotLazyQMP(TestQMP):
     qemu_options = 'lazy-refcounts=on'
     compare = { 'compat': '1.1', 'lazy-refcounts': False,
                 'refcount-bits': 16, 'corrupt': False,
-                'compression-type': 'zlib' }
+                'compression-type': 'zlib', 'extended-l2': False }
 
 
 class TestQCow3LazyQMP(TestQMP):
@@ -130,7 +130,7 @@ class TestQCow3LazyQMP(TestQMP):
     qemu_options = 'lazy-refcounts=off'
     compare = { 'compat': '1.1', 'lazy-refcounts': True,
                 'refcount-bits': 16, 'corrupt': False,
-                'compression-type': 'zlib' }
+                'compression-type': 'zlib', 'extended-l2': False }
 
 TestImageInfoSpecific = None
 TestQemuImgInfo = None

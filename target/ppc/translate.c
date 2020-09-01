@@ -6900,15 +6900,15 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
     tcg_gen_st_i64(src, cpu_env, avr64_offset(regno, high));
 }
 
-#include "translate/fp-impl.inc.c"
+#include "translate/fp-impl.c.inc"
 
-#include "translate/vmx-impl.inc.c"
+#include "translate/vmx-impl.c.inc"
 
-#include "translate/vsx-impl.inc.c"
+#include "translate/vsx-impl.c.inc"
 
-#include "translate/dfp-impl.inc.c"
+#include "translate/dfp-impl.c.inc"
 
-#include "translate/spe-impl.inc.c"
+#include "translate/spe-impl.c.inc"
 
 /* Handles lfdp, lxsd, lxssp */
 static void gen_dform39(DisasContext *ctx)
@@ -6971,7 +6971,47 @@ static void gen_dform3D(DisasContext *ctx)
     return gen_invalid(ctx);
 }
 
+#if defined(TARGET_PPC64)
+/* brd */
+static void gen_brd(DisasContext *ctx)
+{
+    tcg_gen_bswap64_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+}
+
+/* brw */
+static void gen_brw(DisasContext *ctx)
+{
+    tcg_gen_bswap64_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_rotli_i64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 32);
+
+}
+
+/* brh */
+static void gen_brh(DisasContext *ctx)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_movi_i64(t0, 0x00ff00ff00ff00ffull);
+    tcg_gen_shri_i64(t1, cpu_gpr[rS(ctx->opcode)], 8);
+    tcg_gen_and_i64(t2, t1, t0);
+    tcg_gen_and_i64(t1, cpu_gpr[rS(ctx->opcode)], t0);
+    tcg_gen_shli_i64(t1, t1, 8);
+    tcg_gen_or_i64(cpu_gpr[rA(ctx->opcode)], t1, t2);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+}
+#endif
+
 static opcode_t opcodes[] = {
+#if defined(TARGET_PPC64)
+GEN_HANDLER_E(brd, 0x1F, 0x1B, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA310),
+GEN_HANDLER_E(brw, 0x1F, 0x1B, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA310),
+GEN_HANDLER_E(brh, 0x1F, 0x1B, 0x06, 0x0000F801, PPC_NONE, PPC2_ISA310),
+#endif
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
@@ -7587,19 +7627,19 @@ GEN_HANDLER2_E(treclaim, "treclaim", 0x1F, 0x0E, 0x1D, 0x03E0F800, \
 GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
                PPC_NONE, PPC2_TM),
 
-#include "translate/fp-ops.inc.c"
+#include "translate/fp-ops.c.inc"
 
-#include "translate/vmx-ops.inc.c"
+#include "translate/vmx-ops.c.inc"
 
-#include "translate/vsx-ops.inc.c"
+#include "translate/vsx-ops.c.inc"
 
-#include "translate/dfp-ops.inc.c"
+#include "translate/dfp-ops.c.inc"
 
-#include "translate/spe-ops.inc.c"
+#include "translate/spe-ops.c.inc"
 };
 
 #include "helper_regs.h"
-#include "translate_init.inc.c"
+#include "translate_init.c.inc"
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */

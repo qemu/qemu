@@ -75,8 +75,6 @@
 #define ENABLE_ARCH_7     arm_dc_feature(s, ARM_FEATURE_V7)
 #define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
-#define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
-
 #include "translate.h"
 
 #if defined(CONFIG_USER_ONLY)
@@ -85,8 +83,9 @@
 #define IS_USER(s) (s->user)
 #endif
 
-/* We reuse the same 64-bit temporaries for efficiency.  */
+/* These are TCG temporaries used only by the legacy iwMMXt decoder */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
+/* These are TCG globals which alias CPUARMState fields */
 static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
@@ -1121,19 +1120,6 @@ static inline void gen_hlt(DisasContext *s, int imm)
     unallocated_encoding(s);
 }
 
-static TCGv_ptr get_fpstatus_ptr(int neon)
-{
-    TCGv_ptr statusptr = tcg_temp_new_ptr();
-    int offset;
-    if (neon) {
-        offset = offsetof(CPUARMState, vfp.standard_fp_status);
-    } else {
-        offset = offsetof(CPUARMState, vfp.fp_status);
-    }
-    tcg_gen_addi_ptr(statusptr, cpu_env, offset);
-    return statusptr;
-}
-
 static inline long vfp_reg_offset(bool dp, unsigned reg)
 {
     if (dp) {
@@ -1202,8 +1188,9 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 #define ARM_CP_RW_BIT   (1 << 20)
 
 /* Include the VFP and Neon decoders */
-#include "translate-vfp.inc.c"
-#include "translate-neon.inc.c"
+#include "decode-m-nocp.c.inc"
+#include "translate-vfp.c.inc"
+#include "translate-neon.c.inc"
 
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {
@@ -2496,21 +2483,6 @@ static int disas_dsp_insn(DisasContext *s, uint32_t insn)
 
     return 1;
 }
-
-#define VFP_REG_SHR(x, n) (((n) > 0) ? (x) >> (n) : (x) << -(n))
-#define VFP_DREG(reg, insn, bigbit, smallbit) do { \
-    if (dc_isar_feature(aa32_simd_r32, s)) { \
-        reg = (((insn) >> (bigbit)) & 0x0f) \
-              | (((insn) >> ((smallbit) - 4)) & 0x10); \
-    } else { \
-        if (insn & (1 << (smallbit))) \
-            return 1; \
-        reg = ((insn) >> (bigbit)) & 0x0f; \
-    }} while (0)
-
-#define VFP_DREG_D(reg, insn) VFP_DREG(reg, insn, 12, 22)
-#define VFP_DREG_N(reg, insn) VFP_DREG(reg, insn, 16,  7)
-#define VFP_DREG_M(reg, insn) VFP_DREG(reg, insn,  0,  5)
 
 static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
 {
@@ -4570,47 +4542,11 @@ void gen_gvec_uaba(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
 }
 
-static int disas_coproc_insn(DisasContext *s, uint32_t insn)
+static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
+                           int opc1, int crn, int crm, int opc2,
+                           bool isread, int rt, int rt2)
 {
-    int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
     const ARMCPRegInfo *ri;
-
-    cpnum = (insn >> 8) & 0xf;
-
-    /* First check for coprocessor space used for XScale/iwMMXt insns */
-    if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
-        if (extract32(s->c15_cpar, cpnum, 1) == 0) {
-            return 1;
-        }
-        if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
-            return disas_iwmmxt_insn(s, insn);
-        } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
-            return disas_dsp_insn(s, insn);
-        }
-        return 1;
-    }
-
-    /* Otherwise treat as a generic register access */
-    is64 = (insn & (1 << 25)) == 0;
-    if (!is64 && ((insn & (1 << 4)) == 0)) {
-        /* cdp */
-        return 1;
-    }
-
-    crm = insn & 0xf;
-    if (is64) {
-        crn = 0;
-        opc1 = (insn >> 4) & 0xf;
-        opc2 = 0;
-        rt2 = (insn >> 16) & 0xf;
-    } else {
-        crn = (insn >> 16) & 0xf;
-        opc1 = (insn >> 21) & 7;
-        opc2 = (insn >> 5) & 7;
-        rt2 = 0;
-    }
-    isread = (insn >> 20) & 1;
-    rt = (insn >> 12) & 0xf;
 
     ri = get_arm_cp_reginfo(s->cp_regs,
             ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2));
@@ -4619,7 +4555,8 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
 
         /* Check access permissions */
         if (!cp_access_ok(s->current_el, ri, isread)) {
-            return 1;
+            unallocated_encoding(s);
+            return;
         }
 
         if (s->hstr_active || ri->accessfn ||
@@ -4693,14 +4630,15 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
         /* Handle special cases first */
         switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
         case ARM_CP_NOP:
-            return 0;
+            return;
         case ARM_CP_WFI:
             if (isread) {
-                return 1;
+                unallocated_encoding(s);
+                return;
             }
             gen_set_pc_im(s, s->base.pc_next);
             s->base.is_jmp = DISAS_WFI;
-            return 0;
+            return;
         default:
             break;
         }
@@ -4760,7 +4698,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             /* Write */
             if (ri->type & ARM_CP_CONST) {
                 /* If not forbidden by access permissions, treat as WI */
-                return 0;
+                return;
             }
 
             if (is64) {
@@ -4826,7 +4764,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             gen_lookup_tb(s);
         }
 
-        return 0;
+        return;
     }
 
     /* Unknown register; this might be a guest error or a QEMU
@@ -4846,9 +4784,27 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
                       s->ns ? "non-secure" : "secure");
     }
 
-    return 1;
+    unallocated_encoding(s);
+    return;
 }
 
+/* Decode XScale DSP or iWMMXt insn (in the copro space, cp=0 or 1) */
+static void disas_xscale_insn(DisasContext *s, uint32_t insn)
+{
+    int cpnum = (insn >> 8) & 0xf;
+
+    if (extract32(s->c15_cpar, cpnum, 1) == 0) {
+        unallocated_encoding(s);
+    } else if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
+        if (disas_iwmmxt_insn(s, insn)) {
+            unallocated_encoding(s);
+        }
+    } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
+        if (disas_dsp_insn(s, insn)) {
+            unallocated_encoding(s);
+        }
+    }
+}
 
 /* Store a 64-bit value to a register pair.  Clobbers val.  */
 static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
@@ -5243,10 +5199,72 @@ static int t16_pop_list(DisasContext *s, int x)
  * Include the generated decoders.
  */
 
-#include "decode-a32.inc.c"
-#include "decode-a32-uncond.inc.c"
-#include "decode-t32.inc.c"
-#include "decode-t16.inc.c"
+#include "decode-a32.c.inc"
+#include "decode-a32-uncond.c.inc"
+#include "decode-t32.c.inc"
+#include "decode-t16.c.inc"
+
+static bool valid_cp(DisasContext *s, int cp)
+{
+    /*
+     * Return true if this coprocessor field indicates something
+     * that's really a possible coprocessor.
+     * For v7 and earlier, coprocessors 8..15 were reserved for Arm use,
+     * and of those only cp14 and cp15 were used for registers.
+     * cp10 and cp11 were used for VFP and Neon, whose decode is
+     * dealt with elsewhere. With the advent of fp16, cp9 is also
+     * now part of VFP.
+     * For v8A and later, the encoding has been tightened so that
+     * only cp14 and cp15 are valid, and other values aren't considered
+     * to be in the coprocessor-instruction space at all. v8M still
+     * permits coprocessors 0..7.
+     */
+    if (arm_dc_feature(s, ARM_FEATURE_V8) &&
+        !arm_dc_feature(s, ARM_FEATURE_M)) {
+        return cp >= 14;
+    }
+    return cp < 8 || cp >= 14;
+}
+
+static bool trans_MCR(DisasContext *s, arg_MCR *a)
+{
+    if (!valid_cp(s, a->cp)) {
+        return false;
+    }
+    do_coproc_insn(s, a->cp, false, a->opc1, a->crn, a->crm, a->opc2,
+                   false, a->rt, 0);
+    return true;
+}
+
+static bool trans_MRC(DisasContext *s, arg_MRC *a)
+{
+    if (!valid_cp(s, a->cp)) {
+        return false;
+    }
+    do_coproc_insn(s, a->cp, false, a->opc1, a->crn, a->crm, a->opc2,
+                   true, a->rt, 0);
+    return true;
+}
+
+static bool trans_MCRR(DisasContext *s, arg_MCRR *a)
+{
+    if (!valid_cp(s, a->cp)) {
+        return false;
+    }
+    do_coproc_insn(s, a->cp, true, a->opc1, 0, a->crm, 0,
+                   false, a->rt, a->rt2);
+    return true;
+}
+
+static bool trans_MRRC(DisasContext *s, arg_MRRC *a)
+{
+    if (!valid_cp(s, a->cp)) {
+        return false;
+    }
+    do_coproc_insn(s, a->cp, true, a->opc1, 0, a->crm, 0,
+                   true, a->rt, a->rt2);
+    return true;
+}
 
 /* Helpers to swap operands for reverse-subtract.  */
 static void gen_rsb(TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)
@@ -7888,7 +7906,7 @@ static bool trans_BLX_i(DisasContext *s, arg_BLX_i *a)
 {
     TCGv_i32 tmp;
 
-    /* For A32, ARCH(5) is checked near the start of the uncond block. */
+    /* For A32, ARM_FEATURE_V5 is checked near the start of the uncond block. */
     if (s->thumb && (a->imm & 2)) {
         return false;
     }
@@ -8254,7 +8272,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
          * choose to UNDEF. In ARMv5 and above the space is used
          * for miscellaneous unconditional instructions.
          */
-        ARCH(5);
+        if (!arm_dc_feature(s, ARM_FEATURE_V5)) {
+            unallocated_encoding(s);
+            return;
+        }
 
         /* Unconditional instructions.  */
         /* TODO: Perhaps merge these into one decodetree output file.  */
@@ -8291,25 +8312,18 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         return;
     }
     /* fall back to legacy decoder */
-
-    switch ((insn >> 24) & 0xf) {
-    case 0xc:
-    case 0xd:
-    case 0xe:
-        if (((insn >> 8) & 0xe) == 10) {
-            /* VFP, but failed disas_vfp.  */
-            goto illegal_op;
+    /* TODO: convert xscale/iwmmxt decoder to decodetree ?? */
+    if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
+        if (((insn & 0x0c000e00) == 0x0c000000)
+            && ((insn & 0x03000000) != 0x03000000)) {
+            /* Coprocessor insn, coprocessor 0 or 1 */
+            disas_xscale_insn(s, insn);
+            return;
         }
-        if (disas_coproc_insn(s, insn)) {
-            /* Coprocessor.  */
-            goto illegal_op;
-        }
-        break;
-    default:
-    illegal_op:
-        unallocated_encoding(s);
-        break;
     }
+
+illegal_op:
+    unallocated_encoding(s);
 }
 
 static bool thumb_insn_is_16bit(DisasContext *s, uint32_t pc, uint32_t insn)
@@ -8386,7 +8400,23 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             goto illegal_op;
         }
     } else if ((insn & 0xf800e800) != 0xf000e800)  {
-        ARCH(6T2);
+        if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
+            unallocated_encoding(s);
+            return;
+        }
+    }
+
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        /*
+         * NOCP takes precedence over any UNDEF for (almost) the
+         * entire wide range of coprocessor-space encodings, so check
+         * for it first before proceeding to actually decode eg VFP
+         * insns. This decode also handles the few insns which are
+         * in copro space but do not have NOCP checks (eg VLLDM, VLSTM).
+         */
+        if (disas_m_nocp(s, insn)) {
+            return;
+        }
     }
 
     if ((insn & 0xef000000) == 0xef000000) {
@@ -8427,52 +8457,9 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         ((insn >> 28) == 0xe && disas_vfp(s, insn))) {
         return;
     }
-    /* fall back to legacy decoder */
 
-    switch ((insn >> 25) & 0xf) {
-    case 0: case 1: case 2: case 3:
-        /* 16-bit instructions.  Should never happen.  */
-        abort();
-    case 6: case 7: case 14: case 15:
-        /* Coprocessor.  */
-        if (arm_dc_feature(s, ARM_FEATURE_M)) {
-            /* 0b111x_11xx_xxxx_xxxx_xxxx_xxxx_xxxx_xxxx */
-            if (extract32(insn, 24, 2) == 3) {
-                goto illegal_op; /* op0 = 0b11 : unallocated */
-            }
-
-            if (((insn >> 8) & 0xe) == 10 &&
-                dc_isar_feature(aa32_fpsp_v2, s)) {
-                /* FP, and the CPU supports it */
-                goto illegal_op;
-            } else {
-                /* All other insns: NOCP */
-                gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                                   syn_uncategorized(),
-                                   default_exception_el(s));
-            }
-            break;
-        }
-        if (((insn >> 24) & 3) == 3) {
-            /* Neon DP, but failed disas_neon_dp() */
-            goto illegal_op;
-        } else if (((insn >> 8) & 0xe) == 10) {
-            /* VFP, but failed disas_vfp.  */
-            goto illegal_op;
-        } else {
-            if (insn & (1 << 28))
-                goto illegal_op;
-            if (disas_coproc_insn(s, insn)) {
-                goto illegal_op;
-            }
-        }
-        break;
-    case 12:
-        goto illegal_op;
-    default:
-    illegal_op:
-        unallocated_encoding(s);
-    }
+illegal_op:
+    unallocated_encoding(s);
 }
 
 static void disas_thumb_insn(DisasContext *s, uint32_t insn)
@@ -8593,7 +8580,6 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     cpu_V0 = tcg_temp_new_i64();
     cpu_V1 = tcg_temp_new_i64();
-    /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
     cpu_M0 = tcg_temp_new_i64();
 }
 

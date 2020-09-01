@@ -62,3 +62,13 @@ milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value
 # pxa2xx_mmci.c
 pxa2xx_mmci_read(uint8_t size, uint32_t addr, uint32_t value) "size %d addr 0x%02x value 0x%08x"
 pxa2xx_mmci_write(uint8_t size, uint32_t addr, uint32_t value) "size %d addr 0x%02x value 0x%08x"
+
+# pl181.c
+pl181_command_send(uint8_t cmd, uint32_t arg) "sending CMD%02d arg 0x%08" PRIx32
+pl181_command_sent(void) "command sent"
+pl181_command_response_pending(void) "response received"
+pl181_command_timeout(void) "command timeouted"
+pl181_fifo_push(uint32_t data) "FIFO push 0x%08" PRIx32
+pl181_fifo_pop(uint32_t data) "FIFO pop 0x%08" PRIx32
+pl181_fifo_transfer_complete(void) "FIFO transfer complete"
+pl181_data_engine_idle(void) "data engine idle"

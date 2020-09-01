@@ -8,9 +8,9 @@
 #ifndef LIBQOS_PCI_SPAPR_H
 #define LIBQOS_PCI_SPAPR_H
 
-#include "libqos/malloc.h"
-#include "libqos/pci.h"
-#include "libqos/qgraph.h"
+#include "malloc.h"
+#include "pci.h"
+#include "qgraph.h"
 
 /* From include/hw/pci-host/spapr.h */
 

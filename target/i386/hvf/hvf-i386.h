@@ -57,13 +57,13 @@ typedef struct hvf_vcpu_caps {
     uint64_t vmx_cap_preemption_timer;
 } hvf_vcpu_caps;
 
-typedef struct HVFState {
+struct HVFState {
     AccelState parent;
     hvf_slot slots[32];
     int num_slots;
 
     hvf_vcpu_caps *hvf_caps;
-} HVFState;
+};
 extern HVFState *hvf_state;
 
 void hvf_set_phys_mem(MemoryRegionSection *, bool);

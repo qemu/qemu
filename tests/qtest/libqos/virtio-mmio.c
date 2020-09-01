@@ -10,10 +10,10 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/module.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-mmio.h"
-#include "libqos/malloc.h"
-#include "libqos/qgraph.h"
+#include "virtio.h"
+#include "virtio-mmio.h"
+#include "malloc.h"
+#include "qgraph.h"
 #include "standard-headers/linux/virtio_ring.h"
 
 static uint8_t qvirtio_mmio_config_readb(QVirtioDevice *d, uint64_t off)

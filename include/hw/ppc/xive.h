@@ -191,6 +191,7 @@ typedef struct XiveSource {
     uint64_t        esb_flags;
     uint32_t        esb_shift;
     MemoryRegion    esb_mmio;
+    MemoryRegion    esb_mmio_emulated;
 
     /* KVM support */
     void            *esb_mmap;
@@ -213,6 +214,11 @@ static inline bool xive_source_esb_has_2page(XiveSource *xsrc)
 {
     return xsrc->esb_shift == XIVE_ESB_64K_2PAGE ||
         xsrc->esb_shift == XIVE_ESB_4K_2PAGE;
+}
+
+static inline size_t xive_source_esb_len(XiveSource *xsrc)
+{
+    return (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
 }
 
 /* The trigger page is always the first/even page */
@@ -396,6 +402,7 @@ typedef struct XivePresenterClass {
                      uint8_t nvt_blk, uint32_t nvt_idx,
                      bool cam_ignore, uint8_t priority,
                      uint32_t logic_serv, XiveTCTXMatch *match);
+    bool (*in_kernel)(const XivePresenter *xptr);
 } XivePresenterClass;
 
 int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
@@ -480,9 +487,9 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb);
 
 int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp);
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val);
-void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
-void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
-void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp);
-void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp);
+int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
+int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
+int kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp);
+int kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp);
 
 #endif /* PPC_XIVE_H */

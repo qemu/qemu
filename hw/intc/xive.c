@@ -592,6 +592,17 @@ static const char * const xive_tctx_ring_names[] = {
     "USER", "OS", "POOL", "PHYS",
 };
 
+/*
+ * kvm_irqchip_in_kernel() will cause the compiler to turn this
+ * info a nop if CONFIG_KVM isn't defined.
+ */
+#define xive_in_kernel(xptr)                                            \
+    (kvm_irqchip_in_kernel() &&                                         \
+     ({                                                                 \
+         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);      \
+         xpc->in_kernel ? xpc->in_kernel(xptr) : false;                 \
+     }))
+
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 {
     int cpu_index;
@@ -606,7 +617,7 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 
     cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (xive_in_kernel(tctx->xptr)) {
         Error *local_err = NULL;
 
         kvmppc_xive_cpu_synchronize_state(tctx, &local_err);
@@ -651,7 +662,6 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     XiveTCTX *tctx = XIVE_TCTX(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    Error *local_err = NULL;
 
     assert(tctx->cs);
     assert(tctx->xptr);
@@ -671,10 +681,8 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     }
 
     /* Connect the presenter to the VCPU (required for CPU hotplug) */
-    if (kvm_irqchip_in_kernel()) {
-        kvmppc_xive_cpu_connect(tctx, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+    if (xive_in_kernel(tctx->xptr)) {
+        if (kvmppc_xive_cpu_connect(tctx, errp) < 0) {
             return;
         }
     }
@@ -682,13 +690,15 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
 
 static int vmstate_xive_tctx_pre_save(void *opaque)
 {
+    XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
+    int ret;
 
-    if (kvm_irqchip_in_kernel()) {
-        kvmppc_xive_cpu_get_state(XIVE_TCTX(opaque), &local_err);
-        if (local_err) {
+    if (xive_in_kernel(tctx->xptr)) {
+        ret = kvmppc_xive_cpu_get_state(tctx, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -1;
+            return ret;
         }
     }
 
@@ -697,17 +707,19 @@ static int vmstate_xive_tctx_pre_save(void *opaque)
 
 static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
 {
+    XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
+    int ret;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (xive_in_kernel(tctx->xptr)) {
         /*
          * Required for hotplugged CPU, for which the state comes
          * after all states of the machine.
          */
-        kvmppc_xive_cpu_set_state(XIVE_TCTX(opaque), &local_err);
-        if (local_err) {
+        ret = kvmppc_xive_cpu_set_state(tctx, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -1;
+            return ret;
         }
     }
 
@@ -1128,6 +1140,7 @@ static void xive_source_reset(void *dev)
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+    size_t esb_len = xive_source_esb_len(xsrc);
 
     assert(xsrc->xive);
 
@@ -1147,11 +1160,11 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    if (!kvm_irqchip_in_kernel()) {
-        memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                              &xive_source_esb_ops, xsrc, "xive.esb",
-                              (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
-    }
+    memory_region_init(&xsrc->esb_mmio, OBJECT(xsrc), "xive.esb", esb_len);
+    memory_region_init_io(&xsrc->esb_mmio_emulated, OBJECT(xsrc),
+                          &xive_source_esb_ops, xsrc, "xive.esb-emulated",
+                          esb_len);
+    memory_region_add_subregion(&xsrc->esb_mmio, 0, &xsrc->esb_mmio_emulated);
 
     qemu_register_reset(xive_source_reset, dev);
 }
@@ -1502,7 +1515,7 @@ static bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
 
 /*
  * Notification using the END ESe/ESn bit (Event State Buffer for
- * escalation and notification). Profide futher coalescing in the
+ * escalation and notification). Provide further coalescing in the
  * Router.
  */
 static bool xive_router_end_es_notify(XiveRouter *xrtr, uint8_t end_blk,
@@ -1581,7 +1594,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
 
     /*
      * Check the END ESn (Event State Buffer for notification) for
-     * even futher coalescing in the Router
+     * even further coalescing in the Router
      */
     if (!xive_end_is_notify(&end)) {
         /* ESn[Q]=1 : end of notification */
@@ -1660,7 +1673,7 @@ do_escalation:
 
     /*
      * Check the END ESe (Event State Buffer for escalation) for even
-     * futher coalescing in the Router
+     * further coalescing in the Router
      */
     if (!xive_end_is_uncond_escalation(&end)) {
         /* ESe[Q]=1 : end of notification */

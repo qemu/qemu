@@ -19,8 +19,8 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/module.h"
-#include "libqos/qgraph.h"
-#include "libqos/virtio-serial.h"
+#include "qgraph.h"
+#include "virtio-serial.h"
 
 static void *qvirtio_serial_get_driver(QVirtioSerial *v_serial,
                                        const char *interface)

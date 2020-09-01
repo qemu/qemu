@@ -1,4 +1,0 @@
-obj-$(CONFIG_AN5206) += an5206.o mcf5206.o
-obj-$(CONFIG_MCF5208) += mcf5208.o mcf_intc.o
-obj-$(CONFIG_NEXTCUBE) += next-kbd.o next-cube.o
-obj-$(CONFIG_Q800) += q800.o

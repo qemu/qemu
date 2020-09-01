@@ -238,7 +238,7 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("xlnx-zcu102"),
+    .name       = TYPE_ZCU102_MACHINE,
     .parent     = TYPE_MACHINE,
     .class_init = xlnx_zcu102_machine_class_init,
     .instance_init = xlnx_zcu102_machine_instance_init,

@@ -141,7 +141,7 @@ static void pmac_format_nvram_partition_of(MacIONVRAMState *nvr, int off,
 
     /* OpenBIOS nvram variables partition */
     sysp_end = chrp_nvram_create_system_partition(&nvr->data[off],
-                                                  DEF_SYSTEM_SIZE) + off;
+                                                  DEF_SYSTEM_SIZE, len) + off;
 
     /* Free space partition */
     chrp_nvram_create_free_partition(&nvr->data[sysp_end], len - sysp_end);

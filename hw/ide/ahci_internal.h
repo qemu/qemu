@@ -332,9 +332,6 @@ struct AHCIPCIState {
     AHCIState ahci;
 };
 
-#define ICH_AHCI(obj) \
-    OBJECT_CHECK(AHCIPCIState, (obj), TYPE_ICH9_AHCI)
-
 extern const VMStateDescription vmstate_ahci;
 
 #define VMSTATE_AHCI(_field, _state) {                               \
@@ -393,7 +390,5 @@ void ahci_init(AHCIState *s, DeviceState *qdev);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
-
-#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
 
 #endif /* HW_IDE_AHCI_INTERNAL_H */

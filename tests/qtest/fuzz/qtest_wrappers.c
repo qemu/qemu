@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "hw/core/cpu.h"
 #include "exec/ioport.h"
 
 #include "fuzz.h"

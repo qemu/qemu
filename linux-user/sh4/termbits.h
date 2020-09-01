@@ -5,14 +5,19 @@
 
 #define TARGET_NCCS 19
 
+typedef unsigned char   target_cc_t;        /* cc_t */
+typedef unsigned int    target_speed_t;     /* speed_t */
+typedef unsigned int    target_tcflag_t;    /* tcflag_t */
+
 struct target_termios {
-	unsigned int c_iflag;			/* input mode flags */
-	unsigned int c_oflag;			/* output mode flags */
-	unsigned int c_cflag;			/* control mode flags */
-	unsigned int c_lflag;			/* local mode flags */
-	unsigned char c_line;			/* line discipline */
-	unsigned char c_cc[TARGET_NCCS];	/* control characters */
+    target_tcflag_t c_iflag;               /* input mode flags */
+    target_tcflag_t c_oflag;               /* output mode flags */
+    target_tcflag_t c_cflag;               /* control mode flags */
+    target_tcflag_t c_lflag;               /* local mode flags */
+    target_cc_t c_line;                    /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS];         /* control characters */
 };
+
 
 /* c_cc characters */
 #define TARGET_VINTR 0
@@ -150,6 +155,8 @@ struct target_termios {
 #define TARGET_FLUSHO	0010000
 #define TARGET_PENDIN	0040000
 #define TARGET_IEXTEN	0100000
+#define TARGET_EXTPROC  0200000
+
 
 /* tcflow() and TCXONC use these */
 #define TARGET_TCOOFF		0

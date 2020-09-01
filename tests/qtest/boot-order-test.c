@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "libqos/fw_cfg.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qapi/qmp/qdict.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
 

@@ -73,11 +73,6 @@ struct rocker {
     QLIST_ENTRY(rocker) next;
 };
 
-#define TYPE_ROCKER "rocker"
-
-#define ROCKER(obj) \
-    OBJECT_CHECK(Rocker, (obj), TYPE_ROCKER)
-
 static QLIST_HEAD(, rocker) rockers;
 
 Rocker *rocker_find(const char *name)

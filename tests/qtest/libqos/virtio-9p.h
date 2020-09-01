@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_9P_H
 #define TESTS_LIBQOS_VIRTIO_9P_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtio9P QVirtio9P;
 typedef struct QVirtio9PPCI QVirtio9PPCI;

@@ -36,6 +36,8 @@
         OBJECT_CHECK(VirtIOGPU, (obj), TYPE_VIRTIO_GPU)
 
 #define TYPE_VHOST_USER_GPU "vhost-user-gpu"
+#define VHOST_USER_GPU(obj)                                    \
+    OBJECT_CHECK(VhostUserGPU, (obj), TYPE_VHOST_USER_GPU)
 
 #define VIRTIO_ID_GPU 16
 

@@ -42,9 +42,6 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 
-#define TYPE_VFIO_PCI "vfio-pci"
-#define PCI_VFIO(obj)    OBJECT_CHECK(VFIOPCIDevice, obj, TYPE_VFIO_PCI)
-
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);

@@ -1,3 +1,0 @@
-obj-$(CONFIG_SUN4M) += sun4m_iommu.o
-obj-$(CONFIG_SUN4M) += sun4m.o
-obj-$(CONFIG_LEON3) += leon3.o

@@ -1,1 +1,0 @@
-libvhost-user-obj-y += libvhost-user.o libvhost-user-glib.o

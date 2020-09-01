@@ -1,0 +1,726 @@
+QA output created by 271
+
+### Standard write tests (backing file: yes) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+write -q -P PATTERN 0 1k
+L2 entry #0: 0x8000000000050000 0000000000000001
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000050000 0000000000000003
+write -q -P PATTERN 5k 1k
+L2 entry #0: 0x8000000000050000 0000000000000007
+write -q -P PATTERN 6k 2k
+L2 entry #0: 0x8000000000050000 000000000000000f
+write -q -P PATTERN 8k 6k
+L2 entry #0: 0x8000000000050000 000000000000007f
+write -q -P PATTERN 15k 4k
+L2 entry #0: 0x8000000000050000 00000000000003ff
+write -q -P PATTERN 32k 1k
+L2 entry #0: 0x8000000000050000 00000000000103ff
+write -q -P PATTERN 63k 4k
+L2 entry #0: 0x8000000000050000 00000000800103ff
+L2 entry #1: 0x8000000000060000 0000000000000003
+write -q -z 2k 2k
+L2 entry #0: 0x8000000000050000 00000002800103fd
+write -q -z 0 64k
+L2 entry #0: 0x8000000000050000 ffffffff00000000
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+write -q -z -u 0 32k
+L2 entry #0: 0x8000000000050000 0000ffffffff0000
+write -q -z -u 0 64k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000050000 fffffffd00000002
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 64k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -c -P PATTERN 0 64k
+L2 entry #0: 0x4000000000050000 0000000000000000
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000070000 00000000ffffffff
+
+### Standard write tests (backing file: no) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+write -q -P PATTERN 0 1k
+L2 entry #0: 0x8000000000050000 0000000000000001
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000050000 0000000000000003
+write -q -P PATTERN 5k 1k
+L2 entry #0: 0x8000000000050000 0000000000000007
+write -q -P PATTERN 6k 2k
+L2 entry #0: 0x8000000000050000 000000000000000f
+write -q -P PATTERN 8k 6k
+L2 entry #0: 0x8000000000050000 000000000000007f
+write -q -P PATTERN 15k 4k
+L2 entry #0: 0x8000000000050000 00000000000003ff
+write -q -P PATTERN 32k 1k
+L2 entry #0: 0x8000000000050000 00000000000103ff
+write -q -P PATTERN 63k 4k
+L2 entry #0: 0x8000000000050000 00000000800103ff
+L2 entry #1: 0x8000000000060000 0000000000000003
+write -q -z 2k 2k
+L2 entry #0: 0x8000000000050000 00000002800103fd
+write -q -z 0 64k
+L2 entry #0: 0x8000000000050000 ffffffff00000000
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+write -q -z -u 0 32k
+L2 entry #0: 0x8000000000050000 0000ffffffff0000
+write -q -z -u 0 64k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000050000 fffffffd00000002
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 64k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -c -P PATTERN 0 64k
+L2 entry #0: 0x4000000000050000 0000000000000000
+write -q -P PATTERN 3k 512
+L2 entry #0: 0x8000000000070000 00000000ffffffff
+
+### Overwriting several clusters without COW ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+write -q -P PATTERN 24k 40k
+L2 entry #0: 0x8000000000050000 00000000fffff000
+write -q -P PATTERN 90k 2k
+L2 entry #1: 0x8000000000060000 0000000000002000
+write -q -P PATTERN 156k 2k
+L2 entry #2: 0x8000000000070000 0000000000004000
+write -q -z 156k 2k
+L2 entry #2: 0x8000000000070000 0000400000000000
+write -q -P PATTERN 192k 34k
+L2 entry #3: 0x8000000000080000 000000000001ffff
+write -q -P PATTERN 24k 192k
+L2 entry #0: 0x8000000000050000 00000000fffff000
+L2 entry #1: 0x8000000000060000 00000000ffffffff
+L2 entry #2: 0x8000000000070000 00000000ffffffff
+L2 entry #3: 0x8000000000080000 000000000001ffff
+
+### Writing zeroes 1: unallocated clusters (backing file: yes) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2132992 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+write -q -z 0 192k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+L2 entry #1: 0x0000000000000000 ffffffff00000000
+L2 entry #2: 0x0000000000000000 ffffffff00000000
+write -q -z 224k 128k
+L2 entry #3: 0x0000000000000000 ffff000000000000
+L2 entry #4: 0x0000000000000000 ffffffff00000000
+L2 entry #5: 0x0000000000000000 0000ffff00000000
+write -q -z 415k 128k
+L2 entry #6: 0x8000000000050000 ffff000000008000
+L2 entry #7: 0x0000000000000000 ffffffff00000000
+L2 entry #8: 0x8000000000060000 00007fff00008000
+
+### Writing zeroes 2: allocated clusters (backing file: yes) ###
+
+write -q -P PATTERN 576k 576k
+L2 entry #9: 0x8000000000070000 00000000ffffffff
+L2 entry #10: 0x8000000000080000 00000000ffffffff
+L2 entry #11: 0x8000000000090000 00000000ffffffff
+L2 entry #12: 0x80000000000a0000 00000000ffffffff
+L2 entry #13: 0x80000000000b0000 00000000ffffffff
+L2 entry #14: 0x80000000000c0000 00000000ffffffff
+L2 entry #15: 0x80000000000d0000 00000000ffffffff
+L2 entry #16: 0x80000000000e0000 00000000ffffffff
+L2 entry #17: 0x80000000000f0000 00000000ffffffff
+write -q -z 576k 192k
+L2 entry #9: 0x8000000000070000 ffffffff00000000
+L2 entry #10: 0x8000000000080000 ffffffff00000000
+L2 entry #11: 0x8000000000090000 ffffffff00000000
+write -q -z 800k 128k
+L2 entry #12: 0x80000000000a0000 ffff00000000ffff
+L2 entry #13: 0x80000000000b0000 ffffffff00000000
+L2 entry #14: 0x80000000000c0000 0000ffffffff0000
+write -q -z 991k 128k
+L2 entry #15: 0x80000000000d0000 ffff00000000ffff
+L2 entry #16: 0x80000000000e0000 ffffffff00000000
+L2 entry #17: 0x80000000000f0000 00007fffffff8000
+
+### Writing zeroes 3: compressed clusters (backing file: yes) ###
+
+write -q -c -P PATTERN 1152k 64k
+L2 entry #18: 0x4000000000100000 0000000000000000
+write -q -c -P PATTERN 1216k 64k
+L2 entry #19: 0x4000000000110000 0000000000000000
+write -q -c -P PATTERN 1280k 64k
+L2 entry #20: 0x4000000000120000 0000000000000000
+write -q -c -P PATTERN 1344k 64k
+L2 entry #21: 0x4000000000130000 0000000000000000
+write -q -c -P PATTERN 1408k 64k
+L2 entry #22: 0x4000000000140000 0000000000000000
+write -q -c -P PATTERN 1472k 64k
+L2 entry #23: 0x4000000000150000 0000000000000000
+write -q -c -P PATTERN 1536k 64k
+L2 entry #24: 0x4000000000160000 0000000000000000
+write -q -c -P PATTERN 1600k 64k
+L2 entry #25: 0x4000000000170000 0000000000000000
+write -q -c -P PATTERN 1664k 64k
+L2 entry #26: 0x4000000000180000 0000000000000000
+write -q -c -P PATTERN 1728k 64k
+L2 entry #27: 0x4000000000190000 0000000000000000
+write -q -c -P PATTERN 1792k 64k
+L2 entry #28: 0x40000000001a0000 0000000000000000
+write -q -z 1152k 192k
+L2 entry #18: 0x0000000000000000 ffffffff00000000
+L2 entry #19: 0x0000000000000000 ffffffff00000000
+L2 entry #20: 0x0000000000000000 ffffffff00000000
+write -q -z 1376k 128k
+L2 entry #21: 0x8000000000100000 00000000ffffffff
+L2 entry #22: 0x8000000000110000 00000000ffffffff
+L2 entry #23: 0x8000000000120000 00000000ffffffff
+write -q -z 1567k 129k
+L2 entry #24: 0x8000000000130000 00000000ffffffff
+L2 entry #25: 0x8000000000140000 00000000ffffffff
+L2 entry #26: 0x8000000000150000 00000000ffffffff
+write -q -z 1759k 128k
+L2 entry #27: 0x8000000000160000 ffff00000000ffff
+L2 entry #28: 0x0000000000000000 ffffffff00000000
+L2 entry #29: 0x8000000000170000 00007fff00008000
+
+### Writing zeroes 4: other tests (backing file: yes) ###
+
+write -q -z 1951k 8k
+L2 entry #30: 0x8000000000180000 0007000000088000
+write -q -z 2048k 35k
+L2 entry #32: 0x0000000000000000 0003ffff00000000
+
+### Writing zeroes 1: unallocated clusters (backing file: no) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2132992
+write -q -z 0 192k
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+L2 entry #1: 0x0000000000000000 ffffffff00000000
+L2 entry #2: 0x0000000000000000 ffffffff00000000
+write -q -z 224k 128k
+L2 entry #3: 0x0000000000000000 ffff000000000000
+L2 entry #4: 0x0000000000000000 ffffffff00000000
+L2 entry #5: 0x0000000000000000 0000ffff00000000
+write -q -z 415k 128k
+L2 entry #6: 0x0000000000000000 ffff800000000000
+L2 entry #7: 0x0000000000000000 ffffffff00000000
+L2 entry #8: 0x0000000000000000 0000ffff00000000
+
+### Writing zeroes 2: allocated clusters (backing file: no) ###
+
+write -q -P PATTERN 576k 576k
+L2 entry #9: 0x8000000000050000 00000000ffffffff
+L2 entry #10: 0x8000000000060000 00000000ffffffff
+L2 entry #11: 0x8000000000070000 00000000ffffffff
+L2 entry #12: 0x8000000000080000 00000000ffffffff
+L2 entry #13: 0x8000000000090000 00000000ffffffff
+L2 entry #14: 0x80000000000a0000 00000000ffffffff
+L2 entry #15: 0x80000000000b0000 00000000ffffffff
+L2 entry #16: 0x80000000000c0000 00000000ffffffff
+L2 entry #17: 0x80000000000d0000 00000000ffffffff
+write -q -z 576k 192k
+L2 entry #9: 0x8000000000050000 ffffffff00000000
+L2 entry #10: 0x8000000000060000 ffffffff00000000
+L2 entry #11: 0x8000000000070000 ffffffff00000000
+write -q -z 800k 128k
+L2 entry #12: 0x8000000000080000 ffff00000000ffff
+L2 entry #13: 0x8000000000090000 ffffffff00000000
+L2 entry #14: 0x80000000000a0000 0000ffffffff0000
+write -q -z 991k 128k
+L2 entry #15: 0x80000000000b0000 ffff00000000ffff
+L2 entry #16: 0x80000000000c0000 ffffffff00000000
+L2 entry #17: 0x80000000000d0000 00007fffffff8000
+
+### Writing zeroes 3: compressed clusters (backing file: no) ###
+
+write -q -c -P PATTERN 1152k 64k
+L2 entry #18: 0x40000000000e0000 0000000000000000
+write -q -c -P PATTERN 1216k 64k
+L2 entry #19: 0x40000000000f0000 0000000000000000
+write -q -c -P PATTERN 1280k 64k
+L2 entry #20: 0x4000000000100000 0000000000000000
+write -q -c -P PATTERN 1344k 64k
+L2 entry #21: 0x4000000000110000 0000000000000000
+write -q -c -P PATTERN 1408k 64k
+L2 entry #22: 0x4000000000120000 0000000000000000
+write -q -c -P PATTERN 1472k 64k
+L2 entry #23: 0x4000000000130000 0000000000000000
+write -q -c -P PATTERN 1536k 64k
+L2 entry #24: 0x4000000000140000 0000000000000000
+write -q -c -P PATTERN 1600k 64k
+L2 entry #25: 0x4000000000150000 0000000000000000
+write -q -c -P PATTERN 1664k 64k
+L2 entry #26: 0x4000000000160000 0000000000000000
+write -q -c -P PATTERN 1728k 64k
+L2 entry #27: 0x4000000000170000 0000000000000000
+write -q -c -P PATTERN 1792k 64k
+L2 entry #28: 0x4000000000180000 0000000000000000
+write -q -z 1152k 192k
+L2 entry #18: 0x0000000000000000 ffffffff00000000
+L2 entry #19: 0x0000000000000000 ffffffff00000000
+L2 entry #20: 0x0000000000000000 ffffffff00000000
+write -q -z 1376k 128k
+L2 entry #21: 0x80000000000e0000 00000000ffffffff
+L2 entry #22: 0x80000000000f0000 00000000ffffffff
+L2 entry #23: 0x8000000000100000 00000000ffffffff
+write -q -z 1567k 129k
+L2 entry #24: 0x8000000000110000 00000000ffffffff
+L2 entry #25: 0x8000000000120000 00000000ffffffff
+L2 entry #26: 0x8000000000130000 00000000ffffffff
+write -q -z 1759k 128k
+L2 entry #27: 0x8000000000140000 ffff00000000ffff
+L2 entry #28: 0x0000000000000000 ffffffff00000000
+L2 entry #29: 0x0000000000000000 0000ffff00000000
+
+### Writing zeroes 4: other tests (backing file: no) ###
+
+write -q -z 1951k 8k
+L2 entry #30: 0x0000000000000000 000f800000000000
+write -q -z 2048k 35k
+L2 entry #32: 0x0000000000000000 0003ffff00000000
+
+### Zero + unmap 1: allocated clusters (backing file: yes) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2132992 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+write -q -P PATTERN 576k 576k
+L2 entry #9: 0x8000000000050000 00000000ffffffff
+L2 entry #10: 0x8000000000060000 00000000ffffffff
+L2 entry #11: 0x8000000000070000 00000000ffffffff
+L2 entry #12: 0x8000000000080000 00000000ffffffff
+L2 entry #13: 0x8000000000090000 00000000ffffffff
+L2 entry #14: 0x80000000000a0000 00000000ffffffff
+L2 entry #15: 0x80000000000b0000 00000000ffffffff
+L2 entry #16: 0x80000000000c0000 00000000ffffffff
+L2 entry #17: 0x80000000000d0000 00000000ffffffff
+write -q -z -u 576k 192k
+L2 entry #9: 0x0000000000000000 ffffffff00000000
+L2 entry #10: 0x0000000000000000 ffffffff00000000
+L2 entry #11: 0x0000000000000000 ffffffff00000000
+write -q -z -u 800k 128k
+L2 entry #12: 0x8000000000080000 ffff00000000ffff
+L2 entry #13: 0x0000000000000000 ffffffff00000000
+L2 entry #14: 0x80000000000a0000 0000ffffffff0000
+write -q -z -u 991k 128k
+L2 entry #15: 0x80000000000b0000 ffff00000000ffff
+L2 entry #16: 0x0000000000000000 ffffffff00000000
+L2 entry #17: 0x80000000000d0000 00007fffffff8000
+
+### Zero + unmap 2: compressed clusters (backing file: yes) ###
+
+write -q -c -P PATTERN 1152k 64k
+L2 entry #18: 0x4000000000050000 0000000000000000
+write -q -c -P PATTERN 1216k 64k
+L2 entry #19: 0x4000000000060000 0000000000000000
+write -q -c -P PATTERN 1280k 64k
+L2 entry #20: 0x4000000000070000 0000000000000000
+write -q -c -P PATTERN 1344k 64k
+L2 entry #21: 0x4000000000090000 0000000000000000
+write -q -c -P PATTERN 1408k 64k
+L2 entry #22: 0x40000000000c0000 0000000000000000
+write -q -c -P PATTERN 1472k 64k
+L2 entry #23: 0x40000000000e0000 0000000000000000
+write -q -c -P PATTERN 1536k 64k
+L2 entry #24: 0x40000000000f0000 0000000000000000
+write -q -c -P PATTERN 1600k 64k
+L2 entry #25: 0x4000000000100000 0000000000000000
+write -q -c -P PATTERN 1664k 64k
+L2 entry #26: 0x4000000000110000 0000000000000000
+write -q -c -P PATTERN 1728k 64k
+L2 entry #27: 0x4000000000120000 0000000000000000
+write -q -c -P PATTERN 1792k 64k
+L2 entry #28: 0x4000000000130000 0000000000000000
+write -q -z -u 1152k 192k
+L2 entry #18: 0x0000000000000000 ffffffff00000000
+L2 entry #19: 0x0000000000000000 ffffffff00000000
+L2 entry #20: 0x0000000000000000 ffffffff00000000
+write -q -z -u 1376k 128k
+L2 entry #21: 0x8000000000050000 00000000ffffffff
+L2 entry #22: 0x8000000000060000 00000000ffffffff
+L2 entry #23: 0x8000000000070000 00000000ffffffff
+write -q -z -u 1567k 129k
+L2 entry #24: 0x8000000000090000 00000000ffffffff
+L2 entry #25: 0x80000000000e0000 00000000ffffffff
+L2 entry #26: 0x80000000000f0000 00000000ffffffff
+write -q -z -u 1759k 128k
+L2 entry #27: 0x80000000000c0000 ffff00000000ffff
+L2 entry #28: 0x0000000000000000 ffffffff00000000
+L2 entry #29: 0x8000000000100000 00007fff00008000
+
+### Zero + unmap 1: allocated clusters (backing file: no) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=2132992
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2132992
+write -q -P PATTERN 576k 576k
+L2 entry #9: 0x8000000000050000 00000000ffffffff
+L2 entry #10: 0x8000000000060000 00000000ffffffff
+L2 entry #11: 0x8000000000070000 00000000ffffffff
+L2 entry #12: 0x8000000000080000 00000000ffffffff
+L2 entry #13: 0x8000000000090000 00000000ffffffff
+L2 entry #14: 0x80000000000a0000 00000000ffffffff
+L2 entry #15: 0x80000000000b0000 00000000ffffffff
+L2 entry #16: 0x80000000000c0000 00000000ffffffff
+L2 entry #17: 0x80000000000d0000 00000000ffffffff
+write -q -z -u 576k 192k
+L2 entry #9: 0x0000000000000000 ffffffff00000000
+L2 entry #10: 0x0000000000000000 ffffffff00000000
+L2 entry #11: 0x0000000000000000 ffffffff00000000
+write -q -z -u 800k 128k
+L2 entry #12: 0x8000000000080000 ffff00000000ffff
+L2 entry #13: 0x0000000000000000 ffffffff00000000
+L2 entry #14: 0x80000000000a0000 0000ffffffff0000
+write -q -z -u 991k 128k
+L2 entry #15: 0x80000000000b0000 ffff00000000ffff
+L2 entry #16: 0x0000000000000000 ffffffff00000000
+L2 entry #17: 0x80000000000d0000 00007fffffff8000
+
+### Zero + unmap 2: compressed clusters (backing file: no) ###
+
+write -q -c -P PATTERN 1152k 64k
+L2 entry #18: 0x4000000000050000 0000000000000000
+write -q -c -P PATTERN 1216k 64k
+L2 entry #19: 0x4000000000060000 0000000000000000
+write -q -c -P PATTERN 1280k 64k
+L2 entry #20: 0x4000000000070000 0000000000000000
+write -q -c -P PATTERN 1344k 64k
+L2 entry #21: 0x4000000000090000 0000000000000000
+write -q -c -P PATTERN 1408k 64k
+L2 entry #22: 0x40000000000c0000 0000000000000000
+write -q -c -P PATTERN 1472k 64k
+L2 entry #23: 0x40000000000e0000 0000000000000000
+write -q -c -P PATTERN 1536k 64k
+L2 entry #24: 0x40000000000f0000 0000000000000000
+write -q -c -P PATTERN 1600k 64k
+L2 entry #25: 0x4000000000100000 0000000000000000
+write -q -c -P PATTERN 1664k 64k
+L2 entry #26: 0x4000000000110000 0000000000000000
+write -q -c -P PATTERN 1728k 64k
+L2 entry #27: 0x4000000000120000 0000000000000000
+write -q -c -P PATTERN 1792k 64k
+L2 entry #28: 0x4000000000130000 0000000000000000
+write -q -z -u 1152k 192k
+L2 entry #18: 0x0000000000000000 ffffffff00000000
+L2 entry #19: 0x0000000000000000 ffffffff00000000
+L2 entry #20: 0x0000000000000000 ffffffff00000000
+write -q -z -u 1376k 128k
+L2 entry #21: 0x8000000000050000 00000000ffffffff
+L2 entry #22: 0x8000000000060000 00000000ffffffff
+L2 entry #23: 0x8000000000070000 00000000ffffffff
+write -q -z -u 1567k 129k
+L2 entry #24: 0x8000000000090000 00000000ffffffff
+L2 entry #25: 0x80000000000e0000 00000000ffffffff
+L2 entry #26: 0x80000000000f0000 00000000ffffffff
+write -q -z -u 1759k 128k
+L2 entry #27: 0x80000000000c0000 ffff00000000ffff
+L2 entry #28: 0x0000000000000000 ffffffff00000000
+L2 entry #29: 0x0000000000000000 0000ffff00000000
+
+### Discarding clusters with non-zero bitmaps (backing file: yes) ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+L2 entry #1: 0x0000000000000000 ffffffff00000000
+Image resized.
+Image resized.
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+L2 entry #1: 0x0000000000000000 ffffffff00000000
+
+### Discarding clusters with non-zero bitmaps (backing file: no) ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+L2 entry #1: 0x0000000000000000 ffffffff00000000
+Image resized.
+Image resized.
+L2 entry #0: 0x0000000000000000 0000ffff00000000
+L2 entry #1: 0x0000000000000000 0000000000000000
+
+### Corrupted L2 entries - read test (allocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x8000000000050001 0000000000000001
+L2 entry #0: 0x8000000000050001 0000000000000001
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #1: 0x8000000000060000 00000001ffffffff
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+read failed: Input/output error
+
+### Corrupted L2 entries - read test (unallocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x0000000000000001 0000000000000000
+L2 entry #0: 0x0000000000000001 0000000000000000
+
+# 'subcluster is allocated' bit set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x0000000000000000 0000000000000001
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #1: 0x0000000000000000 0000000100000001
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+read failed: Input/output error
+
+### Compressed cluster with subcluster bitmap != 0 - read test ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x4000000000050000 0000000180000000
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+L2 entry #0: 0x4000000000050000 0000000180000000
+
+### Corrupted L2 entries - write test (allocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x8000000000050001 0000000000000001
+L2 entry #0: 0x8000000000050001 0000000000000001
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #1: 0x8000000000060000 00000001ffffffff
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+write failed: Input/output error
+
+### Corrupted L2 entries - write test (unallocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x0000000000000001 0000000000000000
+L2 entry #0: 0x8000000000060000 0000000000000001
+
+# 'subcluster is allocated' bit set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x0000000000000000 0000000000000001
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #1: 0x0000000000000000 0000000100000001
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+write failed: Input/output error
+
+### Compressed cluster with subcluster bitmap != 0 - write test ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x4000000000050000 0000000180000000
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+L2 entry #0: 0x8000000000060000 00000000ffffffff
+
+### Detect and repair unaligned clusters ###
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=131072
+# Corrupted L2 entry, allocated subcluster #
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+ERROR offset=50200: Data cluster is not properly aligned; L2 entry corrupted.
+ERROR cluster 6 refcount=0 reference=1
+Rebuilding refcount structure
+ERROR offset=50200: Data cluster is not properly aligned; L2 entry corrupted.
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
+ERROR offset=50200: Data cluster is not properly aligned; L2 entry corrupted.
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+qcow2: Marking image as corrupt: Cluster allocation offset 0x50200 unaligned (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+# Corrupted L2 entry, no allocated subclusters #
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+Repairing offset=50200: Preallocated cluster is not properly aligned; L2 entry corrupted.
+Leaked cluster 5 refcount=1 reference=0
+Repairing cluster 5 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+### Image creation options ###
+
+# cluster_size < 16k
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qemu-img: TEST_DIR/t.IMGFMT: Extended L2 entries are only supported with cluster sizes of at least 16384 bytes
+# backing file and preallocation=metadata
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=524288 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw preallocation=metadata
+Image resized.
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x80000        0               TEST_DIR/t.qcow2.base
+# backing file and preallocation=falloc
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=524288 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw preallocation=falloc
+Image resized.
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x80000        0               TEST_DIR/t.qcow2.base
+# backing file and preallocation=full
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=524288 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw preallocation=full
+Image resized.
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x80000        0               TEST_DIR/t.qcow2.base
+
+### Image resizing with preallocation and backing files ###
+
+# resize --preallocation=metadata
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# resize --preallocation=falloc
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# resize --preallocation=full
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+### Image resizing with preallocation without backing files ###
+
+# resize --preallocation=metadata
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072
+wrote 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# resize --preallocation=falloc
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072
+wrote 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# resize --preallocation=full
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=515072
+wrote 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Image resized.
+read 515072/515072 bytes at offset 0
+503 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 522240/522240 bytes at offset 515072
+510 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+### qemu-img measure ###
+
+# 512MB, extended_l2=off
+required size: 327680
+fully allocated size: 537198592
+# 512MB, extended_l2=on
+required size: 393216
+fully allocated size: 537264128
+# 16K clusters, 64GB, extended_l2=off
+required size: 42008576
+fully allocated size: 68761485312
+# 16K clusters, 64GB, extended_l2=on
+required size: 75579392
+fully allocated size: 68795056128
+# 8k clusters
+qemu-img: Extended L2 entries are only supported with cluster sizes of at least 16384 bytes
+# 1024 TB
+required size: 309285027840
+fully allocated size: 1126209191870464
+# 1025 TB
+qemu-img: The image size is too large (try using a larger cluster size)
+
+### qemu-img amend ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qemu-img: Invalid parameter 'extended_l2'
+This option is only supported for image creation
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qemu-img: Invalid parameter 'extended_l2'
+This option is only supported for image creation
+
+### Test copy-on-write on an image with snapshots ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x8000000000050000 0000008000042000
+L2 entry #1: 0x8000000000060000 0000008000042000
+L2 entry #2: 0x8000000000070000 0000008000042000
+L2 entry #3: 0x8000000000080000 0000008000042000
+L2 entry #4: 0x8000000000090000 0000008000042000
+L2 entry #5: 0x80000000000a0000 0000008000042000
+L2 entry #6: 0x80000000000b0000 0000008000042000
+L2 entry #7: 0x80000000000c0000 0000008000042000
+L2 entry #8: 0x80000000000d0000 0000008000042000
+L2 entry #9: 0x80000000000e0000 0000008000042000
+L2 entry #0: 0x8000000000120000 000000800007e000
+L2 entry #1: 0x8000000000130000 000000800007fc00
+L2 entry #2: 0x8000000000140000 00000080001fe000
+L2 entry #3: 0x8000000000150000 000000800007e000
+L2 entry #4: 0x8000000000160000 000000000007ff80
+L2 entry #5: 0x8000000000170000 000000000007ffff
+L2 entry #6: 0x00000000000b0000 0001808000042000
+L2 entry #7: 0x00000000000c0000 0000208000040000
+L2 entry #8: 0x8000000000180000 000000800007e000
+L2 entry #9: 0x00000000000e0000 000000c000042000
+
+### Test concurrent requests ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+blkdebug: Suspended request 'A'
+blkdebug: Resuming request 'A'
+wrote 2048/2048 bytes at offset 30720
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 20480
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 2048/2048 bytes at offset 40960
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

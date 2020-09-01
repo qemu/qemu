@@ -20,6 +20,7 @@
 typedef struct {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
+    unsigned offset_fmt_width;
     char *name;
     uint64_t size;
 } UnimplementedDeviceState;

@@ -31,17 +31,6 @@ static inline DeviceState *milkymist_hpdmc_create(hwaddr base)
     return dev;
 }
 
-static inline DeviceState *milkymist_memcard_create(hwaddr base)
-{
-    DeviceState *dev;
-
-    dev = qdev_new("milkymist-memcard");
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    return dev;
-}
-
 static inline DeviceState *milkymist_vgafb_create(hwaddr base,
         uint32_t fb_offset, uint32_t fb_mask)
 {

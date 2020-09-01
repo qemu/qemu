@@ -1,3 +1,0 @@
-util-obj-y = qnull.o qnum.o qstring.o qdict.o qlist.o qbool.o qlit.o
-util-obj-y += qjson.o qobject.o json-lexer.o json-streamer.o json-parser.o
-util-obj-y += block-qdict.o

@@ -9,6 +9,7 @@
 #define TYPE_XENSYSBUS "xen-sysbus"
 #define TYPE_XENBACKEND "xen-backend"
 
+typedef struct XenLegacyDevice XenLegacyDevice;
 #define XENBACKEND_DEVICE(obj) \
     OBJECT_CHECK(XenLegacyDevice, (obj), TYPE_XENBACKEND)
 

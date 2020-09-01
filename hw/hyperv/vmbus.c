@@ -20,9 +20,6 @@
 #include "cpu.h"
 #include "trace.h"
 
-#define TYPE_VMBUS "vmbus"
-#define VMBUS(obj) OBJECT_CHECK(VMBus, (obj), TYPE_VMBUS)
-
 enum {
     VMGPADL_INIT,
     VMGPADL_ALIVE,

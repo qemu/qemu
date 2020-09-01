@@ -18,10 +18,6 @@
 #include "hw/pcmcia.h"
 #include "hw/arm/pxa.h"
 
-#define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
-#define PXA2XX_PCMCIA(obj) \
-    OBJECT_CHECK(PXA2xxPCMCIAState, obj, TYPE_PXA2XX_PCMCIA)
-
 struct PXA2xxPCMCIAState {
     SysBusDevice parent_obj;
 

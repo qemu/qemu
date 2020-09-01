@@ -100,7 +100,7 @@ static inline int msz_dtype(DisasContext *s, int msz)
  * Include the generated decoder.
  */
 
-#include "decode-sve.inc.c"
+#include "decode-sve.c.inc"
 
 /*
  * Implement all of the translator functions referenced by the decoder.
@@ -142,35 +142,76 @@ static int pred_gvec_reg_size(DisasContext *s)
     return size_for_gvec(pred_full_reg_size(s));
 }
 
-/* Invoke a vector expander on two Zregs.  */
-static bool do_vector2_z(DisasContext *s, GVecGen2Fn *gvec_fn,
-                         int esz, int rd, int rn)
+/* Invoke an out-of-line helper on 2 Zregs. */
+static void gen_gvec_ool_zz(DisasContext *s, gen_helper_gvec_2 *fn,
+                            int rd, int rn, int data)
 {
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        gvec_fn(esz, vec_full_reg_offset(s, rd),
-                vec_full_reg_offset(s, rn), vsz, vsz);
-    }
-    return true;
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_2_ool(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vsz, vsz, data, fn);
+}
+
+/* Invoke an out-of-line helper on 3 Zregs. */
+static void gen_gvec_ool_zzz(DisasContext *s, gen_helper_gvec_3 *fn,
+                             int rd, int rn, int rm, int data)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       vsz, vsz, data, fn);
+}
+
+/* Invoke an out-of-line helper on 2 Zregs and a predicate. */
+static void gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
+                             int rd, int rn, int pg, int data)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       pred_full_reg_offset(s, pg),
+                       vsz, vsz, data, fn);
+}
+
+/* Invoke an out-of-line helper on 3 Zregs and a predicate. */
+static void gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
+                              int rd, int rn, int rm, int pg, int data)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_4_ool(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       pred_full_reg_offset(s, pg),
+                       vsz, vsz, data, fn);
+}
+
+/* Invoke a vector expander on two Zregs.  */
+static void gen_gvec_fn_zz(DisasContext *s, GVecGen2Fn *gvec_fn,
+                           int esz, int rd, int rn)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    gvec_fn(esz, vec_full_reg_offset(s, rd),
+            vec_full_reg_offset(s, rn), vsz, vsz);
 }
 
 /* Invoke a vector expander on three Zregs.  */
-static bool do_vector3_z(DisasContext *s, GVecGen3Fn *gvec_fn,
-                         int esz, int rd, int rn, int rm)
+static void gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
+                            int esz, int rd, int rn, int rm)
 {
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        gvec_fn(esz, vec_full_reg_offset(s, rd),
-                vec_full_reg_offset(s, rn),
-                vec_full_reg_offset(s, rm), vsz, vsz);
-    }
-    return true;
+    unsigned vsz = vec_full_reg_size(s);
+    gvec_fn(esz, vec_full_reg_offset(s, rd),
+            vec_full_reg_offset(s, rn),
+            vec_full_reg_offset(s, rm), vsz, vsz);
 }
 
 /* Invoke a vector move on two Zregs.  */
 static bool do_mov_z(DisasContext *s, int rd, int rn)
 {
-    return do_vector2_z(s, tcg_gen_gvec_mov, 0, rd, rn);
+    if (sve_access_check(s)) {
+        gen_gvec_fn_zz(s, tcg_gen_gvec_mov, MO_8, rd, rn);
+    }
+    return true;
 }
 
 /* Initialize a Zreg with replications of a 64-bit immediate.  */
@@ -180,50 +221,25 @@ static void do_dupi_z(DisasContext *s, int rd, uint64_t word)
     tcg_gen_gvec_dup_imm(MO_64, vec_full_reg_offset(s, rd), vsz, vsz, word);
 }
 
-/* Invoke a vector expander on two Pregs.  */
-static bool do_vector2_p(DisasContext *s, GVecGen2Fn *gvec_fn,
-                         int esz, int rd, int rn)
-{
-    if (sve_access_check(s)) {
-        unsigned psz = pred_gvec_reg_size(s);
-        gvec_fn(esz, pred_full_reg_offset(s, rd),
-                pred_full_reg_offset(s, rn), psz, psz);
-    }
-    return true;
-}
-
 /* Invoke a vector expander on three Pregs.  */
-static bool do_vector3_p(DisasContext *s, GVecGen3Fn *gvec_fn,
-                         int esz, int rd, int rn, int rm)
+static void gen_gvec_fn_ppp(DisasContext *s, GVecGen3Fn *gvec_fn,
+                            int rd, int rn, int rm)
 {
-    if (sve_access_check(s)) {
-        unsigned psz = pred_gvec_reg_size(s);
-        gvec_fn(esz, pred_full_reg_offset(s, rd),
-                pred_full_reg_offset(s, rn),
-                pred_full_reg_offset(s, rm), psz, psz);
-    }
-    return true;
-}
-
-/* Invoke a vector operation on four Pregs.  */
-static bool do_vecop4_p(DisasContext *s, const GVecGen4 *gvec_op,
-                        int rd, int rn, int rm, int rg)
-{
-    if (sve_access_check(s)) {
-        unsigned psz = pred_gvec_reg_size(s);
-        tcg_gen_gvec_4(pred_full_reg_offset(s, rd),
-                       pred_full_reg_offset(s, rn),
-                       pred_full_reg_offset(s, rm),
-                       pred_full_reg_offset(s, rg),
-                       psz, psz, gvec_op);
-    }
-    return true;
+    unsigned psz = pred_gvec_reg_size(s);
+    gvec_fn(MO_64, pred_full_reg_offset(s, rd),
+            pred_full_reg_offset(s, rn),
+            pred_full_reg_offset(s, rm), psz, psz);
 }
 
 /* Invoke a vector move on two Pregs.  */
 static bool do_mov_p(DisasContext *s, int rd, int rn)
 {
-    return do_vector2_p(s, tcg_gen_gvec_mov, 0, rd, rn);
+    if (sve_access_check(s)) {
+        unsigned psz = pred_gvec_reg_size(s);
+        tcg_gen_gvec_mov(MO_8, pred_full_reg_offset(s, rd),
+                         pred_full_reg_offset(s, rn), psz, psz);
+    }
+    return true;
 }
 
 /* Set the cpu flags as per a return from an SVE helper.  */
@@ -273,24 +289,32 @@ const uint64_t pred_esz_masks[4] = {
  *** SVE Logical - Unpredicated Group
  */
 
+static bool do_zzz_fn(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *gvec_fn)
+{
+    if (sve_access_check(s)) {
+        gen_gvec_fn_zzz(s, gvec_fn, a->esz, a->rd, a->rn, a->rm);
+    }
+    return true;
+}
+
 static bool trans_AND_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_and, 0, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_and);
 }
 
 static bool trans_ORR_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_or, 0, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_or);
 }
 
 static bool trans_EOR_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_xor, 0, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_xor);
 }
 
 static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_andc, 0, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_andc);
 }
 
 /*
@@ -299,32 +323,32 @@ static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a)
 
 static bool trans_ADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_add, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_add);
 }
 
 static bool trans_SUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_sub, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_sub);
 }
 
 static bool trans_SQADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_ssadd, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_ssadd);
 }
 
 static bool trans_SQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_sssub, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_sssub);
 }
 
 static bool trans_UQADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_usadd, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_usadd);
 }
 
 static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_vector3_z(s, tcg_gen_gvec_ussub, a->esz, a->rd, a->rn, a->rm);
+    return do_zzz_fn(s, a, tcg_gen_gvec_ussub);
 }
 
 /*
@@ -333,16 +357,11 @@ static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 
 static bool do_zpzz_ool(DisasContext *s, arg_rprr_esz *a, gen_helper_gvec_4 *fn)
 {
-    unsigned vsz = vec_full_reg_size(s);
     if (fn == NULL) {
         return false;
     }
     if (sve_access_check(s)) {
-        tcg_gen_gvec_4_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           pred_full_reg_offset(s, a->pg),
-                           vsz, vsz, 0, fn);
+        gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, 0);
     }
     return true;
 }
@@ -356,12 +375,7 @@ static void do_sel_z(DisasContext *s, int rd, int rn, int rm, int pg, int esz)
         gen_helper_sve_sel_zpzz_b, gen_helper_sve_sel_zpzz_h,
         gen_helper_sve_sel_zpzz_s, gen_helper_sve_sel_zpzz_d
     };
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_4_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       vec_full_reg_offset(s, rm),
-                       pred_full_reg_offset(s, pg),
-                       vsz, vsz, 0, fns[esz]);
+    gen_gvec_ool_zzzp(s, fns[esz], rd, rn, rm, pg, 0);
 }
 
 #define DO_ZPZZ(NAME, name) \
@@ -433,11 +447,7 @@ static bool do_zpz_ool(DisasContext *s, arg_rpr_esz *a, gen_helper_gvec_3 *fn)
         return false;
     }
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           pred_full_reg_offset(s, a->pg),
-                           vsz, vsz, 0, fn);
+        gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, 0);
     }
     return true;
 }
@@ -608,48 +618,29 @@ static bool trans_SADDV(DisasContext *s, arg_rpr_esz *a)
  *** SVE Shift by Immediate - Predicated Group
  */
 
-/* Store zero into every active element of Zd.  We will use this for two
- * and three-operand predicated instructions for which logic dictates a
- * zero result.
+/*
+ * Copy Zn into Zd, storing zeros into inactive elements.
+ * If invert, store zeros into the active elements.
  */
-static bool do_clr_zp(DisasContext *s, int rd, int pg, int esz)
-{
-    static gen_helper_gvec_2 * const fns[4] = {
-        gen_helper_sve_clr_b, gen_helper_sve_clr_h,
-        gen_helper_sve_clr_s, gen_helper_sve_clr_d,
-    };
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, rd),
-                           pred_full_reg_offset(s, pg),
-                           vsz, vsz, 0, fns[esz]);
-    }
-    return true;
-}
-
-/* Copy Zn into Zd, storing zeros into inactive elements.  */
-static void do_movz_zpz(DisasContext *s, int rd, int rn, int pg, int esz)
+static bool do_movz_zpz(DisasContext *s, int rd, int rn, int pg,
+                        int esz, bool invert)
 {
     static gen_helper_gvec_3 * const fns[4] = {
         gen_helper_sve_movz_b, gen_helper_sve_movz_h,
         gen_helper_sve_movz_s, gen_helper_sve_movz_d,
     };
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       pred_full_reg_offset(s, pg),
-                       vsz, vsz, 0, fns[esz]);
+
+    if (sve_access_check(s)) {
+        gen_gvec_ool_zzp(s, fns[esz], rd, rn, pg, invert);
+    }
+    return true;
 }
 
 static bool do_zpzi_ool(DisasContext *s, arg_rpri_esz *a,
                         gen_helper_gvec_3 *fn)
 {
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           pred_full_reg_offset(s, a->pg),
-                           vsz, vsz, a->imm, fn);
+        gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
     }
     return true;
 }
@@ -682,7 +673,7 @@ static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
     /* Shift by element size is architecturally valid.
        For logical shifts, it is a zeroing operation.  */
     if (a->imm >= (8 << a->esz)) {
-        return do_clr_zp(s, a->rd, a->pg, a->esz);
+        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
         return do_zpzi_ool(s, a, fns[a->esz]);
     }
@@ -700,7 +691,7 @@ static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a)
     /* Shift by element size is architecturally valid.
        For logical shifts, it is a zeroing operation.  */
     if (a->imm >= (8 << a->esz)) {
-        return do_clr_zp(s, a->rd, a->pg, a->esz);
+        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
         return do_zpzi_ool(s, a, fns[a->esz]);
     }
@@ -718,7 +709,7 @@ static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
     /* Shift by element size is architecturally valid.  For arithmetic
        right shift for division, it is a zeroing operation.  */
     if (a->imm >= (8 << a->esz)) {
-        return do_clr_zp(s, a->rd, a->pg, a->esz);
+        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
         return do_zpzi_ool(s, a, fns[a->esz]);
     }
@@ -799,11 +790,7 @@ static bool do_zzw_ool(DisasContext *s, arg_rrr_esz *a, gen_helper_gvec_3 *fn)
         return false;
     }
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, 0, fn);
+        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
     }
     return true;
 }
@@ -977,11 +964,7 @@ static bool trans_RDVL(DisasContext *s, arg_RDVL *a)
 static bool do_adr(DisasContext *s, arg_rrri *a, gen_helper_gvec_3 *fn)
 {
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, a->imm, fn);
+        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, a->imm);
     }
     return true;
 }
@@ -1022,10 +1005,7 @@ static bool trans_FEXPA(DisasContext *s, arg_rr_esz *a)
         return false;
     }
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vsz, vsz, 0, fns[a->esz]);
+        gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
     }
     return true;
 }
@@ -1042,11 +1022,7 @@ static bool trans_FTSSEL(DisasContext *s, arg_rrr_esz *a)
         return false;
     }
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, 0, fns[a->esz]);
+        gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
     }
     return true;
 }
@@ -1067,6 +1043,11 @@ static bool do_pppp_flags(DisasContext *s, arg_rprr_s *a,
     int nofs = pred_full_reg_offset(s, a->rn);
     int mofs = pred_full_reg_offset(s, a->rm);
     int gofs = pred_full_reg_offset(s, a->pg);
+
+    if (!a->s) {
+        tcg_gen_gvec_4(dofs, nofs, mofs, gofs, psz, psz, gvec_op);
+        return true;
+    }
 
     if (psz == 8) {
         /* Do the operation and the flags generation in temps.  */
@@ -1127,19 +1108,24 @@ static bool trans_AND_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_and_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else if (a->rn == a->rm) {
-        if (a->pg == a->rn) {
-            return do_mov_p(s, a->rd, a->rn);
-        } else {
-            return do_vector3_p(s, tcg_gen_gvec_and, 0, a->rd, a->rn, a->pg);
+
+    if (!a->s) {
+        if (!sve_access_check(s)) {
+            return true;
         }
-    } else if (a->pg == a->rn || a->pg == a->rm) {
-        return do_vector3_p(s, tcg_gen_gvec_and, 0, a->rd, a->rn, a->rm);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
+        if (a->rn == a->rm) {
+            if (a->pg == a->rn) {
+                do_mov_p(s, a->rd, a->rn);
+            } else {
+                gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->pg);
+            }
+            return true;
+        } else if (a->pg == a->rn || a->pg == a->rm) {
+            gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->rm);
+            return true;
+        }
     }
+    return do_pppp_flags(s, a, &op);
 }
 
 static void gen_bic_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1163,13 +1149,14 @@ static bool trans_BIC_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_bic_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else if (a->pg == a->rn) {
-        return do_vector3_p(s, tcg_gen_gvec_andc, 0, a->rd, a->rn, a->rm);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
+
+    if (!a->s && a->pg == a->rn) {
+        if (sve_access_check(s)) {
+            gen_gvec_fn_ppp(s, tcg_gen_gvec_andc, a->rd, a->rn, a->rm);
+        }
+        return true;
     }
+    return do_pppp_flags(s, a, &op);
 }
 
 static void gen_eor_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1193,41 +1180,22 @@ static bool trans_EOR_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_eor_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
-    }
-}
-
-static void gen_sel_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
-{
-    tcg_gen_and_i64(pn, pn, pg);
-    tcg_gen_andc_i64(pm, pm, pg);
-    tcg_gen_or_i64(pd, pn, pm);
-}
-
-static void gen_sel_pg_vec(unsigned vece, TCGv_vec pd, TCGv_vec pn,
-                           TCGv_vec pm, TCGv_vec pg)
-{
-    tcg_gen_and_vec(vece, pn, pn, pg);
-    tcg_gen_andc_vec(vece, pm, pm, pg);
-    tcg_gen_or_vec(vece, pd, pn, pm);
+    return do_pppp_flags(s, a, &op);
 }
 
 static bool trans_SEL_pppp(DisasContext *s, arg_rprr_s *a)
 {
-    static const GVecGen4 op = {
-        .fni8 = gen_sel_pg_i64,
-        .fniv = gen_sel_pg_vec,
-        .fno = gen_helper_sve_sel_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-    };
     if (a->s) {
         return false;
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
     }
+    if (sve_access_check(s)) {
+        unsigned psz = pred_gvec_reg_size(s);
+        tcg_gen_gvec_bitsel(MO_8, pred_full_reg_offset(s, a->rd),
+                            pred_full_reg_offset(s, a->pg),
+                            pred_full_reg_offset(s, a->rn),
+                            pred_full_reg_offset(s, a->rm), psz, psz);
+    }
+    return true;
 }
 
 static void gen_orr_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1251,13 +1219,11 @@ static bool trans_ORR_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_orr_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else if (a->pg == a->rn && a->rn == a->rm) {
+
+    if (!a->s && a->pg == a->rn && a->rn == a->rm) {
         return do_mov_p(s, a->rd, a->rn);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
     }
+    return do_pppp_flags(s, a, &op);
 }
 
 static void gen_orn_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1281,11 +1247,7 @@ static bool trans_ORN_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_orn_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
-    }
+    return do_pppp_flags(s, a, &op);
 }
 
 static void gen_nor_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1309,11 +1271,7 @@ static bool trans_NOR_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_nor_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
-    }
+    return do_pppp_flags(s, a, &op);
 }
 
 static void gen_nand_pg_i64(TCGv_i64 pd, TCGv_i64 pn, TCGv_i64 pm, TCGv_i64 pg)
@@ -1337,11 +1295,7 @@ static bool trans_NAND_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_nand_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (a->s) {
-        return do_pppp_flags(s, a, &op);
-    } else {
-        return do_vecop4_p(s, &op, a->rd, a->rn, a->rm, a->pg);
-    }
+    return do_pppp_flags(s, a, &op);
 }
 
 /*
@@ -2103,10 +2057,7 @@ static bool trans_REV_v(DisasContext *s, arg_rr_esz *a)
     };
 
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vsz, vsz, 0, fns[a->esz]);
+        gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
     }
     return true;
 }
@@ -2119,11 +2070,7 @@ static bool trans_TBL(DisasContext *s, arg_rrr_esz *a)
     };
 
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, 0, fns[a->esz]);
+        gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
     }
     return true;
 }
@@ -2296,11 +2243,7 @@ static bool do_zzz_data_ool(DisasContext *s, arg_rrr_esz *a, int data,
                             gen_helper_gvec_3 *fn)
 {
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, data, fn);
+        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, data);
     }
     return true;
 }
@@ -2745,12 +2688,8 @@ static bool trans_RBIT(DisasContext *s, arg_rpr_esz *a)
 static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
 {
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_4_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           pred_full_reg_offset(s, a->pg),
-                           vsz, vsz, a->esz, gen_helper_sve_splice);
+        gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
+                          a->rd, a->rn, a->rm, a->pg, 0);
     }
     return true;
 }
@@ -3429,11 +3368,7 @@ static bool trans_DOT_zzz(DisasContext *s, arg_DOT_zzz *a)
     };
 
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, 0, fns[a->u][a->sz]);
+        gen_gvec_ool_zzz(s, fns[a->u][a->sz], a->rd, a->rn, a->rm, 0);
     }
     return true;
 }
@@ -3446,11 +3381,7 @@ static bool trans_DOT_zzx(DisasContext *s, arg_DOT_zzx *a)
     };
 
     if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vsz, vsz, a->index, fns[a->u][a->sz]);
+        gen_gvec_ool_zzz(s, fns[a->u][a->sz], a->rd, a->rn, a->rm, a->index);
     }
     return true;
 }
@@ -3470,7 +3401,7 @@ static bool trans_FMLA_zzxz(DisasContext *s, arg_FMLA_zzxz *a)
 
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3496,7 +3427,7 @@ static bool trans_FMUL_zzx(DisasContext *s, arg_FMUL_zzx *a)
 
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3528,7 +3459,7 @@ static void do_reduce(DisasContext *s, arg_rpr_esz *a,
 
     tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, a->rn));
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->pg));
-    status = get_fpstatus_ptr(a->esz == MO_16);
+    status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
     fn(temp, t_zn, t_pg, status, t_desc);
     tcg_temp_free_ptr(t_zn);
@@ -3570,7 +3501,7 @@ DO_VPZ(FMAXV, fmaxv)
 static void do_zz_fp(DisasContext *s, arg_rr_esz *a, gen_helper_gvec_2_ptr *fn)
 {
     unsigned vsz = vec_full_reg_size(s);
-    TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+    TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
     tcg_gen_gvec_2_ptr(vec_full_reg_offset(s, a->rd),
                        vec_full_reg_offset(s, a->rn),
@@ -3618,7 +3549,7 @@ static void do_ppz_fp(DisasContext *s, arg_rpr_esz *a,
                       gen_helper_gvec_3_ptr *fn)
 {
     unsigned vsz = vec_full_reg_size(s);
-    TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+    TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
     tcg_gen_gvec_3_ptr(pred_full_reg_offset(s, a->rd),
                        vec_full_reg_offset(s, a->rn),
@@ -3670,7 +3601,7 @@ static bool trans_FTMAD(DisasContext *s, arg_FTMAD *a)
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3710,7 +3641,7 @@ static bool trans_FADDA(DisasContext *s, arg_rprr_esz *a)
     t_pg = tcg_temp_new_ptr();
     tcg_gen_addi_ptr(t_rm, cpu_env, vec_full_reg_offset(s, a->rm));
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->pg));
-    t_fpst = get_fpstatus_ptr(a->esz == MO_16);
+    t_fpst = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
     t_desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
 
     fns[a->esz - 1](t_val, t_val, t_rm, t_pg, t_fpst, t_desc);
@@ -3737,7 +3668,7 @@ static bool do_zzz_fp(DisasContext *s, arg_rrr_esz *a,
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3779,7 +3710,7 @@ static bool do_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3831,7 +3762,7 @@ static void do_fp_scalar(DisasContext *s, int zd, int zn, int pg, bool is_fp16,
     tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, zn));
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
 
-    status = get_fpstatus_ptr(is_fp16);
+    status = fpstatus_ptr(is_fp16 ? FPST_FPCR_F16 : FPST_FPCR);
     desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
     fn(t_zd, t_zn, t_pg, scalar, status, desc);
 
@@ -3895,7 +3826,7 @@ static bool do_fp_cmp(DisasContext *s, arg_rprr_esz *a,
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_4_ptr(pred_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3939,7 +3870,7 @@ static bool trans_FCADD(DisasContext *s, arg_FCADD *a)
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -3958,7 +3889,7 @@ static bool do_fmla(DisasContext *s, arg_rprrr_esz *a,
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_5_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -4001,7 +3932,7 @@ static bool trans_FCMLA_zpzzz(DisasContext *s, arg_FCMLA_zpzzz *a)
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_5_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -4024,7 +3955,7 @@ static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
     tcg_debug_assert(a->rd == a->ra);
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
                            vec_full_reg_offset(s, a->rn),
                            vec_full_reg_offset(s, a->rm),
@@ -4045,7 +3976,7 @@ static bool do_zpz_ptr(DisasContext *s, int rd, int rn, int pg,
 {
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = get_fpstatus_ptr(is_fp16);
+        TCGv_ptr status = fpstatus_ptr(is_fp16 ? FPST_FPCR_F16 : FPST_FPCR);
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
                            vec_full_reg_offset(s, rn),
                            pred_full_reg_offset(s, pg),
@@ -4191,7 +4122,7 @@ static bool do_frint_mode(DisasContext *s, arg_rpr_esz *a, int mode)
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
         TCGv_i32 tmode = tcg_const_i32(mode);
-        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
         gen_helper_set_rmode(tmode, tmode, status);
 
@@ -5093,8 +5024,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a)
 
     /* Zero the inactive elements.  */
     gen_set_label(over);
-    do_movz_zpz(s, a->rd, a->rd, a->pg, esz);
-    return true;
+    return do_movz_zpz(s, a->rd, a->rd, a->pg, esz, false);
 }
 
 static void do_st_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
@@ -5877,8 +5807,5 @@ static bool trans_MOVPRFX_m(DisasContext *s, arg_rpr_esz *a)
 
 static bool trans_MOVPRFX_z(DisasContext *s, arg_rpr_esz *a)
 {
-    if (sve_access_check(s)) {
-        do_movz_zpz(s, a->rd, a->rn, a->pg, a->esz);
-    }
-    return true;
+    return do_movz_zpz(s, a->rd, a->rn, a->pg, a->esz, false);
 }

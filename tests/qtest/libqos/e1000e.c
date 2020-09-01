@@ -18,13 +18,13 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "libqos/pci-pc.h"
+#include "pci-pc.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/bitops.h"
-#include "libqos/malloc.h"
-#include "libqos/qgraph.h"
+#include "malloc.h"
+#include "qgraph.h"
 #include "e1000e.h"
 
 #define E1000E_IMS      (0x00d0)

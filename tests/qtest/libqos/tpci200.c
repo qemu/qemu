@@ -10,8 +10,8 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/module.h"
-#include "libqos/qgraph.h"
-#include "libqos/pci.h"
+#include "qgraph.h"
+#include "pci.h"
 
 typedef struct QTpci200 QTpci200;
 typedef struct QIpack QIpack;

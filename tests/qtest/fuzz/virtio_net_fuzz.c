@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_config.h"
-#include "tests/qtest/libqtest.h"
+#include "tests/qtest/libqos/libqtest.h"
 #include "tests/qtest/libqos/virtio-net.h"
 #include "fuzz.h"
 #include "fork_fuzz.h"
@@ -61,7 +61,8 @@ static void virtio_net_fuzz_multi(QTestState *s,
          * backend. Otherwise, always place the input on a virtqueue.
          */
         if (vqa.rx && sockfds_initialized) {
-            write(sockfds[0], Data, vqa.length);
+            int ignored = write(sockfds[0], Data, vqa.length);
+            (void) ignored;
         } else {
             vqa.rx = 0;
             uint64_t req_addr = guest_alloc(t_alloc, vqa.length);

@@ -1,1 +1,0 @@
-block-obj-y += server.o client.o common.o

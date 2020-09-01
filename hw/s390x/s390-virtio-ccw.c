@@ -596,7 +596,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
-    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
 
     s390mc->ri_allowed = true;
     s390mc->cpu_model_allowed = true;
@@ -677,7 +677,7 @@ static S390CcwMachineClass *get_machine_class(void)
         * be called for the 'none' machine. The properties will
         * have their after-initialization values.
         */
-        current_mc = S390_MACHINE_CLASS(
+        current_mc = S390_CCW_MACHINE_CLASS(
                      object_class_by_name(TYPE_S390_CCW_MACHINE));
     }
     return current_mc;
@@ -786,7 +786,7 @@ bool css_migration_enabled(void)
     static void ccw_machine_##suffix##_instance_init(Object *obj)             \
     {                                                                         \
         MachineState *machine = MACHINE(obj);                                 \
-        current_mc = S390_MACHINE_CLASS(MACHINE_GET_CLASS(machine));          \
+        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(machine));          \
         ccw_machine_##suffix##_instance_options(machine);                     \
     }                                                                         \
     static const TypeInfo ccw_machine_##suffix##_info = {                     \
@@ -801,14 +801,26 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+static void ccw_machine_5_2_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_5_2_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(5_2, "5.2", true);
+
 static void ccw_machine_5_1_instance_options(MachineState *machine)
 {
+    ccw_machine_5_2_instance_options(machine);
 }
 
 static void ccw_machine_5_1_class_options(MachineClass *mc)
 {
+    ccw_machine_5_2_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
 }
-DEFINE_CCW_MACHINE(5_1, "5.1", true);
+DEFINE_CCW_MACHINE(5_1, "5.1", false);
 
 static void ccw_machine_5_0_instance_options(MachineState *machine)
 {
@@ -886,7 +898,7 @@ static void ccw_machine_3_0_instance_options(MachineState *machine)
 
 static void ccw_machine_3_0_class_options(MachineClass *mc)
 {
-    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
 
     s390mc->hpage_1m_allowed = false;
     ccw_machine_3_1_class_options(mc);
@@ -953,7 +965,7 @@ static void ccw_machine_2_9_instance_options(MachineState *machine)
 
 static void ccw_machine_2_9_class_options(MachineClass *mc)
 {
-    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         { TYPE_S390_STATTRIB, "migration-enabled", "off", },
     };
@@ -989,7 +1001,7 @@ static void ccw_machine_2_7_instance_options(MachineState *machine)
 
 static void ccw_machine_2_7_class_options(MachineClass *mc)
 {
-    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
 
     s390mc->cpu_model_allowed = false;
     ccw_machine_2_8_class_options(mc);
@@ -1004,7 +1016,7 @@ static void ccw_machine_2_6_instance_options(MachineState *machine)
 
 static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
-    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         { TYPE_S390_IPL, "iplbext_migration", "off", },
          { TYPE_VIRTUAL_CSS_BRIDGE, "css_dev_path", "off", },

@@ -1,3 +1,0 @@
-obj-y += translate.o op_helper.o helper.o cpu.o
-obj-$(CONFIG_SOFTMMU) += monitor.o
-obj-y += gdbstub.o

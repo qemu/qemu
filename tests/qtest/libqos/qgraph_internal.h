@@ -20,11 +20,11 @@
 #define QGRAPH_INTERNAL_H
 
 /* This header is declaring additional helper functions defined in
- * libqos/qgraph.c
+ * qgraph.c
  * It should not be included in tests
  */
 
-#include "libqos/qgraph.h"
+#include "qgraph.h"
 
 typedef struct QOSGraphMachine QOSGraphMachine;
 typedef enum QOSEdgeType QOSEdgeType;

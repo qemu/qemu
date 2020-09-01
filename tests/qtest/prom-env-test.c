@@ -20,7 +20,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "libqos/libqos-spapr.h"
 
 #define MAGIC   0xcafec0de

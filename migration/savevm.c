@@ -2682,7 +2682,7 @@ int save_snapshot(const char *name, Error **errp)
 
     if (!bdrv_all_can_snapshot(&bs)) {
         error_setg(errp, "Device '%s' is writable but does not support "
-                   "snapshots", bdrv_get_device_name(bs));
+                   "snapshots", bdrv_get_device_or_node_name(bs));
         return ret;
     }
 
@@ -2691,7 +2691,7 @@ int save_snapshot(const char *name, Error **errp)
         ret = bdrv_all_delete_snapshot(name, &bs1, errp);
         if (ret < 0) {
             error_prepend(errp, "Error while deleting snapshot on device "
-                          "'%s': ", bdrv_get_device_name(bs1));
+                          "'%s': ", bdrv_get_device_or_node_name(bs1));
             return ret;
         }
     }
@@ -2766,7 +2766,7 @@ int save_snapshot(const char *name, Error **errp)
     ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, &bs);
     if (ret < 0) {
         error_setg(errp, "Error while creating snapshot on '%s'",
-                   bdrv_get_device_name(bs));
+                   bdrv_get_device_or_node_name(bs));
         goto the_end;
     }
 
@@ -2884,14 +2884,14 @@ int load_snapshot(const char *name, Error **errp)
     if (!bdrv_all_can_snapshot(&bs)) {
         error_setg(errp,
                    "Device '%s' is writable but does not support snapshots",
-                   bdrv_get_device_name(bs));
+                   bdrv_get_device_or_node_name(bs));
         return -ENOTSUP;
     }
     ret = bdrv_all_find_snapshot(name, &bs);
     if (ret < 0) {
         error_setg(errp,
                    "Device '%s' does not have the requested snapshot '%s'",
-                   bdrv_get_device_name(bs), name);
+                   bdrv_get_device_or_node_name(bs), name);
         return ret;
     }
 
@@ -2920,7 +2920,7 @@ int load_snapshot(const char *name, Error **errp)
     ret = bdrv_all_goto_snapshot(name, &bs, errp);
     if (ret < 0) {
         error_prepend(errp, "Could not load snapshot '%s' on '%s': ",
-                      name, bdrv_get_device_name(bs));
+                      name, bdrv_get_device_or_node_name(bs));
         goto err_drain;
     }
 

@@ -34,13 +34,13 @@
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_dc233c
-#include "core-dc233c/xtensa-modules.inc.c"
+#include "core-dc233c/xtensa-modules.c.inc"
 
 static XtensaConfig dc233c __attribute__((unused)) = {
     .name = "dc233c",
     .gdb_regmap = {
         .reg = {
-#include "core-dc233c/gdb-config.inc.c"
+#include "core-dc233c/gdb-config.c.inc"
         }
     },
     .isa_internal = &xtensa_modules,

@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "libqos/i2c.h"
 
 #define DS1338_ADDR 0x68

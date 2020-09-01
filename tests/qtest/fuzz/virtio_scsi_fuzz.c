@@ -12,10 +12,10 @@
 
 #include "qemu/osdep.h"
 
-#include "tests/qtest/libqtest.h"
-#include "libqos/virtio-scsi.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "tests/qtest/libqos/libqtest.h"
+#include "tests/qtest/libqos/virtio-scsi.h"
+#include "tests/qtest/libqos/virtio.h"
+#include "tests/qtest/libqos/virtio-pci.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_pci.h"
 #include "standard-headers/linux/virtio_scsi.h"

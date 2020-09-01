@@ -71,6 +71,7 @@ static VFIOGroup *vfio_ap_get_group(VFIOAPDevice *vapdev, Error **errp)
     if (!group_path) {
         error_setg(errp, "%s: no iommu_group found for %s: %s",
                    VFIO_AP_DEVICE_TYPE, vapdev->vdev.sysfsdev, gerror->message);
+        g_error_free(gerror);
         return NULL;
     }
 

@@ -238,6 +238,10 @@ MachineInfoList *qmp_query_machines(Error **errp)
             info->default_cpu_type = g_strdup(mc->default_cpu_type);
             info->has_default_cpu_type = true;
         }
+        if (mc->default_ram_id) {
+            info->default_ram_id = g_strdup(mc->default_ram_id);
+            info->has_default_ram_id = true;
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;

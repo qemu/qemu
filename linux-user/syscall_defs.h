@@ -46,6 +46,8 @@
 #define IPCOP_shmget		23
 #define IPCOP_shmctl		24
 
+#define TARGET_SEMOPM     500
+
 /*
  * The following is for compatibility across the various Linux
  * platforms.  The i386 ioctl numbering scheme doesn't really enforce
@@ -259,6 +261,11 @@ struct target_itimerspec {
     struct target_timespec it_value;
 };
 
+struct target__kernel_itimerspec {
+    struct target__kernel_timespec it_interval;
+    struct target__kernel_timespec it_value;
+};
+
 struct target_timex {
     abi_uint modes;              /* Mode selector */
     abi_long offset;             /* Time offset */
@@ -280,6 +287,37 @@ struct target_timex {
     abi_long errcnt;             /* PPS calibration errors */
     abi_long stbcnt;             /* PPS stability limit exceeded */
     abi_int tai;                 /* TAI offset */
+
+    /* Further padding bytes to allow for future expansion */
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32; abi_int:32;
+    abi_int:32; abi_int:32; abi_int:32;
+};
+
+struct target__kernel_timex {
+    abi_uint modes;               /* Mode selector */
+    abi_int: 32;                  /* pad */
+    abi_llong offset;             /* Time offset */
+    abi_llong freq;               /* Frequency offset */
+    abi_llong maxerror;           /* Maximum error (microseconds) */
+    abi_llong esterror;           /* Estimated error (microseconds) */
+    abi_int status;               /* Clock command/status */
+    abi_int: 32;                  /* pad */
+    abi_llong constant;           /* PLL (phase-locked loop) time constant */
+    abi_llong precision;          /* Clock precision (microseconds, ro) */
+    abi_llong tolerance;          /* Clock freq. tolerance (ppm, ro) */
+    struct target__kernel_sock_timeval time;  /* Current time */
+    abi_llong tick;               /* Microseconds between clock ticks */
+    abi_llong ppsfreq;            /* PPS (pulse per second) frequency */
+    abi_llong jitter;             /* PPS jitter (ro); nanoseconds */
+    abi_int shift;                /* PPS interval duration (seconds) */
+    abi_int: 32;                  /* pad */
+    abi_llong stabil;             /* PPS stability */
+    abi_llong jitcnt;             /* PPS jitter limit exceeded (ro) */
+    abi_llong calcnt;             /* PPS calibration intervals */
+    abi_llong errcnt;             /* PPS calibration errors */
+    abi_llong stbcnt;             /* PPS stability limit exceeded */
+    abi_int tai;                  /* TAI offset */
 
     /* Further padding bytes to allow for future expansion */
     abi_int:32; abi_int:32; abi_int:32; abi_int:32;
@@ -1169,6 +1207,9 @@ struct target_rtc_pll_info {
 
 /* drm ioctls */
 #define TARGET_DRM_IOCTL_VERSION      TARGET_IOWRU('d', 0x00)
+
+/* drm i915 ioctls */
+#define TARGET_DRM_IOCTL_I915_GETPARAM              TARGET_IOWRU('d', 0x46)
 
 /* from asm/termbits.h */
 
@@ -2611,6 +2652,11 @@ struct target_drm_version {
     abi_ulong date;
     abi_ulong desc_len;
     abi_ulong desc;
+};
+
+struct target_drm_i915_getparam {
+    int param;
+    abi_ulong value;
 };
 
 #include "socket.h"

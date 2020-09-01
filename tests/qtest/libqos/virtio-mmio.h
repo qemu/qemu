@@ -10,8 +10,8 @@
 #ifndef LIBQOS_VIRTIO_MMIO_H
 #define LIBQOS_VIRTIO_MMIO_H
 
-#include "libqos/virtio.h"
-#include "libqos/qgraph.h"
+#include "virtio.h"
+#include "qgraph.h"
 
 #define QVIRTIO_MMIO_MAGIC_VALUE        0x000
 #define QVIRTIO_MMIO_VERSION            0x004

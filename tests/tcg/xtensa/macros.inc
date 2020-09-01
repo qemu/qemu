@@ -3,7 +3,7 @@
 .macro test_suite name
 .data
 status: .word result
-result: .space 256
+result: .space 1024
 .text
 .global main
 .align 4
@@ -25,9 +25,9 @@ main:
     movi    a3, 0
     beqz    a2, 2f
 1:
-    l8ui    a1, a0, 0
+    l32i    a1, a0, 0
     or      a3, a3, a1
-    addi    a0, a0, 1
+    addi    a0, a0, 4
     addi    a2, a2, -1
     bnez    a2, 1b
 2:
@@ -65,7 +65,7 @@ test_\name:
     reset_ps
     movi    a2, status
     l32i    a3, a2, 0
-    addi    a3, a3, 1
+    addi    a3, a3, 4
     s32i    a3, a2, 0
 .endm
 
@@ -78,7 +78,7 @@ test_\name:
     movi    a2, status
     l32i    a2, a2, 0
     movi    a3, 1
-    s8i     a3, a2, 0
+    s32i    a3, a2, 0
 #ifdef DEBUG
     print   failed
 #endif

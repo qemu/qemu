@@ -464,9 +464,6 @@ static bool remove_idle_poll_handlers(AioContext *ctx, int64_t now)
  *
  * Polls for a given time.
  *
- * Note that ctx->notify_me must be non-zero so this function can detect
- * aio_notify().
- *
  * Note that the caller must have incremented ctx->list_lock.
  *
  * Returns: true if progress was made, false otherwise
@@ -476,7 +473,6 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns, int64_t *timeout)
     bool progress;
     int64_t start_time, elapsed_time;
 
-    assert(ctx->notify_me);
     assert(qemu_lockcnt_count(&ctx->list_lock) > 0);
 
     trace_run_poll_handlers_begin(ctx, max_ns, *timeout);
@@ -520,8 +516,6 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns, int64_t *timeout)
  * @timeout: timeout for blocking wait, computed by the caller and updated if
  *    polling succeeds.
  *
- * ctx->notify_me must be non-zero so this function can detect aio_notify().
- *
  * Note that the caller must have incremented ctx->list_lock.
  *
  * Returns: true if progress was made, false otherwise
@@ -556,6 +550,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
     int ret = 0;
     bool progress;
+    bool use_notify_me;
     int64_t timeout;
     int64_t start = 0;
 
@@ -565,23 +560,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * We rely on this below to avoid slow locked accesses to ctx->notify_me.
      */
     assert(in_aio_context_home_thread(ctx));
-
-    /* aio_notify can avoid the expensive event_notifier_set if
-     * everything (file descriptors, bottom halves, timers) will
-     * be re-evaluated before the next blocking poll().  This is
-     * already true when aio_poll is called with blocking == false;
-     * if blocking == true, it is only true after poll() returns,
-     * so disable the optimization now.
-     */
-    if (blocking) {
-        atomic_set(&ctx->notify_me, atomic_read(&ctx->notify_me) + 2);
-        /*
-         * Write ctx->notify_me before computing the timeout
-         * (reading bottom half flags, etc.).  Pairs with
-         * smp_mb in aio_notify().
-         */
-        smp_mb();
-    }
 
     qemu_lockcnt_inc(&ctx->list_lock);
 
@@ -593,6 +571,29 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress = try_poll_mode(ctx, &timeout);
     assert(!(timeout && progress));
 
+    /*
+     * aio_notify can avoid the expensive event_notifier_set if
+     * everything (file descriptors, bottom halves, timers) will
+     * be re-evaluated before the next blocking poll().  This is
+     * already true when aio_poll is called with blocking == false;
+     * if blocking == true, it is only true after poll() returns,
+     * so disable the optimization now.
+     */
+    use_notify_me = timeout != 0;
+    if (use_notify_me) {
+        atomic_set(&ctx->notify_me, atomic_read(&ctx->notify_me) + 2);
+        /*
+         * Write ctx->notify_me before reading ctx->notified.  Pairs with
+         * smp_mb in aio_notify().
+         */
+        smp_mb();
+
+        /* Don't block if aio_notify() was called */
+        if (atomic_read(&ctx->notified)) {
+            timeout = 0;
+        }
+    }
+
     /* If polling is allowed, non-blocking aio_poll does not need the
      * system call---a single round of run_poll_handlers_once suffices.
      */
@@ -600,11 +601,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
         ret = ctx->fdmon_ops->wait(ctx, &ready_list, timeout);
     }
 
-    if (blocking) {
+    if (use_notify_me) {
         /* Finish the poll before clearing the flag.  */
-        atomic_store_release(&ctx->notify_me, atomic_read(&ctx->notify_me) - 2);
-        aio_notify_accept(ctx);
+        atomic_store_release(&ctx->notify_me,
+                             atomic_read(&ctx->notify_me) - 2);
     }
+
+    aio_notify_accept(ctx);
 
     /* Adjust polling time */
     if (ctx->poll_max_ns) {

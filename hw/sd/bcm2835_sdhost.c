@@ -190,7 +190,7 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
         if (is_read) {
             n = 0;
             while (s->datacnt && s->fifo_len < BCM2835_SDHOST_FIFO_LEN) {
-                value |= (uint32_t)sdbus_read_data(&s->sdbus) << (n * 8);
+                value |= (uint32_t)sdbus_read_byte(&s->sdbus) << (n * 8);
                 s->datacnt--;
                 n++;
                 if (n == 4) {
@@ -223,7 +223,7 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
                 }
                 n--;
                 s->datacnt--;
-                sdbus_write_data(&s->sdbus, value & 0xff);
+                sdbus_write_byte(&s->sdbus, value & 0xff);
                 value >>= 8;
             }
         }

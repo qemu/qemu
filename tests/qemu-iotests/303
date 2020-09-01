@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+#
+# Test for dumping of qcow2 image metadata
+#
+# Copyright (c) 2020 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import subprocess
+from iotests import qemu_img_create, qemu_io, file_path, log, filter_qemu_io
+
+iotests.script_initialize(supported_fmts=['qcow2'])
+
+disk = file_path('disk')
+chunk = 1024 * 1024
+
+
+def create_bitmap(bitmap_number, disabled):
+    granularity = 1 << (14 + bitmap_number)
+    bitmap_name = 'bitmap-' + str(bitmap_number)
+    args = ['bitmap', '--add', '-g', f'{granularity}', '-f', iotests.imgfmt,
+            disk, bitmap_name]
+    if disabled:
+        args.append('--disable')
+
+    iotests.qemu_img_pipe(*args)
+
+
+def write_to_disk(offset, size):
+    write = f'write {offset} {size}'
+    log(qemu_io('-c', write, disk), filters=[filter_qemu_io])
+
+
+def add_bitmap(num, begin, end, disabled):
+    log(f'Add bitmap {num}')
+    create_bitmap(num, disabled)
+    for i in range(begin, end):
+        write_to_disk((i) * chunk, chunk)
+    log('')
+
+
+qemu_img_create('-f', iotests.imgfmt, disk, '10M')
+
+add_bitmap(1, 0, 6, False)
+add_bitmap(2, 6, 8, True)
+dump = ['qcow2.py', disk, 'dump-header']
+subprocess.run(dump)
+# Dump the metadata in JSON format
+dump.append('-j')
+subprocess.run(dump)

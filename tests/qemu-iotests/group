@@ -284,6 +284,7 @@
 267 rw auto quick snapshot
 268 rw auto quick
 270 rw backing quick
+271 rw auto
 272 rw
 273 backing quick
 274 rw backing
@@ -307,6 +308,8 @@
 296 rw
 297 meta
 299 auto quick
+300 migration
 301 backing quick
 302 quick
+303 rw quick
 304 rw quick

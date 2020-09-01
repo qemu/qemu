@@ -2,10 +2,10 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>QEMU @@VERSION@@ Documentation</title>
+        <title>QEMU @VERSION@ Documentation</title>
     </head>
     <body>
-        <h1>QEMU @@VERSION@@ Documentation</h1>
+        <h1>QEMU @VERSION@ Documentation</h1>
         <ul>
             <li><a href="system/index.html">System Emulation User's Guide</a></li>
             <li><a href="user/index.html">User Mode Emulation User's Guide</a></li>

@@ -41,6 +41,7 @@ typedef struct SMMUv3State {
 
     uint32_t idr[6];
     uint32_t iidr;
+    uint32_t aidr;
     uint32_t cr[3];
     uint32_t cr0ack;
     uint32_t statusr;

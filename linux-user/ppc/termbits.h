@@ -5,15 +5,19 @@
 
 #define TARGET_NCCS 19
 
+typedef unsigned char   target_cc_t;        /* cc_t */
+typedef unsigned int    target_speed_t;     /* speed_t */
+typedef unsigned int    target_tcflag_t;    /* tcflag_t */
+
 struct target_termios {
-    unsigned int c_iflag;               /* input mode flags */
-    unsigned int c_oflag;               /* output mode flags */
-    unsigned int c_cflag;               /* control mode flags */
-    unsigned int c_lflag;               /* local mode flags */
-    unsigned char c_cc[TARGET_NCCS];                /* control characters */
-    unsigned char c_line;                    /* line discipline */
-    unsigned int c_ispeed;		/* input speed */
-    unsigned int c_ospeed;		/* output speed */
+    target_tcflag_t c_iflag;               /* input mode flags */
+    target_tcflag_t c_oflag;               /* output mode flags */
+    target_tcflag_t c_cflag;               /* control mode flags */
+    target_tcflag_t c_lflag;               /* local mode flags */
+    target_cc_t c_line;                    /* line discipline */
+    target_cc_t c_cc[TARGET_NCCS];         /* control characters */
+    target_speed_t c_ispeed;               /* input speed */
+    target_speed_t c_ospeed;               /* output speed */
 };
 
 /* c_cc character offsets */
@@ -158,6 +162,7 @@ struct target_termios {
 #define TARGET_FLUSHO	0x00800000
 #define TARGET_PENDIN	0x20000000
 #define TARGET_IEXTEN	0x00000400
+#define TARGET_EXTPROC  0x10000000
 
 /* ioctls */
 

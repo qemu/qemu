@@ -2294,7 +2294,7 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "              [,sku=str]\n"
     "                specify SMBIOS type 3 fields\n"
     "-smbios type=4[,sock_pfx=str][,manufacturer=str][,version=str][,serial=str]\n"
-    "              [,asset=str][,part=str]\n"
+    "              [,asset=str][,part=str][,max-speed=%d][,current-speed=%d]\n"
     "                specify SMBIOS type 4 fields\n"
     "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
     "               [,asset=str][,part=str][,speed=%d]\n"

@@ -11,8 +11,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/malloc-pc.h"
-#include "libqos/fw_cfg.h"
+#include "malloc-pc.h"
+#include "fw_cfg.h"
 
 #include "standard-headers/linux/qemu_fw_cfg.h"
 

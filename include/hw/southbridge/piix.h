@@ -64,6 +64,10 @@ typedef struct PIIXState {
     MemoryRegion rcr_mem;
 } PIIX3State;
 
+#define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
+#define PIIX3_PCI_DEVICE(obj) \
+    OBJECT_CHECK(PIIX3State, (obj), TYPE_PIIX3_PCI_DEVICE)
+
 extern PCIDevice *piix4_dev;
 
 PIIX3State *piix3_create(PCIBus *pci_bus, ISABus **isa_bus);

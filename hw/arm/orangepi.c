@@ -79,7 +79,7 @@ static void orangepi_init(MachineState *machine)
     object_property_set_int(OBJECT(&h3->emac), "phy-addr", 1, &error_abort);
 
     /* DRAMC */
-    object_property_set_uint(OBJECT(h3), "ram-addr", h3->memmap[AW_H3_SDRAM],
+    object_property_set_uint(OBJECT(h3), "ram-addr", h3->memmap[AW_H3_DEV_SDRAM],
                              &error_abort);
     object_property_set_int(OBJECT(h3), "ram-size", machine->ram_size / MiB,
                             &error_abort);
@@ -98,7 +98,7 @@ static void orangepi_init(MachineState *machine)
     qdev_realize_and_unref(carddev, bus, &error_fatal);
 
     /* SDRAM */
-    memory_region_add_subregion(get_system_memory(), h3->memmap[AW_H3_SDRAM],
+    memory_region_add_subregion(get_system_memory(), h3->memmap[AW_H3_DEV_SDRAM],
                                 machine->ram);
 
     /* Load target kernel or start using BootROM */
@@ -106,7 +106,7 @@ static void orangepi_init(MachineState *machine)
         /* Use Boot ROM to copy data from SD card to SRAM */
         allwinner_h3_bootrom_setup(h3, blk);
     }
-    orangepi_binfo.loader_start = h3->memmap[AW_H3_SDRAM];
+    orangepi_binfo.loader_start = h3->memmap[AW_H3_DEV_SDRAM];
     orangepi_binfo.ram_size = machine->ram_size;
     arm_load_kernel(ARM_CPU(first_cpu), machine, &orangepi_binfo);
 }

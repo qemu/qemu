@@ -104,6 +104,24 @@ static void acpi_set_pci_info(void)
     }
 }
 
+static void acpi_pcihp_disable_root_bus(void)
+{
+    static bool root_hp_disabled;
+    PCIBus *bus;
+
+    if (root_hp_disabled) {
+        return;
+    }
+
+    bus = find_i440fx();
+    if (bus) {
+        /* setting the hotplug handler to NULL makes the bus non-hotpluggable */
+        qbus_set_hotplug_handler(BUS(bus), NULL);
+    }
+    root_hp_disabled = true;
+    return;
+}
+
 static void acpi_pcihp_test_hotplug_bus(PCIBus *bus, void *opaque)
 {
     AcpiPciHpFind *find = opaque;
@@ -209,8 +227,11 @@ static void acpi_pcihp_update(AcpiPciHpState *s)
     }
 }
 
-void acpi_pcihp_reset(AcpiPciHpState *s)
+void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
 {
+    if (acpihp_root_off) {
+        acpi_pcihp_disable_root_bus();
+    }
     acpi_set_pci_info();
     acpi_pcihp_update(s);
 }

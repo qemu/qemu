@@ -26,7 +26,7 @@
 #include "translate-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
-#include "trace-root.h"
+#include "trace/trace-root.h"
 #include "trace/mem.h"
 
 #undef EAX
@@ -1189,7 +1189,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define ATOMIC_NAME(X)   HELPER(glue(glue(atomic_ ## X, SUFFIX), END))
 #define EXTRA_ARGS
 
-#include "atomic_common.inc.c"
+#include "atomic_common.c.inc"
 
 #define DATA_SIZE 1
 #include "atomic_template.h"

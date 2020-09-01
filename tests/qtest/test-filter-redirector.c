@@ -52,7 +52,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"

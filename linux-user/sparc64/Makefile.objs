@@ -1,5 +1,0 @@
-generated-files-y += linux-user/sparc64/syscall_nr.h
-
-syshdr := $(SRC_PATH)/linux-user/sparc64/syscallhdr.sh
-%/syscall_nr.h: $(SRC_PATH)/linux-user/sparc/syscall.tbl $(syshdr)
-	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI),"GEN","$@")

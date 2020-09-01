@@ -17,9 +17,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
-#include "libqos/qgraph.h"
-#include "libqos/qgraph_internal.h"
+#include "qtest/libqos/qgraph.h"
+#include "qtest/libqos/qgraph_internal.h"
 
 #define MACHINE_PC "x86_64/pc"
 #define MACHINE_RASPI2 "arm/raspi2"

@@ -148,12 +148,19 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
     xive_end_queue_pic_print_info(end, 6, mon);
 }
 
+/*
+ * kvm_irqchip_in_kernel() will cause the compiler to turn this
+ * info a nop if CONFIG_KVM isn't defined.
+ */
+#define spapr_xive_in_kernel(xive) \
+    (kvm_irqchip_in_kernel() && (xive)->fd != -1)
+
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
 {
     XiveSource *xsrc = &xive->source;
     int i;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_synchronize_state(xive, &local_err);
@@ -329,7 +336,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
 
     /* Set the mapping address of the END ESB pages after the source ESBs */
-    xive->end_base = xive->vc_base + (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+    xive->end_base = xive->vc_base + xive_source_esb_len(xsrc);
 
     /*
      * Allocate the routing tables
@@ -507,8 +514,10 @@ static const VMStateDescription vmstate_spapr_xive_eas = {
 
 static int vmstate_spapr_xive_pre_save(void *opaque)
 {
-    if (kvm_irqchip_in_kernel()) {
-        return kvmppc_xive_pre_save(SPAPR_XIVE(opaque));
+    SpaprXive *xive = SPAPR_XIVE(opaque);
+
+    if (spapr_xive_in_kernel(xive)) {
+        return kvmppc_xive_pre_save(xive);
     }
 
     return 0;
@@ -520,8 +529,10 @@ static int vmstate_spapr_xive_pre_save(void *opaque)
  */
 static int spapr_xive_post_load(SpaprInterruptController *intc, int version_id)
 {
-    if (kvm_irqchip_in_kernel()) {
-        return kvmppc_xive_post_load(SPAPR_XIVE(intc), version_id);
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    if (spapr_xive_in_kernel(xive)) {
+        return kvmppc_xive_post_load(xive, version_id);
     }
 
     return 0;
@@ -564,7 +575,7 @@ static int spapr_xive_claim_irq(SpaprInterruptController *intc, int lisn,
         xive_source_irq_set_lsi(xsrc, lisn);
     }
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         return kvmppc_xive_source_reset_one(xsrc, lisn, errp);
     }
 
@@ -641,7 +652,7 @@ static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         kvmppc_xive_source_set_irq(&xive->source, irq, val);
     } else {
         xive_source_set_irq(&xive->source, irq, val);
@@ -749,9 +760,14 @@ static void spapr_xive_deactivate(SpaprInterruptController *intc)
 
     spapr_xive_mmio_set_enabled(xive, false);
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         kvmppc_xive_disconnect(intc);
     }
+}
+
+static bool spapr_xive_in_kernel_xptr(const XivePresenter *xptr)
+{
+    return spapr_xive_in_kernel(SPAPR_XIVE(xptr));
 }
 
 static void spapr_xive_class_init(ObjectClass *klass, void *data)
@@ -788,6 +804,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->post_load = spapr_xive_post_load;
 
     xpc->match_nvt  = spapr_xive_match_nvt;
+    xpc->in_kernel  = spapr_xive_in_kernel_xptr;
 }
 
 static const TypeInfo spapr_xive_info = {
@@ -1058,7 +1075,7 @@ static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
         new_eas.w = xive_set_field64(EAS_END_DATA, new_eas.w, eisn);
     }
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_set_source_config(xive, lisn, &new_eas, &local_err);
@@ -1379,7 +1396,7 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
      */
 
 out:
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_set_queue_config(xive, end_blk, end_idx, &end, &local_err);
@@ -1480,7 +1497,7 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
         args[2] = 0;
     }
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_get_queue_config(xive, end_blk, end_idx, end, &local_err);
@@ -1642,7 +1659,7 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
         return H_P3;
     }
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         args[0] = kvmppc_xive_esb_rw(xsrc, lisn, offset, data,
                                      flags & SPAPR_XIVE_ESB_STORE);
     } else {
@@ -1717,7 +1734,7 @@ static target_ulong h_int_sync(PowerPCCPU *cpu,
      * under KVM
      */
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_sync_source(xive, lisn, &local_err);
@@ -1761,7 +1778,7 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
 
     device_legacy_reset(DEVICE(xive));
 
-    if (kvm_irqchip_in_kernel()) {
+    if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
         kvmppc_xive_reset(xive, &local_err);

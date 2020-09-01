@@ -22,6 +22,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "hw/sd/sd.h"
 #include "chardev/char-fe.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/qtest.h"
@@ -1250,10 +1251,6 @@ typedef struct PXA2xxI2CSlaveState {
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
-#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
-#define PXA2XX_I2C(obj) \
-    OBJECT_CHECK(PXA2xxI2CState, (obj), TYPE_PXA2XX_I2C)
-
 struct PXA2xxI2CState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -1786,9 +1783,6 @@ static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
 }
 
 /* PXA Fast Infra-red Communications Port */
-#define TYPE_PXA2XX_FIR "pxa2xx-fir"
-#define PXA2XX_FIR(obj) OBJECT_CHECK(PXA2xxFIrState, (obj), TYPE_PXA2XX_FIR)
-
 struct PXA2xxFIrState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -2136,15 +2130,24 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->cpu, s->pic, 121);
 
-    dinfo = drive_get(IF_SD, 0, 0);
-    if (!dinfo && !qtest_enabled()) {
-        warn_report("missing SecureDigital device");
-    }
     s->mmc = pxa2xx_mmci_init(address_space, 0x41100000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
+    dinfo = drive_get(IF_SD, 0, 0);
+    if (dinfo) {
+        DeviceState *carddev;
+
+        /* Create and plug in the sd card */
+        carddev = qdev_new(TYPE_SD_CARD);
+        qdev_prop_set_drive_err(carddev, "drive",
+                                blk_by_legacy_dinfo(dinfo), &error_fatal);
+        qdev_realize_and_unref(carddev, qdev_get_child_bus(DEVICE(s->mmc),
+                                                           "sd-bus"),
+                               &error_fatal);
+    } else if (!qtest_enabled()) {
+        warn_report("missing SecureDigital device");
+    }
 
     for (i = 0; pxa270_serial[i].io_base; i++) {
         if (serial_hd(i)) {
@@ -2260,15 +2263,24 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->cpu, s->pic, 85);
 
-    dinfo = drive_get(IF_SD, 0, 0);
-    if (!dinfo && !qtest_enabled()) {
-        warn_report("missing SecureDigital device");
-    }
     s->mmc = pxa2xx_mmci_init(address_space, 0x41100000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
+    dinfo = drive_get(IF_SD, 0, 0);
+    if (dinfo) {
+        DeviceState *carddev;
+
+        /* Create and plug in the sd card */
+        carddev = qdev_new(TYPE_SD_CARD);
+        qdev_prop_set_drive_err(carddev, "drive",
+                                blk_by_legacy_dinfo(dinfo), &error_fatal);
+        qdev_realize_and_unref(carddev, qdev_get_child_bus(DEVICE(s->mmc),
+                                                           "sd-bus"),
+                               &error_fatal);
+    } else if (!qtest_enabled()) {
+        warn_report("missing SecureDigital device");
+    }
 
     for (i = 0; pxa255_serial[i].io_base; i++) {
         if (serial_hd(i)) {

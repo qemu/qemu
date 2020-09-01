@@ -1,3 +1,5 @@
+/GNUmakefile
+/build/
 /.doctrees
 /config-devices.*
 /config-all-devices.*
@@ -18,7 +20,7 @@
 /ui/shader/texture-blit-frag.h
 /ui/shader/texture-blit-vert.h
 /ui/shader/texture-blit-flip-vert.h
-/ui/input-keymap-*.c
+/ui/input-keymap-*.c.inc
 *-timestamp
 /*-softmmu
 /*-darwin-user
@@ -78,7 +80,6 @@
 *.msi
 *.dll
 *.so
-*.mo
 *.fn
 *.ky
 *.log
@@ -146,7 +147,6 @@ docker-src.*
 *~
 *.ast_raw
 *.depend_raw
-trace.h
 trace.c
 trace-ust.h
 trace-ust.h
@@ -162,4 +162,4 @@ trace-dtrace-root.h
 trace-dtrace-root.dtrace
 trace-ust-all.h
 trace-ust-all.c
-/target/arm/decode-sve.inc.c
+/target/arm/decode-sve.c.inc

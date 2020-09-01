@@ -9,3 +9,4 @@ config NVDIMM
     bool
     default y
     depends on (PC || PSERIES || ARM_VIRT)
+    select MEM_DEVICE

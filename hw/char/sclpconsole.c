@@ -271,7 +271,7 @@ static void console_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sclp_console_info = {
-    .name          = "sclpconsole",
+    .name          = TYPE_SCLP_CONSOLE,
     .parent        = TYPE_SCLP_EVENT,
     .instance_size = sizeof(SCLPConsole),
     .class_init    = console_class_init,

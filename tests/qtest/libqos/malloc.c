@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/malloc.h"
+#include "malloc.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 

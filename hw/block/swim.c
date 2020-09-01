@@ -387,7 +387,7 @@ static const MemoryRegionOps swimctrl_mem_ops = {
 
 static void sysbus_swim_reset(DeviceState *d)
 {
-    SWIM *sys = SWIM(d);
+    Swim *sys = SWIM(d);
     SWIMCtrl *ctrl = &sys->ctrl;
     int i;
 
@@ -408,7 +408,7 @@ static void sysbus_swim_reset(DeviceState *d)
 static void sysbus_swim_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SWIM *sbs = SWIM(obj);
+    Swim *sbs = SWIM(obj);
     SWIMCtrl *swimctrl = &sbs->ctrl;
 
     memory_region_init_io(&swimctrl->iomem, obj, &swimctrl_mem_ops, swimctrl,
@@ -418,7 +418,7 @@ static void sysbus_swim_init(Object *obj)
 
 static void sysbus_swim_realize(DeviceState *dev, Error **errp)
 {
-    SWIM *sys = SWIM(dev);
+    Swim *sys = SWIM(dev);
     SWIMCtrl *swimctrl = &sys->ctrl;
 
     qbus_create_inplace(&swimctrl->bus, sizeof(SWIMBus), TYPE_SWIM_BUS, dev,
@@ -460,7 +460,7 @@ static const VMStateDescription vmstate_sysbus_swim = {
     .name = "SWIM",
     .version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT(ctrl, SWIM, 0, vmstate_swim, SWIMCtrl),
+        VMSTATE_STRUCT(ctrl, Swim, 0, vmstate_swim, SWIMCtrl),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -477,7 +477,7 @@ static void sysbus_swim_class_init(ObjectClass *oc, void *data)
 static const TypeInfo sysbus_swim_info = {
     .name          = TYPE_SWIM,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SWIM),
+    .instance_size = sizeof(Swim),
     .instance_init = sysbus_swim_init,
     .class_init    = sysbus_swim_class_init,
 };

@@ -8,7 +8,7 @@
  */
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 
 typedef enum PnvChipType {
     PNV_CHIP_POWER8E,     /* AKA Murano (default) */

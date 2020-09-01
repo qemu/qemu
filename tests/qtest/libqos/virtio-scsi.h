@@ -19,9 +19,9 @@
 #ifndef TESTS_LIBQOS_VIRTIO_SCSI_H
 #define TESTS_LIBQOS_VIRTIO_SCSI_H
 
-#include "libqos/qgraph.h"
-#include "libqos/virtio.h"
-#include "libqos/virtio-pci.h"
+#include "qgraph.h"
+#include "virtio.h"
+#include "virtio-pci.h"
 
 typedef struct QVirtioSCSI QVirtioSCSI;
 typedef struct QVirtioSCSIPCI QVirtioSCSIPCI;

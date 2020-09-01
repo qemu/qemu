@@ -1,4 +1,0 @@
-obj-y += sh7750.o sh7750_regnames.o
-obj-y += sh_pci.o
-obj-$(CONFIG_R2D) +=  r2d.o
-obj-$(CONFIG_SHIX) += shix.o

@@ -25,7 +25,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 
-#include "tests/qtest/libqtest.h"
+#include "tests/qtest/libqos/libqtest.h"
 #include "tests/qtest/libqos/malloc.h"
 #include "tests/qtest/libqos/qgraph.h"
 #include "tests/qtest/libqos/qgraph_internal.h"

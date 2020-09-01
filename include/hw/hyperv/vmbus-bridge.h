@@ -11,10 +11,9 @@
 #define HW_HYPERV_VMBUS_BRIDGE_H
 
 #include "hw/sysbus.h"
+#include "hw/hyperv/vmbus.h"
 
 #define TYPE_VMBUS_BRIDGE "vmbus-bridge"
-
-typedef struct VMBus VMBus;
 
 typedef struct VMBusBridge {
     SysBusDevice parent_obj;

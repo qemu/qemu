@@ -13,6 +13,8 @@
 #ifndef HVF_H
 #define HVF_H
 
+#include "sysemu/accel.h"
+
 #ifdef CONFIG_HVF
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
@@ -33,6 +35,7 @@ void hvf_vcpu_destroy(CPUState *);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 
+typedef struct HVFState HVFState;
 #define HVF_STATE(obj) \
     OBJECT_CHECK(HVFState, (obj), TYPE_HVF_ACCEL)
 

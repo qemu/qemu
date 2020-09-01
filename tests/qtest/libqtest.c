@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "qemu-common.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"

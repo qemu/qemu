@@ -1,1 +1,0 @@
-obj-$(CONFIG_DINO) += pci.o machine.o dino.o lasi.o

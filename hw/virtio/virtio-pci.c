@@ -19,6 +19,7 @@
 
 #include "exec/memop.h"
 #include "standard-headers/linux/virtio_pci.h"
+#include "hw/boards.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/pci/pci.h"
@@ -2056,6 +2057,37 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         type_register(&transitional_type_info);
     }
     g_free(base_name);
+}
+
+unsigned virtio_pci_optimal_num_queues(unsigned fixed_queues)
+{
+    /*
+     * 1:1 vq to vCPU mapping is ideal because the same vCPU that submitted
+     * virtqueue buffers can handle their completion. When a different vCPU
+     * handles completion it may need to IPI the vCPU that submitted the
+     * request and this adds overhead.
+     *
+     * Virtqueues consume guest RAM and MSI-X vectors. This is wasteful in
+     * guests with very many vCPUs and a device that is only used by a few
+     * vCPUs. Unfortunately optimizing that case requires manual pinning inside
+     * the guest, so those users might as well manually set the number of
+     * queues. There is no upper limit that can be applied automatically and
+     * doing so arbitrarily would result in a sudden performance drop once the
+     * threshold number of vCPUs is exceeded.
+     */
+    unsigned num_queues = current_machine->smp.cpus;
+
+    /*
+     * The maximum number of MSI-X vectors is PCI_MSIX_FLAGS_QSIZE + 1, but the
+     * config change interrupt and the fixed virtqueues must be taken into
+     * account too.
+     */
+    num_queues = MIN(num_queues, PCI_MSIX_FLAGS_QSIZE - fixed_queues);
+
+    /*
+     * There is a limit to how many virtqueues a device can have.
+     */
+    return MIN(num_queues, VIRTIO_QUEUE_MAX - fixed_queues);
 }
 
 /* virtio-pci-bus */

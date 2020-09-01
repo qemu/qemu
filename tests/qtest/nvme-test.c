@@ -10,7 +10,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
-#include "libqtest.h"
+#include "libqos/libqtest.h"
 #include "libqos/qgraph.h"
 #include "libqos/pci.h"
 

@@ -1,3 +1,0 @@
-common-obj-$(CONFIG_DIMM) += pc-dimm.o
-common-obj-y += memory-device.o
-common-obj-$(CONFIG_NVDIMM) += nvdimm.o

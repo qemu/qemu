@@ -185,12 +185,12 @@ typedef struct SCCB {
 #define SCLP_CLASS(oc) OBJECT_CLASS_CHECK(SCLPDeviceClass, (oc), TYPE_SCLP)
 #define SCLP_GET_CLASS(obj) OBJECT_GET_CLASS(SCLPDeviceClass, (obj), TYPE_SCLP)
 
-typedef struct SCLPEventFacility SCLPEventFacility;
+struct SCLPEventFacility;
 
 typedef struct SCLPDevice {
     /* private */
     DeviceState parent_obj;
-    SCLPEventFacility *event_facility;
+    struct SCLPEventFacility *event_facility;
     int increment_size;
 
     /* public */

@@ -1,5 +1,0 @@
-generated-files-y += linux-user/microblaze/syscall_nr.h
-
-syshdr := $(SRC_PATH)/linux-user/microblaze/syscallhdr.sh
-%/syscall_nr.h: $(SRC_PATH)/linux-user/microblaze/syscall.tbl $(syshdr)
-	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI),"GEN","$@")

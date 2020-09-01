@@ -29,7 +29,7 @@
 #include "migration/misc.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "config-devices.h"
+#include CONFIG_DEVICES
 #include "trace.h"
 
 /*

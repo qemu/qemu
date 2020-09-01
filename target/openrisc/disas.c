@@ -25,7 +25,7 @@
 typedef disassemble_info DisasContext;
 
 /* Include the auto-generated decoder.  */
-#include "decode.inc.c"
+#include "decode-insns.c.inc"
 
 #define output(mnemonic, format, ...) \
     (info->fprintf_func(info->stream, "%-9s " format, \

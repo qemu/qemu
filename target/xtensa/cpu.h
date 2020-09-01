@@ -52,6 +52,8 @@ enum {
     XTENSA_OPTION_COPROCESSOR,
     XTENSA_OPTION_BOOLEAN,
     XTENSA_OPTION_FP_COPROCESSOR,
+    XTENSA_OPTION_DFP_COPROCESSOR,
+    XTENSA_OPTION_DFPU_SINGLE_ONLY,
     XTENSA_OPTION_MP_SYNCHRO,
     XTENSA_OPTION_CONDITIONAL_STORE,
     XTENSA_OPTION_ATOMCTL,
@@ -359,14 +361,12 @@ typedef struct opcode_arg {
     uint32_t raw_imm;
     void *in;
     void *out;
+    uint32_t num_bits;
 } OpcodeArg;
 
 typedef struct DisasContext DisasContext;
 typedef void (*XtensaOpcodeOp)(DisasContext *dc, const OpcodeArg arg[],
                                const uint32_t par[]);
-typedef bool (*XtensaOpcodeBoolTest)(DisasContext *dc,
-                                     const OpcodeArg arg[],
-                                     const uint32_t par[]);
 typedef uint32_t (*XtensaOpcodeUintTest)(DisasContext *dc,
                                          const OpcodeArg arg[],
                                          const uint32_t par[]);
@@ -408,7 +408,7 @@ enum {
 typedef struct XtensaOpcodeOps {
     const void *name;
     XtensaOpcodeOp translate;
-    XtensaOpcodeBoolTest test_ill;
+    XtensaOpcodeUintTest test_exceptions;
     XtensaOpcodeUintTest test_overflow;
     const uint32_t *par;
     uint32_t op_flags;
@@ -422,6 +422,7 @@ typedef struct XtensaOpcodeTranslators {
 
 extern const XtensaOpcodeTranslators xtensa_core_opcodes;
 extern const XtensaOpcodeTranslators xtensa_fpu2000_opcodes;
+extern const XtensaOpcodeTranslators xtensa_fpu_opcodes;
 
 struct XtensaConfig {
     const char *name;
@@ -436,6 +437,7 @@ struct XtensaConfig {
     uint32_t exception_vector[EXC_MAX];
     unsigned ninterrupt;
     unsigned nlevel;
+    unsigned nmi_level;
     uint32_t interrupt_vector[MAX_NLEVEL + MAX_NNMI + 1];
     uint32_t level_mask[MAX_NLEVEL + MAX_NNMI + 1];
     uint32_t inttype_mask[INTTYPE_MAX];
@@ -483,6 +485,8 @@ struct XtensaConfig {
     unsigned n_mpu_fg_segments;
     unsigned n_mpu_bg_segments;
     const xtensa_mpu_entry *mpu_bg;
+
+    bool use_first_nan;
 };
 
 typedef struct XtensaConfigList {
@@ -600,7 +604,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 void xtensa_collect_sr_names(const XtensaConfig *config);
 void xtensa_translate_init(void);
-void **xtensa_get_regfile_by_name(const char *name);
+void **xtensa_get_regfile_by_name(const char *name, int entries, int bits);
 void xtensa_breakpoint_handler(CPUState *cs);
 void xtensa_register_core(XtensaConfigList *node);
 void xtensa_sim_open_console(Chardev *chr);

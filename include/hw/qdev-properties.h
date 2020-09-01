@@ -238,6 +238,8 @@ extern const PropertyInfo qdev_prop_pcie_link_width;
 
 /*
  * Set properties between creation and realization.
+ *
+ * Returns: %true on success, %false on error.
  */
 bool qdev_prop_set_drive_err(DeviceState *dev, const char *name,
                              BlockBackend *value, Error **errp);
