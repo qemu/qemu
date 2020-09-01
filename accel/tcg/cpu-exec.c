@@ -41,6 +41,7 @@
 #include "qemuafl/common.h"
 #include "qemuafl/imported/snapshot-inl.h"
 
+#include <string.h>
 #include <sys/shm.h>
 #ifndef AFL_QEMU_STATIC_BUILD
   #include <dlfcn.h>
@@ -66,6 +67,8 @@ unsigned char *afl_area_ptr = dummy;          /* Exported for afl_gen_trace */
 abi_ulong afl_entry_point,                      /* ELF entry point (_start) */
     afl_start_code,                             /* .text start pointer      */
     afl_end_code;                               /* .text end pointer        */
+
+struct vmrange* afl_instr_code;
 
 abi_ulong    afl_persistent_addr, afl_persistent_ret_addr;
 unsigned int afl_persistent_cnt;
@@ -232,6 +235,8 @@ static void collect_memory_snapshot(void) {
   
   if (lkm_snapshot)
     afl_snapshot_take(AFL_SNAPSHOT_BLOCK | AFL_SNAPSHOT_FDS);
+    
+  fclose(fp);
 
 }
 
@@ -352,11 +357,108 @@ void afl_setup(void) {
     afl_end_code = (abi_ulong)-1;
 
   }
-
+  
   if (getenv("AFL_CODE_START"))
     afl_start_code = strtoll(getenv("AFL_CODE_START"), NULL, 16);
   if (getenv("AFL_CODE_END"))
     afl_end_code = strtoll(getenv("AFL_CODE_END"), NULL, 16);
+
+  if (getenv("AFL_QEMU_INST_RANGES")) {
+
+    char *str = getenv("AFL_QEMU_INST_RANGES");
+    char *saveptr1, *saveptr2;
+    char *pt1, *pt2, *pt3;
+    int have_names = 0;
+    
+    while (1) {
+
+      pt1 = strtok_r(str, ",", &saveptr1);
+      if (pt1 == NULL) break;
+      str = NULL;
+      
+      pt2 = strtok_r(pt1, "-", &saveptr2);
+      pt3 = strtok_r(NULL, "-", &saveptr2);
+      
+      struct vmrange* n = malloc(sizeof(struct vmrange));
+      n->next = afl_instr_code;
+
+      if (pt3 == NULL) { // filename
+        have_names = 1;
+        n->start = (target_ulong)-1;
+        n->end = 0;
+        n->name = strdup(pt1);
+      } else {
+        n->start = strtoull(pt2, NULL, 16);
+        n->end = strtoull(pt3, NULL, 16);
+        n->name = NULL;
+      }
+      
+      afl_instr_code = n;
+
+    }
+    
+    if (have_names) {
+    
+      FILE *fp;
+      char *line = NULL;
+      size_t len = 0;
+      ssize_t read;
+
+      fp = fopen("/proc/self/maps", "r");
+      if (fp == NULL) {
+        fprintf(stderr, "[AFL] ERROR: cannot open /proc/self/maps\n");
+        exit(1);
+      }
+      
+      while ((read = getline(&line, &len, fp)) != -1) {
+      
+        int fields, dev_maj, dev_min, inode;
+        uint64_t min, max, offset;
+        char flag_r, flag_w, flag_x, flag_p;
+        char path[512] = "";
+
+        fields = sscanf(line, "%"PRIx64"-%"PRIx64" %c%c%c%c %"PRIx64" %x:%x %d"
+                        " %512s", &min, &max, &flag_r, &flag_w, &flag_x,
+                        &flag_p, &offset, &dev_maj, &dev_min, &inode, path);
+
+        if (!flag_x || (fields < 10) || (fields > 11))
+            continue;
+        
+        int flags = page_get_flags(h2g(min));
+        
+        max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
+        if (page_check_range(h2g(min), max - min, flags) == -1)
+            continue;
+        
+        target_ulong gmin = h2g(min);
+        target_ulong gmax = h2g(max);
+        
+        struct vmrange* n = afl_instr_code;
+        while (n) {
+          if (n->name && strstr(path, n->name)) {
+            if (gmin < n->start) n->start = gmin;
+            if (gmax > n->end) n->end = gmax;
+            break;
+          }
+          n = n->next;
+        }
+      
+      }
+      
+      fclose(fp);
+    
+    }
+    
+    if (getenv("AFL_DEBUG") && afl_instr_code) {
+      struct vmrange* n = afl_instr_code;
+      while (n) {
+        fprintf(stderr, "Instrument range: 0x%lx-0x%lx (%s)\n", n->start,
+                n->end, n->name ? n->name : "<noname>");
+        n = n->next;
+      }
+    }
+
+  }
 
   /* Maintain for compatibility */
   if (getenv("AFL_QEMU_COMPCOV")) { afl_compcov_level = 1; }

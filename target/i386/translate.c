@@ -5169,8 +5169,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 tcg_gen_ext16u_tl(s->T0, s->T0);
             }
             next_eip = s->pc - s->cs_base;
-            if (__afl_cmp_map && next_eip >= afl_start_code &&
-                next_eip < afl_end_code)
+            if (__afl_cmp_map && afl_must_instrument(next_eip))
               gen_helper_afl_cmplog_rtn(cpu_env);
             tcg_gen_movi_tl(s->T1, next_eip);
             gen_push_v(s, s->T1);
@@ -6695,8 +6694,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 tval = (int16_t)insn_get(env, s, MO_16);
             }
             next_eip = s->pc - s->cs_base;
-            if (__afl_cmp_map && next_eip >= afl_start_code &&
-                next_eip < afl_end_code)
+            if (__afl_cmp_map && afl_must_instrument(next_eip))
               gen_helper_afl_cmplog_rtn(cpu_env);
             tval += next_eip;
             if (dflag == MO_16) {

@@ -48,7 +48,7 @@
                                                                                \
       if (persistent_save_gpr) gpr_saving(cpu_R, AFL_REGS_NUM);                \
                                                                                \
-      if (afl_persistent_ret_addr == 0) {                                      \
+      if (afl_persistent_ret_addr == 0 && !persistent_exits) {                 \
                                                                                \
         tcg_gen_movi_tl(cpu_R[14], afl_persistent_addr);                       \
                                                                                \

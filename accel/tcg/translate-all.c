@@ -78,9 +78,7 @@ static void afl_gen_trace(target_ulong cur_loc) {
   /* Optimize for cur_loc > afl_end_code, which is the most likely case on
      Linux systems. */
 
-  if (cur_loc > afl_end_code ||
-      cur_loc < afl_start_code /*|| !afl_area_ptr*/)  // not needed because of
-                                                      // static dummy buffer
+  if (!afl_must_instrument(cur_loc))
     return;
 
   /* Looks like QEMU always maps to fixed locations, so ASLR is not a

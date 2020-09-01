@@ -44,7 +44,7 @@
 static void afl_gen_compcov(target_ulong cur_loc, TCGv arg1, TCGv arg2,
                             MemOp ot, int is_imm) {
 
-  if (cur_loc > afl_end_code || cur_loc < afl_start_code) return;
+  if (!afl_must_instrument(cur_loc)) return;
 
   if (__afl_cmp_map) {
 

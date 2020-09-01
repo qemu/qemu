@@ -72,6 +72,13 @@ typedef void (*afl_persistent_hook_fn)(struct api_regs *regs,
 
 /* Declared in afl-qemu-cpu-inl.h */
 
+struct vmrange {
+  target_ulong start, end;
+  char* name;
+  struct vmrange* next;
+};
+
+extern struct vmrange* afl_instr_code;
 extern unsigned char  *afl_area_ptr;
 extern unsigned int    afl_inst_rms;
 extern abi_ulong       afl_entry_point, afl_start_code, afl_end_code;
@@ -135,6 +142,22 @@ static inline int is_valid_addr(target_ulong addr) {
   if (!(flags & PAGE_VALID) || !(flags & PAGE_READ)) return 0;
 
   return 1;
+
+}
+
+static inline int afl_must_instrument(target_ulong addr) {
+
+  if (addr < afl_end_code && addr >= afl_start_code)
+    return 1;
+  
+  struct vmrange* n = afl_instr_code;
+  while(n) {
+    if (addr < n->end && addr >= n->start)
+      return 1;
+    n = n->next;
+  }
+
+  return 0;
 
 }
 

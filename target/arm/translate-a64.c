@@ -50,7 +50,7 @@
                                                                               \
       if (persistent_save_gpr) gpr_saving(cpu_X, AFL_REGS_NUM);               \
                                                                               \
-      if (afl_persistent_ret_addr == 0) {                                     \
+      if (afl_persistent_ret_addr == 0 && !persistent_exits) {                \
                                                                               \
         tcg_gen_movi_tl(cpu_X[30], afl_persistent_addr);                      \
                                                                               \
