@@ -22,6 +22,8 @@
 #ifndef HW_MICROCHIP_PFSOC_H
 #define HW_MICROCHIP_PFSOC_H
 
+#include "hw/char/mchp_pfsoc_mmuart.h"
+
 typedef struct MicrochipPFSoCState {
     /*< private >*/
     DeviceState parent_obj;
@@ -32,6 +34,11 @@ typedef struct MicrochipPFSoCState {
     RISCVHartArrayState e_cpus;
     RISCVHartArrayState u_cpus;
     DeviceState *plic;
+    MchpPfSoCMMUartState *serial0;
+    MchpPfSoCMMUartState *serial1;
+    MchpPfSoCMMUartState *serial2;
+    MchpPfSoCMMUartState *serial3;
+    MchpPfSoCMMUartState *serial4;
 } MicrochipPFSoCState;
 
 #define TYPE_MICROCHIP_PFSOC    "microchip.pfsoc"
@@ -64,12 +71,25 @@ enum {
     MICROCHIP_PFSOC_L2CC,
     MICROCHIP_PFSOC_L2LIM,
     MICROCHIP_PFSOC_PLIC,
+    MICROCHIP_PFSOC_MMUART0,
     MICROCHIP_PFSOC_SYSREG,
     MICROCHIP_PFSOC_MPUCFG,
+    MICROCHIP_PFSOC_MMUART1,
+    MICROCHIP_PFSOC_MMUART2,
+    MICROCHIP_PFSOC_MMUART3,
+    MICROCHIP_PFSOC_MMUART4,
     MICROCHIP_PFSOC_ENVM_CFG,
     MICROCHIP_PFSOC_ENVM_DATA,
     MICROCHIP_PFSOC_IOSCB_CFG,
     MICROCHIP_PFSOC_DRAM,
+};
+
+enum {
+    MICROCHIP_PFSOC_MMUART0_IRQ = 90,
+    MICROCHIP_PFSOC_MMUART1_IRQ = 91,
+    MICROCHIP_PFSOC_MMUART2_IRQ = 92,
+    MICROCHIP_PFSOC_MMUART3_IRQ = 93,
+    MICROCHIP_PFSOC_MMUART4_IRQ = 94,
 };
 
 #define MICROCHIP_PFSOC_MANAGEMENT_CPU_COUNT    1

@@ -11,6 +11,7 @@
  * 0) CLINT (Core Level Interruptor)
  * 1) PLIC (Platform Level Interrupt Controller)
  * 2) eNVM (Embedded Non-Volatile Memory)
+ * 3) MMUARTs (Multi-Mode UART)
  *
  * This board currently generates devicetree dynamically that indicates at least
  * two harts and up to five harts.
@@ -38,6 +39,7 @@
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "chardev/char.h"
 #include "hw/cpu/cluster.h"
 #include "target/riscv/cpu.h"
 #include "hw/misc/unimp.h"
@@ -46,6 +48,7 @@
 #include "hw/riscv/sifive_clint.h"
 #include "hw/riscv/sifive_plic.h"
 #include "hw/riscv/microchip_pfsoc.h"
+#include "sysemu/sysemu.h"
 
 /*
  * The BIOS image used by this machine is called Hart Software Services (HSS).
@@ -69,8 +72,13 @@ static const struct MemmapEntry {
     [MICROCHIP_PFSOC_L2CC] =            {  0x2010000,     0x1000 },
     [MICROCHIP_PFSOC_L2LIM] =           {  0x8000000,  0x2000000 },
     [MICROCHIP_PFSOC_PLIC] =            {  0xc000000,  0x4000000 },
+    [MICROCHIP_PFSOC_MMUART0] =         { 0x20000000,     0x1000 },
     [MICROCHIP_PFSOC_SYSREG] =          { 0x20002000,     0x2000 },
     [MICROCHIP_PFSOC_MPUCFG] =          { 0x20005000,     0x1000 },
+    [MICROCHIP_PFSOC_MMUART1] =         { 0x20100000,     0x1000 },
+    [MICROCHIP_PFSOC_MMUART2] =         { 0x20102000,     0x1000 },
+    [MICROCHIP_PFSOC_MMUART3] =         { 0x20104000,     0x1000 },
+    [MICROCHIP_PFSOC_MMUART4] =         { 0x20106000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_CFG] =        { 0x20200000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_DATA] =       { 0x20220000,    0x20000 },
     [MICROCHIP_PFSOC_IOSCB_CFG] =       { 0x37080000,     0x1000 },
@@ -214,6 +222,28 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("microchip.pfsoc.mpucfg",
         memmap[MICROCHIP_PFSOC_MPUCFG].base,
         memmap[MICROCHIP_PFSOC_MPUCFG].size);
+
+    /* MMUARTs */
+    s->serial0 = mchp_pfsoc_mmuart_create(system_memory,
+        memmap[MICROCHIP_PFSOC_MMUART0].base,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART0_IRQ),
+        serial_hd(0));
+    s->serial1 = mchp_pfsoc_mmuart_create(system_memory,
+        memmap[MICROCHIP_PFSOC_MMUART1].base,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART1_IRQ),
+        serial_hd(1));
+    s->serial2 = mchp_pfsoc_mmuart_create(system_memory,
+        memmap[MICROCHIP_PFSOC_MMUART2].base,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART2_IRQ),
+        serial_hd(2));
+    s->serial3 = mchp_pfsoc_mmuart_create(system_memory,
+        memmap[MICROCHIP_PFSOC_MMUART3].base,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART3_IRQ),
+        serial_hd(3));
+    s->serial4 = mchp_pfsoc_mmuart_create(system_memory,
+        memmap[MICROCHIP_PFSOC_MMUART4].base,
+        qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART4_IRQ),
+        serial_hd(4));
 
     /* eNVM */
     memory_region_init_rom(envm_data, OBJECT(dev), "microchip.pfsoc.envm.data",
