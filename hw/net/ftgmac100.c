@@ -669,6 +669,10 @@ static uint64_t ftgmac100_read(void *opaque, hwaddr addr, unsigned size)
         return s->math[0];
     case FTGMAC100_MATH1:
         return s->math[1];
+    case FTGMAC100_RXR_BADR:
+        return s->rx_ring;
+    case FTGMAC100_NPTXR_BADR:
+        return s->tx_ring;
     case FTGMAC100_ITC:
         return s->itc;
     case FTGMAC100_DBLAC:
