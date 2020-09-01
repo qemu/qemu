@@ -950,6 +950,7 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
         break;
     }
 
+    s->isr |= FTGMAC100_INT_RPKT_FIFO;
     addr = s->rx_descriptor;
     while (size > 0) {
         if (!ftgmac100_can_receive(nc)) {
@@ -1001,8 +1002,6 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
             /* Last buffer in frame.  */
             bd.des0 |= flags | FTGMAC100_RXDES0_LRS;
             s->isr |= FTGMAC100_INT_RPKT_BUF;
-        } else {
-            s->isr |= FTGMAC100_INT_RPKT_FIFO;
         }
         ftgmac100_write_bd(&bd, addr);
         if (bd.des0 & s->rxdes0_edorr) {
