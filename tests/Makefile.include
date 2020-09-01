@@ -40,41 +40,6 @@ SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
 
 SPEED = quick
 
-# gtester tests, possibly with verbose output
-# do_test_tap runs all tests, even if some of them fail, while do_test_human
-# stops at the first failure unless -k is given on the command line
-
-define do_test_human_k
-        $(quiet-@)rc=0; $(foreach COMMAND, $1, \
-          $(call quiet-command-run, \
-            export MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} $2; \
-              $(COMMAND) -m=$(SPEED) -k --tap < /dev/null \
-              | ./scripts/tap-driver.pl --test-name="$(notdir $(COMMAND))" $(if $(V),, --show-failures-only) \
-              || rc=$$?;, "TEST", "$@: $(COMMAND)")) exit $$rc
-endef
-define do_test_human_no_k
-        $(foreach COMMAND, $1, \
-          $(call quiet-command, \
-            MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} $2 \
-              $(COMMAND) -m=$(SPEED) -k --tap < /dev/null \
-              | ./scripts/tap-driver.pl --test-name="$(notdir $(COMMAND))" $(if $(V),, --show-failures-only), \
-              "TEST", "$@: $(COMMAND)")
-)
-endef
-do_test_human = \
-        $(if $(findstring k, $(MAKEFLAGS)), $(do_test_human_k), $(do_test_human_no_k))
-
-define do_test_tap
-	$(call quiet-command, \
-          { export MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} $2; \
-            $(foreach COMMAND, $1, \
-	      $(COMMAND) -m=$(SPEED) -k --tap < /dev/null \
-	      | sed "s/^\(not \)\?ok [0-9]* /&$(notdir $(COMMAND)) /" || true; ) } \
-	      | ./scripts/tap-merge.pl | tee "$@" \
-	      | ./scripts/tap-driver.pl $(if $(V),, --show-failures-only), \
-	  "TAP","$@")
-endef
-
 # Per guest TCG tests
 
 BUILD_TCG_TARGET_RULES=$(patsubst %,build-tcg-tests-%, $(TARGET_DIRS))
@@ -182,7 +147,6 @@ endif
 check-build: $(QEMU_IOTESTS_HELPERS-y)
 
 check-clean:
-	rm -rf tests/*.o tests/*/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)
 
 clean: check-clean
@@ -190,9 +154,5 @@ clean: check-clean
 # For backwards compatibility
 
 check-speed: bench-speed
-
-# Build the help program automatically
-
--include $(wildcard tests/*.d)
 
 endif
