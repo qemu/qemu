@@ -81,6 +81,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/ppc/spapr_tpm_proxy.h"
 #include "hw/ppc/spapr_nvdimm.h"
+#include "hw/ppc/spapr_numa.h"
 
 #include "monitor/monitor.h"
 
@@ -891,16 +892,9 @@ static int spapr_dt_rng(void *fdt)
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *ms = MACHINE(spapr);
-    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
     int rtas;
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
-    uint32_t refpoints[] = {
-        cpu_to_be32(0x4),
-        cpu_to_be32(0x4),
-        cpu_to_be32(0x2),
-    };
-    uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
     uint64_t max_device_addr = MACHINE(spapr)->device_memory->base +
         memory_region_size(&MACHINE(spapr)->device_memory->mr);
     uint32_t lrdr_capacity[] = {
@@ -909,14 +903,6 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
         cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE >> 32),
         cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE & 0xffffffff),
         cpu_to_be32(ms->smp.max_cpus / ms->smp.threads),
-    };
-    uint32_t maxdomain = cpu_to_be32(spapr->gpu_numa_id > 1 ? 1 : 0);
-    uint32_t maxdomains[] = {
-        cpu_to_be32(4),
-        maxdomain,
-        maxdomain,
-        maxdomain,
-        cpu_to_be32(spapr->gpu_numa_id),
     };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
@@ -953,15 +939,7 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
                      qemu_hypertas->str, qemu_hypertas->len));
     g_string_free(qemu_hypertas, TRUE);
 
-    if (smc->pre_5_1_assoc_refpoints) {
-        nr_refpoints = 2;
-    }
-
-    _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",
-                     refpoints, nr_refpoints * sizeof(refpoints[0])));
-
-    _FDT(fdt_setprop(fdt, rtas, "ibm,max-associativity-domains",
-                     maxdomains, sizeof(maxdomains)));
+    spapr_numa_write_rtas_dt(spapr, fdt, rtas);
 
     /*
      * FWNMI reserves RTAS_ERROR_LOG_MAX for the machine check error log,
