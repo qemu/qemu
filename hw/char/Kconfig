@@ -52,3 +52,6 @@ config RENESAS_SCI
 
 config AVR_USART
     bool
+
+config MCHP_PFSOC_MMUART
+    bool
