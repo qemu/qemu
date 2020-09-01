@@ -947,7 +947,7 @@ Linux)
   kvm="yes"
   QEMU_INCLUDES="-isystem ${source_path}/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
   libudev="yes"
-  LIBS="-ldl $LIBS"
+  QEMU_LDFLAGS="-ldl $QEMU_LDFLAGS"
 ;;
 esac
 
