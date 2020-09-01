@@ -12,7 +12,10 @@
 #include "hw/misc/a9scu.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
+
+#define A9_SCU_CPU_MAX  4
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,
                             unsigned size)
@@ -105,12 +108,17 @@ static void a9_scu_reset(DeviceState *dev)
     s->control = 0;
 }
 
-static void a9_scu_init(Object *obj)
+static void a9_scu_realize(DeviceState *dev, Error **errp)
 {
-    A9SCUState *s = A9_SCU(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    A9SCUState *s = A9_SCU(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&s->iomem, obj, &a9_scu_ops, s,
+    if (!s->num_cpu || s->num_cpu > A9_SCU_CPU_MAX) {
+        error_setg(errp, "Illegal CPU count: %u", s->num_cpu);
+        return;
+    }
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &a9_scu_ops, s,
                           "a9-scu", 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
 }
@@ -138,13 +146,13 @@ static void a9_scu_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, a9_scu_properties);
     dc->vmsd = &vmstate_a9_scu;
     dc->reset = a9_scu_reset;
+    dc->realize = a9_scu_realize;
 }
 
 static const TypeInfo a9_scu_info = {
     .name          = TYPE_A9_SCU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9SCUState),
-    .instance_init = a9_scu_init,
     .class_init    = a9_scu_class_init,
 };
 
