@@ -125,23 +125,27 @@ developers in checking for system features:
 `compile_object $CFLAGS`
    Attempt to compile a test program with the system C compiler using
    $CFLAGS. The test program must have been previously written to a file
-   called $TMPC.
+   called $TMPC.  The replacement in Meson is the compiler object `cc`,
+   which has methods such as `cc.compiles()`,
+   `cc.check_header()`, `cc.has_function()`.
 
 `compile_prog $CFLAGS $LDFLAGS`
    Attempt to compile a test program with the system C compiler using
    $CFLAGS and link it with the system linker using $LDFLAGS. The test
    program must have been previously written to a file called $TMPC.
+   The replacement in Meson is `cc.find_library()` and `cc.links()`.
 
 `has $COMMAND`
    Determine if $COMMAND exists in the current environment, either as a
-   shell builtin, or executable binary, returning 0 on success.
+   shell builtin, or executable binary, returning 0 on success.  The
+   replacement in Meson is `find_program()`.
 
 `check_define $NAME`
    Determine if the macro $NAME is defined by the system C compiler
 
 `check_include $NAME`
    Determine if the include $NAME file is available to the system C
-   compiler
+   compiler.  The replacement in Meson is `cc.has_header()`.
 
 `write_c_skeleton`
    Write a minimal C program main() function to the temporary file
