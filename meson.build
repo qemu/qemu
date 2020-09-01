@@ -460,6 +460,7 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
+config_all_devices = {}
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
@@ -528,11 +529,11 @@ foreach target : target_dirs
     config_devices_h += {target: configure_file(output: target + '-config-devices.h',
                                                 configuration: config_devices_data)}
     config_target += config_devices
+    config_all_devices += config_devices
   endif
   config_target_mak += {target: config_target}
 endforeach
 
-grepy = find_program('scripts/grepy.sh')
 # This configuration is used to build files that are shared by
 # multiple binaries, and then extracted out of the "common"
 # static_library target.
@@ -542,17 +543,6 @@ grepy = find_program('scripts/grepy.sh')
 # targets that are not built for this compilation.  The CONFIG_ALL
 # pseudo symbol replaces it.
 
-if have_system
-  config_all_devices_mak = configure_file(
-    output: 'config-all-devices.mak',
-    input: config_devices_mak_list,
-    capture: true,
-    command: [grepy, '@INPUT@'],
-  )
-  config_all_devices = keyval.load(config_all_devices_mak)
-else
-  config_all_devices = {}
-endif
 config_all = config_all_devices
 config_all += config_host
 config_all += config_all_disas
