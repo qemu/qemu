@@ -366,8 +366,8 @@ void afl_setup(void) {
   if (getenv("AFL_QEMU_INST_RANGES")) {
 
     char *str = getenv("AFL_QEMU_INST_RANGES");
-    char *saveptr1, *saveptr2;
-    char *pt1, *pt2, *pt3;
+    char *saveptr1, *saveptr2 = NULL;
+    char *pt1, *pt2, *pt3 = NULL;
     int have_names = 0;
     
     while (1) {
