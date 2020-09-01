@@ -230,7 +230,7 @@ static void aspeed_smc_reg_to_segment(const AspeedSMCState *s, uint32_t reg,
 
 static const AspeedSegments aspeed_segments_ast2600_fmc[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
-    { 0x0, 0 }, /* disabled */
+    { 128 * MiB, 128 * MiB }, /* default is disabled but needed for -kernel */
     { 0x0, 0 }, /* disabled */
 };
 
