@@ -507,6 +507,15 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         }
 
         len = FTGMAC100_TXDES0_TXBUF_SIZE(bd.des0);
+        if (!len) {
+            /*
+             * 0 is an invalid size, however the HW does not raise any
+             * interrupt. Flag an error because the guest is buggy.
+             */
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid segment size\n",
+                          __func__);
+        }
+
         if (frame_size + len > sizeof(s->frame)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: frame too big : %d bytes\n",
                           __func__, len);
