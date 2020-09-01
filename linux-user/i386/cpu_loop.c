@@ -215,7 +215,7 @@ void cpu_loop(CPUX86State *env)
             /* linux syscall from int $0x80 */
             if (persistent_exits && env->regs[R_EAX] == TARGET_NR_exit_group) {
               afl_persistent_iter(env);
-              break;
+              continue;
             }
             ret = do_syscall(env,
                              env->regs[R_EAX],
@@ -238,7 +238,7 @@ void cpu_loop(CPUX86State *env)
             if (afl_fork_child && persistent_exits &&
                 env->regs[R_EAX] == TARGET_NR_exit_group) {
               afl_persistent_iter(env);
-              break;
+              continue;
             }
             ret = do_syscall(env,
                              env->regs[R_EAX],
