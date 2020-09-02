@@ -24,33 +24,20 @@ SPEED = quick
 .test-human-exitcode = $1 $(PYTHON) scripts/test-driver.py $(if $4,-C$4) $(if $(V),--verbose) -- $2 < /dev/null
 .test-tap-tap = $1 $(if $4,(cd $4 && $2),$2) < /dev/null | sed "s/^[a-z][a-z]* [0-9]*/& $3/" || true
 .test-tap-exitcode = printf "%s\\n" 1..1 "`$1 $(if $4,(cd $4 && $2),$2) < /dev/null > /dev/null || echo "not "`ok 1 $3"
-.test.print = echo $(if $(V),'$1 $2','Running test $3') >&3
+.test.human-print = echo $(if $(V),'$1 $2','Running test $3') &&
 .test.env = MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))}
 
 # $1 = test name, $2 = test target (human or tap)
-.test.run = $(call .test.print,$(.test.env.$1),$(.test.cmd.$1),$(.test.name.$1)) && $(call .test-$2-$(.test.driver.$1),$(.test.env.$1),$(.test.cmd.$1),$(.test.name.$1),$(.test.dir.$1))
+.test.run = $(call .test.$2-print,$(.test.env.$1),$(.test.cmd.$1),$(.test.name.$1)) $(call .test-$2-$(.test.driver.$1),$(.test.env.$1),$(.test.cmd.$1),$(.test.name.$1),$(.test.dir.$1))
 
-define .test.human_k
-        @exec 3>&1; rc=0; $(foreach TEST, $1, $(call .test.run,$(TEST),human) || rc=$$?;) \\
-              exit $$rc
-endef
-define .test.human_no_k
-        $(foreach TEST, $1, @exec 3>&1; $(call .test.run,$(TEST),human)
-)
-endef
-.test.human = \\
-        $(if $(findstring k, $(MAKEFLAGS)), $(.test.human_k), $(.test.human_no_k))
-
-define .test.tap
-        @exec 3>&1; { $(foreach TEST, $1, $(call .test.run,$(TEST),tap); ) } \\
-              | ./scripts/tap-merge.pl | tee "$@" \\
-              | ./scripts/tap-driver.pl $(if $(V),, --show-failures-only)
-endef
+.test.output-format = human
 ''')
 
-suites = defaultdict(Suite)
+introspect = json.load(sys.stdin)
 i = 0
-for test in json.load(sys.stdin):
+
+def process_tests(test, suites):
+    global i
     env = ' '.join(('%s=%s' % (shlex.quote(k), shlex.quote(v))
                     for k, v in test['env'].items()))
     executable = test['cmd'][0]
@@ -75,6 +62,9 @@ for test in json.load(sys.stdin):
     print('.test.driver.%d := %s' % (i, driver))
     print('.test.env.%d := $(.test.env) %s' % (i, env))
     print('.test.cmd.%d := %s' % (i, cmd))
+    print('.PHONY: run-test-%d' % (i,))
+    print('run-test-%d: all' % (i,))
+    print('\t@$(call .test.run,%d,$(.test.output-format))' % (i,))
 
     test_suites = test['suite'] or ['default']
     is_slow = any(s.endswith('-slow') for s in test_suites)
@@ -89,22 +79,34 @@ for test in json.load(sys.stdin):
             suites[s].tests.append(i)
         suites[s].executables.add(executable)
 
-print('.PHONY: check check-report.tap')
-print('check:')
-print('check-report.tap:')
-print('\t@cat $^ | scripts/tap-merge.pl >$@')
-for name, suite in suites.items():
+def emit_prolog(suites, prefix):
+    all_tap = ' '.join(('%s-report-%s.tap' % (prefix, k) for k in suites.keys()))
+    print('.PHONY: %s %s-report.tap %s' % (prefix, prefix, all_tap))
+    print('%s: run-tests' % (prefix,))
+    print('%s-report.tap %s: %s-report%%.tap: all' % (prefix, all_tap, prefix))
+    print('''\t$(MAKE) .test.output-format=tap --quiet -Otarget V=1 %s$* | ./scripts/tap-merge.pl | tee "$@" \\
+              | ./scripts/tap-driver.pl $(if $(V),, --show-failures-only)''' % (prefix, ))
+
+def emit_suite(name, suite, prefix):
     executables = ' '.join(suite.executables)
     slow_test_numbers = ' '.join((str(x) for x in suite.slow_tests))
     test_numbers = ' '.join((str(x) for x in suite.tests))
-    print('.test.suite-quick.%s := %s' % (name, test_numbers))
-    print('.test.suite-slow.%s := $(.test.suite-quick.%s) %s' % (name, name, slow_test_numbers))
-    print('check-build: %s' % executables)
-    print('.PHONY: check-%s' % name)
-    print('.PHONY: check-report-%s.tap' % name)
-    print('check: check-%s' % name)
-    print('check-%s: all %s' % (name, executables))
-    print('\t$(call .test.human, $(.test.suite-$(SPEED).%s))' % (name, ))
-    print('check-report.tap: check-report-%s.tap' % name)
-    print('check-report-%s.tap: %s' % (name, executables))
-    print('\t$(call .test.tap, $(.test.suite-$(SPEED).%s))' % (name, ))
+    target = '%s-%s' % (prefix, name)
+    print('.test.quick.%s := %s' % (target, test_numbers))
+    print('.test.slow.%s := $(.test.quick.%s) %s' % (target, target, slow_test_numbers))
+    print('%s-build: %s' % (prefix, executables))
+    print('.PHONY: %s' % (target, ))
+    print('.PHONY: %s-report-%s.tap' % (prefix, name))
+    print('%s: run-tests' % (target, ))
+    print('ifneq ($(filter %s %s, $(MAKECMDGOALS)),)' % (target, prefix))
+    print('.tests += $(.test.$(SPEED).%s)' % (target, ))
+    print('endif')
+
+testsuites = defaultdict(Suite)
+for test in introspect:
+    process_tests(test, testsuites)
+emit_prolog(testsuites, 'check')
+for name, suite in testsuites.items():
+    emit_suite(name, suite, 'check')
+
+print('run-tests: $(patsubst %, run-test-%, $(.tests))')
