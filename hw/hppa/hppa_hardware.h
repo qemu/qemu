@@ -38,7 +38,7 @@
 #define PORT_PCI_CMD    (PCI_HPA + DINO_PCI_ADDR)
 #define PORT_PCI_DATA   (PCI_HPA + DINO_CONFIG_DATA)
 
-#define QEMU_FW_CFG_IO_BASE     0xfffa0000
+#define FW_CFG_IO_BASE  0xfffa0000
 
 #define PORT_SERIAL1    (DINO_UART_HPA + 0x800)
 #define PORT_SERIAL2    (LASI_UART_HPA + 0x800)

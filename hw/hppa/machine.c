@@ -69,7 +69,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     FWCfgState *fw_cfg;
     uint64_t val;
 
-    fw_cfg = fw_cfg_init_mem(QEMU_FW_CFG_IO_BASE, QEMU_FW_CFG_IO_BASE + 4);
+    fw_cfg = fw_cfg_init_mem(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, ms->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, HPPA_MAX_CPUS);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, ram_size);
@@ -290,6 +290,9 @@ static void machine_hppa_init(MachineState *machine)
 
     /* tell firmware how many SMP CPUs to present in inventory table */
     cpu[0]->env.gr[21] = smp_cpus;
+
+    /* tell firmware fw_cfg port */
+    cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
 static void hppa_machine_reset(MachineState *ms)
@@ -317,6 +320,8 @@ static void hppa_machine_reset(MachineState *ms)
     cpu[0]->env.gr[24] = 'c';
     /* gr22/gr23 unused, no initrd while reboot. */
     cpu[0]->env.gr[21] = smp_cpus;
+    /* tell firmware fw_cfg port */
+    cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
 
