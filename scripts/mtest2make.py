@@ -103,10 +103,17 @@ def emit_suite(name, suite, prefix):
     print('endif')
 
 testsuites = defaultdict(Suite)
-for test in introspect:
+for test in introspect['tests']:
     process_tests(test, testsuites)
 emit_prolog(testsuites, 'check')
 for name, suite in testsuites.items():
     emit_suite(name, suite, 'check')
+
+benchsuites = defaultdict(Suite)
+for test in introspect['benchmarks']:
+    process_tests(test, benchsuites)
+emit_prolog(benchsuites, 'bench')
+for name, suite in benchsuites.items():
+    emit_suite(name, suite, 'bench')
 
 print('run-tests: $(patsubst %, run-test-%, $(.tests))')

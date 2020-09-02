@@ -111,6 +111,8 @@ test_deps = {
   'test-qht-par': qht_bench,
 }
 
+benchs = {}
+
 if have_block
   tests += {
     'test-coroutine': [testblock],
@@ -167,6 +169,11 @@ if have_block
   if 'CONFIG_NETTLE' in config_host or 'CONFIG_GCRYPT' in config_host
     tests += {'test-crypto-pbkdf': [io]}
   endif
+  benchs += {
+     'benchmark-crypto-hash': [crypto],
+     'benchmark-crypto-hmac': [crypto],
+     'benchmark-crypto-cipher': [crypto],
+  }
 endif
 
 if have_system
@@ -226,6 +233,14 @@ foreach test_name, extra: tests
        suite: ['unit'])
 endforeach
 
+foreach bench_name, deps: benchs
+  exe = executable(bench_name, bench_name + '.c',
+                   dependencies: [qemuutil] + deps)
+  benchmark(bench_name, exe,
+            args: ['--tap', '-k'],
+            protocol: 'tap',
+            suite: ['speed'])
+endforeach
 
 if have_tools and 'CONFIG_VHOST_USER' in config_host
   executable('vhost-user-bridge',
