@@ -279,6 +279,20 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
 }
 #endif
 
+static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
+{
+    int ret;
+#ifdef O_CLOEXEC
+    ret = open(name, flags | O_CLOEXEC, mode);
+#else
+    ret = open(name, flags, mode);
+    if (ret >= 0) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+    return ret;
+}
+
 /*
  * Opens a file with FD_CLOEXEC set
  */
@@ -318,14 +332,7 @@ int qemu_open(const char *name, int flags, ...)
         va_end(ap);
     }
 
-#ifdef O_CLOEXEC
-    ret = open(name, flags | O_CLOEXEC, mode);
-#else
-    ret = open(name, flags, mode);
-    if (ret >= 0) {
-        qemu_set_cloexec(ret);
-    }
-#endif
+    ret = qemu_open_cloexec(name, flags, mode);
 
 #ifdef O_DIRECT
     if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
