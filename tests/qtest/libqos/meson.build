@@ -1,5 +1,4 @@
-libqos = static_library('qos',
-  files('../libqtest.c',
+libqos_srcs = files('../libqtest.c',
         'qgraph.c',
         'qos_external.c',
         'pci.c',
@@ -52,6 +51,10 @@ libqos = static_library('qos',
         'arm-xilinx-zynq-a9-machine.c',
         'ppc64_pseries-machine.c',
         'x86_64_pc-machine.c',
-), build_by_default: false)
+)
+
+libqos = static_library('qos', libqos_srcs + genh,
+                        name_suffix: 'fa',
+                        build_by_default: false)
 
 qos = declare_dependency(link_whole: libqos)
