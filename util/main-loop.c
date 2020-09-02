@@ -179,6 +179,10 @@ static int max_priority;
 static int glib_pollfds_idx;
 static int glib_n_poll_fds;
 
+void qemu_fd_register(int fd)
+{
+}
+
 static void glib_pollfds_fill(int64_t *cur_timeout)
 {
     GMainContext *context = g_main_context_default();
