@@ -29,10 +29,10 @@
 #include "qom/object.h"
 
 
-#define TYPE_PC87312_SUPERIO "pc87312"
+#define TYPE_PC87312 "pc87312"
 typedef struct PC87312State PC87312State;
 DECLARE_INSTANCE_CHECKER(PC87312State, PC87312,
-                         TYPE_PC87312_SUPERIO)
+                         TYPE_PC87312)
 
 struct PC87312State {
     /*< private >*/
