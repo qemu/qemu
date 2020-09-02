@@ -177,7 +177,7 @@ static void vfio_ap_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo vfio_ap_info = {
     .name = VFIO_AP_DEVICE_TYPE,
-    .parent = AP_DEVICE_TYPE,
+    .parent = TYPE_AP_DEVICE,
     .instance_size = sizeof(VFIOAPDevice),
     .class_init = vfio_ap_class_init,
 };
