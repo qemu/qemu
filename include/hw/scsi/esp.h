@@ -67,7 +67,7 @@ struct ESPState {
 
 #define TYPE_ESP "esp"
 typedef struct SysBusESPState SysBusESPState;
-DECLARE_INSTANCE_CHECKER(SysBusESPState, ESP_STATE,
+DECLARE_INSTANCE_CHECKER(SysBusESPState, ESP,
                          TYPE_ESP)
 
 struct SysBusESPState {
