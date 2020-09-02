@@ -44,10 +44,10 @@
 #include <libfdt.h>
 #include "qom/object.h"
 
-#define TYPE_MIPS_BOSTON "mips-boston"
+#define TYPE_BOSTON "mips-boston"
 typedef struct BostonState BostonState;
 DECLARE_INSTANCE_CHECKER(BostonState, BOSTON,
-                         TYPE_MIPS_BOSTON)
+                         TYPE_BOSTON)
 
 struct BostonState {
     SysBusDevice parent_obj;
@@ -262,7 +262,7 @@ static void mips_boston_instance_init(Object *obj)
 }
 
 static const TypeInfo boston_device = {
-    .name          = TYPE_MIPS_BOSTON,
+    .name          = TYPE_BOSTON,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BostonState),
     .instance_init = mips_boston_instance_init,
@@ -455,7 +455,7 @@ static void boston_mach_init(MachineState *machine)
         exit(1);
     }
 
-    dev = qdev_new(TYPE_MIPS_BOSTON);
+    dev = qdev_new(TYPE_BOSTON);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     s = BOSTON(dev);
