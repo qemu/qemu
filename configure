@@ -2003,9 +2003,6 @@ fi
 if test "$meson" = git; then
     git_submodules="${git_submodules} meson"
 fi
-if test "$git_update" = yes; then
-    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
-fi
 
 case "$meson" in
     git | internal)
@@ -4184,7 +4181,6 @@ EOF
       if test -d "${source_path}/dtc/libfdt" || test -e "${source_path}/.git" ; then
           fdt=git
           mkdir -p dtc
-          symlink "$source_path/dtc/Makefile" "dtc/Makefile"
           fdt_cflags="-I${source_path}/dtc/libfdt"
           fdt_ldflags="-Ldtc/libfdt"
           fdt_libs="$fdt_libs"
@@ -6500,6 +6496,13 @@ EOF
 else
     echo "No C++ compiler available; disabling C++ specific optional code"
     cxx=
+fi
+
+if test $git_update = 'yes' ; then
+    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
+fi
+if test "$fdt" = "git" ; then
+    symlink "$source_path/dtc/Makefile" "dtc/Makefile"
 fi
 
 config_host_mak="config-host.mak"
