@@ -44,7 +44,7 @@ then
         _init_error "failed to obtain source tree name from check symlink"
     fi
     source_iotests=$(cd "$source_iotests"; pwd) || _init_error "failed to enter source tree"
-    build_iotests=$PWD
+    build_iotests=$(readlink -f $(dirname "$0"))
 else
     # called from the source tree
     source_iotests=$PWD
