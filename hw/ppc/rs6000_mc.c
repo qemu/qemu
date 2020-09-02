@@ -30,7 +30,7 @@
 
 #define TYPE_RS6000MC "rs6000-mc"
 typedef struct RS6000MCState RS6000MCState;
-DECLARE_INSTANCE_CHECKER(RS6000MCState, RS6000MC_DEVICE,
+DECLARE_INSTANCE_CHECKER(RS6000MCState, RS6000MC,
                          TYPE_RS6000MC)
 
 struct RS6000MCState {
@@ -143,7 +143,7 @@ static const MemoryRegionPortio rs6000mc_port_list[] = {
 
 static void rs6000mc_realize(DeviceState *dev, Error **errp)
 {
-    RS6000MCState *s = RS6000MC_DEVICE(dev);
+    RS6000MCState *s = RS6000MC(dev);
     int socket = 0;
     unsigned int ram_size = s->ram_size / MiB;
     Error *local_err = NULL;
