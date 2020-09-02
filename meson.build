@@ -58,6 +58,14 @@ add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
                       language: ['c', 'cpp', 'objc'])
 
+# Specify linker-script with add_project_link_arguments so that it is not placed
+# within a linker --start-group/--end-group pair
+if 'CONFIG_FUZZ' in config_host
+   add_project_link_arguments(['-Wl,-T,',
+                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+                              native: false, language: ['c', 'cpp', 'objc'])
+endif
+
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
   add_languages('cpp', required: true, native: false)
@@ -1084,7 +1092,6 @@ foreach target : target_dirs
         'gui': false,
         'sources': specific_fuzz.sources(),
         'dependencies': specific_fuzz.dependencies(),
-        'link_depends': [files('tests/qtest/fuzz/fork_fuzz.ld')],
       }]
     endif
   else
