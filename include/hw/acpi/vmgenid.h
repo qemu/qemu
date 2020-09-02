@@ -6,7 +6,7 @@
 #include "qemu/uuid.h"
 #include "qom/object.h"
 
-#define VMGENID_DEVICE           "vmgenid"
+#define TYPE_VMGENID           "vmgenid"
 #define VMGENID_GUID             "guid"
 #define VMGENID_GUID_FW_CFG_FILE      "etc/vmgenid_guid"
 #define VMGENID_ADDR_FW_CFG_FILE      "etc/vmgenid_addr"
@@ -18,7 +18,7 @@
 
 typedef struct VmGenIdState VmGenIdState;
 DECLARE_INSTANCE_CHECKER(VmGenIdState, VMGENID,
-                         VMGENID_DEVICE)
+                         TYPE_VMGENID)
 
 struct VmGenIdState {
     DeviceClass parent_obj;
@@ -29,7 +29,7 @@ struct VmGenIdState {
 /* returns NULL unless there is exactly one device */
 static inline Object *find_vmgenid_dev(void)
 {
-    return object_resolve_path_type("", VMGENID_DEVICE, NULL);
+    return object_resolve_path_type("", TYPE_VMGENID, NULL);
 }
 
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
