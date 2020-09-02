@@ -79,7 +79,7 @@ static void mb_cpu_set_pc(CPUState *cs, vaddr value)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
 
-    cpu->env.sregs[SR_PC] = value;
+    cpu->env.pc = value;
 }
 
 static bool mb_cpu_has_work(CPUState *cs)
@@ -117,13 +117,13 @@ static void mb_cpu_reset(DeviceState *dev)
     /* Disable stack protector.  */
     env->shr = ~0;
 
-    env->sregs[SR_PC] = cpu->cfg.base_vectors;
+    env->pc = cpu->cfg.base_vectors;
 
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
-    env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
+    mb_cpu_write_msr(env, MSR_EE | MSR_IE | MSR_VM | MSR_UM);
 #else
-    env->sregs[SR_MSR] = 0;
+    mb_cpu_write_msr(env, 0);
     mmu_init(&env->mmu);
     env->mmu.c_mmu = 3;
     env->mmu.c_mmu_tlb_access = 3;
@@ -317,6 +317,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = mb_cpu_class_by_name;
     cc->has_work = mb_cpu_has_work;
     cc->do_interrupt = mb_cpu_do_interrupt;
+    cc->do_unaligned_access = mb_cpu_do_unaligned_access;
     cc->cpu_exec_interrupt = mb_cpu_exec_interrupt;
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;

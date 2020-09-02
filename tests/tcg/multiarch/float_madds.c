@@ -29,7 +29,9 @@ float_mapping round_flags[] = {
 #ifdef FE_DOWNWARD
     { FE_DOWNWARD, "downwards" },
 #endif
+#ifdef FE_TOWARDZERO
     { FE_TOWARDZERO, "to zero" }
+#endif
 };
 
 

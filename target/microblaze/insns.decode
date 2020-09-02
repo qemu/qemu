@@ -1,0 +1,256 @@
+#
+# MicroBlaze instruction decode definitions.
+#
+# Copyright (c) 2020 Richard Henderson <rth@twiddle.net>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+&typea0         rd ra
+&typea          rd ra rb
+&typea_br       rd rb
+&typea_bc       ra rb
+&typeb          rd ra imm
+&typeb_br       rd imm
+&typeb_bc       ra imm
+&type_msr       rd imm
+
+# Include any IMM prefix in the value reported.
+%extimm         0:s16 !function=typeb_imm
+
+@typea          ...... rd:5 ra:5 rb:5 ... .... ....     &typea
+@typeb          ...... rd:5 ra:5 ................       &typeb imm=%extimm
+
+# Officially typea, but with rb==0, which is not used.
+@typea0         ...... rd:5 ra:5 ................       &typea0
+
+# Officially typea, but with ra as opcode.
+@typea_br       ...... rd:5 ..... rb:5 ...........      &typea_br
+
+# Officially typea, but with rd as opcode.
+@typea_bc       ...... ..... ra:5 rb:5 ...........      &typea_bc
+
+# Officially typeb, but any immediate extension is unused.
+@typeb_bs       ...... rd:5 ra:5 ..... ...... imm:5     &typeb
+
+# Officially typeb, but with ra as opcode.
+@typeb_br       ...... rd:5 ..... ................      &typeb_br imm=%extimm
+
+# Officially typeb, but with rd as opcode.
+@typeb_bc       ...... ..... ra:5 ................      &typeb_bc imm=%extimm
+
+# For convenience, extract the two imm_w/imm_s fields, then pack
+# them back together as "imm".  Doing this makes it easiest to
+# match the required zero at bit 5.
+%ieimm          6:5 0:5
+@typeb_ie       ...... rd:5 ra:5 ..... ..... . .....    &typeb imm=%ieimm
+
+@type_msr       ...... rd:5 ...... imm:15               &type_msr
+
+###
+
+{
+  zero          000000 00000 00000 00000 000 0000 0000
+  add           000000 ..... ..... ..... 000 0000 0000  @typea
+}
+addc            000010 ..... ..... ..... 000 0000 0000  @typea
+addk            000100 ..... ..... ..... 000 0000 0000  @typea
+addkc           000110 ..... ..... ..... 000 0000 0000  @typea
+
+addi            001000 ..... ..... ................     @typeb
+addic           001010 ..... ..... ................     @typeb
+addik           001100 ..... ..... ................     @typeb
+addikc          001110 ..... ..... ................     @typeb
+
+and             100001 ..... ..... ..... 000 0000 0000  @typea
+andi            101001 ..... ..... ................     @typeb
+
+andn            100011 ..... ..... ..... 000 0000 0000  @typea
+andni           101011 ..... ..... ................     @typeb
+
+beq             100111 00000 ..... ..... 000 0000 0000  @typea_bc
+bge             100111 00101 ..... ..... 000 0000 0000  @typea_bc
+bgt             100111 00100 ..... ..... 000 0000 0000  @typea_bc
+ble             100111 00011 ..... ..... 000 0000 0000  @typea_bc
+blt             100111 00010 ..... ..... 000 0000 0000  @typea_bc
+bne             100111 00001 ..... ..... 000 0000 0000  @typea_bc
+
+beqd            100111 10000 ..... ..... 000 0000 0000  @typea_bc
+bged            100111 10101 ..... ..... 000 0000 0000  @typea_bc
+bgtd            100111 10100 ..... ..... 000 0000 0000  @typea_bc
+bled            100111 10011 ..... ..... 000 0000 0000  @typea_bc
+bltd            100111 10010 ..... ..... 000 0000 0000  @typea_bc
+bned            100111 10001 ..... ..... 000 0000 0000  @typea_bc
+
+beqi            101111 00000 ..... ................     @typeb_bc
+bgei            101111 00101 ..... ................     @typeb_bc
+bgti            101111 00100 ..... ................     @typeb_bc
+blei            101111 00011 ..... ................     @typeb_bc
+blti            101111 00010 ..... ................     @typeb_bc
+bnei            101111 00001 ..... ................     @typeb_bc
+
+beqid           101111 10000 ..... ................     @typeb_bc
+bgeid           101111 10101 ..... ................     @typeb_bc
+bgtid           101111 10100 ..... ................     @typeb_bc
+bleid           101111 10011 ..... ................     @typeb_bc
+bltid           101111 10010 ..... ................     @typeb_bc
+bneid           101111 10001 ..... ................     @typeb_bc
+
+br              100110 ..... 00000 ..... 000 0000 0000  @typea_br
+bra             100110 ..... 01000 ..... 000 0000 0000  @typea_br
+brd             100110 ..... 10000 ..... 000 0000 0000  @typea_br
+brad            100110 ..... 11000 ..... 000 0000 0000  @typea_br
+brld            100110 ..... 10100 ..... 000 0000 0000  @typea_br
+brald           100110 ..... 11100 ..... 000 0000 0000  @typea_br
+
+bri             101110 ..... 00000 ................     @typeb_br
+brai            101110 ..... 01000 ................     @typeb_br
+brid            101110 ..... 10000 ................     @typeb_br
+braid           101110 ..... 11000 ................     @typeb_br
+brlid           101110 ..... 10100 ................     @typeb_br
+bralid          101110 ..... 11100 ................     @typeb_br
+
+brk             100110 ..... 01100 ..... 000 0000 0000  @typea_br
+brki            101110 ..... 01100 ................     @typeb_br
+
+bsrl            010001 ..... ..... ..... 000 0000 0000  @typea
+bsra            010001 ..... ..... ..... 010 0000 0000  @typea
+bsll            010001 ..... ..... ..... 100 0000 0000  @typea
+
+bsrli           011001 ..... ..... 00000 000000 .....   @typeb_bs
+bsrai           011001 ..... ..... 00000 010000 .....   @typeb_bs
+bslli           011001 ..... ..... 00000 100000 .....   @typeb_bs
+
+bsefi           011001 ..... ..... 01000 .....0 .....   @typeb_ie
+bsifi           011001 ..... ..... 10000 .....0 .....   @typeb_ie
+
+clz             100100 ..... ..... 00000 000 1110 0000  @typea0
+
+cmp             000101 ..... ..... ..... 000 0000 0001  @typea
+cmpu            000101 ..... ..... ..... 000 0000 0011  @typea
+
+fadd            010110 ..... ..... ..... 0000 000 0000  @typea
+frsub           010110 ..... ..... ..... 0001 000 0000  @typea
+fmul            010110 ..... ..... ..... 0010 000 0000  @typea
+fdiv            010110 ..... ..... ..... 0011 000 0000  @typea
+fcmp_un         010110 ..... ..... ..... 0100 000 0000  @typea
+fcmp_lt         010110 ..... ..... ..... 0100 001 0000  @typea
+fcmp_eq         010110 ..... ..... ..... 0100 010 0000  @typea
+fcmp_le         010110 ..... ..... ..... 0100 011 0000  @typea
+fcmp_gt         010110 ..... ..... ..... 0100 100 0000  @typea
+fcmp_ne         010110 ..... ..... ..... 0100 101 0000  @typea
+fcmp_ge         010110 ..... ..... ..... 0100 110 0000  @typea
+
+# Note that flt and fint, unlike fsqrt, are documented as having the RB
+# operand which is unused.  So allow the field to be non-zero but discard
+# the value and treat as 2-operand insns.
+flt             010110 ..... ..... ----- 0101 000 0000  @typea0
+fint            010110 ..... ..... ----- 0110 000 0000  @typea0
+fsqrt           010110 ..... ..... 00000 0111 000 0000  @typea0
+
+get             011011 rd:5  00000 0 ctrl:5 000000 imm:4
+getd            010011 rd:5  00000 rb:5  0 ctrl:5  00000
+
+idiv            010010 ..... ..... ..... 000 0000 0000  @typea
+idivu           010010 ..... ..... ..... 000 0000 0010  @typea
+
+imm             101100 00000 00000 imm:16
+
+lbu             110000 ..... ..... ..... 0000 000 0000  @typea
+lbur            110000 ..... ..... ..... 0100 000 0000  @typea
+lbuea           110000 ..... ..... ..... 0001 000 0000  @typea
+lbui            111000 ..... ..... ................     @typeb
+
+lhu             110001 ..... ..... ..... 0000 000 0000  @typea
+lhur            110001 ..... ..... ..... 0100 000 0000  @typea
+lhuea           110001 ..... ..... ..... 0001 000 0000  @typea
+lhui            111001 ..... ..... ................     @typeb
+
+lw              110010 ..... ..... ..... 0000 000 0000  @typea
+lwr             110010 ..... ..... ..... 0100 000 0000  @typea
+lwea            110010 ..... ..... ..... 0001 000 0000  @typea
+lwx             110010 ..... ..... ..... 1000 000 0000  @typea
+lwi             111010 ..... ..... ................     @typeb
+
+mbar            101110 imm:5 00010 0000 0000 0000 0100
+
+mfs             100101 rd:5  0 e:1 000 10 rs:14
+mts             100101 0 e:1 000 ra:5  11 rs:14
+
+msrclr          100101 ..... 100010 ...............     @type_msr
+msrset          100101 ..... 100000 ...............     @type_msr
+
+mul             010000 ..... ..... ..... 000 0000 0000  @typea
+mulh            010000 ..... ..... ..... 000 0000 0001  @typea
+mulhu           010000 ..... ..... ..... 000 0000 0011  @typea
+mulhsu          010000 ..... ..... ..... 000 0000 0010  @typea
+muli            011000 ..... ..... ................     @typeb
+
+or              100000 ..... ..... ..... 000 0000 0000  @typea
+ori             101000 ..... ..... ................     @typeb
+
+pcmpbf          100000 ..... ..... ..... 100 0000 0000  @typea
+pcmpeq          100010 ..... ..... ..... 100 0000 0000  @typea
+pcmpne          100011 ..... ..... ..... 100 0000 0000  @typea
+
+put             011011 00000 ra:5  1 ctrl:5 000000 imm:4
+putd            010011 00000 ra:5  rb:5  1 ctrl:5  00000
+
+rsub            000001 ..... ..... ..... 000 0000 0000  @typea
+rsubc           000011 ..... ..... ..... 000 0000 0000  @typea
+rsubk           000101 ..... ..... ..... 000 0000 0000  @typea
+rsubkc          000111 ..... ..... ..... 000 0000 0000  @typea
+
+rsubi           001001 ..... ..... ................     @typeb
+rsubic          001011 ..... ..... ................     @typeb
+rsubik          001101 ..... ..... ................     @typeb
+rsubikc         001111 ..... ..... ................     @typeb
+
+rtbd            101101 10010 ..... ................     @typeb_bc
+rtid            101101 10001 ..... ................     @typeb_bc
+rted            101101 10100 ..... ................     @typeb_bc
+rtsd            101101 10000 ..... ................     @typeb_bc
+
+sb              110100 ..... ..... ..... 0000 000 0000  @typea
+sbr             110100 ..... ..... ..... 0100 000 0000  @typea
+sbea            110100 ..... ..... ..... 0001 000 0000  @typea
+sbi             111100 ..... ..... ................     @typeb
+
+sh              110101 ..... ..... ..... 0000 000 0000  @typea
+shr             110101 ..... ..... ..... 0100 000 0000  @typea
+shea            110101 ..... ..... ..... 0001 000 0000  @typea
+shi             111101 ..... ..... ................     @typeb
+
+sw              110110 ..... ..... ..... 0000 000 0000  @typea
+swr             110110 ..... ..... ..... 0100 000 0000  @typea
+swea            110110 ..... ..... ..... 0001 000 0000  @typea
+swx             110110 ..... ..... ..... 1000 000 0000  @typea
+swi             111110 ..... ..... ................     @typeb
+
+sext8           100100 ..... ..... 00000 000 0110 0000  @typea0
+sext16          100100 ..... ..... 00000 000 0110 0001  @typea0
+
+sra             100100 ..... ..... 00000 000 0000 0001  @typea0
+src             100100 ..... ..... 00000 000 0010 0001  @typea0
+srl             100100 ..... ..... 00000 000 0100 0001  @typea0
+
+swapb           100100 ..... ..... 00000 001 1110 0000  @typea0
+swaph           100100 ..... ..... 00000 001 1110 0010  @typea0
+
+# Cache operations have no effect in qemu: discard the arguments.
+wdic            100100 00000 ----- ----- -00 -11- 01-0  # wdc
+wdic            100100 00000 ----- ----- 000 0110 1000  # wic
+
+xor             100010 ..... ..... ..... 000 0000 0000  @typea
+xori            101010 ..... ..... ................     @typeb
