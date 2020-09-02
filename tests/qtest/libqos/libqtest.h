@@ -704,13 +704,13 @@ void qtest_qmp_device_del(QTestState *qts, const char *id);
 bool qmp_rsp_is_err(QDict *rsp);
 
 /**
- * qmp_assert_error_class:
+ * qmp_expect_error_and_unref:
  * @rsp: QMP response to check for error
  * @class: an error class
  *
  * Assert the response has the given error class and discard @rsp.
  */
-void qmp_assert_error_class(QDict *rsp, const char *class);
+void qmp_expect_error_and_unref(QDict *rsp, const char *class);
 
 /**
  * qtest_probe_child:

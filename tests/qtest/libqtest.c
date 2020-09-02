@@ -1359,7 +1359,7 @@ bool qmp_rsp_is_err(QDict *rsp)
     return !!error;
 }
 
-void qmp_assert_error_class(QDict *rsp, const char *class)
+void qmp_expect_error_and_unref(QDict *rsp, const char *class)
 {
     QDict *error = qdict_get_qdict(rsp, "error");
 
