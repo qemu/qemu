@@ -3853,7 +3853,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
 static void vtd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    X86IOMMUClass *x86_class = X86_IOMMU_CLASS(klass);
+    X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_CLASS(klass);
 
     dc->reset = vtd_reset;
     dc->vmsd = &vtd_vmstate;

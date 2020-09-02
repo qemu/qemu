@@ -28,14 +28,14 @@
 
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
-    RXCPU *cpu = RXCPU(cs);
+    RXCPU *cpu = RX_CPU(cs);
 
     cpu->env.pc = value;
 }
 
 static void rx_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 {
-    RXCPU *cpu = RXCPU(cs);
+    RXCPU *cpu = RX_CPU(cs);
 
     cpu->env.pc = tb->pc;
 }
@@ -48,8 +48,8 @@ static bool rx_cpu_has_work(CPUState *cs)
 
 static void rx_cpu_reset(DeviceState *dev)
 {
-    RXCPU *cpu = RXCPU(dev);
-    RXCPUClass *rcc = RXCPU_GET_CLASS(cpu);
+    RXCPU *cpu = RX_CPU(dev);
+    RXCPUClass *rcc = RX_CPU_GET_CLASS(cpu);
     CPURXState *env = &cpu->env;
     uint32_t *resetvec;
 
@@ -108,7 +108,7 @@ static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
 static void rx_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    RXCPUClass *rcc = RXCPU_GET_CLASS(dev);
+    RXCPUClass *rcc = RX_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
@@ -164,7 +164,7 @@ static bool rx_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 static void rx_cpu_init(Object *obj)
 {
     CPUState *cs = CPU(obj);
-    RXCPU *cpu = RXCPU(obj);
+    RXCPU *cpu = RX_CPU(obj);
     CPURXState *env = &cpu->env;
 
     cpu_set_cpustate_pointers(cpu);
@@ -176,7 +176,7 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *cc = CPU_CLASS(klass);
-    RXCPUClass *rcc = RXCPU_CLASS(klass);
+    RXCPUClass *rcc = RX_CPU_CLASS(klass);
 
     device_class_set_parent_realize(dc, rx_cpu_realize,
                                     &rcc->parent_realize);

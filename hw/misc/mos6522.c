@@ -54,7 +54,7 @@ static void mos6522_update_irq(MOS6522State *s)
 
 static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     if (ti->index == 0) {
         return mdc->get_timer1_counter_value(s, ti);
@@ -65,7 +65,7 @@ static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 
 static uint64_t get_load_time(MOS6522State *s, MOS6522Timer *ti)
 {
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     if (ti->index == 0) {
         return mdc->get_timer1_load_time(s, ti);
@@ -313,7 +313,7 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     MOS6522State *s = opaque;
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
     trace_mos6522_write(addr, val);
 
@@ -498,7 +498,7 @@ static Property mos6522_properties[] = {
 static void mos6522_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->reset = mos6522_reset;
     dc->vmsd = &vmstate_mos6522;

@@ -63,15 +63,6 @@ typedef struct {
     OnOffAuto smm;
     OnOffAuto acpi;
 
-    /* Apic id specific handlers */
-    uint32_t (*apicid_from_cpu_idx)(X86CPUTopoInfo *topo_info,
-                                    unsigned cpu_index);
-    void (*topo_ids_from_apicid)(apic_id_t apicid, X86CPUTopoInfo *topo_info,
-                                 X86CPUTopoIDs *topo_ids);
-    apic_id_t (*apicid_from_topo_ids)(X86CPUTopoInfo *topo_info,
-                                      const X86CPUTopoIDs *topo_ids);
-    uint32_t (*apicid_pkg_offset)(X86CPUTopoInfo *topo_info);
-
     /*
      * Address space used by IOAPIC device. All IOAPIC interrupts
      * will be translated to MSI messages in the address space.

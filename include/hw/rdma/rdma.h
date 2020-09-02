@@ -19,7 +19,7 @@
 
 #define INTERFACE_RDMA_PROVIDER "rdma"
 
-#define INTERFACE_RDMA_PROVIDER_CLASS(klass) \
+#define RDMA_PROVIDER_CLASS(klass) \
     OBJECT_CLASS_CHECK(RdmaProviderClass, (klass), \
                        INTERFACE_RDMA_PROVIDER)
 #define RDMA_PROVIDER_GET_CLASS(obj) \
