@@ -54,7 +54,7 @@ typedef struct AHCIState {
 typedef struct AHCIPCIState AHCIPCIState;
 
 #define TYPE_ICH9_AHCI "ich9-ahci"
-DECLARE_INSTANCE_CHECKER(AHCIPCIState, ICH_AHCI,
+DECLARE_INSTANCE_CHECKER(AHCIPCIState, ICH9_AHCI,
                          TYPE_ICH9_AHCI)
 
 int32_t ahci_get_num_ports(PCIDevice *dev);
