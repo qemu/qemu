@@ -51,21 +51,21 @@ foreach format, speed: qemu_iotests_formats
       check: true,
   )
 
-  foreach item: rc.stdout().strip().split()
-      args = [qemu_iotests_check_cmd,
-              '-tap', '-' + format, item,
-              '--source-dir', meson.current_source_dir(),
-              '--build-dir', meson.current_build_dir()]
-      # Some individual tests take as long as 45 seconds
-      # Bump the timeout to 3 minutes for some headroom
-      # on slow machines to minimize spurious failures
-      test('io-' + format + '-' + item,
-           python,
-           args: args,
-           depends: qemu_iotests_binaries,
-           env: qemu_iotests_env,
-           protocol: 'tap',
-           timeout: 180,
-           suite: suites)
-  endforeach
+#  foreach item: rc.stdout().strip().split()
+#      args = [qemu_iotests_check_cmd,
+#              '-tap', '-' + format, item,
+#              '--source-dir', meson.current_source_dir(),
+#              '--build-dir', meson.current_build_dir()]
+#      # Some individual tests take as long as 45 seconds
+#      # Bump the timeout to 3 minutes for some headroom
+#      # on slow machines to minimize spurious failures
+#      test('io-' + format + '-' + item,
+#           python,
+#           args: args,
+#           depends: qemu_iotests_binaries,
+#           env: qemu_iotests_env,
+#           protocol: 'tap',
+#           timeout: 180,
+#           suite: suites)
+#  endforeach
 endforeach

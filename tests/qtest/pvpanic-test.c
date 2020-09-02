@@ -65,7 +65,7 @@ static void test_pvshutdown(void)
     QDict *response, *data;
     QTestState *qts;
 
-    qts = qtest_init("-device pvpanic");
+    qts = qtest_init("-M q35 -device pvpanic");
 
     val = qtest_inb(qts, 0x505);
     g_assert_cmpuint(val, ==, PVPANIC_EVENTS);

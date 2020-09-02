@@ -228,7 +228,7 @@ class ReverseDebugging_AArch64(ReverseDebugging):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=machine:virt
-        :avocado: tags=cpu:cortex-a53
+        :avocado: tags=cpu:cortex-a57
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'

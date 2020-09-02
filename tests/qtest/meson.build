@@ -102,7 +102,6 @@ qtests_i386 = \
    'drive_del-test',
    'tco-test',
    'cpu-plug-test',
-   'q35-test',
    'vmgenid-test',
    'migration-test',
    'test-x86-cpuid-compat',

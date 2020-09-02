@@ -249,6 +249,9 @@ class TestEnv(ContextManager['TestEnv']):
             if self.qemu_prog.endswith(f'qemu-system-{suffix}'):
                 self.qemu_options += f' -machine {machine}'
 
+        if self.qemu_prog.endswith('qemu-system-x86_64'):
+            self.qemu_options += ' -cpu Nehalem'
+
         # QEMU_DEFAULT_MACHINE
         self.qemu_default_machine = get_default_machine(self.qemu_prog)
 

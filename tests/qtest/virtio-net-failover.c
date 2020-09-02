@@ -26,6 +26,7 @@
 #define PCI_SEL_BASE            0x0010
 
 #define BASE_MACHINE "-M q35 -nodefaults " \
+    "-global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=on " \
     "-device pcie-root-port,id=root0,addr=0x1,bus=pcie.0,chassis=1 " \
     "-device pcie-root-port,id=root1,addr=0x2,bus=pcie.0,chassis=2 "
 
