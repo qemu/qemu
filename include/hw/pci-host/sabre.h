@@ -51,7 +51,7 @@ struct SabreState {
 typedef struct SabreState SabreState;
 
 #define TYPE_SABRE "sabre"
-DECLARE_INSTANCE_CHECKER(SabreState, SABRE_DEVICE,
+DECLARE_INSTANCE_CHECKER(SabreState, SABRE,
                          TYPE_SABRE)
 
 #endif
