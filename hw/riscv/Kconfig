@@ -17,6 +17,7 @@ config SIFIVE_E
     select SIFIVE
     select SIFIVE_CLINT
     select SIFIVE_GPIO
+    select SIFIVE_PLIC
     select SIFIVE_E_PRCI
     select UNIMP
 
@@ -28,6 +29,7 @@ config SIFIVE_U
     select SIFIVE_CLINT
     select SIFIVE_GPIO
     select SIFIVE_PDMA
+    select SIFIVE_PLIC
     select SIFIVE_U_OTP
     select SIFIVE_U_PRCI
     select UNIMP
@@ -38,6 +40,7 @@ config SPIKE
     select HTIF
     select SIFIVE
     select SIFIVE_CLINT
+    select SIFIVE_PLIC
 
 config OPENTITAN
     bool
@@ -58,6 +61,7 @@ config RISCV_VIRT
     select PFLASH_CFI01
     select SIFIVE
     select SIFIVE_CLINT
+    select SIFIVE_PLIC
 
 config MICROCHIP_PFSOC
     bool
@@ -67,4 +71,5 @@ config MICROCHIP_PFSOC
     select UNIMP
     select MCHP_PFSOC_MMUART
     select SIFIVE_PDMA
+    select SIFIVE_PLIC
     select CADENCE_SDHCI

@@ -70,3 +70,6 @@ config LOONGSON_LIOINTC
 
 config SIFIVE_CLINT
     bool
+
+config SIFIVE_PLIC
+    bool
