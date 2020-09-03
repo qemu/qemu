@@ -1710,9 +1710,6 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
 
 out:
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
-    if (ret < 0 && *m && (*m)->nb_clusters > 0) {
-        QLIST_REMOVE(*m, next_in_flight);
-    }
     return ret;
 }
 
