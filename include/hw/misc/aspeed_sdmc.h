@@ -17,7 +17,18 @@
 #define TYPE_ASPEED_2500_SDMC TYPE_ASPEED_SDMC "-ast2500"
 #define TYPE_ASPEED_2600_SDMC TYPE_ASPEED_SDMC "-ast2600"
 
-#define ASPEED_SDMC_NR_REGS (0x174 >> 2)
+/*
+ * SDMC has 174 documented registers. In addition the u-boot device tree
+ * describes the following regions:
+ *  - PHY status regs at offset 0x400, length 0x200
+ *  - PHY setting regs at offset 0x100, length 0x300
+ *
+ * There are two sets of MRS (Mode Registers) configuration in ast2600 memory
+ * system: one is in the SDRAM MC (memory controller) which is used in run
+ * time, and the other is in the DDR-PHY IP which is used during DDR-PHY
+ * training.
+ */
+#define ASPEED_SDMC_NR_REGS (0x500 >> 2)
 
 typedef struct AspeedSDMCState {
     /*< private >*/
