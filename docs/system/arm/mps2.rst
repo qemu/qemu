@@ -1,5 +1,5 @@
-Arm MPS2 boards (``mps2-an385``, ``mps2-an386``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``)
-================================================================================================
+Arm MPS2 boards (``mps2-an385``, ``mps2-an386``, ``mps2-an500``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``)
+================================================================================================================
 
 These board models all use Arm M-profile CPUs.
 
@@ -14,6 +14,8 @@ QEMU models the following FPGA images:
   Cortex-M3 as documented in ARM Application Note AN385
 ``mps2-an386``
   Cortex-M4 as documented in ARM Application Note AN386
+``mps2-an500``
+  Cortex-M7 as documented in ARM Application Note AN500
 ``mps2-an511``
   Cortex-M3 'DesignStart' as documented in AN511
 ``mps2-an505``
