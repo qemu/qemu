@@ -1,6 +1,9 @@
 config ESCC
     bool
 
+config HTIF
+    bool
+
 config PARALLEL
     bool
     default y

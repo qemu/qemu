@@ -1,6 +1,3 @@
-config HTIF
-    bool
-
 config HART
     bool
 
