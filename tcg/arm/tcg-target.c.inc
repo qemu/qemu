@@ -253,13 +253,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
 
     case 'r':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffff;
         break;
 
     /* qemu_ld address */
     case 'l':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffff;
 #ifdef CONFIG_SOFTMMU
         /* r0-r2,lr will be overwritten when reading the tlb entry,
@@ -274,7 +272,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 
     /* qemu_st address & data */
     case 's':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffff;
         /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
            and r0-r1 doing the byte swapping, so don't use these. */

@@ -224,19 +224,15 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 {
     switch (*ct_str++) {
     case 'A': case 'B': case 'C': case 'D':
-        ct->ct |= TCG_CT_REG;
         tcg_regset_set_reg(ct->regs, 3 + ct_str[0] - 'A');
         break;
     case 'r':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff;
         break;
     case 'v':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff00000000ull;
         break;
     case 'L':                   /* qemu_ld constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff;
         tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
 #ifdef CONFIG_SOFTMMU
@@ -245,7 +241,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 #endif
         break;
     case 'S':                   /* qemu_st constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff;
         tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
 #ifdef CONFIG_SOFTMMU

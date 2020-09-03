@@ -2194,21 +2194,14 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
 /* we give more priority to constraints with less registers */
 static int get_constraint_priority(const TCGOpDef *def, int k)
 {
-    const TCGArgConstraint *arg_ct;
+    const TCGArgConstraint *arg_ct = &def->args_ct[k];
+    int n;
 
-    int i, n;
-    arg_ct = &def->args_ct[k];
     if (arg_ct->ct & TCG_CT_ALIAS) {
         /* an alias is equivalent to a single register */
         n = 1;
     } else {
-        if (!(arg_ct->ct & TCG_CT_REG))
-            return 0;
-        n = 0;
-        for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
-            if (tcg_regset_test_reg(arg_ct->regs, i))
-                n++;
-        }
+        n = ctpop64(arg_ct->regs);
     }
     return TCG_TARGET_NB_REGS - n + 1;
 }
@@ -2276,7 +2269,7 @@ static void process_op_defs(TCGContext *s)
                         int oarg = *ct_str - '0';
                         tcg_debug_assert(ct_str == tdefs->args_ct_str[i]);
                         tcg_debug_assert(oarg < def->nb_oargs);
-                        tcg_debug_assert(def->args_ct[oarg].ct & TCG_CT_REG);
+                        tcg_debug_assert(def->args_ct[oarg].regs != 0);
                         /* TCG_CT_ALIAS is for the output arguments.
                            The input is tagged with TCG_CT_IALIAS. */
                         def->args_ct[i] = def->args_ct[oarg];

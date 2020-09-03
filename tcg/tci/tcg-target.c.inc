@@ -392,7 +392,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'r':
     case 'L':                   /* qemu_ld constraint */
     case 'S':                   /* qemu_st constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = BIT(TCG_TARGET_NB_REGS) - 1;
         break;
     default:

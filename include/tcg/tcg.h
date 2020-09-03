@@ -979,7 +979,6 @@ void tcg_dump_op_count(void);
 #define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
 #define TCG_CT_NEWREG 0x20 /* output requires a new register */
-#define TCG_CT_REG    0x01
 #define TCG_CT_CONST  0x02 /* any constant of register size */
 
 typedef struct TCGArgConstraint {

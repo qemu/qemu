@@ -408,23 +408,19 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 {
     switch (*ct_str++) {
     case 'r':                  /* all registers */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffff;
         break;
     case 'L':                  /* qemu_ld/st constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffff;
         tcg_regset_reset_reg(ct->regs, TCG_REG_R2);
         tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
         tcg_regset_reset_reg(ct->regs, TCG_REG_R4);
         break;
     case 'a':                  /* force R2 for division */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0;
         tcg_regset_set_reg(ct->regs, TCG_REG_R2);
         break;
     case 'b':                  /* force R3 for division */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0;
         tcg_regset_set_reg(ct->regs, TCG_REG_R3);
         break;

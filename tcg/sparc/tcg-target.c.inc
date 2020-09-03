@@ -325,15 +325,12 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 {
     switch (*ct_str++) {
     case 'r':
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff;
         break;
     case 'R':
-        ct->ct |= TCG_CT_REG;
         ct->regs = ALL_64;
         break;
     case 'A': /* qemu_ld/st address constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = TARGET_LONG_BITS == 64 ? ALL_64 : 0xffffffff;
     reserve_helpers:
         tcg_regset_reset_reg(ct->regs, TCG_REG_O0);
@@ -341,11 +338,9 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         tcg_regset_reset_reg(ct->regs, TCG_REG_O2);
         break;
     case 's': /* qemu_st data 32-bit constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffff;
         goto reserve_helpers;
     case 'S': /* qemu_st data 64-bit constraint */
-        ct->ct |= TCG_CT_REG;
         ct->regs = ALL_64;
         goto reserve_helpers;
     case 'I':

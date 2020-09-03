@@ -128,15 +128,12 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 {
     switch (*ct_str++) {
     case 'r': /* general registers */
-        ct->ct |= TCG_CT_REG;
         ct->regs |= 0xffffffffu;
         break;
     case 'w': /* advsimd registers */
-        ct->ct |= TCG_CT_REG;
         ct->regs |= 0xffffffff00000000ull;
         break;
     case 'l': /* qemu_ld / qemu_st address, data_reg */
-        ct->ct |= TCG_CT_REG;
         ct->regs = 0xffffffffu;
 #ifdef CONFIG_SOFTMMU
         /* x0 and x1 will be overwritten when reading the tlb entry,
