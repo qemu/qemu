@@ -27,5 +27,7 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas);
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                                        int offset, int nodeid);
+int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
+                            int offset, PowerPCCPU *cpu);
 
 #endif /* HW_SPAPR_NUMA_H */

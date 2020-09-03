@@ -45,6 +45,33 @@ void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                       sizeof(spapr->numa_assoc_array[nodeid]))));
 }
 
+int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
+                            int offset, PowerPCCPU *cpu)
+{
+    int vcpu_assoc_size = NUMA_ASSOC_SIZE + 1;
+    uint32_t vcpu_assoc[vcpu_assoc_size];
+    int index = spapr_get_vcpu_id(cpu);
+    int i;
+
+    /*
+     * VCPUs have an extra 'cpu_id' value in ibm,associativity
+     * compared to other resources. Increment the size at index
+     * 0, copy all associativity domains already set, then put
+     * cpu_id last.
+     */
+    vcpu_assoc[0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS + 1);
+
+    for (i = 1; i <= MAX_DISTANCE_REF_POINTS; i++) {
+        vcpu_assoc[i] = spapr->numa_assoc_array[cpu->node_id][i];
+    }
+
+    vcpu_assoc[vcpu_assoc_size - 1] = cpu_to_be32(index);
+
+    /* Advertise NUMA via ibm,associativity */
+    return fdt_setprop(fdt, offset, "ibm,associativity",
+                       vcpu_assoc, sizeof(vcpu_assoc));
+}
+
 /*
  * Helper that writes ibm,associativity-reference-points and
  * max-associativity-domains in the RTAS pointed by @rtas
