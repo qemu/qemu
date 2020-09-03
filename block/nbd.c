@@ -242,6 +242,11 @@ static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
     }
 
     nbd_co_establish_connection_cancel(bs, false);
+
+    if (s->state == NBD_CLIENT_CONNECTING_WAIT) {
+        s->state = NBD_CLIENT_CONNECTING_NOWAIT;
+        qemu_co_queue_restart_all(&s->free_sema);
+    }
 }
 
 static void coroutine_fn nbd_client_co_drain_end(BlockDriverState *bs)
