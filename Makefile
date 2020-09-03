@@ -128,7 +128,7 @@ build.ninja: config-host.mak
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean install \
+.PHONY: all clean distclean install \
 	recurse-all dist msi FORCE
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
