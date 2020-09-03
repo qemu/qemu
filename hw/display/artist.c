@@ -193,7 +193,7 @@ static const char *artist_reg_name(uint64_t addr)
 #undef REG_NAME
 
 /* artist has a fixed line length of 2048 bytes. */
-#define ADDR_TO_Y(addr) extract32(addr, 11, 10)
+#define ADDR_TO_Y(addr) extract32(addr, 11, 11)
 #define ADDR_TO_X(addr) extract32(addr, 0, 11)
 
 static int16_t artist_get_x(uint32_t reg)
