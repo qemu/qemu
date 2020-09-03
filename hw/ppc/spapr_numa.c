@@ -13,14 +13,18 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/ppc/spapr_numa.h"
+#include "hw/pci-host/spapr.h"
 #include "hw/ppc/fdt.h"
 
+/* Moved from hw/ppc/spapr_pci_nvlink2.c */
+#define SPAPR_GPU_NUMA_ID           (cpu_to_be32(1))
 
 void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine)
 {
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
-    int i;
+    int i, j, max_nodes_with_gpus;
 
     /*
      * For all associativity arrays: first position is the size,
@@ -33,6 +37,28 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
      */
     for (i = 0; i < nb_numa_nodes; i++) {
         spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+        spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+    }
+
+    /*
+     * Initialize NVLink GPU associativity arrays. We know that
+     * the first GPU will take the first available NUMA id, and
+     * we'll have a maximum of NVGPU_MAX_NUM GPUs in the machine.
+     * At this point we're not sure if there are GPUs or not, but
+     * let's initialize the associativity arrays and allow NVLink
+     * GPUs to be handled like regular NUMA nodes later on.
+     */
+    max_nodes_with_gpus = nb_numa_nodes + NVGPU_MAX_NUM;
+
+    for (i = nb_numa_nodes; i < max_nodes_with_gpus; i++) {
+        spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+
+        for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
+            uint32_t gpu_assoc = smc->pre_5_1_assoc_refpoints ?
+                                 SPAPR_GPU_NUMA_ID : cpu_to_be32(i);
+            spapr->numa_assoc_array[i][j] = gpu_assoc;
+        }
+
         spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
     }
 }
