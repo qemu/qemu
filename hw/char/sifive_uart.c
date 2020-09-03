@@ -24,7 +24,7 @@
 #include "chardev/char-fe.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
-#include "hw/riscv/sifive_uart.h"
+#include "hw/char/sifive_uart.h"
 
 /*
  * Not yet implemented:
