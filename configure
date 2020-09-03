@@ -5755,11 +5755,11 @@ int main(void)
 {
   uint64_t x = 0, y = 0;
 #ifdef __ATOMIC_RELAXED
-  y = __atomic_load_8(&x, 0);
-  __atomic_store_8(&x, y, 0);
-  __atomic_compare_exchange_8(&x, &y, x, 0, 0, 0);
-  __atomic_exchange_8(&x, y, 0);
-  __atomic_fetch_add_8(&x, y, 0);
+  y = __atomic_load_n(&x, __ATOMIC_RELAXED);
+  __atomic_store_n(&x, y, __ATOMIC_RELAXED);
+  __atomic_compare_exchange_n(&x, &y, x, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  __atomic_exchange_n(&x, y, __ATOMIC_RELAXED);
+  __atomic_fetch_add(&x, y, __ATOMIC_RELAXED);
 #else
   typedef char is_host64[sizeof(void *) >= sizeof(uint64_t) ? 1 : -1];
   __sync_lock_test_and_set(&x, y);
@@ -8065,6 +8065,9 @@ fi
 # so the build tree will be missing the link back to the new file, and
 # tests might fail. Prefer to keep the relevant files in their own
 # directory and symlink the directory instead.
+# UNLINK is used to remove symlinks from older development versions
+# that might get into the way when doing "git update" without doing
+# a "make distclean" in between.
 DIRS="tests tests/tcg tests/tcg/lm32 tests/qapi-schema tests/qtest/libqos"
 DIRS="$DIRS tests/qtest tests/qemu-iotests tests/vm tests/fp tests/qgraph"
 DIRS="$DIRS docs docs/interop fsdev scsi"
@@ -8081,6 +8084,7 @@ LINKS="$LINKS .gdbinit scripts" # scripts needed by relative path in .gdbinit
 LINKS="$LINKS tests/acceptance tests/data"
 LINKS="$LINKS tests/qemu-iotests/check"
 LINKS="$LINKS python"
+UNLINK="pc-bios/keymaps"
 for bios_file in \
     $source_path/pc-bios/*.bin \
     $source_path/pc-bios/*.elf \
@@ -8099,6 +8103,11 @@ mkdir -p $DIRS
 for f in $LINKS ; do
     if [ -e "$source_path/$f" ] && [ "$pwd_is_source_path" != "y" ]; then
         symlink "$source_path/$f" "$f"
+    fi
+done
+for f in $UNLINK ; do
+    if [ -L "$f" ]; then
+        rm -f "$f"
     fi
 done
 
@@ -8162,6 +8171,9 @@ if test -n "$cross_prefix"; then
         case $prefix in
             ?:*) pre_prefix=/ ;;
         esac
+    fi
+    if test "$linux" = "yes" ; then
+        echo "system = 'linux'" >> $cross
     fi
     case "$ARCH" in
         i386|x86_64)

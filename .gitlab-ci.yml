@@ -74,6 +74,7 @@ build-system-ubuntu:
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -104,6 +105,7 @@ build-system-debian:
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -134,6 +136,7 @@ build-system-fedora:
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -164,6 +167,7 @@ build-system-centos:
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -190,13 +194,25 @@ build-disabled:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
-    CONFIGURE_ARGS: --disable-rdma --disable-slirp --disable-curl
-      --disable-capstone --disable-live-block-migration --disable-glusterfs
-      --disable-replication --disable-coroutine-pool --disable-smartcard
-      --disable-guest-agent --disable-curses --disable-libxml2 --disable-tpm
-      --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
-      --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
-    TARGETS: i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user
+    CONFIGURE_ARGS: --disable-attr --disable-avx2 --disable-bochs
+      --disable-brlapi --disable-bzip2 --disable-cap-ng --disable-capstone
+      --disable-cloop --disable-coroutine-pool --disable-curl --disable-curses
+      --disable-dmg --disable-docs --disable-glusterfs --disable-gnutls
+      --disable-gtk --disable-guest-agent --disable-iconv --disable-kvm
+      --disable-libiscsi --disable-libpmem --disable-libssh --disable-libusb
+      --disable-libxml2 --disable-linux-aio --disable-live-block-migration
+      --disable-lzo --disable-malloc-trim --disable-mpath --disable-nettle
+      --disable-numa --disable-parallels --disable-pie --disable-qcow1
+      --disable-qed --disable-qom-cast-debug --disable-rbd --disable-rdma
+      --disable-replication --disable-sdl --disable-seccomp --disable-sheepdog
+      --disable-slirp --disable-smartcard --disable-snappy --disable-spice
+      --disable-strip --disable-tpm --disable-usb-redir --disable-vdi
+      --disable-vhost-crypto --disable-vhost-net --disable-vhost-scsi
+      --disable-vhost-user --disable-vhost-vdpa --disable-vhost-vsock
+      --disable-virglrenderer --disable-vnc --disable-vte --disable-vvfat
+      --disable-xen --disable-zstd
+    TARGETS: arm-softmmu i386-softmmu ppc64-softmmu mips64-softmmu
+      s390x-softmmu i386-linux-user
     MAKE_CHECK_ARGS: check-qtest SPEED=slow
 
 build-tcg-disabled:
@@ -243,13 +259,15 @@ build-oss-fuzz:
     - mkdir build-oss-fuzz
     - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
       ./scripts/oss-fuzz/build.sh
+    - export ASAN_OPTIONS="fast_unwind_on_malloc=0"
     - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
                       | grep -v slirp); do
         grep "LLVMFuzzerTestOneInput" ${fuzzer} > /dev/null 2>&1 || continue ;
         echo Testing ${fuzzer} ... ;
-        ASAN_OPTIONS="fast_unwind_on_malloc=0"
-         "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
+        "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
       done
+    # Unrelated to fuzzer: run some tests with -fsanitize=address
+    - cd build-oss-fuzz && make check-qtest-i386 check-unit
 
 build-tci:
   <<: *native_build_job_definition

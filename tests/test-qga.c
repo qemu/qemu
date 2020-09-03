@@ -246,7 +246,7 @@ static void test_qga_invalid_oob(gconstpointer fix)
     ret = qmp_fd(fixture->fd, "{'exec-oob': 'guest-ping'}");
     g_assert_nonnull(ret);
 
-    qmp_assert_error_class(ret, "GenericError");
+    qmp_expect_error_and_unref(ret, "GenericError");
 }
 
 static void test_qga_invalid_args(gconstpointer fix)
