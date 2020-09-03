@@ -985,9 +985,7 @@ void tcg_dump_op_count(void);
 typedef struct TCGArgConstraint {
     uint16_t ct;
     uint8_t alias_index;
-    union {
-        TCGRegSet regs;
-    } u;
+    TCGRegSet regs;
 } TCGArgConstraint;
 
 #define TCG_MAX_OP_ARGS 16

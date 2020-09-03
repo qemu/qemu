@@ -209,42 +209,42 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch(*ct_str++) {
     case 'a':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_EAX);
+        tcg_regset_set_reg(ct->regs, TCG_REG_EAX);
         break;
     case 'b':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_EBX);
+        tcg_regset_set_reg(ct->regs, TCG_REG_EBX);
         break;
     case 'c':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_ECX);
+        tcg_regset_set_reg(ct->regs, TCG_REG_ECX);
         break;
     case 'd':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_EDX);
+        tcg_regset_set_reg(ct->regs, TCG_REG_EDX);
         break;
     case 'S':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_ESI);
+        tcg_regset_set_reg(ct->regs, TCG_REG_ESI);
         break;
     case 'D':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, TCG_REG_EDI);
+        tcg_regset_set_reg(ct->regs, TCG_REG_EDI);
         break;
     case 'q':
         /* A register that can be used as a byte operand.  */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xf;
+        ct->regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xf;
         break;
     case 'Q':
         /* A register with an addressable second byte (e.g. %ah).  */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xf;
+        ct->regs = 0xf;
         break;
     case 'r':
         /* A general register.  */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs |= ALL_GENERAL_REGS;
+        ct->regs |= ALL_GENERAL_REGS;
         break;
     case 'W':
         /* With TZCNT/LZCNT, we can have operand-size as an input.  */
@@ -253,15 +253,15 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'x':
         /* A vector register.  */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs |= ALL_VECTOR_REGS;
+        ct->regs |= ALL_VECTOR_REGS;
         break;
 
         /* qemu_ld/st address constraint */
     case 'L':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
+        ct->regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
+        tcg_regset_reset_reg(ct->regs, TCG_REG_L0);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_L1);
         break;
 
     case 'e':

@@ -138,19 +138,19 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch (*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffff;
+        ct->regs = 0xffffffff;
         break;
     case 'L':
         /* qemu_ld/qemu_st constraint */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffff;
+        ct->regs = 0xffffffff;
         /* qemu_ld/qemu_st uses TCG_REG_TMP0 */
 #if defined(CONFIG_SOFTMMU)
-        tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[0]);
-        tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[1]);
-        tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[2]);
-        tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[3]);
-        tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[4]);
+        tcg_regset_reset_reg(ct->regs, tcg_target_call_iarg_regs[0]);
+        tcg_regset_reset_reg(ct->regs, tcg_target_call_iarg_regs[1]);
+        tcg_regset_reset_reg(ct->regs, tcg_target_call_iarg_regs[2]);
+        tcg_regset_reset_reg(ct->regs, tcg_target_call_iarg_regs[3]);
+        tcg_regset_reset_reg(ct->regs, tcg_target_call_iarg_regs[4]);
 #endif
         break;
     case 'I':

@@ -2210,7 +2210,7 @@ static int get_constraint_priority(const TCGOpDef *def, int k)
             return 0;
         n = 0;
         for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
-            if (tcg_regset_test_reg(arg_ct->u.regs, i))
+            if (tcg_regset_test_reg(arg_ct->regs, i))
                 n++;
         }
     }
@@ -2268,7 +2268,7 @@ static void process_op_defs(TCGContext *s)
             /* Incomplete TCGTargetOpDef entry. */
             tcg_debug_assert(ct_str != NULL);
 
-            def->args_ct[i].u.regs = 0;
+            def->args_ct[i].regs = 0;
             def->args_ct[i].ct = 0;
             while (*ct_str != '\0') {
                 switch(*ct_str) {
@@ -2855,13 +2855,13 @@ static void liveness_pass_1(TCGContext *s)
                     pset = la_temp_pref(ts);
                     set = *pset;
 
-                    set &= ct->u.regs;
+                    set &= ct->regs;
                     if (ct->ct & TCG_CT_IALIAS) {
                         set &= op->output_pref[ct->alias_index];
                     }
                     /* If the combination is not possible, restart.  */
                     if (set == 0) {
-                        set = ct->u.regs;
+                        set = ct->regs;
                     }
                     *pset = set;
                 }
@@ -3551,8 +3551,8 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
         return;
     }
 
-    dup_out_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[0].u.regs;
-    dup_in_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[1].u.regs;
+    dup_out_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[0].regs;
+    dup_in_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[1].regs;
 
     /* Allocate the output register now.  */
     if (ots->val_type != TEMP_VAL_REG) {
@@ -3706,10 +3706,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             }
         }
 
-        temp_load(s, ts, arg_ct->u.regs, i_allocated_regs, i_preferred_regs);
+        temp_load(s, ts, arg_ct->regs, i_allocated_regs, i_preferred_regs);
         reg = ts->reg;
 
-        if (tcg_regset_test_reg(arg_ct->u.regs, reg)) {
+        if (tcg_regset_test_reg(arg_ct->regs, reg)) {
             /* nothing to do : the constraint is satisfied */
         } else {
         allocate_in_reg:
@@ -3717,7 +3717,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                and move the temporary register into it */
             temp_load(s, ts, tcg_target_available_regs[ts->type],
                       i_allocated_regs, 0);
-            reg = tcg_reg_alloc(s, arg_ct->u.regs, i_allocated_regs,
+            reg = tcg_reg_alloc(s, arg_ct->regs, i_allocated_regs,
                                 o_preferred_regs, ts->indirect_base);
             if (!tcg_out_mov(s, ts->type, reg, ts->reg)) {
                 /*
@@ -3772,11 +3772,11 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                 && !const_args[arg_ct->alias_index]) {
                 reg = new_args[arg_ct->alias_index];
             } else if (arg_ct->ct & TCG_CT_NEWREG) {
-                reg = tcg_reg_alloc(s, arg_ct->u.regs,
+                reg = tcg_reg_alloc(s, arg_ct->regs,
                                     i_allocated_regs | o_allocated_regs,
                                     op->output_pref[k], ts->indirect_base);
             } else {
-                reg = tcg_reg_alloc(s, arg_ct->u.regs, o_allocated_regs,
+                reg = tcg_reg_alloc(s, arg_ct->regs, o_allocated_regs,
                                     op->output_pref[k], ts->indirect_base);
             }
             tcg_regset_set_reg(o_allocated_regs, reg);

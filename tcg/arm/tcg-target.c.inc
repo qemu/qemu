@@ -254,40 +254,40 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 
     case 'r':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffff;
+        ct->regs = 0xffff;
         break;
 
     /* qemu_ld address */
     case 'l':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffff;
+        ct->regs = 0xffff;
 #ifdef CONFIG_SOFTMMU
         /* r0-r2,lr will be overwritten when reading the tlb entry,
            so don't use these. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R14);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R0);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R1);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R2);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R14);
 #endif
         break;
 
     /* qemu_st address & data */
     case 's':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffff;
+        ct->regs = 0xffff;
         /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
            and r0-r1 doing the byte swapping, so don't use these. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R0);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R1);
 #if defined(CONFIG_SOFTMMU)
         /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R2);
 #if TARGET_LONG_BITS == 64
         /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
 #endif
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R14);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_R14);
 #endif
         break;
 

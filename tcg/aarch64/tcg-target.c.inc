@@ -129,22 +129,22 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch (*ct_str++) {
     case 'r': /* general registers */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs |= 0xffffffffu;
+        ct->regs |= 0xffffffffu;
         break;
     case 'w': /* advsimd registers */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs |= 0xffffffff00000000ull;
+        ct->regs |= 0xffffffff00000000ull;
         break;
     case 'l': /* qemu_ld / qemu_st address, data_reg */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffffu;
+        ct->regs = 0xffffffffu;
 #ifdef CONFIG_SOFTMMU
         /* x0 and x1 will be overwritten when reading the tlb entry,
            and x2, and x3 for helper args, better to avoid using them. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_X0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_X1);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_X2);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_X3);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_X0);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_X1);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_X2);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_X3);
 #endif
         break;
     case 'A': /* Valid for arithmetic immediate (positive or negative).  */

@@ -196,28 +196,28 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch(*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffff;
+        ct->regs = 0xffffffff;
         break;
     case 'L': /* qemu_ld input arg constraint */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffff;
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_A0);
+        ct->regs = 0xffffffff;
+        tcg_regset_reset_reg(ct->regs, TCG_REG_A0);
 #if defined(CONFIG_SOFTMMU)
         if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_A2);
+            tcg_regset_reset_reg(ct->regs, TCG_REG_A2);
         }
 #endif
         break;
     case 'S': /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffffffff;
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_A0);
+        ct->regs = 0xffffffff;
+        tcg_regset_reset_reg(ct->regs, TCG_REG_A0);
 #if defined(CONFIG_SOFTMMU)
         if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_A2);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_A3);
+            tcg_regset_reset_reg(ct->regs, TCG_REG_A2);
+            tcg_regset_reset_reg(ct->regs, TCG_REG_A3);
         } else {
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_A1);
+            tcg_regset_reset_reg(ct->regs, TCG_REG_A1);
         }
 #endif
         break;
