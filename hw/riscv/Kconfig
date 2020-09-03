@@ -1,13 +1,9 @@
 config IBEX
     bool
 
-config SIFIVE
-    bool
-    select MSI_NONBROKEN
-
 config SIFIVE_E
     bool
-    select SIFIVE
+    select MSI_NONBROKEN
     select SIFIVE_CLINT
     select SIFIVE_GPIO
     select SIFIVE_PLIC
@@ -18,7 +14,7 @@ config SIFIVE_E
 config SIFIVE_U
     bool
     select CADENCE
-    select SIFIVE
+    select MSI_NONBROKEN
     select SIFIVE_CLINT
     select SIFIVE_GPIO
     select SIFIVE_PDMA
@@ -31,7 +27,7 @@ config SIFIVE_U
 config SPIKE
     bool
     select HTIF
-    select SIFIVE
+    select MSI_NONBROKEN
     select SIFIVE_CLINT
     select SIFIVE_PLIC
 
@@ -44,20 +40,20 @@ config RISCV_VIRT
     bool
     imply PCI_DEVICES
     imply TEST_DEVICES
+    select MSI_NONBROKEN
     select PCI
     select SERIAL
     select GOLDFISH_RTC
     select VIRTIO_MMIO
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PFLASH_CFI01
-    select SIFIVE
     select SIFIVE_CLINT
     select SIFIVE_PLIC
     select SIFIVE_TEST
 
 config MICROCHIP_PFSOC
     bool
-    select SIFIVE
+    select MSI_NONBROKEN
     select SIFIVE_CLINT
     select UNIMP
     select MCHP_PFSOC_MMUART
