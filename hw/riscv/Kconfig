@@ -15,6 +15,7 @@ config SIFIVE_E
     bool
     select HART
     select SIFIVE
+    select SIFIVE_E_PRCI
     select UNIMP
 
 config SIFIVE_U

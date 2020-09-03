@@ -134,4 +134,7 @@ config MAC_VIA
 config AVR_POWER
     bool
 
+config SIFIVE_E_PRCI
+    bool
+
 source macio/Kconfig
