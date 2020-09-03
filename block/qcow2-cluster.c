@@ -1714,18 +1714,22 @@ out:
 }
 
 /*
- * alloc_cluster_offset
+ * For a given area on the virtual disk defined by @offset and @bytes,
+ * find the corresponding area on the qcow2 image, allocating new
+ * clusters (or subclusters) if necessary. The result can span a
+ * combination of allocated and previously unallocated clusters.
  *
- * For a given offset on the virtual disk, find the cluster offset in qcow2
- * file. If the offset is not found, allocate a new cluster.
+ * On return, @host_offset is set to the beginning of the requested
+ * area. This area is guaranteed to be contiguous on the qcow2 file
+ * but it can be smaller than initially requested. In this case @bytes
+ * is updated with the actual size.
  *
- * If the cluster was already allocated, m->nb_clusters is set to 0 and
- * other fields in m are meaningless.
- *
- * If the cluster is newly allocated, m->nb_clusters is set to the number of
- * contiguous clusters that have been allocated. In this case, the other
- * fields of m are valid and contain information about the first allocated
- * cluster.
+ * If any clusters or subclusters were allocated then @m contains a
+ * list with the information of all the affected regions. Note that
+ * this can happen regardless of whether this function succeeds or
+ * not. The caller is responsible for updating the L2 metadata of the
+ * allocated clusters (on success) or freeing them (on failure), and
+ * for clearing the contents of @m afterwards in both cases.
  *
  * If the request conflicts with another write request in flight, the coroutine
  * is queued and will be reentered when the dependency has completed.
