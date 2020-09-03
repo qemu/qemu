@@ -32,7 +32,7 @@
 
 #define TYPE_TUSB6010 "tusb6010"
 typedef struct TUSBState TUSBState;
-DECLARE_INSTANCE_CHECKER(TUSBState, TUSB,
+DECLARE_INSTANCE_CHECKER(TUSBState, TUSB6010,
                          TYPE_TUSB6010)
 
 struct TUSBState {
@@ -779,7 +779,7 @@ static void tusb6010_irq(void *opaque, int source, int level)
 
 static void tusb6010_reset(DeviceState *dev)
 {
-    TUSBState *s = TUSB(dev);
+    TUSBState *s = TUSB6010(dev);
     int i;
 
     s->test_reset = TUSB_PROD_TEST_RESET_VAL;
@@ -815,7 +815,7 @@ static void tusb6010_reset(DeviceState *dev)
 
 static void tusb6010_realize(DeviceState *dev, Error **errp)
 {
-    TUSBState *s = TUSB(dev);
+    TUSBState *s = TUSB6010(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     s->otg_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tusb_otg_tick, s);
