@@ -11,17 +11,17 @@ as seen by the guest depend significantly on the FPGA image.
 QEMU models the following FPGA images:
 
 ``mps2-an385``
-  Cortex-M3 as documented in ARM Application Note AN385
+  Cortex-M3 as documented in Arm Application Note AN385
 ``mps2-an386``
-  Cortex-M4 as documented in ARM Application Note AN386
+  Cortex-M4 as documented in Arm Application Note AN386
 ``mps2-an500``
-  Cortex-M7 as documented in ARM Application Note AN500
-``mps2-an511``
-  Cortex-M3 'DesignStart' as documented in AN511
+  Cortex-M7 as documented in Arm Application Note AN500
 ``mps2-an505``
-  Cortex-M33 as documented in ARM Application Note AN505
+  Cortex-M33 as documented in Arm Application Note AN505
+``mps2-an511``
+  Cortex-M3 'DesignStart' as documented in Arm Application Note AN511
 ``mps2-an521``
-  Dual Cortex-M33 as documented in Application Note AN521
+  Dual Cortex-M33 as documented in Arm Application Note AN521
 
 Differences between QEMU and real hardware:
 
