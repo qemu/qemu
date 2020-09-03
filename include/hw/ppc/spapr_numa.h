@@ -13,8 +13,19 @@
 #ifndef HW_SPAPR_NUMA_H
 #define HW_SPAPR_NUMA_H
 
+#include "hw/boards.h"
 #include "hw/ppc/spapr.h"
 
+/*
+ * Having both SpaprMachineState and MachineState as arguments
+ * feels odd, but it will spare a MACHINE() call inside the
+ * function. spapr_machine_init() is the only caller for it, and
+ * it has both pointers resolved already.
+ */
+void spapr_numa_associativity_init(SpaprMachineState *spapr,
+                                   MachineState *machine);
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas);
+void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
+                                       int offset, int nodeid);
 
 #endif /* HW_SPAPR_NUMA_H */

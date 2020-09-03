@@ -15,6 +15,36 @@
 #include "hw/ppc/spapr_numa.h"
 #include "hw/ppc/fdt.h"
 
+
+void spapr_numa_associativity_init(SpaprMachineState *spapr,
+                                   MachineState *machine)
+{
+    int nb_numa_nodes = machine->numa_state->num_nodes;
+    int i;
+
+    /*
+     * For all associativity arrays: first position is the size,
+     * position MAX_DISTANCE_REF_POINTS is always the numa_id,
+     * represented by the index 'i'.
+     *
+     * This will break on sparse NUMA setups, when/if QEMU starts
+     * to support it, because there will be no more guarantee that
+     * 'i' will be a valid node_id set by the user.
+     */
+    for (i = 0; i < nb_numa_nodes; i++) {
+        spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+        spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+    }
+}
+
+void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
+                                       int offset, int nodeid)
+{
+    _FDT((fdt_setprop(fdt, offset, "ibm,associativity",
+                      spapr->numa_assoc_array[nodeid],
+                      sizeof(spapr->numa_assoc_array[nodeid]))));
+}
+
 /*
  * Helper that writes ibm,associativity-reference-points and
  * max-associativity-domains in the RTAS pointed by @rtas

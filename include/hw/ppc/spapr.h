@@ -105,6 +105,16 @@ typedef enum {
 
 #define FDT_MAX_SIZE                    0x100000
 
+/*
+ * NUMA related macros. MAX_DISTANCE_REF_POINTS was taken
+ * from Taken from Linux kernel arch/powerpc/mm/numa.h.
+ *
+ * NUMA_ASSOC_SIZE is the base array size of an ibm,associativity
+ * array for any non-CPU resource.
+ */
+#define MAX_DISTANCE_REF_POINTS    4
+#define NUMA_ASSOC_SIZE            (MAX_DISTANCE_REF_POINTS + 1)
+
 typedef struct SpaprCapabilities SpaprCapabilities;
 struct SpaprCapabilities {
     uint8_t caps[SPAPR_CAP_NUM];
@@ -230,6 +240,8 @@ struct SpaprMachineState {
 
     unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
+
+    uint32_t numa_assoc_array[MAX_NODES][NUMA_ASSOC_SIZE];
 
     Error *fwnmi_migration_blocker;
 };
