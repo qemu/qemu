@@ -192,6 +192,10 @@ static const char *artist_reg_name(uint64_t addr)
 }
 #undef REG_NAME
 
+/* artist has a fixed line length of 2048 bytes. */
+#define ADDR_TO_Y(addr) extract32(addr, 11, 10)
+#define ADDR_TO_X(addr) extract32(addr, 0, 11)
+
 static int16_t artist_get_x(uint32_t reg)
 {
     return reg >> 16;
@@ -348,13 +352,13 @@ static void artist_invalidate_cursor(ARTISTState *s)
                             y, s->cursor_height);
 }
 
-static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
+static void vram_bit_write(ARTISTState *s, int posy, bool incr_x,
                            int size, uint32_t data)
 {
     struct vram_buffer *buf;
     uint32_t vram_bitmask = s->vram_bitmask;
     int mask, i, pix_count, pix_length;
-    unsigned int offset, width;
+    unsigned int posx, offset, width;
     uint8_t *data8, *p;
 
     pix_count = vram_write_pix_per_transfer(s);
@@ -366,6 +370,8 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
     if (s->cmap_bm_access) {
         offset = s->vram_pos;
     } else {
+        posx = ADDR_TO_X(s->vram_pos >> 2);
+        posy += ADDR_TO_Y(s->vram_pos >> 2);
         offset = posy * width + posx;
     }
 
@@ -858,7 +864,6 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     ARTISTState *s = opaque;
-    int posx, posy;
     int width, height;
 
     trace_artist_reg_write(size, addr, artist_reg_name(addr & ~3ULL), val);
@@ -881,16 +886,12 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case VRAM_WRITE_INCR_Y:
-        posx = (s->vram_pos >> 2) & 0x7ff;
-        posy = (s->vram_pos >> 13) & 0x3ff;
-        vram_bit_write(s, posx, posy + s->vram_char_y++, false, size, val);
+        vram_bit_write(s, s->vram_char_y++, false, size, val);
         break;
 
     case VRAM_WRITE_INCR_X:
     case VRAM_WRITE_INCR_X2:
-        posx = (s->vram_pos >> 2) & 0x7ff;
-        posy = (s->vram_pos >> 13) & 0x3ff;
-        vram_bit_write(s, posx, posy + s->vram_char_y, true, size, val);
+        vram_bit_write(s, s->vram_char_y, true, size, val);
         break;
 
     case VRAM_IDX:
@@ -1156,8 +1157,7 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
 {
     ARTISTState *s = opaque;
     struct vram_buffer *buf;
-    int posy = (addr >> 11) & 0x3ff;
-    int posx = addr & 0x7ff;
+    unsigned int posy, posx;
     unsigned int offset;
     trace_artist_vram_write(size, addr, val);
 
@@ -1170,6 +1170,9 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
     }
 
     buf = vram_write_buffer(s);
+    posy = ADDR_TO_Y(addr);
+    posx = ADDR_TO_X(addr);
+
     if (!buf->size) {
         return;
     }
@@ -1212,7 +1215,7 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
     ARTISTState *s = opaque;
     struct vram_buffer *buf;
     uint64_t val;
-    int posy, posx;
+    unsigned int posy, posx;
 
     if (s->cmap_bm_access) {
         buf = &s->vram_buffer[ARTIST_BUFFER_CMAP];
@@ -1229,8 +1232,8 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    posy = (addr >> 13) & 0x3ff;
-    posx = (addr >> 2) & 0x7ff;
+    posy = ADDR_TO_Y(addr);
+    posx = ADDR_TO_X(addr);
 
     if (posy > buf->height || posx > buf->width) {
         return 0;
