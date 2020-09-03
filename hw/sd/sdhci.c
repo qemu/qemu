@@ -948,10 +948,20 @@ sdhci_buff_access_is_sequential(SDHCIState *s, unsigned byte_num)
     return true;
 }
 
+static void sdhci_resume_pending_transfer(SDHCIState *s)
+{
+    timer_del(s->transfer_timer);
+    sdhci_data_transfer(s);
+}
+
 static uint64_t sdhci_read(void *opaque, hwaddr offset, unsigned size)
 {
     SDHCIState *s = (SDHCIState *)opaque;
     uint32_t ret = 0;
+
+    if (timer_pending(s->transfer_timer)) {
+        sdhci_resume_pending_transfer(s);
+    }
 
     switch (offset & ~0x3) {
     case SDHC_SYSAD:
@@ -1095,6 +1105,10 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     uint32_t mask = ~(((1ULL << (size * 8)) - 1) << shift);
     uint32_t value = val;
     value <<= shift;
+
+    if (timer_pending(s->transfer_timer)) {
+        sdhci_resume_pending_transfer(s);
+    }
 
     switch (offset & ~0x3) {
     case SDHC_SYSAD:
