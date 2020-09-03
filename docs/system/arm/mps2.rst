@@ -1,5 +1,5 @@
-Arm MPS2 boards (``mps2-an385``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``)
-================================================================================
+Arm MPS2 boards (``mps2-an385``, ``mps2-an386``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``)
+================================================================================================
 
 These board models all use Arm M-profile CPUs.
 
@@ -12,6 +12,8 @@ QEMU models the following FPGA images:
 
 ``mps2-an385``
   Cortex-M3 as documented in ARM Application Note AN385
+``mps2-an386``
+  Cortex-M4 as documented in ARM Application Note AN386
 ``mps2-an511``
   Cortex-M3 'DesignStart' as documented in AN511
 ``mps2-an505``
@@ -21,7 +23,7 @@ QEMU models the following FPGA images:
 
 Differences between QEMU and real hardware:
 
-- AN385 remapping of low 16K of memory to either ZBT SSRAM1 or to
+- AN385/AN386 remapping of low 16K of memory to either ZBT SSRAM1 or to
   block RAM is unimplemented (QEMU always maps this to ZBT SSRAM1, as
   if zbt_boot_ctrl is always zero)
 - QEMU provides a LAN9118 ethernet rather than LAN9220; the only guest
