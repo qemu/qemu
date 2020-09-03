@@ -1095,12 +1095,9 @@ if have_tools
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
-  qemu_block_tools += [qemu_img, qemu_io]
-  if targetos != 'windows'
-    qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
+  qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [block, qemuutil], install: true)
-    qemu_block_tools += [qemu_nbd]
-  endif
+  qemu_block_tools += [qemu_img, qemu_io, qemu_nbd]
 
   subdir('storage-daemon')
   subdir('contrib/rdmacm-mux')
