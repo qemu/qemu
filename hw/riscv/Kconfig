@@ -1,6 +1,3 @@
-config HART
-    bool
-
 config IBEX
     bool
 
@@ -10,7 +7,6 @@ config SIFIVE
 
 config SIFIVE_E
     bool
-    select HART
     select SIFIVE
     select SIFIVE_CLINT
     select SIFIVE_GPIO
@@ -22,7 +18,6 @@ config SIFIVE_E
 config SIFIVE_U
     bool
     select CADENCE
-    select HART
     select SIFIVE
     select SIFIVE_CLINT
     select SIFIVE_GPIO
@@ -35,7 +30,6 @@ config SIFIVE_U
 
 config SPIKE
     bool
-    select HART
     select HTIF
     select SIFIVE
     select SIFIVE_CLINT
@@ -44,7 +38,6 @@ config SPIKE
 config OPENTITAN
     bool
     select IBEX
-    select HART
     select UNIMP
 
 config RISCV_VIRT
@@ -52,7 +45,6 @@ config RISCV_VIRT
     imply PCI_DEVICES
     imply TEST_DEVICES
     select PCI
-    select HART
     select SERIAL
     select GOLDFISH_RTC
     select VIRTIO_MMIO
@@ -65,7 +57,6 @@ config RISCV_VIRT
 
 config MICROCHIP_PFSOC
     bool
-    select HART
     select SIFIVE
     select SIFIVE_CLINT
     select UNIMP
