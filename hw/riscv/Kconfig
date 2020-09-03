@@ -1,6 +1,36 @@
 config IBEX
     bool
 
+config MICROCHIP_PFSOC
+    bool
+    select CADENCE_SDHCI
+    select MCHP_PFSOC_MMUART
+    select MSI_NONBROKEN
+    select SIFIVE_CLINT
+    select SIFIVE_PDMA
+    select SIFIVE_PLIC
+    select UNIMP
+
+config OPENTITAN
+    bool
+    select IBEX
+    select UNIMP
+
+config RISCV_VIRT
+    bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select GOLDFISH_RTC
+    select MSI_NONBROKEN
+    select PCI
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PFLASH_CFI01
+    select SERIAL
+    select SIFIVE_CLINT
+    select SIFIVE_PLIC
+    select SIFIVE_TEST
+    select VIRTIO_MMIO
+
 config SIFIVE_E
     bool
     select MSI_NONBROKEN
@@ -30,33 +60,3 @@ config SPIKE
     select MSI_NONBROKEN
     select SIFIVE_CLINT
     select SIFIVE_PLIC
-
-config OPENTITAN
-    bool
-    select IBEX
-    select UNIMP
-
-config RISCV_VIRT
-    bool
-    imply PCI_DEVICES
-    imply TEST_DEVICES
-    select MSI_NONBROKEN
-    select PCI
-    select SERIAL
-    select GOLDFISH_RTC
-    select VIRTIO_MMIO
-    select PCI_EXPRESS_GENERIC_BRIDGE
-    select PFLASH_CFI01
-    select SIFIVE_CLINT
-    select SIFIVE_PLIC
-    select SIFIVE_TEST
-
-config MICROCHIP_PFSOC
-    bool
-    select MSI_NONBROKEN
-    select SIFIVE_CLINT
-    select UNIMP
-    select MCHP_PFSOC_MMUART
-    select SIFIVE_PDMA
-    select SIFIVE_PLIC
-    select CADENCE_SDHCI
