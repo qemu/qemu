@@ -53,7 +53,8 @@ static bool phb3_msi_read_ive(PnvPHB3 *phb, int srcno, uint64_t *out_ive)
         return false;
     }
 
-    if (dma_memory_read(&address_space_memory, ive_addr, &ive, sizeof(ive))) {
+    if (dma_memory_read(&address_space_memory, ive_addr,
+                        &ive, sizeof(ive), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Failed to read IVE at 0x%" PRIx64,
                       ive_addr);
         return false;
@@ -73,7 +74,8 @@ static void phb3_msi_set_p(Phb3MsiState *msi, int srcno, uint8_t gen)
         return;
     }
 
-    if (dma_memory_write(&address_space_memory, ive_addr + 4, &p, 1)) {
+    if (dma_memory_write(&address_space_memory, ive_addr + 4,
+                         &p, 1, MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Failed to write IVE (set P) at 0x%" PRIx64, ive_addr);
     }
@@ -89,7 +91,8 @@ static void phb3_msi_set_q(Phb3MsiState *msi, int srcno)
         return;
     }
 
-    if (dma_memory_write(&address_space_memory, ive_addr + 5, &q, 1)) {
+    if (dma_memory_write(&address_space_memory, ive_addr + 5,
+                         &q, 1, MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Failed to write IVE (set Q) at 0x%" PRIx64, ive_addr);
     }

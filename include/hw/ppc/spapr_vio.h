@@ -97,14 +97,16 @@ static inline bool spapr_vio_dma_valid(SpaprVioDevice *dev, uint64_t taddr,
 static inline int spapr_vio_dma_read(SpaprVioDevice *dev, uint64_t taddr,
                                      void *buf, uint32_t size)
 {
-    return (dma_memory_read(&dev->as, taddr, buf, size) != 0) ?
+    return (dma_memory_read(&dev->as, taddr,
+                            buf, size, MEMTXATTRS_UNSPECIFIED) != 0) ?
         H_DEST_PARM : H_SUCCESS;
 }
 
 static inline int spapr_vio_dma_write(SpaprVioDevice *dev, uint64_t taddr,
                                       const void *buf, uint32_t size)
 {
-    return (dma_memory_write(&dev->as, taddr, buf, size) != 0) ?
+    return (dma_memory_write(&dev->as, taddr,
+                             buf, size, MEMTXATTRS_UNSPECIFIED) != 0) ?
         H_DEST_PARM : H_SUCCESS;
 }
 

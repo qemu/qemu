@@ -350,7 +350,8 @@ static void allwinner_sun8i_emac_get_desc(AwSun8iEmacState *s,
                                           FrameDescriptor *desc,
                                           uint32_t phys_addr)
 {
-    dma_memory_read(&s->dma_as, phys_addr, desc, sizeof(*desc));
+    dma_memory_read(&s->dma_as, phys_addr, desc, sizeof(*desc),
+                    MEMTXATTRS_UNSPECIFIED);
 }
 
 static uint32_t allwinner_sun8i_emac_next_desc(AwSun8iEmacState *s,
@@ -402,7 +403,8 @@ static void allwinner_sun8i_emac_flush_desc(AwSun8iEmacState *s,
                                             FrameDescriptor *desc,
                                             uint32_t phys_addr)
 {
-    dma_memory_write(&s->dma_as, phys_addr, desc, sizeof(*desc));
+    dma_memory_write(&s->dma_as, phys_addr, desc, sizeof(*desc),
+                     MEMTXATTRS_UNSPECIFIED);
 }
 
 static bool allwinner_sun8i_emac_can_receive(NetClientState *nc)
@@ -460,7 +462,8 @@ static ssize_t allwinner_sun8i_emac_receive(NetClientState *nc,
                             << RX_DESC_STATUS_FRM_LEN_SHIFT;
         }
 
-        dma_memory_write(&s->dma_as, desc.addr, buf, desc_bytes);
+        dma_memory_write(&s->dma_as, desc.addr, buf, desc_bytes,
+                         MEMTXATTRS_UNSPECIFIED);
         allwinner_sun8i_emac_flush_desc(s, &desc, s->rx_desc_curr);
         trace_allwinner_sun8i_emac_receive(s->rx_desc_curr, desc.addr,
                                            desc_bytes);
@@ -512,7 +515,8 @@ static void allwinner_sun8i_emac_transmit(AwSun8iEmacState *s)
             desc.status |= TX_DESC_STATUS_LENGTH_ERR;
             break;
         }
-        dma_memory_read(&s->dma_as, desc.addr, packet_buf + packet_bytes, bytes);
+        dma_memory_read(&s->dma_as, desc.addr, packet_buf + packet_bytes,
+                        bytes, MEMTXATTRS_UNSPECIFIED);
         packet_bytes += bytes;
         desc.status &= ~DESC_STATUS_CTL;
         allwinner_sun8i_emac_flush_desc(s, &desc, s->tx_desc_curr);
@@ -634,7 +638,8 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
         break;
     case REG_TX_CUR_BUF:        /* Transmit Current Buffer */
         if (s->tx_desc_curr != 0) {
-            dma_memory_read(&s->dma_as, s->tx_desc_curr, &desc, sizeof(desc));
+            dma_memory_read(&s->dma_as, s->tx_desc_curr, &desc, sizeof(desc),
+                            MEMTXATTRS_UNSPECIFIED);
             value = desc.addr;
         } else {
             value = 0;
@@ -647,7 +652,8 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
         break;
     case REG_RX_CUR_BUF:        /* Receive Current Buffer */
         if (s->rx_desc_curr != 0) {
-            dma_memory_read(&s->dma_as, s->rx_desc_curr, &desc, sizeof(desc));
+            dma_memory_read(&s->dma_as, s->rx_desc_curr, &desc, sizeof(desc),
+                            MEMTXATTRS_UNSPECIFIED);
             value = desc.addr;
         } else {
             value = 0;

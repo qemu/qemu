@@ -1246,8 +1246,8 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
         uint64_t qaddr = qaddr_base + (qindex << 2);
         uint32_t qdata = -1;
 
-        if (dma_memory_read(&address_space_memory, qaddr, &qdata,
-                            sizeof(qdata))) {
+        if (dma_memory_read(&address_space_memory, qaddr,
+                            &qdata, sizeof(qdata), MEMTXATTRS_UNSPECIFIED)) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to read EQ @0x%"
                           HWADDR_PRIx "\n", qaddr);
             return;
@@ -1311,7 +1311,8 @@ static void xive_end_enqueue(XiveEND *end, uint32_t data)
     uint32_t qdata = cpu_to_be32((qgen << 31) | (data & 0x7fffffff));
     uint32_t qentries = 1 << (qsize + 10);
 
-    if (dma_memory_write(&address_space_memory, qaddr, &qdata, sizeof(qdata))) {
+    if (dma_memory_write(&address_space_memory, qaddr,
+                         &qdata, sizeof(qdata), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to write END data @0x%"
                       HWADDR_PRIx "\n", qaddr);
         return;

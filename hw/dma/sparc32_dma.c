@@ -81,11 +81,11 @@ void ledma_memory_read(void *opaque, hwaddr addr,
     addr |= s->dmaregs[3];
     trace_ledma_memory_read(addr, len);
     if (do_bswap) {
-        dma_memory_read(&is->iommu_as, addr, buf, len);
+        dma_memory_read(&is->iommu_as, addr, buf, len, MEMTXATTRS_UNSPECIFIED);
     } else {
         addr &= ~1;
         len &= ~1;
-        dma_memory_read(&is->iommu_as, addr, buf, len);
+        dma_memory_read(&is->iommu_as, addr, buf, len, MEMTXATTRS_UNSPECIFIED);
         for(i = 0; i < len; i += 2) {
             bswap16s((uint16_t *)(buf + i));
         }
@@ -103,7 +103,8 @@ void ledma_memory_write(void *opaque, hwaddr addr,
     addr |= s->dmaregs[3];
     trace_ledma_memory_write(addr, len);
     if (do_bswap) {
-        dma_memory_write(&is->iommu_as, addr, buf, len);
+        dma_memory_write(&is->iommu_as, addr, buf, len,
+                         MEMTXATTRS_UNSPECIFIED);
     } else {
         addr &= ~1;
         len &= ~1;
@@ -114,7 +115,8 @@ void ledma_memory_write(void *opaque, hwaddr addr,
             for(i = 0; i < l; i += 2) {
                 tmp_buf[i >> 1] = bswap16(*(uint16_t *)(buf + i));
             }
-            dma_memory_write(&is->iommu_as, addr, tmp_buf, l);
+            dma_memory_write(&is->iommu_as, addr, tmp_buf, l,
+                             MEMTXATTRS_UNSPECIFIED);
             len -= l;
             buf += l;
             addr += l;
@@ -148,7 +150,8 @@ void espdma_memory_read(void *opaque, uint8_t *buf, int len)
     IOMMUState *is = (IOMMUState *)s->iommu;
 
     trace_espdma_memory_read(s->dmaregs[1], len);
-    dma_memory_read(&is->iommu_as, s->dmaregs[1], buf, len);
+    dma_memory_read(&is->iommu_as, s->dmaregs[1], buf, len,
+                    MEMTXATTRS_UNSPECIFIED);
     s->dmaregs[1] += len;
 }
 
@@ -158,7 +161,8 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
     IOMMUState *is = (IOMMUState *)s->iommu;
 
     trace_espdma_memory_write(s->dmaregs[1], len);
-    dma_memory_write(&is->iommu_as, s->dmaregs[1], buf, len);
+    dma_memory_write(&is->iommu_as, s->dmaregs[1], buf, len,
+                     MEMTXATTRS_UNSPECIFIED);
     s->dmaregs[1] += len;
 }
 

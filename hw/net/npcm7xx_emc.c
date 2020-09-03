@@ -200,7 +200,8 @@ static void emc_update_irq_from_reg_change(NPCM7xxEMCState *emc)
 
 static int emc_read_tx_desc(dma_addr_t addr, NPCM7xxEMCTxDesc *desc)
 {
-    if (dma_memory_read(&address_space_memory, addr, desc, sizeof(*desc))) {
+    if (dma_memory_read(&address_space_memory, addr, desc,
+                        sizeof(*desc), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Failed to read descriptor @ 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return -1;
@@ -221,7 +222,7 @@ static int emc_write_tx_desc(const NPCM7xxEMCTxDesc *desc, dma_addr_t addr)
     le_desc.status_and_length = cpu_to_le32(desc->status_and_length);
     le_desc.ntxdsa = cpu_to_le32(desc->ntxdsa);
     if (dma_memory_write(&address_space_memory, addr, &le_desc,
-                         sizeof(le_desc))) {
+                         sizeof(le_desc), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Failed to write descriptor @ 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return -1;
@@ -231,7 +232,8 @@ static int emc_write_tx_desc(const NPCM7xxEMCTxDesc *desc, dma_addr_t addr)
 
 static int emc_read_rx_desc(dma_addr_t addr, NPCM7xxEMCRxDesc *desc)
 {
-    if (dma_memory_read(&address_space_memory, addr, desc, sizeof(*desc))) {
+    if (dma_memory_read(&address_space_memory, addr, desc,
+                        sizeof(*desc), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Failed to read descriptor @ 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return -1;
@@ -252,7 +254,7 @@ static int emc_write_rx_desc(const NPCM7xxEMCRxDesc *desc, dma_addr_t addr)
     le_desc.reserved = cpu_to_le32(desc->reserved);
     le_desc.nrxdsa = cpu_to_le32(desc->nrxdsa);
     if (dma_memory_write(&address_space_memory, addr, &le_desc,
-                         sizeof(le_desc))) {
+                         sizeof(le_desc), MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Failed to write descriptor @ 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return -1;
@@ -366,7 +368,8 @@ static void emc_try_send_next_packet(NPCM7xxEMCState *emc)
         buf = malloced_buf;
     }
 
-    if (dma_memory_read(&address_space_memory, next_buf_addr, buf, length)) {
+    if (dma_memory_read(&address_space_memory, next_buf_addr, buf,
+                        length, MEMTXATTRS_UNSPECIFIED)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Failed to read packet @ 0x%x\n",
                       __func__, next_buf_addr);
         emc_set_mista(emc, REG_MISTA_TXBERR);
@@ -551,10 +554,11 @@ static ssize_t emc_receive(NetClientState *nc, const uint8_t *buf, size_t len1)
 
     buf_addr = rx_desc.rxbsa;
     emc->regs[REG_CRXBSA] = buf_addr;
-    if (dma_memory_write(&address_space_memory, buf_addr, buf, len) ||
+    if (dma_memory_write(&address_space_memory, buf_addr, buf,
+                         len, MEMTXATTRS_UNSPECIFIED) ||
         (!(emc->regs[REG_MCMDR] & REG_MCMDR_SPCRC) &&
-         dma_memory_write(&address_space_memory, buf_addr + len, crc_ptr,
-                          4))) {
+         dma_memory_write(&address_space_memory, buf_addr + len,
+                          crc_ptr, 4, MEMTXATTRS_UNSPECIFIED))) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bus error writing packet\n",
                       __func__);
         emc_set_mista(emc, REG_MISTA_RXBERR);
