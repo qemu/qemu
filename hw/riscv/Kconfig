@@ -61,6 +61,7 @@ config RISCV_VIRT
     select SIFIVE
     select SIFIVE_CLINT
     select SIFIVE_PLIC
+    select SIFIVE_TEST
 
 config MICROCHIP_PFSOC
     bool
