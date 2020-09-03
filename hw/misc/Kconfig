@@ -137,6 +137,9 @@ config AVR_POWER
 config SIFIVE_E_PRCI
     bool
 
+config SIFIVE_U_OTP
+    bool
+
 config SIFIVE_U_PRCI
     bool
 
