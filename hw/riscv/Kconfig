@@ -15,6 +15,7 @@ config SIFIVE_E
     bool
     select HART
     select SIFIVE
+    select SIFIVE_CLINT
     select SIFIVE_GPIO
     select SIFIVE_E_PRCI
     select UNIMP
@@ -24,6 +25,7 @@ config SIFIVE_U
     select CADENCE
     select HART
     select SIFIVE
+    select SIFIVE_CLINT
     select SIFIVE_GPIO
     select SIFIVE_PDMA
     select SIFIVE_U_OTP
@@ -35,6 +37,7 @@ config SPIKE
     select HART
     select HTIF
     select SIFIVE
+    select SIFIVE_CLINT
 
 config OPENTITAN
     bool
@@ -54,11 +57,13 @@ config RISCV_VIRT
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PFLASH_CFI01
     select SIFIVE
+    select SIFIVE_CLINT
 
 config MICROCHIP_PFSOC
     bool
     select HART
     select SIFIVE
+    select SIFIVE_CLINT
     select UNIMP
     select MCHP_PFSOC_MMUART
     select SIFIVE_PDMA

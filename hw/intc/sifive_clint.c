@@ -26,7 +26,7 @@
 #include "hw/sysbus.h"
 #include "target/riscv/cpu.h"
 #include "hw/qdev-properties.h"
-#include "hw/riscv/sifive_clint.h"
+#include "hw/intc/sifive_clint.h"
 #include "qemu/timer.h"
 
 static uint64_t cpu_riscv_read_rtc(uint32_t timebase_freq)
