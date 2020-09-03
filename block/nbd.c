@@ -549,7 +549,7 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 
     /* Finalize previous connection if any */
     if (s->ioc) {
-        nbd_client_detach_aio_context(s->bs);
+        qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         object_unref(OBJECT(s->sioc));
         s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
@@ -707,7 +707,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
 
     s->connection_co = NULL;
     if (s->ioc) {
-        nbd_client_detach_aio_context(s->bs);
+        qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         object_unref(OBJECT(s->sioc));
         s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
